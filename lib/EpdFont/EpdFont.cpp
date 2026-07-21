@@ -26,6 +26,7 @@ void EpdFont::getTextBounds(const char* string, const int startX, const int star
     const bool isCombining = utf8IsCombiningMark(cp);
 
     if (!isCombining) {
+      cp = utf8ComposeHangul(cp, string);
       cp = applyLigatures(cp, string);
     }
 

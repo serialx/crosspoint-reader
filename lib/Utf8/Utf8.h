@@ -74,3 +74,24 @@ inline bool utf8IsCombiningMark(const uint32_t cp) {
          || (cp >= 0x20D0 && cp <= 0x20FF)   // Combining Diacritical Marks for Symbols
          || (cp >= 0xFE20 && cp <= 0xFE2F);  // Combining Half Marks
 }
+
+// Composes a decomposed Hangul syllable (NFD: leading consonant + medial vowel
+// [+ trailing consonant] conjoining jamo) into its precomposed NFC codepoint
+// (U+AC00 block). macOS stores filenames in NFD, and the fonts only carry
+// precomposed syllables, so decomposed jamo would otherwise be dropped as
+// missing glyphs. Composition is pure arithmetic (Unicode 3.12) — no tables.
+// `text` is advanced past any jamo consumed; other codepoints pass through.
+inline uint32_t utf8ComposeHangul(const uint32_t cp, const char*& text) {
+  if (cp < 0x1100 || cp > 0x1112) return cp;  // not a modern leading consonant
+  const auto* peek = reinterpret_cast<const unsigned char*>(text);
+  const uint32_t v = utf8NextCodepoint(&peek);
+  if (v < 0x1161 || v > 0x1175) return cp;  // no medial vowel: pass through
+  uint32_t syllable = 0xAC00 + (cp - 0x1100) * 588 + (v - 0x1161) * 28;
+  text = reinterpret_cast<const char*>(peek);
+  const uint32_t t = utf8NextCodepoint(&peek);
+  if (t >= 0x11A8 && t <= 0x11C2) {  // optional trailing consonant
+    syllable += t - 0x11A7;
+    text = reinterpret_cast<const char*>(peek);
+  }
+  return syllable;
+}

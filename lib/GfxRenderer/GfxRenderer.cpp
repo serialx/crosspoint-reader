@@ -608,6 +608,7 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y, const cha
       continue;
     }
 
+    cp = utf8ComposeHangul(cp, textCursor);
     cp = font.applyLigatures(cp, textCursor, style);
 
     // Differential rounding: snap (previous advance + current kern) as one unit so
@@ -1895,6 +1896,7 @@ int GfxRenderer::getTextAdvanceX(const int fontId, const char* text, EpdFontFami
       if (BidiUtils::isTransparentMark(cp)) {
         continue;
       }
+      cp = utf8ComposeHangul(cp, text);
       int32_t advFP = sdIt->second->getAdvance(cp, styleIdx);
       if (advFP == 0 && !utf8IsCombiningMark(cp)) {
         const EpdGlyph* glyph = font.getGlyph(cp, style);
@@ -1924,6 +1926,7 @@ int GfxRenderer::getTextAdvanceX(const int fontId, const char* text, EpdFontFami
     if (utf8IsCombiningMark(cp)) {
       continue;
     }
+    cp = utf8ComposeHangul(cp, text);
     cp = font.applyLigatures(cp, text, style);
 
     // Differential rounding: snap (previous advance + current kern) together,
@@ -2023,6 +2026,7 @@ void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y
       continue;
     }
 
+    cp = utf8ComposeHangul(cp, text);
     cp = font.applyLigatures(cp, text, style);
 
     // Differential rounding: snap (previous advance + current kern) as one unit,

@@ -53,8 +53,10 @@ On the very first lookup with a dictionary (and again whenever the `.idx` or `.s
 
 1. **Direct match** — the word or phrase is searched as-is (case-insensitive) in the dictionary index. Leading and trailing punctuation and whitespace are stripped automatically. Multi-word phrases match dictionary entries containing spaces (such as idioms, phrasal verbs, or compound terms).
 2. **Synonyms** — on a miss, if the dictionary ships a `.syn` file, alternate spellings and irregular forms recorded there are resolved to their headword (e.g. `oxen` → `ox`, `colour` → `color`). This step is skipped if the `.sidx` sidecar could not be built (e.g. transient low memory during indexing); the dictionary otherwise stays usable, and the build is retried the next time it is opened.
-3. **Stemming** — still no match: common English word forms are retried automatically: possessives and plurals (`dogs` → `dog`, `stories` → `story`) and verb endings (`walked` → `walk`, `running` → `run`, `making` → `make`).
+3. **Base forms** — still no match: common word forms are retried automatically. Korean regular past tense (`먹었다` → `먹다`, `말했다` → `말하다`); English possessives and plurals (`dogs` → `dog`, `stories` → `story`) and verb endings (`walked` → `walk`, `running` → `run`, `making` → `make`). A generated form must exist in the selected dictionary.
 4. **Not found** — a short popup appears and you return to word selection.
+
+The Korean step handles only the regular past tense of a single Hangul word, not particles, other conjugations, or irregular verbs. Forms whose base is ambiguous are left alone: stems ending in `ㄹ` (`들었다` can be `들다` or `듣다`) and forms that can hide a dropped `ㅅ` (`지었다` can be `짓다` or `지다`). This also leaves some regular verbs such as `열었다` unresolved unless the dictionary lists the full form or a synonym. Dictionary coverage still matters: if `공부하다` is only described under `공부`, the fallback cannot find it from `공부했다`.
 
 ## The Definition Screen
 

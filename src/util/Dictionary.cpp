@@ -12,6 +12,7 @@
 
 #include "DictZip.h"
 #include "DictionaryRegistry.h"
+#include "KoreanDictionary.h"
 #include "StringUtils.h"
 
 namespace {
@@ -604,6 +605,13 @@ std::string Dictionary::cleanWord(const char* word) {
 
 void Dictionary::stemVariants(const std::string& word, std::vector<std::string>& out) {
   out.clear();
+  // Hangul never matches the ASCII suffix rules below, so one Korean candidate
+  // is the whole list.
+  std::string korean = KoreanDictionary::baseForm(word);
+  if (!korean.empty()) {
+    out.push_back(std::move(korean));
+    return;
+  }
   out.reserve(6);
   const size_t n = word.size();
   const auto add = [&out](std::string v) {
@@ -669,8 +677,7 @@ bool Dictionary::lookup(const char* word, std::string& definitionOut, std::strin
     location = locate(session, cleaned.c_str(), &matchedHeadwordOut);
     searchFailed = location.readError;
 
-    // Dictionary-authored synonyms (alternate spellings, irregular forms) take
-    // precedence over the English-only stemmer, and are language-agnostic.
+    // Dictionary-authored synonyms take precedence over generated base forms.
     if (!location.found && hasSyn) {
       location = locateSynonym(session, cleaned.c_str(), &matchedHeadwordOut);
       searchFailed = searchFailed || location.readError;

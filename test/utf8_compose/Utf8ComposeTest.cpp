@@ -2,7 +2,9 @@
 #include <xp_ffi.h>
 
 #include <cstring>
+#include <memory>
 #include <string>
+#include <tuple>
 
 #include "Utf8.h"
 
@@ -171,6 +173,27 @@ TEST(TextFfi, IncompleteInputNeedsNoTerminator) {
   EXPECT_EQ(xp_utf8_next(nullptr, 0, &consumed), 0u);
   EXPECT_EQ(consumed, 0u);
 }
+
+class Utf8NextCodepoint : public testing::TestWithParam<std::tuple<std::string, uint32_t, size_t>> {};
+
+TEST_P(Utf8NextCodepoint, ExactUnterminatedAllocation) {
+  const auto& [bytes, expectedCodepoint, expectedConsumed] = GetParam();
+  auto input = std::make_unique<unsigned char[]>(bytes.size());
+  std::memcpy(input.get(), bytes.data(), bytes.size());
+  const unsigned char* cursor = input.get();
+  EXPECT_EQ(utf8NextCodepoint(&cursor), expectedCodepoint);
+  EXPECT_EQ(static_cast<size_t>(cursor - input.get()), expectedConsumed);
+  if (expectedConsumed < bytes.size()) {
+    EXPECT_EQ(utf8NextCodepoint(&cursor), static_cast<uint32_t>('A'));
+    EXPECT_EQ(static_cast<size_t>(cursor - input.get()), bytes.size());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(BoundedBuffers, Utf8NextCodepoint,
+                         testing::Values(std::make_tuple(std::string("\xC3\xA9"), 0xE9u, size_t{2}),
+                                         std::make_tuple(std::string("\xE4\xB8\xAD"), 0x4E2Du, size_t{3}),
+                                         std::make_tuple(std::string("\xFF"), 0xFFFDu, size_t{1}),
+                                         std::make_tuple(std::string("\xE2\x41"), 0xFFFDu, size_t{1})));
 
 TEST(TextFfi, InsufficientOffsetStorageIsUntouched) {
   const std::string input = "甲乙丙";

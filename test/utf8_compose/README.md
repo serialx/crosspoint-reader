@@ -53,3 +53,15 @@ python3 test/utf8_compose/text_goldens.py --dump /tmp/text-cpp-oracle
 
 `--capture` refuses an existing fixture. Capture only with the original C++
 implementation; never replace the baseline to accept changed Rust output.
+
+The public decoder also has exact-sized, unterminated allocation tests. Run
+these and the KOReader UTF-16 conversion-buffer regression with AddressSanitizer:
+
+```sh
+cmake -S test -B build/test-asan -DCROSSPOINT_TEST_ASAN=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build/test-asan --target Utf8ComposeTest KOReaderXPathResolverTest LibraryTextTest -j 8
+ctest --test-dir build/test-asan -R 'ExactUnterminated|ResolvesUtf16' --output-on-failure
+```
+
+The option instruments C/C++ sources, including the facade and Expat; it does
+not instrument the Rust archive or standalone Python-driven build commands.

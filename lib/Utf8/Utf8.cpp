@@ -5,12 +5,20 @@
 #include <cstring>
 
 uint32_t utf8NextCodepoint(const unsigned char** string) {
-  // Bound the borrowed slice without scanning the remaining string each time.
-  size_t available = 0;
-  if (**string < 0x80) {
-    available = 1;
-  } else {
-    while (available < 4 && (*string)[available]) ++available;
+  const unsigned char lead = **string;
+  size_t expected = 1;
+  if ((lead & 0xE0) == 0xC0) {
+    expected = 2;
+  } else if ((lead & 0xF0) == 0xE0) {
+    expected = 3;
+  } else if ((lead & 0xF8) == 0xF0) {
+    expected = 4;
+  }
+  // Callers may supply unterminated characters. Stop at the first invalid continuation.
+  size_t available = 1;
+  while (available < expected) {
+    const unsigned char next = (*string)[available++];
+    if ((next & 0xC0) != 0x80) break;
   }
   size_t consumed = 0;
   const auto cp = xp_utf8_next(*string, available, &consumed);

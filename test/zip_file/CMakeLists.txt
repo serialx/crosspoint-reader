@@ -15,3 +15,10 @@ target_include_directories(ZipFileTest PRIVATE
 )
 target_link_libraries(ZipFileTest PRIVATE crosspoint_test_common GTest::gtest_main)
 gtest_discover_tests(ZipFileTest)
+
+# Inspect the existing private cursor/stat contract without changing the firmware API.
+target_compile_options(ZipFileTest PRIVATE -fno-access-control)
+target_compile_definitions(ZipFileTest PRIVATE
+  ZIP_EPUB_DIR="${REPO_ROOT}/test/epubs"
+  ZIP_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)

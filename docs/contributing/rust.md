@@ -98,3 +98,26 @@ The host CMake build compiles the same `xp-ffi` static library and links it
 into the hyphenation and line-breaking suites. The existing F1 thresholds
 also run through the C++ facade. `HyphenationCommon` retains only the explicit
 and soft-hyphen predicates needed by `TokenBoundary`; its interface is unchanged.
+
+## CSS
+
+`xp-core::css` owns streaming CSS parsing, bounded selector/style pools,
+matching, and v19 cache records. `CssParser` keeps HalFile I/O and the existing
+`.tmp`/`.bak` cache transaction. It feeds 512-byte chunks and releases Rust
+storage on `clear()`; the chapter-facing `CssStyle` layout is unchanged.
+
+The ABI uses `XP_CSS_WIRE_BYTES` (88), checked against the C++ decoder at compile
+time. All pointers are borrowed for one call; handles require exclusive access.
+An empty stylesheet still needs a final feed call. Cache output emits its header
+then one source-ordered record per call, ending with zero bytes written.
+Cache input accepts chunks and validates completeness on the final call.
+
+The three pools keep the original caps and doubling schedule: 1,500 eight-byte
+index entries, 32,768 selector bytes, and 256 interned styles. Styles use the
+88-byte wire representation in memory. All pool and scratch allocations are
+fallible; lookup allocates nothing. Parsing reports Partial after storage or
+input limits; cache hydration reports LowMemory so the caller can retry.
+
+Host CMake tests build the same Rust archive with a host allocator shim. See
+[test/css_parser/README.md](../../test/css_parser/README.md) for oracle provenance,
+wire-byte checks, and allocation-failure coverage. The cache version remains 19.

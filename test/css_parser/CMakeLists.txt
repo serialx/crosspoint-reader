@@ -1,3 +1,9 @@
+# All host targets that compile the CSS facade share the same Rust archive.
+add_library(css_rust_host OBJECT RustHostAllocator.cpp)
+target_sources(crosspoint_test_common INTERFACE $<TARGET_OBJECTS:css_rust_host>)
+target_link_libraries(crosspoint_test_common INTERFACE crosspoint_hyphen_ffi)
+target_include_directories(crosspoint_test_common INTERFACE "${REPO_ROOT}/rust/crates/xp-ffi/include")
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 file(GLOB_RECURSE CSS_GOLDEN_INPUTS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/goldens/*")
 set(CSS_GOLDEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/goldens")
@@ -14,6 +20,7 @@ add_custom_target(css_goldens DEPENDS "${CSS_GOLDEN_DIR}/unpacked.stamp")
 add_executable(CssParserTest
   CssParserTest.cpp
   CssGoldenTest.cpp
+  CssAllocationTest.cpp
   ${REPO_ROOT}/lib/Epub/Epub/css/CssParser.cpp
 )
 

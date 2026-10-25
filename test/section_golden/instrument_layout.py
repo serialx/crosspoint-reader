@@ -45,6 +45,10 @@ def instrument(source):
                       actualGapCount, totalNaturalGaps, spareSpace, justifyExtra, willReorder);
   for (size_t i = 0; i < lineWordCount; ++i)
     LayoutTrace::record("visual", i, willReorder ? visualOrderScratch[i] : i, lineXPos[i]);''')
+    before('    // Rust visual placement.', '''
+    LayoutTrace::record("reordered-gaps", visualMetrics.width, visualMetrics.natural_gaps,
+                        visualMetrics.gap_count, visualMetrics.spare, visualMetrics.justify);
+''')
     before('    const int justifyContribution = (effectiveAlignment == CssTextAlign::Justify && !isLastLine)', '''
     LayoutTrace::record("reordered-gaps", reorderedWordWidthSum, reorderedNaturalGaps,
                         reorderedGapCount, reorderedSpare, reorderedJustifyExtra);''')

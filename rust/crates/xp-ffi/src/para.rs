@@ -245,3 +245,28 @@ pub unsafe extern "C" fn xp_layout_split(
         &mut *result,
     ) as u8
 }
+
+use xp_core::para::layout_line::{
+    self, Callbacks as LineCallbacks, Metrics as LineMetrics, Spec as LineSpec,
+};
+/// # Safety
+/// Inputs meet layout_line::metrics's contract; out is writable and disjoint.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_line_metrics(
+    spec: *const LineSpec,
+    callbacks: *const LineCallbacks,
+    out: *mut LineMetrics,
+) {
+    out.write(layout_line::metrics(&*spec, &*callbacks));
+}
+/// # Safety
+/// Inputs and output meet layout_line::position's contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_line_position(
+    spec: *const LineSpec,
+    callbacks: *const LineCallbacks,
+    metrics: *const LineMetrics,
+    out: *mut i16,
+) {
+    layout_line::position(&*spec, &*callbacks, &*metrics, out);
+}

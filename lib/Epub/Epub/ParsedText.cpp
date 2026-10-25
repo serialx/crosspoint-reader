@@ -35,7 +35,9 @@ constexpr size_t RTL_PARAGRAPH_PROBE_WORDS = 3;
 // Per-word: scan enough chars to see through leading neutrals (quotes, numbers)
 // before giving up. 64 is a hedge for pathological cases like long numeric tokens.
 constexpr int RTL_PER_WORD_PROBE_DEPTH = 64;
+#if !XP_RUST_LAYOUT
 constexpr size_t MIN_JUSTIFY_GAPS = 1;
+#endif
 
 // Byte-level pre-check: Hebrew UTF-8 lead bytes 0xD6-0xD7, Arabic/Syriac 0xD8-0xDB.
 bool mayContainRtlBytes(const char* str) {
@@ -150,6 +152,7 @@ std::vector<size_t> explicitHyphenBreakByteOffsets(const std::string& text, cons
   return breakOffsets;
 }
 
+#if !XP_RUST_LAYOUT
 int computeJustifyExtra(const int spareSpace, const size_t gapCount) {
   if (gapCount < MIN_JUSTIFY_GAPS || spareSpace <= 0) return 0;
   // Distribute the spare space evenly across gaps. Do NOT bail out to 0 when the
@@ -159,6 +162,8 @@ int computeJustifyExtra(const int spareSpace, const size_t gapCount) {
   // alignment bug. Match the un-capped behavior of the old code.
   return spareSpace / static_cast<int>(gapCount);
 }
+
+#endif
 
 // Removes every soft hyphen in-place so rendered glyphs match measured widths.
 void stripSoftHyphensInPlace(std::string& word) {
@@ -1442,6 +1447,73 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
         static_cast<EpdFontFamily::Style>(getWordStyleAt(lastBreakAt + i) & ~EpdFontFamily::SMALL_CAPS));
   }
 
+  // Calculate spacing (account for indent reducing effective page width on first line)
+  [[maybe_unused]] const int effectivePageWidth = pageWidth - firstLineIndent;
+  const bool isLastLine = lineBreak == tokenCount();
+
+  // For RTL, implicit/default Left alignment becomes Right alignment.
+  // Explicit text-align:left must remain left for CSS correctness.
+  const CssTextAlign effectiveAlignment =
+      (blockStyle.isRtl && !blockStyle.textAlignDefined && blockStyle.alignment == CssTextAlign::Left)
+          ? CssTextAlign::Right
+          : blockStyle.alignment;
+
+#if XP_RUST_LAYOUT
+  struct PositionContext {
+    const ParsedText& paragraph;
+    const GfxRenderer& renderer;
+    const ParagraphWidths& widths;
+    const std::vector<std::string>& words;
+    const std::vector<EpdFontFamily::Style>& styles;
+    size_t start;
+    int font;
+    bool reordered;
+  } positionContext{*this, renderer, wordWidths, lineWords, lineWordStyles, lastBreakAt, fontId, false};
+  const XpLineCallbacks lineCallbacks = {
+      &positionContext,
+      [](void* raw, size_t i) -> XpLineWordMetrics {
+        const auto& c = *static_cast<PositionContext*>(raw);
+        const auto& p = c.paragraph;
+        if (c.reordered) {
+          return {p.reorderedWidthsScratch[i], static_cast<uint8_t>(p.reorderedContinuesScratch[i]),
+                  static_cast<uint8_t>(p.reorderedWordsScratch[i] == " ")};
+        }
+        return {c.widths[c.start + i], static_cast<uint8_t>(p.tokenContinues(c.start + i)),
+                static_cast<uint8_t>(c.words[i] == " ")};
+      },
+      [](void* raw, size_t i) -> int32_t {
+        const auto& c = *static_cast<PositionContext*>(raw);
+        const auto& p = c.paragraph;
+        const auto& words = c.reordered ? p.reorderedWordsScratch : c.words;
+        const auto& styles = c.reordered ? p.reorderedStylesScratch : c.styles;
+        const bool continues = c.reordered ? p.reorderedContinuesScratch[i] : p.tokenContinues(c.start + i);
+        const bool noSpace = c.reordered ? p.reorderedNoSpaceBeforeScratch[i] : p.tokenNoSpaceBefore(c.start + i);
+        if (continues) {
+          return c.renderer.getKerning(c.font, lastCodepoint(words[i - 1]), firstCodepoint(words[i]), styles[i - 1],
+                                       p.blockStyle.characterSpacing);
+        }
+        if (noSpace) return p.blockStyle.characterSpacing;
+        return scaleSpace(
+            c.renderer.getSpaceAdvance(c.font, lastCodepoint(words[i - 1]), firstCodepoint(words[i]), styles[i - 1]),
+            p.wordSpacingPercent);
+      }};
+  XpLineSpec lineSpec{lineWordCount,
+                      pageWidth,
+                      firstLineIndent,
+                      extraStartOffset,
+                      extraEndOffset,
+                      static_cast<uint8_t>(effectiveAlignment),
+                      static_cast<uint8_t>(blockStyle.isRtl),
+                      0,
+                      static_cast<uint8_t>(isLastLine)};
+  XpLineMetrics logicalMetrics{};
+  xp_layout_line_metrics(&lineSpec, &lineCallbacks, &logicalMetrics);
+  [[maybe_unused]] const int lineWordWidthSum = logicalMetrics.width;
+  [[maybe_unused]] const size_t actualGapCount = logicalMetrics.gap_count;
+  [[maybe_unused]] const int totalNaturalGaps = logicalMetrics.natural_gaps;
+  [[maybe_unused]] const int spareSpace = logicalMetrics.spare;
+  [[maybe_unused]] const int justifyExtra = logicalMetrics.justify;
+#else
   // Calculate total word width for this line, count actual word gaps,
   // and accumulate total natural gap widths (including space kerning adjustments).
   int lineWordWidthSum = 0;
@@ -1471,23 +1543,14 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
     }
   }
 
-  // Calculate spacing (account for indent reducing effective page width on first line)
-  const int effectivePageWidth = pageWidth - firstLineIndent;
-  const bool isLastLine = lineBreak == tokenCount();
-
-  // For RTL, implicit/default Left alignment becomes Right alignment.
-  // Explicit text-align:left must remain left for CSS correctness.
-  const CssTextAlign effectiveAlignment =
-      (blockStyle.isRtl && !blockStyle.textAlignDefined && blockStyle.alignment == CssTextAlign::Left)
-          ? CssTextAlign::Right
-          : blockStyle.alignment;
-
   // For justified text, compute per-gap extra to distribute remaining space evenly.
   // extraEndOffset reserves space for any ruby group at the right edge of the line.
   const int spareSpace = effectivePageWidth - extraStartOffset - extraEndOffset - lineWordWidthSum - totalNaturalGaps;
   const int justifyExtra = (effectiveAlignment == CssTextAlign::Justify && !isLastLine)
                                ? computeJustifyExtra(spareSpace, actualGapCount)
                                : 0;
+
+#endif
 
   // BiDi processing: reorder words with UAX#9 in full-line context.
   visualOrderScratch.clear();
@@ -1541,6 +1604,15 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
       reorderedNoSpaceBeforeScratch.push_back(!continues && tokenNoSpaceBefore(lastBreakAt + src));
     }
 
+#if XP_RUST_LAYOUT
+    positionContext.reordered = true;
+    lineSpec.reordered = 1;
+    XpLineMetrics visualMetrics{};
+    xp_layout_line_metrics(&lineSpec, &lineCallbacks, &visualMetrics);
+    // Rust visual placement.
+    lineXPos.resize(lineWordCount);
+    xp_layout_line_position(&lineSpec, &lineCallbacks, &visualMetrics, lineXPos.data());
+#else
     int reorderedWordWidthSum = 0;
     size_t reorderedGapCount = 0;
     int reorderedNaturalGaps = 0;
@@ -1629,9 +1701,15 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
       }
     }
 
+#endif
+
     lineWords.swap(reorderedWordsScratch);
     lineWordStyles.swap(reorderedStylesScratch);
   } else {
+#if XP_RUST_LAYOUT
+    lineXPos.resize(lineWordCount);
+    xp_layout_line_position(&lineSpec, &lineCallbacks, &logicalMetrics, lineXPos.data());
+#else
     // Standard LTR/RTL positioning loop when no visual reordering is needed
     if (blockStyle.isRtl) {
       // RTL: position words from right to left
@@ -1721,6 +1799,7 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
         }
       }
     }
+#endif
   }
 
   const auto focusBoundaryAt = [&](const size_t idx) {

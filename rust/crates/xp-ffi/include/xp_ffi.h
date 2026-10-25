@@ -216,6 +216,33 @@ typedef struct {
 uint8_t xp_layout_split(XpWordStore* store, XpTokens* tokens, XpLayoutWidths* widths,
                         const XpLayoutSplitRequest* request, XpLayoutSplitResult* result);
 
+// Stable borrowed line in logical or MiniBidi visual order. gap queries the
+// natural advance BEFORE index, with index > 0. Callbacks never reenter layout.
+typedef struct {
+  uint16_t width;
+  uint8_t continues, space;
+} XpLineWordMetrics;
+typedef struct {
+  void* context;
+  XpLineWordMetrics (*word)(void*, size_t);
+  int32_t (*gap)(void*, size_t);
+} XpLineCallbacks;
+typedef struct {
+  size_t count;
+  int32_t page, indent, extra_start, extra_end;
+  uint8_t alignment, rtl, reordered, last;
+} XpLineSpec;
+typedef struct {
+  int32_t width, natural_gaps;
+  size_t gap_count;
+  int32_t spare, justify;
+} XpLineMetrics;
+void xp_layout_line_metrics(const XpLineSpec* spec, const XpLineCallbacks* callbacks, XpLineMetrics* out);
+// out borrows count writable i16 positions, disjoint from inputs. metrics belongs
+// to the same unchanged spec/callback line. Casts preserve firmware i16 wrapping.
+void xp_layout_line_position(const XpLineSpec* spec, const XpLineCallbacks* callbacks, const XpLineMetrics* metrics,
+                             int16_t* out);
+
 #ifdef __cplusplus
 }
 #endif

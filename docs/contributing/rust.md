@@ -15,15 +15,27 @@ rustup target add --toolchain 1.99.0 riscv32imc-unknown-none-elf
 Put Cargo on `PATH` (normally `~/.cargo/bin`). `pio run -e default` runs
 `scripts/build_rust.py`, which builds `xp-ffi` in release mode and links it into
 the firmware. Cargo outputs live under `.pio/build/<environment>/rust`.
-The script uses offline mode and never installs toolchains. Cargo fingerprints
-and the archive dependency trigger incremental rebuilds and firmware relinking.
+The C3 build uses offline mode. The script never installs toolchains. Cargo
+fingerprints and the archive dependency trigger incremental rebuilds and relinking.
 The linker places Rust after the firmware libraries so Rust's bundled weak
 math helpers do not replace the existing libm and libgcc implementations.
 
-ESP32-S3 environments require the Espressif toolchain installed with `espup`.
-Run `espup install` and source its exported environment before building. The
-script selects `cargo +esp` and builds `core` and `alloc` for
-`xtensa-esp32s3-none-elf`. Xtensa CI setup is not included yet.
+ESP32-S3 environments require the Espressif toolchain and `rust-src`, installed
+with `espup`:
+
+```sh
+cargo install espup --locked --version 0.17.1
+espup install --targets esp32s3 --toolchain-version 1.97.0.0
+```
+
+The script selects `cargo +esp` and builds `core` and `alloc` for
+`xtensa-esp32s3-none-elf`. Cargo needs registry access on the first S3 build to
+fetch the sysroot dependencies; `--locked` keeps their resolved versions fixed.
+CI installs the same Espressif toolchain for every S3 matrix entry.
+
+Keep rustup's Cargo on `PATH`. Sourcing `~/export-esp.sh` is not required for
+this static library: it uses no bindgen, so it needs no `LIBCLANG_PATH`, and
+PlatformIO supplies the GCC linker. The script does not use espup's GCC on `PATH`.
 
 Run portable checks from the workspace:
 

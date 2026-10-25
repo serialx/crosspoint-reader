@@ -37,9 +37,12 @@ elif mcu == "esp32s3":
 else:
     fail(f"unsupported MCU {mcu!r}; no Rust target is configured")
 
-command += ["build", "--locked", "--offline", "--release", "-p", "xp-ffi", "--target", target]
+command += ["build", "--locked", "--release", "-p", "xp-ffi", "--target", target]
 if mcu == "esp32s3":
+    # Building the sysroot needs registry crates, even with only local dependencies.
     command += ["-Zbuild-std=core,alloc"]
+else:
+    command += ["--offline"]
 
 process_env = os.environ.copy()
 process_env["CARGO_TARGET_DIR"] = str(target_dir)

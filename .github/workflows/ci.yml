@@ -93,20 +93,28 @@ jobs:
         include:
           - env: default
             asset: firmware.bin
+            mcu: esp32c3
           - env: sticky
             asset: firmware-sticky.bin
+            mcu: esp32s3
           - env: x4pro
             asset: firmware-x4pro.bin
+            mcu: esp32s3
           - env: x4c
             asset: firmware-x4c.bin
+            mcu: esp32s3
           - env: papermono
             asset: firmware-papermono.bin
+            mcu: esp32s3
           - env: metalio_eink4
             asset: firmware-metalio_eink4.bin
+            mcu: esp32s3
           - env: eego_a4
             asset: firmware-eego_a4.bin
+            mcu: esp32s3
           - env: picco
             asset: firmware-picco.bin
+            mcu: esp32s3
     steps:
       - uses: actions/checkout@v6
         with:
@@ -156,10 +164,22 @@ jobs:
           ~/.platformio/penv/bin/pio --version
 
       - name: Install Rust for ESP32-C3
-        if: matrix.env == 'default'
+        if: matrix.mcu == 'esp32c3'
         run: |
           rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
           rustup target add --toolchain 1.99.0 riscv32imc-unknown-none-elf
+
+      - name: Install Rust for ESP32-S3
+        if: matrix.mcu == 'esp32s3'
+        uses: esp-rs/xtensa-toolchain@v1.7.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          buildtargets: esp32s3
+          version: "1.97.0.0"
+          default: false
+          override: false
+          export: false
 
       - name: Build ${{ matrix.env }} firmware
         run: |

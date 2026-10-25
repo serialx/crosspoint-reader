@@ -21,12 +21,13 @@ GOLDEN = HERE / 'goldens.json.gz'
 
 def inputs():
     source = (HERE / 'KOReaderXPathResolverTest.cpp').read_text()
-    token = r'//[^\n]*|R"\((.*?)\)"|"((?:[^"\\]|\\.)*)"'
+    # Wide literals are encoded by their C++ tests, not standalone byte fixtures.
+    token = r'//[^\n]*|[uUL]"(?:[^"\\]|\\.)*"|R"\((.*?)\)"|"((?:[^"\\]|\\.)*)"'
     pieces = list(re.finditer(token, source, re.S))
     cases = []
     last_end = -1
     for match in pieces:
-        if match.group(0).startswith('//'):
+        if match.group(0).startswith(('//', 'u"', 'U"', 'L"')):
             continue
         if match.group(1) is not None:
             value = match.group(1).encode()

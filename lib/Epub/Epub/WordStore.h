@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Memory.h>
+#include <xp_ffi.h>
 
 #include <cstdint>
 #include <cstring>
@@ -20,6 +20,11 @@
 // the layout path a single detectable OOM choke point.
 class WordStore {
  public:
+  WordStore();
+  ~WordStore();
+  WordStore(const WordStore&) = delete;
+  WordStore& operator=(const WordStore&) = delete;
+
   struct StoredWord {
     uint32_t chunk = 0;
     uint16_t off = 0;
@@ -48,33 +53,14 @@ class WordStore {
   // Chunk enumeration for whole-paragraph codepoint scans (SD font advance
   // prewarm). Chunks hold consecutive NUL-terminated words; data may be null
   // for retired chunks.
-  size_t chunkCount() const { return chunkCount_; }
-  const char* chunkData(size_t i) const { return chunks_[i].data.get(); }
-  size_t chunkUsed(size_t i) const { return chunks_[i].used; }
+  size_t chunkCount() const { return xp_word_store_chunk_count(handle()); }
+  const char* chunkData(size_t i) const { return xp_word_store_chunk_data(handle(), i); }
+  size_t chunkUsed(size_t i) const { return xp_word_store_chunk_used(handle(), i); }
 
  private:
-  struct Chunk {
-    std::unique_ptr<char[]> data;
-    uint16_t capacity = 0;
-    uint16_t used = 0;
-    uint16_t live = 0;
-  };
-
-  const char* charsAt(const StoredWord& w) const {
-    // Bind to a typed local first: unique_ptr<char[]>::get() is char*, but
-    // cppcheck can't resolve the array-form template and reads it as void*,
-    // then flags the pointer arithmetic (arithOperationsOnVoidPointer).
-    const char* base = chunks_[w.chunk].data.get();
-    return base + w.off;
-  }
-  bool ensureChunkSlot();
-
-  static constexpr size_t CHUNK_SIZE = 2048;
-  // The uint16_t off/used fields force this bound; parser tokens are capped
-  // far below it (MAX_WORD_SIZE), so truncation is a theoretical safety net.
-  static constexpr size_t MAX_WORD_BYTES = 0xFFFE;
-
-  std::unique_ptr<Chunk[]> chunks_;
-  size_t chunkCount_ = 0;
-  size_t chunkCapacity_ = 0;
+  // Caller-owned opaque Rust state; no handle allocation in the paragraph hot path.
+  alignas(void*) uint8_t state[4 * sizeof(void*)];
+  XpWordStore* handle() { return reinterpret_cast<XpWordStore*>(state); }
+  const XpWordStore* handle() const { return reinterpret_cast<const XpWordStore*>(state); }
+  const char* charsAt(const StoredWord& w) const { return xp_word_store_cstr(handle(), {w.chunk, w.off, w.len}); }
 };

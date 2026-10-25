@@ -1,0 +1,313 @@
+//! Fallible paragraph storage. Text handles retain a single release obligation.
+
+use core::{mem, ptr, slice};
+
+#[repr(C)]
+pub struct Allocator {
+    pub allocate: unsafe extern "C" fn(usize) -> *mut u8,
+    pub release: unsafe extern "C" fn(*mut u8),
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Word {
+    pub chunk: u32,
+    pub off: u16,
+    pub len: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Chunk {
+    data: *mut u8,
+    capacity: u16,
+    used: u16,
+    live: u16,
+}
+
+pub struct WordStore {
+    chunks: *mut Chunk,
+    count: usize,
+    capacity: usize,
+    allocator: *const Allocator,
+}
+
+impl WordStore {
+    /// # Safety
+    /// allocator and its callbacks must remain valid until this store is dropped.
+    /// Allocations must be disjoint, pointer-aligned, and released by the paired callback.
+    pub unsafe fn new(allocator: *const Allocator) -> Self {
+        Self {
+            chunks: ptr::null_mut(),
+            count: 0,
+            capacity: 0,
+            allocator,
+        }
+    }
+
+    fn ensure_slot(&mut self) -> bool {
+        if self.count < self.capacity {
+            return true;
+        }
+        let Some(capacity) = (if self.capacity == 0 {
+            Some(8)
+        } else {
+            self.capacity.checked_mul(2)
+        }) else {
+            return false;
+        };
+        let Some(bytes) = capacity
+            .checked_mul(mem::size_of::<Chunk>())
+            .filter(|n| *n <= isize::MAX as usize)
+        else {
+            return false;
+        };
+        unsafe {
+            let grown = ((*self.allocator).allocate)(bytes).cast::<Chunk>();
+            if grown.is_null() {
+                return false;
+            }
+            if self.count != 0 {
+                ptr::copy_nonoverlapping(self.chunks, grown, self.count);
+            }
+            if !self.chunks.is_null() {
+                ((*self.allocator).release)(self.chunks.cast());
+            }
+            self.chunks = grown;
+            self.capacity = capacity;
+        }
+        true
+    }
+
+    pub fn append(&mut self, text: &[u8]) -> Option<Word> {
+        let len = text.len().min(65534);
+        let need = len + 1;
+        unsafe {
+            let fits = self.count != 0 && {
+                let tail = &*self.chunks.add(self.count - 1);
+                !tail.data.is_null() && usize::from(tail.capacity - tail.used) >= need
+            };
+            if !fits {
+                if self.count >= u32::MAX as usize || !self.ensure_slot() {
+                    return None;
+                }
+                let capacity = need.max(2048);
+                let data = ((*self.allocator).allocate)(capacity);
+                if data.is_null() {
+                    return None;
+                }
+                self.chunks.add(self.count).write(Chunk {
+                    data,
+                    capacity: capacity as u16,
+                    used: 0,
+                    live: 0,
+                });
+                self.count += 1;
+            }
+            let tail = &mut *self.chunks.add(self.count - 1);
+            let word = Word {
+                chunk: (self.count - 1) as u32,
+                off: tail.used,
+                len: len as u16,
+            };
+            ptr::copy_nonoverlapping(text.as_ptr(), tail.data.add(tail.used as usize), len);
+            tail.data.add(tail.used as usize + len).write(0);
+            tail.used += need as u16;
+            tail.live += 1;
+            Some(word)
+        }
+    }
+
+    pub fn view(&self, word: Word) -> Option<&[u8]> {
+        if word.chunk as usize >= self.count {
+            return None;
+        }
+        unsafe {
+            let chunk = &*self.chunks.add(word.chunk as usize);
+            let end = usize::from(word.off) + usize::from(word.len);
+            if chunk.data.is_null() || end >= chunk.used as usize {
+                return None;
+            }
+            Some(slice::from_raw_parts(
+                chunk.data.add(word.off as usize),
+                word.len as usize,
+            ))
+        }
+    }
+
+    pub fn release(&mut self, word: Word) {
+        if word.chunk as usize >= self.count {
+            return;
+        }
+        unsafe {
+            let chunk = &mut *self.chunks.add(word.chunk as usize);
+            chunk.live = chunk.live.saturating_sub(1);
+            if chunk.live == 0 && !chunk.data.is_null() && word.chunk as usize + 1 != self.count {
+                ((*self.allocator).release)(chunk.data);
+                chunk.data = ptr::null_mut();
+            }
+        }
+    }
+
+    pub fn chunk_count(&self) -> usize {
+        self.count
+    }
+    pub fn chunk(&self, index: usize) -> (*const u8, usize) {
+        if index >= self.count {
+            return (ptr::null(), 0);
+        }
+        unsafe {
+            let chunk = &*self.chunks.add(index);
+            (chunk.data, chunk.used as usize)
+        }
+    }
+}
+
+impl Drop for WordStore {
+    fn drop(&mut self) {
+        unsafe {
+            for i in 0..self.count {
+                let data = (*self.chunks.add(i)).data;
+                if !data.is_null() {
+                    ((*self.allocator).release)(data);
+                }
+            }
+            if !self.chunks.is_null() {
+                ((*self.allocator).release)(self.chunks.cast());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+    use super::*;
+    use std::{
+        alloc::{alloc, dealloc, Layout},
+        cell::RefCell,
+        collections::BTreeMap,
+        vec,
+        vec::Vec,
+    };
+
+    #[derive(Default)]
+    struct Heap {
+        live: BTreeMap<usize, usize>,
+        requests: Vec<usize>,
+        fail_at: Option<usize>,
+    }
+    std::thread_local! { static HEAP: RefCell<Heap> = RefCell::new(Heap::default()); }
+    unsafe extern "C" fn allocate(bytes: usize) -> *mut u8 {
+        HEAP.with(|heap| {
+            let mut heap = heap.borrow_mut();
+            heap.requests.push(bytes);
+            if heap.fail_at == Some(heap.requests.len()) {
+                return ptr::null_mut();
+            }
+            let p = alloc(Layout::from_size_align(bytes, mem::align_of::<usize>()).unwrap());
+            if !p.is_null() {
+                heap.live.insert(p as usize, bytes);
+            }
+            p
+        })
+    }
+    unsafe extern "C" fn release(p: *mut u8) {
+        HEAP.with(|heap| {
+            let bytes = heap.borrow_mut().live.remove(&(p as usize)).unwrap();
+            dealloc(
+                p,
+                Layout::from_size_align(bytes, mem::align_of::<usize>()).unwrap(),
+            );
+        });
+    }
+    static ALLOC: Allocator = Allocator { allocate, release };
+    fn reset(fail_at: Option<usize>) {
+        HEAP.with(|heap| {
+            assert!(heap.borrow().live.is_empty());
+            *heap.borrow_mut() = Heap {
+                fail_at,
+                ..Heap::default()
+            };
+        });
+    }
+    fn store() -> WordStore {
+        unsafe { WordStore::new(&ALLOC) }
+    }
+
+    #[test]
+    fn chunk_sizes_nuls_and_shared_suffix_retirement() {
+        reset(None);
+        let mut s = store();
+        let a = s.append(b"alpha").unwrap();
+        let b = s.append(&vec![b'x'; 2041]).unwrap();
+        assert_eq!((a.chunk, a.off, b.chunk, b.off), (0, 0, 0, 6));
+        assert_eq!(s.chunk(0).1, 2048);
+        let c = s.append(b"tail").unwrap();
+        let suffix = Word {
+            off: a.off + 2,
+            len: a.len - 2,
+            ..a
+        };
+        assert_eq!(s.view(suffix), Some(&b"pha"[..]));
+        unsafe {
+            assert_eq!(*s.view(a).unwrap().as_ptr().add(a.len as usize), 0);
+        }
+        s.release(suffix);
+        assert!(!s.chunk(0).0.is_null());
+        s.release(b);
+        assert!(s.chunk(0).0.is_null());
+        s.release(c);
+        assert!(!s.chunk(1).0.is_null());
+        assert_eq!(s.append(b"again").unwrap().off, 5);
+        HEAP.with(|heap| {
+            assert_eq!(
+                heap.borrow().requests,
+                [8 * mem::size_of::<Chunk>(), 2048, 2048]
+            )
+        });
+        drop(s);
+        HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
+    }
+
+    #[test]
+    fn exact_large_words_truncate_and_descriptor_growth() {
+        reset(None);
+        let mut s = store();
+        let long = s.append(&vec![b'z'; 70000]).unwrap();
+        assert_eq!(long.len, 65534);
+        assert_eq!(s.chunk(0).1, 65535);
+        for _ in 0..8 {
+            s.append(&vec![b'y'; 2048]).unwrap();
+        }
+        assert_eq!(s.chunk_count(), 9);
+        HEAP.with(|heap| {
+            let h = heap.borrow();
+            assert_eq!(h.requests[1], 65535);
+            assert_eq!(h.requests[2], 2049);
+            assert!(h.requests.contains(&(16 * mem::size_of::<Chunk>())));
+        });
+        drop(s);
+        HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
+    }
+
+    #[test]
+    fn every_allocation_failure_preserves_prior_words_and_drops_cleanly() {
+        for fail_at in 1..=12 {
+            reset(Some(fail_at));
+            let mut s = store();
+            let mut words = Vec::new();
+            for _ in 0..10 {
+                match s.append(&vec![b'a'; 2048]) {
+                    Some(w) => words.push(w),
+                    None => break,
+                }
+            }
+            for word in words {
+                assert_eq!(s.view(word).unwrap(), &vec![b'a'; 2048]);
+            }
+            drop(s);
+            HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
+        }
+    }
+}

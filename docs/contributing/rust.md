@@ -185,4 +185,20 @@ ctest --test-dir build/test -R '^SectionGolden' --output-on-failure
 Keep the captured C++ goldens when porting code. The harness uses host adapters
 for EPUB discovery, storage and font metrics; it does not replace firmware
 builds, device/emulator comparisons, allocation measurements or OOM tests.
-Word storage and token metadata remain in C++ at this checkpoint.
+Token metadata and layout decisions remain in C++ at this checkpoint.
+
+`WordStore` now delegates its arena to `xp-core::para`. Its opaque state uses
+four pointer-sized words inside the C++ owner, with no separate handle allocation.
+The C++ allocation callback uses the existing nothrow allocator and retries once
+following `MemoryManager::ensureFree(request + 8192)`. Rust returns every buffer
+to the matching C++ release callback. On firmware these allocations use the
+existing C++/ESP-IDF heap path; no Rust global allocation is added.
+
+Text chunks remain 2,048 bytes, with exact-fit chunks for larger words and a
+65,534-byte payload limit. Descriptors start at eight slots and double, keeping
+both descriptor arrays live only during growth. Each descriptor is 12 bytes on
+C3 and 16 bytes on a 64-bit host. Non-tail text chunks retire when their live-word
+count reaches zero; the tail remains available for appends. Suffix handles share
+one release obligation with their original handle. An allocation failure leaves
+the append output unchanged and existing word bytes valid. Rust tests inject
+failure at every allocation in a multi-chunk growth sequence and check cleanup.

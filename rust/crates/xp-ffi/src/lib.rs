@@ -2,6 +2,7 @@
 
 mod css;
 mod hyphen;
+mod para;
 mod zip;
 
 use core::alloc::{GlobalAlloc, Layout};

@@ -37,6 +37,7 @@ target_include_directories(ChapterHtmlSlimParserTest PRIVATE
 
 target_link_libraries(ChapterHtmlSlimParserTest PRIVATE
   crosspoint_test_common
+  crosspoint_hyphen_ffi
   GTest::gtest_main
   expat
 )

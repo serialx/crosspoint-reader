@@ -103,6 +103,35 @@ int32_t xp_zip_data_offset(uint32_t offset, const uint8_t* data, size_t len, uin
 // 1 exact byte match, 0 mismatch/oversized name, -1 invalid arguments.
 int32_t xp_zip_name_matches(const uint8_t* name, size_t len, const uint8_t* target, size_t target_len);
 
+// Paragraph word storage. No allocation for the opaque store itself.
+// State storage is caller-owned: four pointer-sized words aligned to sizeof(void*).
+// Allocator callbacks return pointer-aligned memory or NULL; release matches allocate.
+// The allocator record and callbacks outlive the store. No callback may reenter it.
+// All calls are externally serialized. destroy is required exactly once after init.
+typedef struct XpWordStore XpWordStore;
+typedef struct {
+  void* (*allocate)(size_t bytes);
+  void (*release)(void* data);
+} XpParaAllocator;
+typedef struct {
+  uint32_t chunk;
+  uint16_t off;
+  uint16_t len;
+} XpStoredWord;
+void xp_word_store_init(XpWordStore* state, const XpParaAllocator* allocator);
+void xp_word_store_destroy(XpWordStore* state);
+// Input is borrowed for the call (NULL only for len=0, len <= PTRDIFF_MAX).
+// out is aligned, writable and disjoint from input/state. Failure leaves it unchanged.
+// Copies at most 65534 bytes and appends NUL. 1=success, 0=OOM/invalid length.
+uint8_t xp_word_store_append(XpWordStore* state, const uint8_t* text, size_t len, XpStoredWord* out);
+// A handle/suffix is borrowed until release or destruction. Release exactly one
+// of the original handle and its suffix aliases, never both. Handles belong to state.
+const char* xp_word_store_cstr(const XpWordStore* state, XpStoredWord word);
+void xp_word_store_release(XpWordStore* state, XpStoredWord word);
+size_t xp_word_store_chunk_count(const XpWordStore* state);
+const char* xp_word_store_chunk_data(const XpWordStore* state, size_t index);
+size_t xp_word_store_chunk_used(const XpWordStore* state, size_t index);
+
 #ifdef __cplusplus
 }
 #endif

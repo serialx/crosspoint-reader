@@ -69,7 +69,7 @@ def main():
     data = subprocess.check_output([args.dump, 'cases'], input=b''.join(s.hex().encode()+b'\n' for s in inputs))
     rows = data.splitlines()
     assert len(rows) == len(inputs)
-    # Whole-result SHA-256 per input keeps all spine text under the fixture budget.
+    # Hash groups of complete records to keep all spine text under the fixture budget.
     records = [s.hex().encode() + b':' + row + b'\n' for s, row in zip(inputs, rows)]
     output = ranges + b'CASES\n' + b''.join(hashlib.sha256(b''.join(records[i:i+32])).hexdigest().encode()+b'\n' for i in range(0, len(records), 32))
     golden = HERE / 'text-goldens.gz'
@@ -78,7 +78,9 @@ def main():
         golden.write_bytes(gzip.compress(output, mtime=0))
     else:
         assert gzip.decompress(golden.read_bytes()) == output, 'Text golden mismatch'
-    print(f'{len(inputs)} byte-exact output digests; {len(ranges.splitlines())} exhaustive codepoint ranges; {golden.stat().st_size} compressed bytes')
+    print(f'{len(inputs)} inputs checked with grouped output digests; '
+          f'{len(ranges.splitlines()) - 1} exhaustive codepoint ranges; '
+          f'{golden.stat().st_size} compressed bytes')
 
 if __name__ == '__main__':
     main()

@@ -1,9 +1,7 @@
 //! Allocation-free Liang hyphenation with firmware-compatible byte offsets.
-mod compose;
 mod data;
-mod predicates;
 mod trie;
-use predicates::*;
+use crate::text::*;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
@@ -80,7 +78,7 @@ impl Iterator for Codepoints<'_> {
             let Some(mark) = crate::utf8::next(self.bytes, &mut pos) else {
                 break;
             };
-            let Some(composed) = compose::compose(cp, mark) else {
+            let Some(composed) = hyphen_compose(cp, mark) else {
                 break;
             };
             cp = composed;

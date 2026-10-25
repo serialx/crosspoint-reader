@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cstdint>
+#include <xp_ffi.h>
 
-#include "hyphenation/HyphenationCommon.h"
+#include <cstdint>
 
 // ParsedText stores each boundary in two bit-packed vectors. Together the bits distinguish
 // ordinary word gaps, CJK-style stretchable zero-width gaps, unbreakable attachment, and
@@ -21,9 +21,6 @@ constexpr bool isJustifiableGap(const bool continues, const bool isStretchableSp
 
 // Soft hyphens become visible only when their conditional break is taken. U+2011 exists to forbid
 // a break. Every other character classified by isExplicitHyphen is a visible break opportunity.
-inline bool allowsBreakAfterExplicitHyphen(const uint32_t cp) {
-  constexpr uint32_t NON_BREAKING_HYPHEN_CP = 0x2011;
-  return isExplicitHyphen(cp) && !isSoftHyphen(cp) && cp != NON_BREAKING_HYPHEN_CP;
-}
+inline bool allowsBreakAfterExplicitHyphen(const uint32_t cp) { return xp_text_break_after_hyphen(cp); }
 
 }  // namespace TokenBoundary

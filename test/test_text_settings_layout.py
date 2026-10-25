@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from rust_host import rust_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 activity = (ROOT / "src/activities/settings/TextSettingsActivity.cpp").read_text()
@@ -418,7 +419,7 @@ with tempfile.TemporaryDirectory() as directory:
         str(ROOT / "freeink-sdk/libs/ui/FreeInkUI/include"),
         "-I", str(ROOT / "lib/EpdFont"), "-I", str(ROOT / "lib/Utf8"),
         str(ROOT / "freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp"),
-        str(ROOT / "lib/EpdFont/EpdFont.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"),
+        str(ROOT / "lib/EpdFont/EpdFont.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(),
         str(cpp), "-o", str(executable),
     ], check=True)
     subprocess.run([str(executable)], check=True)

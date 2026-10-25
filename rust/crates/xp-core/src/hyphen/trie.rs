@@ -1,4 +1,5 @@
-use super::{data, predicates, Codepoints};
+use super::{data, Codepoints};
+use crate::text as predicates;
 
 const MAX_BYTES: usize = 160;
 const MAX_CHARS: usize = 70;

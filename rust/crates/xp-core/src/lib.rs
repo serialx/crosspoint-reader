@@ -3,6 +3,7 @@
 pub mod css;
 pub mod hyphen;
 pub mod para;
+pub mod text;
 pub mod utf8;
 pub mod xml;
 pub mod zip;

@@ -24,9 +24,7 @@ pub struct SplitResult {
     pub hyphen: u8,
 }
 
-fn hangul(cp: u32) -> bool {
-    matches!(cp, 0x1100..=0x11ff | 0x3130..=0x318f | 0xa960..=0xa97f | 0xac00..=0xd7ff | 0xffa0..=0xffdc)
-}
+use crate::text::hangul;
 
 unsafe fn choose(word: &[u8], focus: u8, r: &SplitRequest) -> Option<(usize, i32, bool)> {
     let mut chosen = None;

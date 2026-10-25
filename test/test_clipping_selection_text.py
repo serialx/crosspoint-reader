@@ -3,6 +3,7 @@
 from pathlib import Path
 import subprocess
 import tempfile
+from rust_host import rust_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / "src/activities/reader/ClipSelectionActivity.cpp").read_text()
@@ -437,7 +438,7 @@ with tempfile.TemporaryDirectory() as directory:
         "-I", str(ROOT / "lib/MiniBidi"), "-I", str(ROOT / "lib/Utf8"),
         "-I", str(ROOT / "lib/Epub"),
         str(cpp), str(bidi_object), str(ROOT / "lib/MiniBidi/BidiUtils.cpp"),
-        str(ROOT / "lib/Utf8/Utf8.cpp"), "-o", str(executable),
+        str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(), "-o", str(executable),
     ], check=True)
     subprocess.run([str(executable)], check=True)
 print("Clipping selection text regression checks passed")

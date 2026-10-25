@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <xp_ffi.h>
 
 #include <cstring>
 #include <string>
@@ -160,4 +161,28 @@ TEST(Utf8ComposeNfcInPlace, PreservesMalformedAndTruncatedBytes) {
       "\xE1\x84";
   utf8ComposeNfcInPlace(buffer);
   EXPECT_STREQ(buffer, "\xFF\xC3\xA9\xE1\x84");
+}
+
+TEST(TextFfi, IncompleteInputNeedsNoTerminator) {
+  const uint8_t input[] = {0xE2, 0x82};
+  size_t consumed = 99;
+  EXPECT_EQ(xp_utf8_next(input, sizeof(input), &consumed), 0xFFFDu);
+  EXPECT_EQ(consumed, 2u);
+  EXPECT_EQ(xp_utf8_next(nullptr, 0, &consumed), 0u);
+  EXPECT_EQ(consumed, 0u);
+}
+
+TEST(TextFfi, InsufficientOffsetStorageIsUntouched) {
+  const std::string input = "甲乙丙";
+  const auto* bytes = reinterpret_cast<const uint8_t*>(input.data());
+  size_t out[] = {99, 99, 99};
+  EXPECT_EQ(xp_text_offsets(bytes, input.size(), nullptr, 0), 2u);
+  EXPECT_EQ(xp_text_offsets(bytes, input.size(), out, 1), 2u);
+  EXPECT_EQ(out[0], 99u);
+  EXPECT_EQ(out[1], 99u);
+  EXPECT_EQ(xp_text_offsets(bytes, input.size(), out, 2), 2u);
+  EXPECT_EQ(out[0], 3u);
+  EXPECT_EQ(out[1], 6u);
+  EXPECT_EQ(out[2], 99u);
+  EXPECT_EQ(xp_text_offsets(nullptr, 0, nullptr, 0), 0u);
 }

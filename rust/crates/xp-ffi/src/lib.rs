@@ -3,6 +3,7 @@
 mod css;
 mod hyphen;
 mod para;
+mod text;
 mod xml;
 mod zip;
 

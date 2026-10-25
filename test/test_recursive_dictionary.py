@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from rust_host import rust_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 viewer = (ROOT / "src/activities/reader/DictionaryDefinitionActivity.cpp").read_text()
@@ -538,7 +539,7 @@ with tempfile.TemporaryDirectory() as directory:
         "-I", str(ROOT / "lib/MiniBidi"), "-I", str(ROOT / "lib/Utf8"),
         "-I", str(ROOT / "test/minibidi_arabic/stubs"),
         str(path / "navigation.cpp"), str(path / "minibidi.o"),
-        str(ROOT / "lib/MiniBidi/BidiUtils.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"),
+        str(ROOT / "lib/MiniBidi/BidiUtils.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(),
         "-o", str(path / "navigation"),
     ], check=True)
     subprocess.run([str(path / "navigation")], check=True)

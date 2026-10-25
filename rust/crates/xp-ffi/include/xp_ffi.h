@@ -313,6 +313,33 @@ int32_t xp_xml_next(XpXml*, XpXmlEvent*);
 void xp_xml_stop(XpXml*);
 void xp_xml_destroy(XpXml*);
 
+// Shared text helpers. Buffers are borrowed for one call, never retained.
+// Lengths must fit ptrdiff_t; nonempty buffers must be valid. Outputs must be
+// writable and disjoint from inputs, except the explicitly in-place operation.
+uint8_t xp_text_cjk(uint32_t cp);
+uint8_t xp_text_hangul(uint32_t cp);
+uint8_t xp_text_combining(uint32_t cp);
+uint8_t xp_text_break_after_hyphen(uint32_t cp);
+uint8_t xp_text_explicit_hyphen(uint32_t cp);
+uint32_t xp_text_upper(uint32_t cp);
+uint32_t xp_text_decomposed_base(uint32_t cp);
+uint8_t xp_text_boundary(uint32_t left, uint32_t right);
+uint8_t xp_text_opportunity(uint32_t left, uint32_t right);
+uint32_t xp_utf8_next(const uint8_t* data, size_t len, size_t* consumed);
+// out has four writable bytes. Encoder intentionally accepts non-scalar values.
+size_t xp_utf8_encode(uint32_t cp, uint8_t* out);
+size_t xp_utf8_safe_truncate(const uint8_t* data, size_t len);
+size_t xp_utf8_remove_last(const uint8_t* data, size_t len);
+uint8_t xp_utf8_may_compose(const uint8_t* data, size_t len);
+// Callbacks may not mutate input, retain emitted bytes, or unwind. Returns zero
+// when absorbed rejects an offset; the facade discards any emitted output.
+uint8_t xp_utf8_compose(const uint8_t* data, size_t len, void (*emit)(void*, const uint8_t*, size_t),
+                        uint8_t (*absorbed)(void*, uint32_t), void* context);
+// len excludes the terminator; caller writes it at the returned length.
+size_t xp_utf8_compose_in_place(uint8_t* data, size_t len);
+// Returns required count, leaving out untouched if capacity is insufficient.
+size_t xp_text_offsets(const uint8_t* data, size_t len, size_t* out, size_t capacity);
+
 #ifdef __cplusplus
 }
 #endif

@@ -367,3 +367,24 @@ parsers against both vendored Expat and the adapter. Its pre-adapter goldens
 compare complete public results, errors and line diagnostics across 30 inputs
 and six chunk schedules. Focused tests cover C++ and Rust allocation failures,
 buffer ownership, long writes and callback cancellation.
+
+## Shared text helpers
+
+`lib/Utf8` and `CjkBreaks` retain their C++ signatures and delegate to
+`xp-core::utf8` and `xp-core::text`. Rust owns the single Latin/Vietnamese NFC
+table, algorithmic Hangul composition, character categories, and CJK break
+rules. Hyphenation uses the same table with its original smaller pair subset;
+paragraph splitting uses the shared Hangul predicate. The two constexpr token
+flag formulas remain in the C++ header to preserve compile-time callers.
+
+Text helpers allocate no Rust storage and retain no pointers. C++ owns returned
+strings and exact-sized offset vectors. Allocating NFC emits into the existing
+C++ string, retaining replacement-character expansion for malformed input;
+in-place NFC instead preserves uncomposed raw bytes and never grows its buffer.
+Absorbed-offset callback failure still returns an empty string. The permissive
+encoder and incomplete-at-byte-zero truncation behavior are preserved.
+
+The [text oracle](../../test/utf8_compose/README.md) describes exhaustive
+codepoint checks and composition/corpus coverage. Run it together with the
+existing UTF-8, combining-mark, token-boundary, Korean, hyphenation, layout and
+Section tests when changing these helpers. `VisibleTextUtils` remains in C++.

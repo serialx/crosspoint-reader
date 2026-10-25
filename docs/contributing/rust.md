@@ -293,8 +293,13 @@ perform HTML entity expansion.
 
 The parser retains an incomplete token, open element names, entity names and
 DTD attribute declarations. Input, decoded-token, event and attribute scratch
-buffers reuse their capacity. Long tokens grow through `try_reserve`; there is
-no fixed tag/attribute truncation. Limits are allocator capacity and Rust's
+buffers reuse their capacity. Comments retain only their original source bytes;
+the scanner keeps a dash count and normalizes that source buffer in place for
+the borrowed event. Latin-1 reserves space for UTF-8 expansion in the same
+buffer. Only input storage grows with a comment; it adds no comment-sized
+decoded-token or event allocation. Scratch capacity from earlier tokens may
+remain, and vector growth can temporarily retain both old and new allocations.
+Long tokens grow through `try_reserve`; there is no fixed tag/attribute truncation. Limits are allocator capacity and Rust's
 addressable vector size, rather than a 1024-byte token limit. All Rust-owned
 allocations are released with the handle; C++ never frees event spans. The
 host ABI test injects allocation failures at successive allocation sites and

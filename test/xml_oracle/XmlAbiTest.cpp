@@ -26,8 +26,10 @@ int main() {
   xp_xml_destroy(parser);
   xp_xml_destroy(nullptr);
 
-  const std::string input = "<!DOCTYPE r [<!ENTITY e 'value'><!ATTLIST r a CDATA 'default'>]><r><long b='" +
-                            std::string(4000, 'x') + "'>&e;</long></r>";
+  const std::string input =
+      "<?xml version='1.0' encoding='ISO-8859-1'?>"
+      "<!DOCTYPE r [<!ENTITY e 'value'><!ATTLIST r a CDATA 'default'>]><!--" +
+      std::string(40000, '\xe9') + "--><r><long b='" + std::string(4000, 'x') + "'>&e;</long></r>";
   bool reachedSuccess = false;
   for (size_t limit = 0; limit < 128 && !reachedSuccess; ++limit) {
     xp_test_fail_allocation_after(limit);

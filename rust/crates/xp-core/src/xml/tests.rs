@@ -334,3 +334,73 @@ fn seeded_mutations_never_panic_or_escape_the_status_contract() {
         assert_eq!(parser.next().kind, status);
     }
 }
+
+#[test]
+fn long_comments_use_one_growing_buffer_and_preserve_following_input() {
+    for size in [16_384, 32_768, 40_960, 65_536] {
+        for encoding in [
+            Encoding::Utf8,
+            Encoding::Utf16Le,
+            Encoding::Utf16Be,
+            Encoding::Latin1,
+        ] {
+            let body = "é\r\nx-".repeat(size / 5) + ".";
+            let document = std::format!("<r><!--{body}--><p>after</p></r>");
+            let input = match encoding {
+                Encoding::Utf16Le | Encoding::Utf16Be => {
+                    let mut bytes = if encoding == Encoding::Utf16Le {
+                        vec![0xff, 0xfe]
+                    } else {
+                        vec![0xfe, 0xff]
+                    };
+                    for c in document.encode_utf16() {
+                        bytes.extend(if encoding == Encoding::Utf16Le {
+                            c.to_le_bytes()
+                        } else {
+                            c.to_be_bytes()
+                        });
+                    }
+                    bytes
+                }
+                Encoding::Latin1 => {
+                    let mut bytes = b"<?xml version='1.0' encoding='ISO-8859-1'?>".to_vec();
+                    bytes.extend(document.chars().map(|c| c as u8));
+                    bytes
+                }
+                _ => document.into_bytes(),
+            };
+            for chunk in [1, 7, 1024] {
+                let mut parser = Parser::new();
+                let mut events = vec![];
+                let mut pos = 0;
+                while pos < input.len() {
+                    let end = input.len().min(pos + chunk);
+                    pos += parser.feed(&input[pos..end], end == input.len());
+                    let done = drain(&mut parser, &mut events);
+                    if let Some(status) = done {
+                        assert_eq!(status.0, 0, "{size} {chunk} {encoding:?}");
+                        assert_eq!(status.1, input.len() as i64);
+                    }
+                    // Only source storage grows with the comment; projection and token scratch stay small.
+                    assert!(parser.token.capacity() <= 128);
+                    assert!(parser.output.capacity() <= 128);
+                    assert!(parser.input.capacity() <= input.len() * 2 + 1024);
+                }
+                let comment = events.iter().find(|e| e.kind == Kind::Comment).unwrap();
+                assert_eq!(comment.fields, [body.replace("\r\n", "\n")]);
+                assert!(events
+                    .iter()
+                    .any(|e| e.kind == Kind::Text && e.fields == ["after"]));
+                assert_eq!(events.iter().filter(|e| e.kind == Kind::Comment).count(), 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn name_scanning_does_not_validate_unrelated_suffixes() {
+    assert_eq!(name_end(b"name \xff", 0), Some(4));
+    assert_eq!(name_end("é名 rest".as_bytes(), 0), Some(5));
+    assert_eq!(name_end(b"1name", 0), None);
+    assert_eq!(name_end(b"name", usize::MAX), None);
+}

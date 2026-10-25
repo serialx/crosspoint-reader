@@ -64,6 +64,7 @@ enum Token {
     Markup,
     Cdata,
     SubsetClose,
+    Comment(u8),
 }
 
 struct DefaultAttribute {
@@ -100,6 +101,7 @@ pub struct Parser {
     declaration_offset: u64,
     defaults: Vec<DefaultAttribute>,
     output: Vec<u8>,
+    comment_output: bool,
     fields: Vec<Field>,
     kind: Kind,
     event_byte: u64,
@@ -133,18 +135,21 @@ fn name_continue(c: char) -> bool {
     names::name(c, false)
 }
 fn name_end(bytes: &[u8], start: usize) -> Option<usize> {
-    let text = core::str::from_utf8(bytes.get(start..)?).ok()?;
-    let mut chars = text.char_indices();
-    let (_, first) = chars.next()?;
-    if !name_start(first) {
-        return None;
-    }
-    for (pos, c) in chars {
-        if !name_continue(c) {
-            return Some(start + pos);
+    let mut pos = start;
+    while pos < bytes.len() {
+        let Decoded::Character(c, width) = Encoding::Utf8.decode(bytes.get(pos..)?) else {
+            return None;
+        };
+        if !(if pos == start {
+            name_start(c)
+        } else {
+            name_continue(c)
+        }) {
+            break;
         }
+        pos += width;
     }
-    Some(bytes.len())
+    (pos > start).then_some(pos)
 }
 fn skip_space(bytes: &[u8], mut pos: usize) -> usize {
     while bytes.get(pos).is_some_and(|&c| space(c)) {
@@ -187,6 +192,7 @@ impl Parser {
             declaration_offset: 0,
             defaults: Vec::new(),
             output: Vec::new(),
+            comment_output: false,
             fields: Vec::new(),
             kind: Kind::NeedInput,
             event_byte: 0,
@@ -248,7 +254,11 @@ impl Parser {
         };
         Event {
             kind,
-            data: &self.output,
+            data: if self.comment_output {
+                &self.input
+            } else {
+                &self.output
+            },
             fields: &self.fields,
             byte,
             line,
@@ -257,6 +267,33 @@ impl Parser {
     }
 
     fn fail(&mut self, code: u32, token_pos: usize) {
+        if matches!(self.token_kind, Token::Comment(_)) {
+            let mut line = self.line;
+            let mut cr = self.previous_cr;
+            let mut source = self.input.get(self.pos..).unwrap_or(&[]);
+            let mut remaining = token_pos;
+            while remaining > 0 {
+                let Decoded::Character(c, width) = self.encoding.decode(source) else {
+                    break;
+                };
+                if width > remaining {
+                    break;
+                }
+                if c == '\r' || (c == '\n' && !cr) {
+                    line += 1;
+                }
+                cr = c == '\r';
+                remaining -= width;
+                source = source.get(width..).unwrap_or(&[]);
+            }
+            self.failure = Some(Failure {
+                code,
+                byte: self.offset.saturating_add(token_pos as u64),
+                line,
+            });
+            self.phase = Phase::Failed;
+            return;
+        }
         let prefix = self
             .token
             .get(..token_pos.min(self.token.len()))
@@ -352,15 +389,20 @@ impl Parser {
 
     fn scan_token(&mut self) -> Result<bool, (u32, usize)> {
         loop {
+            let error_pos = if matches!(self.token_kind, Token::Comment(_)) {
+                self.scan.saturating_sub(self.pos)
+            } else {
+                self.token.len()
+            };
             let (c, width) = match self
                 .encoding
                 .decode(self.input.get(self.scan..).ok_or((4, self.token.len()))?)
             {
                 Decoded::Character(c, width) => (c, width),
-                Decoded::Invalid => return Err((4, self.token.len())),
+                Decoded::Invalid => return Err((4, error_pos)),
                 Decoded::Incomplete => {
                     if self.final_input && self.scan < self.input.len() {
-                        return Err((6, self.token.len()));
+                        return Err((6, error_pos));
                     }
                     if self.phase == Phase::Prolog
                         && !self.internal_subset
@@ -379,7 +421,19 @@ impl Parser {
                 }
             };
             if !xml_character(c) {
-                return Err((4, self.token.len()));
+                return Err((4, error_pos));
+            }
+            if let Token::Comment(dashes) = self.token_kind {
+                self.scan += width;
+                if dashes == 2 {
+                    return if c == '>' {
+                        Ok(true)
+                    } else {
+                        Err((4, error_pos))
+                    };
+                }
+                self.token_kind = Token::Comment(if c == '-' { dashes + 1 } else { 0 });
+                continue;
             }
             if self.token_kind == Token::Unknown {
                 self.token_kind = if self.cdata {
@@ -478,7 +532,7 @@ impl Parser {
             append(&mut self.token, c.encode_utf8(&mut utf8).as_bytes()).map_err(|e| (e, 0))?;
             self.scan += width;
             match self.token_kind {
-                Token::Unknown => return Err((4, 0)),
+                Token::Unknown | Token::Comment(_) => return Err((4, 0)),
                 Token::Text => {
                     if self.token.ends_with(b"]]>") {
                         return Err((4, self.token.len().saturating_sub(1)));
@@ -531,18 +585,8 @@ impl Parser {
                             return Err((2, 0));
                         }
                     }
-                    if self.token.starts_with(b"<!--") {
-                        if self.token.len() >= 7 && self.token.ends_with(b"-->") {
-                            return Ok(true);
-                        }
-                        if self.token.len() >= 7
-                            && self
-                                .token
-                                .get(self.token.len().saturating_sub(3)..)
-                                .is_some_and(|tail| tail.starts_with(b"--"))
-                        {
-                            return Err((4, self.token.len().saturating_sub(1)));
-                        }
+                    if self.token == b"<!--" {
+                        self.token_kind = Token::Comment(0);
                     } else if self.token.starts_with(b"<?") {
                         if self.token.ends_with(b"?>") {
                             return Ok(true);
@@ -602,6 +646,7 @@ impl Parser {
             }
             return self.event();
         }
+        self.comment_output = false;
         self.output.clear();
         self.fields.clear();
         loop {
@@ -652,6 +697,12 @@ impl Parser {
                 }
                 Ok(true) => {}
             }
+            if matches!(self.token_kind, Token::Comment(_)) {
+                if let Err((code, pos)) = self.finish_comment() {
+                    self.fail(code, pos);
+                }
+                return self.event();
+            }
             let token = core::mem::take(&mut self.token);
             let result = self.interpret(&token);
             self.token = token;
@@ -668,6 +719,75 @@ impl Parser {
                 }
             }
         }
+    }
+
+    fn finish_comment(&mut self) -> Result<(), (u32, usize)> {
+        let unit = if matches!(self.encoding, Encoding::Utf16Le | Encoding::Utf16Be) {
+            2
+        } else {
+            1
+        };
+        let body_start = self.pos.checked_add(4 * unit).ok_or((4, 0))?;
+        let body_end = self.scan.checked_sub(3 * unit).ok_or((4, 0))?;
+        let source = span(&self.input, body_start, body_end)?;
+        // Latin-1 can expand to two UTF-8 bytes; other supported encodings only shrink.
+        let extra = if self.encoding == Encoding::Latin1 {
+            source.iter().filter(|&&b| b >= 0x80).count()
+        } else {
+            0
+        };
+        self.fields.try_reserve(1).map_err(|_| (1, 0))?;
+        let original_count = self.scan.saturating_sub(self.pos);
+        if extra > 0 {
+            let length = self.input.len();
+            let expanded = length.checked_add(extra).ok_or((1, 0))?;
+            self.input.try_reserve(extra).map_err(|_| (1, 0))?;
+            self.input.resize(expanded, 0);
+            // The checked body range and expanded length cover both copy ranges.
+            self.input
+                .copy_within(body_start..length, body_start + extra);
+            self.scan += extra;
+        }
+        let mut read = body_start + extra;
+        let end = body_end + extra;
+        let mut write = body_start;
+        let mut cr = false;
+        while read < end {
+            let Decoded::Character(c, width) = self.encoding.decode(span(&self.input, read, end)?)
+            else {
+                return Err((4, read.saturating_sub(self.pos + extra)));
+            };
+            read += width;
+            if c == '\r' || (c == '\n' && !cr) {
+                self.line += 1;
+            }
+            if !(c == '\n' && cr) {
+                let mut utf8 = [0; 4];
+                let bytes = (if c == '\r' { '\n' } else { c })
+                    .encode_utf8(&mut utf8)
+                    .as_bytes();
+                let next = write.checked_add(bytes.len()).ok_or((4, 0))?;
+                self.input
+                    .get_mut(write..next)
+                    .ok_or((4, 0))?
+                    .copy_from_slice(bytes);
+                write = next;
+            }
+            cr = c == '\r';
+        }
+        self.offset = self.offset.saturating_add(original_count as u64);
+        self.pos = self.scan;
+        self.previous_cr = false;
+        self.token.clear();
+        self.token_kind = Token::Unknown;
+        self.quote = 0;
+        self.subset_depth = 0;
+        self.fields.push(Field {
+            range: body_start..write,
+        });
+        self.comment_output = true;
+        self.kind = Kind::Comment;
+        Ok(())
     }
 
     fn normalized(
@@ -850,6 +970,7 @@ impl Parser {
     fn interpret(&mut self, token: &[u8]) -> Result<bool, (u32, usize)> {
         match self.token_kind {
             Token::Unknown => Ok(false),
+            Token::Comment(_) => Err((4, 0)),
             Token::SubsetClose => {
                 self.internal_subset = false;
                 Ok(false)
@@ -942,23 +1063,6 @@ impl Parser {
 
     #[inline(never)]
     fn markup(&mut self, token: &[u8]) -> Result<bool, (u32, usize)> {
-        if token.starts_with(b"<!--") {
-            let mut output = core::mem::take(&mut self.output);
-            let result = self.normalized(
-                span(token, 4, token.len().saturating_sub(3))?,
-                false,
-                false,
-                &mut output,
-            );
-            self.output = output;
-            result.map_err(|c| (c, 0))?;
-            self.fields.try_reserve(1).map_err(|_| (1, 0))?;
-            self.fields.push(Field {
-                range: 0..self.output.len(),
-            });
-            self.kind = Kind::Comment;
-            return Ok(true);
-        }
         if token.starts_with(b"<?") {
             return self.pi(token);
         }
@@ -1480,14 +1584,17 @@ impl Parser {
             if notation {
                 pos = name_end(token, pos).ok_or((2, pos))?;
             } else {
-                let text = core::str::from_utf8(token.get(pos..).ok_or((4, pos))?)
-                    .map_err(|_| (4, pos))?;
                 let start = pos;
-                for c in text.chars() {
+                while pos < token.len() {
+                    let Decoded::Character(c, width) =
+                        Encoding::Utf8.decode(token.get(pos..).ok_or((4, pos))?)
+                    else {
+                        return Err((4, pos));
+                    };
                     if !name_continue(c) {
                         break;
                     }
-                    pos += c.len_utf8();
+                    pos += width;
                 }
                 if pos == start {
                     return Err((2, pos));

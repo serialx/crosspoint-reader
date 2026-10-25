@@ -165,3 +165,39 @@ pub unsafe extern "C" fn xp_tokens_source_after(
 ) -> u32 {
     (*state).source_after(start, rendered)
 }
+
+// Paragraph layout: synchronous metrics and token mutation remain with the caller.
+use xp_core::para::layout::{self, Callbacks};
+
+/// # Safety
+/// callbacks and allocator meet layout::optimal's contract and are disjoint.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_optimal(
+    callbacks: *const Callbacks,
+    allocator: *const Allocator,
+    page: i32,
+    indent: i32,
+) -> u8 {
+    layout::optimal(&*callbacks, allocator, page, indent) as u8
+}
+
+/// # Safety
+/// callbacks meet layout::greedy's contract; flags must be 0 or 1.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_greedy(
+    callbacks: *const Callbacks,
+    page: i32,
+    indent: i32,
+    max_lines: usize,
+    first_consumed: u8,
+    hyphenation: u8,
+) -> u8 {
+    layout::greedy(
+        &*callbacks,
+        page,
+        indent,
+        max_lines,
+        first_consumed != 0,
+        hyphenation != 0,
+    ) as u8
+}

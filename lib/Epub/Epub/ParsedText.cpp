@@ -21,6 +21,10 @@
 
 constexpr int MAX_COST = std::numeric_limits<int>::max();
 
+#ifndef XP_RUST_LAYOUT
+#define XP_RUST_LAYOUT 0
+#endif
+
 namespace {
 
 // Soft hyphen byte pattern used throughout EPUBs (UTF-8 for U+00AD).
@@ -704,12 +708,21 @@ void ParsedText::layoutAndExtractLines(const GfxRenderer& renderer, const int fo
   auto wordWidths = calculateWordWidths(renderer, fontId);
 
   std::vector<size_t> lineBreakIndices;
+#if XP_RUST_LAYOUT
+  lineBreakIndices = computeRustLineBreaks(renderer, fontId, pageWidth, wordWidths, maxLines);
+  if (lineBreakIndices.empty()) {
+    LOG_ERR("PTX", "OOM: paragraph line breaks");
+    droppedWords = true;
+    return;
+  }
+#else
   if (hyphenationEnabled || maxLines != SIZE_MAX) {
     // Bounded layout must leave words beyond the emitted lines unsplit for a later width.
     lineBreakIndices = computeHyphenatedLineBreaks(renderer, fontId, pageWidth, wordWidths, maxLines);
   } else {
     lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, wordWidths);
   }
+#endif
   const bool allLinesComputed = lineBreakIndices.back() == tokenCount();
   const size_t lineCount = lineBreakIndices.size() - (!includeLastLine && allLinesComputed ? 1 : 0);
 
@@ -941,6 +954,63 @@ std::vector<uint16_t> ParsedText::calculateWordWidths(const GfxRenderer& rendere
 
   return wordWidths;
 }
+
+#if XP_RUST_LAYOUT
+std::vector<size_t> ParsedText::computeRustLineBreaks(const GfxRenderer& renderer, const int fontId,
+                                                      const int pageWidth, std::vector<uint16_t>& wordWidths,
+                                                      const size_t maxLines) {
+  std::vector<size_t> breaks;
+  struct Context {
+    ParsedText& paragraph;
+    const GfxRenderer& renderer;
+    int fontId;
+    std::vector<uint16_t>& widths;
+    std::vector<size_t>& breaks;
+  } context{*this, renderer, fontId, wordWidths, breaks};
+  const XpLayoutCallbacks callbacks = {
+      &context,
+      [](void* raw) -> size_t { return static_cast<Context*>(raw)->widths.size(); },
+      [](void* raw, size_t i) -> uint16_t { return static_cast<Context*>(raw)->widths[i]; },
+      [](void* raw, size_t i) -> uint8_t {
+        const auto& p = static_cast<Context*>(raw)->paragraph;
+        return TokenBoundary::allowsBreak(p.tokenContinues(i), p.tokenNoSpaceBefore(i));
+      },
+      [](void* raw, size_t i) -> int32_t {
+        const auto& c = *static_cast<Context*>(raw);
+        const auto& p = c.paragraph;
+        if (p.tokenContinues(i)) {
+          return c.renderer.getKerning(c.fontId, lastCodepoint(p.wordAt(i - 1)), firstCodepoint(p.wordAt(i)),
+                                       p.getWordStyleAt(i - 1), p.blockStyle.characterSpacing);
+        }
+        if (p.tokenNoSpaceBefore(i)) return p.blockStyle.characterSpacing;
+        return scaleSpace(c.renderer.getSpaceAdvance(c.fontId, lastCodepoint(p.wordAt(i - 1)),
+                                                     firstCodepoint(p.wordAt(i)), p.getWordStyleAt(i - 1)),
+                          p.wordSpacingPercent);
+      },
+      [](void* raw, size_t start, size_t end) -> int32_t {
+        const auto& c = *static_cast<Context*>(raw);
+        return c.paragraph.calculateRubyExtraStartOffset(start, end, c.renderer, c.fontId);
+      },
+      [](void* raw, size_t start, size_t end) -> int32_t {
+        const auto& c = *static_cast<Context*>(raw);
+        return c.paragraph.calculateRubyExtraEndOffset(start, end, c.renderer, c.fontId);
+      },
+      [](void* raw, size_t i, int32_t available, uint8_t fallback) -> uint8_t {
+        auto& c = *static_cast<Context*>(raw);
+        return c.paragraph.hyphenateWordAtIndex(i, available, c.renderer, c.fontId, c.widths, fallback != 0);
+      },
+      [](void* raw, size_t end) -> uint8_t {
+        static_cast<Context*>(raw)->breaks.push_back(end);
+        return 1;
+      }};
+  const int indent = resolveFirstLineIndent(true, renderer, fontId);
+  const bool ok = hyphenationEnabled || maxLines != SIZE_MAX
+                      ? xp_layout_greedy(&callbacks, pageWidth, indent, maxLines, firstLineConsumed, hyphenationEnabled)
+                      : xp_layout_optimal(&callbacks, paragraphAllocator(), pageWidth, indent);
+  if (!ok) breaks.clear();
+  return breaks;
+}
+#endif
 
 std::vector<size_t> ParsedText::computeLineBreaks(const GfxRenderer& renderer, const int fontId, const int pageWidth,
                                                   std::vector<uint16_t>& wordWidths) {

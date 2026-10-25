@@ -1,5 +1,6 @@
 //! Fallible paragraph storage. Text handles retain a single release obligation.
 
+pub mod layout;
 mod tokens;
 pub use tokens::{Token, Tokens};
 

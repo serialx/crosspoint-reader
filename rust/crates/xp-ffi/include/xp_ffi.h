@@ -156,6 +156,30 @@ uint8_t xp_tokens_record_absorbed(XpTokens* state, uint32_t offset);
 // Updates the NFC cursor; requires exclusive access despite being a logical lookup.
 uint32_t xp_tokens_source_after(XpTokens* state, uint32_t start, uint32_t rendered);
 
+// Paragraph breaking callbacks are synchronous and may not reenter layout. The
+// context and callback record outlive the call; no pointer is retained by Rust.
+// count/width describe one sequence. Successful split inserts exactly one word
+// and updates widths; other metric callbacks do not mutate the sequence.
+// ruby intervals use exclusive ends. emit copies one break, returning 0 on OOM.
+// Both entry points return 1 on success, 0 on allocation/size/output failure.
+// Optimal allocates int32_t[N] + size_t[N] with the paragraph allocator; greedy
+// has no Rust allocations. Caller owns widths, split mutation and output storage.
+typedef struct {
+  void* context;
+  size_t (*count)(void*);
+  uint16_t (*width)(void*, size_t);
+  uint8_t (*allows_break)(void*, size_t);
+  int32_t (*gap)(void*, size_t);
+  int32_t (*ruby_start)(void*, size_t, size_t);
+  int32_t (*ruby_end)(void*, size_t, size_t);
+  uint8_t (*split)(void*, size_t, int32_t, uint8_t);
+  uint8_t (*emit)(void*, size_t);
+} XpLayoutCallbacks;
+uint8_t xp_layout_optimal(const XpLayoutCallbacks* callbacks, const XpParaAllocator* allocator, int32_t page,
+                          int32_t indent);
+uint8_t xp_layout_greedy(const XpLayoutCallbacks* callbacks, int32_t page, int32_t indent, size_t max_lines,
+                         uint8_t first_consumed, uint8_t hyphenation);
+
 #ifdef __cplusplus
 }
 #endif

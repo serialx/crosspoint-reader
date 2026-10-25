@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod css;
 pub mod hyphen;
 pub mod utf8;
 

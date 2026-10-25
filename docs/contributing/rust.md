@@ -121,3 +121,46 @@ input limits; cache hydration reports LowMemory so the caller can retry.
 Host CMake tests build the same Rust archive with a host allocator shim. See
 [test/css_parser/README.md](../../test/css_parser/README.md) for oracle provenance,
 wire-byte checks, and allocation-failure coverage. The cache version remains 19.
+
+## ZIP directory boundary
+
+`ZipFile` keeps HalFile I/O, cached slim stats, sequential lookup position, and
+last-lookup caching. `xp-core::zip` parses the directory without allocation.
+The C inflater and content-protection route are unchanged.
+
+The caller initializes a 16-byte `XpZipWalker` with the central-directory and
+starting offsets. `xp_zip_request` returns a 46-byte absolute header read;
+`xp_zip_next` consumes its reply and returns an entry, a wrap request, or end.
+Each entry contains an absolute filename read request and the next record offset.
+The caller can skip names that cannot match, and copies a name only when retained
+in an existing C++ cache. Input pointers are never retained. A scan starting in
+the middle wraps once and stops on reaching its original starting offset.
+
+EOCD scanning keeps the last-1-KiB limit and searches backwards for the final
+signature with room for the 22-byte record. The C++ adapter owns one checked
+buffer of at most 1,024 bytes until parsing returns. Directory operations reuse
+the existing 256-byte name buffer; header parsing uses 46 bytes in a helper frame.
+Names of 256 bytes or more are skipped. Names match raw bytes: normalization
+remains with callers. Batch hashes use the shared Rust FNV-1a function, while
+C++ retains deque indexing and duplicate-target counting.
+
+`test/zip_file/directory-golden.txt` was recorded from the C++ scanner at
+`194016e7`, before replacement, using `RECORD_ZIP_GOLDENS=1` with `ZipFileTest`.
+It covers every checked-in EPUB plus deterministic generated archives, including
+large directories, name limits, extra fields, duplicate names, missing EOCD and
+comments at the scan-window boundary. The transcript contains entry order/CRCs,
+size batches, local data offsets, cursor state, and cached stats. Cached map
+iteration is checked against the native map separately; its transcript list is
+sorted because libc++ and libstdc++ have different iteration orders. Do not
+regenerate this fixture from Rust. Run it with:
+
+```sh
+cmake -S test -B build/test
+cmake --build build/test --target ZipFileTest
+build/test/zip_file/ZipFileTest
+```
+
+The ABI rejects invalid null/alignment/length arguments and offset overflow;
+short local headers and failed seeks/reads fail without parsing uninitialized
+bytes. The compatibility corpus does not define results for the old scanner's
+unchecked short reads. ZIP64 and multi-disk support are not added by this change.

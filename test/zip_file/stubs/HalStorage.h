@@ -38,7 +38,7 @@ class HalFile : public Print {
     return seekSet(static_cast<size_t>(target));
   }
   int read(void* dst, size_t len) {
-    if (!data) return -1;
+    if (!data || pos == failReadOffset) return -1;
     readOffsets.push_back(pos);
     const size_t remaining = data->size() - pos;
     const size_t count = len < remaining ? len : remaining;
@@ -57,6 +57,7 @@ class HalFile : public Print {
   explicit operator bool() const { return isOpen(); }
 
   static inline std::vector<size_t> readOffsets;
+  static inline size_t failReadOffset = SIZE_MAX;
 
  private:
   const std::vector<uint8_t>* data = nullptr;
@@ -83,6 +84,7 @@ class HalStorage {
     fileData = std::move(bytes);
     openCount = 0;
     HalFile::readOffsets.clear();
+    HalFile::failReadOffset = SIZE_MAX;
   }
 
   int openCount = 0;

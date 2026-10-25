@@ -3,6 +3,7 @@
 pub mod css;
 pub mod hyphen;
 pub mod utf8;
+pub mod zip;
 
 /// FNV-1a 64, matching ZipFile::fnvHash64 over raw bytes.
 pub fn fnv1a64(bytes: &[u8]) -> u64 {

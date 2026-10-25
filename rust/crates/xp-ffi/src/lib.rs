@@ -2,6 +2,7 @@
 
 mod css;
 mod hyphen;
+mod zip;
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_void;

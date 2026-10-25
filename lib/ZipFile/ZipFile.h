@@ -1,5 +1,6 @@
 #pragma once
 #include <HalStorage.h>
+#include <xp_ffi.h>
 
 #include <deque>
 #include <string>
@@ -29,14 +30,7 @@ class ZipFile {
   };
 
   // FNV-1a 64-bit hash computed from char buffer (no std::string allocation)
-  static uint64_t fnvHash64(const char* s, size_t len) {
-    uint64_t hash = 14695981039346656037ull;
-    for (size_t i = 0; i < len; i++) {
-      hash ^= static_cast<uint8_t>(s[i]);
-      hash *= 1099511628211ull;
-    }
-    return hash;
-  }
+  static uint64_t fnvHash64(const char* s, size_t len) { return xp_fnv1a64(reinterpret_cast<const uint8_t*>(s), len); }
 
  private:
   const std::string& filePath;
@@ -56,6 +50,8 @@ class ZipFile {
   bool loadFileStatSlim(const char* filename, FileStatSlim* fileStat);
   long getDataOffset(const FileStatSlim& fileStat);
   bool loadZipDetails();
+  bool readDirectoryEntry(XpZipWalker& walker, XpZipEntry& entry);
+  bool readEntryName(const XpZipEntry& entry, char* name);
 
  public:
   explicit ZipFile(const std::string& filePath) : filePath(filePath) {}
@@ -108,37 +104,14 @@ class ZipFile {
       return false;
     }
 
-    file.seek(zipDetails.centralDirOffset);
-
-    uint32_t sig;
+    XpZipWalker walker;
+    xp_zip_begin(zipDetails.centralDirOffset, zipDetails.centralDirOffset, &walker);
+    XpZipEntry entry;
     char itemName[256];
-
-    while (file.available()) {
-      file.read(&sig, 4);
-      if (sig != 0x02014b50) {
-        break;
-      }
-
-      file.seekCur(12);
-      uint32_t crc32, compressedSize;
-      file.read(&crc32, 4);
-      file.read(&compressedSize, 4);
-      file.seekCur(4);
-      uint16_t nameLen, m, k;
-      file.read(&nameLen, 2);
-      file.read(&m, 2);
-      file.read(&k, 2);
-      file.seekCur(12);
-
-      if (nameLen < sizeof(itemName)) {
-        file.read(itemName, nameLen);
-        itemName[nameLen] = '\0';
-        callback(std::string_view{itemName, nameLen}, crc32, compressedSize);
-      } else {
-        file.seekCur(nameLen);
-      }
-
-      file.seekCur(m + k);
+    while (readDirectoryEntry(walker, entry)) {
+      if (entry.name.length >= sizeof(itemName)) continue;
+      if (!readEntryName(entry, itemName)) break;
+      callback(std::string_view{itemName, entry.name.length}, entry.crc32, entry.compressed_size);
     }
 
     if (!wasOpen) {

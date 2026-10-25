@@ -68,6 +68,41 @@ int32_t xp_css_cache_write(XpCss* handle, const uint16_t* order, size_t count, u
                            size_t* written);
 int32_t xp_css_cache_read(XpCss* handle, const uint8_t* data, size_t len, uint8_t end);
 
+// ZIP32 directory: caller owns all storage and performs absolute HalFile reads.
+// No allocation or retained pointers. Inputs/outputs must be valid, aligned,
+// disjoint, and exclusively borrowed during each call; byte lengths <= PTRDIFF_MAX.
+// NULL byte pointers are accepted only for zero length. Struct outputs are required.
+typedef struct {
+  uint32_t offset, length;
+} XpZipRead;
+typedef struct {
+  uint32_t central_offset;
+  uint16_t entries;
+} XpZipDetails;
+typedef struct {
+  XpZipRead name;
+  uint32_t next_offset, crc32, compressed_size, uncompressed_size, local_offset;
+  uint16_t method;
+} XpZipEntry;
+// Opaque fields: initialize with xp_zip_begin; do not modify or concurrently use.
+typedef struct {
+  uint32_t opaque[4];
+} XpZipWalker;
+// Request/parse functions: 0 success, -1 invalid/truncated input; outputs unchanged on failure.
+int32_t xp_zip_eocd_request(uint32_t size, XpZipRead* out);
+int32_t xp_zip_eocd(const uint8_t* data, size_t len, XpZipDetails* out);
+int32_t xp_zip_begin(uint32_t central, uint32_t start, XpZipWalker* out);
+// request: 1 read header, 0 finished, -1 invalid arguments.
+int32_t xp_zip_request(const XpZipWalker* walker, XpZipRead* out);
+// next: 1 entry (name read request in out), 2 wrapped (request again), 0 end,
+// -1 invalid arguments or offset overflow. Supply the reply to the last request;
+// short replies end/wrap the scan. A name length >= 256 must be skipped.
+int32_t xp_zip_next(XpZipWalker* walker, const uint8_t* data, size_t len, XpZipEntry* out);
+int32_t xp_zip_local_request(uint32_t offset, XpZipRead* out);
+int32_t xp_zip_data_offset(uint32_t offset, const uint8_t* data, size_t len, uint64_t* out);
+// 1 exact byte match, 0 mismatch/oversized name, -1 invalid arguments.
+int32_t xp_zip_name_matches(const uint8_t* name, size_t len, const uint8_t* target, size_t target_len);
+
 #ifdef __cplusplus
 }
 #endif

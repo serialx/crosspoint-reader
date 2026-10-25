@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!NOTATION n SYSTEM "x"><!ENTITY foo SYSTEM "x" NDATA n>]><r>&foo;</r>

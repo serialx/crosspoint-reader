@@ -48,6 +48,80 @@ def cases():
     yield "utf16le", b'\xff\xfe' + '<?xml version="1.0" encoding="UTF-16"?><r>é</r>'.encode('utf-16le')
     yield "utf16be", b'\xfe\xff' + '<?xml version="1.0" encoding="UTF-16"?><r>é</r>'.encode('utf-16be')
     yield "long_token", ('<' + 'n' * 1100 + ' a="' + 'v' * 2100 + '"/>').encode()
+    extended = {
+        "empty_cdata": '<r><![CDATA[]]></r>',
+        "partial_cdata": '<r><![CDATA[abc]',
+        "cdata_brackets": '<r><![CDATA[a]b]]c]]]></r>',
+        "cdata_long": '<r><![CDATA[' + 'x' * 1025 + ']]></r>',
+        "text_brackets": '<r>a]b]]c]</r>',
+        "text_before_bad_cdata": '<r>abc]]></r>',
+        "prolog_space": ' \n<r/> \r\n<!--done--><?end?>',
+        "bad_before_root": 'abc<r/>',
+        "bad_after_root": '<r/> \n junk',
+        "xml_version_11": '<?xml version="1.1"?><r/>',
+        "xml_decl_empty": '<?xml?><r/>',
+        "xml_decl_bad": '<?xml encoding="UTF-8"?><r/>',
+        "xml_decl_duplicate": '<?xml version="1.0" version="1.0"?><r/>',
+        "xml_decl_order": '<?xml version="1.0" standalone="yes" encoding="UTF-8"?><r/>',
+        "xml_decl_spaces": ' <?xml version="1.0"?><r/>',
+        "xml_decl_case": '<?XML version="1.0"?><r/>',
+        "pi_newlines": '<?test a\r\nb\rc?><r/>',
+        "comment_newlines": '<!--a\r\nb\rc--><r/>',
+        "comment_empty": '<r><!----></r>',
+        "comment_triple_dash": '<r><!--x---></r>',
+        "unknown_declaration": '<!foo bar><r/>',
+        "doctype_empty": '<!DOCTYPE><r/>',
+        "doctype_missing_system": '<!DOCTYPE r SYSTEM><r/>',
+        "doctype_bad_system": '<!DOCTYPE r SYSTEM xyz><r/>',
+        "doctype_public": '<!DOCTYPE r PUBLIC "public id" "file"><r>&nbsp;</r>',
+        "doctype_public_quote": '<!DOCTYPE r PUBLIC "public [id]" "file[1]"><r/>',
+        "doctype_double": '<!DOCTYPE r><!DOCTYPE r><r/>',
+        "doctype_comment_pi": '<!DOCTYPE r [<!--a--><?inside b?><!ELEMENT r EMPTY>]><r/>',
+        "doctype_element_bad": '<!DOCTYPE r [<!ELEMENT r garbage>]><r/>',
+        "doctype_element_nested": '<!DOCTYPE r [<!ELEMENT r ((a,b)*|c)+><!ELEMENT a EMPTY>]><r/>',
+        "doctype_entity_bad": '<!DOCTYPE r [<!ENTITY foo garbage>]><r>&foo;</r>',
+        "doctype_entity_quoted_angle": '<!DOCTYPE r [<!ENTITY foo "a>b">]><r>&foo;</r>',
+        "doctype_entity_duplicate": '<!DOCTYPE r [<!ENTITY foo "a"><!ENTITY foo "b">]><r>&foo;</r>',
+        "doctype_entity_unparsed": '<!DOCTYPE r [<!NOTATION n SYSTEM "x"><!ENTITY foo SYSTEM "x" NDATA n>]><r>&foo;</r>',
+        "doctype_parameter": '<!DOCTYPE r [<!ENTITY % p "x">%p;]><r/>',
+        "doctype_parameter_undeclared": '<!DOCTYPE r [%p;]><r/>',
+        "attlist_enum": '<!DOCTYPE r [<!ATTLIST r a (x|y) " x  y " b CDATA #FIXED "v">]><r/>',
+        "attlist_notation": '<!DOCTYPE r [<!ATTLIST r a NOTATION (x|y) #IMPLIED>]><r a=" x  y "/>',
+        "attlist_unknown_type": '<!DOCTYPE r [<!ATTLIST r a WRONG "v">]><r/>',
+        "attlist_id_default": '<!DOCTYPE r [<!ATTLIST r a ID "default">]><r/>',
+        "attlist_duplicate": '<!DOCTYPE r [<!ATTLIST r a CDATA "first" a CDATA "second">]><r/>',
+        "attlist_numeric_space": '<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]><r a=" a &#32;  b &#9; "/>',
+        "attlist_undefined": '<!DOCTYPE r [<!ATTLIST r a CDATA "&absent;">]><r/>',
+        "attribute_reference_bad": '<r a="&#xZZ;"/>',
+        "attribute_reference_truncated": '<r a="&no"/>',
+        "attribute_numeric_invalid": '<r a="&#0;"/>',
+        "attribute_lt": '<r a="a<b"/>',
+        "attribute_missing_space": '<r a="a"b="b"/>',
+        "attribute_missing_equal": '<r a "a"/>',
+        "attribute_unquoted": '<r a=a/>',
+        "end_tag_space": '<r></r  >',
+        "end_tag_attrs": '<r></r a="1">',
+        "empty_tag_space": '<r / >',
+        "colon_name": '<:r :a="x"><p::x/></:r>',
+        "unicode_name": '<한글 é="x"/>',
+        "astral_name": '<𐀀/>',
+        "numeric_empty": '<r>&#;</r>',
+        "numeric_hex_empty": '<r>&#x;</r>',
+        "numeric_upper_x": '<r>&#X41;</r>',
+        "numeric_bad_digit": '<r>&#12a;</r>',
+        "entity_empty": '<r>&;</r>',
+        "entity_bad_name": '<r>&1foo;</r>',
+        "entity_space": '<r>&a b;</r>',
+        "entity_amp": '<r>&a&b;</r>',
+    }
+    for name, text in extended.items():
+        yield name, text.encode()
+    for endian in ('le', 'be'):
+        prefix = b'\xff\xfe' if endian == 'le' else b'\xfe\xff'
+        body = '<r>'.encode('utf-16' + endian)
+        yield 'lone_surrogate_' + endian, prefix + body + (b'\x00\xd8' if endian == 'le' else b'\xd8\x00')
+    yield 'truncated_utf8', b'<r>\xf0\x9f'
+    yield 'null_byte', b'<r>\x00</r>'
     source = b'<?xml version="1.0"?><r a="value"><p>abc&amp;def</p><![CDATA[x]]><!--c--></r>'
     for pos in (1, 5, 22, 28, 35, 40, 43, 50, 57, 66, 70):
         yield f"truncated_{pos}", source[:pos]

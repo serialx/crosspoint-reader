@@ -22,3 +22,6 @@ target_link_libraries(ContentOpfParserTest PRIVATE
 )
 
 gtest_discover_tests(ContentOpfParserTest)
+
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+target_link_libraries(ContentOpfParserTest PRIVATE xp_ffi_host)

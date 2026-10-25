@@ -48,3 +48,12 @@ target_compile_definitions(XmlConsumerOracle PRIVATE XML_GE=0 XML_CONTEXT_BYTES=
 target_compile_options(XmlConsumerOracle PRIVATE -Wall -Wextra)
 add_test(NAME XmlConsumerGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/consumers.py --oracle $<TARGET_FILE:XmlConsumerOracle> verify)
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+target_link_libraries(XmlConsumerOracle PRIVATE xp_ffi_host)
+add_executable(XmlAbiTest XmlAbiTest.cpp)
+target_link_libraries(XmlAbiTest PRIVATE xp_ffi_host)
+target_compile_definitions(XmlAbiTest PRIVATE XP_FFI_HOST_FAULT_INJECTION)
+target_compile_options(XmlAbiTest PRIVATE -UNDEBUG)
+add_test(NAME XmlAbiAllocationFailure COMMAND XmlAbiTest)
+
+target_include_directories(XmlAbiTest PRIVATE ${REPO_ROOT}/lib/XmlParserUtils ${REPO_ROOT}/test/chapter_html_slim_parser/stubs)

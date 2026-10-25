@@ -68,6 +68,13 @@ The final argument is the stop-event ordinal, or zero to parse to completion.
 The checked-in outputs characterize Expat only. They are not proof of a Rust
 replacement, consumer cache parity, firmware size, or on-device resource use.
 
+The Rust replay checks every non-stop schedule: semantic events, original byte
+and line positions, and the final error or completion location. Callback-stop
+fixtures remain characterization data: the pull API latches `Stopped`, but does
+not emulate Expat's callback fragmentation or parsing-status flags. None of the
+four migrated consumers stops inside a callback. Resolve that distinction before
+migrating consumers that do, including KOReader XPath resolution.
+
 ## Consumer cache baseline
 
 `XmlConsumerOracle` links the unchanged container, OPF, nav, NCX and encryption

@@ -265,3 +265,47 @@ cmake -S test -B build/test -DCMAKE_CXX_FLAGS=
 cmake --build build/test -j 6
 ctest --test-dir build/test --output-on-failure -j 6
 ```
+
+## XML events
+
+`xp-core::xml::Parser` owns incremental XML state. Feed a byte slice, drain
+`next()` until `NeedInput`, then offer the unconsumed suffix. `feed` copies at
+most 1024 new bytes per call and reports the number consumed. Its `final` flag
+applies when the entire offered slice was consumed. Events borrow parser
+storage until the next operation. `xp-ffi` exposes the same driver contract
+through `xp_xml_*`; the header documents span and handle lifetimes.
+
+Container, encryption, nav and NCX consumers retain their C++ interfaces and
+storage ownership. `XmlPullParser` dispatches Rust events synchronously to their
+existing handlers. OPF, chapter parsing and KOReader still use Expat, so Expat
+remains linked. The shared core preserves raw qualified names, original byte
+positions, UTF-8/UTF-16/Latin-1 decoding and the vendored GE=0 entity rules;
+it does not perform HTML entity expansion.
+
+The parser retains an incomplete token, open element names, entity names and
+DTD attribute declarations. Input, decoded-token, event and attribute scratch
+buffers reuse their capacity. Long tokens grow through `try_reserve`; there is
+no fixed tag/attribute truncation. Limits are allocator capacity and Rust's
+addressable vector size, rather than a 1024-byte token limit. All Rust-owned
+allocations are released with the handle; C++ never frees event spans. The
+host ABI test injects allocation failures at successive allocation sites and
+checks cleanup. The streaming test feeds 2 MiB of text and CDATA without
+retaining the document.
+
+Run the vendored C++ oracle and consumer/cache checks separately from the
+existing host suite:
+
+```sh
+cmake -S test/xml_oracle -B build/xml-oracle
+cmake --build build/xml-oracle
+ctest --test-dir build/xml-oracle --output-on-failure
+cargo test --manifest-path rust/Cargo.toml -p xp-core
+```
+
+`test/xml_oracle/README.md` documents the committed oracle format and fixture
+provenance. Rust test data is translated from those JSON goldens by
+`test/xml_oracle/rust_fixtures.py`; changing the Rust implementation must not
+regenerate the C++ expectations. The XML-name bitmap preserves the vendored
+Expat character set and license; `test/xml_oracle/name_tables.py` reproduces it.
+Native CMake suites share `test/cmake/xp_ffi_host.cmake`, which builds a host
+archive in the CMake build directory and supplies allocator adapters.

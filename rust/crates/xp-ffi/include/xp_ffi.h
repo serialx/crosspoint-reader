@@ -269,6 +269,46 @@ uint8_t xp_layout_line_sources(XpLayoutLine* line, const XpWordStore* store, XpT
                                const uint16_t* order, uint8_t paragraph_emitted, uint16_t* paragraph_start);
 size_t xp_layout_strip_soft_hyphens(uint8_t* data, size_t len);
 
-#ifdef __cplusplus
-}
-#endif
+// XML streaming parser. Handles and spans have a single externally serialized owner.
+typedef struct XpXml XpXml;
+typedef struct {
+  const char* data;
+  size_t len;
+} XpXmlSpan;
+typedef struct {
+  uint32_t kind;
+  uint32_t error;
+  uint64_t byte;
+  uint64_t line;
+  XpXmlSpan name;
+  XpXmlSpan value;
+  const char* const* attributes;
+  size_t attribute_count;
+} XpXmlEvent;
+
+enum XpXmlKind {
+  XP_XML_START = 1,
+  XP_XML_END,
+  XP_XML_TEXT,
+  XP_XML_COMMENT,
+  XP_XML_PI,
+  XP_XML_CDATA_START,
+  XP_XML_CDATA_END,
+  XP_XML_ENTITY,
+  XP_XML_ERROR,
+  XP_XML_NEED_INPUT,
+  XP_XML_DONE,
+  XP_XML_STOPPED
+};
+// Status: 0 success, -1 invalid argument, -2 allocation failure. Parse errors
+// arrive as XP_XML_ERROR with Expat's numeric error code and source location.
+int32_t xp_xml_create(XpXml** out_handle);
+// Feed may consume a prefix. Drain next() to NEED_INPUT before feeding again;
+// final applies only when the whole offered slice has been consumed.
+int32_t xp_xml_feed(XpXml*, const uint8_t*, size_t, uint8_t final_input, size_t* consumed);
+// Spans expire on the next call on this handle. START/END names and alternating
+// START attribute name/value strings are NUL-terminated; attributes ends in NULL.
+// TEXT/COMMENT/ENTITY use name as a length-delimited value; PI uses name + value.
+int32_t xp_xml_next(XpXml*, XpXmlEvent*);
+void xp_xml_stop(XpXml*);
+void xp_xml_destroy(XpXml*);

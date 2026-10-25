@@ -2,24 +2,12 @@
 
 #include <FsHelpers.h>
 #include <Logging.h>
-#include <XmlParserUtils.h>
+
+#include <cstring>
 
 #include "Epub/BookMetadataCache.h"
 
-bool TocNcxParser::setup() {
-  parser = XML_ParserCreate(nullptr);
-  if (!parser) {
-    LOG_DBG("TOC", "Couldn't allocate memory for parser");
-    return false;
-  }
-
-  XML_SetUserData(parser, this);
-  XML_SetElementHandler(parser, startElement, endElement);
-  XML_SetCharacterDataHandler(parser, characterData);
-  return true;
-}
-
-TocNcxParser::~TocNcxParser() { destroyXmlParser(parser); }
+bool TocNcxParser::setup() { return parser.setup(this, startElement, endElement, characterData); }
 
 size_t TocNcxParser::write(const uint8_t data) { return write(&data, 1); }
 
@@ -30,20 +18,9 @@ size_t TocNcxParser::write(const uint8_t* buffer, const size_t size) {
   auto remainingInBuffer = size;
 
   while (remainingInBuffer > 0) {
-    void* const buf = XML_GetBuffer(parser, 1024);
-    if (!buf) {
-      LOG_DBG("TOC", "Couldn't allocate memory for buffer");
-      destroyXmlParser(parser);
-      return 0;
-    }
-
     const auto toRead = remainingInBuffer < 1024 ? remainingInBuffer : 1024;
-    memcpy(buf, currentBufferPos, toRead);
-
-    if (XML_ParseBuffer(parser, static_cast<int>(toRead), remainingSize == toRead) == XML_STATUS_ERROR) {
-      LOG_DBG("TOC", "Parse error at line %lu: %s", XML_GetCurrentLineNumber(parser),
-              XML_ErrorString(XML_GetErrorCode(parser)));
-      destroyXmlParser(parser);
+    if (!parser.write(currentBufferPos, toRead, remainingSize == toRead)) {
+      parser.reset();
       return 0;
     }
 
@@ -54,7 +31,7 @@ size_t TocNcxParser::write(const uint8_t* buffer, const size_t size) {
   return size;
 }
 
-void XMLCALL TocNcxParser::startElement(void* userData, const XML_Char* name, const XML_Char** atts) {
+void TocNcxParser::startElement(void* userData, const char* name, const char* const* atts) {
   // NOTE: We rely on navPoint label and content coming before any nested navPoints, this will be fine:
   // <navPoint>
   //   <navLabel><text>Chapter 1</text></navLabel>
@@ -112,14 +89,14 @@ void XMLCALL TocNcxParser::startElement(void* userData, const XML_Char* name, co
   }
 }
 
-void XMLCALL TocNcxParser::characterData(void* userData, const XML_Char* s, const int len) {
+void TocNcxParser::characterData(void* userData, const char* s, const int len) {
   auto* self = static_cast<TocNcxParser*>(userData);
   if (self->state == IN_NAV_LABEL_TEXT) {
     self->currentLabel.append(s, len);
   }
 }
 
-void XMLCALL TocNcxParser::endElement(void* userData, const XML_Char* name) {
+void TocNcxParser::endElement(void* userData, const char* name) {
   auto* self = static_cast<TocNcxParser*>(userData);
 
   if (self->state == IN_NAV_LABEL_TEXT && strcmp(name, "text") == 0) {

@@ -103,12 +103,6 @@ pub fn small_caps_upper(cp: u32) -> u32 {
 pub fn break_after_hyphen(cp: u32) -> bool {
     explicit(cp) && cp != 0xad && cp != 0x2011
 }
-pub const fn allows_break(continues: bool, no_space: bool) -> bool {
-    !continues || no_space
-}
-pub const fn justifiable(continues: bool, stretchable: bool) -> bool {
-    !continues || stretchable
-}
 fn no_break_before(cp: u32) -> bool {
     break_after_hyphen(cp)
         || matches!(

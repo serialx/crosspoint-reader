@@ -997,16 +997,18 @@ ParagraphBreaks ParsedText::computeRustLineBreaks(const GfxRenderer& renderer, c
       static_cast<uint8_t>(!rubyTexts.empty()),
       [](void* raw, size_t i) -> uint8_t {
         const auto& p = static_cast<Context*>(raw)->paragraph;
-        return TokenBoundary::allowsBreak(p.tokenContinues(i), p.tokenNoSpaceBefore(i));
+        const auto flags = p.tokenAt(i).flags;
+        return TokenBoundary::allowsBreak((flags & 1) != 0, (flags & 2) != 0);
       },
       [](void* raw, size_t i) -> int32_t {
         const auto& c = *static_cast<Context*>(raw);
         const auto& p = c.paragraph;
-        if (p.tokenContinues(i)) {
+        const auto flags = p.tokenAt(i).flags;
+        if ((flags & 1) != 0) {
           return c.renderer.getKerning(c.fontId, lastCodepoint(p.wordAt(i - 1)), firstCodepoint(p.wordAt(i)),
                                        p.getWordStyleAt(i - 1), p.blockStyle.characterSpacing);
         }
-        if (p.tokenNoSpaceBefore(i)) return p.blockStyle.characterSpacing;
+        if ((flags & 2) != 0) return p.blockStyle.characterSpacing;
         return scaleSpace(c.renderer.getSpaceAdvance(c.fontId, lastCodepoint(p.wordAt(i - 1)),
                                                      firstCodepoint(p.wordAt(i)), p.getWordStyleAt(i - 1)),
                           p.wordSpacingPercent);
@@ -1507,8 +1509,9 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
         const auto& words = c.reordered ? p.reorderedWordsScratch : c.words;
         const std::span<const EpdFontFamily::Style> styles =
             c.reordered ? std::span<const EpdFontFamily::Style>(p.reorderedStylesScratch) : c.styles;
-        const bool continues = c.reordered ? p.reorderedContinuesScratch[i] : p.tokenContinues(c.start + i);
-        const bool noSpace = c.reordered ? p.reorderedNoSpaceBeforeScratch[i] : p.tokenNoSpaceBefore(c.start + i);
+        const auto flags = c.reordered ? 0 : p.tokenAt(c.start + i).flags;
+        const bool continues = c.reordered ? p.reorderedContinuesScratch[i] : (flags & 1) != 0;
+        const bool noSpace = c.reordered ? p.reorderedNoSpaceBeforeScratch[i] : (flags & 2) != 0;
         if (continues) {
           return c.renderer.getKerning(c.font, lastCodepoint(words[i - 1]), firstCodepoint(words[i]), styles[i - 1],
                                        p.blockStyle.characterSpacing);

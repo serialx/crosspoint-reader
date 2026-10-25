@@ -13,6 +13,37 @@
 #include "blocks/BlockStyle.h"
 #include "blocks/TextBlock.h"
 
+#ifndef XP_RUST_LAYOUT
+#define XP_RUST_LAYOUT 0
+#endif
+
+#if XP_RUST_LAYOUT
+// Rust owns the cache allocation; element borrows expire on reserve/insert.
+class ParagraphWidths {
+  XpLayoutWidths state{nullptr, 0, 0, paragraphAllocator(), 0};
+
+ public:
+  ParagraphWidths() = default;
+  ~ParagraphWidths() { xp_layout_widths_destroy(&state); }
+  ParagraphWidths(const ParagraphWidths&) = delete;
+  ParagraphWidths& operator=(const ParagraphWidths&) = delete;
+  ParagraphWidths(ParagraphWidths&& other) noexcept : state(other.state) {
+    other.state.data = nullptr;
+    other.state.len = other.state.capacity = 0;
+  }
+  void reserve(size_t n) { xp_layout_widths_reserve(&state, n); }
+  void push_back(uint16_t width) { xp_layout_widths_insert(&state, state.len, width); }
+  void insert(uint16_t* at, uint16_t width) { xp_layout_widths_insert(&state, at - state.data, width); }
+  uint16_t* begin() { return state.data; }
+  uint16_t& operator[](size_t i) { return state.data[i]; }
+  uint16_t operator[](size_t i) const { return state.data[i]; }
+  size_t size() const { return state.len; }
+  bool valid() const { return state.failed == 0; }
+};
+#else
+using ParagraphWidths = std::vector<uint16_t>;
+#endif
+
 class GfxRenderer;
 
 class ParsedText {
@@ -71,18 +102,18 @@ class ParsedText {
                                   int fontId) const;
   int resolveFirstLineIndent(bool isFirstLine, const GfxRenderer& renderer, int fontId) const;
   std::vector<size_t> computeLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                        std::vector<uint16_t>& wordWidths);
+                                        ParagraphWidths& wordWidths);
   std::vector<size_t> computeHyphenatedLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                                  std::vector<uint16_t>& wordWidths, size_t maxLines);
+                                                  ParagraphWidths& wordWidths, size_t maxLines);
   std::vector<size_t> computeRustLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                            std::vector<uint16_t>& wordWidths, size_t maxLines);
+                                            ParagraphWidths& wordWidths, size_t maxLines);
   bool hyphenateWordAtIndex(size_t wordIndex, int availableWidth, const GfxRenderer& renderer, int fontId,
-                            std::vector<uint16_t>& wordWidths, bool allowFallbackBreaks);
-  void extractLine(size_t breakIndex, int pageWidth, const std::vector<uint16_t>& wordWidths,
+                            ParagraphWidths& wordWidths, bool allowFallbackBreaks);
+  void extractLine(size_t breakIndex, int pageWidth, const ParagraphWidths& wordWidths,
                    const std::vector<size_t>& lineBreakIndices,
                    const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                    const GfxRenderer& renderer, int fontId);
-  std::vector<uint16_t> calculateWordWidths(const GfxRenderer& renderer, int fontId);
+  ParagraphWidths calculateWordWidths(const GfxRenderer& renderer, int fontId);
 
  public:
   explicit ParsedText(const bool hyphenationEnabled = false, const bool focusReadingEnabled = false,

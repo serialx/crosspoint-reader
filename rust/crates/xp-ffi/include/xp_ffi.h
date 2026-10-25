@@ -156,6 +156,20 @@ uint8_t xp_tokens_record_absorbed(XpTokens* state, uint32_t offset);
 // Updates the NFC cursor; requires exclusive access despite being a logical lookup.
 uint32_t xp_tokens_source_after(XpTokens* state, uint32_t start, uint32_t rendered);
 
+// Width-cache owner: initialize all fields to zero except allocator. Only Rust
+// mutates ownership fields; C++ may read/write data[0..len] between calls. Movable
+// by transferring the record and zeroing the source data/len/capacity. No copies.
+// Growth starts at requested count, then doubles; failed is latched on OOM.
+typedef struct {
+  uint16_t* data;
+  size_t len, capacity;
+  const XpParaAllocator* allocator;
+  uint8_t failed;
+} XpLayoutWidths;
+uint8_t xp_layout_widths_reserve(XpLayoutWidths* widths, size_t needed);
+uint8_t xp_layout_widths_insert(XpLayoutWidths* widths, size_t index, uint16_t value);
+void xp_layout_widths_destroy(XpLayoutWidths* widths);
+
 // Paragraph breaking callbacks are synchronous and may not reenter layout. The
 // context and callback record outlive the call; no pointer is retained by Rust.
 // count/width describe one sequence. Successful split inserts exactly one word

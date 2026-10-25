@@ -200,6 +200,81 @@ pub unsafe fn greedy(
     true
 }
 
+/// C-compatible owner for the paragraph's cached u16 advances. No Rust references
+/// survive a call; the C++ facade may borrow elements until reserve/insert/destroy.
+#[repr(C)]
+pub struct Widths {
+    pub data: *mut u16,
+    pub len: usize,
+    pub capacity: usize,
+    pub allocator: *const Allocator,
+    pub failed: u8,
+}
+impl Widths {
+    /// # Safety
+    /// The owner is zero-initialized with a live allocator. All fields remain
+    /// exclusively owned; len <= capacity and data has capacity initialized slots.
+    pub unsafe fn reserve(&mut self, needed: usize) -> bool {
+        if self.failed != 0 {
+            return false;
+        }
+        if needed <= self.capacity {
+            return true;
+        }
+        let capacity = if self.capacity == 0 {
+            needed
+        } else {
+            needed.max(self.capacity.saturating_mul(2))
+        };
+        let Some(bytes) = capacity
+            .checked_mul(mem::size_of::<u16>())
+            .filter(|&v| v <= isize::MAX as usize)
+        else {
+            self.failed = 1;
+            return false;
+        };
+        let data = ((*self.allocator).allocate)(bytes).cast::<u16>();
+        if data.is_null() {
+            self.failed = 1;
+            return false;
+        }
+        if self.len != 0 {
+            ptr::copy_nonoverlapping(self.data, data, self.len);
+        }
+        if !self.data.is_null() {
+            ((*self.allocator).release)(self.data.cast());
+        }
+        self.data = data;
+        self.capacity = capacity;
+        true
+    }
+    /// # Safety
+    /// Same owner contract as reserve. index <= len. Failure leaves data unchanged.
+    pub unsafe fn insert(&mut self, index: usize, width: u16) -> bool {
+        if index > self.len || self.len == usize::MAX || !self.reserve(self.len + 1) {
+            return false;
+        }
+        ptr::copy(
+            self.data.add(index),
+            self.data.add(index + 1),
+            self.len - index,
+        );
+        self.data.add(index).write(width);
+        self.len += 1;
+        true
+    }
+    /// # Safety
+    /// Same owner contract as reserve. Called once when no element borrows remain.
+    pub unsafe fn destroy(&mut self) {
+        if !self.data.is_null() {
+            ((*self.allocator).release)(self.data.cast());
+        }
+        self.data = ptr::null_mut();
+        self.len = 0;
+        self.capacity = 0;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
@@ -316,6 +391,39 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn width_cache_growth_failure_preserves_values_and_releases_storage() {
+        for fail in 1..=3 {
+            HEAP.with(|h| *h.borrow_mut() = (0, fail, 0));
+            let mut w = Widths {
+                data: ptr::null_mut(),
+                len: 0,
+                capacity: 0,
+                allocator: &ALLOCATOR,
+                failed: 0,
+            };
+            unsafe {
+                if w.reserve(2) {
+                    assert!(w.insert(0, 10));
+                    assert!(w.insert(1, 30));
+                    if w.insert(1, 20) {
+                        assert_eq!(core::slice::from_raw_parts(w.data, w.len), [10, 20, 30]);
+                        assert_eq!(w.capacity, 4);
+                    } else {
+                        assert_eq!(core::slice::from_raw_parts(w.data, w.len), [10, 30]);
+                        assert_eq!(w.failed, 1);
+                        assert!(!w.reserve(1));
+                    }
+                } else {
+                    assert_eq!(w.len, 0);
+                    assert!(w.data.is_null());
+                }
+                w.destroy();
+            }
+            HEAP.with(|h| assert_eq!(h.borrow().2, 0));
+        }
+    }
+
     #[test]
     fn dp_ties_choose_longer_lines_and_cost_cap_forces_single_word() {
         let mut f = Fixture::new(&[0, 0, 0]);

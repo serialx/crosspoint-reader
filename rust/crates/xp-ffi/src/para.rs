@@ -201,3 +201,27 @@ pub unsafe extern "C" fn xp_layout_greedy(
         hyphenation != 0,
     ) as u8
 }
+
+use xp_core::para::layout::Widths;
+/// # Safety
+/// widths is an exclusive live owner satisfying Widths::reserve's contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_widths_reserve(widths: *mut Widths, needed: usize) -> u8 {
+    (*widths).reserve(needed) as u8
+}
+/// # Safety
+/// widths satisfies Widths::insert's contract; index <= len.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_widths_insert(
+    widths: *mut Widths,
+    index: usize,
+    value: u16,
+) -> u8 {
+    (*widths).insert(index, value) as u8
+}
+/// # Safety
+/// widths satisfies Widths::destroy's contract; no outstanding element borrows.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_widths_destroy(widths: *mut Widths) {
+    (*widths).destroy();
+}

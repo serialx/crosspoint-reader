@@ -225,3 +225,23 @@ pub unsafe extern "C" fn xp_layout_widths_insert(
 pub unsafe extern "C" fn xp_layout_widths_destroy(widths: *mut Widths) {
     (*widths).destroy();
 }
+
+use xp_core::para::layout_split::{self, SplitRequest, SplitResult};
+/// # Safety
+/// All pointers meet layout_split::split's exclusive/disjoint owner contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_split(
+    store: *mut WordStore,
+    tokens: *mut Tokens,
+    widths: *mut Widths,
+    request: *const SplitRequest,
+    result: *mut SplitResult,
+) -> u8 {
+    layout_split::split(
+        &mut *store,
+        &mut *tokens,
+        &mut *widths,
+        &*request,
+        &mut *result,
+    ) as u8
+}

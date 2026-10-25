@@ -1,4 +1,5 @@
 add_executable(ChapterHtmlSlimParserTest
+  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
   ChapterHtmlSlimParserTest.cpp
   ParserLinkStubs.cpp
   DictionaryHtmlPagesTest.cpp

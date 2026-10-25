@@ -19,6 +19,8 @@
 // (-fno-exceptions turns a failed implicit allocation into abort()), giving
 // the layout path a single detectable OOM choke point.
 class WordStore {
+  friend class ParsedText;
+
  public:
   WordStore();
   ~WordStore();

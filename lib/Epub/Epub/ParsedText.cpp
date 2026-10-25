@@ -93,6 +93,7 @@ uint32_t countCodepoints(const std::string_view text) {
   return count;
 }
 
+#if !XP_RUST_LAYOUT
 // Line-end split points inside a Hangul word, using the CJK boundary rules (no hyphen is drawn).
 std::vector<Hyphenator::BreakInfo> hangulLineEndBreaks(const std::string& word) {
   std::vector<Hyphenator::BreakInfo> breaks;
@@ -110,6 +111,8 @@ std::vector<Hyphenator::BreakInfo> hangulLineEndBreaks(const std::string& word) 
   }
   return breaks;
 }
+
+#endif
 
 // Scans text for explicit hyphens or dashes and returns byte offsets where a line break is permitted right after
 // the hyphen/dash. Multi-character hyphen/dash runs are kept together as an indivisible unit.
@@ -250,6 +253,7 @@ uint16_t measureFocusWordWidth(const GfxRenderer& renderer, const int fontId, co
   return measureFocusPrefixAdvance(renderer, fontId, word, style, focusBoundary, characterSpacing) + suffixWidth;
 }
 
+#if !XP_RUST_LAYOUT
 // Focus boundaries for the two halves of a token split at `splitOffset`.
 uint8_t focusBoundaryBefore(const uint8_t focusBoundary, const size_t splitOffset) {
   return static_cast<uint8_t>(std::min<size_t>(focusBoundary, splitOffset));
@@ -257,6 +261,7 @@ uint8_t focusBoundaryBefore(const uint8_t focusBoundary, const size_t splitOffse
 uint8_t focusBoundaryAfter(const uint8_t focusBoundary, const size_t splitOffset) {
   return focusBoundary > splitOffset ? static_cast<uint8_t>(focusBoundary - splitOffset) : 0;
 }
+#endif
 
 // Checks if a UTF-8 codepoint should be counted as part of a word for Focus Reading
 bool isWordCharacter(uint32_t cp) {
@@ -1245,6 +1250,34 @@ bool ParsedText::hyphenateWordAtIndex(const size_t wordIndex, const int availabl
     return false;
   }
 
+#if XP_RUST_LAYOUT
+  struct Context {
+    ParsedText& paragraph;
+    const GfxRenderer& renderer;
+    int font;
+  } context{*this, renderer, wordFontId(wordIndex, fontId)};
+  const XpLayoutSplitRequest request = {
+      &context,
+      [](void* raw, const uint8_t* data, size_t len, uint8_t style, uint8_t focus, uint8_t hyphen) -> uint16_t {
+        const auto& c = *static_cast<Context*>(raw);
+        return measureFocusWordWidth(
+            c.renderer, c.font, {reinterpret_cast<const char*>(data), len}, static_cast<EpdFontFamily::Style>(style),
+            focus, c.paragraph.blockStyle.characterSpacing, c.paragraph.wordSpacingPercent, hyphen != 0);
+      },
+      [](uint32_t previous, uint32_t current) -> uint8_t { return CjkBreaks::boundaryAllowsBreak(previous, current); },
+      [](void* raw, size_t index) {
+        auto& ruby = static_cast<Context*>(raw)->paragraph.rubyTexts;
+        if (index <= ruby.size()) ruby.insert(ruby.begin() + index, "");
+      },
+      wordIndex,
+      availableWidth,
+      Hyphenator::preferredLanguageId(),
+      static_cast<uint8_t>(getWordStyleAt(wordIndex)),
+      static_cast<uint8_t>(allowFallbackBreaks)};
+  XpLayoutSplitResult split{};
+  const bool splitSucceeded = xp_layout_split(wordStore.handle(), tokens(), &wordWidths.state, &request, &split);
+  return splitSucceeded;
+#else
   // Stable copy: Hyphenator and the prefix measurements below want std::string
   // semantics. Bounded by one word.
   const std::string word{wordAt(wordIndex)};  // brace-init: `word(` is an Arduino macro
@@ -1361,6 +1394,7 @@ bool ParsedText::hyphenateWordAtIndex(const size_t wordIndex, const int availabl
                             tokenAt(wordIndex + 1).focus, blockStyle.characterSpacing, wordSpacingPercent);
   wordWidths.insert(wordWidths.begin() + wordIndex + 1, remainderWidth);
   return true;
+#endif
 }
 
 void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const ParagraphWidths& wordWidths,

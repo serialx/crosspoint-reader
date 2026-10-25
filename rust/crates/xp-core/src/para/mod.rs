@@ -1,6 +1,7 @@
 //! Fallible paragraph storage. Text handles retain a single release obligation.
 
 pub mod layout;
+pub mod layout_split;
 mod tokens;
 pub use tokens::{Token, Tokens};
 
@@ -237,6 +238,101 @@ mod tests {
     }
     fn store() -> WordStore {
         unsafe { WordStore::new(&ALLOC) }
+    }
+
+    #[test]
+    fn split_owns_prefix_and_suffix_and_survives_every_allocation_failure() {
+        use super::layout::Widths;
+        use super::layout_split::{split, SplitRequest, SplitResult};
+        unsafe extern "C" fn measure(
+            _: *mut core::ffi::c_void,
+            _: *const u8,
+            n: usize,
+            _: u8,
+            _: u8,
+            hyphen: u8,
+        ) -> u16 {
+            (n + usize::from(hyphen)) as u16
+        }
+        unsafe extern "C" fn boundary(_: u32, _: u32) -> u8 {
+            1
+        }
+        unsafe extern "C" fn inserted(_: *mut core::ffi::c_void, _: usize) {}
+        for fail in 1..=20 {
+            reset(None);
+            let mut s = store();
+            let mut t = unsafe { Tokens::new(&ALLOC) };
+            let original = s.append(b"abcdefghij").unwrap();
+            assert!(t.insert(
+                0,
+                Token {
+                    word: original,
+                    focus: 4,
+                    flags: 3,
+                    link: 2,
+                    ..Token::default()
+                },
+                50
+            ));
+            // Fill metadata capacity so split exercises growth as well as prefix storage.
+            for i in 1..16 {
+                assert!(t.insert(i, token(i as u32), 60 + i as u32));
+            }
+            let mut w = Widths {
+                data: ptr::null_mut(),
+                len: 0,
+                capacity: 0,
+                allocator: &ALLOC,
+                failed: 0,
+            };
+            unsafe {
+                assert!(w.reserve(16));
+                for _ in 0..16 {
+                    assert!(w.insert(w.len, 10));
+                }
+            }
+            // Ensure the prefix needs a fresh arena chunk.
+            let _padding = s.append(&vec![b'x'; 2036]).unwrap();
+            HEAP.with(|h| {
+                let mut h = h.borrow_mut();
+                h.fail_at = Some(h.requests.len() + fail);
+            });
+            let request = SplitRequest {
+                context: ptr::null_mut(),
+                measure,
+                boundary,
+                inserted,
+                index: 0,
+                available: 6,
+                language: -1,
+                style: 0,
+                fallback: 1,
+            };
+            let mut result = SplitResult::default();
+            if unsafe { split(&mut s, &mut t, &mut w, &request, &mut result) } {
+                assert_eq!(result.offset, 5);
+                assert_eq!(s.view(t.get(0).unwrap().word), Some(&b"abcde-"[..]));
+                assert_eq!(s.view(t.get(1).unwrap().word), Some(&b"fghij"[..]));
+                assert_eq!(t.get(0).unwrap().flags, 3);
+                assert_eq!(t.get(0).unwrap().focus, 4);
+                assert_eq!(t.get(0).unwrap().style, 128);
+                assert_eq!(t.get(1).unwrap().flags, 0);
+                assert_eq!(t.get(1).unwrap().link, 2);
+                assert_eq!(t.offset(1), 55);
+                assert_eq!(w.len, 17);
+            } else {
+                assert_eq!(t.len(), 16);
+                assert_eq!(t.get(0).unwrap().word, original);
+                assert_eq!(s.view(original), Some(&b"abcdefghij"[..]));
+                assert_eq!(w.len, 16);
+            }
+            unsafe {
+                w.destroy();
+            }
+            drop(t);
+            drop(s);
+            HEAP.with(|h| assert!(h.borrow().live.is_empty()));
+        }
     }
 
     #[test]

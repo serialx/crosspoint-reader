@@ -194,6 +194,28 @@ uint8_t xp_layout_optimal(const XpLayoutCallbacks* callbacks, const XpParaAlloca
 uint8_t xp_layout_greedy(const XpLayoutCallbacks* callbacks, int32_t page, int32_t indent, size_t max_lines,
                          uint8_t first_consumed, uint8_t hyphenation);
 
+// Split borrows disjoint stores exclusively. Callbacks cannot access those stores;
+// measure borrows text for the call, inserted updates only ruby metadata.
+// Result is written only on success; failed width growth latches widths.failed.
+typedef struct {
+  void* context;
+  uint16_t (*measure)(void*, const uint8_t*, size_t, uint8_t, uint8_t, uint8_t);
+  uint8_t (*boundary)(uint32_t, uint32_t);
+  void (*inserted)(void*, size_t);
+  size_t index;
+  int32_t available, language;
+  uint8_t style, fallback;
+} XpLayoutSplitRequest;
+typedef struct {
+  size_t offset;
+  int32_t width;
+  uint32_t remainder_offset;
+  uint16_t remainder_width;
+  uint8_t hyphen;
+} XpLayoutSplitResult;
+uint8_t xp_layout_split(XpWordStore* store, XpTokens* tokens, XpLayoutWidths* widths,
+                        const XpLayoutSplitRequest* request, XpLayoutSplitResult* result);
+
 #ifdef __cplusplus
 }
 #endif

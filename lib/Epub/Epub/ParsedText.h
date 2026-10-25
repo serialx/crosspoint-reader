@@ -20,6 +20,7 @@
 #if XP_RUST_LAYOUT
 // Rust owns the cache allocation; element borrows expire on reserve/insert.
 class ParagraphWidths {
+  friend class ParsedText;
   XpLayoutWidths state{nullptr, 0, 0, paragraphAllocator(), 0};
 
  public:

@@ -28,6 +28,13 @@ def instrument(source):
     LayoutTrace::record("break", i, lineBreakIndices[i]);
   for (size_t i = 0; i < wordWidths.size(); ++i)
     LayoutTrace::record("width", i, wordWidths[i]);''')
+    before('  XpLayoutSplitResult split{};', '  const std::string traceSplitWord{wordAt(wordIndex)};')
+    before('  return splitSucceeded;', '''
+  if (splitSucceeded)
+    LayoutTrace::record("split", wordIndex, availableWidth, allowFallbackBreaks,
+                        split.offset, int(split.hyphen), split.width, split.remainder_width,
+                        LayoutTrace::hex(traceSplitWord), split.remainder_offset);
+''')
     before('  wordWidths.insert(wordWidths.begin() + wordIndex + 1, remainderWidth);', '''
   LayoutTrace::record("split", wordIndex, availableWidth, allowFallbackBreaks,
                       chosenOffset, chosenNeedsHyphen, chosenWidth, remainderWidth,

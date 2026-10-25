@@ -2881,4 +2881,490 @@ Expected { kind: Kind::End, byte: 10, line: 1, fields: &["r"] },
 Expected { kind: Kind::Comment, byte: 10, line: 1, fields: &[""] },
 ], error: 9, byte: 24, line: 1 },
 ], splits: &[(26,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_parameter_space_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,69,78,84,73,84,89,32,37,32,112,32,34,120,34,62,32,37,112,59,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 36, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 40, line: 1, fields: &["r"] },
+], error: 0, byte: 40, line: 1 },
+], splits: &[(41,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_parameter_space_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,32,0,37,0,112,0,59,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 74, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 82, line: 1, fields: &["r"] },
+], error: 0, byte: 82, line: 1 },
+], splits: &[(83,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_parameter_space_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,32,0,37,0,112,0,59,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 74, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 82, line: 1, fields: &["r"] },
+], error: 0, byte: 82, line: 1 },
+], splits: &[(83,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_space_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,93,32,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 16, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 20, line: 1, fields: &["r"] },
+], error: 0, byte: 20, line: 1 },
+], splits: &[(21,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_space_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,32,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 34, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 42, line: 1, fields: &["r"] },
+], error: 0, byte: 42, line: 1 },
+], splits: &[(43,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_space_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,32,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 34, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 42, line: 1, fields: &["r"] },
+], error: 0, byte: 42, line: 1 },
+], splits: &[(43,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,60,33,69,78,84,73,84,89,32,37,32,112,32,34,120,34,62,32,37,112,59,32,93,32,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 39, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 43, line: 1, fields: &["r"] },
+], error: 0, byte: 43, line: 1 },
+], splits: &[(44,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,32,0,37,0,112,0,59,0,32,0,93,0,32,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 1, fields: &["r"] },
+], error: 0, byte: 88, line: 1 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,32,0,37,0,112,0,59,0,32,0,93,0,32,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 1, fields: &["r"] },
+], error: 0, byte: 88, line: 1 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,93,32], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 15, line: 1 },
+], splits: &[(16,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,32,0], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,32], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,9,60,33,69,78,84,73,84,89,32,37,32,112,32,34,120,34,62,9,37,112,59,9,93,9,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 39, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 43, line: 1, fields: &["r"] },
+], error: 0, byte: 43, line: 1 },
+], splits: &[(44,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,9,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,9,0,37,0,112,0,59,0,9,0,93,0,9,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 1, fields: &["r"] },
+], error: 0, byte: 88, line: 1 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,9,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,9,0,37,0,112,0,59,0,9,0,93,0,9,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 1, fields: &["r"] },
+], error: 0, byte: 88, line: 1 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,93,9], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 15, line: 1 },
+], splits: &[(16,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,9,0], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,9], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,13,60,33,69,78,84,73,84,89,32,37,32,112,32,34,120,34,62,13,37,112,59,13,93,13,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 39, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 43, line: 5, fields: &["r"] },
+], error: 0, byte: 43, line: 5 },
+], splits: &[(44,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,13,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,13,0,37,0,112,0,59,0,13,0,93,0,13,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 5, fields: &["r"] },
+], error: 0, byte: 88, line: 5 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,13,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,13,0,37,0,112,0,59,0,13,0,93,0,13,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 5, fields: &["r"] },
+], error: 0, byte: 88, line: 5 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,93,13], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 15, line: 2 },
+], splits: &[(16,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,13,0], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 2 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,13], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 2 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,10,60,33,69,78,84,73,84,89,32,37,32,112,32,34,120,34,62,10,37,112,59,10,93,10,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 39, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 43, line: 5, fields: &["r"] },
+], error: 0, byte: 43, line: 5 },
+], splits: &[(44,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,10,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,10,0,37,0,112,0,59,0,10,0,93,0,10,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 5, fields: &["r"] },
+], error: 0, byte: 88, line: 5 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,10,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,10,0,37,0,112,0,59,0,10,0,93,0,10,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 80, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 88, line: 5, fields: &["r"] },
+], error: 0, byte: 88, line: 5 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,93,10], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 15, line: 2 },
+], splits: &[(16,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,10,0], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 2 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,10], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 32, line: 2 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,9,32,60,33,69,78,84,73,84,89,32,37,32,112,32,34,120,34,62,32,13,10,9,32,37,112,59,32,13,10,9,32,93,32,13,10,9,32,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 55, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 59, line: 5, fields: &["r"] },
+], error: 0, byte: 59, line: 5 },
+], splits: &[(60,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,9,0,32,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,32,0,13,0,10,0,9,0,32,0,37,0,112,0,59,0,32,0,13,0,10,0,9,0,32,0,93,0,32,0,13,0,10,0,9,0,32,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 112, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 120, line: 5, fields: &["r"] },
+], error: 0, byte: 120, line: 5 },
+], splits: &[(121,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_space_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,9,0,32,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,37,0,32,0,112,0,32,0,34,0,120,0,34,0,62,0,32,0,13,0,10,0,9,0,32,0,37,0,112,0,59,0,32,0,13,0,10,0,9,0,32,0,93,0,32,0,13,0,10,0,9,0,32,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 112, line: 5, fields: &["r"] },
+Expected { kind: Kind::End, byte: 120, line: 5, fields: &["r"] },
+], error: 0, byte: 120, line: 5 },
+], splits: &[(121,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,93,32,13,10,9,32], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 19, line: 2 },
+], splits: &[(20,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,32,0,13,0,10,0,9,0,32,0], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 40, line: 2 },
+], splits: &[(41,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_close_eof_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,93,0,32,0,13,0,10,0,9,0,32], variants: &[
+ExpectedRun { events: &[
+], error: 3, byte: 40, line: 2 },
+], splits: &[(41,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_265_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,69,78,84,73,84,89,32,196,137,32,34,114,101,112,108,97,99,101,109,101,110,116,34,62,93,62,60,114,32,97,61,34,38,196,137,59,34,62,38,196,137,59,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 41, line: 1, fields: &["r","a","&ĉ;"] },
+Expected { kind: Kind::Text, byte: 53, line: 1, fields: &["&ĉ;"] },
+Expected { kind: Kind::End, byte: 57, line: 1, fields: &["r"] },
+], error: 0, byte: 61, line: 1 },
+], splits: &[(62,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_265_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,9,1,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,0,9,1,59,0,34,0,62,0,38,0,9,1,59,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&ĉ;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&ĉ;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_265_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,1,9,0,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,1,9,0,59,0,34,0,62,0,38,1,9,0,59,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&ĉ;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&ĉ;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_266_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,69,78,84,73,84,89,32,196,138,32,34,114,101,112,108,97,99,101,109,101,110,116,34,62,93,62,60,114,32,97,61,34,38,196,138,59,34,62,38,196,138,59,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 41, line: 1, fields: &["r","a","&Ċ;"] },
+Expected { kind: Kind::Text, byte: 53, line: 1, fields: &["&Ċ;"] },
+Expected { kind: Kind::End, byte: 57, line: 1, fields: &["r"] },
+], error: 0, byte: 61, line: 1 },
+], splits: &[(62,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_266_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,10,1,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,0,10,1,59,0,34,0,62,0,38,0,10,1,59,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&Ċ;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&Ċ;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_266_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,1,10,0,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,1,10,0,59,0,34,0,62,0,38,1,10,0,59,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&Ċ;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&Ċ;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_269_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,69,78,84,73,84,89,32,196,141,32,34,114,101,112,108,97,99,101,109,101,110,116,34,62,93,62,60,114,32,97,61,34,38,196,141,59,34,62,38,196,141,59,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 41, line: 1, fields: &["r","a","&č;"] },
+Expected { kind: Kind::Text, byte: 53, line: 1, fields: &["&č;"] },
+Expected { kind: Kind::End, byte: 57, line: 1, fields: &["r"] },
+], error: 0, byte: 61, line: 1 },
+], splits: &[(62,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_269_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,13,1,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,0,13,1,59,0,34,0,62,0,38,0,13,1,59,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&č;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&č;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_269_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,1,13,0,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,1,13,0,59,0,34,0,62,0,38,1,13,0,59,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&č;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&č;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_288_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,69,78,84,73,84,89,32,196,160,32,34,114,101,112,108,97,99,101,109,101,110,116,34,62,93,62,60,114,32,97,61,34,38,196,160,59,34,62,38,196,160,59,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 41, line: 1, fields: &["r","a","&Ġ;"] },
+Expected { kind: Kind::Text, byte: 53, line: 1, fields: &["&Ġ;"] },
+Expected { kind: Kind::End, byte: 57, line: 1, fields: &["r"] },
+], error: 0, byte: 61, line: 1 },
+], splits: &[(62,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_288_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,0,32,1,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,0,32,1,59,0,34,0,62,0,38,0,32,1,59,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&Ġ;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&Ġ;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "entity_unicode_288_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,69,0,78,0,84,0,73,0,84,0,89,0,32,1,32,0,32,0,34,0,114,0,101,0,112,0,108,0,97,0,99,0,101,0,109,0,101,0,110,0,116,0,34,0,62,0,93,0,62,0,60,0,114,0,32,0,97,0,61,0,34,0,38,1,32,0,59,0,34,0,62,0,38,1,32,0,59,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 82, line: 1, fields: &["r","a","&Ġ;"] },
+Expected { kind: Kind::Text, byte: 104, line: 1, fields: &["&Ġ;"] },
+Expected { kind: Kind::End, byte: 110, line: 1, fields: &["r"] },
+], error: 0, byte: 118, line: 1 },
+], splits: &[(119,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,67,68,65,84,65,32,34,60,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 34, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 34, line: 1 },
+], splits: &[(37,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "default_CDATA_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 70, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 70, line: 1 },
+], splits: &[(76,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_CDATA_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 70, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 70, line: 1 },
+], splits: &[(76,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_CDATA_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,67,68,65,84,65,32,34,97,60,98,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 35, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 35, line: 1 },
+], splits: &[(39,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "default_CDATA_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,97,0,60,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 72, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 72, line: 1 },
+], splits: &[(80,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_CDATA_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,97,0,60,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 72, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 72, line: 1 },
+], splits: &[(80,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_CDATA_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,67,68,65,84,65,32,34,38,108,116,59,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 42, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 46, line: 1, fields: &["r"] },
+], error: 0, byte: 46, line: 1 },
+], splits: &[(47,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,38,0,108,0,116,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 86, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 94, line: 1, fields: &["r"] },
+], error: 0, byte: 94, line: 1 },
+], splits: &[(95,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,38,0,108,0,116,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 86, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 94, line: 1, fields: &["r"] },
+], error: 0, byte: 94, line: 1 },
+], splits: &[(95,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,67,68,65,84,65,32,34,97,38,108,116,59,98,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 44, line: 1, fields: &["r","a","a<b"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["r"] },
+], error: 0, byte: 48, line: 1 },
+], splits: &[(49,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,97,0,38,0,108,0,116,0,59,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 90, line: 1, fields: &["r","a","a<b"] },
+Expected { kind: Kind::End, byte: 98, line: 1, fields: &["r"] },
+], error: 0, byte: 98, line: 1 },
+], splits: &[(99,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,97,0,38,0,108,0,116,0,59,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 90, line: 1, fields: &["r","a","a<b"] },
+Expected { kind: Kind::End, byte: 98, line: 1, fields: &["r"] },
+], error: 0, byte: 98, line: 1 },
+], splits: &[(99,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,67,68,65,84,65,32,34,38,35,54,48,59,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 43, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 47, line: 1, fields: &["r"] },
+], error: 0, byte: 47, line: 1 },
+], splits: &[(48,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,38,0,35,0,54,0,48,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 88, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 96, line: 1, fields: &["r"] },
+], error: 0, byte: 96, line: 1 },
+], splits: &[(97,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,38,0,35,0,54,0,48,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 88, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 96, line: 1, fields: &["r"] },
+], error: 0, byte: 96, line: 1 },
+], splits: &[(97,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_5_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,67,68,65,84,65,32,34,38,35,120,51,99,59,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 44, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["r"] },
+], error: 0, byte: 48, line: 1 },
+], splits: &[(49,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_5_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,38,0,35,0,120,0,51,0,99,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 90, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 98, line: 1, fields: &["r"] },
+], error: 0, byte: 98, line: 1 },
+], splits: &[(99,0)], chunks: &[0,0,0,0] },
+Case { name: "default_CDATA_5_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,67,0,68,0,65,0,84,0,65,0,32,0,34,0,38,0,35,0,120,0,51,0,99,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 90, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 98, line: 1, fields: &["r"] },
+], error: 0, byte: 98, line: 1 },
+], splits: &[(99,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,78,77,84,79,75,69,78,83,32,34,60,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 37, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 37, line: 1 },
+], splits: &[(40,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "default_NMTOKENS_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 76, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 76, line: 1 },
+], splits: &[(82,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_NMTOKENS_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 76, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 76, line: 1 },
+], splits: &[(82,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_NMTOKENS_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,78,77,84,79,75,69,78,83,32,34,97,60,98,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 1 },
+], splits: &[(42,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "default_NMTOKENS_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,97,0,60,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 78, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 78, line: 1 },
+], splits: &[(86,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_NMTOKENS_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,97,0,60,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 78, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 78, line: 1 },
+], splits: &[(86,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "default_NMTOKENS_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,78,77,84,79,75,69,78,83,32,34,38,108,116,59,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 45, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 49, line: 1, fields: &["r"] },
+], error: 0, byte: 49, line: 1 },
+], splits: &[(50,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,38,0,108,0,116,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 92, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 100, line: 1, fields: &["r"] },
+], error: 0, byte: 100, line: 1 },
+], splits: &[(101,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,38,0,108,0,116,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 92, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 100, line: 1, fields: &["r"] },
+], error: 0, byte: 100, line: 1 },
+], splits: &[(101,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,78,77,84,79,75,69,78,83,32,34,97,38,108,116,59,98,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 47, line: 1, fields: &["r","a","a<b"] },
+Expected { kind: Kind::End, byte: 51, line: 1, fields: &["r"] },
+], error: 0, byte: 51, line: 1 },
+], splits: &[(52,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,97,0,38,0,108,0,116,0,59,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 96, line: 1, fields: &["r","a","a<b"] },
+Expected { kind: Kind::End, byte: 104, line: 1, fields: &["r"] },
+], error: 0, byte: 104, line: 1 },
+], splits: &[(105,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,97,0,38,0,108,0,116,0,59,0,98,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 96, line: 1, fields: &["r","a","a<b"] },
+Expected { kind: Kind::End, byte: 104, line: 1, fields: &["r"] },
+], error: 0, byte: 104, line: 1 },
+], splits: &[(105,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,78,77,84,79,75,69,78,83,32,34,38,35,54,48,59,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 46, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 50, line: 1, fields: &["r"] },
+], error: 0, byte: 50, line: 1 },
+], splits: &[(51,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,38,0,35,0,54,0,48,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 94, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 102, line: 1, fields: &["r"] },
+], error: 0, byte: 102, line: 1 },
+], splits: &[(103,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,38,0,35,0,54,0,48,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 94, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 102, line: 1, fields: &["r"] },
+], error: 0, byte: 102, line: 1 },
+], splits: &[(103,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_5_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,65,84,84,76,73,83,84,32,114,32,97,32,78,77,84,79,75,69,78,83,32,34,38,35,120,51,99,59,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 47, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 51, line: 1, fields: &["r"] },
+], error: 0, byte: 51, line: 1 },
+], splits: &[(52,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_5_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,38,0,35,0,120,0,51,0,99,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 96, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 104, line: 1, fields: &["r"] },
+], error: 0, byte: 104, line: 1 },
+], splits: &[(105,0)], chunks: &[0,0,0,0] },
+Case { name: "default_NMTOKENS_5_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,65,0,84,0,84,0,76,0,73,0,83,0,84,0,32,0,114,0,32,0,97,0,32,0,78,0,77,0,84,0,79,0,75,0,69,0,78,0,83,0,32,0,34,0,38,0,35,0,120,0,51,0,99,0,59,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 96, line: 1, fields: &["r","a","<"] },
+Expected { kind: Kind::End, byte: 104, line: 1, fields: &["r"] },
+], error: 0, byte: 104, line: 1 },
+], splits: &[(105,0)], chunks: &[0,0,0,0] },
 ]

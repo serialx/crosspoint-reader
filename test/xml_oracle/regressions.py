@@ -24,6 +24,17 @@ def cases():
         yield f"comment_{i}_before", form + "<r/>"
         yield f"comment_{i}_inside", "<r>" + form + "</r>"
         yield f"comment_{i}_after", "<r/>" + form + "x"
+    yield "subset_parameter_space", '<!DOCTYPE r [<!ENTITY % p "x"> %p;]><r/>'
+    yield "subset_close_space", '<!DOCTYPE r [] ><r/>'
+    for i, space in enumerate((" ", "\t", "\r", "\n", " \r\n\t ")):
+        yield f"subset_space_{i}", '<!DOCTYPE r [' + space + '<!ENTITY % p "x">' + space + '%p;' + space + ']' + space + '><r/>'
+        yield f"subset_close_eof_{i}", '<!DOCTYPE r []' + space
+    for code in (0x109, 0x10a, 0x10d, 0x120):
+        name = chr(code)
+        yield f"entity_unicode_{code}", f'<!DOCTYPE r [<!ENTITY {name} "replacement">]><r a="&{name};">&{name};</r>'
+    for kind in ("CDATA", "NMTOKENS"):
+        for i, value in enumerate(("<", "a<b", "&lt;", "a&lt;b", "&#60;", "&#x3c;")):
+            yield f"default_{kind}_{i}", f'<!DOCTYPE r [<!ATTLIST r a {kind} "{value}">]><r/>'
 
 
 def encoded_cases():

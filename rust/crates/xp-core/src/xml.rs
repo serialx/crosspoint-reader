@@ -63,6 +63,7 @@ enum Token {
     Entity,
     Markup,
     Cdata,
+    SubsetClose,
 }
 
 struct DefaultAttribute {
@@ -388,11 +389,14 @@ impl Parser {
                         '<' => Token::Markup,
                         '&' => Token::Entity,
                         '%' if self.phase != Phase::Content => Token::Entity,
+                        ']' if self.internal_subset => Token::SubsetClose,
                         _ => Token::Text,
                     }
                 };
             }
-            if self.token_kind == Token::Text && matches!(c, '<' | '&') {
+            if self.token_kind == Token::Text
+                && (matches!(c, '<' | '&') || (self.internal_subset && matches!(c, '%' | ']')))
+            {
                 return Ok(true);
             }
             // A final CR or closing bracket can be the start of a multi-character delimiter.
@@ -490,8 +494,16 @@ impl Parser {
                     if c == ';' {
                         return Ok(true);
                     }
-                    if c == '<' || space(c as u8) {
+                    if c == '<' || matches!(c, ' ' | '\r' | '\n' | '\t') {
                         return Err((4, self.token.len().saturating_sub(c.len_utf8())));
+                    }
+                }
+                Token::SubsetClose => {
+                    if c == '>' {
+                        return Ok(true);
+                    }
+                    if self.token.len() > 1 && !matches!(c, ' ' | '\r' | '\n' | '\t') {
+                        return Err((2, self.token.len().saturating_sub(c.len_utf8())));
                     }
                 }
                 Token::Cdata => {
@@ -615,7 +627,7 @@ impl Parser {
                         if !self.token.is_empty() {
                             let dtd_header = self.token.starts_with(b"<!DOCTYPE")
                                 && self.token.get(9).is_some_and(|&c| space(c));
-                            if dtd_header {
+                            if dtd_header || self.token_kind == Token::SubsetClose {
                                 self.fail(3, self.token.len());
                             } else {
                                 self.fail(if self.cdata { 20 } else { 5 }, 0);
@@ -630,6 +642,7 @@ impl Parser {
                         self.kind = Kind::NeedInput;
                         self.partial_token_bytes = if self.pos == 0 { self.input.len() } else { 0 };
                         if matches!(self.phase, Phase::Prolog | Phase::Epilog)
+                            && !self.internal_subset
                             && self.pos == self.input.len()
                         {
                             self.previous_cr = false;
@@ -837,16 +850,14 @@ impl Parser {
     fn interpret(&mut self, token: &[u8]) -> Result<bool, (u32, usize)> {
         match self.token_kind {
             Token::Unknown => Ok(false),
+            Token::SubsetClose => {
+                self.internal_subset = false;
+                Ok(false)
+            }
             Token::Text => {
                 if self.internal_subset {
                     let start = skip_space(token, 0);
                     if start == token.len() {
-                        return Ok(false);
-                    }
-                    if token.get(start..).is_some_and(|s| s.starts_with(b"]>"))
-                        && skip_space(token, start + 2) == token.len()
-                    {
-                        self.internal_subset = false;
                         return Ok(false);
                     }
                     return Err((2, start));
@@ -1552,6 +1563,9 @@ impl Parser {
                 pos += 1;
                 let start = pos;
                 while token.get(pos).is_some_and(|&b| b != quote) {
+                    if token.get(pos) == Some(&b'<') {
+                        return Err((4, pos));
+                    }
                     pos += 1;
                 }
                 if pos >= token.len() {

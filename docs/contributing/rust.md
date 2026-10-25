@@ -285,10 +285,11 @@ KOReader XPath resolution uses a local pull loop so it can stop dispatch
 immediately at a match and retain comment, PI and CDATA text-node boundaries.
 A match first delivered during finalization still returns empty, as the old
 driver rejected the aborted final parse. SDK OPDS, OpenSearch and XML catalog
-parsers still use Expat, so Expat remains linked. The shared Rust core preserves
-raw qualified names, original byte positions, UTF-8/UTF-16/Latin-1 decoding and
-the vendored GE=0 entity rules;
-it does not perform HTML entity expansion.
+parsers use the Expat API adapter in `lib/expat`, backed by `xp_xml_*`; the
+Expat C parser is retained only in `test/vendor/expat` for host oracles.
+The shared Rust core preserves raw qualified names, original byte positions,
+UTF-8/UTF-16/Latin-1 decoding and the vendored GE=0 entity rules; it does not
+perform HTML entity expansion.
 
 The parser retains an incomplete token, open element names, entity names and
 DTD attribute declarations. Input, decoded-token, event and attribute scratch
@@ -338,3 +339,26 @@ no event queue or extra text buffer is allocated. Rust allocation failure return
 an empty XPath, and the host resolver test injects failures at successive Rust
 allocation sites to verify cleanup. Existing C++ string/vector allocation behavior
 is not covered by that injection test.
+
+## SDK XML compatibility
+
+`lib/expat/ExpatCompat.cpp` implements the Expat API subset used by the pinned
+SDK without modifying SDK sources. It owns a Rust handle, callback pointers,
+user data, line/error state and a reusable checked `XML_GetBuffer` allocation.
+Only OPDS needs that extra input buffer (up to 1,024 bytes per write); direct
+`XML_Parse` callers feed borrowed input. The adapter releases both allocations
+in `XML_ParserFree`. Stop requests latch until the active callback returns.
+
+This is not a full Expat replacement API. Namespace mode, DTD callbacks,
+resumable parsing, explicit encoding overrides and byte-index queries are not
+implemented; adding a new SDK caller requires reviewing its API use first.
+The original declarations and error strings retain their Expat licenses.
+Global `XML_GE` and `XML_CONTEXT_BYTES` firmware flags are unnecessary; the
+Rust parser supplies the fixed GE=0 behavior. The host baseline explicitly
+retains both flags so comparisons use the former firmware configuration.
+
+`test/expat_compat` compiles the unchanged SDK feed, OpenSearch and XML catalog
+parsers against both vendored Expat and the adapter. Its pre-adapter goldens
+compare complete public results, errors and line diagnostics across 30 inputs
+and six chunk schedules. Focused tests cover C++ and Rust allocation failures,
+buffer ownership, long writes and callback cancellation.

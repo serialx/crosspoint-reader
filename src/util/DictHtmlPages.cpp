@@ -97,7 +97,7 @@ bool isEntityRef(const std::string& html, const size_t pos, size_t* end) {
   return true;
 }
 
-// StarDict HTML is tag soup; expat is a strict XML parser. Produce a
+// StarDict HTML is tag soup; the XML core requires well-formed markup. Produce a
 // well-formed XHTML document from the fragment: wrap it in a root element,
 // lowercase tag names (XML is case-sensitive and the parser matches
 // lowercase), self-close void elements (<br> → <br/>), drop stray void

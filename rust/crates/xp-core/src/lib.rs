@@ -1,5 +1,8 @@
 #![no_std]
 
+pub mod hyphen;
+pub mod utf8;
+
 /// FNV-1a 64, matching ZipFile::fnvHash64 over raw bytes.
 pub fn fnv1a64(bytes: &[u8]) -> u64 {
     let mut hash = 14_695_981_039_346_656_037u64;

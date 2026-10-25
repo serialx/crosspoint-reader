@@ -5,8 +5,6 @@ add_executable(EmDashLineBreakingTest
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/LanguageRegistry.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/LiangHyphenation.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/HyphenationCommon.cpp
   ${REPO_ROOT}/lib/MiniBidi/BidiUtils.cpp
   ${REPO_ROOT}/lib/MiniBidi/minibidi.c
@@ -27,6 +25,7 @@ target_include_directories(EmDashLineBreakingTest PRIVATE
 )
 
 target_link_libraries(EmDashLineBreakingTest PRIVATE
+  crosspoint_hyphen_ffi
   crosspoint_test_common
   GTest::gtest_main
 )

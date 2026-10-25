@@ -1,5 +1,7 @@
 #![no_std]
 
+mod hyphen;
+
 use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_void;
 use core::panic::PanicInfo;

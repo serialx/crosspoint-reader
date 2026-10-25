@@ -1,10 +1,9 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
-
-class LanguageHyphenator;
 
 class Hyphenator {
  public:
@@ -39,5 +38,5 @@ class Hyphenator {
   static void setPreferredLanguage(const std::string& lang);
 
  private:
-  static const LanguageHyphenator* cachedHyphenator_;
+  static int32_t cachedLanguage;
 };

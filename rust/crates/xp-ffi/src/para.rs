@@ -270,3 +270,60 @@ pub unsafe extern "C" fn xp_layout_line_position(
 ) {
     layout_line::position(&*spec, &*callbacks, &*metrics, out);
 }
+
+use xp_core::para::layout_extract::{self, Line};
+/// # Safety
+/// line satisfies Line::init's exclusive ownership contract; focus is 0 or 1.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_line_init(line: *mut Line, count: usize, focus: u8) -> u8 {
+    (*line).init(count, focus != 0) as u8
+}
+/// # Safety
+/// line satisfies Line::destroy's contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_line_destroy(line: *mut Line) {
+    (*line).destroy();
+}
+/// # Safety
+/// Inputs and outputs meet layout_extract::sources's disjoint borrowing contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_line_sources(
+    line: *mut Line,
+    store: *const WordStore,
+    tokens: *mut Tokens,
+    start: usize,
+    order: *const u16,
+    paragraph_emitted: u8,
+    paragraph_start: *mut u16,
+) -> u8 {
+    layout_extract::sources(
+        &mut *line,
+        &*store,
+        &mut *tokens,
+        start,
+        order,
+        paragraph_emitted != 0,
+        &mut *paragraph_start,
+    ) as u8
+}
+/// # Safety
+/// data borrows len writable initialized bytes exclusively; null only if len=0.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_strip_soft_hyphens(data: *mut u8, len: usize) -> usize {
+    layout_extract::strip_soft_hyphens(data, len)
+}
+
+use xp_core::para::layout::Breaks;
+/// # Safety
+/// breaks is an exclusive zero-initialized owner with a live allocator, or a live
+/// prior owner. Like Widths::insert, failure preserves values and latches failed.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_breaks_push(breaks: *mut Breaks, value: usize) -> u8 {
+    (*breaks).insert((*breaks).len, value) as u8
+}
+/// # Safety
+/// breaks is a live owner; no outstanding array borrows.
+#[no_mangle]
+pub unsafe extern "C" fn xp_layout_breaks_destroy(breaks: *mut Breaks) {
+    (*breaks).destroy();
+}

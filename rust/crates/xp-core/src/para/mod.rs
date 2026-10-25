@@ -1,6 +1,7 @@
 //! Fallible paragraph storage. Text handles retain a single release obligation.
 
 pub mod layout;
+pub mod layout_extract;
 pub mod layout_line;
 pub mod layout_split;
 mod tokens;
@@ -334,6 +335,89 @@ mod tests {
             drop(s);
             HEAP.with(|h| assert!(h.borrow().live.is_empty()));
         }
+    }
+
+    #[test]
+    fn extracted_sources_preserve_nfc_discretionary_and_visual_order() {
+        use super::layout_extract::{sources, Line};
+        reset(None);
+        let mut s = store();
+        let mut t = unsafe { Tokens::new(&ALLOC) };
+        let first = s.append("é".as_bytes()).unwrap();
+        let second = s.append(b"text-").unwrap();
+        assert!(t.insert(
+            0,
+            Token {
+                word: first,
+                focus: 1,
+                ..Token::default()
+            },
+            10
+        ));
+        assert!(t.insert(
+            1,
+            Token {
+                word: second,
+                style: 128,
+                ..Token::default()
+            },
+            12
+        ));
+        assert!(t.record_absorbed(11));
+        let mut line = Line {
+            data: ptr::null_mut(),
+            count: 0,
+            allocator: &ALLOC,
+            focus: 0,
+        };
+        let order = [1u16, 0];
+        let mut paragraph = u16::MAX;
+        unsafe {
+            assert!(line.init(2, true));
+            assert!(sources(
+                &mut line,
+                &s,
+                &mut t,
+                0,
+                order.as_ptr(),
+                false,
+                &mut paragraph
+            ));
+            assert_eq!(
+                core::slice::from_raw_parts(line.data.cast::<u32>(), 4),
+                [12, 16, 10, 12]
+            );
+            assert_eq!(
+                core::slice::from_raw_parts(line.data.add(20), 4),
+                [128, 0, 0, 1]
+            );
+            assert_eq!(paragraph, 1);
+            line.destroy();
+        }
+        drop(t);
+        drop(s);
+        HEAP.with(|h| assert!(h.borrow().live.is_empty()));
+    }
+    #[test]
+    fn line_allocation_failure_and_bound_are_explicit() {
+        use super::layout_extract::Line;
+        reset(Some(1));
+        let mut line = Line {
+            data: ptr::null_mut(),
+            count: 0,
+            allocator: &ALLOC,
+            focus: 0,
+        };
+        unsafe {
+            assert!(!line.init(10001, true));
+            assert!(!line.init(3, true));
+            assert!(line.data.is_null());
+            line.destroy();
+        }
+        HEAP.with(|h| {
+            assert!(h.borrow().live.is_empty());
+            assert_eq!(h.borrow().requests, [42]);
+        });
     }
 
     #[test]

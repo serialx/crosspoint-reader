@@ -1,8 +1,10 @@
 #pragma once
+
 #include <EpdFontFamily.h>
 #include <HalStorage.h>
 
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -98,6 +100,12 @@ class TextBlock final : public Block {
                      const std::vector<uint16_t>& focusSuffixX, const BlockStyle& blockStyle = BlockStyle(),
                      std::vector<std::string> rubyTexts = {}, std::vector<LinkSpan> linkSpans = {},
                      const std::vector<SourceRange>& ranges = {}, uint16_t paragraphStartWord = UINT16_MAX);
+  struct BorrowedLayout {};
+  TextBlock(BorrowedLayout, const std::vector<std::string>& words, std::span<const int16_t> wordXpos,
+            std::span<const EpdFontFamily::Style> wordStyles, std::span<const uint8_t> focusBoundary,
+            std::span<const uint16_t> focusSuffixX, const BlockStyle& blockStyle = BlockStyle(),
+            std::vector<std::string> rubyTexts = {}, std::vector<LinkSpan> linkSpans = {},
+            std::span<const SourceRange> ranges = {}, uint16_t paragraphStartWord = UINT16_MAX);
   ~TextBlock() override = default;
   TextBlock(const TextBlock&) = delete;
   TextBlock& operator=(const TextBlock&) = delete;

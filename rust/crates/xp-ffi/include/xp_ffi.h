@@ -170,6 +170,16 @@ uint8_t xp_layout_widths_reserve(XpLayoutWidths* widths, size_t needed);
 uint8_t xp_layout_widths_insert(XpLayoutWidths* widths, size_t index, uint16_t value);
 void xp_layout_widths_destroy(XpLayoutWidths* widths);
 
+// Same ownership and failure contract as XpLayoutWidths; usize break indices.
+typedef struct {
+  size_t* data;
+  size_t len, capacity;
+  const XpParaAllocator* allocator;
+  uint8_t failed;
+} XpLayoutBreaks;
+uint8_t xp_layout_breaks_push(XpLayoutBreaks* breaks, size_t value);
+void xp_layout_breaks_destroy(XpLayoutBreaks* breaks);
+
 // Paragraph breaking callbacks are synchronous and may not reenter layout. The
 // context and callback record outlive the call; no pointer is retained by Rust.
 // count/width describe one sequence. Successful split inserts exactly one word
@@ -242,6 +252,22 @@ void xp_layout_line_metrics(const XpLineSpec* spec, const XpLineCallbacks* callb
 // to the same unchanged spec/callback line. Casts preserve firmware i16 wrapping.
 void xp_layout_line_position(const XpLineSpec* spec, const XpLineCallbacks* callbacks, const XpLineMetrics* metrics,
                              int16_t* out);
+
+// Completed-line owner; initialize zero except allocator. One exact allocation:
+// N pairs of u32 source offsets, N i16 x positions, N u8 styles, then optional
+// N u8 focus boundaries and N u16 suffix advances. N <= 10000. No TextBlock wire
+// format is shared here. Arrays are borrowed until destroy, without concurrent use.
+typedef struct {
+  uint8_t* data;
+  size_t count;
+  const XpParaAllocator* allocator;
+  uint8_t focus;
+} XpLayoutLine;
+uint8_t xp_layout_line_init(XpLayoutLine* line, size_t count, uint8_t focus);
+void xp_layout_line_destroy(XpLayoutLine* line);
+uint8_t xp_layout_line_sources(XpLayoutLine* line, const XpWordStore* store, XpTokens* tokens, size_t start,
+                               const uint16_t* order, uint8_t paragraph_emitted, uint16_t* paragraph_start);
+size_t xp_layout_strip_soft_hyphens(uint8_t* data, size_t len);
 
 #ifdef __cplusplus
 }

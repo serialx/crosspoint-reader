@@ -49,6 +49,14 @@ TextBlock::TextBlock(const std::vector<std::string>& words, const std::vector<in
                      const std::vector<uint16_t>& focusSuffixX, const BlockStyle& blockStyle,
                      std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
                      const std::vector<SourceRange>& ranges, const uint16_t paragraphStartWord)
+    : TextBlock(BorrowedLayout{}, words, wordXpos, wordStyles, focusBoundary, focusSuffixX, blockStyle,
+                std::move(rubyTexts), std::move(linkSpans), ranges, paragraphStartWord) {}
+
+TextBlock::TextBlock(BorrowedLayout, const std::vector<std::string>& words, std::span<const int16_t> wordXpos,
+                     std::span<const EpdFontFamily::Style> wordStyles, std::span<const uint8_t> focusBoundary,
+                     std::span<const uint16_t> focusSuffixX, const BlockStyle& blockStyle,
+                     std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
+                     std::span<const SourceRange> ranges, const uint16_t paragraphStartWord)
     : blockStyle(blockStyle),
       paragraphStartWord(paragraphStartWord),
       rubyTexts(std::move(rubyTexts)),

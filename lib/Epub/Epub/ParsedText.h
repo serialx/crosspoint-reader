@@ -41,8 +41,64 @@ class ParagraphWidths {
   size_t size() const { return state.len; }
   bool valid() const { return state.failed == 0; }
 };
+
+class ParagraphBreaks {
+  XpLayoutBreaks state{nullptr, 0, 0, paragraphAllocator(), 0};
+
+ public:
+  ParagraphBreaks() = default;
+  ~ParagraphBreaks() { xp_layout_breaks_destroy(&state); }
+  ParagraphBreaks(const ParagraphBreaks&) = delete;
+  ParagraphBreaks& operator=(const ParagraphBreaks&) = delete;
+  ParagraphBreaks(ParagraphBreaks&& other) noexcept : state(other.state) {
+    other.state.data = nullptr;
+    other.state.len = other.state.capacity = 0;
+  }
+  ParagraphBreaks& operator=(ParagraphBreaks&& other) noexcept {
+    if (this != &other) {
+      xp_layout_breaks_destroy(&state);
+      state = other.state;
+      other.state.data = nullptr;
+      other.state.len = other.state.capacity = 0;
+    }
+    return *this;
+  }
+  bool push_back(size_t value) { return xp_layout_breaks_push(&state, value); }
+  size_t operator[](size_t i) const { return state.data[i]; }
+  size_t back() const { return state.data[state.len - 1]; }
+  size_t size() const { return state.len; }
+  bool empty() const { return state.len == 0; }
+  void clear() { state.len = 0; }
+};
+
+class ParagraphLine {
+  friend class ParsedText;
+  XpLayoutLine state{nullptr, 0, paragraphAllocator(), 0};
+
+ public:
+  ParagraphLine(size_t count, bool focus) { xp_layout_line_init(&state, count, focus); }
+  ~ParagraphLine() { xp_layout_line_destroy(&state); }
+  ParagraphLine(const ParagraphLine&) = delete;
+  ParagraphLine& operator=(const ParagraphLine&) = delete;
+  bool valid() const { return state.data != nullptr; }
+  std::span<TextBlock::SourceRange> sources() {
+    static_assert(sizeof(TextBlock::SourceRange) == 8 && alignof(TextBlock::SourceRange) == 4);
+    return {reinterpret_cast<TextBlock::SourceRange*>(state.data), state.count};
+  }
+  std::span<int16_t> positions() { return {reinterpret_cast<int16_t*>(state.data + 8 * state.count), state.count}; }
+  std::span<EpdFontFamily::Style> styles() {
+    static_assert(sizeof(EpdFontFamily::Style) == 1);
+    return {reinterpret_cast<EpdFontFamily::Style*>(state.data + 10 * state.count), state.count};
+  }
+  std::span<uint8_t> boundaries() { return {state.data + 11 * state.count, state.focus ? state.count : 0}; }
+  std::span<uint16_t> suffixes() {
+    if (!state.focus) return {};
+    return {reinterpret_cast<uint16_t*>(state.data + 12 * state.count), state.count};
+  }
+};
 #else
 using ParagraphWidths = std::vector<uint16_t>;
+using ParagraphBreaks = std::vector<size_t>;
 #endif
 
 class GfxRenderer;
@@ -102,16 +158,16 @@ class ParsedText {
   int calculateRubyExtraEndOffset(size_t lineStartIdx, size_t lineBreakIdx, const GfxRenderer& renderer,
                                   int fontId) const;
   int resolveFirstLineIndent(bool isFirstLine, const GfxRenderer& renderer, int fontId) const;
-  std::vector<size_t> computeLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                        ParagraphWidths& wordWidths);
-  std::vector<size_t> computeHyphenatedLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                                  ParagraphWidths& wordWidths, size_t maxLines);
-  std::vector<size_t> computeRustLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                            ParagraphWidths& wordWidths, size_t maxLines);
+  ParagraphBreaks computeLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
+                                    ParagraphWidths& wordWidths);
+  ParagraphBreaks computeHyphenatedLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
+                                              ParagraphWidths& wordWidths, size_t maxLines);
+  ParagraphBreaks computeRustLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
+                                        ParagraphWidths& wordWidths, size_t maxLines);
   bool hyphenateWordAtIndex(size_t wordIndex, int availableWidth, const GfxRenderer& renderer, int fontId,
                             ParagraphWidths& wordWidths, bool allowFallbackBreaks);
   void extractLine(size_t breakIndex, int pageWidth, const ParagraphWidths& wordWidths,
-                   const std::vector<size_t>& lineBreakIndices,
+                   const ParagraphBreaks& lineBreakIndices,
                    const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                    const GfxRenderer& renderer, int fontId);
   ParagraphWidths calculateWordWidths(const GfxRenderer& renderer, int fontId);

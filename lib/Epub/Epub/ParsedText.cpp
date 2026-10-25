@@ -29,7 +29,9 @@ namespace {
 
 // Soft hyphen byte pattern used throughout EPUBs (UTF-8 for U+00AD).
 constexpr char SOFT_HYPHEN_UTF8[] = "\xC2\xAD";
+#if !XP_RUST_LAYOUT
 constexpr size_t SOFT_HYPHEN_BYTES = 2;
+#endif
 // Paragraph-level direction: scan the first N words to find base direction.
 constexpr size_t RTL_PARAGRAPH_PROBE_WORDS = 3;
 // Per-word: scan enough chars to see through leading neutrals (quotes, numbers)
@@ -167,10 +169,14 @@ int computeJustifyExtra(const int spareSpace, const size_t gapCount) {
 
 // Removes every soft hyphen in-place so rendered glyphs match measured widths.
 void stripSoftHyphensInPlace(std::string& word) {
+#if XP_RUST_LAYOUT
+  word.resize(xp_layout_strip_soft_hyphens(reinterpret_cast<uint8_t*>(word.data()), word.size()));
+#else
   size_t pos = 0;
   while ((pos = word.find(SOFT_HYPHEN_UTF8, pos)) != std::string::npos) {
     word.erase(pos, SOFT_HYPHEN_BYTES);
   }
+#endif
 }
 
 constexpr int scaleSpace(const int advance, const uint8_t wordSpacingPercent) {
@@ -723,7 +729,7 @@ void ParsedText::layoutAndExtractLines(const GfxRenderer& renderer, const int fo
   }
 #endif
 
-  std::vector<size_t> lineBreakIndices;
+  ParagraphBreaks lineBreakIndices;
 #if XP_RUST_LAYOUT
   lineBreakIndices = computeRustLineBreaks(renderer, fontId, pageWidth, wordWidths, maxLines);
   if (lineBreakIndices.empty() || !wordWidths.valid()) {
@@ -975,16 +981,15 @@ ParagraphWidths ParsedText::calculateWordWidths(const GfxRenderer& renderer, con
 }
 
 #if XP_RUST_LAYOUT
-std::vector<size_t> ParsedText::computeRustLineBreaks(const GfxRenderer& renderer, const int fontId,
-                                                      const int pageWidth, ParagraphWidths& wordWidths,
-                                                      const size_t maxLines) {
-  std::vector<size_t> breaks;
+ParagraphBreaks ParsedText::computeRustLineBreaks(const GfxRenderer& renderer, const int fontId, const int pageWidth,
+                                                  ParagraphWidths& wordWidths, const size_t maxLines) {
+  ParagraphBreaks breaks;
   struct Context {
     ParsedText& paragraph;
     const GfxRenderer& renderer;
     int fontId;
     ParagraphWidths& widths;
-    std::vector<size_t>& breaks;
+    ParagraphBreaks& breaks;
   } context{*this, renderer, fontId, wordWidths, breaks};
   const XpLayoutCallbacks callbacks = {
       &context,
@@ -1018,10 +1023,7 @@ std::vector<size_t> ParsedText::computeRustLineBreaks(const GfxRenderer& rendere
         auto& c = *static_cast<Context*>(raw);
         return c.paragraph.hyphenateWordAtIndex(i, available, c.renderer, c.fontId, c.widths, fallback != 0);
       },
-      [](void* raw, size_t end) -> uint8_t {
-        static_cast<Context*>(raw)->breaks.push_back(end);
-        return 1;
-      }};
+      [](void* raw, size_t end) -> uint8_t { return static_cast<Context*>(raw)->breaks.push_back(end); }};
   const int indent = resolveFirstLineIndent(true, renderer, fontId);
   const bool ok = hyphenationEnabled || maxLines != SIZE_MAX
                       ? xp_layout_greedy(&callbacks, pageWidth, indent, maxLines, firstLineConsumed, hyphenationEnabled)
@@ -1031,8 +1033,8 @@ std::vector<size_t> ParsedText::computeRustLineBreaks(const GfxRenderer& rendere
 }
 #endif
 
-std::vector<size_t> ParsedText::computeLineBreaks(const GfxRenderer& renderer, const int fontId, const int pageWidth,
-                                                  ParagraphWidths& wordWidths) {
+ParagraphBreaks ParsedText::computeLineBreaks(const GfxRenderer& renderer, const int fontId, const int pageWidth,
+                                              ParagraphWidths& wordWidths) {
   if ((tokenCount() == 0)) {
     return {};
   }
@@ -1141,7 +1143,7 @@ std::vector<size_t> ParsedText::computeLineBreaks(const GfxRenderer& renderer, c
   }
 
   // Stores the index of the word that starts the next line (last_word_index + 1)
-  std::vector<size_t> lineBreakIndices;
+  ParagraphBreaks lineBreakIndices;
   size_t currentWordIndex = 0;
 
   while (currentWordIndex < totalWordCount) {
@@ -1161,12 +1163,12 @@ std::vector<size_t> ParsedText::computeLineBreaks(const GfxRenderer& renderer, c
 }
 
 // Builds break indices while opportunistically splitting the word that would overflow the current line.
-std::vector<size_t> ParsedText::computeHyphenatedLineBreaks(const GfxRenderer& renderer, const int fontId,
-                                                            const int pageWidth, ParagraphWidths& wordWidths,
-                                                            const size_t maxLines) {
+ParagraphBreaks ParsedText::computeHyphenatedLineBreaks(const GfxRenderer& renderer, const int fontId,
+                                                        const int pageWidth, ParagraphWidths& wordWidths,
+                                                        const size_t maxLines) {
   const int firstLineIndent = resolveFirstLineIndent(true, renderer, fontId);
 
-  std::vector<size_t> lineBreakIndices;
+  ParagraphBreaks lineBreakIndices;
   size_t currentIndex = 0;
   bool isFirstLine = !firstLineConsumed;
 
@@ -1403,7 +1405,7 @@ bool ParsedText::hyphenateWordAtIndex(const size_t wordIndex, const int availabl
 }
 
 void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const ParagraphWidths& wordWidths,
-                             const std::vector<size_t>& lineBreakIndices,
+                             const ParagraphBreaks& lineBreakIndices,
                              const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                              const GfxRenderer& renderer, const int fontId) {
   const size_t lineBreak = lineBreakIndices[breakIndex];
@@ -1416,6 +1418,16 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
   }
   const size_t lineWordCount = lineBreak - lastBreakAt;
   const uint32_t lineVisibleOffset = visibleOffsetAt(lastBreakAt);
+#if XP_RUST_LAYOUT
+  bool hasFocus = false;
+  for (size_t i = lastBreakAt; i < lineBreak; ++i) hasFocus |= tokenAt(i).focus != 0;
+  ParagraphLine extracted(lineWordCount, hasFocus);
+  if (!extracted.valid()) {
+    LOG_ERR("PTX", "OOM: line metadata (%zu words)", lineWordCount);
+    droppedWords = true;
+    return;
+  }
+#endif
 
   const int firstLineIndent = resolveFirstLineIndent(breakIndex == 0, renderer, fontId);
 
@@ -1430,8 +1442,12 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
 
   std::vector<std::string> lineWords;
   lineWords.reserve(lineWordCount);
+#if XP_RUST_LAYOUT
+  auto lineWordStyles = extracted.styles();
+#else
   std::vector<EpdFontFamily::Style> lineWordStyles;
   lineWordStyles.reserve(lineWordCount);
+#endif
 
   for (size_t i = 0; i < lineWordCount; ++i) {
     // Copy out of the arena: TextBlock construction and bidi reorder below
@@ -1443,8 +1459,12 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
     }
     lineWords.push_back(std::move(word));
     // TextBlock keeps small caps with its word fonts (see attachWordFonts).
+#if XP_RUST_LAYOUT
+    lineWordStyles[i] = static_cast<EpdFontFamily::Style>(getWordStyleAt(lastBreakAt + i) & ~EpdFontFamily::SMALL_CAPS);
+#else
     lineWordStyles.push_back(
         static_cast<EpdFontFamily::Style>(getWordStyleAt(lastBreakAt + i) & ~EpdFontFamily::SMALL_CAPS));
+#endif
   }
 
   // Calculate spacing (account for indent reducing effective page width on first line)
@@ -1464,7 +1484,7 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
     const GfxRenderer& renderer;
     const ParagraphWidths& widths;
     const std::vector<std::string>& words;
-    const std::vector<EpdFontFamily::Style>& styles;
+    std::span<const EpdFontFamily::Style> styles;
     size_t start;
     int font;
     bool reordered;
@@ -1485,7 +1505,8 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
         const auto& c = *static_cast<PositionContext*>(raw);
         const auto& p = c.paragraph;
         const auto& words = c.reordered ? p.reorderedWordsScratch : c.words;
-        const auto& styles = c.reordered ? p.reorderedStylesScratch : c.styles;
+        const std::span<const EpdFontFamily::Style> styles =
+            c.reordered ? std::span<const EpdFontFamily::Style>(p.reorderedStylesScratch) : c.styles;
         const bool continues = c.reordered ? p.reorderedContinuesScratch[i] : p.tokenContinues(c.start + i);
         const bool noSpace = c.reordered ? p.reorderedNoSpaceBeforeScratch[i] : p.tokenNoSpaceBefore(c.start + i);
         if (continues) {
@@ -1560,8 +1581,12 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
   const bool willReorder =
       shouldResolveVisualOrder && BidiUtils::computeVisualWordOrder(lineWords, blockStyle.isRtl, visualOrderScratch);
 
+#if XP_RUST_LAYOUT
+  auto lineXPos = extracted.positions();
+#else
   std::vector<int16_t> lineXPos;
   lineXPos.reserve(lineWordCount);
+#endif
 
   if (willReorder) {
     reorderedWordsScratch.clear();
@@ -1610,7 +1635,6 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
     XpLineMetrics visualMetrics{};
     xp_layout_line_metrics(&lineSpec, &lineCallbacks, &visualMetrics);
     // Rust visual placement.
-    lineXPos.resize(lineWordCount);
     xp_layout_line_position(&lineSpec, &lineCallbacks, &visualMetrics, lineXPos.data());
 #else
     int reorderedWordWidthSum = 0;
@@ -1704,10 +1728,13 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
 #endif
 
     lineWords.swap(reorderedWordsScratch);
+#if XP_RUST_LAYOUT
+    std::copy(reorderedStylesScratch.begin(), reorderedStylesScratch.end(), lineWordStyles.begin());
+#else
     lineWordStyles.swap(reorderedStylesScratch);
+#endif
   } else {
 #if XP_RUST_LAYOUT
-    lineXPos.resize(lineWordCount);
     xp_layout_line_position(&lineSpec, &lineCallbacks, &logicalMetrics, lineXPos.data());
 #else
     // Standard LTR/RTL positioning loop when no visual reordering is needed
@@ -1872,6 +1899,17 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
     }
   }
 
+#if XP_RUST_LAYOUT
+  auto sourceRanges = extracted.sources();
+  uint16_t paragraphStartWord = UINT16_MAX;
+  if (!xp_layout_line_sources(&extracted.state, wordStore.handle(), tokens(), lastBreakAt,
+                              willReorder ? visualOrderScratch.data() : nullptr, paragraphStartEmitted,
+                              &paragraphStartWord)) {
+    LOG_ERR("PTX", "Invalid line source range");
+    droppedWords = true;
+    return;
+  }
+#else
   // Preserve source coordinates through visual reordering and discretionary hyphens.
   std::vector<TextBlock::SourceRange> sourceRanges;
   sourceRanges.reserve(lineWordCount);
@@ -1891,11 +1929,16 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
     sourceRanges.push_back({start, end});
   }
 
+#endif
+
   if (!lineHasFocusSplit) {
     // TextBlock flattens the vectors into its arena; they stay owned here and die at return.
-    auto block = makeUniqueNoThrow<TextBlock>(lineWords, lineXPos, lineWordStyles, std::vector<uint8_t>{},
-                                              std::vector<uint16_t>{}, blockStyle, std::move(lineRubyTexts),
-                                              std::move(lineLinks), sourceRanges, paragraphStartWord);
+    auto block = makeUniqueNoThrow<TextBlock>(
+#if XP_RUST_LAYOUT
+        TextBlock::BorrowedLayout{},
+#endif
+        lineWords, lineXPos, lineWordStyles, std::vector<uint8_t>{}, std::vector<uint16_t>{}, blockStyle,
+        std::move(lineRubyTexts), std::move(lineLinks), sourceRanges, paragraphStartWord);
     if (!block || !block->valid() || !attachWordFonts(*block)) {
       LOG_ERR("PTX", "Dropping line: TextBlock or arena allocation failed");
       // Latch through the same flag as addWord() OOM: the caller releases the
@@ -1910,24 +1953,42 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
 
   // Each word is one TextBlock entry carrying its own boundary; all that remains is the suffix x
   // offset the renderer needs to resume in regular weight, i.e. the bold prefix's advance.
+#if XP_RUST_LAYOUT
+  auto outBoundaries = extracted.boundaries();
+  auto outSuffixX = extracted.suffixes();
+#else
   std::vector<uint8_t> outBoundaries;
   std::vector<uint16_t> outSuffixX;
   outBoundaries.reserve(lineWordCount);
   outSuffixX.reserve(lineWordCount);
+#endif
   for (size_t i = 0; i < lineWordCount; i++) {
     const uint8_t boundary = focusBoundaryAt(i);
+#if XP_RUST_LAYOUT
+    outBoundaries[i] = boundary;
+#else
     outBoundaries.push_back(boundary);
+#endif
     const int wordFont = wordFontId(lastBreakAt + (willReorder ? visualOrderScratch[i] : i), fontId);
-    outSuffixX.push_back(boundary == 0 ? 0
-                                       : measureFocusPrefixAdvance(
-                                             renderer, wordFont, lineWords[i],
-                                             getWordStyleAt(lastBreakAt + (willReorder ? visualOrderScratch[i] : i)),
-                                             boundary, blockStyle.characterSpacing));
+    const uint16_t suffixX =
+        boundary == 0
+            ? 0
+            : measureFocusPrefixAdvance(renderer, wordFont, lineWords[i],
+                                        getWordStyleAt(lastBreakAt + (willReorder ? visualOrderScratch[i] : i)),
+                                        boundary, blockStyle.characterSpacing);
+#if XP_RUST_LAYOUT
+    outSuffixX[i] = suffixX;
+#else
+    outSuffixX.push_back(suffixX);
+#endif
   }
 
-  auto block =
-      makeUniqueNoThrow<TextBlock>(lineWords, lineXPos, lineWordStyles, outBoundaries, outSuffixX, blockStyle,
-                                   std::move(lineRubyTexts), std::move(lineLinks), sourceRanges, paragraphStartWord);
+  auto block = makeUniqueNoThrow<TextBlock>(
+#if XP_RUST_LAYOUT
+      TextBlock::BorrowedLayout{},
+#endif
+      lineWords, lineXPos, lineWordStyles, outBoundaries, outSuffixX, blockStyle, std::move(lineRubyTexts),
+      std::move(lineLinks), sourceRanges, paragraphStartWord);
   if (!block || !block->valid() || !attachWordFonts(*block)) {
     LOG_ERR("PTX", "Dropping line: TextBlock or arena allocation failed");
     droppedWords = true;  // see the non-focus branch above

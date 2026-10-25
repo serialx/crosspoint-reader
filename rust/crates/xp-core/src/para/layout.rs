@@ -203,17 +203,20 @@ pub unsafe fn greedy(
 /// C-compatible owner for the paragraph's cached u16 advances. No Rust references
 /// survive a call; the C++ facade may borrow elements until reserve/insert/destroy.
 #[repr(C)]
-pub struct Widths {
-    pub data: *mut u16,
+pub struct Buffer<T> {
+    pub data: *mut T,
     pub len: usize,
     pub capacity: usize,
     pub allocator: *const Allocator,
     pub failed: u8,
 }
-impl Widths {
+pub type Widths = Buffer<u16>;
+pub type Breaks = Buffer<usize>;
+
+impl<T: Copy> Buffer<T> {
     /// # Safety
     /// The owner is zero-initialized with a live allocator. All fields remain
-    /// exclusively owned; len <= capacity and data has capacity initialized slots.
+    /// exclusively owned; len <= capacity and data has capacity writable slots, with len initialized values.
     pub unsafe fn reserve(&mut self, needed: usize) -> bool {
         if self.failed != 0 {
             return false;
@@ -227,13 +230,13 @@ impl Widths {
             needed.max(self.capacity.saturating_mul(2))
         };
         let Some(bytes) = capacity
-            .checked_mul(mem::size_of::<u16>())
+            .checked_mul(mem::size_of::<T>())
             .filter(|&v| v <= isize::MAX as usize)
         else {
             self.failed = 1;
             return false;
         };
-        let data = ((*self.allocator).allocate)(bytes).cast::<u16>();
+        let data = ((*self.allocator).allocate)(bytes).cast::<T>();
         if data.is_null() {
             self.failed = 1;
             return false;
@@ -250,7 +253,7 @@ impl Widths {
     }
     /// # Safety
     /// Same owner contract as reserve. index <= len. Failure leaves data unchanged.
-    pub unsafe fn insert(&mut self, index: usize, width: u16) -> bool {
+    pub unsafe fn insert(&mut self, index: usize, width: T) -> bool {
         if index > self.len || self.len == usize::MAX || !self.reserve(self.len + 1) {
             return false;
         }

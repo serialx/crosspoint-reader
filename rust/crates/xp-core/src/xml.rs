@@ -451,6 +451,24 @@ impl Parser {
                     return Ok(false);
                 }
             };
+            if self.internal_subset && self.token == b"<" && !matches!(c, '!' | '?') {
+                // Expat classifies a subset opener before scanning a complete tag.
+                let instance = name_start(c)
+                    || (self.encoding == Encoding::Utf8 && !c.is_ascii())
+                    || (u32::from(c) > 0xff && xml_character(c));
+                return Err(if instance { (2, 0) } else { (4, 1) });
+            }
+            if self.internal_subset && self.token == b"<!" && !matches!(c, '-' | '[') {
+                let declaration = name_start(c)
+                    && if self.encoding == Encoding::Utf8 {
+                        c.is_ascii()
+                    } else {
+                        u32::from(c) <= 0xff
+                    };
+                if !declaration {
+                    return Err((4, 2));
+                }
+            }
             if !xml_character(c) {
                 return Err((4, error_pos));
             }

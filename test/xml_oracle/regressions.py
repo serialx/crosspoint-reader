@@ -52,6 +52,14 @@ def cases():
             yield f"subset_reference_{context}_{i}", f'<!DOCTYPE r [{space}{value}]><r/>'
             yield f"subset_reference_eof_{context}_{i}", f'<!DOCTYPE r [{space}{value}'
 
+    markup = ["<", "<r", "<r>", "<r/>", "<r>\r\n%1;", "<-x>", "<a b='unfinished"]
+    markup += ["<" + chr(c) for c in range(128)]
+    markup += ["<" + c for c in ("é", "名", "·", "🙂", "\u0080", "\ufffe", "\uffff")]
+    for i, value in enumerate(markup):
+        for context, space in (("adjacent", ""), ("space", " \r\n")):
+            yield f"subset_markup_{context}_{i}", f'<!DOCTYPE r [{space}{value}>]><r/>'
+            yield f"subset_markup_eof_{context}_{i}", f'<!DOCTYPE r [{space}{value}'
+
 
 def encoded_cases():
     for name, text in cases():

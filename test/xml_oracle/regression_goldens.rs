@@ -6187,4 +6187,10192 @@ ExpectedRun { events: &[
 ExpectedRun { events: &[
 ], error: 2, byte: 34, line: 2 },
 ], splits: &[(38,0),(5,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_adjacent_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(7,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_adjacent_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 13, line: 1 },
+], splits: &[(15,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 28, line: 1 },
+], splits: &[(31,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 28, line: 1 },
+], splits: &[(31,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_0_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 16, line: 2 },
+], splits: &[(18,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_0_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 34, line: 2 },
+], splits: &[(37,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_0_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 34, line: 2 },
+], splits: &[(37,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_1_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_1_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_1_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(2,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(3,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(3,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_2_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(2,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_2_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_2_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_adjacent_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,47,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,47,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,47,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(5,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(5,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,47,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,47,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,47,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_3_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_3_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(5,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_3_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(5,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_adjacent_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,62,13,10,37,49,59,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(14,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(27,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(27,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,62,13,10,37,49,59], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(7,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,62,13,10,37,49,59,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(14,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(27,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(27,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_4_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,62,13,10,37,49,59], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_4_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_4_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,13,0,10,0,37,0,49,0,59], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_5_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,45,120,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_5_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45,0,120,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_5_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45,0,120,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_5_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,45,120,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_5_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45,0,120,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(5,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_5_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45,0,120,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(5,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_5_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,45,120,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_5_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45,0,120,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_5_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45,0,120,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(19,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_5_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,45,120,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_5_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45,0,120,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(5,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_5_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45,0,120,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(5,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_adjacent_6_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,97,32,98,61,39,117,110,102,105,110,105,115,104,101,100,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(22,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_6_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(43,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_6_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(43,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_6_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,97,32,98,61,39,117,110,102,105,110,105,115,104,101,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_6_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(29,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_6_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(29,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_6_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,97,32,98,61,39,117,110,102,105,110,105,115,104,101,100,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(22,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_6_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(43,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_6_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(43,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_6_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,97,32,98,61,39,117,110,102,105,110,105,115,104,101,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_6_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(29,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_6_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97,0,32,0,98,0,61,0,39,0,117,0,110,0,102,0,105,0,110,0,105,0,115,0,104,0,101,0,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(29,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_7_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,0,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_7_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,0,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_7_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,0,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_7_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_7_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,0,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_7_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_7_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,0,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_7_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,0,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_7_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,0,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_7_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_7_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,0,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_7_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_8_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,1,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_8_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,1,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_8_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,1,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_8_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,1], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_8_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,1,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_8_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,1], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_8_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,1,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_8_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,1,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_8_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,1,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_8_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,1], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_8_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,1,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_8_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,1], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_9_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,2,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_9_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,2,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_9_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,2,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_9_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,2], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_9_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,2,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_9_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,2], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_9_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,2,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_9_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,2,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_9_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,2,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_9_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,2], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_9_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,2,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_9_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,2], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_10_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,3,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_10_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,3,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_10_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,3,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_10_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,3], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_10_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,3,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_10_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,3], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_10_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,3,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_10_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,3,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_10_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,3,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_10_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,3], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_10_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,3,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_10_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,3], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_11_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,4,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_11_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,4,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_11_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,4,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_11_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,4], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_11_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,4,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_11_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,4], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_11_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,4,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_11_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,4,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_11_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,4,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_11_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,4], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_11_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,4,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_11_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,4], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_12_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,5,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_12_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,5,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_12_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,5,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_12_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,5], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_12_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,5,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_12_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,5], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_12_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,5,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_12_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,5,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_12_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,5,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_12_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,5], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_12_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,5,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_12_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,5], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_13_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,6,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_13_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,6,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_13_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,6,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_13_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,6], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_13_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,6,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_13_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,6], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_13_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,6,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_13_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,6,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_13_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,6,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_13_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,6], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_13_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,6,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_13_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,6], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_14_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,7,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_14_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,7,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_14_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,7,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_14_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,7], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_14_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,7,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_14_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,7], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_14_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,7,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_14_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,7,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_14_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,7,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_14_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,7], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_14_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,7,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_14_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,7], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_15_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,8,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_15_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,8,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_15_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,8,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_15_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,8], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_15_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,8,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_15_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,8], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_15_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,8,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_15_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,8,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_15_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,8,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_15_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,8], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_15_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,8,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_15_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,8], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_16_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,9,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_16_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,9,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_16_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,9,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_16_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,9], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_16_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,9,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_16_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,9], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_16_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,9,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_16_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,9,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_16_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,9,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_16_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,9], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_16_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,9,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_16_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,9], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_17_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,10,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_17_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,10,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_17_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,10,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_17_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,10], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_17_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,10,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_17_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,10], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_17_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,10,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_17_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,10,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_17_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,10,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_17_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,10], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_17_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,10,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_17_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,10], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_18_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,11,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_18_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,11,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_18_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,11,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_18_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,11], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_18_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,11,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_18_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,11], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_18_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,11,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_18_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,11,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_18_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,11,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_18_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,11], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_18_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,11,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_18_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,11], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_19_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,12,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_19_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,12,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_19_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,12,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_19_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,12], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_19_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,12,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_19_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,12], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_19_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,12,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_19_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,12,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_19_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,12,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_19_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,12], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_19_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,12,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_19_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,12], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_20_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,13,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_20_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,13,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_20_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,13,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_20_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,13], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_20_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,13,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_20_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,13], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_20_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,13,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_20_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,13,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_20_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,13,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_20_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,13], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_20_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,13,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_20_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,13], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_21_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,14,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_21_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,14,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_21_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,14,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_21_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,14], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_21_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,14,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_21_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,14], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_21_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,14,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_21_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,14,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_21_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,14,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_21_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,14], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_21_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,14,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_21_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,14], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_22_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,15,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_22_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,15,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_22_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,15,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_22_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,15], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_22_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,15,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_22_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,15], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_22_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,15,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_22_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,15,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_22_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,15,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_22_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,15], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_22_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,15,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_22_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,15], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_23_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,16,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_23_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,16,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_23_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,16,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_23_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,16], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_23_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,16,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_23_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,16], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_23_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,16,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_23_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,16,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_23_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,16,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_23_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,16], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_23_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,16,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_23_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,16], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_24_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,17,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_24_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,17,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_24_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,17,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_24_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,17], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_24_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,17,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_24_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,17], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_24_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,17,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_24_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,17,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_24_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,17,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_24_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,17], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_24_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,17,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_24_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,17], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_25_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,18,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_25_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,18,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_25_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,18,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_25_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,18], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_25_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,18,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_25_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,18], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_25_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,18,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_25_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,18,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_25_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,18,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_25_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,18], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_25_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,18,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_25_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,18], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_26_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,19,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_26_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,19,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_26_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,19,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_26_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,19], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_26_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,19,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_26_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,19], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_26_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,19,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_26_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,19,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_26_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,19,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_26_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,19], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_26_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,19,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_26_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,19], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_27_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,20,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_27_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,20,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_27_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,20,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_27_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,20], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_27_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,20,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_27_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,20], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_27_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,20,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_27_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,20,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_27_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,20,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_27_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,20], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_27_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,20,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_27_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,20], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_28_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,21,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_28_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,21,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_28_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,21,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_28_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,21], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_28_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,21,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_28_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,21], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_28_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,21,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_28_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,21,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_28_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,21,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_28_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,21], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_28_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,21,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_28_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,21], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_29_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,22,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_29_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,22,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_29_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,22,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_29_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,22], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_29_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,22,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_29_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,22], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_29_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,22,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_29_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,22,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_29_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,22,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_29_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,22], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_29_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,22,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_29_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,22], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_30_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,23,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_30_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,23,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_30_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,23,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_30_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,23], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_30_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,23,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_30_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,23], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_30_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,23,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_30_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,23,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_30_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,23,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_30_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,23], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_30_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,23,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_30_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,23], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_31_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,24,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_31_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,24,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_31_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,24,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_31_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,24], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_31_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,24,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_31_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,24], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_31_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,24,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_31_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,24,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_31_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,24,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_31_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,24], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_31_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,24,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_31_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,24], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_32_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,25,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_32_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,25,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_32_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,25,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_32_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,25], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_32_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,25,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_32_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,25], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_32_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,25,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_32_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,25,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_32_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,25,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_32_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,25], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_32_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,25,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_32_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,25], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_33_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,26,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_33_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,26,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_33_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,26,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_33_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,26], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_33_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,26,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_33_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,26], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_33_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,26,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_33_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,26,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_33_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,26,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_33_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,26], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_33_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,26,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_33_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,26], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_34_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,27,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_34_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,27,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_34_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,27,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_34_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,27], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_34_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,27,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_34_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,27], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_34_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,27,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_34_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,27,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_34_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,27,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_34_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,27], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_34_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,27,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_34_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,27], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_35_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,28,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_35_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,28,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_35_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,28,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_35_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,28], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_35_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,28,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_35_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,28], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_35_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,28,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_35_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,28,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_35_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,28,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_35_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,28], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_35_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,28,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_35_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,28], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_36_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,29,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_36_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,29,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_36_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,29,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_36_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,29], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_36_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,29,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_36_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,29], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_36_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,29,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_36_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,29,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_36_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,29,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_36_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,29], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_36_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,29,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_36_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,29], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_37_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,30,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_37_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,30,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_37_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,30,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_37_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,30], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_37_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,30,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_37_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,30], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_37_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,30,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_37_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,30,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_37_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,30,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_37_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,30], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_37_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,30,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_37_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,30], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_38_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,31,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_38_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,31,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_38_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,31,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_38_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,31], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_38_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,31,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_38_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,31], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_38_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,31,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_38_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,31,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_38_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,31,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_38_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,31], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_38_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,31,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_38_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,31], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_39_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,32,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_39_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,32,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_39_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,32,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_39_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,32], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_39_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,32,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_39_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,32], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_39_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,32,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_39_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,32,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_39_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,32,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_39_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,32], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_39_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,32,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_39_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,32], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_40_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 15, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 15, line: 1 },
+], splits: &[(16,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_40_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+], splits: &[(34,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_40_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+], splits: &[(34,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_40_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,33], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 13, line: 1 },
+], splits: &[(16,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_40_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33,0], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 28, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_40_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,33], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 28, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_40_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,33,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 18, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 18, line: 2 },
+], splits: &[(19,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_40_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,33,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+], splits: &[(40,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_40_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,33,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+], splits: &[(40,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_40_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,33], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 16, line: 2 },
+], splits: &[(19,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_40_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,33,0], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 34, line: 2 },
+], splits: &[(39,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_40_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,33], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 34, line: 2 },
+], splits: &[(39,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_41_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_41_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_41_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_41_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,34], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_41_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,34,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_41_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,34], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_41_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,34,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_41_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_41_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,34,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_41_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,34], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_41_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,34,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_41_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,34], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_42_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,35,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_42_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,35,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_42_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,35,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_42_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,35], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_42_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,35,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_42_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,35], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_42_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,35,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_42_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,35,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_42_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,35,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_42_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,35], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_42_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,35,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_42_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,35], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_43_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,36,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_43_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,36,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_43_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,36,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_43_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,36], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_43_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,36,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_43_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,36], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_43_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,36,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_43_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,36,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_43_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,36,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_43_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,36], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_43_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,36,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_43_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,36], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_44_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,37,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_44_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,37,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_44_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,37,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_44_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,37], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_44_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,37,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_44_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,37], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_44_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,37,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_44_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,37,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_44_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,37,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_44_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,37], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_44_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,37,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_44_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,37], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_45_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,38,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_45_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,38,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_45_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,38,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_45_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,38], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_45_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,38,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_45_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,38], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_45_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,38,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_45_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,38,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_45_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,38,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_45_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,38], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_45_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,38,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_45_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,38], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_46_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,39,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_46_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,39,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_46_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,39,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_46_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,39], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_46_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,39,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_46_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,39], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_46_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,39,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_46_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,39,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_46_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,39,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_46_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,39], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_46_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,39,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_46_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,39], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_47_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,40,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_47_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,40,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_47_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,40,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_47_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,40], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_47_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,40,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_47_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,40], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_47_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,40,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_47_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,40,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_47_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,40,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_47_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,40], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_47_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,40,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_47_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,40], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_48_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,41,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_48_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,41,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_48_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,41,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_48_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,41], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_48_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,41,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_48_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,41], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_48_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,41,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_48_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,41,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_48_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,41,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_48_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,41], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_48_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,41,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_48_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,41], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_49_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,42,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_49_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,42,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_49_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,42,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_49_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,42], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_49_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,42,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_49_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,42], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_49_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,42,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_49_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,42,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_49_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,42,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_49_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,42], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_49_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,42,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_49_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,42], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_50_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,43,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_50_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,43,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_50_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,43,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_50_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,43], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_50_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,43,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_50_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,43], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_50_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,43,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_50_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,43,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_50_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,43,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_50_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,43], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_50_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,43,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_50_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,43], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_51_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,44,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_51_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,44,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_51_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,44,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_51_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,44], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_51_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,44,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_51_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,44], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_51_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,44,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_51_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,44,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_51_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,44,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_51_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,44], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_51_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,44,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_51_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,44], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_52_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,45,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_52_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_52_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_52_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,45], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_52_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_52_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,45], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_52_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,45,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_52_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_52_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_52_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,45], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_52_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_52_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,45], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_53_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,46,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_53_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,46,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_53_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,46,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_53_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,46], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_53_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,46,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_53_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,46], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_53_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,46,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_53_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,46,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_53_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,46,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_53_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,46], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_53_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,46,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_53_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,46], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_54_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,47,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_54_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,47,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_54_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,47,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_54_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,47], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_54_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,47,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_54_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,47], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_54_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,47,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_54_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,47,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_54_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,47,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_54_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,47], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_54_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,47,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_54_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,47], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_55_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,48,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_55_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,48,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_55_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,48,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_55_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,48], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_55_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,48,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_55_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,48], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_55_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,48,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_55_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,48,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_55_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,48,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_55_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,48], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_55_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,48,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_55_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,48], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_56_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,49,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_56_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,49,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_56_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,49,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_56_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,49], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_56_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,49,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_56_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,49], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_56_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,49,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_56_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,49,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_56_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,49,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_56_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,49], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_56_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,49,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_56_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,49], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_57_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,50,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_57_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,50,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_57_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,50,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_57_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,50], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_57_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,50,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_57_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,50], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_57_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,50,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_57_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,50,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_57_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,50,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_57_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,50], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_57_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,50,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_57_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,50], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_58_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,51,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_58_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,51,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_58_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,51,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_58_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,51], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_58_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,51,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_58_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,51], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_58_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,51,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_58_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,51,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_58_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,51,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_58_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,51], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_58_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,51,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_58_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,51], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_59_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,52,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_59_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,52,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_59_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,52,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_59_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,52], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_59_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,52,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_59_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,52], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_59_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,52,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_59_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,52,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_59_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,52,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_59_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,52], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_59_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,52,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_59_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,52], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_60_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,53,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_60_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,53,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_60_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,53,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_60_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,53], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_60_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,53,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_60_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,53], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_60_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,53,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_60_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,53,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_60_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,53,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_60_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,53], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_60_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,53,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_60_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,53], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_61_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,54,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_61_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,54,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_61_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,54,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_61_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,54], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_61_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,54,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_61_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,54], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_61_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,54,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_61_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,54,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_61_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,54,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_61_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,54], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_61_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,54,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_61_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,54], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_62_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,55,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_62_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,55,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_62_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,55,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_62_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,55], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_62_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,55,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_62_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,55], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_62_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,55,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_62_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,55,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_62_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,55,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_62_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,55], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_62_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,55,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_62_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,55], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_63_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,56,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_63_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,56,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_63_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,56,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_63_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,56], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_63_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,56,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_63_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,56], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_63_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,56,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_63_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,56,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_63_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,56,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_63_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,56], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_63_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,56,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_63_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,56], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_64_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,57,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_64_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,57,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_64_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,57,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_64_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,57], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_64_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,57,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_64_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,57], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_64_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,57,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_64_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,57,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_64_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,57,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_64_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,57], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_64_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,57,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_64_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,57], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_65_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,58,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_65_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,58,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_65_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,58,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_65_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,58], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_65_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,58,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_65_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,58], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_65_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,58,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_65_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,58,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_65_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,58,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_65_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,58], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_65_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,58,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_65_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,58], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_66_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,59,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_66_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_66_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_66_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,59], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_66_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,59,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_66_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,59], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_66_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,59,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_66_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_66_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,59,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_66_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,59], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_66_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,59,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_66_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,59], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_67_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,60,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_67_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_67_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_67_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,60], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_67_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,60,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_67_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,60], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_67_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,60,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_67_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_67_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,60,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_67_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,60], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_67_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,60,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_67_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,60], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_68_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,61,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_68_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,61,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_68_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,61,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_68_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,61], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_68_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,61,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_68_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,61], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_68_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,61,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_68_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,61,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_68_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,61,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_68_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,61], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_68_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,61,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_68_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,61], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_69_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_69_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_69_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_69_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_69_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_69_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_69_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,62,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_69_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_69_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,62,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_69_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_69_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_69_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_70_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,63,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 15, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 15, line: 1 },
+], splits: &[(16,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_70_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,63,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+], splits: &[(34,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_70_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,63,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 32, line: 1 },
+], splits: &[(34,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_70_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,63], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 13, line: 1 },
+], splits: &[(16,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_70_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,63,0], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 28, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_70_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,63], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 28, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_70_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,63,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 18, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 18, line: 2 },
+], splits: &[(19,0),(7,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_70_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,63,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+], splits: &[(40,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_70_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,63,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 38, line: 2 },
+], splits: &[(40,0),(13,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_70_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,63], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 16, line: 2 },
+], splits: &[(19,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_70_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,63,0], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 34, line: 2 },
+], splits: &[(39,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_70_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,63], variants: &[
+ExpectedRun { events: &[
+], error: 5, byte: 34, line: 2 },
+], splits: &[(39,0)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_71_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,64,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_71_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,64,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_71_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,64,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_71_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,64], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_71_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,64,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_71_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,64], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_71_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,64,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_71_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,64,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_71_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,64,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_71_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,64], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_71_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,64,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_71_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,64], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_72_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,65,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_72_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,65,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_72_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,65,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_72_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,65], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_72_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,65,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_72_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,65], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_72_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,65,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_72_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,65,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_72_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,65,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_72_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,65], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_72_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,65,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_72_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,65], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_73_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,66,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_73_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,66,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_73_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,66,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_73_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,66], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_73_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,66,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_73_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,66], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_73_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,66,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_73_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,66,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_73_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,66,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_73_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,66], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_73_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,66,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_73_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,66], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_74_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,67,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_74_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,67,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_74_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,67,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_74_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,67], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_74_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,67,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_74_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,67], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_74_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,67,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_74_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,67,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_74_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,67,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_74_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,67], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_74_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,67,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_74_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,67], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_75_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,68,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_75_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,68,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_75_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,68,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_75_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,68], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_75_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,68,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_75_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,68], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_75_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,68,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_75_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,68,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_75_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,68,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_75_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,68], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_75_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,68,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_75_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,68], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_76_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,69,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_76_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,69,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_76_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,69,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_76_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,69], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_76_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,69,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_76_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,69], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_76_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,69,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_76_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,69,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_76_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,69,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_76_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,69], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_76_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,69,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_76_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,69], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_77_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,70,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_77_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,70,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_77_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,70,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_77_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,70], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_77_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,70,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_77_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,70], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_77_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,70,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_77_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,70,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_77_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,70,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_77_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,70], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_77_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,70,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_77_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,70], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_78_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,71,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_78_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,71,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_78_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,71,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_78_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,71], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_78_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,71,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_78_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,71], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_78_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,71,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_78_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,71,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_78_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,71,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_78_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,71], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_78_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,71,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_78_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,71], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_79_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,72,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_79_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,72,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_79_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,72,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_79_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,72], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_79_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,72,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_79_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,72], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_79_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,72,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_79_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,72,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_79_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,72,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_79_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,72], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_79_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,72,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_79_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,72], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_80_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,73,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_80_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,73,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_80_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,73,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_80_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,73], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_80_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,73,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_80_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,73], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_80_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,73,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_80_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,73,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_80_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,73,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_80_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,73], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_80_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,73,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_80_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,73], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_81_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,74,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_81_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,74,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_81_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,74,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_81_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,74], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_81_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,74,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_81_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,74], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_81_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,74,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_81_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,74,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_81_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,74,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_81_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,74], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_81_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,74,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_81_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,74], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_82_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,75,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_82_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,75,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_82_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,75,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_82_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,75], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_82_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,75,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_82_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,75], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_82_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,75,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_82_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,75,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_82_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,75,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_82_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,75], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_82_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,75,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_82_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,75], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_83_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,76,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_83_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,76,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_83_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,76,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_83_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,76], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_83_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,76,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_83_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,76], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_83_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,76,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_83_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,76,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_83_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,76,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_83_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,76], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_83_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,76,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_83_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,76], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_84_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,77,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_84_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,77,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_84_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,77,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_84_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,77], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_84_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,77,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_84_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,77], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_84_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,77,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_84_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,77,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_84_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,77,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_84_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,77], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_84_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,77,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_84_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,77], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_85_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,78,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_85_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,78,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_85_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,78,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_85_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,78], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_85_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,78,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_85_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,78], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_85_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,78,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_85_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,78,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_85_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,78,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_85_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,78], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_85_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,78,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_85_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,78], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_86_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,79,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_86_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,79,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_86_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,79,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_86_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,79], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_86_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,79,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_86_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,79], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_86_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,79,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_86_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,79,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_86_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,79,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_86_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,79], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_86_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,79,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_86_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,79], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_87_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,80,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_87_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,80,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_87_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,80,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_87_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,80], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_87_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,80,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_87_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,80], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_87_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,80,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_87_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,80,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_87_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,80,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_87_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,80], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_87_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,80,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_87_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,80], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_88_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,81,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_88_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,81,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_88_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,81,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_88_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,81], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_88_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,81,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_88_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,81], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_88_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,81,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_88_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,81,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_88_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,81,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_88_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,81], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_88_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,81,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_88_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,81], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_89_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,82,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_89_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,82,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_89_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,82,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_89_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,82], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_89_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,82,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_89_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,82], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_89_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,82,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_89_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,82,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_89_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,82,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_89_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,82], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_89_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,82,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_89_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,82], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_90_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,83,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_90_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,83,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_90_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,83,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_90_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,83], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_90_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,83,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_90_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,83], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_90_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,83,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_90_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,83,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_90_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,83,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_90_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,83], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_90_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,83,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_90_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,83], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_91_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,84,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_91_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,84,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_91_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,84,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_91_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,84], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_91_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,84,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_91_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,84], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_91_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,84,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_91_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,84,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_91_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,84,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_91_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,84], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_91_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,84,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_91_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,84], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_92_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,85,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_92_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,85,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_92_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,85,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_92_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,85], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_92_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,85,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_92_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,85], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_92_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,85,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_92_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,85,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_92_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,85,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_92_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,85], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_92_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,85,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_92_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,85], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_93_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,86,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_93_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,86,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_93_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,86,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_93_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,86], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_93_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,86,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_93_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,86], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_93_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,86,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_93_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,86,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_93_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,86,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_93_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,86], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_93_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,86,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_93_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,86], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_94_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,87,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_94_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,87,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_94_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,87,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_94_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,87], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_94_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,87,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_94_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,87], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_94_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,87,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_94_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,87,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_94_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,87,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_94_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,87], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_94_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,87,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_94_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,87], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_95_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,88,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_95_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,88,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_95_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,88,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_95_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,88], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_95_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,88,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_95_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,88], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_95_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,88,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_95_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,88,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_95_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,88,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_95_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,88], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_95_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,88,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_95_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,88], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_96_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,89,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_96_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,89,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_96_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,89,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_96_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,89], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_96_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,89,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_96_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,89], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_96_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,89,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_96_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,89,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_96_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,89,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_96_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,89], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_96_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,89,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_96_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,89], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_97_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,90,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_97_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,90,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_97_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,90,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_97_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,90], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_97_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,90,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_97_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,90], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_97_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,90,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_97_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,90,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_97_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,90,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_97_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,90], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_97_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,90,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_97_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,90], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_98_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,91,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_98_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,91,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_98_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,91,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_98_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,91], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_98_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,91,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_98_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,91], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_98_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,91,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_98_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,91,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_98_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,91,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_98_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,91], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_98_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,91,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_98_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,91], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_99_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,92,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_99_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,92,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_99_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,92,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_99_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,92], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_99_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,92,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_99_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,92], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_99_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,92,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_99_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,92,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_99_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,92,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_99_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,92], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_99_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,92,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_99_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,92], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_100_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,93,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_100_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,93,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_100_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,93,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_100_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,93], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_100_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,93,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_100_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,93], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_100_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,93,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_100_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,93,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_100_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,93,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_100_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,93], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_100_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,93,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_100_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,93], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_101_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,94,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_101_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,94,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_101_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,94,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_101_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,94], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_101_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,94,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_101_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,94], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_101_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,94,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_101_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,94,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_101_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,94,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_101_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,94], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_101_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,94,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_101_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,94], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_102_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,95,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_102_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,95,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_102_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,95,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_102_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,95], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_102_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,95,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_102_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,95], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_102_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,95,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_102_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,95,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_102_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,95,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_102_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,95], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_102_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,95,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_102_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,95], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_103_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,96,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_103_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,96,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_103_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,96,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_103_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,96], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_103_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,96,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_103_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,96], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_103_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,96,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_103_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,96,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_103_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,96,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_103_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,96], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_103_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,96,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_103_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,96], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_104_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,97,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_104_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_104_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_104_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,97], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_104_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_104_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,97], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_104_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,97,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_104_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_104_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_104_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,97], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_104_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_104_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,97], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_105_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,98,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_105_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,98,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_105_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,98,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_105_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,98], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_105_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,98,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_105_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,98], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_105_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,98,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_105_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,98,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_105_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,98,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_105_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,98], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_105_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,98,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_105_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,98], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_106_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,99,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_106_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,99,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_106_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,99,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_106_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,99], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_106_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,99,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_106_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,99], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_106_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,99,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_106_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,99,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_106_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,99,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_106_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,99], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_106_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,99,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_106_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,99], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_107_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,100,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_107_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_107_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_107_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_107_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,100,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_107_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_107_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,100,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_107_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_107_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,100,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_107_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_107_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,100,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_107_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,100], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_108_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,101,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_108_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,101,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_108_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,101,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_108_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,101], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_108_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,101,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_108_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,101], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_108_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,101,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_108_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,101,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_108_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,101,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_108_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,101], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_108_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,101,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_108_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,101], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_109_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,102,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_109_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,102,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_109_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,102,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_109_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,102], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_109_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,102,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_109_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,102], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_109_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,102,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_109_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,102,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_109_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,102,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_109_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,102], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_109_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,102,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_109_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,102], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_110_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,103,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_110_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,103,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_110_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,103,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_110_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,103], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_110_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,103,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_110_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,103], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_110_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,103,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_110_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,103,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_110_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,103,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_110_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,103], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_110_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,103,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_110_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,103], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_111_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,104,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_111_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,104,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_111_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,104,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_111_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,104], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_111_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,104,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_111_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,104], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_111_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,104,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_111_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,104,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_111_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,104,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_111_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,104], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_111_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,104,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_111_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,104], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_112_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,105,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_112_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,105,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_112_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,105,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_112_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,105], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_112_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,105,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_112_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,105], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_112_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,105,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_112_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,105,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_112_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,105,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_112_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,105], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_112_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,105,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_112_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,105], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_113_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,106,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_113_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,106,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_113_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,106,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_113_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,106], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_113_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,106,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_113_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,106], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_113_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,106,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_113_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,106,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_113_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,106,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_113_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,106], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_113_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,106,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_113_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,106], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_114_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,107,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_114_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,107,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_114_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,107,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_114_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,107], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_114_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,107,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_114_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,107], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_114_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,107,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_114_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,107,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_114_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,107,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_114_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,107], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_114_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,107,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_114_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,107], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_115_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,108,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_115_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,108,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_115_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,108,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_115_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,108], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_115_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,108,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_115_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,108], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_115_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,108,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_115_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,108,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_115_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,108,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_115_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,108], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_115_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,108,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_115_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,108], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_116_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,109,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_116_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,109,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_116_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,109,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_116_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,109], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_116_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,109,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_116_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,109], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_116_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,109,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_116_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,109,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_116_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,109,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_116_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,109], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_116_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,109,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_116_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,109], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_117_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,110,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_117_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,110,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_117_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,110,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_117_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,110], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_117_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,110,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_117_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,110], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_117_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,110,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_117_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,110,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_117_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,110,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_117_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,110], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_117_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,110,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_117_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,110], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_118_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,111,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_118_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,111,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_118_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,111,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_118_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,111], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_118_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,111,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_118_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,111], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_118_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,111,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_118_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,111,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_118_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,111,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_118_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,111], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_118_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,111,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_118_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,111], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_119_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,112,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_119_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,112,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_119_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,112,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_119_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,112], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_119_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,112,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_119_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,112], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_119_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,112,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_119_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,112,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_119_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,112,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_119_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,112], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_119_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,112,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_119_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,112], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_120_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,113,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_120_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,113,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_120_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,113,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_120_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,113], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_120_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,113,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_120_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,113], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_120_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,113,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_120_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,113,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_120_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,113,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_120_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,113], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_120_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,113,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_120_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,113], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_121_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_121_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_121_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_121_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_121_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_121_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_121_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_121_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_121_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_121_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_121_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_121_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,114], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_122_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,115,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_122_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,115,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_122_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,115,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_122_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,115], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_122_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,115,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_122_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,115], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_122_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,115,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_122_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,115,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_122_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,115,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_122_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,115], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_122_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,115,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_122_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,115], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_123_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,116,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_123_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,116,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_123_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,116,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_123_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,116], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_123_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,116,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_123_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,116], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_123_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,116,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_123_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,116,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_123_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,116,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_123_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,116], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_123_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,116,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_123_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,116], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_124_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,117,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_124_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,117,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_124_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,117,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_124_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,117], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_124_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,117,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_124_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,117], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_124_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,117,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_124_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,117,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_124_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,117,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_124_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,117], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_124_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,117,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_124_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,117], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_125_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,118,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_125_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,118,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_125_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,118,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_125_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,118], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_125_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,118,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_125_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,118], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_125_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,118,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_125_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,118,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_125_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,118,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_125_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,118], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_125_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,118,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_125_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,118], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_126_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,119,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_126_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,119,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_126_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,119,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_126_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,119], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_126_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,119,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_126_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,119], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_126_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,119,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_126_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,119,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_126_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,119,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_126_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,119], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_126_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,119,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_126_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,119], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_127_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,120,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_127_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,120,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_127_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,120,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_127_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,120], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_127_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,120,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_127_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,120], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_127_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,120,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_127_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,120,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_127_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,120,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_127_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,120], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_127_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,120,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_127_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,120], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_128_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,121,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_128_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,121,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_128_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,121,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_128_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,121], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_128_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,121,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_128_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,121], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_128_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,121,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_128_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,121,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_128_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,121,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_128_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,121], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_128_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,121,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_128_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,121], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_129_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,122,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_129_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,122,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_129_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,122,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_129_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,122], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_129_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,122,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_129_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,122], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_129_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,122,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_129_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,122,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_129_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,122,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_129_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,122], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_129_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,122,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_129_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,122], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_130_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,123,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_130_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,123,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_130_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,123,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_130_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,123], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_130_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,123,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_130_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,123], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_130_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,123,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_130_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,123,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_130_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,123,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_130_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,123], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_130_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,123,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_130_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,123], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_131_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,124,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_131_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,124,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_131_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,124,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_131_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,124], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_131_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,124,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_131_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,124], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_131_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,124,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_131_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,124,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_131_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,124,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_131_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,124], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_131_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,124,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_131_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,124], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_132_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,125,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_132_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,125,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_132_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,125,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_132_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,125], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_132_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,125,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_132_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,125], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_132_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,125,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_132_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,125,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_132_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,125,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_132_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,125], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_132_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,125,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_132_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,125], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_133_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,126,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_133_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,126,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_133_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,126,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_133_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,126], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_133_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,126,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_133_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,126], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_133_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,126,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_133_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,126,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_133_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,126,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_133_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,126], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_133_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,126,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_133_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,126], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_134_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,127,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_134_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,127,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_134_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,127,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_134_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,127], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 14, line: 1 },
+], splits: &[(15,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_134_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,127,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_134_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,127], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_134_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,127,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(8,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_134_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,127,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_134_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,127,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_134_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,127], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 17, line: 2 },
+], splits: &[(18,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_134_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,127,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_134_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,127], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_135_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,195,169,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_135_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,233,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_135_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,233,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_135_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,195,169], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(2,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_135_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,233,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_135_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,233], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_135_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,195,169,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_135_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,233,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_135_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,233,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_135_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,195,169], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(2,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_135_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,233,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_135_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,233], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_136_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,229,144,141,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_136_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,13,84,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_136_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,84,13,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_136_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,229,144,141], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_136_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,13,84], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_136_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,84,13], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_136_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,229,144,141,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_136_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,13,84,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_136_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,84,13,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_136_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,229,144,141], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_136_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,13,84], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_136_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,84,13], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_137_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,194,183,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_137_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,183,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_137_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,183,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_137_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,194,183], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(2,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_137_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,183,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_137_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,183], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_137_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,194,183,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_137_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,183,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_137_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,183,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_137_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,194,183], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(2,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_137_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,183,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_137_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,183], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_138_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,240,159,153,130,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(11,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_138_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,61,216,66,222,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_138_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,216,61,222,66,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_138_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,240,159,153,130], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(4,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_138_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,61,216,66,222], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(3,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_138_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,216,61,222,66], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 28, line: 1 },
+], splits: &[(32,0),(3,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_138_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,240,159,153,130,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(11,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_138_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,61,216,66,222,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_138_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,216,61,222,66,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(17,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_138_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,240,159,153,130], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(4,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_138_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,61,216,66,222], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_138_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,216,61,222,66], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 34, line: 2 },
+], splits: &[(38,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_adjacent_139_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,194,128,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_139_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,128,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_139_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,128,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_139_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,194,128], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(2,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_139_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,128,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_139_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,128], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_139_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,194,128,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(9,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_139_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,128,0,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_139_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,128,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_139_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,194,128], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(2,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_139_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,128,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_139_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,128], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_140_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,239,191,190,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_140_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,254,255,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_140_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,255,254,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_140_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,239,191,190], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_140_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,254,255], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_140_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,255,254], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_140_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,239,191,190,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_140_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,254,255,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_140_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,255,254,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_140_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,239,191,190], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_140_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,254,255], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_140_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,255,254], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_adjacent_141_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,239,191,191,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_141_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,255,255,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_adjacent_141_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,255,255,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_adjacent_141_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,60,239,191,191], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+ExpectedRun { events: &[
+], error: 2, byte: 13, line: 1 },
+], splits: &[(15,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_141_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,0,255,255], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_adjacent_141_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,60,255,255], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+ExpectedRun { events: &[
+], error: 4, byte: 30, line: 1 },
+], splits: &[(32,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_space_141_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,239,191,191,62,93,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(10,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_141_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,255,255,62,0,93,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_space_141_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,255,255,0,62,0,93,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(15,1)], chunks: &[1,1,0,0] },
+Case { name: "subset_markup_eof_space_141_utf8", input: &[60,33,68,79,67,84,89,80,69,32,114,32,91,32,13,10,60,239,191,191], variants: &[
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+ExpectedRun { events: &[
+], error: 2, byte: 16, line: 2 },
+], splits: &[(18,0),(3,1)], chunks: &[1,0,0,0] },
+Case { name: "subset_markup_eof_space_141_utf-16le", input: &[255,254,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,0,255,255], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
+Case { name: "subset_markup_eof_space_141_utf-16be", input: &[254,255,0,60,0,33,0,68,0,79,0,67,0,84,0,89,0,80,0,69,0,32,0,114,0,32,0,91,0,32,0,13,0,10,0,60,255,255], variants: &[
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+ExpectedRun { events: &[
+], error: 4, byte: 36, line: 2 },
+], splits: &[(38,0),(1,1)], chunks: &[0,0,0,0] },
 ]

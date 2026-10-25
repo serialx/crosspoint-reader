@@ -16,6 +16,10 @@ add_executable(ChapterHtmlSlimParserTest
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/htmlEntities.cpp
+  ${REPO_ROOT}/lib/expat/xmlparse.c
+  ${REPO_ROOT}/lib/expat/xmlrole.c
+  ${REPO_ROOT}/lib/expat/xmltok.c
 )
 
 target_include_directories(ChapterHtmlSlimParserTest PRIVATE
@@ -34,13 +38,15 @@ target_include_directories(ChapterHtmlSlimParserTest PRIVATE
   ${REPO_ROOT}/lib/MiniBidi
   ${REPO_ROOT}/lib/FsHelpers
   ${REPO_ROOT}/lib/XmlParserUtils
+  ${REPO_ROOT}/lib/expat
 )
+
+target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XML_GE=0 XML_CONTEXT_BYTES=0)
 
 target_link_libraries(ChapterHtmlSlimParserTest PRIVATE
   crosspoint_test_common
   crosspoint_hyphen_ffi
   GTest::gtest_main
-  expat
 )
 
 gtest_discover_tests(ChapterHtmlSlimParserTest)

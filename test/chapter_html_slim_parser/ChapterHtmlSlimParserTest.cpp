@@ -78,8 +78,9 @@ class ChapterHtmlSlimParserTest : public ::testing::TestWithParam<const char*> {
 
   // Lays out a body fragment through the cached-page path and joins its words the way a
   // clipping does: '\n' at a paragraph start, ' ' across a source gap, nothing otherwise.
-  std::string parseToParagraphText(const std::string& body) {
-    const std::string html = "<html><body>" + body + "</body></html>";
+  std::string parseToParagraphText(const std::string& body, const std::string& prefix = "",
+                                   const std::string& suffix = "") {
+    const std::string html = prefix + "<html><body>" + body + "</body></html>" + suffix;
     const std::string testId = std::to_string(std::hash<std::string>{}(html));
     const auto tempDir = std::filesystem::temp_directory_path();
     filepath = (tempDir / ("crosspoint-clipping-paragraphs-" + testId + ".xhtml")).string();
@@ -124,6 +125,30 @@ class ChapterHtmlSlimParserTest : public ::testing::TestWithParam<const char*> {
     return selected;
   }
 };
+
+TEST_F(ChapterHtmlSlimParserTest, MapsSkippedEntitiesOnlyInText) {
+  EXPECT_EQ(parseToParagraphText("<p id='a&copy;b'>&copy; &emsp; &notMapped; &amp; &#169;</p>",
+                                 "<!DOCTYPE html SYSTEM 'unused'>"),
+            "© &notMapped; & ©");
+  ASSERT_EQ(parser.getAnchors().size(), 1u);
+  EXPECT_EQ(parser.getAnchors().front().first, "ab");
+}
+
+TEST_F(ChapterHtmlSlimParserTest, DeclaredEntitiesKeepGeZeroLiteralText) {
+  EXPECT_EQ(parseToParagraphText("<p>&copy; &word;</p>",
+                                 "<!DOCTYPE html [<!ENTITY copy 'replacement'><!ENTITY word 'other'>]>"),
+            "&copy; &word;");
+}
+
+TEST_F(ChapterHtmlSlimParserTest, IgnoresMalformedTrailingBytesAfterHtml) {
+  EXPECT_EQ(parseToParagraphText("<p>kept text</p>", "", "trailing<broken"), "kept text");
+}
+
+TEST_F(ChapterHtmlSlimParserTest, MapsTableOffsetsAfterMultibytePrefix) {
+  EXPECT_EQ(parseToParagraphText("<p>한글</p><table><tr><td>one two</td><td>three four five</td></tr>"
+                                 "<tr><td>six seven eight</td><td>nine ten</td></tr></table>"),
+            "한글\none two\nthree four five\nsix seven eight\nnine ten");
+}
 
 TEST(ImageDimsProbe, ReadsBothGifSignaturesInFragmentedStreams) {
   for (const uint8_t version : {'7', '9'}) {

@@ -11,20 +11,29 @@ uint32_t utf8NextCodepoint(const unsigned char** string) {
     return lead;
   }
   size_t expected = 1;
-  if ((lead & 0xE0) == 0xC0) {
-    expected = 2;
-  } else if ((lead & 0xF0) == 0xE0) {
-    expected = 3;
-  } else if ((lead & 0xF8) == 0xF0) {
-    expected = 4;
+  if (lead >= 0xC0 && lead < 0xF8) {
+    if (lead < 0xE0) {
+      expected = 2;
+    } else if (lead < 0xF0) {
+      expected = 3;
+    } else {
+      expected = 4;
+    }
   }
-  // Callers may supply unterminated characters. Stop at the first invalid continuation.
   size_t available = 1;
+  uint32_t decoded = lead & 0x0F;
+  // Callers may supply unterminated characters. Stop at the first invalid continuation.
   while (available < expected) {
     const unsigned char next = (*string)[available++];
     if ((next & 0xC0) != 0x80) break;
+    decoded = (decoded << 6) | (next & 0x3F);
   }
-  size_t consumed = 0;
+  // Reaching 0x0800 requires two valid continuation bytes; exclude UTF-16 surrogates.
+  if (expected == 3 && decoded >= 0x0800 && (decoded < 0xD800 || decoded > 0xDFFF)) {
+    *string += 3;
+    return decoded;
+  }
+  size_t consumed;
   const auto cp = xp_utf8_next(*string, available, &consumed);
   *string += consumed;
   return cp;

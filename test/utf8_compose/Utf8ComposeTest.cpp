@@ -201,7 +201,12 @@ TEST_P(Utf8NextCodepoint, ExactUnterminatedAllocation) {
 INSTANTIATE_TEST_SUITE_P(BoundedBuffers, Utf8NextCodepoint,
                          testing::Values(std::make_tuple(std::string("\xC3\xA9"), 0xE9u, size_t{2}),
                                          std::make_tuple(std::string("\xE4\xB8\xAD"), 0x4E2Du, size_t{3}),
+                                         std::make_tuple(std::string("\xE0\xA0\x80"), 0x800u, size_t{3}),
+                                         std::make_tuple(std::string("\xED\x9F\xBF"), 0xD7FFu, size_t{3}),
+                                         std::make_tuple(std::string("\xEE\x80\x80"), 0xE000u, size_t{3}),
+                                         std::make_tuple(std::string("\xEF\xBF\xBF"), 0xFFFFu, size_t{3}),
                                          std::make_tuple(std::string("\xFF"), 0xFFFDu, size_t{1}),
+                                         std::make_tuple(std::string("\xE1\x80\x41"), 0xFFFDu, size_t{2}),
                                          std::make_tuple(std::string("\xE2\x41"), 0xFFFDu, size_t{1})));
 
 TEST(TextFfi, InsufficientOffsetStorageIsUntouched) {

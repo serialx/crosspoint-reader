@@ -15,3 +15,36 @@ enable_testing()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME XmlOracleGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/oracle.py --oracle $<TARGET_FILE:XmlOracle> verify)
+
+add_executable(XmlConsumerOracle
+  XmlConsumerOracle.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ContainerParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ContentOpfParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNavParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNcxParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/expat/xmlparse.c
+  ${REPO_ROOT}/lib/expat/xmlrole.c
+  ${REPO_ROOT}/lib/expat/xmltok.c
+)
+target_include_directories(XmlConsumerOracle PRIVATE
+  stubs
+  ${REPO_ROOT}/lib/Epub
+  ${REPO_ROOT}/lib/Epub/Epub/parsers
+  ${REPO_ROOT}/lib/FsHelpers
+  ${REPO_ROOT}/lib/Memory
+  ${REPO_ROOT}/lib/Serialization
+  ${REPO_ROOT}/lib/Utf8
+  ${REPO_ROOT}/lib/XmlParserUtils
+  ${REPO_ROOT}/lib/expat
+  ${REPO_ROOT}/test/fs_helpers/stubs
+  ${REPO_ROOT}/test/book_metadata_cache/stubs
+  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
+  ${REPO_ROOT}/test/content_opf_parser/stubs
+)
+target_compile_definitions(XmlConsumerOracle PRIVATE XML_GE=0 XML_CONTEXT_BYTES=0)
+target_compile_options(XmlConsumerOracle PRIVATE -Wall -Wextra)
+add_test(NAME XmlConsumerGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/consumers.py --oracle $<TARGET_FILE:XmlConsumerOracle> verify)

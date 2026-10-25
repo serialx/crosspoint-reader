@@ -67,3 +67,21 @@ The final argument is the stop-event ordinal, or zero to parse to completion.
 
 The checked-in outputs characterize Expat only. They are not proof of a Rust
 replacement, consumer cache parity, firmware size, or on-device resource use.
+
+## Consumer cache baseline
+
+`XmlConsumerOracle` links the unchanged container, OPF, nav, NCX and encryption
+consumers, real `BookMetadataCache` serialization and real `FsHelpers`/UTF-8
+helpers. Host adapters replace storage and ZIP entry-size lookup. Python
+extracts the archive; the C++ tool reads the original XML files and writes
+`book.bin`, temporary spine/TOC bytes and a container/protection summary.
+`consumer_goldens/` records those bytes for all 18 repository EPUBs, with both
+nav-first and NCX-first selection, each verified at 1/7/512/1024-byte feeding.
+
+```sh
+python3 test/xml_oracle/consumers.py --oracle build/xml-oracle/XmlConsumerOracle verify
+```
+
+Use `--epub PATH --goldens DIRECTORY` for private harness books, keeping their
+outputs outside the repository. This is a consumer/serialization baseline; it
+does not invoke the full `Epub` loader, image cover fallback or firmware HAL.

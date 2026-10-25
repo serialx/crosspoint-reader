@@ -204,3 +204,40 @@ fn streaming_text_and_cdata_do_not_retain_the_document() {
         }
     }
 }
+
+#[test]
+fn xpath_text_boundaries_keep_literal_newlines_and_cdata_brackets_separate() {
+    let mut parser = Parser::new();
+    let input = b"<r>a\n b\r\nc<![CDATA[x ] y]]>z&#10;q</r>";
+    assert_eq!(parser.feed(input, true), input.len());
+    let mut text = vec![];
+    loop {
+        let event = parser.next();
+        match event.kind {
+            Kind::Text => text.push(event.data[event.fields[0].range.clone()].to_vec()),
+            Kind::Done => break,
+            Kind::Error | Kind::NeedInput => panic!("unexpected event {:?}", event.kind),
+            _ => {}
+        }
+    }
+    let expected: &[&[u8]] = &[
+        b"a", b"\n", b" b", b"\n", b"c", b"x ", b"] y", b"z", b"\n", b"q",
+    ];
+    assert_eq!(text, expected);
+}
+
+#[test]
+fn xpath_partial_token_retry_keeps_following_whitespace_in_the_same_run() {
+    let mut parser = Parser::new();
+    assert_eq!(parser.feed(b"<r>", false), 3);
+    while parser.next().kind != Kind::NeedInput {}
+    assert_eq!(parser.feed(b"<p", false), 2);
+    while parser.next().kind != Kind::NeedInput {}
+    assert_eq!(parser.feed(b">", false), 1);
+    assert_eq!(parser.next().kind, Kind::NeedInput);
+    assert_eq!(parser.feed(b" ", false), 1);
+    assert_eq!(parser.next().kind, Kind::Start);
+    let event = parser.next();
+    assert_eq!(event.kind, Kind::Text);
+    assert_eq!(&event.data[event.fields[0].range.clone()], b" ");
+}

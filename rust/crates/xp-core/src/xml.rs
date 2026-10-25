@@ -104,6 +104,8 @@ pub struct Parser {
     event_line: u64,
     failure: Option<Failure>,
     empty_end: bool,
+    partial_token_bytes: usize,
+    deferred: bool,
 }
 
 fn append(target: &mut Vec<u8>, bytes: &[u8]) -> Result<(), u32> {
@@ -186,6 +188,8 @@ impl Parser {
             event_line: 1,
             failure: None,
             empty_end: false,
+            partial_token_bytes: 0,
+            deferred: false,
         }
     }
 
@@ -209,6 +213,9 @@ impl Parser {
             return 0;
         }
         self.final_input = final_input && count == bytes.len();
+        // Match Expat's partial-token retry boundary without rescanning the token.
+        self.deferred =
+            !self.final_input && self.input.len() < self.partial_token_bytes.saturating_mul(2);
         count
     }
 
@@ -388,7 +395,31 @@ impl Parser {
                         && !self.token.is_empty());
                 }
             }
+            // Expat reports literal line endings separately from surrounding text.
+            // XPath whitespace anchors depend on these callback boundaries.
+            if matches!(self.token_kind, Token::Text | Token::Cdata)
+                && self.phase == Phase::Content
+                && matches!(c, '\r' | '\n')
+            {
+                if !self.token.is_empty() {
+                    return Ok(true);
+                }
+                append(&mut self.token, &[c as u8]).map_err(|e| (e, 0))?;
+                self.scan += width;
+                if c == '\r' {
+                    if let Decoded::Character('\n', second) =
+                        self.encoding.decode(&self.input[self.scan..])
+                    {
+                        append(&mut self.token, b"\n").map_err(|e| (e, 0))?;
+                        self.scan += second;
+                    }
+                }
+                return Ok(true);
+            }
             if matches!(self.token_kind, Token::Text | Token::Cdata) && c == ']' {
+                if self.token_kind == Token::Cdata && !self.token.is_empty() {
+                    return Ok(true);
+                }
                 match self.encoding.decode(&self.input[self.scan + width..]) {
                     Decoded::Character(']', second) => match self
                         .encoding
@@ -495,6 +526,10 @@ impl Parser {
             self.kind = Kind::Done;
             return self.event();
         }
+        if self.deferred {
+            self.kind = Kind::NeedInput;
+            return self.event();
+        }
         if self.empty_end {
             self.empty_end = false;
             self.kind = Kind::End;
@@ -516,6 +551,7 @@ impl Parser {
                     self.fail(3, 0);
                 } else {
                     self.kind = Kind::NeedInput;
+                    self.partial_token_bytes = if self.pos == 0 { self.input.len() } else { 0 };
                 }
                 return self.event();
             }
@@ -537,6 +573,7 @@ impl Parser {
                         }
                     } else {
                         self.kind = Kind::NeedInput;
+                        self.partial_token_bytes = if self.pos == 0 { self.input.len() } else { 0 };
                         if matches!(self.phase, Phase::Prolog | Phase::Epilog)
                             && self.pos == self.input.len()
                         {

@@ -281,8 +281,13 @@ existing handlers. The chapter driver consumes `xp_xml_*` events directly in
 1,024-byte steps, passes original byte positions to table prescan, and honors
 cancellation after the active handler returns. It restores `&name;` for the
 existing HTML entity lookup in text only, reusing a checked read buffer.
-KOReader still uses Expat, so Expat remains linked. The shared core preserves
-raw qualified names, original byte positions, UTF-8/UTF-16/Latin-1 decoding and the vendored GE=0 entity rules;
+KOReader XPath resolution uses a local pull loop so it can stop dispatch
+immediately at a match and retain comment, PI and CDATA text-node boundaries.
+A match first delivered during finalization still returns empty, as the old
+driver rejected the aborted final parse. SDK OPDS, OpenSearch and XML catalog
+parsers still use Expat, so Expat remains linked. The shared Rust core preserves
+raw qualified names, original byte positions, UTF-8/UTF-16/Latin-1 decoding and
+the vendored GE=0 entity rules;
 it does not perform HTML entity expansion.
 
 The parser retains an incomplete token, open element names, entity names and
@@ -312,3 +317,24 @@ regenerate the C++ expectations. The XML-name bitmap preserves the vendored
 Expat character set and license; `test/xml_oracle/name_tables.py` reproduces it.
 Native CMake suites share `test/cmake/xp_ffi_host.cmake`, which builds a host
 archive in the CMake build directory and supplies allocator adapters.
+
+## KOReader XPath compatibility
+
+KOReader compatibility is checked by `XPathGoldens` in the main host CTest suite.
+`test/koreader_xpath_resolver/README.md` documents the pre-port public-method
+outputs for every repository EPUB spine item and the boundary fixtures. The
+resolver strips prefixes without changing element case and retains its existing
+codepoint counting and whitespace-anchor rules. The XML core emits literal line
+endings separately, splits CDATA text before closing brackets, and defers retry
+of an incomplete token until the available input doubles (or input is final).
+These details matter because a whitespace-only callback cannot supply an anchor.
+They do not establish parity for every possible Expat callback fragmentation or
+its parsing-status flags.
+
+The XPath drivers retain one Rust handle per scan, released on normal completion,
+parse failure or an early match. Their existing C++ path and sibling containers
+are unchanged. The added XML retry state consists of a byte count and a boolean;
+no event queue or extra text buffer is allocated. Rust allocation failure returns
+an empty XPath, and the host resolver test injects failures at successive Rust
+allocation sites to verify cleanup. Existing C++ string/vector allocation behavior
+is not covered by that injection test.

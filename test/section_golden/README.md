@@ -97,3 +97,34 @@ checkout. The archive is a deterministic USTAR stream compressed with gzip and
 zero timestamps; its compressed size must remain below 1 MB. Review the fixture
 and implementation changes before replacing a committed baseline. Never
 regenerate goldens merely to make a Rust migration pass.
+
+## Paragraph layout oracle
+
+`LayoutGoldens` compares a second, fixed archive (`goldens/layouts.tar.gz`).
+It was captured before the layout migration from the same 18 EPUBs, all 104
+spine items and all three settings. Run it with:
+
+```sh
+python3 test/section_golden/run.py --dump build/test/section_golden/SectionGoldenDump --layout
+```
+
+The host build instruments a generated copy of `ParsedText.cpp`; it does not
+add firmware trace code. `instrument_layout.py` requires each source anchor
+exactly once and fails the build if an anchor moves or becomes ambiguous.
+Each section trace contains paragraph layout calls in execution order, original
+tokens and source offsets, successful discretionary splits, cached widths,
+break indices, logical and reordered justification values, visual order,
+x positions, output source ranges, ruby text, and link spans. Strings use hex
+bytes. Repeated bounded layout calls retain their continuation flags and source
+offsets; a mismatch reports the layout-call ordinal and trace line within its
+book/setting/spine. The Section oracle still checks the complete serialized
+result, including focus suffix positions and page placement.
+
+Capture uses `--layout --capture-baseline`, refuses an existing archive, and
+requires unchanged production sources. Never recapture to hide a mismatch.
+The compact archive must stay below 600 KB. Every layout call retains a SHA-256
+of its complete trace. Full records are retained for every eighth call in each
+section, the first successful split in each section, all reordered/ruby calls,
+and calls with more than 100 input tokens. The full baseline trace archive is
+kept as external evidence; passing its directory with `--goldens` compares full
+traces directly. The manifest always records hashes of the complete traces.

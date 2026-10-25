@@ -72,7 +72,7 @@ def prepare(epub, destination):
         return spine
 
 
-def collect(dump):
+def collect(dump, layout=False):
     sections = {}
     inventory = []
     for epub in sorted((REPO / "test/epubs").glob("*.epub")):
@@ -88,11 +88,34 @@ def collect(dump):
                 data = (root / "output" / config / f"{index}.bin").read_bytes()
                 if len(data) != int(size):
                     raise ValueError(f"Short section: {name}")
+                if layout:
+                    name = name.removesuffix(".bin") + ".layout"
+                    data = (root / "output" / config / f"{index}.layout").read_bytes()
                 sections[name] = data
                 inventory.append({"section": name, "spine": spine[int(index)], "pages": int(pages),
                                   "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
             print(f"{epub.name}: {len(spine)} spine items, {len(records)} sections")
     return sections, inventory
+
+
+def compact_layout(data):
+    """Keep all digests and a stable diagnostic sample; never drop coverage."""
+    parts = []
+    seen_split = False
+    for index, chunk in enumerate(data.split(b"paragraph\t")[1:]):
+        chunk = b"paragraph\t" + chunk
+        lines = chunk.splitlines()
+        split = b"\nsplit\t" in chunk
+        special = (b"\nreordered-gaps\t" in chunk or
+                   any(line.startswith(b"output\t") and line.split(b"\t")[-1] for line in lines) or
+                   sum(line.startswith(b"token\t") for line in lines) > 100)
+        keep = special or index % 8 == 0 or (split and not seen_split)
+        seen_split |= split
+        digest = hashlib.sha256(chunk).hexdigest().encode()
+        parts.append(b"layout-call\t" + str(index + 1).encode() + b"\t" + digest + b"\n")
+        if keep:
+            parts.append(chunk)
+    return b"".join(parts)
 
 
 def write_archive(path, sections):
@@ -118,7 +141,14 @@ def compare(expected, actual):
         old, new = expected[name], actual[name]
         if old != new:
             offset = next((i for i, (a, b) in enumerate(zip(old, new)) if a != b), min(len(old), len(new)))
-            raise ValueError(f"Section differs: {name}, first byte offset {offset}, "
+            context = ""
+            if name.endswith(".layout"):
+                prefix = old[:offset].decode("utf-8")
+                calls = [line.split("\t")[1] for line in prefix.splitlines() if line.startswith("layout-call\t")]
+                paragraph = calls[-1] if calls else sum(line.startswith("paragraph\t") for line in prefix.splitlines())
+                event = prefix.count("\n") + 1
+                context = f", layout call {paragraph}, trace line {event}"
+            raise ValueError(f"Section differs: {name}, first byte offset {offset}{context}, "
                              f"expected {len(old)} bytes, got {len(new)}")
 
 
@@ -127,36 +157,45 @@ def main():
     parser.add_argument("--dump", type=Path, required=True)
     parser.add_argument("--goldens", type=Path, default=HERE / "goldens")
     parser.add_argument("--capture-baseline", action="store_true", help="Capture CURRENT C++ before porting; never use to fix a mismatch")
+    parser.add_argument("--layout", action="store_true", help="Compare paragraph layout traces")
     args = parser.parse_args()
+    archive_name = "layouts.tar.gz" if args.layout else "sections.tar.gz"
+    manifest_name = "layouts.json" if args.layout else "inventory.json"
     if sys.byteorder != "little" or struct.calcsize("i") != 4:
         raise ValueError("The Section wire oracle requires a little-endian host with 32-bit int")
     if args.capture_baseline:
         subprocess.run(["git", "diff", "--exit-code", "HEAD", "--", "lib", "src", "rust"],
                        cwd=REPO, check=True, capture_output=True, text=True)
-        if (args.goldens / "sections.tar.gz").exists():
+        if (args.goldens / archive_name).exists():
             raise ValueError("Refusing to overwrite an existing baseline; use a new --goldens directory")
-    sections, inventory = collect(args.dump.resolve())
-    archive = args.goldens / "sections.tar.gz"
+    sections, inventory = collect(args.dump.resolve(), args.layout)
+    archive = args.goldens / archive_name
     fixtures = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                 for path in sorted((REPO / "test/epubs").glob("*.epub"))}
     if args.capture_baseline:
         args.goldens.mkdir(parents=True, exist_ok=True)
-        write_archive(archive, sections)
-        if archive.stat().st_size >= 1_000_000:
-            raise ValueError(f"Golden archive exceeds 1 MB: {archive.stat().st_size} bytes")
+        stored = {name: compact_layout(data) for name, data in sections.items()} if args.layout else sections
+        write_archive(archive, stored)
+        limit = 600_000 if args.layout else 1_000_000
+        if archive.stat().st_size >= limit:
+            raise ValueError(f"Golden archive exceeds size limit: {archive.stat().st_size} bytes")
         revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
         manifest = {"baseline_revision": revision, "epubs": fixtures, "sections": inventory}
-        (args.goldens / "inventory.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        if args.layout:
+            manifest["trace_format"] = "sampled-v1"
+        (args.goldens / manifest_name).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         print(f"Captured {len(sections)} sections, {sum(len(data) for data in sections.values())} raw bytes, "
               f"{archive.stat().st_size} gzip bytes")
     else:
-        manifest = json.loads((args.goldens / "inventory.json").read_text(encoding="utf-8"))
+        manifest = json.loads((args.goldens / manifest_name).read_text(encoding="utf-8"))
         if fixtures != manifest["epubs"]:
             raise ValueError("EPUB corpus changed; inspect fixture changes before capturing a new baseline")
-        compare(read_archive(archive), sections)
+        actual = ({name: compact_layout(data) for name, data in sections.items()}
+                  if args.layout and manifest.get("trace_format") == "sampled-v1" else sections)
+        compare(read_archive(archive), actual)
         if inventory != manifest["sections"]:
             raise ValueError("Section inventory changed")
-        print(f"PASS: {len(sections)} complete sections are byte-identical")
+        print(f"PASS: {len(sections)} {'layout traces' if args.layout else 'complete sections'} are byte-identical")
 
 
 if __name__ == "__main__":

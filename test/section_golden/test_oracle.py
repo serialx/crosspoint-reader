@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from run import compare, read_archive, write_archive
+from run import compact_layout, compare, read_archive, write_archive
 
 
 class OracleTest(unittest.TestCase):
@@ -19,6 +19,22 @@ class OracleTest(unittest.TestCase):
             compare(self.sections, read_archive(path))
             write_archive(path, dict(reversed(list(self.sections.items()))))
             self.assertEqual(original, path.read_bytes())
+
+    def test_layout_mismatch_identifies_paragraph_and_event(self):
+        old = b"paragraph\t480\ntoken\t0\nparagraph\t240\nvisual\t0\t10\n"
+        with self.assertRaisesRegex(ValueError, "layout call 2, trace line 4"):
+            compare({"book/0/0.layout": old}, {"book/0/0.layout": old.replace(b"10", b"11")})
+
+    def test_instrumentation_fails_closed_when_anchor_is_missing(self):
+        from instrument_layout import instrument
+        with self.assertRaisesRegex(ValueError, "anchor must occur once"):
+            instrument("// No layout source")
+
+    def test_unsampled_layout_change_alters_digest(self):
+        full = b"paragraph\t480\ntoken\t0\nparagraph\t480\nvisual\t0\t10\n"
+        compact = compact_layout(full)
+        self.assertNotIn(b"visual", compact)
+        self.assertNotEqual(compact, compact_layout(full.replace(b"10", b"11")))
 
     def test_rejects_byte_mutation(self):
         changed = dict(self.sections)

@@ -1,3 +1,9 @@
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument_layout.py
+    ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
+  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp instrument_layout.py
+  VERBATIM)
 add_executable(SectionGoldenDump
   SectionGoldenDump.cpp
   ImageDecoderStub.cpp
@@ -5,7 +11,7 @@ add_executable(SectionGoldenDump
   ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
   ${REPO_ROOT}/lib/Epub/Epub/WordStore.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
@@ -24,6 +30,7 @@ add_executable(SectionGoldenDump
   ${REPO_ROOT}/lib/expat/xmltok.c
 )
 target_include_directories(SectionGoldenDump PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/stubs
   ${REPO_ROOT}/lib/FsHelpers
   ${REPO_ROOT}/test/fs_helpers/stubs
@@ -50,3 +57,6 @@ add_test(NAME SectionGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump>)
 add_test(NAME SectionGoldenComparator COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
+
+add_test(NAME LayoutGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump> --layout)

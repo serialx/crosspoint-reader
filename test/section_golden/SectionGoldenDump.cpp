@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "LayoutTrace.h"
+
 namespace {
 bool readManifest(Epub& epub, std::vector<std::string>& cssPaths) {
   std::ifstream manifest("manifest.tsv");
@@ -84,11 +86,13 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories(output);
     for (size_t spine = 0; spine < epub->spine.size(); ++spine) {
       Section section(epub, static_cast<int>(spine), renderer);
+      LayoutTrace::open(output + "/" + std::to_string(spine) + ".layout");
       if (!section.createSectionFile(spec)) {
         std::cerr << "Build failed: setting " << config << ", spine " << spine << ' ' << epub->spine[spine].href
                   << '\n';
         return 7;
       }
+      LayoutTrace::close();
       const auto pageCount = section.pageCount;
       if (!section.loadSectionFile(spec) || section.pageCount != pageCount) return 8;
       for (int page = 0; page < pageCount; ++page) {

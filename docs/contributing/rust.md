@@ -83,11 +83,16 @@ the C++ implementation.
 (`-` means empty). `golden-breaks.txt` stores tag, fallback flag, zero-based word
 index, and ordered `byteOffset:insertHyphen` pairs. These outputs were captured
 from the original C++ engine before its removal, with `GoldenDump.cpp`.
-The corpus includes every distinct corpus word, all registry languages and
-aliases, unknown tags, separator and punctuation cases, long words, CJK,
-combining marks, embedded NULs, and malformed UTF-8. Both Cargo and the host
-C++ suite compare every output exactly. Do not regenerate goldens from Rust
-to make a failing differential test pass.
+The default compact fixtures contain 652 words and 15,648 break lists across
+12 representative language tags and both fallback flags, plus a separate
+31-tag language-mapping check. They retain separator and punctuation cases,
+long words, CJK, combining marks, embedded NULs, and malformed UTF-8.
+Set `XP_HYPHEN_GOLDEN_FULL` to the external full archive to verify all 43,471
+words and 2,695,202 break lists, covering every corpus word and all 31 tags.
+Both Cargo and the host C++ suite compare every selected output exactly.
+See the [golden fixture guide](../../test/hyphenation_eval/README.md) for the
+selection method, archive format and commands. Do not regenerate goldens from
+Rust to make a failing differential test pass.
 
 The host CMake build compiles the same `xp-ffi` static library and links it
 into the hyphenation and line-breaking suites. The existing F1 thresholds

@@ -1,7 +1,7 @@
 # Hypher Binary Tries
 
 CrossPoint embeds the exact binary automata produced by
-[Typst's `hypher`](https://github.com/typst/hypher). 
+[Typst's `hypher`](https://github.com/typst/hypher).
 
 ## File layout
 
@@ -42,7 +42,8 @@ The eleven raw `.bin` files live in `rust/crates/xp-core/data/hyph/`.
 `xp-core::hyphen` embeds them with `include_bytes!` in a four-byte-aligned
 wrapper. The root address remains in the first four bytes; node and level
 offsets use the original file coordinates. The runtime reads bytes directly
-from flash, without allocating or expanding the trie.
+from flash, without allocating or expanding the trie. Normal firmware builds
+embed the checked-in files; they do not download or regenerate patterns.
 
 `scripts/generate_hyphenation_trie.py` validates the root address and copies
 an input `.bin` unchanged. Refresh all languages with:

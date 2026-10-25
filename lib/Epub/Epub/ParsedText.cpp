@@ -21,10 +21,6 @@
 
 constexpr int MAX_COST = std::numeric_limits<int>::max();
 
-#ifndef XP_RUST_LAYOUT
-#define XP_RUST_LAYOUT 0
-#endif
-
 namespace {
 
 // Soft hyphen byte pattern used throughout EPUBs (UTF-8 for U+00AD).

@@ -185,7 +185,9 @@ ctest --test-dir build/test -R '^SectionGolden' --output-on-failure
 Keep the captured C++ goldens when porting code. The harness uses host adapters
 for EPUB discovery, storage and font metrics; it does not replace firmware
 builds, device/emulator comparisons, allocation measurements or OOM tests.
-The layout decisions remain in C++; paragraph storage is behind the Rust ABI.
+Paragraph storage and line layout are behind the Rust ABI. The paragraph-level
+[layout oracle](../../test/section_golden/README.md#paragraph-layout-oracle)
+checks every call against the original C++ trace as well.
 
 `WordStore` now delegates its arena to `xp-core::para`. Its opaque state uses
 four pointer-sized words inside the C++ owner, with no separate handle allocation.
@@ -221,9 +223,45 @@ partially insert a token or shift source offsets. New text is released when
 metadata insertion fails, and the paragraph latches its existing failure flag.
 A failed hyphenation insertion leaves the original word intact.
 
-The C++ facade still performs normalization, tokenization, line-breaking,
-font measurement, BiDi ordering and completed-line construction. Layout reads
-metadata through scalar accessors; sparse visible-offset rebasing and NFC
-absorbed-position accounting live in Rust. Ruby strings, link targets, size-slot
-font tables and temporary layout vectors retain their existing C++ ownership.
-The ABI owns no rendering or storage service and adds no task or synchronization.
+The C++ facade still performs normalization, tokenization, font measurement,
+MiniBidi ordering and TextBlock construction. Sparse visible-offset rebasing and
+NFC absorbed-position accounting live in Rust. Ruby strings, link targets,
+size-slot font tables and MiniBidi scratch retain their C++ ownership. The ABI
+owns no rendering or storage service and adds no task or synchronization.
+
+## Paragraph layout
+
+`XP_RUST_LAYOUT` defaults to 1. Set it to 0 for the retained C++ layout path when
+comparing behavior. Rust owns the DP and greedy breakers, hyphenation candidate
+selection and token splitting, line justification and positions, and line source
+metadata. The algorithms preserve the original rounding, cost ties and fallback
+order. Hyphenation calls the existing Rust engine directly. C++ supplies renderer
+advances, kerning, space metrics and ruby adjustments through synchronous
+callbacks; MiniBidi runs at the same point and supplies the original visual order.
+Metric callbacks cannot reenter layout or retain borrowed pointers.
+
+The width cache owns 2 × N bytes initially and doubles only when a split needs
+more slots. DP owns exact `int32_t[N]` and `size_t[N]` arrays (8 × N bytes on C3);
+greedy has no DP scratch. Break indices grow from one pointer-sized slot and
+double. Completed-line numeric metadata uses one exact allocation: 11 × W bytes,
+or 14 × W with focus annotations, for at most 10,000 words. This replaces the
+separate position, style, source-range and focus vectors; word strings and BiDi
+scratch remain C++ inputs to the existing reorder hook. TextBlock copies borrowed
+metadata into its existing arena before the line owner is destroyed.
+
+All new buffers use the paragraph allocator, check size arithmetic, and return
+allocation failure. Their lifetime is one paragraph layout call or one extracted
+line; none is cached globally. Failed growth preserves existing values, and the
+C++ facade marks the paragraph failed so Section cannot commit missing text.
+Tests cover DP allocation failure, width growth failure, split rollback, line
+limits and failed line allocation. Keep both backends compatible with the same
+captured goldens:
+
+```sh
+cmake -S test -B build/test -DCMAKE_CXX_FLAGS=-DXP_RUST_LAYOUT=0
+cmake --build build/test -j 6
+ctest --test-dir build/test --output-on-failure -j 6
+cmake -S test -B build/test -DCMAKE_CXX_FLAGS=
+cmake --build build/test -j 6
+ctest --test-dir build/test --output-on-failure -j 6
+```

@@ -14,7 +14,7 @@
 #include "blocks/TextBlock.h"
 
 #ifndef XP_RUST_LAYOUT
-#define XP_RUST_LAYOUT 0
+#define XP_RUST_LAYOUT 1
 #endif
 
 #if XP_RUST_LAYOUT

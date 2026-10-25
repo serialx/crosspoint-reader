@@ -27,10 +27,11 @@ uint8_t feed(XpCss* handle, const std::string& css) {
 std::vector<uint8_t> cache(XpCss* handle) {
   std::vector<uint8_t> bytes;
   std::array<uint8_t, XP_CSS_CACHE_BUFFER_BYTES> record{};
-  xp_css_cache_write_begin(handle, true);
+  std::vector<uint16_t> order(xp_css_rule_count(handle));
+  EXPECT_EQ(xp_css_cache_write_begin(handle, true, order.data(), order.size()), 0);
   while (true) {
     size_t written = 0;
-    EXPECT_EQ(xp_css_cache_write(handle, record.data(), record.size(), &written), 0);
+    EXPECT_EQ(xp_css_cache_write(handle, order.data(), order.size(), record.data(), record.size(), &written), 0);
     if (written == 0) break;
     bytes.insert(bytes.end(), record.begin(), record.begin() + written);
   }
@@ -49,7 +50,10 @@ TEST(CssAllocationTest, EachAllocationFailureDuringParseRemainsPartial) {
     SCOPED_TRACE(failAt);
     cssTestFailAllocation(failAt);
     handle = xp_css_create();
-    if (failAt == 0) { EXPECT_EQ(handle, nullptr); continue; }
+    if (failAt == 0) {
+      EXPECT_EQ(handle, nullptr);
+      continue;
+    }
     ASSERT_NE(handle, nullptr);
     EXPECT_EQ(feed(handle, css), 1);
     EXPECT_LE(xp_css_rule_count(handle), 1500u);

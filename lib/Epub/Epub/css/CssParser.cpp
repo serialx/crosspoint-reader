@@ -327,10 +327,16 @@ bool CssParser::saveToCache(const bool complete) const {
   bool writeOk = true;
   const auto ruleCount = static_cast<uint16_t>(this->ruleCount());
   if (handle) {
-    xp_css_cache_write_begin(handle, complete);
+    auto order = makeUniqueNoThrow<uint16_t[]>(ruleCount);
+    if (!order || xp_css_cache_write_begin(handle, complete, order.get(), ruleCount) != 0) {
+      LOG_ERR("CSS", "Could not prepare cache source order");
+      file.close();
+      Storage.remove(tmpPath.c_str());
+      return false;
+    }
     while (writeOk) {
       size_t written = 0;
-      if (xp_css_cache_write(handle, buffer.get(), XP_CSS_CACHE_BUFFER_BYTES, &written) != 0) {
+      if (xp_css_cache_write(handle, order.get(), ruleCount, buffer.get(), XP_CSS_CACHE_BUFFER_BYTES, &written) != 0) {
         writeOk = false;
         break;
       }

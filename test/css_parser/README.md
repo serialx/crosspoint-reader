@@ -61,3 +61,10 @@ replacement implementation to make a failure pass.
 and cache load. It checks Partial/LowMemory, clearing, and successful retry, and
 rejects every truncation of a small cache plus trailing data. These tests cover
 the C ABI using the production Rust archive with a host allocator shim.
+
+The facade tests separately fail its nothrow scratch allocations: 512-byte
+stylesheet input returns Partial, 512-byte cache input returns LowMemory, and
+347-byte cache output or the 3,000-byte source-order index preserves the previous
+cache without leaving a temporary file. Each check verifies successful retry.
+The source-order index is borrowed by Rust only during each call and uses a
+bounded, allocation-free heapsort before linear cache output.

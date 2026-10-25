@@ -299,17 +299,41 @@ impl Store {
         key.count -= 1;
         key.len -= 1;
     }
-    /// Writes one cache record in source order without allocating a sort index.
-    pub fn cache_record(&self, after: usize, out: &mut [u8]) -> Result<(usize, usize), Error> {
-        let Some((i, e)) = self
-            .entries
-            .iter()
-            .enumerate()
-            .filter(|(_, e)| e.offset as usize >= after)
-            .min_by_key(|(_, e)| e.offset)
-        else {
-            return Ok((0, after));
-        };
+    /// Builds a source-order index in caller-owned, bounded scratch storage.
+    pub fn cache_order(&self, order: &mut [u16]) -> Result<(), Error> {
+        if order.len() != self.entries.len() {
+            return Err(Error::Invalid);
+        }
+        for (i, slot) in order.iter_mut().enumerate() {
+            *slot = i as u16;
+        }
+        // Iterative heapsort bounds time and stack without the general sort's flash cost.
+        for root in (0..order.len() / 2).rev() {
+            self.sift_cache_order(order, root);
+        }
+        for end in (1..order.len()).rev() {
+            order.swap(0, end);
+            self.sift_cache_order(&mut order[..end], 0);
+        }
+        Ok(())
+    }
+    fn sift_cache_order(&self, order: &mut [u16], mut root: usize) {
+        while root < order.len() / 2 {
+            let mut child = root * 2 + 1;
+            let offset = |i: usize| self.entries[usize::from(order[i])].offset;
+            if child + 1 < order.len() && offset(child) < offset(child + 1) {
+                child += 1;
+            }
+            if offset(root) >= offset(child) {
+                break;
+            }
+            order.swap(root, child);
+            root = child;
+        }
+    }
+    pub fn cache_record(&self, index: u16, out: &mut [u8]) -> Result<usize, Error> {
+        let i = usize::from(index);
+        let e = self.entries.get(i).ok_or(Error::Invalid)?;
         let len = usize::from(e.len);
         let size = 2 + len + WIRE_BYTES;
         if out.len() < size {
@@ -318,7 +342,7 @@ impl Store {
         out[..2].copy_from_slice(&e.len.to_le_bytes());
         out[2..2 + len].copy_from_slice(self.selector(i));
         out[2 + len..size].copy_from_slice(&self.styles[usize::from(e.style)].0);
-        Ok((size, e.offset as usize + len))
+        Ok(size)
     }
     pub fn cache_begin(&mut self, count: usize) -> Result<(), Error> {
         self.clear();

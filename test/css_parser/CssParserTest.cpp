@@ -5,10 +5,39 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <new>
 #include <string>
 #include <vector>
 
 #include "CssParser.h"
+
+namespace {
+thread_local size_t failScratchSize = 0;
+thread_local bool scratchFailureHit = false;
+
+class FailScratchAllocation {
+ public:
+  explicit FailScratchAllocation(size_t size) {
+    failScratchSize = size;
+    scratchFailureHit = false;
+  }
+  ~FailScratchAllocation() { failScratchSize = 0; }
+};
+}  // namespace
+
+// Only the facade's nothrow array allocation is injected; Rust has its own shim.
+void* operator new[](size_t size, const std::nothrow_t&) noexcept {
+  if (failScratchSize != 0 && size == failScratchSize) {
+    failScratchSize = 0;
+    scratchFailureHit = true;
+    return nullptr;
+  }
+  try {
+    return ::operator new[](size);
+  } catch (...) {
+    return nullptr;
+  }
+}
 
 namespace fs = std::filesystem;
 
@@ -64,6 +93,81 @@ class CssParserTest : public ::testing::Test {
 
   fs::path directory_;
 };
+
+TEST_F(CssParserTest, SourceScratchFailureReturnsPartialAndCanRetry) {
+  CssParser parser(cachePath());
+  {
+    FailScratchAllocation failure(512);
+    EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Partial);
+    EXPECT_TRUE(scratchFailureHit);
+    EXPECT_EQ(parser.ruleCount(), 0u);
+  }
+  parser.clear();
+  EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  EXPECT_EQ(parser.ruleCount(), 1u);
+}
+
+TEST_F(CssParserTest, CacheInputScratchFailureReturnsLowMemoryAndCanRetry) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(true));
+  const auto previous = readCache();
+  CssParser reader(cachePath());
+  {
+    FailScratchAllocation failure(512);
+    EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::LowMemory);
+    EXPECT_TRUE(scratchFailureHit);
+    EXPECT_EQ(reader.ruleCount(), 0u);
+  }
+  EXPECT_EQ(readCache(), previous);
+  reader.clear();
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.resolveStyle("p", "a").fontWeight, CssFontWeight::Bold);
+}
+
+TEST_F(CssParserTest, CacheOutputScratchFailurePreservesPreviousCache) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(true));
+  const auto previous = readCache();
+  ASSERT_EQ(loadCss(writer, ".b{font-style:italic}"), CssParser::ParseResult::Complete);
+  {
+    FailScratchAllocation failure(347);
+    EXPECT_FALSE(writer.saveToCache(true));
+    EXPECT_TRUE(scratchFailureHit);
+  }
+  EXPECT_EQ(readCache(), previous);
+  EXPECT_FALSE(fs::exists(cacheTempFile()));
+  CssParser reader(cachePath());
+  ASSERT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.ruleCount(), 1u);
+  EXPECT_EQ(reader.resolveStyle("p", "a").fontWeight, CssFontWeight::Bold);
+  EXPECT_TRUE(writer.saveToCache(true));
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.ruleCount(), 2u);
+}
+
+TEST_F(CssParserTest, CacheOrderScratchFailurePreservesPreviousCache) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(true));
+  const auto previous = readCache();
+  std::string css;
+  for (size_t i = 1; i < 1500; ++i) css += ".a" + std::to_string(i) + "{font-weight:bold}";
+  ASSERT_EQ(loadCss(writer, css), CssParser::ParseResult::Complete);
+  ASSERT_EQ(writer.ruleCount(), 1500u);
+  {
+    FailScratchAllocation failure(3000);
+    EXPECT_FALSE(writer.saveToCache(true));
+    EXPECT_TRUE(scratchFailureHit);
+  }
+  EXPECT_EQ(readCache(), previous);
+  EXPECT_FALSE(fs::exists(cacheTempFile()));
+  EXPECT_TRUE(writer.saveToCache(true));
+  CssParser reader(cachePath());
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.ruleCount(), 1500u);
+}
 
 TEST_F(CssParserTest, ResolvesCaseInsensitiveCascadeAndRepeatedSelectors) {
   CssParser parser(cachePath());

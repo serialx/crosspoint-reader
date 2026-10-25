@@ -59,15 +59,12 @@ fn cpp_goldens() {
         let mut cache = Vec::new();
         cache.extend_from_slice(&[19, u8::from(!complete)]);
         cache.extend_from_slice(&(store.rule_count() as u16).to_le_bytes());
-        let mut after = 0;
+        let mut order = alloc::vec![0; store.rule_count()];
+        store.cache_order(&mut order).unwrap();
         let mut record = [0; 2 + 257 + WIRE_BYTES];
-        loop {
-            let (n, next) = store.cache_record(after, &mut record).unwrap();
-            if n == 0 {
-                break;
-            }
+        for index in order {
+            let n = store.cache_record(index, &mut record).unwrap();
             cache.extend_from_slice(&record[..n]);
-            after = next;
         }
         equal(
             name,

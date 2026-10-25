@@ -62,8 +62,10 @@ void xp_css_ancestor(XpCssSlice tag, XpCssSlice classes, XpCssSlice id, XpCssAnc
 size_t xp_css_rule_count(const XpCss* handle);
 uint8_t xp_css_has_first_letter(const XpCss* handle);
 // Cache I/O returns 0 success, 1 LowMemory, 2 Invalid. Buffers and outputs must not overlap.
-void xp_css_cache_write_begin(XpCss* handle, uint8_t complete);
-int32_t xp_css_cache_write(XpCss* handle, uint8_t* out, size_t cap, size_t* written);
+// order has rule_count entries; keep it unchanged until serialization ends.
+int32_t xp_css_cache_write_begin(XpCss* handle, uint8_t complete, uint16_t* order, size_t count);
+int32_t xp_css_cache_write(XpCss* handle, const uint16_t* order, size_t count, uint8_t* out, size_t cap,
+                           size_t* written);
 int32_t xp_css_cache_read(XpCss* handle, const uint8_t* data, size_t len, uint8_t end);
 
 #ifdef __cplusplus

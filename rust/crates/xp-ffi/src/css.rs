@@ -181,27 +181,42 @@ pub unsafe extern "C" fn xp_css_has_first_letter(handle: *const Css) -> u8 {
     u8::from((&*handle).store.has_first_letter())
 }
 /// # Safety
-/// Handle is live and exclusively borrowed. No mutation until serialization ends.
+/// Handle is live/exclusive. order has count writable u16s, disjoint from the handle.
+/// count equals rule_count; no store mutation until serialization ends.
 #[no_mangle]
-pub unsafe extern "C" fn xp_css_cache_write_begin(handle: *mut Css, complete: u8) {
+pub unsafe extern "C" fn xp_css_cache_write_begin(
+    handle: *mut Css,
+    complete: u8,
+    order: *mut u16,
+    count: usize,
+) -> i32 {
     let h = &mut *handle;
     h.write_header = true;
     h.write_offset = 0;
     h.complete = complete != 0;
+    let order = if count == 0 {
+        &mut []
+    } else {
+        core::slice::from_raw_parts_mut(order, count)
+    };
+    h.store.cache_order(order).map_or_else(error, |()| 0)
 }
 /// # Safety
 /// Handle is live/exclusive; out has cap writable bytes; written points to usize.
-/// Outputs must not overlap each other or the handle. cap >= 347. Zero written means done.
+/// Outputs must not overlap each other, order, or the handle. cap >= 347.
+/// order has count readable u16s from write_begin, unchanged. Zero written means done.
 #[no_mangle]
 pub unsafe extern "C" fn xp_css_cache_write(
     handle: *mut Css,
+    order: *const u16,
+    count: usize,
     out: *mut u8,
     cap: usize,
     written: *mut usize,
 ) -> i32 {
     let h = &mut *handle;
     *written = 0;
-    if cap < 347 {
+    if cap < 347 || count != h.store.rule_count() {
         return 2;
     }
     let out = core::slice::from_raw_parts_mut(out, cap);
@@ -213,10 +228,13 @@ pub unsafe extern "C" fn xp_css_cache_write(
         h.write_header = false;
         return 0;
     }
-    match h.store.cache_record(h.write_offset, out) {
-        Ok((n, next)) => {
+    if h.write_offset == count {
+        return 0;
+    }
+    match h.store.cache_record(*order.add(h.write_offset), out) {
+        Ok(n) => {
             *written = n;
-            h.write_offset = next;
+            h.write_offset += 1;
             0
         }
         Err(e) => error(e),

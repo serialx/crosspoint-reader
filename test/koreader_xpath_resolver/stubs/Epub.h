@@ -16,6 +16,8 @@ class Epub {
 
   explicit Epub(std::vector<std::string> spineContents) : spineContents(std::move(spineContents)) {}
 
+  size_t testChunkSize = 0;
+
   int getSpineItemsCount() const { return static_cast<int>(spineContents.size()); }
 
   SpineItem getSpineItem(const int spineIndex) const {
@@ -34,7 +36,7 @@ class Epub {
       const auto& contents = spineContents[spineIndex];
       size_t offset = 0;
       while (offset < contents.size()) {
-        const size_t size = std::min(chunkSize, contents.size() - offset);
+        const size_t size = std::min(testChunkSize ? testChunkSize : chunkSize, contents.size() - offset);
         out.write(reinterpret_cast<const uint8_t*>(contents.data() + offset), size);
         offset += size;
       }

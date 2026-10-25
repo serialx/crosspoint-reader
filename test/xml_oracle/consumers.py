@@ -18,6 +18,7 @@ def capture(executable, epub, mode, chunk, work):
             archive.extractall(extracted)
     output = work / f'{mode}-{chunk}'
     subprocess.run([str(executable.resolve()), str(extracted), str(output), str(chunk), mode], check=True)
+    assert not (output / '.items.bin').exists(), 'OPF temporary store survived parser destruction'
     return {name: (output / name).read_bytes().hex()
             for name in ('book.bin', 'spine.bin.tmp', 'toc.bin.tmp', 'items.bin', 'consumer.txt')}
 

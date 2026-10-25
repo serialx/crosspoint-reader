@@ -275,9 +275,9 @@ applies when the entire offered slice was consumed. Events borrow parser
 storage until the next operation. `xp-ffi` exposes the same driver contract
 through `xp_xml_*`; the header documents span and handle lifetimes.
 
-Container, encryption, nav and NCX consumers retain their C++ interfaces and
+Container, encryption, OPF, nav and NCX consumers retain their C++ interfaces and
 storage ownership. `XmlPullParser` dispatches Rust events synchronously to their
-existing handlers. OPF, chapter parsing and KOReader still use Expat, so Expat
+existing handlers. Chapter parsing and KOReader still use Expat, so Expat
 remains linked. The shared core preserves raw qualified names, original byte
 positions, UTF-8/UTF-16/Latin-1 decoding and the vendored GE=0 entity rules;
 it does not perform HTML entity expansion.

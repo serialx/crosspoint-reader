@@ -72,18 +72,22 @@ The Rust replay checks every non-stop schedule: semantic events, original byte
 and line positions, and the final error or completion location. Callback-stop
 fixtures remain characterization data: the pull API latches `Stopped`, but does
 not emulate Expat's callback fragmentation or parsing-status flags. None of the
-four migrated consumers stops inside a callback. Resolve that distinction before
+five migrated consumers stops inside a callback. Resolve that distinction before
 migrating consumers that do, including KOReader XPath resolution.
 
 ## Consumer cache baseline
 
-`XmlConsumerOracle` links the unchanged container, OPF, nav, NCX and encryption
+`XmlConsumerOracle` links the production container, OPF, nav, NCX and encryption
 consumers, real `BookMetadataCache` serialization and real `FsHelpers`/UTF-8
 helpers. Host adapters replace storage and ZIP entry-size lookup. Python
 extracts the archive; the C++ tool reads the original XML files and writes
-`book.bin`, temporary spine/TOC bytes and a container/protection summary.
+`book.bin`, temporary spine/TOC/item-store bytes and a container/protection summary.
 `consumer_goldens/` records those bytes for all 18 repository EPUBs, with both
 nav-first and NCX-first selection, each verified at 1/7/512/1024-byte feeding.
+The item-store snapshot was recorded before migrating OPF to Rust; earlier
+cache expectations were retained. The 1,025-byte CDATA payload crosses both
+512- and 1,024-byte boundaries without retaining the original oversized stop
+fixture. The complete original fixture set is archived in the round evidence.
 
 ```sh
 python3 test/xml_oracle/consumers.py --oracle build/xml-oracle/XmlConsumerOracle verify

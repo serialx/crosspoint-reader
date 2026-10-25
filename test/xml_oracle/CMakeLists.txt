@@ -25,9 +25,6 @@ add_executable(XmlConsumerOracle
   ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
-  ${REPO_ROOT}/lib/expat/xmlparse.c
-  ${REPO_ROOT}/lib/expat/xmlrole.c
-  ${REPO_ROOT}/lib/expat/xmltok.c
 )
 target_include_directories(XmlConsumerOracle PRIVATE
   stubs
@@ -44,7 +41,6 @@ target_include_directories(XmlConsumerOracle PRIVATE
   ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
   ${REPO_ROOT}/test/content_opf_parser/stubs
 )
-target_compile_definitions(XmlConsumerOracle PRIVATE XML_GE=0 XML_CONTEXT_BYTES=0)
 target_compile_options(XmlConsumerOracle PRIVATE -Wall -Wextra)
 add_test(NAME XmlConsumerGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/consumers.py --oracle $<TARGET_FILE:XmlConsumerOracle> verify)

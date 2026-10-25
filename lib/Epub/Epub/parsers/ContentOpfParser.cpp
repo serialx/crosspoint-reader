@@ -42,7 +42,7 @@ bool isXmlWhitespace(const char c) { return c == ' ' || c == '\t' || c == '\r' |
 constexpr size_t MAX_METADATA_TEXT = 512;
 constexpr size_t MAX_COLLECTION_CANDIDATES = 8;
 
-void appendMetadataText(std::string& out, const XML_Char* text, const int len, bool& spacePending,
+void appendMetadataText(std::string& out, const char* text, const int len, bool& spacePending,
                         bool* separatorPending = nullptr) {
   if (out.size() >= MAX_METADATA_TEXT) return;  // already clamped and logged
   for (int i = 0; i < len; i++) {
@@ -73,7 +73,7 @@ std::string lowerAscii(std::string value) {
   return value;
 }
 
-std::string boundedMetadataValue(const XML_Char* value) {
+std::string boundedMetadataValue(const char* value) {
   if (!value) return {};
   size_t length = 0;
   while (length < MAX_METADATA_TEXT && value[length] != '\0') ++length;
@@ -111,21 +111,10 @@ std::optional<float> parseFiniteFloat(const std::string& value) {
 }
 }  // namespace
 
-bool ContentOpfParser::setup() {
-  parser = XML_ParserCreate(nullptr);
-  if (!parser) {
-    LOG_DBG("COF", "Couldn't allocate memory for parser");
-    return false;
-  }
-
-  XML_SetUserData(parser, this);
-  XML_SetElementHandler(parser, startElement, endElement);
-  XML_SetCharacterDataHandler(parser, characterData);
-  return true;
-}
+bool ContentOpfParser::setup() { return parser.setup(this, startElement, endElement, characterData); }
 
 ContentOpfParser::~ContentOpfParser() {
-  destroyXmlParser(parser);
+  parser.reset();
   if (metadataOnly || !cache) {
     return;
   }
@@ -147,21 +136,9 @@ size_t ContentOpfParser::write(const uint8_t* buffer, const size_t size) {
   auto remainingInBuffer = size;
 
   while (remainingInBuffer > 0) {
-    void* const buf = XML_GetBuffer(parser, 1024);
-
-    if (!buf) {
-      LOG_ERR("COF", "Couldn't allocate memory for buffer");
-      destroyXmlParser(parser);
-      return 0;
-    }
-
     const auto toRead = remainingInBuffer < 1024 ? remainingInBuffer : 1024;
-    memcpy(buf, currentBufferPos, toRead);
-
-    if (XML_ParseBuffer(parser, static_cast<int>(toRead), remainingSize == toRead) == XML_STATUS_ERROR) {
-      LOG_DBG("COF", "Parse error at line %lu: %s", XML_GetCurrentLineNumber(parser),
-              XML_ErrorString(XML_GetErrorCode(parser)));
-      destroyXmlParser(parser);
+    if (!parser.write(currentBufferPos, toRead, remainingSize == toRead)) {
+      parser.reset();
       return 0;
     }
 
@@ -178,7 +155,7 @@ size_t ContentOpfParser::write(const uint8_t* buffer, const size_t size) {
   return size;
 }
 
-void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name, const XML_Char** atts) {
+void ContentOpfParser::startElement(void* userData, const char* name, const char* const* atts) {
   auto* self = static_cast<ContentOpfParser*>(userData);
   if (self->metadataOnly && self->metadataComplete) {
     return;
@@ -466,7 +443,7 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
   }
 }
 
-void XMLCALL ContentOpfParser::characterData(void* userData, const XML_Char* s, const int len) {
+void ContentOpfParser::characterData(void* userData, const char* s, const int len) {
   auto* self = static_cast<ContentOpfParser*>(userData);
 
   if (self->metadataOnly && self->metadataComplete) {
@@ -499,7 +476,7 @@ void XMLCALL ContentOpfParser::characterData(void* userData, const XML_Char* s, 
   }
 }
 
-void XMLCALL ContentOpfParser::endElement(void* userData, const XML_Char* name) {
+void ContentOpfParser::endElement(void* userData, const char* name) {
   auto* self = static_cast<ContentOpfParser*>(userData);
   (void)name;
 

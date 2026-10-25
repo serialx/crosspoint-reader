@@ -389,6 +389,37 @@ impl Parser {
 
     fn scan_token(&mut self) -> Result<bool, (u32, usize)> {
         loop {
+            let plain = match self.token_kind {
+                Token::Text | Token::Cdata => true,
+                Token::Markup => self
+                    .token
+                    .get(1)
+                    .is_some_and(|&b| !matches!(b, b'!' | b'?')),
+                _ => false,
+            };
+            if plain
+                && matches!(
+                    self.encoding,
+                    Encoding::Utf8 | Encoding::Ascii | Encoding::Latin1
+                )
+            {
+                let tail = self.input.get(self.scan..).ok_or((4, self.token.len()))?;
+                // Leave syntax, line endings, controls and non-ASCII scalars to
+                // the stateful scanner. Feed and event boundaries stay unchanged.
+                let count = tail
+                    .iter()
+                    .position(|&b| {
+                        !(0x20..0x80).contains(&b)
+                            || matches!(b, b'<' | b'>' | b'&' | b'%' | b']' | b'\'' | b'"')
+                    })
+                    .unwrap_or(tail.len());
+                if count != 0 {
+                    append(&mut self.token, tail.get(..count).ok_or((4, 0))?)
+                        .map_err(|e| (e, 0))?;
+                    self.scan += count;
+                    continue;
+                }
+            }
             let error_pos = if matches!(self.token_kind, Token::Comment(_)) {
                 self.scan.saturating_sub(self.pos)
             } else {

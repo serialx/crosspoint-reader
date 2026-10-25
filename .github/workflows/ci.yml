@@ -74,6 +74,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libpcre3
 
+      - name: Install Rust for ESP32-C3
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
+          rustup target add --toolchain 1.99.0 riscv32imc-unknown-none-elf
+
       - name: Run cppcheck
         run: pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
 
@@ -149,6 +154,12 @@ jobs:
           pio pkg install -e ${{ matrix.env }}
           uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
           ~/.platformio/penv/bin/pio --version
+
+      - name: Install Rust for ESP32-C3
+        if: matrix.env == 'default'
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
+          rustup target add --toolchain 1.99.0 riscv32imc-unknown-none-elf
 
       - name: Build ${{ matrix.env }} firmware
         run: |

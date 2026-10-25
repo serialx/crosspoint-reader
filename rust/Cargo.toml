@@ -1,0 +1,13 @@
+[workspace]
+members = ["crates/xp-core", "crates/xp-ffi"]
+default-members = ["crates/xp-core"]
+resolver = "2"
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = true
+# Keep Rust's release default; wrapping arithmetic is explicit in the hashes.
+overflow-checks = false

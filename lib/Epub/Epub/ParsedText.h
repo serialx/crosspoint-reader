@@ -16,75 +16,29 @@
 class GfxRenderer;
 
 class ParsedText {
-  // Word text lives in wordStore (chunked bump arena, NUL-terminated entries);
-  // words holds 8-byte handles into it. This replaces the former
-  // std::deque<std::string>: per-word string objects, their SSO spills, and
-  // every hyphenation/NFC temporary were the layout path's dominant
-  // small-allocation churn, and any failed implicit allocation abort()s under
-  // -fno-exceptions. Handles stay in a std::deque for the #2814 reason: no
-  // large contiguous reallocation at CJK token counts (deque grows in fixed
-  // ~512 B nodes). On arena OOM the word is dropped and hadDroppedWords()
-  // latches so the section build can fail readably instead of aborting.
-  // rubyTexts stays a deque of strings: ruby is rare and per-block small.
-  // The per-token parallel arrays below stay vectors: 1 byte / 1 bit each,
-  // they never approach the contiguous-block ceiling.
   WordStore wordStore;
-  std::deque<WordStore::StoredWord> words;
-  std::vector<EpdFontFamily::Style> wordStyles;
-  // Boundary flags use all four combinations:
-  //   continues=false, noSpace=false: ordinary breakable word gap
-  //   continues=false, noSpace=true:  breakable zero-width, stretchable CJK/Korean gap
-  //   continues=true,  noSpace=false: unbreakable attachment
-  //   continues=true,  noSpace=true:  breakable zero-width, non-stretching attachment
-  std::vector<bool> wordContinues;
-  std::vector<bool> wordNoSpaceBefore;
-  // Focus Reading emphasis: bytes [0, wordFocusBoundary) render bold, the rest at wordStyles.
-  // 0 = none. An annotation rather than a token split, so the hyphenator and line breaker still
-  // see whole words; TextBlock stores emphasis the same way, so extractLine passes it through.
-  std::vector<uint8_t> wordFocusBoundary;
-  // Internal-link identity through tokenization, hyphenation and BiDi reorder.
-  // Zero means plain text; non-zero indexes linkTargets. Kept at one byte per
-  // token and discarded after layout, never added to the page-cache TextBlock.
-  std::vector<uint8_t> wordLinkIds;
-  // Words sized by an inline font-size span: a slot per word into sizeSlotScales (absolute
-  // multiples of the reader's body size). Slot 0 follows the block's own size; the parser
-  // resolves each slot's font before layout.
-  std::vector<uint8_t> wordSizeSlots;
+  // Opaque Rust metadata state is embedded: no per-paragraph handle allocation.
+  alignas(void*) mutable uint8_t tokenState[26 * sizeof(void*)];
+  XpTokens* tokens() const { return reinterpret_cast<XpTokens*>(tokenState); }
+  size_t tokenCount() const { return xp_tokens_size(tokens()); }
+  XpToken tokenAt(size_t i) const {
+    XpToken token;
+    xp_tokens_get(tokens(), i, &token);
+    return token;
+  }
+  WordStore::StoredWord storedWordAt(size_t i) const {
+    const auto word = tokenAt(i).word;
+    return {word.chunk, word.off, word.len};
+  }
+  EpdFontFamily::Style storedStyleAt(size_t i) const { return static_cast<EpdFontFamily::Style>(tokenAt(i).style); }
+  bool tokenContinues(size_t i) const { return (tokenAt(i).flags & 1) != 0; }
+  bool tokenNoSpaceBefore(size_t i) const { return (tokenAt(i).flags & 2) != 0; }
   static constexpr uint8_t MAX_SIZE_SLOTS = TextBlock::MAX_WORD_FONTS + 1;
   float sizeSlotScales[MAX_SIZE_SLOTS] = {1.0f};
   int32_t sizeSlotFontIds[MAX_SIZE_SLOTS] = {};
   uint8_t sizeSlotCount = 1;
   int wordFontId(size_t wordIndex, int blockFontId) const;
   std::vector<std::string> linkTargets;
-  // Zero-based visible Unicode-codepoint offsets in the spine body, stored as
-  // uint16_t deltas from a shared base to keep this layout-only metadata small.
-  // Pathological spans wider than uint16_t use sparse rebases; rendered
-  // TextBlocks retain absolute ranges for portable clipping anchors.
-  struct VisibleOffsetRebase {
-    size_t wordIndex;
-    uint32_t base;
-  };
-  std::vector<uint16_t> wordVisibleOffsetDeltas;
-  uint32_t visibleOffsetBase = 0;
-  std::vector<VisibleOffsetRebase> visibleOffsetRebases;
-  // Sparse NFC source positions, in small nothrow chunks rather than a large contiguous array.
-  struct AbsorbedSourceChunk {
-    std::unique_ptr<AbsorbedSourceChunk> next;
-    uint32_t base = 0;
-    uint16_t deltas[64] = {};
-    uint8_t begin = 0;
-    uint8_t count = 0;
-    ~AbsorbedSourceChunk() {
-      while (next) {
-        auto retired = std::move(next);
-        next = std::move(retired->next);
-      }
-    }
-  };
-  std::unique_ptr<AbsorbedSourceChunk> absorbedSourceHead;
-  AbsorbedSourceChunk* absorbedSourceTail = nullptr;
-  mutable const AbsorbedSourceChunk* absorbedSourceCursor = nullptr;
-  mutable uint32_t absorbedSourceCursorStart = 0;
   std::deque<std::string> rubyTexts;
   BlockStyle blockStyle;
   uint8_t wordSpacingPercent = 100;
@@ -107,30 +61,22 @@ class ParsedText {
   std::vector<uint8_t> reorderedFocusBoundaryScratch;
   std::vector<uint16_t> visualOrderScratch;
 
-  std::string_view wordAt(const size_t i) const { return wordStore.view(words[i]); }
+  std::string_view wordAt(const size_t i) const { return wordStore.view(storedWordAt(i)); }
   bool storeWord(std::string_view text, WordStore::StoredWord& out);
-  uint32_t visibleOffsetBaseAt(size_t wordIndex) const;
   uint32_t visibleOffsetAt(size_t wordIndex) const;
   uint32_t sourceOffsetAfter(uint32_t start, uint32_t renderedLength) const;
   bool recordAbsorbedSourceOffset(uint32_t offset);
-  void retireAbsorbedSourceOffsets(uint32_t remainingStart);
-  void pushVisibleOffset(uint32_t offset);
-  void insertVisibleOffset(size_t wordIndex, uint32_t offset);
-  void eraseVisibleOffsetPrefix(size_t count);
   int calculateRubyExtraStartOffset(size_t wordIdx, size_t maxWordIdx, const GfxRenderer& renderer, int fontId) const;
   int calculateRubyExtraEndOffset(size_t lineStartIdx, size_t lineBreakIdx, const GfxRenderer& renderer,
                                   int fontId) const;
   int resolveFirstLineIndent(bool isFirstLine, const GfxRenderer& renderer, int fontId) const;
   std::vector<size_t> computeLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                        std::vector<uint16_t>& wordWidths, std::vector<bool>& continuesVec,
-                                        std::vector<bool>& noSpaceBeforeVec);
+                                        std::vector<uint16_t>& wordWidths);
   std::vector<size_t> computeHyphenatedLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                                  std::vector<uint16_t>& wordWidths, std::vector<bool>& continuesVec,
-                                                  std::vector<bool>& noSpaceBeforeVec, size_t maxLines);
+                                                  std::vector<uint16_t>& wordWidths, size_t maxLines);
   bool hyphenateWordAtIndex(size_t wordIndex, int availableWidth, const GfxRenderer& renderer, int fontId,
                             std::vector<uint16_t>& wordWidths, bool allowFallbackBreaks);
   void extractLine(size_t breakIndex, int pageWidth, const std::vector<uint16_t>& wordWidths,
-                   const std::vector<bool>& continuesVec, const std::vector<bool>& noSpaceBeforeVec,
                    const std::vector<size_t>& lineBreakIndices,
                    const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                    const GfxRenderer& renderer, int fontId);
@@ -144,8 +90,12 @@ class ParsedText {
         hyphenationEnabled(hyphenationEnabled),
         focusReadingEnabled(focusReadingEnabled),
         isNaturalAlign(false),
-        hasRtlWord(false) {}
-  ~ParsedText() = default;
+        hasRtlWord(false) {
+    xp_tokens_init(tokens(), paragraphAllocator());
+  }
+  ~ParsedText() { xp_tokens_destroy(tokens()); }
+  ParsedText(const ParsedText&) = delete;
+  ParsedText& operator=(const ParsedText&) = delete;
 
   void addWord(std::string word, EpdFontFamily::Style fontStyle, bool underline = false, bool attachToPrevious = false,
                uint32_t visibleTextOffset = 0, uint8_t linkId = 0, uint8_t sizeSlot = 0, bool noSpaceBefore = false);
@@ -155,9 +105,10 @@ class ParsedText {
   void setRubyGroupAt(size_t startIndex, size_t count, const std::string& ruby);
   // The word's renderer style: stored flags removed, small caps restored from its size slot.
   EpdFontFamily::Style getWordStyleAt(size_t index) const {
-    if (index >= wordStyles.size()) return EpdFontFamily::REGULAR;
-    const bool smallCaps = index < wordSizeSlots.size() && (wordSizeSlots[index] & TextBlock::SMALL_CAPS_SLOT_FLAG);
-    return static_cast<EpdFontFamily::Style>((wordStyles[index] & ~TextBlock::DISCRETIONARY_HYPHEN_FLAG) |
+    if (index >= tokenCount()) return EpdFontFamily::REGULAR;
+    const auto token = tokenAt(index);
+    const bool smallCaps = (token.slot & TextBlock::SMALL_CAPS_SLOT_FLAG) != 0;
+    return static_cast<EpdFontFamily::Style>((token.style & ~TextBlock::DISCRETIONARY_HYPHEN_FLAG) |
                                              (smallCaps ? EpdFontFamily::SMALL_CAPS : 0));
   }
   std::string getRubyTextAt(size_t index) const { return index < rubyTexts.size() ? rubyTexts[index] : std::string(); }
@@ -166,8 +117,8 @@ class ParsedText {
   void resetFirstLineIndent() { firstLineConsumed = paragraphStartEmitted = false; }
   void setBlockStyle(const BlockStyle& blockStyle) { this->blockStyle = blockStyle; }
   BlockStyle& getBlockStyle() { return blockStyle; }
-  size_t size() const { return words.size(); }
-  bool isEmpty() const { return words.empty(); }
+  size_t size() const { return tokenCount(); }
+  bool isEmpty() const { return (tokenCount() == 0); }
   // True once any word was dropped because the text arena could not allocate.
   // Callers must treat the block as incomplete and fail the section build.
   bool hadDroppedWords() const { return droppedWords; }

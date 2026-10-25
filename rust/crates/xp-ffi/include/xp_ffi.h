@@ -132,6 +132,30 @@ size_t xp_word_store_chunk_count(const XpWordStore* state);
 const char* xp_word_store_chunk_data(const XpWordStore* state, size_t index);
 size_t xp_word_store_chunk_used(const XpWordStore* state, size_t index);
 
+// Token metadata uses caller-owned opaque state: 26 pointer-sized words,
+// pointer-aligned. Same allocator, lifetime and serialization contract as above.
+// Token flags: bit 0 continues, bit 1 no-space-before; remaining bits ignored.
+// insert/reserve return 0 on failure without changing the token sequence; capacity
+// may grow. get returns a zero token outside the sequence. Tokens borrow word handles;
+// callers release word-text obligations before erasing metadata or destroying its arena.
+typedef struct XpTokens XpTokens;
+typedef struct {
+  XpStoredWord word;
+  uint8_t style, focus, link, slot, flags;
+} XpToken;
+void xp_tokens_init(XpTokens* state, const XpParaAllocator* allocator);
+void xp_tokens_destroy(XpTokens* state);
+size_t xp_tokens_size(const XpTokens* state);
+void xp_tokens_get(const XpTokens* state, size_t index, XpToken* out);
+void xp_tokens_set(XpTokens* state, size_t index, const XpToken* token);
+uint8_t xp_tokens_reserve(XpTokens* state, size_t required);
+uint8_t xp_tokens_insert(XpTokens* state, size_t index, const XpToken* token, uint32_t offset);
+void xp_tokens_erase_prefix(XpTokens* state, size_t count);
+uint32_t xp_tokens_offset(const XpTokens* state, size_t index);
+uint8_t xp_tokens_record_absorbed(XpTokens* state, uint32_t offset);
+// Updates the NFC cursor; requires exclusive access despite being a logical lookup.
+uint32_t xp_tokens_source_after(XpTokens* state, uint32_t start, uint32_t rendered);
+
 #ifdef __cplusplus
 }
 #endif

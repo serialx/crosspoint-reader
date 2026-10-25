@@ -86,3 +86,82 @@ pub unsafe extern "C" fn xp_word_store_chunk_data(
 pub unsafe extern "C" fn xp_word_store_chunk_used(state: *const WordStore, index: usize) -> usize {
     (*state).chunk(index).1
 }
+
+use xp_core::para::{Token, Tokens};
+const _: () = assert!(mem::size_of::<Tokens>() <= 26 * mem::size_of::<usize>());
+
+/// # Safety
+/// state is 26 writable pointer-sized words, pointer-aligned; allocator outlives it.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_init(state: *mut Tokens, allocator: *const Allocator) {
+    state.write(Tokens::new(allocator));
+}
+/// # Safety
+/// state is live and destroyed exactly once, with no simultaneous access.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_destroy(state: *mut Tokens) {
+    ptr::drop_in_place(state);
+}
+/// # Safety
+/// state is live and externally serialized for every token operation below.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_size(state: *const Tokens) -> usize {
+    (*state).len()
+}
+/// # Safety
+/// state is live; out points to one aligned writable Token disjoint from state.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_get(state: *const Tokens, index: usize, out: *mut Token) {
+    out.write((*state).get(index).unwrap_or_default());
+}
+/// # Safety
+/// state is live; token is an initialized Token disjoint from state.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_set(state: *mut Tokens, index: usize, token: *const Token) {
+    (*state).set(index, token.read());
+}
+/// # Safety
+/// state is live.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_reserve(state: *mut Tokens, required: usize) -> u8 {
+    (*state).reserve(required) as u8
+}
+/// # Safety
+/// state is live; token is an initialized Token disjoint from state.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_insert(
+    state: *mut Tokens,
+    index: usize,
+    token: *const Token,
+    offset: u32,
+) -> u8 {
+    (*state).insert(index, token.read(), offset) as u8
+}
+/// # Safety
+/// state is live. Tokens do not own word-text release obligations; caller releases them.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_erase_prefix(state: *mut Tokens, count: usize) {
+    (*state).erase_prefix(count);
+}
+/// # Safety
+/// state is live.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_offset(state: *const Tokens, index: usize) -> u32 {
+    (*state).offset(index)
+}
+/// # Safety
+/// state is live. Absorbed positions are supplied in source order, as by NFC composition.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_record_absorbed(state: *mut Tokens, offset: u32) -> u8 {
+    (*state).record_absorbed(offset) as u8
+}
+/// # Safety
+/// state is live; this updates a cursor so even lookups need exclusive access.
+#[no_mangle]
+pub unsafe extern "C" fn xp_tokens_source_after(
+    state: *mut Tokens,
+    start: u32,
+    rendered: u32,
+) -> u32 {
+    (*state).source_after(start, rendered)
+}

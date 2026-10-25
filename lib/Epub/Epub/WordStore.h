@@ -64,3 +64,6 @@ class WordStore {
   const XpWordStore* handle() const { return reinterpret_cast<const XpWordStore*>(state); }
   const char* charsAt(const StoredWord& w) const { return xp_word_store_cstr(handle(), {w.chunk, w.off, w.len}); }
 };
+
+// Shared fallible allocation hooks for Rust paragraph storage.
+const XpParaAllocator* paragraphAllocator();

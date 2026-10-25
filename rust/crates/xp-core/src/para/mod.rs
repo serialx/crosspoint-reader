@@ -1,5 +1,8 @@
 //! Fallible paragraph storage. Text handles retain a single release obligation.
 
+mod tokens;
+pub use tokens::{Token, Tokens};
+
 use core::{mem, ptr, slice};
 
 #[repr(C)]
@@ -307,6 +310,130 @@ mod tests {
                 assert_eq!(s.view(word).unwrap(), &vec![b'a'; 2048]);
             }
             drop(s);
+            HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
+        }
+    }
+    fn token(index: u32) -> Token {
+        Token {
+            word: Word {
+                chunk: index,
+                off: index as u16,
+                len: 7,
+            },
+            style: index as u8,
+            focus: (index % 5) as u8,
+            link: (index % 9) as u8,
+            slot: (index % 4) as u8,
+            flags: (index % 4) as u8,
+        }
+    }
+
+    #[test]
+    fn tokens_insert_erase_across_chunk_and_flag_boundaries() {
+        reset(None);
+        let mut tokens = unsafe { Tokens::new(&ALLOC) };
+        let mut expected = Vec::new();
+        for i in 0..150 {
+            assert!(tokens.insert(tokens.len(), token(i), 100 + i));
+            expected.push(token(i));
+        }
+        for index in [0, 3, 63, 64, 126, 149] {
+            assert!(tokens.insert(index, token(250), 100 + index as u32));
+            expected.insert(index, token(250));
+        }
+        for count in [3, 61, 2, 63, 27] {
+            for (i, t) in expected.iter().enumerate() {
+                assert_eq!(tokens.get(i), Some(*t));
+            }
+            tokens.erase_prefix(count);
+            expected.drain(..count);
+        }
+        assert!(tokens.is_empty());
+        assert!(tokens.insert(0, token(1), 90000));
+        assert_eq!(tokens.get(0), Some(token(1)));
+        assert_eq!(tokens.offset(0), 90000);
+        drop(tokens);
+        HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
+    }
+
+    #[test]
+    fn sparse_rebases_survive_insert_and_retirement() {
+        reset(None);
+        let mut tokens = unsafe { Tokens::new(&ALLOC) };
+        for offset in [10, 11, 65545, 65546, 131082, 8] {
+            assert!(tokens.insert(tokens.len(), token(1), offset));
+        }
+        assert_eq!(
+            (0..6).map(|i| tokens.offset(i)).collect::<Vec<_>>(),
+            [10, 11, 65545, 65546, 131082, 8]
+        );
+        assert!(tokens.insert(3, token(2), 65545));
+        assert_eq!(
+            (0..7).map(|i| tokens.offset(i)).collect::<Vec<_>>(),
+            [10, 11, 65545, 65545, 65546, 131082, 8]
+        );
+        tokens.erase_prefix(4);
+        assert_eq!(
+            (0..3).map(|i| tokens.offset(i)).collect::<Vec<_>>(),
+            [65546, 131082, 8]
+        );
+        tokens.erase_prefix(3);
+        assert!(tokens.insert(0, token(3), 42));
+        assert_eq!(tokens.offset(0), 42);
+        drop(tokens);
+        HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
+    }
+
+    #[test]
+    fn absorbed_positions_extend_ranges_and_reset_cursor() {
+        reset(None);
+        let mut tokens = unsafe { Tokens::new(&ALLOC) };
+        for i in 1..=140 {
+            assert!(tokens.record_absorbed(i * 2));
+        }
+        assert_eq!(tokens.source_after(0, 1), 1);
+        assert_eq!(tokens.source_after(0, 2), 3);
+        assert_eq!(tokens.source_after(100, 50), 199);
+        assert_eq!(tokens.source_after(0, 2), 3);
+        assert!(tokens.record_absorbed(90000));
+        assert_eq!(tokens.source_after(89999, 1), 90001);
+        assert!(tokens.insert(0, token(0), 0));
+        assert!(tokens.insert(1, token(1), 200));
+        tokens.erase_prefix(1);
+        assert_eq!(tokens.source_after(200, 2), 203);
+        tokens.erase_prefix(1);
+        assert_eq!(tokens.source_after(0, 280), 280);
+        drop(tokens);
+        HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
+    }
+
+    #[test]
+    fn token_allocation_failure_never_changes_logical_sequence() {
+        for fail_at in 1..=40 {
+            reset(Some(fail_at));
+            let mut tokens = unsafe { Tokens::new(&ALLOC) };
+            let mut expected = Vec::new();
+            for i in 0..140 {
+                let index = expected.len() / 2;
+                let before = (0..tokens.len())
+                    .map(|j| tokens.offset(j))
+                    .collect::<Vec<_>>();
+                if !tokens.insert(index, token(i), i * 70000) {
+                    assert_eq!(
+                        (0..tokens.len())
+                            .map(|j| tokens.offset(j))
+                            .collect::<Vec<_>>(),
+                        before
+                    );
+                    break;
+                }
+                expected.insert(index, token(i));
+            }
+            assert_eq!(tokens.len(), expected.len());
+            for (i, t) in expected.iter().enumerate() {
+                assert_eq!(tokens.get(i), Some(*t));
+            }
+            drop(tokens);
             HEAP.with(|heap| assert!(heap.borrow().live.is_empty()));
         }
     }

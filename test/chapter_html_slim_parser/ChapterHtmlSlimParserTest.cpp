@@ -448,8 +448,8 @@ TEST_P(ChapterHtmlSlimParserTest, KeepsCssVerticalAlignAndInternalLinkMetadata) 
   ASSERT_EQ(parser.pendingFootnotes.size(), 1u);
   const FootnoteEntry& footnote = parser.pendingFootnotes.front().second;
   EXPECT_STREQ(footnote.href, expectedHref);
-  ASSERT_EQ(parser.currentTextBlock->wordLinkIds.size(), 1u);
-  EXPECT_EQ(parser.currentTextBlock->wordLinkIds.front(), linkId);
+  ASSERT_EQ(parser.currentTextBlock->tokenCount(), 1u);
+  EXPECT_EQ(parser.currentTextBlock->tokenAt(0).link, linkId);
   EXPECT_TRUE(parser.currentTextBlock->linkTargetMatches(linkId, expectedHref));
 }
 
@@ -2045,4 +2045,31 @@ TEST(TextDecorationPosition, UnderlineStaysBelowBaseline) {
     line->render(renderer, 0, 0, 20);
     EXPECT_EQ(renderer.lastLineY, 34);
   });
+}
+
+TEST(ParagraphStorageAbi, WordAllocationFailureLeavesOutputUnchanged) {
+  alignas(void*) uint8_t state[4 * sizeof(void*)];
+  const XpParaAllocator allocator = {[](size_t) -> void* { return nullptr; }, [](void*) {}};
+  auto* store = reinterpret_cast<XpWordStore*>(state);
+  xp_word_store_init(store, &allocator);
+  XpStoredWord output{123, 45, 67};
+  EXPECT_EQ(xp_word_store_append(store, reinterpret_cast<const uint8_t*>("word"), 4, &output), 0);
+  EXPECT_EQ(output.chunk, 123u);
+  EXPECT_EQ(output.off, 45u);
+  EXPECT_EQ(output.len, 67u);
+  EXPECT_EQ(xp_word_store_chunk_count(store), 0u);
+  xp_word_store_destroy(store);
+}
+
+TEST(ParagraphStorageAbi, MetadataAllocationFailureLeavesSequenceEmpty) {
+  alignas(void*) uint8_t state[26 * sizeof(void*)];
+  const XpParaAllocator allocator = {[](size_t) -> void* { return nullptr; }, [](void*) {}};
+  auto* tokens = reinterpret_cast<XpTokens*>(state);
+  xp_tokens_init(tokens, &allocator);
+  const XpToken input{{0, 0, 4}, 1, 2, 3, 4, 3};
+  EXPECT_EQ(xp_tokens_insert(tokens, 0, &input, 70000), 0);
+  EXPECT_EQ(xp_tokens_size(tokens), 0u);
+  EXPECT_EQ(xp_tokens_record_absorbed(tokens, 70001), 0);
+  EXPECT_EQ(xp_tokens_source_after(tokens, 70000, 4), 70004u);
+  xp_tokens_destroy(tokens);
 }

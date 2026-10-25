@@ -1,5 +1,6 @@
 #include "WordStore.h"
 
+#include <Logging.h>
 #include <Memory.h>
 #include <MemoryManager.h>
 
@@ -12,12 +13,15 @@ void* allocateParagraphBytes(const size_t bytes) {
     freeink::MemoryManager::instance().ensureFree(bytes + RECLAIM_HEADROOM);
     data = makeUniqueNoThrow<uint8_t[]>(bytes);
   }
+  if (!data) LOG_ERR("PTX", "OOM: paragraph storage (%zu bytes)", bytes);
   // Rust owns this C-ABI allocation and returns it to releaseParagraphBytes.
   return data.release();
 }
 void releaseParagraphBytes(void* data) { delete[] static_cast<uint8_t*>(data); }
 const XpParaAllocator ALLOCATOR = {allocateParagraphBytes, releaseParagraphBytes};
 }  // namespace
+
+const XpParaAllocator* paragraphAllocator() { return &ALLOCATOR; }
 
 WordStore::WordStore() { xp_word_store_init(handle(), &ALLOCATOR); }
 WordStore::~WordStore() { xp_word_store_destroy(handle()); }

@@ -185,7 +185,7 @@ ctest --test-dir build/test -R '^SectionGolden' --output-on-failure
 Keep the captured C++ goldens when porting code. The harness uses host adapters
 for EPUB discovery, storage and font metrics; it does not replace firmware
 builds, device/emulator comparisons, allocation measurements or OOM tests.
-Token metadata and layout decisions remain in C++ at this checkpoint.
+The layout decisions remain in C++; paragraph storage is behind the Rust ABI.
 
 `WordStore` now delegates its arena to `xp-core::para`. Its opaque state uses
 four pointer-sized words inside the C++ owner, with no separate handle allocation.
@@ -202,3 +202,28 @@ count reaches zero; the tail remains available for appends. Suffix handles share
 one release obligation with their original handle. An allocation failure leaves
 the append output unchanged and existing word bytes valid. Rust tests inject
 failure at every allocation in a multi-chunk growth sequence and check cleanup.
+
+Token metadata also uses caller-owned opaque state (26 pointer-sized words).
+Handles grow in 512-byte chunks of 64 entries; consumed whole chunks retire,
+while the pointer table retains its capacity. Four byte arrays store style,
+focus boundary, link id and size slot; a u16 array stores visible-offset deltas.
+Two boundary flags share two bits per token. These arrays start at 16 entries
+and double with checked sizes. They remain separate allocations so the largest
+metadata request is the u16 array, rather than one large combined token vector.
+
+For capacity C, these arrays use 6.25 × C bytes, plus 512 bytes per live handle
+chunk and the handle-pointer table. Growth temporarily retains the old and new
+buffer of the array being copied. Sparse rebases use two-word entries and a
+doubling array; NFC source positions use 64-delta linked chunks (140 bytes on
+C3). All storage belongs to one paragraph and is released at destruction; no
+new process-wide cache exists. Failure can retain grown capacity but cannot
+partially insert a token or shift source offsets. New text is released when
+metadata insertion fails, and the paragraph latches its existing failure flag.
+A failed hyphenation insertion leaves the original word intact.
+
+The C++ facade still performs normalization, tokenization, line-breaking,
+font measurement, BiDi ordering and completed-line construction. Layout reads
+metadata through scalar accessors; sparse visible-offset rebasing and NFC
+absorbed-position accounting live in Rust. Ruby strings, link targets, size-slot
+font tables and temporary layout vectors retain their existing C++ ownership.
+The ABI owns no rendering or storage service and adds no task or synchronization.

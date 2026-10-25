@@ -114,5 +114,8 @@ pub(super) fn name(c: char, start: bool) -> bool {
         return false;
     }
     let pages = if start { &START } else { &CONTINUE };
-    BITMAP[usize::from(pages[cp >> 8]) * 8 + ((cp & 255) >> 5)] & (1 << (cp & 31)) != 0
+    pages
+        .get(cp >> 8)
+        .and_then(|&page| BITMAP.get(usize::from(page) * 8 + ((cp & 255) >> 5)))
+        .is_some_and(|bits| bits & (1 << (cp & 31)) != 0)
 }

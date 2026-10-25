@@ -1,3 +1,4 @@
+#![allow(clippy::indexing_slicing)]
 extern crate std;
 use super::*;
 use std::{string::String, vec, vec::Vec};
@@ -100,6 +101,17 @@ fn replay(case: &Case, lengths: &[usize], variant: usize) -> Result<(), String> 
 #[test]
 fn oracle_replay() {
     let cases: &[Case] = include!("../../../../../test/xml_oracle/rust_goldens.rs");
+    replay_cases(cases);
+}
+
+#[test]
+fn regression_oracle_replay() {
+    replay_cases(include!(
+        "../../../../../test/xml_oracle/regression_goldens.rs"
+    ));
+}
+
+fn replay_cases(cases: &[Case]) {
     let mut failures = 0;
     let mut schedules = 0;
     for case in cases {
@@ -240,4 +252,85 @@ fn xpath_partial_token_retry_keeps_following_whitespace_in_the_same_run() {
     let event = parser.next();
     assert_eq!(event.kind, Kind::Text);
     assert_eq!(&event.data[event.fields[0].range.clone()], b" ");
+}
+
+#[test]
+fn seeded_mutations_never_panic_or_escape_the_status_contract() {
+    let corpus: &[Case] = include!("../../../../../test/xml_oracle/rust_goldens.rs");
+    let regressions: &[Case] = include!("../../../../../test/xml_oracle/regression_goldens.rs");
+    let seeds: Vec<&[u8]> = corpus.iter().chain(regressions).map(|c| c.input).collect();
+    let mut rng = 0x6a09_e667_f3bc_c909u64;
+    let mut random = || {
+        rng ^= rng << 13;
+        rng ^= rng >> 7;
+        rng ^= rng << 17;
+        rng as usize
+    };
+    for iteration in 0..200_000 {
+        let mut input = seeds[random() % seeds.len()].to_vec();
+        for _ in 0..1 + random() % 8 {
+            let pos = random() % (input.len() + 1);
+            match random() % 5 {
+                0 => input.insert(pos, random() as u8),
+                1 if pos < input.len() => {
+                    input.remove(pos);
+                }
+                2 if pos < input.len() => input[pos] ^= 1 << (random() % 8),
+                3 => input.truncate(pos),
+                _ => {
+                    let seed = seeds[random() % seeds.len()];
+                    let n = seed.len().min(random() % 32);
+                    input.splice(pos..pos, seed[..n].iter().copied());
+                }
+            }
+        }
+        let chunk = 1 + random() % 1024;
+        let mut parser = Parser::new();
+        let mut pos = 0;
+        let mut budget = input.len().saturating_mul(4) + 1024;
+        'feed: loop {
+            let end = input.len().min(pos + chunk);
+            let consumed = parser.feed(&input[pos..end], end == input.len());
+            assert!(consumed <= end - pos, "iteration {iteration}");
+            pos += consumed;
+            loop {
+                assert!(budget > 0, "no progress, iteration {iteration}: {input:?}");
+                budget -= 1;
+                let e = parser.next();
+                for field in e.fields {
+                    assert!(e.data.get(field.range.clone()).is_some());
+                }
+                match e.kind {
+                    Kind::Start
+                    | Kind::End
+                    | Kind::Text
+                    | Kind::Comment
+                    | Kind::Pi
+                    | Kind::CdataStart
+                    | Kind::CdataEnd
+                    | Kind::Entity => assert_eq!(e.error, 0),
+                    Kind::NeedInput => {
+                        assert!(
+                            pos < input.len(),
+                            "unfinished final input, iteration {iteration}"
+                        );
+                        break;
+                    }
+                    Kind::Done => {
+                        assert_eq!(e.error, 0);
+                        break 'feed;
+                    }
+                    Kind::Error => {
+                        assert!((1..=43).contains(&e.error));
+                        break 'feed;
+                    }
+                    Kind::Stopped => panic!("spontaneous stop, iteration {iteration}"),
+                }
+            }
+        }
+        let status = parser.next().kind;
+        assert!(matches!(status, Kind::Done | Kind::Error));
+        assert_eq!(parser.feed(b"more", true), 0);
+        assert_eq!(parser.next().kind, status);
+    }
 }

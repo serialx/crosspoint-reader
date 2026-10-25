@@ -32,9 +32,9 @@ impl Encoding {
                 }
             }
             Self::Utf16Le | Self::Utf16Be => {
-                if input.len() < 2 {
+                let Some(pair) = input.get(..2).and_then(|s| <&[u8; 2]>::try_from(s).ok()) else {
                     return Incomplete;
-                }
+                };
                 let unit = |a, b| {
                     if self == Self::Utf16Le {
                         u16::from_le_bytes([a, b])
@@ -42,12 +42,13 @@ impl Encoding {
                         u16::from_be_bytes([a, b])
                     }
                 };
-                let a = unit(input[0], input[1]);
+                let a = unit(pair[0], pair[1]);
                 if (0xd800..=0xdbff).contains(&a) {
-                    if input.len() < 4 {
+                    let Some(pair) = input.get(2..4).and_then(|s| <&[u8; 2]>::try_from(s).ok())
+                    else {
                         return Incomplete;
-                    }
-                    let b = unit(input[2], input[3]);
+                    };
+                    let b = unit(pair[0], pair[1]);
                     if !(0xdc00..=0xdfff).contains(&b) {
                         return Invalid;
                     }
@@ -83,10 +84,10 @@ impl Encoding {
                         return Invalid;
                     }
                 }
-                if input.len() < width {
+                let Some(scalar) = input.get(..width) else {
                     return Incomplete;
-                }
-                match core::str::from_utf8(&input[..width])
+                };
+                match core::str::from_utf8(scalar)
                     .ok()
                     .and_then(|s| s.chars().next())
                 {

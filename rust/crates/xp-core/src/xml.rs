@@ -1,4 +1,5 @@
 //! Streaming XML events with original byte locations and fallible storage.
+#![deny(clippy::indexing_slicing)]
 extern crate alloc;
 
 mod decode;
@@ -118,6 +119,9 @@ fn copy(bytes: &[u8]) -> Result<Vec<u8>, u32> {
     append(&mut result, bytes)?;
     Ok(result)
 }
+fn span(bytes: &[u8], start: usize, end: usize) -> Result<&[u8], (u32, usize)> {
+    bytes.get(start..end).ok_or((4, start))
+}
 fn space(b: u8) -> bool {
     matches!(b, b' ' | b'\r' | b'\n' | b'\t')
 }
@@ -202,13 +206,18 @@ impl Parser {
             return 0;
         }
         if self.pos != 0 {
+            let Some(tail) = self.input.get_mut(self.pos..) else {
+                self.fail(4, 0);
+                return 0;
+            };
+            let remaining = tail.len();
             self.input.copy_within(self.pos.., 0);
-            self.input.truncate(self.input.len() - self.pos);
-            self.scan -= self.pos;
+            self.input.truncate(remaining);
+            self.scan = self.scan.saturating_sub(self.pos);
             self.pos = 0;
         }
         let count = bytes.len().min(1024);
-        if append(&mut self.input, &bytes[..count]).is_err() {
+        if append(&mut self.input, bytes.get(..count).unwrap_or(&[])).is_err() {
             self.fail(1, 0);
             return 0;
         }
@@ -289,7 +298,7 @@ impl Parser {
     }
 
     fn consume(&mut self) {
-        let count = self.scan - self.pos;
+        let count = self.scan.saturating_sub(self.pos);
         self.offset += count as u64;
         self.pos = self.scan;
         for &c in &self.token {
@@ -305,12 +314,12 @@ impl Parser {
     }
 
     fn detect(&mut self) -> bool {
-        let data = &self.input[self.pos..];
+        let data = self.input.get(self.pos..).unwrap_or(&[]);
         if data.is_empty() {
             return false;
         }
         if !self.final_input
-            && ((data.len() == 1 && matches!(data[0], 0 | b'<' | 0xef | 0xfe | 0xff))
+            && ((data.len() == 1 && matches!(data.first(), Some(0 | b'<' | 0xef | 0xfe | 0xff)))
                 || (data.starts_with(&[0xef, 0xbb]) && data.len() < 3))
         {
             return false;
@@ -342,7 +351,10 @@ impl Parser {
 
     fn scan_token(&mut self) -> Result<bool, (u32, usize)> {
         loop {
-            let (c, width) = match self.encoding.decode(&self.input[self.scan..]) {
+            let (c, width) = match self
+                .encoding
+                .decode(self.input.get(self.scan..).ok_or((4, self.token.len()))?)
+            {
                 Decoded::Character(c, width) => (c, width),
                 Decoded::Invalid => return Err((4, self.token.len())),
                 Decoded::Incomplete => {
@@ -375,7 +387,7 @@ impl Parser {
                     match c {
                         '<' => Token::Markup,
                         '&' => Token::Entity,
-                        '%' if self.internal_subset => Token::Entity,
+                        '%' if self.phase != Phase::Content => Token::Entity,
                         _ => Token::Text,
                     }
                 };
@@ -389,7 +401,10 @@ impl Parser {
                 && c == '\r'
                 && !self.final_input
             {
-                let tail = &self.input[self.scan + width..];
+                let tail = self
+                    .input
+                    .get(self.scan + width..)
+                    .ok_or((4, self.token.len()))?;
                 if tail.is_empty() {
                     return Ok(matches!(self.token_kind, Token::Text | Token::Cdata)
                         && !self.token.is_empty());
@@ -407,8 +422,9 @@ impl Parser {
                 append(&mut self.token, &[c as u8]).map_err(|e| (e, 0))?;
                 self.scan += width;
                 if c == '\r' {
-                    if let Decoded::Character('\n', second) =
-                        self.encoding.decode(&self.input[self.scan..])
+                    if let Decoded::Character('\n', second) = self
+                        .encoding
+                        .decode(self.input.get(self.scan..).ok_or((4, self.token.len()))?)
                     {
                         append(&mut self.token, b"\n").map_err(|e| (e, 0))?;
                         self.scan += second;
@@ -420,11 +436,16 @@ impl Parser {
                 if self.token_kind == Token::Cdata && !self.token.is_empty() {
                     return Ok(true);
                 }
-                match self.encoding.decode(&self.input[self.scan + width..]) {
-                    Decoded::Character(']', second) => match self
-                        .encoding
-                        .decode(&self.input[self.scan + width + second..])
-                    {
+                match self.encoding.decode(
+                    self.input
+                        .get(self.scan + width..)
+                        .ok_or((4, self.token.len()))?,
+                ) {
+                    Decoded::Character(']', second) => match self.encoding.decode(
+                        self.input
+                            .get(self.scan + width + second..)
+                            .ok_or((4, self.token.len()))?,
+                    ) {
                         Decoded::Character('>', third) => {
                             if self.token_kind == Token::Text {
                                 return Err((4, self.token.len() + 2));
@@ -453,18 +474,24 @@ impl Parser {
             append(&mut self.token, c.encode_utf8(&mut utf8).as_bytes()).map_err(|e| (e, 0))?;
             self.scan += width;
             match self.token_kind {
-                Token::Unknown => unreachable!(),
+                Token::Unknown => return Err((4, 0)),
                 Token::Text => {
                     if self.token.ends_with(b"]]>") {
-                        return Err((4, self.token.len() - 1));
+                        return Err((4, self.token.len().saturating_sub(1)));
                     }
                 }
                 Token::Entity => {
+                    if self.phase != Phase::Content
+                        && self.token.starts_with(b"&")
+                        && (self.offset != 0 || self.input.len() > 1)
+                    {
+                        return Err((4, 0));
+                    }
                     if c == ';' {
                         return Ok(true);
                     }
                     if c == '<' || space(c as u8) {
-                        return Err((4, self.token.len() - c.len_utf8()));
+                        return Err((4, self.token.len().saturating_sub(c.len_utf8())));
                     }
                 }
                 Token::Cdata => {
@@ -473,14 +500,36 @@ impl Parser {
                     }
                 }
                 Token::Markup => {
+                    if self.phase != Phase::Content && self.token == b"</" {
+                        return Err((4, 1));
+                    }
+                    if self.token.len() == 3 && self.token.starts_with(b"<!") {
+                        if self.phase == Phase::Content && !matches!(c, '-' | '[') {
+                            return Err((4, 2));
+                        }
+                        if self.phase != Phase::Content && c == '[' {
+                            return Err((if self.phase == Phase::Epilog { 9 } else { 2 }, 0));
+                        }
+                    }
+                    if self.token.starts_with(b"<!DOCTYPE") && c.is_ascii() && space(c as u8) {
+                        if self.phase == Phase::Epilog {
+                            return Err((9, 0));
+                        }
+                        if self.internal_subset {
+                            return Err((2, 0));
+                        }
+                    }
                     if self.token.starts_with(b"<!--") {
-                        if self.token.ends_with(b"-->") {
+                        if self.token.len() >= 7 && self.token.ends_with(b"-->") {
                             return Ok(true);
                         }
                         if self.token.len() >= 7
-                            && self.token[self.token.len() - 3..].starts_with(b"--")
+                            && self
+                                .token
+                                .get(self.token.len().saturating_sub(3)..)
+                                .is_some_and(|tail| tail.starts_with(b"--"))
                         {
-                            return Err((4, self.token.len() - 1));
+                            return Err((4, self.token.len().saturating_sub(1)));
                         }
                     } else if self.token.starts_with(b"<?") {
                         if self.token.ends_with(b"?>") {
@@ -564,7 +613,13 @@ impl Parser {
                 Ok(false) => {
                     if self.final_input {
                         if !self.token.is_empty() {
-                            self.fail(if self.cdata { 20 } else { 5 }, 0);
+                            let dtd_header = self.token.starts_with(b"<!DOCTYPE")
+                                && self.token.get(9).is_some_and(|&c| space(c));
+                            if dtd_header {
+                                self.fail(3, self.token.len());
+                            } else {
+                                self.fail(if self.cdata { 20 } else { 5 }, 0);
+                            }
                         } else if self.phase != Phase::Epilog {
                             self.fail(if self.cdata { 20 } else { 3 }, 0);
                         } else {
@@ -611,15 +666,22 @@ impl Parser {
     ) -> Result<(), u32> {
         let mut pos = 0;
         while pos < bytes.len() {
-            let byte = bytes[pos];
+            let byte = *bytes.get(pos).ok_or(4u32)?;
             if byte == b'&' && attribute {
-                let end = bytes[pos..].iter().position(|&b| b == b';').ok_or(5u32)? + pos + 1;
+                let end = bytes
+                    .get(pos..)
+                    .ok_or(4u32)?
+                    .iter()
+                    .position(|&b| b == b';')
+                    .ok_or(5u32)?
+                    + pos
+                    + 1;
                 let before = target.len();
-                self.reference(&bytes[pos..end], target, true)?;
+                self.reference(bytes.get(pos..end).ok_or(4u32)?, target, true)?;
                 if tokenized
                     && target.len() == before + 1
                     && target.last() == Some(&b' ')
-                    && (before == 0 || target[before - 1] == b' ')
+                    && (before == 0 || target.get(before.saturating_sub(1)) == Some(&b' '))
                 {
                     target.pop();
                 }
@@ -668,14 +730,17 @@ impl Parser {
         if token.len() < 3 {
             return Err((4, 1));
         }
-        let name = &token[1..token.len() - 1];
+        let name = span(token, 1, token.len().saturating_sub(1))?;
         if name.starts_with(b"#") {
             let start = if name.get(1) == Some(&b'x') { 3 } else { 2 };
             let base = if start == 3 { 16 } else { 10 };
-            if start == token.len() - 1 {
+            if start == token.len().saturating_sub(1) {
                 return Err((4, start));
             }
-            for (i, &c) in token[start..token.len() - 1].iter().enumerate() {
+            for (i, &c) in span(token, start, token.len().saturating_sub(1))?
+                .iter()
+                .enumerate()
+            {
                 if char::from(c).to_digit(base).is_none() {
                     return Err((4, start + i));
                 }
@@ -691,21 +756,23 @@ impl Parser {
     fn check_attribute_refs(&self, bytes: &[u8]) -> Result<(), (u32, usize)> {
         let mut pos = 0;
         while pos < bytes.len() {
-            if bytes[pos] != b'&' {
+            if bytes.get(pos) != Some(&b'&') {
                 pos += 1;
                 continue;
             }
-            let end = bytes[pos..]
+            let end = bytes
+                .get(pos..)
+                .ok_or((4, pos))?
                 .iter()
                 .position(|&b| b == b';')
                 .map(|p| p + pos + 1)
                 .ok_or((4, bytes.len()))?;
-            let token = &bytes[pos..end];
+            let token = span(bytes, pos, end)?;
             Self::reference_syntax(token).map_err(|(c, p)| (c, pos + p))?;
             if token.starts_with(b"&#") {
                 let start = if token.get(2) == Some(&b'x') { 3 } else { 2 };
                 Self::numeric_value(
-                    &token[start..token.len() - 1],
+                    span(token, start, token.len().saturating_sub(1))?,
                     if start == 3 { 16 } else { 10 },
                 )
                 .map_err(|c| (c, pos))?;
@@ -716,7 +783,7 @@ impl Parser {
     }
 
     fn reference(&self, token: &[u8], output: &mut Vec<u8>, attribute: bool) -> Result<bool, u32> {
-        let name = &token[1..token.len() - 1];
+        let name = span(token, 1, token.len().saturating_sub(1)).map_err(|(c, _)| c)?;
         let predefined = match name {
             b"amp" => Some(b'&'),
             b"lt" => Some(b'<'),
@@ -731,9 +798,9 @@ impl Parser {
         }
         if name.starts_with(b"#") {
             let (digits, base) = if name.get(1) == Some(&b'x') {
-                (&name[2..], 16)
+                (name.get(2..).ok_or(4u32)?, 16)
             } else {
-                (&name[1..], 10)
+                (name.get(1..).ok_or(4u32)?, 10)
             };
             if digits.is_empty() {
                 return Err(4);
@@ -824,7 +891,9 @@ impl Parser {
                     if code == 4 && token.starts_with(b"&#") {
                         let start = if token.get(2) == Some(&b'x') { 3 } else { 2 };
                         let base = if start == 3 { 16 } else { 10 };
-                        pos = token[start..token.len() - 1]
+                        pos = token
+                            .get(start..token.len().saturating_sub(1))
+                            .unwrap_or(&[])
                             .iter()
                             .position(|&c| char::from(c).to_digit(base).is_none())
                             .map(|p| p + start)
@@ -864,7 +933,12 @@ impl Parser {
     fn markup(&mut self, token: &[u8]) -> Result<bool, (u32, usize)> {
         if token.starts_with(b"<!--") {
             let mut output = core::mem::take(&mut self.output);
-            let result = self.normalized(&token[4..token.len() - 3], false, false, &mut output);
+            let result = self.normalized(
+                span(token, 4, token.len().saturating_sub(3))?,
+                false,
+                false,
+                &mut output,
+            );
             self.output = output;
             result.map_err(|c| (c, 0))?;
             self.fields.try_reserve(1).map_err(|_| (1, 0))?;
@@ -911,7 +985,7 @@ impl Parser {
 
     fn start_tag(&mut self, token: &[u8]) -> Result<bool, (u32, usize)> {
         let end = name_end(token, 1).ok_or((4, 1))?;
-        let name = &token[1..end];
+        let name = span(token, 1, end)?;
         self.field(name).map_err(|c| (c, 0))?;
         let mut pos = end;
         let mut empty = false;
@@ -936,9 +1010,9 @@ impl Parser {
             }
             let start = pos;
             pos = name_end(token, pos).ok_or((4, pos))?;
-            let attribute = &token[start..pos];
+            let attribute = span(token, start, pos)?;
             for field in self.fields.iter().skip(1).step_by(2) {
-                if &self.output[field.range.clone()] == attribute {
+                if self.output.get(field.range.clone()) == Some(attribute) {
                     return Err((8, start));
                 }
             }
@@ -954,7 +1028,7 @@ impl Parser {
             pos += 1;
             let value_start = pos;
             while token.get(pos).is_some_and(|&b| b != quote) {
-                if token[pos] == b'<' {
+                if token.get(pos) == Some(&b'<') {
                     return Err((4, pos));
                 }
                 pos += 1;
@@ -967,11 +1041,11 @@ impl Parser {
                 .iter()
                 .any(|d| d.element == name && d.name == attribute && !d.cdata);
             self.field(attribute).map_err(|c| (c, 0))?;
-            self.check_attribute_refs(&token[value_start..pos])
+            self.check_attribute_refs(span(token, value_start, pos)?)
                 .map_err(|(c, p)| (c, value_start + p))?;
             let mut value = core::mem::take(&mut self.value);
             value.clear();
-            self.normalized(&token[value_start..pos], true, tokenized, &mut value)
+            self.normalized(span(token, value_start, pos)?, true, tokenized, &mut value)
                 .map_err(|c| (c, 0))?;
             self.field(&value).map_err(|c| (c, 0))?;
             self.value = value;
@@ -988,7 +1062,7 @@ impl Parser {
                     .iter()
                     .skip(1)
                     .step_by(2)
-                    .any(|f| self.output[f.range.clone()] == d.name)
+                    .any(|f| self.output.get(f.range.clone()) == Some(d.name.as_slice()))
                 {
                     continue;
                 }
@@ -1013,20 +1087,23 @@ impl Parser {
 
     fn end_tag(&mut self, token: &[u8]) -> Result<bool, (u32, usize)> {
         let end = name_end(token, 2).ok_or((4, 2))?;
-        let name = &token[2..end];
+        let name = span(token, 2, end)?;
         if token.get(skip_space(token, end)..) != Some(b">".as_slice()) {
             return Err((4, skip_space(token, end)));
         }
         if self.elements.is_empty() {
             return Err((if self.phase == Phase::Epilog { 9 } else { 4 }, 0));
         }
-        let last = self.elements.len() - 1;
-        let start = self.elements[..last]
+        let last = self.elements.len().saturating_sub(1);
+        let start = self
+            .elements
+            .get(..last)
+            .ok_or((4, 0))?
             .iter()
             .rposition(|&b| b == 0)
             .map(|p| p + 1)
             .unwrap_or(0);
-        if &self.elements[start..last] != name {
+        if span(&self.elements, start, last)? != name {
             return Err((7, 2));
         }
         self.elements.truncate(start);
@@ -1040,7 +1117,7 @@ impl Parser {
 
     fn pi(&mut self, token: &[u8]) -> Result<bool, (u32, usize)> {
         let end = name_end(token, 2).ok_or((4, 2))?;
-        let name = &token[2..end];
+        let name = span(token, 2, end)?;
         if name.eq_ignore_ascii_case(b"xml") {
             if name != b"xml" {
                 return Err((4, end));
@@ -1056,7 +1133,7 @@ impl Parser {
             let mut index = 0;
             let mut seen_encoding = false;
             let mut seen_standalone = false;
-            while skip_space(token, pos) < token.len() - 2 {
+            while skip_space(token, pos) < token.len().saturating_sub(2) {
                 let old = pos;
                 pos = skip_space(token, pos);
                 if old == pos {
@@ -1064,7 +1141,7 @@ impl Parser {
                 }
                 let start = pos;
                 pos = name_end(token, pos).ok_or((30, pos))?;
-                let key = &token[start..pos];
+                let key = span(token, start, pos)?;
                 pos = skip_space(token, pos);
                 if token.get(pos) != Some(&b'=') {
                     return Err((30, pos));
@@ -1079,7 +1156,7 @@ impl Parser {
                 while token.get(pos).is_some_and(|&b| b != quote) {
                     pos += 1;
                 }
-                let value = &token[value_start..pos];
+                let value = span(token, value_start, pos)?;
                 match key {
                     b"version" if index == 0 => {
                         if value.is_empty()
@@ -1132,14 +1209,19 @@ impl Parser {
             return Ok(false);
         }
         let pos = skip_space(token, end);
-        if pos == end && pos != token.len() - 2 {
+        if pos == end && pos != token.len().saturating_sub(2) {
             return Err((4, pos));
         }
         self.field(name).map_err(|c| (c, 0))?;
         let mut data = core::mem::take(&mut self.value);
         data.clear();
-        self.normalized(&token[pos..token.len() - 2], false, false, &mut data)
-            .map_err(|c| (c, 0))?;
+        self.normalized(
+            span(token, pos, token.len().saturating_sub(2))?,
+            false,
+            false,
+            &mut data,
+        )
+        .map_err(|c| (c, 0))?;
         self.field(&data).map_err(|c| (c, 0))?;
         self.value = data;
         self.kind = Kind::Pi;
@@ -1157,9 +1239,9 @@ impl Parser {
             *pos += 1;
         }
         if *pos >= token.len() {
-            return Err((5, start - 1));
+            return Err((5, start.saturating_sub(1)));
         }
-        let value = &token[start..*pos];
+        let value = span(token, start, *pos)?;
         *pos += 1;
         Ok(value)
     }
@@ -1241,7 +1323,7 @@ impl Parser {
                 pos = skip_space(token, pos + 1);
             }
             let end = name_end(token, pos).ok_or((2, pos))?;
-            let name = &token[pos..end];
+            let name = span(token, pos, end)?;
             pos = skip_space(token, end);
             if pos == end {
                 return Err((2, pos));
@@ -1387,7 +1469,8 @@ impl Parser {
             if notation {
                 pos = name_end(token, pos).ok_or((2, pos))?;
             } else {
-                let text = core::str::from_utf8(&token[pos..]).map_err(|_| (4, pos))?;
+                let text = core::str::from_utf8(token.get(pos..).ok_or((4, pos))?)
+                    .map_err(|_| (4, pos))?;
                 let start = pos;
                 for c in text.chars() {
                     if !name_continue(c) {
@@ -1411,7 +1494,7 @@ impl Parser {
     fn attlist(&mut self, token: &[u8]) -> Result<(), (u32, usize)> {
         let mut pos = skip_space(token, 9);
         let end = name_end(token, pos).ok_or((2, pos))?;
-        let element = &token[pos..end];
+        let element = span(token, pos, end)?;
         pos = end;
         loop {
             pos = skip_space(token, pos);
@@ -1419,7 +1502,7 @@ impl Parser {
                 return Ok(());
             }
             let end = name_end(token, pos).ok_or((2, pos))?;
-            let name = &token[pos..end];
+            let name = span(token, pos, end)?;
             pos = skip_space(token, end);
             let type_start = pos;
             let cdata = token.get(pos..).is_some_and(|s| s.starts_with(b"CDATA"));
@@ -1441,7 +1524,7 @@ impl Parser {
                     b"NMTOKEN",
                     b"NMTOKENS",
                 ]
-                .contains(&&token[pos..end])
+                .contains(&span(token, pos, end)?)
                 {
                     return Err((2, type_start));
                 }
@@ -1475,8 +1558,8 @@ impl Parser {
                     return Err((5, start));
                 }
                 let mut decoded = Vec::new();
-                self.normalized(&token[start..pos], true, !cdata, &mut decoded)
-                    .map_err(|c| (c, start - 1))?;
+                self.normalized(span(token, start, pos)?, true, !cdata, &mut decoded)
+                    .map_err(|c| (c, start.saturating_sub(1)))?;
                 value = Some(decoded);
                 pos += 1;
             }

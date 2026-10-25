@@ -52,3 +52,6 @@ target_compile_options(XmlAbiTest PRIVATE -UNDEBUG)
 add_test(NAME XmlAbiAllocationFailure COMMAND XmlAbiTest)
 
 target_include_directories(XmlAbiTest PRIVATE ${REPO_ROOT}/lib/XmlParserUtils ${REPO_ROOT}/test/chapter_html_slim_parser/stubs)
+
+add_test(NAME XmlRegressionGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/regressions.py --oracle $<TARGET_FILE:XmlOracle> verify)

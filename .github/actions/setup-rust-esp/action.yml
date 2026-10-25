@@ -1,0 +1,27 @@
+name: Set up Rust for ESP32
+description: Install the Rust toolchain required by the selected firmware MCU
+inputs:
+  mcu:
+    description: Firmware MCU (esp32c3 or esp32s3)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install Rust for ESP32-C3
+      if: inputs.mcu == 'esp32c3'
+      shell: bash
+      run: |
+        rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
+        rustup target add --toolchain 1.99.0 riscv32imc-unknown-none-elf
+
+    - name: Install Rust for ESP32-S3
+      if: inputs.mcu == 'esp32s3'
+      uses: esp-rs/xtensa-toolchain@v1.7.0
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        buildtargets: esp32s3
+        version: "1.97.0.0"
+        default: false
+        override: false
+        export: false

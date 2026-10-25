@@ -32,6 +32,8 @@ mod tests {
         assert_eq!(fnv1a64(b"a"), 0xaf63_dc4c_8601_ec8c);
         assert_eq!(fnv1a64(b"foobar"), 0x8594_4171_f739_67e8);
         assert_eq!(fnv1a64(&[0]), 0xaf63_bd4c_8601_b7df);
+        assert_eq!(fnv1a64(&[0, 0x7f, 0x80, 0xff, 0, 1]), 0x31f7_d55d_e14a_fa42);
+        assert_eq!(fnv1a64(&[0xff, 0x80, 0, 0x7f]), 0xbe1e_db67_05cc_2dd3);
     }
 
     #[test]
@@ -44,5 +46,7 @@ mod tests {
         );
         assert_eq!(crc32(&[0]), 0xd202_ef8d);
         assert_eq!(crc32(&[0xff]), 0xff00_0000);
+        assert_eq!(crc32(&[0, 0x7f, 0x80, 0xff, 0, 1]), 0xee86_64fd);
+        assert_eq!(crc32(&[0xff, 0x80, 0, 0x7f]), 0xdece_aec0);
     }
 }

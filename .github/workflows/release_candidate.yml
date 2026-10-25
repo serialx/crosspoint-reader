@@ -12,20 +12,28 @@ jobs:
         include:
           - pio_env: gh_release_rc
             asset: firmware.bin
+            mcu: esp32c3
           - pio_env: sticky-gh_release_rc
             asset: firmware-sticky.bin
+            mcu: esp32s3
           - pio_env: x4pro-gh_release_rc
             asset: firmware-x4pro.bin
+            mcu: esp32s3
           - pio_env: x4c-gh_release_rc
             asset: firmware-x4c.bin
+            mcu: esp32s3
           - pio_env: papermono-gh_release_rc
             asset: firmware-papermono.bin
+            mcu: esp32s3
           - pio_env: metalio_eink4-gh_release_rc
             asset: firmware-metalio_eink4.bin
+            mcu: esp32s3
           - pio_env: eego_a4-gh_release_rc
             asset: firmware-eego_a4.bin
+            mcu: esp32s3
           - pio_env: picco-gh_release_rc
             asset: firmware-picco.bin
+            mcu: esp32s3
     steps:
       - uses: actions/checkout@v6
         with:
@@ -73,6 +81,11 @@ jobs:
         run: |
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
           echo "BRANCH_SUFFIX=${GITHUB_REF_NAME#release/}" >> $GITHUB_ENV
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-esp
+        with:
+          mcu: ${{ matrix.mcu }}
 
       - name: Build CrossPoint Release Candidate
         env:

@@ -19,7 +19,7 @@ def capture(executable, epub, mode, chunk, work):
     output = work / f'{mode}-{chunk}'
     subprocess.run([str(executable.resolve()), str(extracted), str(output), str(chunk), mode], check=True)
     return {name: (output / name).read_bytes().hex()
-            for name in ('book.bin', 'spine.bin.tmp', 'toc.bin.tmp', 'consumer.txt')}
+            for name in ('book.bin', 'spine.bin.tmp', 'toc.bin.tmp', 'items.bin', 'consumer.txt')}
 
 
 def main():

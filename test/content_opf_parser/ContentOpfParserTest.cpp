@@ -216,6 +216,67 @@ TEST(ContentOpfParserMetadata, NeverEntersManifestWhenMetadataElementIsMissing) 
   EXPECT_EQ(Storage.readOpens, 0);
 }
 
+TEST(ContentOpfParserMetadata, FinishesMetadataEarlyAcrossFeedBoundaries) {
+  const std::string metadata = "<package><metadata><dc:title>" + std::string(1050, 'A') + "</dc:title></metadata>";
+  const std::string xml = metadata + "<manifest>" + std::string(5000, ' ') + "</manifest></package>";
+  const std::string cachePath = "/missing-cache";
+  const std::string basePath;
+  for (const size_t chunk : {1u, 7u, 512u, 1024u, 4096u}) {
+    SCOPED_TRACE(chunk);
+    Storage = {};
+    ContentOpfParser parser(cachePath, basePath, xml.size(), nullptr, true);
+    ASSERT_TRUE(parser.setup());
+    size_t position = 0;
+    while (position < xml.size()) {
+      const size_t count = std::min(chunk, xml.size() - position);
+      const size_t written = parser.write(reinterpret_cast<const uint8_t*>(xml.data() + position), count);
+      if (written != count) {
+        const size_t step = std::min(chunk, size_t{1024});
+        const size_t boundary = ((metadata.size() + step - 1) / step) * step;
+        const size_t firstShort = boundary - (chunk <= 1024 ? 1 : 0);
+        EXPECT_GE(position + written, firstShort);
+        EXPECT_LE(position + written, firstShort + (chunk < 512 ? chunk : 0));
+        break;
+      }
+      position += count;
+    }
+    EXPECT_LT(position, xml.size());
+    EXPECT_EQ(parser.title, std::string(512, 'A'));
+    EXPECT_EQ(Storage.writeOpens, 0);
+    EXPECT_EQ(Storage.readOpens, 0);
+  }
+}
+
+TEST(ContentOpfParserMetadata, IgnoresNinthCollectionButKeepsExistingRefinements) {
+  for (const bool refineFirst : {false, true}) {
+    std::string xml = "<package><metadata>";
+    for (int i = 0; i < 9; ++i) {
+      xml += "<meta id=\"s" + std::to_string(i) + "\" property=\"belongs-to-collection\">Series " + std::to_string(i) +
+             "</meta>";
+    }
+    xml += "<meta refines=\"#s8\" property=\"collection-type\">series</meta>";
+    if (refineFirst) xml += "<meta refines=\"#s0\" property=\"collection-type\">series</meta>";
+    xml += "</metadata></package>";
+    ContentOpfParser parser("", "", xml.size(), nullptr);
+    parse(parser, xml);
+    EXPECT_EQ(parser.series, refineFirst ? "Series 0" : "");
+  }
+}
+
+TEST(ContentOpfParserMetadata, KeepsFiniteFloatConversionRules) {
+  for (const std::string value : {"nan", "inf", "1e99", "2.5tail", "2.5"}) {
+    SCOPED_TRACE(value);
+    const std::string xml =
+        "<package><metadata><meta name=\"calibre:series\" content=\"S\"/>"
+        "<meta name=\"calibre:series_index\" content=\"" +
+        value + "\"/></metadata></package>";
+    ContentOpfParser parser("", "", xml.size(), nullptr);
+    parse(parser, xml);
+    EXPECT_EQ(parser.seriesIndex.has_value(), value == "2.5");
+    if (parser.seriesIndex) EXPECT_FLOAT_EQ(*parser.seriesIndex, 2.5f);
+  }
+}
+
 TEST(ContentOpfParserCover, ResolvesEpub2CoverWithoutReadingCacheStorage) {
   const std::string xml = R"(<package><metadata><meta name="cover" content="cover-id"/></metadata>
     <manifest><item id="cover-id" href="cover.jpg" media-type="image/jpeg"/>

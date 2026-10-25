@@ -49,6 +49,8 @@ int main(int argc, char** argv) {
   if (!cache.beginWrite() || !cache.beginContentOpfPass()) return 4;
   ContentOpfParser op(cachePath, base, opf.size(), &cache);
   if (!op.setup() || !feed(op, opf, chunk) || !cache.endContentOpfPass() || !cache.beginTocPass()) return 5;
+  const auto items = std::filesystem::path(cachePath) / ".items.bin";
+  std::ofstream(std::filesystem::path(cachePath) / "items.bin", std::ios::binary) << read(items);
   if (!op.tocNcxPath.empty() && (std::string(argv[4]) == "ncx" || op.tocNavPath.empty())) {
     const std::string ncx = read(root / op.tocNcxPath);
     TocNcxParser toc(base, ncx.size(), &cache);

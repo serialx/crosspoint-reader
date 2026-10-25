@@ -164,3 +164,25 @@ The ABI rejects invalid null/alignment/length arguments and offset overflow;
 short local headers and failed seeks/reads fail without parsing uninitialized
 bytes. The compatibility corpus does not define results for the old scanner's
 unchecked short reads. ZIP64 and multi-disk support are not added by this change.
+
+## Chapter and section compatibility
+
+The [section byte oracle](../../test/section_golden/README.md) captures the full
+production Section serialization before migrating word storage or layout.
+Its 312 cases cover every XHTML spine item in the 18 checked-in EPUBs under
+three fixed font, viewport and setting combinations. Deterministic host metrics
+make changes to word positions, source ranges, page boundaries and lookup tables
+visible as byte differences. Image records use the production serializer too.
+
+Run it before and after a paragraph-core change:
+
+```sh
+cmake -S test -B build/test
+cmake --build build/test --target SectionGoldenDump -j 6
+ctest --test-dir build/test -R '^SectionGolden' --output-on-failure
+```
+
+Keep the captured C++ goldens when porting code. The harness uses host adapters
+for EPUB discovery, storage and font metrics; it does not replace firmware
+builds, device/emulator comparisons, allocation measurements or OOM tests.
+Word storage and token metadata remain in C++ at this checkpoint.

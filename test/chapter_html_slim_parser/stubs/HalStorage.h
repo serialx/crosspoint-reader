@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 
 namespace HalFileTest {
@@ -97,6 +98,9 @@ class HalStorage {
   }
   bool remove(const std::string& path) { return std::remove(resolvePath(path).c_str()) == 0; }
   bool rename(const char* from, const char* to) { return std::rename(from, to) == 0; }
+  bool mkdir(const char* path) {
+    return std::filesystem::create_directories(path) || std::filesystem::is_directory(path);
+  }
 };
 
 #define Storage HalStorage::getInstance()

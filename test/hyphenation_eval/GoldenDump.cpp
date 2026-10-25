@@ -1,10 +1,10 @@
 // Capture this tool's output before replacing the C++ engine.
-#include "Epub/hyphenation/Hyphenator.h"
-
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include "Epub/hyphenation/Hyphenator.h"
 
 int main(int argc, char** argv) {
   if (argc != 2) return 1;
@@ -22,9 +22,9 @@ int main(int argc, char** argv) {
     }
     words.push_back(word);
   }
-  const char* tags[] = {"en", "fr", "de", "ru", "es", "it", "pl", "sv", "uk", "fi", "pt",
-                        "en-US", "pt-BR", "eng", "fra", "fre", "deu", "ger", "rus", "spa", "ita",
-                        "ukr", "swe", "fin", "ENG", "FR_ca", "unknown", "", "-en", "por", "pol"};
+  const char* tags[] = {"en",    "fr",    "de",  "ru",    "es",      "it",  "pl",  "sv",  "uk",  "fi",  "pt",
+                        "en-US", "pt-BR", "eng", "fra",   "fre",     "deu", "ger", "rus", "spa", "ita", "ukr",
+                        "swe",   "fin",   "ENG", "FR_ca", "unknown", "",    "-en", "por", "pol"};
   for (const char* tag : tags) {
     Hyphenator::setPreferredLanguage(tag);
     for (int fallback = 0; fallback <= 1; ++fallback) {

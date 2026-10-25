@@ -312,3 +312,7 @@ int32_t xp_xml_feed(XpXml*, const uint8_t*, size_t, uint8_t final_input, size_t*
 int32_t xp_xml_next(XpXml*, XpXmlEvent*);
 void xp_xml_stop(XpXml*);
 void xp_xml_destroy(XpXml*);
+
+#ifdef __cplusplus
+}
+#endif

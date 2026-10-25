@@ -144,6 +144,7 @@ TEST_F(ChapterHtmlSlimParserTest, DeclaredEntitiesKeepGeZeroLiteralText) {
 }
 
 TEST_F(ChapterHtmlSlimParserTest, PreservesLongUnknownEntitySpelling) {
+  parser.viewportWidth = 32767;  // Keep the entity on one line without layout hyphens.
   const std::string entity = "&" + std::string(2000, 'x') + ";";
   EXPECT_EQ(parseToParagraphText("<p>" + entity + "</p>", "<!DOCTYPE html SYSTEM 'unused'>"), entity);
 }

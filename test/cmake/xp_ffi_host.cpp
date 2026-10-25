@@ -13,6 +13,19 @@ static bool failAllocation() {
   --allocationsLeft;
   return false;
 }
+#elif defined(XP_FFI_HOST_CSS_FAULT_INJECTION)
+static thread_local size_t failAfter = SIZE_MAX;
+static thread_local size_t attempts = 0;
+extern "C" void cssTestFailAllocation(size_t index) {
+  failAfter = index;
+  attempts = 0;
+}
+extern "C" size_t cssTestAllocationAttempts() { return attempts; }
+static bool failAllocation() {
+  const bool result = attempts == failAfter;
+  ++attempts;
+  return result;
+}
 #else
 static bool failAllocation() { return false; }
 #endif

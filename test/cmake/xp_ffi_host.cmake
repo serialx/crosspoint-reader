@@ -26,7 +26,7 @@ endif()
 add_custom_target(xp_ffi_host_build
   COMMAND ${CMAKE_COMMAND} -E env --unset=MAKEFLAGS --unset=MFLAGS --unset=CARGO_MAKEFLAGS "CARGO_TARGET_DIR=${XP_FFI_HOST_TARGET_DIR}"
     ${XP_FFI_CARGO} build --manifest-path ${XP_FFI_REPO_ROOT}/rust/Cargo.toml
-    -p xp-ffi --release --target ${XP_FFI_HOST_TRIPLE}
+    -p xp-ffi --release --locked --target ${XP_FFI_HOST_TRIPLE}
     ${XP_FFI_HOST_FEATURE_ARGS} ${XP_FFI_HOST_CARGO_ARGS}
   BYPRODUCTS ${XP_FFI_HOST_ARCHIVE}
   VERBATIM

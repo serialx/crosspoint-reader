@@ -46,4 +46,12 @@ target_include_directories(SectionGoldenDump PRIVATE
   ${REPO_ROOT}/lib/MiniBidi
   ${REPO_ROOT}/lib/XmlParserUtils
 )
-target_link_libraries(SectionGoldenDump PRIVATE crosspoint_test_common)
+target_link_libraries(SectionGoldenDump PRIVATE crosspoint_test_common xp_ffi_host)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME SectionGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump>)
+add_test(NAME SectionGoldenComparator COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
+
+add_test(NAME LayoutGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump> --layout)

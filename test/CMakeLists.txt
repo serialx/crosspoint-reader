@@ -24,7 +24,10 @@ FetchContent_MakeAvailable(googletest)
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+
 add_library(crosspoint_test_common INTERFACE)
+target_link_libraries(crosspoint_test_common INTERFACE xp_ffi_host)
 target_include_directories(crosspoint_test_common INTERFACE
   ${REPO_ROOT}
   ${REPO_ROOT}/lib

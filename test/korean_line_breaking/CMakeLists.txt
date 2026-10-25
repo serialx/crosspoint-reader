@@ -25,7 +25,7 @@ target_include_directories(KoreanLineBreakingTest PRIVATE
 )
 
 target_link_libraries(KoreanLineBreakingTest PRIVATE
-  crosspoint_hyphen_ffi
+  xp_ffi_host
   crosspoint_test_common
   GTest::gtest_main
 )

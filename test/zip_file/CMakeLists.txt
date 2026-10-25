@@ -13,7 +13,7 @@ target_include_directories(ZipFileTest PRIVATE
   ${REPO_ROOT}/lib/hal
   ${REPO_ROOT}/lib/miniz/src
 )
-target_link_libraries(ZipFileTest PRIVATE crosspoint_hyphen_ffi crosspoint_test_common GTest::gtest_main)
+target_link_libraries(ZipFileTest PRIVATE xp_ffi_host crosspoint_test_common GTest::gtest_main)
 gtest_discover_tests(ZipFileTest)
 
 # Inspect the existing private cursor/stat contract without changing the firmware API.

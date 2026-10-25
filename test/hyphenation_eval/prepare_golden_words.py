@@ -50,6 +50,12 @@ malformed = [
 ]
 words.extend(b'ab' + raw + b'cdefgh' for raw in malformed)
 words.extend(b'abcdef' + raw for raw in [b'\xc2', b'\xe2\x82', b'\xf0\x90\x80'])
+words.extend(word.encode() for word in [
+    'hyphenation[1]', 'hyphenation[1].', 'hyphenation[12]',
+    'hyphenation[01].', '[1]', 'a[1', 'a[1]2', 'a[12]3',
+    'abc[1]def', 'abc[12]def', 'abc[12][1]', 'abc[1][12]',
+    'abc123...', 'abc[123...]', 'abc[[12]]', 'abc[1][2]',
+])
 
 selected = set(words)
 assert selected <= set(full_words), "Full capture is missing selected inputs"

@@ -1,8 +1,8 @@
 # C++ hyphenation reference outputs
 
-The default Rust and C++ golden tests use 636 distinct byte strings and 15,264
+The default Rust and C++ golden tests use 652 distinct byte strings and 15,648
 ordered break lists. The selection includes 64 words from each of nine corpora
-plus every handwritten edge input in `prepare_golden_words.py`. The corpora are
+plus every handwritten edge input in `prepare_golden_words.py`. The corpus resources are
 already 1.12 MB, so this sample keeps this whole directory below 1.5 MB.
 
 For each corpus, rank unique words by SHA256 of the bytes

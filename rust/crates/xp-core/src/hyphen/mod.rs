@@ -95,18 +95,25 @@ fn trimmed(bytes: &[u8]) -> Codepoints<'_> {
     let mut count = 0;
     let mut previous = (0, 0);
     let mut digits_start = None;
+    let mut digits_count = 0;
     let mut footnote = None;
     for (cp, offset) in all.clone() {
         count += 1;
         if (0x30..=0x39).contains(&cp) {
             if !(0x30..=0x39).contains(&previous.0) {
+                digits_count = 0;
                 digits_start = if previous.0 == 0x5b {
                     Some(previous.1)
                 } else {
                     None
                 };
             }
-            footnote = digits_start;
+            digits_count += 1;
+            footnote = if digits_count >= 2 {
+                digits_start
+            } else {
+                None
+            };
         } else if !punctuation(cp) {
             footnote = None;
         }

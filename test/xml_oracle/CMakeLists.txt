@@ -4,11 +4,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 add_executable(XmlOracle
   XmlOracle.cpp
-  ${REPO_ROOT}/lib/expat/xmlparse.c
-  ${REPO_ROOT}/lib/expat/xmlrole.c
-  ${REPO_ROOT}/lib/expat/xmltok.c
+  ${REPO_ROOT}/test/vendor/expat/xmlparse.c
+  ${REPO_ROOT}/test/vendor/expat/xmlrole.c
+  ${REPO_ROOT}/test/vendor/expat/xmltok.c
 )
-target_include_directories(XmlOracle PRIVATE ${REPO_ROOT}/lib/expat)
+target_include_directories(XmlOracle PRIVATE ${REPO_ROOT}/test/vendor/expat)
 target_compile_definitions(XmlOracle PRIVATE XML_GE=0 XML_CONTEXT_BYTES=0)
 target_compile_options(XmlOracle PRIVATE -Wall -Wextra -Werror)
 enable_testing()
@@ -35,7 +35,6 @@ target_include_directories(XmlConsumerOracle PRIVATE
   ${REPO_ROOT}/lib/Serialization
   ${REPO_ROOT}/lib/Utf8
   ${REPO_ROOT}/lib/XmlParserUtils
-  ${REPO_ROOT}/lib/expat
   ${REPO_ROOT}/test/fs_helpers/stubs
   ${REPO_ROOT}/test/book_metadata_cache/stubs
   ${REPO_ROOT}/test/chapter_html_slim_parser/stubs

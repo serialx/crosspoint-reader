@@ -3,7 +3,7 @@
 #include <FsHelpers.h>
 #include <Logging.h>
 #include <Serialization.h>
-#include <XmlParserUtils.h>
+#include <XmlQName.h>
 
 #include <cctype>
 #include <cmath>

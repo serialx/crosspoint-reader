@@ -1,8 +1,8 @@
 #pragma once
 
 #include <Print.h>
-#include <XmlParserUtils.h>
 #include <XmlPullParser.h>
+#include <XmlQName.h>
 
 #include <climits>
 

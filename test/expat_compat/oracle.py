@@ -57,16 +57,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--binary', required=True, type=Path)
     ap.add_argument('--capture', action='store_true')
+    ap.add_argument('--api', action='store_true')
     args = ap.parse_args()
     results = {}
     with tempfile.TemporaryDirectory(prefix='expat-sdk-oracle-') as folder:
         for name, (mode, data) in fixtures().items():
             path = Path(folder) / (name + '.xml')
             path.write_bytes(data)
+            if args.api:
+                mode = 'api'
             for chunk in CHUNKS:
                 out = subprocess.check_output([str(args.binary.resolve()), mode, str(path), str(chunk)])
                 results[f'{name}/{chunk}'] = {'input_sha256': hashlib.sha256(data).hexdigest(), 'output': out.decode()}
-    golden = ROOT / 'goldens.json.gz'
+    golden = ROOT / ('api-goldens.json.gz' if args.api else 'goldens.json.gz')
     if args.capture:
         if golden.exists():
             raise SystemExit('Refusing to replace existing goldens')

@@ -14,10 +14,18 @@ SDK JSON backend is linked so the feed wrapper is not replaced by a stub.
 
 ```sh
 cmake -S test -B build/test
-cmake --build build/test --target ExpatConsumerBaseline -j 6
-ctest --test-dir build/test -R '^ExpatSdk' --output-on-failure
+cmake --build build/test --target ExpatConsumerBaseline ExpatConsumerAdapter ExpatAdapterTest -j 6
+ctest --test-dir build/test -R '^Expat' --output-on-failure
 ```
 
 `oracle.py --capture` refuses to overwrite the compressed baseline. Do not
 regenerate it to accept an adapter mismatch. This oracle covers parsed public
 results and errors, not HTTP transport, network activity or GUI behavior.
+
+The baseline uses `test/vendor/expat`; the adapter uses `lib/expat` and the
+shared Rust host archive. `api-goldens.json.gz` additionally compares the
+active SDK diagnostic surface: parse status, numeric error, line number and
+error string. It does not assert byte-index diagnostics (unused by these SDK
+consumers and not implemented by the adapter). The existing SDK CatalogList
+host tests run unchanged against the adapter. Five focused adapter tests cover
+allocation failure, cancellation, long buffered writes and bounds checking.

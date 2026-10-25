@@ -1,7 +1,7 @@
 # Vendored XML oracle
 
 This host-only tool records the XML contract of the firmware's vendored Expat
-with `XML_GE=0` and `XML_CONTEXT_BYTES=0`. It does not use system Expat.
+from `test/vendor/expat` with `XML_GE=0` and `XML_CONTEXT_BYTES=0`. It does not use system Expat.
 
 ```sh
 cmake -S test/xml_oracle -B build/xml-oracle

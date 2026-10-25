@@ -277,9 +277,12 @@ through `xp_xml_*`; the header documents span and handle lifetimes.
 
 Container, encryption, OPF, nav and NCX consumers retain their C++ interfaces and
 storage ownership. `XmlPullParser` dispatches Rust events synchronously to their
-existing handlers. Chapter parsing and KOReader still use Expat, so Expat
-remains linked. The shared core preserves raw qualified names, original byte
-positions, UTF-8/UTF-16/Latin-1 decoding and the vendored GE=0 entity rules;
+existing handlers. The chapter driver consumes `xp_xml_*` events directly in
+1,024-byte steps, passes original byte positions to table prescan, and honors
+cancellation after the active handler returns. It restores `&name;` for the
+existing HTML entity lookup in text only, reusing a checked read buffer.
+KOReader still uses Expat, so Expat remains linked. The shared core preserves
+raw qualified names, original byte positions, UTF-8/UTF-16/Latin-1 decoding and the vendored GE=0 entity rules;
 it does not perform HTML entity expansion.
 
 The parser retains an incomplete token, open element names, entity names and

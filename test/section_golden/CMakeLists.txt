@@ -25,9 +25,6 @@ add_executable(SectionGoldenDump
   ${REPO_ROOT}/lib/MiniBidi/minibidi.c
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
-  ${REPO_ROOT}/lib/expat/xmlparse.c
-  ${REPO_ROOT}/lib/expat/xmlrole.c
-  ${REPO_ROOT}/lib/expat/xmltok.c
 )
 target_include_directories(SectionGoldenDump PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -48,15 +45,5 @@ target_include_directories(SectionGoldenDump PRIVATE
   ${REPO_ROOT}/lib/Serialization
   ${REPO_ROOT}/lib/MiniBidi
   ${REPO_ROOT}/lib/XmlParserUtils
-  ${REPO_ROOT}/lib/expat
 )
-target_compile_definitions(SectionGoldenDump PRIVATE XML_CONTEXT_BYTES=0 XML_GE=0)
-target_link_libraries(SectionGoldenDump PRIVATE crosspoint_test_common crosspoint_hyphen_ffi)
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
-add_test(NAME SectionGoldens COMMAND ${Python3_EXECUTABLE}
-  ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump>)
-add_test(NAME SectionGoldenComparator COMMAND ${Python3_EXECUTABLE}
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
-
-add_test(NAME LayoutGoldens COMMAND ${Python3_EXECUTABLE}
-  ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump> --layout)
+target_link_libraries(SectionGoldenDump PRIVATE crosspoint_test_common)

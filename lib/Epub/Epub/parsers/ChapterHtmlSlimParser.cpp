@@ -7,11 +7,10 @@
 #include <Memory.h>
 #include <MemoryManager.h>
 #include <Utf8.h>
-#include <XmlParserUtils.h>
-#include <expat.h>
 
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <cmath>
 #include <iterator>
 #include <new>
@@ -100,7 +99,7 @@ bool matches(const char* tag_name, const char* const* possible_tags, size_t coun
 
 bool isNonVisibleTextTag(const char* name) { return VisibleTextUtils::isNonVisibleElement(name); }
 
-const char* getAttribute(const XML_Char** atts, const char* attrName) {
+const char* getAttribute(const char* const* atts, const char* attrName) {
   if (!atts) return nullptr;
   for (int i = 0; atts[i]; i += 2) {
     if (strcmp(atts[i], attrName) == 0) return atts[i + 1];
@@ -1304,7 +1303,7 @@ void ChapterHtmlSlimParser::finishTableRow() {
   clearLayoutLines();
 }
 
-void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char* name, const XML_Char** atts) {
+void ChapterHtmlSlimParser::startElement(void* userData, const char* name, const char* const* atts) {
   auto* self = static_cast<ChapterHtmlSlimParser*>(userData);
   if (self->stopRequested) return;
   if (strcasecmp(name, "body") == 0) {
@@ -1488,8 +1487,7 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
       HalFile tableFile;
       TableColumnMeasure measure;
       if (Storage.openFileForRead("EHP", self->filepath, tableFile) &&
-          tableFile.seek(static_cast<size_t>(XML_GetCurrentByteIndex(self->xmlParser_))) &&
-          self->measureTableColumns(tableFile, measure)) {
+          tableFile.seek(static_cast<size_t>(self->xmlByteIndex_)) && self->measureTableColumns(tableFile, measure)) {
         self->planTableColumns(measure);
       }
     }
@@ -2262,7 +2260,7 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
   self->depth += 1;
 }
 
-void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char* s, const int len) {
+void ChapterHtmlSlimParser::characterData(void* userData, const char* s, const int len) {
   auto* self = static_cast<ChapterHtmlSlimParser*>(userData);
   if (self->stopRequested) return;
   const bool countVisibleOffsets = self->insideBody && self->nonVisibleTextDepth == 0 && !self->syntheticCharacterData;
@@ -2464,9 +2462,9 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
     }
 
     // Skip Zero Width No-Break Space / BOM (U+FEFF) = 0xEF 0xBB 0xBF
-    const XML_Char FEFF_BYTE_1 = static_cast<XML_Char>(0xEF);
-    const XML_Char FEFF_BYTE_2 = static_cast<XML_Char>(0xBB);
-    const XML_Char FEFF_BYTE_3 = static_cast<XML_Char>(0xBF);
+    const char FEFF_BYTE_1 = static_cast<char>(0xEF);
+    const char FEFF_BYTE_2 = static_cast<char>(0xBB);
+    const char FEFF_BYTE_3 = static_cast<char>(0xBF);
 
     if (s[i] == FEFF_BYTE_1) {
       // Check if the next two bytes complete the 3-byte sequence
@@ -2536,7 +2534,7 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
   }
 }
 
-void XMLCALL ChapterHtmlSlimParser::defaultHandlerExpand(void* userData, const XML_Char* s, const int len) {
+void ChapterHtmlSlimParser::defaultHandlerExpand(void* userData, const char* s, const int len) {
   // Check if this looks like an entity reference (&...;)
   if (len >= 3 && s[0] == '&' && s[len - 1] == ';') {
     const char* utf8Value = lookupHtmlEntity(s, static_cast<size_t>(len));
@@ -2552,7 +2550,7 @@ void XMLCALL ChapterHtmlSlimParser::defaultHandlerExpand(void* userData, const X
   // Not an entity we recognize - skip it
 }
 
-void XMLCALL ChapterHtmlSlimParser::endElement(void* userData, const XML_Char* name) {
+void ChapterHtmlSlimParser::endElement(void* userData, const char* name) {
   auto* self = static_cast<ChapterHtmlSlimParser*>(userData);
   if (self->stopRequested) return;
   if (self->nonVisibleTextDepth > 0) {
@@ -2826,19 +2824,22 @@ bool ChapterHtmlSlimParser::beginParse() {
   paragraphAlignmentBlockStyle.alignment = align;
   startNewTextBlock(paragraphAlignmentBlockStyle);
 
-  xmlParser_ = XML_ParserCreate(nullptr);
-  if (!xmlParser_) {
+  if (xp_xml_create(&xmlParser_) != 0) {
     LOG_ERR("EHP", "Couldn't allocate memory for parser");
     return false;
   }
-
-  // Handle HTML entities (like &nbsp;) that aren't in XML spec or DTD
-  // Using DefaultHandlerExpand preserves normal entity expansion from DOCTYPE
-  XML_SetDefaultHandlerExpand(xmlParser_, defaultHandlerExpand);
+  // Reuse one read buffer across parse steps; keep it off the render task stack.
+  parseBuffer_ = makeUniqueNoThrow<uint8_t[]>(PARSE_BUFFER_SIZE);
+  if (!parseBuffer_) {
+    LOG_ERR("EHP", "Couldn't allocate memory for buffer");
+    abortParse();
+    return false;
+  }
+  parseBufferCapacity_ = PARSE_BUFFER_SIZE;
+  xmlByteIndex_ = 0;
 
   if (!Storage.openFileForRead("EHP", filepath, parseFile_)) {
-    destroyXmlParser(xmlParser_);
-    xmlParser_ = nullptr;
+    abortParse();
     return false;
   }
 
@@ -2846,10 +2847,6 @@ bool ChapterHtmlSlimParser::beginParse() {
   if (popupFn && parseFile_.size() >= MIN_SIZE_FOR_POPUP) {
     popupFn();
   }
-
-  XML_SetUserData(xmlParser_, this);
-  XML_SetElementHandler(xmlParser_, startElement, endElement);
-  XML_SetCharacterDataHandler(xmlParser_, characterData);
 
   parseStartTime_ = millis();
   return true;
@@ -2864,40 +2861,86 @@ ChapterHtmlSlimParser::ParseStatus ChapterHtmlSlimParser::parseStep() {
     return ParseStatus::Error;
   }
 
-  void* const buf = XML_GetBuffer(xmlParser_, PARSE_BUFFER_SIZE);
-  if (!buf) {
-    LOG_ERR("EHP", "Couldn't allocate memory for buffer");
-    return ParseStatus::Error;
-  }
-
-  const size_t len = parseFile_.read(buf, PARSE_BUFFER_SIZE);
-
+  const size_t len = parseFile_.read(parseBuffer_.get(), PARSE_BUFFER_SIZE);
   if (len == 0 && parseFile_.available() > 0) {
     LOG_ERR("EHP", "File read error");
     return ParseStatus::Error;
   }
-
-  const int done = parseFile_.available() == 0;
-
-  if (XML_ParseBuffer(xmlParser_, static_cast<int>(len), done) == XML_STATUS_ERROR) {
-    if (stopRequested) return ParseStatus::Error;
-    if (htmlEnded_) {
-      LOG_DBG("EHP", "Ignoring trailing data after </html>: %s", XML_ErrorString(XML_GetErrorCode(xmlParser_)));
-      return ParseStatus::Done;
-    }
-    LOG_ERR("EHP", "Parse error at line %lu:\n%s", XML_GetCurrentLineNumber(xmlParser_),
-            XML_ErrorString(XML_GetErrorCode(xmlParser_)));
+  const bool done = parseFile_.available() == 0;
+  size_t consumed = 0;
+  if (xp_xml_feed(xmlParser_, parseBuffer_.get(), len, done, &consumed) != 0 || consumed != len) {
+    LOG_ERR("EHP", "Could not feed XML parser");
     return ParseStatus::Error;
   }
-
-  return done ? ParseStatus::Done : ParseStatus::More;
+  for (;;) {
+    XpXmlEvent event{};
+    if (xp_xml_next(xmlParser_, &event) != 0) {
+      LOG_ERR("EHP", "Could not read XML event");
+      return ParseStatus::Error;
+    }
+    xmlByteIndex_ = event.byte;
+    switch (event.kind) {
+      case XP_XML_START:
+        startElement(this, event.name.data, event.attributes);
+        break;
+      case XP_XML_END:
+        endElement(this, event.name.data);
+        break;
+      case XP_XML_TEXT:
+        if (event.name.len > INT_MAX) return ParseStatus::Error;
+        characterData(this, event.name.data, static_cast<int>(event.name.len));
+        break;
+      case XP_XML_ENTITY: {
+        if (event.name.len > INT_MAX - 2) return ParseStatus::Error;
+        const size_t length = event.name.len + 2;
+        // Feed copied the input, so reuse its buffer for Expat's &name; spelling.
+        if (length > parseBufferCapacity_) {
+          auto buffer = makeUniqueNoThrow<uint8_t[]>(length);
+          if (!buffer) return ParseStatus::Error;
+          parseBuffer_ = std::move(buffer);
+          parseBufferCapacity_ = length;
+        }
+        parseBuffer_[0] = '&';
+        memcpy(parseBuffer_.get() + 1, event.name.data, event.name.len);
+        parseBuffer_[length - 1] = ';';
+        defaultHandlerExpand(this, reinterpret_cast<const char*>(parseBuffer_.get()), static_cast<int>(length));
+        break;
+      }
+      case XP_XML_COMMENT:
+      case XP_XML_PI:
+      case XP_XML_CDATA_START:
+      case XP_XML_CDATA_END:
+        break;
+      case XP_XML_DONE:
+        return ParseStatus::Done;
+      case XP_XML_NEED_INPUT:
+        return done ? ParseStatus::Done : ParseStatus::More;
+      case XP_XML_ERROR:
+        if (htmlEnded_) {
+          LOG_DBG("EHP", "Ignoring trailing data after </html>: XML error %u", event.error);
+          return ParseStatus::Done;
+        }
+        LOG_ERR("EHP", "XML error %u at line %llu", event.error, static_cast<unsigned long long>(event.line));
+        return ParseStatus::Error;
+      case XP_XML_STOPPED:
+      default:
+        return ParseStatus::Error;
+    }
+    // A page callback may request cancellation; release its borrowed spans first.
+    if (stopRequested) {
+      xp_xml_stop(xmlParser_);
+      return ParseStatus::Error;
+    }
+  }
 }
 
 void ChapterHtmlSlimParser::abortParse() {
   if (xmlParser_) {
-    destroyXmlParser(xmlParser_);
+    xp_xml_destroy(xmlParser_);
     xmlParser_ = nullptr;
   }
+  parseBuffer_.reset();
+  parseBufferCapacity_ = 0;
   // Only close the file if it was successfully opened in beginParse()
   if (parseFile_.isOpen()) {
     parseFile_.close();
@@ -2907,7 +2950,6 @@ void ChapterHtmlSlimParser::abortParse() {
 void ChapterHtmlSlimParser::requestStop() {
   if (stopRequested) return;
   stopRequested = true;
-  if (xmlParser_) XML_StopParser(xmlParser_, XML_FALSE);
 }
 
 bool ChapterHtmlSlimParser::finishParse() {
@@ -2921,9 +2963,11 @@ bool ChapterHtmlSlimParser::finishParse() {
 
   if (xmlParser_) {
     LOG_DBG("EHP", "Time to parse and build pages: %lu ms", millis() - parseStartTime_);
-    destroyXmlParser(xmlParser_);
+    xp_xml_destroy(xmlParser_);
     xmlParser_ = nullptr;
   }
+  parseBuffer_.reset();
+  parseBufferCapacity_ = 0;
   parseFile_.close();
 
   // Process last page if there is still text

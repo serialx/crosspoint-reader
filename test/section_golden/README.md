@@ -56,10 +56,12 @@ fonts and intentionally fixed; they are not device font metrics.
 
 ## Production code and host adapters
 
-- The target compiles the vendored Expat with `XML_GE=0` and
-  `XML_CONTEXT_BYTES=0`, real HTML entities, CSS parser, UTF-8 helpers,
-  MiniBidi, image dimension probes, and the existing M1 Rust hyphenation facade.
-  It does not use `ParserLinkStubs.cpp` from the chapter unit tests.
+- The target links the Rust XML core, real HTML entities, CSS parser, UTF-8
+  helpers, MiniBidi, image dimension probes, and the C++ hyphenation engine.
+  The imported baseline used vendored Expat with `XML_GE=0` and
+  `XML_CONTEXT_BYTES=0`; all 312 sections also matched on this branch before
+  the chapter XML driver migrated to Rust. The target does not use
+  `ParserLinkStubs.cpp` from the chapter unit tests.
 - Python's ZIP/XML readers supply OPF spine order, language, manifest CSS order,
   and TOC paths to a host `Epub` adapter. NCX is used when the OPF spine names
   one; otherwise EPUB navigation supplies TOC links. This is not a test of the

@@ -66,7 +66,7 @@ impl Encoding {
             }
             Self::Utf8 => {
                 let width = match first {
-                    0..=0x7f => 1,
+                    0..=0x7f => return Character(char::from(first), 1),
                     0xc2..=0xdf => 2,
                     0xe0..=0xef => 3,
                     0xf0..=0xf4 => 4,

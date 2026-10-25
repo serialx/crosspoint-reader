@@ -828,6 +828,22 @@ impl Parser {
     ) -> Result<(), u32> {
         let mut pos = 0;
         while pos < bytes.len() {
+            // The scanner already validated UTF-8; only normalization delimiters
+            // need individual handling, including tokenized attribute spaces.
+            let tail = bytes.get(pos..).ok_or(4u32)?;
+            let count = tail
+                .iter()
+                .position(|&b| {
+                    b == b'\r'
+                        || (attribute && matches!(b, b'&' | b'\n' | b'\t'))
+                        || (tokenized && b == b' ')
+                })
+                .unwrap_or(tail.len());
+            if count != 0 {
+                append(target, tail.get(..count).ok_or(4u32)?)?;
+                pos += count;
+                continue;
+            }
             let byte = *bytes.get(pos).ok_or(4u32)?;
             if byte == b'&' && attribute {
                 let end = bytes

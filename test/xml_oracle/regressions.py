@@ -35,6 +35,13 @@ def cases():
     for kind in ("CDATA", "NMTOKENS"):
         for i, value in enumerate(("<", "a<b", "&lt;", "a&lt;b", "&#60;", "&#x3c;")):
             yield f"default_{kind}_{i}", f'<!DOCTYPE r [<!ATTLIST r a {kind} "{value}">]><r/>'
+    for i, value in enumerate(("한한", "\u0800\ufffd🙂", "한" * 40,
+                               "🙂한\r\n\u0800\t한")):
+        yield f"wide_comment_{i}", f'<r><!--{value}--><p a="after">tail</p></r>'
+        yield f"wide_cdata_{i}", f'<r><![CDATA[{value}]]><p/></r>'
+        yield f"wide_pi_{i}", f'<?p {value}?><r/>'
+        yield f"wide_text_{i}", f'<r>{value}<p/></r>'
+        yield f"wide_attribute_{i}", f'<r a="{value}" b="after"/>'
 
 
 def encoded_cases():

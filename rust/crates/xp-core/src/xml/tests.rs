@@ -344,7 +344,12 @@ fn long_comments_use_one_growing_buffer_and_preserve_following_input() {
             Encoding::Utf16Be,
             Encoding::Latin1,
         ] {
-            let body = "é\r\nx-".repeat(size / 5) + ".";
+            let pattern = if matches!(encoding, Encoding::Utf16Le | Encoding::Utf16Be) {
+                "한\u{800}🙂\r\nx-"
+            } else {
+                "é\r\nx-"
+            };
+            let body = pattern.repeat(size / 5) + ".";
             let document = std::format!("<r><!--{body}--><p>after</p></r>");
             let input = match encoding {
                 Encoding::Utf16Le | Encoding::Utf16Be => {

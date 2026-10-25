@@ -30,52 +30,61 @@ int main() {
       "<?xml version='1.0' encoding='ISO-8859-1'?>"
       "<!DOCTYPE r [<!ENTITY e 'value'><!ATTLIST r a CDATA 'default'>]><!--" +
       std::string(40000, '\xe9') + "--><r><long b='" + std::string(4000, 'x') + "'>&e;</long></r>";
-  bool reachedSuccess = false;
-  for (size_t limit = 0; limit < 128 && !reachedSuccess; ++limit) {
-    xp_test_fail_allocation_after(limit);
-    parser = nullptr;
-    if (xp_xml_create(&parser) != 0) continue;
-    size_t offset = 0;
-    bool failed = false;
-    while (!failed && !reachedSuccess) {
-      const size_t remaining = input.size() - offset;
-      assert(xp_xml_feed(parser, reinterpret_cast<const uint8_t*>(input.data() + offset), remaining, 1, &consumed) ==
-             0);
-      offset += consumed;
-      for (;;) {
-        const auto status = xp_xml_next(parser, &event);
-        if (status == -2) {
-          failed = true;
-          break;
-        }
-        assert(status == 0);
-        if (event.kind == XP_XML_ERROR) {
-          assert(event.error == 1);
-          failed = true;
-          break;
-        }
-        if (event.kind == XP_XML_START) {
-          assert(event.name.data[event.name.len] == 0);
-          assert(event.attributes[event.attribute_count * 2] == nullptr);
-          if (std::strcmp(event.name.data, "long") == 0) {
-            assert(event.attribute_count == 1 && std::strlen(event.attributes[1]) == 4000);
+  const std::u16string wide = u"<r><!--" + std::u16string(40000, u'한') + u"--><p>after</p></r>";
+  std::string utf16 = "\xff\xfe";
+  utf16.reserve(2 + wide.size() * 2);
+  for (const auto unit : wide) {
+    utf16.push_back(static_cast<char>(unit & 0xff));
+    utf16.push_back(static_cast<char>(unit >> 8));
+  }
+  for (const std::string* source : {&input, static_cast<const std::string*>(&utf16)}) {
+    bool reachedSuccess = false;
+    for (size_t limit = 0; limit < 128 && !reachedSuccess; ++limit) {
+      xp_test_fail_allocation_after(limit);
+      parser = nullptr;
+      if (xp_xml_create(&parser) != 0) continue;
+      size_t offset = 0;
+      bool failed = false;
+      while (!failed && !reachedSuccess) {
+        const size_t remaining = source->size() - offset;
+        assert(xp_xml_feed(parser, reinterpret_cast<const uint8_t*>(source->data() + offset), remaining, 1,
+                           &consumed) == 0);
+        offset += consumed;
+        for (;;) {
+          const auto status = xp_xml_next(parser, &event);
+          if (status == -2) {
+            failed = true;
+            break;
+          }
+          assert(status == 0);
+          if (event.kind == XP_XML_ERROR) {
+            assert(event.error == 1);
+            failed = true;
+            break;
+          }
+          if (event.kind == XP_XML_START) {
+            assert(event.name.data[event.name.len] == 0);
+            assert(event.attributes[event.attribute_count * 2] == nullptr);
+            if (std::strcmp(event.name.data, "long") == 0) {
+              assert(event.attribute_count == 1 && std::strlen(event.attributes[1]) == 4000);
+            }
+          }
+          if (event.kind == XP_XML_DONE) {
+            assert(offset == source->size());
+            reachedSuccess = true;
+            break;
+          }
+          if (event.kind == XP_XML_NEED_INPUT) {
+            assert(consumed != 0);
+            break;
           }
         }
-        if (event.kind == XP_XML_DONE) {
-          assert(offset == input.size());
-          reachedSuccess = true;
-          break;
-        }
-        if (event.kind == XP_XML_NEED_INPUT) {
-          assert(consumed != 0);
-          break;
-        }
       }
+      xp_xml_destroy(parser);
+      assert(xp_test_live_allocations() == 0);
     }
-    xp_xml_destroy(parser);
-    assert(xp_test_live_allocations() == 0);
+    assert(reachedSuccess);
   }
-  assert(reachedSuccess);
   xp_test_fail_allocation_after(SIZE_MAX);
   XmlPullParser facade;
   assert(facade.setup(nullptr, nullptr));

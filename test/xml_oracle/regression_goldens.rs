@@ -3367,4 +3367,520 @@ Expected { kind: Kind::Start, byte: 96, line: 1, fields: &["r","a","<"] },
 Expected { kind: Kind::End, byte: 104, line: 1, fields: &["r"] },
 ], error: 0, byte: 104, line: 1 },
 ], splits: &[(105,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_0_utf8", input: &[60,114,62,60,33,45,45,237,149,156,237,149,156,45,45,62,60,112,32,97,61,34,97,102,116,101,114,34,62,116,97,105,108,60,47,112,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 3, line: 1, fields: &["한한"] },
+Expected { kind: Kind::Start, byte: 16, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 29, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 33, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 37, line: 1, fields: &["r"] },
+], error: 0, byte: 41, line: 1 },
+], splits: &[(42,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_0_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,45,0,45,0,92,213,92,213,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["한한"] },
+Expected { kind: Kind::Start, byte: 26, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 52, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 60, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 68, line: 1, fields: &["r"] },
+], error: 0, byte: 76, line: 1 },
+], splits: &[(77,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_0_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,45,0,45,213,92,213,92,0,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["한한"] },
+Expected { kind: Kind::Start, byte: 26, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 52, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 60, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 68, line: 1, fields: &["r"] },
+], error: 0, byte: 76, line: 1 },
+], splits: &[(77,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_0_utf8", input: &[60,114,62,60,33,91,67,68,65,84,65,91,237,149,156,237,149,156,93,93,62,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 3, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 12, line: 1, fields: &["한한"] },
+Expected { kind: Kind::CdataEnd, byte: 18, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 21, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 25, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 25, line: 1, fields: &["r"] },
+], error: 0, byte: 29, line: 1 },
+], splits: &[(30,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_0_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,0,92,213,92,213,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["한한"] },
+Expected { kind: Kind::CdataEnd, byte: 30, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 36, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 44, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 44, line: 1, fields: &["r"] },
+], error: 0, byte: 52, line: 1 },
+], splits: &[(53,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_0_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,213,92,213,92,0,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["한한"] },
+Expected { kind: Kind::CdataEnd, byte: 30, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 36, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 44, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 44, line: 1, fields: &["r"] },
+], error: 0, byte: 52, line: 1 },
+], splits: &[(53,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_0_utf8", input: &[60,63,112,32,237,149,156,237,149,156,63,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 0, line: 1, fields: &["p","한한"] },
+Expected { kind: Kind::Start, byte: 12, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 16, line: 1, fields: &["r"] },
+], error: 0, byte: 16, line: 1 },
+], splits: &[(17,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_0_utf-16le", input: &[255,254,60,0,63,0,112,0,32,0,92,213,92,213,63,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","한한"] },
+Expected { kind: Kind::Start, byte: 18, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 26, line: 1, fields: &["r"] },
+], error: 0, byte: 26, line: 1 },
+], splits: &[(27,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_0_utf-16be", input: &[254,255,0,60,0,63,0,112,0,32,213,92,213,92,0,63,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","한한"] },
+Expected { kind: Kind::Start, byte: 18, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 26, line: 1, fields: &["r"] },
+], error: 0, byte: 26, line: 1 },
+], splits: &[(27,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_0_utf8", input: &[60,114,62,237,149,156,237,149,156,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 3, line: 1, fields: &["한한"] },
+Expected { kind: Kind::Start, byte: 9, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 13, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 13, line: 1, fields: &["r"] },
+], error: 0, byte: 17, line: 1 },
+], splits: &[(18,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_0_utf-16le", input: &[255,254,60,0,114,0,62,0,92,213,92,213,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["한한"] },
+Expected { kind: Kind::Start, byte: 12, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 20, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 20, line: 1, fields: &["r"] },
+], error: 0, byte: 28, line: 1 },
+], splits: &[(29,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_0_utf-16be", input: &[254,255,0,60,0,114,0,62,213,92,213,92,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["한한"] },
+Expected { kind: Kind::Start, byte: 12, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 20, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 20, line: 1, fields: &["r"] },
+], error: 0, byte: 28, line: 1 },
+], splits: &[(29,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_0_utf8", input: &[60,114,32,97,61,34,237,149,156,237,149,156,34,32,98,61,34,97,102,116,101,114,34,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r","a","한한","b","after"] },
+Expected { kind: Kind::End, byte: 25, line: 1, fields: &["r"] },
+], error: 0, byte: 25, line: 1 },
+], splits: &[(26,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_0_utf-16le", input: &[255,254,60,0,114,0,32,0,97,0,61,0,34,0,92,213,92,213,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","한한","b","after"] },
+Expected { kind: Kind::End, byte: 44, line: 1, fields: &["r"] },
+], error: 0, byte: 44, line: 1 },
+], splits: &[(45,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_0_utf-16be", input: &[254,255,0,60,0,114,0,32,0,97,0,61,0,34,213,92,213,92,0,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","한한","b","after"] },
+Expected { kind: Kind::End, byte: 44, line: 1, fields: &["r"] },
+], error: 0, byte: 44, line: 1 },
+], splits: &[(45,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_1_utf8", input: &[60,114,62,60,33,45,45,224,160,128,239,191,189,240,159,153,130,45,45,62,60,112,32,97,61,34,97,102,116,101,114,34,62,116,97,105,108,60,47,112,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 3, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 20, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 33, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 37, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 41, line: 1, fields: &["r"] },
+], error: 0, byte: 45, line: 1 },
+], splits: &[(46,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_1_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,45,0,45,0,0,8,253,255,61,216,66,222,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 30, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 56, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 64, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 72, line: 1, fields: &["r"] },
+], error: 0, byte: 80, line: 1 },
+], splits: &[(81,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_1_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,45,0,45,8,0,255,253,216,61,222,66,0,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 30, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 56, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 64, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 72, line: 1, fields: &["r"] },
+], error: 0, byte: 80, line: 1 },
+], splits: &[(81,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_1_utf8", input: &[60,114,62,60,33,91,67,68,65,84,65,91,224,160,128,239,191,189,240,159,153,130,93,93,62,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 3, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 12, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::CdataEnd, byte: 22, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 25, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 29, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 29, line: 1, fields: &["r"] },
+], error: 0, byte: 33, line: 1 },
+], splits: &[(34,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_1_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,0,0,8,253,255,61,216,66,222,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::CdataEnd, byte: 34, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 40, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["r"] },
+], error: 0, byte: 56, line: 1 },
+], splits: &[(57,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_1_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,8,0,255,253,216,61,222,66,0,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::CdataEnd, byte: 34, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 40, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["r"] },
+], error: 0, byte: 56, line: 1 },
+], splits: &[(57,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_1_utf8", input: &[60,63,112,32,224,160,128,239,191,189,240,159,153,130,63,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 0, line: 1, fields: &["p","ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 16, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 20, line: 1, fields: &["r"] },
+], error: 0, byte: 20, line: 1 },
+], splits: &[(21,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_1_utf-16le", input: &[255,254,60,0,63,0,112,0,32,0,0,8,253,255,61,216,66,222,63,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 22, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 30, line: 1, fields: &["r"] },
+], error: 0, byte: 30, line: 1 },
+], splits: &[(31,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_1_utf-16be", input: &[254,255,0,60,0,63,0,112,0,32,8,0,255,253,216,61,222,66,0,63,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 22, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 30, line: 1, fields: &["r"] },
+], error: 0, byte: 30, line: 1 },
+], splits: &[(31,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_1_utf8", input: &[60,114,62,224,160,128,239,191,189,240,159,153,130,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 3, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 13, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 17, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 17, line: 1, fields: &["r"] },
+], error: 0, byte: 21, line: 1 },
+], splits: &[(22,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_1_utf-16le", input: &[255,254,60,0,114,0,62,0,0,8,253,255,61,216,66,222,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 16, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 24, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 24, line: 1, fields: &["r"] },
+], error: 0, byte: 32, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_1_utf-16be", input: &[254,255,0,60,0,114,0,62,8,0,255,253,216,61,222,66,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["ࠀ�🙂"] },
+Expected { kind: Kind::Start, byte: 16, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 24, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 24, line: 1, fields: &["r"] },
+], error: 0, byte: 32, line: 1 },
+], splits: &[(33,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_1_utf8", input: &[60,114,32,97,61,34,224,160,128,239,191,189,240,159,153,130,34,32,98,61,34,97,102,116,101,114,34,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r","a","ࠀ�🙂","b","after"] },
+Expected { kind: Kind::End, byte: 29, line: 1, fields: &["r"] },
+], error: 0, byte: 29, line: 1 },
+], splits: &[(30,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_1_utf-16le", input: &[255,254,60,0,114,0,32,0,97,0,61,0,34,0,0,8,253,255,61,216,66,222,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","ࠀ�🙂","b","after"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["r"] },
+], error: 0, byte: 48, line: 1 },
+], splits: &[(49,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_1_utf-16be", input: &[254,255,0,60,0,114,0,32,0,97,0,61,0,34,8,0,255,253,216,61,222,66,0,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","ࠀ�🙂","b","after"] },
+Expected { kind: Kind::End, byte: 48, line: 1, fields: &["r"] },
+], error: 0, byte: 48, line: 1 },
+], splits: &[(49,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_2_utf8", input: &[60,114,62,60,33,45,45,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,45,45,62,60,112,32,97,61,34,97,102,116,101,114,34,62,116,97,105,108,60,47,112,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 3, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 130, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 143, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 147, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 151, line: 1, fields: &["r"] },
+], error: 0, byte: 155, line: 1 },
+], splits: &[(156,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_2_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,45,0,45,0,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 102, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 128, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 136, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 144, line: 1, fields: &["r"] },
+], error: 0, byte: 152, line: 1 },
+], splits: &[(153,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_2_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,45,0,45,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,0,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 102, line: 1, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 128, line: 1, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 136, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 144, line: 1, fields: &["r"] },
+], error: 0, byte: 152, line: 1 },
+], splits: &[(153,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_2_utf8", input: &[60,114,62,60,33,91,67,68,65,84,65,91,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,93,93,62,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 3, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 12, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::CdataEnd, byte: 132, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 135, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 139, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 139, line: 1, fields: &["r"] },
+], error: 0, byte: 143, line: 1 },
+], splits: &[(144,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_2_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,0,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::CdataEnd, byte: 106, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 112, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 120, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 120, line: 1, fields: &["r"] },
+], error: 0, byte: 128, line: 1 },
+], splits: &[(129,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_2_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,0,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::CdataEnd, byte: 106, line: 1, fields: &[] },
+Expected { kind: Kind::Start, byte: 112, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 120, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 120, line: 1, fields: &["r"] },
+], error: 0, byte: 128, line: 1 },
+], splits: &[(129,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_2_utf8", input: &[60,63,112,32,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,63,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 0, line: 1, fields: &["p","한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 126, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 130, line: 1, fields: &["r"] },
+], error: 0, byte: 130, line: 1 },
+], splits: &[(131,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_2_utf-16le", input: &[255,254,60,0,63,0,112,0,32,0,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,63,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 94, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 102, line: 1, fields: &["r"] },
+], error: 0, byte: 102, line: 1 },
+], splits: &[(103,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_2_utf-16be", input: &[254,255,0,60,0,63,0,112,0,32,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,0,63,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 94, line: 1, fields: &["r"] },
+Expected { kind: Kind::End, byte: 102, line: 1, fields: &["r"] },
+], error: 0, byte: 102, line: 1 },
+], splits: &[(103,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_2_utf8", input: &[60,114,62,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 3, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 123, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 127, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 127, line: 1, fields: &["r"] },
+], error: 0, byte: 131, line: 1 },
+], splits: &[(132,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_2_utf-16le", input: &[255,254,60,0,114,0,62,0,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 88, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 96, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 96, line: 1, fields: &["r"] },
+], error: 0, byte: 104, line: 1 },
+], splits: &[(105,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_2_utf-16be", input: &[254,255,0,60,0,114,0,62,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"] },
+Expected { kind: Kind::Start, byte: 88, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 96, line: 1, fields: &["p"] },
+Expected { kind: Kind::End, byte: 96, line: 1, fields: &["r"] },
+], error: 0, byte: 104, line: 1 },
+], splits: &[(105,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_2_utf8", input: &[60,114,32,97,61,34,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,237,149,156,34,32,98,61,34,97,102,116,101,114,34,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r","a","한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한","b","after"] },
+Expected { kind: Kind::End, byte: 139, line: 1, fields: &["r"] },
+], error: 0, byte: 139, line: 1 },
+], splits: &[(140,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_2_utf-16le", input: &[255,254,60,0,114,0,32,0,97,0,61,0,34,0,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한","b","after"] },
+Expected { kind: Kind::End, byte: 120, line: 1, fields: &["r"] },
+], error: 0, byte: 120, line: 1 },
+], splits: &[(121,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_2_utf-16be", input: &[254,255,0,60,0,114,0,32,0,97,0,61,0,34,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,213,92,0,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한","b","after"] },
+Expected { kind: Kind::End, byte: 120, line: 1, fields: &["r"] },
+], error: 0, byte: 120, line: 1 },
+], splits: &[(121,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_3_utf8", input: &[60,114,62,60,33,45,45,240,159,153,130,237,149,156,13,10,224,160,128,9,237,149,156,45,45,62,60,112,32,97,61,34,97,102,116,101,114,34,62,116,97,105,108,60,47,112,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 3, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 26, line: 2, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 39, line: 2, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 43, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 47, line: 2, fields: &["r"] },
+], error: 0, byte: 51, line: 2 },
+], splits: &[(52,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_3_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,45,0,45,0,61,216,66,222,92,213,13,0,10,0,0,8,9,0,92,213,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 38, line: 2, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 64, line: 2, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 72, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 80, line: 2, fields: &["r"] },
+], error: 0, byte: 88, line: 2 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_comment_3_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,45,0,45,216,61,222,66,213,92,0,13,0,10,8,0,0,9,213,92,0,45,0,45,0,62,0,60,0,112,0,32,0,97,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,62,0,116,0,97,0,105,0,108,0,60,0,47,0,112,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Comment, byte: 8, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 38, line: 2, fields: &["p","a","after"] },
+Expected { kind: Kind::Text, byte: 64, line: 2, fields: &["tail"] },
+Expected { kind: Kind::End, byte: 72, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 80, line: 2, fields: &["r"] },
+], error: 0, byte: 88, line: 2 },
+], splits: &[(89,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_3_utf8", input: &[60,114,62,60,33,91,67,68,65,84,65,91,240,159,153,130,237,149,156,13,10,224,160,128,9,237,149,156,93,93,62,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 3, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 12, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::CdataEnd, byte: 28, line: 2, fields: &[] },
+Expected { kind: Kind::Start, byte: 31, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 35, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 35, line: 2, fields: &["r"] },
+], error: 0, byte: 39, line: 2 },
+], splits: &[(40,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_3_utf-16le", input: &[255,254,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,0,61,216,66,222,92,213,13,0,10,0,0,8,9,0,92,213,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::CdataEnd, byte: 42, line: 2, fields: &[] },
+Expected { kind: Kind::Start, byte: 48, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 56, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 56, line: 2, fields: &["r"] },
+], error: 0, byte: 64, line: 2 },
+], splits: &[(65,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_cdata_3_utf-16be", input: &[254,255,0,60,0,114,0,62,0,60,0,33,0,91,0,67,0,68,0,65,0,84,0,65,0,91,216,61,222,66,213,92,0,13,0,10,8,0,0,9,213,92,0,93,0,93,0,62,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::CdataStart, byte: 8, line: 1, fields: &[] },
+Expected { kind: Kind::Text, byte: 26, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::CdataEnd, byte: 42, line: 2, fields: &[] },
+Expected { kind: Kind::Start, byte: 48, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 56, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 56, line: 2, fields: &["r"] },
+], error: 0, byte: 64, line: 2 },
+], splits: &[(65,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_3_utf8", input: &[60,63,112,32,240,159,153,130,237,149,156,13,10,224,160,128,9,237,149,156,63,62,60,114,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 0, line: 1, fields: &["p","🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 22, line: 2, fields: &["r"] },
+Expected { kind: Kind::End, byte: 26, line: 2, fields: &["r"] },
+], error: 0, byte: 26, line: 2 },
+], splits: &[(27,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_3_utf-16le", input: &[255,254,60,0,63,0,112,0,32,0,61,216,66,222,92,213,13,0,10,0,0,8,9,0,92,213,63,0,62,0,60,0,114,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 30, line: 2, fields: &["r"] },
+Expected { kind: Kind::End, byte: 38, line: 2, fields: &["r"] },
+], error: 0, byte: 38, line: 2 },
+], splits: &[(39,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_pi_3_utf-16be", input: &[254,255,0,60,0,63,0,112,0,32,216,61,222,66,213,92,0,13,0,10,8,0,0,9,213,92,0,63,0,62,0,60,0,114,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Pi, byte: 2, line: 1, fields: &["p","🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 30, line: 2, fields: &["r"] },
+Expected { kind: Kind::End, byte: 38, line: 2, fields: &["r"] },
+], error: 0, byte: 38, line: 2 },
+], splits: &[(39,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_3_utf8", input: &[60,114,62,240,159,153,130,237,149,156,13,10,224,160,128,9,237,149,156,60,112,47,62,60,47,114,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 3, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 19, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 23, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 23, line: 2, fields: &["r"] },
+], error: 0, byte: 27, line: 2 },
+], splits: &[(28,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_3_utf-16le", input: &[255,254,60,0,114,0,62,0,61,216,66,222,92,213,13,0,10,0,0,8,9,0,92,213,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 24, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 32, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 32, line: 2, fields: &["r"] },
+], error: 0, byte: 40, line: 2 },
+], splits: &[(41,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_text_3_utf-16be", input: &[254,255,0,60,0,114,0,62,216,61,222,66,213,92,0,13,0,10,8,0,0,9,213,92,0,60,0,112,0,47,0,62,0,60,0,47,0,114,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r"] },
+Expected { kind: Kind::Text, byte: 8, line: 1, fields: &["🙂한\nࠀ\t한"] },
+Expected { kind: Kind::Start, byte: 24, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 32, line: 2, fields: &["p"] },
+Expected { kind: Kind::End, byte: 32, line: 2, fields: &["r"] },
+], error: 0, byte: 40, line: 2 },
+], splits: &[(41,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_3_utf8", input: &[60,114,32,97,61,34,240,159,153,130,237,149,156,13,10,224,160,128,9,237,149,156,34,32,98,61,34,97,102,116,101,114,34,47,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 0, line: 1, fields: &["r","a","🙂한 ࠀ 한","b","after"] },
+Expected { kind: Kind::End, byte: 35, line: 2, fields: &["r"] },
+], error: 0, byte: 35, line: 2 },
+], splits: &[(36,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_3_utf-16le", input: &[255,254,60,0,114,0,32,0,97,0,61,0,34,0,61,216,66,222,92,213,13,0,10,0,0,8,9,0,92,213,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62,0], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","🙂한 ࠀ 한","b","after"] },
+Expected { kind: Kind::End, byte: 56, line: 2, fields: &["r"] },
+], error: 0, byte: 56, line: 2 },
+], splits: &[(57,0)], chunks: &[0,0,0,0] },
+Case { name: "wide_attribute_3_utf-16be", input: &[254,255,0,60,0,114,0,32,0,97,0,61,0,34,216,61,222,66,213,92,0,13,0,10,8,0,0,9,213,92,0,34,0,32,0,98,0,61,0,34,0,97,0,102,0,116,0,101,0,114,0,34,0,47,0,62], variants: &[
+ExpectedRun { events: &[
+Expected { kind: Kind::Start, byte: 2, line: 1, fields: &["r","a","🙂한 ࠀ 한","b","after"] },
+Expected { kind: Kind::End, byte: 56, line: 2, fields: &["r"] },
+], error: 0, byte: 56, line: 2 },
+], splits: &[(57,0)], chunks: &[0,0,0,0] },
 ]

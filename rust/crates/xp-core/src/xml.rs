@@ -463,7 +463,7 @@ impl Parser {
                     .input
                     .get(self.scan + width..)
                     .ok_or((4, self.token.len()))?;
-                if tail.is_empty() {
+                if tail.len() < width {
                     return Ok(matches!(self.token_kind, Token::Text | Token::Cdata)
                         && !self.token.is_empty());
                 }
@@ -730,11 +730,27 @@ impl Parser {
         let body_start = self.pos.checked_add(4 * unit).ok_or((4, 0))?;
         let body_end = self.scan.checked_sub(3 * unit).ok_or((4, 0))?;
         let source = span(&self.input, body_start, body_end)?;
-        // Latin-1 can expand to two UTF-8 bytes; other supported encodings only shrink.
-        let extra = if self.encoding == Encoding::Latin1 {
-            source.iter().filter(|&&b| b >= 0x80).count()
-        } else {
-            0
+        // Reserve every positive expansion, not just the net size change: an
+        // expanding prefix must not overwrite unread source even if later scalars shrink.
+        let extra = match self.encoding {
+            Encoding::Latin1 => source.iter().filter(|&&b| b >= 0x80).count(),
+            Encoding::Utf16Le | Encoding::Utf16Be => {
+                let mut read = 0;
+                let mut extra = 0usize;
+                while read < source.len() {
+                    let Decoded::Character(c, width) =
+                        self.encoding.decode(source.get(read..).ok_or((4, 0))?)
+                    else {
+                        return Err((4, 0));
+                    };
+                    extra = extra
+                        .checked_add(c.len_utf8().saturating_sub(width))
+                        .ok_or((1, 0))?;
+                    read += width;
+                }
+                extra
+            }
+            Encoding::Utf8 | Encoding::Ascii => 0,
         };
         self.fields.try_reserve(1).map_err(|_| (1, 0))?;
         let original_count = self.scan.saturating_sub(self.pos);

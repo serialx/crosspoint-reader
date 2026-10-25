@@ -1,0 +1,35 @@
+BODY			
+H1			
+H2			
+P			
+P	LIST		
+P	LIST-BULLET		
+P	LIST-BULLET2		
+P	LIST-ITEM		
+P	LIST-ITEM1		
+P	LIST-SIMPLE1		
+P	SECTION-BR		
+body			
+body	 unrelated		
+div	a b c d e f g h i	id	
+h1			
+h1	 unrelated		
+h2			
+h2	 unrelated		
+p			
+p	 unrelated		
+p	list		
+p	list unrelated		
+p	list-bullet		
+p	list-bullet unrelated		
+p	list-bullet2		
+p	list-bullet2 unrelated		
+p	list-item		
+p	list-item unrelated		
+p	list-item1		
+p	list-item1 unrelated		
+p	list-simple1		
+p	list-simple1 unrelated		
+p	section-br		
+p	section-br unrelated		
+span	note	target	

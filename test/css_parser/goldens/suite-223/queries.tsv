@@ -1,0 +1,9 @@
+P	MONO		
+P	NORMAL		
+div	a b c d e f g h i	id	
+p			
+p	mono		
+p	mono unrelated		
+p	normal		
+p	normal unrelated		
+span	note	target	

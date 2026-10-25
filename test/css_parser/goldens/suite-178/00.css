@@ -1,0 +1,6 @@
+.sc { font-variant: small-caps; }
+.asc { font-variant-caps: all-small-caps; }
+.normal { font-variant: normal; }
+.before { page-break-before: always; }
+.after { break-after: right; }
+.avoid { page-break-before: avoid; }

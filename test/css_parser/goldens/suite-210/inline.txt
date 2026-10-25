@@ -1,0 +1,4 @@
+ content: 'x'; font-weight: bold; 
+ font-size: 3em; float: left; 
+ initial-letter: 4 3; 
+ text-indent: 1em; 

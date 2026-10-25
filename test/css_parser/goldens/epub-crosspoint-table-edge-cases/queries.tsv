@@ -1,0 +1,47 @@
+BODY			
+H1			
+H2			
+H3			
+P			
+P	BOLD-BLOCK		
+P	CENTER		
+P	ITALIC-BLOCK		
+P	LTR		
+P	RIGHT		
+P	RTL		
+P	SMALL-NOTE		
+TABLE			
+TD			
+TH			
+body			
+body	 unrelated		
+div	a b c d e f g h i	id	
+h1			
+h1	 unrelated		
+h2			
+h2	 unrelated		
+h3			
+h3	 unrelated		
+p			
+p	 unrelated		
+p	bold-block		
+p	bold-block unrelated		
+p	center		
+p	center unrelated		
+p	italic-block		
+p	italic-block unrelated		
+p	ltr		
+p	ltr unrelated		
+p	right		
+p	right unrelated		
+p	rtl		
+p	rtl unrelated		
+p	small-note		
+p	small-note unrelated		
+span	note	target	
+table			
+table	 unrelated		
+td			
+td	 unrelated		
+th			
+th	 unrelated		

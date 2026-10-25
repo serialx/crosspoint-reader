@@ -1,0 +1,21 @@
+/* Class-based hiding */
+.hidden { display: none; }
+.invisible { display: none; }
+
+/* Element-based hiding */
+aside { display: none; }
+
+/* Combined element.class hiding */
+div.removeme { display: none; }
+span.secret { display: none; }
+img.suppressed { display: none; }
+
+/* Override: element.class takes priority over class */
+p.force-show { display: block; }
+
+/* Nested: parent hidden should hide children */
+.hidden-container { display: none; }
+
+/* Normal visible styles for contrast */
+.visible { display: block; }
+.highlight { font-weight: bold; }

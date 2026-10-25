@@ -1,0 +1,18 @@
+H1		TITLE	
+P		TITLE	
+P	B A		
+P	FIRST NOINDENT		
+P	STAR		
+div	a b c d e f g h i	id	
+h1		title	
+h1	 unrelated	title	
+p			
+p		title	
+p	 unrelated	title	
+p	b a		
+p	b a unrelated		
+p	first noindent		
+p	first noindent unrelated		
+p	star		
+p	star unrelated		
+span	note	target	

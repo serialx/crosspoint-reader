@@ -1,0 +1,6 @@
+P			body~~|div~~
+div	a b c d e f g h i	id	
+p			
+p			body~~|div~~
+p	 unrelated		body~~|div~~
+span	note	target	

@@ -164,6 +164,7 @@ impl Tokens {
         };
         byte.write((old & !(3 << shift)) | ((flags & 3) << shift));
     }
+    #[inline(always)]
     pub fn get(&self, index: usize) -> Option<Token> {
         if index >= self.len {
             return None;

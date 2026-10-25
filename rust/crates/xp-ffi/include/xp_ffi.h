@@ -182,7 +182,7 @@ void xp_layout_breaks_destroy(XpLayoutBreaks* breaks);
 
 // Paragraph breaking callbacks are synchronous and may not reenter layout. The
 // context and callback record outlive the call; no pointer is retained by Rust.
-// count/width describe one sequence. Successful split inserts exactly one word
+// widths describes the token sequence. Successful split inserts exactly one word
 // and updates widths; other metric callbacks do not mutate the sequence.
 // ruby intervals use exclusive ends. emit copies one break, returning 0 on OOM.
 // Both entry points return 1 on success, 0 on allocation/size/output failure.
@@ -190,8 +190,8 @@ void xp_layout_breaks_destroy(XpLayoutBreaks* breaks);
 // has no Rust allocations. Caller owns widths, split mutation and output storage.
 typedef struct {
   void* context;
-  size_t (*count)(void*);
-  uint16_t (*width)(void*, size_t);
+  const XpLayoutWidths* widths;
+  uint8_t has_ruby;
   uint8_t (*allows_break)(void*, size_t);
   int32_t (*gap)(void*, size_t);
   int32_t (*ruby_start)(void*, size_t, size_t);

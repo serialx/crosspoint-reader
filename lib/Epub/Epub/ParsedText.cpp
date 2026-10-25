@@ -993,8 +993,8 @@ ParagraphBreaks ParsedText::computeRustLineBreaks(const GfxRenderer& renderer, c
   } context{*this, renderer, fontId, wordWidths, breaks};
   const XpLayoutCallbacks callbacks = {
       &context,
-      [](void* raw) -> size_t { return static_cast<Context*>(raw)->widths.size(); },
-      [](void* raw, size_t i) -> uint16_t { return static_cast<Context*>(raw)->widths[i]; },
+      &wordWidths.state,
+      static_cast<uint8_t>(!rubyTexts.empty()),
       [](void* raw, size_t i) -> uint8_t {
         const auto& p = static_cast<Context*>(raw)->paragraph;
         return TokenBoundary::allowsBreak(p.tokenContinues(i), p.tokenNoSpaceBefore(i));

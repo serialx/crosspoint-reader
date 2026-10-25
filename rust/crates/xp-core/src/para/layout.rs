@@ -5,8 +5,8 @@ use core::{ffi::c_void, mem, ptr};
 #[repr(C)]
 pub struct Callbacks {
     pub context: *mut c_void,
-    pub count: unsafe extern "C" fn(*mut c_void) -> usize,
-    pub width: unsafe extern "C" fn(*mut c_void, usize) -> u16,
+    pub widths: *const Widths,
+    pub has_ruby: u8,
     pub allows_break: unsafe extern "C" fn(*mut c_void, usize) -> u8,
     pub gap: unsafe extern "C" fn(*mut c_void, usize) -> i32,
     pub ruby_start: unsafe extern "C" fn(*mut c_void, usize, usize) -> i32,
@@ -48,25 +48,25 @@ impl<T> Drop for Array<T> {
 }
 
 /// # Safety
-/// Callbacks and allocator remain valid, serialized and non-reentrant. count/width
-/// describe one sequence; split success inserts exactly one token and updates widths.
+/// Callbacks, widths and allocator remain valid, serialized and non-reentrant. Widths
+/// describes the token sequence; split success inserts exactly one token and updates widths.
 /// Other callbacks must not mutate it. Every queried index is in range, except
 /// ruby interval ends, which are exclusive. emit must copy the break before returning.
 pub unsafe fn optimal(c: &Callbacks, allocator: *const Allocator, page: i32, indent: i32) -> bool {
-    if (c.count)(c.context) == 0 {
+    if (*c.widths).len == 0 {
         return true;
     }
     let mut i = 0;
-    while i < (c.count)(c.context) {
+    while i < (*c.widths).len {
         let width = if i == 0 { page - indent } else { page };
-        while i32::from((c.width)(c.context, i)) > width {
+        while i32::from(*(*c.widths).data.add(i)) > width {
             if (c.split)(c.context, i, width, 1) == 0 {
                 break;
             }
         }
         i += 1;
     }
-    let n = (c.count)(c.context);
+    let n = (*c.widths).len;
     if n > i32::MAX as usize {
         return false;
     }
@@ -84,19 +84,23 @@ pub unsafe fn optimal(c: &Callbacks, allocator: *const Allocator, page: i32, ind
         let effective = if i == 0 { page - indent } else { page };
         for j in i..n {
             let gap = if j > i { (c.gap)(c.context, j) } else { 0 };
-            let start = if j == i {
+            let start = if j == i && c.has_ruby != 0 {
                 (c.ruby_start)(c.context, i, n)
             } else {
                 0
             };
-            length += i32::from((c.width)(c.context, j)) + gap + start;
+            length += i32::from(*(*c.widths).data.add(j)) + gap + start;
             if length > effective {
                 break;
             }
             if j + 1 < n && (c.allows_break)(c.context, j + 1) == 0 {
                 continue;
             }
-            let end = (c.ruby_end)(c.context, i, j + 1);
+            let end = if c.has_ruby != 0 {
+                (c.ruby_end)(c.context, i, j + 1)
+            } else {
+                0
+            };
             if length + end > effective {
                 continue;
             }
@@ -142,26 +146,33 @@ pub unsafe fn greedy(
     let mut current = 0;
     let mut first = !first_consumed;
     let mut lines = 0;
-    while current < (c.count)(c.context) && lines < max_lines {
+    while current < (*c.widths).len && lines < max_lines {
         let start = current;
         let mut fitting = start;
-        let mut width = (c.ruby_start)(c.context, start, (c.count)(c.context));
+        let mut width = if c.has_ruby != 0 {
+            (c.ruby_start)(c.context, start, (*c.widths).len)
+        } else {
+            0
+        };
         let effective = if first { page - indent } else { page };
-        while current < (c.count)(c.context) {
+        while current < (*c.widths).len {
             let first_word = current == start;
             let spacing = if first_word {
                 0
             } else {
                 (c.gap)(c.context, current)
             };
-            let candidate = spacing + i32::from((c.width)(c.context, current));
-            let end = (c.ruby_end)(c.context, start, current + 1);
+            let candidate = spacing + i32::from(*(*c.widths).data.add(current));
+            let end = if c.has_ruby != 0 {
+                (c.ruby_end)(c.context, start, current + 1)
+            } else {
+                0
+            };
             if width + candidate <= effective {
                 width += candidate;
                 current += 1;
                 if width + end <= effective
-                    && (current == (c.count)(c.context)
-                        || (c.allows_break)(c.context, current) != 0)
+                    && (current == (*c.widths).len || (c.allows_break)(c.context, current) != 0)
                 {
                     fitting = current;
                 }
@@ -186,7 +197,7 @@ pub unsafe fn greedy(
             current = fitting;
         }
         while current > start + 1
-            && current < (c.count)(c.context)
+            && current < (*c.widths).len
             && (c.allows_break)(c.context, current) == 0
         {
             current -= 1;
@@ -317,6 +328,7 @@ mod tests {
     static ALLOCATOR: Allocator = Allocator { allocate, release };
     struct Fixture {
         widths: Vec<u16>,
+        cache: Widths,
         breaks: Vec<usize>,
         attached: usize,
         gap: i32,
@@ -329,6 +341,13 @@ mod tests {
         fn new(widths: &[u16]) -> Self {
             Self {
                 widths: widths.to_vec(),
+                cache: Widths {
+                    data: ptr::null_mut(),
+                    len: 0,
+                    capacity: 0,
+                    allocator: &ALLOCATOR,
+                    failed: 0,
+                },
                 breaks: vec![],
                 attached: usize::MAX,
                 gap: 0,
@@ -338,13 +357,12 @@ mod tests {
                 fail_emit: false,
             }
         }
+        fn refresh_cache(&mut self) {
+            self.cache.data = self.widths.as_mut_ptr();
+            self.cache.len = self.widths.len();
+            self.cache.capacity = self.widths.capacity();
+        }
         fn callbacks(&mut self) -> Callbacks {
-            unsafe extern "C" fn count(p: *mut c_void) -> usize {
-                (*p.cast::<Fixture>()).widths.len()
-            }
-            unsafe extern "C" fn width(p: *mut c_void, i: usize) -> u16 {
-                (&(*p.cast::<Fixture>()).widths)[i]
-            }
             unsafe extern "C" fn allows(p: *mut c_void, i: usize) -> u8 {
                 u8::from((*p.cast::<Fixture>()).attached != i)
             }
@@ -371,6 +389,7 @@ mod tests {
                 let rest = f.widths[i] - available as u16;
                 f.widths[i] = available as u16;
                 f.widths.insert(i + 1, rest);
+                f.refresh_cache();
                 1
             }
             unsafe extern "C" fn emit(p: *mut c_void, i: usize) -> u8 {
@@ -381,10 +400,11 @@ mod tests {
                 f.breaks.push(i);
                 1
             }
+            self.refresh_cache();
             Callbacks {
                 context: (self as *mut Self).cast(),
-                count,
-                width,
+                widths: &self.cache,
+                has_ruby: u8::from(self.ruby_end != 0),
                 allows_break: allows,
                 gap,
                 ruby_start: start,

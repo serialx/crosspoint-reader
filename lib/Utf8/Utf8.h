@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_ffi.h>
+
 #include <cstdint>
 #include <string>
 #define REPLACEMENT_GLYPH 0xFFFD
@@ -34,10 +36,10 @@ uint32_t utf8DecomposedBase(uint32_t cp);
 // incomplete trailing bytes are excluded.
 int utf8SafeTruncateBuffer(const char* buf, int len);
 
-// Shared Rust text categories preserve the firmware's existing Unicode ranges.
-bool utf8IsCjkBreakable(uint32_t cp);
+// Reject common non-CJK codepoints before crossing FFI for Unicode range checks.
+inline bool utf8IsCjkBreakable(const uint32_t cp) { return cp >= 0x1100 && xp_text_cjk(cp); }
 bool utf8IsHangul(uint32_t cp);
 // Writes 1-4 bytes without a terminator; retains the permissive encoder policy.
 char* utf8AppendCodepoint(char* output, uint32_t codepoint);
 uint32_t utf8SmallCapsUpper(uint32_t cp);
-bool utf8IsCombiningMark(uint32_t cp);
+inline bool utf8IsCombiningMark(const uint32_t cp) { return cp >= 0x0300 && xp_text_combining(cp); }

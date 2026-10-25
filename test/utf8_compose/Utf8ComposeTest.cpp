@@ -176,6 +176,15 @@ TEST(TextFfi, IncompleteInputNeedsNoTerminator) {
 
 class Utf8NextCodepoint : public testing::TestWithParam<std::tuple<std::string, uint32_t, size_t>> {};
 
+TEST(Utf8NextCodepoint, AsciiStopsAtTerminator) {
+  const unsigned char input[] = {'A', 0};
+  const unsigned char* cursor = input;
+  EXPECT_EQ(utf8NextCodepoint(&cursor), static_cast<uint32_t>('A'));
+  EXPECT_EQ(cursor, input + 1);
+  EXPECT_EQ(utf8NextCodepoint(&cursor), 0u);
+  EXPECT_EQ(cursor, input + 1);
+}
+
 TEST_P(Utf8NextCodepoint, ExactUnterminatedAllocation) {
   const auto& [bytes, expectedCodepoint, expectedConsumed] = GetParam();
   auto input = std::make_unique<unsigned char[]>(bytes.size());

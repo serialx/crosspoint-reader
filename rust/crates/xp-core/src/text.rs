@@ -3,9 +3,11 @@
 pub fn cjk(cp: u32) -> bool {
     matches!(cp, 0x1100..=0x11FF | 0x3000..=0x303F | 0x3040..=0x309F | 0x30A0..=0x30FF | 0x3130..=0x318F | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xAC00..=0xD7AF | 0xD7B0..=0xD7FF | 0xF900..=0xFAFF | 0xFE30..=0xFE4F | 0xFF01..=0xFF60 | 0xFF65..=0xFFEF | 0x20000..=0x2A6DF | 0x2A700..=0x2B73F)
 }
+#[inline(never)]
 pub fn hangul(cp: u32) -> bool {
     matches!(cp, 0x1100..=0x11FF | 0x3130..=0x318F | 0xA960..=0xA97F | 0xAC00..=0xD7FF | 0xFFA0..=0xFFDC)
 }
+#[inline(never)]
 pub fn combining(cp: u32) -> bool {
     matches!(cp, 0x0300..=0x036F | 0x1DC0..=0x1DFF | 0x20D0..=0x20FF | 0xFE20..=0xFE2F)
 }
@@ -100,6 +102,7 @@ pub fn small_caps_upper(cp: u32) -> u32 {
         _ => cp,
     }
 }
+#[inline(never)]
 pub fn break_after_hyphen(cp: u32) -> bool {
     explicit(cp) && cp != 0xad && cp != 0x2011
 }
@@ -174,12 +177,15 @@ pub fn boundary(left: u32, right: u32) -> bool {
 }
 pub fn opportunity(left: u32, right: u32) -> bool {
     if break_after_hyphen(left) {
-        return boundary(left, right);
+        return !no_break_before(right);
     }
     !hangul(left) && !hangul(right) && boundary(left, right)
 }
 /// Returns the accepted count; emits only when capacity suffices and CJK is present.
 pub fn character_offsets(bytes: &[u8], capacity: usize, emit: &mut impl FnMut(usize)) -> usize {
+    if bytes.iter().all(|b| *b < 0x80) {
+        return 0;
+    }
     let mut pos = 0;
     let Some(mut previous) = crate::utf8::next(bytes, &mut pos) else {
         return 0;

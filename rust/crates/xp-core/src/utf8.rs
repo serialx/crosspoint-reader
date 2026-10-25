@@ -37,23 +37,24 @@ pub fn next(bytes: &[u8], position: &mut usize) -> Option<u32> {
 }
 
 pub fn encode(cp: u32, out: &mut [u8; 4]) -> usize {
-    let n = if cp < 0x80 {
-        1
-    } else if cp < 0x800 {
-        2
-    } else if cp < 0x10000 {
-        3
-    } else {
-        4
-    };
-    if n == 1 {
+    if cp < 0x80 {
         out[0] = cp as u8;
         return 1;
     }
-    out[0] = (([0, 0, 0xc0, 0xe0, 0xf0][n]) | (cp >> (6 * (n - 1)))) as u8;
-    for (i, byte) in out.iter_mut().enumerate().take(n).skip(1) {
-        *byte = (0x80 | ((cp >> (6 * (n - i - 1))) & 0x3f)) as u8;
-    }
+    let n = if cp < 0x800 {
+        out[0] = (0xc0 | (cp >> 6)) as u8;
+        2
+    } else if cp < 0x10000 {
+        out[0] = (0xe0 | (cp >> 12)) as u8;
+        out[1] = (0x80 | ((cp >> 6) & 0x3f)) as u8;
+        3
+    } else {
+        out[0] = (0xf0 | (cp >> 18)) as u8;
+        out[1] = (0x80 | ((cp >> 12) & 0x3f)) as u8;
+        out[2] = (0x80 | ((cp >> 6) & 0x3f)) as u8;
+        4
+    };
+    out[n - 1] = (0x80 | (cp & 0x3f)) as u8;
     n
 }
 fn codepoint_len(lead: u8) -> usize {

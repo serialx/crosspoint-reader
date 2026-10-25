@@ -6,6 +6,10 @@
 
 uint32_t utf8NextCodepoint(const unsigned char** string) {
   const unsigned char lead = **string;
+  if (lead < 0x80) {
+    if (lead != 0) ++*string;
+    return lead;
+  }
   size_t expected = 1;
   if ((lead & 0xE0) == 0xC0) {
     expected = 2;
@@ -69,7 +73,5 @@ void utf8ComposeNfcInPlace(char* buffer) {
   buffer[len] = '\0';
 }
 uint32_t utf8DecomposedBase(const uint32_t cp) { return xp_text_decomposed_base(cp); }
-bool utf8IsCjkBreakable(const uint32_t cp) { return xp_text_cjk(cp); }
 bool utf8IsHangul(const uint32_t cp) { return xp_text_hangul(cp); }
-bool utf8IsCombiningMark(const uint32_t cp) { return xp_text_combining(cp); }
 uint32_t utf8SmallCapsUpper(const uint32_t cp) { return xp_text_upper(cp); }

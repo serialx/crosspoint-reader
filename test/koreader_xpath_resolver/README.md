@@ -13,7 +13,9 @@ input byte length, and progress values below zero through above one. Small cases
 also use 1/7/512-byte feeds; production feeds are 1024 bytes. Results are checked
 per feed schedule: whitespace anchoring can depend on character callback splits.
 The cases include hidden nesting, comments, PI, CDATA, Unicode, namespaced/case
-sensitive elements, declared entities, and a match before malformed trailing XML.
+sensitive elements, declared entities, UTF-16/Latin-1, long attributes, and a match
+before malformed trailing XML. A match first delivered during finalization must
+return empty, preserving the original aborted-final-parse behavior.
 
 ```sh
 cmake -S test -B build/test

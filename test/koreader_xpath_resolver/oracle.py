@@ -56,6 +56,18 @@ def inputs():
     }
     for name, value in special.items():
         yield 'hand/' + name, value.encode(), 2, (1, 7, 512, 1024)
+    for length in (990, 1000, 1001, 1008, 1009, 1010, 1011, 1012, 1015, 1024, 2000, 2048, 4096, 8192):
+        data = ('<html><body><p x="' + 'a' * length + '">   A</p><p>B</p></body></html>').encode()
+        yield f'hand/long-attribute-{length}', data, 0, (1, 7, 512, 1024)
+    for encoding in ('utf-16le', 'utf-16be', 'iso-8859-1'):
+        declared = 'UTF-16' if encoding.startswith('utf-16') else 'ISO-8859-1'
+        text = f'<?xml version="1.0" encoding="{declared}"?><html><body><p> a\r\né<!--c--> z</p></body></html>'
+        data = text.encode(encoding)
+        if encoding == 'utf-16le':
+            data = b'\xff\xfe' + data
+        elif encoding == 'utf-16be':
+            data = b'\xfe\xff' + data
+        yield 'hand/' + encoding, data, 0, (1, 7, 512, 1024)
     for epub in sorted((REPO / 'test/epubs').glob('*.epub')):
         with zipfile.ZipFile(epub) as z:
             root = ET.fromstring(z.read('META-INF/container.xml'))

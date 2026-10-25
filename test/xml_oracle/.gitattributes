@@ -1,0 +1,2 @@
+# Preserve malformed encodings and intentional XML whitespace byte for byte.
+corpus/* -text -diff

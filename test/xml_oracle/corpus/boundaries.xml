@@ -1,0 +1,2 @@
+<?before data?><r>a<!-- hi -->b<![CDATA[c
+d]]>e<?inside x?>f</r>

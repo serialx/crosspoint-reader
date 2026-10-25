@@ -1,0 +1,382 @@
+{
+  "basic.xml": {
+    "source": "handwritten",
+    "sha256": "80b4b96d033563698e20af836b68a44bc493c1774943fee050fb73965598e9e4"
+  },
+  "predefined.xml": {
+    "source": "handwritten",
+    "sha256": "40b7789fd56097f800eef55ce54c425a88bb1c94a74080fbbfa7e5775a8bdad1"
+  },
+  "numeric.xml": {
+    "source": "handwritten",
+    "sha256": "4d9d5794825249adddba68205e201e0733d273294afe9cc8c1d8300c07f1c0f6"
+  },
+  "line_endings.xml": {
+    "source": "handwritten",
+    "sha256": "d1d0dbcae243b9bb70c55df0ce712c65b5b5563a06f4b71053d3c484555cdcd7"
+  },
+  "boundaries.xml": {
+    "source": "handwritten",
+    "sha256": "29bf3d237da06f299e34a7e9cf1149dd168dbb301ce53ab1a3f0073c99e75928"
+  },
+  "utf8.xml": {
+    "source": "handwritten",
+    "sha256": "15bba488ba089566ad2ad67a9ea7b07910abe74c9480a319447ee9ad752f924a"
+  },
+  "bom.xml": {
+    "source": "handwritten",
+    "sha256": "b4ec64157d6287dfa2a158518cd928768615eec08ea14bf7730f6d8127e36ff0"
+  },
+  "declared_entity.xml": {
+    "source": "handwritten",
+    "sha256": "ab116f787287e96f33cec975353d9830bd83b98adb8d2ac896b60c9750b25fbd"
+  },
+  "external_entity.xml": {
+    "source": "handwritten",
+    "sha256": "ff603ada055b71831c1009a9868c16ccb40075ead6eb2b461a65c27705db2aa0"
+  },
+  "undefined.xml": {
+    "source": "handwritten",
+    "sha256": "8d416df82ef4e642cf54dabdf812a193e10b99610b93ca7a8eb7f0d77ebb3b35"
+  },
+  "undefined_attribute.xml": {
+    "source": "handwritten",
+    "sha256": "8e4220eef29eef2711215e0e97ad84df743183c53ce479280c4e64765949cdc6"
+  },
+  "external_doctype.xml": {
+    "source": "handwritten",
+    "sha256": "84cc98bc89a27e22a8fdc77aa5aba4fe54eaa0942c5e6c76518ed63f3914c0f1"
+  },
+  "internal_doctype.xml": {
+    "source": "handwritten",
+    "sha256": "a0dcf4d682172bd5ca8e605a0e343dde4ef66748aa8b9b89d5a9af4bc84766d8"
+  },
+  "parameter_entity.xml": {
+    "source": "handwritten",
+    "sha256": "cf612d1070a1dc73a805c90131f437464651211cb59a216b31565719c1f75938"
+  },
+  "standalone_yes.xml": {
+    "source": "handwritten",
+    "sha256": "01577db8f2246a731780f04e1fa971badcb81d29acba5418b405109b014441ee"
+  },
+  "standalone_no.xml": {
+    "source": "handwritten",
+    "sha256": "74e51fe85d312fbce003452b4e3fed9a3d3298a1dcfd14b7f934305af5cdbe02"
+  },
+  "default_attributes.xml": {
+    "source": "handwritten",
+    "sha256": "2a15fe6eb1bd3c5d306e2b3f02f9c0449909129d0fc4b122a141ecb3e215ca00"
+  },
+  "duplicate_attribute.xml": {
+    "source": "handwritten",
+    "sha256": "09762bc6978a615f459d39b9a443fc27c42fc5cb98bff0411211cb5957e58efb"
+  },
+  "mismatch.xml": {
+    "source": "handwritten",
+    "sha256": "acaaae9cb4eceb1f426dbfd5adfd8d2f6f3626cdd56ced88c3548a540f4517aa"
+  },
+  "trailing_junk.xml": {
+    "source": "handwritten",
+    "sha256": "19e7bef3eb7c8ba6de7ef822c84c375539ba67ff39f72f2a21d6f08d5bcd9ff2"
+  },
+  "two_roots.xml": {
+    "source": "handwritten",
+    "sha256": "bedd6e9394b411e274a00017fc2d0f9646c2a7ff4eea783eb103872c8fa06fcb"
+  },
+  "bad_comment.xml": {
+    "source": "handwritten",
+    "sha256": "9e834f20489abea9b64c6ac5a23548967a947dcc1ae8d63afdcba6c664c55473"
+  },
+  "bad_cdata.xml": {
+    "source": "handwritten",
+    "sha256": "9dca57b0b5dbbe89c869713165b933bff7615087c014dba8c402579a77373725"
+  },
+  "bad_pi.xml": {
+    "source": "handwritten",
+    "sha256": "ccd64bfd8115f0ab7e7cd3b5c24dfc34eeddbf64b555517b4120960a011fa91a"
+  },
+  "bad_utf8.xml": {
+    "source": "handwritten",
+    "sha256": "3264d19c24465e0db1168f9978e17ce02cedf55bd46566f06fa8b9f82731b7e4"
+  },
+  "bad_name.xml": {
+    "source": "handwritten",
+    "sha256": "2e217006b9c1e17de00e12459acb41ea0100bf850c2dbd31e9c9a424c0e56208"
+  },
+  "empty.xml": {
+    "source": "handwritten",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "invalid_numeric_0.xml": {
+    "source": "handwritten",
+    "sha256": "de3d67aaa159e24694c7a3def6e9435a5e857a732a69bfbb09e7bc19eda55f64"
+  },
+  "invalid_numeric_xD800.xml": {
+    "source": "handwritten",
+    "sha256": "14f2926a32243acb22c9ec6f4b319f663f46352b428e8b6df496755139810de0"
+  },
+  "invalid_numeric_x110000.xml": {
+    "source": "handwritten",
+    "sha256": "bb33aabace22df4fdc656a843833318b251e2a6fc7297fd63c5355ed93924963"
+  },
+  "invalid_numeric_xFFFE.xml": {
+    "source": "handwritten",
+    "sha256": "e91a5072a1b1e05f1a2be82d068604fefe90225afec59a544a9395df2c2e5c9e"
+  },
+  "invalid_numeric_xFFFF.xml": {
+    "source": "handwritten",
+    "sha256": "721dd65688a3bfa99e664dc9c24333794891e3e2e3b55e0a5939a99303650aac"
+  },
+  "invalid_numeric_1.xml": {
+    "source": "handwritten",
+    "sha256": "0cfdbdc7ee356c3605883495200e06c029e548e361d4220cb4f0674d0b5827df"
+  },
+  "invalid_numeric_xZZ.xml": {
+    "source": "handwritten",
+    "sha256": "6e43db5ddce5da6b2e407b9abd2849020978725d3a0c1b7040e26508ee3502ba"
+  },
+  "invalid_numeric_999999999999999999999.xml": {
+    "source": "handwritten",
+    "sha256": "0e0f9ee1e01de04051a9dad8cc583ef309dd574d9bbebc09b1c5f8af5f9e7d90"
+  },
+  "encoding_UTF-8.xml": {
+    "source": "handwritten",
+    "sha256": "7c4e2aa225c88bb98542d62cf56d7b28dac7aa00da700ef39c789126c10fe586"
+  },
+  "encoding_US-ASCII.xml": {
+    "source": "handwritten",
+    "sha256": "d738a3c992ef898f1a460f12cc9f12bc6c4601171ff8f3a6215feec7789c725e"
+  },
+  "encoding_ISO-8859-1.xml": {
+    "source": "handwritten",
+    "sha256": "46c53eaae020969f148f18a8c63943ac8ead5747e688d166e29bef2e081f772f"
+  },
+  "encoding_UTF-16.xml": {
+    "source": "handwritten",
+    "sha256": "394789c612f600bae035cd3bcb4640466a7e26d0cd4de4b27081a67d661f356c"
+  },
+  "encoding_windows-1252.xml": {
+    "source": "handwritten",
+    "sha256": "ff4faa3d000b8b69c49d304772b8151448302e1f4af332affdda416556a63efe"
+  },
+  "encoding_unknown.xml": {
+    "source": "handwritten",
+    "sha256": "1f84380632e98026cd5221d7f1cc5e669986c572602bdea22c41974747d59982"
+  },
+  "latin1.xml": {
+    "source": "handwritten",
+    "sha256": "2a2e77b6eddf092c7a5d5f81baab601755f19154ddee76573f853a8cb41b0327"
+  },
+  "utf16le.xml": {
+    "source": "handwritten",
+    "sha256": "9fad35de2c6315c55ee0f52757b12a63602e5ec86a1e75bcd11648ab0e0f6100"
+  },
+  "utf16be.xml": {
+    "source": "handwritten",
+    "sha256": "eed7764730f16902d2370d80135a250c8d6e0cc9d5cb3b9567603cb6604ee640"
+  },
+  "long_token.xml": {
+    "source": "handwritten",
+    "sha256": "4f554085867b9d2347671bb5f33d0eb991432cc27743236d65078faf2d0eec30"
+  },
+  "truncated_1.xml": {
+    "source": "handwritten",
+    "sha256": "dabd3aff769f07eb2965401eb029974ebba3407afd02b26ddb564ea5f8efae72"
+  },
+  "truncated_5.xml": {
+    "source": "handwritten",
+    "sha256": "6b22e9a26a4c136eb28e21aa78055a393990945606d78fc3f4442bacf21bf109"
+  },
+  "truncated_22.xml": {
+    "source": "handwritten",
+    "sha256": "fa1584b437250e97028e963c3f57f9b1d32ccd0d1fe41e24bf75390a8309ff8e"
+  },
+  "truncated_28.xml": {
+    "source": "handwritten",
+    "sha256": "f68b482bf8aa634a28cdb2d2ed57da3a0ced586d9bc87f5e3adf3fc8fca4af5e"
+  },
+  "truncated_35.xml": {
+    "source": "handwritten",
+    "sha256": "36aaf2306199f1bfd7ad3f139bd96ec3fb0e5607199cd3f23afd414e93b82d9e"
+  },
+  "truncated_40.xml": {
+    "source": "handwritten",
+    "sha256": "e3fc2f1bb329164766046934c019b8bc952b11f253b9e14413ba1b55bfff3e60"
+  },
+  "truncated_43.xml": {
+    "source": "handwritten",
+    "sha256": "ee7c003eca4e6c6b5ecfd1229f96a414a40ac0a906d763ac910d1bec91e57794"
+  },
+  "truncated_50.xml": {
+    "source": "handwritten",
+    "sha256": "c4bd8a9962edd1be0eda294c4c4edb346a9b434b31554e7f8c9e855a6f6d89bb"
+  },
+  "truncated_57.xml": {
+    "source": "handwritten",
+    "sha256": "bdeb2f138d23e2d849f1924350e0f785415efcf5378a6d70fce196a3694beb78"
+  },
+  "truncated_66.xml": {
+    "source": "handwritten",
+    "sha256": "73140f95b4c4ef5273411fd491721988fd7e36d3d58191a30d9a85a34eabc02d"
+  },
+  "truncated_70.xml": {
+    "source": "handwritten",
+    "sha256": "772b8a63742bf69c8157d0b0f437f709a6c4252eaf451771c077c57ea6b8ba8b"
+  },
+  "crosspoint-table-edge-cases--META-INF_container.xml": {
+    "source": "test/epubs/crosspoint-table-edge-cases.epub:META-INF/container.xml",
+    "sha256": "d573ec3f393c16e5523e6ed1310b3cf736b1a32312f861f39f7d9683c70a3fba"
+  },
+  "crosspoint-table-edge-cases--EPUB_nav.xhtml": {
+    "source": "test/epubs/crosspoint-table-edge-cases.epub:EPUB/nav.xhtml",
+    "sha256": "84b2e50548f8f20dd17d3e0b6928d3ce8362ac52687dedd4716cafef6ff7d4cc"
+  },
+  "font-prewarm-benchmark--META-INF_container.xml": {
+    "source": "test/epubs/font-prewarm-benchmark.epub:META-INF/container.xml",
+    "sha256": "014cc1b89e997f98f48ec584da90b79eb9f5031cefa37df76074f37bb37a532a"
+  },
+  "font-prewarm-benchmark--OEBPS_nav.xhtml": {
+    "source": "test/epubs/font-prewarm-benchmark.epub:OEBPS/nav.xhtml",
+    "sha256": "db23a76be7b3db3d692b94c3a8737d501159188897a220513ffbc0322157b680"
+  },
+  "test_br_section_break--META-INF_container.xml": {
+    "source": "test/epubs/test_br_section_break.epub:META-INF/container.xml",
+    "sha256": "0a3a1b038b6ba34e29a1148cc3ade7287f09c7feb98f2b77acec4338c7dbdff8"
+  },
+  "test_br_section_break--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_br_section_break.epub:OEBPS/nav.xhtml",
+    "sha256": "4b3d5762e8f07c167339fda3400a85e5a72161145b5d7a4dbfe2e6c852099a92"
+  },
+  "test_dictionary_synonyms--META-INF_container.xml": {
+    "source": "test/epubs/test_dictionary_synonyms.epub:META-INF/container.xml",
+    "sha256": "7d7b6e71fa759c350444d886176d05d0945c248c013d01f7bd493692189f6788"
+  },
+  "test_dictionary_synonyms--OEBPS_toc.ncx": {
+    "source": "test/epubs/test_dictionary_synonyms.epub:OEBPS/toc.ncx",
+    "sha256": "668f2ec41973c5d94267d02e27f5cbeb305809683c2130eb56105f2bb150f374"
+  },
+  "test_display_none--META-INF_container.xml": {
+    "source": "test/epubs/test_display_none.epub:META-INF/container.xml",
+    "sha256": "f4a3370e582d3b476e387d13a2ed74c400bb3bc336cbd3751b96ca18e3ce5997"
+  },
+  "test_display_none--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_display_none.epub:OEBPS/nav.xhtml",
+    "sha256": "4174cd8985c6f3fe1b427949353de5790433e3c016043a181a5521a5fae34dfa"
+  },
+  "test_emoji_ranges--META-INF_container.xml": {
+    "source": "test/epubs/test_emoji_ranges.epub:META-INF/container.xml",
+    "sha256": "014cc1b89e997f98f48ec584da90b79eb9f5031cefa37df76074f37bb37a532a"
+  },
+  "test_emoji_ranges--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_emoji_ranges.epub:OEBPS/nav.xhtml",
+    "sha256": "136063b8fbbc28dbad1183bf4d6f964192c368bc4f570c43cf20aff92aca76ed"
+  },
+  "test_force_paragraph_indents--META-INF_container.xml": {
+    "source": "test/epubs/test_force_paragraph_indents.epub:META-INF/container.xml",
+    "sha256": "014cc1b89e997f98f48ec584da90b79eb9f5031cefa37df76074f37bb37a532a"
+  },
+  "test_force_paragraph_indents--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_force_paragraph_indents.epub:OEBPS/nav.xhtml",
+    "sha256": "8bbe534d23b6efdab64a86d663879f930f459ec38796da936d25e4e41fb09902"
+  },
+  "test_hidden--META-INF_container.xml": {
+    "source": "test/epubs/test_hidden.epub:META-INF/container.xml",
+    "sha256": "5cd54c6a57266858475091ec1e3ab59bbf3ce5f2463c9b9e2e8b64e332816521"
+  },
+  "test_hidden--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_hidden.epub:OEBPS/nav.xhtml",
+    "sha256": "530800f8e7246c7cd36956039964eca43dcf7db6538a015b6f857cdfa22bc765"
+  },
+  "test_jpeg_images--META-INF_container.xml": {
+    "source": "test/epubs/test_jpeg_images.epub:META-INF/container.xml",
+    "sha256": "f4a3370e582d3b476e387d13a2ed74c400bb3bc336cbd3751b96ca18e3ce5997"
+  },
+  "test_jpeg_images--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_jpeg_images.epub:OEBPS/nav.xhtml",
+    "sha256": "36d6bce8f4648e440cd001d0f07a1358c375c360303cb2a18f46f64817eedef4"
+  },
+  "test_kerning_ligature--META-INF_container.xml": {
+    "source": "test/epubs/test_kerning_ligature.epub:META-INF/container.xml",
+    "sha256": "014cc1b89e997f98f48ec584da90b79eb9f5031cefa37df76074f37bb37a532a"
+  },
+  "test_kerning_ligature--OEBPS_toc.xhtml": {
+    "source": "test/epubs/test_kerning_ligature.epub:OEBPS/toc.xhtml",
+    "sha256": "f47792ff5a268dbeebdb7a00af19f21c82ebadb79a9a72bd6a49aae1cc82521e"
+  },
+  "test_mixed_images--META-INF_container.xml": {
+    "source": "test/epubs/test_mixed_images.epub:META-INF/container.xml",
+    "sha256": "f4a3370e582d3b476e387d13a2ed74c400bb3bc336cbd3751b96ca18e3ce5997"
+  },
+  "test_mixed_images--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_mixed_images.epub:OEBPS/nav.xhtml",
+    "sha256": "7ff4beca47c4661acfbda5b9ad18855f1d9f13694f384e8d87e5b082c935ad1d"
+  },
+  "test_png_images--META-INF_container.xml": {
+    "source": "test/epubs/test_png_images.epub:META-INF/container.xml",
+    "sha256": "f4a3370e582d3b476e387d13a2ed74c400bb3bc336cbd3751b96ca18e3ce5997"
+  },
+  "test_png_images--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_png_images.epub:OEBPS/nav.xhtml",
+    "sha256": "0c1b9c5dded26e50eca4fe34f4429933b86e77c9515d9840a73f5de1c4c16443"
+  },
+  "test_reader_menu_progress--META-INF_container.xml": {
+    "source": "test/epubs/test_reader_menu_progress.epub:META-INF/container.xml",
+    "sha256": "7d7b6e71fa759c350444d886176d05d0945c248c013d01f7bd493692189f6788"
+  },
+  "test_reader_menu_progress--OEBPS_toc.ncx": {
+    "source": "test/epubs/test_reader_menu_progress.epub:OEBPS/toc.ncx",
+    "sha256": "0b762f43cba9ba478fc01de4faa07672726f01c4f38e2343ff5b511be00465b3"
+  },
+  "test_reader_rendering_matrix--META-INF_container.xml": {
+    "source": "test/epubs/test_reader_rendering_matrix.epub:META-INF/container.xml",
+    "sha256": "014cc1b89e997f98f48ec584da90b79eb9f5031cefa37df76074f37bb37a532a"
+  },
+  "test_reader_rendering_matrix--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_reader_rendering_matrix.epub:OEBPS/nav.xhtml",
+    "sha256": "db13af7864c87f03f054a465a8b1c17c2abd399dacf8e63071974460aac5a443"
+  },
+  "test_reader_rendering_matrix--OEBPS_toc.ncx": {
+    "source": "test/epubs/test_reader_rendering_matrix.epub:OEBPS/toc.ncx",
+    "sha256": "13fd3e53950173c208264dc32d7834550e2d353a41f7d14a182ab419ee0dfc71"
+  },
+  "test_supsub--META-INF_container.xml": {
+    "source": "test/epubs/test_supsub.epub:META-INF/container.xml",
+    "sha256": "7d7b6e71fa759c350444d886176d05d0945c248c013d01f7bd493692189f6788"
+  },
+  "test_supsub--OEBPS_toc.ncx": {
+    "source": "test/epubs/test_supsub.epub:OEBPS/toc.ncx",
+    "sha256": "49cb4e714f2748f914bcee9fc86569d6c611c4a26faab06ff8fce34c9f8ee193"
+  },
+  "test_synthetic_unicode_glyphs--META-INF_container.xml": {
+    "source": "test/epubs/test_synthetic_unicode_glyphs.epub:META-INF/container.xml",
+    "sha256": "014cc1b89e997f98f48ec584da90b79eb9f5031cefa37df76074f37bb37a532a"
+  },
+  "test_synthetic_unicode_glyphs--OEBPS_nav.xhtml": {
+    "source": "test/epubs/test_synthetic_unicode_glyphs.epub:OEBPS/nav.xhtml",
+    "sha256": "7a3e870c1042f4b9c8ad1d78199d6a5fe06d459e2385f416f6726daf7b0d6d9a"
+  },
+  "test_synthetic_unicode_glyphs--OEBPS_toc.ncx": {
+    "source": "test/epubs/test_synthetic_unicode_glyphs.epub:OEBPS/toc.ncx",
+    "sha256": "2e4f6ab47a1bdb1175b39d9a804980d14638a93f06623b70e8c2e275856dcb5b"
+  },
+  "test_tables--META-INF_container.xml": {
+    "source": "test/epubs/test_tables.epub:META-INF/container.xml",
+    "sha256": "7c06491ce25e3cc80ccec0eed382c4c5570265f886415e4ce0cbe5866a57c461"
+  },
+  "test_tables--EPUB_toc.ncx": {
+    "source": "test/epubs/test_tables.epub:EPUB/toc.ncx",
+    "sha256": "43949c763bd252684aa8d075caba16b4a3538fc849ee090a61b7d2ea5ecd46ff"
+  },
+  "test_tables--EPUB_nav.xhtml": {
+    "source": "test/epubs/test_tables.epub:EPUB/nav.xhtml",
+    "sha256": "162fa886a8ccad485aac20f14dc4d330db6bc147fbbfc342a580781d7f03ae69"
+  },
+  "test_text_decorations--META-INF_container.xml": {
+    "source": "test/epubs/test_text_decorations.epub:META-INF/container.xml",
+    "sha256": "2ffba6b75d46c551e80e800704238fdf0b303bab480f23b1d6c9d860fc9f27ba"
+  },
+  "test_text_decorations--toc.ncx": {
+    "source": "test/epubs/test_text_decorations.epub:toc.ncx",
+    "sha256": "244e881102ec9be07757d897e96f3610a980efe8d4c2b67d971608615a7fbdc2"
+  }
+}

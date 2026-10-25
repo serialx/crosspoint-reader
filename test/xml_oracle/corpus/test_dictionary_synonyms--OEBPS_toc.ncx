@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="test-dictionary-synonyms-001"/>
+  </head>
+  <docTitle><text>Synonym Lookup Test</text></docTitle>
+  <navMap>
+    
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel><text>Introduction</text></navLabel>
+      <content src="chapter0.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-2" playOrder="2">
+      <navLabel><text>Spelling variants</text></navLabel>
+      <content src="chapter1.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-3" playOrder="3">
+      <navLabel><text>Contractions and older forms</text></navLabel>
+      <content src="chapter2.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-4" playOrder="4">
+      <navLabel><text>Hyphenation variant</text></navLabel>
+      <content src="chapter3.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-5" playOrder="5">
+      <navLabel><text>Control words</text></navLabel>
+      <content src="chapter4.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>

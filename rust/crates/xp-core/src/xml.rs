@@ -539,6 +539,19 @@ impl Parser {
                     }
                 }
                 Token::Entity => {
+                    if self.internal_subset && self.token.starts_with(b"%") {
+                        let index = self.token.len().saturating_sub(c.len_utf8());
+                        if index == 1 && !name_start(c) {
+                            return Err(if matches!(c, ' ' | '\r' | '\n' | '\t' | '%') {
+                                (2, 0)
+                            } else {
+                                (4, index)
+                            });
+                        }
+                        if index > 1 && c != ';' && !name_continue(c) {
+                            return Err((4, index));
+                        }
+                    }
                     if self.phase != Phase::Content
                         && self.token.starts_with(b"&")
                         && (self.offset != 0 || self.input.len() > 1)
@@ -1085,6 +1098,9 @@ impl Parser {
         if self.internal_subset && token.starts_with(b"<!") {
             self.dtd_declaration(token)?;
             return Ok(false);
+        }
+        if self.internal_subset {
+            return Err((2, 0));
         }
         if token.starts_with(b"<!DOCTYPE") {
             if self.phase != Phase::Prolog || self.doctype_seen {

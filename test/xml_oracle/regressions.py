@@ -42,6 +42,15 @@ def cases():
         yield f"wide_pi_{i}", f'<?p {value}?><r/>'
         yield f"wide_text_{i}", f'<r>{value}<p/></r>'
         yield f"wide_attribute_{i}", f'<r a="{value}" b="after"/>'
+    references = ("%", "%;", "%1;", "%#1;", "%#x41;", "% ;", "%\t;", "%\r\n;",
+                  "%%;", "%p ;", "%p<;", "%p];", "%p&;", "%p%;", "%p", "%p;",
+                  "%é;", "%名;", "%🙂;", "%p🙂;", "%p\u0109;",
+                  "&", "&;", "&1;", "&#;", "&#x;", "&p;", "&p ;",
+                  "<r>", "<r/>", "<r>%p;", "<r>\r\n%1;", "<r>]")
+    for i, value in enumerate(references):
+        for context, space in (("adjacent", ""), ("space", " \r\n")):
+            yield f"subset_reference_{context}_{i}", f'<!DOCTYPE r [{space}{value}]><r/>'
+            yield f"subset_reference_eof_{context}_{i}", f'<!DOCTYPE r [{space}{value}'
 
 
 def encoded_cases():

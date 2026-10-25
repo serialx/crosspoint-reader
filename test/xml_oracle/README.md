@@ -72,8 +72,26 @@ The Rust replay checks every non-stop schedule: semantic events, original byte
 and line positions, and the final error or completion location. Callback-stop
 fixtures remain characterization data: the pull API latches `Stopped`, but does
 not emulate Expat's callback fragmentation or parsing-status flags. None of the
-five migrated consumers stops inside a callback. Resolve that distinction before
-migrating consumers that do, including KOReader XPath resolution.
+five consumers in this metadata/cache baseline stops inside a callback. The
+migrated KOReader resolver has a separate [XPath compatibility oracle](../koreader_xpath_resolver/README.md)
+for its early-stop and finalization behavior; generic callback fragmentation
+and parsing-status parity remain outside this oracle's claims.
+
+`regressions.py` records a separate compact matrix for short/truncated markup,
+comment delimiters and DTD whitespace, Unicode names and default literals.
+Every case runs at every split and at 1/7/512/1024-byte feeds, in UTF-8 and both
+UTF-16 byte orders. CTest verifies its Expat expectations; Cargo replays the
+non-stop schedules from `regression_goldens.rs`. To update both files from the
+vendored oracle after reviewing a deliberate corpus change:
+
+```sh
+python3 test/xml_oracle/regressions.py --oracle build/xml-oracle/XmlOracle record
+cargo test --manifest-path rust/Cargo.toml -p xp-core
+```
+
+The core suite also runs 200,000 fixed-seed corpus mutations, checking progress,
+terminal statuses and event bounds without claiming XML conformance for those
+mutations. Long-comment tests cover storage and normalization through 64 KiB.
 
 ## Consumer cache baseline
 

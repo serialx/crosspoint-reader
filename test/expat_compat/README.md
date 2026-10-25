@@ -14,7 +14,7 @@ SDK JSON backend is linked so the feed wrapper is not replaced by a stub.
 
 ```sh
 cmake -S test -B build/test
-cmake --build build/test --target ExpatConsumerBaseline ExpatConsumerAdapter ExpatAdapterTest -j 6
+cmake --build build/test --target ExpatConsumerBaseline ExpatConsumerAdapter ExpatAdapterTest ExpatSdkCatalogTest -j 6
 ctest --test-dir build/test -R '^Expat' --output-on-failure
 ```
 

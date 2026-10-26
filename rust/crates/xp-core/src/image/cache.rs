@@ -33,6 +33,7 @@ impl PixelCacheWriter {
         }
         self.bytes_per_row = (width as usize).div_ceil(4);
         self.height = height;
+        // Keep a full MCU block plus slack, with a 16-row minimum and 24 KiB band cap.
         self.rows = (max_rows + 2)
             .max(16)
             .min(height)
@@ -40,6 +41,7 @@ impl PixelCacheWriter {
         if self.rows < max_rows {
             return false;
         }
+        // The spare row stays zero for gaps and final padding; pixel() cannot write it.
         let bytes = (self.rows as usize + 1) * self.bytes_per_row;
         if self.buffer.try_reserve_exact(bytes).is_err() {
             return false;
@@ -66,6 +68,7 @@ impl PixelCacheWriter {
         if top <= self.start {
             return true;
         }
+        // Decoder blocks arrive in raster order: rows below the next top are final.
         let top = top.min(self.height);
         for row in self.start..top {
             let index = (row - self.start).min(self.rows) as usize * self.bytes_per_row;

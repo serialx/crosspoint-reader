@@ -482,3 +482,38 @@ semantic operation can run. The transitional service table retains its layout,
 with unused paragraph callbacks set to null; Rust represents those entries as
 optional function pointers. Paragraph creation/reset and assembler-state services
 still cross into C++ until the assembly port replaces that table.
+
+## Image pixel pipeline
+
+`xp-core::image` owns image scale/crop planning, row selection, grayscale and
+alpha conversion, Bayer dithering, framebuffer writes, streaming 2-bit pixel
+cache packing, and header dimension probes. PNGdec, JPEGDEC, and AnimatedGIF
+remain C++ decoders. `ImagePipeline.h` owns HalFile cache I/O and obtains write
+targets from GfxRenderer; ImageBlock keeps cache reads and render orchestration.
+The cache format and decoder limits are unchanged.
+
+The `xp_image_*` ABI in `xp_ffi.h` uses caller-owned opaque storage. After a
+successful init, call prepare once, optionally begin the cache, submit rows,
+finish once, then destroy exactly once. Destroy also aborts an unfinished cache.
+JPEG prepare is a no-op but follows the same lifecycle. The C++ adapter keeps
+its RenderConfig, renderer and callback context alive until destruction. Row
+and palette spans borrow decoder/context memory for one call. A target callback
+lends exclusive framebuffer memory until the next target callback or the ABI
+call returns; cache I/O callbacks must preserve that loan and cannot reenter.
+Target geometry is physical, byte stride is explicit, and placement is logical;
+compile-time assertions tie renderer modes and orientations to the ABI values.
+
+Rust allocates temporary PNG/GIF rows and cache bands fallibly and releases them
+at context destruction. JPEG needs no additional row buffer. GIF keeps a
+256-byte grayscale palette in its existing heap-owned context, converted by Rust
+when the decoder palette pointer changes; row callbacks do indexed lookups.
+This adds no allocation request or callback-stack array. No image allocation
+survives decoding, apart from ImageBlock's existing cache-read buffers.
+
+Framebuffer writes deliberately retain the former 16-bit byte-offset wrap.
+Full targets above 65,535 bytes can therefore place pixels incorrectly; this
+port does not establish larger-panel correctness. Changing that behavior needs
+separate compatibility review. The [image oracle](../../test/image_golden/README.md)
+records decoder rejection as well as successful output and verifies framebuffer,
+cache, and target-query parity against the pre-port C++ implementation. A
+successful header probe alone does not establish that the decoder accepts an image.

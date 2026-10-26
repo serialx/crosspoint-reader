@@ -206,3 +206,8 @@ path. Capture refuses to overwrite a file. Freeze the executable before running
 the mutation capture: concurrent relinking invalidates a running subprocess
 oracle. Capture and verify use the same compiler and host adapters as the write
 oracle; undefined behavior in the original decoder is not a portable contract.
+
+`partials.json.gz` adds 936 checks captured from the same frozen C++ binary:
+valid partial headers with a watermark, a short watermark, and zero-page
+partials. Run with `--partial --verify --output
+ test/section_golden/goldens/partials.json.gz` and the same `--dump` executable.

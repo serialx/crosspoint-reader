@@ -131,18 +131,30 @@ def mutations(data):
     yield 'page-count', bytes(copy)
 
 
+def partial_mutations(data):
+    partial = bytes([214]) + data[1:] + struct.pack('<II', 100, 200)
+    yield 'partial-valid', partial
+    yield 'partial-short-watermark', partial[:-1]
+    empty = bytearray(partial)
+    struct.pack_into('<H', empty, 22, 0)
+    yield 'partial-empty', bytes(empty)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dump', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--mutations', action='store_true')
+    parser.add_argument('--partial', action='store_true')
     parser.add_argument('--verify', action='store_true')
     parser.add_argument('--limit', type=int)
+    parser.add_argument('--jobs', type=int, default=4)
     args = parser.parse_args()
     if not args.verify and args.output.exists():
         parser.error('capture refuses an existing output')
     exe = args.dump.resolve()
     results = {}
+    baseline_records = json.loads(gzip.decompress(args.output.read_bytes())) if args.verify else None
     with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         members = [m for m in archive if m.isfile()]
         if args.limit:
@@ -150,14 +162,21 @@ def main():
         for member in members:
             data = archive.extractfile(member).read()
             pages = struct.unpack_from('<H', data, 22)[0]
-            if args.mutations:
+            if args.mutations or args.partial:
                 def check(case):
                     label, mutated = case
                     return label, run(exe, member.name, mutated, pages, True)
-                with ThreadPoolExecutor(max_workers=4) as pool:
-                    records = dict(pool.map(check, mutations(data)))
+                with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+                    records = dict(pool.map(check, partial_mutations(data) if args.partial else mutations(data)))
             else:
                 records = run(exe, member.name, data, pages)
+            if baseline_records is not None and baseline_records.get(member.name) != records:
+                expected = baseline_records.get(member.name)
+                if isinstance(records, dict) and isinstance(expected, dict):
+                    differences = {key: {'expected': expected.get(key), 'actual': value}
+                                   for key, value in records.items() if expected.get(key) != value}
+                    raise ValueError(f'{member.name}: {json.dumps(differences)}')
+                raise ValueError(f'read oracle mismatch: {member.name}')
             results[member.name] = records
             print(f'{member.name}: {len(records)} records', flush=True)
     payload = json.dumps(results, sort_keys=True, separators=(',', ':')).encode() + b'\n'

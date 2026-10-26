@@ -4,6 +4,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
     ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
   DEPENDS ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp instrument_layout.py
   VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument_chapter.py
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
+  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp instrument_chapter.py
+  VERBATIM)
 add_executable(SectionGoldenDump
   SectionGoldenDump.cpp
   ImageDecoderStub.cpp
@@ -14,7 +19,7 @@ add_executable(SectionGoldenDump
   ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
   ${REPO_ROOT}/lib/Epub/Epub/WordStore.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
   ${REPO_ROOT}/lib/Epub/Epub/css/CssParser.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
@@ -27,6 +32,7 @@ add_executable(SectionGoldenDump
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
 )
 target_include_directories(SectionGoldenDump PRIVATE
+  ${REPO_ROOT}/lib/Epub/Epub/parsers
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/stubs
   ${REPO_ROOT}/lib/FsHelpers
@@ -55,3 +61,8 @@ add_test(NAME SectionGoldenComparator COMMAND ${Python3_EXECUTABLE}
 
 add_test(NAME LayoutGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump> --layout)
+
+add_test(NAME ChapterOperationGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump> --ops)
+add_test(NAME ChapterOperationInstrumentation COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_chapter_trace.py)

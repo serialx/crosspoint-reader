@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "ChapterTrace.h"
 #include "LayoutTrace.h"
 
 namespace {
@@ -86,6 +87,7 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories(output);
     for (size_t spine = 0; spine < epub->spine.size(); ++spine) {
       Section section(epub, static_cast<int>(spine), renderer);
+      ChapterTrace::open(output + "/" + std::to_string(spine) + ".ops");
       LayoutTrace::open(output + "/" + std::to_string(spine) + ".layout");
       if (!section.createSectionFile(spec)) {
         std::cerr << "Build failed: setting " << config << ", spine " << spine << ' ' << epub->spine[spine].href
@@ -93,6 +95,7 @@ int main(int argc, char** argv) {
         return 7;
       }
       LayoutTrace::close();
+      ChapterTrace::close();
       const auto pageCount = section.pageCount;
       if (!section.loadSectionFile(spec) || section.pageCount != pageCount) return 8;
       for (int page = 0; page < pageCount; ++page) {

@@ -72,7 +72,7 @@ def prepare(epub, destination):
         return spine
 
 
-def collect(dump, layout=False):
+def collect(dump, layout=False, ops=False):
     sections = {}
     inventory = []
     for epub in sorted((REPO / "test/epubs").glob("*.epub")):
@@ -88,6 +88,9 @@ def collect(dump, layout=False):
                 data = (root / "output" / config / f"{index}.bin").read_bytes()
                 if len(data) != int(size):
                     raise ValueError(f"Short section: {name}")
+                if ops:
+                    name = name.removesuffix(".bin") + ".ops"
+                    data = (root / "output" / config / f"{index}.ops").read_bytes()
                 if layout:
                     name = name.removesuffix(".bin") + ".layout"
                     data = (root / "output" / config / f"{index}.layout").read_bytes()
@@ -158,9 +161,12 @@ def main():
     parser.add_argument("--goldens", type=Path, default=HERE / "goldens")
     parser.add_argument("--capture-baseline", action="store_true", help="Capture CURRENT C++ before porting; never use to fix a mismatch")
     parser.add_argument("--layout", action="store_true", help="Compare paragraph layout traces")
+    parser.add_argument("--ops", action="store_true", help="Compare chapter operation traces")
     args = parser.parse_args()
-    archive_name = "layouts.tar.gz" if args.layout else "sections.tar.gz"
-    manifest_name = "layouts.json" if args.layout else "inventory.json"
+    if args.ops and args.layout:
+        parser.error("Choose either --ops or --layout")
+    archive_name = "ops.tar.gz" if args.ops else "layouts.tar.gz" if args.layout else "sections.tar.gz"
+    manifest_name = "ops.json" if args.ops else "layouts.json" if args.layout else "inventory.json"
     if sys.byteorder != "little" or struct.calcsize("i") != 4:
         raise ValueError("The Section wire oracle requires a little-endian host with 32-bit int")
     if args.capture_baseline:
@@ -168,7 +174,7 @@ def main():
                        cwd=REPO, check=True, capture_output=True, text=True)
         if (args.goldens / archive_name).exists():
             raise ValueError("Refusing to overwrite an existing baseline; use a new --goldens directory")
-    sections, inventory = collect(args.dump.resolve(), args.layout)
+    sections, inventory = collect(args.dump.resolve(), args.layout, args.ops)
     archive = args.goldens / archive_name
     fixtures = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                 for path in sorted((REPO / "test/epubs").glob("*.epub"))}
@@ -176,7 +182,7 @@ def main():
         args.goldens.mkdir(parents=True, exist_ok=True)
         stored = {name: compact_layout(data) for name, data in sections.items()} if args.layout else sections
         write_archive(archive, stored)
-        limit = 600_000 if args.layout else 1_000_000
+        limit = 1_500_000 if args.ops else 600_000 if args.layout else 1_000_000
         if archive.stat().st_size >= limit:
             raise ValueError(f"Golden archive exceeds size limit: {archive.stat().st_size} bytes")
         revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
@@ -195,7 +201,7 @@ def main():
         compare(read_archive(archive), actual)
         if inventory != manifest["sections"]:
             raise ValueError("Section inventory changed")
-        print(f"PASS: {len(sections)} {'layout traces' if args.layout else 'complete sections'} are byte-identical")
+        print(f"PASS: {len(sections)} {'operation traces' if args.ops else 'layout traces' if args.layout else 'complete sections'} are byte-identical")
 
 
 if __name__ == "__main__":

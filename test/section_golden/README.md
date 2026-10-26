@@ -135,3 +135,41 @@ section, the first successful split in each section, all reordered/ruby calls,
 and calls with more than 100 input tokens. The full baseline trace archive is
 kept as external evidence; passing its directory with `--goldens` compares full
 traces directly. The manifest always records hashes of the complete traces.
+
+## Chapter operation oracle
+
+`ChapterOperationGoldens` compares `goldens/ops.tar.gz`, captured from the
+unsplit C++ chapter parser at `e621694b`. All 104 spine items in the 18 EPUBs
+run under all three settings. No private book content is included.
+
+```sh
+python3 test/section_golden/run.py --dump build/test/section_golden/SectionGoldenDump --ops
+```
+
+The build generates `ChapterTrace.cpp` using `instrument_chapter.py` and links
+it only into `SectionGoldenDump`. Firmware compiles the original source and
+contains no trace hooks. Required source anchors must occur exactly once;
+missing or duplicated anchors fail generation. The instrumentation test also
+checks that changed replies and missing operations fail comparison.
+
+The ordered stream records block starts/ends, text tokens, paragraph service
+calls and replies, line breaks, rules, page breaks, box geometry, drop-cap
+capture, table column measurements, list markers, ruby groups, footnotes,
+image requests/dimensions/placement sizes, anchors, font queries/replies,
+page callbacks, and parse-step input positions. `Paragraph.*` records preserve
+the existing paragraph methods used by chapter semantics. Repeated queries
+are retained. `Reply` immediately follows a non-void paragraph call.
+
+Fields are tab-separated. Byte strings use lowercase hex, integers use decimal,
+and floats use the decimal value of their exact IEEE-754 binary32 bits.
+BlockStyle fields are comma-separated in declaration order (excluding its
+static constant); CssLength is float bits followed by the unit enum, and a
+border side is width followed by style. These records contain field values,
+never C++ object padding or pointer addresses. Visible text offsets count
+Unicode codepoints; `Step` positions count original input bytes.
+
+This is an observation of the current parser, not a public ABI. It supplements
+the complete Section and layout oracles; it does not replace them. Image
+fallback extraction and stop/OOM paths require their focused tests, since the
+successful corpus does not exercise every failure path. Capture with `--ops
+--capture-baseline` only before a production change, using a new output directory.

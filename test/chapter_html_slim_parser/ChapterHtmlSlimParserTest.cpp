@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <functional>
@@ -347,7 +348,13 @@ TEST_F(ChapterHtmlSlimParserTest, XmlFeedOomFailsAndReleasesInput) {
 }
 
 TEST_F(ChapterHtmlSlimParserTest, ChapterAllocationFailuresReleaseEveryRustOwner) {
-  filepath = (std::filesystem::temp_directory_path() / "crosspoint-chapter-allocation-sweep.xhtml").string();
+  std::filesystem::path fixtureDirectory;
+  for (size_t suffix = 0;; ++suffix) {
+    fixtureDirectory =
+        std::filesystem::temp_directory_path() / ("crosspoint-chapter-allocation-sweep-" + std::to_string(suffix));
+    if (std::filesystem::create_directory(fixtureDirectory)) break;
+  }
+  filepath = (fixtureDirectory / "chapter.xhtml").string();
   const std::string html =
       "<!DOCTYPE html SYSTEM 'unused'><html><body><ol><li><span style='font-size:1.2em'>word</span> "
       "<ruby>base<rt>annotation</rt></ruby></li></ol><p>&" +
@@ -375,7 +382,32 @@ TEST_F(ChapterHtmlSlimParserTest, ChapterAllocationFailuresReleaseEveryRustOwner
                                       false, {},       true,     "", "",   0,     {}, nullptr, &cssParser};
       candidate.completePageFn = [](std::unique_ptr<Page>, auto, auto, auto) {};
       xp_test_fail_allocation_after(budget == 0 ? SIZE_MAX : budget - 1);
-      completed = candidate.parseAndBuildPages();
+      const char* stage = "begin";
+      size_t consumed = 0;
+      const auto parse = [&]() {
+        if (!candidate.beginParse()) return false;
+        for (;;) {
+          stage = "feed";
+          const auto status = candidate.parseStep();
+          consumed = candidate.parseBytesConsumed();
+          switch (status) {
+            case ChapterHtmlSlimParser::ParseStatus::More:
+              continue;
+            case ChapterHtmlSlimParser::ParseStatus::Error:
+              candidate.abortParse();
+              return false;
+            case ChapterHtmlSlimParser::ParseStatus::Done:
+              stage = "finish";
+              return candidate.finishParse();
+          }
+        }
+      };
+      completed = parse();
+      std::fprintf(stderr,
+                   "allocation sweep: fixture=%s budget=%zu attempts=%zu required=%zu stage=%s consumed=%zu "
+                   "complete=%d exists=%d\n",
+                   filepath.c_str(), budget == 0 ? SIZE_MAX : budget - 1, xp_test_allocation_attempts(), required,
+                   stage, consumed, completed, std::filesystem::exists(filepath));
       if (budget == 0) required = xp_test_allocation_attempts();
       xp_test_fail_allocation_after(SIZE_MAX);
       if (!completed) ++failures;
@@ -392,7 +424,7 @@ TEST_F(ChapterHtmlSlimParserTest, ChapterAllocationFailuresReleaseEveryRustOwner
   }
   EXPECT_TRUE(completed);
   EXPECT_GT(failures, 10u);
-  std::filesystem::remove(filepath);
+  std::filesystem::remove_all(fixtureDirectory);
 }
 
 TEST(ImageDimsProbe, ReadsBothGifSignaturesInFragmentedStreams) {

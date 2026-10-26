@@ -159,7 +159,8 @@ bool JpegToFramebufferConverter::decodeToFramebuffer(const std::string& imagePat
   ImageDimensions sourceDimensions;
   if (!validateAndStoreDimensions(jpeg->getWidth(), jpeg->getHeight(), sourceDimensions, "JPEG")) return false;
   const bool progressive = jpeg->getJPEGType() == JPEG_MODE_PROGRESSIVE;
-  if (!ctx.pipeline.init(sourceDimensions.width, sourceDimensions.height, ImagePipeline::Kind::Jpeg, progressive))
+  if (!ctx.pipeline.init(sourceDimensions.width, sourceDimensions.height, ImagePipeline::Kind::Jpeg, progressive) ||
+      !ctx.pipeline.prepare())
     return false;
   int jpegScaleOption = 0;
   switch (ctx.pipeline.plan.denominator) {

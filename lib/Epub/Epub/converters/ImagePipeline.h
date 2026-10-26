@@ -7,6 +7,12 @@
 
 #include "ImageToFramebufferDecoder.h"
 
+static_assert(GfxRenderer::BW == 0 && GfxRenderer::GRAYSCALE_LSB == 1 && GfxRenderer::GRAYSCALE_MSB == 2,
+              "Render modes must match XpImageTarget");
+static_assert(GfxRenderer::Portrait == 0 && GfxRenderer::LandscapeClockwise == 1 &&
+                  GfxRenderer::PortraitInverted == 2 && GfxRenderer::LandscapeCounterClockwise == 3,
+              "Orientations must match XpImageTarget");
+
 inline XpImageTarget imageWriteTarget(GfxRenderer& renderer) {
   XpImageTarget target{};
   target.data = renderer.getWriteTarget();

@@ -39,9 +39,10 @@ enum Kind {
 }
 
 /// # Safety
-/// Each target must lend valid exclusive writable memory through the next callback.
+/// Each target lends exclusive writable memory until the next target call or the
+/// enclosing pipeline call returns. ByteSink operations must preserve that loan.
 pub unsafe trait Sink: ByteSink {
-    /// The returned target remains exclusively writable until the next callback.
+    /// The returned target remains exclusively writable until the next target callback; IO preserves it.
     fn target(&mut self) -> Target;
 }
 
@@ -275,7 +276,7 @@ impl Pipeline {
         if first >= end || first >= self.plan.height {
             return;
         }
-        // SAFETY: Sink contract lends exclusive access until the next callback.
+        // SAFETY: Sink contract lends exclusive access until the next target callback; IO preserves it.
         let mut writer = unsafe { Writer::new(sink.target()) };
         for y in first..end {
             self.last_y = y;

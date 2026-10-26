@@ -894,7 +894,9 @@ uint32_t xp_chapter_handle_size(void);
 // Prepare once before rows; begin-cache at most once after prepare. Finish at
 // most once after all rows. Destroy also aborts an unfinished cache.
 // Inputs and targets must not alias storage. Row spans borrow decoder memory for
-// one call; target data is exclusively writable for len bytes until next callback.
+// one call; target data is exclusively writable for len bytes until the next
+// target callback or the enclosing ABI call returns. IO callbacks must preserve
+// the active target loan (no drawing, buffer replacement, or renderer reentry).
 // IO operations: 0 open, 1 write all bytes, 2 close, 3 close/remove partial file.
 // Callbacks must not reenter. Kind: PNG=0, JPEG=1, GIF=2. Pixel types follow PNG.
 typedef struct {
@@ -903,6 +905,7 @@ typedef struct {
 typedef struct {
   uintptr_t words[8];
 } XpImageProbe;
+// Placement and screen bounds use logical, orientation-adjusted pixel coordinates.
 typedef struct {
   int32_t x, y, max_width, max_height, screen_width, screen_height;
   float crop_x, crop_y;
@@ -911,6 +914,12 @@ typedef struct {
 typedef struct {
   int32_t width, height, denominator, max_rows;
 } XpImagePlan;
+// Target geometry uses physical panel pixels: width/height are the full panel,
+// origin is the first lent physical Y row, rows is the lent row count, and stride
+// is bytes per physical row. Data starts at origin; len bounds the lent bytes.
+// Mode: 0 BW, 1 grayscale LSB, 2 grayscale MSB; absolute selects absolute planes.
+// Orientation: 0 portrait, 1 landscape clockwise, 2 portrait inverted,
+// 3 landscape counterclockwise (native panel coordinates).
 typedef struct {
   uint8_t* data;
   size_t len;

@@ -67,7 +67,7 @@ class GfxRenderer : public ChapterTestRenderer {
   FontCacheManager* getFontCacheManager() const { return nullptr; }
 
   // Needed to compile the real ImageBlock serializer; pixel rendering is outside this tool.
-  enum RenderMode { BW, GRAYSCALE_MSB, GRAYSCALE_LSB };
+  enum RenderMode { BW, GRAYSCALE_LSB, GRAYSCALE_MSB };
   enum Orientation { Portrait, LandscapeClockwise, PortraitInverted, LandscapeCounterClockwise };
   uint8_t* getWriteTarget() { std::exit(EXIT_FAILURE); }
   int getWriteOriginY() const { return 0; }

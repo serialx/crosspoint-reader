@@ -33,7 +33,9 @@ pub fn scaled(advance: i32, percent: u8) -> i32 {
 }
 
 impl Metrics {
-    pub fn advance(&self, font: i32, text: &[u8], style: u8, spacing: i8) -> i32 {
+    /// # Safety
+    /// Nonempty text has a readable NUL at text.as_ptr().add(text.len()).
+    unsafe fn advance(&self, font: i32, text: &[u8], style: u8, spacing: i8) -> i32 {
         unsafe { (self.advance)(self.context, font, Span::from_bytes(text), style, spacing) }
     }
     pub fn space(&self, font: i32, style: u8) -> i32 {
@@ -87,10 +89,14 @@ impl Metrics {
                 tracking,
             )
         };
-        (self.advance(font, &buffer[..len], bold, tracking) + kern) as u16
+        // The zero-filled buffer retains a NUL after the copied prefix.
+        (unsafe { self.advance(font, &buffer[..len], bold, tracking) } + kern) as u16
     }
     #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.
-    pub fn width(
+    /// # Safety
+    /// When terminated is true, nonempty word has a readable trailing NUL.
+    /// Suffix slices retain that terminator; other slices use the copying path.
+    unsafe fn width(
         &self,
         font: i32,
         word: &[u8],
@@ -188,24 +194,30 @@ impl Paragraph {
     fn ruby_overlap(&self, start: usize, end: usize, m: &Metrics, font: i32) -> Option<i32> {
         let mut width = 0;
         for i in start..end {
-            width += i32::from(m.width(
-                font,
-                self.word(i),
-                self.style(i),
-                0,
-                self.block.character_spacing,
-                self.spacing,
-                false,
-                true,
-            )?);
+            // WordStore appends a NUL after each word.
+            width += i32::from(unsafe {
+                m.width(
+                    font,
+                    self.word(i),
+                    self.style(i),
+                    0,
+                    self.block.character_spacing,
+                    self.spacing,
+                    false,
+                    true,
+                )?
+            });
         }
         Some(
-            (m.advance(
-                font,
-                self.ruby_text(start),
-                16,
-                self.block.character_spacing,
-            ) - width)
+            // Ruby Bytes stores a trailing NUL.
+            (unsafe {
+                m.advance(
+                    font,
+                    self.ruby_text(start),
+                    16,
+                    self.block.character_spacing,
+                )
+            } - width)
                 .max(0)
                 / 2,
         )
@@ -225,16 +237,19 @@ impl Paragraph {
         }
         for i in 0..self.tokens.len() {
             let t = self.tokens.get(i)?;
-            let width = m.width(
-                self.font(i, font),
-                self.word(i),
-                self.style(i),
-                t.focus,
-                self.block.character_spacing,
-                self.spacing,
-                false,
-                true,
-            )?;
+            // WordStore appends a NUL after each word.
+            let width = unsafe {
+                m.width(
+                    self.font(i, font),
+                    self.word(i),
+                    self.style(i),
+                    t.focus,
+                    self.block.character_spacing,
+                    self.spacing,
+                    false,
+                    true,
+                )?
+            };
             unsafe {
                 if !widths.0.insert(widths.0.len, width) {
                     return None;
@@ -260,7 +275,9 @@ impl Paragraph {
                     base += i32::from(w[i + count]);
                     count += 1;
                 }
-                let ruby = m.advance(font, self.ruby_text(i), 16, self.block.character_spacing);
+                // Ruby Bytes stores a trailing NUL.
+                let ruby =
+                    unsafe { m.advance(font, self.ruby_text(i), 16, self.block.character_spacing) };
                 groups.try_reserve(1).ok()?;
                 groups.push(Group {
                     start: i,

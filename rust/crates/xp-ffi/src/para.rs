@@ -334,6 +334,7 @@ use xp_core::para::{
     paragraph_extract::{self, Options},
 };
 const _: () = assert!(mem::size_of::<Paragraph>() <= 64 * mem::size_of::<usize>());
+const _: () = assert!(mem::align_of::<Paragraph>() <= mem::align_of::<usize>());
 unsafe fn para_span<'a>(span: Span) -> &'a [u8] {
     if span.len == 0 {
         &[]

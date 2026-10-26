@@ -270,7 +270,7 @@ uint8_t xp_layout_line_sources(XpLayoutLine* line, const XpWordStore* store, XpT
 size_t xp_layout_strip_soft_hyphens(uint8_t* data, size_t len);
 
 // Paragraph owner in 64 pointer-sized, pointer-aligned words. Initialize/destroy once.
-// All spans are borrowed for one call. Metrics cannot reenter the paragraph; the
+// Callback spans are borrowed for one call. Metrics cannot reenter the paragraph; the
 // line sink may query scalars, but cannot mutate/destroy it or retain its spans.
 typedef struct XpParagraph XpParagraph;
 typedef struct XpChapterState XpChapterState;
@@ -304,6 +304,8 @@ typedef struct {
 typedef struct {
   void* context;
   void (*trace)(void*, XpParaSpan);
+  // Nonempty input has a readable NUL at data[len]; len excludes it.
+  // Other span callbacks are bounded by len and do not promise a trailing NUL.
   int32_t (*advance)(void*, int32_t, XpParaSpan, uint8_t, int8_t);
   int32_t (*space)(void*, int32_t, uint8_t);
   int32_t (*kerning)(void*, int32_t, uint32_t, uint32_t, uint8_t, int8_t);
@@ -351,14 +353,18 @@ typedef struct {
 void xp_para_init(XpParagraph*, const XpParaAllocator*, const XpParaBlock*, uint8_t hyphenation, uint8_t focus,
                   uint8_t indent, uint8_t (*starts_rtl)(XpParaSpan, int32_t));
 void xp_para_destroy(XpParagraph*);
+// Retains a borrowed paragraph (or null). Rebind before destroying/replacing it;
+// chapter calls and paragraph mutation must be serialized with assembly.
 void xp_para_bind_chapter(XpChapterState*, XpParagraph*);
 void xp_para_add_word(XpParagraph*, XpParaSpan, uint8_t style, uint8_t underline, uint8_t attach, uint32_t offset,
                       uint8_t link, uint8_t slot, uint8_t no_space);
 uint8_t xp_para_add_link(XpParagraph*, XpParaSpan);
 uint8_t xp_para_link_matches(const XpParagraph*, uint8_t, XpParaSpan);
+// Result borrows paragraph storage until its next mutation or destruction.
 XpParaSpan xp_para_ruby(const XpParagraph*, uint32_t);
 void xp_para_set_ruby(XpParagraph*, uint32_t, XpParaSpan);
 void xp_para_set_ruby_group(XpParagraph*, uint32_t, uint32_t, XpParaSpan);
+// Result borrows paragraph storage until its next mutation or destruction.
 XpParaSpan xp_para_word(const XpParagraph*, uint32_t);
 uint8_t xp_para_indent(const XpParagraph*);
 uint32_t xp_para_size(const XpParagraph*);

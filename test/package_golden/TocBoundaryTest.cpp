@@ -1,5 +1,4 @@
-#include <TocNavParser.h>
-#include <TocNcxParser.h>
+#include <PackageParser.h>
 #include <Utf8.h>
 
 #include <cstddef>
@@ -74,8 +73,8 @@ void run(bool nav, size_t size, bool compose, bool fail, const std::string& root
   cache.createSpineEntry("x");
   check(cache.endContentOpfPass() && cache.beginTocPass());
   const std::string base;
-  TocNavParser navParser(base, prefix.size() + suffix.size(), &cache);
-  TocNcxParser ncxParser(base, prefix.size() + suffix.size(), &cache);
+  PackageParser navParser(XP_PKG_NAV_PASS, base, prefix.size() + suffix.size(), "", &cache);
+  PackageParser ncxParser(XP_PKG_NCX_PASS, base, prefix.size() + suffix.size(), "", &cache);
   Print& parser = nav ? static_cast<Print&>(navParser) : static_cast<Print&>(ncxParser);
   check(nav ? navParser.setup() : ncxParser.setup());
   check(feed(parser, prefix));
@@ -115,7 +114,10 @@ void* operator new[](size_t size, const std::nothrow_t&) noexcept {
 }
 void operator delete[](void* ptr, const std::nothrow_t&) noexcept { release(ptr); }
 extern "C" void* heap_caps_malloc(size_t size, uint32_t) {
-  if (failNothrowArray && size == 32767) { ++failures; return nullptr; }
+  if (failNothrowArray && size == 32767) {
+    ++failures;
+    return nullptr;
+  }
   return allocate(size);
 }
 extern "C" void* heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t) {

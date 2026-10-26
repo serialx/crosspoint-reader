@@ -1,13 +1,13 @@
+#include <PackageParser.h>
 #include <gtest/gtest.h>
 
 #include <string>
 
-#include "ContentOpfParser.h"
 #include "Epub/BookMetadataCache.h"
 
 namespace {
 
-void parse(ContentOpfParser& parser, const std::string& xml) {
+void parse(PackageParser& parser, const std::string& xml) {
   ASSERT_TRUE(parser.setup());
   EXPECT_EQ(parser.write(reinterpret_cast<const uint8_t*>(xml.data()), xml.size()), xml.size());
 }
@@ -17,23 +17,23 @@ void parse(ContentOpfParser& parser, const std::string& xml) {
 TEST(ContentOpfParserMetadata, EntityCallbackDoesNotSplitOneAuthor) {
   const std::string xml =
       R"(<package xmlns:dc="urn:dc"><metadata><dc:creator>&#201;mile Zola</dc:creator></metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.author, "Émile Zola");
+  EXPECT_EQ(parser.value(XP_PKG_AUTHOR), "Émile Zola");
 }
 
 TEST(ContentOpfParserMetadata, ClampsOversizedMetadataTextInsteadOfGrowingUnbounded) {
   const std::string hugeTitle(64 * 1024, 'A');
   const std::string xml =
       "<package xmlns:dc=\"urn:dc\"><metadata><dc:title>" + hugeTitle + " tail</dc:title></metadata></package>";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.title.size(), 512u);
-  EXPECT_EQ(parser.title[0], 'A');
+  EXPECT_EQ(parser.value(XP_PKG_TITLE).size(), 512u);
+  EXPECT_EQ(parser.value(XP_PKG_TITLE)[0], 'A');
 }
 
 TEST(ContentOpfParserMetadata, SeparatesCreatorElementsAndCollapsesXmlWhitespace) {
@@ -45,12 +45,12 @@ TEST(ContentOpfParserMetadata, SeparatesCreatorElementsAndCollapsesXmlWhitespace
 Octavia E. Butler
 </dc:creator>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.title, "The Left Hand of Darkness");
-  EXPECT_EQ(parser.author, "Ursula K. Le Guin, Octavia E. Butler");
+  EXPECT_EQ(parser.value(XP_PKG_TITLE), "The Left Hand of Darkness");
+  EXPECT_EQ(parser.value(XP_PKG_AUTHOR), "Ursula K. Le Guin, Octavia E. Butler");
 }
 
 TEST(ContentOpfParserMetadata, ExtractsIsbnAsinAndCalibreSeries) {
@@ -60,26 +60,26 @@ TEST(ContentOpfParserMetadata, ExtractsIsbnAsinAndCalibreSeries) {
     <meta name="calibre:series" content="The Expanse"/>
     <meta name="calibre:series_index" content="3.5"/>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.isbn, "978-1-4028-9462-6");
-  EXPECT_EQ(parser.asin, "B0DTT5LV77");
-  EXPECT_EQ(parser.series, "The Expanse");
-  ASSERT_TRUE(parser.seriesIndex.has_value());
-  EXPECT_FLOAT_EQ(*parser.seriesIndex, 3.5f);
+  EXPECT_EQ(parser.value(XP_PKG_ISBN), "978-1-4028-9462-6");
+  EXPECT_EQ(parser.value(XP_PKG_ASIN), "B0DTT5LV77");
+  EXPECT_EQ(parser.value(XP_PKG_SERIES), "The Expanse");
+  ASSERT_TRUE(parser.seriesIndex().has_value());
+  EXPECT_FLOAT_EQ(*parser.seriesIndex(), 3.5f);
 }
 
 TEST(ContentOpfParserMetadata, ExtractsAmazonSchemeAsin) {
   const std::string xml = R"(<package xmlns:dc="urn:dc" xmlns:opf="urn:opf"><metadata>
     <dc:identifier opf:scheme="AMAZON">B0BF8Y54MS</dc:identifier>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.asin, "B0BF8Y54MS");
+  EXPECT_EQ(parser.value(XP_PKG_ASIN), "B0BF8Y54MS");
 }
 
 TEST(ContentOpfParserMetadata, ExtractsPrefixedIdentifiers) {
@@ -87,12 +87,12 @@ TEST(ContentOpfParserMetadata, ExtractsPrefixedIdentifiers) {
     <dc:identifier>ISBN: 9781234567890</dc:identifier>
     <dc:identifier>ASIN: B012345678</dc:identifier>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.isbn, "9781234567890");
-  EXPECT_EQ(parser.asin, "B012345678");
+  EXPECT_EQ(parser.value(XP_PKG_ISBN), "9781234567890");
+  EXPECT_EQ(parser.value(XP_PKG_ASIN), "B012345678");
 }
 
 TEST(ContentOpfParserMetadata, ExtractsUrnIdentifiers) {
@@ -100,24 +100,24 @@ TEST(ContentOpfParserMetadata, ExtractsUrnIdentifiers) {
     <dc:identifier>urn:isbn:9781234567890</dc:identifier>
     <dc:identifier>urn:asin:B012345678</dc:identifier>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.isbn, "9781234567890");
-  EXPECT_EQ(parser.asin, "B012345678");
+  EXPECT_EQ(parser.value(XP_PKG_ISBN), "9781234567890");
+  EXPECT_EQ(parser.value(XP_PKG_ASIN), "B012345678");
 }
 
 TEST(ContentOpfParserMetadata, ClampsOversizedMetadataAttributes) {
   const std::string hugeSeries(64 * 1024, 'S');
   const std::string xml =
       R"(<package><metadata><meta name="calibre:series" content=")" + hugeSeries + R"("/></metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.series.size(), 512u);
-  EXPECT_EQ(parser.series[0], 'S');
+  EXPECT_EQ(parser.value(XP_PKG_SERIES).size(), 512u);
+  EXPECT_EQ(parser.value(XP_PKG_SERIES)[0], 'S');
 }
 
 TEST(ContentOpfParserMetadata, ExtractsEpub3SeriesCollection) {
@@ -126,13 +126,13 @@ TEST(ContentOpfParserMetadata, ExtractsEpub3SeriesCollection) {
     <meta refines="#series-1" property="group-position">2</meta>
     <meta refines="#series-1" property="collection-type">series</meta>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.series, "Murderbot Diaries");
-  ASSERT_TRUE(parser.seriesIndex.has_value());
-  EXPECT_FLOAT_EQ(*parser.seriesIndex, 2.0f);
+  EXPECT_EQ(parser.value(XP_PKG_SERIES), "Murderbot Diaries");
+  ASSERT_TRUE(parser.seriesIndex().has_value());
+  EXPECT_FLOAT_EQ(*parser.seriesIndex(), 2.0f);
 }
 
 TEST(ContentOpfParserMetadata, ResolvesRefinementsBeforeCollectionDeclaration) {
@@ -141,13 +141,13 @@ TEST(ContentOpfParserMetadata, ResolvesRefinementsBeforeCollectionDeclaration) {
     <meta refines="#series-a" property="group-position">7</meta>
     <meta id="series-a" property="belongs-to-collection">Deferred Series</meta>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.series, "Deferred Series");
-  ASSERT_TRUE(parser.seriesIndex.has_value());
-  EXPECT_FLOAT_EQ(*parser.seriesIndex, 7.0f);
+  EXPECT_EQ(parser.value(XP_PKG_SERIES), "Deferred Series");
+  ASSERT_TRUE(parser.seriesIndex().has_value());
+  EXPECT_FLOAT_EQ(*parser.seriesIndex(), 7.0f);
 }
 
 TEST(ContentOpfParserMetadata, ResolvesInterleavedCollectionRefinementsById) {
@@ -159,13 +159,13 @@ TEST(ContentOpfParserMetadata, ResolvesInterleavedCollectionRefinementsById) {
     <meta refines="#series-b" property="collection-type">series</meta>
     <meta refines="#series-b" property="group-position">9</meta>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.series, "Primary Series");
-  ASSERT_TRUE(parser.seriesIndex.has_value());
-  EXPECT_FLOAT_EQ(*parser.seriesIndex, 3.0f);
+  EXPECT_EQ(parser.value(XP_PKG_SERIES), "Primary Series");
+  ASSERT_TRUE(parser.seriesIndex().has_value());
+  EXPECT_FLOAT_EQ(*parser.seriesIndex(), 3.0f);
 }
 
 TEST(ContentOpfParserMetadata, KeepsSeriesIndexWithSelectedMetadataSource) {
@@ -176,13 +176,13 @@ TEST(ContentOpfParserMetadata, KeepsSeriesIndexWithSelectedMetadataSource) {
     <meta refines="#epub-series" property="collection-type">series</meta>
     <meta refines="#epub-series" property="group-position">9</meta>
   </metadata></package>)";
-  ContentOpfParser parser("", "", xml.size(), nullptr);
+  PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
 
   parse(parser, xml);
 
-  EXPECT_EQ(parser.series, "Calibre Series");
-  ASSERT_TRUE(parser.seriesIndex.has_value());
-  EXPECT_FLOAT_EQ(*parser.seriesIndex, 4.0f);
+  EXPECT_EQ(parser.value(XP_PKG_SERIES), "Calibre Series");
+  ASSERT_TRUE(parser.seriesIndex().has_value());
+  EXPECT_FLOAT_EQ(*parser.seriesIndex(), 4.0f);
 }
 
 TEST(ContentOpfParserMetadata, StopsBeforeManifestWithoutOpeningTemporaryStorage) {
@@ -193,13 +193,13 @@ TEST(ContentOpfParserMetadata, StopsBeforeManifestWithoutOpeningTemporaryStorage
   </metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest>
   </package>)";
   Storage = {};
-  ContentOpfParser parser("/missing-cache", "OPS/", xml.size(), nullptr, true);
+  PackageParser parser(XP_PKG_OPF_PASS, "OPS/", xml.size(), "/missing-cache", nullptr, true);
 
   ASSERT_TRUE(parser.setup());
   EXPECT_LT(parser.write(reinterpret_cast<const uint8_t*>(xml.data()), xml.size()), xml.size());
-  EXPECT_EQ(parser.title, "A Wizard of Earthsea");
-  EXPECT_EQ(parser.author, "Ursula K. Le Guin");
-  EXPECT_EQ(parser.language, "en");
+  EXPECT_EQ(parser.value(XP_PKG_TITLE), "A Wizard of Earthsea");
+  EXPECT_EQ(parser.value(XP_PKG_AUTHOR), "Ursula K. Le Guin");
+  EXPECT_EQ(parser.value(XP_PKG_LANGUAGE), "en");
   EXPECT_EQ(Storage.writeOpens, 0);
   EXPECT_EQ(Storage.readOpens, 0);
 }
@@ -208,7 +208,7 @@ TEST(ContentOpfParserMetadata, NeverEntersManifestWhenMetadataElementIsMissing) 
   const std::string xml =
       R"(<package><manifest><item id="chapter" href="chapter.xhtml"/></manifest><spine/></package>)";
   Storage = {};
-  ContentOpfParser parser("/missing-cache", "OPS/", xml.size(), nullptr, true);
+  PackageParser parser(XP_PKG_OPF_PASS, "OPS/", xml.size(), "/missing-cache", nullptr, true);
 
   ASSERT_TRUE(parser.setup());
   EXPECT_LT(parser.write(reinterpret_cast<const uint8_t*>(xml.data()), xml.size()), xml.size());
@@ -224,7 +224,7 @@ TEST(ContentOpfParserMetadata, FinishesMetadataEarlyAcrossFeedBoundaries) {
   for (const size_t chunk : {1u, 7u, 512u, 1024u, 4096u}) {
     SCOPED_TRACE(chunk);
     Storage = {};
-    ContentOpfParser parser(cachePath, basePath, xml.size(), nullptr, true);
+    PackageParser parser(XP_PKG_OPF_PASS, basePath, xml.size(), cachePath, nullptr, true);
     ASSERT_TRUE(parser.setup());
     size_t position = 0;
     while (position < xml.size()) {
@@ -241,7 +241,7 @@ TEST(ContentOpfParserMetadata, FinishesMetadataEarlyAcrossFeedBoundaries) {
       position += count;
     }
     EXPECT_LT(position, xml.size());
-    EXPECT_EQ(parser.title, std::string(512, 'A'));
+    EXPECT_EQ(parser.value(XP_PKG_TITLE), std::string(512, 'A'));
     EXPECT_EQ(Storage.writeOpens, 0);
     EXPECT_EQ(Storage.readOpens, 0);
   }
@@ -257,9 +257,9 @@ TEST(ContentOpfParserMetadata, IgnoresNinthCollectionButKeepsExistingRefinements
     xml += "<meta refines=\"#s8\" property=\"collection-type\">series</meta>";
     if (refineFirst) xml += "<meta refines=\"#s0\" property=\"collection-type\">series</meta>";
     xml += "</metadata></package>";
-    ContentOpfParser parser("", "", xml.size(), nullptr);
+    PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
     parse(parser, xml);
-    EXPECT_EQ(parser.series, refineFirst ? "Series 0" : "");
+    EXPECT_EQ(parser.value(XP_PKG_SERIES), refineFirst ? "Series 0" : "");
   }
 }
 
@@ -270,10 +270,10 @@ TEST(ContentOpfParserMetadata, KeepsFiniteFloatConversionRules) {
         "<package><metadata><meta name=\"calibre:series\" content=\"S\"/>"
         "<meta name=\"calibre:series_index\" content=\"" +
         value + "\"/></metadata></package>";
-    ContentOpfParser parser("", "", xml.size(), nullptr);
+    PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "", nullptr);
     parse(parser, xml);
-    EXPECT_EQ(parser.seriesIndex.has_value(), value == "2.5");
-    if (parser.seriesIndex) EXPECT_FLOAT_EQ(*parser.seriesIndex, 2.5f);
+    EXPECT_EQ(parser.seriesIndex().has_value(), value == "2.5");
+    if (parser.seriesIndex()) EXPECT_FLOAT_EQ(*parser.seriesIndex(), 2.5f);
   }
 }
 
@@ -287,10 +287,10 @@ TEST(ContentOpfParserCover, ResolvesEpub2CoverWithoutReadingCacheStorage) {
   const std::string basePath = "OPS/";
   Storage = {};
   {
-    ContentOpfParser parser(cachePath, basePath, xml.size(), nullptr);
+    PackageParser parser(XP_PKG_OPF_PASS, basePath, xml.size(), cachePath, nullptr);
     parse(parser, xml);
-    EXPECT_EQ(parser.coverItemHref, "OPS/cover.jpg");
-    EXPECT_EQ(parser.guideCoverPageHref, "OPS/cover.xhtml");
+    EXPECT_EQ(parser.value(XP_PKG_COVER), "OPS/cover.jpg");
+    EXPECT_EQ(parser.value(XP_PKG_GUIDE), "OPS/cover.xhtml");
   }
   EXPECT_EQ(Storage.writeOpens, 0);
   EXPECT_EQ(Storage.readOpens, 0);
@@ -304,9 +304,9 @@ TEST(ContentOpfParserCover, ResolvesEpub3CoverWithoutReadingCacheStorage) {
   const std::string basePath = "OPS/";
   Storage = {};
   {
-    ContentOpfParser parser(cachePath, basePath, xml.size(), nullptr);
+    PackageParser parser(XP_PKG_OPF_PASS, basePath, xml.size(), cachePath, nullptr);
     parse(parser, xml);
-    EXPECT_EQ(parser.coverItemHref, "OPS/cover.png");
+    EXPECT_EQ(parser.value(XP_PKG_COVER), "OPS/cover.png");
   }
   EXPECT_EQ(Storage.writeOpens, 0);
   EXPECT_EQ(Storage.readOpens, 0);
@@ -321,9 +321,9 @@ TEST(ContentOpfParserCover, ReadingParserStillOpensManifestCache) {
   BookMetadataCache cache;
   Storage = {};
   {
-    ContentOpfParser parser(cachePath, basePath, xml.size(), &cache);
+    PackageParser parser(XP_PKG_OPF_PASS, basePath, xml.size(), cachePath, &cache);
     parse(parser, xml);
-    EXPECT_EQ(parser.coverItemHref, "OPS/cover.png");
+    EXPECT_EQ(parser.value(XP_PKG_COVER), "OPS/cover.png");
   }
   EXPECT_EQ(Storage.writeOpens, 1);
   EXPECT_EQ(Storage.readOpens, 1);

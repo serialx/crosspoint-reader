@@ -9,10 +9,7 @@ execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instru
   COMMAND_ERROR_IS_FATAL ANY)
 add_executable(PackageOracle
   PackageOracle.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ContainerParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ContentOpfParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNavParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNcxParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/BookMetadataCache.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
@@ -43,9 +40,8 @@ target_compile_options(PackageAbiTest PRIVATE -UNDEBUG)
 add_test(NAME PackageAllocationFailure COMMAND PackageAbiTest)
 
 add_executable(TocBoundaryTest TocBoundaryTest.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNavParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNcxParser.cpp
   ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
 get_target_property(PACKAGE_INCLUDES PackageOracle INCLUDE_DIRECTORIES)

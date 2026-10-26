@@ -2,9 +2,11 @@
 
 These goldens capture the C++ package parsers at `e621694b`, before the
 package state machines move to Rust. The XML tokenizer already uses Rust.
-The executable uses the real `BookMetadataCache` serializer with the existing
-host HAL and ZIP-size adapters. `instrument.py` adds observations to a build
-directory copy of the serializer; it does not replace its implementation.
+The executable uses the production `PackageParser` adapter, Rust document passes
+and book-cache writer, with the existing host HAL and ZIP-size adapters.
+`instrument.py` adds observations to a build-directory copy of
+`BookMetadataCache.cpp`; it does not replace serialization. The expected files
+remain the original C++ capture.
 
 Run from the repository root:
 
@@ -57,3 +59,28 @@ long title/label, and both AES spellings versus case/font-only controls.
 order; string arguments are hexadecimal bytes. `book.bin`, temporary spine/TOC
 files and `items.bin` preserve the serialized bytes. The adapters do not replace
 full firmware I/O or establish device timing, stack or allocation behavior.
+
+## Rust writer boundary
+
+`xp-core::epub::facade` owns document feed splitting, metadata-only short counts,
+the manifest index and CSS paths. `xp-core::epub::cache` owns the v10 encodings,
+spine/TOC lookup, NFC title emission, LUTs and cumulative sizes. `PackageParser`
+owns the manifest `HalFile`; `BookMetadataCache` owns the other files and keeps
+its existing reader and SIZE_WINDOW state. The sink retains the 4 KiB pass writer,
+three 4 KiB final-build streams, and ZIP batch-size service (400-spine threshold,
+2,048 targets per batch).
+
+The host-only Cargo feature `package-trace` preserves cache-call observations
+at the corresponding Rust emission sites. The instrumenter installs the optional
+sink callback and maps spine and TOC emissions to the original
+`createSpineEntry` and `createTocEntry` lines, including argument order and bytes.
+C++ orchestration method observations remain at their original boundaries.
+Firmware does not enable this feature. No operation is filtered out and no
+golden is regenerated.
+
+`PackageAllocationFailure` covers both the record ABI and document-pass ABI.
+`PackageWriterFailure` fails each successive Rust allocation through a complete
+small book build, exercises the 400-spine index path, and checks short-write and
+flush-failure cleanup. `TocBoundaryAllocation` retains the long ASCII/NFD label
+cases; its injected NFC failure now targets the Rust allocation for the same
+32 KiB label. All owners must release their allocations after teardown.

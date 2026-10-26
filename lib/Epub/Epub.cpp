@@ -20,10 +20,7 @@
 #include <string_view>
 #include <vector>
 
-#include "Epub/parsers/ContainerParser.h"
-#include "Epub/parsers/ContentOpfParser.h"
-#include "Epub/parsers/TocNavParser.h"
-#include "Epub/parsers/TocNcxParser.h"
+#include "Epub/parsers/PackageParser.h"
 
 Epub::Epub(std::string filepath, const std::string& cacheDir) : filepath(std::move(filepath)) {
   cachePath = cacheDir + "/epub_" + std::to_string(std::hash<std::string>{}(this->filepath));
@@ -41,7 +38,7 @@ bool Epub::findContentOpfFile(std::string* contentOpfFile, ZipFile* sharedZip) c
     return false;
   }
 
-  ContainerParser containerParser(containerSize);
+  PackageParser containerParser(XP_PKG_CONTAINER, "", containerSize, "");
 
   if (!containerParser.setup()) {
     return false;
@@ -56,12 +53,12 @@ bool Epub::findContentOpfFile(std::string* contentOpfFile, ZipFile* sharedZip) c
   }
 
   // Extract the result
-  if (containerParser.fullPath.empty()) {
+  if (containerParser.view(0).empty()) {
     LOG_ERR("EBP", "Could not find valid rootfile in container.xml");
     return false;
   }
 
-  *contentOpfFile = std::move(containerParser.fullPath);
+  *contentOpfFile = containerParser.view();
   return true;
 }
 
@@ -85,8 +82,8 @@ bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const 
     return false;
   }
 
-  ContentOpfParser opfParser(getCachePath(), getBasePath(), contentOpfSize,
-                             writeSpineEntries ? bookMetadataCache.get() : nullptr, metadataOnly);
+  PackageParser opfParser(XP_PKG_OPF_PASS, getBasePath(), contentOpfSize, getCachePath(),
+                          writeSpineEntries ? bookMetadataCache.get() : nullptr, metadataOnly);
   if (!opfParser.setup()) {
     LOG_ERR("EBP", "Could not setup content.opf parser");
     return false;
@@ -101,32 +98,32 @@ bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const 
 
   // Grab data from opfParser into epub. Normalize titles to NFC so NFD (combining
   // mark) text renders correctly — the device fonts have no mark positioning.
-  bookMetadata.title = utf8ComposeNfc(opfParser.title);
-  bookMetadata.author = utf8ComposeNfc(opfParser.author);
-  bookMetadata.language = opfParser.language;
+  bookMetadata.title = utf8ComposeNfc(opfParser.value(XP_PKG_TITLE));
+  bookMetadata.author = utf8ComposeNfc(opfParser.value(XP_PKG_AUTHOR));
+  bookMetadata.language = opfParser.value(XP_PKG_LANGUAGE);
 
   if (metadataOnly) {
     LOG_DBG("EBP", "Successfully parsed package metadata");
     return true;
   }
 
-  bookMetadata.coverItemHref = opfParser.coverItemHref;
+  bookMetadata.coverItemHref = opfParser.value(XP_PKG_COVER);
 
   // Guide-based cover fallback: if no cover found via metadata/properties,
   // try extracting the image reference from the guide's cover page XHTML
-  if (bookMetadata.coverItemHref.empty() && !opfParser.guideCoverPageHref.empty()) {
-    LOG_DBG("EBP", "No cover from metadata, trying guide cover page: %s", opfParser.guideCoverPageHref.c_str());
+  if (bookMetadata.coverItemHref.empty() && !opfParser.view(XP_PKG_GUIDE).empty()) {
+    LOG_DBG("EBP", "No cover from metadata, trying guide cover page: %s", opfParser.value(XP_PKG_GUIDE).c_str());
     size_t coverPageSize;
-    uint8_t* coverPageData = readItemContentsToBytes(opfParser.guideCoverPageHref, &coverPageSize, true);
+    uint8_t* coverPageData = readItemContentsToBytes(opfParser.value(XP_PKG_GUIDE), &coverPageSize, true);
     if (coverPageData) {
       const std::string coverPageHtml(reinterpret_cast<char*>(coverPageData), coverPageSize);
       free(coverPageData);
 
       // Determine base path of the cover page for resolving relative image references
       std::string coverPageBase;
-      const auto lastSlash = opfParser.guideCoverPageHref.rfind('/');
+      const auto lastSlash = opfParser.value(XP_PKG_GUIDE).rfind('/');
       if (lastSlash != std::string::npos) {
-        coverPageBase = opfParser.guideCoverPageHref.substr(0, lastSlash + 1);
+        coverPageBase = opfParser.value(XP_PKG_GUIDE).substr(0, lastSlash + 1);
       }
 
       // Search for image references: xlink:href="..." (SVG) and src="..." (img)
@@ -157,19 +154,18 @@ bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const 
     }
   }
 
-  bookMetadata.textReferenceHref = opfParser.textReferenceHref;
+  bookMetadata.textReferenceHref = opfParser.value(XP_PKG_TEXT);
 
-  if (!opfParser.tocNcxPath.empty()) {
-    tocNcxItem = opfParser.tocNcxPath;
+  if (!opfParser.view(XP_PKG_NCX).empty()) {
+    tocNcxItem = opfParser.value(XP_PKG_NCX);
   }
 
-  if (!opfParser.tocNavPath.empty()) {
-    tocNavItem = opfParser.tocNavPath;
+  if (!opfParser.view(XP_PKG_NAV).empty()) {
+    tocNavItem = opfParser.value(XP_PKG_NAV);
   }
 
-  if (!opfParser.cssFiles.empty()) {
-    cssFiles = opfParser.cssFiles;
-  }
+  auto parsedCss = opfParser.cssFiles();
+  if (!parsedCss.empty()) cssFiles = std::move(parsedCss);
 
   LOG_DBG("EBP", "Successfully parsed content.opf");
   return true;
@@ -190,7 +186,7 @@ bool Epub::parseTocNcxFile() const {
     return false;
   }
 
-  TocNcxParser ncxParser(contentBasePath, ncxSize, bookMetadataCache.get());
+  PackageParser ncxParser(XP_PKG_NCX_PASS, contentBasePath, ncxSize, "", bookMetadataCache.get());
 
   if (!ncxParser.setup()) {
     LOG_ERR("EBP", "Could not setup toc ncx parser");
@@ -226,7 +222,7 @@ bool Epub::parseTocNavFile() const {
   // Note: We can't use `contentBasePath` here as the nav file may be in a different folder to the content.opf
   // and the HTMLX nav file will have hrefs relative to itself
   const std::string navContentBasePath = tocNavItem.substr(0, tocNavItem.find_last_of('/') + 1);
-  TocNavParser navParser(navContentBasePath, navSize, bookMetadataCache.get());
+  PackageParser navParser(XP_PKG_NAV_PASS, navContentBasePath, navSize, "", bookMetadataCache.get());
 
   if (!navParser.setup()) {
     LOG_ERR("EBP", "Could not setup toc nav parser");
@@ -709,7 +705,7 @@ bool Epub::loadSyncMetadata(SyncMetadata& metadata) {
   }
 
   const std::string basePath = contentOpfFilePath.substr(0, contentOpfFilePath.find_last_of('/') + 1);
-  ContentOpfParser parser(cachePath, basePath, contentOpfSize, nullptr, true);
+  PackageParser parser(XP_PKG_OPF_PASS, basePath, contentOpfSize, cachePath, nullptr, true);
   if (!parser.setup()) {
     zip.close();
     return false;
@@ -719,10 +715,10 @@ bool Epub::loadSyncMetadata(SyncMetadata& metadata) {
   zip.close();
   if (!read) return false;
 
-  metadata.isbn = std::move(parser.isbn);
-  metadata.asin = std::move(parser.asin);
-  metadata.series = std::move(parser.series);
-  metadata.seriesIndex = parser.seriesIndex;
+  metadata.isbn = parser.value(XP_PKG_ISBN);
+  metadata.asin = parser.value(XP_PKG_ASIN);
+  metadata.series = parser.value(XP_PKG_SERIES);
+  metadata.seriesIndex = parser.seriesIndex();
   return true;
 }
 

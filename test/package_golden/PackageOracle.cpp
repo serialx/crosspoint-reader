@@ -1,8 +1,4 @@
-#include <ContainerParser.h>
-#include <ContentOpfParser.h>
-#include <EncryptionManifestProbe.h>
-#include <TocNavParser.h>
-#include <TocNcxParser.h>
+#include <PackageParser.h>
 #include <Utf8.h>
 #include <ZipFile.h>
 
@@ -51,60 +47,67 @@ int main(int argc, char** argv) {
       zipEntrySizes[entry.path().lexically_relative(root).generic_string()] = entry.file_size();
   }
   const std::string container = read(root / "META-INF/container.xml");
-  ContainerParser cp(container.size());
-  if (!cp.setup() || !feed(cp, container, chunk) || cp.fullPath.empty()) return 3;
+  PackageParser cp(XP_PKG_CONTAINER, "", container.size(), "");
+  if (!cp.setup() || !feed(cp, container, chunk) || cp.value(0).empty()) return 3;
   packageCalls << "container ";
-  packageField(cp.fullPath);
+  packageField(cp.value(0));
   packageCalls << '\n';
-  const std::string opf = read(root / cp.fullPath);
-  const auto slash = cp.fullPath.rfind('/');
-  const std::string base = slash == std::string::npos ? "" : cp.fullPath.substr(0, slash + 1);
+  const std::string opf = read(root / cp.value(0));
+  const auto slash = cp.value(0).rfind('/');
+  const std::string base = slash == std::string::npos ? "" : cp.value(0).substr(0, slash + 1);
   BookMetadataCache cache(cachePath);
   if (!cache.beginWrite() || !cache.beginContentOpfPass()) return 4;
-  ContentOpfParser op(cachePath, base, opf.size(), &cache);
+  PackageParser op(XP_PKG_OPF_PASS, base, opf.size(), cachePath, &cache);
   if (!op.setup() || !feed(op, opf, chunk) || !cache.endContentOpfPass() || !cache.beginTocPass()) return 5;
-  for (const auto* value : {&op.title, &op.author, &op.language, &op.isbn, &op.asin, &op.series, &op.tocNcxPath,
-                            &op.tocNavPath, &op.coverItemHref, &op.guideCoverPageHref, &op.textReferenceHref})
-    packageField(*value);
-  packageCalls << "index " << op.seriesIndex.value_or(-9999) << '\n';
-  for (const auto& css : op.cssFiles) {
+  for (const auto& value :
+       {op.value(XP_PKG_TITLE), op.value(XP_PKG_AUTHOR), op.value(XP_PKG_LANGUAGE), op.value(XP_PKG_ISBN),
+        op.value(XP_PKG_ASIN), op.value(XP_PKG_SERIES), op.value(XP_PKG_NCX), op.value(XP_PKG_NAV),
+        op.value(XP_PKG_COVER), op.value(XP_PKG_GUIDE), op.value(XP_PKG_TEXT)})
+    packageField(value);
+  packageCalls << "index " << op.seriesIndex().value_or(-9999) << '\n';
+  for (const auto& css : op.cssFiles()) {
     packageCalls << "css ";
     packageField(css);
     packageCalls << '\n';
   }
   const auto items = std::filesystem::path(cachePath) / ".items.bin";
   std::ofstream(std::filesystem::path(cachePath) / "items.bin", std::ios::binary) << read(items);
-  if (!op.tocNcxPath.empty() && (std::string(argv[4]) == "ncx" || op.tocNavPath.empty())) {
-    const std::string ncx = read(root / op.tocNcxPath);
-    TocNcxParser toc(base, ncx.size(), &cache);
+  if (!op.value(XP_PKG_NCX).empty() && (std::string(argv[4]) == "ncx" || op.value(XP_PKG_NAV).empty())) {
+    const std::string ncx = read(root / op.value(XP_PKG_NCX));
+    PackageParser toc(XP_PKG_NCX_PASS, base, ncx.size(), "", &cache);
     if (!toc.setup() || !feed(toc, ncx, chunk)) return 6;
-  } else if (!op.tocNavPath.empty()) {
-    const std::string nav = read(root / op.tocNavPath);
-    const std::string navBase = op.tocNavPath.substr(0, op.tocNavPath.find_last_of('/') + 1);
-    TocNavParser toc(navBase, nav.size(), &cache);
+  } else if (!op.value(XP_PKG_NAV).empty()) {
+    const std::string nav = read(root / op.value(XP_PKG_NAV));
+    const std::string navBase = op.value(XP_PKG_NAV).substr(0, op.value(XP_PKG_NAV).find_last_of('/') + 1);
+    PackageParser toc(XP_PKG_NAV_PASS, navBase, nav.size(), "", &cache);
     if (!toc.setup() || !feed(toc, nav, chunk)) return 6;
   }
   if (!cache.endTocPass() || !cache.endWrite()) return 7;
-  if (!cache.buildBookBin("oracle.epub", {utf8ComposeNfc(op.title), utf8ComposeNfc(op.author), op.language,
-                                          op.coverItemHref, op.textReferenceHref}))
+  if (!cache.buildBookBin("oracle.epub",
+                          {utf8ComposeNfc(op.value(XP_PKG_TITLE)), utf8ComposeNfc(op.value(XP_PKG_AUTHOR)),
+                           op.value(XP_PKG_LANGUAGE), op.value(XP_PKG_COVER), op.value(XP_PKG_TEXT)}))
     return 8;
   {
-    ContentOpfParser metadata(cachePath, base, opf.size(), nullptr, true);
+    PackageParser metadata(XP_PKG_OPF_PASS, base, opf.size(), cachePath, nullptr, true);
     packageCalls << "metadataOnly " << metadata.setup() << '\n';
     feed(metadata, opf, chunk);
-    for (const auto* value :
-         {&metadata.title, &metadata.author, &metadata.language, &metadata.isbn, &metadata.asin, &metadata.series})
-      packageField(*value);
-    packageCalls << "index " << metadata.seriesIndex.value_or(-9999) << '\n';
+    for (const auto& value :
+         {metadata.value(XP_PKG_TITLE), metadata.value(XP_PKG_AUTHOR), metadata.value(XP_PKG_LANGUAGE),
+          metadata.value(XP_PKG_ISBN), metadata.value(XP_PKG_ASIN), metadata.value(XP_PKG_SERIES)})
+      packageField(value);
+    packageCalls << "index " << metadata.seriesIndex().value_or(-9999) << '\n';
   }
   const auto encryptionPath = root / "META-INF/encryption.xml";
   bool protectedBook = false;
   if (std::filesystem::exists(encryptionPath)) {
-    EncryptionManifestProbe probe;
+    PackageParser probe(XP_PKG_ENCRYPTION, "", 0, "");
     if (!probe.setup() || !feed(probe, read(encryptionPath), chunk) || !probe.finish()) return 9;
     protectedBook = probe.needsProtectionCheck();
   }
   std::ofstream summary(std::filesystem::path(cachePath) / "consumer.txt");
-  summary << cp.fullPath << '\n' << op.tocNcxPath << '\n' << op.tocNavPath << '\n' << protectedBook << '\n';
+  summary << cp.value(0) << '\n'
+          << op.value(XP_PKG_NCX) << '\n'
+          << op.value(XP_PKG_NAV) << '\n'
+          << protectedBook << '\n';
   return 0;
 }

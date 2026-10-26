@@ -1,3 +1,4 @@
+#include "Epub/parsers/PackageParser.h"
 // SD/HAL binding for the content-protection read path.
 //
 // The ContentProtection SDK lib is storage-agnostic (it works against a
@@ -22,7 +23,6 @@
 #include <esp_heap_caps.h>
 
 #include "BookKey.h"
-#include "Epub/parsers/EncryptionManifestProbe.h"
 
 namespace freeink {
 namespace content {
@@ -107,7 +107,7 @@ std::unique_ptr<ContentDecryptor> openProtectedBook(const std::string& epubPath,
   size_t manifestSize = 0;
   if (!ZipFile(epubPath).getInflatedFileSize("META-INF/encryption.xml", &manifestSize)) return nullptr;
   {
-    EncryptionManifestProbe manifest;
+    PackageParser manifest(XP_PKG_ENCRYPTION, "", 0, "");
     if (!manifest.setup() || !ZipFile(epubPath).readFileToStream("META-INF/encryption.xml", manifest, 512) ||
         !manifest.finish()) {
       LOG_ERR("CPRO", "Cannot read encryption manifest");

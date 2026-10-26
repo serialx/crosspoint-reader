@@ -1,7 +1,7 @@
 add_executable(ContentOpfParserTest
   ContentOpfParserTest.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
   EncryptionManifestProbeTest.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ContentOpfParser.cpp
 )
 
 target_include_directories(ContentOpfParserTest PRIVATE

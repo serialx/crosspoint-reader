@@ -59,6 +59,10 @@ def main():
         images = sorted(p for p in directory.iterdir() if p.is_file())
         # Full product for every orientation, plane, polarity and strip target.
         jobs = [(p, variant, target) for p in images for variant in range(11) for target in range(48)]
+        for path in images:
+            variants = (11, 12, 13) if path.name == 'RGBA-37x29.png' else (12, 13) if path.name in (
+                'rgb-801x601-2-0.jpg', 'gif-37x29-0-0.gif') else ()
+            jobs.extend((path, variant, target) for variant in variants for target in range(48))
         def run(job):
             path, variant, target = job
             key = f'{path.name}/{variant}/{target}'

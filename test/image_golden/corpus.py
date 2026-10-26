@@ -70,6 +70,12 @@ def generate():
         out = io.BytesIO()
         rgb.convert('L').save(out, format='JPEG')
         images[f'gray-{w}x{h}.jpg'] = out.getvalue()
+    im = Image.new('CMYK', (37, 29))
+    im.putdata([((x * 31) % 256, (y * 53) % 256, (x * 7 + y * 11) % 256, (x * 3 + y * 19) % 256)
+                for y in range(29) for x in range(37)])
+    out = io.BytesIO()
+    im.save(out, format='JPEG', quality=83)
+    images['cmyk-37x29.jpg'] = out.getvalue()
     # Decoder rejection and header validation are observable outputs too.
     images['interlace.png'] = png(1, 1, 8, 0, b'\0\x7f', interlace=1)
     images['oversize.png'] = png(32768, 1, 8, 0, b'\0\0')

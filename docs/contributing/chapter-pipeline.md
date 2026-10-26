@@ -64,8 +64,10 @@ The current source also needs paragraph services: existence/empty/size queries;
 get/set BlockStyle; reset/suppress first-line indent; link-target matching and
 insertion; size-slot lookup; ruby capacity/group/word access; and allocation or
 reset of the current paragraph. These cannot be hidden as direct access to a
-C++ `ParsedText` from Rust. Their request/reply order is present as
-`Paragraph.*` records in the oracle.
+C++ `ParsedText` from Rust. The instrumented subset is recorded as `Paragraph.*`
+requests and replies in the oracle. Existence, creation, reset, and row-storage
+mutations are not uniformly recorded; complete section and layout comparisons
+remain separate required checks.
 
 BlockStyle's ordered values are alignment u8, character spacing i8, nine i16
 margin/padding/indent values, four u8 indent/alignment/direction flags, f32 font
@@ -129,8 +131,14 @@ ancestor block styles, pending/TOC anchor strings, inline-size state, and captur
 drop cap. Inline-size state is f32 scale, i32 depth, u8 valid/open. Drop-cap state
 is 13 text bytes (12 plus NUL), u8 byte count/codepoint count/line count/bold/
 first-letter-pending, and i32 span depth. Stop and layout-OOM are sticky u8
-feedback values. The class friendship currently permits these accesses; it is
-not a portable Rust representation of the C++ containers.
+feedback values. Assembly now uses explicit `semantic*` queries and notifications;
+it has no friendship access to semantic fields. Queries return scalar values or
+style/drop-cap copies; mutations name the transition, such as closing a cell,
+consuming a marker/page break, clearing inline-size state, or recording an anchor.
+The existing layout cancellation pointer is a read-only borrow for synchronous
+layout. The driver still owns lifecycle access until the Rust handle replaces it.
+These C++ queries define the effects to transport, not C++ container layouts for
+the future C ABI.
 
 The scalar paragraph services are `paragraphExists`, `paragraphEmpty`,
 `paragraphSize`, `paragraphStyle`, `setParagraphStyle`, `createParagraph`,

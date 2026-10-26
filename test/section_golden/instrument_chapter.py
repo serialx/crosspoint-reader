@@ -77,7 +77,7 @@ def instrument(source):
         'void ChapterHtmlSlimParser::applyPendingPageBreak() {':
             'ChapterTrace::record("PageBreak", pendingPageBreak, currentTextBlock && currentTextBlock->getBlockStyle().pageBreakBefore);',
         'void ChapterHtmlSlimParser::flushPendingAnchor() {':
-            'ChapterTrace::record("Anchor", ChapterTrace::hex(pendingAnchorId), completedPageCount, stopRequested);',
+            'ChapterTrace::record("Anchor", ChapterTrace::hex(semanticPendingAnchor()), completedPageCount, semanticStopped());',
         'void ChapterHtmlSlimParser::closeBoxScope() {':
             'ChapterTrace::record("BoxClose", depth);',
         'void ChapterHtmlSlimParser::cancelDropCapToWord() {':
@@ -87,7 +87,7 @@ def instrument(source):
         'void ChapterHtmlSlimParser::closeTableCell() {':
             'ChapterTrace::record("TableCellEnd", insideTableCell, tableRowStacked);',
         'void ChapterHtmlSlimParser::finishTableRow() {':
-            'ChapterTrace::record("TableRowEnd", tableRowRtl, tableRowStacked, tableColumnCount);',
+            'ChapterTrace::record("TableRowEnd", tableRowRtl, tableRowStacked, semanticColumnCount());',
         'void ChapterHtmlSlimParser::setCurrentPageVisibleOffset(const uint32_t offset) {':
             'ChapterTrace::record("SetVisibleOffset", offset);',
         'void ChapterHtmlSlimParser::requestStop() {':
@@ -101,6 +101,14 @@ def instrument(source):
     }
     for anchor, code in hooks.items():
         anchor = resolve(anchor)
+        if "ChapterPageAssembler::" in anchor:
+            for field, query in {
+                "depth": "semanticDepth()", "pendingPageBreak": "semanticPendingPageBreak()",
+                "effectivePreserveWhitespace": "semanticPreservesWhitespace()",
+                "xpathParagraphIndex": "semanticParagraphIndex()", "xpathListItemIndex": "semanticListIndex()",
+                "visibleTextOffset": "semanticVisibleOffset()", "insideTableCell": "semanticCellOpen()",
+            }.items():
+                code = re.sub(r"\b" + field + r"\b", query, code)
         if source.count(anchor) != 1:
             raise ValueError(f"Chapter trace method must occur once: {anchor!r}")
         source = source.replace(anchor, anchor + '\n  ' + code)
@@ -135,8 +143,8 @@ def instrument(source):
            '              ChapterTrace::record("ImageReply", gotDimensions, dims.width, dims.height);')
     before('                // Flush any pending text block so it appears before the image',
            '                ChapterTrace::record("ImageSize", displayWidth, displayHeight);')
-    before('  completePageFn(std::move(currentPage), xpathParagraphIndex, xpathListItemIndex, currentPageVisibleOffset);',
-           '  ChapterTrace::record("Page", xpathParagraphIndex, xpathListItemIndex, currentPageVisibleOffset, currentPageNextY);')
+    before('  completePageFn(std::move(currentPage), semanticParagraphIndex(), semanticListIndex(), currentPageVisibleOffset);',
+           '  ChapterTrace::record("Page", semanticParagraphIndex(), semanticListIndex(), currentPageVisibleOffset, currentPageNextY);')
     # Paragraph services used by semantic callbacks, including opaque slot/link replies.
     reverse_names = {new: old for old, new in paragraph_names.items()}
     services = '|'.join(reverse_names)

@@ -31,21 +31,20 @@ static_assert(ChapterSemantics::MAX_DROP_CAP_BYTES == PageDropCap::MAX_TEXT_BYTE
 bool isWhitespace(char c);
 
 void ChapterPageAssembler::flushPendingAnchor() {
-  if (stopRequested) return;
-  if (pendingAnchorId.empty()) return;
+  if (semanticStopped()) return;
+  if (!semanticHasAnchor()) return;
 
   // If the pending anchor is a TOC chapter boundary, force a page break after the previous
   // block is flushed so the chapter starts on a fresh page.
-  if (std::find(tocAnchors.begin(), tocAnchors.end(), pendingAnchorId) != tocAnchors.end()) {
+  if (semanticAnchorStartsChapter()) {
     if (currentPage && !currentPage->elements.empty()) {
       completeCurrentPage();
-      if (stopRequested) return;
+      if (semanticStopped()) return;
     }
   }
 
   // Record deferred anchor after previous block is flushed (and any TOC page break)
-  anchorData.push_back({std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount)});
-  pendingAnchorId.clear();
+  semanticRecordAnchor(static_cast<uint16_t>(completedPageCount));
 }
 
 void ChapterPageAssembler::emitCurrentPage() {
@@ -55,7 +54,7 @@ void ChapterPageAssembler::emitCurrentPage() {
     if (box.top >= 0) box.continued = true;
     box.top = box.bottom = -1;
   }
-  completePageFn(std::move(currentPage), xpathParagraphIndex, xpathListItemIndex, currentPageVisibleOffset);
+  completePageFn(std::move(currentPage), semanticParagraphIndex(), semanticListIndex(), currentPageVisibleOffset);
   recentLineCount = 0;
   keepWithNextLines = 0;
   paragraphLinesOnPage = 0;
@@ -63,22 +62,23 @@ void ChapterPageAssembler::emitCurrentPage() {
 
 void ChapterPageAssembler::openBoxScope(BlockStyle& ownStyle, const CssStyle& cssStyle) {
   const bool shaded = cssStyle.defined.shaded && cssStyle.shaded;
-  if (tableDepth > 0 || boxScopes.size() >= MAX_BOX_SCOPES || (!cssStyle.hasVisibleBorder() && !shaded)) return;
+  if (semanticTableDepth() > 0 || boxScopes.size() >= MAX_BOX_SCOPES || (!cssStyle.hasVisibleBorder() && !shaded))
+    return;
 
-  if (partWordBufferIndex > 0) flushPartWordBuffer();
-  if (currentTextBlock && !currentTextBlock->isEmpty() && !listItemBulletOnly) {
-    startNewTextBlock(blockStyleStack.back().withoutTop().withoutBottom());
+  if (semanticHasWord()) semanticFlushWord();
+  if (currentTextBlock && !currentTextBlock->isEmpty() && !semanticMarkerOnly()) {
+    startNewTextBlock(semanticParentBlock().withoutTop().withoutBottom());
   }
 
   BoxScope box;
-  box.depth = depth;
+  box.depth = semanticDepth();
   box.shaded = shaded;
   const CssBorderSide* sides[4] = {&cssStyle.borderTop, &cssStyle.borderRight, &cssStyle.borderBottom,
                                    &cssStyle.borderLeft};
   for (size_t i = 0; i < 4; ++i) {
     if (sides[i]->visible()) box.sides[i] = *sides[i];
   }
-  const BlockStyle& parent = blockStyleStack.back();
+  const BlockStyle& parent = semanticParentBlock();
   box.left = static_cast<int16_t>(parent.leftInset() + ownStyle.marginLeft);
   box.right = static_cast<int16_t>(viewportWidth - parent.rightInset() - ownStyle.marginRight);
   if (box.right - box.left < 8) return;
@@ -122,7 +122,7 @@ void ChapterPageAssembler::closeBoxScope() {
     }
     if (!currentPage->elements.empty() && currentPageNextY + above + height > viewportHeight) {
       completeCurrentPage();
-      if (stopRequested) return;
+      if (semanticStopped()) return;
       above = 0;
     }
     const int top = currentPageNextY + above;
@@ -138,9 +138,9 @@ void ChapterPageAssembler::closeBoxScope() {
 // capture is too long to be an initial letter.
 
 void ChapterPageAssembler::layoutCurrentBlock(const bool includeLastLine) {
-  if (stopRequested) return;
-  const int layoutFontId = prepareBlockFont(
-      *currentTextBlock, inlineSize.valid ? inlineSize.scale : currentTextBlock->getBlockStyle().fontScale);
+  if (semanticStopped()) return;
+  const int layoutFontId =
+      prepareBlockFont(*currentTextBlock, semanticInlineScale(currentTextBlock->getBlockStyle().fontScale));
   const int horizontalInset = currentTextBlock->getBlockStyle().totalHorizontalInset();
   const uint16_t effectiveWidth =
       (horizontalInset < viewportWidth) ? static_cast<uint16_t>(viewportWidth - horizontalInset) : viewportWidth;
@@ -153,30 +153,30 @@ void ChapterPageAssembler::layoutCurrentBlock(const bool includeLastLine) {
     topSpacingApplied = true;
   };
   const auto emitLine = [this, &applyTopSpacing](std::unique_ptr<TextBlock> textBlock, const uint32_t offset) {
-    if (stopRequested) return;
+    if (semanticStopped()) return;
     applyTopSpacing();
     addLineToPage(std::move(textBlock), offset);
   };
   layoutParagraph = currentTextBlock.get();
-  if (dropCap.length > 0 && dropCap.spanDepth < 0 && !currentTextBlock->isEmpty()) {
+  if (semanticDropCap().length > 0 && semanticDropCap().spanDepth < 0 && !currentTextBlock->isEmpty()) {
     // Lines beside the letter must stay on its page.
     layoutParagraphHasDropCap = true;
     applyTopSpacing();
     layoutDropCapLines(layoutFontId, effectiveWidth, emitLine, includeLastLine);
   }
   currentTextBlock->layoutAndExtractLines(renderer, layoutFontId, effectiveWidth, emitLine, includeLastLine,
-                                          characterSpacing, wordSpacingPercent, SIZE_MAX, &stopRequested);
+                                          characterSpacing, wordSpacingPercent, SIZE_MAX, semanticStopFlag());
   layoutParagraph = nullptr;
 }
 
 void ChapterPageAssembler::layoutDropCapLines(const int layoutFontId, const uint16_t effectiveWidth,
                                               const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& emitLine,
                                               const bool includeLastLine) {
-  const uint8_t lines = dropCap.lines;
+  const uint8_t lines = semanticDropCap().lines;
   char text[MAX_DROP_CAP_BYTES + 1];
-  memcpy(text, dropCap.text, sizeof(text));
-  const EpdFontFamily::Style capStyle = dropCap.bold ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR;
-  dropCap = DropCapState{};
+  memcpy(text, semanticDropCap().text, sizeof(text));
+  const EpdFontFamily::Style capStyle = semanticDropCap().bold ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR;
+  semanticClearDropCap();
 
   // Enlarging the family's largest built-in size keeps outlines smoothest.
   const int capFontId = fontIdForScale(3.0f);
@@ -212,8 +212,8 @@ void ChapterPageAssembler::layoutDropCapLines(const int layoutFontId, const uint
     currentPageVisibleOffsetSet = false;
   }
   if (!currentPage->elements.empty() && currentPageNextY + lines * lineHeight > viewportHeight) {
-    breakPageCarryingLines(keepWithNextCarry(), 0, visibleTextOffset);
-    if (stopRequested) return;
+    breakPageCarryingLines(keepWithNextCarry(), 0, semanticVisibleOffset());
+    if (semanticStopped()) return;
   }
   BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
   const int top = currentPageNextY;
@@ -234,7 +234,7 @@ void ChapterPageAssembler::layoutDropCapLines(const int layoutFontId, const uint
   blockStyle.marginLeft = static_cast<int16_t>(blockStyle.marginLeft + capWidth);
   currentTextBlock->layoutAndExtractLines(renderer, layoutFontId, static_cast<uint16_t>(effectiveWidth - capWidth),
                                           emitLine, includeLastLine, characterSpacing, wordSpacingPercent, lines,
-                                          &stopRequested);
+                                          semanticStopFlag());
   blockStyle.marginLeft = static_cast<int16_t>(blockStyle.marginLeft - capWidth);
   currentPageNextY = static_cast<int16_t>(std::max(static_cast<int>(currentPageNextY), top + lines * lineHeight));
 }
@@ -242,7 +242,7 @@ void ChapterPageAssembler::layoutDropCapLines(const int layoutFontId, const uint
 void ChapterPageAssembler::completeCurrentPage() {
   emitCurrentPage();
   completedPageCount++;
-  if (stopRequested) return;
+  if (semanticStopped()) return;
   currentPage.reset(new Page());
   currentPageNextY = 0;
   currentPageVisibleOffsetSet = false;
@@ -251,8 +251,7 @@ void ChapterPageAssembler::completeCurrentPage() {
 // Honors a pending page-break-after and the current block's page-break-before,
 // once, before the block (or image) places its first content.
 void ChapterPageAssembler::applyPendingPageBreak() {
-  bool requested = pendingPageBreak;
-  pendingPageBreak = false;
+  bool requested = semanticConsumePageBreak();
   if (currentTextBlock) {
     BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
     requested = requested || blockStyle.pageBreakBefore;
@@ -280,13 +279,13 @@ void ChapterPageAssembler::breakTextLine(const BlockStyle& style) {
     currentPageNextY = static_cast<int16_t>(std::min<int>(viewportHeight, currentPageNextY + lineHeight));
   }
   startNewTextBlock(style, false);
-  if (currentTextBlock && (hasText || effectivePreserveWhitespace)) currentTextBlock->suppressFirstLineIndent();
+  if (currentTextBlock && (hasText || semanticPreservesWhitespace())) currentTextBlock->suppressFirstLineIndent();
 }
 
 // start a new text block if needed
 void ChapterPageAssembler::startNewTextBlock(const BlockStyle& blockStyle, const bool paragraphEnd) {
-  if (stopRequested) return;
-  nextWordContinues = false;  // New block = new paragraph, no continuation
+  if (semanticStopped()) return;
+  semanticClearContinuation();  // New block = new paragraph, no continuation
   if (currentTextBlock) {
     // already have a text block running and it is empty - just reuse it
     if (currentTextBlock->isEmpty()) {
@@ -298,7 +297,7 @@ void ChapterPageAssembler::startNewTextBlock(const BlockStyle& blockStyle, const
       // the container's vertical spacing.
       const auto style = currentTextBlock->getBlockStyle();
       currentTextBlock->setBlockStyle(style.getCombinedBlockStyle(blockStyle, BlockStyle::CombineAxis::Vertical));
-      inlineSize = InlineSizeState{};
+      semanticResetInlineSize();
 
       flushPendingAnchor();
       return;
@@ -307,23 +306,23 @@ void ChapterPageAssembler::startNewTextBlock(const BlockStyle& blockStyle, const
     // <li> added a bullet as the first word, making the block non-empty. When a nested
     // block-level child (<p>, <div>, etc.) opens, reuse the block instead of flushing
     // the bullet to its own line. The bullet stays inline with the child's text.
-    if (listItemBulletOnly) {
+    if (semanticMarkerOnly()) {
       const auto style = currentTextBlock->getBlockStyle();
       currentTextBlock->setBlockStyle(style.getCombinedBlockStyle(blockStyle, BlockStyle::CombineAxis::Vertical));
-      listItemBulletOnly = false;
+      semanticConsumeMarker();
       flushPendingAnchor();
       return;
     }
 
     makePages(true, paragraphEnd);
-    if (stopRequested) return;
+    if (semanticStopped()) return;
   }
   // If the pending anchor is a TOC chapter boundary, force a page break after the previous
   // block is flushed so the chapter starts on a fresh page.
   flushPendingAnchor();
-  if (stopRequested) return;
-  dropCap.firstLetterPending = false;
-  inlineSize = InlineSizeState{};
+  if (semanticStopped()) return;
+  semanticDisarmDropCap();
+  semanticResetInlineSize();
   currentTextBlock =
       makeUniqueNoThrow<ParsedText>(hyphenationEnabled, focusReadingEnabled, blockStyle, paragraphIndentSpaces);
   if (!currentTextBlock) {
@@ -334,16 +333,16 @@ void ChapterPageAssembler::startNewTextBlock(const BlockStyle& blockStyle, const
   }
   if (!currentTextBlock) {
     LOG_ERR("EHP", "OOM: ParsedText");
-    layoutOom = true;  // parseStep() turns this into ParseStatus::Error
+    semanticFailLayout();  // parseStep() turns this into ParseStatus::Error
   }
   wordsExtractedInBlock = 0;
-  listItemBulletOnly = false;
+  semanticConsumeMarker();
 }
 
 void ChapterPageAssembler::emitHorizontalRule(const BlockStyle& blockStyle) {
-  if (stopRequested) return;
-  if (partWordBufferIndex > 0) {
-    flushPartWordBuffer();
+  if (semanticStopped()) return;
+  if (semanticHasWord()) {
+    semanticFlushWord();
   }
 
   if (currentTextBlock) {
@@ -376,10 +375,10 @@ void ChapterPageAssembler::emitHorizontalRule(const BlockStyle& blockStyle) {
   const int16_t totalHeight = static_cast<int16_t>(topSpacing + ruleThickness + bottomSpacing);
 
   if (!currentPage->elements.empty() && currentPageNextY + totalHeight > viewportHeight) {
-    setCurrentPageVisibleOffset(visibleTextOffset);
+    setCurrentPageVisibleOffset(semanticVisibleOffset());
     emitCurrentPage();
     completedPageCount++;
-    if (stopRequested) return;
+    if (semanticStopped()) return;
     currentPage.reset(new (std::nothrow) Page());
     if (!currentPage) {
       LOG_ERR("EHP", "Failed to create page after horizontal-rule page break");
@@ -397,14 +396,13 @@ void ChapterPageAssembler::emitHorizontalRule(const BlockStyle& blockStyle) {
     return;
   }
   currentPage->elements.push_back(std::move(pageRule));
-  setCurrentPageVisibleOffset(visibleTextOffset);
+  setCurrentPageVisibleOffset(semanticVisibleOffset());
   noteContent(currentPageNextY, currentPageNextY + ruleThickness);
   keepWithNextLines = 0;
   currentPageNextY = static_cast<int16_t>(currentPageNextY + ruleThickness + bottomSpacing);
 
-  if (!pendingAnchorId.empty()) {
-    anchorData.push_back({std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount)});
-    pendingAnchorId.clear();
+  if (semanticHasAnchor()) {
+    semanticRecordAnchor(static_cast<uint16_t>(completedPageCount));
   }
 }
 
@@ -429,12 +427,10 @@ void ChapterPageAssembler::fallbackTableRowToStacked() {
 }
 
 void ChapterPageAssembler::closeTableCell() {
-  if (!insideTableCell) {
+  if (!semanticCellOpen()) {
     return;
   }
-  insideTableCell = false;
-  const int bottomPadding = blockStyleStack.back().paddingBottom;
-  blockStyleStack.pop_back();
+  const int bottomPadding = semanticCloseCell();
 
   if (!currentTextBlock) {
     return;
@@ -444,7 +440,7 @@ void ChapterPageAssembler::closeTableCell() {
   // check only inspects currentTextBlock, so a cell parsed and moved (or reset
   // while empty) within one XML buffer would otherwise lose its OOM flag.
   if (currentTextBlock->hadDroppedWords()) {
-    layoutOom = true;
+    semanticFailLayout();
   }
 
   if (!tableRowStacked && tableRowCells.size() >= MAX_GRID_TABLE_COLUMNS) {
@@ -493,7 +489,7 @@ void ChapterPageAssembler::addTableRowSeparator() {
 // shares the rest in proportion to how much wrapping it would otherwise need.
 
 void ChapterPageAssembler::finishTableRow() {
-  if (stopRequested) return;
+  if (semanticStopped()) return;
   closeTableCell();
 
   if (tableRowCells.empty()) {
@@ -507,14 +503,14 @@ void ChapterPageAssembler::finishTableRow() {
   const int16_t lineHeight =
       std::max<int16_t>(1, static_cast<int16_t>(renderer.getLineHeight(fontId) * lineCompression));
   const size_t columnCount = tableRowCells.size();
-  const bool planned = tableColumnCount == columnCount;
+  const bool planned = semanticColumnCount() == columnCount;
   uint16_t columnWidths[MAX_GRID_TABLE_COLUMNS] = {};
   bool fitsGrid = columnCount >= 2;
   int16_t topPadding[MAX_GRID_TABLE_COLUMNS] = {};
   int maxTopPadding = 0;
   int maxBottomPadding = 0;
   for (size_t column = 0; column < columnCount; ++column) {
-    columnWidths[column] = planned ? tableColumnWidths[column] : static_cast<uint16_t>(viewportWidth / columnCount);
+    columnWidths[column] = planned ? semanticColumnWidth(column) : static_cast<uint16_t>(viewportWidth / columnCount);
     // Equal columns keep enough width for a few glyphs so ordinary three-column tables stay
     // tabular in portrait; planned columns already fit their longest word.
     const auto& style = tableRowCells[column]->getBlockStyle();
@@ -570,7 +566,7 @@ void ChapterPageAssembler::finishTableRow() {
   // Cell layout itself can drop lines (TextBlock arena OOM in extractLine);
   // latch that before the cells are destroyed.
   for (const auto& cell : tableRowCells) {
-    if (cell && cell->hadDroppedWords()) layoutOom = true;
+    if (cell && cell->hadDroppedWords()) semanticFailLayout();
   }
   tableRowCells.clear();
   const auto clearLayoutLines = [this]() {
@@ -582,7 +578,7 @@ void ChapterPageAssembler::finishTableRow() {
 
   // Bordered tables frame every cell. Boxes overlap their neighbours by one pixel so
   // shared edges draw as a single line; a row split by a page break is framed per page.
-  CssBorderSide cellBorder = tableBorder;
+  CssBorderSide cellBorder = semanticTableBorder();
   cellBorder.width = std::min<uint8_t>(cellBorder.width, 3);
   const bool bordered = cellBorder.visible();
   const int16_t cellGap = bordered ? static_cast<int16_t>(cellBorder.width + 2) : 0;
@@ -606,7 +602,7 @@ void ChapterPageAssembler::finishTableRow() {
 
   for (size_t lineIndex = 0; lineIndex < maxLineCount; ++lineIndex) {
     const uint32_t lineVisibleOffset =
-        lineIndex < tableLineVisibleOffsets.size() ? tableLineVisibleOffsets[lineIndex] : visibleTextOffset;
+        lineIndex < tableLineVisibleOffsets.size() ? tableLineVisibleOffsets[lineIndex] : semanticVisibleOffset();
     int16_t rowLineHeight = lineHeight;
     for (size_t column = 0; column < columnCount; ++column) {
       if (lineIndex < tableCellLines[column].size()) {
@@ -629,7 +625,7 @@ void ChapterPageAssembler::finishTableRow() {
         setCurrentPageVisibleOffset(lineVisibleOffset);
         emitCurrentPage();
         completedPageCount++;
-        if (stopRequested) {
+        if (semanticStopped()) {
           clearLayoutLines();
           return;
         }
@@ -693,7 +689,7 @@ void ChapterPageAssembler::breakPageCarryingLines(const size_t carry, const size
   auto nextPage = makeUniqueNoThrow<Page>();
   if (!nextPage) {
     LOG_ERR("EHP", "OOM: Page (%zu bytes)", sizeof(Page));
-    layoutOom = true;
+    semanticFailLayout();
     return;
   }
   std::unique_ptr<PageElement> carried[MAX_CARRIED_LINES];
@@ -736,7 +732,7 @@ void ChapterPageAssembler::breakPageCarryingLines(const size_t carry, const size
   setCurrentPageVisibleOffset(visibleOffset);
   emitCurrentPage();
   completedPageCount++;
-  if (stopRequested) return;
+  if (semanticStopped()) return;
   currentPage = std::move(nextPage);
   currentPageNextY = 0;
   currentPageVisibleOffsetSet = false;
@@ -758,7 +754,7 @@ void ChapterPageAssembler::breakPageCarryingLines(const size_t carry, const size
 }
 
 void ChapterPageAssembler::addLineToPage(std::unique_ptr<TextBlock> line, const uint32_t visibleOffset) {
-  if (stopRequested) return;
+  if (semanticStopped()) return;
   const int lineFontId = line->blockFontId(fontId);
   const int rubyShift = line->getRubyShift(renderer.getFontAscenderSize(lineFontId));
   // Taller inline words push the shared baseline down.
@@ -775,7 +771,7 @@ void ChapterPageAssembler::addLineToPage(std::unique_ptr<TextBlock> line, const 
     size_t paragraphLines = 0;
     const size_t carry = linesToCarry(paragraphLines);
     breakPageCarryingLines(carry, paragraphLines, visibleOffset);
-    if (stopRequested) return;
+    if (semanticStopped()) return;
   }
   setCurrentPageVisibleOffset(visibleOffset);
 
@@ -814,7 +810,7 @@ void ChapterPageAssembler::addLineToPage(std::unique_ptr<TextBlock> line, const 
 }
 
 void ChapterPageAssembler::makePages(const bool includeLastLine, const bool paragraphEnd) {
-  if (stopRequested) return;
+  if (semanticStopped()) return;
   if (!currentTextBlock) {
     LOG_ERR("EHP", "!! No text block to make pages for !!");
     return;
@@ -824,7 +820,7 @@ void ChapterPageAssembler::makePages(const bool includeLastLine, const bool para
   // this returns, which would otherwise lose its dropped-words flag before
   // parseStep()/finishParse() get to check it.
   if (currentTextBlock->hadDroppedWords()) {
-    layoutOom = true;
+    semanticFailLayout();
   }
 
   if (!currentPage) {
@@ -833,14 +829,14 @@ void ChapterPageAssembler::makePages(const bool includeLastLine, const bool para
     currentPageVisibleOffsetSet = false;
   }
   if (!currentTextBlock->isEmpty()) applyPendingPageBreak();
-  if (stopRequested) return;
+  if (semanticStopped()) return;
 
   const int lineHeight = renderer.getLineHeight(fontId, lineCompression);
 
   const BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
 
   layoutCurrentBlock(includeLastLine);
-  if (stopRequested) return;
+  if (semanticStopped()) return;
   if (includeLastLine) {
     // A heading's lines on this page wait to move with what follows it.
     keepWithNextLines =
@@ -855,7 +851,7 @@ void ChapterPageAssembler::makePages(const bool includeLastLine, const bool para
   // arena OOM) during the call above, after the pre-layout latch ran, and the
   // block is replaced right after this returns.
   if (currentTextBlock->hadDroppedWords()) {
-    layoutOom = true;
+    semanticFailLayout();
   }
 
   // Trailing spacing and footnotes only apply when the block is finalized
@@ -1058,8 +1054,8 @@ ChapterSemantics::ImageResult ChapterPageAssembler::processImage(const std::stri
           }
 
           // Flush any pending text block so it appears before the image
-          if (self->partWordBufferIndex > 0) {
-            self->flushPartWordBuffer();
+          if (self->semanticHasWord()) {
+            self->semanticFlushWord();
           }
           if (self->currentTextBlock && !self->currentTextBlock->isEmpty()) {
             const BlockStyle parentBlockStyle = self->currentTextBlock->getBlockStyle();
@@ -1075,8 +1071,8 @@ ChapterSemantics::ImageResult ChapterPageAssembler::processImage(const std::stri
           if (self->currentTextBlock && self->currentTextBlock->isEmpty()) {
             const auto& bs = self->currentTextBlock->getBlockStyle();
             imageMarginTop = bs.topInset();
-            if (self->blockStyleStack.size() > 1) {
-              imageMarginBottom = self->blockStyleStack.back().bottomInset();
+            if (self->semanticBlockDepth() > 1) {
+              imageMarginBottom = self->semanticParentBlock().bottomInset();
             }
           }
 
@@ -1091,8 +1087,8 @@ ChapterSemantics::ImageResult ChapterPageAssembler::processImage(const std::stri
               const int carriedHeight = self->currentPageNextY - elements[elements.size() - carry]->yPos;
               if (carriedHeight + imageMarginTop + displayHeight > self->viewportHeight) carry = 0;
             }
-            self->breakPageCarryingLines(carry, 0, self->visibleTextOffset);
-            if (self->stopRequested) return ImageResult::Aborted;
+            self->breakPageCarryingLines(carry, 0, self->semanticVisibleOffset());
+            if (self->semanticStopped()) return ImageResult::Aborted;
           } else if (!self->currentPage) {
             self->currentPage.reset(new Page());
             if (!self->currentPage) {
@@ -1129,7 +1125,7 @@ ChapterSemantics::ImageResult ChapterPageAssembler::processImage(const std::stri
             return ImageResult::Aborted;
           }
           self->currentPage->elements.push_back(std::move(pageImage));
-          self->setCurrentPageVisibleOffset(self->visibleTextOffset);
+          self->setCurrentPageVisibleOffset(self->semanticVisibleOffset());
           self->noteContent(self->currentPageNextY, self->currentPageNextY + displayHeight);
           self->keepWithNextLines = 0;
           self->currentPageNextY += displayHeight + imageMarginBottom;
@@ -1139,9 +1135,9 @@ ChapterSemantics::ImageResult ChapterPageAssembler::processImage(const std::stri
           // re-apply the same margins to the next text paragraph.
           if (self->currentTextBlock && self->currentTextBlock->isEmpty()) {
             BlockStyle resetStyle;
-            resetStyle.alignment = (self->paragraphAlignment == static_cast<uint8_t>(CssTextAlign::None))
+            resetStyle.alignment = (self->semanticAlignment() == static_cast<uint8_t>(CssTextAlign::None))
                                        ? CssTextAlign::Justify
-                                       : static_cast<CssTextAlign>(self->paragraphAlignment);
+                                       : static_cast<CssTextAlign>(self->semanticAlignment());
             self->currentTextBlock->setBlockStyle(resetStyle);
           }
 
@@ -1160,28 +1156,14 @@ ChapterSemantics::ImageResult ChapterPageAssembler::processImage(const std::stri
 int ChapterPageAssembler::bodyAscender() const { return renderer.getFontAscenderSize(fontId); }
 
 void ChapterPageAssembler::beginAssembly() {
-  stopRequested = false;
-  htmlEnded_ = false;
-  // Initialize block style stack with a root entry representing "no ancestor block elements".
-  // The user's paragraph alignment is set as the default so child elements without explicit
-  // text-align inherit it correctly through getCombinedBlockStyle.
-  BlockStyle rootBlockStyle;
-  rootBlockStyle.alignment = (this->paragraphAlignment == static_cast<uint8_t>(CssTextAlign::None))
-                                 ? CssTextAlign::Justify
-                                 : static_cast<CssTextAlign>(this->paragraphAlignment);
-  blockStyleStack.clear();
-  blockStyleStack.reserve(8);
-  blockStyleStack.push_back(rootBlockStyle);
+  semanticBeginBlocks();
+  const auto rootBlockStyle = semanticParentBlock();
   boxScopes.clear();
   boxScopes.reserve(MAX_BOX_SCOPES);
-  dropCap = DropCapState{};
+  semanticClearDropCap();
 
-  listStack.clear();
-  listStack.reserve(4);
-  tableDepth = 0;
-  insideTableCell = false;
+  semanticBeginLists();
   tableRowStacked = false;
-  tableRowsSpannedRemaining = 0;
   tableRowTextBytes = 0;
   tableRowCells.clear();
   for (auto& lines : tableCellLines) {
@@ -1200,25 +1182,24 @@ bool ChapterPageAssembler::finishAssembly() {
   // Process last page if there is still text
   if (currentTextBlock) {
     makePages();
-    if (stopRequested) return false;
-    // Re-check: makePages() latches layoutOom for lines dropped DURING this
+    if (semanticStopped()) return false;
+    // Re-check: makePages() latches semanticOom() for lines dropped DURING this
     // final layout, which the entry check above cannot have seen.
-    if (layoutOom) {
+    if (semanticOom()) {
       LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
       return false;
     }
-    if (!pendingAnchorId.empty()) {
-      anchorData.push_back({std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount)});
-      pendingAnchorId.clear();
+    if (semanticHasAnchor()) {
+      semanticRecordAnchor(static_cast<uint16_t>(completedPageCount));
     }
-    setCurrentPageVisibleOffset(visibleTextOffset);
+    setCurrentPageVisibleOffset(semanticVisibleOffset());
     emitCurrentPage();
     completedPageCount++;
     currentPage.reset();
     currentTextBlock.reset();
   }
 
-  return !stopRequested;
+  return !semanticStopped();
 }
 
 void ChapterPageAssembler::noteContent(const int top, const int bottom) {

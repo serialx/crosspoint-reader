@@ -1831,3 +1831,33 @@ void ChapterSemantics::planTableColumns(const TableColumnMeasure& measure) {
   }
   tableColumnCount = static_cast<uint8_t>(columns);
 }
+
+bool ChapterSemantics::semanticAnchorStartsChapter() const {
+  return std::find(tocAnchors.begin(), tocAnchors.end(), pendingAnchorId) != tocAnchors.end();
+}
+
+void ChapterSemantics::semanticRecordAnchor(uint16_t page) {
+  if (pendingAnchorId.empty()) return;
+  anchorData.push_back({std::move(pendingAnchorId), page});
+  pendingAnchorId.clear();
+}
+
+void ChapterSemantics::semanticBeginBlocks() {
+  stopRequested = false;
+  htmlEnded_ = false;
+  BlockStyle root;
+  root.alignment = paragraphAlignment == static_cast<uint8_t>(CssTextAlign::None)
+                       ? CssTextAlign::Justify
+                       : static_cast<CssTextAlign>(paragraphAlignment);
+  blockStyleStack.clear();
+  blockStyleStack.reserve(8);
+  blockStyleStack.push_back(root);
+}
+
+void ChapterSemantics::semanticBeginLists() {
+  listStack.clear();
+  listStack.reserve(4);
+  tableDepth = 0;
+  insideTableCell = false;
+  tableRowsSpannedRemaining = 0;
+}

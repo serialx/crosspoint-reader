@@ -53,7 +53,8 @@ class ChapterSemantics {
 
  private:
   friend class ChapterHtmlSlimParser;
-  friend class ChapterPageAssembler;
+
+ public:
   static constexpr size_t MAX_GRID_TABLE_ROW_BYTES = 2048;
   static constexpr size_t MAX_GRID_TABLE_ROW_WORDS = 160;
   static constexpr size_t MAX_GRID_TABLE_COLUMNS = 4;
@@ -62,8 +63,10 @@ class ChapterSemantics {
     uint16_t prefWidth[MAX_GRID_TABLE_COLUMNS] = {};  // longest unwrapped line
     uint8_t columns = 0;
   };
-  std::array<uint16_t, MAX_GRID_TABLE_COLUMNS> tableColumnWidths{};
   enum class ImageResult { Fallback, Displayed, Aborted };
+
+ private:
+  std::array<uint16_t, MAX_GRID_TABLE_COLUMNS> tableColumnWidths{};
   int skipUntilDepth = INT_MAX;
   bool nextWordContinues = false;  // true when next flushed word attaches to previous (inline element boundary)
   bool inRuby = false;
@@ -213,6 +216,8 @@ class ChapterSemantics {
   bool captureDropCapCodepoint(const char* bytes, int length);
   void cancelDropCapToWord();
   void applyBlockFontScale(BlockStyle& blockStyle, const CssStyle& cssStyle, const char* tagName) const;
+
+ protected:
   ChapterSemantics(const CssParser* css, uint8_t alignment, bool embedded, uint8_t images,
                    std::vector<std::string> anchors)
       : paragraphAlignment(alignment),
@@ -220,5 +225,53 @@ class ChapterSemantics {
         imageRendering(images),
         tocAnchors(std::move(anchors)),
         cssParser(css) {}
+
+  // Synchronous assembly feedback. No container or mutable semantic state escapes.
+  bool semanticStopped() const { return stopRequested; }
+  bool semanticOom() const { return layoutOom; }
+  const bool* semanticStopFlag() const { return &stopRequested; }
+  void semanticFailLayout() { layoutOom = true; }
+  int semanticDepth() const { return depth; }
+  int semanticTableDepth() const { return tableDepth; }
+  uint32_t semanticVisibleOffset() const { return visibleTextOffset; }
+  uint16_t semanticParagraphIndex() const { return xpathParagraphIndex; }
+  uint16_t semanticListIndex() const { return xpathListItemIndex; }
+  uint8_t semanticAlignment() const { return paragraphAlignment; }
+  bool semanticPreservesWhitespace() const { return effectivePreserveWhitespace; }
+  bool semanticMarkerOnly() const { return listItemBulletOnly; }
+  void semanticConsumeMarker() { listItemBulletOnly = false; }
+  void semanticClearContinuation() { nextWordContinues = false; }
+  void semanticResetInlineSize() { inlineSize = InlineSizeState{}; }
+  float semanticInlineScale(float fallback) const { return inlineSize.valid ? inlineSize.scale : fallback; }
+  bool semanticHasWord() const { return partWordBufferIndex > 0; }
+  void semanticFlushWord() { flushPartWordBuffer(); }
+  BlockStyle semanticParentBlock() const { return blockStyleStack.back(); }
+  uint32_t semanticBlockDepth() const { return static_cast<uint32_t>(blockStyleStack.size()); }
+  DropCapState semanticDropCap() const { return dropCap; }
+  void semanticClearDropCap() { dropCap = DropCapState{}; }
+  void semanticDisarmDropCap() { dropCap.firstLetterPending = false; }
+  bool semanticPendingPageBreak() const { return pendingPageBreak; }
+  bool semanticConsumePageBreak() {
+    const bool pending = pendingPageBreak;
+    pendingPageBreak = false;
+    return pending;
+  }
+  bool semanticCellOpen() const { return insideTableCell; }
+  int16_t semanticCloseCell() {
+    insideTableCell = false;
+    const auto padding = blockStyleStack.back().paddingBottom;
+    blockStyleStack.pop_back();
+    return padding;
+  }
+  uint8_t semanticColumnCount() const { return tableColumnCount; }
+  uint16_t semanticColumnWidth(uint8_t column) const { return tableColumnWidths[column]; }
+  CssBorderSide semanticTableBorder() const { return tableBorder; }
+  bool semanticHasAnchor() const { return !pendingAnchorId.empty(); }
+  bool semanticAnchorStartsChapter() const;
+  void semanticRecordAnchor(uint16_t page);
+  // Borrowed until the next semantic operation; used by the host-only oracle.
+  const char* semanticPendingAnchor() const { return pendingAnchorId.c_str(); }
+  void semanticBeginBlocks();
+  void semanticBeginLists();
   virtual void applyParagraphDirection(bool defined, bool rtl) = 0;
 };

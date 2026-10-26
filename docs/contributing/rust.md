@@ -50,19 +50,26 @@ The release profile uses `opt-level = "z"` for size, enables fat LTO, and aborts
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
 
-For C3 firmware, the build script removes `.eh_frame` and `.eh_frame_hdr` only
-from a separate copy of the Rust static archive, using PlatformIO's RISC-V
-`objcopy`. Cargo's original archive and host builds remain untouched. The filtered
-copy lives in `release/firmware/libxp_ffi.a`; it changes only when its bytes change,
-so an unchanged Cargo build does not force a relink. No C++ or framework archive
-is filtered, and debug sections are retained.
+For C3 firmware, the build script enables LLVM's `--force-dwarf-frame-section`
+option so the Rust LTO object retains call-frame information in `.debug_frame`.
+That section stays in the ELF and is not flashed. The script then removes
+`.eh_frame` and `.eh_frame_hdr` only from that LTO object in a separate copy of
+the Rust archive, using PlatformIO's RISC-V `ar` and `objcopy`. Prebuilt
+`compiler_builtins` members retain their original unwind records. Cargo's original
+archive, host builds, and all C++/framework archives remain untouched.
+
+The filtered copy lives in `release/firmware/libxp_ffi.a`; it changes only when
+its bytes change, so an unchanged Cargo build does not force a relink. The pinned
+release profile produces one xp-ffi LTO object. The build fails if that assumption
+changes, so a toolchain/profile update requires review of the filter.
 
 `panic = "abort"` does not remove metadata already present in the prebuilt C3
-`core`, `alloc` and `compiler_builtins` libraries. With the pinned 1.99.0 toolchain,
-LTO retains `uwtable` attributes from `core`/`alloc` and an unwind-table module
-flag. Both `-C force-unwind-tables=no` and explicit `-C panic=abort` leave the
-archive's frame-table bytes unchanged; the former also leaves the linked map
-and firmware size unchanged. Filtering after LTO removes these retained tables.
+`core` and `alloc` libraries. With the pinned 1.99.0 toolchain, LTO retains their
+`uwtable` attributes and an unwind-table module flag. Both
+`-C force-unwind-tables=no` and explicit `-C panic=abort` leave the archive's
+frame-table bytes unchanged; the former also leaves the linked map and firmware
+size unchanged. Filtering after LTO removes the retained flashed tables while
+`.debug_frame` preserves offline Rust stack decoding, including emulator traces.
 
 The filter is enabled only when the installed framework's `esp32c3/sdkconfig`
 explicitly disables `CONFIG_ESP_SYSTEM_USE_EH_FRAME`. In the pinned default profile
@@ -73,15 +80,15 @@ prints a raw stack-memory window, rather than parsing `.eh_frame`; CrossPoint's
 `HalSystem.cpp` wrapper also captures a 1,024-byte stack window. Rust still calls
 `abort()` on panic. C++/framework unwind tables, registration and panic handling
 remain unchanged. A framework configuration without the explicit disabled
-EH-frame option keeps the original Rust archive. Offline tools needing the
-removed Rust unwind records must use the preserved Cargo archive.
+EH-frame option keeps the original Rust archive.
 
 S3 remains on its existing build path: its `cargo +esp -Zbuild-std=core,alloc`
 archive contributes no linked `.eh_frame` entries with the pinned toolchain.
-The C3 scratch measurement removes 21,036 linked frame-table bytes and saves
-21,040 firmware-image bytes after alignment, with `.flash.text` and
-`.flash.rodata` unchanged. Whole-firmware table discard is a separate human
-configuration decision and is not part of this filter.
+The C3 scratch measurement removes 20,964 linked frame-table bytes and saves
+20,976 firmware-image bytes after alignment, with `.flash.text` and
+`.flash.rodata` unchanged. All original CFI address ranges remain in the ELF.
+Whole-firmware table discard is a separate human configuration decision and is
+not part of this filter.
 
 The boot self-check compares Rust FNV-1a and CRC-32 against C++ and miniz and
 logs the ABI version and result. It borrows a constant buffer and allocates

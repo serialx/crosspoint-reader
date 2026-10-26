@@ -74,6 +74,24 @@ int main() {
     }
     assert(success);
   }
+  for (size_t kind = 0; kind < 5; ++kind) {
+    bool success = false;
+    for (size_t limit = 0; limit < 512 && !success; ++limit) {
+      xp_test_fail_allocation_after(limit);
+      XpPkgPass* pass = nullptr;
+      if (xp_pkg_pass_create(kind + 1, {}, inputs[kind].size(), 0, nullptr, nullptr, nullptr, &pass) == 0) {
+        assert(xp_pkg_pass_write(pass, {nullptr, 1}) == 0);
+        const auto input = XpPkgSpan{reinterpret_cast<const uint8_t*>(inputs[kind].data()), inputs[kind].size()};
+        success = xp_pkg_pass_write(pass, input) == input.len;
+        if (kind == 3 && success) success = xp_pkg_pass_finish(pass);
+      } else {
+        assert(pass == nullptr);
+      }
+      xp_pkg_pass_destroy(pass);
+      assert(xp_test_live_allocations() == 0);
+    }
+    assert(success);
+  }
   xp_pkg_destroy(nullptr);
   xp_test_fail_allocation_after(SIZE_MAX);
 }

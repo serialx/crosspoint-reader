@@ -114,12 +114,16 @@ void* operator new[](size_t size, const std::nothrow_t&) noexcept {
   return allocate(size);
 }
 void operator delete[](void* ptr, const std::nothrow_t&) noexcept { release(ptr); }
-extern "C" void* heap_caps_malloc(size_t size, uint32_t) { return allocate(size); }
+extern "C" void* heap_caps_malloc(size_t size, uint32_t) {
+  if (failNothrowArray && size == 32767) { ++failures; return nullptr; }
+  return allocate(size);
+}
 extern "C" void* heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t) {
   check(alignment <= alignof(std::max_align_t));
   return allocate(size);
 }
 extern "C" void heap_caps_free(void* ptr) { release(ptr); }
+extern "C" void xp_chapter_release_block(void*) { std::abort(); }
 int main(int argc, char** argv) {
   if (argc != 2) return 2;
   std::cout << "parser,label_bytes,compose,fail,live_before_emit,peak_emit,extra_emit\n";

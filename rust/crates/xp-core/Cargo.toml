@@ -5,5 +5,6 @@ edition = "2021"
 publish = false
 
 [features]
+package-trace = []
 chapter-trace = []
 chapter-test = []

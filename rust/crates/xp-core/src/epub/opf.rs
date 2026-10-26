@@ -262,6 +262,12 @@ impl Parser {
             },
         }
     }
+    pub fn value(&self, field: u32) -> &[u8] {
+        self.semantics.metadata.get(field)
+    }
+    pub fn index(&self) -> Option<f32> {
+        self.semantics.metadata.index
+    }
     pub fn set_base(&mut self, base: &[u8]) -> Result<()> {
         assign(&mut self.semantics.base, base)
     }

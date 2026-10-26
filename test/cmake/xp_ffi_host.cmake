@@ -4,7 +4,7 @@ if(TARGET xp_ffi_host)
 endif()
 find_program(XP_FFI_CARGO cargo REQUIRED)
 find_program(XP_FFI_RUSTC rustc REQUIRED)
-set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace" CACHE STRING "Cargo features for the host xp-ffi archive")
+set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace" CACHE STRING "Cargo features for the host xp-ffi archive")
 set(XP_FFI_HOST_CARGO_ARGS "" CACHE STRING "Additional host cargo build arguments (CMake list)")
 execute_process(COMMAND ${XP_FFI_RUSTC} -vV OUTPUT_VARIABLE XP_FFI_RUSTC_VERSION
   RESULT_VARIABLE XP_FFI_RUSTC_STATUS)

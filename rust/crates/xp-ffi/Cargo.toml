@@ -13,5 +13,6 @@ bench = false
 xp-core = { path = "../xp-core" }
 
 [features]
+package-trace = ["xp-core/package-trace"]
 chapter-trace = ["xp-core/chapter-trace"]
 chapter-test = ["xp-core/chapter-test"]

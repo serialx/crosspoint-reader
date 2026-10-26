@@ -2,6 +2,8 @@
 #![deny(clippy::indexing_slicing)]
 extern crate alloc;
 
+pub mod cache;
+pub mod facade;
 mod href;
 pub mod opf;
 mod simple;
@@ -81,6 +83,9 @@ impl Parser {
             state: Simple::new(kind),
             failed: false,
         }
+    }
+    pub fn value(&self) -> &[u8] {
+        &self.state.label
     }
     pub fn set_base(&mut self, base: &[u8]) -> Result<()> {
         self.state.set_base(base)

@@ -54,3 +54,9 @@ target_include_directories(TocBoundaryTest PRIVATE ${PACKAGE_INCLUDES}
 add_dependencies(TocBoundaryTest xp_ffi_host_build)
 target_link_libraries(TocBoundaryTest PRIVATE ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME TocBoundaryAllocation COMMAND TocBoundaryTest ${CMAKE_CURRENT_BINARY_DIR}/toc-boundary)
+
+add_executable(PackageWriterTest PackageWriterTest.cpp)
+target_link_libraries(PackageWriterTest PRIVATE xp_ffi_host)
+target_compile_definitions(PackageWriterTest PRIVATE XP_FFI_HOST_FAULT_INJECTION)
+target_compile_options(PackageWriterTest PRIVATE -UNDEBUG)
+add_test(NAME PackageWriterFailure COMMAND PackageWriterTest)

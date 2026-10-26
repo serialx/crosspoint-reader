@@ -522,6 +522,53 @@ int32_t xp_pkg_feed(XpPkg* handle, const uint8_t* bytes, size_t len, uint8_t fin
 int32_t xp_pkg_next(XpPkg* handle, XpPkgRecord* out);
 void xp_pkg_destroy(XpPkg* handle);
 
+// Document passes borrow the cache and I/O contexts through destruction. Callbacks
+// are synchronous and must not reenter a live pass/cache. All spans are borrowed.
+typedef struct XpPkgPass XpPkgPass;
+typedef struct XpPkgCache XpPkgCache;
+enum { XP_PKG_CONTAINER = 1, XP_PKG_NCX_PASS, XP_PKG_NAV_PASS, XP_PKG_ENCRYPTION, XP_PKG_OPF_PASS };
+enum { XP_PKG_ITEMS, XP_PKG_SPINE_FILE, XP_PKG_TOC_FILE, XP_PKG_BOOK_FILE };
+enum {
+  XP_PKG_OPEN_READ,
+  XP_PKG_OPEN_WRITE,
+  XP_PKG_CLOSE,
+  XP_PKG_REMOVE,
+  XP_PKG_IS_OPEN,
+  XP_PKG_POSITION,
+  XP_PKG_SIZE,
+  XP_PKG_BEGIN_PASS,
+  XP_PKG_END_PASS,
+  XP_PKG_BEGIN_BUILD,
+  XP_PKG_END_BUILD,
+  XP_PKG_BEGIN_SIZES,
+  XP_PKG_END_SIZES
+};
+typedef struct {
+  void* context;
+  uint32_t (*control)(void*, uint32_t file, uint32_t operation);
+  size_t (*read)(void*, uint32_t file, uint8_t*, size_t);
+  size_t (*write)(void*, uint32_t file, const uint8_t*, size_t);
+  uint8_t (*seek)(void*, uint32_t file, uint32_t offset);
+  uint32_t (*item_size)(void*, uint16_t index, XpPkgSpan href);
+  void (*observe)(void*, uint32_t kind, XpPkgSpan title, XpPkgSpan href, XpPkgSpan anchor, uint8_t level);
+} XpPkgIo;
+int32_t xp_pkg_pass_create(uint32_t kind, XpPkgSpan base, size_t size, uint8_t metadata_only, const XpPkgIo* items,
+                           XpPkgCache* cache, const XpPkgIo* cache_io, XpPkgPass** out);
+void xp_pkg_pass_destroy(XpPkgPass*);
+size_t xp_pkg_pass_write(XpPkgPass*, XpPkgSpan);
+uint8_t xp_pkg_pass_finish(XpPkgPass*);
+XpPkgSpan xp_pkg_pass_value(const XpPkgPass*, uint32_t field);
+uint8_t xp_pkg_pass_index(const XpPkgPass*, float*);
+size_t xp_pkg_pass_count(const XpPkgPass*);
+int32_t xp_pkg_cache_create(XpPkgCache**);
+void xp_pkg_cache_destroy(XpPkgCache*);
+enum { XP_PKG_BEGIN_OPF, XP_PKG_END_OPF, XP_PKG_BEGIN_TOC, XP_PKG_END_TOC, XP_PKG_END_WRITE };
+int32_t xp_pkg_cache_control(XpPkgCache*, const XpPkgIo*, uint32_t operation);
+int32_t xp_pkg_cache_entry(XpPkgCache*, const XpPkgIo*, uint32_t kind, XpPkgSpan title, XpPkgSpan href,
+                           XpPkgSpan anchor, uint8_t level);
+int32_t xp_pkg_cache_build(XpPkgCache*, const XpPkgIo*, const XpPkgSpan metadata[5]);
+uint16_t xp_pkg_cache_count(const XpPkgCache*, uint8_t toc);
+
 // Section cache codec. All storage is caller-owned; no allocation or callbacks.
 // Buffers must have len/capacity bytes in one allocation (<= PTRDIFF_MAX),
 // remain alive while borrowed by a decoder, and not overlap output records.

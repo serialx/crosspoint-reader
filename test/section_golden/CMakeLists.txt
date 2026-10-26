@@ -62,6 +62,9 @@ add_test(NAME SectionGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump>)
 add_test(NAME SectionGoldenComparator COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
+add_test(NAME SectionReadGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/read_oracle.py --dump $<TARGET_FILE:SectionGoldenDump>
+  --output ${CMAKE_CURRENT_SOURCE_DIR}/goldens/reads.json.gz --verify)
 
 add_test(NAME LayoutGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump> --layout)

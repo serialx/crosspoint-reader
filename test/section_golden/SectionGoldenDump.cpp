@@ -3,6 +3,7 @@
 #include <Epub/Section.h>
 #include <Epub/css/CssParser.h>
 #include <GfxRenderer.h>
+#include <sys/resource.h>
 
 #include <filesystem>
 #include <fstream>
@@ -58,6 +59,46 @@ ReaderRenderSpec setting(int index) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc == 6 && (std::string(argv[1]) == "--read" || std::string(argv[1]) == "--probe")) {
+    const bool probe = std::string(argv[1]) == "--probe";
+    const rlimit limit{128 * 1024 * 1024, 128 * 1024 * 1024};
+    setrlimit(RLIMIT_DATA, &limit);
+    const auto source = std::filesystem::absolute(argv[2]);
+    std::filesystem::current_path(argv[3]);
+    std::filesystem::create_directories("cache/sections");
+    std::filesystem::copy_file(source, "cache/sections/0.bin", std::filesystem::copy_options::overwrite_existing);
+    auto epub = std::make_shared<Epub>();
+    GfxRenderer renderer;
+    Section section(epub, 0, renderer);
+    const bool accepted = section.loadSectionFile(setting(std::stoi(argv[4])));
+    std::cout << "section\t" << accepted << '\t' << section.pageCount << std::endl;
+    if (!accepted) return 0;
+    const auto hex = [](const std::string& bytes) {
+      static constexpr char digits[] = "0123456789abcdef";
+      for (const unsigned char byte : bytes) std::cout << digits[byte >> 4] << digits[byte & 15];
+    };
+    const int pages = std::stoi(argv[5]);
+    for (int index = 0; index < pages; ++index) {
+      auto page = section.loadPage(index);
+      std::cout << "page\t" << index << '\t' << static_cast<bool>(page) << std::endl;
+      if (!page) continue;
+      if (probe) continue;
+      std::cout << "visible\t" << page->visibleTextOffset << '\n';
+      HalFile output("page.bin");
+      if (!page->serialize(output)) return 10;
+      output.close();
+      std::ifstream input("page.bin", std::ios::binary);
+      const std::string bytes((std::istreambuf_iterator<char>(input)), {});
+      std::cout << "wire\t";
+      hex(bytes);
+      std::cout << '\n';
+      section.currentPage = index;
+      std::cout << "text\t";
+      hex(section.getTextFromSectionFile());
+      std::cout << std::endl;
+    }
+    return 0;
+  }
   if (argc != 2) {
     std::cerr << "Usage: SectionGoldenDump <extracted-fixture-directory>\n";
     return 2;

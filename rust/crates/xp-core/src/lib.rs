@@ -4,6 +4,7 @@ pub mod chapter;
 pub mod css;
 pub mod epub;
 pub mod hyphen;
+pub mod image;
 pub mod para;
 pub mod section;
 pub mod text;

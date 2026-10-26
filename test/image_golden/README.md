@@ -44,3 +44,11 @@ These are observations of the existing renderer boundary, not decoder internals.
 standard library. `run.py --capture` is reserved for capturing the unmodified C++
 baseline. Never recapture from Rust to hide a mismatch. `IMAGE_ASAN=ON` enables
 address/undefined-behavior sanitizers for the host target.
+
+`ctest --test-dir build/image-golden --output-on-failure` also runs allocation
+failure injection and cache open/write/close failure checks. The tests require
+all Rust owners to be released and every partial cache to be removed. The old
+`PixelCache.h` remains only because `test/gif_support/PixelCacheTest.cpp` includes
+it; production converters use the Rust writer. The X3 oracle does not establish
+correct output on panels whose framebuffer exceeds 65,535 bytes. The existing
+16-bit image offset is preserved and covered by a Rust regression test.

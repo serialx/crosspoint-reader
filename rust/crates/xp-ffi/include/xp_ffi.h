@@ -796,6 +796,62 @@ uint8_t xp_chapter_measure_table(XpChapterState* state, void* ctx, XpChapterRead
 void xp_chapter_plan_columns(XpChapterState* state, const XpChapterMeasure* measure);
 uint32_t xp_chapter_handle_size(void);
 
+// Image pipeline: caller-owned opaque storage; init/prepare/rows/finish/destroy
+// are synchronous and exclusive. Never copy initialized storage. Destroy exactly
+// once after successful init, before callback context or renderer expires.
+// Prepare once before rows; begin-cache at most once after prepare. Finish at
+// most once after all rows. Destroy also aborts an unfinished cache.
+// Inputs and targets must not alias storage. Row spans borrow decoder memory for
+// one call; target data is exclusively writable for len bytes until next callback.
+// IO operations: 0 open, 1 write all bytes, 2 close, 3 close/remove partial file.
+// Callbacks must not reenter. Kind: PNG=0, JPEG=1, GIF=2. Pixel types follow PNG.
+typedef struct {
+  uintptr_t words[48];
+} XpImageStorage;
+typedef struct {
+  uintptr_t words[8];
+} XpImageProbe;
+typedef struct {
+  int32_t x, y, max_width, max_height, screen_width, screen_height;
+  float crop_x, crop_y;
+  uint8_t exact, dither, alpha, kind;
+} XpImageConfig;
+typedef struct {
+  int32_t width, height, denominator, max_rows;
+} XpImagePlan;
+typedef struct {
+  uint8_t* data;
+  size_t len;
+  int32_t stride, origin, rows, width, height;
+  uint8_t mode, orientation, absolute;
+} XpImageTarget;
+typedef struct {
+  void* context;
+  void (*target)(void*, XpImageTarget*);
+  bool (*io)(void*, uint32_t operation, const uint8_t*, size_t);
+} XpImageCallbacks;
+typedef struct {
+  int32_t x, y, width, height, stride;
+  const uint8_t* pixels;
+  size_t len;
+  const uint8_t* palette;
+  size_t palette_len;
+  uint32_t transparent;
+  uint8_t pixel_type, depth, has_alpha;
+} XpImageRow;
+bool xp_image_init(void*, const XpImageConfig*, int32_t width, int32_t height, bool progressive,
+                   const XpImageCallbacks*, XpImagePlan*);
+bool xp_image_prepare(void*);
+bool xp_image_cache_begin(void*);
+bool xp_image_row(void*, const XpImageRow*);
+// Returns cache-written; success separately reports row/gap processing failure.
+bool xp_image_finish(void*, bool* success);
+void xp_image_destroy(void*);
+void xp_image_packed_row(const XpImageTarget*, int32_t x, int32_t y, int32_t width, const uint8_t* row, size_t len);
+void xp_image_probe_init(void*);
+size_t xp_image_probe_write(void*, const uint8_t*, size_t);
+bool xp_image_probe_dimensions(const void*, uint32_t* width, uint32_t* height);
+
 #ifdef __cplusplus
 }
 #endif

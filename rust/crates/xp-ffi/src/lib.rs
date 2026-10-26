@@ -3,6 +3,7 @@
 mod chapter;
 mod css;
 mod hyphen;
+mod image;
 mod para;
 mod pkg;
 

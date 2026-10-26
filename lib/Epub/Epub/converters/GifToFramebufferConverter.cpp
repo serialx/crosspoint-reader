@@ -10,122 +10,16 @@
 #include <Logging.h>
 #include <Memory.h>
 
-#include <cstring>
-
-#include "DirectPixelWriter.h"
-#include "DitherUtils.h"
-#include "PixelCache.h"
+#include "ImagePipeline.h"
 
 namespace {
 
 struct GifContext {
-  GfxRenderer* renderer{nullptr};
-  const RenderConfig* config{nullptr};
-  int screenWidth{0};
-  int screenHeight{0};
-  int srcWidth{0};
-  int srcHeight{0};
-  int dstWidth{0};
-  int dstHeight{0};
-  float scale{1.f};
-  int lastDstY{-1};
-  int nextExpectedSrcY{0};
-  const uint8_t* activePalette24{nullptr};
-  uint8_t grayPalette[256] = {0};
-  std::unique_ptr<uint8_t[]> grayRow;
-  std::unique_ptr<uint8_t[]> whiteRow;
-  PixelCache cache;
-  bool caching{false};
-  bool success{true};
-  uint32_t lastYieldMs{0};
+  GifContext(GfxRenderer& renderer, const RenderConfig& config) : pipeline(renderer, config) {}
+  ImagePipeline pipeline;
+  bool success = true;
+  uint32_t lastYieldMs = 0;
 };
-
-void updateGrayPalette(const GIFDRAW* pDraw, GifContext& ctx) {
-  const uint8_t* palette24 = pDraw->pPalette24;
-  if (palette24 == nullptr || palette24 == ctx.activePalette24) return;
-
-  ctx.activePalette24 = palette24;
-  for (int i = 0; i < 256; ++i) {
-    const uint8_t* pixel = &palette24[i * 3];
-    ctx.grayPalette[i] = static_cast<uint8_t>((pixel[0] * 77 + pixel[1] * 150 + pixel[2] * 29) >> 8);
-  }
-}
-
-void renderCanvasRow(const uint8_t* grayRow, int srcY, GifContext& ctx) {
-  // Map source rows using the exact output-height ratio. During downscaling,
-  // multiple source rows may map to the same output row; during upscaling, a
-  // source row must be repeated across every destination row in its range.
-  int firstDstY = (srcY * ctx.dstHeight) / ctx.srcHeight;
-  int endDstY = firstDstY + 1;
-  if (ctx.dstHeight > ctx.srcHeight) {
-    endDstY = ((srcY + 1) * ctx.dstHeight) / ctx.srcHeight;
-  }
-
-  if (firstDstY <= ctx.lastDstY) firstDstY = ctx.lastDstY + 1;
-  if (firstDstY >= endDstY || firstDstY >= ctx.dstHeight) return;
-  if (endDstY > ctx.dstHeight) endDstY = ctx.dstHeight;
-
-  DirectPixelWriter pw;
-  pw.init(*ctx.renderer);
-
-  for (int dstY = firstDstY; dstY < endDstY; ++dstY) {
-    ctx.lastDstY = dstY;
-    const int outY = ctx.config->y + dstY;
-    if (outY >= ctx.screenHeight) continue;
-
-    pw.beginRow(outY);
-
-    const bool caching = ctx.caching;
-    DirectCacheWriter cw;
-    if (caching) {
-      if (!ctx.cache.advanceTo(dstY)) {
-        ctx.success = false;
-        return;
-      } else {
-        cw.init(ctx.cache.buffer, ctx.cache.bytesPerRow, ctx.cache.bandRows, ctx.cache.originX);
-        cw.beginRow(outY, ctx.config->y + ctx.cache.bandStart);
-      }
-    }
-
-    int srcX = 0;
-    int error = 0;
-    const int outXBase = ctx.config->x;
-    const bool useDithering = ctx.config->useDithering;
-
-    for (int dstX = 0; dstX < ctx.dstWidth; ++dstX) {
-      const int outX = outXBase + dstX;
-      if (outX < ctx.screenWidth) {
-        const uint8_t gray = grayRow[srcX];
-        uint8_t ditheredGray;
-        if (useDithering) {
-          ditheredGray = applyBayerDither4Level(gray, outX, outY);
-        } else {
-          ditheredGray = gray / 85;
-          if (ditheredGray > 3) ditheredGray = 3;
-        }
-        pw.writePixel(outX, ditheredGray);
-        if (caching) cw.writePixel(outX, ditheredGray);
-      }
-
-      error += ctx.srcWidth;
-      while (error >= ctx.dstWidth) {
-        error -= ctx.dstWidth;
-        srcX++;
-        if (srcX >= ctx.srcWidth) {
-          srcX = ctx.srcWidth - 1;
-          break;
-        }
-      }
-    }
-  }
-}
-
-void processGapRowsUpTo(int canvasY, GifContext& ctx) {
-  while (ctx.success && ctx.nextExpectedSrcY < canvasY && ctx.nextExpectedSrcY < ctx.srcHeight) {
-    renderCanvasRow(ctx.whiteRow.get(), ctx.nextExpectedSrcY, ctx);
-    ctx.nextExpectedSrcY++;
-  }
-}
 
 void* gifOpenWithHandle(const char* filename, int32_t* size) {
   auto file = makeUniqueNoThrow<HalFile>();
@@ -179,39 +73,24 @@ int32_t gifSeekWithHandle(GIFFILE* pFile, int32_t position) {
   return position;
 }
 
-void gifDrawCallback(GIFDRAW* pDraw) {
-  auto* ctx = reinterpret_cast<GifContext*>(pDraw->pUser);
-  if (!ctx || !ctx->success || !ctx->grayRow || !ctx->whiteRow) return;
-
+void gifDrawCallback(GIFDRAW* draw) {
+  auto* ctx = static_cast<GifContext*>(draw->pUser);
+  if (!ctx || !ctx->success) return;
   ImageToFramebufferDecoder::yieldDuringDecode(ctx->lastYieldMs);
-
-  const int canvasY = pDraw->iY + pDraw->y;
-  if (canvasY < 0 || canvasY >= ctx->srcHeight) {
-    ctx->success = false;
-    return;
-  }
-
-  processGapRowsUpTo(canvasY, *ctx);
-  if (!ctx->success) return;
-
-  memcpy(ctx->grayRow.get(), ctx->whiteRow.get(), static_cast<size_t>(ctx->srcWidth));
-  updateGrayPalette(pDraw, *ctx);
-
-  const uint8_t* pixels = pDraw->pPixels;
-  const int startX = pDraw->iX;
-  const int endX = startX + pDraw->iWidth;
-  const bool hasTransparency = pDraw->ucHasTransparency != 0;
-  const uint8_t transparent = pDraw->ucTransparent;
-
-  for (int srcX = startX, i = 0; srcX < endX && srcX < ctx->srcWidth; ++srcX, ++i) {
-    if (srcX < 0) continue;
-    const uint8_t index = pixels[i];
-    if (hasTransparency && index == transparent) continue;
-    ctx->grayRow[srcX] = ctx->grayPalette[index];
-  }
-
-  renderCanvasRow(ctx->grayRow.get(), canvasY, *ctx);
-  ctx->nextExpectedSrcY = canvasY + 1;
+  const XpImageRow row{draw->iX,
+                       draw->iY + draw->y,
+                       draw->iWidth,
+                       1,
+                       draw->iWidth,
+                       draw->pPixels,
+                       static_cast<size_t>(draw->iWidth),
+                       draw->pPalette24,
+                       draw->pPalette24 ? 768u : 0u,
+                       draw->ucTransparent,
+                       3,
+                       8,
+                       draw->ucHasTransparency};
+  ctx->success = ctx->pipeline.row(row);
 }
 
 bool readGifInfoFromPath(const std::string& imagePath, GifBasicInfo& info) {
@@ -272,43 +151,15 @@ bool GifToFramebufferConverter::decodeToFramebuffer(const std::string& imagePath
     return false;
   }
 
-  auto ctxPtr = makeUniqueNoThrow<GifContext>();
+  auto ctxPtr = makeUniqueNoThrow<GifContext>(renderer, config);
   if (!ctxPtr) {
     LOG_ERR("GIF", "OOM: GIF context");
     return false;
   }
   GifContext& ctx = *ctxPtr;
-  ctx.renderer = &renderer;
-  ctx.config = &config;
-  ctx.screenWidth = renderer.getScreenWidth();
-  ctx.screenHeight = renderer.getScreenHeight();
-  ctx.srcWidth = sourceDimensions.width;
-  ctx.srcHeight = sourceDimensions.height;
-
-  if (config.useExactDimensions && config.maxWidth > 0 && config.maxHeight > 0) {
-    ctx.dstWidth = config.maxWidth;
-    ctx.dstHeight = config.maxHeight;
-    ctx.scale = static_cast<float>(ctx.dstWidth) / ctx.srcWidth;
-  } else {
-    const float scaleX = static_cast<float>(config.maxWidth) / ctx.srcWidth;
-    const float scaleY = static_cast<float>(config.maxHeight) / ctx.srcHeight;
-    ctx.scale = (scaleX < scaleY) ? scaleX : scaleY;
-    if (ctx.scale > 1.0f) ctx.scale = 1.0f;
-    ctx.dstWidth = static_cast<int>(ctx.srcWidth * ctx.scale);
-    ctx.dstHeight = static_cast<int>(ctx.srcHeight * ctx.scale);
-  }
-  if (ctx.dstWidth <= 0 || ctx.dstHeight <= 0) {
-    LOG_ERR("GIF", "Degenerate output dimensions %dx%d for %s", ctx.dstWidth, ctx.dstHeight, imagePath.c_str());
+  if (!ctx.pipeline.init(sourceDimensions.width, sourceDimensions.height, ImagePipeline::Kind::Gif) ||
+      !ctx.pipeline.prepare())
     return false;
-  }
-
-  ctx.grayRow = makeUniqueNoThrow<uint8_t[]>(ctx.srcWidth);
-  ctx.whiteRow = makeUniqueNoThrow<uint8_t[]>(ctx.srcWidth);
-  if (!ctx.grayRow || !ctx.whiteRow) {
-    LOG_ERR("GIF", "OOM: GIF row buffers (%d bytes each)", ctx.srcWidth);
-    return false;
-  }
-  memset(ctx.whiteRow.get(), 255, static_cast<size_t>(ctx.srcWidth));
 
   gif->begin(GIF_PALETTE_RGB888);
   gif->setDrawType(GIF_DRAW_RAW);
@@ -328,12 +179,10 @@ bool GifToFramebufferConverter::decodeToFramebuffer(const std::string& imagePath
     return false;
   }
 
-  ctx.caching = !config.cachePath.empty();
-  if (ctx.caching) {
-    if (!ctx.cache.begin(config.cachePath, ctx.dstWidth, ctx.dstHeight, config.x, config.y, 1)) {
-      LOG_ERR("GIF", "Failed to start cache stream");
-      return false;
-    }
+  const bool caching = !config.cachePath.empty();
+  if (caching && !ctx.pipeline.beginCache()) {
+    LOG_ERR("GIF", "Failed to start cache stream");
+    return false;
   }
 
   int delayMs = 0;
@@ -341,14 +190,6 @@ bool GifToFramebufferConverter::decodeToFramebuffer(const std::string& imagePath
   const int frameState = gif->playFrame(false, &delayMs, &ctx);
   if (!ctx.success || (gif->getLastError() != GIF_SUCCESS && gif->getLastError() != GIF_EMPTY_FRAME)) {
     LOG_ERR("GIF", "GIF decode failed (state=%d, err=%d)", frameState, gif->getLastError());
-    if (ctx.caching) ctx.cache.abort();
-    return false;
-  }
-
-  processGapRowsUpTo(ctx.srcHeight, ctx);
-  if (!ctx.success) {
-    LOG_ERR("GIF", "GIF post-process failed: %s", imagePath.c_str());
-    if (ctx.caching) ctx.cache.abort();
     return false;
   }
 
@@ -356,8 +197,9 @@ bool GifToFramebufferConverter::decodeToFramebuffer(const std::string& imagePath
     warnUnsupportedFeature("animation (using first frame only)", imagePath);
   }
 
-  if (ctx.caching && !ctx.cache.finalize()) {
-    LOG_ERR("GIF", "Failed to finalize pixel cache: %s", config.cachePath.c_str());
+  const bool cached = ctx.pipeline.finish(ctx.success);
+  if (!ctx.success || (caching && !cached)) {
+    LOG_ERR("GIF", "Failed to finish image/cache: %s", config.cachePath.c_str());
     return false;
   }
 

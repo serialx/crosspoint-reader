@@ -194,28 +194,83 @@ python3 test/section_golden/read_oracle.py \
   --exceptions test/section_golden/goldens/mutation-exceptions.json
 ```
 
-The mutation table records header acceptance and which original page indices
-still load after each 64-byte truncation, a flipped version byte, each page LUT
-entry replaced by zero/out-of-file/UINT32_MAX, each element count replaced by
-UINT16_MAX, and an oversized section page count. Each case runs in its own
-process with a two-second timeout and a 128 MiB data-segment resource limit;
-process failures remain distinct from ordinary rejection. The resource limit
-is diagnostic containment, not a model of firmware heap availability.
+The mutation table records **515,571 cases** from the frozen C++ reader at
+`6dafb158`: header acceptance, original page-index acceptance, and process exit
+status. Truncations cover every byte length 0–64, the existing 64-byte stride,
+and the byte before, at, and after every fixed-record and string boundary.
+`record_boundaries()` walks the version-68 definition in
+`rust/crates/xp-core/src/section/mod.rs`: header, page records, text arenas,
+ruby/image strings, optional font payloads, footnotes, links, and all five
+index tables. It checks each page/table end against the stored offsets.
+The sweep also retains flipped versions, invalid page LUT offsets, oversized
+element counts, and oversized section page counts.
+
+Cuts inside the 44-byte header use `--header`, which stops before page loading
+and records whether the cache file remains. This isolates header behavior from
+undefined old page-LUT reads. Other mutations probe every original page index.
+Each case runs in a fresh child of a frozen `--serve` process, with a two-second
+alarm and 128 MiB data-segment limit. This avoids repeated executable startup
+while keeping decoder state isolated; crashes and timeouts remain distinct
+from ordinary rejection. These limits are diagnostic containment, not a model
+of firmware heap availability. The runner requires a POSIX host.
 
 To capture before a codec migration, omit `--verify` and select a new output
 path. Capture refuses to overwrite a file. Freeze the executable before running
-the mutation capture: concurrent relinking invalidates a running subprocess
-oracle. Capture and verify use the same compiler and host adapters as the write
-oracle; undefined behavior in the original decoder is not a portable contract.
+the capture: concurrent relinking invalidates a running subprocess oracle.
+Capture and verify use the same compiler and host adapters as the write oracle;
+undefined behavior in the original decoder is not a portable contract.
+The expanded baseline replaces the earlier 64-byte-only mutation fixture;
+it contains actual C++ outcomes before applying any exceptions.
 
-`partials.json.gz` adds 936 checks captured from the same frozen C++ binary:
-valid partial headers with a watermark, a short watermark, and zero-page
-partials. Run with `--partial --verify --output
+The mutation fixture uses lossless runs of repeated outcomes. Labels are derived
+from the immutable section archive and sampler, with a SHA-256 of each section's
+complete ordered labels. Verification rejects changed labels, invalid run
+lengths, missing cases, and extra sections before applying exceptions. The
+original full base/candidate JSON captures and frozen executables are retained
+in the external M8 Round 2 evidence directory.
+
+`mutation-exceptions.json` lists two classes:
+
+- `truncated-header`: **6,864 cases**, one for each section and length in
+  **[22, 44)**. The old reader accepts and retains these finalized files. At
+  lengths 22–23, the settings are complete and the initialized page count is
+  left zero or receives only its low byte; this is deterministic, not undefined.
+  At lengths 24–43, the page count is complete but the table offsets are not.
+  The verifier proves version 68, the cut interval, the original page count
+  reconstructed from the available bytes, and original acceptance/retention.
+  It then expects rejection, a zero page count, and cache removal. Each section
+  explicitly lists its 22 cut lengths; every case is checked separately.
+- `short-lut`: **96 cases** where an unchecked C++ read leaves `pagePos`
+  partly uninitialized. The verifier proves that the named page's
+  four-byte LUT entry is incomplete and that the C++ reader accepted that page.
+  It changes only that page's expected acceptance to rejection. This extends
+  the original short-LUT exception class to the denser sampling and rebuilt
+  baseline. The 96 cases differ from the earlier 24: unchecked reads depend on
+  stack contents and are not stable across host-driver builds.
+
+No filename or mutation-specific behavior exists in the production decoder.
+All remaining outcomes must match exactly. `SectionMutationRules` tests the
+sampler and exception rejection rules.
+
+`partials.json.gz` retains 936 checks: valid partial headers with a watermark,
+a short watermark, and zero-page partials. Run with `--partial --verify --output
  test/section_golden/goldens/partials.json.gz` and the same `--dump` executable.
 
-The original mutation golden is unchanged. `mutation-exceptions.json` names 24
-truncated LUT entries for which the original C++ read left part of `pagePos`
-uninitialized. The checked reader rejects those pages. The verifier validates
-that each exception cuts inside exactly one four-byte entry, changes only that
-page's expected acceptance to rejection, and still compares every other result.
-No filename or case-specific behavior exists in the decoder.
+`SectionCodecCoverage` compares focused adapter results with
+`goldens/codec-coverage.json`, captured from `6dafb158` using the same host driver:
+
+- A drop cap containing UTF-8 text, negative coordinates and a negative font ID
+  is loaded and serialized back to its exact bytes.
+- A header with character spacing −3 loads with matching settings and rejects
+  mismatched settings.
+- Finalized and partial synthetic sections exercise anchor/TOC, paragraph,
+  list-item and visible-offset lookups in both directions. Duplicate offsets,
+  missing anchors, out-of-range pages, and the partial-cache boundary are
+  compared directly with C++ results. Explicit assertions also check first/last
+  duplicate selection and rejection beyond the partial watermark.
+
+Run these focused checks with:
+
+```sh
+ctest --test-dir build/test -R '^SectionCodecCoverage$|^SectionMutationRules$' --output-on-failure
+```

@@ -4,6 +4,8 @@
 #include <Epub/css/CssParser.h>
 #include <GfxRenderer.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include <filesystem>
 #include <fstream>
@@ -41,6 +43,11 @@ bool readManifest(Epub& epub, std::vector<std::string>& cssPaths) {
 }
 
 ReaderRenderSpec setting(int index) {
+  if (index == 3) {
+    auto spec = setting(0);
+    spec.characterSpacing = -3;
+    return spec;
+  }
   ReaderRenderSpec spec;
   spec.fontId = index == 1 ? 20 : 16;
   spec.viewportWidth = index == 0 ? 480 : index == 1 ? 240 : 640;
@@ -58,8 +65,29 @@ ReaderRenderSpec setting(int index) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-  if (argc == 6 && (std::string(argv[1]) == "--read" || std::string(argv[1]) == "--probe")) {
+int runDump(int argc, char** argv) {
+  if (argc == 2 && std::string(argv[1]) == "--serve") {
+    std::string mode, source, directory, config, pages;
+    while (std::getline(std::cin, mode) && std::getline(std::cin, source) && std::getline(std::cin, directory) &&
+           std::getline(std::cin, config) && std::getline(std::cin, pages)) {
+      const pid_t child = fork();
+      if (child < 0) return 11;
+      if (child == 0) {
+        alarm(2);
+        char* args[] = {argv[0], mode.data(), source.data(), directory.data(), config.data(), pages.data()};
+        const int result = runDump(6, args);
+        std::cout.flush();
+        _exit(result);
+      }
+      int status = 0;
+      if (waitpid(child, &status, 0) != child) return 12;
+      const int result = WIFEXITED(status) ? WEXITSTATUS(status) : -WTERMSIG(status);
+      std::cout << "exit\t" << result << std::endl;
+    }
+    return 0;
+  }
+  if (argc == 6 && (std::string(argv[1]) == "--read" || std::string(argv[1]) == "--probe" ||
+                    std::string(argv[1]) == "--header" || std::string(argv[1]) == "--lookups")) {
     const bool probe = std::string(argv[1]) == "--probe";
     const rlimit limit{128 * 1024 * 1024, 128 * 1024 * 1024};
     setrlimit(RLIMIT_DATA, &limit);
@@ -72,7 +100,43 @@ int main(int argc, char** argv) {
     Section section(epub, 0, renderer);
     const bool accepted = section.loadSectionFile(setting(std::stoi(argv[4])));
     std::cout << "section\t" << accepted << '\t' << section.pageCount << std::endl;
+    if (std::string(argv[1]) == "--header") {
+      std::cout << "retained\t" << std::filesystem::exists("cache/sections/0.bin") << std::endl;
+      return 0;
+    }
     if (!accepted) return 0;
+    if (std::string(argv[1]) == "--lookups") {
+      epub->toc = {{0, ""}, {0, "start"}, {0, "middle"}, {0, "duplicate"}, {0, "end"}, {0, "missing"}};
+      const auto print = [](const char* key, uint32_t query, const auto& result) {
+        std::cout << key << '\t' << query << '\t';
+        if (result)
+          std::cout << *result;
+        else
+          std::cout << "none";
+        std::cout << '\n';
+      };
+      std::cout << "partial\t" << section.isPartial() << '\n';
+      print("cached", 0, section.getCachedPageCount());
+      for (const auto& anchor : {"start", "middle", "duplicate", "end", "missing"}) {
+        std::cout << "anchor\t" << anchor << '\n';
+        print("direct", 0, section.getPageForAnchor(anchor));
+        print("find", 0, section.findAnchor(anchor));
+      }
+      for (uint16_t page = 0; page <= section.pageCount + 1; ++page) {
+        print("paragraph", page, section.getParagraphIndexForPage(page));
+        print("visible", page, section.getVisibleTextOffsetForPage(page));
+        std::cout << "toc\t" << page << '\t' << section.getTocIndexForPage(page) << '\n';
+      }
+      for (const uint16_t index : {0, 1, 2, 3, 4, 5, 7, 8, 65535}) {
+        print("paragraph-page", index, section.getPageForParagraphIndex(index));
+        print("list-page", index, section.getPageForListItemIndex(index));
+      }
+      for (const uint32_t offset : {0u, 1u, 9u, 10u, 11u, 29u, 30u, 31u, UINT32_MAX}) {
+        print("offset-last", offset, section.getPageForVisibleTextOffset(offset));
+        print("offset-first", offset, section.getPageForVisibleTextOffset(offset, true));
+      }
+      return 0;
+    }
     const auto hex = [](const std::string& bytes) {
       static constexpr char digits[] = "0123456789abcdef";
       for (const unsigned char byte : bytes) std::cout << digits[byte >> 4] << digits[byte & 15];
@@ -151,4 +215,7 @@ int main(int argc, char** argv) {
                 << std::filesystem::file_size(output + "/" + filename) << '\n';
     }
   }
+  return 0;
 }
+
+int main(int argc, char** argv) { return runDump(argc, argv); }

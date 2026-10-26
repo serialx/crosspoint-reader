@@ -77,3 +77,8 @@ add_test(NAME ChapterOperationInstrumentation COMMAND ${Python3_EXECUTABLE}
 add_test(NAME SectionPartialReadGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/read_oracle.py --dump $<TARGET_FILE:SectionGoldenDump>
   --output ${CMAKE_CURRENT_SOURCE_DIR}/goldens/partials.json.gz --partial --verify)
+
+add_test(NAME SectionCodecCoverage COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_codec_coverage.py --dump $<TARGET_FILE:SectionGoldenDump>)
+add_test(NAME SectionMutationRules COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_read_oracle.py)

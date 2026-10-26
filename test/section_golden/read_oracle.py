@@ -1,16 +1,50 @@
 #!/usr/bin/env python3
 """Capture production C++ page reads, including malformed-cache outcomes."""
 import argparse
+import atexit
 from concurrent.futures import ThreadPoolExecutor
 import gzip
+import hashlib
 import json
 from pathlib import Path
 import struct
 import subprocess
 import tarfile
 import tempfile
+import threading
 
 HERE = Path(__file__).resolve().parent
+WORKER = threading.local()
+SERVERS = []
+
+
+@atexit.register
+def close_servers():
+    for server in SERVERS:
+        server.stdin.close()
+        server.wait(timeout=5)
+
+
+def isolated_probe(exe, mode, source, temp, setting, pages):
+    # The server forks a fresh child for each decode; decoder state never survives.
+    if not hasattr(WORKER, 'servers'):
+        WORKER.servers = {}
+    if exe not in WORKER.servers:
+        WORKER.servers[exe] = subprocess.Popen([str(exe), '--serve'], stdin=subprocess.PIPE,
+                                             stdout=subprocess.PIPE, text=True)
+        SERVERS.append(WORKER.servers[exe])
+    server = WORKER.servers[exe]
+    server.stdin.write('\n'.join(map(str, (mode, source, temp, setting, pages))) + '\n')
+    server.stdin.flush()
+    lines = []
+    while True:
+        line = server.stdout.readline()
+        if not line:
+            raise ValueError('oracle server exited before child status')
+        if line.startswith('exit\t'):
+            return int(line.split()[1]), ''.join(lines).encode('ascii')
+        lines.append(line)
+
 
 class Fields:
     def __init__(self, data):
@@ -86,13 +120,18 @@ def run(exe, name, data, pages, probe=False):
         source = Path(temp) / 'input.bin'
         source.write_bytes(data)
         try:
-            p = subprocess.run([str(exe), '--probe' if probe else '--read', str(source), temp, name.split('/')[-2], str(pages)], capture_output=True, timeout=2)
-            status, output = p.returncode, p.stdout
+            mode = '--header' if probe and len(data) < 44 else '--probe' if probe else '--read'
+            if probe:
+                status, output = isolated_probe(exe, mode, source, temp, name.split('/')[-2], pages)
+            else:
+                p = subprocess.run([str(exe), mode, str(source), temp, name.split('/')[-2], str(pages)],
+                                   capture_output=True, timeout=2)
+                status, output = p.returncode, p.stdout
         except subprocess.TimeoutExpired as error:
             status, output = 'timeout', error.stdout or b''
         lines = output.decode('ascii').splitlines()
         if probe:
-            return {'exit': status, 'results': [line for line in lines if line.startswith(('section\t', 'page\t'))]}
+            return {'exit': status, 'results': [line for line in lines if line.startswith(('section\t', 'page\t', 'retained\t'))]}
         if status:
             raise ValueError(f'{name}: failed read {status}')
         records = []
@@ -111,8 +150,97 @@ def run(exe, name, data, pages, probe=False):
         return records
 
 
+def record_boundaries(data):
+    """Walk v68 records from xp-core/src/section/mod.rs, including payload ends."""
+    f = Fields(data)
+    boundaries = {0}
+
+    def take(n):
+        boundaries.add(f.pos)
+        value = f.take(n)
+        boundaries.add(f.pos)
+        return value
+
+    def number(fmt):
+        return struct.unpack('<' + fmt, take(struct.calcsize('<' + fmt)))[0]
+
+    def string():
+        take(number('I'))
+
+    take(44)
+    pages = struct.unpack_from('<H', data, 22)[0]
+    lut, anchors, paragraphs, items, visible = struct.unpack_from('<IIIII', data, 24)
+    for page in range(pages):
+        f.pos = struct.unpack_from('<I', data, lut + page * 4)[0]
+        for _ in range(number('H')):
+            tag = number('B')
+            if tag == 1:
+                take(4)  # Position
+                words, focus, text, _ = struct.unpack('<HBHH', take(7))
+                take(words * (13 + (3 if focus else 0)) + text)
+                for _ in range(words):
+                    string()
+                take(28)  # BlockStyle
+                if number('B'):
+                    take(12 + words)
+            elif tag == 2:
+                take(4)
+                string()
+                string()
+                take(4)
+            elif tag == 3:
+                take(7)
+            elif tag == 4:
+                cap = take(12)
+                take(cap[-1])
+            elif tag == 5:
+                take(17)
+            else:
+                raise ValueError(f'unknown element tag {tag}')
+        for _ in range(number('H')):
+            take(32)
+            take(256)
+        for _ in range(number('H')):
+            take(256)
+            take(8)
+        end = struct.unpack_from('<I', data, lut + (page + 1) * 4)[0] if page + 1 < pages else lut
+        if f.pos != end:
+            raise ValueError(f'page boundary mismatch: {f.pos} != {end}')
+    f.pos = lut
+    for _ in range(pages):
+        take(4)
+    if f.pos != anchors:
+        raise ValueError('anchor map boundary mismatch')
+    for _ in range(number('H')):
+        string()
+        take(2)
+    if f.pos != paragraphs:
+        raise ValueError('paragraph table boundary mismatch')
+    count = number('H')
+    for _ in range(count):
+        take(2)
+    if f.pos != items:
+        raise ValueError('list-item table boundary mismatch')
+    for _ in range(count):
+        take(2)
+    if f.pos != visible:
+        raise ValueError('visible table boundary mismatch')
+    for _ in range(pages):
+        take(4)
+    if f.pos != len(data):
+        raise ValueError('section boundary mismatch')
+    return boundaries
+
+
+def truncation_sizes(data):
+    cuts = set(range(0, len(data), 64)) | set(range(min(65, len(data))))
+    for boundary in record_boundaries(data):
+        cuts.update(n for n in (boundary - 1, boundary, boundary + 1) if 0 <= n < len(data))
+    return sorted(cuts)
+
+
 def mutations(data):
-    for size in range(0, len(data), 64):
+    for size in truncation_sizes(data):
         yield f'truncate:{size}', data[:size]
     yield 'version', bytes([data[0] ^ 1]) + data[1:]
     pages = struct.unpack_from('<H', data, 22)[0]
@@ -140,28 +268,113 @@ def partial_mutations(data):
     yield 'partial-empty', bytes(empty)
 
 
+def mutation_labels(data):
+    return [label for label, _ in mutations(data)]
+
+
+def labels_hash(labels):
+    return hashlib.sha256('\n'.join(labels).encode()).hexdigest()
+
+
+def pack_mutations(records):
+    """Lossless runs omit repeated outcomes and derivable mutation labels."""
+    packed = {}
+    with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
+        for member in archive:
+            if not member.isfile():
+                continue
+            labels = mutation_labels(archive.extractfile(member).read())
+            section = records[member.name]
+            if set(labels) != set(section):
+                raise ValueError(f'mutation set mismatch: {member.name}')
+            runs = []
+            for label in labels:
+                record = section[label]
+                if runs and runs[-1][1] == record:
+                    runs[-1][0] += 1
+                else:
+                    runs.append([1, record])
+            packed[member.name] = {'labels_sha256': labels_hash(labels), 'runs': runs}
+    if set(packed) != set(records):
+        raise ValueError('mutation section set mismatch')
+    return {'encoding': 'mutation-runs-v1', 'sections': packed}
+
+
+def unpack_mutations(packed):
+    if packed.get('encoding') != 'mutation-runs-v1':
+        return packed
+    records = {}
+    with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
+        for member in archive:
+            if not member.isfile():
+                continue
+            labels = mutation_labels(archive.extractfile(member).read())
+            section = packed['sections'][member.name]
+            if labels_hash(labels) != section['labels_sha256']:
+                raise ValueError(f'mutation sampling changed: {member.name}')
+            values = []
+            for count, record in section['runs']:
+                if not isinstance(count, int) or count <= 0 or len(values) + count > len(labels):
+                    raise ValueError('invalid mutation run length')
+                # Exceptions mutate one result; runs must not alias each other.
+                values.extend({'exit': record['exit'], 'results': list(record['results'])} for _ in range(count))
+            if len(values) != len(labels):
+                raise ValueError('mutation run count mismatch')
+            records[member.name] = dict(zip(labels, values, strict=True))
+    if set(records) != set(packed['sections']):
+        raise ValueError('mutation section set mismatch')
+    return records
+
+
+def exception_cases(exceptions):
+    for case in exceptions['cases']:
+        if 'truncations' in case:
+            if case['class'] != 'truncated-header':
+                raise ValueError('grouped truncations require the header class')
+            for cut in case['truncations']:
+                yield {'class': case['class'], 'section': case['section'], 'mutation': f'truncate:{cut}'}
+        else:
+            yield case
+
+
 def apply_exceptions(expected, path):
     exceptions = json.loads(path.read_text())
     seen = set()
     with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
-        for case in exceptions['cases']:
-            name, mutation, page = case['section'], case['mutation'], case['rejected_page']
+        for case in exception_cases(exceptions):
+            name, mutation = case['section'], case['mutation']
+            category = case.get('class', 'short-lut')
+            page = case.get('rejected_page')
             key = (name, mutation, page)
             if key in seen:
                 raise ValueError(f'duplicate exception: {key}')
             seen.add(key)
             data = archive.extractfile(name).read()
+            if not mutation.startswith('truncate:'):
+                raise ValueError(f'exception is not a truncation: {key}')
             cut = int(mutation.removeprefix('truncate:'))
-            lut = struct.unpack_from('<I', data, 24)[0]
-            if not (lut + page * 4 < cut < lut + (page + 1) * 4):
-                raise ValueError(f'exception is not a short LUT entry: {key}')
             record = expected[name][mutation]
             if record['exit'] != 0:
                 raise ValueError(f'exception was not an ordinary C++ result: {key}')
-            before, after = f'page\t{page}\t1', f'page\t{page}\t0'
-            if record['results'].count(before) != 1:
-                raise ValueError(f'exception does not name one accepted C++ page: {key}')
-            record['results'][record['results'].index(before)] = after
+            if category == 'truncated-header':
+                # Settings end at 22; pageCount starts initialized to zero.
+                count = int.from_bytes(data[22:cut][:2].ljust(2, b'\0'), 'little')
+                if (data[0] != 68 or not 22 <= cut < 44 or page is not None or
+                        record['results'] != [f'section\t1\t{count}', 'retained\t1']):
+                    raise ValueError(f'exception is not an accepted truncated finalized header: {key}')
+                record['results'] = ['section\t0\t0', 'retained\t0']
+            elif category == 'short-lut':
+                lut = struct.unpack_from('<I', data, 24)[0]
+                count = struct.unpack_from('<H', data, 22)[0]
+                if not (isinstance(page, int) and 0 <= page < count and
+                        lut + page * 4 < cut < lut + (page + 1) * 4):
+                    raise ValueError(f'exception is not a short LUT entry: {key}')
+                before, after = f'page\t{page}\t1', f'page\t{page}\t0'
+                if record['results'].count(before) != 1:
+                    raise ValueError(f'exception does not name one accepted C++ page: {key}')
+                record['results'][record['results'].index(before)] = after
+            else:
+                raise ValueError(f'unknown exception class: {category}')
     return expected
 
 
@@ -182,10 +395,10 @@ def main():
         parser.error('exceptions require full mutation verification')
     exe = args.dump.resolve()
     results = {}
-    baseline_records = json.loads(gzip.decompress(args.output.read_bytes())) if args.verify else None
+    baseline_records = unpack_mutations(json.loads(gzip.decompress(args.output.read_bytes()))) if args.verify else None
     if args.exceptions:
         baseline_records = apply_exceptions(baseline_records, args.exceptions)
-    with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool, tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         members = [m for m in archive if m.isfile()]
         if args.limit:
             members = members[:args.limit]
@@ -196,8 +409,7 @@ def main():
                 def check(case):
                     label, mutated = case
                     return label, run(exe, member.name, mutated, pages, True)
-                with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-                    records = dict(pool.map(check, partial_mutations(data) if args.partial else mutations(data)))
+                records = dict(pool.map(check, partial_mutations(data) if args.partial else mutations(data)))
             else:
                 records = run(exe, member.name, data, pages)
             if baseline_records is not None and baseline_records.get(member.name) != records:
@@ -219,6 +431,8 @@ def main():
                     raise ValueError(f'read oracle mismatch: {name}')
             raise ValueError('read oracle section set mismatch')
     else:
+        if args.mutations and not args.limit:
+            payload = json.dumps(pack_mutations(results), sort_keys=True, separators=(',', ':')).encode() + b'\n'
         args.output.write_bytes(gzip.compress(payload, mtime=0))
     print(f'{len(results)} sections; {len(payload)} raw bytes; {args.output.stat().st_size} gzip bytes')
 

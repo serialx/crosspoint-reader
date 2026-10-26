@@ -130,10 +130,9 @@ TextBlock::TextBlock(BorrowedLayout, const std::vector<std::string>& words, std:
                      std::span<const uint16_t> focusSuffixX, const BlockStyle& blockStyle,
                      std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
                      std::span<const SourceRange> ranges, const uint16_t paragraphStartWord)
-    : blockStyle(blockStyle),
-      paragraphStartWord(paragraphStartWord),
-      rubyTexts(std::move(rubyTexts)),
-      linkSpans(std::move(linkSpans)) {
+    : blockStyle(blockStyle), paragraphStartWord(paragraphStartWord), rubyTexts(std::move(rubyTexts)) {
+  if (!allocateLinks(linkSpans.size())) return;
+  for (size_t i = 0; i < linkSpans.size(); ++i) this->linkSpans.data[i] = linkSpans[i];
   if (!initializeLayout(words.size(), wordXpos, wordStyles, focusBoundary, focusSuffixX, ranges) || numWords == 0)
     return;
   size_t totalText = 0;
@@ -154,12 +153,18 @@ TextBlock::TextBlock(BorrowedLayout, const std::vector<std::string>& words, std:
 TextBlock::TextBlock(BorrowedLayout, std::span<const char> packedText, std::span<const uint16_t> offsets,
                      std::span<const int16_t> wordXpos, std::span<const EpdFontFamily::Style> wordStyles,
                      std::span<const uint8_t> focusBoundary, std::span<const uint16_t> focusSuffixX,
-                     const BlockStyle& blockStyle, std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
-                     std::span<const SourceRange> ranges, const uint16_t paragraphStartWord)
-    : blockStyle(blockStyle),
-      paragraphStartWord(paragraphStartWord),
-      rubyTexts(std::move(rubyTexts)),
-      linkSpans(std::move(linkSpans)) {
+                     const BlockStyle& blockStyle, std::vector<std::string> rubyTexts,
+                     std::span<const XpParaLink> linkSpans, std::span<const SourceRange> ranges,
+                     const uint16_t paragraphStartWord)
+    : blockStyle(blockStyle), paragraphStartWord(paragraphStartWord), rubyTexts(std::move(rubyTexts)) {
+  if (!allocateLinks(linkSpans.size())) return;
+  for (size_t i = 0; i < linkSpans.size(); ++i) {
+    auto& link = this->linkSpans.data[i];
+    memcpy(link.href, linkSpans[i].href, sizeof(link.href));
+    link.x = linkSpans[i].x;
+    link.width = linkSpans[i].width;
+    link.topLift = linkSpans[i].top_lift;
+  }
   for (const auto offset : offsets) {
     if (offset >= packedText.size() || !memchr(packedText.data() + offset, 0, packedText.size() - offset)) {
       LOG_ERR("TXB", "Construction failed: invalid packed word");
@@ -183,6 +188,18 @@ TextBlock::TextBlock(BorrowedLayout, std::span<const char> packedText, std::span
     off += static_cast<uint16_t>(wordAt(i).size());
     text[off++] = '\0';
   }
+}
+
+bool TextBlock::allocateLinks(const size_t count) {
+  if (count == 0) return true;
+  linkSpans.data = makeUniqueNoThrow<LinkSpan[]>(count);
+  if (!linkSpans.data) {
+    LOG_ERR("TXB", "OOM: links %u bytes", static_cast<uint32_t>(count * sizeof(LinkSpan)));
+    isValid = false;
+    return false;
+  }
+  linkSpans.count = count;
+  return true;
 }
 
 bool TextBlock::hasRuby() const {

@@ -1,8 +1,25 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <new>
 
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+#ifdef XP_PARA_LINK_FAULT_INJECTION
+static size_t failArrayBytes = 0;
+static size_t arrayFailures = 0;
+extern "C" void xp_test_fail_array_bytes(size_t bytes) {
+  failArrayBytes = bytes;
+  arrayFailures = 0;
+}
+extern "C" size_t xp_test_array_failures() { return arrayFailures; }
+void* operator new[](size_t size, const std::nothrow_t&) noexcept {
+  if (failArrayBytes && size == failArrayBytes) {
+    ++arrayFailures;
+    return nullptr;
+  }
+  return ::operator new[](size);
+}
+#endif
 static size_t liveAllocations = 0;
 static size_t allocationAttempts = 0;
 extern "C" size_t xp_test_allocation_attempts() { return allocationAttempts; }

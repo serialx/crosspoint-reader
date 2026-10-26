@@ -2,6 +2,7 @@
 
 #include <EpdFontFamily.h>
 #include <HalStorage.h>
+#include <xp_ffi.h>
 
 #include <memory>
 #include <span>
@@ -37,7 +38,7 @@
 // Focus split semantics (unchanged from the vector layout): boundary N > 0
 // means the first N bytes of word i render bold, the remainder in the base
 // style. N is bounded to 9 codepoints (<= 36 UTF-8 bytes) by the clamp in
-// ParsedText::addWord. focusSuffixX is the pre-computed pixel offset from the
+// Paragraph::addWord. focusSuffixX is the pre-computed pixel offset from the
 // word start to the regular suffix. Both arrays are omitted from the arena
 // entirely when no word on the line has a split (zero per-word RAM cost when
 // focus reading is disabled).
@@ -58,6 +59,12 @@ class TextBlock final : public Block {
     int16_t width;
     int16_t topLift;
   };
+  struct LinkSpans {
+    std::unique_ptr<LinkSpan[]> data;
+    size_t count = 0;
+    const LinkSpan* begin() const { return data.get(); }
+    const LinkSpan* end() const { return count ? data.get() + count : data.get(); }
+  };
 
  private:
   BlockStyle blockStyle;
@@ -66,8 +73,7 @@ class TextBlock final : public Block {
   uint16_t textBytes = 0;                    // total size of the text region, including NULs
   bool focusPresent = false;
   bool isValid = true;
-  // The ONLY allocation: makeUniqueNoThrow, so OOM yields an invalid block
-  // instead of abort() (bare new is not nothrow with -fno-exceptions).
+  // Per-word metadata and text share one checked allocation.
   std::unique_ptr<uint8_t[]> arena;
   // Typed views into the arena, bound once after the arena is filled. All
   // 16-bit bases sit at even offsets, so direct dereference is alignment-safe.
@@ -85,7 +91,7 @@ class TextBlock final : public Block {
   std::unique_ptr<uint8_t[]> wordFontData;
   // Layout-only metadata. ChapterHtmlSlimParser moves it into Page::links
   // immediately; cached TextBlocks therefore keep the same compact format.
-  std::vector<LinkSpan> linkSpans;
+  LinkSpans linkSpans;
 
   TextBlock() = default;  // deserialize() fills the fields directly
   static size_t arenaSize(uint16_t wordCount, bool hasFocus, uint16_t textBytes);
@@ -94,6 +100,7 @@ class TextBlock final : public Block {
                         std::span<const uint8_t> boundary, std::span<const uint16_t> suffix,
                         std::span<const SourceRange> ranges);
   bool initializeArena(size_t totalText);
+  bool allocateLinks(size_t count);
   void copyLayout(std::span<const int16_t> xpos, std::span<const EpdFontFamily::Style> styles,
                   std::span<const uint8_t> boundary, std::span<const uint16_t> suffix,
                   std::span<const SourceRange> ranges);
@@ -117,7 +124,7 @@ class TextBlock final : public Block {
             std::span<const int16_t> wordXpos, std::span<const EpdFontFamily::Style> wordStyles,
             std::span<const uint8_t> focusBoundary, std::span<const uint16_t> focusSuffixX,
             const BlockStyle& blockStyle = BlockStyle(), std::vector<std::string> rubyTexts = {},
-            std::vector<LinkSpan> linkSpans = {}, std::span<const SourceRange> ranges = {},
+            std::span<const XpParaLink> linkSpans = {}, std::span<const SourceRange> ranges = {},
             uint16_t paragraphStartWord = UINT16_MAX);
   ~TextBlock() override = default;
   TextBlock(const TextBlock&) = delete;
@@ -166,7 +173,7 @@ class TextBlock final : public Block {
   bool hasRuby() const;
   int getRubyShift(int ascender) const { return hasRuby() ? (ascender / 2) : 0; }
   const std::vector<std::string>& getRubyTexts() const { return rubyTexts; }
-  std::vector<LinkSpan> takeLinkSpans() { return std::move(linkSpans); }
+  LinkSpans takeLinkSpans() { return std::exchange(linkSpans, LinkSpans{}); }
 
   void render(const GfxRenderer& renderer, int fontId, int x, int y) const;
   BlockType getType() override { return TEXT_BLOCK; }

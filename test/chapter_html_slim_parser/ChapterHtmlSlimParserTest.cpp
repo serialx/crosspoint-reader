@@ -2225,3 +2225,54 @@ TEST(ParagraphStorageAbi, MetadataAllocationFailureLeavesSequenceEmpty) {
   EXPECT_EQ(xp_tokens_source_after(tokens, 70000, 4), 70004u);
   xp_tokens_destroy(tokens);
 }
+
+extern "C" void xp_test_fail_array_bytes(size_t);
+extern "C" size_t xp_test_array_failures();
+
+TEST_F(ChapterHtmlSlimParserTest, LinkOwnerAllocationFailureRejectsChapter) {
+  const std::string html = "<html><body><p><a href='target.xhtml'>linked</a></p></body></html>";
+  {
+    HalFile file;
+    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
+    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
+  }
+  size_t pages = 0;
+  parser.completePageFn = [&](std::unique_ptr<Page>, auto, auto, auto) { ++pages; };
+  xp_test_fail_array_bytes(sizeof(TextBlock::LinkSpan));
+  const bool completed = parser.parseAndBuildPages();
+  const size_t failures = xp_test_array_failures();
+  xp_test_fail_array_bytes(0);
+  EXPECT_FALSE(completed);
+  EXPECT_GT(failures, 0u);
+  EXPECT_EQ(pages, 0u);
+  parser.abortParse();
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
+  std::filesystem::remove(filepath);
+}
+
+TEST(ParagraphLinks, ManyLinksUseCheckedDestinationAndPropagateFailure) {
+  GfxRenderer renderer;
+  for (const bool fail : {false, true}) {
+    Paragraph text(false, false, BlockStyle{}, 0);
+    for (size_t i = 0; i < 255; ++i) {
+      const std::string href = "#" + std::to_string(i);
+      const auto id = text.addLinkTarget(href.c_str());
+      ASSERT_NE(id, 0);
+      text.addWord("a", EpdFontFamily::REGULAR, false, false, i, id);
+    }
+    size_t lines = 0;
+    xp_test_fail_array_bytes(fail ? 255 * sizeof(TextBlock::LinkSpan) : 0);
+    text.layoutAndExtractLines(renderer, 0, 4096, [&](std::unique_ptr<TextBlock> line, auto) {
+      ++lines;
+      auto links = line->takeLinkSpans();
+      ASSERT_EQ(links.count, 255u);
+      EXPECT_EQ(line->takeLinkSpans().count, 0u);
+      for (size_t i = 0; i < links.count; ++i) EXPECT_EQ(links.data[i].href, "#" + std::to_string(i));
+    });
+    const size_t failures = xp_test_array_failures();
+    xp_test_fail_array_bytes(0);
+    EXPECT_EQ(lines, fail ? 0u : 1u);
+    EXPECT_EQ(text.hadDroppedWords(), fail);
+    EXPECT_EQ(failures, fail ? 1u : 0u);
+  }
+}

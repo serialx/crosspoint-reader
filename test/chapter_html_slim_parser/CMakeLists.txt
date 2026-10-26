@@ -49,4 +49,4 @@ gtest_discover_tests(ChapterHtmlSlimParserTest)
 
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
 target_link_libraries(ChapterHtmlSlimParserTest PRIVATE xp_ffi_host)
-target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_FFI_HOST_FAULT_INJECTION)
+target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_FFI_HOST_FAULT_INJECTION XP_PARA_LINK_FAULT_INJECTION)

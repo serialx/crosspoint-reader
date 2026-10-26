@@ -184,16 +184,6 @@ void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uin
           for (uint32_t i = 0; i < line->count; ++i)
             ruby.emplace_back(reinterpret_cast<const char*>(line->ruby[i].data), line->ruby[i].len);
         }
-        std::vector<TextBlock::LinkSpan> links;
-        links.reserve(line->link_count);
-        for (uint32_t i = 0; i < line->link_count; ++i) {
-          links.emplace_back();
-          auto& link = links.back();
-          memcpy(link.href, line->links[i].href, sizeof(link.href));
-          link.x = line->links[i].x;
-          link.width = line->links[i].width;
-          link.topLift = line->links[i].top_lift;
-        }
         auto block = makeUniqueNoThrow<TextBlock>(
             TextBlock::BorrowedLayout{},
             std::span<const char>(reinterpret_cast<const char*>(line->text.data), line->text.len),
@@ -203,7 +193,7 @@ void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uin
                                                   line->count),
             std::span<const uint8_t>(line->boundaries, line->boundaries ? line->count : 0),
             std::span<const uint16_t>(line->suffixes, line->suffixes ? line->count : 0), paraBlock(*line->block),
-            std::move(ruby), std::move(links),
+            std::move(ruby), std::span<const XpParaLink>(line->links, line->link_count),
             std::span<const TextBlock::SourceRange>(reinterpret_cast<const TextBlock::SourceRange*>(line->sources),
                                                     line->count),
             line->paragraph_start);

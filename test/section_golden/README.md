@@ -173,3 +173,36 @@ the complete Section and layout oracles; it does not replace them. Image
 fallback extraction and stop/OOM paths require their focused tests, since the
 successful corpus does not exercise every failure path. Capture with `--ops
 --capture-baseline` only before a production change, using a new output directory.
+
+## Cache read oracle
+
+`SectionReadGoldens` loads all 312 original section files through production
+`Section::loadSectionFile` and `Section::loadPage`. Each loaded page is serialized
+again and expanded into named fields by `read_oracle.py`. The canonical JSON
+includes every serialized element field, the complete fixed footnote/link arrays,
+the visible-offset LUT value, and the result of `getTextFromSectionFile` for each
+page. Strings and byte arrays use hex to preserve embedded NULs and arbitrary
+UTF-8 bytes. The original archive remains the independent write-path proof.
+
+```sh
+python3 test/section_golden/read_oracle.py \
+  --dump build/test/section_golden/SectionGoldenDump \
+  --output test/section_golden/goldens/reads.json.gz --verify
+python3 test/section_golden/read_oracle.py \
+  --dump build/test/section_golden/SectionGoldenDump \
+  --output test/section_golden/goldens/mutations.json.gz --mutations --verify
+```
+
+The mutation table records header acceptance and which original page indices
+still load after each 64-byte truncation, a flipped version byte, each page LUT
+entry replaced by zero/out-of-file/UINT32_MAX, each element count replaced by
+UINT16_MAX, and an oversized section page count. Each case runs in its own
+process with a two-second timeout and a 128 MiB data-segment resource limit;
+process failures remain distinct from ordinary rejection. The resource limit
+is diagnostic containment, not a model of firmware heap availability.
+
+To capture before a codec migration, omit `--verify` and select a new output
+path. Capture refuses to overwrite a file. Freeze the executable before running
+the mutation capture: concurrent relinking invalidates a running subprocess
+oracle. Capture and verify use the same compiler and host adapters as the write
+oracle; undefined behavior in the original decoder is not a portable contract.

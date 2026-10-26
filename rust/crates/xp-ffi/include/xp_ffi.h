@@ -571,6 +571,8 @@ uint8_t xp_sec_partial_trailer(const XpSecRecord* header, uint32_t size, uint32_
 
 uint32_t xp_sec_encode_text_word(size_t previous, const uint8_t* word, size_t len, uint8_t* output, size_t capacity,
                                  size_t* required);
+#include <stdbool.h>
+
 /* Chapter semantics: synchronous borrowed spans, one fallible owning handle.
  * CSS and the static services table outlive the handle. Services may reenter only
  * the feedback API using their supplied state pointer, never feed or destroy.
@@ -582,7 +584,18 @@ typedef struct {
   uint32_t len;
 } XpChapterSpan;
 typedef struct {
+  int32_t font;
+  float compression;
+  uint16_t width, height;
+  bool extra_spacing;
+  uint8_t alignment, indent_spaces;
+  int8_t character_spacing;
+  uint8_t word_spacing;
+  bool hyphenation, focus;
+} XpChapterAssemblyOptions;
+typedef struct {
   uint8_t alignment, embedded, images, css_enabled;
+  XpChapterAssemblyOptions assembly;
 } XpChapterOptions;
 typedef struct {
   uint8_t alignment;
@@ -624,69 +637,90 @@ typedef struct {
   const XpChapterBlock* block;
 } XpChapterTrace;
 typedef struct {
-  /* Shared immutable entity result, or {NULL, 0} for an unknown spelling. */
-  XpChapterSpan (*entity_lookup)(void*, XpChapterState*, XpChapterSpan);
-  /* Writable driver scratch: XML feed already copied the input. */
-  uint8_t* (*entity_buffer)(void*, XpChapterState*, uint32_t);
-  void (*list_marker)(void* ctx, XpChapterState* state, XpChapterSpan text, uint32_t offset);
-  void (*preserve_space)(void* ctx, XpChapterState* state);
-  uint8_t (*paragraph_empty)(void* ctx, XpChapterState* state);
-  uint32_t (*paragraph_size)(void* ctx, XpChapterState* state);
-  float (*paragraph_scale)(void*, XpChapterState*);
-  void (*paragraph_style)(void* ctx, XpChapterState* state, XpChapterBlock* out);
-  void (*suppress_indent)(void* ctx, XpChapterState* state);
-  void (*ruby_capacity)(void* ctx, XpChapterState* state);
-  uint8_t (*add_link)(void* ctx, XpChapterState* state, XpChapterSpan href);
-  uint8_t (*link_matches)(void* ctx, XpChapterState* state, uint8_t id, XpChapterSpan href);
-  uint8_t (*size_slot)(void* ctx, XpChapterState* state, float scale);
-  void (*set_paragraph_style)(void* ctx, XpChapterState* state, const XpChapterBlock* style);
-  uint8_t (*word_style)(void* ctx, XpChapterState* state, uint32_t index);
-  void (*ruby_group)(void* ctx, XpChapterState* state, uint32_t index, uint32_t count, XpChapterSpan text);
-  void (*ruby_append)(void* ctx, XpChapterState* state, uint32_t index, XpChapterSpan text);
-  void (*add_word)(void* ctx, XpChapterState* state, XpChapterSpan word, uint8_t style, uint8_t underline,
-                   uint8_t attach, uint32_t offset, uint8_t link, uint8_t slot, uint8_t no_space);
-  uint8_t (*paragraph_exists)(void* ctx, XpChapterState* state);
-  void (*create_paragraph)(void* ctx, XpChapterState* state, const XpChapterBlock* style);
-  void (*reset_paragraph)(void* ctx, XpChapterState* state);
-  uint8_t (*body_sd)(void* ctx, XpChapterState* state);
-  int32_t (*body_space)(void* ctx, XpChapterState* state);
-  void (*prepare_text)(void* ctx, XpChapterState* state, XpChapterSpan text, uint8_t style);
-  int32_t (*text_advance)(void* ctx, XpChapterState* state, XpChapterSpan text, uint8_t style);
-  int32_t (*body_ascender)(void* ctx, XpChapterState* state);
-  uint16_t (*page_width)(void* ctx, XpChapterState* state);
-  uint16_t (*page_height)(void* ctx, XpChapterState* state);
-  void (*clear_cells)(void* ctx, XpChapterState* state);
-  void (*reserve_cells)(void* ctx, XpChapterState* state);
-  uint32_t (*buffered_words)(void* ctx, XpChapterState* state);
-  uint8_t (*table_stacked)(void* ctx, XpChapterState* state);
-  void (*set_stacked)(void* ctx, XpChapterState* state, uint8_t value);
-  void (*set_rtl)(void* ctx, XpChapterState* state, uint8_t value);
-  void (*reset_table_bytes)(void* ctx, XpChapterState* state);
-  uint32_t (*table_bytes)(void* ctx, XpChapterState* state);
-  void (*add_table_bytes)(void* ctx, XpChapterState* state, uint32_t count);
-  void (*reset_extracted)(void* ctx, XpChapterState* state);
-  int32_t (*extracted)(void* ctx, XpChapterState* state);
-  void (*footnote)(void* ctx, XpChapterState* state, int32_t index, const XpChapterFootnote* entry);
-  uint8_t (*box_at_depth)(void* ctx, XpChapterState* state, int32_t depth);
-  uint8_t (*image)(void* ctx, XpChapterState* state, XpChapterSpan src, const uint8_t* css);
-  void (*measure_table)(void* ctx, XpChapterState* state);
-  void (*start_block)(void* ctx, XpChapterState* state, const XpChapterBlock* style, uint8_t paragraph_end);
-  void (*flush_anchor)(void* ctx, XpChapterState* state);
-  void (*open_box)(void* ctx, XpChapterState* state, XpChapterBlock* style, const uint8_t* css);
-  void (*close_box)(void* ctx, XpChapterState* state);
-  void (*line_break)(void* ctx, XpChapterState* state, const XpChapterBlock* style);
-  void (*table_fallback)(void* ctx, XpChapterState* state);
-  void (*close_cell)(void* ctx, XpChapterState* state);
-  void (*finish_row)(void* ctx, XpChapterState* state);
-  void (*make_pages)(void* ctx, XpChapterState* state, uint8_t last_line, uint8_t paragraph_end);
-  void (*horizontal_rule)(void* ctx, XpChapterState* state, const XpChapterBlock* style);
-  void (*direction)(void* ctx, XpChapterState* state, uint8_t defined, uint8_t rtl);
-  uint8_t (*anchor_is_toc)(void* ctx, XpChapterState* state, XpChapterSpan id);
-  uint32_t (*anchor_count)(void* ctx, XpChapterState* state);
-  uint8_t (*has_anchor)(void* ctx, XpChapterState* state);
-  void (*defer_anchor)(void* ctx, XpChapterState* state, XpChapterSpan id);
-  void (*trace)(void* ctx, XpChapterState* state, const XpChapterTrace* record);
-} XpChapterServices;
+  void* pointer;
+} XpChapterPayload;
+typedef struct {
+  uint16_t width;
+  uint8_t thickness;
+} XpChapterRule;
+typedef struct {
+  int32_t font;
+  uint16_t scale256;
+  uint8_t style;
+  uint8_t text[13];
+} XpChapterCap;
+typedef struct {
+  uint8_t width, style;
+} XpChapterBorder;
+typedef struct {
+  uint16_t width, height;
+  XpChapterBorder sides[4];
+  bool shaded;
+} XpChapterBox;
+typedef struct {
+  uint8_t kind; /* line=0, image=1, rule=2, drop cap=3, border box=4 */
+  union {
+    XpChapterPayload payload;
+    XpChapterRule rule;
+    XpChapterCap cap;
+    XpChapterBox box;
+  } data;
+} XpChapterContent;
+typedef struct {
+  int16_t x, y;
+  XpChapterContent content;
+} XpChapterElement;
+typedef struct {
+  uint8_t href[256];
+  int16_t x, y, width, height;
+} XpChapterLink;
+typedef struct {
+  uint8_t href[256];
+  int16_t x, width, top_lift;
+} XpChapterLineLink;
+typedef struct {
+  int16_t x;
+  uint32_t words;
+  int32_t base_height, ruby_shift;
+} XpChapterLineMetrics;
+typedef struct {
+  uint16_t paragraph, list;
+  uint32_t visible;
+  int16_t next_y;
+} XpChapterPosition;
+/* Borrowed sink/metrics/context outlive the chapter. Complete always consumes
+ * every line/image payload, including failure or stop. Input spans are borrowed
+ * until return; returned line_links views last until the next line_links call,
+ * pending_anchor until defer/record. Only measure_table may use its supplied state. */
+typedef struct {
+  const XpParaAllocator* (*allocator)(void);
+  const XpParaMetrics* metrics;
+  int32_t (*language)(void);
+  void (*reclaim_paragraph_memory)(void);
+  XpChapterSpan (*entity_lookup)(void*, XpChapterSpan);
+  uint8_t* (*entity_buffer)(void*, uint32_t);
+  int32_t (*font_variant)(void*, int32_t, float);
+  int32_t (*line_height)(void*, int32_t, float);
+  uint8_t (*codepoint)(void*, int32_t, uint32_t, uint8_t, int32_t*, int32_t*);
+  void* (*create_line)(void*, const XpParaLine*);
+  XpChapterLineMetrics (*line_metrics)(void*, const void*, const XpChapterAssemblyOptions*, bool);
+  void (*set_margin)(void*, int16_t);
+  const XpChapterLineLink* (*line_links)(void*, void*, uint32_t*);
+  uint8_t (*complete)(void*, const XpChapterElement*, uint32_t, const XpChapterLink*, uint32_t,
+                      const XpChapterFootnote*, uint32_t, XpChapterPosition);
+  uint8_t (*probe_image)(void*, XpChapterSpan, int32_t*, bool*, uint16_t*, uint16_t*);
+  void* (*create_image)(void*, int32_t, int32_t);
+  XpChapterSpan (*pending_anchor)(void*);
+  void (*defer_anchor)(void*, XpChapterSpan);
+  uint8_t (*anchor_is_toc)(void*, XpChapterSpan);
+  uint32_t (*anchor_count)(void*);
+  void (*record_anchor)(void*, uint16_t);
+  void (*measure_table)(void*, XpChapterState*);
+  void (*trace)(void*, const XpChapterTrace*);
+  void (*trace_bytes)(void*, XpChapterSpan);
+} XpChapterSink;
+/* Fixed C++ sink destructor; accepts one owned TextBlock or ImageBlock. */
+void xp_chapter_release_block(void* block);
 typedef enum {
   XP_CHAPTER_QUERY_STOPPED = 0,
   XP_CHAPTER_QUERY_OOM = 1,
@@ -726,9 +760,11 @@ typedef enum {
   XP_CHAPTER_NOTIFY_BEGIN_BLOCKS = 10,
   XP_CHAPTER_NOTIFY_BEGIN_LISTS = 11,
 } XpChapterNotify;
-int32_t xp_chapter_create(XpChapter** out, const XpChapterServices* services, void* ctx, const XpCss* css,
+int32_t xp_chapter_create(XpChapter** out, const XpChapterSink* sink, void* ctx, const XpCss* css,
                           const XpChapterOptions* options);
 void xp_chapter_destroy(XpChapter* handle);
+uint8_t xp_chapter_begin(XpChapter* handle);
+uint8_t xp_chapter_finish(XpChapter* handle);
 XpChapterState* xp_chapter_state(XpChapter* handle);
 /* Feed at most 1024 bytes and drain internally: More=0, Done=1, Error=2. */
 uint8_t xp_chapter_feed(XpChapter* handle, const uint8_t* data, uint32_t len, uint8_t final_input);

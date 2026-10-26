@@ -1,5 +1,4 @@
-//! Page assembly port, exercised with a mocked paragraph before M11 integration.
-//! The production chapter continues using its C++ assembler during Phase A.
+//! Page placement and build-scoped ownership, called directly by EPUB semantics.
 extern crate alloc;
 use super::style::{Block, Border, Css, Footnote};
 use alloc::vec::Vec;
@@ -15,6 +14,7 @@ macro_rules! observe {
 mod boxes;
 mod image;
 mod model;
+pub mod runtime;
 mod table;
 #[cfg(feature = "chapter-trace")]
 pub mod trace;
@@ -65,8 +65,6 @@ pub struct Assembly<P, B> {
     recent_count: usize,
     boxes: Vec<BoxScope>,
     cells: Vec<P>,
-    cell_lines: [Vec<Option<B>>; MAX_COLUMNS],
-    line_offsets: Vec<u32>,
     pending_footnotes: Vec<(i32, Footnote)>,
 }
 
@@ -97,8 +95,6 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             recent_count: 0,
             boxes: Vec::new(),
             cells: Vec::new(),
-            cell_lines: core::array::from_fn(|_| Vec::new()),
-            line_offsets: Vec::new(),
             pending_footnotes: Vec::new(),
         }
     }
@@ -149,16 +145,10 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
     pub fn begin<S: Sink<Payload = B>>(&mut self, flow: &mut Flow, sink: &mut S) -> Result {
         self.stopped = false;
         self.boxes.clear();
-        let reserve = self
-            .boxes
-            .try_reserve_exact(MAX_BOXES)
-            .map_err(|_| Error::Allocation);
-        self.latch(reserve)?;
         flow.drop_cap = Default::default();
         self.table_stacked = false;
         self.table_bytes = 0;
         self.cells.clear();
-        self.clear_lines();
         let style = Block {
             alignment: flow.parent.alignment,
             text_align_defined: 1,
@@ -292,7 +282,11 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         self.flush_anchor(flow, sink)?;
         flow.drop_cap.first_pending = 0;
         flow.inline_scale = None;
-        let paragraph = P::create(style, self.options);
+        let mut paragraph = P::create(style, self.options, sink);
+        if matches!(paragraph, Err(Error::Allocation)) {
+            sink.reclaim_paragraph_memory();
+            paragraph = P::create(style, self.options, sink);
+        }
         self.paragraph = Some(self.latch(paragraph)?);
         self.extracted = 0;
         flow.marker_only = false;
@@ -328,8 +322,9 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             paragraph.set_style(style);
         }
     }
-    pub fn add_footnote(&mut self, index: i32, note: Footnote) -> Result {
-        let result = push(&mut self.pending_footnotes, (index, note));
+    #[inline(never)]
+    pub fn add_footnote(&mut self, index: i32, note: &Footnote) -> Result {
+        let result = push(&mut self.pending_footnotes, (index, *note));
         self.latch(result)
     }
     pub fn make_pages<S: Sink<Payload = B>>(
@@ -375,8 +370,9 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         if let Some(page) = self.page.as_mut() {
             let result = self
                 .pending_footnotes
-                .drain(..)
+                .iter()
                 .try_for_each(|(_, note)| page.add_footnote(note));
+            self.pending_footnotes.clear();
             self.latch(result)?;
         }
         if !end {
@@ -393,6 +389,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         Ok(())
     }
+    #[inline(never)]
     fn layout_block<S: Sink<Payload = B>>(
         &mut self,
         paragraph: &mut P,
@@ -466,15 +463,8 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         self.paragraph = None;
         self.page = None;
         self.cells.clear();
-        self.clear_lines();
         self.pending_footnotes.clear();
         self.boxes.clear();
-    }
-    fn clear_lines(&mut self) {
-        for lines in &mut self.cell_lines {
-            lines.clear();
-        }
-        self.line_offsets.clear();
     }
     pub fn can_carry(&self, carry: usize) -> bool {
         if carry == 0 {
@@ -521,6 +511,65 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             0
         }
     }
+    #[inline(never)]
+    fn move_carried(
+        &mut self,
+        next: &mut Page<B>,
+        carry: usize,
+        offsets: &mut [u32; MAX_CARRIED],
+    ) -> Result<i16> {
+        let mut top = 0;
+        let reserve = next
+            .elements
+            .try_reserve_exact(carry)
+            .map_err(|_| Error::Allocation);
+        self.latch(reserve)?;
+        if let Some(page) = self.page.as_mut() {
+            let start = page.elements.len() - carry;
+            top = page.elements[start].y;
+            next.elements.extend(page.elements.drain(start..));
+            offsets[..carry]
+                .copy_from_slice(&self.recent[self.recent_count - carry..self.recent_count]);
+            let reserve = next
+                .links
+                .try_reserve_exact(page.links.len())
+                .map_err(|_| Error::Allocation);
+            if let Err(error) = reserve {
+                return self.latch(Err(error));
+            }
+            let mut i = 0;
+            while i < page.links.len() {
+                if i32::from(page.links[i].y) + i32::from(page.links[i].height) > i32::from(top) {
+                    next.links.extend(page.links.drain(i..i + 1));
+                } else {
+                    i += 1;
+                }
+            }
+            let mut i = 0;
+            while i < page.footnotes.len() {
+                let href = c_string(&page.footnotes[i].href);
+                if next.links.iter().any(|link| c_string(&link.href) == href) {
+                    if next.footnotes.is_empty()
+                        && next
+                            .footnotes
+                            .try_reserve_exact(page.footnotes.len())
+                            .is_err()
+                    {
+                        return self.latch(Err(Error::Allocation));
+                    }
+                    if let Err(error) = next.add_footnote(&page.footnotes[i]) {
+                        return self.latch(Err(error));
+                    }
+                    if !page.links.iter().any(|link| c_string(&link.href) == href) {
+                        page.footnotes.drain(i..i + 1);
+                        continue;
+                    }
+                }
+                i += 1;
+            }
+        }
+        Ok(top)
+    }
     pub fn break_carrying<S: Sink<Payload = B>>(
         &mut self,
         carry: usize,
@@ -537,56 +586,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         let mut top = 0;
         let mut offsets = [0; MAX_CARRIED];
         if carry > 0 {
-            let reserve = next
-                .elements
-                .try_reserve_exact(carry)
-                .map_err(|_| Error::Allocation);
-            self.latch(reserve)?;
-            if let Some(page) = self.page.as_mut() {
-                let start = page.elements.len() - carry;
-                top = page.elements[start].y;
-                next.elements.extend(page.elements.drain(start..));
-                offsets[..carry]
-                    .copy_from_slice(&self.recent[self.recent_count - carry..self.recent_count]);
-                let reserve = next
-                    .links
-                    .try_reserve_exact(page.links.len())
-                    .map_err(|_| Error::Allocation);
-                if let Err(error) = reserve {
-                    return self.latch(Err(error));
-                }
-                let mut i = 0;
-                while i < page.links.len() {
-                    if i32::from(page.links[i].y) + i32::from(page.links[i].height) > i32::from(top)
-                    {
-                        next.links.push(page.links.remove(i));
-                    } else {
-                        i += 1;
-                    }
-                }
-                let mut i = 0;
-                while i < page.footnotes.len() {
-                    let href = c_string(&page.footnotes[i].href);
-                    if next.links.iter().any(|link| c_string(&link.href) == href) {
-                        if next.footnotes.is_empty()
-                            && next
-                                .footnotes
-                                .try_reserve_exact(page.footnotes.len())
-                                .is_err()
-                        {
-                            return self.latch(Err(Error::Allocation));
-                        }
-                        if let Err(error) = next.add_footnote(page.footnotes[i]) {
-                            return self.latch(Err(error));
-                        }
-                        if !page.links.iter().any(|link| c_string(&link.href) == href) {
-                            page.footnotes.remove(i);
-                            continue;
-                        }
-                    }
-                    i += 1;
-                }
-            }
+            top = self.move_carried(&mut next, carry, &mut offsets)?;
         }
         self.set_visible(offset, sink);
         let result = self.emit_page(flow, sink);
@@ -635,21 +635,16 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                 .count();
             let result = self
                 .pending_footnotes
-                .drain(..count)
+                .iter()
+                .take(count)
                 .try_for_each(|(_, note)| page.add_footnote(note));
+            self.pending_footnotes.drain(..count);
             self.latch(result)?;
         }
         let x = metrics.x;
         if let Some(page) = self.page.as_mut() {
             for link in sink.line_links(&mut line.payload) {
-                let result = page.add_link(Link {
-                    href: link.href,
-                    x: x.wrapping_add(link.x),
-                    y: (i32::from(self.next_y) + metrics.ruby_shift - i32::from(link.top_lift))
-                        as i16,
-                    width: link.width,
-                    height: (metrics.base_height + i32::from(link.top_lift)) as i16,
-                });
+                let result = page.add_line_link(link, x, self.next_y, metrics);
                 if let Err(error) = result {
                     return self.latch(Err(error));
                 }
@@ -683,3 +678,38 @@ fn c_string(text: &[u8]) -> &[u8] {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "chapter-test")]
+impl<P: Paragraph<B>, B> Assembly<P, B> {
+    pub fn test_query(&self, field: u32) -> u32 {
+        match field {
+            0 => self.page.is_some().into(),
+            1 => self.next_y as u32,
+            2 => self.table_stacked.into(),
+            3 => self.table_bytes,
+            4 => self.pending_footnotes.len() as u32,
+            5 => 1, // Row scratch is local and cannot survive a synchronous row operation.
+            6 => self.cells.len() as u32,
+            _ => 0,
+        }
+    }
+    pub fn test_pending_note(&self, index: usize) -> Footnote {
+        self.pending_footnotes
+            .get(index)
+            .map_or_else(Footnote::default, |(_, note)| *note)
+    }
+    pub fn test_recent(&mut self, index: u32, value: u32) {
+        if index < MAX_CARRIED as u32 {
+            self.recent[index as usize] = value;
+        } else {
+            self.recent_count = (value as usize).min(MAX_CARRIED);
+        }
+    }
+    pub fn test_buffer_cell(&mut self) -> Result {
+        reserve_one(&mut self.cells)?;
+        if let Some(p) = self.paragraph.take() {
+            self.cells.push(p);
+        }
+        Ok(())
+    }
+}

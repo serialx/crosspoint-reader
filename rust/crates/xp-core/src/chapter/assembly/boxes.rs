@@ -2,10 +2,16 @@ use super::*;
 use model::{left, right};
 
 impl<P: Paragraph<B>, B> Assembly<P, B> {
+    pub fn accepts_box(&self, css: &Css, table_depth: i32) -> bool {
+        table_depth <= 0
+            && self.boxes.len() < MAX_BOXES
+            && ((0..4).any(|i| css.border(i).visible()) || (css.has(27) && css.byte(80) != 0))
+    }
     pub fn box_at_depth(&self, depth: i32) -> bool {
         self.boxes.last().is_some_and(|scope| scope.depth == depth)
     }
     /// The semantic caller flushes its pending word before entering this operation.
+    #[inline(never)]
     pub fn open_box<S: Sink<Payload = B>>(
         &mut self,
         own: &mut Block,
@@ -81,6 +87,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         let result = push(&mut self.boxes, scope);
         self.latch(result)
     }
+    #[inline(never)]
     pub fn close_box<S: Sink<Payload = B>>(&mut self, flow: &Flow, sink: &mut S) -> Result {
         observe!(sink, "BoxClose", flow.depth);
         let Some(mut scope) = self.boxes.pop() else {
@@ -168,6 +175,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         })
     }
     /// The semantic caller flushes its pending word before entering this operation.
+    #[inline(never)]
     pub fn horizontal_rule<S: Sink<Payload = B>>(
         &mut self,
         style: Block,
@@ -220,6 +228,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         self.next_y = self.next_y.wrapping_add(2).wrapping_add(bottom_gap);
         self.record_anchor(sink)
     }
+    #[inline(never)]
     pub(super) fn layout_drop_cap<S: Sink<Payload = B>>(
         &mut self,
         paragraph: &mut P,

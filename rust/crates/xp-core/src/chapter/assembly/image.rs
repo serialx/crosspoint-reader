@@ -121,6 +121,12 @@ pub enum ImageResult {
     Fallback,
     Displayed,
 }
+pub struct PreparedImage<R> {
+    resource: R,
+    width: i32,
+    height: i32,
+}
+
 impl<P: Paragraph<B>, B> Assembly<P, B> {
     /// Flush runs after probing and sizing, before the original block transition.
     pub fn process_image<S: Sink<Payload = B>>(
@@ -131,15 +137,27 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         sink: &mut S,
         flush: impl FnOnce(&mut Self, &mut Flow, &mut S) -> Result,
     ) -> Result<ImageResult> {
+        let Some(prepared) = self.prepare_image(src, css, sink)? else {
+            return Ok(ImageResult::Fallback);
+        };
+        flush(self, flow, sink)?;
+        self.place_image(prepared, flow, sink)
+    }
+    pub fn prepare_image<S: Sink<Payload = B>>(
+        &mut self,
+        src: &[u8],
+        css: ImageStyle,
+        sink: &mut S,
+    ) -> Result<Option<PreparedImage<S::Image>>> {
         let result = sink.probe_image(src, &mut self.image_counter, &mut self.image_popup);
         let (resource, width, height) = match self.latch(result)? {
-            ImageProbe::Unsupported => return Ok(ImageResult::Fallback),
+            ImageProbe::Unsupported => return Ok(None),
             ImageProbe::Failed {
                 width: _width,
                 height: _height,
             } => {
                 observe!(sink, "ImageReply", false, _width, _height);
-                return Ok(ImageResult::Fallback);
+                return Ok(None);
             }
             ImageProbe::Ready {
                 resource,
@@ -161,7 +179,24 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         let (width, height) =
             image_size((width, height), (container, self.options.height), em, css);
         observe!(sink, "ImageSize", width, height);
-        flush(self, flow, sink)?;
+        Ok(Some(PreparedImage {
+            resource,
+            width,
+            height,
+        }))
+    }
+    #[inline(never)]
+    pub fn place_image<S: Sink<Payload = B>>(
+        &mut self,
+        prepared: PreparedImage<S::Image>,
+        flow: &mut Flow,
+        sink: &mut S,
+    ) -> Result<ImageResult> {
+        let PreparedImage {
+            resource,
+            width,
+            height,
+        } = prepared;
         if let Some(paragraph) = self.paragraph.as_ref().filter(|p| p.size() != 0) {
             self.start_block(paragraph.style(), true, flow, sink)?;
         }

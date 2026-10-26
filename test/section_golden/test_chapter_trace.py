@@ -13,21 +13,25 @@ SOURCE = (ROOT / 'ChapterHtmlSlimParser.cpp').read_text() + (ROOT / 'ChapterPage
 class ChapterTraceTest(unittest.TestCase):
     def test_original_contains_every_anchor(self):
         traced = instrument(SOURCE)
-        for op in ('BeginBlock', 'EndBlock', 'Text', 'ImageReply', 'TableColumns', 'Footnote',
-                   'ListMarker', 'RubyGroup', 'RubyAppend', 'getFontAscenderSize',
-                   'Paragraph.createParagraph', 'Paragraph.resetParagraph',
-                   'Paragraph.setTableStacked', 'Paragraph.bufferedTableWords', 'Paragraph.addPendingFootnote'):
+        for op in ('Text', 'Image', 'TableColumns', 'ListMarker', 'RubyGroup', 'RubyAppend',
+                   'getFontAscenderSize', 'Step', 'Finish', 'StopRequested'):
             self.assertIn('"' + op + '"', traced)
-        for op in ("addWord", "size", "paragraphExists"):
+        for op in ("addWord", "size", "paragraphExists", "createParagraph"):
             self.assertNotIn('"Paragraph.' + op + '"', traced)
+        self.assertIn('ChapterTrace::stream.write', traced)
+        self.assertIn('LayoutTrace::stream.write', traced)
+        assembly = ROOT.parents[3] / 'rust/crates/xp-core/src/chapter/assembly'
+        rust = ''.join(path.read_text() for path in assembly.glob('*.rs'))
+        for op in ('BeginBlock','EndBlock','BoxOpen','BoxClose','Page','ImageReply','TableRowEnd'):
+            self.assertIn('"' + op + '"', rust)
 
     def test_missing_anchor_rejects(self):
-        source = SOURCE.replace('  boxScopes.push_back(box);', '')
+        source = SOURCE.replace('[](void*, XpChapterSpan record) { (void)record; }', '')
         with self.assertRaises(ValueError):
             instrument(source)
 
     def test_duplicate_anchor_rejects(self):
-        source = SOURCE + '\n  boxScopes.push_back(box);\n'
+        source = SOURCE + '\n[](void*, XpChapterSpan record) { (void)record; }\n'
         with self.assertRaises(ValueError):
             instrument(source)
 

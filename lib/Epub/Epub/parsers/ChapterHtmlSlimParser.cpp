@@ -45,7 +45,7 @@ ChapterHtmlSlimParser::ParseStatus ChapterHtmlSlimParser::parseStep() {
   if (stopRequested) return ParseStatus::Error;
   // Layout OOM latched during the previous buffer's callbacks: fail the build
   // instead of emitting pages with silently missing text.
-  if (semanticOom() || (currentTextBlock && currentTextBlock->hadDroppedWords())) {
+  if (semanticOom()) {
     LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
     return ParseStatus::Error;
   }
@@ -82,14 +82,14 @@ void ChapterHtmlSlimParser::abortParse() {
 void ChapterHtmlSlimParser::requestStop() {
   if (stopRequested) return;
   stopRequested = true;
-  semanticNotify(XP_CHAPTER_NOTIFY_STOP);
+  // The active sink returns this latch after completePageFn unwinds.
 }
 
 bool ChapterHtmlSlimParser::finishParse() {
   if (stopRequested) return false;
   // Same check as parseStep(): drops in the final buffer would otherwise slip
   // through because Done is returned before the next step's check runs.
-  if (semanticOom() || (currentTextBlock && currentTextBlock->hadDroppedWords())) {
+  if (semanticOom()) {
     LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
     return false;
   }

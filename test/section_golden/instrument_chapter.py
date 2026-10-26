@@ -5,7 +5,64 @@ import sys
 from pathlib import Path
 
 
+def instrument_assembly(source):
+    def replace(anchor, replacement):
+        nonlocal source
+        if source.count(anchor) != 1:
+            raise ValueError(f"Assembly trace anchor must occur once: {anchor!r}")
+        source = source.replace(anchor, replacement)
+    source = '#include "ChapterTrace.h"\n#include "LayoutTrace.h"\n' + source
+    replace('nullptr,  // Layout tracing is installed only by the host instrumenter.',
+            '[](void*, XpParaSpan record) { LayoutTrace::stream.write(reinterpret_cast<const char*>(record.data), record.len); },')
+    semantic_trace = r"""[](void*, const XpChapterTrace* record) {     const auto& w = record->words;
+    const auto bytes = [](XpChapterSpan span) { return ChapterTrace::hex(std::string_view(reinterpret_cast<const char*>(span.data), span.len)); };
+    switch (record->kind) {
+      case 1: ChapterTrace::record("Text", bytes(record->first), w[0], w[1], w[2], w[3], w[4], w[5], w[6], chapterBlock(*record->block)); break;
+      case 2: ChapterTrace::record("DropCapCancel", bytes(record->first)); break;
+      case 3: ChapterTrace::record("DropCapCapture", bytes(record->first), w[0], w[1]); break;
+      case 4: ChapterTrace::record("DropCapArm", w[0], w[1]); break;
+      case 5: {
+        CssLength width, height;
+        memcpy(&width.value, &w[0], 4); width.unit = static_cast<CssUnit>(w[1]);
+        memcpy(&height.value, &w[2], 4); height.unit = static_cast<CssUnit>(w[3]);
+        ChapterTrace::record("Image", bytes(record->first), bytes(record->second), width, height, w[4], w[5]); break;
+      }
+      case 6: ChapterTrace::record("TableColumns", w[0]); break;
+      case 7: ChapterTrace::record("Column", w[0], w[1], w[2], w[3]); break;
+      case 9: {
+        const std::string_view marker(reinterpret_cast<const char*>(record->first.data), record->first.len);
+        ChapterTrace::record("ListMarker", ChapterTrace::hex(marker == "\xe2\x80\xa2" ? std::string("e280a2") : std::string(marker)), w[0]); break;
+      }
+      case 10: ChapterTrace::record("RubyGroup", w[0], w[1], bytes(record->first)); break;
+      case 11: ChapterTrace::record("RubyAppend", w[0], bytes(record->first)); break;
+      default: throw std::runtime_error("Unknown chapter trace");
+    } }"""
+    replace('[](void*, const XpChapterTrace* record) { (void)record; }', semantic_trace)
+    replace('[](void*, XpChapterSpan record) { (void)record; }',
+            '[](void*, XpChapterSpan record) { ChapterTrace::stream.write(reinterpret_cast<const char*>(record.data), record.len); }')
+    hooks = {
+      'bool ChapterHtmlSlimParser::beginParse() {':
+        'ChapterTrace::record("Begin", fontId, lineCompression, extraParagraphSpacing, paragraphIndentSpaces, characterSpacing, wordSpacingPercent, paragraphAlignment, viewportWidth, viewportHeight, hyphenationEnabled, focusReadingEnabled, embeddedStyle, imageRendering);',
+      'ChapterHtmlSlimParser::ParseStatus ChapterHtmlSlimParser::parseStep() {':
+        'ChapterTrace::record("Step", parseFile_.position());',
+      'bool ChapterHtmlSlimParser::finishParse() {':
+        'ChapterTrace::record("Finish", stopRequested, semanticOom());',
+      'void ChapterHtmlSlimParser::requestStop() {': 'ChapterTrace::record("StopRequested");',
+    }
+    for anchor, code in hooks.items():
+        replace(anchor, anchor + '\n' + code)
+    # Paragraph's internal metrics stay in the layout stream. Only these two
+    # page-placement metrics were observable in the original operation stream.
+    replace('return line.getRubyShift(renderer.getFontAscenderSize(font));',
+      'const int ascender = renderer.getFontAscenderSize(font); ChapterTrace::record("getFontAscenderSize", font, ascender); return line.getRubyShift(ascender);')
+    replace('return renderer.getLineHeight(font, options->compression) + line.extraAscent(renderer, options->font);',
+      'const int base = renderer.getLineHeight(font, options->compression); ChapterTrace::record("getLineHeight", font, options->compression, base); return base + line.extraAscent(renderer, options->font);')
+    return source
+
+
 def instrument(source):
+    if "const XpChapterSink ChapterPageAssembler::sink_" in source:
+        return instrument_assembly(source)
     # Rust paragraph styles are values. These writes replace old reference mutations,
     # and the drop-cap reload preserves changes made during layout; neither was a
     # semantic paragraph request in the captured C++ implementation.

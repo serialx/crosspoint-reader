@@ -24,6 +24,7 @@ pub(super) fn reserve_one<T>(items: &mut Vec<T>) -> Result {
     Ok(())
 }
 
+#[repr(C)]
 pub struct Link {
     pub href: [u8; 256],
     pub x: i16,
@@ -32,6 +33,7 @@ pub struct Link {
     pub height: i16,
 }
 
+#[repr(C, u8)]
 pub enum Content<B> {
     Line(B),
     Image(B),
@@ -52,6 +54,7 @@ pub enum Content<B> {
         shaded: bool,
     },
 }
+#[repr(C)]
 pub struct Element<B> {
     pub x: i16,
     pub y: i16,
@@ -73,19 +76,43 @@ impl<B> Default for Page<B> {
     }
 }
 impl<B> Page<B> {
-    pub fn add_link(&mut self, mut link: Link) -> Result {
-        if link.width <= 0
-            || link.height <= 0
-            || self.links.len() >= 32
-            || link.href[0] == 0
-            || !link.href.contains(&0)
+    pub fn add_line_link(
+        &mut self,
+        link: &LineLink,
+        x: i16,
+        y: i16,
+        metrics: LineMetrics,
+    ) -> Result {
+        self.append_link(
+            &link.href,
+            x.wrapping_add(link.x),
+            (i32::from(y) + metrics.ruby_shift - i32::from(link.top_lift)) as i16,
+            link.width,
+            (metrics.base_height + i32::from(link.top_lift)) as i16,
+        )
+    }
+    pub fn add_link(&mut self, link: &Link) -> Result {
+        self.append_link(&link.href, link.x, link.y, link.width, link.height)
+    }
+    #[inline(never)]
+    fn append_link(&mut self, href: &[u8; 256], x: i16, y: i16, width: i16, height: i16) -> Result {
+        if width <= 0 || height <= 0 || self.links.len() >= 32 || href[0] == 0 || !href.contains(&0)
         {
             return Ok(());
         }
+        let mut link = Link {
+            href: *href,
+            x,
+            y,
+            width,
+            height,
+        };
         zero_tail(&mut link.href);
         push(&mut self.links, link)
     }
-    pub fn add_footnote(&mut self, mut note: Footnote) -> Result {
+    #[inline(never)]
+    pub fn add_footnote(&mut self, note: &Footnote) -> Result {
+        let mut note = *note;
         if self.footnotes.len() == 16 {
             return Ok(());
         }
@@ -102,6 +129,7 @@ pub struct Line<B> {
     pub visible_offset: u32,
     pub lines_after: u32,
 }
+#[repr(C)]
 pub struct LineLink {
     pub href: [u8; 256],
     pub x: i16,
@@ -109,6 +137,7 @@ pub struct LineLink {
     pub top_lift: i16,
 }
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub struct LineMetrics {
     pub x: i16,
     pub words: u32,
@@ -122,6 +151,7 @@ impl LineMetrics {
 }
 
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub struct Options {
     pub font: i32,
     pub compression: f32,
@@ -145,9 +175,9 @@ pub struct Layout {
     pub max_lines: u32,
 }
 
-/// Temporary Phase A adapter; M11's paragraph replaces it at integration.
+/// Production paragraph operations; host tests supply a deterministic mock.
 pub trait Paragraph<B>: Sized {
-    fn create(style: Block, options: Options) -> Result<Self>;
+    fn create<S: Sink<Payload = B>>(style: Block, options: Options, sink: &mut S) -> Result<Self>;
     fn style(&self) -> Block;
     fn set_style(&mut self, style: Block);
     fn size(&self) -> u32;
@@ -180,18 +210,34 @@ pub enum ImageProbe<R> {
 pub trait Sink {
     type Payload;
     type Image;
+    fn paragraph_context(&self) -> Option<super::runtime::ParagraphContext> {
+        None
+    }
+    fn create_line(
+        &mut self,
+        _line: &crate::para::paragraph_extract::Output,
+    ) -> Result<Self::Payload> {
+        Err(Error::Allocation)
+    }
     #[cfg(feature = "chapter-trace")]
     fn trace(&self, _observation: super::trace::Observation<'_>) {}
+    fn reclaim_paragraph_memory(&mut self) {}
     fn pending_anchor(&self) -> &[u8];
     fn defer_anchor(&mut self, text: &[u8]) -> Result;
     fn anchor_starts_chapter(&self) -> bool;
     fn record_anchor(&mut self, page: u16) -> Result;
     fn font_variant(&mut self, font: i32, scale: f32) -> i32;
     fn line_height(&mut self, font: i32, compression: f32) -> i32;
+    fn table_line_height(&mut self, font: i32) -> i32 {
+        self.line_height(font, 1.0)
+    }
     fn ascender(&mut self, font: i32) -> i32;
     fn space_width(&mut self, font: i32) -> i32;
     fn codepoint(&mut self, font: i32, cp: u32, style: u8) -> Option<(i32, i32)>;
     fn line_metrics(&mut self, line: &Self::Payload, options: Options) -> LineMetrics;
+    fn row_line_metrics(&mut self, line: &Self::Payload, options: Options) -> LineMetrics {
+        self.line_metrics(line, options)
+    }
     fn set_line_margin(&mut self, line: &mut Self::Payload, left: i16);
     fn line_links<'a>(&'a mut self, line: &'a mut Self::Payload) -> &'a [LineLink];
     fn complete(&mut self, page: Page<Self::Payload>, position: Position) -> Result;
@@ -209,6 +255,7 @@ pub trait Sink {
     ) -> Result<Self::Payload>;
 }
 #[derive(Clone, Copy, Default)]
+#[repr(C)]
 pub struct Position {
     pub paragraph: u16,
     pub list: u16,
@@ -216,7 +263,7 @@ pub struct Position {
     pub next_y: i16,
 }
 
-/// Semantic feedback exercised by the Phase A mock without the C service table.
+/// Scalar semantic snapshot; binding.rs applies changed feedback after each operation.
 #[derive(Default)]
 pub struct Flow {
     pub depth: i32,

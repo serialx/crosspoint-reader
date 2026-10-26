@@ -47,7 +47,9 @@ impl State {
     pub fn query(&self, query: Query) -> u32 {
         match query {
             Query::Stopped => u32::from(self.stopped),
-            Query::Oom => u32::from(self.oom),
+            Query::Oom => {
+                u32::from(self.oom || unsafe { self.paragraph.as_ref().is_some_and(|p| p.dropped) })
+            }
             Query::Ended => u32::from(self.ended),
             Query::Depth => self.depth as u32,
             Query::TableDepth => self.table_depth as u32,

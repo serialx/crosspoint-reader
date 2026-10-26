@@ -1,40 +1,19 @@
+#include <BidiUtils.h>
+#include <GfxRenderer.h>
+#include <Logging.h>
+#include <Memory.h>
+#include <MemoryManager.h>
+
 #include <algorithm>
 #include <cstring>
-#include <string_view>
 
 #include "ChapterPageAssembler.h"
 #include "Epub/htmlEntities.h"
-
+#include "Epub/hyphenation/Hyphenator.h"
+const XpParaAllocator* paragraphAllocator();
 namespace {
-std::string chapterString(XpChapterSpan span) {
-  return span.len ? std::string(reinterpret_cast<const char*>(span.data), span.len) : std::string();
-}
-XpChapterBlock chapterBlock(const BlockStyle& value) {
-  XpChapterBlock result{};
-  result.character_spacing = value.characterSpacing;
-  result.margin_top = value.marginTop;
-  result.margin_bottom = value.marginBottom;
-  result.margin_left = value.marginLeft;
-  result.margin_right = value.marginRight;
-  result.padding_top = value.paddingTop;
-  result.padding_bottom = value.paddingBottom;
-  result.padding_left = value.paddingLeft;
-  result.padding_right = value.paddingRight;
-  result.text_indent = value.textIndent;
-  result.text_indent_defined = value.textIndentDefined;
-  result.text_align_defined = value.textAlignDefined;
-  result.rtl = value.isRtl;
-  result.direction_defined = value.directionDefined;
-  result.font_scale = value.fontScale;
-  result.font_scale_defined = value.fontScaleDefined;
-  result.font_id = value.fontId;
-  result.break_before = value.pageBreakBefore;
-  result.break_after = value.pageBreakAfter;
-  result.keep_with_next = value.keepWithNext;
-  result.alignment = static_cast<uint8_t>(value.alignment);
-  return result;
-}
-BlockStyle chapterBlock(const XpChapterBlock& value) {
+template <class Wire>
+BlockStyle chapterBlock(const Wire& value) {
   BlockStyle result;
   result.characterSpacing = value.character_spacing;
   result.marginTop = value.margin_top;
@@ -59,322 +38,195 @@ BlockStyle chapterBlock(const XpChapterBlock& value) {
   result.alignment = static_cast<CssTextAlign>(value.alignment);
   return result;
 }
-// Assembly consumes only image lengths and box edges from the CSS wire value.
-CssStyle chapterCss(const uint8_t* wire) {
-  CssStyle css;
-  memcpy(&css.imageHeight.value, wire + 50, 4);
-  css.imageHeight.unit = static_cast<CssUnit>(wire[54]);
-  memcpy(&css.imageWidth.value, wire + 55, 4);
-  css.imageWidth.unit = static_cast<CssUnit>(wire[59]);
-  const uint32_t flags =
-      uint32_t(wire[84]) | uint32_t(wire[85]) << 8 | uint32_t(wire[86]) << 16 | uint32_t(wire[87]) << 24;
-  css.defined.imageHeight = (flags & (1u << 13)) != 0;
-  css.defined.imageWidth = (flags & (1u << 14)) != 0;
-  CssBorderSide* sides[] = {&css.borderTop, &css.borderRight, &css.borderBottom, &css.borderLeft};
-  for (size_t i = 0; i < 4; ++i) *sides[i] = {wire[71 + i * 2], static_cast<CssBorderStyle>(wire[72 + i * 2])};
-  css.defined.borderTop = (flags & (1u << 23)) != 0;
-  css.defined.borderRight = (flags & (1u << 24)) != 0;
-  css.defined.borderBottom = (flags & (1u << 25)) != 0;
-  css.defined.borderLeft = (flags & (1u << 26)) != 0;
-  css.borderWidthsDefined = wire[79] & 15;
-  css.borderStylesDefined = wire[79] >> 4;
-  css.defined.shaded = (flags & (1u << 27)) != 0;
-  css.shaded = wire[80] != 0;
-  return css;
+uint8_t startsRtl(XpParaSpan text, int32_t depth) {
+  return BidiUtils::startsWithRtl(std::string_view(reinterpret_cast<const char*>(text.data), text.len), depth);
+}
+}  // namespace
+int32_t ChapterPageAssembler::textAdvance(void* context, int32_t font, XpParaSpan text, uint8_t style,
+                                          int8_t tracking) {
+  return metricRenderer(context).getTextAdvanceX(font, text.len ? reinterpret_cast<const char*>(text.data) : "",
+                                                 static_cast<EpdFontFamily::Style>(style), tracking);
+}
+void ChapterPageAssembler::prepareText(void* context, int32_t font, const XpParaSpan* spans, uint32_t count,
+                                       uint8_t space, uint8_t hyphen, uint8_t styles, uint8_t small) {
+  std::vector<const char*> segments;
+  std::vector<size_t> lengths;
+  segments.reserve(count);
+  lengths.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) {
+    segments.push_back(reinterpret_cast<const char*>(spans[i].data));
+    lengths.push_back(spans[i].len);
+  }
+  metricRenderer(context).ensureSdCardFontReady(font, segments.data(), lengths.data(), count, space, hyphen, styles,
+                                                small);
+}
+namespace {
+uint8_t visualOrder(XpParaSpan text, const uint16_t* offsets, uint32_t count, uint8_t rtl, uint16_t* order) {
+  return BidiUtils::computeVisualWordOrder({reinterpret_cast<const char*>(text.data), text.len}, {offsets, count}, rtl,
+                                           {order, count});
+}
+
+void* createLine(void*, const XpParaLine* line) {
+  std::vector<std::string> ruby;
+  bool hasRuby = false;
+  for (uint32_t i = 0; i < line->count; ++i) hasRuby |= line->ruby[i].len != 0;
+  if (hasRuby) {
+    ruby.reserve(line->count);
+    for (uint32_t i = 0; i < line->count; ++i)
+      ruby.emplace_back(reinterpret_cast<const char*>(line->ruby[i].data), line->ruby[i].len);
+  }
+  auto block = makeUniqueNoThrow<TextBlock>(
+      TextBlock::BorrowedLayout{},
+      std::span<const char>(reinterpret_cast<const char*>(line->text.data), line->text.len),
+      std::span<const uint16_t>(line->offsets, line->count), std::span<const int16_t>(line->positions, line->count),
+      std::span<const EpdFontFamily::Style>(reinterpret_cast<const EpdFontFamily::Style*>(line->styles), line->count),
+      std::span<const uint8_t>(line->boundaries, line->boundaries ? line->count : 0),
+      std::span<const uint16_t>(line->suffixes, line->suffixes ? line->count : 0), chapterBlock(*line->block),
+      std::move(ruby), std::span<const XpParaLink>(line->links, line->link_count),
+      std::span<const TextBlock::SourceRange>(reinterpret_cast<const TextBlock::SourceRange*>(line->sources),
+                                              line->count),
+      line->paragraph_start);
+  int32_t fonts[TextBlock::MAX_WORD_FONTS];
+  memcpy(fonts, line->fonts, sizeof(fonts));
+  if (!block || !block->valid() || (line->font_slots && !block->setWordFonts(line->font_slots, fonts))) {
+    LOG_ERR("PTX", "OOM: extracted line");
+    return nullptr;
+  }
+  return block.release();
 }
 }  // namespace
 
-bool ChapterPageAssembler::ensureSemantics() {
-  if (chapter_) {
-    bindParagraph();
-    return true;
-  }
-  const XpChapterOptions options{paragraphAlignment, static_cast<uint8_t>(embeddedStyle), imageRendering,
-                                 static_cast<uint8_t>(cssParser != nullptr)};
-  const bool created =
-      xp_chapter_create(&chapter_, &services_, this, cssParser ? cssParser->rustHandle() : nullptr, &options) == 0;
-  if (created) bindParagraph();
-  return created;
-}
-float ChapterPageAssembler::semanticInlineScale(const float fallback) const {
-  if (!semanticQuery(XP_CHAPTER_QUERY_INLINE_VALID)) return fallback;
-  const uint32_t bits = semanticQuery(XP_CHAPTER_QUERY_INLINE_SCALE);
-  float scale;
-  memcpy(&scale, &bits, sizeof(scale));
-  return scale;
-}
-BlockStyle ChapterPageAssembler::semanticParentBlock() const {
-  auto block = chapterBlock(BlockStyle{});
-  xp_chapter_block(semanticState(), &block);
-  return chapterBlock(block);
-}
-XpChapterDropCap ChapterPageAssembler::semanticDropCap() const {
-  XpChapterDropCap cap{};
-  cap.span_depth = -1;
-  xp_chapter_drop_cap(semanticState(), &cap);
-  return cap;
-}
-CssBorderSide ChapterPageAssembler::semanticTableBorder() const {
-  const uint32_t packed = semanticQuery(XP_CHAPTER_QUERY_TABLE_BORDER);
-  return {static_cast<uint8_t>(packed), static_cast<CssBorderStyle>(packed >> 8)};
-}
-bool ChapterPageAssembler::semanticAnchorStartsChapter() const {
-  return std::find(tocAnchors.begin(), tocAnchors.end(), pendingAnchorId) != tocAnchors.end();
-}
-void ChapterPageAssembler::semanticRecordAnchor(const uint16_t page) {
-  if (pendingAnchorId.empty()) return;
-  anchorData.push_back({std::move(pendingAnchorId), page});
-  pendingAnchorId.clear();
+XpChapterOptions ChapterPageAssembler::chapterOptions() const {
+  return {paragraphAlignment,
+          static_cast<uint8_t>(embeddedStyle),
+          imageRendering,
+          static_cast<uint8_t>(cssParser != nullptr),
+          {fontId, lineCompression, viewportWidth, viewportHeight, extraParagraphSpacing, paragraphAlignment,
+           paragraphIndentSpaces, characterSpacing, wordSpacingPercent, hyphenationEnabled, focusReadingEnabled}};
 }
 
-// Leaf storage services do not reenter semantics. Assembly operations install
-// a state reborrow because they can query or notify Rust, including nested flushes.
-const XpChapterServices ChapterPageAssembler::services_ = {
-    [](void*, XpChapterState*, XpChapterSpan spelling) -> XpChapterSpan {
+const XpParaMetrics ChapterPageAssembler::metrics_{
+    nullptr,
+    nullptr,  // Layout tracing is installed only by the host instrumenter.
+    textAdvance,
+    [](void* c, int32_t f, uint8_t s) -> int32_t {
+      return metricRenderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
+    },
+    [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s, int8_t t) -> int32_t {
+      return metricRenderer(c).getKerning(f, a, b, static_cast<EpdFontFamily::Style>(s), t);
+    },
+    [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s) -> int32_t {
+      return metricRenderer(c).getSpaceAdvance(f, a, b, static_cast<EpdFontFamily::Style>(s));
+    },
+    [](void* c, int32_t f) -> int32_t { return metricRenderer(c).getFontAscenderSize(f); },
+    [](void* c, int32_t f) -> uint8_t { return metricRenderer(c).isSdCardFont(f); },
+    prepareText,
+    startsRtl,
+    visualOrder};
+const XpChapterSink ChapterPageAssembler::sink_ = {
+    paragraphAllocator,
+    &metrics_,
+    Hyphenator::preferredLanguageId,
+    []() { freeink::MemoryManager::instance().ensureFree(4 * 1024); },
+    [](void*, XpChapterSpan spelling) -> XpChapterSpan {
       const char* value = lookupHtmlEntity(reinterpret_cast<const char*>(spelling.data), spelling.len);
       return {reinterpret_cast<const uint8_t*>(value), value ? static_cast<uint32_t>(strlen(value)) : 0};
     },
-    [](void* ctx, XpChapterState* state, uint32_t length) -> uint8_t* {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->entityBuffer(length);
+    [](void* ctx, uint32_t length) { return static_cast<ChapterPageAssembler*>(ctx)->entityBuffer(length); },
+    [](void* ctx, int32_t font, float scale) -> int32_t {
+      return static_cast<ChapterPageAssembler*>(ctx)->renderer.resolveFontVariant(font, scale);
     },
-    nullptr,  // list_marker is owned by the Rust paragraph.
-    nullptr,  // preserve_space is owned by the Rust paragraph.
-    nullptr,  // paragraph_empty is owned by the Rust paragraph.
-    nullptr,  // paragraph_size is owned by the Rust paragraph.
-    nullptr,  // paragraph_scale is owned by the Rust paragraph.
-    nullptr,  // paragraph_style is owned by the Rust paragraph.
-    nullptr,  // suppress_indent is owned by the Rust paragraph.
-    nullptr,  // ruby_capacity is owned by the Rust paragraph.
-    nullptr,  // add_link is owned by the Rust paragraph.
-    nullptr,  // link_matches is owned by the Rust paragraph.
-    nullptr,  // size_slot is owned by the Rust paragraph.
-    nullptr,  // set_paragraph_style is owned by the Rust paragraph.
-    nullptr,  // word_style is owned by the Rust paragraph.
-    nullptr,  // ruby_group is owned by the Rust paragraph.
-    nullptr,  // ruby_append is owned by the Rust paragraph.
-    nullptr,  // add_word is owned by the Rust paragraph.
-    nullptr,  // paragraph_exists is owned by the Rust paragraph.
-    [](void* ctx, XpChapterState* state, const XpChapterBlock* style) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->createParagraph(chapterBlock(*style));
+    [](void* ctx, int32_t font, float compression) -> int32_t {
+      return static_cast<ChapterPageAssembler*>(ctx)->renderer.getLineHeight(font, compression);
     },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->resetParagraph();
+    [](void* ctx, int32_t font, uint32_t cp, uint8_t style, int32_t* advance, int32_t* top) -> uint8_t {
+      int32_t measuredAdvance = 0;
+      int measuredTop = 0;
+      const bool found = static_cast<ChapterPageAssembler*>(ctx)->renderer.getCodepointMetrics(
+          font, cp, static_cast<EpdFontFamily::Style>(style), measuredAdvance, measuredTop);
+      *advance = measuredAdvance;
+      *top = measuredTop;
+      return found;
     },
-    [](void* ctx, XpChapterState* state) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->bodyIsSdFont();
-    },
-    [](void* ctx, XpChapterState* state) -> int32_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->bodySpaceWidth();
-    },
-    [](void* ctx, XpChapterState* state, XpChapterSpan text, uint8_t style) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      char word[40];
-      if (text.len >= sizeof(word)) {
-        self->semanticFailLayout();
-        return;
+    createLine,
+    [](void* ctx, const void* raw, const XpChapterAssemblyOptions* options, bool row) -> XpChapterLineMetrics {
+      const auto& line = *static_cast<const TextBlock*>(raw);
+      const auto& renderer = static_cast<ChapterPageAssembler*>(ctx)->renderer;
+      const int font = line.blockFontId(options->font);
+      const auto rubyHeight = [&]() { return line.getRubyShift(renderer.getFontAscenderSize(font)); };
+      const auto baseHeight = [&]() {
+        return renderer.getLineHeight(font, options->compression) + line.extraAscent(renderer, options->font);
+      };
+      int height, ruby;
+      if (row) {
+        height = baseHeight();
+        ruby = rubyHeight();
+      } else {
+        ruby = rubyHeight();
+        height = baseHeight();
       }
-      memcpy(word, text.data, text.len);
-      word[text.len] = 0;
-      self->prepareBodyText(word, style);
+      return {line.getBlockStyle().leftInset(), static_cast<uint32_t>(line.wordCount()), height, ruby};
     },
-    [](void* ctx, XpChapterState* state, XpChapterSpan text, uint8_t style) -> int32_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      char word[40];
-      if (text.len >= sizeof(word)) {
-        self->semanticFailLayout();
-        return 0;
-      }
-      memcpy(word, text.data, text.len);
-      word[text.len] = 0;
-      return self->bodyTextAdvance(word, static_cast<EpdFontFamily::Style>(style));
+    [](void* raw, int16_t left) {
+      auto* line = static_cast<TextBlock*>(raw);
+      auto style = line->getBlockStyle();
+      style.marginLeft = left;
+      line->setBlockStyle(style);
     },
-    [](void* ctx, XpChapterState* state) -> int32_t {
+    [](void* ctx, void* raw, uint32_t* count) -> const XpChapterLineLink* {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->bodyAscender();
+      self->lineLinks_ = static_cast<TextBlock*>(raw)->takeLinkSpans();
+      static_assert(sizeof(TextBlock::LinkSpan) == sizeof(XpChapterLineLink));
+      *count = self->lineLinks_.count;
+      return reinterpret_cast<const XpChapterLineLink*>(self->lineLinks_.data.get());
     },
-    [](void* ctx, XpChapterState* state) -> uint16_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->pageWidth();
+    [](void* ctx, const XpChapterElement* elements, uint32_t count, const XpChapterLink* links, uint32_t linkCount,
+       const XpChapterFootnote* footnotes, uint32_t footnoteCount, XpChapterPosition position) -> uint8_t {
+      return static_cast<ChapterPageAssembler*>(ctx)->completePage(elements, count, links, linkCount, footnotes,
+                                                                   footnoteCount, position);
     },
-    [](void* ctx, XpChapterState* state) -> uint16_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->pageHeight();
+    [](void* ctx, XpChapterSpan src, int32_t* counter, bool* popup, uint16_t* width, uint16_t* height) -> uint8_t {
+      return static_cast<ChapterPageAssembler*>(ctx)->probeImage(src, *counter, *popup, *width, *height);
     },
-    [](void* ctx, XpChapterState* state) -> void {
+    [](void* ctx, int32_t width, int32_t height) -> void* {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->clearTableCells();
+      return makeUniqueNoThrow<ImageBlock>(self->imageCache_, self->imageSource_, width, height).release();
     },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->reserveTableCells();
+    [](void* ctx) -> XpChapterSpan {
+      const auto& id = static_cast<ChapterPageAssembler*>(ctx)->pendingAnchorId;
+      return {reinterpret_cast<const uint8_t*>(id.data()), static_cast<uint32_t>(id.size())};
     },
-    [](void* ctx, XpChapterState* state) -> uint32_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->bufferedTableWords();
+    [](void* ctx, XpChapterSpan id) {
+      static_cast<ChapterPageAssembler*>(ctx)->pendingAnchorId.assign(reinterpret_cast<const char*>(id.data), id.len);
     },
-    [](void* ctx, XpChapterState* state) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->tableStacked();
-    },
-    [](void* ctx, XpChapterState* state, uint8_t value) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->setTableStacked(value != 0);
-    },
-    [](void* ctx, XpChapterState* state, uint8_t value) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->setTableRtl(value != 0);
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->resetTableBytes();
-    },
-    [](void* ctx, XpChapterState* state) -> uint32_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->tableBytes();
-    },
-    [](void* ctx, XpChapterState* state, uint32_t count) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->addTableBytes(count);
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->resetExtractedWords();
-    },
-    [](void* ctx, XpChapterState* state) -> int32_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->extractedWords();
-    },
-    [](void* ctx, XpChapterState* state, int32_t index, const XpChapterFootnote* entry) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      FootnoteEntry value;
-      memcpy(value.number, entry->number, sizeof(value.number));
-      memcpy(value.href, entry->href, sizeof(value.href));
-      self->addPendingFootnote(index, value);
-    },
-    [](void* ctx, XpChapterState* state, int32_t depth) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->boxAtDepth(depth);
-    },
-    [](void* ctx, XpChapterState* state, XpChapterSpan src, const uint8_t* css) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      return static_cast<uint8_t>(self->processImage(chapterString(src), chapterCss(css)));
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->measureTableAtCurrentPosition();
-    },
-    [](void* ctx, XpChapterState* state, const XpChapterBlock* style, uint8_t paragraph_end) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->startNewTextBlock(chapterBlock(*style), paragraph_end != 0);
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->flushPendingAnchor();
-    },
-    [](void* ctx, XpChapterState* state, XpChapterBlock* style, const uint8_t* css) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      auto value = chapterBlock(*style);
-      self->openBoxScope(value, chapterCss(css));
-      *style = chapterBlock(value);
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->closeBoxScope();
-    },
-    [](void* ctx, XpChapterState* state, const XpChapterBlock* style) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->breakTextLine(chapterBlock(*style));
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->fallbackTableRowToStacked();
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->closeTableCell();
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->finishTableRow();
-    },
-    [](void* ctx, XpChapterState* state, uint8_t last_line, uint8_t paragraph_end) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->makePages(last_line != 0, paragraph_end != 0);
-    },
-    [](void* ctx, XpChapterState* state, const XpChapterBlock* style) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
-      self->emitHorizontalRule(chapterBlock(*style));
-    },
-    [](void* ctx, XpChapterState* state, uint8_t defined, uint8_t rtl) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->applyParagraphDirection(defined != 0, rtl != 0);
-    },
-    [](void* ctx, XpChapterState* state, XpChapterSpan id) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
+    [](void* ctx, XpChapterSpan id) -> uint8_t {
+      const auto& anchors = static_cast<ChapterPageAssembler*>(ctx)->tocAnchors;
       const std::string_view value(reinterpret_cast<const char*>(id.data), id.len);
-      return std::any_of(self->tocAnchors.begin(), self->tocAnchors.end(),
-                         [&](const auto& anchor) { return anchor == value; });
+      return std::find(anchors.begin(), anchors.end(), value) != anchors.end();
     },
-    [](void* ctx, XpChapterState* state) -> uint32_t {
+    [](void* ctx) -> uint32_t { return static_cast<ChapterPageAssembler*>(ctx)->anchorData.size(); },
+    [](void* ctx, uint16_t page) {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->anchorData.size();
+      if (!self->pendingAnchorId.empty()) {
+        self->anchorData.emplace_back(std::move(self->pendingAnchorId), page);
+        self->pendingAnchorId.clear();
+      }
     },
-    [](void* ctx, XpChapterState* state) -> uint8_t {
+    [](void* ctx, XpChapterState* state) {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->semanticHasAnchor();
+      auto* previous = self->activeSemantics_;
+      self->activeSemantics_ = state;
+      self->measureTableAtCurrentPosition();
+      self->activeSemantics_ = previous;
     },
-    [](void* ctx, XpChapterState* state, XpChapterSpan id) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->pendingAnchorId.assign(reinterpret_cast<const char*>(id.data), id.len);
-    },
-    [](void* ctx, XpChapterState* state, const XpChapterTrace* record) -> void {
-      (void)ctx;
-      (void)state;
-      (void)record;
-    },
+    [](void*, const XpChapterTrace* record) { (void)record; },
+    [](void*, XpChapterSpan record) { (void)record; },
 };
+
+bool ChapterPageAssembler::ensureSemantics() {
+  if (chapter_) return true;
+  const auto options = chapterOptions();
+  return xp_chapter_create(&chapter_, &sink_, this, cssParser ? cssParser->rustHandle() : nullptr, &options) == 0;
+}
+
+extern "C" void xp_chapter_release_block(void* block) { delete static_cast<Block*>(block); }

@@ -142,6 +142,15 @@ RUST_PARAGRAPH_OPS = frozenset(b"Paragraph." + name for name in (
     b"suppressFirstLineIndent", b"ensureRubyCapacity", b"addLinkTarget",
     b"linkTargetMatches", b"sizeSlotFor", b"getWordStyleAt", b"getRubyTextAt",
     b"setRubyGroupAt", b"setRubyForWordAt", b"addWord",
+    # M10 assembly and scalar queries now run directly inside Rust. Nested font
+    # metric records/replies remain observable and are deliberately retained.
+    b"addPendingFootnote", b"addTableBytes", b"applyParagraphDirection",
+    b"bodyAscender", b"bodyIsSdFont", b"bodySpaceWidth", b"bodyTextAdvance",
+    b"boxAtDepth", b"bufferedTableWords", b"clearTableCells", b"createParagraph",
+    b"extractedWords", b"hadDroppedWords", b"measureTableAtCurrentPosition",
+    b"pageHeight", b"pageWidth", b"reserveTableCells", b"resetExtractedWords",
+    b"resetFirstLineIndent", b"resetParagraph", b"resetTableBytes", b"setTableRtl",
+    b"setTableStacked", b"tableBytes", b"tableStacked",
 ))
 
 

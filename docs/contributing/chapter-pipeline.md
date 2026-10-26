@@ -1,15 +1,14 @@
 # Chapter pipeline boundary
 
-## Phase 3 assembly design (integration pending)
+## Rust chapter assembly
 
-`chapter::assembly` will own the current paragraph, ordered page elements and
+`chapter::assembly` owns the current paragraph, ordered page elements and
 positions, box scopes, six carried-line offsets, orphan/widow and keep-with-next
 state, buffered table paragraphs and column lines, pending footnotes,
-visible offsets, image counter/popup
-latch, and stop/OOM latches. Semantics and assembly share one fallibly allocated
-chapter handle. Phase A tests assembly with a paragraph trait; Phase B replaces
-that adapter with M11's `para::paragraph::Paragraph`. The existing C++ path stays
-active until the coordinator supplies the verified M11 commit.
+visible offsets, the image counter and popup latch, and stop/OOM latches. Semantics and assembly share one fallibly allocated
+chapter handle. Its production paragraph owner calls `para::paragraph::Paragraph`
+and the layout engine directly. The paragraph trait also permits focused mock
+tests for carry, placement and allocation failure.
 
 The remaining C boundary is a synchronous page sink:
 
@@ -19,14 +18,16 @@ The remaining C boundary is a synchronous page sink:
 | Process image | Keep path resolution, format checks, header probing, framebuffer loans, extraction, decoder retries and failed-cache removal in C++; return intrinsic dimensions and a temporary image resource. Rust computes CSS sizing and placement in the original order. |
 | Create image | Construct the existing `ImageBlock` from that resource and chosen dimensions; return an opaque owned payload. |
 | Drop payload | Return every unconsumed text/image payload to its C++ allocator exactly once, including stop, OOM, discarded table lines and abort. |
+| Reclaim paragraph memory | Preserve the cache-reclamation retry on paragraph allocation failure; request 4 KiB of free memory, then retry once. |
 | Font metrics | Resolve scale to font ID; query ascender, compressed/uncompressed line height, space width, codepoint metrics, SD-font status, text preparation and advance. Reuse M11's metrics contract where signatures agree. |
 | Complete page | Borrow ordered records (kind, i16 x/y and payload), links, footnotes, u16 paragraph/list indices and u32 visible offset. C++ builds `Page`, consumes every opaque payload, and invokes `completePageFn` synchronously. Failure must consume/drop all supplied payloads too. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
 | Anchors | Keep pending/TOC IDs and completed anchor storage in C++; query pending ID and TOC membership, defer an ID, and record its u16 page at the original Rust-controlled transition. |
 
 Rules, drop caps, boxes and table separators are plain records until page
-completion. Strings/spans are borrowed for one call; stored links own their
-bytes. The coordinator approved retaining the C++ anchor store because `Section`
+completion. Input spans are borrowed for one call. Returned line-link spans remain valid
+until the next link extraction; pending-anchor spans last until defer/record.
+Stored page links own their bytes. The C++ anchor store remains outside the Rust handle because `Section`
 reads it after `finishParse` and consumes `std::string` references. This preserves
 `getAnchors`, avoids a second string copy and keeps IDs at their existing length
 limit; no new 256-byte truncation is introduced. Anchor crossings occur once per
@@ -41,17 +42,18 @@ or dropped.
 
 Rust preserves eight box scopes, six carried lines, four table columns and the
 160-token/2,048-byte row fallback. Dynamic buffers use `try_reserve`; their owner
-is the chapter and their lifetime ends on completion/abort. Page storage grows
-only as the original page grows; table scratch is retained and cleared between
-rows. No second paragraph text copy or full-framebuffer allocation is added.
-Exact C3 sizes, transient growth peaks and allocation counts remain measurement
-gates, not design claims.
+is the chapter and their lifetime ends on completion/abort. Box storage grows
+only when a box is encountered, up to eight scopes. Table line/offset scratch is
+local to the synchronous row operation and is freed on every exit. No second paragraph text copy or full-framebuffer allocation is added.
+The evidence report records C3 sizes, transient growth peaks and allocation
+counts; the mock tests alone do not establish those resource costs.
 
 The existing 312 section streams and 5,529 layout calls remain the output
-oracles. `chapter-trace` must emit the old operation names, replies, field order
-and f32 bits at the corresponding direct Rust calls. Paragraph recording follows
-M11's approved filter; removing an FFI thunk alone does not justify dropping a
-semantic reply. Page records, image dimension/sizing observations, block/box
+oracles. `chapter-trace` emits the old operation names, replies, field order
+and f32 bits at the corresponding direct Rust calls. The explicit exclusion set
+in `run.py` lists the migrated paragraph and scalar assembly queries; unknown
+operation names still fail comparison. Nested font metric records and replies
+remain observable. Behavioral block/page/table operations retain their trace. Page records, image dimension/sizing observations, block/box
 changes, table results, anchors and stop feedback remain observable. The frozen
 C++ instrumented executable is retained before porting; no extra element oracle
 is needed because the section read oracle already exposes each element and its
@@ -65,20 +67,20 @@ image sizing branches must retain their distinct round-to-nearest versus
 truncation operations, and carry logic must never move every element off a page.
 
 The chapter parser consumes XML events and CSS rules, then builds paragraphs
-and pages. The Rust semantic layer preserves the order of its requests to
-the C++ page assembler, including requests whose replies influence later
-parsing. The chapter operation oracle in `test/section_golden` records the
+and pages. The Rust semantic layer preserves the order of its direct assembly operations,
+including results that influence later parsing. The chapter operation oracle in `test/section_golden` records the
 C++ implementation captured before the port.
 
 ## Ownership and lifetime
 
 Semantics owns element depth, hidden-content tracking, CSS ancestors and style
 stacks, word fragments, inline continuation, lists, ruby collection, link-label
-collection, and visible-text/XPath counters. Assembly owns paragraph storage,
-font selection and metrics, layout, page elements, image I/O, and completed-page
-callbacks, deferred anchor strings, and the anchor deque. The driver owns one
-fallibly allocated Rust chapter handle, the 1,024-byte input buffer, chapter file,
-and incremental parsing lifecycle. The Rust handle contains semantic state and
+collection, and visible-text/XPath counters. Rust assembly owns paragraph storage,
+layout, page records, carry, box and table state. The C++ sink owns hardware/font
+access, image I/O, `TextBlock`/`ImageBlock` construction, completed `Page`
+construction, and pending/TOC/completed anchor strings. The driver owns the
+fallibly allocated Rust chapter handle, 1,024-byte input buffer, chapter file,
+and incremental parsing lifecycle. The handle contains semantics, assembly and
 the XML pull parser; XML events and CSS resolution stay inside Rust.
 
 Text and style payloads are borrowed for one synchronous operation. Assembly
@@ -126,14 +128,12 @@ byte spans with u32 length; absence is separate from an empty string.
 | SetVisibleOffset | Visible-codepoint offset u32 | First page clamps to zero; later pages retain their first offset |
 | StopRequested | No payload | Sticky cancellation until a new parse begins |
 
-The current source also needs paragraph services: existence/empty/size queries;
-get/set BlockStyle; reset/suppress first-line indent; link-target matching and
-insertion; size-slot lookup; ruby capacity/group/word access; and allocation or
-reset of the current paragraph. These cannot be hidden as direct access to a
-C++ `ParsedText` from Rust. The instrumented subset is recorded as `Paragraph.*`
-requests and replies in the oracle. The expanded baseline also records paragraph
-creation/reset, row storage, and metric services. Complete section and layout
-comparisons remain separate required checks.
+Paragraph existence/size/style, indent suppression, links, size slots, ruby and
+word insertion are direct Rust operations. They do not cross a C++ paragraph
+wrapper. The captured `Paragraph.*` records and immediately following scalar
+replies are filtered on both sides by the M11 comparator; metric replies nested
+inside those calls remain observable. The assembly port preserves that filter
+without adding excluded operation families.
 
 BlockStyle's ordered values are alignment u8, character spacing i8, nine i16
 margin/padding/indent values, four u8 indent/alignment/direction flags, f32 font
@@ -165,25 +165,24 @@ integer pixels. Preserve operation order and casts rather than accepting an
 epsilon. The host trace stores f32 bits; section/cache and device comparisons
 remain necessary because host fonts and image decoding are stubbed.
 
-## C++ service surface and state feedback
+## Direct calls and sink callbacks
 
-`xp-core/src/chapter` owns the semantic state. `XpChapterServices` in `xp_ffi.h`
-is the C boundary to `ChapterPageAssembler`; each function pointer receives the
-assembler context and a fresh synchronous semantic-state reborrow. The table is
-static, not copied into each handle. `ChapterHtmlSlimParser` drives the handle
-with `xp_chapter_feed` and owns file I/O. Table pre-scan uses a synchronous read
-callback over a stack-local HalFile; it never retains the file or buffer.
+`XpChapterServices` has been removed. `chapter/binding.rs` calls assembly directly
+and takes a temporary `Flow` snapshot of semantic scalars for the operation. It
+writes changed marker, continuation, inline-size, drop-cap, page-break and cell
+state back before the next event. The snapshot is not a second persistent state.
+Closing a cell pops the actual semantic block stack before layout, and image
+handling separates probing/sizing from placement so pending text is flushed at
+the original point without reborrowing active assembly storage.
 
-Assembly may query values or issue named state notifications during a service
-call. It must use the state pointer supplied to that call, never an older handle
-borrow. `SemanticBorrow` installs that pointer only for operations that can reenter
-semantics and restores the previous pointer after nested calls. Leaf paragraph
-and row-storage services do not read or mutate Rust state. The
-only reverse semantic operation that emits further services is `FlushWord`;
-no Rust vector reference is retained across those services. Callbacks must not
-feed or destroy the chapter handle. These feedback effects remain required:
+`XpChapterSink` and its metrics/context remain alive until chapter destruction.
+`ChapterHtmlSlimParser` drives `xp_chapter_begin`, `xp_chapter_feed` and
+`xp_chapter_finish`. Table pre-scan is the only callback that receives a fresh
+semantic-state pointer: it synchronously reads a stack-local `HalFile` and sets
+the column plan. It cannot retain the state, file or read buffer. Other callbacks
+cannot reenter, feed or destroy the handle. Required transitions are:
 
-| Service | Semantic state changed before return |
+| Operation | State changed before return |
 | --- | --- |
 | `startNewTextBlock` | Clears continuation; resets inline-size state for empty reuse or a fresh paragraph; consumes marker-only state; disarms first-letter capture for a fresh paragraph; may lay out text and flush anchors |
 | `flushPendingAnchor` | Moves pending ID into the anchor deque with completed-page u16; clears pending ID; may trigger a TOC page break and cancellation |
@@ -195,43 +194,17 @@ feed or destroy the chapter handle. These feedback effects remain required:
 | `beginAssembly` | Resets stop/html-end, root block stack, drop-cap/list/table state, then opens the initial paragraph |
 | `finishAssembly` | Flushes the last paragraph, records any deferred anchor, emits the last page, and returns failure on stop/OOM |
 
-Assembly reads the current XPath indices (u16), visible offset (u32), paragraph
-alignment (u8), whitespace mode (u8), marker-only flag (u8), table depth (i32),
-cell-open flag (u8), table border, four planned widths (u16), column count (u8),
-ancestor block styles, inline-size state, and captured
-drop cap. Inline-size state is f32 scale, i32 depth, u8 valid/open. Drop-cap state
-is 13 text bytes (12 plus NUL), u8 byte count/codepoint count/line count/bold/
-first-letter-pending, and i32 span depth. Stop and layout-OOM are sticky u8
-feedback values. Scalar queries return values and block/drop-cap queries copy
-fields. Notifications name the transition, such as closing a cell, consuming a
-marker/page break, or clearing inline-size state. C++ retains the bool stop latch
-borrowed by the existing synchronous layout routine; `requestStop` also updates
-the current Rust state reborrow.
+Assembly reads XPath indices (u16), visible offset (u32), alignment and whitespace,
+marker-only and cell-open flags, table depth/border/column widths, ancestor style,
+inline-size state and the captured drop cap. The pending word is flushed before
+entering an eligible box or horizontal-rule operation. No mutable paragraph
+borrow remains active while the borrowed-line callback reads `lines_after`.
 
-The scalar paragraph services are `paragraphExists`, `paragraphEmpty`,
-`paragraphSize`, `paragraphStyle`, `setParagraphStyle`, `createParagraph`,
-`resetParagraph`, `suppressFirstLineIndent`, `ensureRubyCapacity`, `addWord`,
-`addLinkTarget`, `linkTargetMatches`, `sizeSlotFor`, `getWordStyleAt`,
-`getRubyTextAt`, `setRubyGroupAt`, and `setRubyForWordAt`.
-The C boundary copies BlockStyle values. Font-scale-only queries return f32
-directly, avoiding a full style copy on every word; the host oracle still records
-the same underlying paragraph-style query and reply. `preserve_space` combines indent
-suppression and justify-to-left mutation in C++, preserving the original service
-order without exporting a mutable C++ reference. `ruby_append` reads and joins
-the existing annotation in C++, preserving its original string allocation.
-`list_marker` preserves the existing five-argument paragraph insertion. The
-link callbacks borrow NUL-terminated XML/footnote storage as well as its explicit
-length; other spans need no terminator and word insertion uses the length.
-
-Row-storage services are `clearTableCells`, `reserveTableCells`,
-`bufferedTableWords`, `tableStacked`, `setTableStacked`, `setTableRtl`,
-`resetTableBytes`, `tableBytes`, `addTableBytes`, `resetExtractedWords`,
-`extractedWords`, and `addPendingFootnote`. `boxAtDepth` returns a boolean.
-Metric services are `bodyAscender`, `bodyIsSdFont`, `bodySpaceWidth`,
-`prepareBodyText` (text span and u8 font-style mask), `bodyTextAdvance` (text span
-and style u8), `pageWidth`, and `pageHeight` (u16). `applyParagraphDirection`
-changes direction flags only while the current paragraph is empty.
-
+`requestStop` sets the C++ driver latch. The completing sink reports it after
+`completePageFn` returns; Rust then stops extraction through its local stop byte
+and latches cancellation in assembly and semantics. A stopped completion consumes
+all handed-off payloads; Rust drops retained carry/table payloads on abort. No
+reverse semantic notification runs while page assembly has an active borrow.
 
 ## Allocation and tracing
 
@@ -256,10 +229,12 @@ uses 96 input bytes, 40 word bytes and 48 tag bytes on its stack.
 `chapter-trace` and `chapter-test` Cargo features are enabled only by the native
 test CMake configuration. Firmware's `scripts/build_rust.py` supplies neither.
 Tracing emits selected semantic observations through a synchronous callback;
-the host instrumenter also records assembler services and replies. Test-only
+assembly emits its original observations and metric replies through a borrowed
+byte callback. The host instrumenter attaches the paragraph layout stream and
+records the driver lifecycle and remaining C++ placement metrics. Test-only
 entry points preserve direct-callback assertions, including state checks, without
-adding per-event FFI entry points to firmware. The original C++ implementation
-was removed after 312 public and 111 private operation streams matched.
+adding per-event FFI entry points to firmware. The original C++ assembly implementation is retained in Git history and the
+captured operation archives.
 
 The entity vocabulary is shared with the existing C++ `HtmlToPlainText` and
 KOReader progress mapper through `entity_lookup`. Rust owns expansion and unknown

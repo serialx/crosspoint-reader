@@ -54,9 +54,6 @@ class ChapterHtmlSlimParser final : private ChapterPageAssembler {
   // Safe from completePageFn; cleanup waits until the active callback returns.
   void requestStop();
 
-  void addLineToPage(std::unique_ptr<TextBlock> line, uint32_t visibleOffset) {
-    ChapterPageAssembler::addLineToPage(std::move(line), visibleOffset);
-  }
   const std::deque<std::pair<std::string, uint16_t>>& getAnchors() const { return anchorData; }
 
   // Byte progress of the in-flight parse, used to estimate a still-building section's total page

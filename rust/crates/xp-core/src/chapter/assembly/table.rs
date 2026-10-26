@@ -1,5 +1,10 @@
 use super::*;
 
+struct RowLines<B> {
+    lines: [Vec<Option<B>>; MAX_COLUMNS],
+    offsets: Vec<u32>,
+}
+
 impl<P: Paragraph<B>, B> Assembly<P, B> {
     pub fn clear_cells(&mut self) {
         self.cells.clear();
@@ -104,8 +109,11 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             self.table_stacked = false;
             return Ok(());
         }
-        let result = self.layout_row(flow, sink);
-        self.clear_lines();
+        let mut row = RowLines {
+            lines: core::array::from_fn(|_| Vec::new()),
+            offsets: Vec::new(),
+        };
+        let result = self.layout_row(flow, sink, &mut row);
         self.latch(result)
     }
     fn frame_cells(&mut self, top: i32, bottom: i32, widths: &[u16], border: Border) -> Result {
@@ -133,8 +141,14 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         Ok(())
     }
-    fn layout_row<S: Sink<Payload = B>>(&mut self, flow: &mut Flow, sink: &mut S) -> Result {
-        let line_height = ((sink.line_height(self.options.font, 1.0) as f32
+    #[inline(never)]
+    fn layout_row<S: Sink<Payload = B>>(
+        &mut self,
+        flow: &mut Flow,
+        sink: &mut S,
+        row: &mut RowLines<B>,
+    ) -> Result {
+        let line_height = ((sink.table_line_height(self.options.font) as f32
             * self.options.compression) as i16)
             .max(1);
         let columns = self.cells.len();
@@ -164,18 +178,17 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             self.table_stacked = false;
             return Ok(());
         }
-        self.clear_lines();
         let mut max_lines = 0;
         for (column, cell) in self.cells.iter_mut().enumerate() {
-            let lines = &mut self.cell_lines[column];
+            let lines = &mut row.lines[column];
             let estimate = (cell.size() as usize)
                 .checked_mul(2)
                 .ok_or(Error::Allocation)?;
             lines
                 .try_reserve_exact(estimate)
                 .map_err(|_| Error::Allocation)?;
-            self.line_offsets
-                .try_reserve_exact(estimate.saturating_sub(self.line_offsets.len()))
+            row.offsets
+                .try_reserve_exact(estimate.saturating_sub(row.offsets.len()))
                 .map_err(|_| Error::Allocation)?;
             let style = cell.style();
             let font = cell.prepare_font(sink, self.options.font, style.font_scale);
@@ -196,10 +209,10 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                     let index = lines.len();
                     let offset = line.visible_offset;
                     push(lines, Some(line.payload))?;
-                    if self.line_offsets.len() <= index {
-                        push(&mut self.line_offsets, u32::MAX)?;
+                    if row.offsets.len() <= index {
+                        push(&mut row.offsets, u32::MAX)?;
                     }
-                    self.line_offsets[index] = self.line_offsets[index].min(offset);
+                    row.offsets[index] = row.offsets[index].min(offset);
                     Ok(())
                 },
             )?;
@@ -219,16 +232,16 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         };
         let mut slice_top = -1;
         for index in 0..max_lines {
-            let offset = self
-                .line_offsets
+            let offset = row
+                .offsets
                 .get(index)
                 .copied()
                 .unwrap_or(flow.position.visible);
             let mut row_height = line_height;
-            for lines in self.cell_lines.iter().take(columns) {
+            for lines in row.lines.iter().take(columns) {
                 if let Some(Some(line)) = lines.get(index) {
                     row_height =
-                        row_height.max(sink.line_metrics(line, self.options).height() as i16);
+                        row_height.max(sink.row_line_metrics(line, self.options).height() as i16);
                 }
             }
             let top_gap = if slice_top < 0 { max_top + gap } else { 0 };
@@ -268,10 +281,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                 }
             }
             for (column, padding) in top_padding.iter().enumerate().take(columns) {
-                let Some(line) = self.cell_lines[column]
-                    .get_mut(index)
-                    .and_then(Option::take)
-                else {
+                let Some(line) = row.lines[column].get_mut(index).and_then(Option::take) else {
                     continue;
                 };
                 let mut payload = line;

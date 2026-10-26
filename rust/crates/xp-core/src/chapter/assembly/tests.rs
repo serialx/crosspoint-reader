@@ -25,7 +25,7 @@ struct MockParagraph {
     reset: bool,
     lines: Vec<Line<Payload>>,
 }
-impl Paragraph<Payload> for MockParagraph {
+impl MockParagraph {
     fn create(style: Block, _: Options) -> Result<Self> {
         Ok(Self {
             style,
@@ -35,6 +35,15 @@ impl Paragraph<Payload> for MockParagraph {
             reset: false,
             lines: Vec::new(),
         })
+    }
+}
+impl Paragraph<Payload> for MockParagraph {
+    fn create<S: Sink<Payload = Payload>>(
+        style: Block,
+        options: Options,
+        _: &mut S,
+    ) -> Result<Self> {
+        Self::create(style, options)
     }
     fn style(&self) -> Block {
         self.style
@@ -316,7 +325,7 @@ fn carry_moves_links_and_copies_shared_footnote() {
     asm.page
         .as_mut()
         .unwrap()
-        .add_footnote(Footnote {
+        .add_footnote(&Footnote {
             href: href(b"#note"),
             ..Footnote::default()
         })
@@ -611,7 +620,8 @@ fn mocked_table_layout_aligns_rtl_columns_and_padding() {
     assert_eq!((page.elements[1].x, page.elements[1].y), (4, 5));
     assert_eq!(asm.next_y, 22);
     assert!(asm.cells.is_empty());
-    assert!(asm.cell_lines.iter().all(Vec::is_empty));
+    drop(asm);
+    assert_eq!(sink.drops.get(), 2);
 }
 
 #[test]
@@ -706,7 +716,7 @@ fn allocation_failure_sweep_releases_page_payloads_and_buffers() {
                 )?;
                 asm.add_footnote(
                     id as i32,
-                    Footnote {
+                    &Footnote {
                         href: href(b"#note"),
                         ..Footnote::default()
                     },
@@ -737,7 +747,7 @@ fn page_strings_match_cpp_zero_padding() {
     let mut bytes = [0x55; 256];
     bytes[0] = b'a';
     bytes[1] = 0;
-    page.add_link(Link {
+    page.add_link(&Link {
         href: bytes,
         x: 0,
         y: 0,
@@ -747,7 +757,7 @@ fn page_strings_match_cpp_zero_padding() {
     .unwrap();
     let mut number = [0x55; 32];
     number[0] = 0;
-    page.add_footnote(Footnote {
+    page.add_footnote(&Footnote {
         href: bytes,
         number,
     })
@@ -899,7 +909,7 @@ fn allocation_failures_release_buffered_table_and_carried_lines() {
                         )?;
                         asm.add_footnote(
                             id as i32,
-                            Footnote {
+                            &Footnote {
                                 href: href(b"#note"),
                                 ..Footnote::default()
                             },

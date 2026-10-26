@@ -74,3 +74,7 @@ extern "C" void heap_caps_free(void* ptr) {
 #endif
   std::free(ptr);
 }
+
+// Isolated ABI suites link the whole Rust archive without the C++ page sink.
+// Chapter suites override this with the real destructor; accidental use fails.
+extern "C" __attribute__((weak)) void xp_chapter_release_block(void*) { std::abort(); }

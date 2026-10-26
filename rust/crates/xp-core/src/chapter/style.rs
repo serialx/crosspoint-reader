@@ -144,6 +144,7 @@ impl Block {
 }
 
 #[derive(Clone, Copy, Default)]
+#[repr(transparent)]
 pub struct Css(pub css::Style);
 impl Css {
     pub fn has(&self, bit: u32) -> bool {

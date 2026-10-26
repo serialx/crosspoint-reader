@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parents[2]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--revision', default='b7fa3580', help='C++ baseline revision')
     args = parser.parse_args()
     if args.output.exists():
         raise SystemExit('refusing to overwrite captured oracle')
-    path = ROOT / 'lib/Epub/Epub/parsers/ChapterPageAssembler.cpp'
-    source = path.read_text()
+    source = subprocess.check_output(['git', 'show', args.revision + ':lib/Epub/Epub/parsers/ChapterPageAssembler.cpp'], cwd=ROOT, text=True)
     start = source.index('          if (hasCssHeight && hasCssWidth && dims.width > 0')
     end = source.index('          // Flush any pending text block', start)
     body = source[start:end]
@@ -56,7 +56,7 @@ int main() {
         subprocess.run(['c++','-std=c++20','-I'+str(ROOT/'lib/Epub'),str(src),'-o',str(exe)],check=True)
         answers = subprocess.run([str(exe)],input=data,text=True,capture_output=True,check=True).stdout.splitlines()
     assert len(answers) == len(cases)
-    revision = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    revision = subprocess.check_output(['git','rev-parse',args.revision],cwd=ROOT,text=True).strip()
     header = f'# C++ image sizing at {revision}; source sha256={hashlib.sha256(source.encode()).hexdigest()}\n'
     args.output.write_text(header + '# w h viewport_w viewport_h container_w em flags width unit height unit => display_w display_h\n' + ''.join(f'{case} => {answer}\n' for case,answer in zip(cases,answers)))
     print(f'{len(cases)} captured cases: {args.output}')

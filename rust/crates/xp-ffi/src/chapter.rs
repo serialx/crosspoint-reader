@@ -6,8 +6,8 @@ use core::{alloc::Layout, ffi::c_void, ptr};
 use xp_core::{
     chapter::{
         self,
+        assembly::{self, runtime::Callbacks},
         feedback::{Notify, Query},
-        services::Services,
         style::{Block, DropCap},
         Measure, State,
     },
@@ -24,21 +24,22 @@ pub struct Options {
     embedded: u8,
     images: u8,
     css_enabled: u8,
+    assembly: assembly::Options,
 }
 
 /// # Safety
-/// out is writable; services/context and css (if non-null) outlive the handle.
+/// out is writable; callbacks/context and css (if non-null) outlive the handle.
 /// All callbacks are populated and synchronous. No callback may destroy/feed this
 /// handle; only feedback on its supplied state reborrow is allowed during a call.
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_create(
     out: *mut *mut Chapter,
-    services: *const Services,
+    callbacks: *const Callbacks,
     ctx: *mut c_void,
     css: *const Css,
     options: *const Options,
 ) -> i32 {
-    if out.is_null() || services.is_null() || options.is_null() {
+    if out.is_null() || callbacks.is_null() || options.is_null() {
         return -1;
     }
     out.write(ptr::null_mut());
@@ -61,17 +62,37 @@ pub unsafe extern "C" fn xp_chapter_create(
     };
     State::initialize(
         ptr::addr_of_mut!((*handle).state),
-        services,
+        callbacks,
         ctx,
         store,
         options.alignment,
         options.embedded != 0,
         options.images,
         options.css_enabled != 0,
+        options.assembly,
     );
     ptr::addr_of_mut!((*handle).xml).write(Parser::new());
     out.write(handle);
     0
+}
+/// # Safety
+/// Live idle handle with a valid synchronous sink.
+#[no_mangle]
+pub unsafe extern "C" fn xp_chapter_begin(handle: *mut Chapter) -> u8 {
+    if handle.is_null() {
+        return 0;
+    }
+    (*handle).state.begin_assembly();
+    u8::from(!(*handle).state.oom)
+}
+/// # Safety
+/// Live idle handle; completion may request stop but cannot destroy the handle.
+#[no_mangle]
+pub unsafe extern "C" fn xp_chapter_finish(handle: *mut Chapter) -> u8 {
+    if handle.is_null() {
+        return 0;
+    }
+    u8::from((*handle).state.finish_assembly())
 }
 /// # Safety
 /// Sole live owner, with no active callback; null is allowed.
@@ -84,7 +105,7 @@ pub unsafe extern "C" fn xp_chapter_destroy(handle: *mut Chapter) {
 }
 /// # Safety
 /// Live handle. Returned pointer is borrowed until destruction; callbacks must
-/// use the fresh state pointer passed by the service, not this outer borrow.
+/// use the fresh state pointer passed by table measurement, not this outer borrow.
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_state(handle: *mut Chapter) -> *mut State {
     if handle.is_null() {
@@ -262,6 +283,67 @@ mod test_access {
         xml::{Event, Field},
     };
     /// # Safety
+    /// Live idle state; the returned paragraph is borrowed until its next mutation.
+    #[no_mangle]
+    pub unsafe extern "C" fn xp_chapter_test_paragraph(
+        state: *mut State,
+    ) -> *mut xp_core::para::paragraph::Paragraph {
+        (*state).test_paragraph()
+    }
+    /// # Safety
+    /// Live idle state. Operations are host-only fixture access.
+    #[no_mangle]
+    pub unsafe extern "C" fn xp_chapter_test_assembly(
+        state: *mut State,
+        operation: u32,
+        value: u32,
+    ) -> u32 {
+        (*state).test_assembly(operation, value)
+    }
+    /// # Safety
+    /// Live idle state.
+    #[no_mangle]
+    pub unsafe extern "C" fn xp_chapter_test_carry(
+        state: *mut State,
+        carry: u32,
+        lines: u32,
+        offset: u32,
+    ) {
+        (*state).test_carry(carry, lines, offset);
+    }
+    /// # Safety
+    /// Live idle state, writable disjoint output.
+    #[no_mangle]
+    pub unsafe extern "C" fn xp_chapter_test_pending_note(
+        state: *const State,
+        index: u32,
+        out: *mut chapter::style::Footnote,
+    ) {
+        out.write((*state).assembly.test_pending_note(index as usize));
+    }
+    /// # Safety
+    /// Live idle state and readable note.
+    #[no_mangle]
+    pub unsafe extern "C" fn xp_chapter_test_note(
+        state: *mut State,
+        note: *const chapter::style::Footnote,
+    ) {
+        (*state).test_note(*note);
+    }
+    /// # Safety
+    /// Live idle state and readable link.
+    #[no_mangle]
+    pub unsafe extern "C" fn xp_chapter_test_link(state: *mut State, link: *const assembly::Link) {
+        let link = &*link;
+        (*state).test_link(assembly::Link {
+            href: link.href,
+            x: link.x,
+            y: link.y,
+            width: link.width,
+            height: link.height,
+        });
+    }
+    /// # Safety
     /// Live idle state and borrowed CSS/options valid for this call.
     #[no_mangle]
     pub unsafe extern "C" fn xp_chapter_test_options(
@@ -278,6 +360,7 @@ mod test_access {
         } else {
             ptr::addr_of!((*css).store)
         };
+        (*state).assembly.options = value.assembly;
         (*state).test_options(
             store,
             value.alignment,

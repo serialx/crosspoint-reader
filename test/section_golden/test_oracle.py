@@ -30,19 +30,19 @@ class OracleTest(unittest.TestCase):
         trace = b"Paragraph.size\nReply\t3\nText\ta\nParagraph.addWord\tb\nPage\t1\nReply\t9\n"
         self.assertEqual(filter_paragraph_ops(trace), b"Text\ta\nPage\t1\nReply\t9\n")
 
-    def test_live_paragraph_service_changes_fail_comparison(self):
+    def test_live_metrics_and_unknown_operations_fail_comparison(self):
         from run import filter_paragraph_ops
-        for service in (b"bodySpaceWidth", b"bodyTextAdvance", b"pageWidth", b"tableBytes",
-                        b"setTableStacked", b"addPendingFootnote", b"createParagraph",
-                        b"resetParagraph", b"applyParagraphDirection"):
-            with self.subTest(service=service):
-                trace = b"Paragraph." + service + b"\t1\nReply\t9\n"
+        for operation in (b"getSpaceWidth", b"getTextAdvanceX", b"Paragraph.futureQuery"):
+            with self.subTest(operation=operation):
+                trace = operation + b"\t1\nReply\t9\n"
                 self.assertEqual(filter_paragraph_ops(trace), trace)
                 for mutation in (trace.replace(b"Reply\t9", b"Reply\t10"),
                                  trace.replace(b"\t1\n", b"\t2\n"), b""):
                     with self.assertRaises(ValueError):
                         compare({"book/0/0.ops": filter_paragraph_ops(trace)},
                                 {"book/0/0.ops": filter_paragraph_ops(mutation)})
+        trace = b"Paragraph.bodySpaceWidth\ngetSpaceWidth\t1\nReply\t9\n"
+        self.assertEqual(filter_paragraph_ops(trace), b"getSpaceWidth\t1\nReply\t9\n")
 
     def test_instrumentation_fails_closed_when_anchor_is_missing(self):
         from instrument_layout import instrument

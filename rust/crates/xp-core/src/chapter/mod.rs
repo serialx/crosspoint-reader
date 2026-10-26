@@ -1,9 +1,11 @@
-//! EPUB semantic state. Assembly callbacks are synchronous and receive fresh reborrows.
+//! EPUB semantic state and owned assembly; external sink calls are synchronous.
 extern crate alloc;
 use crate::css::{Ancestor, Store};
 use alloc::vec::Vec;
 use core::ffi::c_void;
+#[macro_use]
 pub mod assembly;
+mod binding;
 mod buffer;
 mod end;
 pub mod feedback;
@@ -13,7 +15,8 @@ pub mod style;
 pub mod table;
 mod tag;
 mod text;
-use services::{Services, Span};
+use assembly::runtime::{Callbacks, OwnedParagraph, PageSink, Payload};
+use services::Span;
 use style::{Block, Css, DropCap, Entry, Footnote, InlineSize};
 use tag::Tag;
 
@@ -35,7 +38,8 @@ pub struct Measure {
 
 pub struct State {
     paragraph: *mut crate::para::paragraph::Paragraph,
-    services: *const Services,
+    callbacks: *const Callbacks,
+    pub assembly: assembly::Assembly<OwnedParagraph, Payload>,
     ctx: *mut c_void,
     css: *const Store,
     alignment: u8,
@@ -106,23 +110,25 @@ impl State {
     }
 
     /// # Safety
-    /// out is writable, aligned uninitialized storage for State. Services/context
+    /// out is writable, aligned uninitialized storage for State. Callbacks/context
     /// and the optional CSS store outlive this state. Calls are serialized.
     /// Callbacks may reborrow the supplied State pointer only synchronously; they must
     /// never use an older pointer while a more recent callback owns the reborrow.
-    #[allow(clippy::too_many_arguments)] // Construction mirrors the fixed C options and services.
+    #[allow(clippy::too_many_arguments)] // Construction mirrors the fixed C options and callbacks.
     pub unsafe fn initialize(
         out: *mut Self,
-        services: *const Services,
+        callbacks: *const Callbacks,
         ctx: *mut c_void,
         css: *const Store,
         alignment: u8,
         embedded: bool,
         images: u8,
         css_enabled: bool,
+        assembly_options: assembly::Options,
     ) {
         core::ptr::addr_of_mut!((*out).paragraph).write(core::ptr::null_mut());
-        core::ptr::addr_of_mut!((*out).services).write(services);
+        core::ptr::addr_of_mut!((*out).callbacks).write(callbacks);
+        core::ptr::addr_of_mut!((*out).assembly).write(assembly::Assembly::new(assembly_options));
         core::ptr::addr_of_mut!((*out).ctx).write(ctx);
         core::ptr::addr_of_mut!((*out).css).write(css);
         core::ptr::addr_of_mut!((*out).alignment).write(alignment);

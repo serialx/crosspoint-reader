@@ -13,10 +13,11 @@ ROOT = Path(__file__).resolve().parents[2]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--revision', default='b7fa3580', help='C++ baseline revision')
     args = parser.parse_args()
     if args.output.exists():
         raise SystemExit('refusing to overwrite captured oracle')
-    source = (ROOT / 'lib/Epub/Epub/parsers/ChapterPageAssembler.cpp').read_text()
+    source = subprocess.check_output(['git', 'show', args.revision + ':lib/Epub/Epub/parsers/ChapterPageAssembler.cpp'], cwd=ROOT, text=True)
     body = source[source.index('size_t ChapterPageAssembler::linesToCarry'):source.index('ChapterPageAssembler::~')]
     body = body.replace('ChapterPageAssembler::', 'Probe::')
     cpp = r'''
@@ -62,7 +63,7 @@ int main() {
         subprocess.run(['c++','-std=c++20',str(src),'-o',str(exe)],check=True)
         answers = subprocess.run([str(exe)],input='\n'.join(cases)+'\n',text=True,capture_output=True,check=True).stdout.splitlines()
     assert len(answers) == len(cases)
-    revision = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    revision = subprocess.check_output(['git','rev-parse',args.revision],cwd=ROOT,text=True).strip()
     header = f'# C++ carry decisions at {revision}; source sha256={hashlib.sha256(source.encode()).hexdigest()}\n'
     args.output.write_text(header + '# active dropcap paragraph_lines keep_lines lines_after recent count trailing => carry paragraph_carry heading_carry\n' + ''.join(f'{case} => {answer}\n' for case,answer in zip(cases,answers)))
     print(f'{len(cases)} captured cases: {args.output}')

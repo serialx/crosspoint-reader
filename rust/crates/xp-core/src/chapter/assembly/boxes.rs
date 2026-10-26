@@ -302,6 +302,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             },
             |sink, line| self.add_line(line, flow, sink),
         );
+        block = paragraph.style();
         block.margin_left = block.margin_left.wrapping_sub(width as i16);
         paragraph.set_style(block);
         self.next_y = i32::from(self.next_y).max(top + i32::from(cap.lines) * line_height) as i16;

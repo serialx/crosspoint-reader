@@ -1154,6 +1154,21 @@ TEST_F(ChapterBlockDecorationTest, FloatedLeadingSpanBecomesDropCap) {
   EXPECT_STREQ(static_cast<const PageLine*>(lines[0])->getBlock()->wordText(0), "he");
 }
 
+TEST_F(ChapterBlockDecorationTest, DropCapPreservesDetectedDirectionAcrossExtraction) {
+  open("p", nullptr);
+  open("span", "float: left; font-size: 3em");
+  text("א");
+  close("span");
+  text("אבג " + words(60));
+  close("p");
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_GT(lines.size(), 4u);
+  for (size_t i = 0; i < lines.size(); ++i) {
+    const auto& block = *static_cast<const PageLine*>(lines[i])->getBlock();
+    EXPECT_TRUE(block.getBlockStyle().isRtl) << "line " << i;
+  }
+}
+
 TEST_F(ChapterBlockDecorationTest, MultiWordSpanStaysText) {
   open("p", nullptr);
   open("span", "float: left");

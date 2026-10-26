@@ -181,7 +181,11 @@ pub trait Sink {
     type Payload;
     type Image;
     #[cfg(feature = "chapter-trace")]
-    fn trace(&mut self, _observation: super::trace::Observation<'_>) {}
+    fn trace(&self, _observation: super::trace::Observation<'_>) {}
+    fn pending_anchor(&self) -> &[u8];
+    fn defer_anchor(&mut self, text: &[u8]) -> Result;
+    fn anchor_starts_chapter(&self) -> bool;
+    fn record_anchor(&mut self, page: u16) -> Result;
     fn font_variant(&mut self, font: i32, scale: f32) -> i32;
     fn line_height(&mut self, font: i32, compression: f32) -> i32;
     fn ascender(&mut self, font: i32) -> i32;

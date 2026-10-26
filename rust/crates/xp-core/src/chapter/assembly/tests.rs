@@ -2,6 +2,8 @@ extern crate std;
 use super::*;
 use alloc::{rc::Rc, vec};
 use core::cell::Cell;
+#[cfg(feature = "chapter-trace")]
+use core::cell::RefCell;
 
 struct Payload {
     style: Block,
@@ -86,6 +88,9 @@ impl Paragraph<Payload> for MockParagraph {
 }
 #[derive(Default)]
 struct MockSink {
+    pending_anchor: Vec<u8>,
+    toc_anchors: Vec<Vec<u8>>,
+    anchors: Vec<(Vec<u8>, u16)>,
     pages: Vec<(Page<Payload>, Position)>,
     stop: bool,
     fail: bool,
@@ -95,7 +100,7 @@ struct MockSink {
     #[cfg(feature = "chapter-trace")]
     trace_enabled: bool,
     #[cfg(feature = "chapter-trace")]
-    observations: Vec<std::string::String>,
+    observations: RefCell<Vec<std::string::String>>,
 }
 impl MockSink {
     fn line(&self, id: u32) -> Line<Payload> {
@@ -116,10 +121,30 @@ impl Sink for MockSink {
     type Payload = Payload;
     type Image = ();
     #[cfg(feature = "chapter-trace")]
-    fn trace(&mut self, observation: trace::Observation<'_>) {
+    fn trace(&self, observation: trace::Observation<'_>) {
         if self.trace_enabled {
-            self.observations.push(std::format!("{observation}"));
+            self.observations
+                .borrow_mut()
+                .push(std::format!("{observation}"));
         }
+    }
+    fn pending_anchor(&self) -> &[u8] {
+        &self.pending_anchor
+    }
+    fn defer_anchor(&mut self, text: &[u8]) -> Result {
+        self.pending_anchor.clear();
+        self.pending_anchor
+            .try_reserve_exact(text.len())
+            .map_err(|_| Error::Allocation)?;
+        self.pending_anchor.extend_from_slice(text);
+        Ok(())
+    }
+    fn anchor_starts_chapter(&self) -> bool {
+        self.toc_anchors.contains(&self.pending_anchor)
+    }
+    fn record_anchor(&mut self, page: u16) -> Result {
+        let id = core::mem::take(&mut self.pending_anchor);
+        push(&mut self.anchors, (id, page))
     }
     fn font_variant(&mut self, font: i32, scale: f32) -> i32 {
         (font as f32 * scale) as i32
@@ -517,11 +542,11 @@ fn toc_anchor_breaks_before_recording_page_index() {
     let mut asm = Asm::new(options());
     let mut sink = MockSink::default();
     let flow = Flow::default();
-    asm.add_toc_anchor(b"next").unwrap();
+    sink.toc_anchors.push(b"next".to_vec());
     asm.add_line(sink.line(1), &flow, &mut sink).unwrap();
-    asm.defer_anchor(b"next").unwrap();
+    asm.defer_anchor(b"next", &mut sink).unwrap();
     asm.flush_anchor(&flow, &mut sink).unwrap();
-    assert_eq!(asm.anchors, vec![(b"next".to_vec(), 1)]);
+    assert_eq!(sink.anchors, vec![(b"next".to_vec(), 1)]);
     assert_eq!(sink.pages.len(), 1);
 }
 
@@ -666,8 +691,7 @@ fn allocation_failure_sweep_releases_page_payloads_and_buffers() {
             let mut asm = Asm::new(options());
             let mut flow = Flow::default();
             asm.begin(&mut flow, &mut sink)?;
-            asm.add_toc_anchor(b"a-long-anchor-exceeding-inline-storage")?;
-            asm.defer_anchor(b"a-long-anchor-exceeding-inline-storage")?;
+            asm.defer_anchor(b"a-long-anchor-exceeding-inline-storage", &mut sink)?;
             for id in 1..=10 {
                 let mut line = sink.line(id);
                 created += 1;
@@ -693,6 +717,8 @@ fn allocation_failure_sweep_releases_page_payloads_and_buffers() {
             asm.finish(&mut flow, &mut sink)
         })();
         drop(core::mem::take(&mut sink.pages));
+        drop(core::mem::take(&mut sink.pending_anchor));
+        drop(core::mem::take(&mut sink.anchors));
         FAULT.with(|value| value.set(None));
         assert_eq!(LIVE.with(Cell::get), 0, "failure index {fail}");
         assert_eq!(drops.get(), created, "failure index {fail}");
@@ -772,7 +798,7 @@ fn observations_preserve_cpp_field_encoding_and_page_order() {
         asm.add_line(sink.line(id), &flow, &mut sink).unwrap();
     }
     assert_eq!(
-        sink.observations,
+        *sink.observations.borrow(),
         [
             "SetVisibleOffset\t10\n",
             "SetVisibleOffset\t20\n",
@@ -888,6 +914,8 @@ fn allocation_failures_release_buffered_table_and_carried_lines() {
                 Ok(())
             })();
             drop(core::mem::take(&mut sink.pages));
+            drop(core::mem::take(&mut sink.pending_anchor));
+            drop(core::mem::take(&mut sink.anchors));
             FAULT.with(|v| v.set(None));
             assert_eq!(LIVE.with(Cell::get), 0, "table={table}, fail={fail}");
             assert_eq!(drops.get(), created, "table={table}, fail={fail}");
@@ -899,4 +927,17 @@ fn allocation_failures_release_buffered_table_and_carried_lines() {
         }
         assert!(successful);
     }
+}
+
+#[test]
+fn sink_owned_anchor_survives_finish_without_truncation() {
+    let mut asm = Asm::new(options());
+    let mut sink = MockSink::default();
+    let mut flow = Flow::default();
+    asm.begin(&mut flow, &mut sink).unwrap();
+    let id = vec![b'x'; 300];
+    asm.defer_anchor(&id, &mut sink).unwrap();
+    asm.finish(&mut flow, &mut sink).unwrap();
+    drop(asm);
+    assert_eq!(sink.anchors, vec![(id, 0)]);
 }

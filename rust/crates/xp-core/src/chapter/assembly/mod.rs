@@ -68,9 +68,6 @@ pub struct Assembly<P, B> {
     cell_lines: [Vec<Option<B>>; MAX_COLUMNS],
     line_offsets: Vec<u32>,
     pending_footnotes: Vec<(i32, Footnote)>,
-    pending_anchor: Vec<u8>,
-    toc_anchors: Vec<Vec<u8>>,
-    pub anchors: Vec<(Vec<u8>, u16)>,
 }
 
 impl<P: Paragraph<B>, B> Assembly<P, B> {
@@ -103,9 +100,6 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             cell_lines: core::array::from_fn(|_| Vec::new()),
             line_offsets: Vec::new(),
             pending_footnotes: Vec::new(),
-            pending_anchor: Vec::new(),
-            toc_anchors: Vec::new(),
-            anchors: Vec::new(),
         }
     }
     fn latch<T>(&mut self, result: Result<T>) -> Result<T> {
@@ -172,54 +166,33 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         };
         self.start_block(style, true, flow, sink)
     }
-    pub fn add_toc_anchor(&mut self, text: &[u8]) -> Result {
-        let mut value = Vec::new();
-        let reserve = value
-            .try_reserve_exact(text.len())
-            .map_err(|_| Error::Allocation);
-        self.latch(reserve)?;
-        value.extend_from_slice(text);
-        let result = push(&mut self.toc_anchors, value);
+    pub fn defer_anchor<S: Sink<Payload = B>>(&mut self, text: &[u8], sink: &mut S) -> Result {
+        let result = sink.defer_anchor(text);
         self.latch(result)
     }
-    pub fn defer_anchor(&mut self, text: &[u8]) -> Result {
-        self.pending_anchor.clear();
-        let reserve = self
-            .pending_anchor
-            .try_reserve(text.len())
-            .map_err(|_| Error::Allocation);
-        self.latch(reserve)?;
-        self.pending_anchor.extend_from_slice(text);
-        Ok(())
-    }
-    fn record_anchor(&mut self) -> Result {
-        if self.pending_anchor.is_empty() {
+    fn record_anchor<S: Sink<Payload = B>>(&mut self, sink: &mut S) -> Result {
+        if sink.pending_anchor().is_empty() {
             return Ok(());
         }
-        let reserve = reserve_one(&mut self.anchors);
-        self.latch(reserve)?;
-        self.anchors.push((
-            core::mem::take(&mut self.pending_anchor),
-            self.completed as u16,
-        ));
-        Ok(())
+        let result = sink.record_anchor(self.completed as u16);
+        self.latch(result)
     }
     pub fn flush_anchor<S: Sink<Payload = B>>(&mut self, flow: &Flow, sink: &mut S) -> Result {
         observe!(
             sink,
             "Anchor",
-            self.pending_anchor.as_slice(),
+            sink.pending_anchor(),
             self.completed,
             self.stopped
         );
         self.running()?;
-        if self.pending_anchor.is_empty() {
+        if sink.pending_anchor().is_empty() {
             return Ok(());
         }
-        if self.toc_anchors.contains(&self.pending_anchor) && self.nonempty_page() {
+        if sink.anchor_starts_chapter() && self.nonempty_page() {
             self.complete_page(flow, sink)?;
         }
-        self.record_anchor()
+        self.record_anchor(sink)
     }
     fn emit_page<S: Sink<Payload = B>>(&mut self, flow: &Flow, sink: &mut S) -> Result {
         for index in 0..self.boxes.len() {
@@ -480,7 +453,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         if self.paragraph.is_some() {
             self.make_pages(true, true, flow, sink)?;
             self.running()?;
-            self.record_anchor()?;
+            self.record_anchor(sink)?;
             self.set_visible(flow.position.visible, sink);
             let result = self.emit_page(flow, sink);
             self.completed = self.completed.wrapping_add(1);

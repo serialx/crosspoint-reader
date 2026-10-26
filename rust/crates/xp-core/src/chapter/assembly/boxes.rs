@@ -218,7 +218,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         self.note_content(i32::from(self.next_y), i32::from(self.next_y) + 2);
         self.keep_lines = 0;
         self.next_y = self.next_y.wrapping_add(2).wrapping_add(bottom_gap);
-        self.record_anchor()
+        self.record_anchor(sink)
     }
     pub(super) fn layout_drop_cap<S: Sink<Payload = B>>(
         &mut self,

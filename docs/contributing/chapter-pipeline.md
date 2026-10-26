@@ -4,8 +4,8 @@
 
 `chapter::assembly` will own the current paragraph, ordered page elements and
 positions, box scopes, six carried-line offsets, orphan/widow and keep-with-next
-state, buffered table paragraphs and column lines, pending footnotes, deferred
-and TOC anchors, completed anchor records, visible offsets, image counter/popup
+state, buffered table paragraphs and column lines, pending footnotes,
+visible offsets, image counter/popup
 latch, and stop/OOM latches. Semantics and assembly share one fallibly allocated
 chapter handle. Phase A tests assembly with a paragraph trait; Phase B replaces
 that adapter with M11's `para::paragraph::Paragraph`. The existing C++ path stays
@@ -22,10 +22,16 @@ The remaining C boundary is a synchronous page sink:
 | Font metrics | Resolve scale to font ID; query ascender, compressed/uncompressed line height, space width, codepoint metrics, SD-font status, text preparation and advance. Reuse M11's metrics contract where signatures agree. |
 | Complete page | Borrow ordered records (kind, i16 x/y and payload), links, footnotes, u16 paragraph/list indices and u32 visible offset. C++ builds `Page`, consumes every opaque payload, and invokes `completePageFn` synchronously. Failure must consume/drop all supplied payloads too. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
+| Anchors | Keep pending/TOC IDs and completed anchor storage in C++; query pending ID and TOC membership, defer an ID, and record its u16 page at the original Rust-controlled transition. |
 
 Rules, drop caps, boxes and table separators are plain records until page
-completion. Strings/spans are borrowed for one call; stored anchors/links own
-their bytes. Widths remain those listed below: u8 flags/kinds, i16 coordinates,
+completion. Strings/spans are borrowed for one call; stored links own their
+bytes. The coordinator approved retaining the C++ anchor store because `Section`
+reads it after `finishParse` and consumes `std::string` references. This preserves
+`getAnchors`, avoids a second string copy and keeps IDs at their existing length
+limit; no new 256-byte truncation is introduced. Anchor crossings occur once per
+anchor, while paragraph and assembly calls become direct Rust calls. Widths
+remain those listed below: u8 flags/kinds, i16 coordinates,
 i32 font metrics/IDs, f32 scales/compression, and u32 counts. A record never
 transfers a Rust allocation to C++. A callback may latch stop but cannot feed,
 destroy, or recursively lay out the handle. The active Rust borrow must end

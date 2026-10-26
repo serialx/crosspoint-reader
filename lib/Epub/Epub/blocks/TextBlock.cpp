@@ -44,62 +44,41 @@ void TextBlock::bindArenaPointers() {
   textArr = reinterpret_cast<const char*>(base + off);
 }
 
-TextBlock::TextBlock(const std::vector<std::string>& words, const std::vector<int16_t>& wordXpos,
-                     const std::vector<EpdFontFamily::Style>& wordStyles, const std::vector<uint8_t>& focusBoundary,
-                     const std::vector<uint16_t>& focusSuffixX, const BlockStyle& blockStyle,
-                     std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
-                     const std::vector<SourceRange>& ranges, const uint16_t paragraphStartWord)
-    : TextBlock(BorrowedLayout{}, words, wordXpos, wordStyles, focusBoundary, focusSuffixX, blockStyle,
-                std::move(rubyTexts), std::move(linkSpans), ranges, paragraphStartWord) {}
-
-TextBlock::TextBlock(BorrowedLayout, const std::vector<std::string>& words, std::span<const int16_t> wordXpos,
-                     std::span<const EpdFontFamily::Style> wordStyles, std::span<const uint8_t> focusBoundary,
-                     std::span<const uint16_t> focusSuffixX, const BlockStyle& blockStyle,
-                     std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
-                     std::span<const SourceRange> ranges, const uint16_t paragraphStartWord)
-    : blockStyle(blockStyle),
-      paragraphStartWord(paragraphStartWord),
-      rubyTexts(std::move(rubyTexts)),
-      linkSpans(std::move(linkSpans)) {
-  // Same invariant as deserialize(): a block never holds an all-empty rubyTexts, so a
-  // ruby-less line costs nothing beyond its arena. The layout engine hands one over for
-  // every line it extracts, ruby or not; release it here rather than carrying it for the
-  // block's lifetime. Move-assigning an empty vector frees the buffer (clear() would not).
-  if (!hasRuby()) {
-    this->rubyTexts = std::vector<std::string>{};
-  }
-
+bool TextBlock::initializeLayout(const size_t count, std::span<const int16_t> wordXpos,
+                                 std::span<const EpdFontFamily::Style> wordStyles,
+                                 std::span<const uint8_t> focusBoundary, std::span<const uint16_t> focusSuffixX,
+                                 std::span<const SourceRange> ranges) {
+  if (!hasRuby()) this->rubyTexts = std::vector<std::string>{};
   // Focus annotations are optional: empty vectors mean no word in this block has a split.
   // When present, they must be sized in lockstep with words[].
   const bool hasFocus = !focusBoundary.empty();
-  if ((!ranges.empty() && ranges.size() != words.size()) || words.size() != wordXpos.size() ||
-      words.size() != wordStyles.size() || words.size() > 10000 ||
-      (paragraphStartWord != UINT16_MAX && paragraphStartWord >= words.size()) ||
-      (hasFocus && (words.size() != focusBoundary.size() || words.size() != focusSuffixX.size()))) {
+  if ((!ranges.empty() && ranges.size() != count) || count != wordXpos.size() || count != wordStyles.size() ||
+      count > 10000 || (paragraphStartWord != UINT16_MAX && paragraphStartWord >= count) ||
+      (hasFocus && (count != focusBoundary.size() || count != focusSuffixX.size()))) {
     LOG_ERR("TXB", "Construction failed: size mismatch (words=%u, xpos=%u, styles=%u, boundary=%u, suffixX=%u)",
-            static_cast<uint32_t>(words.size()), static_cast<uint32_t>(wordXpos.size()),
+            static_cast<uint32_t>(count), static_cast<uint32_t>(wordXpos.size()),
             static_cast<uint32_t>(wordStyles.size()), static_cast<uint32_t>(focusBoundary.size()),
             static_cast<uint32_t>(focusSuffixX.size()));
     isValid = false;
-    return;
+    return false;
   }
 
-  numWords = static_cast<uint16_t>(words.size());
+  numWords = static_cast<uint16_t>(count);
   focusPresent = hasFocus;
   if (numWords == 0) {
-    return;  // valid empty block, no arena
+    return true;  // valid empty block, no arena
   }
 
-  // Pass 1: total text size, one NUL per word. A line is at most a physical
-  // row of the page, so uint16_t offsets are ample; reject anything larger.
-  size_t totalText = 0;
-  for (const auto& w : words) totalText += w.size() + 1;
+  return true;
+}
+
+bool TextBlock::initializeArena(const size_t totalText) {
   if (totalText > UINT16_MAX) {
     LOG_ERR("TXB", "Construction failed: text size %u exceeds arena limit", static_cast<uint32_t>(totalText));
     numWords = 0;
     focusPresent = false;
     isValid = false;
-    return;
+    return false;
   }
   textBytes = static_cast<uint16_t>(totalText);
 
@@ -117,32 +96,58 @@ TextBlock::TextBlock(BorrowedLayout, const std::vector<std::string>& words, std:
     textBytes = 0;
     focusPresent = false;
     isValid = false;
-    return;
+    return false;
   }
   bindArenaPointers();
 
-  // Pass 2: fill. Mutable aliases of the const views bound above.
+  return true;
+}
+
+void TextBlock::copyLayout(std::span<const int16_t> wordXpos, std::span<const EpdFontFamily::Style> wordStyles,
+                           std::span<const uint8_t> focusBoundary, std::span<const uint16_t> focusSuffixX,
+                           std::span<const SourceRange> ranges) {
+  for (uint16_t i = 0; i < numWords; ++i) {
+    const_cast<SourceRange*>(sourceRanges)[i] = ranges.empty() ? SourceRange{} : ranges[i];
+    const_cast<int16_t*>(xposArr)[i] = wordXpos[i];
+    const_cast<uint8_t*>(stylesArr)[i] = static_cast<uint8_t>(wordStyles[i]);
+    if (focusPresent) {
+      const_cast<uint16_t*>(focusSuffixXArr)[i] = focusSuffixX[i];
+      const_cast<uint8_t*>(focusBoundaryArr)[i] = focusBoundary[i];
+    }
+  }
+}
+
+TextBlock::TextBlock(const std::vector<std::string>& words, const std::vector<int16_t>& wordXpos,
+                     const std::vector<EpdFontFamily::Style>& wordStyles, const std::vector<uint8_t>& focusBoundary,
+                     const std::vector<uint16_t>& focusSuffixX, const BlockStyle& blockStyle,
+                     std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
+                     const std::vector<SourceRange>& ranges, const uint16_t paragraphStartWord)
+    : TextBlock(BorrowedLayout{}, words, wordXpos, wordStyles, focusBoundary, focusSuffixX, blockStyle,
+                std::move(rubyTexts), std::move(linkSpans), ranges, paragraphStartWord) {}
+
+TextBlock::TextBlock(BorrowedLayout, const std::vector<std::string>& words, std::span<const int16_t> wordXpos,
+                     std::span<const EpdFontFamily::Style> wordStyles, std::span<const uint8_t> focusBoundary,
+                     std::span<const uint16_t> focusSuffixX, const BlockStyle& blockStyle,
+                     std::vector<std::string> rubyTexts, std::vector<LinkSpan> linkSpans,
+                     std::span<const SourceRange> ranges, const uint16_t paragraphStartWord)
+    : blockStyle(blockStyle),
+      paragraphStartWord(paragraphStartWord),
+      rubyTexts(std::move(rubyTexts)),
+      linkSpans(std::move(linkSpans)) {
+  if (!initializeLayout(words.size(), wordXpos, wordStyles, focusBoundary, focusSuffixX, ranges) || numWords == 0)
+    return;
+  size_t totalText = 0;
+  for (size_t i = 0; i < numWords; ++i) totalText += words[i].size() + 1;
+  if (!initializeArena(totalText)) return;
+  copyLayout(wordXpos, wordStyles, focusBoundary, focusSuffixX, ranges);
   auto* textOff = const_cast<uint16_t*>(textOffArr);
-  auto* xpos = const_cast<int16_t*>(xposArr);
-  auto* styles = const_cast<uint8_t*>(stylesArr);
   auto* text = const_cast<char*>(textArr);
   uint16_t off = 0;
-  for (uint16_t i = 0; i < numWords; i++) {
-    const_cast<SourceRange*>(sourceRanges)[i] = ranges.empty() ? SourceRange{} : ranges[i];
+  for (uint16_t i = 0; i < numWords; ++i) {
     textOff[i] = off;
-    xpos[i] = wordXpos[i];
-    styles[i] = static_cast<uint8_t>(wordStyles[i]);
     memcpy(text + off, words[i].data(), words[i].size());
     off += static_cast<uint16_t>(words[i].size());
     text[off++] = '\0';
-  }
-  if (focusPresent) {
-    auto* suffixX = const_cast<uint16_t*>(focusSuffixXArr);
-    auto* boundary = const_cast<uint8_t*>(focusBoundaryArr);
-    for (uint16_t i = 0; i < numWords; i++) {
-      suffixX[i] = focusSuffixX[i];
-      boundary[i] = focusBoundary[i];
-    }
   }
 }
 
@@ -163,88 +168,20 @@ TextBlock::TextBlock(BorrowedLayout, std::span<const char> packedText, std::span
     }
   }
   const auto wordAt = [&](size_t i) { return std::string_view(packedText.data() + offsets[i]); };
-  // Same invariant as deserialize(): a block never holds an all-empty rubyTexts, so a
-  // ruby-less line costs nothing beyond its arena. The layout engine hands one over for
-  // every line it extracts, ruby or not; release it here rather than carrying it for the
-  // block's lifetime. Move-assigning an empty vector frees the buffer (clear() would not).
-  if (!hasRuby()) {
-    this->rubyTexts = std::vector<std::string>{};
-  }
-
-  // Focus annotations are optional: empty vectors mean no word in this block has a split.
-  // When present, they must be sized in lockstep with words[].
-  const bool hasFocus = !focusBoundary.empty();
-  if ((!ranges.empty() && ranges.size() != offsets.size()) || offsets.size() != wordXpos.size() ||
-      offsets.size() != wordStyles.size() || offsets.size() > 10000 ||
-      (paragraphStartWord != UINT16_MAX && paragraphStartWord >= offsets.size()) ||
-      (hasFocus && (offsets.size() != focusBoundary.size() || offsets.size() != focusSuffixX.size()))) {
-    LOG_ERR("TXB", "Construction failed: size mismatch (words=%u, xpos=%u, styles=%u, boundary=%u, suffixX=%u)",
-            static_cast<uint32_t>(offsets.size()), static_cast<uint32_t>(wordXpos.size()),
-            static_cast<uint32_t>(wordStyles.size()), static_cast<uint32_t>(focusBoundary.size()),
-            static_cast<uint32_t>(focusSuffixX.size()));
-    isValid = false;
+  if (!initializeLayout(offsets.size(), wordXpos, wordStyles, focusBoundary, focusSuffixX, ranges) || numWords == 0)
     return;
-  }
-
-  numWords = static_cast<uint16_t>(offsets.size());
-  focusPresent = hasFocus;
-  if (numWords == 0) {
-    return;  // valid empty block, no arena
-  }
-
-  // Pass 1: total text size, one NUL per word. A line is at most a physical
-  // row of the page, so uint16_t offsets are ample; reject anything larger.
   size_t totalText = 0;
-  for (size_t i = 0; i < offsets.size(); ++i) totalText += wordAt(i).size() + 1;
-  if (totalText > UINT16_MAX) {
-    LOG_ERR("TXB", "Construction failed: text size %u exceeds arena limit", static_cast<uint32_t>(totalText));
-    numWords = 0;
-    focusPresent = false;
-    isValid = false;
-    return;
-  }
-  textBytes = static_cast<uint16_t>(totalText);
-
-  const size_t size = arenaSize(numWords, focusPresent, textBytes);
-  arena = makeUniqueNoThrow<uint8_t[]>(size);
-  if (!arena) {
-    // Evict rebuildable caches (SD-font mini data, render glyph cache) and
-    // retry once before declaring the line lost.
-    freeink::MemoryManager::instance().ensureFree(size + 4 * 1024);
-    arena = makeUniqueNoThrow<uint8_t[]>(size);
-  }
-  if (!arena) {
-    LOG_ERR("TXB", "OOM: arena %u bytes", static_cast<uint32_t>(size));
-    numWords = 0;
-    textBytes = 0;
-    focusPresent = false;
-    isValid = false;
-    return;
-  }
-  bindArenaPointers();
-
-  // Pass 2: fill. Mutable aliases of the const views bound above.
+  for (size_t i = 0; i < numWords; ++i) totalText += wordAt(i).size() + 1;
+  if (!initializeArena(totalText)) return;
+  copyLayout(wordXpos, wordStyles, focusBoundary, focusSuffixX, ranges);
   auto* textOff = const_cast<uint16_t*>(textOffArr);
-  auto* xpos = const_cast<int16_t*>(xposArr);
-  auto* styles = const_cast<uint8_t*>(stylesArr);
   auto* text = const_cast<char*>(textArr);
   uint16_t off = 0;
-  for (uint16_t i = 0; i < numWords; i++) {
-    const_cast<SourceRange*>(sourceRanges)[i] = ranges.empty() ? SourceRange{} : ranges[i];
+  for (uint16_t i = 0; i < numWords; ++i) {
     textOff[i] = off;
-    xpos[i] = wordXpos[i];
-    styles[i] = static_cast<uint8_t>(wordStyles[i]);
     memcpy(text + off, wordAt(i).data(), wordAt(i).size());
     off += static_cast<uint16_t>(wordAt(i).size());
     text[off++] = '\0';
-  }
-  if (focusPresent) {
-    auto* suffixX = const_cast<uint16_t*>(focusSuffixXArr);
-    auto* boundary = const_cast<uint8_t*>(focusBoundaryArr);
-    for (uint16_t i = 0; i < numWords; i++) {
-      suffixX[i] = focusSuffixX[i];
-      boundary[i] = focusBoundary[i];
-    }
   }
 }
 

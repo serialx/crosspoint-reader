@@ -90,6 +90,13 @@ class TextBlock final : public Block {
   TextBlock() = default;  // deserialize() fills the fields directly
   static size_t arenaSize(uint16_t wordCount, bool hasFocus, uint16_t textBytes);
   void bindArenaPointers();
+  bool initializeLayout(size_t count, std::span<const int16_t> xpos, std::span<const EpdFontFamily::Style> styles,
+                        std::span<const uint8_t> boundary, std::span<const uint16_t> suffix,
+                        std::span<const SourceRange> ranges);
+  bool initializeArena(size_t totalText);
+  void copyLayout(std::span<const int16_t> xpos, std::span<const EpdFontFamily::Style> styles,
+                  std::span<const uint8_t> boundary, std::span<const uint16_t> suffix,
+                  std::span<const SourceRange> ranges);
 
  public:
   // Flatten-on-construct: copies the layout-time vectors into the arena; the

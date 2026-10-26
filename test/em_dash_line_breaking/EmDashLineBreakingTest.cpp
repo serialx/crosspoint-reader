@@ -256,3 +256,37 @@ TEST(ParagraphPackedText, SanitizedSizeBoundary) {
     EXPECT_EQ(text.hadDroppedWords(), total > UINT16_MAX);
   }
 }
+
+TEST(TextBlockConstruction, VectorAndPackedInputsPreserveRtlAndFocusMetadata) {
+  const std::vector<std::string> words{"العربية", "word"};
+  const std::vector<int16_t> positions{45, 0};
+  const std::vector<EpdFontFamily::Style> styles{EpdFontFamily::REGULAR, EpdFontFamily::BOLD};
+  const std::vector<uint8_t> focus{0, 2};
+  const std::vector<uint16_t> suffix{0, 16};
+  const std::vector<TextBlock::SourceRange> ranges{{7, 14}, {0, 4}};
+  std::string packed;
+  std::vector<uint16_t> offsets;
+  for (const auto& word : words) {
+    offsets.push_back(packed.size());
+    packed += word;
+    packed += '\0';
+  }
+  BlockStyle style;
+  style.isRtl = true;
+  TextBlock dictionary(words, positions, styles, focus, suffix, style, {}, {}, ranges, 1);
+  TextBlock paragraph(TextBlock::BorrowedLayout{}, std::span<const char>(packed.data(), packed.size()), offsets,
+                      positions, styles, focus, suffix, style, {}, {}, ranges, 1);
+  ASSERT_TRUE(dictionary.valid());
+  ASSERT_TRUE(paragraph.valid());
+  ASSERT_EQ(dictionary.wordCount(), paragraph.wordCount());
+  for (uint16_t i = 0; i < dictionary.wordCount(); ++i) {
+    EXPECT_STREQ(dictionary.wordText(i), paragraph.wordText(i));
+    EXPECT_EQ(dictionary.wordXpos(i), paragraph.wordXpos(i));
+    EXPECT_EQ(dictionary.wordStyle(i), paragraph.wordStyle(i));
+    EXPECT_EQ(dictionary.focusBoundary(i), paragraph.focusBoundary(i));
+    EXPECT_EQ(dictionary.focusSuffixX(i), paragraph.focusSuffixX(i));
+    EXPECT_EQ(dictionary.wordSourceRange(i).start, paragraph.wordSourceRange(i).start);
+    EXPECT_EQ(dictionary.wordSourceRange(i).end, paragraph.wordSourceRange(i).end);
+    EXPECT_EQ(dictionary.wordStartsParagraph(i), paragraph.wordStartsParagraph(i));
+  }
+}

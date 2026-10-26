@@ -26,6 +26,7 @@ class PackageParser final : public Print {
   static uint8_t seek(void*, uint32_t, uint32_t);
 
  public:
+  // base/cachePath and cache are borrowed through destruction, including repeated setup().
   PackageParser(uint32_t kind, std::string_view base, size_t size, std::string_view cachePath,
                 BookMetadataCache* cache = nullptr, bool metadataOnly = false)
       : kind(kind), base(base), size(size), cachePath(cachePath), cache(cache), metadataOnly(metadataOnly) {}
@@ -37,6 +38,7 @@ class PackageParser final : public Print {
   size_t write(const uint8_t* bytes, size_t len) override;
   bool finish() { return xp_pkg_pass_finish(pass); }
   bool needsProtectionCheck() const { return xp_pkg_pass_count(pass) != 0; }
+  // Borrowed until setup(), write(), finish(), or destruction; value() returns a copy.
   std::string_view view(uint32_t field = 0) const;
   std::string value(uint32_t field = 0) const;
   std::optional<float> seriesIndex() const;

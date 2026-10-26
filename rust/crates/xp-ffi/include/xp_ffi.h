@@ -522,8 +522,11 @@ int32_t xp_pkg_feed(XpPkg* handle, const uint8_t* bytes, size_t len, uint8_t fin
 int32_t xp_pkg_next(XpPkg* handle, XpPkgRecord* out);
 void xp_pkg_destroy(XpPkg* handle);
 
-// Document passes borrow the cache and I/O contexts through destruction. Callbacks
-// are synchronous and must not reenter a live pass/cache. All spans are borrowed.
+// One exclusive owner per pass/cache; destroy passes before their borrowed cache.
+// Calls and callbacks are synchronous: no concurrent access, callback reentry into
+// either active handle (including queries/destruction), or unwinding across C.
+// Input spans are readable until return, disjoint from mutable state, and at most
+// PTRDIFF_MAX bytes; null data is valid only at length zero. Rust never frees them.
 typedef struct XpPkgPass XpPkgPass;
 typedef struct XpPkgCache XpPkgCache;
 enum { XP_PKG_CONTAINER = 1, XP_PKG_NCX_PASS, XP_PKG_NAV_PASS, XP_PKG_ENCRYPTION, XP_PKG_OPF_PASS };
@@ -543,6 +546,23 @@ enum {
   XP_PKG_BEGIN_SIZES,
   XP_PKG_END_SIZES
 };
+// Non-null tables require control/read/write/seek; item_size/observe are optional.
+// Pass creation copies tables, but borrows their contexts through pass destruction.
+// Direct cache calls borrow the table/context only until return. A zeroed table is
+// invalid; use a null table pointer to omit an optional pass sink.
+// control uses ITEMS for the manifest store; SPINE_FILE/TOC_FILE for pass stores;
+// BOOK_FILE for the final output. OPEN_READ/OPEN_WRITE/CLOSE/REMOVE/IS_OPEN return
+// boolean success/state; POSITION/SIZE return byte offsets/lengths. OPEN_WRITE
+// truncates. BEGIN_PASS/END_PASS select/flush a spine or TOC buffered writer;
+// BEGIN_BUILD/END_BUILD on BOOK_FILE select/flush all three build streams;
+// BEGIN_SIZES/END_SIZES on SPINE_FILE acquire/release the ZIP size service.
+// BEGIN_PASS/BEGIN_BUILD results are ignored; END_PASS/END_BUILD and BEGIN_SIZES
+// must report success. Cleanup CLOSE/REMOVE/END_SIZES results are ignored.
+// read/write return byte counts, seek returns boolean success. A buffered write
+// may accept all bytes and latch failure, but the matching END must report it.
+// item_size returns uncompressed bytes for a zero-based spine index (absent => 0).
+// observe is host-trace-only: kind 0 spine, 1 TOC, before validation/normalization.
+// Callback spans/buffers expire on return and must not be retained or freed.
 typedef struct {
   void* context;
   uint32_t (*control)(void*, uint32_t file, uint32_t operation);
@@ -552,21 +572,45 @@ typedef struct {
   uint32_t (*item_size)(void*, uint16_t index, XpPkgSpan href);
   void (*observe)(void*, uint32_t kind, XpPkgSpan title, XpPkgSpan href, XpPkgSpan anchor, uint8_t level);
 } XpPkgIo;
+// Creates one document pass: size is the exact XML byte length (unused for
+// encryption); base is copied. items may be null when no manifest store is needed;
+// a non-null cache requires cache_io. Create returns 0, -1 invalid, -2 OOM and
+// clears a valid out pointer on failure. metadata_only is 0 or 1 (OPF only).
 int32_t xp_pkg_pass_create(uint32_t kind, XpPkgSpan base, size_t size, uint8_t metadata_only, const XpPkgIo* items,
                            XpPkgCache* cache, const XpPkgIo* cache_io, XpPkgPass** out);
+// Null-safe; OPF destruction also closes/removes ITEMS via the borrowed context.
 void xp_pkg_pass_destroy(XpPkgPass*);
+// Print-compatible accepted byte count; metadata-only OPF deliberately short-writes
+// when complete. Sized passes finalize on their last bytes. Encryption requires
+// finish; finish returns 0 on failure/already complete/OPF, otherwise 1.
 size_t xp_pkg_pass_write(XpPkgPass*, XpPkgSpan);
 uint8_t xp_pkg_pass_finish(XpPkgPass*);
+// OPF fields use XP_PKG_TITLE..XP_PKG_TEXT; CSS paths start at field 32.
+// Simple passes expose their path regardless of field. Unknown/absent values are
+// empty. Returned spans expire on write/finish/destroy; they are not NUL-terminated.
 XpPkgSpan xp_pkg_pass_value(const XpPkgPass*, uint32_t field);
+// Returns 1 and writes the series index when present, otherwise 0 without writing.
 uint8_t xp_pkg_pass_index(const XpPkgPass*, float*);
+// OPF: CSS count. Simple passes: encryption protection latch (0 or 1).
 size_t xp_pkg_pass_count(const XpPkgPass*);
+// Create returns 0, -1 invalid out, -2 OOM; clears a valid out on failure.
 int32_t xp_pkg_cache_create(XpPkgCache**);
+// Null-safe; releases Rust state, not caller-owned file handles.
 void xp_pkg_cache_destroy(XpPkgCache*);
 enum { XP_PKG_BEGIN_OPF, XP_PKG_END_OPF, XP_PKG_BEGIN_TOC, XP_PKG_END_TOC, XP_PKG_END_WRITE };
+// Caller brackets OPF and TOC passes with their matching BEGIN/END, then END_WRITE
+// and build. Destroy each document pass while its contexts/cache are still alive.
+// Cache control/entry/build return 0 on success, negative on argument/OOM/I/O/state
+// failure. The sink owner remains responsible for file cleanup after early errors.
 int32_t xp_pkg_cache_control(XpPkgCache*, const XpPkgIo*, uint32_t operation);
+// kind 0 writes a spine href; kind 1 writes title/href/anchor/level for a TOC entry.
 int32_t xp_pkg_cache_entry(XpPkgCache*, const XpPkgIo*, uint32_t kind, XpPkgSpan title, XpPkgSpan href,
                            XpPkgSpan anchor, uint8_t level);
+// Metadata order: title, author, language, cover href, text-reference href.
+// build flushes/closes all opened build streams and removes incomplete book output
+// after record/flush failure; temporary stores remain caller-owned.
 int32_t xp_pkg_cache_build(XpPkgCache*, const XpPkgIo*, const XpPkgSpan metadata[5]);
+// toc == 0 selects spine count; any nonzero value selects TOC count.
 uint16_t xp_pkg_cache_count(const XpPkgCache*, uint8_t toc);
 
 // Section cache codec. All storage is caller-owned; no allocation or callbacks.

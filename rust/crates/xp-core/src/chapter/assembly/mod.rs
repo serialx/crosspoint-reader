@@ -688,7 +688,6 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             2 => self.table_stacked.into(),
             3 => self.table_bytes,
             4 => self.pending_footnotes.len() as u32,
-            5 => 1, // Row scratch is local and cannot survive a synchronous row operation.
             6 => self.cells.len() as u32,
             _ => 0,
         }

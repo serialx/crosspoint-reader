@@ -595,7 +595,6 @@ TEST_F(ChapterHtmlSlimParserTest, UnequalTableCellsAndRubySurvivePageBreaks) {
   EXPECT_GT(pages, 2u);
   EXPECT_EQ(rubyLines, 1u);
   EXPECT_EQ(actual, expected);
-  EXPECT_TRUE(ChapterTestAccess::assembly(parser, 5));
 }
 
 TEST(ReaderFontSizes, BuiltinVariantsStayInFamilyAndRespectSizeBounds) {
@@ -1145,6 +1144,46 @@ TEST_F(ChapterBlockDecorationTest, FloatedLeadingSpanBecomesDropCap) {
   const auto caps = elementsWithTag(TAG_PageDropCap);
   ASSERT_EQ(caps.size(), 1u);
   EXPECT_STREQ(static_cast<const PageDropCap*>(caps[0])->getText(), "T");
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_GT(lines.size(), 4u);
+  // Three lines wrap beside the letter, then text returns to the margin.
+  EXPECT_GT(lines[0]->xPos, 0);
+  EXPECT_EQ(lines[2]->xPos, lines[0]->xPos);
+  EXPECT_EQ(lines[3]->xPos, 0);
+  EXPECT_STREQ(static_cast<const PageLine*>(lines[0])->getBlock()->wordText(0), "he");
+}
+
+TEST_F(ChapterBlockDecorationTest, LatinMultibyteDropCap) {
+  open("p", nullptr);
+  open("span", "float: left; font-size: 3em");
+  text("É");
+  close("span");
+  text("he " + words(60));
+  close("p");
+
+  const auto caps = elementsWithTag(TAG_PageDropCap);
+  ASSERT_EQ(caps.size(), 1u);
+  EXPECT_STREQ(static_cast<const PageDropCap*>(caps[0])->getText(), "É");
+  const auto lines = elementsWithTag(TAG_PageLine);
+  ASSERT_GT(lines.size(), 4u);
+  // Three lines wrap beside the letter, then text returns to the margin.
+  EXPECT_GT(lines[0]->xPos, 0);
+  EXPECT_EQ(lines[2]->xPos, lines[0]->xPos);
+  EXPECT_EQ(lines[3]->xPos, 0);
+  EXPECT_STREQ(static_cast<const PageLine*>(lines[0])->getBlock()->wordText(0), "he");
+}
+
+TEST_F(ChapterBlockDecorationTest, HangulMultibyteDropCap) {
+  open("p", nullptr);
+  open("span", "float: left; font-size: 3em");
+  text("한");
+  close("span");
+  text("he " + words(60));
+  close("p");
+
+  const auto caps = elementsWithTag(TAG_PageDropCap);
+  ASSERT_EQ(caps.size(), 1u);
+  EXPECT_STREQ(static_cast<const PageDropCap*>(caps[0])->getText(), "한");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_GT(lines.size(), 4u);
   // Three lines wrap beside the letter, then text returns to the margin.
@@ -1793,6 +1832,36 @@ TEST_F(ChapterWidowOrphanTest, CarriedReferenceKeepsItsFootnote) {
     ASSERT_EQ(currentPage->footnotes.size(), 1u);
     EXPECT_STREQ(currentPage->footnotes[0].href, "#note");
     EXPECT_STREQ(currentPage->footnotes[0].number, "1");
+    EXPECT_EQ(pages[0]->footnotes.size(), repeated ? 2u : 1u);
+    EXPECT_TRUE(std::any_of(pages[0]->footnotes.begin(), pages[0]->footnotes.end(),
+                            [](const auto& note) { return strcmp(note.href, "#other") == 0; }));
+    EXPECT_EQ(currentPage->links[0].y, 0);
+  }
+}
+
+TEST_F(ChapterWidowOrphanTest, CarriedReferenceKeepsMultibyteFootnoteLabel) {
+  for (const bool repeated : {false, true}) {
+    SCOPED_TRACE(repeated);
+    pages.clear();
+    ChapterTestAccess::assembly(parser, 105);
+    paragraph(1);
+    paragraph(1);
+    ChapterTestAccess::assembly(parser, 107, 32);
+    ChapterTestAccess::assembly(parser, 108, 2);
+    ChapterTestAccess::assembly(parser, 109, 0);
+    ChapterTestAccess::assembly(parser, 110, 10);
+    ChapterTestAccess::addNote(parser, "각주一", "#note");
+    ChapterTestAccess::addNote(parser, "2", "#other");
+    ChapterTestAccess::addLink(parser, "#note", 0, 16, 8, 16);
+    ChapterTestAccess::addLink(parser, "#other", 8, 0, 8, 16);
+    if (repeated) ChapterTestAccess::addLink(parser, "#note", 0, 0, 8, 16);
+    ASSERT_TRUE(ChapterTestAccess::assembly(parser, 8, 1));
+    xp_chapter_test_carry(ChapterTestAccess::state(parser), 1, 1, 20);
+    auto currentPage = ChapterTestAccess::takePage(parser);
+    ASSERT_EQ(pages.size(), 1u);
+    ASSERT_EQ(currentPage->footnotes.size(), 1u);
+    EXPECT_STREQ(currentPage->footnotes[0].href, "#note");
+    EXPECT_STREQ(currentPage->footnotes[0].number, "각주一");
     EXPECT_EQ(pages[0]->footnotes.size(), repeated ? 2u : 1u);
     EXPECT_TRUE(std::any_of(pages[0]->footnotes.begin(), pages[0]->footnotes.end(),
                             [](const auto& note) { return strcmp(note.href, "#other") == 0; }));
@@ -2603,4 +2672,19 @@ TEST_F(ChapterHtmlSlimParserTest, LongSingleRubyElementKeepsAllAnnotations) {
   EXPECT_TRUE(parser.parseAndBuildPages());
   EXPECT_EQ(words, 2049u);
   std::filesystem::remove(filepath);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, MultilingualImageFallbackMatchesCppCacheText) {
+  parser.epub = std::make_shared<Epub>();
+  Epub::enableGifProbeForTest = true;
+  for (const char* source : {"unsupported.svg", "failed.gif"}) {
+    for (const char* alt : {"한국어", "עברית"}) {
+      SCOPED_TRACE(source);
+      SCOPED_TRACE(alt);
+      const std::string body = "<p><img src='" + std::string(source) + "' alt='" + alt + "'/></p>";
+      // Captured from c4db5201, including synthetic-source gaps and visual RTL order.
+      const char* expected = strcmp(alt, "한국어") == 0 ? "[Image:한국어]" : "עברית]\n[Image:";
+      EXPECT_EQ(parseToParagraphText(body), expected);
+    }
+  }
 }

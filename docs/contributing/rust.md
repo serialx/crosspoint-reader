@@ -50,6 +50,39 @@ The release profile uses `opt-level = "z"` for size, enables fat LTO, and aborts
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
 
+For C3 firmware, the build script removes `.eh_frame` and `.eh_frame_hdr` only
+from a separate copy of the Rust static archive, using PlatformIO's RISC-V
+`objcopy`. Cargo's original archive and host builds remain untouched. The filtered
+copy lives in `release/firmware/libxp_ffi.a`; it changes only when its bytes change,
+so an unchanged Cargo build does not force a relink. No C++ or framework archive
+is filtered, and debug sections are retained.
+
+`panic = "abort"` does not remove metadata already present in the prebuilt C3
+`core`, `alloc` and `compiler_builtins` libraries. With the pinned 1.99.0 toolchain,
+LTO retains `uwtable` attributes from `core`/`alloc` and an unwind-table module
+flag. Both `-C force-unwind-tables=no` and explicit `-C panic=abort` leave the
+archive's frame-table bytes unchanged; the former also leaves the linked map
+and firmware size unchanged. Filtering after LTO removes these retained tables.
+
+The filter is enabled only when the installed framework's `esp32c3/sdkconfig`
+explicitly disables `CONFIG_ESP_SYSTEM_USE_EH_FRAME`. In the pinned default profile
+(pioarduino 55.03.311, ESP-IDF 5.5.5), that option and
+`CONFIG_ESP_SYSTEM_USE_FRAME_POINTER` are unset and
+`CONFIG_ESP_SYSTEM_NO_BACKTRACE=y`. The RISC-V `panic_print_backtrace` therefore
+prints a raw stack-memory window, rather than parsing `.eh_frame`; CrossPoint's
+`HalSystem.cpp` wrapper also captures a 1,024-byte stack window. Rust still calls
+`abort()` on panic. C++/framework unwind tables, registration and panic handling
+remain unchanged. A framework configuration without the explicit disabled
+EH-frame option keeps the original Rust archive. Offline tools needing the
+removed Rust unwind records must use the preserved Cargo archive.
+
+S3 remains on its existing build path: its `cargo +esp -Zbuild-std=core,alloc`
+archive contributes no linked `.eh_frame` entries with the pinned toolchain.
+The C3 scratch measurement removes 21,036 linked frame-table bytes and saves
+21,040 firmware-image bytes after alignment, with `.flash.text` and
+`.flash.rodata` unchanged. Whole-firmware table discard is a separate human
+configuration decision and is not part of this filter.
+
 The boot self-check compares Rust FNV-1a and CRC-32 against C++ and miniz and
 logs the ABI version and result. It borrows a constant buffer and allocates
 nothing. Future Rust allocations use byte-addressable internal RAM and must

@@ -1,5 +1,6 @@
 """Build the Rust C ABI archive before PlatformIO resolves linker inputs."""
 
+import filecmp
 import os
 from pathlib import Path
 import shutil
@@ -54,6 +55,30 @@ except (OSError, subprocess.CalledProcessError) as error:
     fail(f"{error}; install the required toolchain first (docs/contributing/rust.md)")
 
 library_dir = target_dir / target / "release"
+# Prebuilt C3 core/alloc retain unwind metadata through LTO despite panic=abort.
+# Keep Cargo's archive intact; only the firmware link uses this filtered copy.
+if mcu == "esp32c3":
+    framework = Path(env.PioPlatform().get_package_dir("framework-arduinoespressif32-libs"))
+    config = (framework / mcu / "sdkconfig").read_text()
+    if "# CONFIG_ESP_SYSTEM_USE_EH_FRAME is not set" in config:
+        toolchain = Path(env.PioPlatform().get_package_dir("toolchain-riscv32-esp"))
+        objcopy = shutil.which("riscv32-esp-elf-objcopy", path=str(toolchain / "bin"))
+        if objcopy is None:
+            fail("target objcopy is missing")
+        archive = library_dir / "libxp_ffi.a"
+        library_dir = library_dir / "firmware"
+        library_dir.mkdir(exist_ok=True)
+        temporary = library_dir / "libxp_ffi.tmp.a"
+        filtered = library_dir / "libxp_ffi.a"
+        try:
+            subprocess.run([objcopy, "--remove-section=.eh_frame", "--remove-section=.eh_frame_hdr",
+                            str(archive), str(temporary)], check=True)
+            if filtered.exists() and filecmp.cmp(temporary, filtered, shallow=False):
+                temporary.unlink()
+            else:
+                temporary.replace(filtered)
+        except (OSError, subprocess.CalledProcessError) as error:
+            fail(f"cannot filter Rust unwind metadata: {error}")
 env.Append(LIBPATH=[str(library_dir)], LIBS=["xp_ffi"])
 # PlatformIO adds framework libraries after pre-scripts. Order at expansion time
 # so libm/libgcc resolve existing firmware calls before Rust's weak builtins.

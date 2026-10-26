@@ -6,23 +6,24 @@ from pathlib import Path
 from instrument_chapter import instrument
 from run import compare
 
-SOURCE = Path(__file__).resolve().parents[2] / 'lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp'
+ROOT = Path(__file__).resolve().parents[2] / 'lib/Epub/Epub/parsers'
+SOURCE = (ROOT / 'ChapterHtmlSlimParser.cpp').read_text() + (ROOT / 'ChapterSemantics.cpp').read_text() + (ROOT / 'ChapterPageAssembler.cpp').read_text()
 
 
 class ChapterTraceTest(unittest.TestCase):
     def test_original_contains_every_anchor(self):
-        traced = instrument(SOURCE.read_text())
+        traced = instrument(SOURCE)
         for op in ('BeginBlock', 'EndBlock', 'Text', 'ImageReply', 'TableColumns', 'Footnote',
                    'Paragraph.addWord', 'Paragraph.size', 'getFontAscenderSize'):
             self.assertIn('"' + op + '"', traced)
 
     def test_missing_anchor_rejects(self):
-        source = SOURCE.read_text().replace('  boxScopes.push_back(box);', '')
+        source = SOURCE.replace('  boxScopes.push_back(box);', '')
         with self.assertRaises(ValueError):
             instrument(source)
 
     def test_duplicate_anchor_rejects(self):
-        source = SOURCE.read_text() + '\n  boxScopes.push_back(box);\n'
+        source = SOURCE + '\n  boxScopes.push_back(box);\n'
         with self.assertRaises(ValueError):
             instrument(source)
 

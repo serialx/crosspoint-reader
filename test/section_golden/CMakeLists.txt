@@ -7,7 +7,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument_chapter.py
     ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
-  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp instrument_chapter.py
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterSemantics.cpp
+  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterSemantics.cpp instrument_chapter.py
   VERBATIM)
 add_executable(SectionGoldenDump
   SectionGoldenDump.cpp

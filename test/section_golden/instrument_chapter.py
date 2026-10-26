@@ -6,11 +6,42 @@ from pathlib import Path
 
 
 def instrument(source):
+    paragraph_names = {
+        'isEmpty': 'paragraphEmpty', 'size': 'paragraphSize', 'getBlockStyle': 'paragraphStyle',
+        'setBlockStyle': 'setParagraphStyle', 'suppressFirstLineIndent': 'suppressFirstLineIndent',
+        'ensureRubyCapacity': 'ensureRubyCapacity', 'addLinkTarget': 'addLinkTarget',
+        'linkTargetMatches': 'linkTargetMatches', 'sizeSlotFor': 'sizeSlotFor',
+        'getWordStyleAt': 'getWordStyleAt', 'getRubyTextAt': 'getRubyTextAt',
+        'setRubyGroupAt': 'setRubyGroupAt', 'setRubyForWordAt': 'setRubyForWordAt', 'addWord': 'addWord',
+    }
+
+    def semantic_calls(value):
+        for old, new in paragraph_names.items():
+            value = value.replace('currentTextBlock->' + old + '(', new + '(')
+        return value.replace('self->pendingFootnotes.push_back({wordIndex, entry});',
+                             'self->addPendingFootnote(wordIndex, entry);')
+
+    def resolve(anchor):
+        for candidate in (anchor,
+                          anchor.replace('ChapterHtmlSlimParser::', 'ChapterSemantics::'),
+                          anchor.replace('ChapterHtmlSlimParser::', 'ChapterPageAssembler::'),
+                          semantic_calls(anchor)):
+            pattern = r"\s+".join(re.escape(part) for part in candidate.split())
+            matches = list(re.finditer(pattern, source))
+            if len(matches) > 1:
+                raise ValueError(f"Ambiguous chapter trace anchor: {candidate!r}")
+            if matches:
+                return matches[0].group()
+        return anchor
+
     def before(anchor, code):
         nonlocal source
-        if source.count(anchor) != 1:
-            raise ValueError(f"Chapter trace anchor must occur once: {anchor!r}")
-        source = source.replace(anchor, code + '\n' + anchor)
+        resolved = resolve(anchor)
+        if semantic_calls(anchor).split() == resolved.split() and anchor.split() != resolved.split():
+            code = semantic_calls(code)
+        if source.count(resolved) != 1:
+            raise ValueError(f"Chapter trace anchor must occur once: {resolved!r}")
+        source = source.replace(resolved, code + '\n' + resolved)
 
     source = '#include "ChapterTrace.h"\n' + source
     # Record service calls as expressions, including their replies, exactly once.
@@ -69,6 +100,7 @@ def instrument(source):
             'ChapterTrace::record("Finish", stopRequested, layoutOom);',
     }
     for anchor, code in hooks.items():
+        anchor = resolve(anchor)
         if source.count(anchor) != 1:
             raise ValueError(f"Chapter trace method must occur once: {anchor!r}")
         source = source.replace(anchor, anchor + '\n  ' + code)
@@ -106,7 +138,9 @@ def instrument(source):
     before('  completePageFn(std::move(currentPage), xpathParagraphIndex, xpathListItemIndex, currentPageVisibleOffset);',
            '  ChapterTrace::record("Page", xpathParagraphIndex, xpathListItemIndex, currentPageVisibleOffset, currentPageNextY);')
     # Paragraph services used by semantic callbacks, including opaque slot/link replies.
-    pattern = r'(?P<receiver>(?:self->)?currentTextBlock)->(?P<method>\w+)\('
+    reverse_names = {new: old for old, new in paragraph_names.items()}
+    services = '|'.join(reverse_names)
+    pattern = r'(?:(?:self->)?currentTextBlock->(?P<method>\w+)|(?<![\w>:])(?:self->)?(?P<service>' + services + r'))\('
     matches = list(re.finditer(pattern, source))
     for match in reversed(matches):
         if match['method'] == 'layoutAndExtractLines':
@@ -134,7 +168,7 @@ def instrument(source):
             end += 1
         call = source[match.start():end]
         args = source[start:end-1]
-        replacement = ('ChapterTrace::call("Paragraph.' + match['method'] +
+        replacement = ('ChapterTrace::call("Paragraph.' + (match['method'] or reverse_names[match['service']]) +
                        '", [&]() -> decltype(auto) { return ' + call + '; }' +
                        (', ' + args if args.strip() else '') + ')')
         source = source[:match.start()] + replacement + source[end:]
@@ -143,4 +177,7 @@ def instrument(source):
 
 
 if __name__ == '__main__':
-    Path(sys.argv[2]).write_text(instrument(Path(sys.argv[1]).read_text()))
+    source = Path(sys.argv[1]).read_text()
+    for extra in sys.argv[3:]:
+        source += '\n' + Path(extra).read_text()
+    Path(sys.argv[2]).write_text(instrument(source))

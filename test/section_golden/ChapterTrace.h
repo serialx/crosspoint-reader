@@ -20,7 +20,9 @@ inline void close() {
   stream.close();
   if (!stream) throw std::runtime_error("Cannot write chapter trace");
 }
-struct Hex { std::string text; };
+struct Hex {
+  std::string text;
+};
 inline Hex hex(std::string_view text) {
   static constexpr char DIGITS[] = "0123456789abcdef";
   std::string out;

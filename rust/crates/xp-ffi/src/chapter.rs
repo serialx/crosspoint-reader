@@ -30,7 +30,7 @@ pub struct Options {
 /// # Safety
 /// out is writable; callbacks/context and css (if non-null) outlive the handle.
 /// All callbacks are populated and synchronous. No callback may destroy/feed this
-/// handle; only feedback on its supplied state reborrow is allowed during a call.
+/// handle. Only measure_table may use its supplied state reborrow for table feedback.
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_create(
     out: *mut *mut Chapter,

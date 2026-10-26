@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -571,12 +572,12 @@ uint8_t xp_sec_partial_trailer(const XpSecRecord* header, uint32_t size, uint32_
 
 uint32_t xp_sec_encode_text_word(size_t previous, const uint8_t* word, size_t len, uint8_t* output, size_t capacity,
                                  size_t* required);
-#include <stdbool.h>
 
 /* Chapter semantics: synchronous borrowed spans, one fallible owning handle.
- * CSS and the static services table outlive the handle. Services may reenter only
- * the feedback API using their supplied state pointer, never feed or destroy.
- * No state/span pointer may be retained after its synchronous operation. */
+ * CSS and sink/metrics/context outlive the handle. Only measure_table may use
+ * its supplied state reborrow for table feedback; no other callback may access
+ * chapter state, feed, finish or destroy the handle. No state/span pointer may
+ * be retained after its synchronous operation. */
 typedef struct XpChapter XpChapter;
 typedef struct XpChapterState XpChapterState;
 typedef struct {
@@ -699,29 +700,40 @@ typedef struct {
   const XpParaMetrics* metrics;
   int32_t (*language)(void);
   void (*reclaim_paragraph_memory)(void);
-  XpChapterSpan (*entity_lookup)(void*, XpChapterSpan);
-  uint8_t* (*entity_buffer)(void*, uint32_t);
-  int32_t (*font_variant)(void*, int32_t, float);
-  int32_t (*line_height)(void*, int32_t, float);
-  uint8_t (*codepoint)(void*, int32_t, uint32_t, uint8_t, int32_t*, int32_t*);
-  void* (*create_line)(void*, const XpParaLine*);
-  XpChapterLineMetrics (*line_metrics)(void*, const void*, const XpChapterAssemblyOptions*, bool);
-  void (*set_margin)(void*, int16_t);
-  const XpChapterLineLink* (*line_links)(void*, void*, uint32_t*);
+  XpChapterSpan (*entity_lookup)(void* context, XpChapterSpan name);
+  uint8_t* (*entity_buffer)(void* context, uint32_t length);
+  int32_t (*font_variant)(void* context, int32_t font, float scale);
+  int32_t (*line_height)(void* context, int32_t font, float compression);
+  uint8_t (*codepoint)(void* context, int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top);
+  /* Null create results report allocation failure. create_line borrows XpParaLine
+   * only until return; a non-null payload belongs to Rust until consumed/dropped. */
+  void* (*create_line)(void* context, const XpParaLine* line);
+  XpChapterLineMetrics (*line_metrics)(void* context, const void* line, const XpChapterAssemblyOptions* options,
+                                       bool table_row);
+  void (*set_margin)(void* line, int16_t left);
+  const XpChapterLineLink* (*line_links)(void* context, void* line, uint32_t* count);
+  /* create_page consumes all payloads even on null. A non-null C++ page is passed
+   * through the two copy callbacks and consumed exactly once by complete. */
   void* (*create_page)(void* context, const XpChapterElement* elements, uint32_t count);
   void (*page_links)(void* page, const XpChapterLink* links, uint32_t count);
   void (*page_footnotes)(void* page, const XpChapterFootnote* footnotes, uint32_t count);
+  /* 0 = success, 1 = stop, other = allocation failure. A page callback may set
+   * a separate C++ stop latch; complete returns it after completePageFn returns. */
   uint8_t (*complete)(void* context, void* page, XpChapterPosition position);
-  uint8_t (*probe_image)(void*, XpChapterSpan, int32_t*, bool*, uint16_t*, uint16_t*);
-  void* (*create_image)(void*, int32_t, int32_t);
-  XpChapterSpan (*pending_anchor)(void*);
-  void (*defer_anchor)(void*, XpChapterSpan);
-  uint8_t (*anchor_is_toc)(void*, XpChapterSpan);
-  uint32_t (*anchor_count)(void*);
-  void (*record_anchor)(void*, uint16_t);
-  void (*measure_table)(void*, XpChapterState*);
-  void (*trace)(void*, const XpChapterTrace*);
-  void (*trace_bytes)(void*, XpChapterSpan);
+  /* 0 = unsupported, 1 = failed, other = ready. Ready may be followed by one
+   * create_image after an intervening text flush. The context owns the probed
+   * paths until the next probe; Rust owns no temporary image allocation. */
+  uint8_t (*probe_image)(void* context, XpChapterSpan source, int32_t* counter, bool* popup_shown, uint16_t* width,
+                         uint16_t* height);
+  void* (*create_image)(void* context, int32_t width, int32_t height);
+  XpChapterSpan (*pending_anchor)(void* context);
+  void (*defer_anchor)(void* context, XpChapterSpan id);
+  uint8_t (*anchor_is_toc)(void* context, XpChapterSpan id);
+  uint32_t (*anchor_count)(void* context);
+  void (*record_anchor)(void* context, uint16_t page);
+  void (*measure_table)(void* context, XpChapterState* state);
+  void (*trace)(void* context, const XpChapterTrace* observation);
+  void (*trace_bytes)(void* context, XpChapterSpan bytes);
 } XpChapterSink;
 /* Fixed C++ sink destructor; accepts one owned TextBlock or ImageBlock. */
 void xp_chapter_release_block(void* block);

@@ -14,13 +14,13 @@ The remaining C boundary is a synchronous page sink:
 
 | Sink operation | Contract |
 | --- | --- |
-| Create text | Consume M11's borrowed line layout during the callback and construct the existing `TextBlock`; return an opaque owned payload plus placement metrics and borrowed link spans. |
-| Process image | Keep path resolution, format checks, header probing, framebuffer loans, extraction, decoder retries and failed-cache removal in C++; return intrinsic dimensions and a temporary image resource. Rust computes CSS sizing and placement in the original order. |
-| Create image | Construct the existing `ImageBlock` from that resource and chosen dimensions; return an opaque owned payload. |
+| Create text | Consume the borrowed `XpParaLine` layout during the callback and construct the existing `TextBlock`; return an opaque owned payload plus placement metrics and borrowed link spans. |
+| Process image | Keep path resolution, format checks, header probing, framebuffer loans, extraction, decoder retries and failed-cache removal in C++; return intrinsic dimensions and retain resolved paths in the sink context until the next probe. Rust computes CSS sizing and placement in the original order. |
+| Create image | Construct the existing `ImageBlock` from those paths and chosen dimensions; return an opaque owned payload. |
 | Drop payload | Return every unconsumed text/image payload to its C++ allocator exactly once, including stop, OOM, discarded table lines and abort. |
 | Reclaim paragraph memory | Preserve the cache-reclamation retry on paragraph allocation failure; request 4 KiB of free memory, then retry once. |
 | Font metrics | Resolve scale to font ID; query ascender, compressed/uncompressed line height, space width, codepoint metrics, SD-font status, text preparation and advance. Reuse M11's metrics contract where signatures agree. |
-| Complete page | Borrow ordered records (kind, i16 x/y and payload), links, footnotes, u16 paragraph/list indices and u32 visible offset. C++ builds `Page`, consumes every opaque payload, and invokes `completePageFn` synchronously. Failure must consume/drop all supplied payloads too. |
+| Complete page | Create `Page` and wrappers from borrowed element records, consuming every opaque payload even on failure. Copy links, then footnotes through separate callbacks. Rust frees each source vector immediately after its copy. Finally consume the C++ page through `completePageFn`, with u16 paragraph/list indices and u32 visible offset. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
 | Anchors | Keep pending/TOC IDs and completed anchor storage in C++; query pending ID and TOC membership, defer an ID, and record its u16 page at the original Rust-controlled transition. |
 
@@ -34,9 +34,10 @@ limit; no new 256-byte truncation is introduced. Anchor crossings occur once per
 anchor, while paragraph and assembly calls become direct Rust calls. Widths
 remain those listed below: u8 flags/kinds, i16 coordinates,
 i32 font metrics/IDs, f32 scales/compression, and u32 counts. A record never
-transfers a Rust allocation to C++. A callback may latch stop but cannot feed,
-destroy, or recursively lay out the handle. The active Rust borrow must end
-before observing that stop latch. Completed-page elements are consumed even when
+transfers a Rust allocation to C++. A callback may set the separate C++ stop latch but cannot feed,
+destroy, or recursively lay out the handle. The completion sink returns the latch
+after `completePageFn` returns; Rust assembly then latches the result, and semantics
+applies its feedback after the assembly operation returns. Completed-page elements are consumed even when
 the callback requests stop; carried elements remain Rust-owned until transferred
 or dropped.
 
@@ -57,14 +58,14 @@ remain observable. Behavioral block/page/table operations retain their trace. Pa
 changes, table results, anchors and stop feedback remain observable. The frozen
 C++ instrumented executable is retained before porting; no extra element oracle
 is needed because the section read oracle already exposes each element and its
-coordinates. Private operation streams remain external evidence.
+coordinates. Private operation streams remain external evidence. Integrated chapter tests cover
+multibyte drop caps, footnote labels carried across a page break, and Korean/RTL
+image fallback text. Paragraph-level tests separately cover shaping, bidi, CJK
+line breaking and source ranges; they do not by themselves prove assembly parity.
 
-`parseStep` still consumes at most 1,024 file bytes and may emit several pages.
-Finalization flushes only while neither stopped nor OOM; abort releases pending
-payloads without flushing. Suspend retains completed pages and reconstructs the
-parser on resume. Table pre-scan still borrows a synchronous file reader. The
-image sizing branches must retain their distinct round-to-nearest versus
-truncation operations, and carry logic must never move every element off a page.
+Lifecycle and cancellation are specified in Ownership and lifetime below. Image
+sizing retains its distinct round-to-nearest versus truncation operations; carry
+logic must never move every element off a page.
 
 The chapter parser consumes XML events and CSS rules, then builds paragraphs
 and pages. The Rust semantic layer preserves the order of its direct assembly operations,
@@ -91,17 +92,31 @@ before advancing the XML reader, whose event strings are borrowed.
 `parseStep` reads at most 1,024 input bytes and drains that input's XML events.
 It may emit several pages before returning. Splitting a callback into operations
 must not introduce extra yield points. A callback may call `requestStop`; that
-sets a latch, and the driver stops XML only after the active callback releases
-its borrowed event. It must not destroy state from inside the page callback.
+sets the C++ stop latch. The sink returns it after the callback, assembly records
+the result, and semantics applies feedback after assembly returns. XML then stops
+without retaining the borrowed event. It must not destroy state from inside the page callback.
 `finishParse` flushes the remaining block/page only when not stopped and not
 in layout OOM. `abortParse` releases XML, buffer and file without that flush.
 `Section::suspendBuild` keeps completed pages and aborts the parser; resuming
 rebuilds the parser rather than serializing its stacks.
 
+Completion retains the original unchecked C++ `std::vector` allocation behavior
+for `Page::elements`, links and footnotes. Element reserve is exact; metadata
+copies start from empty vectors. Rust element, link and footnote allocations end
+in sequence after their respective copies, before serialization. Checked Page
+and wrapper failures consume every payload and emit no partial page. Making the
+Page containers fallible requires a separate human decision about Page storage
+ownership; it is not implemented by a free-heap precheck or a null-returning
+standard allocator. C3 destination storage is 4 bytes per element plus 264 bytes
+per link and 288 bytes per footnote (13,056 metadata bytes at the 32/16 caps).
+
 ## Required operation families
 
 Widths below describe the target contract, not packed C++ object layouts.
-Booleans and enum/style flags are u8, coordinates and insets are i16, font IDs
+Most booleans and enum/style flags are u8. Existing exceptions use C `bool`: the
+assembly options `extra_spacing`, `hyphenation` and `focus`, box `shaded`, the
+`line_metrics` table-row argument and the `probe_image` popup pointer. Coordinates
+and insets are i16, font IDs
 are i32, font scale and compression are IEEE-754 f32. Counts crossing the
 C ABI use explicit u32 rather than host `size_t`. Strings are borrowed UTF-8
 byte spans with u32 length; absence is separate from an empty string.
@@ -132,8 +147,10 @@ Paragraph existence/size/style, indent suppression, links, size slots, ruby and
 word insertion are direct Rust operations. They do not cross a C++ paragraph
 wrapper. The captured `Paragraph.*` records and immediately following scalar
 replies are filtered on both sides by the M11 comparator; metric replies nested
-inside those calls remain observable. The assembly port preserves that filter
-without adding excluded operation families.
+inside those calls remain observable. The explicit `RUST_PARAGRAPH_OPS` set in `test/section_golden/run.py` also lists
+the migrated M10 assembly/scalar operations, including `createParagraph`,
+`addPendingFootnote` and `setTableStacked`. Filtering is by those exact names;
+nested metrics and all operations outside the set remain observable.
 
 BlockStyle's ordered values are alignment u8, character spacing i8, nine i16
 margin/padding/indent values, four u8 indent/alignment/direction flags, f32 font

@@ -138,13 +138,15 @@ traces directly. The manifest always records hashes of the complete traces.
 
 ## Chapter operation oracle
 
-### Phase 3 assembly checkpoint
+### Phase 3 assembly integration
 
-Production still uses the C++ assembler during M10 Phase A. The independent
-Rust assembly tests use a mock paragraph and page sink; passing the existing
-full pipeline oracles at this point establishes a baseline, not integration
-parity for the new module. `Paragraph.*` filtering is deferred until M11's
-approved integration change; no operation or reply is filtered in Phase A.
+Production uses Rust paragraph and chapter assembly with a synchronous C++ Page
+sink. Mock assembly tests cover focused state/ownership cases; full pipeline
+parity is checked by section, layout and operation oracles. `run.py` filters the
+explicit migrated paragraph and assembly/scalar operation names and their direct
+replies, preserving nested metric records and all unlisted operations. See
+[the chapter boundary](../../docs/contributing/chapter-pipeline.md) for lifecycle,
+ownership and multilingual coverage.
 
 `goldens/assembly-images.txt` contains 420 image sizing results captured from
 the unchanged C++ sizing branches at `b7fa3580`. It records the source hash and
@@ -169,7 +171,8 @@ The mock assembler tests also exercise ownership on cancellation, every allocati
 position in page/table/carry workloads, vertical style reuse, table placement,
 drop caps, box slicing and zero-padded link/footnote storage. Host-only
 `chapter-trace` observations preserve operation field encoding and order; the
-full operation comparator remains on the C++ path until Phase B.
+full operation comparator exercises the production Rust path against frozen C++
+expectations.
 
 `ChapterOperationGoldens` compares `goldens/ops.tar.gz`, captured from the
 unsplit C++ chapter parser at `e621694b`. All 104 spine items in the 18 EPUBs

@@ -395,7 +395,8 @@ hyphenation provenance. Allocation failure latches dropped text so the section
 builder rejects incomplete output.
 
 A line borrows packed NUL-separated text, word offsets and numeric arrays until
-the sink returns. The packed `TextBlock::BorrowedLayout` overload copies these
+the sink returns. One fallible allocation holds the line metadata, ruby spans,
+order indices and text; it is released immediately after the sink returns. The packed `TextBlock::BorrowedLayout` overload copies these
 values directly into the existing arena, with unchanged rendering and cache
 serialization. MiniBidi remains in C++ behind borrowed-span direction and order
 callbacks, using its existing mutex and shared workspace. These adapters avoid

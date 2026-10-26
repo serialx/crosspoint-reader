@@ -150,43 +150,54 @@ unsafe fn extract(
     }
     let count = end - start;
     let has_focus = (start..end).any(|i| (*p).tokens.get(i).is_some_and(|t| t.focus != 0));
-    let mut line = Line(layout_extract::Line {
-        data: ptr::null_mut(),
-        count: 0,
-        allocator: (*p).allocator,
-        focus: 0,
-    });
-    if !line.0.init(count, has_focus) {
+    if count == 0 || count > 10000 {
         return None;
     }
-    let positions = line.0.data.add(count * 8).cast::<i16>();
-    let styles = line.0.data.add(count * 10);
-    let boundaries = line.0.data.add(count * 11);
-    let suffixes = if has_focus {
-        line.0.data.add(count * 12).cast::<u16>()
-    } else {
-        ptr::null_mut()
-    };
-    let mut text = Vec::new();
-    let mut offsets = Vec::new();
-    let mut ruby = Vec::new();
-    offsets.try_reserve_exact(count).ok()?;
-    ruby.try_reserve_exact(count).ok()?;
     let bytes = (start..end).try_fold(0usize, |sum, i| sum.checked_add((*p).word(i).len() + 1))?;
     if bytes > u16::MAX as usize {
         return None;
     }
-    text.try_reserve_exact(bytes).ok()?;
-    for i in start..end {
-        offsets.push(text.len() as u16);
-        let begin = text.len();
-        text.extend_from_slice((*p).word(i));
-        let len =
-            layout_extract::strip_soft_hyphens(text.as_mut_ptr().add(begin), text.len() - begin);
-        text.truncate(begin + len);
-        text.push(0);
-        ruby.push(Span::from_bytes((*p).ruby_text(i)));
+    // One line-scoped allocation holds disjoint metadata and packed text spans.
+    let alignment = core::mem::align_of::<Span>();
+    let ruby_offset = (count * if has_focus { 14 } else { 11 }).next_multiple_of(alignment);
+    let offsets_offset = ruby_offset + count * core::mem::size_of::<Span>();
+    let order_offset = offsets_offset + count * 2;
+    let text_offset = order_offset + count * 2;
+    let allocation = ((*(*p).allocator).allocate)(text_offset + bytes);
+    if allocation.is_null() {
+        return None;
     }
+    ptr::write_bytes(allocation, 0, text_offset + bytes);
+    let mut line = Line(layout_extract::Line {
+        data: allocation,
+        count,
+        allocator: (*p).allocator,
+        focus: u8::from(has_focus),
+    });
+    let positions = allocation.add(count * 8).cast::<i16>();
+    let styles = allocation.add(count * 10);
+    let boundaries = allocation.add(count * 11);
+    let suffixes = if has_focus {
+        allocation.add(count * 12).cast::<u16>()
+    } else {
+        ptr::null_mut()
+    };
+    let ruby = slice::from_raw_parts_mut(allocation.add(ruby_offset).cast::<Span>(), count);
+    let offsets = slice::from_raw_parts_mut(allocation.add(offsets_offset).cast::<u16>(), count);
+    let order = slice::from_raw_parts_mut(allocation.add(order_offset).cast::<u16>(), count);
+    let text = slice::from_raw_parts_mut(allocation.add(text_offset), bytes);
+    let mut text_len = 0;
+    for i in start..end {
+        offsets[i - start] = text_len as u16;
+        let word = (*p).word(i);
+        text[text_len..text_len + word.len()].copy_from_slice(word);
+        let len = layout_extract::strip_soft_hyphens(text.as_mut_ptr().add(text_len), word.len());
+        text_len += len;
+        text[text_len] = 0;
+        text_len += 1;
+        ruby[i - start] = Span::from_bytes((*p).ruby_text(i));
+    }
+    let text = &text[..text_len];
     let indent = (*p).first_indent(break_index == 0, m, o.font);
     let extra_start = (*p).ruby_start(start, end, m, o.font)?;
     let extra_end = (*p).ruby_end(start, end, m, o.font)?;
@@ -196,9 +207,6 @@ unsafe fn extract(
         } else {
             (*p).block.alignment
         };
-    let mut order = Vec::new();
-    order.try_reserve_exact(count).ok()?;
-    order.resize(count, 0u16);
     let mut spec = layout_line::Spec {
         count,
         page: i32::from(o.width),
@@ -214,8 +222,8 @@ unsafe fn extract(
         paragraph: &*p,
         metrics: m,
         widths,
-        text: &text,
-        offsets: &offsets,
+        text,
+        offsets,
         order: &[],
         start,
         font: o.font,
@@ -229,7 +237,7 @@ unsafe fn extract(
     let logical = layout_line::metrics(&spec, &callbacks);
     let reordered = ((*p).block.rtl != 0 || (*p).has_rtl)
         && (m.visual_order)(
-            Span::from_bytes(&text),
+            Span::from_bytes(text),
             offsets.as_ptr(),
             count as u32,
             (*p).block.rtl,
@@ -237,7 +245,7 @@ unsafe fn extract(
         ) != 0;
     if reordered {
         context.reordered = true;
-        context.order = &order;
+        context.order = order;
         spec.reordered = 1;
         let callbacks = layout_line::Callbacks {
             context: (&mut context as *mut Positions).cast(),
@@ -306,17 +314,10 @@ unsafe fn extract(
     let mut font_slots = [0u8; 128];
     let mut fonts = [0i32; 3];
     let mut mixed = false;
-    let mut visual_offsets = Vec::new();
-    if reordered {
-        visual_offsets.try_reserve_exact(count).ok()?;
-    }
     for i in 0..count {
         let logical = start + if reordered { usize::from(order[i]) } else { i };
         let token = (*p).tokens.get(logical)?;
         styles.add(i).write(token.style);
-        if reordered {
-            visual_offsets.push(offsets[usize::from(order[i])]);
-        }
         if has_focus {
             boundaries.add(i).write(token.focus);
             let word_offset = usize::from(offsets[logical - start]);
@@ -418,11 +419,16 @@ unsafe fn extract(
         }
         para_trace!(m, "paragraph-start-word\t{}", paragraph_start);
     }
+    if reordered {
+        for entry in order.iter_mut() {
+            *entry = offsets[usize::from(*entry)];
+        }
+    }
     let block = (*p).block;
     let output = Output {
-        text: Span::from_bytes(&text),
+        text: Span::from_bytes(text),
         offsets: if reordered {
-            visual_offsets.as_ptr()
+            order.as_ptr()
         } else {
             offsets.as_ptr()
         },

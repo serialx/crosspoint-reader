@@ -359,8 +359,11 @@ emulator caches remain independent checks.
 ### Direct Rust paragraph observations
 
 Phase 3 removes paragraph services from the chapter-to-C++ path. Operation
-comparison now filters `Paragraph.*` records and their immediately following
-`Reply` records from both the frozen archive and candidate. Every other record
+comparison filters only the names in `run.py`'s `RUST_PARAGRAPH_OPS` exclusion
+set and their immediately following `Reply` records from both the frozen archive
+and candidate. Live assembler services such as `bodySpaceWidth`, `bodyTextAdvance`,
+`pageWidth`, `tableBytes`, `setTableStacked` and `addPendingFootnote` remain
+compared, even though their recorded names also begin with `Paragraph.`. Every other record
 and reply retains its order and exact bytes. The original archive is unchanged
 and its raw sizes and hashes are checked against the manifest before filtering;
 filtered sizes and hashes are then used for inventory comparison. Section and

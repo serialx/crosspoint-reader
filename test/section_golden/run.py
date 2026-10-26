@@ -136,12 +136,21 @@ def read_archive(path):
         return {entry.name: archive.extractfile(entry).read() for entry in archive if entry.isfile()}
 
 
+# Only services whose paragraph owner moved into Rust lose C++ trace records.
+RUST_PARAGRAPH_OPS = frozenset(b"Paragraph." + name for name in (
+    b"paragraphExists", b"isEmpty", b"size", b"getBlockStyle", b"setBlockStyle",
+    b"suppressFirstLineIndent", b"ensureRubyCapacity", b"addLinkTarget",
+    b"linkTargetMatches", b"sizeSlotFor", b"getWordStyleAt", b"getRubyTextAt",
+    b"setRubyGroupAt", b"setRubyForWordAt", b"addWord",
+))
+
+
 def filter_paragraph_ops(data):
-    """Remove paragraph requests and their immediately following scalar replies."""
+    """Remove migrated paragraph requests and their immediately following replies."""
     result = []
     paragraph = False
     for line in data.splitlines(keepends=True):
-        if line.startswith(b"Paragraph."):
+        if line.rstrip(b"\r\n").split(b"\t", 1)[0] in RUST_PARAGRAPH_OPS:
             paragraph = True
             continue
         if paragraph and line.startswith(b"Reply\t"):

@@ -97,6 +97,20 @@ sections to remove mid-line hyphens left by drop-cap layout. The lines beside
 the drop cap use bounded greedy wrapping; the rest keep their usual wrapping.
 Book metadata and saved progress are kept.
 
+The 44-byte header uses little-endian fields without padding. The page count
+is at byte 22; the five 32-bit table offsets begin at byte 24. Page bodies
+start at byte 44. The page-offset table gives each page's start; the next entry
+(or the page-table offset for the last page) gives its end. The current C++
+reader seeks to the start and decodes the counted records without enforcing
+that end boundary. `visibleTextOffset` lives in its separate table, not in the
+page body.
+
+A build starts with version 0. Committing patches the page count and table
+offsets, then writes version 68 last. A suspended build uses
+`0xFE - (68 - 28) = 214` instead. It has the same layout plus two `u32` values,
+`bytesConsumed` and `totalBytes`, immediately after the visible-offset table.
+The ImHex example below describes finalized sections only.
+
 ### Version 67
 
 Version 67 preserves the binary layout but rebuilds completed and partial
@@ -359,7 +373,7 @@ import std.mem;
 import std.string;
 import std.core;
 
-#define EXPECTED_VERSION 64
+#define EXPECTED_VERSION 68
 #define MAX_STRING_LENGTH 65535
 #define FOOTNOTE_NUMBER_LEN 32
 #define FOOTNOTE_HREF_LEN 256
@@ -427,8 +441,14 @@ struct TextBlock {
     u16 wordCount;
     u8 hasFocus;
     u16 textBytes [[comment("Total size of text[], including one NUL per word")]];
+    u16 paragraphStartWord [[comment("Visual word index, or 65535 for a continuation")]];
 
     if (wordCount > 0) {
+        struct SourceRange {
+            u32 start;
+            u32 end;
+        };
+        SourceRange sourceRanges[wordCount];
         u16 textOff[wordCount] [[comment("Byte offset of word i's text within text[]")]];
         s16 wordXPos[wordCount];
         if (hasFocus != 0) {
@@ -441,6 +461,7 @@ struct TextBlock {
         char text[textBytes] [[comment("All words back to back, each NUL-terminated")]];
     }
 
+    String rubyTexts[wordCount];
     BlockStyle blockStyle;
     u8 hasWordFonts;
     if (hasWordFonts != 0) {
@@ -527,6 +548,15 @@ struct Page {
 
     u16 footnoteCount;
     FootnoteEntry footnotes[footnoteCount];
+    u16 linkCount;
+    struct PageLink {
+        char href[FOOTNOTE_HREF_LEN];
+        s16 x;
+        s16 y;
+        s16 width;
+        s16 height;
+    };
+    PageLink links[linkCount];
 };
 
 struct AnchorEntry {

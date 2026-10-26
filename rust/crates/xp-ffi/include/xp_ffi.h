@@ -361,13 +361,12 @@ typedef struct {
   XpPkgSpan anchor;
   uint8_t level;
   uint32_t field;
-  XpPkgSpan properties;
   float number;
   uint8_t number_present;
 } XpPkgRecord;
 // CONTAINER_PATH uses value; TOC uses value/href/anchor/level; PROTECTION latches true.
 // OPF uses field: metadata values are complete replacements; SERIES also supplies
-// number/number_present. MANIFEST uses value=id, href, anchor=media type, properties;
+// number/number_present. MANIFEST uses value=id and href;
 // SPINE uses value=idref for lookup in the caller-owned SD index. CSS uses href.
 // *_BEGIN/STORE_END control the caller's store; COMPLETE marks metadata completion.
 enum {

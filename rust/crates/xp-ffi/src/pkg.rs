@@ -33,7 +33,6 @@ pub struct XpPkgRecord {
     anchor: XpPkgSpan,
     level: u8,
     field: u32,
-    properties: XpPkgSpan,
     number: f32,
     number_present: u8,
 }
@@ -201,10 +200,9 @@ pub unsafe extern "C" fn xp_pkg_next(handle: *mut XpPkg, out: *mut XpPkgRecord) 
             error: record.error,
             value: span(record.value),
             href: span(record.href),
-            anchor: span(record.media),
+            anchor: span(&[]),
             level: 0,
             field: record.id,
-            properties: span(record.properties),
             number: record.index.unwrap_or(0.0),
             number_present: u8::from(record.index.is_some()),
         });
@@ -218,7 +216,6 @@ pub unsafe extern "C" fn xp_pkg_next(handle: *mut XpPkg, out: *mut XpPkgRecord) 
             anchor: span(record.anchor),
             level: record.level,
             field: 0,
-            properties: span(&[]),
             number: 0.0,
             number_present: 0,
         });

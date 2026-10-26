@@ -1,5 +1,6 @@
 //! OPF semantic state; the caller retains the SD manifest store and its index.
 extern crate alloc;
+use super::Element;
 use super::{append, assign, attr, field, href, local, Event, Kind, Result};
 use crate::xml::Parser as Xml;
 use alloc::vec::Vec;
@@ -47,15 +48,35 @@ struct Collection {
     index: Option<f32>,
     series: bool,
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MetaProperty {
+    Unknown,
+    Collection,
+    Type,
+    Position,
+}
+impl MetaProperty {
+    fn parse(value: &[u8]) -> Self {
+        const VALUES: &[(&[u8], MetaProperty)] = &[
+            (b"belongs-to-collection", MetaProperty::Collection),
+            (b"collection-type", MetaProperty::Type),
+            (b"group-position", MetaProperty::Position),
+        ];
+        VALUES
+            .iter()
+            .find(|(name, _)| equal_ci(value, name))
+            .map_or(Self::Unknown, |(_, kind)| *kind)
+    }
+}
 struct Metadata {
     values: [Vec<u8>; 11],
     index: Option<f32>,
     cover_id: Vec<u8>,
     identifier: Vec<u8>,
-    scheme: Vec<u8>,
+    isbn_scheme: bool,
+    asin_scheme: bool,
     meta_text: Vec<u8>,
-    property: Vec<u8>,
-    refines: Vec<u8>,
+    property: MetaProperty,
     meta_id: Vec<u8>,
     calibre: Vec<u8>,
     calibre_index: Option<f32>,
@@ -83,10 +104,10 @@ impl Metadata {
             index: None,
             cover_id: Vec::new(),
             identifier: Vec::new(),
-            scheme: Vec::new(),
+            isbn_scheme: false,
+            asin_scheme: false,
             meta_text: Vec::new(),
-            property: Vec::new(),
-            refines: Vec::new(),
+            property: MetaProperty::Unknown,
             meta_id: Vec::new(),
             calibre: Vec::new(),
             calibre_index: None,
@@ -108,24 +129,21 @@ impl Metadata {
 fn bounded(bytes: &[u8]) -> &[u8] {
     bytes.get(..bytes.len().min(512)).unwrap_or(&[])
 }
+#[inline(never)]
+fn equal_ci(value: &[u8], other: &[u8]) -> bool {
+    value.eq_ignore_ascii_case(other)
+}
 fn contains_ci(value: &[u8], part: &[u8]) -> bool {
-    value
-        .windows(part.len())
-        .any(|w| w.eq_ignore_ascii_case(part))
+    value.windows(part.len()).any(|w| equal_ci(w, part))
 }
 fn prefix_offset(value: &[u8], name: &[u8]) -> Option<usize> {
-    if value
-        .get(..name.len())
-        .is_some_and(|v| v.eq_ignore_ascii_case(name))
-    {
+    if value.get(..name.len()).is_some_and(|v| equal_ci(v, name)) {
         return Some(name.len());
     }
-    if value
-        .get(..4)
-        .is_some_and(|v| v.eq_ignore_ascii_case(b"urn:"))
+    if value.get(..4).is_some_and(|v| equal_ci(v, b"urn:"))
         && value
             .get(4..4 + name.len())
-            .is_some_and(|v| v.eq_ignore_ascii_case(name))
+            .is_some_and(|v| equal_ci(v, name))
         && value.get(4 + name.len()) == Some(&b':')
     {
         return Some(name.len() + 5);
@@ -201,8 +219,6 @@ pub struct Record<'a> {
     pub id: u32,
     pub value: &'a [u8],
     pub href: &'a [u8],
-    pub media: &'a [u8],
-    pub properties: &'a [u8],
     pub index: Option<f32>,
     pub error: u32,
 }
@@ -216,8 +232,6 @@ struct Semantics {
     base: Vec<u8>,
     item: Vec<u8>,
     href: Vec<u8>,
-    media: Vec<u8>,
-    properties: Vec<u8>,
     scratch: Vec<u8>,
     decoded: Vec<u8>,
     pending: u32,
@@ -237,8 +251,6 @@ impl Parser {
                 base: Vec::new(),
                 item: Vec::new(),
                 href: Vec::new(),
-                media: Vec::new(),
-                properties: Vec::new(),
                 scratch: Vec::new(),
                 decoded: Vec::new(),
                 pending: 0,
@@ -302,8 +314,6 @@ impl Parser {
             id,
             value,
             href: &self.semantics.href,
-            media: &self.semantics.media,
-            properties: &self.semantics.properties,
             index: self.semantics.metadata.index,
             error: self.semantics.error,
         }
@@ -317,8 +327,6 @@ impl Semantics {
             base,
             item,
             href: path,
-            media,
-            properties,
             scratch,
             decoded,
             pending,
@@ -330,7 +338,11 @@ impl Semantics {
         } = self;
         let metadata_only = *metadata_only;
         let has_cache = *has_cache;
-        let name = local(field(event, 0));
+        let name = if matches!(event.kind, Kind::Start | Kind::End) {
+            Element::parse(local(field(event, 0)))
+        } else {
+            Element::Unknown
+        };
         let emit = |p: &mut u32, id: u32| {
             *p |= 1 << id;
         };
@@ -373,96 +385,98 @@ impl Semantics {
             return Ok(());
         }
         if event.kind == Kind::Start {
-            if metadata_only && matches!(name, b"manifest" | b"spine" | b"guide") {
+            if metadata_only && matches!(name, Element::Manifest | Element::Spine | Element::Guide)
+            {
                 *complete = true;
                 emit(pending, COMPLETE);
                 return Ok(());
             }
             match (*state, name) {
-                (State::Start, b"package") => *state = State::Package,
-                (State::Package, b"metadata") => *state = State::Metadata,
-                (State::Metadata, b"title") => {
+                (State::Start, Element::Package) => *state = State::Package,
+                (State::Package, Element::Metadata) => *state = State::Metadata,
+                (State::Metadata, Element::Title) => {
                     if m.get(TITLE).is_empty() {
                         *state = State::Title;
                         m.space = false;
                     }
                 }
-                (State::Metadata, b"creator") => {
+                (State::Metadata, Element::Creator) => {
                     *state = State::Author;
                     m.space = false;
                     m.separator = !m.get(AUTHOR).is_empty();
                 }
-                (State::Metadata, b"language") => {
+                (State::Metadata, Element::Language) => {
                     *state = State::Language;
                     m.space = false;
                 }
-                (State::Metadata, b"identifier") => {
+                (State::Metadata, Element::Identifier) => {
                     *state = State::Identifier;
                     m.identifier.clear();
-                    m.scheme.clear();
+                    m.isbn_scheme = false;
+                    m.asin_scheme = false;
                     m.space = false;
                     for i in (1..event.fields.len()).step_by(2) {
                         if local(field(event, i)) == b"scheme" {
-                            assign(&mut m.scheme, bounded(field(event, i + 1)))?;
+                            let scheme = bounded(field(event, i + 1));
+                            m.isbn_scheme = contains_ci(scheme, b"isbn");
+                            m.asin_scheme =
+                                contains_ci(scheme, b"asin") || equal_ci(scheme, b"amazon");
                         }
                     }
                 }
-                (State::Metadata, b"meta") => {
+                (State::Metadata, Element::Meta) => {
                     let mut meta_name = &[][..];
                     let mut content = &[][..];
-                    m.property.clear();
-                    m.refines.clear();
-                    m.meta_id.clear();
+                    m.property = MetaProperty::Unknown;
+                    let mut refines = &[][..];
+                    let mut meta_id = &[][..];
                     m.meta_text.clear();
                     for i in (1..event.fields.len()).step_by(2) {
                         let value = bounded(field(event, i + 1));
                         match local(field(event, i)) {
                             b"name" => meta_name = value,
                             b"content" => content = value,
-                            b"property" => assign(&mut m.property, value)?,
-                            b"id" => assign(&mut m.meta_id, value)?,
-                            b"refines" => {
-                                assign(&mut m.refines, value.strip_prefix(b"#").unwrap_or(value))?
-                            }
+                            b"property" => m.property = MetaProperty::parse(value),
+                            b"id" => meta_id = value,
+                            b"refines" => refines = value.strip_prefix(b"#").unwrap_or(value),
                             _ => {}
                         }
                     }
-                    if meta_name.eq_ignore_ascii_case(b"cover") {
+                    if equal_ci(meta_name, b"cover") {
                         assign(&mut m.cover_id, content)?;
                     }
-                    if meta_name.eq_ignore_ascii_case(b"calibre:series") && m.calibre.is_empty() {
+                    if equal_ci(meta_name, b"calibre:series") && m.calibre.is_empty() {
                         assign(&mut m.calibre, content)?;
                     }
-                    if meta_name.eq_ignore_ascii_case(b"calibre:series_index")
-                        && m.calibre_index.is_none()
-                    {
+                    if equal_ci(meta_name, b"calibre:series_index") && m.calibre_index.is_none() {
                         m.calibre_index = float(content)?;
                     }
-                    if [
-                        b"belongs-to-collection".as_slice(),
-                        b"collection-type",
-                        b"group-position",
-                    ]
-                    .iter()
-                    .any(|v| m.property.eq_ignore_ascii_case(v))
-                    {
+                    if m.property != MetaProperty::Unknown {
+                        assign(
+                            &mut m.meta_id,
+                            if m.property == MetaProperty::Collection {
+                                meta_id
+                            } else {
+                                refines
+                            },
+                        )?;
                         *state = State::MetaText;
                         m.space = false;
                     }
                 }
-                (State::Package, b"manifest") => {
+                (State::Package, Element::Manifest) => {
                     *state = State::Manifest;
                     emit(pending, MANIFEST_BEGIN);
                 }
-                (State::Package, b"spine") => {
+                (State::Package, Element::Spine) => {
                     *state = State::Spine;
                     emit(pending, SPINE_BEGIN);
                 }
-                (State::Package, b"guide") => {
+                (State::Package, Element::Guide) => {
                     *state = State::Guide;
                     emit(pending, GUIDE_BEGIN);
                 }
-                (State::Manifest, b"item") => {
+                (State::Manifest, Element::Item) => {
                     assign(item, attr(event, b"id", false).unwrap_or(&[]))?;
                     path.clear();
                     if let Some(value) = attr(event, b"href", false) {
@@ -472,13 +486,10 @@ impl Semantics {
                         href::decode(decoded, scratch)?;
                         href::normalize(path, decoded)?;
                     }
-                    assign(media, attr(event, b"media-type", false).unwrap_or(&[]))?;
-                    assign(properties, attr(event, b"properties", false).unwrap_or(&[]))?;
+                    let media = attr(event, b"media-type", false).unwrap_or(&[]);
+                    let properties = attr(event, b"properties", false).unwrap_or(&[]);
                     emit(pending, MANIFEST);
-                    if *item == m.cover_id
-                        && media
-                            .get(..6)
-                            .is_some_and(|v| v.eq_ignore_ascii_case(b"image/"))
+                    if *item == m.cover_id && media.get(..6).is_some_and(|v| equal_ci(v, b"image/"))
                     {
                         m.put(COVER, path)?;
                         emit(pending, COVER);
@@ -499,13 +510,13 @@ impl Semantics {
                         emit(pending, COVER);
                     }
                 }
-                (State::Spine, b"itemref") if has_cache => {
+                (State::Spine, Element::Itemref) if has_cache => {
                     if let Some(id) = attr(event, b"idref", false) {
                         assign(item, id)?;
                         emit(pending, SPINE);
                     }
                 }
-                (State::Guide, b"reference") => {
+                (State::Guide, Element::Reference) => {
                     path.clear();
                     if let Some(value) = attr(event, b"href", false) {
                         scratch.clear();
@@ -536,19 +547,18 @@ impl Semantics {
             return Ok(());
         }
         match (*state, name) {
-            (State::Manifest, b"manifest")
-            | (State::Spine, b"spine")
-            | (State::Guide, b"guide") => {
+            (State::Manifest, Element::Manifest)
+            | (State::Spine, Element::Spine)
+            | (State::Guide, Element::Guide) => {
                 *state = State::Package;
                 emit(pending, STORE_END);
             }
-            (State::Title, b"title")
-            | (State::Author, b"creator")
-            | (State::Language, b"language") => *state = State::Metadata,
-            (State::Identifier, b"identifier") => {
+            (State::Title, Element::Title)
+            | (State::Author, Element::Creator)
+            | (State::Language, Element::Language) => *state = State::Metadata,
+            (State::Identifier, Element::Identifier) => {
                 if m.get(ISBN).is_empty()
-                    && (contains_ci(&m.scheme, b"isbn")
-                        || prefix_offset(&m.identifier, b"isbn").is_some())
+                    && (m.isbn_scheme || prefix_offset(&m.identifier, b"isbn").is_some())
                 {
                     assign(
                         m.values.get_mut(ISBN as usize).ok_or(4u32)?,
@@ -557,9 +567,7 @@ impl Semantics {
                     emit(pending, ISBN);
                 }
                 if m.get(ASIN).is_empty()
-                    && (contains_ci(&m.scheme, b"asin")
-                        || m.scheme.eq_ignore_ascii_case(b"amazon")
-                        || prefix_offset(&m.identifier, b"asin").is_some())
+                    && (m.asin_scheme || prefix_offset(&m.identifier, b"asin").is_some())
                 {
                     assign(
                         m.values.get_mut(ASIN as usize).ok_or(4u32)?,
@@ -569,11 +577,11 @@ impl Semantics {
                 }
                 *state = State::Metadata;
             }
-            (State::MetaText, b"meta") => {
-                let belongs = m.property.eq_ignore_ascii_case(b"belongs-to-collection");
-                let collection_type = m.property.eq_ignore_ascii_case(b"collection-type");
-                let position = m.property.eq_ignore_ascii_case(b"group-position");
-                let id = if belongs { &m.meta_id } else { &m.refines };
+            (State::MetaText, Element::Meta) => {
+                let belongs = m.property == MetaProperty::Collection;
+                let collection_type = m.property == MetaProperty::Type;
+                let position = m.property == MetaProperty::Position;
+                let id = &m.meta_id;
                 if !id.is_empty() && (belongs || collection_type || position) {
                     let mut index = m.collections.iter().position(|c| c.id == *id);
                     if index.is_none() && m.collections.len() < 8 {
@@ -591,7 +599,7 @@ impl Semantics {
                     if let Some(candidate) = index.and_then(|i| m.collections.get_mut(i)) {
                         if belongs {
                             assign(&mut candidate.title, &m.meta_text)?;
-                        } else if collection_type && m.meta_text.eq_ignore_ascii_case(b"series") {
+                        } else if collection_type && equal_ci(&m.meta_text, b"series") {
                             candidate.series = true;
                         } else if position {
                             candidate.index = float(&m.meta_text)?;
@@ -600,7 +608,7 @@ impl Semantics {
                 }
                 *state = State::Metadata;
             }
-            (State::Metadata, b"metadata") => {
+            (State::Metadata, Element::Metadata) => {
                 if !m.calibre.is_empty() {
                     assign(m.values.get_mut(SERIES as usize).ok_or(4u32)?, &m.calibre)?;
                     m.index = m.calibre_index;
@@ -621,7 +629,7 @@ impl Semantics {
                 *complete = true;
                 emit(pending, COMPLETE);
             }
-            (State::Package, b"package") => *state = State::Start,
+            (State::Package, Element::Package) => *state = State::Start,
             _ => {}
         }
         Ok(())

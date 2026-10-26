@@ -1,4 +1,5 @@
 extern crate alloc;
+use super::Element;
 use super::{
     append, assign, attr, field, href, local, Event, Kind, ParserKind, RecordKind, Result,
 };
@@ -62,7 +63,9 @@ impl Simple {
         match self.kind {
             ParserKind::Container => self.container(event),
             ParserKind::Encryption => {
-                if event.kind == Kind::Start && local(field(event, 0)) == b"EncryptionMethod" {
+                if event.kind == Kind::Start
+                    && Element::parse(local(field(event, 0))) == Element::EncryptionMethod
+                {
                     for index in (1..event.fields.len()).step_by(2) {
                         let value = field(event, index + 1);
                         if local(field(event, index)) == b"Algorithm"
@@ -80,11 +83,15 @@ impl Simple {
         }
     }
     fn container(&mut self, event: &Event<'_>) -> Result<Option<RecordKind>> {
-        let name = field(event, 0);
+        let name = if matches!(event.kind, Kind::Start | Kind::End) {
+            Element::parse(field(event, 0))
+        } else {
+            Element::Unknown
+        };
         match (event.kind, self.state, name) {
-            (Kind::Start, State::Start, b"container") => self.state = State::Container,
-            (Kind::Start, State::Container, b"rootfiles") => self.state = State::Rootfiles,
-            (Kind::Start, State::Rootfiles, b"rootfile") => {
+            (Kind::Start, State::Start, Element::Container) => self.state = State::Container,
+            (Kind::Start, State::Container, Element::Rootfiles) => self.state = State::Rootfiles,
+            (Kind::Start, State::Rootfiles, Element::Rootfile) => {
                 if attr(event, b"media-type", false) == Some(b"application/oebps-package+xml") {
                     if let Some(path) = attr(event, b"full-path", false) {
                         assign(&mut self.label, path)?;
@@ -92,8 +99,8 @@ impl Simple {
                     }
                 }
             }
-            (Kind::End, State::Rootfiles, b"rootfiles") => self.state = State::Container,
-            (Kind::End, State::Container, b"container") => self.state = State::Start,
+            (Kind::End, State::Rootfiles, Element::Rootfiles) => self.state = State::Container,
+            (Kind::End, State::Container, Element::Container) => self.state = State::Start,
             _ => {}
         }
         Ok(None)
@@ -114,44 +121,48 @@ impl Simple {
         Ok(Some(RecordKind::Toc))
     }
     fn toc(&mut self, event: &Event<'_>) -> Result<Option<RecordKind>> {
-        let name = field(event, 0);
+        let name = if matches!(event.kind, Kind::Start | Kind::End) {
+            Element::parse(field(event, 0))
+        } else {
+            Element::Unknown
+        };
         if event.kind == Kind::Text && matches!(self.state, State::NavText | State::Anchor) {
-            append(&mut self.label, name)?;
+            append(&mut self.label, field(event, 0))?;
         }
         if self.kind == ParserKind::Ncx {
             match (event.kind, self.state, name) {
-                (Kind::Start, State::Start, b"ncx") => self.state = State::Ncx,
-                (Kind::Start, State::Ncx, b"navMap") => self.state = State::NavMap,
-                (Kind::Start, State::NavMap | State::NavPoint, b"navPoint") => {
+                (Kind::Start, State::Start, Element::Ncx) => self.state = State::Ncx,
+                (Kind::Start, State::Ncx, Element::NavMap) => self.state = State::NavMap,
+                (Kind::Start, State::NavMap | State::NavPoint, Element::NavPoint) => {
                     self.state = State::NavPoint;
                     self.depth = self.depth.wrapping_add(1);
                     self.label.clear();
                     self.raw.clear();
                 }
-                (Kind::Start, State::NavPoint, b"navLabel") => self.state = State::NavLabel,
-                (Kind::Start, State::NavLabel, b"text") => self.state = State::NavText,
-                (Kind::Start, State::NavPoint, b"content") => {
+                (Kind::Start, State::NavPoint, Element::NavLabel) => self.state = State::NavLabel,
+                (Kind::Start, State::NavLabel, Element::Text) => self.state = State::NavText,
+                (Kind::Start, State::NavPoint, Element::Content) => {
                     if let Some(src) = attr(event, b"src", false) {
                         assign(&mut self.raw, src)?;
                     }
                 }
-                (Kind::End, State::NavText, b"text") => self.state = State::NavLabel,
-                (Kind::End, State::NavLabel, b"navLabel") => self.state = State::NavPoint,
-                (Kind::End, State::NavPoint, b"navPoint") => {
+                (Kind::End, State::NavText, Element::Text) => self.state = State::NavLabel,
+                (Kind::End, State::NavLabel, Element::NavLabel) => self.state = State::NavPoint,
+                (Kind::End, State::NavPoint, Element::NavPoint) => {
                     self.depth = self.depth.wrapping_sub(1);
                     if self.depth == 0 {
                         self.state = State::NavMap;
                     }
                 }
-                (Kind::End, State::NavPoint, b"content") => return self.emit(),
+                (Kind::End, State::NavPoint, Element::Content) => return self.emit(),
                 _ => {}
             }
         } else if event.kind == Kind::Start {
-            if name == b"html" {
+            if name == Element::Html {
                 self.state = State::Html;
-            } else if self.state == State::Html && name == b"body" {
+            } else if self.state == State::Html && name == Element::Body {
                 self.state = State::Body;
-            } else if self.state >= State::Body && name == b"nav" {
+            } else if self.state >= State::Body && name == Element::Nav {
                 if (1..event.fields.len()).step_by(2).any(|i| {
                     matches!(field(event, i), b"epub:type" | b"type")
                         && field(event, i + 1) == b"toc"
@@ -160,16 +171,16 @@ impl Simple {
                 }
             } else if self.state >= State::NavToc {
                 match (self.state, name) {
-                    (_, b"ol") => {
+                    (_, Element::Ol) => {
                         self.depth = self.depth.wrapping_add(1);
                         self.state = State::Ol;
                     }
-                    (State::Ol, b"li") => {
+                    (State::Ol, Element::Li) => {
                         self.state = State::Li;
                         self.label.clear();
                         self.raw.clear();
                     }
-                    (State::Li, b"a") => {
+                    (State::Li, Element::A) => {
                         self.state = State::Anchor;
                         if let Some(h) = attr(event, b"href", false) {
                             assign(&mut self.raw, h)?;
@@ -180,12 +191,12 @@ impl Simple {
             }
         } else if event.kind == Kind::End {
             match (self.state, name) {
-                (State::Anchor, b"a") => {
+                (State::Anchor, Element::A) => {
                     self.state = State::Li;
                     return self.emit();
                 }
-                (State::Li | State::Ol, b"li") => self.state = State::Ol,
-                (s, b"ol") if s >= State::NavToc => {
+                (State::Li | State::Ol, Element::Li) => self.state = State::Ol,
+                (s, Element::Ol) if s >= State::NavToc => {
                     self.depth = self.depth.wrapping_sub(1);
                     self.state = if self.depth == 0 {
                         State::NavToc
@@ -193,7 +204,7 @@ impl Simple {
                         State::Li
                     };
                 }
-                (s, b"nav") if s >= State::NavToc => self.state = State::Body,
+                (s, Element::Nav) if s >= State::NavToc => self.state = State::Body,
                 _ => {}
             }
         }

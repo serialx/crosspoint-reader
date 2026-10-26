@@ -127,3 +127,76 @@ impl Parser {
         }
     }
 }
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Element {
+    Unknown,
+    Package,
+    Metadata,
+    Title,
+    Creator,
+    Language,
+    Identifier,
+    Meta,
+    Manifest,
+    Spine,
+    Guide,
+    Item,
+    Itemref,
+    Reference,
+    Container,
+    Rootfiles,
+    Rootfile,
+    Ncx,
+    NavMap,
+    NavPoint,
+    NavLabel,
+    Text,
+    Content,
+    Html,
+    Body,
+    Nav,
+    Ol,
+    Li,
+    A,
+    EncryptionMethod,
+}
+impl Element {
+    fn parse(name: &[u8]) -> Self {
+        const NAMES: &[(&[u8], Element)] = &[
+            (b"package", Element::Package),
+            (b"metadata", Element::Metadata),
+            (b"title", Element::Title),
+            (b"creator", Element::Creator),
+            (b"language", Element::Language),
+            (b"identifier", Element::Identifier),
+            (b"meta", Element::Meta),
+            (b"manifest", Element::Manifest),
+            (b"spine", Element::Spine),
+            (b"guide", Element::Guide),
+            (b"item", Element::Item),
+            (b"itemref", Element::Itemref),
+            (b"reference", Element::Reference),
+            (b"container", Element::Container),
+            (b"rootfiles", Element::Rootfiles),
+            (b"rootfile", Element::Rootfile),
+            (b"ncx", Element::Ncx),
+            (b"navMap", Element::NavMap),
+            (b"navPoint", Element::NavPoint),
+            (b"navLabel", Element::NavLabel),
+            (b"text", Element::Text),
+            (b"content", Element::Content),
+            (b"html", Element::Html),
+            (b"body", Element::Body),
+            (b"nav", Element::Nav),
+            (b"ol", Element::Ol),
+            (b"li", Element::Li),
+            (b"a", Element::A),
+            (b"EncryptionMethod", Element::EncryptionMethod),
+        ];
+        NAMES
+            .iter()
+            .find(|(text, _)| *text == name)
+            .map_or(Self::Unknown, |(_, tag)| *tag)
+    }
+}

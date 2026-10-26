@@ -5,7 +5,7 @@ use core::{alloc::Layout, ptr};
 use xp_core::css::{self, Error, Store, Stream, WIRE_BYTES};
 
 pub struct Css {
-    store: Store,
+    pub(crate) store: Store,
     stream: Option<Box<Stream>>,
     cache: Option<Box<CacheReader>>,
     write_offset: usize,

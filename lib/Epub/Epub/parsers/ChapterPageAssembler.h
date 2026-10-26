@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Memory.h>
+#include <xp_ffi.h>
 
 #include <array>
 #include <climits>
@@ -10,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "ChapterSemantics.h"
 #include "Epub/FootnoteEntry.h"
 #include "Epub/Page.h"
 #include "Epub/ParsedText.h"
@@ -23,8 +23,84 @@ class Page;
 class GfxRenderer;
 class Epub;
 
-class ChapterPageAssembler : private ChapterSemantics {
+class ChapterPageAssembler {
   friend class ChapterHtmlSlimParser;
+
+ public:
+  static constexpr size_t MAX_DROP_CAP_BYTES = 12;
+  static constexpr size_t MAX_GRID_TABLE_COLUMNS = 4;
+  using TableColumnMeasure = XpChapterMeasure;
+  enum class ImageResult : uint8_t { Fallback, Displayed, Aborted };
+
+ private:
+  XpChapter* chapter_ = nullptr;
+  XpChapterState* activeSemantics_ = nullptr;
+  bool stopRequested = false;
+  uint8_t paragraphAlignment;
+  bool embeddedStyle;
+  uint8_t imageRendering;
+  const CssParser* cssParser;
+  std::string pendingAnchorId;
+  std::vector<std::string> tocAnchors;
+  std::deque<std::pair<std::string, uint16_t>> anchorData;
+  static const XpChapterServices services_;
+  struct SemanticBorrow {
+    ChapterPageAssembler& owner;
+    XpChapterState* previous;
+    SemanticBorrow(ChapterPageAssembler& owner, XpChapterState* state)
+        : owner(owner), previous(owner.activeSemantics_) {
+      owner.activeSemantics_ = state;
+    }
+    ~SemanticBorrow() { owner.activeSemantics_ = previous; }
+  };
+  bool ensureSemantics();
+  XpChapterState* semanticState() const { return activeSemantics_ ? activeSemantics_ : xp_chapter_state(chapter_); }
+  uint32_t semanticQuery(XpChapterQuery query) const { return xp_chapter_query(semanticState(), query); }
+  uint32_t semanticNotify(XpChapterNotify notice) { return xp_chapter_notify(semanticState(), notice); }
+  bool semanticStopped() const { return stopRequested; }
+  bool semanticOom() const { return semanticQuery(XP_CHAPTER_QUERY_OOM); }
+  const bool* semanticStopFlag() const { return &stopRequested; }
+  void semanticFailLayout() { semanticNotify(XP_CHAPTER_NOTIFY_FAIL_LAYOUT); }
+  int semanticDepth() const { return static_cast<int32_t>(semanticQuery(XP_CHAPTER_QUERY_DEPTH)); }
+  int semanticTableDepth() const { return static_cast<int32_t>(semanticQuery(XP_CHAPTER_QUERY_TABLE_DEPTH)); }
+  uint32_t semanticVisibleOffset() const { return semanticQuery(XP_CHAPTER_QUERY_VISIBLE_OFFSET); }
+  uint16_t semanticParagraphIndex() const { return semanticQuery(XP_CHAPTER_QUERY_PARAGRAPH_INDEX); }
+  uint16_t semanticListIndex() const { return semanticQuery(XP_CHAPTER_QUERY_LIST_INDEX); }
+  uint8_t semanticAlignment() const { return paragraphAlignment; }
+  bool semanticPreservesWhitespace() const { return semanticQuery(XP_CHAPTER_QUERY_PRESERVE_WHITESPACE); }
+  bool semanticMarkerOnly() const { return semanticQuery(XP_CHAPTER_QUERY_MARKER_ONLY); }
+  void semanticConsumeMarker() { semanticNotify(XP_CHAPTER_NOTIFY_CONSUME_MARKER); }
+  void semanticClearContinuation() { semanticNotify(XP_CHAPTER_NOTIFY_CLEAR_CONTINUATION); }
+  void semanticResetInlineSize() { semanticNotify(XP_CHAPTER_NOTIFY_RESET_INLINE_SIZE); }
+  float semanticInlineScale(float fallback) const;
+  bool semanticHasWord() const { return semanticQuery(XP_CHAPTER_QUERY_HAS_WORD); }
+  void semanticFlushWord() { semanticNotify(XP_CHAPTER_NOTIFY_FLUSH_WORD); }
+  BlockStyle semanticParentBlock() const;
+  uint32_t semanticBlockDepth() const { return semanticQuery(XP_CHAPTER_QUERY_BLOCK_DEPTH); }
+  XpChapterDropCap semanticDropCap() const;
+  void semanticClearDropCap() { semanticNotify(XP_CHAPTER_NOTIFY_CLEAR_DROP_CAP); }
+  void semanticDisarmDropCap() { semanticNotify(XP_CHAPTER_NOTIFY_DISARM_DROP_CAP); }
+  bool semanticPendingPageBreak() const { return semanticQuery(XP_CHAPTER_QUERY_PAGE_BREAK); }
+  bool semanticConsumePageBreak() { return semanticNotify(XP_CHAPTER_NOTIFY_CONSUME_PAGE_BREAK); }
+  bool semanticCellOpen() const { return semanticQuery(XP_CHAPTER_QUERY_CELL_OPEN); }
+  int16_t semanticCloseCell() { return semanticNotify(XP_CHAPTER_NOTIFY_CLOSE_CELL); }
+  uint8_t semanticColumnCount() const { return semanticQuery(XP_CHAPTER_QUERY_COLUMN_COUNT); }
+  uint16_t semanticColumnWidth(uint8_t column) const {
+    return column < 4 ? xp_chapter_query(semanticState(), XP_CHAPTER_QUERY_COLUMN0 + column) : 0;
+  }
+  CssBorderSide semanticTableBorder() const;
+  bool semanticHasAnchor() const { return !pendingAnchorId.empty(); }
+  bool semanticAnchorStartsChapter() const;
+  void semanticRecordAnchor(uint16_t page);
+  const char* semanticPendingAnchor() const { return pendingAnchorId.c_str(); }
+  void semanticBeginBlocks() {
+    stopRequested = false;
+    semanticNotify(XP_CHAPTER_NOTIFY_BEGIN_BLOCKS);
+  }
+  void semanticBeginLists() { semanticNotify(XP_CHAPTER_NOTIFY_BEGIN_LISTS); }
+  virtual void measureTableAtCurrentPosition() = 0;
+  virtual uint8_t* entityBuffer(uint32_t length) = 0;
+
   static constexpr size_t MAX_CARRIED_LINES = 6;
   struct BoxScope {
     int depth = 0;
@@ -98,83 +174,81 @@ class ChapterPageAssembler : private ChapterSemantics {
   std::vector<std::pair<int, FootnoteEntry>> pendingFootnotes;  // <wordIndex, entry>
   int wordsExtractedInBlock = 0;
 
-  void startNewTextBlock(const BlockStyle& blockStyle, bool paragraphEnd = true) override;
-  void flushPendingAnchor() override;
-  void applyParagraphDirection(bool defined, bool rtl) override;
-  bool paragraphEmpty() const override { return currentTextBlock->isEmpty(); }
-  size_t paragraphSize() const override { return currentTextBlock->size(); }
-  BlockStyle& paragraphStyle() override { return currentTextBlock->getBlockStyle(); }
-  void suppressFirstLineIndent() override { return currentTextBlock->suppressFirstLineIndent(); }
-  void ensureRubyCapacity() override { return currentTextBlock->ensureRubyCapacity(); }
-  uint8_t addLinkTarget(const char* href) override { return currentTextBlock->addLinkTarget(href); }
-  bool linkTargetMatches(uint8_t id, const char* href) const override {
-    return currentTextBlock->linkTargetMatches(id, href);
-  }
-  uint8_t sizeSlotFor(float scale) override { return currentTextBlock->sizeSlotFor(scale); }
-  void setParagraphStyle(const BlockStyle& style) override { return currentTextBlock->setBlockStyle(style); }
-  EpdFontFamily::Style getWordStyleAt(size_t index) const override { return currentTextBlock->getWordStyleAt(index); }
-  std::string getRubyTextAt(size_t index) const override { return currentTextBlock->getRubyTextAt(index); }
-  void setRubyGroupAt(size_t index, size_t count, const std::string& text) override {
+  void startNewTextBlock(const BlockStyle& blockStyle, bool paragraphEnd = true);
+  void flushPendingAnchor();
+  void applyParagraphDirection(bool defined, bool rtl);
+  bool paragraphEmpty() const { return currentTextBlock->isEmpty(); }
+  size_t paragraphSize() const { return currentTextBlock->size(); }
+  BlockStyle& paragraphStyle() { return currentTextBlock->getBlockStyle(); }
+  void suppressFirstLineIndent() { return currentTextBlock->suppressFirstLineIndent(); }
+  void ensureRubyCapacity() { return currentTextBlock->ensureRubyCapacity(); }
+  uint8_t addLinkTarget(const char* href) { return currentTextBlock->addLinkTarget(href); }
+  bool linkTargetMatches(uint8_t id, const char* href) const { return currentTextBlock->linkTargetMatches(id, href); }
+  uint8_t sizeSlotFor(float scale) { return currentTextBlock->sizeSlotFor(scale); }
+  void setParagraphStyle(const BlockStyle& style) { return currentTextBlock->setBlockStyle(style); }
+  EpdFontFamily::Style getWordStyleAt(size_t index) const { return currentTextBlock->getWordStyleAt(index); }
+  std::string getRubyTextAt(size_t index) const { return currentTextBlock->getRubyTextAt(index); }
+  void setRubyGroupAt(size_t index, size_t count, const std::string& text) {
     return currentTextBlock->setRubyGroupAt(index, count, text);
   }
-  void setRubyForWordAt(size_t index, const std::string& text) override {
+  void setRubyForWordAt(size_t index, const std::string& text) {
     return currentTextBlock->setRubyForWordAt(index, text);
   }
-  void addWord(const char* word, EpdFontFamily::Style style, bool underline, bool attach, uint32_t offset, uint8_t link,
-               uint8_t slot, bool noSpace) override {
-    return currentTextBlock->addWord(word, style, underline, attach, offset, link, slot, noSpace);
+  void addWord(std::string word, EpdFontFamily::Style style, bool underline, bool attach, uint32_t offset,
+               uint8_t link = 0, uint8_t slot = 0, bool noSpace = false) {
+    return currentTextBlock->addWord(std::move(word), style, underline, attach, offset, link, slot, noSpace);
   }
-  bool paragraphExists() const override { return currentTextBlock != nullptr; }
-  void createParagraph(const BlockStyle& style) override {
+  bool paragraphExists() const { return currentTextBlock != nullptr; }
+  void createParagraph(const BlockStyle& style) {
     currentTextBlock =
         makeUniqueNoThrow<ParsedText>(hyphenationEnabled, focusReadingEnabled, style, paragraphIndentSpaces);
   }
-  void resetParagraph() override { currentTextBlock.reset(); }
-  bool bodyIsSdFont() const override;
-  int bodySpaceWidth() const override;
-  void prepareBodyText(const char* text, uint8_t styleMask) const override;
-  int bodyTextAdvance(const char* text, EpdFontFamily::Style style) const override;
-  int bodyAscender() const override;
-  uint16_t pageWidth() const override { return viewportWidth; }
-  uint16_t pageHeight() const override { return viewportHeight; }
-  void clearTableCells() override { tableRowCells.clear(); }
-  void reserveTableCells() override { tableRowCells.reserve(MAX_GRID_TABLE_COLUMNS); }
-  size_t bufferedTableWords() const override {
+  void resetParagraph() { currentTextBlock.reset(); }
+  bool bodyIsSdFont() const;
+  int bodySpaceWidth() const;
+  void prepareBodyText(const char* text, uint8_t styleMask) const;
+  int bodyTextAdvance(const char* text, EpdFontFamily::Style style) const;
+  int bodyAscender() const;
+  uint16_t pageWidth() const { return viewportWidth; }
+  uint16_t pageHeight() const { return viewportHeight; }
+  void clearTableCells() { tableRowCells.clear(); }
+  void reserveTableCells() { tableRowCells.reserve(MAX_GRID_TABLE_COLUMNS); }
+  size_t bufferedTableWords() const {
     size_t words = 0;
     for (const auto& cell : tableRowCells) words += cell->size();
     return words;
   }
-  bool tableStacked() const override { return tableRowStacked; }
-  void setTableStacked(bool value) override { tableRowStacked = value; }
-  void setTableRtl(bool value) override { tableRowRtl = value; }
-  void resetTableBytes() override { tableRowTextBytes = 0; }
-  size_t tableBytes() const override { return tableRowTextBytes; }
-  void addTableBytes(size_t count) override { tableRowTextBytes += count; }
-  void resetExtractedWords() override { wordsExtractedInBlock = 0; }
-  int extractedWords() const override { return wordsExtractedInBlock; }
-  void addPendingFootnote(int wordIndex, const FootnoteEntry& entry) override {
-    pendingFootnotes.push_back({wordIndex, entry});
+  bool tableStacked() const { return tableRowStacked; }
+  void setTableStacked(bool value) { tableRowStacked = value; }
+  void setTableRtl(bool value) { tableRowRtl = value; }
+  void resetTableBytes() { tableRowTextBytes = 0; }
+  size_t tableBytes() const { return tableRowTextBytes; }
+  void addTableBytes(size_t count) { tableRowTextBytes += count; }
+  void resetExtractedWords() { wordsExtractedInBlock = 0; }
+  int extractedWords() const { return wordsExtractedInBlock; }
+  void addPendingFootnote(int wordIndex, const FootnoteEntry& entry) {
+    pendingFootnotes.emplace_back(wordIndex, entry);
   }
-  bool boxAtDepth(int atDepth) const override { return !boxScopes.empty() && boxScopes.back().depth == atDepth; }
-  ImageResult processImage(const std::string& src, const CssStyle& cssStyle) override;
+  bool boxAtDepth(int atDepth) const { return !boxScopes.empty() && boxScopes.back().depth == atDepth; }
+  ImageResult processImage(const std::string& src, const CssStyle& cssStyle);
 
   void completeCurrentPage();
   void emitCurrentPage();
-  void openBoxScope(BlockStyle& ownStyle, const CssStyle& cssStyle) override;
-  void closeBoxScope() override;
+  void openBoxScope(BlockStyle& ownStyle, const CssStyle& cssStyle);
+  void closeBoxScope();
   void layoutCurrentBlock(bool includeLastLine);
   void layoutDropCapLines(int layoutFontId, uint16_t effectiveWidth,
                           const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& emitLine,
                           bool includeLastLine);
   void applyPendingPageBreak();
-  void breakTextLine(const BlockStyle& style) override;
-  void fallbackTableRowToStacked() override;
-  void closeTableCell() override;
-  void finishTableRow() override;
+  void breakTextLine(const BlockStyle& style);
+  void fallbackTableRowToStacked();
+  void closeTableCell();
+  void finishTableRow();
   void addTableRowSeparator();
   void setCurrentPageVisibleOffset(uint32_t offset);
-  void makePages(bool includeLastLine = true, bool paragraphEnd = true) override;
-  void emitHorizontalRule(const BlockStyle& blockStyle) override;
+  void makePages(bool includeLastLine = true, bool paragraphEnd = true);
+  void emitHorizontalRule(const BlockStyle& blockStyle);
   void beginAssembly();
   bool finishAssembly();
   void addLineToPage(std::unique_ptr<TextBlock> line, uint32_t visibleOffset);
@@ -187,7 +261,11 @@ class ChapterPageAssembler : private ChapterSemantics {
       const uint8_t imageRendering = 0, std::vector<std::string> tocAnchors = {},
       const std::function<void()>& popupFn = nullptr, const CssParser* cssParser = nullptr)
 
-      : ChapterSemantics(cssParser, paragraphAlignment, embeddedStyle, imageRendering, std::move(tocAnchors)),
+      : paragraphAlignment(paragraphAlignment),
+        embeddedStyle(embeddedStyle),
+        imageRendering(imageRendering),
+        cssParser(cssParser),
+        tocAnchors(std::move(tocAnchors)),
         renderer(renderer),
         fontId(fontId),
         lineCompression(lineCompression),

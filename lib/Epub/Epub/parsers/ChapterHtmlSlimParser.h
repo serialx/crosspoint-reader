@@ -7,14 +7,13 @@
 
 class ChapterHtmlSlimParser final : private ChapterPageAssembler {
   const std::string& filepath;
-  XpXml* xmlParser_ = nullptr;
-  uint64_t xmlByteIndex_ = 0;
   std::unique_ptr<uint8_t[]> parseBuffer_;
   size_t parseBufferCapacity_ = 0;
   HalFile parseFile_;
   uint32_t parseStartTime_ = 0;
   bool measureTableColumns(HalFile& file, TableColumnMeasure& out) const;
   void measureTableAtCurrentPosition() override;
+  uint8_t* entityBuffer(uint32_t length) override;
 
  public:
   explicit ChapterHtmlSlimParser(

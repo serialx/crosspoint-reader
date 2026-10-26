@@ -7,7 +7,7 @@ from instrument_chapter import instrument
 from run import compare
 
 ROOT = Path(__file__).resolve().parents[2] / 'lib/Epub/Epub/parsers'
-SOURCE = (ROOT / 'ChapterHtmlSlimParser.cpp').read_text() + (ROOT / 'ChapterSemantics.cpp').read_text() + (ROOT / 'ChapterPageAssembler.cpp').read_text()
+SOURCE = (ROOT / 'ChapterHtmlSlimParser.cpp').read_text() + (ROOT / 'ChapterPageServices.cpp').read_text() + (ROOT / 'ChapterPageAssembler.cpp').read_text()
 
 
 class ChapterTraceTest(unittest.TestCase):

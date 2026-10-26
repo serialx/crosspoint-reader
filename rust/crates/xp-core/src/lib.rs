@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod chapter;
 pub mod css;
 pub mod epub;
 pub mod hyphen;

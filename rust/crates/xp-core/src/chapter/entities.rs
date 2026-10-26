@@ -1,0 +1,323 @@
+//! The existing chapter HTML entity vocabulary, including its space substitutions.
+const ENTITIES: &[(&[u8], &[u8])] = &[
+    (b"AElig", "Æ".as_bytes()),
+    (b"Aacute", "Á".as_bytes()),
+    (b"Acirc", "Â".as_bytes()),
+    (b"Agrave", "À".as_bytes()),
+    (b"Alpha", "Α".as_bytes()),
+    (b"Aring", "Å".as_bytes()),
+    (b"Atilde", "Ã".as_bytes()),
+    (b"Auml", "Ä".as_bytes()),
+    (b"Beta", "Β".as_bytes()),
+    (b"Ccedil", "Ç".as_bytes()),
+    (b"Chi", "Χ".as_bytes()),
+    (b"Dagger", "‡".as_bytes()),
+    (b"Delta", "Δ".as_bytes()),
+    (b"ETH", "Ð".as_bytes()),
+    (b"Eacute", "É".as_bytes()),
+    (b"Ecirc", "Ê".as_bytes()),
+    (b"Egrave", "È".as_bytes()),
+    (b"Epsilon", "Ε".as_bytes()),
+    (b"Eta", "Η".as_bytes()),
+    (b"Euml", "Ë".as_bytes()),
+    (b"Gamma", "Γ".as_bytes()),
+    (b"Iacute", "Í".as_bytes()),
+    (b"Icirc", "Î".as_bytes()),
+    (b"Igrave", "Ì".as_bytes()),
+    (b"Iota", "Ι".as_bytes()),
+    (b"Iuml", "Ï".as_bytes()),
+    (b"Kappa", "Κ".as_bytes()),
+    (b"Lambda", "Λ".as_bytes()),
+    (b"Mu", "Μ".as_bytes()),
+    (b"Ntilde", "Ñ".as_bytes()),
+    (b"Nu", "Ν".as_bytes()),
+    (b"OElig", "Œ".as_bytes()),
+    (b"Oacute", "Ó".as_bytes()),
+    (b"Ocirc", "Ô".as_bytes()),
+    (b"Ograve", "Ò".as_bytes()),
+    (b"Omega", "Ω".as_bytes()),
+    (b"Omicron", "Ο".as_bytes()),
+    (b"Oslash", "Ø".as_bytes()),
+    (b"Otilde", "Õ".as_bytes()),
+    (b"Ouml", "Ö".as_bytes()),
+    (b"Phi", "Φ".as_bytes()),
+    (b"Pi", "Π".as_bytes()),
+    (b"Prime", "″".as_bytes()),
+    (b"Psi", "Ψ".as_bytes()),
+    (b"Rho", "Ρ".as_bytes()),
+    (b"Scaron", "Š".as_bytes()),
+    (b"Sigma", "Σ".as_bytes()),
+    (b"THORN", "Þ".as_bytes()),
+    (b"Tau", "Τ".as_bytes()),
+    (b"Theta", "Θ".as_bytes()),
+    (b"Uacute", "Ú".as_bytes()),
+    (b"Ucirc", "Û".as_bytes()),
+    (b"Ugrave", "Ù".as_bytes()),
+    (b"Upsilon", "Υ".as_bytes()),
+    (b"Uuml", "Ü".as_bytes()),
+    (b"Xi", "Ξ".as_bytes()),
+    (b"Yacute", "Ý".as_bytes()),
+    (b"Yuml", "Ÿ".as_bytes()),
+    (b"Zeta", "Ζ".as_bytes()),
+    (b"aacute", "á".as_bytes()),
+    (b"acirc", "â".as_bytes()),
+    (b"acute", "´".as_bytes()),
+    (b"aelig", "æ".as_bytes()),
+    (b"agrave", "à".as_bytes()),
+    (b"alefsym", "ℵ".as_bytes()),
+    (b"alpha", "α".as_bytes()),
+    (b"amp", "&".as_bytes()),
+    (b"and", "∧".as_bytes()),
+    (b"ang", "∠".as_bytes()),
+    (b"apos", "'".as_bytes()),
+    (b"aring", "å".as_bytes()),
+    (b"asymp", "≈".as_bytes()),
+    (b"atilde", "ã".as_bytes()),
+    (b"auml", "ä".as_bytes()),
+    (b"bdquo", "„".as_bytes()),
+    (b"beta", "β".as_bytes()),
+    (b"brvbar", "¦".as_bytes()),
+    (b"bull", "•".as_bytes()),
+    (b"cap", "∩".as_bytes()),
+    (b"ccedil", "ç".as_bytes()),
+    (b"cedil", "¸".as_bytes()),
+    (b"cent", "¢".as_bytes()),
+    (b"chi", "χ".as_bytes()),
+    (b"circ", "ˆ".as_bytes()),
+    (b"clubs", "♣".as_bytes()),
+    (b"cong", "≅".as_bytes()),
+    (b"copy", "©".as_bytes()),
+    (b"crarr", "↵".as_bytes()),
+    (b"cup", "∪".as_bytes()),
+    (b"curren", "¤".as_bytes()),
+    (b"dArr", "⇓".as_bytes()),
+    (b"dagger", "†".as_bytes()),
+    (b"darr", "↓".as_bytes()),
+    (b"deg", "°".as_bytes()),
+    (b"delta", "δ".as_bytes()),
+    (b"diams", "♦".as_bytes()),
+    (b"divide", "÷".as_bytes()),
+    (b"eacute", "é".as_bytes()),
+    (b"ecirc", "ê".as_bytes()),
+    (b"egrave", "è".as_bytes()),
+    (b"empty", "∅".as_bytes()),
+    (b"emsp", " ".as_bytes()),
+    (b"ensp", " ".as_bytes()),
+    (b"epsilon", "ε".as_bytes()),
+    (b"equiv", "≡".as_bytes()),
+    (b"eta", "η".as_bytes()),
+    (b"eth", "ð".as_bytes()),
+    (b"euml", "ë".as_bytes()),
+    (b"euro", "€".as_bytes()),
+    (b"exist", "∃".as_bytes()),
+    (b"fnof", "ƒ".as_bytes()),
+    (b"forall", "∀".as_bytes()),
+    (b"frac12", "½".as_bytes()),
+    (b"frac14", "¼".as_bytes()),
+    (b"frac34", "¾".as_bytes()),
+    (b"frasl", "⁄".as_bytes()),
+    (b"gamma", "γ".as_bytes()),
+    (b"ge", "≥".as_bytes()),
+    (b"gt", ">".as_bytes()),
+    (b"hArr", "⇔".as_bytes()),
+    (b"harr", "↔".as_bytes()),
+    (b"hearts", "♥".as_bytes()),
+    (b"hellip", "…".as_bytes()),
+    (b"iacute", "í".as_bytes()),
+    (b"icirc", "î".as_bytes()),
+    (b"iexcl", "¡".as_bytes()),
+    (b"igrave", "ì".as_bytes()),
+    (b"image", "ℑ".as_bytes()),
+    (b"infin", "∞".as_bytes()),
+    (b"int", "∫".as_bytes()),
+    (b"iota", "ι".as_bytes()),
+    (b"iquest", "¿".as_bytes()),
+    (b"isin", "∈".as_bytes()),
+    (b"iuml", "ï".as_bytes()),
+    (b"kappa", "κ".as_bytes()),
+    (b"lArr", "⇐".as_bytes()),
+    (b"lambda", "λ".as_bytes()),
+    (b"lang", "〈".as_bytes()),
+    (b"laquo", "«".as_bytes()),
+    (b"larr", "←".as_bytes()),
+    (b"lceil", "⌈".as_bytes()),
+    (b"ldquo", "“".as_bytes()),
+    (b"le", "≤".as_bytes()),
+    (b"lfloor", "⌊".as_bytes()),
+    (b"lowast", "∗".as_bytes()),
+    (b"loz", "◊".as_bytes()),
+    (b"lrm", "‎".as_bytes()),
+    (b"lsaquo", "‹".as_bytes()),
+    (b"lsquo", "‘".as_bytes()),
+    (b"lt", "<".as_bytes()),
+    (b"macr", "¯".as_bytes()),
+    (b"mdash", "—".as_bytes()),
+    (b"micro", "µ".as_bytes()),
+    (b"middot", "·".as_bytes()),
+    (b"minus", "−".as_bytes()),
+    (b"mu", "μ".as_bytes()),
+    (b"nabla", "∇".as_bytes()),
+    (b"nbsp", " ".as_bytes()),
+    (b"ndash", "–".as_bytes()),
+    (b"ne", "≠".as_bytes()),
+    (b"ni", "∋".as_bytes()),
+    (b"not", "¬".as_bytes()),
+    (b"notin", "∉".as_bytes()),
+    (b"nsub", "⊄".as_bytes()),
+    (b"ntilde", "ñ".as_bytes()),
+    (b"nu", "ν".as_bytes()),
+    (b"oacute", "ó".as_bytes()),
+    (b"ocirc", "ô".as_bytes()),
+    (b"oelig", "œ".as_bytes()),
+    (b"ograve", "ò".as_bytes()),
+    (b"oline", "‾".as_bytes()),
+    (b"omega", "ω".as_bytes()),
+    (b"omicron", "ο".as_bytes()),
+    (b"oplus", "⊕".as_bytes()),
+    (b"or", "∨".as_bytes()),
+    (b"ordf", "ª".as_bytes()),
+    (b"ordm", "º".as_bytes()),
+    (b"oslash", "ø".as_bytes()),
+    (b"otilde", "õ".as_bytes()),
+    (b"otimes", "⊗".as_bytes()),
+    (b"ouml", "ö".as_bytes()),
+    (b"para", "¶".as_bytes()),
+    (b"part", "∂".as_bytes()),
+    (b"permil", "‰".as_bytes()),
+    (b"perp", "⊥".as_bytes()),
+    (b"phi", "φ".as_bytes()),
+    (b"pi", "π".as_bytes()),
+    (b"piv", "ϖ".as_bytes()),
+    (b"plusmn", "±".as_bytes()),
+    (b"pound", "£".as_bytes()),
+    (b"prime", "′".as_bytes()),
+    (b"prod", "∏".as_bytes()),
+    (b"prop", "∝".as_bytes()),
+    (b"psi", "ψ".as_bytes()),
+    (b"quot", "\"".as_bytes()),
+    (b"rArr", "⇒".as_bytes()),
+    (b"radic", "√".as_bytes()),
+    (b"rang", "〉".as_bytes()),
+    (b"raquo", "»".as_bytes()),
+    (b"rarr", "→".as_bytes()),
+    (b"rceil", "⌉".as_bytes()),
+    (b"rdquo", "”".as_bytes()),
+    (b"real", "ℜ".as_bytes()),
+    (b"reg", "®".as_bytes()),
+    (b"rfloor", "⌋".as_bytes()),
+    (b"rho", "ρ".as_bytes()),
+    (b"rlm", "‏".as_bytes()),
+    (b"rsaquo", "›".as_bytes()),
+    (b"rsquo", "’".as_bytes()),
+    (b"sbquo", "‚".as_bytes()),
+    (b"scaron", "š".as_bytes()),
+    (b"sdot", "⋅".as_bytes()),
+    (b"sect", "§".as_bytes()),
+    (b"shy", "\u{AD}".as_bytes()),
+    (b"sigma", "σ".as_bytes()),
+    (b"sigmaf", "ς".as_bytes()),
+    (b"sim", "∼".as_bytes()),
+    (b"spades", "♠".as_bytes()),
+    (b"sub", "⊂".as_bytes()),
+    (b"sube", "⊆".as_bytes()),
+    (b"sum", "∑".as_bytes()),
+    (b"sup1", "¹".as_bytes()),
+    (b"sup2", "²".as_bytes()),
+    (b"sup3", "³".as_bytes()),
+    (b"sup", "⊃".as_bytes()),
+    (b"supe", "⊇".as_bytes()),
+    (b"szlig", "ß".as_bytes()),
+    (b"tau", "τ".as_bytes()),
+    (b"there4", "∴".as_bytes()),
+    (b"theta", "θ".as_bytes()),
+    (b"thetasym", "ϑ".as_bytes()),
+    (b"thinsp", " ".as_bytes()),
+    (b"thorn", "þ".as_bytes()),
+    (b"tilde", "˜".as_bytes()),
+    (b"times", "×".as_bytes()),
+    (b"trade", "™".as_bytes()),
+    (b"uArr", "⇑".as_bytes()),
+    (b"uacute", "ú".as_bytes()),
+    (b"uarr", "↑".as_bytes()),
+    (b"ucirc", "û".as_bytes()),
+    (b"ugrave", "ù".as_bytes()),
+    (b"uml", "¨".as_bytes()),
+    (b"upsih", "ϒ".as_bytes()),
+    (b"upsilon", "υ".as_bytes()),
+    (b"uuml", "ü".as_bytes()),
+    (b"weierp", "℘".as_bytes()),
+    (b"xi", "ξ".as_bytes()),
+    (b"yacute", "ý".as_bytes()),
+    (b"yen", "¥".as_bytes()),
+    (b"yuml", "ÿ".as_bytes()),
+    (b"zeta", "ζ".as_bytes()),
+    (b"zwj", "‍".as_bytes()),
+    (b"zwnj", "‌".as_bytes()),
+];
+// Compact the vocabulary at compile time: two slices per entry would cost
+// sixteen flash bytes on C3 before the actual strings.
+const fn data_size() -> usize {
+    let mut size = 0;
+    let mut index = 0;
+    while index < ENTITIES.len() {
+        size += ENTITIES[index].0.len() + ENTITIES[index].1.len() + 2;
+        index += 1;
+    }
+    size
+}
+struct Vocabulary {
+    bytes: [u8; data_size()],
+    offsets: [u16; ENTITIES.len()],
+}
+const fn pack() -> Vocabulary {
+    let mut result = Vocabulary {
+        bytes: [0; data_size()],
+        offsets: [0; ENTITIES.len()],
+    };
+    let mut cursor = 0;
+    let mut index = 0;
+    while index < ENTITIES.len() {
+        result.offsets[index] = cursor as u16;
+        let (name, value) = ENTITIES[index];
+        let mut byte = 0;
+        while byte < name.len() {
+            result.bytes[cursor] = name[byte];
+            cursor += 1;
+            byte += 1;
+        }
+        cursor += 1;
+        byte = 0;
+        while byte < value.len() {
+            result.bytes[cursor] = value[byte];
+            cursor += 1;
+            byte += 1;
+        }
+        cursor += 1;
+        index += 1;
+    }
+    result
+}
+static VOCABULARY: Vocabulary = pack();
+
+fn entry(index: usize) -> Option<(&'static [u8], &'static [u8])> {
+    let offset = usize::from(*VOCABULARY.offsets.get(index)?);
+    let bytes = VOCABULARY.bytes.get(offset..)?;
+    let separator = bytes.iter().position(|&byte| byte == 0)?;
+    let value = bytes.get(separator + 1..)?;
+    let end = value.iter().position(|&byte| byte == 0)?;
+    Some((&bytes[..separator], &value[..end]))
+}
+pub fn lookup(name: &[u8]) -> Option<&'static [u8]> {
+    let mut first = 0;
+    let mut last = VOCABULARY.offsets.len();
+    while first < last {
+        let middle = first + (last - first) / 2;
+        let (key, value) = entry(middle)?;
+        match key.cmp(name) {
+            core::cmp::Ordering::Less => first = middle + 1,
+            core::cmp::Ordering::Greater => last = middle,
+            core::cmp::Ordering::Equal => return Some(value),
+        }
+    }
+    None
+}

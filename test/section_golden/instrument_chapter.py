@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 def instrument(source):
+    rust = "const XpChapterServices ChapterPageAssembler::services_" in source
     paragraph_names = {
         'isEmpty': 'paragraphEmpty', 'size': 'paragraphSize', 'getBlockStyle': 'paragraphStyle',
         'setBlockStyle': 'setParagraphStyle', 'suppressFirstLineIndent': 'suppressFirstLineIndent',
@@ -36,6 +37,8 @@ def instrument(source):
 
     def before(anchor, code):
         nonlocal source
+        if rust and any(key in anchor for key in ("partWordBuffer, fontStyle", "dropCap.firstLetterPending", "memcpy(dropCap.text", "tableColumnCount =", "pendingFootnotes.push_back", "self->currentTextBlock->addWord(marker,", 'addWord("\\xe2', "setRubyGroupAt(self->", "setRubyForWordAt(leaderIdx", "!src.empty()")):
+            return
         resolved = resolve(anchor)
         if semantic_calls(anchor).split() == resolved.split() and anchor.split() != resolved.split():
             code = semantic_calls(code)
@@ -100,6 +103,10 @@ def instrument(source):
             'ChapterTrace::record("Finish", stopRequested, layoutOom);',
     }
     for anchor, code in hooks.items():
+        if rust and "cancelDropCapToWord" in anchor:
+            continue
+        if rust:
+            code = code.replace("layoutOom", "semanticOom()")
         anchor = resolve(anchor)
         if "ChapterPageAssembler::" in anchor:
             for field, query in {
@@ -145,6 +152,32 @@ def instrument(source):
            '                ChapterTrace::record("ImageSize", displayWidth, displayHeight);')
     before('  completePageFn(std::move(currentPage), semanticParagraphIndex(), semanticListIndex(), currentPageVisibleOffset);',
            '  ChapterTrace::record("Page", semanticParagraphIndex(), semanticListIndex(), currentPageVisibleOffset, currentPageNextY);')
+    if rust:
+        before('    self->addWord(marker, EpdFontFamily::REGULAR, false, false, offset);',
+               '    ChapterTrace::record("ListMarker", ChapterTrace::hex(marker == "\\xe2\\x80\\xa2" ? std::string("e280a2") : marker), offset);')
+        before('    self->addPendingFootnote(index, value);',
+               '    ChapterTrace::record("Footnote", index, ChapterTrace::hex(value.number), ChapterTrace::hex(value.href));')
+        before('    self->setRubyGroupAt(index, count, chapterString(text));',
+               '    ChapterTrace::record("RubyGroup", index, count, ChapterTrace::hex(chapterString(text)));')
+        before('    self->setRubyForWordAt(index, combined);',
+               '    ChapterTrace::record("RubyAppend", index, ChapterTrace::hex(combined));')
+        before('    (void)record;', r'''    const auto& w = record->words;
+    const auto bytes = [](XpChapterSpan span) { return ChapterTrace::hex(std::string_view(reinterpret_cast<const char*>(span.data), span.len)); };
+    switch (record->kind) {
+      case 1: ChapterTrace::record("Text", bytes(record->first), w[0], w[1], w[2], w[3], w[4], w[5], w[6], chapterBlock(*record->block)); break;
+      case 2: ChapterTrace::record("DropCapCancel", bytes(record->first)); break;
+      case 3: ChapterTrace::record("DropCapCapture", bytes(record->first), w[0], w[1]); break;
+      case 4: ChapterTrace::record("DropCapArm", w[0], w[1]); break;
+      case 5: {
+        CssLength width, height;
+        memcpy(&width.value, &w[0], 4); width.unit = static_cast<CssUnit>(w[1]);
+        memcpy(&height.value, &w[2], 4); height.unit = static_cast<CssUnit>(w[3]);
+        ChapterTrace::record("Image", bytes(record->first), bytes(record->second), width, height, w[4], w[5]); break;
+      }
+      case 6: ChapterTrace::record("TableColumns", w[0]); break;
+      case 7: ChapterTrace::record("Column", w[0], w[1], w[2], w[3]); break;
+      default: throw std::runtime_error("Unknown chapter trace");
+    }''')
     # Paragraph services used by semantic callbacks, including opaque slot/link replies.
     reverse_names = {new: old for old, new in paragraph_names.items()}
     # Services introduced by the split that the original expression oracle omitted.

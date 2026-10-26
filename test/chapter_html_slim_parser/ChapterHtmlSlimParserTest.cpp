@@ -29,6 +29,46 @@
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
 
+extern "C" void xp_chapter_test_options(XpChapterState*, const XpCss*, const XpChapterOptions*);
+extern "C" void xp_chapter_test_event(XpChapterState*, uint32_t, const XpChapterSpan*, uint32_t);
+extern "C" uint32_t xp_chapter_test_query(const XpChapterState*, uint32_t);
+extern "C" void xp_chapter_test_columns(XpChapterState*, uint16_t, uint16_t);
+
+// Direct callbacks remain host-only: firmware feeds XML wholly inside Rust.
+struct ChapterTestAccess {
+  static XpChapterState* state(ChapterHtmlSlimParser& parser) {
+    if (!parser.ensureSemantics()) throw std::bad_alloc();
+    const XpChapterOptions options{parser.paragraphAlignment, static_cast<uint8_t>(parser.embeddedStyle),
+                                   parser.imageRendering, static_cast<uint8_t>(parser.cssParser != nullptr)};
+    xp_chapter_test_options(parser.semanticState(), parser.cssParser ? parser.cssParser->rustHandle() : nullptr,
+                            &options);
+    return parser.semanticState();
+  }
+  static XpChapterSpan span(const char* value, size_t length) {
+    return {reinterpret_cast<const uint8_t*>(value), static_cast<uint32_t>(length)};
+  }
+  static void startElement(ChapterHtmlSlimParser* parser, const char* name, const char* const* attrs) {
+    std::vector<XpChapterSpan> fields{span(name, strlen(name))};
+    if (attrs)
+      for (size_t i = 0; attrs[i]; ++i) fields.push_back(span(attrs[i], strlen(attrs[i])));
+    xp_chapter_test_event(state(*parser), 0, fields.data(), fields.size());
+  }
+  static void characterData(ChapterHtmlSlimParser* parser, const char* text, int length) {
+    const auto field = span(text, length);
+    xp_chapter_test_event(state(*parser), 1, &field, 1);
+  }
+  static void endElement(ChapterHtmlSlimParser* parser, const char* name) {
+    const auto field = span(name, strlen(name));
+    xp_chapter_test_event(state(*parser), 2, &field, 1);
+  }
+  static uint32_t query(ChapterHtmlSlimParser& parser, uint32_t field) {
+    return xp_chapter_test_query(state(parser), field);
+  }
+  static void columns(ChapterHtmlSlimParser& parser, uint16_t first, uint16_t second) {
+    xp_chapter_test_columns(state(parser), first, second);
+  }
+};
+
 namespace {
 
 void installBuiltinVariants(GfxRenderer& renderer) {
@@ -164,7 +204,7 @@ TEST_F(ChapterHtmlSlimParserTest, XmlHandleOomDoesNotOpenInput) {
   const bool started = parser.beginParse();
   xp_test_fail_allocation_after(SIZE_MAX);
   EXPECT_FALSE(started);
-  EXPECT_EQ(parser.xmlParser_, nullptr);
+  EXPECT_EQ(parser.chapter_, nullptr);
   EXPECT_FALSE(parser.parseFile_.isOpen());
   EXPECT_EQ(xp_test_live_allocations(), 0u);
 }
@@ -183,10 +223,45 @@ TEST_F(ChapterHtmlSlimParserTest, XmlFeedOomFailsAndReleasesInput) {
   xp_test_fail_allocation_after(SIZE_MAX);
   EXPECT_EQ(status, ChapterHtmlSlimParser::ParseStatus::Error);
   parser.abortParse();
-  EXPECT_EQ(parser.xmlParser_, nullptr);
+  EXPECT_EQ(parser.chapter_, nullptr);
   EXPECT_EQ(parser.parseBuffer_, nullptr);
   EXPECT_FALSE(parser.parseFile_.isOpen());
   EXPECT_EQ(xp_test_live_allocations(), 0u);
+  std::filesystem::remove(filepath);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, ChapterAllocationFailuresReleaseEveryRustOwner) {
+  filepath = (std::filesystem::temp_directory_path() / "crosspoint-chapter-allocation-sweep.xhtml").string();
+  const std::string html =
+      "<!DOCTYPE html SYSTEM 'unused'><html><body><ol><li><span style='font-size:1.2em'>word</span> "
+      "<ruby>base<rt>annotation</rt></ruby></li></ol><p>&" +
+      std::string(1500, 'x') + ";</p></body></html>";
+  {
+    HalFile file;
+    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
+    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
+  }
+  bool completed = false;
+  size_t failures = 0;
+  for (size_t budget = 0; budget < 128; ++budget) {
+    SCOPED_TRACE(budget);
+    {
+      ChapterHtmlSlimParser candidate{nullptr, filepath, renderer, 0,  1.0f, false, 0,  480,     800,       false,
+                                      false,   {},       true,     "", "",   0,     {}, nullptr, &cssParser};
+      candidate.completePageFn = [](std::unique_ptr<Page>, auto, auto, auto) {};
+      xp_test_fail_allocation_after(budget);
+      completed = candidate.parseAndBuildPages();
+      xp_test_fail_allocation_after(SIZE_MAX);
+      if (!completed) ++failures;
+      candidate.abortParse();
+      EXPECT_EQ(candidate.chapter_, nullptr);
+      EXPECT_FALSE(candidate.parseFile_.isOpen());
+    }
+    ASSERT_EQ(xp_test_live_allocations(), 0u);
+    if (completed) break;
+  }
+  EXPECT_TRUE(completed);
+  EXPECT_GT(failures, 10u);
   std::filesystem::remove(filepath);
 }
 
@@ -248,8 +323,8 @@ TEST_F(ChapterHtmlSlimParserTest, StreamsGifDimensionsWithoutExtractingPayload) 
   parser.imageBasePath = imagePath.string().substr(0, imagePath.string().size() - 5);
   Epub::enableGifProbeForTest = true;
   const char* attrs[] = {"src", "probe.gif", nullptr};
-  ChapterHtmlSlimParser::startElement(&parser, "body", nullptr);
-  ChapterHtmlSlimParser::startElement(&parser, "img", attrs);
+  ChapterTestAccess::startElement(&parser, "body", nullptr);
+  ChapterTestAccess::startElement(&parser, "img", attrs);
   EXPECT_EQ(parser.epub->headerProbes, 1u);
   EXPECT_EQ(parser.epub->fullExtractions, 0u);
   EXPECT_FALSE(std::filesystem::exists(imagePath));
@@ -299,7 +374,7 @@ TEST_P(ParserStopTest, PageCallbackStopsParsingAndClosesFile) {
   EXPECT_FALSE(parser.parseAndBuildPages());
   EXPECT_EQ(pages, 1u);
   EXPECT_EQ(renderer.fontPreparations, fontPreparationsAtStop);
-  EXPECT_EQ(parser.xmlParser_, nullptr);
+  EXPECT_EQ(parser.chapter_, nullptr);
   EXPECT_FALSE(parser.parseFile_.isOpen());
   std::filesystem::remove(filepath);
 }
@@ -460,22 +535,18 @@ TEST_F(ChapterHtmlSlimParserTest, MissingVariantProviderFallsBackToBodyFont) {
 }
 
 TEST_F(ChapterHtmlSlimParserTest, BlockFontScaleInheritsAndUsesHeadingDefaults) {
-  parser.blockStyleStack.assign(1, BlockStyle{});
-  BlockStyle heading;
-  parser.applyBlockFontScale(heading, CssStyle{}, "h2");
+  ChapterTestAccess::startElement(&parser, "h2", nullptr);
+  const auto heading = parser.currentTextBlock->getBlockStyle();
   EXPECT_FLOAT_EQ(heading.fontScale, 1.5f);
 
-  CssStyle css;
-  css.fontSize = CssLength{0.5f, CssUnit::Em};
-  css.defined.fontSize = 1;
-  parser.blockStyleStack.push_back(heading);
-  BlockStyle child;
-  parser.applyBlockFontScale(child, css, "p");
-  EXPECT_FLOAT_EQ(child.fontScale, 0.75f);
+  const char* em[] = {"style", "font-size: 0.5em", nullptr};
+  ChapterTestAccess::startElement(&parser, "p", em);
+  EXPECT_FLOAT_EQ(parser.currentTextBlock->getBlockStyle().fontScale, 0.75f);
+  ChapterTestAccess::endElement(&parser, "p");
 
-  css.fontSize = CssLength{1.2f, CssUnit::Rem};
-  parser.applyBlockFontScale(child, css, "p");
-  EXPECT_FLOAT_EQ(child.fontScale, 1.2f);
+  const char* rem[] = {"style", "font-size: 1.2rem", nullptr};
+  ChapterTestAccess::startElement(&parser, "p", rem);
+  EXPECT_FLOAT_EQ(parser.currentTextBlock->getBlockStyle().fontScale, 1.2f);
 
   BlockStyle plain;
   const BlockStyle inherited = heading.getCombinedBlockStyle(plain, BlockStyle::CombineAxis::Horizontal);
@@ -500,11 +571,11 @@ TEST_P(ChapterHtmlSlimParserTest, KeepsCssVerticalAlignAndInternalLinkMetadata) 
   const char* expectedHref = "#note-target";
   const char* attributes[] = {"href", expectedHref, "style", verticalAlign, nullptr};
 
-  ChapterHtmlSlimParser::startElement(&parser, "a", attributes);
-  const uint8_t linkId = parser.currentFootnoteLinkId;
+  ChapterTestAccess::startElement(&parser, "a", attributes);
+  const uint8_t linkId = ChapterTestAccess::query(parser, 0);
   ASSERT_NE(linkId, 0u);
-  ChapterHtmlSlimParser::characterData(&parser, "1", 1);
-  ChapterHtmlSlimParser::endElement(&parser, "a");
+  ChapterTestAccess::characterData(&parser, "1", 1);
+  ChapterTestAccess::endElement(&parser, "a");
 
   ASSERT_EQ(parser.currentTextBlock->size(), 1u);
   const auto style = parser.currentTextBlock->getWordStyleAt(0);
@@ -526,33 +597,36 @@ INSTANTIATE_TEST_SUITE_P(CssVerticalAlign, ChapterHtmlSlimParserTest,
 TEST_F(ChapterHtmlSlimParserTest, ParagraphWithHiddenAttributeShouldBeSkipped) {
   const char* attributes[] = {"hidden", "hidden", nullptr};
 
-  parser.beginParse();
-  ChapterHtmlSlimParser::startElement(&parser, "p", attributes);
-  ChapterHtmlSlimParser::characterData(&parser, "[HIDDEN]", 8);
+  ASSERT_TRUE(parser.ensureSemantics());
+  parser.beginAssembly();
+  ChapterTestAccess::startElement(&parser, "p", attributes);
+  ChapterTestAccess::characterData(&parser, "[HIDDEN]", 8);
 
-  ASSERT_EQ(parser.partWordBufferIndex, 0);
+  ASSERT_EQ(ChapterTestAccess::query(parser, 1), 0);
 }
 
 TEST_F(ChapterHtmlSlimParserTest, HeaderWithHiddenAttributeShouldBeSkipped) {
   const char* attributes[] = {"hidden", "hidden", nullptr};
 
-  parser.beginParse();
-  ChapterHtmlSlimParser::startElement(&parser, "h1", attributes);
-  ChapterHtmlSlimParser::characterData(&parser, "[HIDDEN]", 8);
+  ASSERT_TRUE(parser.ensureSemantics());
+  parser.beginAssembly();
+  ChapterTestAccess::startElement(&parser, "h1", attributes);
+  ChapterTestAccess::characterData(&parser, "[HIDDEN]", 8);
 
-  ASSERT_EQ(parser.partWordBufferIndex, 0);
+  ASSERT_EQ(ChapterTestAccess::query(parser, 1), 0);
 }
 
 TEST_F(ChapterHtmlSlimParserTest, SpanWithHiddenAttributeShouldBeSkipped) {
   const char* attributes[] = {"hidden", "hidden", nullptr};
 
-  parser.beginParse();
-  ChapterHtmlSlimParser::startElement(&parser, "p", nullptr);
-  ChapterHtmlSlimParser::characterData(&parser, "Before ", 7);
-  ChapterHtmlSlimParser::startElement(&parser, "span", attributes);
-  ChapterHtmlSlimParser::characterData(&parser, "[HIDDEN]", 8);
-  ChapterHtmlSlimParser::endElement(&parser, "span");
-  ChapterHtmlSlimParser::characterData(&parser, " After ", 7);
+  ASSERT_TRUE(parser.ensureSemantics());
+  parser.beginAssembly();
+  ChapterTestAccess::startElement(&parser, "p", nullptr);
+  ChapterTestAccess::characterData(&parser, "Before ", 7);
+  ChapterTestAccess::startElement(&parser, "span", attributes);
+  ChapterTestAccess::characterData(&parser, "[HIDDEN]", 8);
+  ChapterTestAccess::endElement(&parser, "span");
+  ChapterTestAccess::characterData(&parser, " After ", 7);
 
   ASSERT_EQ(parser.currentTextBlock->size(), 2);
   ASSERT_EQ(parser.currentTextBlock->wordAt(0), "Before");
@@ -562,24 +636,26 @@ TEST_F(ChapterHtmlSlimParserTest, SpanWithHiddenAttributeShouldBeSkipped) {
 TEST_F(ChapterHtmlSlimParserTest, DivWithHiddenAttributeContentShouldBeSkipped) {
   const char* attributes[] = {"hidden", "hidden", nullptr};
 
-  parser.beginParse();
-  ChapterHtmlSlimParser::startElement(&parser, "div", attributes);
-  ChapterHtmlSlimParser::startElement(&parser, "p", nullptr);
-  ChapterHtmlSlimParser::characterData(&parser, "[HIDDEN]", 8);
+  ASSERT_TRUE(parser.ensureSemantics());
+  parser.beginAssembly();
+  ChapterTestAccess::startElement(&parser, "div", attributes);
+  ChapterTestAccess::startElement(&parser, "p", nullptr);
+  ChapterTestAccess::characterData(&parser, "[HIDDEN]", 8);
 
-  ASSERT_EQ(parser.partWordBufferIndex, 0);
+  ASSERT_EQ(ChapterTestAccess::query(parser, 1), 0);
 }
 
 TEST_F(ChapterHtmlSlimParserTest, SmallCapsSpanMarksWordsWithoutChangingText) {
   const char* attributes[] = {"style", "font-variant: small-caps", nullptr};
-  parser.beginParse();
-  ChapterHtmlSlimParser::startElement(&parser, "p", nullptr);
-  ChapterHtmlSlimParser::characterData(&parser, "Plain ", 6);
-  ChapterHtmlSlimParser::startElement(&parser, "span", attributes);
-  ChapterHtmlSlimParser::characterData(&parser, "Chapter", 7);
-  ChapterHtmlSlimParser::endElement(&parser, "span");
-  ChapterHtmlSlimParser::characterData(&parser, " after", 6);
-  ChapterHtmlSlimParser::endElement(&parser, "p");
+  ASSERT_TRUE(parser.ensureSemantics());
+  parser.beginAssembly();
+  ChapterTestAccess::startElement(&parser, "p", nullptr);
+  ChapterTestAccess::characterData(&parser, "Plain ", 6);
+  ChapterTestAccess::startElement(&parser, "span", attributes);
+  ChapterTestAccess::characterData(&parser, "Chapter", 7);
+  ChapterTestAccess::endElement(&parser, "span");
+  ChapterTestAccess::characterData(&parser, " after", 6);
+  ChapterTestAccess::endElement(&parser, "p");
 
   ASSERT_EQ(parser.currentTextBlock->size(), 0u);  // flushed to the page on </p>
   ASSERT_NE(parser.currentPage, nullptr);
@@ -619,13 +695,14 @@ class ChapterPageBreakTest : public ChapterHtmlSlimParserTest {
   void SetUp() override {
     ChapterHtmlSlimParserTest::SetUp();
     parser.completePageFn = [this](std::unique_ptr<Page>, uint16_t, uint16_t, uint32_t) { ++pages; };
-    parser.beginParse();
+    ASSERT_TRUE(parser.ensureSemantics());
+    parser.beginAssembly();
   }
   void paragraph(const char* text, const char* style = nullptr) {
     const char* attributes[] = {"style", style, nullptr};
-    ChapterHtmlSlimParser::startElement(&parser, "p", style ? attributes : nullptr);
-    ChapterHtmlSlimParser::characterData(&parser, text, static_cast<int>(strlen(text)));
-    ChapterHtmlSlimParser::endElement(&parser, "p");
+    ChapterTestAccess::startElement(&parser, "p", style ? attributes : nullptr);
+    ChapterTestAccess::characterData(&parser, text, static_cast<int>(strlen(text)));
+    ChapterTestAccess::endElement(&parser, "p");
   }
 };
 
@@ -653,10 +730,10 @@ TEST_F(ChapterPageBreakTest, AvoidAndEmptyPageDoNotBreak) {
 TEST_F(ChapterPageBreakTest, ContainerBreaksOnceBeforeItsFirstChild) {
   paragraph("zero");
   const char* attributes[] = {"style", "page-break-before: always", nullptr};
-  ChapterHtmlSlimParser::startElement(&parser, "div", attributes);
+  ChapterTestAccess::startElement(&parser, "div", attributes);
   paragraph("a");
   paragraph("b");
-  ChapterHtmlSlimParser::endElement(&parser, "div");
+  ChapterTestAccess::endElement(&parser, "div");
   paragraph("c");
   EXPECT_EQ(pages, 1u);
 }
@@ -669,16 +746,17 @@ class ChapterBlockDecorationTest : public ChapterHtmlSlimParserTest {
     parser.completePageFn = [this](std::unique_ptr<Page> page, uint16_t, uint16_t, uint32_t) {
       pages.push_back(std::move(page));
     };
-    parser.beginParse();
+    ASSERT_TRUE(parser.ensureSemantics());
+    parser.beginAssembly();
   }
   void open(const char* tag, const char* style) {
     const char* attributes[] = {"style", style, nullptr};
-    ChapterHtmlSlimParser::startElement(&parser, tag, style ? attributes : nullptr);
+    ChapterTestAccess::startElement(&parser, tag, style ? attributes : nullptr);
   }
   void text(const std::string& value) {
-    ChapterHtmlSlimParser::characterData(&parser, value.c_str(), static_cast<int>(value.size()));
+    ChapterTestAccess::characterData(&parser, value.c_str(), static_cast<int>(value.size()));
   }
-  void close(const char* tag) { ChapterHtmlSlimParser::endElement(&parser, tag); }
+  void close(const char* tag) { ChapterTestAccess::endElement(&parser, tag); }
   static std::string words(int count) {
     std::string result;
     for (int i = 0; i < count; ++i) result += "word ";
@@ -704,7 +782,7 @@ TEST_F(ChapterBlockDecorationTest, RepeatedSectionBreaksEachAddOneLine) {
     const int before = parser.currentPageNextY;
     for (int i = 0; i < breaks; ++i) {
       const char* attrs[] = {"class", "section-br", "style", "display: block", nullptr};
-      ChapterHtmlSlimParser::startElement(&parser, "br", attrs);
+      ChapterTestAccess::startElement(&parser, "br", attrs);
       close("br");
     }
     EXPECT_EQ(parser.currentPageNextY - before, breaks * renderer.getLineHeight(0));
@@ -886,15 +964,15 @@ TEST_F(ChapterBlockDecorationTest, FontInheritanceUsesWinningCssRuleBeforeInline
   std::filesystem::remove(path);
   open("body", "font-weight:normal;font-style:normal");
   const char* inherited[] = {"id", "inherited", "class", "inherited", nullptr};
-  ChapterHtmlSlimParser::startElement(&parser, "p", inherited);
+  ChapterTestAccess::startElement(&parser, "p", inherited);
   text("Normal");
   close("p");
   open("div", "font-weight:bold;font-style:italic");
-  ChapterHtmlSlimParser::startElement(&parser, "p", inherited);
+  ChapterTestAccess::startElement(&parser, "p", inherited);
   text("Emphasis");
   close("p");
   const char* overridden[] = {"id", "inherited", "style", "font-weight:normal;font-style:normal", nullptr};
-  ChapterHtmlSlimParser::startElement(&parser, "p", overridden);
+  ChapterTestAccess::startElement(&parser, "p", overridden);
   text("Override");
   close("p");
   close("div");
@@ -968,7 +1046,7 @@ TEST_F(ChapterBlockDecorationTest, FirstLetterRuleCapturesQuoteAndLetter) {
   ASSERT_EQ(cssParser.loadFromStream(input), CssParser::ParseResult::Complete);
 
   const char* attributes[] = {"class", "opening", nullptr};
-  ChapterHtmlSlimParser::startElement(&parser, "p", attributes);
+  ChapterTestAccess::startElement(&parser, "p", attributes);
   text("\xe2\x80\x9cIt was " + words(40));
   close("p");
   open("p", nullptr);
@@ -1033,8 +1111,8 @@ TEST_F(ChapterBlockDecorationTest, ShadedBoxSplitsAcrossPages) {
 class ChapterTableBorderTest : public ChapterBlockDecorationTest {
  protected:
   void table(const char* const* tableAttributes, const char* cellStyle) {
-    ChapterHtmlSlimParser::startElement(&parser, "table", tableAttributes);
-    ChapterHtmlSlimParser::startElement(&parser, "tr", nullptr);
+    ChapterTestAccess::startElement(&parser, "table", tableAttributes);
+    ChapterTestAccess::startElement(&parser, "tr", nullptr);
     for (const char* cell : {"alpha", "beta"}) {
       open("td", cellStyle);
       text(cell);
@@ -1068,7 +1146,7 @@ TEST_F(ChapterTableBorderTest, UnborderedTableKeepsRowRule) {
 
 TEST_F(ChapterTableBorderTest, RichCellsPreserveParagraphStylesAndFollowingFlow) {
   parser.paragraphAlignment = static_cast<uint8_t>(CssTextAlign::None);  // Book's Style honors CSS alignment.
-  const size_t initialDepth = parser.blockStyleStack.size();
+  const size_t initialDepth = parser.semanticBlockDepth();
   open("table", nullptr);
   open("tr", nullptr);
   open("td", nullptr);
@@ -1077,18 +1155,18 @@ TEST_F(ChapterTableBorderTest, RichCellsPreserveParagraphStylesAndFollowingFlow)
   open("td", nullptr);
   open("p", "margin-left: 24px; font-style: italic; font-size: 0.75em");
   EXPECT_TRUE(parser.tableRowStacked);
-  EXPECT_TRUE(parser.effectiveItalic);
+  EXPECT_TRUE(ChapterTestAccess::query(parser, 2));
   EXPECT_FLOAT_EQ(parser.currentTextBlock->getBlockStyle().fontScale, 0.75f);
   text("Entryone");
   close("p");
   open("p", "text-align: right");
-  EXPECT_FALSE(parser.effectiveItalic);
+  EXPECT_FALSE(ChapterTestAccess::query(parser, 2));
   text("Entrytwo");
   close("p");
   close("td");
   close("tr");
   close("table");
-  EXPECT_EQ(parser.blockStyleStack.size(), initialDepth);
+  EXPECT_EQ(parser.semanticBlockDepth(), initialDepth);
   open("p", nullptr);
   text("Outside");
   close("p");
@@ -1113,11 +1191,11 @@ TEST_F(ChapterTableBorderTest, CellImagesUseNormalImageHandlingAndRespectDisplay
   open("tr", nullptr);
   open("td", nullptr);
   const char* hidden[] = {"style", "display:none", "alt", "hidden", nullptr};
-  ChapterHtmlSlimParser::startElement(&parser, "img", hidden);
+  ChapterTestAccess::startElement(&parser, "img", hidden);
   close("img");
   EXPECT_FALSE(parser.tableRowStacked);
   const char* visible[] = {"alt", "skull", nullptr};
-  ChapterHtmlSlimParser::startElement(&parser, "img", visible);
+  ChapterTestAccess::startElement(&parser, "img", visible);
   close("img");
   EXPECT_TRUE(parser.tableRowStacked);
   close("td");
@@ -1295,30 +1373,30 @@ TEST_F(ChapterTableBorderTest, ScansColumnWidthsFromMarkup) {
   HalFile input;
   ASSERT_TRUE(input.open(path.c_str(), "rb"));
   ChapterHtmlSlimParser::TableColumnMeasure measure;
+  ChapterTestAccess::state(parser);
   ASSERT_TRUE(parser.measureTableColumns(input, measure));
   EXPECT_EQ(renderer.coldMeasurements, 0u);
   EXPECT_EQ(measure.columns, 2);
-  EXPECT_EQ(measure.minWidth[0], 16);  // "ID"
-  EXPECT_EQ(measure.minWidth[1], 88);  // "description"
-  EXPECT_EQ(measure.prefWidth[1], 31 * 8 + 6 * 4);
+  EXPECT_EQ(measure.min[0], 16);  // "ID"
+  EXPECT_EQ(measure.min[1], 88);  // "description"
+  EXPECT_EQ(measure.preferred[1], 31 * 8 + 6 * 4);
 
-  parser.planTableColumns(measure);
-  ASSERT_EQ(parser.tableColumnCount, 2);
-  EXPECT_EQ(parser.tableColumnWidths[0] + parser.tableColumnWidths[1], parser.viewportWidth);
-  EXPECT_LT(parser.tableColumnWidths[0], parser.tableColumnWidths[1]);
+  xp_chapter_plan_columns(ChapterTestAccess::state(parser), &measure);
+  ASSERT_EQ(parser.semanticColumnCount(), 2);
+  EXPECT_EQ(parser.semanticColumnWidth(0) + parser.semanticColumnWidth(1), parser.viewportWidth);
+  EXPECT_LT(parser.semanticColumnWidth(0), parser.semanticColumnWidth(1));
 
   parser.viewportWidth = 200;  // too narrow for natural widths: column 0 keeps its word
-  parser.planTableColumns(measure);
-  EXPECT_EQ(parser.tableColumnWidths[0], 16 + 8);
-  EXPECT_EQ(parser.tableColumnWidths[1], 200 - 24);
+  xp_chapter_plan_columns(ChapterTestAccess::state(parser), &measure);
+  EXPECT_EQ(parser.semanticColumnWidth(0), 16 + 8);
+  EXPECT_EQ(parser.semanticColumnWidth(1), 200 - 24);
   std::filesystem::remove(path);
 }
 
 TEST_F(ChapterTableBorderTest, RowsUsePlannedColumnWidths) {
-  ChapterHtmlSlimParser::startElement(&parser, "table", nullptr);
-  parser.tableColumnWidths = {100, 380};
-  parser.tableColumnCount = 2;
-  ChapterHtmlSlimParser::startElement(&parser, "tr", nullptr);
+  ChapterTestAccess::startElement(&parser, "table", nullptr);
+  ChapterTestAccess::columns(parser, 100, 380);
+  ChapterTestAccess::startElement(&parser, "tr", nullptr);
   for (const char* cell : {"alpha", "beta"}) {
     open("td", nullptr);
     text(cell);
@@ -1334,8 +1412,7 @@ TEST_F(ChapterTableBorderTest, RowsUsePlannedColumnWidths) {
 
 TEST_F(ChapterTableBorderTest, CssCellPaddingInsetsContentAndReservesRowHeight) {
   open("table", nullptr);
-  parser.tableColumnWidths = {100, 380};
-  parser.tableColumnCount = 2;
+  ChapterTestAccess::columns(parser, 100, 380);
   open("tr", nullptr);
   open("td", "padding: 9px 17px 13px 11px; text-align: right");
   text("alpha");
@@ -1371,7 +1448,7 @@ TEST_F(ChapterTableBorderTest, PaddedRowsBreakBeforeTheBottomPaddingOverflows) {
 }
 
 TEST_F(ChapterTableBorderTest, StackedCellPaddingSurroundsChildParagraphs) {
-  const size_t initialDepth = parser.blockStyleStack.size();
+  const size_t initialDepth = parser.semanticBlockDepth();
   open("table", nullptr);
   open("tr", nullptr);
   open("td", "padding: 7px 8px 9px 10px");
@@ -1381,7 +1458,7 @@ TEST_F(ChapterTableBorderTest, StackedCellPaddingSurroundsChildParagraphs) {
   close("td");
   close("tr");
   close("table");
-  EXPECT_EQ(parser.blockStyleStack.size(), initialDepth);
+  EXPECT_EQ(parser.semanticBlockDepth(), initialDepth);
   const int rowBottom = parser.currentPageNextY;
   open("p", nullptr);
   text("Outside");
@@ -1408,8 +1485,7 @@ TEST_F(ChapterTableBorderTest, LongTwoColumnFixtureKeepsColumnsAcrossPages) {
       "dolor sit amet."};
   std::multiset<std::string> expected[2];
   open("table", nullptr);
-  parser.tableColumnWidths = {160, 320};
-  parser.tableColumnCount = 2;
+  ChapterTestAccess::columns(parser, 160, 320);
   open("tr", nullptr);
   for (size_t column = 0; column < 2; ++column) {
     open("td", "padding: 3px 6px");
@@ -1631,7 +1707,7 @@ TEST_F(ChapterInlineSizeTest, SpecializedInlineTagsKeepTheirFontSize) {
     open("p", nullptr);
     text("Normal ");
     const char* attributes[] = {"style", "font-size: 0.8em", "href", "#note", nullptr};
-    ChapterHtmlSlimParser::startElement(&parser, tag, attributes);
+    ChapterTestAccess::startElement(&parser, tag, attributes);
     text("small");
     close(tag);
     text(" after");
@@ -1925,11 +2001,12 @@ TEST(TextSpacingLayout, CachedPageRestoresSpacing) {
 
 TEST_F(ChapterHtmlSlimParserTest, ParserAppliesTextSpacingToParagraphs) {
   parser.setTextSpacing(-1, 150);
-  parser.beginParse();
-  ChapterHtmlSlimParser::startElement(&parser, "p", nullptr);
+  ASSERT_TRUE(parser.ensureSemantics());
+  parser.beginAssembly();
+  ChapterTestAccess::startElement(&parser, "p", nullptr);
   const std::string text = "\xe4\xb8\x80\xe4\xba\x8c\xe4\xb8\x89 \xe5\x9b\x9b\xe4\xba\x94";  // 一二三 四五
-  ChapterHtmlSlimParser::characterData(&parser, text.c_str(), static_cast<int>(text.size()));
-  ChapterHtmlSlimParser::endElement(&parser, "p");
+  ChapterTestAccess::characterData(&parser, text.c_str(), static_cast<int>(text.size()));
+  ChapterTestAccess::endElement(&parser, "p");
   parser.makePages();
   ASSERT_NE(parser.currentPage, nullptr);
   unsigned lines = 0;
@@ -1946,15 +2023,16 @@ TEST_F(ChapterHtmlSlimParserTest, ParserAppliesTextSpacingToParagraphs) {
 }
 
 TEST_F(ChapterHtmlSlimParserTest, NfdWordAcrossInlineStyleKeepsSourceRange) {
-  parser.beginParse();
-  ChapterHtmlSlimParser::startElement(&parser, "body", nullptr);
-  ChapterHtmlSlimParser::startElement(&parser, "p", nullptr);
+  ASSERT_TRUE(parser.ensureSemantics());
+  parser.beginAssembly();
+  ChapterTestAccess::startElement(&parser, "body", nullptr);
+  ChapterTestAccess::startElement(&parser, "p", nullptr);
   const std::string prefix = "Cafe\xCC\x81";
-  ChapterHtmlSlimParser::characterData(&parser, prefix.c_str(), static_cast<int>(prefix.size()));
-  ChapterHtmlSlimParser::startElement(&parser, "b", nullptr);
-  ChapterHtmlSlimParser::characterData(&parser, "s", 1);
-  ChapterHtmlSlimParser::endElement(&parser, "b");
-  ChapterHtmlSlimParser::endElement(&parser, "p");
+  ChapterTestAccess::characterData(&parser, prefix.c_str(), static_cast<int>(prefix.size()));
+  ChapterTestAccess::startElement(&parser, "b", nullptr);
+  ChapterTestAccess::characterData(&parser, "s", 1);
+  ChapterTestAccess::endElement(&parser, "b");
+  ChapterTestAccess::endElement(&parser, "p");
   parser.makePages();
   ASSERT_NE(parser.currentPage, nullptr);
   std::string selected;

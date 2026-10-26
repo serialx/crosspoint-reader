@@ -24,7 +24,7 @@
 #include "Epub/converters/ImageToFramebufferDecoder.h"
 #include "Epub/htmlEntities.h"
 
-static_assert(ChapterSemantics::MAX_DROP_CAP_BYTES == PageDropCap::MAX_TEXT_BYTES);
+static_assert(ChapterPageAssembler::MAX_DROP_CAP_BYTES == PageDropCap::MAX_TEXT_BYTES);
 
 // Minimum file size (in bytes) to show indexing popup - smaller chapters don't benefit from it
 
@@ -158,7 +158,7 @@ void ChapterPageAssembler::layoutCurrentBlock(const bool includeLastLine) {
     addLineToPage(std::move(textBlock), offset);
   };
   layoutParagraph = currentTextBlock.get();
-  if (semanticDropCap().length > 0 && semanticDropCap().spanDepth < 0 && !currentTextBlock->isEmpty()) {
+  if (semanticDropCap().length > 0 && semanticDropCap().span_depth < 0 && !currentTextBlock->isEmpty()) {
     // Lines beside the letter must stay on its page.
     layoutParagraphHasDropCap = true;
     applyTopSpacing();
@@ -891,7 +891,7 @@ void ChapterPageAssembler::applyParagraphDirection(const bool defined, const boo
   }
 }
 
-ChapterSemantics::ImageResult ChapterPageAssembler::processImage(const std::string& src, const CssStyle& cssStyle) {
+ChapterPageAssembler::ImageResult ChapterPageAssembler::processImage(const std::string& src, const CssStyle& cssStyle) {
   auto* self = this;
 
   LOG_DBG("EHP", "Found image: src=%s", src.c_str());

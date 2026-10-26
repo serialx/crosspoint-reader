@@ -1,10 +1,10 @@
 # Chapter pipeline boundary
 
 The chapter parser consumes XML events and CSS rules, then builds paragraphs
-and pages. A Rust semantic layer must preserve the order of its requests to
+and pages. The Rust semantic layer preserves the order of its requests to
 the C++ page assembler, including requests whose replies influence later
 parsing. The chapter operation oracle in `test/section_golden` records the
-existing C++ implementation before the split.
+C++ implementation captured before the port.
 
 ## Ownership and lifetime
 
@@ -12,8 +12,10 @@ Semantics owns element depth, hidden-content tracking, CSS ancestors and style
 stacks, word fragments, inline continuation, lists, ruby collection, link-label
 collection, and visible-text/XPath counters. Assembly owns paragraph storage,
 font selection and metrics, layout, page elements, image I/O, and completed-page
-callbacks. The driver owns the XML handle, input buffer, chapter file, and
-incremental parsing lifecycle.
+callbacks, deferred anchor strings, and the anchor deque. The driver owns one
+fallibly allocated Rust chapter handle, the 1,024-byte input buffer, chapter file,
+and incremental parsing lifecycle. The Rust handle contains semantic state and
+the XML pull parser; XML events and CSS resolution stay inside Rust.
 
 Text and style payloads are borrowed for one synchronous operation. Assembly
 copies text only into its existing paragraph storage. There is no queued op
@@ -34,7 +36,7 @@ rebuilds the parser rather than serializing its stacks.
 
 Widths below describe the target contract, not packed C++ object layouts.
 Booleans and enum/style flags are u8, coordinates and insets are i16, font IDs
-are i32, font scale and compression are IEEE-754 f32. Counts crossing a future
+are i32, font scale and compression are IEEE-754 f32. Counts crossing the
 C ABI use explicit u32 rather than host `size_t`. Strings are borrowed UTF-8
 byte spans with u32 length; absence is separate from an empty string.
 
@@ -65,9 +67,9 @@ get/set BlockStyle; reset/suppress first-line indent; link-target matching and
 insertion; size-slot lookup; ruby capacity/group/word access; and allocation or
 reset of the current paragraph. These cannot be hidden as direct access to a
 C++ `ParsedText` from Rust. The instrumented subset is recorded as `Paragraph.*`
-requests and replies in the oracle. Existence, creation, reset, and row-storage
-mutations are not uniformly recorded; complete section and layout comparisons
-remain separate required checks.
+requests and replies in the oracle. The expanded baseline also records paragraph
+creation/reset, row storage, and metric services. Complete section and layout
+comparisons remain separate required checks.
 
 BlockStyle's ordered values are alignment u8, character spacing i8, nine i16
 margin/padding/indent values, four u8 indent/alignment/direction flags, f32 font
@@ -101,16 +103,19 @@ remain necessary because host fonts and image decoding are stubbed.
 
 ## C++ service surface and state feedback
 
-`ChapterSemantics` is an abstract semantic state machine. `ChapterPageAssembler`
-implements its synchronous virtual services, and the final
-`ChapterHtmlSlimParser` adds XML/file driving. The objects are base subobjects
-of one parser allocation. There is no separately allocated sink, context, or
-queued operation. `ChapterTableSource::read` borrows a destination buffer and
-returns the byte count; the driver wraps its stack-local table file.
+`xp-core/src/chapter` owns the semantic state. `XpChapterServices` in `xp_ffi.h`
+is the C boundary to `ChapterPageAssembler`; each function pointer receives the
+assembler context and a fresh synchronous semantic-state reborrow. The table is
+static, not copied into each handle. `ChapterHtmlSlimParser` drives the handle
+with `xp_chapter_feed` and owns file I/O. Table pre-scan uses a synchronous read
+callback over a stack-local HalFile; it never retains the file or buffer.
 
-The current C++ split retains in-place semantic state feedback from assembly.
-This is part of the contract a later Rust adapter must expose, not permission
-to omit these updates when translating the virtual calls:
+Assembly may query values or issue named state notifications during a service
+call. It must use the state pointer supplied to that call, never an older handle
+borrow. `SemanticBorrow` restores the previous pointer after nested calls. The
+only reverse semantic operation that emits further services is `FlushWord`;
+no Rust vector reference is retained across those services. Callbacks must not
+feed or destroy the chapter handle. These feedback effects remain required:
 
 | Service | Semantic state changed before return |
 | --- | --- |
@@ -127,27 +132,30 @@ to omit these updates when translating the virtual calls:
 Assembly reads the current XPath indices (u16), visible offset (u32), paragraph
 alignment (u8), whitespace mode (u8), marker-only flag (u8), table depth (i32),
 cell-open flag (u8), table border, four planned widths (u16), column count (u8),
-ancestor block styles, pending/TOC anchor strings, inline-size state, and captured
+ancestor block styles, inline-size state, and captured
 drop cap. Inline-size state is f32 scale, i32 depth, u8 valid/open. Drop-cap state
 is 13 text bytes (12 plus NUL), u8 byte count/codepoint count/line count/bold/
 first-letter-pending, and i32 span depth. Stop and layout-OOM are sticky u8
-feedback values. Assembly now uses explicit `semantic*` queries and notifications;
-it has no friendship access to semantic fields. Queries return scalar values or
-style/drop-cap copies; mutations name the transition, such as closing a cell,
-consuming a marker/page break, clearing inline-size state, or recording an anchor.
-The existing layout cancellation pointer is a read-only borrow for synchronous
-layout. The driver still owns lifecycle access until the Rust handle replaces it.
-These C++ queries define the effects to transport, not C++ container layouts for
-the future C ABI.
+feedback values. Scalar queries return values and block/drop-cap queries copy
+fields. Notifications name the transition, such as closing a cell, consuming a
+marker/page break, or clearing inline-size state. C++ retains the bool stop latch
+borrowed by the existing synchronous layout routine; `requestStop` also updates
+the current Rust state reborrow.
 
 The scalar paragraph services are `paragraphExists`, `paragraphEmpty`,
 `paragraphSize`, `paragraphStyle`, `setParagraphStyle`, `createParagraph`,
 `resetParagraph`, `suppressFirstLineIndent`, `ensureRubyCapacity`, `addWord`,
 `addLinkTarget`, `linkTargetMatches`, `sizeSlotFor`, `getWordStyleAt`,
 `getRubyTextAt`, `setRubyGroupAt`, and `setRubyForWordAt`.
-`paragraphStyle` returns a borrowed mutable BlockStyle valid until paragraph
-replacement; `getRubyTextAt` retains the existing C++ value-copy behavior.
-Neither may become a long-lived Rust borrow across a paragraph mutation.
+The C boundary copies BlockStyle values. Font-scale-only queries return f32
+directly, avoiding a full style copy on every word; the host oracle still records
+the same underlying paragraph-style query and reply. `preserve_space` combines indent
+suppression and justify-to-left mutation in C++, preserving the original service
+order without exporting a mutable C++ reference. `ruby_append` reads and joins
+the existing annotation in C++, preserving its original string allocation.
+`list_marker` preserves the existing five-argument paragraph insertion. The
+link callbacks borrow NUL-terminated XML/footnote storage as well as its explicit
+length; other spans need no terminator and word insertion uses the length.
 
 Row-storage services are `clearTableCells`, `reserveTableCells`,
 `bufferedTableWords`, `tableStacked`, `setTableStacked`, `setTableRtl`,
@@ -157,3 +165,32 @@ Metric services are `bodyAscender`, `bodyIsSdFont`, `bodySpaceWidth`,
 `prepareBodyText` (text span and u8 font-style mask), `bodyTextAdvance` (text span
 and style u8), `pageWidth`, and `pageHeight` (u16). `applyParagraphDirection`
 changes direction flags only while the current paragraph is empty.
+
+
+## Allocation and tracing
+
+The chapter handle is initialized in place after a single fallible allocation.
+Semantic block/inline/list/ruby growth uses `try_reserve`; allocation failure
+latches OOM and fails the section instead of caching partial output. No semantic
+handle survives `abortParse` or the final assembly flush. An empty stylesheet
+store is distinct from having no CSS parser: inline styles still apply when the
+parser exists but has not allocated a store. CSS is loaded before chapter creation
+and its borrowed store must remain alive and unchanged until chapter destruction.
+
+Word storage is 201 bytes (200 plus NUL), drop-cap storage 13, footnote label 32,
+and retained href 256. CSS ancestors are bounded at 16 with four class hashes per
+ancestor. Tag/class/id spans borrow the XML event storage; no extra per-event
+copy or independent truncation is introduced. Existing Ruby, block/style/list,
+and image-alt buffers grow fallibly when needed. Ruby and image-alt text retain
+the C++ 15-byte short-string storage. Unknown entities reuse the driver input
+buffer after XML has copied its input; the existing buffer grows fallibly only
+when an entity exceeds its capacity. The table scanner
+uses 96 input bytes, 40 word bytes and 48 tag bytes on its stack.
+
+`chapter-trace` and `chapter-test` Cargo features are enabled only by the native
+test CMake configuration. Firmware's `scripts/build_rust.py` supplies neither.
+Tracing emits selected semantic observations through a synchronous callback;
+the host instrumenter also records assembler services and replies. Test-only
+entry points preserve direct-callback assertions, including state checks, without
+adding per-event FFI entry points to firmware. The original C++ implementation
+was removed after 312 public and 111 private operation streams matched.

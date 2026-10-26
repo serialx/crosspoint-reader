@@ -94,6 +94,9 @@ class CssParser {
   /** True when any ::first-letter rule is stored, so callers can skip that lookup. */
   [[nodiscard]] bool hasFirstLetterRules() const;
 
+  // Borrowed by the chapter semantic handle; CSS outlives the active parser.
+  [[nodiscard]] const XpCss* rustHandle() const { return handle; }
+
   [[nodiscard]] static CssAncestor makeAncestor(std::string_view tagName, std::string_view classAttr,
                                                 std::string_view idAttr);
 

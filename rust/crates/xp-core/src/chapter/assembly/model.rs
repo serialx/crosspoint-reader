@@ -240,6 +240,7 @@ pub trait Sink {
     }
     fn set_line_margin(&mut self, line: &mut Self::Payload, left: i16);
     fn line_links<'a>(&'a mut self, line: &'a mut Self::Payload) -> &'a [LineLink];
+    fn release_line_links(&mut self) {}
     fn complete(&mut self, page: Page<Self::Payload>, position: Position) -> Result;
     fn probe_image(
         &mut self,

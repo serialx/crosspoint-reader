@@ -693,7 +693,7 @@ typedef struct {
  * every line/image payload, including failure (null). page_links/page_footnotes
  * borrow their arrays until return; Rust then frees each source buffer. complete
  * consumes the C++ page after these copies. Input spans are borrowed
- * until return; returned line_links views last until the next line_links call,
+ * until return; returned line_links views last until release_line_links,
  * pending_anchor until defer/record. Only measure_table may use its supplied state. */
 typedef struct {
   const XpParaAllocator* (*allocator)(void);
@@ -712,6 +712,8 @@ typedef struct {
                                        bool table_row);
   void (*set_margin)(void* line, int16_t left);
   const XpChapterLineLink* (*line_links)(void* context, void* line, uint32_t* count);
+  /* Called once after each line_links borrow, including when copying fails. */
+  void (*release_line_links)(void* context);
   /* create_page consumes all payloads even on null. A non-null C++ page is passed
    * through the two copy callbacks and consumed exactly once by complete. */
   void* (*create_page)(void* context, const XpChapterElement* elements, uint32_t count);

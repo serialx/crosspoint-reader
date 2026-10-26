@@ -2688,3 +2688,44 @@ TEST_F(ChapterHtmlSlimParserTest, MultilingualImageFallbackMatchesCppCacheText) 
     }
   }
 }
+
+TEST_F(ChapterHtmlSlimParserTest, LineLinkScratchIsReleasedOnSuccessAndCopyFailure) {
+  for (bool failCopy : {false, true}) {
+    SCOPED_TRACE(failCopy);
+    completionAudit = {};
+    auto sink = auditedSink(parser.sink_);
+    static bool failLinks;
+    static size_t releases;
+    failLinks = failCopy;
+    releases = 0;
+    sink.line_links = [](void* ctx, void* line, uint32_t* count) -> const XpChapterLineLink* {
+      const auto* links = completionAudit.original.line_links(ctx, line, count);
+      EXPECT_EQ(*count, 1u);
+      if (failLinks) xp_test_fail_allocation_after(0);
+      return links;
+    };
+    sink.release_line_links = [](void* ctx) {
+      ++releases;
+      completionAudit.original.release_line_links(ctx);
+      xp_test_fail_allocation_after(SIZE_MAX);
+    };
+    const auto options = parser.chapterOptions();
+    ASSERT_EQ(xp_chapter_create(&parser.chapter_, &sink, &parser, cssParser.rustHandle(), &options), 0);
+    size_t pages = 0;
+    parser.completePageFn = [&](std::unique_ptr<Page>, auto, auto, auto) { ++pages; };
+    xp_chapter_begin(parser.chapter_);
+    const std::string html = "<html><body><p><a href='#one'>one</a></p></body></html>";
+    const auto fed = xp_chapter_feed(parser.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 1);
+    EXPECT_EQ(releases, 1u);
+    EXPECT_EQ(parser.lineLinks_.data, nullptr);
+    EXPECT_EQ(parser.lineLinks_.count, 0u);
+    const bool finished = fed == 1 && parser.finishParse();
+    EXPECT_EQ(finished, !failCopy);
+    EXPECT_EQ(pages, failCopy ? 0u : 1u);
+    parser.abortParse();
+    EXPECT_EQ(parser.lineLinks_.data, nullptr);
+    EXPECT_EQ(xp_test_live_allocations(), 0u);
+    EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
+  }
+  completionAudit = {};
+}

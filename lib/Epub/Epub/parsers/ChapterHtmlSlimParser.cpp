@@ -67,6 +67,7 @@ ChapterHtmlSlimParser::ParseStatus ChapterHtmlSlimParser::parseStep() {
 }
 
 void ChapterHtmlSlimParser::abortParse() {
+  lineLinks_ = {};
   if (chapter_) {
     xp_chapter_destroy(chapter_);
     chapter_ = nullptr;
@@ -86,6 +87,7 @@ void ChapterHtmlSlimParser::requestStop() {
 }
 
 bool ChapterHtmlSlimParser::finishParse() {
+  lineLinks_ = {};
   if (stopRequested) return false;
   // Same check as parseStep(): drops in the final buffer would otherwise slip
   // through because Done is returned before the next step's check runs.

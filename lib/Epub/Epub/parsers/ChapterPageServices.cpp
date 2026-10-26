@@ -180,6 +180,7 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
       *count = self->lineLinks_.count;
       return reinterpret_cast<const XpChapterLineLink*>(self->lineLinks_.data.get());
     },
+    [](void* ctx) { static_cast<ChapterPageAssembler*>(ctx)->lineLinks_ = {}; },
     [](void* ctx, const XpChapterElement* elements, uint32_t count) -> void* {
       return static_cast<ChapterPageAssembler*>(ctx)->createPage(elements, count).release();
     },

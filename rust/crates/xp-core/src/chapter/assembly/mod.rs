@@ -642,14 +642,17 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             self.latch(result)?;
         }
         let x = metrics.x;
-        if let Some(page) = self.page.as_mut() {
-            for link in sink.line_links(&mut line.payload) {
-                let result = page.add_line_link(link, x, self.next_y, metrics);
-                if let Err(error) = result {
-                    return self.latch(Err(error));
-                }
-            }
-        }
+        let links_result = if let Some(page) = self.page.as_mut() {
+            let result = sink
+                .line_links(&mut line.payload)
+                .iter()
+                .try_for_each(|link| page.add_line_link(link, x, self.next_y, metrics));
+            sink.release_line_links();
+            result
+        } else {
+            Ok(())
+        };
+        self.latch(links_result)?;
         self.add_element(Element {
             x,
             y: self.next_y,

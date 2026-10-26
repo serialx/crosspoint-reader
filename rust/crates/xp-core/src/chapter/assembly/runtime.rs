@@ -38,8 +38,8 @@ impl Drop for Payload {
     }
 }
 
-/// Inputs are borrowed until return. Returned link views last until the next
-/// line_links call; pending-anchor views last until defer/record. create_page consumes
+/// Inputs are borrowed until return. Returned link views last until
+/// release_line_links; pending-anchor views last until defer/record. create_page consumes
 /// every payload, including on allocation failure. Copy callbacks borrow their input
 /// until return; complete consumes the C++ page after Rust frees the source buffers.
 #[repr(C)]
@@ -59,6 +59,7 @@ pub struct Callbacks {
         unsafe extern "C" fn(*mut c_void, *const c_void, *const Options, bool) -> LineMetrics,
     pub set_margin: unsafe extern "C" fn(*mut c_void, i16),
     pub line_links: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut u32) -> *const LineLink,
+    pub release_line_links: unsafe extern "C" fn(*mut c_void),
     pub create_page: unsafe extern "C" fn(*mut c_void, *const Element<Payload>, u32) -> *mut c_void,
     pub page_links: unsafe extern "C" fn(*mut c_void, *const Link, u32),
     pub page_footnotes: unsafe extern "C" fn(*mut c_void, *const Footnote, u32),
@@ -207,6 +208,9 @@ impl Sink for PageSink {
         } else {
             unsafe { core::slice::from_raw_parts(data, count as usize) }
         }
+    }
+    fn release_line_links(&mut self) {
+        unsafe { (self.api().release_line_links)(self.context) };
     }
     fn complete(&mut self, page: Page<Payload>, position: Position) -> Result {
         let output = unsafe {

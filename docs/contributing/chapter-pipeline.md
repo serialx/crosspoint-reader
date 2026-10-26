@@ -26,7 +26,9 @@ The remaining C boundary is a synchronous page sink:
 
 Rules, drop caps, boxes and table separators are plain records until page
 completion. Input spans are borrowed for one call. Returned line-link spans remain valid
-until the next link extraction; pending-anchor spans last until defer/record.
+until `release_line_links`, called immediately after Rust copies them, including
+copy-allocation failure. The sink clears scratch on finish/abort too. Pending-anchor
+spans last until defer/record.
 Stored page links own their bytes. The C++ anchor store remains outside the Rust handle because `Section`
 reads it after `finishParse` and consumes `std::string` references. This preserves
 `getAnchors`, avoids a second string copy and keeps IDs at their existing length

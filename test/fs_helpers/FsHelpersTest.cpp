@@ -43,6 +43,11 @@ TEST(NormalisePath, CollapsesParentReferenceWithinPath) {
   EXPECT_EQ(FsHelpers::normalisePath("/Books/../.crosspoint/x"), ".crosspoint/x");
 }
 
+TEST(NormalisePath, BorrowsOnlyTheViewBytes) {
+  const std::string storage = "dir/../chapter.xhtml/ignored";
+  EXPECT_EQ(FsHelpers::normalisePath(std::string_view(storage.data(), 20)), "chapter.xhtml");
+}
+
 TEST(NormalisePath, DropsLeadingParentReferencesPastRoot) { EXPECT_EQ(FsHelpers::normalisePath("/../../etc"), "etc"); }
 
 // Sanitizes into a buffer of `size` bytes (at most 64, the size ScreenshotUtil uses).

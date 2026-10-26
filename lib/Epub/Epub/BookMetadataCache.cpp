@@ -131,7 +131,7 @@ struct BookMetadataCache::BuildStreams {
     if (!state.isZip) return state.rawSize;
     size_t size = state.sizes ? (*state.sizes)[index] : 0;
     if (size == 0) {
-      const auto path = FsHelpers::normalisePath(std::string(reinterpret_cast<const char*>(href.data), href.len));
+      const auto path = FsHelpers::normalisePath(std::string_view(reinterpret_cast<const char*>(href.data), href.len));
       if (!state.zip->getInflatedFileSize(path.c_str(), &size))
         LOG_ERR("BMC", "Could not get size for %s", path.c_str());
     }

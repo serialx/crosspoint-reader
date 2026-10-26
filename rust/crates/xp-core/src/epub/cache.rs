@@ -158,12 +158,22 @@ impl core::ops::Deref for Scratch {
     }
 }
 
-// Bounded nodes avoid a book-sized contiguous allocation, matching deque storage.
-pub struct Nodes<T> {
+// Only package index/mapping records belong here. Copy permits raw reads and drop
+// without element destructors; each nonzero record must fit the 512-byte budget.
+mod node_element {
+    pub trait Sealed: Copy {}
+    impl Sealed for super::super::facade::Item {}
+    impl Sealed for super::HrefIndex {}
+    impl Sealed for i16 {}
+}
+
+// Match the old deque payloads: 42 Items = 504 B, 32 HrefIndexes = 512 B,
+// 256 i16 mappings = 512 B. Nodes avoid a book-sized contiguous allocation.
+pub(super) struct Nodes<T: node_element::Sealed> {
     nodes: Vec<NonNull<T>>,
     len: usize,
 }
-impl<T: Copy> Default for Nodes<T> {
+impl<T: node_element::Sealed> Default for Nodes<T> {
     fn default() -> Self {
         Self {
             nodes: Vec::new(),
@@ -171,11 +181,12 @@ impl<T: Copy> Default for Nodes<T> {
         }
     }
 }
-impl<T: Copy> Nodes<T> {
-    const CAP: usize = 512 / core::mem::size_of::<T>();
-    pub fn len(&self) -> usize {
-        self.len
-    }
+impl<T: node_element::Sealed> Nodes<T> {
+    const CAP: usize = {
+        let size = core::mem::size_of::<T>();
+        assert!(size > 0 && size <= 512);
+        512 / size
+    };
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
@@ -236,7 +247,7 @@ impl<T: Copy> Nodes<T> {
         // Do not track later library sorts. An explicit tie-break rule needs a
         // separately approved behavior change and updated package goldens/tie test.
         #[inline(never)]
-        fn partition<T: Copy>(
+        fn partition<T: node_element::Sealed>(
             a: &mut Nodes<T>,
             first: usize,
             last: usize,
@@ -277,7 +288,7 @@ impl<T: Copy> Nodes<T> {
                 i += 1;
             }
         }
-        fn adjust<T: Copy>(
+        fn adjust<T: node_element::Sealed>(
             a: &mut Nodes<T>,
             base: usize,
             mut hole: usize,
@@ -310,7 +321,7 @@ impl<T: Copy> Nodes<T> {
             }
             a.set(base + hole, value)
         }
-        fn intro<T: Copy>(
+        fn intro<T: node_element::Sealed>(
             a: &mut Nodes<T>,
             mut first: usize,
             mut last: usize,
@@ -369,10 +380,9 @@ impl<T: Copy> Nodes<T> {
         Ok(())
     }
 }
-impl<T> Drop for Nodes<T> {
+impl<T: node_element::Sealed> Drop for Nodes<T> {
     fn drop(&mut self) {
-        let capacity = 512 / core::mem::size_of::<T>();
-        if let Ok(layout) = Layout::array::<T>(capacity) {
+        if let Ok(layout) = Layout::array::<T>(Self::CAP) {
             for node in &self.nodes {
                 unsafe {
                     dealloc(node.as_ptr().cast(), layout);
@@ -418,6 +428,12 @@ mod tests {
         assert_eq!(nodes.get(first).unwrap().spine, 8);
     }
 }
+
+const _: () = {
+    assert!(core::mem::size_of::<super::facade::Item>() == 12);
+    assert!(core::mem::size_of::<HrefIndex>() == 16);
+    assert!(core::mem::size_of::<i16>() == 2);
+};
 
 #[derive(Clone, Copy)]
 struct HrefIndex {

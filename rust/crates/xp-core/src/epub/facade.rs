@@ -86,7 +86,7 @@ impl Simple {
     }
 }
 #[derive(Clone, Copy)]
-struct Item {
+pub(super) struct Item {
     hash: u32,
     len: u16,
     offset: u32,

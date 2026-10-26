@@ -45,6 +45,7 @@ pub struct Trace {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Services {
+    pub entity_lookup: unsafe extern "C" fn(*mut c_void, *mut State, Span) -> Span,
     pub entity_buffer: unsafe extern "C" fn(*mut c_void, *mut State, u32) -> *mut u8,
     pub list_marker: unsafe extern "C" fn(*mut c_void, *mut State, Span, u32),
     pub preserve_space: unsafe extern "C" fn(*mut c_void, *mut State),
@@ -106,6 +107,11 @@ pub struct Services {
 }
 
 impl State {
+    pub fn entity_lookup(&mut self, spelling: Span) -> Span {
+        let callback = unsafe { (*self.services).entity_lookup };
+        unsafe { callback(self.ctx, self, spelling) }
+    }
+
     pub fn entity_buffer(&mut self, length: u32) -> *mut u8 {
         let callback = unsafe { (*self.services).entity_buffer };
         unsafe { callback(self.ctx, self, length) }

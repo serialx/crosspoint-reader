@@ -5,15 +5,16 @@ use alloc::vec::Vec;
 use core::ffi::c_void;
 mod buffer;
 mod end;
-pub mod entities;
 pub mod feedback;
 pub mod services;
 mod start;
 pub mod style;
 pub mod table;
+mod tag;
 mod text;
 use services::{Services, Span};
 use style::{Block, Css, DropCap, Entry, Footnote, InlineSize};
+use tag::Tag;
 
 #[derive(Clone, Copy, Default)]
 struct List {
@@ -207,7 +208,7 @@ impl State {
     fn make_pages(&mut self, last: bool) {
         self.call_make_pages(u8::from(last), 1);
     }
-    fn font_scale(&self, block: &mut Block, css: Css, name: &[u8]) {
+    fn font_scale(&self, block: &mut Block, css: &Css, tag: Tag) {
         let mut parent = self.parent().font_scale;
         for entry in &self.inline {
             if entry.has_scale {
@@ -225,7 +226,8 @@ impl State {
             } else {
                 parent * css.value(60)
             };
-        } else if let [b'h', level @ b'1'..=b'6'] = name {
+        } else if tag.heading() != 0 {
+            let level = tag.heading() + b'0';
             let scales = [2.0, 1.5, 1.17, 1.0, 0.83, 0.67];
             scale = parent * scales[usize::from(level - b'1')];
         }
@@ -233,7 +235,7 @@ impl State {
         block.font_scale_defined = 1;
     }
     fn update_style(&mut self) {
-        let css = self.current_css;
+        let css = &self.current_css;
         self.bold = css.has(2) && css.byte(2) == 1;
         self.italic = css.has(1) && css.byte(1) == 1;
         self.decoration = if css.has(3) { css.byte(3) } else { 0 };
@@ -291,7 +293,7 @@ impl State {
         }
         self.call_direction(u8::from(defined), u8::from(rtl));
     }
-    fn push_block_text(&mut self, css: Css) {
+    fn push_block_text(&mut self, css: &Css) {
         let sized = css.has(19) || self.inline.iter().any(|entry| entry.has_scale);
         if !css.has(2)
             && !css.has(1)
@@ -325,7 +327,7 @@ impl State {
         self.push_inline(entry);
         self.update_style();
     }
-    fn push_decoration(&mut self, decoration: u8, css: Css) {
+    fn push_decoration(&mut self, decoration: u8, css: &Css) {
         let mut entry = Entry {
             depth: self.depth,
             has_decoration: true,
@@ -342,22 +344,6 @@ impl State {
 
 fn whitespace(c: u8) -> bool {
     matches!(c, b' ' | b'\r' | b'\n' | b'\t')
-}
-fn header(name: &[u8]) -> bool {
-    matches!(name, [b'h', b'1'..=b'6'])
-}
-fn block(name: &[u8]) -> bool {
-    header(name)
-        || matches!(
-            name,
-            b"p" | b"li" | b"div" | b"br" | b"blockquote" | b"ul" | b"ol" | b"pre" | b"figure"
-        )
-}
-fn structural(name: &[u8]) -> bool {
-    matches!(name, b"table" | b"tr" | b"td" | b"th")
-}
-fn image(name: &[u8]) -> bool {
-    matches!(name, b"img" | b"image")
 }
 fn non_visible(name: &[u8]) -> bool {
     [b"head".as_slice(), b"style", b"script", b"title", b"rp"]

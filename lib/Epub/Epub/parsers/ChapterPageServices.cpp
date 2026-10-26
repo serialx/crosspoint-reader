@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "ChapterPageAssembler.h"
+#include "Epub/htmlEntities.h"
 
 namespace {
 std::string chapterString(XpChapterSpan span) {
@@ -120,33 +121,39 @@ void ChapterPageAssembler::semanticRecordAnchor(const uint16_t page) {
   pendingAnchorId.clear();
 }
 
+// Leaf storage services do not reenter semantics. Assembly operations install
+// a state reborrow because they can query or notify Rust, including nested flushes.
 const XpChapterServices ChapterPageAssembler::services_ = {
+    [](void*, XpChapterState*, XpChapterSpan spelling) -> XpChapterSpan {
+      const char* value = lookupHtmlEntity(reinterpret_cast<const char*>(spelling.data), spelling.len);
+      return {reinterpret_cast<const uint8_t*>(value), value ? static_cast<uint32_t>(strlen(value)) : 0};
+    },
     [](void* ctx, XpChapterState* state, uint32_t length) -> uint8_t* {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->entityBuffer(length);
     },
     [](void* ctx, XpChapterState* state, XpChapterSpan text, uint32_t offset) {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       const auto marker = chapterString(text);
       self->addWord(marker, EpdFontFamily::REGULAR, false, false, offset);
     },
     [](void* ctx, XpChapterState* state) {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->suppressFirstLineIndent();
       auto& style = self->paragraphStyle();
       if (style.alignment == CssTextAlign::Justify) style.alignment = CssTextAlign::Left;
     },
     [](void* ctx, XpChapterState* state) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->paragraphEmpty();
     },
     [](void* ctx, XpChapterState* state) -> uint32_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->paragraphSize();
     },
     [](void* ctx, XpChapterState* state) -> float {
@@ -156,52 +163,52 @@ const XpChapterServices ChapterPageAssembler::services_ = {
     },
     [](void* ctx, XpChapterState* state, XpChapterBlock* out) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       *out = chapterBlock(self->paragraphStyle());
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->suppressFirstLineIndent();
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->ensureRubyCapacity();
     },
     [](void* ctx, XpChapterState* state, XpChapterSpan href) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->addLinkTarget(reinterpret_cast<const char*>(href.data));
     },
     [](void* ctx, XpChapterState* state, uint8_t id, XpChapterSpan href) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->linkTargetMatches(id, reinterpret_cast<const char*>(href.data));
     },
     [](void* ctx, XpChapterState* state, float scale) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->sizeSlotFor(scale);
     },
     [](void* ctx, XpChapterState* state, const XpChapterBlock* style) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->setParagraphStyle(chapterBlock(*style));
     },
     [](void* ctx, XpChapterState* state, uint32_t index) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->getWordStyleAt(index);
     },
     [](void* ctx, XpChapterState* state, uint32_t index, uint32_t count, XpChapterSpan text) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->setRubyGroupAt(index, count, chapterString(text));
     },
     [](void* ctx, XpChapterState* state, uint32_t index, XpChapterSpan text) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       const auto previous = self->getRubyTextAt(index);
       const auto combined = previous + chapterString(text);
       self->setRubyForWordAt(index, combined);
@@ -209,34 +216,34 @@ const XpChapterServices ChapterPageAssembler::services_ = {
     [](void* ctx, XpChapterState* state, XpChapterSpan word, uint8_t style, uint8_t underline, uint8_t attach,
        uint32_t offset, uint8_t link, uint8_t slot, uint8_t no_space) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       // ParsedText already owns this one word copy; the span need not end with NUL.
       self->addWord(chapterString(word), static_cast<EpdFontFamily::Style>(style), underline != 0, attach != 0, offset,
                     link, slot, no_space != 0);
     },
     [](void* ctx, XpChapterState* state) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->paragraphExists();
     },
     [](void* ctx, XpChapterState* state, const XpChapterBlock* style) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->createParagraph(chapterBlock(*style));
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->resetParagraph();
     },
     [](void* ctx, XpChapterState* state) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->bodyIsSdFont();
     },
     [](void* ctx, XpChapterState* state) -> int32_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->bodySpaceWidth();
     },
     [](void* ctx, XpChapterState* state, XpChapterSpan text, uint8_t style) -> void {
@@ -265,77 +272,77 @@ const XpChapterServices ChapterPageAssembler::services_ = {
     },
     [](void* ctx, XpChapterState* state) -> int32_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->bodyAscender();
     },
     [](void* ctx, XpChapterState* state) -> uint16_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->pageWidth();
     },
     [](void* ctx, XpChapterState* state) -> uint16_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->pageHeight();
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->clearTableCells();
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->reserveTableCells();
     },
     [](void* ctx, XpChapterState* state) -> uint32_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->bufferedTableWords();
     },
     [](void* ctx, XpChapterState* state) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->tableStacked();
     },
     [](void* ctx, XpChapterState* state, uint8_t value) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->setTableStacked(value != 0);
     },
     [](void* ctx, XpChapterState* state, uint8_t value) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->setTableRtl(value != 0);
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->resetTableBytes();
     },
     [](void* ctx, XpChapterState* state) -> uint32_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->tableBytes();
     },
     [](void* ctx, XpChapterState* state, uint32_t count) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->addTableBytes(count);
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->resetExtractedWords();
     },
     [](void* ctx, XpChapterState* state) -> int32_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->extractedWords();
     },
     [](void* ctx, XpChapterState* state, int32_t index, const XpChapterFootnote* entry) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       FootnoteEntry value;
       memcpy(value.number, entry->number, sizeof(value.number));
       memcpy(value.href, entry->href, sizeof(value.href));
@@ -343,7 +350,7 @@ const XpChapterServices ChapterPageAssembler::services_ = {
     },
     [](void* ctx, XpChapterState* state, int32_t depth) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->boxAtDepth(depth);
     },
     [](void* ctx, XpChapterState* state, XpChapterSpan src, const uint8_t* css) -> uint8_t {
@@ -410,34 +417,34 @@ const XpChapterServices ChapterPageAssembler::services_ = {
     },
     [](void* ctx, XpChapterState* state, uint8_t defined, uint8_t rtl) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->applyParagraphDirection(defined != 0, rtl != 0);
     },
     [](void* ctx, XpChapterState* state, XpChapterSpan id) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       const std::string_view value(reinterpret_cast<const char*>(id.data), id.len);
       return std::any_of(self->tocAnchors.begin(), self->tocAnchors.end(),
                          [&](const auto& anchor) { return anchor == value; });
     },
     [](void* ctx, XpChapterState* state) -> uint32_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->anchorData.size();
     },
     [](void* ctx, XpChapterState* state) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       return self->semanticHasAnchor();
     },
     [](void* ctx, XpChapterState* state, XpChapterSpan id) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)state;
       self->pendingAnchorId.assign(reinterpret_cast<const char*>(id.data), id.len);
     },
     [](void* ctx, XpChapterState* state, const XpChapterTrace* record) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      SemanticBorrow borrow(*self, state);
+      (void)ctx;
+      (void)state;
       (void)record;
     },
 };

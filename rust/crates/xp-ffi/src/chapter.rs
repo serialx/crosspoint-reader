@@ -131,25 +131,30 @@ pub unsafe extern "C" fn xp_chapter_feed(
             Kind::End => chapter.state.end(text),
             Kind::Text => chapter.state.characters(text),
             Kind::Entity => {
-                if let Some(value) = chapter::entities::lookup(text) {
-                    chapter.state.characters(value);
-                } else {
-                    let Some(length) = text.len().checked_add(2) else {
-                        return 2;
-                    };
-                    let Ok(length32) = u32::try_from(length) else {
-                        return 2;
-                    };
-                    let storage = chapter.state.entity_buffer(length32);
-                    if storage.is_null() {
-                        chapter.state.oom = true;
-                        return 2;
-                    }
-                    let buffer = core::slice::from_raw_parts_mut(storage, length);
-                    buffer[0] = b'&';
-                    buffer[1..length - 1].copy_from_slice(text);
-                    buffer[length - 1] = b';';
+                let Some(length) = text.len().checked_add(2) else {
+                    return 2;
+                };
+                let Ok(length32) = u32::try_from(length) else {
+                    return 2;
+                };
+                let storage = chapter.state.entity_buffer(length32);
+                if storage.is_null() {
+                    chapter.state.oom = true;
+                    return 2;
+                }
+                let buffer = core::slice::from_raw_parts_mut(storage, length);
+                buffer[0] = b'&';
+                buffer[1..length - 1].copy_from_slice(text);
+                buffer[length - 1] = b';';
+                let value = chapter
+                    .state
+                    .entity_lookup(chapter::services::Span::new(buffer));
+                if value.data.is_null() {
                     chapter.state.characters(buffer);
+                } else {
+                    chapter
+                        .state
+                        .characters(core::slice::from_raw_parts(value.data, value.len as usize));
                 }
             }
             Kind::Comment | Kind::Pi | Kind::CdataStart | Kind::CdataEnd => {}

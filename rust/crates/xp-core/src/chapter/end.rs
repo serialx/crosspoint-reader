@@ -3,13 +3,14 @@ impl State {
     // Keep the event frame separate from the XML driver on the 8 KiB render stack.
     #[inline(never)]
     pub fn end(&mut self, name: &[u8]) {
+        let tag = Tag::parse(name);
         if self.stopped || self.oom {
             return;
         }
         if self.non_visible > 0 {
             self.non_visible -= 1;
         }
-        if name == b"rt" {
+        if tag == Tag::RubyText {
             self.collecting_ruby = false;
             if self.in_ruby && self.paragraph_exists() {
                 let current = self.call_paragraph_size() as i32;
@@ -39,7 +40,7 @@ impl State {
             self.depth -= 1;
             return;
         }
-        if name == b"ruby" && self.in_ruby {
+        if tag == Tag::Ruby && self.in_ruby {
             self.in_ruby = false;
             self.ruby_start = -1;
             self.ruby.clear();
@@ -55,10 +56,10 @@ impl State {
             .is_some_and(|entry| entry.depth == self.depth - 1);
         let change =
             pop || self.bold_until == self.depth - 1 || self.italic_until == self.depth - 1;
-        let is_block = block(name);
-        let structural = structural(name);
+        let is_block = tag.block();
+        let structural = tag.structural();
         let skipped = self.depth > self.skip;
-        if !skipped && self.table_depth > 1 && name == b"table" {
+        if !skipped && self.table_depth > 1 && tag == Tag::Table {
             if self.word_len > 0 {
                 self.flush_word();
             }
@@ -68,15 +69,12 @@ impl State {
             return;
         }
         if self.word_len > 0 {
-            let inline = !is_block && !structural && !image(name) && self.depth != 1;
+            let inline = !is_block && !structural && !(tag == Tag::Image) && self.depth != 1;
             let flush = change
                 || is_block
-                || matches!(
-                    name,
-                    b"b" | b"strong" | b"i" | b"em" | b"u" | b"ins" | b"del" | b"s" | b"strike"
-                )
+                || matches!(tag, Tag::Bold | Tag::Italic | Tag::Underline | Tag::Strike)
                 || structural
-                || image(name)
+                || (tag == Tag::Image)
                 || self.depth == 1;
             if flush {
                 self.flush_word();
@@ -86,7 +84,7 @@ impl State {
             }
         }
         if is_block
-            && name != b"br"
+            && tag != Tag::Break
             && !skipped
             && self.paragraph_exists()
             && self.paragraph_empty()
@@ -118,15 +116,15 @@ impl State {
         if self.skip == self.depth {
             self.skip = i32::MAX;
         }
-        if !skipped && self.table_depth == 1 && matches!(name, b"td" | b"th") {
+        if !skipped && self.table_depth == 1 && matches!(tag, Tag::Cell | Tag::HeaderCell) {
             self.call_close_cell();
             self.continued = false;
         }
-        if !skipped && self.table_depth == 1 && name == b"tr" {
+        if !skipped && self.table_depth == 1 && tag == Tag::Row {
             self.call_finish_row();
             self.continued = false;
         }
-        if !skipped && self.table_depth == 1 && name == b"table" {
+        if !skipped && self.table_depth == 1 && tag == Tag::Table {
             self.call_finish_row();
             if self.paragraph_exists() && !self.paragraph_empty() {
                 self.make_pages(true);
@@ -167,7 +165,7 @@ impl State {
         if is_block && !skipped {
             self.current_css = Css::default();
             self.update_style();
-            if name != b"br" && self.blocks.len() > 1 {
+            if tag != Tag::Break && self.blocks.len() > 1 {
                 if self.paragraph_exists() {
                     let style = self.paragraph_style().add_bottom(self.parent());
                     self.call_set_paragraph_style(&style);
@@ -183,11 +181,11 @@ impl State {
                     self.page_break = true;
                 }
             }
-            if name == b"li" {
+            if tag == Tag::ListItem {
                 self.marker_only = false;
             }
         }
-        if matches!(name, b"ul" | b"ol")
+        if matches!(tag, Tag::UnorderedList | Tag::OrderedList)
             && self
                 .lists
                 .last()
@@ -195,10 +193,10 @@ impl State {
         {
             self.lists.pop();
         }
-        if name == b"body" {
+        if tag == Tag::Body {
             self.inside_body = false;
         }
-        if name == b"html" {
+        if tag == Tag::Html {
             self.ended = true;
         }
     }

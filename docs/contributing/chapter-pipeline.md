@@ -112,7 +112,9 @@ callback over a stack-local HalFile; it never retains the file or buffer.
 
 Assembly may query values or issue named state notifications during a service
 call. It must use the state pointer supplied to that call, never an older handle
-borrow. `SemanticBorrow` restores the previous pointer after nested calls. The
+borrow. `SemanticBorrow` installs that pointer only for operations that can reenter
+semantics and restores the previous pointer after nested calls. Leaf paragraph
+and row-storage services do not read or mutate Rust state. The
 only reverse semantic operation that emits further services is `FlushWord`;
 no Rust vector reference is retained across those services. Callbacks must not
 feed or destroy the chapter handle. These feedback effects remain required:
@@ -182,7 +184,7 @@ and retained href 256. CSS ancestors are bounded at 16 with four class hashes pe
 ancestor. Tag/class/id spans borrow the XML event storage; no extra per-event
 copy or independent truncation is introduced. Existing Ruby, block/style/list,
 and image-alt buffers grow fallibly when needed. Ruby and image-alt text retain
-the C++ 15-byte short-string storage. Unknown entities reuse the driver input
+the C++ 15-byte short-string storage. Entity spellings reuse the driver input
 buffer after XML has copied its input; the existing buffer grows fallibly only
 when an entity exceeds its capacity. The table scanner
 uses 96 input bytes, 40 word bytes and 48 tag bytes on its stack.
@@ -194,3 +196,9 @@ the host instrumenter also records assembler services and replies. Test-only
 entry points preserve direct-callback assertions, including state checks, without
 adding per-event FFI entry points to firmware. The original C++ implementation
 was removed after 312 public and 111 private operation streams matched.
+
+The entity vocabulary is shared with the existing C++ `HtmlToPlainText` and
+KOReader progress mapper through `entity_lookup`. Rust owns expansion and unknown
+entity preservation; this rare immutable-data query avoids a second vocabulary.
+It does not forward XML start/end/text events to C++. The query returns a static
+UTF-8 span or null for an unknown spelling and performs no allocation.

@@ -79,6 +79,7 @@ impl State {
             .first()
             .and_then(|f| event.data.get(f.range.clone()))
             .unwrap_or(&[]);
+        let tag = Tag::parse(name);
         if name.eq_ignore_ascii_case(b"body") {
             self.inside_body = true;
         }
@@ -89,10 +90,10 @@ impl State {
             self.depth += 1;
             return;
         }
-        if name == b"p" {
+        if tag == Tag::Paragraph {
             self.paragraph_index = self.paragraph_index.wrapping_add(1);
         }
-        if name == b"li" {
+        if tag == Tag::ListItem {
             self.list_index = self.list_index.wrapping_add(1);
         }
         let mut classes = b"".as_slice();
@@ -109,7 +110,7 @@ impl State {
                 b"id" => {
                     id = value;
                     let toc = self.call_anchor_is_toc(Span::new(id)) != 0;
-                    if toc || (name != b"span" && self.call_anchor_count() < 1024) {
+                    if toc || (tag != Tag::Span && self.call_anchor_count() < 1024) {
                         if self.call_has_anchor() != 0 {
                             self.call_flush_anchor();
                         }
@@ -148,7 +149,7 @@ impl State {
                 None,
             );
         }
-        if name == b"pre" && !css.has(30) {
+        if tag == Tag::Pre && !css.has(30) {
             css.set(83, 1, Some(30));
         }
         if hidden {
@@ -167,7 +168,7 @@ impl State {
             self.depth += 1;
             return;
         }
-        if name == b"table" {
+        if tag == Tag::Table {
             if self.table_depth > 0 {
                 if self.table_depth == 1 && self.inside_cell && self.word_len > 0 {
                     self.flush_word();
@@ -187,7 +188,7 @@ impl State {
             self.call_flush_anchor();
             self.inline_size = InlineSize::default();
             self.drop_cap.first_pending = 0;
-            self.push_block_text(css);
+            self.push_block_text(&css);
             self.table_depth = 1;
             self.inside_cell = false;
             self.call_set_stacked(0);
@@ -212,7 +213,7 @@ impl State {
             self.depth += 1;
             return;
         }
-        if self.table_depth == 1 && name == b"tr" {
+        if self.table_depth == 1 && tag == Tag::Row {
             self.call_finish_row();
             if self.paragraph_exists() && !self.paragraph_empty() {
                 self.make_pages(true);
@@ -224,11 +225,11 @@ impl State {
             if self.rows_spanned != u16::MAX && self.rows_spanned > 0 {
                 self.rows_spanned -= 1;
             }
-            self.push_block_text(css);
+            self.push_block_text(&css);
             self.depth += 1;
             return;
         }
-        if self.table_depth == 1 && matches!(name, b"td" | b"th") {
+        if self.table_depth == 1 && matches!(tag, Tag::Cell | Tag::HeaderCell) {
             if self.word_len > 0 {
                 self.flush_word();
             }
@@ -248,21 +249,21 @@ impl State {
                         .max(if rows == u16::MAX { rows } else { rows - 1 });
             }
             let mut cell = Block::default();
-            self.font_scale(&mut cell, css, name);
+            self.font_scale(&mut cell, &css, tag);
             let em = self.call_body_ascender() as f32;
             // Keep viewport queries in the C++ source order, including repeated padding queries.
             cell.padding_left = if css.has(11) {
-                self.cell_padding(css, 40, em, true)
+                self.cell_padding(&css, 40, em, true)
             } else {
                 4
             };
             cell.padding_right = if css.has(12) {
-                self.cell_padding(css, 45, em, true)
+                self.cell_padding(&css, 45, em, true)
             } else {
                 4
             };
-            cell.padding_top = self.cell_padding(css, 30, em, false);
-            cell.padding_bottom = self.cell_padding(css, 35, em, false);
+            cell.padding_top = self.cell_padding(&css, 30, em, false);
+            cell.padding_bottom = self.cell_padding(&css, 35, em, false);
             cell.text_align_defined = 1;
             cell.alignment = if css.has(0) {
                 css.byte(0)
@@ -293,8 +294,8 @@ impl State {
             self.inside_cell = true;
             self.call_reset_extracted();
             self.call_flush_anchor();
-            self.push_block_text(css);
-            if name == b"th" && (!css.has(2) || css.byte(2) == 1) {
+            self.push_block_text(&css);
+            if tag == Tag::HeaderCell && (!css.has(2) || css.byte(2) == 1) {
                 self.bold_until = self.bold_until.min(self.depth);
             }
             self.depth += 1;
@@ -302,14 +303,14 @@ impl State {
         }
         if self.table_depth >= 1
             && self.inside_cell
-            && (block(name) || name == b"hr" || image(name))
+            && (tag.block() || tag == Tag::Rule || (tag == Tag::Image))
         {
             if self.word_len > 0 {
                 self.flush_word();
             }
             self.call_table_fallback();
         }
-        if image(name) {
+        if tag == Tag::Image {
             let mut src = b"".as_slice();
             let mut alt = b"".as_slice();
             for (key, value) in fields(event) {
@@ -375,7 +376,7 @@ impl State {
             self.depth += 1;
             return;
         }
-        if name == b"ruby" {
+        if tag == Tag::Ruby {
             self.flush_before_inline();
             self.in_ruby = true;
             self.ruby_start = if self.paragraph_exists() {
@@ -390,7 +391,7 @@ impl State {
             self.depth += 1;
             return;
         }
-        if name == b"rt" {
+        if tag == Tag::RubyText {
             if self.word_len > 0 {
                 self.flush_word();
             }
@@ -412,7 +413,7 @@ impl State {
             return;
         }
         let href = attr(event, b"href");
-        if name == b"a" && internal_link(href) {
+        if tag == Tag::Link && internal_link(href) {
             if self.table_depth >= 1 && self.inside_cell && self.call_table_stacked() == 0 {
                 self.call_table_fallback();
             }
@@ -441,9 +442,9 @@ impl State {
                 decoration: 1,
                 ..Entry::default()
             };
-            entry.presentation(css);
-            entry.direction(css);
-            entry.vertical(css);
+            entry.presentation(&css);
+            entry.direction(&css);
+            entry.vertical(&css);
             self.push_inline(entry);
             self.update_style();
             self.depth += 1;
@@ -451,10 +452,10 @@ impl State {
         }
         let em = self.call_body_ascender() as f32;
         let width = self.call_page_width();
-        let user = Block::from_css(css, em, self.alignment, width);
-        if name == b"hr" {
+        let user = Block::from_css(&css, em, self.alignment, width);
+        if tag == Tag::Rule {
             let width = self.call_page_width();
-            let mut hr = Block::from_css(css, em, 1, width);
+            let mut hr = Block::from_css(&css, em, 1, width);
             if !self.embedded {
                 hr.margin_left = 0;
                 hr.margin_right = 0;
@@ -471,29 +472,29 @@ impl State {
             self.depth += 1;
             return;
         }
-        if header(name) {
+        if tag.heading() != 0 {
             if self.word_len > 0 {
                 self.flush_word();
             }
             self.current_css = css;
             let width = self.call_page_width();
-            let mut style = Block::from_css(css, em, 2, width);
+            let mut style = Block::from_css(&css, em, 2, width);
             style.text_align_defined = 1;
             if self.embedded && css.has(0) {
                 style.alignment = css.byte(0);
             }
-            self.font_scale(&mut style, css, name);
+            self.font_scale(&mut style, &css, tag);
             style.keep_with_next = 1;
             self.call_open_box(&mut style, css.0 .0.as_ptr());
             let accumulated = self.parent().combine(style);
             self.push_block(accumulated);
             self.start_block(accumulated.without_bottom(), true);
-            self.push_block_text(css);
+            self.push_block_text(&css);
             self.arm_drop(name, classes, id);
             self.bold_until = self.bold_until.min(self.depth);
             self.update_style();
-        } else if block(name) {
-            if name == b"br" {
+        } else if tag.block() {
+            if tag == Tag::Break {
                 if self.word_len > 0 {
                     self.flush_word();
                 }
@@ -504,7 +505,7 @@ impl State {
                 }
                 self.current_css = css;
                 let mut style = user;
-                self.font_scale(&mut style, css, name);
+                self.font_scale(&mut style, &css, tag);
                 self.call_open_box(&mut style, css.0 .0.as_ptr());
                 let accumulated = self.parent().combine(style);
                 self.push_block(accumulated);
@@ -512,12 +513,12 @@ impl State {
                 if !self.paragraph_exists() {
                     return;
                 }
-                self.push_block_text(css);
+                self.push_block_text(&css);
                 self.update_style();
-                if name != b"li" {
+                if tag != Tag::ListItem {
                     self.arm_drop(name, classes, id);
                 }
-                if name == b"li" {
+                if tag == Tag::ListItem {
                     if self.lists.last().is_some_and(|l| l.none) {
                     } else if self.lists.last().is_some_and(|l| l.ordered) {
                         let Some(list) = self.lists.last_mut() else {
@@ -532,29 +533,29 @@ impl State {
                         self.call_list_marker(Span::new(b"\xe2\x80\xa2"), self.visible_offset);
                         self.marker_only = true;
                     }
-                } else if matches!(name, b"ul" | b"ol") {
+                } else if matches!(tag, Tag::UnorderedList | Tag::OrderedList) {
                     if self.lists.try_reserve(1).is_err() {
                         self.oom = true;
                         return;
                     }
                     self.lists.push(List {
-                        ordered: name == b"ol",
+                        ordered: tag == Tag::OrderedList,
                         none: css.has(18) && css.byte(67) == 1,
                         depth: self.depth,
                         counter: 0,
                     });
                 }
             }
-        } else if matches!(name, b"u" | b"ins" | b"del" | b"s" | b"strike") {
+        } else if matches!(tag, Tag::Underline | Tag::Strike) {
             self.flush_before_inline();
-            self.push_decoration(if matches!(name, b"u" | b"ins") { 1 } else { 2 }, css);
-        } else if matches!(name, b"b" | b"strong" | b"i" | b"em") {
+            self.push_decoration(if matches!(tag, Tag::Underline) { 1 } else { 2 }, &css);
+        } else if matches!(tag, Tag::Bold | Tag::Italic) {
             self.flush_before_inline();
             let mut entry = Entry {
                 depth: self.depth,
                 ..Entry::default()
             };
-            if matches!(name, b"b" | b"strong") {
+            if matches!(tag, Tag::Bold) {
                 self.bold_until = self.bold_until.min(self.depth);
                 entry.has_bold = true;
                 entry.bold = true;
@@ -571,33 +572,33 @@ impl State {
                     entry.bold = css.byte(2) == 1;
                 }
             }
-            entry.decoration(css);
-            entry.presentation(css);
-            entry.direction(css);
+            entry.decoration(&css);
+            entry.presentation(&css);
+            entry.direction(&css);
             self.push_inline(entry);
             self.update_style();
-        } else if matches!(name, b"sup" | b"sub") {
+        } else if matches!(tag, Tag::Sup | Tag::Sub) {
             self.flush_before_inline();
             let mut entry = Entry {
                 depth: self.depth,
                 ..Entry::default()
             };
-            if name == b"sup" {
+            if tag == Tag::Sup {
                 entry.has_sup = true;
                 entry.sup = true;
             } else {
                 entry.has_sub = true;
                 entry.sub = true;
             }
-            entry.presentation(css);
+            entry.presentation(&css);
             self.push_inline(entry);
             self.update_style();
         } else {
-            self.inline_element(name, css);
+            self.inline_element(tag, &css);
         }
         self.depth += 1;
     }
-    fn cell_padding(&mut self, css: Css, offset: usize, em: f32, horizontal: bool) -> i16 {
+    fn cell_padding(&mut self, css: &Css, offset: usize, em: f32, horizontal: bool) -> i16 {
         let limit = if horizontal {
             self.call_page_width()
         } else {
@@ -607,7 +608,7 @@ impl State {
         css.pixels(offset, em, f32::from(width))
             .clamp(0, limit as i16)
     }
-    fn inline_element(&mut self, name: &[u8], css: Css) {
+    fn inline_element(&mut self, tag: Tag, css: &Css) {
         if css.has(19)
             && self.table_depth == 0
             && self.word_len == 0
@@ -648,9 +649,9 @@ impl State {
             }
         }
         let table_align = self.table_depth >= 1 && css.has(0);
-        let tag_scale = if name == b"small" {
+        let tag_scale = if tag == Tag::Small {
             0.83
-        } else if name == b"big" {
+        } else if tag == Tag::Big {
             1.2
         } else {
             0.0
@@ -675,7 +676,7 @@ impl State {
             entry.decoration(css);
             entry.presentation(css);
             entry.direction(css);
-            entry.paragraph_direction = matches!(name, b"html" | b"body");
+            entry.paragraph_direction = matches!(tag, Tag::Html | Tag::Body);
             if table_align {
                 entry.has_align = true;
                 entry.align = css.byte(0);

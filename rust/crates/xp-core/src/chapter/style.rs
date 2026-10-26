@@ -107,7 +107,7 @@ impl Block {
         }
         child
     }
-    pub fn from_css(css: Css, em: f32, alignment: u8, width: u16) -> Self {
+    pub fn from_css(css: &Css, em: f32, alignment: u8, width: u16) -> Self {
         let mut block = Self::default();
         let width = f32::from(width);
         let cap = (em * 2.0) as i16;
@@ -146,10 +146,10 @@ impl Block {
 #[derive(Clone, Copy, Default)]
 pub struct Css(pub css::Style);
 impl Css {
-    pub fn has(self, bit: u32) -> bool {
+    pub fn has(&self, bit: u32) -> bool {
         self.0.flags() & (1 << bit) != 0
     }
-    pub fn byte(self, offset: usize) -> u8 {
+    pub fn byte(&self, offset: usize) -> u8 {
         self.0 .0.get(offset).copied().unwrap_or(0)
     }
     pub fn set(&mut self, offset: usize, value: u8, flag: Option<u32>) {
@@ -161,16 +161,16 @@ impl Css {
             self.0 .0[84..88].copy_from_slice(&flags.to_le_bytes());
         }
     }
-    pub fn value(self, offset: usize) -> f32 {
+    pub fn value(&self, offset: usize) -> f32 {
         let Some(value) = self.0 .0.get(offset..offset + 4) else {
             return 0.0;
         };
         f32::from_le_bytes([value[0], value[1], value[2], value[3]])
     }
-    pub fn unit(self, offset: usize) -> u8 {
+    pub fn unit(&self, offset: usize) -> u8 {
         self.byte(offset + 4)
     }
-    pub fn pixels(self, offset: usize, em: f32, width: f32) -> i16 {
+    pub fn pixels(&self, offset: usize, em: f32, width: f32) -> i16 {
         let value = self.value(offset);
         let pixels = match self.unit(offset) {
             1 | 2 => value * em,
@@ -181,13 +181,13 @@ impl Css {
         // C++ converts through the target integer width, wrapping the low 16 bits.
         (pixels as i32) as i16
     }
-    pub fn border(self, side: usize) -> Border {
+    pub fn border(&self, side: usize) -> Border {
         Border {
             width: self.byte(71 + side * 2),
             style: self.byte(72 + side * 2),
         }
     }
-    pub fn drop_lines(self) -> u8 {
+    pub fn drop_lines(&self) -> u8 {
         if self.has(29) && self.byte(82) > 0 {
             return if self.byte(82) >= 2 { self.byte(82) } else { 0 };
         }
@@ -288,19 +288,19 @@ pub struct Entry {
     pub scale: f32,
 }
 impl Entry {
-    pub fn decoration(&mut self, css: Css) {
+    pub fn decoration(&mut self, css: &Css) {
         if css.has(3) {
             self.has_decoration = true;
             self.decoration = css.byte(3);
         }
     }
-    pub fn direction(&mut self, css: Css) {
+    pub fn direction(&mut self, css: &Css) {
         if css.has(16) {
             self.has_direction = true;
             self.direction = css.byte(4);
         }
     }
-    pub fn presentation(&mut self, css: Css) {
+    pub fn presentation(&mut self, css: &Css) {
         if css.has(19) {
             self.has_scale = true;
             self.scale_rem = css.unit(60) == 2;
@@ -315,7 +315,7 @@ impl Entry {
             self.small = css.byte(68) != 0;
         }
     }
-    pub fn vertical(&mut self, css: Css) {
+    pub fn vertical(&mut self, css: &Css) {
         if !css.has(17) {
             return;
         }
@@ -327,7 +327,7 @@ impl Entry {
             self.sub = true;
         }
     }
-    pub fn font(&mut self, css: Css) {
+    pub fn font(&mut self, css: &Css) {
         if css.has(2) {
             self.has_bold = true;
             self.bold = css.byte(2) == 1;

@@ -511,6 +511,8 @@ typedef struct {
   const XpChapterBlock* block;
 } XpChapterTrace;
 typedef struct {
+  /* Shared immutable entity result, or {NULL, 0} for an unknown spelling. */
+  XpChapterSpan (*entity_lookup)(void*, XpChapterState*, XpChapterSpan);
   /* Writable driver scratch: XML feed already copied the input. */
   uint8_t* (*entity_buffer)(void*, XpChapterState*, uint32_t);
   void (*list_marker)(void* ctx, XpChapterState* state, XpChapterSpan text, uint32_t offset);

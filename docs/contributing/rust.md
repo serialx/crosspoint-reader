@@ -319,9 +319,17 @@ applies when the entire offered slice was consumed. Events borrow parser
 storage until the next operation. `xp-ffi` exposes the same driver contract
 through `xp_xml_*`; the header documents span and handle lifetimes.
 
-Container, encryption, OPF, nav and NCX consumers retain their C++ interfaces and
-storage ownership. `XmlPullParser` dispatches Rust events synchronously to their
-existing handlers. The chapter driver consumes `xp_xml_*` events directly in
+Container, encryption, OPF, nav and NCX use the C++ `PackageParser` Print adapter,
+which feeds `xp_pkg_pass_*` document handles. Rust `epub::facade` drives the
+parsers, manifest lookup and CSS paths; `epub::cache` owns the cache build state,
+spine/TOC record serialization, book.bin v10 layout, LUTs and cumulative sizes.
+`BookMetadataCache` owns the Rust cache handle; document passes borrow it and
+must be destroyed first. C++ retains Epub orchestration, HalFile ownership,
+buffered I/O and ZIP size callbacks, plus BookMetadataCache reads and size windows.
+See the [package oracle](../../test/package_golden/README.md) for parity checks
+and their limits.
+
+The chapter driver consumes `xp_xml_*` events directly in
 1,024-byte steps, passes original byte positions to table prescan, and honors
 cancellation after the active handler returns. It restores `&name;` for the
 existing HTML entity lookup in text only, reusing a checked read buffer.

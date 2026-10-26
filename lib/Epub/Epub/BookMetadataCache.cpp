@@ -5,9 +5,13 @@
 #include <Serialization.h>
 #include <Utf8.h>
 #include <ZipFile.h>
+#include <xp_ffi.h>
 
+#include <cstring>
 #include <deque>
+#include <limits>
 #include <mutex>
+#include <new>
 #include <optional>
 
 #include "FsHelpers.h"
@@ -36,14 +40,54 @@ uint32_t writeSpineEntryTo(F& file, const BookMetadataCache::SpineEntry& entry) 
 }
 
 template <typename F>
-uint32_t writeTocEntryTo(F& file, const BookMetadataCache::TocEntry& entry) {
+uint32_t writeTocFieldsTo(F& file, std::string_view title, std::string_view href, std::string_view anchor,
+                          uint8_t level, int16_t spineIndex) {
   const uint32_t pos = file.position();
-  serialization::writeString(file, entry.title);
-  serialization::writeString(file, entry.href);
-  serialization::writeString(file, entry.anchor);
-  serialization::writePod(file, entry.level);
-  serialization::writePod(file, entry.spineIndex);
+  for (const auto value : {title, href, anchor}) {
+    serialization::writePod(file, static_cast<uint32_t>(value.size()));
+    file.write(reinterpret_cast<const uint8_t*>(value.data()), value.size());
+  }
+  serialization::writePod(file, level);
+  serialization::writePod(file, spineIndex);
   return pos;
+}
+
+template <typename F>
+uint32_t writeTocEntryTo(F& file, const BookMetadataCache::TocEntry& entry) {
+  return writeTocFieldsTo(file, entry.title, entry.href, entry.anchor, entry.level, entry.spineIndex);
+}
+
+// Keep unchanged labels borrowed; composed labels need only one checked allocation.
+bool composeTocTitle(std::string_view& title, std::unique_ptr<uint8_t[]>& storage) {
+  const auto* bytes = reinterpret_cast<const uint8_t*>(title.data());
+  if (!xp_utf8_may_compose(bytes, title.size())) return true;
+  struct Sink {
+    uint8_t* bytes = nullptr;
+    size_t size = 0;
+    bool overflow = false;
+  } sink;
+  const auto emit = [](void* opaque, const uint8_t* value, size_t len) {
+    auto& out = *static_cast<Sink*>(opaque);
+    if (out.overflow || len > std::numeric_limits<size_t>::max() - out.size) {
+      out.overflow = true;
+      return;
+    }
+    if (out.bytes) std::memcpy(out.bytes + out.size, value, len);
+    out.size += len;
+  };
+  const auto absorbed = [](void*, uint32_t) -> uint8_t { return 1; };
+  if (!xp_utf8_compose(bytes, title.size(), emit, absorbed, &sink) || sink.overflow) return false;
+  if (sink.size == 0) {
+    title = {};
+    return true;
+  }
+  storage.reset(new (std::nothrow) uint8_t[sink.size]);
+  if (!storage) return false;
+  sink.bytes = storage.get();
+  sink.size = 0;
+  if (!xp_utf8_compose(bytes, title.size(), emit, absorbed, &sink)) return false;
+  title = std::string_view(reinterpret_cast<const char*>(sink.bytes), sink.size);
+  return true;
 }
 
 template <typename F>
@@ -405,11 +449,11 @@ void BookMetadataCache::createSpineEntry(const std::string& href) {
   spineCount++;
 }
 
-void BookMetadataCache::createTocEntry(const std::string& title, const std::string& href, const std::string& anchor,
+bool BookMetadataCache::createTocEntry(std::string_view title, std::string_view href, std::string_view anchor,
                                        const uint8_t level) {
   if (!buildMode || !tocFile || !spineFile) {
     LOG_DBG("BMC", "createTocEntry called but not in build mode");
-    return;
+    return false;
   }
 
   int16_t spineIndex = -1;
@@ -430,7 +474,8 @@ void BookMetadataCache::createTocEntry(const std::string& title, const std::stri
     }
 
     if (spineIndex == -1) {
-      LOG_DBG("BMC", "createTocEntry: Could not find spine item for TOC href %s", href.c_str());
+      LOG_DBG("BMC", "createTocEntry: Could not find spine item for TOC href %.*s", static_cast<int>(href.size()),
+              href.data());
     }
   } else {
     spineFile.seek(0);
@@ -442,19 +487,22 @@ void BookMetadataCache::createTocEntry(const std::string& title, const std::stri
       }
     }
     if (spineIndex == -1) {
-      LOG_DBG("BMC", "createTocEntry: Could not find spine item for TOC href %s", href.c_str());
+      LOG_DBG("BMC", "createTocEntry: Could not find spine item for TOC href %.*s", static_cast<int>(href.size()),
+              href.data());
     }
   }
 
   // Compose the title to NFC at index time so the cache stores precomposed glyphs;
   // device fonts have no combining-mark positioning, so NFD titles render broken.
-  const TocEntry entry(utf8ComposeNfc(title), href, anchor, level, spineIndex);
+  std::unique_ptr<uint8_t[]> normalized;
+  if (!composeTocTitle(title, normalized)) return false;
   if (passOut) {
-    writeTocEntryTo(*passOut, entry);
+    writeTocFieldsTo(*passOut, title, href, anchor, level, spineIndex);
   } else {
-    writeTocEntry(tocFile, entry);
+    writeTocFieldsTo(tocFile, title, href, anchor, level, spineIndex);
   }
   tocCount++;
+  return true;
 }
 
 /* ============= READING / LOADING FUNCTIONS ================ */

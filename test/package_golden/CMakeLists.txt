@@ -41,3 +41,16 @@ target_link_libraries(PackageAbiTest PRIVATE xp_ffi_host)
 target_compile_definitions(PackageAbiTest PRIVATE XP_FFI_HOST_FAULT_INJECTION)
 target_compile_options(PackageAbiTest PRIVATE -UNDEBUG)
 add_test(NAME PackageAllocationFailure COMMAND PackageAbiTest)
+
+add_executable(TocBoundaryTest TocBoundaryTest.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNavParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/TocNcxParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+get_target_property(PACKAGE_INCLUDES PackageOracle INCLUDE_DIRECTORIES)
+target_include_directories(TocBoundaryTest PRIVATE ${PACKAGE_INCLUDES}
+  ${REPO_ROOT}/rust/crates/xp-ffi/include)
+add_dependencies(TocBoundaryTest xp_ffi_host_build)
+target_link_libraries(TocBoundaryTest PRIVATE ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME TocBoundaryAllocation COMMAND TocBoundaryTest ${CMAKE_CURRENT_BINARY_DIR}/toc-boundary)

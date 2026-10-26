@@ -35,10 +35,10 @@ size_t TocNavParser::write(const uint8_t* bytes, size_t size) {
       if (record.kind == XP_PKG_NEED_INPUT || record.kind == XP_PKG_DONE) break;
       if (record.kind == XP_PKG_TOC) {
         if (cache)
-          cache->createTocEntry(std::string(reinterpret_cast<const char*>(record.value.data), record.value.len),
-                                std::string(reinterpret_cast<const char*>(record.href.data), record.href.len),
-                                std::string(reinterpret_cast<const char*>(record.anchor.data), record.anchor.len),
-                                record.level);
+          ok = cache->createTocEntry(
+              std::string_view(reinterpret_cast<const char*>(record.value.data), record.value.len),
+              std::string_view(reinterpret_cast<const char*>(record.href.data), record.href.len),
+              std::string_view(reinterpret_cast<const char*>(record.anchor.data), record.anchor.len), record.level);
       }
     }
     if (!ok || consumed != count) {

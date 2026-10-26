@@ -7,6 +7,7 @@
 #include <deque>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class BookMetadataCache {
@@ -83,7 +84,7 @@ class BookMetadataCache {
   static constexpr uint16_t LARGE_SPINE_THRESHOLD = 400;
 
   // FNV-1a 64-bit hash function
-  static uint64_t fnvHash64(const std::string& s) {
+  static uint64_t fnvHash64(std::string_view s) {
     uint64_t hash = 14695981039346656037ull;
     for (char c : s) {
       hash ^= static_cast<uint8_t>(c);
@@ -110,7 +111,7 @@ class BookMetadataCache {
   void createSpineEntry(const std::string& href);
   bool endContentOpfPass();
   bool beginTocPass();
-  void createTocEntry(const std::string& title, const std::string& href, const std::string& anchor, uint8_t level);
+  bool createTocEntry(std::string_view title, std::string_view href, std::string_view anchor, uint8_t level);
   bool endTocPass();
   bool endWrite();
   bool cleanupTmpFiles() const;

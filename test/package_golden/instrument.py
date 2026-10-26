@@ -6,8 +6,9 @@ from pathlib import Path
 
 source = Path(sys.argv[1]).read_text()
 prefix = '''#include <fstream>
+#include <string_view>
 extern std::ofstream packageCalls;
-void packageField(const std::string&);
+void packageField(std::string_view);
 '''
 pattern = r'((?:bool|void) BookMetadataCache::(\w+)\([^)]*\)(?: const)? \{)'
 

@@ -21,7 +21,7 @@ static std::string read(const std::filesystem::path& path) {
 }
 
 std::ofstream packageCalls;
-void packageField(const std::string& value) {
+void packageField(std::string_view value) {
   static const char hex[] = "0123456789abcdef";
   for (unsigned char c : value) packageCalls << hex[c >> 4] << hex[c & 15];
   packageCalls << ' ';

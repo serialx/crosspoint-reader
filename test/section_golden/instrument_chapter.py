@@ -9,13 +9,14 @@ def instrument(source):
     # Rust paragraph styles are values. These writes replace old reference mutations,
     # and the drop-cap reload preserves changes made during layout; neither was a
     # semantic paragraph request in the captured C++ implementation.
+    direct_paragraph = "list_marker is owned by the Rust paragraph" in source
     value_style_calls = {}
     if "  blockStyle = currentTextBlock->getBlockStyle();" in source:
         for index, (call, expected) in enumerate([
             ("currentTextBlock->setBlockStyle(pending);", 1),
             ("currentTextBlock->setBlockStyle(blockStyle);", 3),
             ("currentTextBlock->setBlockStyle(style);", 1),
-            ("self->setParagraphStyle(style);", 1),
+            ("self->setParagraphStyle(style);", 0 if direct_paragraph else 1),
             ("  blockStyle = currentTextBlock->getBlockStyle();", 1),
         ]):
             if source.count(call) != expected:
@@ -54,6 +55,8 @@ def instrument(source):
 
     def before(anchor, code):
         nonlocal source
+        if direct_paragraph and any(key in anchor for key in ("self->addWord(marker,", "self->setRubyGroupAt(index,", "self->setRubyForWordAt(index, combined)")):
+            return
         if rust and any(key in anchor for key in ("partWordBuffer, fontStyle", "dropCap.firstLetterPending", "memcpy(dropCap.text", "tableColumnCount =", "pendingFootnotes.push_back", "self->currentTextBlock->addWord(marker,", 'addWord("\\xe2', "setRubyGroupAt(self->", "setRubyForWordAt(leaderIdx", "!src.empty()")):
             return
         resolved = resolve(anchor)
@@ -193,6 +196,12 @@ def instrument(source):
       }
       case 6: ChapterTrace::record("TableColumns", w[0]); break;
       case 7: ChapterTrace::record("Column", w[0], w[1], w[2], w[3]); break;
+      case 9: {
+        const std::string_view marker(reinterpret_cast<const char*>(record->first.data), record->first.len);
+        ChapterTrace::record("ListMarker", ChapterTrace::hex(marker == "\xe2\x80\xa2" ? std::string("e280a2") : std::string(marker)), w[0]); break;
+      }
+      case 10: ChapterTrace::record("RubyGroup", w[0], w[1], bytes(record->first)); break;
+      case 11: ChapterTrace::record("RubyAppend", w[0], bytes(record->first)); break;
       default: throw std::runtime_error("Unknown chapter trace");
     }''')
     # Paragraph services used by semantic callbacks, including opaque slot/link replies.

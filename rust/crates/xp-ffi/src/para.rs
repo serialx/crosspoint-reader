@@ -354,8 +354,17 @@ pub unsafe extern "C" fn xp_para_init(
     hyphenation: u8,
     focus: u8,
     indent: u8,
+    starts_rtl: unsafe extern "C" fn(Span, i32) -> u8,
 ) {
-    Paragraph::initialize(p, allocator, *block, hyphenation != 0, focus != 0, indent);
+    Paragraph::initialize(
+        p,
+        allocator,
+        *block,
+        hyphenation != 0,
+        focus != 0,
+        indent,
+        starts_rtl,
+    );
 }
 
 /// # Safety
@@ -382,7 +391,6 @@ pub unsafe extern "C" fn xp_para_add_word(
     link: u8,
     slot: u8,
     no_space: u8,
-    starts_rtl: unsafe extern "C" fn(Span, i32) -> u8,
 ) {
     (*p).add_word(
         para_span(word),
@@ -393,7 +401,6 @@ pub unsafe extern "C" fn xp_para_add_word(
         link,
         slot,
         no_space != 0,
-        starts_rtl,
     );
 }
 
@@ -591,4 +598,15 @@ pub unsafe extern "C" fn xp_para_word(p: *const Paragraph, index: u32) -> Span {
 #[no_mangle]
 pub unsafe extern "C" fn xp_para_indent(p: *const Paragraph) -> u8 {
     (*p).indent
+}
+
+/// # Safety
+/// state is the current synchronous semantic reborrow. Paragraph is null or a live
+/// disjoint owner; assembly must rebind before its destruction or replacement.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_bind_chapter(
+    state: *mut xp_core::chapter::State,
+    paragraph: *mut Paragraph,
+) {
+    (*state).set_paragraph(paragraph);
 }

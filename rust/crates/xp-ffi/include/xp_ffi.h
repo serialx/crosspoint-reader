@@ -273,6 +273,7 @@ size_t xp_layout_strip_soft_hyphens(uint8_t* data, size_t len);
 // All spans are borrowed for one call. Metrics cannot reenter the paragraph; the
 // line sink may query scalars, but cannot mutate/destroy it or retain its spans.
 typedef struct XpParagraph XpParagraph;
+typedef struct XpChapterState XpChapterState;
 typedef struct {
   const uint8_t* data;
   uint32_t len;
@@ -348,10 +349,11 @@ typedef struct {
   uint8_t (*emit)(void*, const XpParaLine*);
 } XpParaLayout;
 void xp_para_init(XpParagraph*, const XpParaAllocator*, const XpParaBlock*, uint8_t hyphenation, uint8_t focus,
-                  uint8_t indent);
+                  uint8_t indent, uint8_t (*starts_rtl)(XpParaSpan, int32_t));
 void xp_para_destroy(XpParagraph*);
+void xp_para_bind_chapter(XpChapterState*, XpParagraph*);
 void xp_para_add_word(XpParagraph*, XpParaSpan, uint8_t style, uint8_t underline, uint8_t attach, uint32_t offset,
-                      uint8_t link, uint8_t slot, uint8_t no_space, uint8_t (*starts_rtl)(XpParaSpan, int32_t));
+                      uint8_t link, uint8_t slot, uint8_t no_space);
 uint8_t xp_para_add_link(XpParagraph*, XpParaSpan);
 uint8_t xp_para_link_matches(const XpParagraph*, uint8_t, XpParaSpan);
 XpParaSpan xp_para_ruby(const XpParagraph*, uint32_t);

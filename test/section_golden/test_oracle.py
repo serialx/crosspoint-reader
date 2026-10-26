@@ -25,6 +25,11 @@ class OracleTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "layout call 2, trace line 4"):
             compare({"book/0/0.layout": old}, {"book/0/0.layout": old.replace(b"10", b"11")})
 
+    def test_paragraph_filter_keeps_other_operations_and_replies(self):
+        from run import filter_paragraph_ops
+        trace = b"Paragraph.size\nReply\t3\nText\ta\nParagraph.addWord\tb\nPage\t1\nReply\t9\n"
+        self.assertEqual(filter_paragraph_ops(trace), b"Text\ta\nPage\t1\nReply\t9\n")
+
     def test_instrumentation_fails_closed_when_anchor_is_missing(self):
         from instrument_layout import instrument
         with self.assertRaisesRegex(ValueError, "anchor must occur once"):

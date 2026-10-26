@@ -412,3 +412,11 @@ operation instrumenter excludes the explicit style writes that replaced C++
 reference mutations, preserving the original observations. The allocation
 failure test first counts a successful parse and then sweeps every allocation
 budget; it no longer assumes all Rust owners fit within 128 allocation requests.
+
+Chapter semantics accesses the current Rust paragraph directly. Assembly updates
+that borrowed handle on creation, reset, table-cell moves and restoration, using
+the current semantic state reborrow. It must bind the replacement before another
+semantic operation can run. The transitional service table retains its layout,
+with unused paragraph callbacks set to null; Rust represents those entries as
+optional function pointers. Paragraph creation/reset and assembler-state services
+still cross into C++ until the assembly port replaces that table.

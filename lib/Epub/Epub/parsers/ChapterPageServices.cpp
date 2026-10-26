@@ -85,10 +85,16 @@ CssStyle chapterCss(const uint8_t* wire) {
 }  // namespace
 
 bool ChapterPageAssembler::ensureSemantics() {
-  if (chapter_) return true;
+  if (chapter_) {
+    bindParagraph();
+    return true;
+  }
   const XpChapterOptions options{paragraphAlignment, static_cast<uint8_t>(embeddedStyle), imageRendering,
                                  static_cast<uint8_t>(cssParser != nullptr)};
-  return xp_chapter_create(&chapter_, &services_, this, cssParser ? cssParser->rustHandle() : nullptr, &options) == 0;
+  const bool created =
+      xp_chapter_create(&chapter_, &services_, this, cssParser ? cssParser->rustHandle() : nullptr, &options) == 0;
+  if (created) bindParagraph();
+  return created;
 }
 float ChapterPageAssembler::semanticInlineScale(const float fallback) const {
   if (!semanticQuery(XP_CHAPTER_QUERY_INLINE_VALID)) return fallback;
@@ -133,108 +139,31 @@ const XpChapterServices ChapterPageAssembler::services_ = {
       (void)state;
       return self->entityBuffer(length);
     },
-    [](void* ctx, XpChapterState* state, XpChapterSpan text, uint32_t offset) {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      const auto marker = chapterString(text);
-      self->addWord(marker, EpdFontFamily::REGULAR, false, false, offset);
-    },
-    [](void* ctx, XpChapterState* state) {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->suppressFirstLineIndent();
-      auto style = self->paragraphStyle();
-      if (style.alignment == CssTextAlign::Justify) style.alignment = CssTextAlign::Left;
-      self->setParagraphStyle(style);
-    },
-    [](void* ctx, XpChapterState* state) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->paragraphEmpty();
-    },
-    [](void* ctx, XpChapterState* state) -> uint32_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->paragraphSize();
-    },
-    [](void* ctx, XpChapterState* state) -> float {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->paragraphStyle().fontScale;
-    },
-    [](void* ctx, XpChapterState* state, XpChapterBlock* out) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      *out = chapterBlock(self->paragraphStyle());
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->suppressFirstLineIndent();
-    },
-    [](void* ctx, XpChapterState* state) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->ensureRubyCapacity();
-    },
-    [](void* ctx, XpChapterState* state, XpChapterSpan href) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->addLinkTarget(reinterpret_cast<const char*>(href.data));
-    },
-    [](void* ctx, XpChapterState* state, uint8_t id, XpChapterSpan href) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->linkTargetMatches(id, reinterpret_cast<const char*>(href.data));
-    },
-    [](void* ctx, XpChapterState* state, float scale) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->sizeSlotFor(scale);
-    },
+    nullptr,  // list_marker is owned by the Rust paragraph.
+    nullptr,  // preserve_space is owned by the Rust paragraph.
+    nullptr,  // paragraph_empty is owned by the Rust paragraph.
+    nullptr,  // paragraph_size is owned by the Rust paragraph.
+    nullptr,  // paragraph_scale is owned by the Rust paragraph.
+    nullptr,  // paragraph_style is owned by the Rust paragraph.
+    nullptr,  // suppress_indent is owned by the Rust paragraph.
+    nullptr,  // ruby_capacity is owned by the Rust paragraph.
+    nullptr,  // add_link is owned by the Rust paragraph.
+    nullptr,  // link_matches is owned by the Rust paragraph.
+    nullptr,  // size_slot is owned by the Rust paragraph.
+    nullptr,  // set_paragraph_style is owned by the Rust paragraph.
+    nullptr,  // word_style is owned by the Rust paragraph.
+    nullptr,  // ruby_group is owned by the Rust paragraph.
+    nullptr,  // ruby_append is owned by the Rust paragraph.
+    nullptr,  // add_word is owned by the Rust paragraph.
+    nullptr,  // paragraph_exists is owned by the Rust paragraph.
     [](void* ctx, XpChapterState* state, const XpChapterBlock* style) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->setParagraphStyle(chapterBlock(*style));
-    },
-    [](void* ctx, XpChapterState* state, uint32_t index) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->getWordStyleAt(index);
-    },
-    [](void* ctx, XpChapterState* state, uint32_t index, uint32_t count, XpChapterSpan text) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      self->setRubyGroupAt(index, count, chapterString(text));
-    },
-    [](void* ctx, XpChapterState* state, uint32_t index, XpChapterSpan text) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      const auto previous = self->getRubyTextAt(index);
-      const auto combined = previous + chapterString(text);
-      self->setRubyForWordAt(index, combined);
-    },
-    [](void* ctx, XpChapterState* state, XpChapterSpan word, uint8_t style, uint8_t underline, uint8_t attach,
-       uint32_t offset, uint8_t link, uint8_t slot, uint8_t no_space) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      // Paragraph already owns this one word copy; the span need not end with NUL.
-      self->addWord(chapterString(word), static_cast<EpdFontFamily::Style>(style), underline != 0, attach != 0, offset,
-                    link, slot, no_space != 0);
-    },
-    [](void* ctx, XpChapterState* state) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
-      return self->paragraphExists();
-    },
-    [](void* ctx, XpChapterState* state, const XpChapterBlock* style) -> void {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
+      SemanticBorrow borrow(*self, state);
       self->createParagraph(chapterBlock(*style));
     },
     [](void* ctx, XpChapterState* state) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      (void)state;
+      SemanticBorrow borrow(*self, state);
       self->resetParagraph();
     },
     [](void* ctx, XpChapterState* state) -> uint8_t {

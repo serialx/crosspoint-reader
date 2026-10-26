@@ -33,6 +33,7 @@ pub struct Measure {
 }
 
 pub struct State {
+    paragraph: *mut crate::para::paragraph::Paragraph,
     services: *const Services,
     ctx: *mut c_void,
     css: *const Store,
@@ -97,6 +98,13 @@ pub struct State {
 
 impl State {
     /// # Safety
+    /// paragraph is null or a live disjoint owner. Assembly rebinds on every
+    /// ownership transition, using the current semantic callback reborrow.
+    pub unsafe fn set_paragraph(&mut self, paragraph: *mut crate::para::paragraph::Paragraph) {
+        self.paragraph = paragraph;
+    }
+
+    /// # Safety
     /// out is writable, aligned uninitialized storage for State. Services/context
     /// and the optional CSS store outlive this state. Calls are serialized.
     /// Callbacks may reborrow the supplied State pointer only synchronously; they must
@@ -112,6 +120,7 @@ impl State {
         images: u8,
         css_enabled: bool,
     ) {
+        core::ptr::addr_of_mut!((*out).paragraph).write(core::ptr::null_mut());
         core::ptr::addr_of_mut!((*out).services).write(services);
         core::ptr::addr_of_mut!((*out).ctx).write(ctx);
         core::ptr::addr_of_mut!((*out).css).write(css);

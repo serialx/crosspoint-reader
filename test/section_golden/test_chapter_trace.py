@@ -14,10 +14,12 @@ class ChapterTraceTest(unittest.TestCase):
     def test_original_contains_every_anchor(self):
         traced = instrument(SOURCE)
         for op in ('BeginBlock', 'EndBlock', 'Text', 'ImageReply', 'TableColumns', 'Footnote',
-                   'Paragraph.addWord', 'Paragraph.size', 'getFontAscenderSize',
-                   'Paragraph.paragraphExists', 'Paragraph.createParagraph', 'Paragraph.resetParagraph',
+                   'ListMarker', 'RubyGroup', 'RubyAppend', 'getFontAscenderSize',
+                   'Paragraph.createParagraph', 'Paragraph.resetParagraph',
                    'Paragraph.setTableStacked', 'Paragraph.bufferedTableWords', 'Paragraph.addPendingFootnote'):
             self.assertIn('"' + op + '"', traced)
+        for op in ("addWord", "size", "paragraphExists"):
+            self.assertNotIn('"Paragraph.' + op + '"', traced)
 
     def test_missing_anchor_rejects(self):
         source = SOURCE.replace('  boxScopes.push_back(box);', '')

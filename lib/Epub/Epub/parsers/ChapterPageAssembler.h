@@ -54,6 +54,10 @@ class ChapterPageAssembler {
     ~SemanticBorrow() { owner.activeSemantics_ = previous; }
   };
   bool ensureSemantics();
+  void bindParagraph() {
+    if (auto* state = semanticState())
+      xp_para_bind_chapter(state, currentTextBlock ? currentTextBlock->handle() : nullptr);
+  }
   XpChapterState* semanticState() const { return activeSemantics_ ? activeSemantics_ : xp_chapter_state(chapter_); }
   uint32_t semanticQuery(XpChapterQuery query) const { return xp_chapter_query(semanticState(), query); }
   uint32_t semanticNotify(XpChapterNotify notice) { return xp_chapter_notify(semanticState(), notice); }
@@ -202,8 +206,12 @@ class ChapterPageAssembler {
   void createParagraph(const BlockStyle& style) {
     currentTextBlock =
         makeUniqueNoThrow<Paragraph>(hyphenationEnabled, focusReadingEnabled, style, paragraphIndentSpaces);
+    bindParagraph();
   }
-  void resetParagraph() { currentTextBlock.reset(); }
+  void resetParagraph() {
+    currentTextBlock.reset();
+    bindParagraph();
+  }
   bool bodyIsSdFont() const;
   int bodySpaceWidth() const;
   void prepareBodyText(const char* text, uint8_t styleMask) const;

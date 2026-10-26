@@ -4,6 +4,13 @@ use super::{
     State,
 };
 use core::ffi::c_void;
+unsafe fn span_bytes<'a>(span: Span) -> &'a [u8] {
+    if span.len == 0 {
+        &[]
+    } else {
+        core::slice::from_raw_parts(span.data, span.len as usize)
+    }
+}
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -47,23 +54,24 @@ pub struct Trace {
 pub struct Services {
     pub entity_lookup: unsafe extern "C" fn(*mut c_void, *mut State, Span) -> Span,
     pub entity_buffer: unsafe extern "C" fn(*mut c_void, *mut State, u32) -> *mut u8,
-    pub list_marker: unsafe extern "C" fn(*mut c_void, *mut State, Span, u32),
-    pub preserve_space: unsafe extern "C" fn(*mut c_void, *mut State),
-    pub paragraph_empty: unsafe extern "C" fn(*mut c_void, *mut State) -> u8,
-    pub paragraph_size: unsafe extern "C" fn(*mut c_void, *mut State) -> u32,
-    pub paragraph_scale: unsafe extern "C" fn(*mut c_void, *mut State) -> f32,
-    pub paragraph_style: unsafe extern "C" fn(*mut c_void, *mut State, *mut Block),
-    pub suppress_indent: unsafe extern "C" fn(*mut c_void, *mut State),
-    pub ruby_capacity: unsafe extern "C" fn(*mut c_void, *mut State),
-    pub add_link: unsafe extern "C" fn(*mut c_void, *mut State, Span) -> u8,
-    pub link_matches: unsafe extern "C" fn(*mut c_void, *mut State, u8, Span) -> u8,
-    pub size_slot: unsafe extern "C" fn(*mut c_void, *mut State, f32) -> u8,
-    pub set_paragraph_style: unsafe extern "C" fn(*mut c_void, *mut State, *const Block),
-    pub word_style: unsafe extern "C" fn(*mut c_void, *mut State, u32) -> u8,
-    pub ruby_group: unsafe extern "C" fn(*mut c_void, *mut State, u32, u32, Span),
-    pub ruby_append: unsafe extern "C" fn(*mut c_void, *mut State, u32, Span),
-    pub add_word: unsafe extern "C" fn(*mut c_void, *mut State, Span, u8, u8, u8, u32, u8, u8, u8),
-    pub paragraph_exists: unsafe extern "C" fn(*mut c_void, *mut State) -> u8,
+    pub list_marker: Option<unsafe extern "C" fn(*mut c_void, *mut State, Span, u32)>,
+    pub preserve_space: Option<unsafe extern "C" fn(*mut c_void, *mut State)>,
+    pub paragraph_empty: Option<unsafe extern "C" fn(*mut c_void, *mut State) -> u8>,
+    pub paragraph_size: Option<unsafe extern "C" fn(*mut c_void, *mut State) -> u32>,
+    pub paragraph_scale: Option<unsafe extern "C" fn(*mut c_void, *mut State) -> f32>,
+    pub paragraph_style: Option<unsafe extern "C" fn(*mut c_void, *mut State, *mut Block)>,
+    pub suppress_indent: Option<unsafe extern "C" fn(*mut c_void, *mut State)>,
+    pub ruby_capacity: Option<unsafe extern "C" fn(*mut c_void, *mut State)>,
+    pub add_link: Option<unsafe extern "C" fn(*mut c_void, *mut State, Span) -> u8>,
+    pub link_matches: Option<unsafe extern "C" fn(*mut c_void, *mut State, u8, Span) -> u8>,
+    pub size_slot: Option<unsafe extern "C" fn(*mut c_void, *mut State, f32) -> u8>,
+    pub set_paragraph_style: Option<unsafe extern "C" fn(*mut c_void, *mut State, *const Block)>,
+    pub word_style: Option<unsafe extern "C" fn(*mut c_void, *mut State, u32) -> u8>,
+    pub ruby_group: Option<unsafe extern "C" fn(*mut c_void, *mut State, u32, u32, Span)>,
+    pub ruby_append: Option<unsafe extern "C" fn(*mut c_void, *mut State, u32, Span)>,
+    pub add_word:
+        Option<unsafe extern "C" fn(*mut c_void, *mut State, Span, u8, u8, u8, u32, u8, u8, u8)>,
+    pub paragraph_exists: Option<unsafe extern "C" fn(*mut c_void, *mut State) -> u8>,
     pub create_paragraph: unsafe extern "C" fn(*mut c_void, *mut State, *const Block),
     pub reset_paragraph: unsafe extern "C" fn(*mut c_void, *mut State),
     pub body_sd: unsafe extern "C" fn(*mut c_void, *mut State) -> u8,
@@ -118,101 +126,105 @@ impl State {
     }
 
     pub(super) fn call_list_marker(&mut self, text: Span, offset: u32) {
-        let callback = unsafe { (*self.services).list_marker };
-        let state = self as *mut State;
-        unsafe {
-            callback(self.ctx, state, text.reborrow(state), offset);
-        }
+        #[cfg(feature = "chapter-trace")]
+        self.trace(9, &[offset], text, Span::new(&[]), core::ptr::null());
+        self.call_add_word(text, 0, 0, 0, offset, 0, 0, 0);
     }
     pub(super) fn call_preserve_space(&mut self) {
-        let callback = unsafe { (*self.services).preserve_space };
-        unsafe {
-            callback(self.ctx, self);
+        if let Some(p) = unsafe { self.paragraph.as_mut() } {
+            p.first_consumed = true;
+            if p.block.alignment == 0 {
+                p.block.alignment = 1;
+            }
         }
     }
-
-    #[inline]
     pub(super) fn call_paragraph_empty(&mut self) -> u8 {
-        let callback = unsafe { (*self.services).paragraph_empty };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state) }
+        unsafe { self.paragraph.as_ref().is_none_or(|p| p.tokens.is_empty()) as u8 }
     }
-    #[inline]
     pub(super) fn call_paragraph_size(&mut self) -> u32 {
-        let callback = unsafe { (*self.services).paragraph_size };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state) }
+        unsafe { self.paragraph.as_ref().map_or(0, |p| p.tokens.len() as u32) }
     }
-    #[inline]
     pub(super) fn call_paragraph_scale(&mut self) -> f32 {
-        let callback = unsafe { (*self.services).paragraph_scale };
-        unsafe { callback(self.ctx, self) }
+        unsafe { self.paragraph.as_ref().map_or(1.0, |p| p.block.font_scale) }
     }
-    #[inline]
     pub(super) fn call_paragraph_style(&mut self, out: *mut Block) {
-        let callback = unsafe { (*self.services).paragraph_style };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state, out) }
+        unsafe {
+            out.write(
+                self.paragraph
+                    .as_ref()
+                    .map_or_else(Block::default, |p| p.block),
+            );
+        }
     }
-    #[inline]
     pub(super) fn call_suppress_indent(&mut self) {
-        let callback = unsafe { (*self.services).suppress_indent };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state) }
+        if let Some(p) = unsafe { self.paragraph.as_mut() } {
+            p.first_consumed = true;
+        }
     }
-    #[inline]
-    pub(super) fn call_ruby_capacity(&mut self) {
-        let callback = unsafe { (*self.services).ruby_capacity };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state) }
-    }
-    #[inline]
+    pub(super) fn call_ruby_capacity(&mut self) {}
     pub(super) fn call_add_link(&mut self, href: Span) -> u8 {
-        let callback = unsafe { (*self.services).add_link };
-        let state = self as *mut State;
-        let href = href.reborrow(state);
-        unsafe { callback(self.ctx, state, href) }
+        let href = href.reborrow(self);
+        unsafe {
+            self.paragraph
+                .as_mut()
+                .map_or(0, |p| p.add_link(span_bytes(href)))
+        }
     }
-    #[inline]
     pub(super) fn call_link_matches(&mut self, id: u8, href: Span) -> u8 {
-        let callback = unsafe { (*self.services).link_matches };
-        let state = self as *mut State;
-        let href = href.reborrow(state);
-        unsafe { callback(self.ctx, state, id, href) }
+        let href = href.reborrow(self);
+        unsafe {
+            self.paragraph
+                .as_ref()
+                .is_some_and(|p| p.link_matches(id, span_bytes(href))) as u8
+        }
     }
-    #[inline]
     pub(super) fn call_size_slot(&mut self, scale: f32) -> u8 {
-        let callback = unsafe { (*self.services).size_slot };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state, scale) }
+        unsafe { self.paragraph.as_mut().map_or(0, |p| p.size_slot(scale)) }
     }
-    #[inline]
     pub(super) fn call_set_paragraph_style(&mut self, style: *const Block) {
-        let callback = unsafe { (*self.services).set_paragraph_style };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state, style) }
+        if let Some(p) = unsafe { self.paragraph.as_mut() } {
+            p.block = unsafe { *style };
+        }
     }
-    #[inline]
     pub(super) fn call_word_style(&mut self, index: u32) -> u8 {
-        let callback = unsafe { (*self.services).word_style };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state, index) }
+        unsafe {
+            self.paragraph
+                .as_ref()
+                .map_or(0, |p| p.style(index as usize))
+        }
     }
-    #[inline]
     pub(super) fn call_ruby_group(&mut self, index: u32, count: u32, text: Span) {
-        let callback = unsafe { (*self.services).ruby_group };
-        let state = self as *mut State;
-        let text = text.reborrow(state);
-        unsafe { callback(self.ctx, state, index, count, text) }
+        #[cfg(feature = "chapter-trace")]
+        self.trace(10, &[index, count], text, Span::new(&[]), core::ptr::null());
+        let text = text.reborrow(self);
+        if let Some(p) = unsafe { self.paragraph.as_mut() } {
+            p.set_ruby_group(index as usize, count as usize, unsafe { span_bytes(text) });
+        }
     }
-    #[inline]
     pub(super) fn call_ruby_append(&mut self, index: u32, text: Span) {
-        let callback = unsafe { (*self.services).ruby_append };
-        let state = self as *mut State;
-        let text = text.reborrow(state);
-        unsafe { callback(self.ctx, state, index, text) }
+        let text = text.reborrow(self);
+        let Some(p) = (unsafe { self.paragraph.as_mut() }) else {
+            return;
+        };
+        let old = p.ruby_text(index as usize);
+        let text = unsafe { span_bytes(text) };
+        let mut combined = super::buffer::TextBuffer::new();
+        if !combined.append(old) || !combined.append(text) {
+            p.dropped = true;
+            return;
+        }
+        #[cfg(feature = "chapter-trace")]
+        self.trace(
+            11,
+            &[index],
+            Span::new(&combined),
+            Span::new(&[]),
+            core::ptr::null(),
+        );
+        unsafe {
+            (*self.paragraph).set_ruby(index as usize, &combined);
+        }
     }
-    #[inline]
     #[allow(clippy::too_many_arguments)] // Mirrors the established paragraph operation.
     pub(super) fn call_add_word(
         &mut self,
@@ -225,20 +237,24 @@ impl State {
         slot: u8,
         no_space: u8,
     ) {
-        let callback = unsafe { (*self.services).add_word };
-        let state = self as *mut State;
-        let word = word.reborrow(state);
-        unsafe {
-            callback(
-                self.ctx, state, word, style, underline, attach, offset, link, slot, no_space,
-            )
+        let word = word.reborrow(self);
+        if let Some(p) = unsafe { self.paragraph.as_mut() } {
+            p.add_word(
+                unsafe { span_bytes(word) },
+                style,
+                underline != 0,
+                attach != 0,
+                offset,
+                link,
+                slot,
+                no_space != 0,
+            );
+        } else {
+            self.oom = true;
         }
     }
-    #[inline]
     pub(super) fn call_paragraph_exists(&mut self) -> u8 {
-        let callback = unsafe { (*self.services).paragraph_exists };
-        let state = self as *mut State;
-        unsafe { callback(self.ctx, state) }
+        u8::from(!self.paragraph.is_null())
     }
     #[inline]
     pub(super) fn call_create_paragraph(&mut self, style: *const Block) {

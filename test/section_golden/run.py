@@ -136,6 +136,22 @@ def read_archive(path):
         return {entry.name: archive.extractfile(entry).read() for entry in archive if entry.isfile()}
 
 
+def filter_paragraph_ops(data):
+    """Remove paragraph requests and their immediately following scalar replies."""
+    result = []
+    paragraph = False
+    for line in data.splitlines(keepends=True):
+        if line.startswith(b"Paragraph."):
+            paragraph = True
+            continue
+        if paragraph and line.startswith(b"Reply\t"):
+            paragraph = False
+            continue
+        paragraph = False
+        result.append(line)
+    return b"".join(result)
+
+
 def compare(expected, actual):
     if expected.keys() != actual.keys():
         raise ValueError(f"Section set changed: missing={sorted(expected.keys() - actual.keys())}, "
@@ -198,8 +214,23 @@ def main():
             raise ValueError("EPUB corpus changed; inspect fixture changes before capturing a new baseline")
         actual = ({name: compact_layout(data) for name, data in sections.items()}
                   if args.layout and manifest.get("trace_format") == "sampled-v1" else sections)
-        compare(read_archive(archive), actual)
-        if inventory != manifest["sections"]:
+        expected = read_archive(archive)
+        expected_inventory = manifest["sections"]
+        if args.ops:
+            for entry in expected_inventory:
+                data = expected[entry["section"]]
+                if len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                    raise ValueError("Operation baseline manifest changed")
+            expected = {name: filter_paragraph_ops(data) for name, data in expected.items()}
+            actual = {name: filter_paragraph_ops(data) for name, data in actual.items()}
+            def filtered_inventory(entries, records):
+                return [{**entry, "bytes": len(records[entry["section"]]),
+                         "sha256": hashlib.sha256(records[entry["section"]]).hexdigest()}
+                        for entry in entries]
+            expected_inventory = filtered_inventory(expected_inventory, expected)
+            inventory = filtered_inventory(inventory, actual)
+        compare(expected, actual)
+        if inventory != expected_inventory:
             raise ValueError("Section inventory changed")
         print(f"PASS: {len(sections)} {'operation traces' if args.ops else 'layout traces' if args.layout else 'complete sections'} are byte-identical")
 

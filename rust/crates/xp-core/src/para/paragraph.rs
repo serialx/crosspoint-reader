@@ -73,6 +73,7 @@ pub struct Metrics {
 }
 
 pub struct Paragraph {
+    pub starts_rtl: unsafe extern "C" fn(Span, i32) -> u8,
     pub store: WordStore,
     pub tokens: Tokens,
     pub block: Block,
@@ -103,12 +104,14 @@ impl Paragraph {
         hyphenation: bool,
         focus: bool,
         indent: u8,
+        starts_rtl: unsafe extern "C" fn(Span, i32) -> u8,
     ) {
         macro_rules! field {
             ($name:ident, $value:expr) => {
                 ptr::addr_of_mut!((*out).$name).write($value);
             };
         }
+        field!(starts_rtl, starts_rtl);
         field!(store, WordStore::new(allocator));
         field!(tokens, Tokens::new(allocator));
         field!(block, block);
@@ -284,7 +287,6 @@ impl Paragraph {
         link: u8,
         slot: u8,
         no_space: bool,
-        starts_rtl: unsafe extern "C" fn(Span, i32) -> u8,
     ) {
         if word.is_empty() {
             return;
@@ -313,7 +315,7 @@ impl Paragraph {
         let style = style | if underline { 4 } else { 0 };
         let rtl = !self.has_rtl
             && word.iter().any(|b| (0xd6..=0xdb).contains(b))
-            && unsafe { starts_rtl(Span::from_bytes(word), 64) != 0 };
+            && unsafe { (self.starts_rtl)(Span::from_bytes(word), 64) != 0 };
         let mut flags = u8::from(attach) | (u8::from(no_space) << 1);
         if attach && !self.tokens.is_empty() {
             let previous = last(self.word(self.tokens.len() - 1));

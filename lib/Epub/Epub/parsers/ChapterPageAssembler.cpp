@@ -330,11 +330,13 @@ void ChapterPageAssembler::startNewTextBlock(const BlockStyle& blockStyle, const
   semanticResetInlineSize();
   currentTextBlock =
       makeUniqueNoThrow<Paragraph>(hyphenationEnabled, focusReadingEnabled, blockStyle, paragraphIndentSpaces);
+  bindParagraph();
   if (!currentTextBlock) {
     // Evict rebuildable caches and retry once before failing the build.
     freeink::MemoryManager::instance().ensureFree(4 * 1024);
     currentTextBlock =
         makeUniqueNoThrow<Paragraph>(hyphenationEnabled, focusReadingEnabled, blockStyle, paragraphIndentSpaces);
+    bindParagraph();
   }
   if (!currentTextBlock) {
     LOG_ERR("EHP", "OOM: Paragraph");
@@ -417,10 +419,12 @@ void ChapterPageAssembler::fallbackTableRowToStacked() {
   }
 
   auto activeCell = std::move(currentTextBlock);
+  bindParagraph();
   tableRowStacked = true;
 
   for (auto& cell : tableRowCells) {
     currentTextBlock = std::move(cell);
+    bindParagraph();
     wordsExtractedInBlock = 0;
     if (currentTextBlock && !currentTextBlock->isEmpty()) {
       makePages();
@@ -428,6 +432,7 @@ void ChapterPageAssembler::fallbackTableRowToStacked() {
   }
   tableRowCells.clear();
   currentTextBlock = std::move(activeCell);
+  bindParagraph();
   wordsExtractedInBlock = 0;
 }
 
@@ -460,10 +465,12 @@ void ChapterPageAssembler::closeTableCell() {
       currentPageNextY += bottomPadding;
     }
     currentTextBlock.reset();
+    bindParagraph();
     return;
   }
 
   tableRowCells.push_back(std::move(currentTextBlock));
+  bindParagraph();
 }
 
 void ChapterPageAssembler::addTableRowSeparator() {
@@ -1203,6 +1210,7 @@ bool ChapterPageAssembler::finishAssembly() {
     completedPageCount++;
     currentPage.reset();
     currentTextBlock.reset();
+    bindParagraph();
   }
 
   return !semanticStopped();

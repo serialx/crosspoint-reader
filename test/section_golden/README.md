@@ -355,3 +355,18 @@ contains the explicit service-to-record mapping (`paragraph_names` and
 `added_services`), while its named hooks identify semantic/page observations.
 The raw parser event stream, complete sections/layouts, cancellation tests and
 emulator caches remain independent checks.
+
+### Direct Rust paragraph observations
+
+Phase 3 removes paragraph services from the chapter-to-C++ path. Operation
+comparison now filters `Paragraph.*` records and their immediately following
+`Reply` records from both the frozen archive and candidate. Every other record
+and reply retains its order and exact bytes. The original archive is unchanged
+and its raw sizes and hashes are checked against the manifest before filtering;
+filtered sizes and hashes are then used for inventory comparison. Section and
+layout comparisons remain unfiltered.
+
+List-marker, ruby-group and ruby-append observations moved to the Rust
+`chapter-trace` feature so they remain in the operation oracle. Production builds
+do not enable that feature. Private operation streams use the same
+`filter_paragraph_ops` helper before `compare`.

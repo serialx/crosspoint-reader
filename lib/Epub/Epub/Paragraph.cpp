@@ -4,11 +4,11 @@
 #include <GfxRenderer.h>
 #include <Logging.h>
 #include <Memory.h>
+#include <MemoryManager.h>
 
 #include <algorithm>
 #include <cstring>
 
-#include <MemoryManager.h>
 #include "hyphenation/Hyphenator.h"
 
 namespace {
@@ -29,7 +29,6 @@ const XpParaAllocator ALLOCATOR = {allocateParagraphBytes, releaseParagraphBytes
 }  // namespace
 
 const XpParaAllocator* paragraphAllocator() { return &ALLOCATOR; }
-
 
 namespace {
 XpParaBlock paraBlock(const BlockStyle& value) {
@@ -113,11 +112,11 @@ uint8_t visualOrder(XpParaSpan text, const uint16_t* offsets, uint32_t count, ui
 }  // namespace
 Paragraph::Paragraph(bool hyphenation, bool focus, const BlockStyle& style, uint8_t indent) {
   const auto wire = paraBlock(style);
-  xp_para_init(handle(), paragraphAllocator(), &wire, hyphenation, focus, indent);
+  xp_para_init(handle(), paragraphAllocator(), &wire, hyphenation, focus, indent, startsRtl);
 }
-void Paragraph::addWord(std::string_view word, EpdFontFamily::Style style, bool underline, bool attach,
-                         uint32_t offset, uint8_t link, uint8_t slot, bool noSpace) {
-  xp_para_add_word(handle(), span(word), style, underline, attach, offset, link, slot, noSpace, startsRtl);
+void Paragraph::addWord(std::string_view word, EpdFontFamily::Style style, bool underline, bool attach, uint32_t offset,
+                        uint8_t link, uint8_t slot, bool noSpace) {
+  xp_para_add_word(handle(), span(word), style, underline, attach, offset, link, slot, noSpace);
 }
 uint8_t Paragraph::addLinkTarget(const char* href) {
   return href ? xp_para_add_link(handle(), span({href, strnlen(href, 256)})) : 0;
@@ -145,9 +144,9 @@ void Paragraph::setBlockStyle(const BlockStyle& style) {
   xp_para_set_style(handle(), &wire);
 }
 void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uint16_t viewportWidth,
-                                       const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
-                                       bool includeLastLine, int8_t characterSpacing, uint8_t wordSpacingPercent,
-                                       size_t maxLines, const bool* stopRequested) {
+                                      const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
+                                      bool includeLastLine, int8_t characterSpacing, uint8_t wordSpacingPercent,
+                                      size_t maxLines, const bool* stopRequested) {
   XpParaMetrics metrics{const_cast<GfxRenderer*>(&source),
                         nullptr,
                         advance,

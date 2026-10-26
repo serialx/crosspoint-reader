@@ -231,7 +231,10 @@ impl<T: Copy> Nodes<T> {
         Ok(first)
     }
     pub fn sort(&mut self, less: fn(T, T) -> bool) -> Result<()> {
-        // Match libstdc++'s median partition and insertion finish, including equal keys.
+        // Frozen parity with the 8f71e528 C++ writer's GCC 14.2 libstdc++ sort:
+        // equal keys select duplicate manifest ids and repeated indexed spine hrefs.
+        // Do not track later library sorts. An explicit tie-break rule needs a
+        // separately approved behavior change and updated package goldens/tie test.
         #[inline(never)]
         fn partition<T: Copy>(
             a: &mut Nodes<T>,
@@ -376,6 +379,43 @@ impl<T> Drop for Nodes<T> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{href_less, HrefIndex, Nodes};
+
+    #[test]
+    fn duplicate_key_order_matches_legacy_partition() {
+        let mut nodes = Nodes::default();
+        // Seventeen equal keys cross the insertion-only threshold. Payloads must
+        // retain the GCC 14.2 libstdc++ permutation, not insertion or spine order.
+        for spine in 0..17 {
+            nodes
+                .push(HrefIndex {
+                    hash: 7,
+                    len: 3,
+                    spine,
+                })
+                .unwrap();
+        }
+        nodes.sort(href_less).unwrap();
+        let expected = [8, 16, 15, 14, 13, 12, 11, 10, 9, 0, 7, 6, 5, 4, 3, 2, 1];
+        for (index, spine) in expected.into_iter().enumerate() {
+            assert_eq!(nodes.get(index).unwrap().spine, spine);
+        }
+        let first = nodes
+            .lower_bound(
+                HrefIndex {
+                    hash: 7,
+                    len: 3,
+                    spine: 0,
+                },
+                href_less,
+            )
+            .unwrap();
+        assert_eq!(nodes.get(first).unwrap().spine, 8);
     }
 }
 

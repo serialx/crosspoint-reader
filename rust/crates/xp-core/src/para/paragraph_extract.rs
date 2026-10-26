@@ -128,6 +128,10 @@ unsafe extern "C" fn line_gap(raw: *mut c_void, i: usize) -> i32 {
     )
 }
 
+fn sanitized_len(word: &[u8]) -> usize {
+    word.len() - 2 * word.windows(2).filter(|pair| *pair == b"\xc2\xad").count()
+}
+
 unsafe fn extract(
     p: *mut Paragraph,
     m: &Metrics,
@@ -153,7 +157,9 @@ unsafe fn extract(
     if count == 0 || count > 10000 {
         return None;
     }
-    let bytes = (start..end).try_fold(0usize, |sum, i| sum.checked_add((*p).word(i).len() + 1))?;
+    let bytes = (start..end).try_fold(0usize, |sum, i| {
+        sum.checked_add(sanitized_len((*p).word(i)) + 1)
+    })?;
     if bytes > u16::MAX as usize {
         return None;
     }
@@ -190,9 +196,16 @@ unsafe fn extract(
     for i in start..end {
         offsets[i - start] = text_len as u16;
         let word = (*p).word(i);
-        text[text_len..text_len + word.len()].copy_from_slice(word);
-        let len = layout_extract::strip_soft_hyphens(text.as_mut_ptr().add(text_len), word.len());
-        text_len += len;
+        let mut read = 0;
+        while read < word.len() {
+            if word[read..].starts_with(b"\xc2\xad") {
+                read += 2;
+            } else {
+                text[text_len] = word[read];
+                text_len += 1;
+                read += 1;
+            }
+        }
         text[text_len] = 0;
         text_len += 1;
         ruby[i - start] = Span::from_bytes((*p).ruby_text(i));

@@ -205,3 +205,54 @@ TEST(PartialLineLayout, FollowingTextCanAbsorbRubyOverhang) {
     }
   }
 }
+
+TEST(ParagraphPackedText, SoftHyphenLimitUsesSanitizedBytes) {
+  GfxRenderer renderer;
+  Paragraph text(false, false, BlockStyle{}, 0);
+  std::string chunk;
+  for (size_t i = 0; i < 100; ++i) chunk += "\xc2\xad";
+  for (size_t i = 0; i < 330; ++i) text.addWord(chunk, EpdFontFamily::REGULAR, false, i != 0, i * 100);
+  text.addWord("a", EpdFontFamily::REGULAR, false, true, 33000);
+  ASSERT_EQ(text.size(), 331u);
+  size_t lines = 0;
+  text.layoutAndExtractLines(renderer, 0, 480, [&](std::unique_ptr<TextBlock> line, auto) {
+    ++lines;
+    ASSERT_TRUE(line->valid());
+    ASSERT_EQ(line->wordCount(), 331u);
+    for (uint16_t i = 0; i < 331; ++i) {
+      EXPECT_STREQ(line->wordText(i), i == 330 ? "a" : "");
+      EXPECT_EQ(line->wordSourceRange(i).start, i * 100u);
+      EXPECT_EQ(line->wordSourceRange(i).end, i == 330 ? 33001u : (i + 1) * 100u);
+    }
+  });
+  EXPECT_EQ(lines, 1u);
+  EXPECT_FALSE(text.hadDroppedWords());
+}
+
+TEST(ParagraphPackedText, SanitizedSizeBoundary) {
+  for (const size_t total : {65534u, 65535u, 65536u}) {
+    SCOPED_TRACE(total);
+    GfxRenderer renderer;
+    Paragraph text(false, false, BlockStyle{}, 0);
+    std::vector<std::string> expected;
+    size_t remaining = total;
+    while (remaining != 0) {
+      const size_t bytes = std::min(remaining, size_t{200});
+      std::string word;
+      for (size_t i = 0; i < (bytes - 1) / 2; ++i) word += "\xcc\x80";
+      if ((bytes - 1) % 2) word += 'a';
+      expected.push_back(word);
+      text.addWord("\xc2\xad" + word, EpdFontFamily::REGULAR, false, !text.isEmpty());
+      remaining -= bytes;
+    }
+    size_t lines = 0;
+    text.layoutAndExtractLines(renderer, 0, UINT16_MAX, [&](std::unique_ptr<TextBlock> line, auto) {
+      ++lines;
+      ASSERT_TRUE(line->valid());
+      ASSERT_EQ(line->wordCount(), expected.size());
+      for (uint16_t i = 0; i < line->wordCount(); ++i) EXPECT_EQ(line->wordText(i), expected[i]);
+    });
+    EXPECT_EQ(lines, total <= UINT16_MAX ? 1u : 0u);
+    EXPECT_EQ(text.hadDroppedWords(), total > UINT16_MAX);
+  }
+}

@@ -12,6 +12,7 @@ pub mod layout_split;
 pub mod paragraph;
 pub mod paragraph_extract;
 mod paragraph_layout;
+mod ruby;
 mod tokens;
 pub use tokens::{Token, Tokens};
 

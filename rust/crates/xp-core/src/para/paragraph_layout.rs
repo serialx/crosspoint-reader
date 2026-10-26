@@ -1,7 +1,7 @@
 //! Renderer-dependent paragraph measurements and break selection.
 use super::{
     layout, layout_split,
-    paragraph::{first, last, Bytes, Metrics, Paragraph, Span},
+    paragraph::{first, last, Metrics, Paragraph, Span},
 };
 use alloc::vec::Vec;
 use core::{ffi::c_void, ptr};
@@ -429,7 +429,7 @@ unsafe extern "C" fn split(raw: *mut c_void, i: usize, available: i32, fallback:
         return 0;
     }
     // Reserve before the token transaction so ruby insertion cannot fail afterwards.
-    if i < p.ruby.len() && p.ruby.try_reserve(1).is_err() {
+    if i < p.ruby.len() && !p.ruby.reserve(p.ruby.len() + 1) {
         p.dropped = true;
         return 0;
     }
@@ -482,7 +482,7 @@ unsafe extern "C" fn split(raw: *mut c_void, i: usize, available: i32, fallback:
     }
     p.dropped |= context.failed;
     if success && i < p.ruby.len() {
-        p.ruby.insert(i + 1, Bytes::default());
+        p.ruby.insert_reserved(i + 1);
     }
     success as u8
 }

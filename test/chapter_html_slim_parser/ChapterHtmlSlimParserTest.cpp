@@ -2276,3 +2276,30 @@ TEST(ParagraphLinks, ManyLinksUseCheckedDestinationAndPropagateFailure) {
     EXPECT_EQ(failures, fail ? 1u : 0u);
   }
 }
+
+TEST_F(ChapterHtmlSlimParserTest, LongSingleRubyElementKeepsAllAnnotations) {
+  std::string html = "<html><body><p><ruby>";
+  for (size_t i = 0; i < 2049; ++i) html += "a<rt>r</rt>";
+  html += "</ruby></p></body></html>";
+  {
+    HalFile file;
+    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
+    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
+  }
+  size_t words = 0;
+  parser.completePageFn = [&](std::unique_ptr<Page> page, auto, auto, auto) {
+    for (const auto& element : page->elements) {
+      if (element->getTag() != TAG_PageLine) continue;
+      const auto& block = *static_cast<const PageLine&>(*element).getBlock();
+      ASSERT_EQ(block.getRubyTexts().size(), block.wordCount());
+      for (uint16_t i = 0; i < block.wordCount(); ++i) {
+        EXPECT_STREQ(block.wordText(i), "a");
+        EXPECT_EQ(block.getRubyTexts()[i], "r");
+        ++words;
+      }
+    }
+  };
+  EXPECT_TRUE(parser.parseAndBuildPages());
+  EXPECT_EQ(words, 2049u);
+  std::filesystem::remove(filepath);
+}

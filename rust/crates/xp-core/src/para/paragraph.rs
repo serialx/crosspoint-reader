@@ -1,6 +1,6 @@
 //! Paragraph ownership and token insertion. Borrowed text never survives a call.
 extern crate alloc;
-use super::{Allocator, Token, Tokens, WordStore};
+use super::{ruby::Ruby, Allocator, Token, Tokens, WordStore};
 use crate::{chapter::style::Block, text, utf8};
 use alloc::vec::Vec;
 use core::{ffi::c_void, ptr};
@@ -78,7 +78,7 @@ pub struct Paragraph {
     pub tokens: Tokens,
     pub block: Block,
     pub links: Vec<Bytes>,
-    pub ruby: Vec<Bytes>,
+    pub ruby: Ruby,
     pub scales: [f32; 4],
     pub fonts: [i32; 4],
     pub slots: u8,
@@ -116,7 +116,7 @@ impl Paragraph {
         field!(tokens, Tokens::new(allocator));
         field!(block, block);
         field!(links, Vec::new());
-        field!(ruby, Vec::new());
+        field!(ruby, Ruby::new(allocator));
         field!(scales, [1.0, 0.0, 0.0, 0.0]);
         field!(fonts, [0; 4]);
         field!(slots, 1);
@@ -194,15 +194,10 @@ impl Paragraph {
     }
     fn grow_ruby(&mut self) -> bool {
         let len = self.tokens.len();
-        if self
-            .ruby
-            .try_reserve(len.saturating_sub(self.ruby.len()))
-            .is_err()
-        {
+        if !self.ruby.resize(len) {
             self.dropped = true;
             return false;
         }
-        self.ruby.resize_with(len, Bytes::default);
         true
     }
     pub fn set_ruby(&mut self, index: usize, ruby: &[u8]) {
@@ -212,7 +207,7 @@ impl Paragraph {
         if self.ruby.len() <= index && !self.grow_ruby() {
             return;
         }
-        if !self.ruby[index].set(ruby) {
+        if !self.ruby.get_mut(index).unwrap().set(ruby) {
             self.dropped = true;
         }
     }
@@ -268,12 +263,8 @@ impl Paragraph {
             self.dropped = true;
             return;
         }
-        if pad_ruby && !self.ruby.is_empty() {
-            if self.ruby.try_reserve(1).is_err() {
-                self.dropped = true;
-                return;
-            }
-            self.ruby.push(Bytes::default());
+        if pad_ruby && !self.ruby.is_empty() && !self.ruby.resize(self.ruby.len() + 1) {
+            self.dropped = true;
         }
     }
     #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.

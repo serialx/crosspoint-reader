@@ -586,7 +586,7 @@ pub unsafe fn layout(p: *mut Paragraph, m: &Metrics, o: &Options) {
         }
         (*p).tokens.erase_prefix(consumed);
         let consumed = consumed.min((*p).ruby.len());
-        (*p).ruby.drain(..consumed);
+        (*p).ruby.erase_prefix(consumed);
     }
 }
 unsafe fn prepare(p: &Paragraph, m: &Metrics, font: i32) -> Option<()> {

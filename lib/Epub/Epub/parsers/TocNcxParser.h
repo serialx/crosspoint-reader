@@ -1,32 +1,23 @@
 #pragma once
 #include <Print.h>
-#include <XmlPullParser.h>
+#include <xp_ffi.h>
 
 #include <string>
 
 class BookMetadataCache;
 
 class TocNcxParser final : public Print {
-  enum ParserState { START, IN_NCX, IN_NAV_MAP, IN_NAV_POINT, IN_NAV_LABEL, IN_NAV_LABEL_TEXT, IN_CONTENT };
-
   const std::string& baseContentPath;
   size_t remainingSize;
-  XmlPullParser parser;
-  ParserState state = START;
+  XpPkg* parser = nullptr;
   BookMetadataCache* cache;
 
-  std::string currentLabel;
-  std::string currentSrc;
-  uint8_t currentDepth = 0;
-
-  static void startElement(void* userData, const char* name, const char* const* atts);
-  static void characterData(void* userData, const char* s, int len);
-  static void endElement(void* userData, const char* name);
-
  public:
+  TocNcxParser(const TocNcxParser&) = delete;
+  TocNcxParser& operator=(const TocNcxParser&) = delete;
   explicit TocNcxParser(const std::string& baseContentPath, const size_t xmlSize, BookMetadataCache* cache)
       : baseContentPath(baseContentPath), remainingSize(xmlSize), cache(cache) {}
-  ~TocNcxParser() override = default;
+  ~TocNcxParser() override { xp_pkg_destroy(parser); }
 
   bool setup();
 

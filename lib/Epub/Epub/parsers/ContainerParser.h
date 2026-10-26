@@ -1,28 +1,20 @@
 #pragma once
 #include <Print.h>
-#include <XmlPullParser.h>
+#include <xp_ffi.h>
 
 #include <string>
 
 class ContainerParser final : public Print {
-  enum ParserState {
-    START,
-    IN_CONTAINER,
-    IN_ROOTFILES,
-  };
-
   size_t remainingSize;
-  XmlPullParser parser;
-  ParserState state = START;
-
-  static void startElement(void* userData, const char* name, const char* const* atts);
-  static void endElement(void* userData, const char* name);
+  XpPkg* parser = nullptr;
 
  public:
+  ContainerParser(const ContainerParser&) = delete;
+  ContainerParser& operator=(const ContainerParser&) = delete;
   std::string fullPath;
 
   explicit ContainerParser(const size_t xmlSize) : remainingSize(xmlSize) {}
-  ~ContainerParser() override = default;
+  ~ContainerParser() override { xp_pkg_destroy(parser); }
 
   bool setup();
 

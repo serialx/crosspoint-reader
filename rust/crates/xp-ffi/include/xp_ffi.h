@@ -342,6 +342,73 @@ size_t xp_utf8_compose_in_place(uint8_t* data, size_t len);
 // Returns required count, leaving out untouched if capacity is insufficient.
 size_t xp_text_offsets(const uint8_t* data, size_t len, size_t* out, size_t capacity);
 
+// One exclusive owner per handle. Inputs and writable outputs must be disjoint
+// from the handle and each other; byte lengths are at most PTRDIFF_MAX.
+// Records borrow storage until the next feed/next/destroy. Drain to NEED_INPUT
+// before feeding; final_input takes effect after the whole supplied slice.
+// Return codes: 0 success, -1 invalid argument, -2 create allocation failure.
+// Live-parser failures are ERROR records (error=1 for OOM). Null destroy is safe.
+typedef struct XpPkg XpPkg;
+typedef struct {
+  const uint8_t* data;
+  size_t len;
+} XpPkgSpan;
+typedef struct {
+  uint32_t kind;
+  uint32_t error;
+  XpPkgSpan value;
+  XpPkgSpan href;
+  XpPkgSpan anchor;
+  uint8_t level;
+  uint32_t field;
+  XpPkgSpan properties;
+  float number;
+  uint8_t number_present;
+} XpPkgRecord;
+// CONTAINER_PATH uses value; TOC uses value/href/anchor/level; PROTECTION latches true.
+// OPF uses field: metadata values are complete replacements; SERIES also supplies
+// number/number_present. MANIFEST uses value=id, href, anchor=media type, properties;
+// SPINE uses value=idref for lookup in the caller-owned SD index. CSS uses href.
+// *_BEGIN/STORE_END control the caller's store; COMPLETE marks metadata completion.
+enum {
+  XP_PKG_NEED_INPUT = 0,
+  XP_PKG_DONE = 1,
+  XP_PKG_ERROR = 2,
+  XP_PKG_CONTAINER_PATH = 3,
+  XP_PKG_TOC = 4,
+  XP_PKG_PROTECTION = 5,
+  XP_PKG_OPF = 6
+};
+enum {
+  XP_PKG_TITLE = 0,
+  XP_PKG_AUTHOR = 1,
+  XP_PKG_LANGUAGE = 2,
+  XP_PKG_ISBN = 3,
+  XP_PKG_ASIN = 4,
+  XP_PKG_SERIES = 5,
+  XP_PKG_NCX = 6,
+  XP_PKG_NAV = 7,
+  XP_PKG_COVER = 8,
+  XP_PKG_GUIDE = 9,
+  XP_PKG_TEXT = 10,
+  XP_PKG_MANIFEST = 20,
+  XP_PKG_SPINE = 21,
+  XP_PKG_MANIFEST_BEGIN = 22,
+  XP_PKG_SPINE_BEGIN = 23,
+  XP_PKG_GUIDE_BEGIN = 24,
+  XP_PKG_STORE_END = 25,
+  XP_PKG_CSS = 26,
+  XP_PKG_COMPLETE = 27
+};
+int32_t xp_pkg_opf_create(const uint8_t* base, size_t len, uint8_t metadata_only, uint8_t has_cache, XpPkg** out);
+int32_t xp_pkg_container_create(const uint8_t* base, size_t len, XpPkg** out);
+int32_t xp_pkg_ncx_create(const uint8_t* base, size_t len, XpPkg** out);
+int32_t xp_pkg_nav_create(const uint8_t* base, size_t len, XpPkg** out);
+int32_t xp_pkg_encryption_create(const uint8_t* base, size_t len, XpPkg** out);
+int32_t xp_pkg_feed(XpPkg* handle, const uint8_t* bytes, size_t len, uint8_t final_input, size_t* consumed);
+int32_t xp_pkg_next(XpPkg* handle, XpPkgRecord* out);
+void xp_pkg_destroy(XpPkg* handle);
+
 #ifdef __cplusplus
 }
 #endif

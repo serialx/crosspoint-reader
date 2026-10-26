@@ -1,6 +1,6 @@
 #pragma once
 #include <Print.h>
-#include <XmlPullParser.h>
+#include <xp_ffi.h>
 
 #include <string>
 
@@ -9,36 +9,17 @@ class BookMetadataCache;
 // Parser for EPUB 3 nav.xhtml navigation documents
 // Parses HTML5 nav elements with epub:type="toc" to extract table of contents
 class TocNavParser final : public Print {
-  enum ParserState {
-    START,
-    IN_HTML,
-    IN_BODY,
-    IN_NAV_TOC,  // Inside <nav epub:type="toc">
-    IN_OL,       // Inside <ol>
-    IN_LI,       // Inside <li>
-    IN_ANCHOR,   // Inside <a>
-  };
-
   const std::string& baseContentPath;
   size_t remainingSize;
-  XmlPullParser parser;
-  ParserState state = START;
+  XpPkg* parser = nullptr;
   BookMetadataCache* cache;
 
-  // Track nesting depth for <ol> elements to determine TOC depth
-  uint8_t olDepth = 0;
-  // Current entry data being collected
-  std::string currentLabel;
-  std::string currentHref;
-
-  static void startElement(void* userData, const char* name, const char* const* atts);
-  static void characterData(void* userData, const char* s, int len);
-  static void endElement(void* userData, const char* name);
-
  public:
+  TocNavParser(const TocNavParser&) = delete;
+  TocNavParser& operator=(const TocNavParser&) = delete;
   explicit TocNavParser(const std::string& baseContentPath, const size_t xmlSize, BookMetadataCache* cache)
       : baseContentPath(baseContentPath), remainingSize(xmlSize), cache(cache) {}
-  ~TocNavParser() override = default;
+  ~TocNavParser() override { xp_pkg_destroy(parser); }
 
   bool setup();
 

@@ -53,7 +53,9 @@ int main(int argc, char** argv) {
   const std::string container = read(root / "META-INF/container.xml");
   ContainerParser cp(container.size());
   if (!cp.setup() || !feed(cp, container, chunk) || cp.fullPath.empty()) return 3;
-  packageCalls << "container "; packageField(cp.fullPath); packageCalls << '\n';
+  packageCalls << "container ";
+  packageField(cp.fullPath);
+  packageCalls << '\n';
   const std::string opf = read(root / cp.fullPath);
   const auto slash = cp.fullPath.rfind('/');
   const std::string base = slash == std::string::npos ? "" : cp.fullPath.substr(0, slash + 1);
@@ -61,11 +63,15 @@ int main(int argc, char** argv) {
   if (!cache.beginWrite() || !cache.beginContentOpfPass()) return 4;
   ContentOpfParser op(cachePath, base, opf.size(), &cache);
   if (!op.setup() || !feed(op, opf, chunk) || !cache.endContentOpfPass() || !cache.beginTocPass()) return 5;
-  for (const auto* value : {&op.title, &op.author, &op.language, &op.isbn, &op.asin, &op.series,
-                           &op.tocNcxPath, &op.tocNavPath, &op.coverItemHref, &op.guideCoverPageHref,
-                           &op.textReferenceHref}) packageField(*value);
+  for (const auto* value : {&op.title, &op.author, &op.language, &op.isbn, &op.asin, &op.series, &op.tocNcxPath,
+                            &op.tocNavPath, &op.coverItemHref, &op.guideCoverPageHref, &op.textReferenceHref})
+    packageField(*value);
   packageCalls << "index " << op.seriesIndex.value_or(-9999) << '\n';
-  for (const auto& css : op.cssFiles) { packageCalls << "css "; packageField(css); packageCalls << '\n'; }
+  for (const auto& css : op.cssFiles) {
+    packageCalls << "css ";
+    packageField(css);
+    packageCalls << '\n';
+  }
   const auto items = std::filesystem::path(cachePath) / ".items.bin";
   std::ofstream(std::filesystem::path(cachePath) / "items.bin", std::ios::binary) << read(items);
   if (!op.tocNcxPath.empty() && (std::string(argv[4]) == "ncx" || op.tocNavPath.empty())) {
@@ -86,8 +92,9 @@ int main(int argc, char** argv) {
     ContentOpfParser metadata(cachePath, base, opf.size(), nullptr, true);
     packageCalls << "metadataOnly " << metadata.setup() << '\n';
     feed(metadata, opf, chunk);
-    for (const auto* value : {&metadata.title, &metadata.author, &metadata.language, &metadata.isbn,
-                             &metadata.asin, &metadata.series}) packageField(*value);
+    for (const auto* value :
+         {&metadata.title, &metadata.author, &metadata.language, &metadata.isbn, &metadata.asin, &metadata.series})
+      packageField(*value);
     packageCalls << "index " << metadata.seriesIndex.value_or(-9999) << '\n';
   }
   const auto encryptionPath = root / "META-INF/encryption.xml";

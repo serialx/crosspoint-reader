@@ -1,6 +1,7 @@
 #![no_std]
 
 pub mod css;
+pub mod epub;
 pub mod hyphen;
 pub mod para;
 pub mod text;

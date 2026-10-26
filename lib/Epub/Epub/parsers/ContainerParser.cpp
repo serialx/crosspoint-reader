@@ -2,71 +2,48 @@
 
 #include <Logging.h>
 
-#include <cstring>
+#include "Epub/BookMetadataCache.h"
 
-bool ContainerParser::setup() { return parser.setup(this, startElement, endElement); }
-
-size_t ContainerParser::write(const uint8_t data) { return write(&data, 1); }
-
-size_t ContainerParser::write(const uint8_t* buffer, const size_t size) {
-  if (!parser) return 0;
-
-  const uint8_t* currentBufferPos = buffer;
-  auto remainingInBuffer = size;
-
-  while (remainingInBuffer > 0) {
-    const auto toRead = remainingInBuffer < 1024 ? remainingInBuffer : 1024;
-    if (!parser.write(currentBufferPos, toRead, remainingSize == toRead)) {
-      parser.reset();
-      return 0;
-    }
-
-    currentBufferPos += toRead;
-    remainingInBuffer -= toRead;
-    remainingSize -= toRead;
+bool ContainerParser::setup() {
+  xp_pkg_destroy(parser);
+  parser = nullptr;
+  if (xp_pkg_container_create(nullptr, 0, &parser) != 0) {
+    LOG_ERR("PKG", "Could not allocate package parser");
+    return false;
   }
-  return size;
+  return true;
 }
-
-void ContainerParser::startElement(void* userData, const char* name, const char* const* atts) {
-  auto* self = static_cast<ContainerParser*>(userData);
-
-  // Simple state tracking to ensure we are looking at the valid schema structure
-  if (self->state == START && strcmp(name, "container") == 0) {
-    self->state = IN_CONTAINER;
-    return;
-  }
-
-  if (self->state == IN_CONTAINER && strcmp(name, "rootfiles") == 0) {
-    self->state = IN_ROOTFILES;
-    return;
-  }
-
-  if (self->state == IN_ROOTFILES && strcmp(name, "rootfile") == 0) {
-    const char* mediaType = nullptr;
-    const char* path = nullptr;
-
-    for (int i = 0; atts[i]; i += 2) {
-      if (strcmp(atts[i], "media-type") == 0) {
-        mediaType = atts[i + 1];
-      } else if (strcmp(atts[i], "full-path") == 0) {
-        path = atts[i + 1];
+size_t ContainerParser::write(uint8_t byte) { return write(&byte, 1); }
+size_t ContainerParser::write(const uint8_t* bytes, size_t size) {
+  if (!parser) return 0;
+  size_t offset = 0;
+  while (offset < size) {
+    const size_t count = std::min(size - offset, size_t{1024});
+    size_t consumed = 0;
+    bool ok = xp_pkg_feed(parser, bytes + offset, count, remainingSize == count, &consumed) == 0;
+    while (ok) {
+      XpPkgRecord record{};
+      if (xp_pkg_next(parser, &record) != 0) {
+        ok = false;
+        break;
+      }
+      if (record.kind == XP_PKG_ERROR) {
+        ok = false;
+        break;
+      }
+      if (record.kind == XP_PKG_NEED_INPUT || record.kind == XP_PKG_DONE) break;
+      if (record.kind == XP_PKG_CONTAINER_PATH) {
+        fullPath.assign(reinterpret_cast<const char*>(record.value.data), record.value.len);
       }
     }
-
-    // Check if this is the standard OEBPS package
-    if (mediaType && path && strcmp(mediaType, "application/oebps-package+xml") == 0) {
-      self->fullPath = path;
+    if (!ok || consumed != count) {
+      LOG_ERR("PKG", "Package parse failed");
+      xp_pkg_destroy(parser);
+      parser = nullptr;
+      return 0;
     }
+    offset += count;
+    remainingSize -= count;
   }
-}
-
-void ContainerParser::endElement(void* userData, const char* name) {
-  auto* self = static_cast<ContainerParser*>(userData);
-
-  if (self->state == IN_ROOTFILES && strcmp(name, "rootfiles") == 0) {
-    self->state = IN_CONTAINER;
-  } else if (self->state == IN_CONTAINER && strcmp(name, "container") == 0) {
-    self->state = START;
-  }
+  return size;
 }

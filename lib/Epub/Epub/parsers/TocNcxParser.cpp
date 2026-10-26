@@ -1,144 +1,54 @@
 #include "TocNcxParser.h"
 
-#include <FsHelpers.h>
 #include <Logging.h>
-
-#include <cstring>
 
 #include "Epub/BookMetadataCache.h"
 
-bool TocNcxParser::setup() { return parser.setup(this, startElement, endElement, characterData); }
-
-size_t TocNcxParser::write(const uint8_t data) { return write(&data, 1); }
-
-size_t TocNcxParser::write(const uint8_t* buffer, const size_t size) {
-  if (!parser) return 0;
-
-  const uint8_t* currentBufferPos = buffer;
-  auto remainingInBuffer = size;
-
-  while (remainingInBuffer > 0) {
-    const auto toRead = remainingInBuffer < 1024 ? remainingInBuffer : 1024;
-    if (!parser.write(currentBufferPos, toRead, remainingSize == toRead)) {
-      parser.reset();
-      return 0;
-    }
-
-    currentBufferPos += toRead;
-    remainingInBuffer -= toRead;
-    remainingSize -= toRead;
+bool TocNcxParser::setup() {
+  xp_pkg_destroy(parser);
+  parser = nullptr;
+  if (xp_pkg_ncx_create(reinterpret_cast<const uint8_t*>(baseContentPath.data()), baseContentPath.size(), &parser) !=
+      0) {
+    LOG_ERR("PKG", "Could not allocate package parser");
+    return false;
   }
-  return size;
+  return true;
 }
-
-void TocNcxParser::startElement(void* userData, const char* name, const char* const* atts) {
-  // NOTE: We rely on navPoint label and content coming before any nested navPoints, this will be fine:
-  // <navPoint>
-  //   <navLabel><text>Chapter 1</text></navLabel>
-  //   <content src="ch1.html"/>
-  //   <navPoint> ...nested... </navPoint>
-  // </navPoint>
-  //
-  // This will NOT:
-  // <navPoint>
-  //   <navPoint> ...nested... </navPoint>
-  //   <navLabel><text>Chapter 1</text></navLabel>
-  //   <content src="ch1.html"/>
-  // </navPoint>
-
-  auto* self = static_cast<TocNcxParser*>(userData);
-
-  if (self->state == START && strcmp(name, "ncx") == 0) {
-    self->state = IN_NCX;
-    return;
-  }
-
-  if (self->state == IN_NCX && strcmp(name, "navMap") == 0) {
-    self->state = IN_NAV_MAP;
-    return;
-  }
-
-  // Handles both top-level and nested navPoints
-  if ((self->state == IN_NAV_MAP || self->state == IN_NAV_POINT) && strcmp(name, "navPoint") == 0) {
-    self->state = IN_NAV_POINT;
-    self->currentDepth++;
-
-    self->currentLabel.clear();
-    self->currentSrc.clear();
-    return;
-  }
-
-  if (self->state == IN_NAV_POINT && strcmp(name, "navLabel") == 0) {
-    self->state = IN_NAV_LABEL;
-    return;
-  }
-
-  if (self->state == IN_NAV_LABEL && strcmp(name, "text") == 0) {
-    self->state = IN_NAV_LABEL_TEXT;
-    return;
-  }
-
-  if (self->state == IN_NAV_POINT && strcmp(name, "content") == 0) {
-    for (int i = 0; atts[i]; i += 2) {
-      if (strcmp(atts[i], "src") == 0) {
-        self->currentSrc = atts[i + 1];
+size_t TocNcxParser::write(uint8_t byte) { return write(&byte, 1); }
+size_t TocNcxParser::write(const uint8_t* bytes, size_t size) {
+  if (!parser) return 0;
+  size_t offset = 0;
+  while (offset < size) {
+    const size_t count = std::min(size - offset, size_t{1024});
+    size_t consumed = 0;
+    bool ok = xp_pkg_feed(parser, bytes + offset, count, remainingSize == count, &consumed) == 0;
+    while (ok) {
+      XpPkgRecord record{};
+      if (xp_pkg_next(parser, &record) != 0) {
+        ok = false;
         break;
       }
-    }
-    return;
-  }
-}
-
-void TocNcxParser::characterData(void* userData, const char* s, const int len) {
-  auto* self = static_cast<TocNcxParser*>(userData);
-  if (self->state == IN_NAV_LABEL_TEXT) {
-    self->currentLabel.append(s, len);
-  }
-}
-
-void TocNcxParser::endElement(void* userData, const char* name) {
-  auto* self = static_cast<TocNcxParser*>(userData);
-
-  if (self->state == IN_NAV_LABEL_TEXT && strcmp(name, "text") == 0) {
-    self->state = IN_NAV_LABEL;
-    return;
-  }
-
-  if (self->state == IN_NAV_LABEL && strcmp(name, "navLabel") == 0) {
-    self->state = IN_NAV_POINT;
-    return;
-  }
-
-  if (self->state == IN_NAV_POINT && strcmp(name, "navPoint") == 0) {
-    self->currentDepth--;
-    if (self->currentDepth == 0) {
-      self->state = IN_NAV_MAP;
-    }
-    return;
-  }
-
-  if (self->state == IN_NAV_POINT && strcmp(name, "content") == 0) {
-    // At this point (end of content tag), we likely have both Label (from previous tags) and Src.
-    // This is the safest place to push the data, assuming <navLabel> always comes before <content>.
-    // NCX spec says navLabel comes before content.
-    if (!self->currentLabel.empty() && !self->currentSrc.empty()) {
-      const std::string rawTarget = self->baseContentPath + self->currentSrc;
-      const size_t pos = rawTarget.find('#');
-      const std::string rawPath = pos == std::string::npos ? rawTarget : rawTarget.substr(0, pos);
-      std::string href = FsHelpers::normalisePath(FsHelpers::decodeUriEscapes(rawPath));
-      std::string anchor;
-
-      if (pos != std::string::npos) {
-        anchor = FsHelpers::decodeUriEscapes(rawTarget.substr(pos + 1));
+      if (record.kind == XP_PKG_ERROR) {
+        ok = false;
+        break;
       }
-
-      if (self->cache) {
-        self->cache->createTocEntry(self->currentLabel, href, anchor, self->currentDepth);
+      if (record.kind == XP_PKG_NEED_INPUT || record.kind == XP_PKG_DONE) break;
+      if (record.kind == XP_PKG_TOC) {
+        if (cache)
+          cache->createTocEntry(std::string(reinterpret_cast<const char*>(record.value.data), record.value.len),
+                                std::string(reinterpret_cast<const char*>(record.href.data), record.href.len),
+                                std::string(reinterpret_cast<const char*>(record.anchor.data), record.anchor.len),
+                                record.level);
       }
-
-      // Clear them so we don't re-add them if there are weird XML structures
-      self->currentLabel.clear();
-      self->currentSrc.clear();
     }
+    if (!ok || consumed != count) {
+      LOG_ERR("PKG", "Package parse failed");
+      xp_pkg_destroy(parser);
+      parser = nullptr;
+      return 0;
+    }
+    offset += count;
+    remainingSize -= count;
   }
+  return size;
 }

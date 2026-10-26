@@ -1,6 +1,6 @@
 #pragma once
 #include <Print.h>
-#include <XmlPullParser.h>
+#include <xp_ffi.h>
 
 #include <algorithm>
 #include <deque>
@@ -12,52 +12,14 @@
 class BookMetadataCache;
 
 class ContentOpfParser final : public Print {
-  enum ParserState {
-    START,
-    IN_PACKAGE,
-    IN_METADATA,
-    IN_BOOK_TITLE,
-    IN_BOOK_AUTHOR,
-    IN_BOOK_LANGUAGE,
-    IN_BOOK_IDENTIFIER,
-    IN_META_TEXT,
-    IN_MANIFEST,
-    IN_SPINE,
-    IN_GUIDE,
-  };
-
   const std::string& cachePath;
   const std::string& baseContentPath;
   size_t remainingSize;
-  XmlPullParser parser;
-  ParserState state = START;
+  XpPkg* parser = nullptr;
   BookMetadataCache* cache;
   const bool metadataOnly;
   bool metadataComplete = false;
   HalFile tempItemStore;
-  std::string coverItemId;
-  bool hasExplicitStartReference = false;
-  // XML character data is allowed to arrive in several callbacks for one text
-  // node (notably around character references). Keep whitespace and creator
-  // separation as element state rather than inferring either from callbacks.
-  bool metadataSpacePending = false;
-  bool authorSeparatorPending = false;
-
-  std::string identifierText;
-  std::string identifierScheme;
-  std::string metaText;
-  std::string metaProperty;
-  std::string metaRefines;
-  std::string metaId;
-  struct CollectionMetadata {
-    std::string id;
-    std::string title;
-    std::optional<float> index;
-    bool isSeries = false;
-  };
-  std::vector<CollectionMetadata> collectionCandidates;
-  std::string calibreSeries;
-  std::optional<float> calibreSeriesIndex;
 
   // Index for fast idref→href lookup (binary search over .items.bin)
   struct ItemIndexEntry {
@@ -78,11 +40,11 @@ class ContentOpfParser final : public Print {
     return hash;
   }
 
-  static void startElement(void* userData, const char* name, const char* const* atts);
-  static void characterData(void* userData, const char* s, int len);
-  static void endElement(void* userData, const char* name);
+  void apply(const XpPkgRecord& record);
 
  public:
+  ContentOpfParser(const ContentOpfParser&) = delete;
+  ContentOpfParser& operator=(const ContentOpfParser&) = delete;
   std::string title;
   std::string author;
   std::string language;

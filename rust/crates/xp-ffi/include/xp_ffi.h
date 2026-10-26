@@ -574,8 +574,9 @@ typedef struct {
 } XpPkgIo;
 // Creates one document pass: size is the exact XML byte length (unused for
 // encryption); base is copied. items may be null when no manifest store is needed;
-// a non-null cache requires cache_io. Create returns 0, -1 invalid, -2 OOM and
-// clears a valid out pointer on failure. metadata_only is 0 or 1 (OPF only).
+// a non-null cache requires cache_io. Create returns 0, -1 invalid, -2 OOM.
+// metadata_only is 0 or 1 (OPF only); an invalid value returns -1 and leaves out
+// unchanged. Every other failure clears a valid out pointer.
 int32_t xp_pkg_pass_create(uint32_t kind, XpPkgSpan base, size_t size, uint8_t metadata_only, const XpPkgIo* items,
                            XpPkgCache* cache, const XpPkgIo* cache_io, XpPkgPass** out);
 // Null-safe; OPF destruction also closes/removes ITEMS via the borrowed context.

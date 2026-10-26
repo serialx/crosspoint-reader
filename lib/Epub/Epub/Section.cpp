@@ -157,7 +157,9 @@ bool Section::loadSectionFile(const ReaderRenderSpec& spec) {
   const bool filePartial = header.values[0] == XP_SEC_PARTIAL_VERSION;
   if (filePartial) {
     uint32_t trailerOffset;
-    if (!xp_sec_partial_trailer(&header, file.size(), &trailerOffset) || !file.seek(trailerOffset) ||
+    const uint32_t visibleLutBytes = static_cast<uint32_t>(pageCount) * sizeof(uint32_t);
+    if (header.values[19] > UINT32_MAX - visibleLutBytes - 2 * sizeof(uint32_t) ||
+        !xp_sec_partial_trailer(&header, file.size(), &trailerOffset) || !file.seek(trailerOffset) ||
         !sectioncodec::readValue(file, XP_SEC_U32, partialBytesConsumed_) ||
         !sectioncodec::readValue(file, XP_SEC_U32, partialTotalBytes_)) {
       file.close();
@@ -782,11 +784,13 @@ std::unique_ptr<Page> Section::loadPageAt(const int page) const {
   if (!sectioncodec::read(f, XP_SEC_HEADER, header)) return nullptr;
   uint32_t entry;
   uint32_t pagePos;
-  if (!xp_sec_table_entry(header.values[15], page, 4, f.size(), 0, &entry) || !f.seek(entry) ||
+  if (header.values[15] > UINT32_MAX - sizeof(uint32_t) * (page + 1) ||
+      !xp_sec_table_entry(header.values[15], page, 4, f.size(), 0, &entry) || !f.seek(entry) ||
       !sectioncodec::readValue(f, XP_SEC_U32, pagePos))
     return nullptr;
   uint32_t visibleTextOffset = 0;
-  if (xp_sec_table_entry(header.values[19], page, 4, f.size(), HEADER_SIZE, &entry) && f.seek(entry)) {
+  if (header.values[19] <= UINT32_MAX - sizeof(uint32_t) * (page + 1) &&
+      xp_sec_table_entry(header.values[19], page, 4, f.size(), HEADER_SIZE, &entry) && f.seek(entry)) {
     sectioncodec::readValue(f, XP_SEC_U32, visibleTextOffset);
   }
   if (!f.seek(pagePos)) return nullptr;
@@ -938,8 +942,9 @@ std::optional<uint32_t> Section::getVisibleTextOffsetForPage(const uint16_t page
   uint32_t position;
   uint32_t value;
   if (!Storage.openFileForRead("SCT", filePath, f) || !sectioncodec::read(f, XP_SEC_HEADER, header) ||
-      page >= header.values[14] || !xp_sec_table_entry(header.values[19], page, 4, f.size(), HEADER_SIZE, &position) ||
-      !f.seek(position) || !sectioncodec::readValue(f, XP_SEC_U32, value))
+      page >= header.values[14] || header.values[19] > UINT32_MAX - sizeof(uint32_t) * (page + 1) ||
+      !xp_sec_table_entry(header.values[19], page, 4, f.size(), HEADER_SIZE, &position) || !f.seek(position) ||
+      !sectioncodec::readValue(f, XP_SEC_U32, value))
     return std::nullopt;
   return value;
 }

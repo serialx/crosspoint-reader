@@ -158,6 +158,19 @@ xp-core chapter::assembly`. `capture_assembly_images.py --output <new-path>`
 is only for a separately reviewed baseline capture and refuses to overwrite
 an existing file. Never regenerate these expectations from Rust.
 
+`goldens/assembly-carry.txt` adds 2,048 deterministic states evaluated by the
+unchanged C++ `linesToCarry`, `keepWithNextCarry` and `canCarry` bodies. It checks
+paragraph lookahead, heading carry, drop caps, recent-offset limits and trailing
+non-text elements. `capture_assembly_carry.py` records the source hash and current
+revision and refuses to overwrite an existing capture. The C++ assembler source
+is identical to `b7fa3580` in both captures.
+
+The mock assembler tests also exercise ownership on cancellation, every allocation
+position in page/table/carry workloads, vertical style reuse, table placement,
+drop caps, box slicing and zero-padded link/footnote storage. Host-only
+`chapter-trace` observations preserve operation field encoding and order; the
+full operation comparator remains on the C++ path until Phase B.
+
 `ChapterOperationGoldens` compares `goldens/ops.tar.gz`, captured from the
 unsplit C++ chapter parser at `e621694b`. All 104 spine items in the 18 EPUBs
 run under all three settings. No private book content is included.

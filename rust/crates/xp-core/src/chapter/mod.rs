@@ -3,6 +3,7 @@ extern crate alloc;
 use crate::css::{Ancestor, Store};
 use alloc::vec::Vec;
 use core::ffi::c_void;
+pub mod assembly;
 mod buffer;
 mod end;
 pub mod feedback;

@@ -2380,6 +2380,156 @@ TEST(ParagraphStorageAbi, MetadataAllocationFailureLeavesSequenceEmpty) {
 extern "C" void xp_test_fail_array_bytes(size_t);
 extern "C" size_t xp_test_array_failures();
 
+extern "C" size_t xp_test_live_bytes();
+namespace {
+struct CompletionAudit {
+  size_t failAt = SIZE_MAX;
+  size_t attempts = 0;
+  size_t created[2]{};
+  size_t destroyed[2]{};
+  std::map<const void*, BlockType> payloads;
+  size_t beforeElements = 0, afterElements = 0, beforeLinks = 0, beforeNotes = 0, beforeComplete = 0;
+  uint32_t elements = 0, links = 0, notes = 0;
+  XpChapterSink original{};
+} completionAudit;
+void watchPayload(void* raw) {
+  if (!raw) return;
+  const auto kind = static_cast<Block*>(raw)->getType();
+  ++completionAudit.created[kind];
+  completionAudit.payloads.emplace(raw, kind);
+}
+XpChapterSink auditedSink(const XpChapterSink& original) {
+  completionAudit.original = original;
+  auto sink = original;
+  sink.create_line = [](void* ctx, const XpParaLine* line) -> void* {
+    auto* raw = completionAudit.original.create_line(ctx, line);
+    watchPayload(raw);
+    return raw;
+  };
+  sink.create_image = [](void* ctx, int32_t width, int32_t height) -> void* {
+    auto* raw = completionAudit.original.create_image(ctx, width, height);
+    watchPayload(raw);
+    return raw;
+  };
+  sink.create_page = [](void* ctx, const XpChapterElement* elements, uint32_t count) -> void* {
+    completionAudit.beforeElements = xp_test_live_bytes();
+    completionAudit.elements = count;
+    auto* page = completionAudit.original.create_page(ctx, elements, count);
+    completionAudit.afterElements = xp_test_live_bytes();
+    return page;
+  };
+  sink.page_links = [](void* page, const XpChapterLink* links, uint32_t count) {
+    completionAudit.beforeLinks = xp_test_live_bytes();
+    completionAudit.links = count;
+    completionAudit.original.page_links(page, links, count);
+    EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeLinks);
+  };
+  sink.page_footnotes = [](void* page, const XpChapterFootnote* notes, uint32_t count) {
+    completionAudit.beforeNotes = xp_test_live_bytes();
+    completionAudit.notes = count;
+    completionAudit.original.page_footnotes(page, notes, count);
+    EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeNotes);
+  };
+  sink.complete = [](void* ctx, void* page, XpChapterPosition position) -> uint8_t {
+    completionAudit.beforeComplete = xp_test_live_bytes();
+    return completionAudit.original.complete(ctx, page, position);
+  };
+  return sink;
+}
+}  // namespace
+bool chapterTestFailPageAllocation() { return completionAudit.attempts++ == completionAudit.failAt; }
+void chapterTestBlockDestroyed(const void* raw) {
+  const auto found = completionAudit.payloads.find(raw);
+  if (found == completionAudit.payloads.end()) return;
+  ++completionAudit.destroyed[found->second];
+  completionAudit.payloads.erase(found);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, CompletionReleasesEachRustBufferBeforeSerialization) {
+  completionAudit = {};
+  auto sink = auditedSink(parser.sink_);
+  const auto options = parser.chapterOptions();
+  ASSERT_EQ(xp_chapter_create(&parser.chapter_, &sink, &parser, cssParser.rustHandle(), &options), 0);
+  ChapterTestAccess::begin(parser);
+  ChapterTestAccess::startElement(&parser, "p", nullptr);
+  ChapterTestAccess::characterData(&parser, "text", 4);
+  ChapterTestAccess::endElement(&parser, "p");
+  for (size_t i = 0; i < Page::MAX_LINKS_PER_PAGE; ++i)
+    ChapterTestAccess::addLink(parser, ("#link" + std::to_string(i)).c_str(), 0, 0, 8, 16);
+  for (size_t i = 0; i < Page::MAX_FOOTNOTES_PER_PAGE; ++i)
+    ChapterTestAccess::addNote(parser, std::to_string(i).c_str(), ("#note" + std::to_string(i)).c_str());
+  size_t pages = 0;
+  parser.completePageFn = [&](std::unique_ptr<Page> page, auto, auto, auto) {
+    ++pages;
+    EXPECT_EQ(page->links.size(), 32u);
+    EXPECT_EQ(page->footnotes.size(), 16u);
+    EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeComplete);
+  };
+  ChapterTestAccess::assembly(parser, 104);
+  EXPECT_EQ(pages, 1u);
+  EXPECT_EQ(completionAudit.beforeElements, completionAudit.afterElements);
+  EXPECT_GE(completionAudit.afterElements - completionAudit.beforeLinks,
+            completionAudit.elements * sizeof(XpChapterElement));
+  EXPECT_EQ(completionAudit.beforeLinks - completionAudit.beforeNotes, 32 * sizeof(XpChapterLink));
+  EXPECT_EQ(completionAudit.beforeNotes - completionAudit.beforeComplete, 16 * sizeof(XpChapterFootnote));
+  EXPECT_EQ(completionAudit.links, 32u);
+  EXPECT_EQ(completionAudit.notes, 16u);
+  RecordProperty("rust_before_elements", completionAudit.beforeElements);
+  RecordProperty("rust_before_links", completionAudit.beforeLinks);
+  RecordProperty("rust_before_footnotes", completionAudit.beforeNotes);
+  RecordProperty("rust_before_completion", completionAudit.beforeComplete);
+  RecordProperty("metadata_destination_bytes", 32 * sizeof(PageLink) + 16 * sizeof(FootnoteEntry));
+  parser.abortParse();
+  EXPECT_TRUE(completionAudit.payloads.empty());
+  EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, CompletionObjectFailuresConsumeEveryPayloadExactlyOnce) {
+  const std::string html =
+      "<html><body><div style='border:1px solid'><p><span style='float:left;font-size:3em'>T</span>"
+      "ext one two three four five six seven eight nine ten</p><hr/><img src='probe.gif'/></div>";
+  Epub::enableGifProbeForTest = true;
+  auto book = std::make_shared<Epub>();
+  book->imageBytes = {'G', 'I', 'F', '8', '9', 'a', 8, 0, 8, 0};
+  size_t required = 0;
+  for (size_t iteration = 0; iteration == 0 || iteration <= required; ++iteration) {
+    SCOPED_TRACE(iteration);
+    completionAudit = {};
+    completionAudit.failAt = iteration ? iteration - 1 : SIZE_MAX;
+    ChapterHtmlSlimParser candidate{book,  filepath, renderer, 0,  1.0f, false, 0,  480,     800,       false,
+                                    false, {},       true,     "", "",   0,     {}, nullptr, &cssParser};
+    auto sink = auditedSink(candidate.sink_);
+    const auto options = candidate.chapterOptions();
+    ASSERT_EQ(xp_chapter_create(&candidate.chapter_, &sink, &candidate, cssParser.rustHandle(), &options), 0);
+    size_t pages = 0;
+    candidate.completePageFn = [&](std::unique_ptr<Page>, auto, auto, auto) { ++pages; };
+    xp_chapter_begin(candidate.chapter_);
+    const bool fed =
+        xp_chapter_feed(candidate.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 0) != 2;
+    for (size_t i = 0; i < 32; ++i)
+      ChapterTestAccess::addLink(candidate, ("#link" + std::to_string(i)).c_str(), 0, 0, 8, 16);
+    for (size_t i = 0; i < 16; ++i)
+      ChapterTestAccess::addNote(candidate, std::to_string(i).c_str(), ("#note" + std::to_string(i)).c_str());
+    const std::string end = "</body></html>";
+    const bool ended =
+        xp_chapter_feed(candidate.chapter_, reinterpret_cast<const uint8_t*>(end.data()), end.size(), 1) == 1;
+    const bool done = fed && ended && xp_chapter_finish(candidate.chapter_);
+    if (iteration == 0) required = completionAudit.attempts;
+    EXPECT_EQ(done, iteration == 0);
+    EXPECT_EQ(pages, iteration == 0 ? 1u : 0u);
+    candidate.abortParse();
+    EXPECT_GT(completionAudit.created[TEXT_BLOCK], 0u);
+    EXPECT_GT(completionAudit.created[IMAGE_BLOCK], 0u);
+    EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
+    EXPECT_EQ(completionAudit.created[IMAGE_BLOCK], completionAudit.destroyed[IMAGE_BLOCK]);
+    EXPECT_TRUE(completionAudit.payloads.empty());
+    EXPECT_EQ(xp_test_live_allocations(), 0u);
+  }
+  EXPECT_GE(required, 6u);  // Page plus line, image, rule, drop cap and border box.
+  completionAudit = {};
+}
+
 TEST_F(ChapterHtmlSlimParserTest, LinkOwnerAllocationFailureRejectsChapter) {
   const std::string html = "<html><body><p><a href='target.xhtml'>linked</a></p></body></html>";
   {

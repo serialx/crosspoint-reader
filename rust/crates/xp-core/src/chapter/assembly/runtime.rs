@@ -39,8 +39,9 @@ impl Drop for Payload {
 }
 
 /// Inputs are borrowed until return. Returned link views last until the next
-/// line_links call; pending-anchor views last until defer/record. Complete consumes
-/// every payload, including when it reports stop or allocation failure.
+/// line_links call; pending-anchor views last until defer/record. create_page consumes
+/// every payload, including on allocation failure. Copy callbacks borrow their input
+/// until return; complete consumes the C++ page after Rust frees the source buffers.
 #[repr(C)]
 pub struct Callbacks {
     pub allocator: unsafe extern "C" fn() -> *const Allocator,
@@ -58,16 +59,10 @@ pub struct Callbacks {
         unsafe extern "C" fn(*mut c_void, *const c_void, *const Options, bool) -> LineMetrics,
     pub set_margin: unsafe extern "C" fn(*mut c_void, i16),
     pub line_links: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut u32) -> *const LineLink,
-    pub complete: unsafe extern "C" fn(
-        *mut c_void,
-        *const Element<Payload>,
-        u32,
-        *const Link,
-        u32,
-        *const Footnote,
-        u32,
-        Position,
-    ) -> u8,
+    pub create_page: unsafe extern "C" fn(*mut c_void, *const Element<Payload>, u32) -> *mut c_void,
+    pub page_links: unsafe extern "C" fn(*mut c_void, *const Link, u32),
+    pub page_footnotes: unsafe extern "C" fn(*mut c_void, *const Footnote, u32),
+    pub complete: unsafe extern "C" fn(*mut c_void, *mut c_void, Position) -> u8,
     pub probe_image:
         unsafe extern "C" fn(*mut c_void, Span, *mut i32, *mut bool, *mut u16, *mut u16) -> u8,
     pub create_image: unsafe extern "C" fn(*mut c_void, i32, i32) -> *mut c_void,
@@ -214,23 +209,33 @@ impl Sink for PageSink {
         }
     }
     fn complete(&mut self, page: Page<Payload>, position: Position) -> Result {
-        let status = unsafe {
-            (self.api().complete)(
+        let output = unsafe {
+            (self.api().create_page)(
                 self.context,
                 page.elements.as_ptr(),
                 page.elements.len() as u32,
-                page.links.as_ptr(),
-                page.links.len() as u32,
-                page.footnotes.as_ptr(),
-                page.footnotes.len() as u32,
-                position,
             )
         };
+        // create_page consumes every payload even when a wrapper allocation fails.
         for element in page.elements {
             if let Content::Line(payload) | Content::Image(payload) = element.content {
                 core::mem::forget(payload);
             }
         }
+        if output.is_null() {
+            return Err(Error::Allocation);
+        }
+        unsafe { (self.api().page_links)(output, page.links.as_ptr(), page.links.len() as u32) };
+        drop(page.links);
+        unsafe {
+            (self.api().page_footnotes)(
+                output,
+                page.footnotes.as_ptr(),
+                page.footnotes.len() as u32,
+            );
+        }
+        drop(page.footnotes);
+        let status = unsafe { (self.api().complete)(self.context, output, position) };
         match status {
             0 => Ok(()),
             1 => Err(Error::Stopped),

@@ -688,8 +688,10 @@ typedef struct {
   uint32_t visible;
   int16_t next_y;
 } XpChapterPosition;
-/* Borrowed sink/metrics/context outlive the chapter. Complete always consumes
- * every line/image payload, including failure or stop. Input spans are borrowed
+/* Borrowed sink/metrics/context outlive the chapter. create_page always consumes
+ * every line/image payload, including failure (null). page_links/page_footnotes
+ * borrow their arrays until return; Rust then frees each source buffer. complete
+ * consumes the C++ page after these copies. Input spans are borrowed
  * until return; returned line_links views last until the next line_links call,
  * pending_anchor until defer/record. Only measure_table may use its supplied state. */
 typedef struct {
@@ -706,8 +708,10 @@ typedef struct {
   XpChapterLineMetrics (*line_metrics)(void*, const void*, const XpChapterAssemblyOptions*, bool);
   void (*set_margin)(void*, int16_t);
   const XpChapterLineLink* (*line_links)(void*, void*, uint32_t*);
-  uint8_t (*complete)(void*, const XpChapterElement*, uint32_t, const XpChapterLink*, uint32_t,
-                      const XpChapterFootnote*, uint32_t, XpChapterPosition);
+  void* (*create_page)(void* context, const XpChapterElement* elements, uint32_t count);
+  void (*page_links)(void* page, const XpChapterLink* links, uint32_t count);
+  void (*page_footnotes)(void* page, const XpChapterFootnote* footnotes, uint32_t count);
+  uint8_t (*complete)(void* context, void* page, XpChapterPosition position);
   uint8_t (*probe_image)(void*, XpChapterSpan, int32_t*, bool*, uint16_t*, uint16_t*);
   void* (*create_image)(void*, int32_t, int32_t);
   XpChapterSpan (*pending_anchor)(void*);

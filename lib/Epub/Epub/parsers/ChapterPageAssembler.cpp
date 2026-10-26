@@ -108,10 +108,25 @@ uint8_t ChapterPageAssembler::probeImage(XpChapterSpan src, int32_t& counter, bo
   return 0;
 }
 
-uint8_t ChapterPageAssembler::completePage(const XpChapterElement* elements, uint32_t count, const XpChapterLink* links,
-                                           uint32_t linkCount, const XpChapterFootnote* footnotes,
-                                           uint32_t footnoteCount, XpChapterPosition position) {
-  auto page = makeUniqueNoThrow<Page>();
+#ifdef XP_CHAPTER_SINK_FAULT_INJECTION
+extern bool chapterTestFailPageAllocation();
+#endif
+namespace {
+template <typename T, typename... Args>
+std::unique_ptr<T> makePageObject(Args&&... args) {
+#ifdef XP_CHAPTER_SINK_FAULT_INJECTION
+  const bool fail = chapterTestFailPageAllocation();
+  auto result = fail ? nullptr : makeUniqueNoThrow<T>(std::forward<Args>(args)...);
+#else
+  auto result = makeUniqueNoThrow<T>(std::forward<Args>(args)...);
+#endif
+  if (!result) LOG_ERR("CHP", "OOM: page object %u bytes", static_cast<uint32_t>(sizeof(T)));
+  return result;
+}
+}  // namespace
+
+std::unique_ptr<Page> ChapterPageAssembler::createPage(const XpChapterElement* elements, uint32_t count) {
+  auto page = makePageObject<Page>();
   if (page) page->elements.reserve(count);
   bool failed = !page;
   for (uint32_t i = 0; i < count; ++i) {
@@ -121,31 +136,31 @@ uint8_t ChapterPageAssembler::completePage(const XpChapterElement* elements, uin
     switch (element.content.kind) {
       case 0: {
         std::unique_ptr<TextBlock> block(static_cast<TextBlock*>(data.payload.pointer));
-        if (!failed) output = makeUniqueNoThrow<PageLine>(std::move(block), element.x, element.y);
+        if (!failed) output = makePageObject<PageLine>(std::move(block), element.x, element.y);
         break;
       }
       case 1: {
         std::unique_ptr<ImageBlock> block(static_cast<ImageBlock*>(data.payload.pointer));
-        if (!failed) output = makeUniqueNoThrow<PageImage>(std::move(block), element.x, element.y);
+        if (!failed) output = makePageObject<PageImage>(std::move(block), element.x, element.y);
         break;
       }
       case 2:
         if (!failed)
-          output = makeUniqueNoThrow<PageHorizontalRule>(data.rule.width, data.rule.thickness, element.x, element.y);
+          output = makePageObject<PageHorizontalRule>(data.rule.width, data.rule.thickness, element.x, element.y);
         break;
       case 3:
         if (!failed)
-          output = makeUniqueNoThrow<PageDropCap>(data.cap.font, data.cap.scale256,
-                                                  static_cast<EpdFontFamily::Style>(data.cap.style),
-                                                  reinterpret_cast<const char*>(data.cap.text), element.x, element.y);
+          output = makePageObject<PageDropCap>(data.cap.font, data.cap.scale256,
+                                               static_cast<EpdFontFamily::Style>(data.cap.style),
+                                               reinterpret_cast<const char*>(data.cap.text), element.x, element.y);
         break;
       case 4: {
         CssBorderSide sides[4];
         for (size_t side = 0; side < 4; ++side)
           sides[side] = {data.box.sides[side].width, static_cast<CssBorderStyle>(data.box.sides[side].style)};
         if (!failed)
-          output = makeUniqueNoThrow<PageBorderBox>(data.box.width, data.box.height, sides, data.box.shaded, element.x,
-                                                    element.y);
+          output = makePageObject<PageBorderBox>(data.box.width, data.box.height, sides, data.box.shaded, element.x,
+                                                 element.y);
         break;
       }
     }
@@ -154,14 +169,8 @@ uint8_t ChapterPageAssembler::completePage(const XpChapterElement* elements, uin
     else
       failed = true;
   }
-  if (failed) return 2;
-  static_assert(sizeof(PageLink) == sizeof(XpChapterLink));
-  static_assert(sizeof(FootnoteEntry) == sizeof(XpChapterFootnote));
-  page->links.resize(linkCount);
-  page->footnotes.resize(footnoteCount);
-  if (linkCount) memcpy(page->links.data(), links, linkCount * sizeof(PageLink));
-  if (footnoteCount) memcpy(page->footnotes.data(), footnotes, footnoteCount * sizeof(FootnoteEntry));
-  completePageFn(std::move(page), position.paragraph, position.list, position.visible);
-  return stopRequested ? 1 : 0;
+  if (failed) return nullptr;
+  return page;
 }
+
 ChapterPageAssembler::~ChapterPageAssembler() = default;

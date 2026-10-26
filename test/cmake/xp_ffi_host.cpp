@@ -2,6 +2,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <new>
+#ifdef XP_CHAPTER_SINK_FAULT_INJECTION
+#include <unordered_map>
+static std::unordered_map<void*, size_t> liveSizes;
+extern "C" size_t xp_test_live_bytes() {
+  size_t total = 0;
+  for (const auto& entry : liveSizes) total += entry.second;
+  return total;
+}
+#endif
 
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 #ifdef XP_PARA_LINK_FAULT_INJECTION
@@ -53,7 +62,12 @@ static bool failAllocation() {
 static bool failAllocation() { return false; }
 #endif
 
-static void* recordAllocation(void* ptr) {
+static void* recordAllocation(void* ptr, size_t size) {
+#ifdef XP_CHAPTER_SINK_FAULT_INJECTION
+  if (ptr) liveSizes[ptr] = size;
+#else
+  (void)size;
+#endif
 #ifdef XP_FFI_HOST_FAULT_INJECTION
   if (ptr) ++liveAllocations;
 #endif
@@ -61,14 +75,17 @@ static void* recordAllocation(void* ptr) {
 }
 
 extern "C" void* heap_caps_malloc(size_t size, uint32_t) {
-  return failAllocation() ? nullptr : recordAllocation(std::malloc(size));
+  return failAllocation() ? nullptr : recordAllocation(std::malloc(size), size);
 }
 extern "C" void* heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t) {
   if (failAllocation()) return nullptr;
   void* result = nullptr;
-  return posix_memalign(&result, alignment, size) == 0 ? recordAllocation(result) : nullptr;
+  return posix_memalign(&result, alignment, size) == 0 ? recordAllocation(result, size) : nullptr;
 }
 extern "C" void heap_caps_free(void* ptr) {
+#ifdef XP_CHAPTER_SINK_FAULT_INJECTION
+  if (ptr) liveSizes.erase(ptr);
+#endif
 #ifdef XP_FFI_HOST_FAULT_INJECTION
   if (ptr) --liveAllocations;
 #endif

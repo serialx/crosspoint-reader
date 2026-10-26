@@ -180,10 +180,26 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
       *count = self->lineLinks_.count;
       return reinterpret_cast<const XpChapterLineLink*>(self->lineLinks_.data.get());
     },
-    [](void* ctx, const XpChapterElement* elements, uint32_t count, const XpChapterLink* links, uint32_t linkCount,
-       const XpChapterFootnote* footnotes, uint32_t footnoteCount, XpChapterPosition position) -> uint8_t {
-      return static_cast<ChapterPageAssembler*>(ctx)->completePage(elements, count, links, linkCount, footnotes,
-                                                                   footnoteCount, position);
+    [](void* ctx, const XpChapterElement* elements, uint32_t count) -> void* {
+      return static_cast<ChapterPageAssembler*>(ctx)->createPage(elements, count).release();
+    },
+    [](void* raw, const XpChapterLink* links, uint32_t count) {
+      auto& page = *static_cast<Page*>(raw);
+      static_assert(sizeof(PageLink) == sizeof(XpChapterLink));
+      page.links.resize(count);
+      if (count) memcpy(page.links.data(), links, count * sizeof(PageLink));
+    },
+    [](void* raw, const XpChapterFootnote* footnotes, uint32_t count) {
+      auto& page = *static_cast<Page*>(raw);
+      static_assert(sizeof(FootnoteEntry) == sizeof(XpChapterFootnote));
+      page.footnotes.resize(count);
+      if (count) memcpy(page.footnotes.data(), footnotes, count * sizeof(FootnoteEntry));
+    },
+    [](void* ctx, void* raw, XpChapterPosition position) -> uint8_t {
+      auto* self = static_cast<ChapterPageAssembler*>(ctx);
+      std::unique_ptr<Page> page(static_cast<Page*>(raw));
+      self->completePageFn(std::move(page), position.paragraph, position.list, position.visible);
+      return self->stopRequested ? 1 : 0;
     },
     [](void* ctx, XpChapterSpan src, int32_t* counter, bool* popup, uint16_t* width, uint16_t* height) -> uint8_t {
       return static_cast<ChapterPageAssembler*>(ctx)->probeImage(src, *counter, *popup, *width, *height);

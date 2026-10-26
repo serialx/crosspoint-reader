@@ -190,7 +190,8 @@ python3 test/section_golden/read_oracle.py \
   --output test/section_golden/goldens/reads.json.gz --verify
 python3 test/section_golden/read_oracle.py \
   --dump build/test/section_golden/SectionGoldenDump \
-  --output test/section_golden/goldens/mutations.json.gz --mutations --verify
+  --output test/section_golden/goldens/mutations.json.gz --mutations --verify \
+  --exceptions test/section_golden/goldens/mutation-exceptions.json
 ```
 
 The mutation table records header acceptance and which original page indices
@@ -211,3 +212,10 @@ oracle; undefined behavior in the original decoder is not a portable contract.
 valid partial headers with a watermark, a short watermark, and zero-page
 partials. Run with `--partial --verify --output
  test/section_golden/goldens/partials.json.gz` and the same `--dump` executable.
+
+The original mutation golden is unchanged. `mutation-exceptions.json` names 24
+truncated LUT entries for which the original C++ read left part of `pagePos`
+uninitialized. The checked reader rejects those pages. The verifier validates
+that each exception cuts inside exactly one four-byte entry, changes only that
+page's expected acceptance to rejection, and still compares every other result.
+No filename or case-specific behavior exists in the decoder.

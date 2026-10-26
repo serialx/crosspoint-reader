@@ -1,0 +1,125 @@
+{
+  "reason": "The original C++ pagePos was uninitialized and readPod ignored short reads; reject incomplete page LUT entries instead of preserving undefined behavior.",
+  "cases": [
+    {
+      "section": "crosspoint-table-edge-cases/1/2.bin",
+      "mutation": "truncate:27392",
+      "rejected_page": 6
+    },
+    {
+      "section": "font-prewarm-benchmark/1/1.bin",
+      "mutation": "truncate:135872",
+      "rejected_page": 9
+    },
+    {
+      "section": "font-prewarm-benchmark/1/1.bin",
+      "mutation": "truncate:135936",
+      "rejected_page": 25
+    },
+    {
+      "section": "font-prewarm-benchmark/1/1.bin",
+      "mutation": "truncate:136000",
+      "rejected_page": 41
+    },
+    {
+      "section": "font-prewarm-benchmark/1/2.bin",
+      "mutation": "truncate:140288",
+      "rejected_page": 16
+    },
+    {
+      "section": "font-prewarm-benchmark/1/2.bin",
+      "mutation": "truncate:140352",
+      "rejected_page": 32
+    },
+    {
+      "section": "font-prewarm-benchmark/1/2.bin",
+      "mutation": "truncate:140416",
+      "rejected_page": 48
+    },
+    {
+      "section": "font-prewarm-benchmark/1/2.bin",
+      "mutation": "truncate:140480",
+      "rejected_page": 64
+    },
+    {
+      "section": "font-prewarm-benchmark/1/2.bin",
+      "mutation": "truncate:140544",
+      "rejected_page": 80
+    },
+    {
+      "section": "font-prewarm-benchmark/1/2.bin",
+      "mutation": "truncate:140608",
+      "rejected_page": 96
+    },
+    {
+      "section": "font-prewarm-benchmark/2/1.bin",
+      "mutation": "truncate:79488",
+      "rejected_page": 1
+    },
+    {
+      "section": "font-prewarm-benchmark/2/1.bin",
+      "mutation": "truncate:79552",
+      "rejected_page": 17
+    },
+    {
+      "section": "test_force_paragraph_indents/1/1.bin",
+      "mutation": "truncate:6272",
+      "rejected_page": 1
+    },
+    {
+      "section": "test_kerning_ligature/1/12.bin",
+      "mutation": "truncate:54848",
+      "rejected_page": 3
+    },
+    {
+      "section": "test_kerning_ligature/1/12.bin",
+      "mutation": "truncate:54912",
+      "rejected_page": 19
+    },
+    {
+      "section": "test_kerning_ligature/1/7.bin",
+      "mutation": "truncate:42240",
+      "rejected_page": 14
+    },
+    {
+      "section": "test_kerning_ligature/1/8.bin",
+      "mutation": "truncate:43008",
+      "rejected_page": 16
+    },
+    {
+      "section": "test_kerning_ligature/2/3.bin",
+      "mutation": "truncate:8576",
+      "rejected_page": 1
+    },
+    {
+      "section": "test_png_images/1/1.bin",
+      "mutation": "truncate:960",
+      "rejected_page": 1
+    },
+    {
+      "section": "test_reader_menu_progress/1/1.bin",
+      "mutation": "truncate:128320",
+      "rejected_page": 10
+    },
+    {
+      "section": "test_reader_menu_progress/1/1.bin",
+      "mutation": "truncate:128384",
+      "rejected_page": 26
+    },
+    {
+      "section": "test_reader_rendering_matrix/1/3.bin",
+      "mutation": "truncate:13376",
+      "rejected_page": 5
+    },
+    {
+      "section": "test_supsub/1/0.bin",
+      "mutation": "truncate:2240",
+      "rejected_page": 1
+    },
+    {
+      "section": "test_supsub/1/7.bin",
+      "mutation": "truncate:3520",
+      "rejected_page": 1
+    }
+  ]
+}

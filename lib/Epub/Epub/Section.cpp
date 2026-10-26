@@ -879,8 +879,8 @@ std::unique_ptr<Page> Section::loadPageAt(const int page) const {
   uint32_t lutOffset;
   serialization::readPod(f, lutOffset);
   f.seek(lutOffset + sizeof(uint32_t) * page);
-  uint32_t pagePos;
-  serialization::readPod(f, pagePos);
+  uint32_t pagePos = 0;
+  if (!serialization::tryReadPod(f, pagePos)) return nullptr;
 
   // Read this page's visible-codepoint start offset from the visible-offset LUT (last header slot)
   // in the same open handle, so the reader can persist progress without reopening the section file

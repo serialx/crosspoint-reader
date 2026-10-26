@@ -140,6 +140,31 @@ def partial_mutations(data):
     yield 'partial-empty', bytes(empty)
 
 
+def apply_exceptions(expected, path):
+    exceptions = json.loads(path.read_text())
+    seen = set()
+    with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
+        for case in exceptions['cases']:
+            name, mutation, page = case['section'], case['mutation'], case['rejected_page']
+            key = (name, mutation, page)
+            if key in seen:
+                raise ValueError(f'duplicate exception: {key}')
+            seen.add(key)
+            data = archive.extractfile(name).read()
+            cut = int(mutation.removeprefix('truncate:'))
+            lut = struct.unpack_from('<I', data, 24)[0]
+            if not (lut + page * 4 < cut < lut + (page + 1) * 4):
+                raise ValueError(f'exception is not a short LUT entry: {key}')
+            record = expected[name][mutation]
+            if record['exit'] != 0:
+                raise ValueError(f'exception was not an ordinary C++ result: {key}')
+            before, after = f'page\t{page}\t1', f'page\t{page}\t0'
+            if record['results'].count(before) != 1:
+                raise ValueError(f'exception does not name one accepted C++ page: {key}')
+            record['results'][record['results'].index(before)] = after
+    return expected
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dump', required=True, type=Path)
@@ -147,14 +172,19 @@ def main():
     parser.add_argument('--mutations', action='store_true')
     parser.add_argument('--partial', action='store_true')
     parser.add_argument('--verify', action='store_true')
+    parser.add_argument('--exceptions', type=Path)
     parser.add_argument('--limit', type=int)
     parser.add_argument('--jobs', type=int, default=4)
     args = parser.parse_args()
     if not args.verify and args.output.exists():
         parser.error('capture refuses an existing output')
+    if args.exceptions and (not args.verify or not args.mutations or args.limit):
+        parser.error('exceptions require full mutation verification')
     exe = args.dump.resolve()
     results = {}
     baseline_records = json.loads(gzip.decompress(args.output.read_bytes())) if args.verify else None
+    if args.exceptions:
+        baseline_records = apply_exceptions(baseline_records, args.exceptions)
     with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         members = [m for m in archive if m.isfile()]
         if args.limit:
@@ -181,7 +211,7 @@ def main():
             print(f'{member.name}: {len(records)} records', flush=True)
     payload = json.dumps(results, sort_keys=True, separators=(',', ':')).encode() + b'\n'
     if args.verify:
-        baseline = gzip.decompress(args.output.read_bytes())
+        baseline = json.dumps(baseline_records, sort_keys=True, separators=(',', ':')).encode() + b'\n'
         if baseline != payload:
             old = json.loads(baseline)
             for name, records in results.items():

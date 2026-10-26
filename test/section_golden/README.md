@@ -138,6 +138,26 @@ traces directly. The manifest always records hashes of the complete traces.
 
 ## Chapter operation oracle
 
+### Phase 3 assembly checkpoint
+
+Production still uses the C++ assembler during M10 Phase A. The independent
+Rust assembly tests use a mock paragraph and page sink; passing the existing
+full pipeline oracles at this point establishes a baseline, not integration
+parity for the new module. `Paragraph.*` filtering is deferred until M11's
+approved integration change; no operation or reply is filtered in Phase A.
+
+`goldens/assembly-images.txt` contains 420 image sizing results captured from
+the unchanged C++ sizing branches at `b7fa3580`. It records the source hash and
+tests every width/height-presence combination, five CSS units, three viewport
+and container sizes, zero dimensions, extreme aspect ratios and fractional
+rounding. The capture tool extracts the original branch body and uses the real
+`CssLength` implementation; it does not duplicate the sizing algorithm.
+
+Run the Rust comparison with `cargo test --manifest-path rust/Cargo.toml -p
+xp-core chapter::assembly`. `capture_assembly_images.py --output <new-path>`
+is only for a separately reviewed baseline capture and refuses to overwrite
+an existing file. Never regenerate these expectations from Rust.
+
 `ChapterOperationGoldens` compares `goldens/ops.tar.gz`, captured from the
 unsplit C++ chapter parser at `e621694b`. All 104 spine items in the 18 EPUBs
 run under all three settings. No private book content is included.

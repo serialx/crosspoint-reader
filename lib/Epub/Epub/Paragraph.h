@@ -12,17 +12,17 @@
 #include "blocks/TextBlock.h"
 
 class GfxRenderer;
-class ParsedText {
+class Paragraph {
   alignas(void*) uint8_t state[64 * sizeof(void*)];
 
  public:
   XpParagraph* handle() { return reinterpret_cast<XpParagraph*>(state); }
   const XpParagraph* handle() const { return reinterpret_cast<const XpParagraph*>(state); }
-  explicit ParsedText(bool hyphenation = false, bool focus = false, const BlockStyle& style = BlockStyle(),
+  explicit Paragraph(bool hyphenation = false, bool focus = false, const BlockStyle& style = BlockStyle(),
                       uint8_t indent = 2);
-  ~ParsedText() { xp_para_destroy(handle()); }
-  ParsedText(const ParsedText&) = delete;
-  ParsedText& operator=(const ParsedText&) = delete;
+  ~Paragraph() { xp_para_destroy(handle()); }
+  Paragraph(const Paragraph&) = delete;
+  Paragraph& operator=(const Paragraph&) = delete;
   void addWord(std::string_view word, EpdFontFamily::Style style, bool underline = false, bool attach = false,
                uint32_t offset = 0, uint8_t link = 0, uint8_t slot = 0, bool noSpace = false);
   uint8_t addLinkTarget(const char* href);

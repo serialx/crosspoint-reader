@@ -1,4 +1,4 @@
-#include <Epub/ParsedText.h>
+#include <Epub/Paragraph.h>
 #include <Epub/blocks/TextBlock.h>
 #include <Epub/hyphenation/Hyphenator.h>
 #include <GfxRenderer.h>
@@ -22,7 +22,7 @@ std::vector<Line> layout(const std::vector<const char*>& words, const bool hyphe
   BlockStyle style;
   style.alignment = CssTextAlign::Justify;
   style.textIndentDefined = true;
-  ParsedText text(hyphenation, false, style, 0);
+  Paragraph text(hyphenation, false, style, 0);
   for (const char* word : words) text.addWord(word, EpdFontFamily::REGULAR);
   std::vector<Line> lines;
   text.layoutAndExtractLines(renderer, 0, width, [&](std::unique_ptr<TextBlock> block, auto) {
@@ -126,7 +126,7 @@ TEST(ClippingAnchors, SourceCoverageSurvivesWrappingAndHyphenation) {
     for (const bool hyphenation : {false, true}) {
       BlockStyle style;
       style.textIndentDefined = true;
-      ParsedText text(hyphenation, false, style, 0);
+      Paragraph text(hyphenation, false, style, 0);
       text.addWord("가나", EpdFontFamily::REGULAR, false, false, 100);
       text.addWord("다라마바사아", EpdFontFamily::REGULAR, false, false, 103);
       text.addWord("자", EpdFontFamily::REGULAR, false, false, 110);
@@ -154,7 +154,7 @@ TEST(ClippingAnchors, NfcSourceCoverageSurvivesSplitsAndPartialExtraction) {
   for (const bool focus : {false, true}) {
     BlockStyle style;
     style.textIndentDefined = true;
-    ParsedText text(true, focus, style, 0);
+    Paragraph text(true, focus, style, 0);
     // Latin composition, focus punctuation, CJK tokenization, and Hangul L+V+T.
     text.addWord("Cafe\xCC\x81!中\xE1\x84\x92\xE1\x85\xA1\xE1\x86\xAB國", EpdFontFamily::REGULAR, false, false, 100);
     text.addWord("끝", EpdFontFamily::REGULAR, false, false, 112);
@@ -177,7 +177,7 @@ TEST(ClippingAnchors, NfcSourceCoverageSurvivesSplitsAndPartialExtraction) {
 
 TEST(ClippingAnchors, NfcFocusSegmentsKeepOriginalOffsets) {
   GfxRenderer renderer;
-  ParsedText text(false, true);
+  Paragraph text(false, true);
   text.addWord("Cafe\xCC\x81!a\xCC\x82\xCC\x81", EpdFontFamily::REGULAR, false, false, 100);
   const uint32_t starts[] = {100, 105, 106};
   const uint32_t ends[] = {105, 106, 109};
@@ -200,7 +200,7 @@ TEST(ClippingAnchors, NfcHyphenationMarksSurviveCacheRoundTrip) {
   for (const bool focus : {false, true}) {
     BlockStyle style;
     style.textIndentDefined = true;
-    ParsedText text(true, focus, style, 0);
+    Paragraph text(true, focus, style, 0);
     text.addWord("cafe\xCC\x81teria", EpdFontFamily::REGULAR, false, false, 100);
     uint32_t previousEnd = 100;
     unsigned hyphens = 0;
@@ -232,7 +232,7 @@ TEST(ClippingAnchors, NfcHyphenationMarksSurviveCacheRoundTrip) {
 TEST(ClippingAnchors, DenseNfdHangulSurvivesChunkRetirement) {
   Hyphenator::setPreferredLanguage("ko");
   GfxRenderer renderer;
-  ParsedText text(true);
+  Paragraph text(true);
   std::string word;
   for (int i = 0; i < 22; ++i) word += "\xE1\x84\x92\xE1\x85\xA1\xE1\x86\xAB";
   for (uint32_t i = 0; i < 6; ++i) text.addWord(word, EpdFontFamily::REGULAR, false, false, 100 + i * 67);

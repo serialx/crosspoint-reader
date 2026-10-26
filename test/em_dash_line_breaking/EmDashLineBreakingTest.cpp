@@ -1,4 +1,4 @@
-#include <Epub/ParsedText.h>
+#include <Epub/Paragraph.h>
 #include <Epub/blocks/TextBlock.h>
 #include <Epub/hyphenation/Hyphenator.h>
 #include <GfxRenderer.h>
@@ -22,7 +22,7 @@ std::vector<Line> layout(const std::vector<const char*>& words, const bool hyphe
   BlockStyle style;
   style.alignment = CssTextAlign::Justify;
   style.textIndentDefined = true;
-  ParsedText text(hyphenation, false, style, 0);
+  Paragraph text(hyphenation, false, style, 0);
   for (const char* word : words) text.addWord(word, EpdFontFamily::REGULAR);
   std::vector<Line> lines;
   text.layoutAndExtractLines(renderer, 0, width, [&](std::unique_ptr<TextBlock> block, auto) {
@@ -109,7 +109,7 @@ TEST(PartialLineLayout, WiderRemainderDoesNotKeepSpeculativeHyphens) {
       for (const size_t limit : {0u, 1u, 3u}) {
         SCOPED_TRACE(::testing::Message() << hyphenation << ", " << includeLastLine << ", " << limit);
         GfxRenderer renderer;
-        ParsedText text(hyphenation, false, BlockStyle{}, 0);
+        Paragraph text(hyphenation, false, BlockStyle{}, 0);
         for (const char* word : {"nd",  "as",    "Jesus", "times",  "it",  "had", "laid",  "hold",  "him", "and",  "he",
                                  "was", "bound", "with",  "chains", "but", "he",  "would", "break", "the", "bonds"}) {
           text.addWord(word, EpdFontFamily::REGULAR);
@@ -144,7 +144,7 @@ TEST(PartialLineLayout, WiderRemainderDoesNotKeepSpeculativeHyphens) {
 
 TEST(PartialLineLayout, HoldsTheParagraphLastLineUntilItIsComplete) {
   GfxRenderer renderer;
-  ParsedText text(true, false, BlockStyle{}, 0);
+  Paragraph text(true, false, BlockStyle{}, 0);
   for (const char* word : {"one", "two", "three"}) text.addWord(word, EpdFontFamily::REGULAR);
   size_t lines = 0;
   const auto collect = [&](std::unique_ptr<TextBlock>, auto) { ++lines; };
@@ -160,7 +160,7 @@ TEST(PartialLineLayout, HoldsTheParagraphLastLineUntilItIsComplete) {
 TEST(PartialLineLayout, LastEmittedLineStillJustifiesWhenMoreTextRemains) {
   for (const bool hyphenation : {false, true}) {
     GfxRenderer renderer;
-    ParsedText text(hyphenation, false, BlockStyle{}, 0);
+    Paragraph text(hyphenation, false, BlockStyle{}, 0);
     for (const char* word : {"one", "two", "three"}) text.addWord(word, EpdFontFamily::REGULAR);
     text.layoutAndExtractLines(
         renderer, 0, 80,
@@ -176,7 +176,7 @@ TEST(PartialLineLayout, BoundedLinesReserveRubyOverhangAtBothMargins) {
   for (const bool hyphenation : {false, true}) {
     for (const bool rubyFirst : {false, true}) {
       GfxRenderer renderer;
-      ParsedText text(hyphenation, false, BlockStyle{}, 0);
+      Paragraph text(hyphenation, false, BlockStyle{}, 0);
       text.addWord(rubyFirst ? "a" : "word", EpdFontFamily::REGULAR);
       text.addWord(rubyFirst ? "word" : "a", EpdFontFamily::REGULAR);
       text.addWord("tail", EpdFontFamily::REGULAR);
@@ -193,7 +193,7 @@ TEST(PartialLineLayout, FollowingTextCanAbsorbRubyOverhang) {
     for (const bool attached : {false, true}) {
       for (const size_t limit : {size_t{1}, SIZE_MAX}) {
         GfxRenderer renderer;
-        ParsedText text(hyphenation, false, BlockStyle{}, 0);
+        Paragraph text(hyphenation, false, BlockStyle{}, 0);
         text.addWord("a", EpdFontFamily::REGULAR);
         text.setRubyForWordAt(0, attached ? "ruby" : "longer");
         text.addWord("b", EpdFontFamily::REGULAR, false, attached);

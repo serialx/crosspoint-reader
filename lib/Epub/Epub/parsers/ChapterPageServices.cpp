@@ -218,7 +218,7 @@ const XpChapterServices ChapterPageAssembler::services_ = {
        uint32_t offset, uint8_t link, uint8_t slot, uint8_t no_space) -> void {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
       (void)state;
-      // ParsedText already owns this one word copy; the span need not end with NUL.
+      // Paragraph already owns this one word copy; the span need not end with NUL.
       self->addWord(chapterString(word), static_cast<EpdFontFamily::Style>(style), underline != 0, attach != 0, offset,
                     link, slot, no_space != 0);
     },

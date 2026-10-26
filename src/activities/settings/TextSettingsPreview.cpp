@@ -1,7 +1,7 @@
 #include "TextSettingsPreview.h"
 
 #include <EpdFontFamily.h>
-#include <Epub/ParsedText.h>
+#include <Epub/Paragraph.h>
 #include <Epub/blocks/BlockStyle.h>
 #include <Epub/blocks/TextBlock.h>
 #include <FontCacheManager.h>
@@ -36,7 +36,7 @@ void relayout(PreviewLayout& layout, const GfxRenderer& renderer, int fontId, in
   style.alignment = toCssAlign(SETTINGS.paragraphAlignment);
   style.textAlignDefined = true;  // honor the user's choice; RTL auto-detected from text
 
-  ParsedText parsed(SETTINGS.hyphenationEnabled != 0, SETTINGS.focusReadingEnabled != 0, style,
+  Paragraph parsed(SETTINGS.hyphenationEnabled != 0, SETTINGS.focusReadingEnabled != 0, style,
                     SETTINGS.paragraphIndentSpaces);
 
   // Feed one space-separated word at a time; addWord handles NFC/CJK/RTL/focus splitting

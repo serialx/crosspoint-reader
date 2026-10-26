@@ -117,7 +117,7 @@ class ChapterHtmlSlimParserTest : public ::testing::TestWithParam<const char*> {
                                nullptr,
                                &cssParser};
 
-  void SetUp() override { parser.currentTextBlock = std::make_unique<ParsedText>(); }
+  void SetUp() override { parser.currentTextBlock = std::make_unique<Paragraph>(); }
   void TearDown() override { Epub::enableGifProbeForTest = false; }
 
   // Lays out a body fragment through the cached-page path and joins its words the way a
@@ -339,7 +339,7 @@ TEST_F(ChapterHtmlSlimParserTest, StreamsGifDimensionsWithoutExtractingPayload) 
 }
 
 TEST_F(ChapterHtmlSlimParserTest, AbandonedLayoutStopsExtractingLines) {
-  ParsedText text;
+  Paragraph text;
   for (int i = 0; i < 100; ++i) text.addWord("word", EpdFontFamily::REGULAR);
   bool stop = false;
   size_t lines = 0;
@@ -407,7 +407,7 @@ TEST_F(ChapterHtmlSlimParserTest, StopDuringFinalFlushDoesNotEmitAnotherPage) {
 }
 
 TEST_F(ChapterHtmlSlimParserTest, RubySurvivesPartialParagraphExtraction) {
-  ParsedText text;
+  Paragraph text;
   text.addWord("a", EpdFontFamily::REGULAR);
   text.addWord("b", EpdFontFamily::REGULAR);
   text.addWord("c", EpdFontFamily::REGULAR);
@@ -439,7 +439,7 @@ TEST_F(ChapterHtmlSlimParserTest, UnequalTableCellsAndRubySurvivePageBreaks) {
   parser.tableRowCells.reserve(2);
   std::multiset<std::string> expected;
   for (int column = 0; column < 2; ++column) {
-    auto cell = std::make_unique<ParsedText>();
+    auto cell = std::make_unique<Paragraph>();
     for (int index = 0; index < (column == 0 ? 30 : 3); ++index) {
       const auto word = std::string(column == 0 ? "left" : "right") + std::to_string(index);
       expected.insert(word);
@@ -677,7 +677,7 @@ TEST_F(ChapterHtmlSlimParserTest, SmallCapsSpanMarksWordsWithoutChangingText) {
 
 TEST_F(ChapterHtmlSlimParserTest, SmallCapsMetricsArePreparedForEachInlineFont) {
   renderer.sdFont = true;
-  ParsedText text;
+  Paragraph text;
   const uint8_t slot = text.sizeSlotFor(0.8f);
   text.setSizeSlotFontId(slot, 42);
   text.addWord("Chapter", EpdFontFamily::SMALL_CAPS);
@@ -1841,7 +1841,7 @@ TEST(ParagraphIndentation, OverridesNonnegativeCssAndPreservesHangingIndent) {
       style.alignment = CssTextAlign::Left;
       style.textIndentDefined = true;
       style.textIndent = cssIndent;
-      ParsedText text(false, false, style, spaces);
+      Paragraph text(false, false, style, spaces);
       text.addWord("word", EpdFontFamily::REGULAR);
       bool sawLine = false;
       text.layoutAndExtractLines(renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, auto) {
@@ -1854,7 +1854,7 @@ TEST(ParagraphIndentation, OverridesNonnegativeCssAndPreservesHangingIndent) {
   for (uint8_t spaces : {0, 2}) {
     BlockStyle style;
     style.alignment = CssTextAlign::Left;
-    ParsedText text(false, false, style, spaces);
+    Paragraph text(false, false, style, spaces);
     text.addWord("word", EpdFontFamily::REGULAR);
     text.layoutAndExtractLines(
         renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, auto) { EXPECT_EQ(line->wordXpos(0), 4 * spaces); });
@@ -1869,7 +1869,7 @@ TEST(ParagraphIndentation, PreservesAlignmentEligibilityAndScaledSpaceRounding) 
       style.alignment = alignment;
       style.textIndentDefined = true;
       style.textIndent = 0;
-      ParsedText text(false, false, style, spaces);
+      Paragraph text(false, false, style, spaces);
       text.addWord("word", EpdFontFamily::REGULAR);
       text.layoutAndExtractLines(renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, auto) {
         if (alignment == CssTextAlign::Left)
@@ -1881,7 +1881,7 @@ TEST(ParagraphIndentation, PreservesAlignmentEligibilityAndScaledSpaceRounding) 
   }
   BlockStyle style;
   style.alignment = CssTextAlign::Left;
-  ParsedText text(false, false, style, 2);
+  Paragraph text(false, false, style, 2);
   text.addWord("word", EpdFontFamily::REGULAR);
   text.layoutAndExtractLines(
       renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, auto) { EXPECT_EQ(line->wordXpos(0), 6); }, true, 0, 75);
@@ -1892,7 +1892,7 @@ TEST(ParagraphIndentation, ReducesOnlyFirstLineAvailableWidth) {
   BlockStyle style;
   style.alignment = CssTextAlign::Left;
   for (uint8_t spaces : {1, 2, 5}) {
-    ParsedText text(false, false, style, spaces);
+    Paragraph text(false, false, style, spaces);
     text.addWord("ab", EpdFontFamily::REGULAR);
     text.addWord("cd", EpdFontFamily::REGULAR);
     unsigned lines = 0;
@@ -1928,7 +1928,7 @@ TEST(TextSpacingLayout, TrackingSeparatesCjkTokensAndScalesWordSpaces) {
     BlockStyle style;
     style.alignment = CssTextAlign::Left;
     style.textIndentDefined = true;
-    ParsedText text(hyphenation, false, style, 0);
+    Paragraph text(hyphenation, false, style, 0);
     text.addWord("一二三", EpdFontFamily::REGULAR);
     text.addWord("四五", EpdFontFamily::REGULAR);
     unsigned lines = 0;
@@ -1956,7 +1956,7 @@ TEST(TextSpacingLayout, WordSpacingChangesWrapThreshold) {
     BlockStyle style;
     style.alignment = CssTextAlign::Left;
     style.textIndentDefined = true;
-    ParsedText text(false, false, style, 0);
+    Paragraph text(false, false, style, 0);
     text.addWord("ab", EpdFontFamily::REGULAR);
     text.addWord("cd", EpdFontFamily::REGULAR);
     unsigned lines = 0;
@@ -1970,7 +1970,7 @@ TEST(TextSpacingLayout, CachedPageRestoresSpacing) {
   BlockStyle style;
   style.alignment = CssTextAlign::Left;
   style.textIndentDefined = true;
-  ParsedText text(false, false, style);
+  Paragraph text(false, false, style);
   text.addWord("一二三", EpdFontFamily::REGULAR);
   text.addWord("四五", EpdFontFamily::REGULAR);
   const auto path = (std::filesystem::temp_directory_path() / "crosspoint-text-spacing.bin").string();
@@ -2087,7 +2087,7 @@ TEST(TextSpacingLayout, ParagraphMarkerSurvivesBidiAndOnlyMarksFirstExtractedLin
     style.isRtl = true;
     style.directionDefined = true;
     style.alignment = CssTextAlign::Right;
-    ParsedText text(false, focus, style, 0);
+    Paragraph text(false, focus, style, 0);
     text.addWord("אחד", EpdFontFamily::REGULAR);
     text.addWord("alpha", EpdFontFamily::REGULAR);
     text.addWord("beta", EpdFontFamily::REGULAR);
@@ -2118,7 +2118,7 @@ TEST(KoreanLayout, HangulWordsStayWholeAndWrapAtSpaces) {
     BlockStyle style;
     style.alignment = CssTextAlign::Left;
     style.textIndentDefined = true;
-    ParsedText text(false, false, style, 0);
+    Paragraph text(false, false, style, 0);
     text.addWord("가나다", EpdFontFamily::REGULAR);
     text.addWord("라마", EpdFontFamily::REGULAR);
     text.addWord("3개를", EpdFontFamily::REGULAR);
@@ -2139,7 +2139,7 @@ TEST(KoreanLayout, JustifiedHangulStretchesOnlyWordSpaces) {
   BlockStyle style;
   style.alignment = CssTextAlign::Justify;
   style.textIndentDefined = true;
-  ParsedText text(false, false, style, 0);
+  Paragraph text(false, false, style, 0);
   for (const char* word : {"가나", "다라", "마바", "사아"}) text.addWord(word, EpdFontFamily::REGULAR);
   unsigned lines = 0;
   text.layoutAndExtractLines(renderer, 0, 60, [&](std::unique_ptr<TextBlock> line, auto) {
@@ -2158,7 +2158,7 @@ TEST(KoreanLayout, HangulGluedAcrossInlineStyleIsUnbreakable) {
   BlockStyle style;
   style.alignment = CssTextAlign::Justify;
   style.textIndentDefined = true;
-  ParsedText text(false, false, style);
+  Paragraph text(false, false, style);
   text.addWord("가나", EpdFontFamily::REGULAR);
   text.addWord("한국", EpdFontFamily::REGULAR);
   text.addWord("어", EpdFontFamily::BOLD, false, /*attachToPrevious=*/true);
@@ -2176,7 +2176,7 @@ TEST(TextDecorationPosition, StrikeUsesGlyphBodyAndFollowsScriptScaling) {
   GfxRenderer renderer;
   constexpr int top = 20;
   for (const auto script : {EpdFontFamily::REGULAR, EpdFontFamily::SUP, EpdFontFamily::SUB}) {
-    ParsedText text(false, false, BlockStyle{}, 0);
+    Paragraph text(false, false, BlockStyle{}, 0);
     text.addWord("example", static_cast<EpdFontFamily::Style>(EpdFontFamily::STRIKETHROUGH | script));
     text.layoutAndExtractLines(renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, uint32_t) {
       renderer.drawnLineCount = 0;
@@ -2191,7 +2191,7 @@ TEST(TextDecorationPosition, StrikeUsesGlyphBodyAndFollowsScriptScaling) {
 
 TEST(TextDecorationPosition, UnderlineStaysBelowBaseline) {
   GfxRenderer renderer;
-  ParsedText text(false, false, BlockStyle{}, 0);
+  Paragraph text(false, false, BlockStyle{}, 0);
   text.addWord("example", EpdFontFamily::UNDERLINE);
   text.layoutAndExtractLines(renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, uint32_t) {
     line->render(renderer, 0, 0, 20);

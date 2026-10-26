@@ -2,7 +2,7 @@
 
 This harness detects changes in chapter pagination and serialized page data.
 It runs every XHTML spine item in `test/epubs/*.epub` through the production
-`ChapterHtmlSlimParser`, `ParsedText`, `TextBlock`, `Page`, and `Section` code.
+`ChapterHtmlSlimParser`, `Paragraph`, `TextBlock`, `Page`, and `Section` code.
 `ImageBlock` serialization is also production code. The output contains the
 complete Section header, pages, page offsets, anchor map, paragraph indices,
 list-item indices, and visible-text offsets. No bytes are normalized or omitted.
@@ -114,7 +114,7 @@ spine items and all three settings. Run it with:
 python3 test/section_golden/run.py --dump build/test/section_golden/SectionGoldenDump --layout
 ```
 
-The host build instruments a generated copy of `ParsedText.cpp`; it does not
+The host build instruments a generated copy of `Paragraph.cpp`; it does not
 add firmware trace code. `instrument_layout.py` requires each source anchor
 exactly once and fails the build if an anchor moves or becomes ambiguous.
 Each section trace contains paragraph layout calls in execution order, original

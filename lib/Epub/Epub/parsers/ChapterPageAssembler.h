@@ -13,7 +13,7 @@
 
 #include "Epub/FootnoteEntry.h"
 #include "Epub/Page.h"
-#include "Epub/ParsedText.h"
+#include "Epub/Paragraph.h"
 #include "Epub/blocks/ImageBlock.h"
 #include "Epub/blocks/TextBlock.h"
 #include "Epub/css/CssParser.h"
@@ -121,7 +121,7 @@ class ChapterPageAssembler {
   float lineCompression;
   uint16_t viewportWidth;
   uint16_t viewportHeight;
-  const ParsedText* layoutParagraph = nullptr;
+  const Paragraph* layoutParagraph = nullptr;
   bool layoutParagraphHasDropCap = false;
   uint8_t paragraphLinesOnPage = 0;
   uint8_t keepWithNextLines = 0;                       // trailing heading lines on this page
@@ -132,7 +132,7 @@ class ChapterPageAssembler {
   void noteContent(int top, int bottom);
   void emitBoxSegment(const BoxScope& box, bool closing);
   int fontIdForScale(float scale) const;
-  int prepareBlockFont(ParsedText& text, float scale);
+  int prepareBlockFont(Paragraph& text, float scale);
   size_t linesToCarry(size_t& paragraphLines) const;
   size_t keepWithNextCarry() const;
   bool canCarry(size_t carry) const;
@@ -141,7 +141,7 @@ class ChapterPageAssembler {
   std::function<void(std::unique_ptr<Page>, uint16_t, uint16_t, uint32_t)> completePageFn;
   std::function<void()> popupFn;  // Popup callback
   bool imagePopupFired = false;   // popupFn fired for the first image probe (single-shot)
-  std::unique_ptr<ParsedText> currentTextBlock = nullptr;
+  std::unique_ptr<Paragraph> currentTextBlock = nullptr;
   bool extraParagraphSpacing;
   uint8_t paragraphIndentSpaces = 2;
   int8_t characterSpacing = 0;
@@ -159,7 +159,7 @@ class ChapterPageAssembler {
   bool tableRowStacked = false;
   bool tableRowRtl = false;
   size_t tableRowTextBytes = 0;
-  std::vector<std::unique_ptr<ParsedText>> tableRowCells;
+  std::vector<std::unique_ptr<Paragraph>> tableRowCells;
   std::array<std::vector<std::unique_ptr<TextBlock>>, MAX_GRID_TABLE_COLUMNS> tableCellLines;
   std::vector<uint32_t> tableLineVisibleOffsets;
 
@@ -201,7 +201,7 @@ class ChapterPageAssembler {
   bool paragraphExists() const { return currentTextBlock != nullptr; }
   void createParagraph(const BlockStyle& style) {
     currentTextBlock =
-        makeUniqueNoThrow<ParsedText>(hyphenationEnabled, focusReadingEnabled, style, paragraphIndentSpaces);
+        makeUniqueNoThrow<Paragraph>(hyphenationEnabled, focusReadingEnabled, style, paragraphIndentSpaces);
   }
   void resetParagraph() { currentTextBlock.reset(); }
   bool bodyIsSdFont() const;

@@ -329,15 +329,15 @@ void ChapterPageAssembler::startNewTextBlock(const BlockStyle& blockStyle, const
   semanticDisarmDropCap();
   semanticResetInlineSize();
   currentTextBlock =
-      makeUniqueNoThrow<ParsedText>(hyphenationEnabled, focusReadingEnabled, blockStyle, paragraphIndentSpaces);
+      makeUniqueNoThrow<Paragraph>(hyphenationEnabled, focusReadingEnabled, blockStyle, paragraphIndentSpaces);
   if (!currentTextBlock) {
     // Evict rebuildable caches and retry once before failing the build.
     freeink::MemoryManager::instance().ensureFree(4 * 1024);
     currentTextBlock =
-        makeUniqueNoThrow<ParsedText>(hyphenationEnabled, focusReadingEnabled, blockStyle, paragraphIndentSpaces);
+        makeUniqueNoThrow<Paragraph>(hyphenationEnabled, focusReadingEnabled, blockStyle, paragraphIndentSpaces);
   }
   if (!currentTextBlock) {
-    LOG_ERR("EHP", "OOM: ParsedText");
+    LOG_ERR("EHP", "OOM: Paragraph");
     semanticFailLayout();  // parseStep() turns this into ParseStatus::Error
   }
   wordsExtractedInBlock = 0;
@@ -1238,7 +1238,7 @@ int ChapterPageAssembler::fontIdForScale(const float scale) const {
   return variant != 0 ? variant : fontId;
 }
 
-int ChapterPageAssembler::prepareBlockFont(ParsedText& text, const float scale) {
+int ChapterPageAssembler::prepareBlockFont(Paragraph& text, const float scale) {
   BlockStyle blockStyle = text.getBlockStyle();
   const int layoutFontId = fontIdForScale(scale);
   for (uint8_t slot = 1; slot < text.sizeSlotsInUse(); ++slot) {

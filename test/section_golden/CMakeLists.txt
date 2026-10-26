@@ -1,8 +1,8 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ParagraphTrace.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument_layout.py
-    ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
-  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp instrument_layout.py
+    ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp ${CMAKE_CURRENT_BINARY_DIR}/ParagraphTrace.cpp
+  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp instrument_layout.py
   VERBATIM)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument_chapter.py
@@ -21,8 +21,7 @@ add_executable(SectionGoldenDump
   ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/ParsedTextTrace.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/WordStore.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/ParagraphTrace.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
   ${REPO_ROOT}/lib/Epub/Epub/css/CssParser.cpp

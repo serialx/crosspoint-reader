@@ -1,4 +1,4 @@
-#include "ParsedText.h"
+#include "Paragraph.h"
 
 #include <BidiUtils.h>
 #include <GfxRenderer.h>
@@ -8,8 +8,28 @@
 #include <algorithm>
 #include <cstring>
 
-#include "WordStore.h"
+#include <MemoryManager.h>
 #include "hyphenation/Hyphenator.h"
+
+namespace {
+constexpr size_t RECLAIM_HEADROOM = 8 * 1024;
+
+void* allocateParagraphBytes(const size_t bytes) {
+  auto data = makeUniqueNoThrow<uint8_t[]>(bytes);
+  if (!data) {
+    freeink::MemoryManager::instance().ensureFree(bytes + RECLAIM_HEADROOM);
+    data = makeUniqueNoThrow<uint8_t[]>(bytes);
+  }
+  if (!data) LOG_ERR("PTX", "OOM: paragraph storage (%zu bytes)", bytes);
+  // Rust owns this C-ABI allocation and returns it to releaseParagraphBytes.
+  return data.release();
+}
+void releaseParagraphBytes(void* data) { delete[] static_cast<uint8_t*>(data); }
+const XpParaAllocator ALLOCATOR = {allocateParagraphBytes, releaseParagraphBytes};
+}  // namespace
+
+const XpParaAllocator* paragraphAllocator() { return &ALLOCATOR; }
+
 
 namespace {
 XpParaBlock paraBlock(const BlockStyle& value) {
@@ -91,40 +111,40 @@ uint8_t visualOrder(XpParaSpan text, const uint16_t* offsets, uint32_t count, ui
                                            {order, count});
 }
 }  // namespace
-ParsedText::ParsedText(bool hyphenation, bool focus, const BlockStyle& style, uint8_t indent) {
+Paragraph::Paragraph(bool hyphenation, bool focus, const BlockStyle& style, uint8_t indent) {
   const auto wire = paraBlock(style);
   xp_para_init(handle(), paragraphAllocator(), &wire, hyphenation, focus, indent);
 }
-void ParsedText::addWord(std::string_view word, EpdFontFamily::Style style, bool underline, bool attach,
+void Paragraph::addWord(std::string_view word, EpdFontFamily::Style style, bool underline, bool attach,
                          uint32_t offset, uint8_t link, uint8_t slot, bool noSpace) {
   xp_para_add_word(handle(), span(word), style, underline, attach, offset, link, slot, noSpace, startsRtl);
 }
-uint8_t ParsedText::addLinkTarget(const char* href) {
+uint8_t Paragraph::addLinkTarget(const char* href) {
   return href ? xp_para_add_link(handle(), span({href, strnlen(href, 256)})) : 0;
 }
-bool ParsedText::linkTargetMatches(uint8_t link, const char* href) const {
+bool Paragraph::linkTargetMatches(uint8_t link, const char* href) const {
   return href && xp_para_link_matches(handle(), link, span(href));
 }
-void ParsedText::setRubyForWordAt(size_t index, const std::string& text) {
+void Paragraph::setRubyForWordAt(size_t index, const std::string& text) {
   xp_para_set_ruby(handle(), index, span(text));
 }
-void ParsedText::setRubyGroupAt(size_t index, size_t count, const std::string& text) {
+void Paragraph::setRubyGroupAt(size_t index, size_t count, const std::string& text) {
   xp_para_set_ruby_group(handle(), index, count, span(text));
 }
-std::string ParsedText::getRubyTextAt(size_t index) const {
+std::string Paragraph::getRubyTextAt(size_t index) const {
   const auto text = xp_para_ruby(handle(), index);
   return {reinterpret_cast<const char*>(text.data), text.len};
 }
-BlockStyle ParsedText::getBlockStyle() const {
+BlockStyle Paragraph::getBlockStyle() const {
   XpParaBlock style{};
   xp_para_get_style(handle(), &style);
   return paraBlock(style);
 }
-void ParsedText::setBlockStyle(const BlockStyle& style) {
+void Paragraph::setBlockStyle(const BlockStyle& style) {
   const auto wire = paraBlock(style);
   xp_para_set_style(handle(), &wire);
 }
-void ParsedText::layoutAndExtractLines(const GfxRenderer& source, int fontId, uint16_t viewportWidth,
+void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uint16_t viewportWidth,
                                        const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                                        bool includeLastLine, int8_t characterSpacing, uint8_t wordSpacingPercent,
                                        size_t maxLines, const bool* stopRequested) {

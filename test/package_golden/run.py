@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+from urllib.parse import quote
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
@@ -39,6 +40,48 @@ def synthetic():
         changed = {k: v.encode() for k, v in files.items()}
         changed[path] = value.encode()
         yield name, changed
+    yield from unicode_synthetic()
+
+
+def unicode_synthetic():
+    """New expectations come only from the 8f71e528 C++ serializer."""
+    nfd = '\u1100\u1161\u11a8 \u304b\u3099 Cafe\u0301'
+
+    def long_href(size):
+        prefix, suffix = ('d' * 80 + '/') * 5, '\u1100\u1161\u11a8-\u304b\u3099.xhtml'
+        return prefix + 'x' * (size - len((prefix + suffix).encode())) + suffix
+
+    cases = [
+        ('unicode-nfd', nfd, ['\u1100\u1161\u11a8.xhtml', '\u304b\u3099.xhtml', '\uac01.xhtml'], False, 'utf-8'),
+        ('unicode-at512', 'x' * 503 + '\u1100\u1161\u11a8', [long_href(512)], False, 'utf-8'),
+        ('unicode-over512', 'x' * 504 + '\u1100\u1161\u11a8', [long_href(513)], False, 'utf-8'),
+        ('unicode-combining512', 'x' * 510 + 'e\u0301', ['\u304b\u3099.xhtml'], False, 'utf-8'),
+        ('unicode-escaped', nfd, ['\u1100\u1161\u11a8.xhtml', '\u65e5\u672c\u8a9e.xhtml'], True, 'utf-8'),
+        ('unicode-utf16', nfd + ' \U0001f4d6', ['\u65e5\u672c\u8a9e-\U0001f4d6.xhtml'], False, 'utf-16'),
+    ]
+    for name, title, paths, escaped, encoding in cases:
+        hrefs = [quote(path) if escaped else path for path in paths]
+        anchor = quote(nfd) if escaped else nfd
+        labels = [nfd + ' ' + title for _ in paths]
+        manifest = ''.join(f'<item id="i{i}" href="{href}"/>' for i, href in enumerate(hrefs))
+        spine = ''.join(f'<itemref idref="i{i}"/>' for i in range(len(paths)))
+        nav = ''.join(f'<li><a href="{href}#{anchor}">{label}</a></li>'
+                      for href, label in zip(hrefs, labels))
+        ncx = ''.join(f'<navPoint><navLabel><text>{label}</text></navLabel>'
+                      f'<content src="{href}#{anchor}"/></navPoint>' for href, label in zip(hrefs, labels))
+        files = {
+            'META-INF/container.xml': '<container><rootfiles><rootfile full-path="OPS/book.opf" '
+                                      'media-type="application/oebps-package+xml"/></rootfiles></container>',
+            'OPS/book.opf': f'<package><metadata><title>{title}</title><creator>{nfd}</creator>'
+                            f'<meta name="calibre:series" content="{title}"/></metadata><manifest>{manifest}'
+                            '<item id="nav" href="nav.xhtml" properties="nav"/>'
+                            '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
+                            f'</manifest><spine>{spine}</spine></package>',
+            'OPS/nav.xhtml': f'<html><body><nav epub:type="toc"><ol>{nav}</ol></nav></body></html>',
+            'OPS/toc.ncx': f'<ncx><navMap>{ncx}</navMap></ncx>',
+        }
+        files.update(('OPS/' + path, '<html/>') for path in paths)
+        yield name, {path: text.encode(encoding) for path, text in files.items()}
 
 
 def capture(executable, extracted, work):

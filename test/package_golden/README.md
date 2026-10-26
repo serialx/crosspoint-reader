@@ -6,7 +6,8 @@ The executable uses the production `PackageParser` adapter, Rust document passes
 and book-cache writer, with the existing host HAL and ZIP-size adapters.
 `instrument.py` adds observations to a build-directory copy of
 `BookMetadataCache.cpp`; it does not replace serialization. The expected files
-remain the original C++ capture.
+remain C++ captures: the original corpus at `e621694b` and the six Unicode
+boundary cases at `8f71e528` (the last C++ serializer before the Rust writer).
 
 Run from the repository root:
 
@@ -24,10 +25,20 @@ Metadata-only short counts depend on the offered chunk and are recorded separate
 Private EPUBs can be supplied with repeated `--epub`, an external `--goldens`
 directory, and `--skip-synthetic`; never store their output in this directory.
 
-The corpus covers all 18 repository EPUBs plus 16 synthetic cases: duplicate
+The corpus covers all 18 repository EPUBs plus 22 synthetic cases: duplicate
 manifest ids, missing idref, relative and escaped hrefs/anchors, nested labels,
 UTF-8 BOM, both UTF-16 byte orders, missing rootfile, truncation in each document,
 long title/label, and both AES spellings versus case/font-only controls.
+
+The six `synthetic-unicode-*` cases add NFD Hangul/Japanese labels and paths,
+precomposed Hangul, 512/513-byte metadata text and attributes, 512/513-byte hrefs,
+a combining mark cut at byte 512, percent-escaped multibyte hrefs/anchors, and
+UTF-16 with a supplementary character. Each runs all 12 nav/NCX chunk schedules
+(480 public schedules total). Expectations preserve the existing byte clamp,
+including incomplete UTF-8, and restricted composition: Japanese dakuten is
+not composed by the firmware helper. Hrefs are decoded/normalized, not NFC.
+Only the new expectations were captured with a scratch export of `8f71e528`;
+no original golden was regenerated from the Rust writer.
 
 ## Observable contracts
 

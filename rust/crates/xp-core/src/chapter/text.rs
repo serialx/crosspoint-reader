@@ -25,6 +25,7 @@ impl State {
         self.word_len += length;
         self.drop_cap = DropCap::default();
     }
+    #[inline(never)]
     fn capture_drop(&mut self, bytes: &[u8]) -> bool {
         let length = usize::from(self.drop_cap.length);
         if length + bytes.len() > 12 || self.drop_cap.codepoints >= 3 {

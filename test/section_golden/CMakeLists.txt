@@ -17,6 +17,7 @@ add_executable(SectionGoldenDump
   SectionGoldenDump.cpp
   ImageDecoderStub.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Section.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
@@ -73,3 +74,6 @@ add_test(NAME ChapterOperationGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump> --ops)
 add_test(NAME ChapterOperationInstrumentation COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_chapter_trace.py)
+add_test(NAME SectionPartialReadGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/read_oracle.py --dump $<TARGET_FILE:SectionGoldenDump>
+  --output ${CMAKE_CURRENT_SOURCE_DIR}/goldens/partials.json.gz --partial --verify)

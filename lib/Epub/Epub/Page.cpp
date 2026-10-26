@@ -3,8 +3,9 @@
 #include <GfxRenderer.h>
 #include <Logging.h>
 #include <Memory.h>
-#include <Serialization.h>
 #include <Utf8.h>
+
+#include "SectionCodec.h"
 
 namespace {
 
@@ -70,31 +71,18 @@ void PageLine::render(GfxRenderer& renderer, const int fontId, const int xOffset
 }
 
 bool PageLine::serialize(HalFile& file) {
-  serialization::writePod(file, xPos);
-  serialization::writePod(file, yPos);
-
-  // serialize TextBlock pointed to by PageLine
-  return block->serialize(file);
+  return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
+         block->serialize(file);
 }
 
 std::unique_ptr<PageLine> PageLine::deserialize(HalFile& file) {
-  int16_t xPos;
-  int16_t yPos;
-  serialization::readPod(file, xPos);
-  serialization::readPod(file, yPos);
-
-  auto tb = TextBlock::deserialize(file);
-  if (!tb) {
-    LOG_ERR("PGE", "Deserialization failed: null TextBlock");
-    return nullptr;
-  }
-
-  auto line = makeUniqueNoThrow<PageLine>(std::move(tb), xPos, yPos);
-  if (!line) {
-    LOG_ERR("PGE", "Deserialization failed: could not allocate PageLine");
-    return nullptr;
-  }
-  return line;
+  XpSecRecord position;
+  if (!sectioncodec::read(file, XP_SEC_POSITION, position)) return nullptr;
+  auto block = TextBlock::deserialize(file);
+  if (!block) return nullptr;
+  auto element = makeUniqueNoThrow<PageLine>(std::move(block), position.values[0], position.values[1]);
+  if (!element) LOG_ERR("PGE", "Could not allocate PageLine");
+  return element;
 }
 
 void PageImage::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
@@ -107,30 +95,18 @@ void PageImage::renderPlaceholder(GfxRenderer& renderer, const int xOffset, cons
 }
 
 bool PageImage::serialize(HalFile& file) {
-  serialization::writePod(file, xPos);
-  serialization::writePod(file, yPos);
-
-  // serialize ImageBlock
-  return imageBlock->serialize(file);
+  return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
+         imageBlock->serialize(file);
 }
 
 std::unique_ptr<PageImage> PageImage::deserialize(HalFile& file) {
-  int16_t xPos;
-  int16_t yPos;
-  serialization::readPod(file, xPos);
-  serialization::readPod(file, yPos);
-
-  auto ib = ImageBlock::deserialize(file);
-  if (!ib) {
-    LOG_ERR("PGE", "Deserialization failed: null ImageBlock");
-    return nullptr;
-  }
-  auto image = makeUniqueNoThrow<PageImage>(std::move(ib), xPos, yPos);
-  if (!image) {
-    LOG_ERR("PGE", "Deserialization failed: could not allocate PageImage");
-    return nullptr;
-  }
-  return image;
+  XpSecRecord position;
+  if (!sectioncodec::read(file, XP_SEC_POSITION, position)) return nullptr;
+  auto block = ImageBlock::deserialize(file);
+  if (!block) return nullptr;
+  auto element = makeUniqueNoThrow<PageImage>(std::move(block), position.values[0], position.values[1]);
+  if (!element) LOG_ERR("PGE", "Could not allocate PageImage");
+  return element;
 }
 
 void PageHorizontalRule::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
@@ -143,35 +119,17 @@ void PageHorizontalRule::render(GfxRenderer& renderer, const int fontId, const i
 }
 
 bool PageHorizontalRule::serialize(HalFile& file) {
-  serialization::writePod(file, xPos);
-  serialization::writePod(file, yPos);
-  serialization::writePod(file, width);
-  serialization::writePod(file, thickness);
-  return true;
+  return sectioncodec::write(file,
+                             sectioncodec::record(XP_SEC_RULE, {uint32_t(xPos), uint32_t(yPos), width, thickness}));
 }
 
 std::unique_ptr<PageHorizontalRule> PageHorizontalRule::deserialize(HalFile& file) {
-  int16_t xPos = 0;
-  int16_t yPos = 0;
-  uint16_t width = 0;
-  uint8_t thickness = 0;
-  serialization::readPod(file, xPos);
-  serialization::readPod(file, yPos);
-  serialization::readPod(file, width);
-  serialization::readPod(file, thickness);
-
-  if (width == 0 || thickness == 0) {
-    LOG_ERR("PGE", "Deserialization failed: invalid horizontal rule metadata (width=%u thickness=%u)", width,
-            thickness);
-    return nullptr;
-  }
-
-  auto rule = makeUniqueNoThrow<PageHorizontalRule>(width, thickness, xPos, yPos);
-  if (!rule) {
-    LOG_ERR("PGE", "Deserialization failed: could not allocate PageHorizontalRule");
-    return nullptr;
-  }
-  return rule;
+  XpSecRecord record;
+  if (!sectioncodec::read(file, XP_SEC_RULE, record)) return nullptr;
+  auto element =
+      makeUniqueNoThrow<PageHorizontalRule>(record.values[2], record.values[3], record.values[0], record.values[1]);
+  if (!element) LOG_ERR("PGE", "Could not allocate PageHorizontalRule");
+  return element;
 }
 
 PageDropCap::PageDropCap(const int32_t fontId, const uint16_t scale256, const EpdFontFamily::Style style,
@@ -191,38 +149,23 @@ void PageDropCap::render(GfxRenderer& renderer, const int sectionFontId, const i
 }
 
 bool PageDropCap::serialize(HalFile& file) {
-  serialization::writePod(file, xPos);
-  serialization::writePod(file, yPos);
-  serialization::writePod(file, fontId);
-  serialization::writePod(file, scale256);
-  serialization::writePod(file, static_cast<uint8_t>(style));
   const auto length = static_cast<uint8_t>(strnlen(text, MAX_TEXT_BYTES));
-  serialization::writePod(file, length);
-  return file.write(text, length) == length;
+  return sectioncodec::write(
+             file, sectioncodec::record(XP_SEC_DROP_CAP, {uint32_t(xPos), uint32_t(yPos), uint32_t(fontId), scale256,
+                                                          uint32_t(style), length})) &&
+         file.write(text, length) == length;
 }
 
 std::unique_ptr<PageDropCap> PageDropCap::deserialize(HalFile& file) {
-  int16_t xPos = 0;
-  int16_t yPos = 0;
-  int32_t fontId = 0;
-  uint16_t scale256 = 0;
-  uint8_t style = 0;
-  uint8_t length = 0;
-  serialization::readPod(file, xPos);
-  serialization::readPod(file, yPos);
-  serialization::readPod(file, fontId);
-  serialization::readPod(file, scale256);
-  serialization::readPod(file, style);
-  serialization::readPod(file, length);
+  XpSecRecord record;
+  if (!sectioncodec::read(file, XP_SEC_DROP_CAP, record)) return nullptr;
   char text[MAX_TEXT_BYTES + 1] = {};
-  if (length == 0 || length > MAX_TEXT_BYTES || scale256 == 0 || file.read(text, length) != length) {
-    LOG_ERR("PGE", "Deserialization failed: invalid drop cap");
-    return nullptr;
-  }
-  auto dropCap =
-      makeUniqueNoThrow<PageDropCap>(fontId, scale256, static_cast<EpdFontFamily::Style>(style), text, xPos, yPos);
-  if (!dropCap) LOG_ERR("PGE", "Deserialization failed: could not allocate PageDropCap");
-  return dropCap;
+  if (file.read(text, record.values[5]) != record.values[5]) return nullptr;
+  auto element = makeUniqueNoThrow<PageDropCap>(record.values[2], record.values[3],
+                                                static_cast<EpdFontFamily::Style>(record.values[4]), text,
+                                                record.values[0], record.values[1]);
+  if (!element) LOG_ERR("PGE", "Could not allocate PageDropCap");
+  return element;
 }
 
 void PageBorderBox::renderBackground(GfxRenderer& renderer, const int xOffset, const int yOffset) const {
@@ -243,47 +186,25 @@ void PageBorderBox::render(GfxRenderer& renderer, const int, const int xOffset, 
 }
 
 bool PageBorderBox::serialize(HalFile& file) {
-  serialization::writePod(file, xPos);
-  serialization::writePod(file, yPos);
-  serialization::writePod(file, width);
-  serialization::writePod(file, height);
-  for (const CssBorderSide& side : sides) {
-    serialization::writePod(file, side.width);
-    serialization::writePod(file, static_cast<uint8_t>(side.style));
-  }
-  serialization::writePod(file, shaded);
-  return true;
+  return sectioncodec::write(
+      file, sectioncodec::record(
+                XP_SEC_BORDER, {uint32_t(xPos), uint32_t(yPos), width, height, sides[0].width, uint32_t(sides[0].style),
+                                sides[1].width, uint32_t(sides[1].style), sides[2].width, uint32_t(sides[2].style),
+                                sides[3].width, uint32_t(sides[3].style), shaded}));
 }
 
 std::unique_ptr<PageBorderBox> PageBorderBox::deserialize(HalFile& file) {
-  int16_t xPos = 0;
-  int16_t yPos = 0;
-  uint16_t width = 0;
-  uint16_t height = 0;
+  XpSecRecord record;
+  if (!sectioncodec::read(file, XP_SEC_BORDER, record)) return nullptr;
   CssBorderSide sides[4];
-  bool shaded = false;
-  serialization::readPod(file, xPos);
-  serialization::readPod(file, yPos);
-  serialization::readPod(file, width);
-  serialization::readPod(file, height);
-  for (CssBorderSide& side : sides) {
-    uint8_t style = 0;
-    serialization::readPod(file, side.width);
-    serialization::readPod(file, style);
-    if (style > static_cast<uint8_t>(CssBorderStyle::Dashed)) {
-      LOG_ERR("PGE", "Deserialization failed: invalid border style %u", style);
-      return nullptr;
-    }
-    side.style = static_cast<CssBorderStyle>(style);
+  for (size_t i = 0; i < 4; ++i) {
+    sides[i].width = record.values[4 + i * 2];
+    sides[i].style = static_cast<CssBorderStyle>(record.values[5 + i * 2]);
   }
-  serialization::readPod(file, shaded);
-  if (width == 0 || height == 0) {
-    LOG_ERR("PGE", "Deserialization failed: empty border box");
-    return nullptr;
-  }
-  auto box = makeUniqueNoThrow<PageBorderBox>(width, height, sides, shaded, xPos, yPos);
-  if (!box) LOG_ERR("PGE", "Deserialization failed: could not allocate PageBorderBox");
-  return box;
+  auto element = makeUniqueNoThrow<PageBorderBox>(record.values[2], record.values[3], sides, record.values[12] != 0,
+                                                  record.values[0], record.values[1]);
+  if (!element) LOG_ERR("PGE", "Could not allocate PageBorderBox");
+  return element;
 }
 
 // Backgrounds precede every border, including borders inside shaded containers.
@@ -315,11 +236,11 @@ void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, 
 
 bool Page::serialize(HalFile& file) const {
   const uint16_t count = elements.size();
-  serialization::writePod(file, count);
+  if (!sectioncodec::writeValue(file, XP_SEC_U16, count)) return false;
 
   for (const auto& el : elements) {
     // Use getTag() method to determine type
-    serialization::writePod(file, static_cast<uint8_t>(el->getTag()));
+    if (!sectioncodec::writeValue(file, XP_SEC_ELEMENT_TAG, el->getTag())) return false;
 
     if (!el->serialize(file)) {
       return false;
@@ -328,7 +249,7 @@ bool Page::serialize(HalFile& file) const {
 
   // Serialize footnotes (clamp to MAX_FOOTNOTES_PER_PAGE to match addFootnote/deserialize limits)
   const uint16_t fnCount = std::min<uint16_t>(footnotes.size(), MAX_FOOTNOTES_PER_PAGE);
-  serialization::writePod(file, fnCount);
+  if (!sectioncodec::writeValue(file, XP_SEC_FOOTNOTE_COUNT, fnCount)) return false;
   for (uint16_t i = 0; i < fnCount; i++) {
     const auto& fn = footnotes[i];
     if (file.write(fn.number, sizeof(fn.number)) != sizeof(fn.number) ||
@@ -339,17 +260,17 @@ bool Page::serialize(HalFile& file) const {
   }
 
   const uint16_t linkCount = std::min<uint16_t>(links.size(), MAX_LINKS_PER_PAGE);
-  serialization::writePod(file, linkCount);
+  if (!sectioncodec::writeValue(file, XP_SEC_LINK_COUNT, linkCount)) return false;
   for (uint16_t i = 0; i < linkCount; i++) {
     const auto& link = links[i];
     if (file.write(link.href, sizeof(link.href)) != sizeof(link.href)) {
       LOG_ERR("PGE", "Failed to write link %u", i);
       return false;
     }
-    serialization::writePod(file, link.x);
-    serialization::writePod(file, link.y);
-    serialization::writePod(file, link.width);
-    serialization::writePod(file, link.height);
+    if (!sectioncodec::write(
+            file, sectioncodec::record(XP_SEC_LINK_GEOMETRY, {uint32_t(link.x), uint32_t(link.y), uint32_t(link.width),
+                                                              uint32_t(link.height)})))
+      return false;
   }
 
   return true;
@@ -362,8 +283,8 @@ std::unique_ptr<Page> Page::deserialize(HalFile& file) {
     return nullptr;
   }
 
-  uint16_t count;
-  serialization::readPod(file, count);
+  uint32_t count;
+  if (!sectioncodec::readValue(file, XP_SEC_U16, count)) return nullptr;
 
   // Reserve up front so a page load costs one allocation for the element vector
   // instead of a grow-copy-free cycle every doubling. `count` is untrusted (it
@@ -373,11 +294,11 @@ std::unique_ptr<Page> Page::deserialize(HalFile& file) {
   // firmware builds with -fno-exceptions). Under-reserving is harmless -- the
   // push_back path below still grows normally.
   static constexpr uint16_t RESERVE_CAP = 256;
-  page->elements.reserve(std::min(count, RESERVE_CAP));
+  page->elements.reserve(std::min<uint32_t>(count, RESERVE_CAP));
 
   for (uint16_t i = 0; i < count; i++) {
-    uint8_t tag;
-    serialization::readPod(file, tag);
+    uint32_t tag;
+    if (!sectioncodec::readValue(file, XP_SEC_ELEMENT_TAG, tag)) return nullptr;
 
     if (tag == TAG_PageLine) {
       auto pl = PageLine::deserialize(file);
@@ -416,12 +337,8 @@ std::unique_ptr<Page> Page::deserialize(HalFile& file) {
   }
 
   // Deserialize footnotes
-  uint16_t fnCount;
-  serialization::readPod(file, fnCount);
-  if (fnCount > MAX_FOOTNOTES_PER_PAGE) {
-    LOG_ERR("PGE", "Invalid footnote count %u", fnCount);
-    return nullptr;
-  }
+  uint32_t fnCount;
+  if (!sectioncodec::readValue(file, XP_SEC_FOOTNOTE_COUNT, fnCount)) return nullptr;
   page->footnotes.resize(fnCount);
   for (uint16_t i = 0; i < fnCount; i++) {
     auto& entry = page->footnotes[i];
@@ -434,12 +351,8 @@ std::unique_ptr<Page> Page::deserialize(HalFile& file) {
     entry.href[sizeof(entry.href) - 1] = '\0';
   }
 
-  uint16_t linkCount;
-  serialization::readPod(file, linkCount);
-  if (linkCount > MAX_LINKS_PER_PAGE) {
-    LOG_ERR("PGE", "Invalid link count %u", linkCount);
-    return nullptr;
-  }
+  uint32_t linkCount;
+  if (!sectioncodec::readValue(file, XP_SEC_LINK_COUNT, linkCount)) return nullptr;
   page->links.resize(linkCount);
   for (uint16_t i = 0; i < linkCount; i++) {
     auto& link = page->links[i];
@@ -448,11 +361,13 @@ std::unique_ptr<Page> Page::deserialize(HalFile& file) {
       return nullptr;
     }
     link.href[sizeof(link.href) - 1] = '\0';
-    serialization::readPod(file, link.x);
-    serialization::readPod(file, link.y);
-    serialization::readPod(file, link.width);
-    serialization::readPod(file, link.height);
-    if (link.href[0] == '\0' || link.width <= 0 || link.height <= 0) {
+    XpSecRecord geometry;
+    if (!sectioncodec::read(file, XP_SEC_LINK_GEOMETRY, geometry)) return nullptr;
+    link.x = geometry.values[0];
+    link.y = geometry.values[1];
+    link.width = geometry.values[2];
+    link.height = geometry.values[3];
+    if (link.href[0] == '\0') {
       LOG_ERR("PGE", "Invalid link geometry %u", i);
       return nullptr;
     }

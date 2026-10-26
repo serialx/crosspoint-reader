@@ -4,6 +4,7 @@ pub mod css;
 pub mod epub;
 pub mod hyphen;
 pub mod para;
+pub mod section;
 pub mod text;
 pub mod utf8;
 pub mod xml;

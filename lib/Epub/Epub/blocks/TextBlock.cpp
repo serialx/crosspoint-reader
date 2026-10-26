@@ -5,13 +5,13 @@
 #include <Logging.h>
 #include <Memory.h>
 #include <MemoryManager.h>
-#include <Serialization.h>
 
 #include <cstring>
 #include <string_view>
 
 #include "../../../../src/fontIds.h"
 #include "../CjkBreaks.h"
+#include "../SectionCodec.h"
 
 size_t TextBlock::arenaSize(const uint16_t wordCount, const bool hasFocus, const uint16_t textBytes) {
   // Layout documented in TextBlock.h: 16-bit arrays first, then 8-bit arrays, then text.
@@ -468,12 +468,11 @@ bool TextBlock::serialize(HalFile& file) const {
   // Word data: scalars, then the arena verbatim -- its in-memory layout is
   // exactly the on-disk layout (see TextBlock.h), so one write covers all
   // per-word arrays and the text blob.
-  serialization::writePod(file, numWords);
-  serialization::writePod(file, static_cast<uint8_t>(focusPresent ? 1 : 0));
-  serialization::writePod(file, textBytes);
-  serialization::writePod(file, paragraphStartWord);
+  if (!sectioncodec::write(
+          file, sectioncodec::record(XP_SEC_TEXT_HEADER, {numWords, focusPresent, textBytes, paragraphStartWord})))
+    return false;
   if (numWords > 0) {
-    const size_t size = arenaSize(numWords, focusPresent, textBytes);
+    const size_t size = xp_sec_arena_size(numWords, focusPresent, textBytes);
     if (file.write(arena.get(), size) != size) {
       LOG_ERR("TXB", "Serialization failed: arena write (%u bytes)", static_cast<uint32_t>(size));
       return false;
@@ -482,30 +481,25 @@ bool TextBlock::serialize(HalFile& file) const {
 
   // Ruby text data
   for (size_t i = 0; i < numWords; i++) {
-    serialization::writeString(file, (i < rubyTexts.size()) ? rubyTexts[i] : std::string());
+    if (!sectioncodec::writeString(file, (i < rubyTexts.size()) ? rubyTexts[i] : std::string())) return false;
   }
 
   // Style (alignment + margins/padding/indent)
-  serialization::writePod(file, blockStyle.alignment);
-  serialization::writePod(file, blockStyle.textAlignDefined);
-  serialization::writePod(file, blockStyle.marginTop);
-  serialization::writePod(file, blockStyle.marginBottom);
-  serialization::writePod(file, blockStyle.marginLeft);
-  serialization::writePod(file, blockStyle.marginRight);
-  serialization::writePod(file, blockStyle.paddingTop);
-  serialization::writePod(file, blockStyle.paddingBottom);
-  serialization::writePod(file, blockStyle.paddingLeft);
-  serialization::writePod(file, blockStyle.paddingRight);
-  serialization::writePod(file, blockStyle.textIndent);
-  serialization::writePod(file, blockStyle.textIndentDefined);
-  serialization::writePod(file, blockStyle.isRtl);
-  serialization::writePod(file, blockStyle.directionDefined);
-  serialization::writePod(file, blockStyle.characterSpacing);
-  serialization::writePod(file, blockStyle.fontId);
+  if (!sectioncodec::write(
+          file, sectioncodec::record(XP_SEC_BLOCK_STYLE,
+                                     {uint32_t(blockStyle.alignment), uint32_t(blockStyle.textAlignDefined),
+                                      uint32_t(blockStyle.marginTop), uint32_t(blockStyle.marginBottom),
+                                      uint32_t(blockStyle.marginLeft), uint32_t(blockStyle.marginRight),
+                                      uint32_t(blockStyle.paddingTop), uint32_t(blockStyle.paddingBottom),
+                                      uint32_t(blockStyle.paddingLeft), uint32_t(blockStyle.paddingRight),
+                                      uint32_t(blockStyle.textIndent), uint32_t(blockStyle.textIndentDefined),
+                                      uint32_t(blockStyle.isRtl), uint32_t(blockStyle.directionDefined),
+                                      uint32_t(blockStyle.characterSpacing), uint32_t(blockStyle.fontId)})))
+    return false;
 
   // Per-word fonts: a flag, then the font table and one slot per word.
   const uint8_t hasWordFonts = wordFontData ? 1 : 0;
-  serialization::writePod(file, hasWordFonts);
+  if (!sectioncodec::writeValue(file, XP_SEC_WORD_FONT_FLAG, hasWordFonts)) return false;
   if (hasWordFonts) {
     const size_t size = sizeof(int32_t) * MAX_WORD_FONTS + numWords;
     if (file.write(wordFontData.get(), size) != size) {
@@ -518,25 +512,12 @@ bool TextBlock::serialize(HalFile& file) const {
 }
 
 std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
-  uint16_t wc;
-  uint8_t hasFocus;
-  uint16_t textBytes;
-  uint16_t paragraphStartWord;
-  serialization::readPod(file, wc);
-  serialization::readPod(file, hasFocus);
-  serialization::readPod(file, textBytes);
-  serialization::readPod(file, paragraphStartWord);
-
-  // Sanity checks: cap the arena allocation and reject impossible geometry
-  // (every word carries at least its NUL terminator).
-  if (wc > 10000 || (paragraphStartWord != UINT16_MAX && paragraphStartWord >= wc)) {
-    LOG_ERR("TXB", "Deserialization failed: word count %u exceeds maximum", wc);
-    return nullptr;
-  }
-  if ((wc == 0 && textBytes != 0) || (wc > 0 && textBytes < wc)) {
-    LOG_ERR("TXB", "Deserialization failed: bad text size %u for %u words", textBytes, wc);
-    return nullptr;
-  }
+  XpSecRecord header;
+  if (!sectioncodec::read(file, XP_SEC_TEXT_HEADER, header)) return nullptr;
+  const uint16_t wc = header.values[0];
+  const bool hasFocus = header.values[1] != 0;
+  const uint16_t textBytes = header.values[2];
+  const uint16_t paragraphStartWord = header.values[3];
 
   std::unique_ptr<TextBlock> block(new (std::nothrow) TextBlock());
   if (!block) {
@@ -549,7 +530,7 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
   block->focusPresent = hasFocus != 0;
 
   if (wc > 0) {
-    const size_t size = arenaSize(wc, block->focusPresent, textBytes);
+    const size_t size = xp_sec_arena_size(wc, block->focusPresent, textBytes);
     block->arena = makeUniqueNoThrow<uint8_t[]>(size);
     if (!block->arena) {
       LOG_ERR("TXB", "OOM: arena %u bytes", static_cast<uint32_t>(size));
@@ -561,20 +542,9 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
     }
     block->bindArenaPointers();
 
-    // Validate offsets before anything dereferences wordText(): offset 0 first,
-    // strictly increasing, in bounds, and every word NUL-terminated (word i ends
-    // at the byte before offset i+1; the last word at the last text byte).
-    const uint16_t* textOff = block->textOffArr;
-    const char* text = block->textArr;
-    if (textOff[0] != 0 || text[textBytes - 1] != '\0') {
+    if (!xp_sec_validate_arena(wc, block->focusPresent, textBytes, block->arena.get(), size)) {
       LOG_ERR("TXB", "Deserialization failed: corrupt text layout");
       return nullptr;
-    }
-    for (uint16_t i = 1; i < wc; i++) {
-      if (textOff[i] <= textOff[i - 1] || textOff[i] >= textBytes || text[textOff[i] - 1] != '\0') {
-        LOG_ERR("TXB", "Deserialization failed: corrupt word offset %u", i);
-        return nullptr;
-      }
     }
   }
 
@@ -590,7 +560,7 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
   // overwrites every byte, so a moved-from value carries nothing into the next iteration.
   std::string scratch;
   for (uint16_t i = 0; i < wc; i++) {
-    serialization::readString(file, scratch);
+    if (!sectioncodec::readString(file, scratch)) return nullptr;
     if (scratch.empty()) continue;
     if (block->rubyTexts.empty()) {
       block->rubyTexts.resize(wc);
@@ -600,29 +570,27 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
 
   // Style (alignment + margins/padding/indent)
   BlockStyle& blockStyle = block->blockStyle;
-  serialization::readPod(file, blockStyle.alignment);
-  serialization::readPod(file, blockStyle.textAlignDefined);
-  serialization::readPod(file, blockStyle.marginTop);
-  serialization::readPod(file, blockStyle.marginBottom);
-  serialization::readPod(file, blockStyle.marginLeft);
-  serialization::readPod(file, blockStyle.marginRight);
-  serialization::readPod(file, blockStyle.paddingTop);
-  serialization::readPod(file, blockStyle.paddingBottom);
-  serialization::readPod(file, blockStyle.paddingLeft);
-  serialization::readPod(file, blockStyle.paddingRight);
-  serialization::readPod(file, blockStyle.textIndent);
-  serialization::readPod(file, blockStyle.textIndentDefined);
-  serialization::readPod(file, blockStyle.isRtl);
-  serialization::readPod(file, blockStyle.directionDefined);
-  serialization::readPod(file, blockStyle.characterSpacing);
-  serialization::readPod(file, blockStyle.fontId);
+  XpSecRecord style;
+  if (!sectioncodec::read(file, XP_SEC_BLOCK_STYLE, style)) return nullptr;
+  blockStyle.alignment = static_cast<CssTextAlign>(style.values[0]);
+  blockStyle.textAlignDefined = style.values[1];
+  blockStyle.marginTop = style.values[2];
+  blockStyle.marginBottom = style.values[3];
+  blockStyle.marginLeft = style.values[4];
+  blockStyle.marginRight = style.values[5];
+  blockStyle.paddingTop = style.values[6];
+  blockStyle.paddingBottom = style.values[7];
+  blockStyle.paddingLeft = style.values[8];
+  blockStyle.paddingRight = style.values[9];
+  blockStyle.textIndent = style.values[10];
+  blockStyle.textIndentDefined = style.values[11];
+  blockStyle.isRtl = style.values[12];
+  blockStyle.directionDefined = style.values[13];
+  blockStyle.characterSpacing = style.values[14];
+  blockStyle.fontId = style.values[15];
 
-  uint8_t hasWordFonts = 0;
-  serialization::readPod(file, hasWordFonts);
-  if (hasWordFonts > 1) {
-    LOG_ERR("TXB", "Deserialization failed: bad word font flag %u", hasWordFonts);
-    return nullptr;
-  }
+  uint32_t hasWordFonts = 0;
+  if (!sectioncodec::readValue(file, XP_SEC_WORD_FONT_FLAG, hasWordFonts)) return nullptr;
   if (hasWordFonts) {
     const size_t size = sizeof(int32_t) * MAX_WORD_FONTS + wc;
     block->wordFontData = makeUniqueNoThrow<uint8_t[]>(size);
@@ -630,17 +598,9 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
       LOG_ERR("TXB", "Deserialization failed: word fonts");
       return nullptr;
     }
-    const uint8_t* slots = block->wordFontData.get() + sizeof(int32_t) * MAX_WORD_FONTS;
-    for (uint16_t i = 0; i < wc; ++i) {
-      const uint8_t slot = slots[i] & ~SMALL_CAPS_SLOT_FLAG;
-      int32_t font = 1;
-      if (slot > 0 && slot <= MAX_WORD_FONTS) {
-        memcpy(&font, block->wordFontData.get() + sizeof(int32_t) * (slot - 1), sizeof(font));
-      }
-      if (slot > MAX_WORD_FONTS || font == 0) {
-        LOG_ERR("TXB", "Deserialization failed: bad word font slot %u", slots[i]);
-        return nullptr;
-      }
+    if (!xp_sec_validate_fonts(wc, block->wordFontData.get(), size)) {
+      LOG_ERR("TXB", "Deserialization failed: bad word font slots");
+      return nullptr;
     }
   }
 

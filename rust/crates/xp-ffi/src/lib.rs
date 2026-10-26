@@ -4,6 +4,8 @@ mod css;
 mod hyphen;
 mod para;
 mod pkg;
+
+mod section;
 mod text;
 mod xml;
 mod zip;

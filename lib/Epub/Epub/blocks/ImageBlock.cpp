@@ -4,12 +4,12 @@
 #include <GfxRenderer.h>
 #include <Logging.h>
 #include <Memory.h>
-#include <Serialization.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <new>
 
+#include "../SectionCodec.h"
 #include "Epub/converters/DirectPixelWriter.h"
 #include "Epub/converters/ImageDecoderFactory.h"
 
@@ -416,20 +416,16 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
 }
 
 bool ImageBlock::serialize(HalFile& file) {
-  serialization::writeString(file, imagePath);
-  serialization::writeString(file, srcPath);
-  serialization::writePod(file, width);
-  serialization::writePod(file, height);
-  return true;
+  return sectioncodec::writeString(file, imagePath) && sectioncodec::writeString(file, srcPath) &&
+         sectioncodec::write(file, sectioncodec::record(XP_SEC_IMAGE_SIZE, {uint32_t(width), uint32_t(height)}));
 }
 
 std::unique_ptr<ImageBlock> ImageBlock::deserialize(HalFile& file) {
   std::string path;
   std::string src;
-  serialization::readString(file, path);
-  serialization::readString(file, src);
-  int16_t w, h;
-  serialization::readPod(file, w);
-  serialization::readPod(file, h);
-  return std::unique_ptr<ImageBlock>(new (std::nothrow) ImageBlock(path, src, w, h));
+  XpSecRecord size;
+  if (!sectioncodec::readString(file, path) || !sectioncodec::readString(file, src) ||
+      !sectioncodec::read(file, XP_SEC_IMAGE_SIZE, size))
+    return nullptr;
+  return std::unique_ptr<ImageBlock>(new (std::nothrow) ImageBlock(path, src, size.values[0], size.values[1]));
 }

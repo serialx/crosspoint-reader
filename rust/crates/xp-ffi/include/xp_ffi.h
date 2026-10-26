@@ -408,6 +408,57 @@ int32_t xp_pkg_feed(XpPkg* handle, const uint8_t* bytes, size_t len, uint8_t fin
 int32_t xp_pkg_next(XpPkg* handle, XpPkgRecord* out);
 void xp_pkg_destroy(XpPkg* handle);
 
+// Section cache codec. All storage is caller-owned; no allocation or callbacks.
+// Buffers must have len/capacity bytes in one allocation (<= PTRDIFF_MAX),
+// remain alive while borrowed by a decoder, and not overlap output records.
+// NULL is permitted only for zero-length buffers. Status: 0 OK, 1 NEED_INPUT,
+// 2 NEED_OUTPUT, 3 INVALID. Failed encode leaves output untouched.
+enum { XP_SEC_OK = 0, XP_SEC_NEED_INPUT = 1, XP_SEC_NEED_OUTPUT = 2, XP_SEC_INVALID = 3 };
+enum { XP_SEC_VERSION = 68, XP_SEC_PARTIAL_VERSION = 214, XP_SEC_HEADER_SIZE = 44 };
+typedef enum {
+  XP_SEC_U8,
+  XP_SEC_U16,
+  XP_SEC_U32,
+  XP_SEC_HEADER,
+  XP_SEC_TEXT_HEADER,
+  XP_SEC_BLOCK_STYLE,
+  XP_SEC_POSITION,
+  XP_SEC_IMAGE_SIZE,
+  XP_SEC_RULE,
+  XP_SEC_DROP_CAP,
+  XP_SEC_BORDER,
+  XP_SEC_ELEMENT_TAG,
+  XP_SEC_FOOTNOTE_COUNT,
+  XP_SEC_LINK_COUNT,
+  XP_SEC_LINK_GEOMETRY,
+  XP_SEC_WORD_FONT_FLAG
+} XpSecKind;
+typedef struct {
+  uint32_t kind;
+  uint32_t values[20];
+} XpSecRecord;
+typedef struct {
+  const uint8_t* input;
+  size_t len;
+  size_t position;
+  uint32_t kind;
+} XpSecDecoder;
+size_t xp_sec_record_size(uint32_t kind);
+uint32_t xp_sec_encode_record(const XpSecRecord* record, uint8_t* output, size_t capacity, size_t* required);
+// A decoder walks consecutive records of its declared kind; initialize position
+// to zero. Payload owners use separate arena/font validators after direct reads.
+uint32_t xp_sec_decode_next(XpSecDecoder* decoder, XpSecRecord* record);
+size_t xp_sec_arena_size(uint16_t words, uint8_t focus, uint16_t text_bytes);
+uint8_t xp_sec_validate_arena(uint16_t words, uint8_t focus, uint16_t text_bytes, const uint8_t* data, size_t len);
+uint8_t xp_sec_validate_fonts(uint16_t words, const uint8_t* data, size_t len);
+uint8_t xp_sec_header_matches(const XpSecRecord* header, const XpSecRecord* expected);
+uint8_t xp_sec_table_entry(uint32_t offset, uint32_t index, uint32_t width, uint32_t size, uint32_t minimum,
+                           uint32_t* result);
+uint8_t xp_sec_partial_trailer(const XpSecRecord* header, uint32_t size, uint32_t* result);
+
+uint32_t xp_sec_encode_text_word(size_t previous, const uint8_t* word, size_t len, uint8_t* output, size_t capacity,
+                                 size_t* required);
+
 #ifdef __cplusplus
 }
 #endif

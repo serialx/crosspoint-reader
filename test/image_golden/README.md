@@ -47,7 +47,8 @@ address/undefined-behavior sanitizers for the host target.
 
 `ctest --test-dir build/image-golden --output-on-failure` also runs allocation
 failure injection and cache open/write/close failure checks. The tests require
-all Rust owners to be released and every partial cache to be removed. The old
+all Rust owners to be released and an abort callback for each opened failed
+cache. The in-memory sink does not verify filesystem deletion. The old
 `PixelCache.h` remains only because `test/gif_support/PixelCacheTest.cpp` includes
 it; production converters use the Rust writer. The X3 oracle does not establish
 correct output on panels whose framebuffer exceeds 65,535 bytes. The existing

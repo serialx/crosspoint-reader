@@ -37,6 +37,14 @@ def unpack(data):
             'cache_exists': exists, 'cache': digest(cache), 'cache_bytes': len(cache)}
 
 
+def require_case_keys(actual, expected):
+    missing = expected.keys() - actual.keys()
+    unexpected = actual.keys() - expected.keys()
+    if missing or unexpected:
+        raise SystemExit(f'Case keys differ: {len(missing)} missing {sorted(missing)[:12]}, '
+                         f'{len(unexpected)} unexpected {sorted(unexpected)[:12]}')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('binary', type=Path)
@@ -76,6 +84,7 @@ def main():
             args.output.write_bytes(gzip.compress(json.dumps(document, sort_keys=True, separators=(',', ':')).encode(), mtime=0))
         else:
             expected = json.loads(gzip.decompress(args.output.read_bytes()))
+            require_case_keys(actual, expected['cases'])
             failures = [key for key in actual if actual[key] != expected['cases'].get(key)]
             if document['corpus'] != expected['corpus']: raise SystemExit('Corpus differs')
             if failures:

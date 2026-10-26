@@ -40,3 +40,5 @@ enable_testing()
 add_test(NAME ImagePipelineFailures COMMAND image_failures)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME ImagePipelineGoldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py $<TARGET_FILE:image_oracle>)
+
+add_test(NAME ImagePipelineCaseKeys COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_run.py)

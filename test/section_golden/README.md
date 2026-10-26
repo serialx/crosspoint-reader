@@ -335,3 +335,23 @@ Run these focused checks with:
 ```sh
 ctest --test-dir build/test -R '^SectionCodecCoverage$|^SectionMutationRules$' --output-on-failure
 ```
+
+### Expanded M7b C++ baseline
+
+The M7b baseline at `04735f48` adds paragraph existence, creation and reset,
+paragraph direction, row-storage mutations and queries, footnote insertion,
+box-depth queries, semantic font/viewport queries, and table read-ahead requests.
+These records keep the existing `Paragraph.` prefix for compatibility with the
+expression recorder. Inputs and non-void replies are recorded; footnotes encode
+both bounded strings. The archive was captured from C++ before the Rust port,
+with coordinator approval to add coverage; existing section/layout baselines
+were not changed. The original M7a archive remains in the external M7b evidence
+as `ops-v1.tar.gz` with its manifest.
+
+This is still a selected-operation oracle, not a complete memory-state trace.
+Assembly's new `semantic*` feedback calls are represented by the original output
+observations, not uniformly as independent records. `instrument_chapter.py`
+contains the explicit service-to-record mapping (`paragraph_names` and
+`added_services`), while its named hooks identify semantic/page observations.
+The raw parser event stream, complete sections/layouts, cancellation tests and
+emulator caches remain independent checks.

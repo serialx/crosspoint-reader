@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "Epub/blocks/BlockStyle.h"
+#include "Epub/FootnoteEntry.h"
 
 namespace ChapterTrace {
 inline std::ofstream stream;
@@ -60,6 +61,11 @@ inline void field(const BlockStyle& s) {
          << s.textAlignDefined << ',' << s.isRtl << ',' << s.directionDefined << ',' << bits(s.fontScale) << ','
          << s.fontScaleDefined << ',' << s.fontId << ',' << s.pageBreakBefore << ',' << s.pageBreakAfter << ','
          << s.keepWithNext;
+}
+inline void field(const FootnoteEntry& entry) {
+  field(entry.number);
+  stream << ',';
+  field(entry.href);
 }
 inline void field(const CssBorderSide& side) { stream << int(side.width) << ',' << int(side.style); }
 inline void field(const CssLength& length) { stream << bits(length.value) << ',' << int(length.unit); }

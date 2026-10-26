@@ -147,6 +147,16 @@ def instrument(source):
            '  ChapterTrace::record("Page", semanticParagraphIndex(), semanticListIndex(), currentPageVisibleOffset, currentPageNextY);')
     # Paragraph services used by semantic callbacks, including opaque slot/link replies.
     reverse_names = {new: old for old, new in paragraph_names.items()}
+    # Services introduced by the split that the original expression oracle omitted.
+    added_services = {
+        'paragraphExists', 'createParagraph', 'resetParagraph', 'applyParagraphDirection',
+        'clearTableCells', 'reserveTableCells', 'bufferedTableWords', 'tableStacked',
+        'setTableStacked', 'setTableRtl', 'resetTableBytes', 'tableBytes', 'addTableBytes',
+        'resetExtractedWords', 'extractedWords', 'addPendingFootnote', 'boxAtDepth',
+        'bodyIsSdFont', 'bodySpaceWidth', 'prepareBodyText', 'bodyTextAdvance', 'bodyAscender',
+        'pageWidth', 'pageHeight', 'measureTableAtCurrentPosition',
+    }
+    reverse_names.update({name: name for name in added_services})
     services = '|'.join(reverse_names)
     pattern = r'(?:(?:self->)?currentTextBlock->(?P<method>\w+)|(?<![\w>:])(?:self->)?(?P<service>' + services + r'))\('
     matches = list(re.finditer(pattern, source))

@@ -189,12 +189,13 @@ Paragraph storage and line layout are behind the Rust ABI. The paragraph-level
 [layout oracle](../../test/section_golden/README.md#paragraph-layout-oracle)
 checks every call against the original C++ trace as well.
 
-`WordStore` now delegates its arena to `xp-core::para`. Its opaque state uses
-four pointer-sized words inside the C++ owner, with no separate handle allocation.
-The C++ allocation callback uses the existing nothrow allocator and retries once
-following `MemoryManager::ensureFree(request + 8192)`. Rust returns every buffer
-to the matching C++ release callback. On firmware these allocations use the
-existing C++/ESP-IDF heap path; no Rust global allocation is added.
+`xp-core::para::paragraph::Paragraph` owns the word arena and token storage.
+The C++ `Paragraph` adapter embeds 64 pointer-sized, pointer-aligned words, with
+compile-time Rust size/alignment checks and no separate handle allocation.
+Arena/token buffers use the existing C++ nothrow allocator callback, which retries
+once after `MemoryManager::ensureFree(request + 8192)`. Rust returns those buffers
+to the matching release callback. Link targets and temporary Rust vectors use
+fallible `try_reserve` with the firmware's ESP-IDF global allocator.
 
 Text chunks remain 2,048 bytes, with exact-fit chunks for larger words and a
 65,534-byte payload limit. Descriptors start at eight slots and double, keeping
@@ -205,7 +206,7 @@ one release obligation with their original handle. An allocation failure leaves
 the append output unchanged and existing word bytes valid. Rust tests inject
 failure at every allocation in a multi-chunk growth sequence and check cleanup.
 
-Token metadata also uses caller-owned opaque state (26 pointer-sized words).
+Token metadata is an internal Rust owner embedded in the paragraph.
 Handles grow in 512-byte chunks of 64 entries; consumed whole chunks retire,
 while the pointer table retains its capacity. Four byte arrays store style,
 focus boundary, link id and size slot; a u16 array stores visible-offset deltas.
@@ -223,11 +224,13 @@ partially insert a token or shift source offsets. New text is released when
 metadata insertion fails, and the paragraph latches its existing failure flag.
 A failed hyphenation insertion leaves the original word intact.
 
-The C++ facade still performs normalization, tokenization, font measurement,
-MiniBidi ordering and TextBlock construction. Sparse visible-offset rebasing and
-NFC absorbed-position accounting live in Rust. Ruby strings, link targets,
-size-slot font tables and MiniBidi scratch retain their C++ ownership. The ABI
-owns no rendering or storage service and adds no task or synchronization.
+Rust performs normalization/tokenization and owns visible-offset rebasing, NFC
+source accounting, ruby text, link targets and size-slot font tables. Ruby metadata
+uses 16-entry chunks (512 bytes each on C3), with a small fallible pointer table;
+consuming a prefix releases whole chunks, and consuming all text releases the table.
+Long annotation/target text has separate fallible byte storage; short text stays
+inline. C++ retains font measurement, MiniBidi's shared workspace, and TextBlock
+construction. The ABI adds no rendering/storage service, task or synchronization.
 
 ## Paragraph layout
 
@@ -235,23 +238,28 @@ Rust owns the DP and greedy breakers, hyphenation candidate
 selection and token splitting, line justification and positions, and line source
 metadata. The algorithms preserve the original rounding, cost ties and fallback
 order. Hyphenation calls the existing Rust engine directly. C++ supplies renderer
-advances, kerning, space metrics and ruby adjustments through synchronous
-callbacks; MiniBidi runs at the same point and supplies the original visual order.
+advances, kerning and space metrics through synchronous callbacks. Rust computes
+ruby adjustments; MiniBidi runs at the same point and supplies the original visual order.
 Metric callbacks cannot reenter layout or retain borrowed pointers.
 
 The width cache owns 2 × N bytes initially and doubles only when a split needs
 more slots. DP owns exact `int32_t[N]` and `size_t[N]` arrays (8 × N bytes on C3);
 greedy has no DP scratch. Break indices grow from one pointer-sized slot and
-double. Completed-line numeric metadata uses one exact allocation: 11 × W bytes,
-or 14 × W with focus annotations, for at most 10,000 words. This replaces the
-separate position, style, source-range and focus vectors; word strings and BiDi
-scratch remain C++ inputs to the existing reorder hook. TextBlock copies borrowed
-metadata into its existing arena before the line owner is destroyed.
+double. Completed-line scratch uses one exact allocation for numeric metadata,
+ruby spans, word offsets, visual order and sanitized NUL-separated text. For W
+words and B packed bytes on C3, it uses `align4(W * (focus ? 14 : 11)) + 12*W + B`
+bytes. The bounds are 10,000 words and 65,535 sanitized bytes, including NULs;
+these are validation limits, not a guarantee that the device can allocate that
+much memory. MiniBidi receives borrowed text and writes order indices. TextBlock
+copies the completed line into its checked arena before scratch is released.
+Optional line links use separate fallible Rust vectors and checked C++ owned
+storage; the sink propagates destination allocation failure.
 
-All new buffers use the paragraph allocator, check size arithmetic, and return
-allocation failure. Their lifetime is one paragraph layout call or one extracted
-line; none is cached globally. Failed growth preserves existing values, and the
-C++ facade marks the paragraph failed so Section cannot commit missing text.
+Word/token storage, widths, breaks, numeric scratch and ruby chunks use the
+paragraph allocator. Link/ruby byte owners, pointer tables and temporary vectors
+use fallible Rust allocation. Lifetimes are paragraph-, layout- or line-scoped;
+none is cached globally. Failed growth preserves existing values. Rust latches
+dropped text so the section builder cannot commit missing text.
 Tests cover DP allocation failure, width growth failure, split rollback, line
 limits and failed line allocation. Verify layout against the captured C++
 goldens:
@@ -396,8 +404,8 @@ builder rejects incomplete output.
 
 A line borrows packed NUL-separated text, word offsets and numeric arrays until
 the sink returns. One fallible allocation holds the line metadata, ruby spans,
-order indices and text; it is released immediately after the sink returns. The packed `TextBlock::BorrowedLayout` overload copies these
-values directly into the existing arena, with unchanged rendering and cache
+order indices and text; it is released immediately after the sink returns. The
+packed `TextBlock::BorrowedLayout` overload copies these values directly into the existing arena, with unchanged rendering and cache
 serialization. MiniBidi remains in C++ behind borrowed-span direction and order
 callbacks, using its existing mutex and shared workspace. These adapters avoid
 reconstructing temporary word-string vectors at the boundary.
@@ -405,14 +413,19 @@ reconstructing temporary word-string vectors at the boundary.
 The sink may query paragraph scalars, including the number of remaining lines,
 but must not mutate or destroy the paragraph. Renderer callbacks cannot reenter
 it. The layout implementation releases its mutable paragraph borrow before
-calling the sink. No line span survives that callback.
+calling the sink. No line span survives that callback. The `advance` callback
+receives nonempty text with a readable NUL at `data[len]`, excluded from `len`;
+other span callbacks are length-bounded and have no such guarantee. Returned
+word/ruby spans remain borrowed until paragraph mutation or destruction.
 
 Native `chapter-trace` builds record the original paragraph layout fields from
 Rust through a host-only sink. Firmware supplies no trace sink. The chapter
 operation instrumenter excludes the explicit style writes that replaced C++
 reference mutations, preserving the original observations. The allocation
-failure test first counts a successful parse and then sweeps every allocation
-budget; it no longer assumes all Rust owners fit within 128 allocation requests.
+failure test first counts a successful parse and then checks allocation budgets
+until the first successful parse; it no longer assumes all Rust owners fit within
+128 allocation requests. Dedicated ruby tests fail each chunk allocation and
+check cleanup, and link tests force the C++ destination allocation to fail.
 
 Chapter semantics accesses the current Rust paragraph directly. Assembly updates
 that borrowed handle on creation, reset, table-cell moves and restoration, using

@@ -373,3 +373,13 @@ List-marker, ruby-group and ruby-append observations moved to the Rust
 `chapter-trace` feature so they remain in the operation oracle. Production builds
 do not enable that feature. Private operation streams use the same
 `filter_paragraph_ops` helper before `compare`.
+
+### Multilingual coverage limits
+
+The frozen public corpus has RTL and soft-hyphen cases but no ruby or CJK body
+text, and no exercised small-caps tokens. Its 312 sections and 5,529 layout calls
+do not independently validate those paths. Focused paragraph/parser tests cover
+ruby, CJK/Korean boundaries, small caps and size slots; private Korean emulator
+and cache evidence provides additional coverage. Keep the frozen archives intact
+when adding supplementary fixtures, and capture new baselines from the approved
+pre-port implementation.

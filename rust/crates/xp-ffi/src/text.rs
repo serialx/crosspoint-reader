@@ -10,6 +10,8 @@ macro_rules! predicate {
         }
     };
 }
+predicate!(xp_text_no_break_before, text::no_break_before);
+predicate!(xp_text_no_break_after, text::no_break_after);
 predicate!(xp_text_cjk, text::cjk);
 predicate!(xp_text_hangul, text::hangul);
 predicate!(xp_text_combining, text::combining);

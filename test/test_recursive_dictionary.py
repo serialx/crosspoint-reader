@@ -463,6 +463,8 @@ lookup_harness = r'''
 #include <string>
 #include <string_view>
 #include <vector>
+#include <CjkBreaks.h>
+#include <Utf8.h>
 #define LOG_ERR(...) ((void)0)
 #define LOG_INF(...) ((void)0)
 constexpr size_t DEFINITION_HEAP_HEADROOM_BYTES = 8192;
@@ -507,6 +509,11 @@ class Dictionary {
 };
 ''' + lookup_methods + r'''
 int main() {
+  assert(Dictionary::cleanWord("「言葉」") == "言葉");
+  assert(Dictionary::cleanWord("『《言葉》』") == "言葉");
+  assert(Dictionary::cleanWord("（言葉）") == "言葉");
+  assert(Dictionary::cleanWord("「」").empty());
+  assert(Dictionary::cleanWord("言「葉") == "言「葉");
   Dictionary dictionary;
   std::string definition = "unchanged", headword = "unchanged";
   for (const char* suffix : {"ing", "ed", "ies"}) {
@@ -544,7 +551,11 @@ with tempfile.TemporaryDirectory() as directory:
     ], check=True)
     subprocess.run([str(path / "navigation")], check=True)
     (path / "lookup.cpp").write_text(lookup_harness)
-    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", str(path / "lookup.cpp"),
+    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
+                    "-I", str(ROOT / "lib/Epub/Epub"), "-I", str(ROOT / "lib/Utf8"),
+                    str(path / "lookup.cpp"),
+                    str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"),
+                    str(ROOT / "lib/Epub/Epub/hyphenation/HyphenationCommon.cpp"), *rust_link_flags(),
                     "-o", str(path / "lookup")], check=True)
     subprocess.run([str(path / "lookup")], check=True)
 print("Recursive dictionary navigation checks passed")

@@ -106,7 +106,7 @@ pub fn small_caps_upper(cp: u32) -> u32 {
 pub fn break_after_hyphen(cp: u32) -> bool {
     explicit(cp) && cp != 0xad && cp != 0x2011
 }
-fn no_break_before(cp: u32) -> bool {
+pub fn no_break_before(cp: u32) -> bool {
     break_after_hyphen(cp)
         || matches!(
             cp,
@@ -143,7 +143,7 @@ fn no_break_before(cp: u32) -> bool {
                 | 0xFF5D
         )
 }
-fn no_break_after(cp: u32) -> bool {
+pub fn no_break_after(cp: u32) -> bool {
     matches!(
         cp,
         40 | 91
@@ -1145,5 +1145,37 @@ pub fn hyphen_compose(base: u32, mark: u32) -> Option<u32> {
         compose_pair(base, mark)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn cjk_punctuation_matches_upstream() {
+        // Tables from CjkBreaks.cpp and TokenBoundary.h at upstream 116195b4.
+        // BEFORE includes explicit hyphens except U+00AD and U+2011.
+        const BEFORE: &[u32] = &[
+            0x0021, 0x0029, 0x002C, 0x002D, 0x002E, 0x003A, 0x003B, 0x003F, 0x005D, 0x005F, 0x007D,
+            0x00BB, 0x058A, 0x2010, 0x2012, 0x2013, 0x2014, 0x2015, 0x2019, 0x201D, 0x2026, 0x2043,
+            0x207B, 0x208B, 0x2212, 0x2E17, 0x2E3A, 0x2E3B, 0x3001, 0x3002, 0x3009, 0x300B, 0x300D,
+            0x300F, 0x3011, 0x3015, 0x3017, 0x3019, 0x301B, 0xFE58, 0xFE63, 0xFF01, 0xFF09, 0xFF0C,
+            0xFF0D, 0xFF0E, 0xFF1A, 0xFF1B, 0xFF1F, 0xFF3D, 0xFF5D,
+        ];
+        const AFTER: &[u32] = &[
+            0x0028, 0x005B, 0x007B, 0x00AB, 0x2018, 0x201C, 0x3008, 0x300A, 0x300C, 0x300E, 0x3010,
+            0x3014, 0x3016, 0x3018, 0x301A, 0xFF08, 0xFF3B, 0xFF5B,
+        ];
+        for cp in 0..=0x10FFFF {
+            assert_eq!(
+                super::no_break_before(cp),
+                BEFORE.contains(&cp),
+                "before U+{cp:04X}"
+            );
+            assert_eq!(
+                super::no_break_after(cp),
+                AFTER.contains(&cp),
+                "after U+{cp:04X}"
+            );
+        }
     }
 }

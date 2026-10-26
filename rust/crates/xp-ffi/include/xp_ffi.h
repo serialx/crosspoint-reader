@@ -316,6 +316,8 @@ void xp_xml_destroy(XpXml*);
 // Shared text helpers. Buffers are borrowed for one call, never retained.
 // Lengths must fit ptrdiff_t; nonempty buffers must be valid. Outputs must be
 // writable and disjoint from inputs, except the explicitly in-place operation.
+uint8_t xp_text_no_break_before(uint32_t cp);
+uint8_t xp_text_no_break_after(uint32_t cp);
 uint8_t xp_text_cjk(uint32_t cp);
 uint8_t xp_text_hangul(uint32_t cp);
 uint8_t xp_text_combining(uint32_t cp);

@@ -229,7 +229,7 @@ lengths, missing cases, and extra sections before applying exceptions. The
 original full base/candidate JSON captures and frozen executables are retained
 in the external M8 Round 2 evidence directory.
 
-`mutation-exceptions.json` lists two classes:
+`mutation-exceptions.json` lists three classes:
 
 - `truncated-header`: **6,864 cases**, one for each section and length in
   **[22, 44)**. The old reader accepts and retains these finalized files. At
@@ -247,10 +247,71 @@ in the external M8 Round 2 evidence directory.
   the original short-LUT exception class to the denser sampling and rebuilt
   baseline. The 96 cases differ from the earlier 24: unchecked reads depend on
   stack contents and are not stable across host-driver builds.
+- `checked-offset-arithmetic`: **3,108 cases** in the separate header-field
+  sweep below. The original C++ wraps a table offset modulo 2^32 and reads
+  bytes near the start of the file. Checked arithmetic now rejects that read.
+  This is an accepted deterministic correction, not undefined old behavior.
 
 No filename or mutation-specific behavior exists in the production decoder.
 All remaining outcomes must match exactly. `SectionMutationRules` tests the
 sampler and exception rejection rules.
+
+### Header offset mutations
+
+`goldens/header-mutations.json.gz` records **48,206 cases** from the frozen
+C++ implementation at `cfc874ca`. The production sources were unchanged during
+capture; only the current host driver was copied into a detached throwaway
+worktree. The SDK was pinned at `37d272d4`. Frozen executables, full captures,
+source/executable hashes and the standalone C++ guard patch are retained in
+the external M8 Round 3 evidence directory.
+
+```sh
+python3 test/section_golden/read_oracle.py \
+  --dump build/test/section_golden/SectionGoldenDump \
+  --output test/section_golden/goldens/header-mutations.json.gz \
+  --header-mutations --verify --jobs 12 \
+  --exceptions test/section_golden/goldens/mutation-exceptions.json
+```
+
+For every original section, the sampler uses both finalized and valid partial
+headers. It mutates each of the five 32-bit table offsets and the 16-bit page
+count through 0, 1, original−1, original+1, 0x7fffffff, 0x80000000,
+0xfffffffc through 0xffffffff, and file size−1, size, size+1. Count values are
+reduced to 16 bits; duplicate values are sampled once. Partial file size includes
+the eight-byte watermark. Four additional cases per section set partial count=1,
+list-item offset=44 and visible offset=0xfffffffc through 0xffffffff.
+
+The `--offsets` probe records acceptance, page count, direct visible-offset
+lookup, page acceptance, loaded-page visible offset, and file retention.
+It probes every **original page index**, including indices excluded by a
+mutated smaller count; it does not loop over an artificially enlarged count.
+Both captures exit normally in every case. Each case uses the same isolated
+child process and resource limits as the truncation sweep. The fixture stores
+actual base outcomes using the lossless run encoding and ordered-label hash.
+
+All **3,108 differences** are in `checked-offset-arithmetic`: **2,496 partial
+headers** reject and remove the cache; **612 finalized headers** retain their
+page results but return zero for a loaded page's overflowing visible offset
+and `nullopt` for the corresponding direct lookup. There are **zero unknown
+differences** and no new short-header, short-LUT or undefined-behavior exceptions.
+Equal results on other malformed inputs do not establish defined old behavior.
+
+The exception file groups explicit section names with explicit mutation labels;
+the verifier checks every pair. For partials, it proves that
+`visibleOffset + pageCount * 4 > UINT32_MAX`, the wrapped trailer and its eight
+bytes fit in the file, and the original loader accepts and retains the section
+(`cfc874ca:lib/Epub/Epub/Section.cpp:247`). For finalized headers, it proves each
+changed entry wraps and its four bytes fit, then derives the exact original
+value from those bytes (base lines 892 and 1149). It verifies the entire base
+record, including all page and lookup results, before changing only the proven
+effects. Non-overflow cases, incorrect base values, page-result changes, and
+duplicate exceptions fail verification.
+
+Equivalent standalone C++ overflow checks match the candidate on all 48,206
+cases. The candidate's C++ adapter also checks these bounds explicitly, before
+calling the already checked Rust functions. No wire-format or valid-cache
+behavior changes. The original 515,571-case truncation fixture is unchanged;
+both fixtures use the same exception file, selecting only their own classes.
 
 `partials.json.gz` retains 936 checks: valid partial headers with a watermark,
 a short watermark, and zero-page partials. Run with `--partial --verify --output

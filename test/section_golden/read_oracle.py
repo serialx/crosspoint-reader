@@ -115,12 +115,12 @@ class Fields:
         return result
 
 
-def run(exe, name, data, pages, probe=False):
+def run(exe, name, data, pages, probe=False, offsets=False):
     with tempfile.TemporaryDirectory(prefix='section-read-') as temp:
         source = Path(temp) / 'input.bin'
         source.write_bytes(data)
         try:
-            mode = '--header' if probe and len(data) < 44 else '--probe' if probe else '--read'
+            mode = '--offsets' if offsets else '--header' if probe and len(data) < 44 else '--probe' if probe else '--read'
             if probe:
                 status, output = isolated_probe(exe, mode, source, temp, name.split('/')[-2], pages)
             else:
@@ -131,7 +131,8 @@ def run(exe, name, data, pages, probe=False):
             status, output = 'timeout', error.stdout or b''
         lines = output.decode('ascii').splitlines()
         if probe:
-            return {'exit': status, 'results': [line for line in lines if line.startswith(('section\t', 'page\t', 'retained\t'))]}
+            keys = ('section\t', 'page\t', 'retained\t', 'visible\t', 'lookup\t') if offsets else ('section\t', 'page\t', 'retained\t')
+            return {'exit': status, 'results': [line for line in lines if line.startswith(keys)]}
         if status:
             raise ValueError(f'{name}: failed read {status}')
         records = []
@@ -268,6 +269,32 @@ def partial_mutations(data):
     yield 'partial-empty', bytes(empty)
 
 
+HEADER_FIELDS = {'page-count': (22, 'H'), 'page-lut': (24, 'I'), 'anchors': (28, 'I'),
+                 'paragraphs': (32, 'I'), 'list-items': (36, 'I'), 'visible': (40, 'I')}
+
+
+def header_mutations(data):
+    """Mutate every table offset and the u16 page count in final/partial headers."""
+    for kind, source in (('final', data), ('partial', bytes([214]) + data[1:] + struct.pack('<II', 100, 200))):
+        for field, (pos, fmt) in HEADER_FIELDS.items():
+            old = struct.unpack_from('<' + fmt, source, pos)[0]
+            mask = 0xffff if fmt == 'H' else 0xffffffff
+            values = {n & mask for n in (0, 1, old - 1, old + 1, 0x7fffffff, 0x80000000,
+                                        0xfffffffc, 0xfffffffd, 0xfffffffe, 0xffffffff,
+                                        len(source) - 1, len(source), len(source) + 1)}
+            for value in sorted(values):
+                copy = bytearray(source)
+                struct.pack_into('<' + fmt, copy, pos, value)
+                yield f'header:{kind}:{field}:{value}', bytes(copy)
+        # Review trigger: trailer wraps to the header, independently of real LUTs.
+        if kind == 'partial':
+            for value in range(0xfffffffc, 0x100000000):
+                copy = bytearray(source)
+                struct.pack_into('<H', copy, 22, 1)
+                struct.pack_into('<II', copy, 36, 44, value)
+                yield f'header:partial:trailer-wrap:{value}', bytes(copy)
+
+
 def mutation_labels(data):
     return [label for label, _ in mutations(data)]
 
@@ -276,14 +303,15 @@ def labels_hash(labels):
     return hashlib.sha256('\n'.join(labels).encode()).hexdigest()
 
 
-def pack_mutations(records):
+def pack_mutations(records, headers=False):
     """Lossless runs omit repeated outcomes and derivable mutation labels."""
     packed = {}
     with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         for member in archive:
             if not member.isfile():
                 continue
-            labels = mutation_labels(archive.extractfile(member).read())
+            data = archive.extractfile(member).read()
+            labels = [label for label, _ in header_mutations(data)] if headers else mutation_labels(data)
             section = records[member.name]
             if set(labels) != set(section):
                 raise ValueError(f'mutation set mismatch: {member.name}')
@@ -297,18 +325,20 @@ def pack_mutations(records):
             packed[member.name] = {'labels_sha256': labels_hash(labels), 'runs': runs}
     if set(packed) != set(records):
         raise ValueError('mutation section set mismatch')
-    return {'encoding': 'mutation-runs-v1', 'sections': packed}
+    return {'encoding': 'header-mutation-runs-v1' if headers else 'mutation-runs-v1', 'sections': packed}
 
 
 def unpack_mutations(packed):
-    if packed.get('encoding') != 'mutation-runs-v1':
+    if packed.get('encoding') not in ('mutation-runs-v1', 'header-mutation-runs-v1'):
         return packed
     records = {}
     with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         for member in archive:
             if not member.isfile():
                 continue
-            labels = mutation_labels(archive.extractfile(member).read())
+            data = archive.extractfile(member).read()
+            labels = ([label for label, _ in header_mutations(data)]
+                      if packed['encoding'] == 'header-mutation-runs-v1' else mutation_labels(data))
             section = packed['sections'][member.name]
             if labels_hash(labels) != section['labels_sha256']:
                 raise ValueError(f'mutation sampling changed: {member.name}')
@@ -328,7 +358,13 @@ def unpack_mutations(packed):
 
 def exception_cases(exceptions):
     for case in exceptions['cases']:
-        if 'truncations' in case:
+        if 'mutations' in case:
+            if case['class'] != 'checked-offset-arithmetic':
+                raise ValueError('grouped mutations require the checked-offset class')
+            for name in case.get('sections', [case.get('section')]):
+                for mutation in case['mutations']:
+                    yield {'class': case['class'], 'section': name, 'mutation': mutation}
+        elif 'truncations' in case:
             if case['class'] != 'truncated-header':
                 raise ValueError('grouped truncations require the header class')
             for cut in case['truncations']:
@@ -337,19 +373,70 @@ def exception_cases(exceptions):
             yield case
 
 
-def apply_exceptions(expected, path):
+def checked_offset_result(data, mutation, record):
+    """Prove cfc874ca Section.cpp:247,892,1149 wraps, and only change its effects."""
+    mutated = dict(header_mutations(data)).get(mutation)
+    _, kind, field, _ = mutation.split(':')
+    if mutated is None or field not in ('visible', 'trailer-wrap') or (field == 'trailer-wrap' and kind != 'partial'):
+        raise ValueError('exception is not a sampled visible-offset mutation')
+    count = struct.unpack_from('<H', mutated, 22)[0]
+    li, visible = struct.unpack_from('<II', mutated, 36)
+    pages = struct.unpack_from('<H', data, 22)[0]
+    if kind == 'partial':
+        # The uint32_t assignment at line 247 wraps before the trailer size check.
+        total = visible + count * 4
+        trailer = total & 0xffffffff
+        if not (count > 0 and li >= 44 and visible > li and total > 0xffffffff and trailer + 8 <= len(mutated)):
+            raise ValueError('partial exception does not prove a readable wrapped trailer')
+    before = [f'section\t1\t{count}']
+    after = list(before)
+    wrapped = False
+    for page in range(pages):
+        total = visible + page * 4
+        position = total & 0xffffffff
+        old = (struct.unpack_from('<I', mutated, position)[0]
+               if page < count and visible >= 44 and position + 4 <= len(mutated) else None)
+        new = old
+        if old is not None and total > 0xffffffff:
+            # Lines 892/1149 assign to uint32_t before checking file bounds.
+            new = None
+            wrapped = True
+        for results, value in ((before, old), (after, new)):
+            results.append(f'lookup\t{page}\t{value if value is not None else "none"}')
+            results.append(f'page\t{page}\t{int(page < count)}')
+            if page < count:
+                results.append(f'visible\t{page}\t{value if value is not None else 0}')
+    before.append('retained\t1')
+    after.append('retained\t1')
+    if kind == 'partial':
+        after = ['section\t0\t0', 'retained\t0']
+    elif not wrapped:
+        raise ValueError('finalized exception has no readable wrapped entry')
+    if record != {'exit': 0, 'results': before}:
+        raise ValueError('baseline does not match the proven wrapped reads')
+    return {'exit': 0, 'results': after}
+
+
+def apply_exceptions(expected, path, headers=False):
     exceptions = json.loads(path.read_text())
     seen = set()
     with tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         for case in exception_cases(exceptions):
             name, mutation = case['section'], case['mutation']
             category = case.get('class', 'short-lut')
+            if category not in ('truncated-header', 'short-lut', 'checked-offset-arithmetic'):
+                raise ValueError(f'unknown exception class: {category}')
+            if (category == 'checked-offset-arithmetic') != headers:
+                continue
             page = case.get('rejected_page')
             key = (name, mutation, page)
             if key in seen:
                 raise ValueError(f'duplicate exception: {key}')
             seen.add(key)
             data = archive.extractfile(name).read()
+            if category == 'checked-offset-arithmetic':
+                expected[name][mutation] = checked_offset_result(data, mutation, expected[name][mutation])
+                continue
             if not mutation.startswith('truncate:'):
                 raise ValueError(f'exception is not a truncation: {key}')
             cut = int(mutation.removeprefix('truncate:'))
@@ -382,8 +469,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dump', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--mutations', action='store_true')
-    parser.add_argument('--partial', action='store_true')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--mutations', action='store_true')
+    modes.add_argument('--partial', action='store_true')
+    modes.add_argument('--header-mutations', action='store_true')
     parser.add_argument('--verify', action='store_true')
     parser.add_argument('--exceptions', type=Path)
     parser.add_argument('--limit', type=int)
@@ -391,13 +480,13 @@ def main():
     args = parser.parse_args()
     if not args.verify and args.output.exists():
         parser.error('capture refuses an existing output')
-    if args.exceptions and (not args.verify or not args.mutations or args.limit):
+    if args.exceptions and (not args.verify or not (args.mutations or args.header_mutations) or args.limit):
         parser.error('exceptions require full mutation verification')
     exe = args.dump.resolve()
     results = {}
     baseline_records = unpack_mutations(json.loads(gzip.decompress(args.output.read_bytes()))) if args.verify else None
     if args.exceptions:
-        baseline_records = apply_exceptions(baseline_records, args.exceptions)
+        baseline_records = apply_exceptions(baseline_records, args.exceptions, args.header_mutations)
     with ThreadPoolExecutor(max_workers=args.jobs) as pool, tarfile.open(HERE / 'goldens/sections.tar.gz') as archive:
         members = [m for m in archive if m.isfile()]
         if args.limit:
@@ -405,11 +494,12 @@ def main():
         for member in members:
             data = archive.extractfile(member).read()
             pages = struct.unpack_from('<H', data, 22)[0]
-            if args.mutations or args.partial:
+            if args.mutations or args.partial or args.header_mutations:
                 def check(case):
                     label, mutated = case
-                    return label, run(exe, member.name, mutated, pages, True)
-                records = dict(pool.map(check, partial_mutations(data) if args.partial else mutations(data)))
+                    return label, run(exe, member.name, mutated, pages, True, args.header_mutations)
+                sampler = header_mutations if args.header_mutations else partial_mutations if args.partial else mutations
+                records = dict(pool.map(check, sampler(data)))
             else:
                 records = run(exe, member.name, data, pages)
             if baseline_records is not None and baseline_records.get(member.name) != records:
@@ -431,8 +521,8 @@ def main():
                     raise ValueError(f'read oracle mismatch: {name}')
             raise ValueError('read oracle section set mismatch')
     else:
-        if args.mutations and not args.limit:
-            payload = json.dumps(pack_mutations(results), sort_keys=True, separators=(',', ':')).encode() + b'\n'
+        if (args.mutations or args.header_mutations) and not args.limit:
+            payload = json.dumps(pack_mutations(results, args.header_mutations), sort_keys=True, separators=(',', ':')).encode() + b'\n'
         args.output.write_bytes(gzip.compress(payload, mtime=0))
     print(f'{len(results)} sections; {len(payload)} raw bytes; {args.output.stat().st_size} gzip bytes')
 

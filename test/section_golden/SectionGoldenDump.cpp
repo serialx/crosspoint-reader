@@ -86,8 +86,9 @@ int runDump(int argc, char** argv) {
     }
     return 0;
   }
-  if (argc == 6 && (std::string(argv[1]) == "--read" || std::string(argv[1]) == "--probe" ||
-                    std::string(argv[1]) == "--header" || std::string(argv[1]) == "--lookups")) {
+  if (argc == 6 &&
+      (std::string(argv[1]) == "--read" || std::string(argv[1]) == "--probe" || std::string(argv[1]) == "--header" ||
+       std::string(argv[1]) == "--lookups" || std::string(argv[1]) == "--offsets")) {
     const bool probe = std::string(argv[1]) == "--probe";
     const rlimit limit{128 * 1024 * 1024, 128 * 1024 * 1024};
     setrlimit(RLIMIT_DATA, &limit);
@@ -100,6 +101,19 @@ int runDump(int argc, char** argv) {
     Section section(epub, 0, renderer);
     const bool accepted = section.loadSectionFile(setting(std::stoi(argv[4])));
     std::cout << "section\t" << accepted << '\t' << section.pageCount << std::endl;
+    if (std::string(argv[1]) == "--offsets") {
+      if (accepted) {
+        for (int index = 0; index < std::stoi(argv[5]); ++index) {
+          const auto offset = section.getVisibleTextOffsetForPage(index);
+          std::cout << "lookup\t" << index << '\t' << (offset ? std::to_string(*offset) : "none") << std::endl;
+          auto page = section.loadPage(index);
+          std::cout << "page\t" << index << '\t' << static_cast<bool>(page) << std::endl;
+          if (page) std::cout << "visible\t" << index << '\t' << page->visibleTextOffset << std::endl;
+        }
+      }
+      std::cout << "retained\t" << std::filesystem::exists("cache/sections/0.bin") << std::endl;
+      return 0;
+    }
     if (std::string(argv[1]) == "--header") {
       std::cout << "retained\t" << std::filesystem::exists("cache/sections/0.bin") << std::endl;
       return 0;

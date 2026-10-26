@@ -10,7 +10,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from read_oracle import HERE, apply_exceptions, record_boundaries, truncation_sizes, mutation_labels, pack_mutations, unpack_mutations
+from read_oracle import (HERE, HEADER_FIELDS, apply_exceptions, checked_offset_result, header_mutations,
+                         record_boundaries, truncation_sizes, mutation_labels, pack_mutations, unpack_mutations)
 from test_codec_coverage import fixture
 
 
@@ -50,6 +51,57 @@ class MutationRules(unittest.TestCase):
             expected[self.name][mutation]['results'][0] = 'section\t1\t999'
             with self.assertRaises(ValueError):
                 self.apply(expected, [case])
+
+    def test_header_offsets_and_count_are_sampled_in_both_versions(self):
+        data, _ = fixture()
+        cases = dict(header_mutations(data))
+        for kind in ('final', 'partial'):
+            size = len(data) + (8 if kind == 'partial' else 0)
+            for field, (pos, fmt) in HEADER_FIELDS.items():
+                old = struct.unpack_from('<' + fmt, data, pos)[0]
+                mask = 0xffff if fmt == 'H' else 0xffffffff
+                for value in (0, 1, old - 1, old + 1, 0x7fffffff, 0x80000000,
+                              0xfffffffc, 0xfffffffd, 0xfffffffe, 0xffffffff, size - 1, size, size + 1):
+                    value &= mask
+                    mutated = cases[f'header:{kind}:{field}:{value}']
+                    self.assertEqual(struct.unpack_from('<' + fmt, mutated, pos)[0], value)
+                    self.assertEqual(mutated[0], 68 if kind == 'final' else 214)
+        for value in range(0xfffffffc, 0x100000000):
+            mutated = cases[f'header:partial:trailer-wrap:{value}']
+            self.assertEqual(struct.unpack_from('<H', mutated, 22)[0], 1)
+            self.assertEqual(struct.unpack_from('<II', mutated, 36), (44, value))
+
+    def test_checked_offset_rule_proves_old_values_and_only_changes_wrapped_reads(self):
+        data, _ = fixture()
+        count = struct.unpack_from('<H', data, 22)[0]
+        for kind in ('final', 'partial'):
+            mutation = f'header:{kind}:visible:4294967292'
+            mutated = dict(header_mutations(data))[mutation]
+            lines = [f'section\t1\t{count}']
+            for page in range(count):
+                old = struct.unpack_from('<I', mutated, (page - 1) * 4)[0] if page else None
+                lines += [f'lookup\t{page}\t{old if old is not None else "none"}',
+                          f'page\t{page}\t1', f'visible\t{page}\t{old if old is not None else 0}']
+            lines.append('retained\t1')
+            record = {'exit': 0, 'results': lines}
+            result = checked_offset_result(data, mutation, record)
+            if kind == 'partial':
+                self.assertEqual(result, {'exit': 0, 'results': ['section\t0\t0', 'retained\t0']})
+            else:
+                self.assertEqual(result['results'][0], lines[0])
+                self.assertEqual(result['results'][-1], lines[-1])
+                for page in range(count):
+                    self.assertIn(f'lookup\t{page}\tnone', result['results'])
+                    self.assertIn(f'page\t{page}\t1', result['results'])
+                    self.assertIn(f'visible\t{page}\t0', result['results'])
+            for index in range(len(lines)):
+                broken = deepcopy(record)
+                broken['results'][index] = 'wrong'
+                with self.assertRaises(ValueError):
+                    checked_offset_result(data, mutation, broken)
+            for label in (f'header:{kind}:visible:1', f'header:{kind}:page-lut:4294967292'):
+                with self.assertRaises(ValueError):
+                    checked_offset_result(data, label, record)
 
     def test_compact_fixture_is_lossless_and_rejects_changed_sampling(self):
         data, _ = fixture()

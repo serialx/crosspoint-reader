@@ -10,6 +10,7 @@ extern "C" {
 #include <Logging.h>
 #include <Memory.h>
 #include <Utf8.h>
+#include <xp_ffi.h>
 
 #include <cstring>
 #include <mutex>
@@ -59,19 +60,22 @@ BidiWorkspace* getWorkspace() {
 namespace BidiUtils {
 
 bool startsWithRtl(const char* utf8, int maxStrongChars) {
-  if (!utf8 || maxStrongChars <= 0) return false;
-
-  auto* p = reinterpret_cast<const unsigned char*>(utf8);
+  return utf8 && startsWithRtl(std::string_view(utf8), maxStrongChars);
+}
+bool startsWithRtl(std::string_view utf8, int maxStrongChars) {
+  if (maxStrongChars <= 0) return false;
+  size_t position = 0;
   int checked = 0;
-  while (*p) {
-    const uint32_t cp = utf8NextCodepoint(&p);
-    if (!cp || cp == REPLACEMENT_GLYPH) break;
-
+  while (position < utf8.size()) {
+    size_t consumed = 0;
+    const uint32_t cp =
+        xp_utf8_next(reinterpret_cast<const uint8_t*>(utf8.data() + position), utf8.size() - position, &consumed);
+    if (!cp || cp == REPLACEMENT_GLYPH || !consumed) break;
+    position += consumed;
     const uchar cls = bidi_class(cp);
     if (cls == R || cls == AL) return true;
     if (cls == L) return false;
-    checked++;
-    if (checked >= maxStrongChars) break;
+    if (++checked >= maxStrongChars) break;
   }
   return false;
 }
@@ -200,10 +204,9 @@ bool applyBidiVisual(const char* utf8, std::string& out, int paragraphLevel) {
   return true;
 }
 
-bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragraphIsRtl,
-                            std::vector<uint16_t>& visualOrder) {
-  visualOrder.clear();
-  const size_t nWords = words.size();
+static bool computeWordOrder(size_t nWords, const void* words, const char* (*wordAt)(const void*, size_t),
+                             bool paragraphIsRtl, std::span<uint16_t> visualOrder) {
+  size_t outputCount = 0;
   if (nWords <= 1 || nWords > BIDI_MAX_LINE) return false;
   const std::lock_guard<std::mutex> lock(bidiMutex);
 
@@ -214,7 +217,7 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragrap
   bool truncated = false;
 
   for (size_t w = 0; w < nWords && !truncated; w++) {
-    auto* p = reinterpret_cast<const unsigned char*>(words[w].c_str());
+    auto* p = reinterpret_cast<const unsigned char*>(wordAt(words, w));
     while (*p) {
       if (count >= BIDI_MAX_LINE) {
         truncated = true;
@@ -257,9 +260,8 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragrap
   // Actually, UAX#9 rule L1/L2 says purely LTR in RTL para stays as is (identity).
   // Purely RTL line: just reverse the words.
   if (!hasL && hasR && paragraphIsRtl) {
-    visualOrder.reserve(nWords);
     for (int i = static_cast<int>(nWords) - 1; i >= 0; i--) {
-      visualOrder.push_back(static_cast<uint16_t>(i));
+      visualOrder[outputCount++] = static_cast<uint16_t>(i);
     }
     return true;
   }
@@ -270,9 +272,9 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragrap
     }
     // Pure LTR in RTL paragraph: no word reordering, but must use the
     // willReorder (left-to-right) positioning path, not the RTL right-to-left path.
-    visualOrder.reserve(nWords);
+
     for (size_t i = 0; i < nWords; i++) {
-      visualOrder.push_back(static_cast<uint16_t>(i));
+      visualOrder[outputCount++] = static_cast<uint16_t>(i);
     }
     return true;
   }
@@ -299,23 +301,22 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragrap
     }
   }
 
-  visualOrder.reserve(nWords);
   for (int i = 0; i < count; i++) {
     const uint16_t w = line[i].index;
     if (w >= nWords) continue;
 
     const uint16_t anchor = firstNatural[w] != UINT16_MAX ? firstNatural[w] : firstAny[w];
     if (anchor == UINT16_MAX) {
-      visualOrder.clear();
+      outputCount = 0;
       return false;
     }
     if (anchor == static_cast<uint16_t>(i)) {
-      visualOrder.push_back(w);
+      visualOrder[outputCount++] = w;
     }
   }
 
-  if (visualOrder.size() != nWords) {
-    visualOrder.clear();
+  if (outputCount != nWords) {
+    outputCount = 0;
     return false;
   }
 
@@ -329,11 +330,43 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragrap
   }
 
   if (!needsReorder) {
-    visualOrder.clear();
+    outputCount = 0;
     return false;
   }
 
   return true;
+}
+
+bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragraphIsRtl,
+                            std::vector<uint16_t>& visualOrder) {
+  visualOrder.clear();
+  if (words.size() <= 1 || words.size() > BIDI_MAX_LINE) return false;
+  visualOrder.reserve(words.size());
+  visualOrder.resize(words.size());
+  const bool result = computeWordOrder(
+      words.size(), &words,
+      [](const void* raw, size_t i) { return (*static_cast<const std::vector<std::string>*>(raw))[i].c_str(); },
+      paragraphIsRtl, visualOrder);
+  if (!result) visualOrder.clear();
+  return result;
+}
+bool computeVisualWordOrder(std::span<const char> text, std::span<const uint16_t> offsets, bool paragraphIsRtl,
+                            std::span<uint16_t> visualOrder) {
+  if (visualOrder.size() != offsets.size()) return false;
+  for (uint16_t offset : offsets) {
+    if (offset >= text.size() || !memchr(text.data() + offset, 0, text.size() - offset)) return false;
+  }
+  struct Words {
+    std::span<const char> text;
+    std::span<const uint16_t> offsets;
+  } words{text, offsets};
+  return computeWordOrder(
+      offsets.size(), &words,
+      [](const void* raw, size_t i) {
+        const auto& words = *static_cast<const Words*>(raw);
+        return words.text.data() + words.offsets[i];
+      },
+      paragraphIsRtl, visualOrder);
 }
 
 }  // namespace BidiUtils

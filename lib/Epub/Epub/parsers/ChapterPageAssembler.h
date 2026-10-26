@@ -179,7 +179,7 @@ class ChapterPageAssembler {
   void applyParagraphDirection(bool defined, bool rtl);
   bool paragraphEmpty() const { return currentTextBlock->isEmpty(); }
   size_t paragraphSize() const { return currentTextBlock->size(); }
-  BlockStyle& paragraphStyle() { return currentTextBlock->getBlockStyle(); }
+  BlockStyle paragraphStyle() { return currentTextBlock->getBlockStyle(); }
   void suppressFirstLineIndent() { return currentTextBlock->suppressFirstLineIndent(); }
   void ensureRubyCapacity() { return currentTextBlock->ensureRubyCapacity(); }
   uint8_t addLinkTarget(const char* href) { return currentTextBlock->addLinkTarget(href); }

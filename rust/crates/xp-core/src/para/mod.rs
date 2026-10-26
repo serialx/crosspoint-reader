@@ -1,9 +1,17 @@
 //! Fallible paragraph storage. Text handles retain a single release obligation.
 
+macro_rules! para_trace {
+    ($m:expr, $($arg:tt)*) => { #[cfg(feature = "chapter-trace")] {
+        $crate::para::paragraph::trace($m, format_args!($($arg)*));
+    } };
+}
 pub mod layout;
 pub mod layout_extract;
 pub mod layout_line;
 pub mod layout_split;
+pub mod paragraph;
+pub mod paragraph_extract;
+mod paragraph_layout;
 mod tokens;
 pub use tokens::{Token, Tokens};
 

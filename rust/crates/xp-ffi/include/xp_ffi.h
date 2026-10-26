@@ -269,6 +269,111 @@ uint8_t xp_layout_line_sources(XpLayoutLine* line, const XpWordStore* store, XpT
                                const uint16_t* order, uint8_t paragraph_emitted, uint16_t* paragraph_start);
 size_t xp_layout_strip_soft_hyphens(uint8_t* data, size_t len);
 
+// Paragraph owner in 64 pointer-sized, pointer-aligned words. Initialize/destroy once.
+// All spans are borrowed for one call. Metrics cannot reenter the paragraph; the
+// line sink may query scalars, but cannot mutate/destroy it or retain its spans.
+typedef struct XpParagraph XpParagraph;
+typedef struct {
+  const uint8_t* data;
+  uint32_t len;
+} XpParaSpan;
+typedef struct {
+  uint8_t alignment;
+  int8_t character_spacing;
+  int16_t margin_top;
+  int16_t margin_bottom;
+  int16_t margin_left;
+  int16_t margin_right;
+  int16_t padding_top;
+  int16_t padding_bottom;
+  int16_t padding_left;
+  int16_t padding_right;
+  int16_t text_indent;
+  uint8_t text_indent_defined;
+  uint8_t text_align_defined;
+  uint8_t rtl;
+  uint8_t direction_defined;
+  float font_scale;
+  uint8_t font_scale_defined;
+  int32_t font_id;
+  uint8_t break_before;
+  uint8_t break_after;
+  uint8_t keep_with_next;
+} XpParaBlock;
+typedef struct {
+  void* context;
+  void (*trace)(void*, XpParaSpan);
+  int32_t (*advance)(void*, int32_t, XpParaSpan, uint8_t, int8_t);
+  int32_t (*space)(void*, int32_t, uint8_t);
+  int32_t (*kerning)(void*, int32_t, uint32_t, uint32_t, uint8_t, int8_t);
+  int32_t (*space_advance)(void*, int32_t, uint32_t, uint32_t, uint8_t);
+  int32_t (*ascender)(void*, int32_t);
+  uint8_t (*is_sd)(void*, int32_t);
+  void (*prepare)(void*, int32_t, const XpParaSpan*, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  uint8_t (*starts_rtl)(XpParaSpan, int32_t);
+  uint8_t (*visual_order)(XpParaSpan, const uint16_t*, uint32_t, uint8_t, uint16_t*);
+} XpParaMetrics;
+typedef struct {
+  char href[256];
+  int16_t x, width, top_lift;
+} XpParaLink;
+typedef struct {
+  XpParaSpan text;
+  const uint16_t* offsets;
+  uint32_t count;
+  const int16_t* positions;
+  const uint8_t* styles;
+  const uint8_t* boundaries;
+  const uint16_t* suffixes;
+  const uint32_t* sources;
+  const XpParaSpan* ruby;
+  const XpParaLink* links;
+  uint32_t link_count;
+  const XpParaBlock* block;
+  uint16_t paragraph_start;
+  uint32_t visible_offset;
+  const uint8_t* font_slots;
+  const int32_t* fonts;
+} XpParaLine;
+typedef struct {
+  int32_t font;
+  uint16_t width;
+  uint8_t include_last;
+  int8_t tracking;
+  uint8_t spacing;
+  uint32_t max_lines;
+  int32_t language;
+  const uint8_t* stop;
+  void* context;
+  uint8_t (*emit)(void*, const XpParaLine*);
+} XpParaLayout;
+void xp_para_init(XpParagraph*, const XpParaAllocator*, const XpParaBlock*, uint8_t hyphenation, uint8_t focus,
+                  uint8_t indent);
+void xp_para_destroy(XpParagraph*);
+void xp_para_add_word(XpParagraph*, XpParaSpan, uint8_t style, uint8_t underline, uint8_t attach, uint32_t offset,
+                      uint8_t link, uint8_t slot, uint8_t no_space, uint8_t (*starts_rtl)(XpParaSpan, int32_t));
+uint8_t xp_para_add_link(XpParagraph*, XpParaSpan);
+uint8_t xp_para_link_matches(const XpParagraph*, uint8_t, XpParaSpan);
+XpParaSpan xp_para_ruby(const XpParagraph*, uint32_t);
+void xp_para_set_ruby(XpParagraph*, uint32_t, XpParaSpan);
+void xp_para_set_ruby_group(XpParagraph*, uint32_t, uint32_t, XpParaSpan);
+XpParaSpan xp_para_word(const XpParagraph*, uint32_t);
+uint8_t xp_para_indent(const XpParagraph*);
+uint32_t xp_para_size(const XpParagraph*);
+uint8_t xp_para_dropped(const XpParagraph*);
+int32_t xp_para_lines_after(const XpParagraph*);
+uint8_t xp_para_word_style(const XpParagraph*, uint32_t);
+void xp_para_token(const XpParagraph*, uint32_t, XpToken*);
+void xp_para_get_style(const XpParagraph*, XpParaBlock*);
+void xp_para_set_style(XpParagraph*, const XpParaBlock*);
+void xp_para_suppress_indent(XpParagraph*);
+void xp_para_reset_indent(XpParagraph*);
+uint8_t xp_para_size_slot(XpParagraph*, float);
+uint8_t xp_para_slot_count(const XpParagraph*);
+float xp_para_slot_scale(const XpParagraph*, uint8_t);
+void xp_para_slot_font(XpParagraph*, uint8_t, int32_t);
+void xp_para_layout(XpParagraph*, const XpParaMetrics*, const XpParaLayout*);
+
 // XML streaming parser. Handles and spans have a single externally serialized owner.
 typedef struct XpXml XpXml;
 typedef struct {

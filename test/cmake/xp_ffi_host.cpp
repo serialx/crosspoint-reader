@@ -4,10 +4,16 @@
 
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 static size_t liveAllocations = 0;
+static size_t allocationAttempts = 0;
+extern "C" size_t xp_test_allocation_attempts() { return allocationAttempts; }
 extern "C" size_t xp_test_live_allocations() { return liveAllocations; }
 static size_t allocationsLeft = SIZE_MAX;
-extern "C" void xp_test_fail_allocation_after(size_t count) { allocationsLeft = count; }
+extern "C" void xp_test_fail_allocation_after(size_t count) {
+  allocationsLeft = count;
+  allocationAttempts = 0;
+}
 static bool failAllocation() {
+  ++allocationAttempts;
   if (allocationsLeft == SIZE_MAX) return false;
   if (allocationsLeft == 0) return true;
   --allocationsLeft;

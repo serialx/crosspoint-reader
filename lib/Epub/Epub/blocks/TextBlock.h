@@ -106,6 +106,12 @@ class TextBlock final : public Block {
             std::span<const uint16_t> focusSuffixX, const BlockStyle& blockStyle = BlockStyle(),
             std::vector<std::string> rubyTexts = {}, std::vector<LinkSpan> linkSpans = {},
             std::span<const SourceRange> ranges = {}, uint16_t paragraphStartWord = UINT16_MAX);
+  TextBlock(BorrowedLayout, std::span<const char> text, std::span<const uint16_t> offsets,
+            std::span<const int16_t> wordXpos, std::span<const EpdFontFamily::Style> wordStyles,
+            std::span<const uint8_t> focusBoundary, std::span<const uint16_t> focusSuffixX,
+            const BlockStyle& blockStyle = BlockStyle(), std::vector<std::string> rubyTexts = {},
+            std::vector<LinkSpan> linkSpans = {}, std::span<const SourceRange> ranges = {},
+            uint16_t paragraphStartWord = UINT16_MAX);
   ~TextBlock() override = default;
   TextBlock(const TextBlock&) = delete;
   TextBlock& operator=(const TextBlock&) = delete;

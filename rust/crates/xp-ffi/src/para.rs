@@ -327,3 +327,268 @@ pub unsafe extern "C" fn xp_layout_breaks_push(breaks: *mut Breaks, value: usize
 pub unsafe extern "C" fn xp_layout_breaks_destroy(breaks: *mut Breaks) {
     (*breaks).destroy();
 }
+
+use xp_core::chapter::style::Block;
+use xp_core::para::{
+    paragraph::{Metrics, Paragraph, Span},
+    paragraph_extract::{self, Options},
+};
+const _: () = assert!(mem::size_of::<Paragraph>() <= 64 * mem::size_of::<usize>());
+unsafe fn para_span<'a>(span: Span) -> &'a [u8] {
+    if span.len == 0 {
+        &[]
+    } else {
+        slice::from_raw_parts(span.data, span.len as usize)
+    }
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_init(
+    p: *mut Paragraph,
+    allocator: *const Allocator,
+    block: *const Block,
+    hyphenation: u8,
+    focus: u8,
+    indent: u8,
+) {
+    Paragraph::initialize(p, allocator, *block, hyphenation != 0, focus != 0, indent);
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_destroy(p: *mut Paragraph) {
+    ptr::drop_in_place(p);
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_add_word(
+    p: *mut Paragraph,
+    word: Span,
+    style: u8,
+    underline: u8,
+    attach: u8,
+    offset: u32,
+    link: u8,
+    slot: u8,
+    no_space: u8,
+    starts_rtl: unsafe extern "C" fn(Span, i32) -> u8,
+) {
+    (*p).add_word(
+        para_span(word),
+        style,
+        underline != 0,
+        attach != 0,
+        offset,
+        link,
+        slot,
+        no_space != 0,
+        starts_rtl,
+    );
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_add_link(p: *mut Paragraph, href: Span) -> u8 {
+    (*p).add_link(para_span(href))
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_link_matches(p: *const Paragraph, id: u8, href: Span) -> u8 {
+    (*p).link_matches(id, para_span(href)) as u8
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_ruby(p: *const Paragraph, index: u32) -> Span {
+    Span::from_bytes((*p).ruby_text(index as usize))
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_set_ruby(p: *mut Paragraph, index: u32, text: Span) {
+    (*p).set_ruby(index as usize, para_span(text));
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_set_ruby_group(
+    p: *mut Paragraph,
+    index: u32,
+    count: u32,
+    text: Span,
+) {
+    (*p).set_ruby_group(index as usize, count as usize, para_span(text));
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_size(p: *const Paragraph) -> u32 {
+    (*p).tokens.len() as u32
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_dropped(p: *const Paragraph) -> u8 {
+    (*p).dropped as u8
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_lines_after(p: *const Paragraph) -> i32 {
+    (*p).lines_after
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_word_style(p: *const Paragraph, index: u32) -> u8 {
+    (*p).style(index as usize)
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_token(p: *const Paragraph, index: u32, out: *mut Token) {
+    out.write((*p).tokens.get(index as usize).unwrap_or_default());
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_get_style(p: *const Paragraph, out: *mut Block) {
+    out.write((*p).block);
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_set_style(p: *mut Paragraph, block: *const Block) {
+    (*p).block = *block;
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_suppress_indent(p: *mut Paragraph) {
+    (*p).first_consumed = true;
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_reset_indent(p: *mut Paragraph) {
+    (*p).first_consumed = false;
+    (*p).paragraph_emitted = false;
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_size_slot(p: *mut Paragraph, scale: f32) -> u8 {
+    (*p).size_slot(scale)
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_slot_count(p: *const Paragraph) -> u8 {
+    (*p).slots
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_slot_scale(p: *const Paragraph, slot: u8) -> f32 {
+    (*p).scales.get(slot as usize).copied().unwrap_or(1.0)
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_slot_font(p: *mut Paragraph, slot: u8, font: i32) {
+    if let Some(value) = (*p).fonts.get_mut(slot as usize) {
+        *value = font;
+    }
+}
+
+/// # Safety
+/// Paragraph storage is aligned and live (uninitialized for init), exclusively
+/// accessed. Spans/pointers borrow valid disjoint storage for the call; callbacks
+/// follow the paragraph metrics/sink contract in xp_ffi.h.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_layout(
+    p: *mut Paragraph,
+    metrics: *const Metrics,
+    options: *const Options,
+) {
+    paragraph_extract::layout(p, &*metrics, &*options);
+}
+
+/// # Safety
+/// p is live and serialized; result borrows word storage until paragraph mutation.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_word(p: *const Paragraph, index: u32) -> Span {
+    Span::from_bytes((*p).word(index as usize))
+}
+/// # Safety
+/// p is live and serialized.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_indent(p: *const Paragraph) -> u8 {
+    (*p).indent
+}

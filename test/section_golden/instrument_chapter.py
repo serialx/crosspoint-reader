@@ -6,6 +6,23 @@ from pathlib import Path
 
 
 def instrument(source):
+    # Rust paragraph styles are values. These writes replace old reference mutations,
+    # and the drop-cap reload preserves changes made during layout; neither was a
+    # semantic paragraph request in the captured C++ implementation.
+    value_style_calls = {}
+    if "  blockStyle = currentTextBlock->getBlockStyle();" in source:
+        for index, (call, expected) in enumerate([
+            ("currentTextBlock->setBlockStyle(pending);", 1),
+            ("currentTextBlock->setBlockStyle(blockStyle);", 3),
+            ("currentTextBlock->setBlockStyle(style);", 1),
+            ("self->setParagraphStyle(style);", 1),
+            ("  blockStyle = currentTextBlock->getBlockStyle();", 1),
+        ]):
+            if source.count(call) != expected:
+                raise ValueError(f"Paragraph value-style anchor count: {call!r}")
+            marker = f"M11_VALUE_STYLE_{index};"
+            source = source.replace(call, marker)
+            value_style_calls[marker] = call
     rust = "const XpChapterServices ChapterPageAssembler::services_" in source
     paragraph_names = {
         'isEmpty': 'paragraphEmpty', 'size': 'paragraphSize', 'getBlockStyle': 'paragraphStyle',
@@ -224,6 +241,8 @@ def instrument(source):
                        (', ' + args if args.strip() else '') + ')')
         source = source[:match.start()] + replacement + source[end:]
 
+    for marker, call in value_style_calls.items():
+        source = source.replace(marker, call)
     return source
 
 

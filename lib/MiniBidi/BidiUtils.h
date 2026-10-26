@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace BidiUtils {
@@ -10,6 +12,7 @@ namespace BidiUtils {
 inline constexpr int RTL_PARAGRAPH_PROBE_DEPTH = 5;
 
 bool startsWithRtl(const char* utf8, int maxStrongChars = RTL_PARAGRAPH_PROBE_DEPTH);
+bool startsWithRtl(std::string_view utf8, int maxStrongChars);
 
 int detectParagraphLevel(const char* utf8, int fallbackLevel = 0, int maxStrongChars = 64);
 
@@ -28,5 +31,9 @@ bool applyBidiVisual(const char* utf8, std::string& out, int paragraphLevel = -1
 // Returns false with empty visualOrder when no order is produced, including OOM.
 bool computeVisualWordOrder(const std::vector<std::string>& words, bool paragraphIsRtl,
                             std::vector<uint16_t>& visualOrder);
+
+// Packed words and output are borrowed for this synchronous call.
+bool computeVisualWordOrder(std::span<const char> text, std::span<const uint16_t> offsets, bool paragraphIsRtl,
+                            std::span<uint16_t> visualOrder);
 
 }  // namespace BidiUtils

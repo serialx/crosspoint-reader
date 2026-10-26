@@ -143,8 +143,9 @@ const XpChapterServices ChapterPageAssembler::services_ = {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);
       (void)state;
       self->suppressFirstLineIndent();
-      auto& style = self->paragraphStyle();
+      auto style = self->paragraphStyle();
       if (style.alignment == CssTextAlign::Justify) style.alignment = CssTextAlign::Left;
+      self->setParagraphStyle(style);
     },
     [](void* ctx, XpChapterState* state) -> uint8_t {
       auto* self = static_cast<ChapterPageAssembler*>(ctx);

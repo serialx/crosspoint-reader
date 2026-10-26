@@ -28,6 +28,7 @@
 
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
+extern "C" size_t xp_test_allocation_attempts();
 
 extern "C" void xp_chapter_test_options(XpChapterState*, const XpCss*, const XpChapterOptions*);
 extern "C" void xp_chapter_test_event(XpChapterState*, uint32_t, const XpChapterSpan*, uint32_t);
@@ -243,14 +244,16 @@ TEST_F(ChapterHtmlSlimParserTest, ChapterAllocationFailuresReleaseEveryRustOwner
   }
   bool completed = false;
   size_t failures = 0;
-  for (size_t budget = 0; budget < 128; ++budget) {
+  size_t required = 0;
+  for (size_t budget = 0; budget == 0 || budget <= required + 1; ++budget) {
     SCOPED_TRACE(budget);
     {
       ChapterHtmlSlimParser candidate{nullptr, filepath, renderer, 0,  1.0f, false, 0,  480,     800,       false,
                                       false,   {},       true,     "", "",   0,     {}, nullptr, &cssParser};
       candidate.completePageFn = [](std::unique_ptr<Page>, auto, auto, auto) {};
-      xp_test_fail_allocation_after(budget);
+      xp_test_fail_allocation_after(budget == 0 ? SIZE_MAX : budget - 1);
       completed = candidate.parseAndBuildPages();
+      if (budget == 0) required = xp_test_allocation_attempts();
       xp_test_fail_allocation_after(SIZE_MAX);
       if (!completed) ++failures;
       candidate.abortParse();
@@ -258,6 +261,10 @@ TEST_F(ChapterHtmlSlimParserTest, ChapterAllocationFailuresReleaseEveryRustOwner
       EXPECT_FALSE(candidate.parseFile_.isOpen());
     }
     ASSERT_EQ(xp_test_live_allocations(), 0u);
+    if (budget == 0) {
+      ASSERT_TRUE(completed);
+      continue;
+    }
     if (completed) break;
   }
   EXPECT_TRUE(completed);
@@ -1612,7 +1619,7 @@ TEST_F(ChapterHtmlSlimParserTest, PassesIndentSettingsToNewTextBlock) {
     parser.setParagraphIndentSpaces(5);
     parser.startNewTextBlock(BlockStyle());
     ASSERT_NE(parser.currentTextBlock, nullptr);
-    EXPECT_EQ(parser.currentTextBlock->paragraphIndentSpaces, 5);
+    EXPECT_EQ(xp_para_indent(parser.currentTextBlock->handle()), 5);
   }
 }
 

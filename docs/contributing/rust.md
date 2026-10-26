@@ -384,3 +384,31 @@ The [text oracle](../../test/utf8_compose/README.md) describes exhaustive
 codepoint checks and composition/corpus coverage. Run it together with the
 existing UTF-8, combining-mark, token-boundary, Korean, hyphenation, layout and
 Section tests when changing these helpers. `VisibleTextUtils` remains in C++.
+
+## Paragraph layout boundary
+
+Rust owns paragraph words, token metadata, links, ruby annotations, size slots,
+style, line breaking and line extraction. The C++ paragraph adapter embeds the
+Rust state and supplies synchronous font metrics and a completed-line sink.
+Words retain the existing 2 KiB arena chunks; token source ranges retain NFC and
+hyphenation provenance. Allocation failure latches dropped text so the section
+builder rejects incomplete output.
+
+A line borrows packed NUL-separated text, word offsets and numeric arrays until
+the sink returns. The packed `TextBlock::BorrowedLayout` overload copies these
+values directly into the existing arena, with unchanged rendering and cache
+serialization. MiniBidi remains in C++ behind borrowed-span direction and order
+callbacks, using its existing mutex and shared workspace. These adapters avoid
+reconstructing temporary word-string vectors at the boundary.
+
+The sink may query paragraph scalars, including the number of remaining lines,
+but must not mutate or destroy the paragraph. Renderer callbacks cannot reenter
+it. The layout implementation releases its mutable paragraph borrow before
+calling the sink. No line span survives that callback.
+
+Native `chapter-trace` builds record the original paragraph layout fields from
+Rust through a host-only sink. Firmware supplies no trace sink. The chapter
+operation instrumenter excludes the explicit style writes that replaced C++
+reference mutations, preserving the original observations. The allocation
+failure test first counts a successful parse and then sweeps every allocation
+budget; it no longer assumes all Rust owners fit within 128 allocation requests.

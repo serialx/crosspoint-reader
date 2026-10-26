@@ -110,10 +110,11 @@ void ChapterPageAssembler::closeBoxScope() {
     int above = 0;
     int below = 0;
     if (currentTextBlock && currentTextBlock->isEmpty()) {
-      BlockStyle& pending = currentTextBlock->getBlockStyle();
+      BlockStyle pending = currentTextBlock->getBlockStyle();
       above = pending.marginTop;
       below = pending.marginBottom;
       pending.marginTop = pending.paddingTop = pending.marginBottom = pending.paddingBottom = 0;
+      currentTextBlock->setBlockStyle(pending);
     }
     if (!currentPage) {
       currentPage.reset(new Page());
@@ -147,7 +148,7 @@ void ChapterPageAssembler::layoutCurrentBlock(const bool includeLastLine) {
   bool topSpacingApplied = wordsExtractedInBlock != 0;
   const auto applyTopSpacing = [this, &topSpacingApplied]() {
     if (topSpacingApplied) return;
-    const auto& style = currentTextBlock->getBlockStyle();
+    const auto style = currentTextBlock->getBlockStyle();
     if (style.marginTop > 0) currentPageNextY += style.marginTop;
     if (style.paddingTop > 0) currentPageNextY += style.paddingTop;
     topSpacingApplied = true;
@@ -215,7 +216,7 @@ void ChapterPageAssembler::layoutDropCapLines(const int layoutFontId, const uint
     breakPageCarryingLines(keepWithNextCarry(), 0, semanticVisibleOffset());
     if (semanticStopped()) return;
   }
-  BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
+  BlockStyle blockStyle = currentTextBlock->getBlockStyle();
   const int top = currentPageNextY;
   auto element =
       makeUniqueNoThrow<PageDropCap>(capFontId, static_cast<uint16_t>(scale256), capStyle, text, blockStyle.leftInset(),
@@ -232,10 +233,13 @@ void ChapterPageAssembler::layoutDropCapLines(const int layoutFontId, const uint
   blockStyle.textIndent = 0;
   blockStyle.textIndentDefined = true;
   blockStyle.marginLeft = static_cast<int16_t>(blockStyle.marginLeft + capWidth);
+  currentTextBlock->setBlockStyle(blockStyle);
   currentTextBlock->layoutAndExtractLines(renderer, layoutFontId, static_cast<uint16_t>(effectiveWidth - capWidth),
                                           emitLine, includeLastLine, characterSpacing, wordSpacingPercent, lines,
                                           semanticStopFlag());
+  blockStyle = currentTextBlock->getBlockStyle();
   blockStyle.marginLeft = static_cast<int16_t>(blockStyle.marginLeft - capWidth);
+  currentTextBlock->setBlockStyle(blockStyle);
   currentPageNextY = static_cast<int16_t>(std::max(static_cast<int>(currentPageNextY), top + lines * lineHeight));
 }
 
@@ -253,9 +257,10 @@ void ChapterPageAssembler::completeCurrentPage() {
 void ChapterPageAssembler::applyPendingPageBreak() {
   bool requested = semanticConsumePageBreak();
   if (currentTextBlock) {
-    BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
+    BlockStyle blockStyle = currentTextBlock->getBlockStyle();
     requested = requested || blockStyle.pageBreakBefore;
     blockStyle.pageBreakBefore = false;
+    currentTextBlock->setBlockStyle(blockStyle);
   }
   if (requested && currentPage && !currentPage->elements.empty()) {
     completeCurrentPage();
@@ -833,7 +838,7 @@ void ChapterPageAssembler::makePages(const bool includeLastLine, const bool para
 
   const int lineHeight = renderer.getLineHeight(fontId, lineCompression);
 
-  const BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
+  const BlockStyle blockStyle = currentTextBlock->getBlockStyle();
 
   layoutCurrentBlock(includeLastLine);
   if (semanticStopped()) return;
@@ -885,9 +890,10 @@ void ChapterPageAssembler::makePages(const bool includeLastLine, const bool para
 
 void ChapterPageAssembler::applyParagraphDirection(const bool defined, const bool rtl) {
   if (currentTextBlock && currentTextBlock->isEmpty()) {
-    auto& style = currentTextBlock->getBlockStyle();
+    auto style = currentTextBlock->getBlockStyle();
     style.directionDefined = defined;
     style.isRtl = rtl;
+    currentTextBlock->setBlockStyle(style);
   }
 }
 
@@ -1233,12 +1239,13 @@ int ChapterPageAssembler::fontIdForScale(const float scale) const {
 }
 
 int ChapterPageAssembler::prepareBlockFont(ParsedText& text, const float scale) {
-  BlockStyle& blockStyle = text.getBlockStyle();
+  BlockStyle blockStyle = text.getBlockStyle();
   const int layoutFontId = fontIdForScale(scale);
   for (uint8_t slot = 1; slot < text.sizeSlotsInUse(); ++slot) {
     text.setSizeSlotFontId(slot, fontIdForScale(text.sizeSlotScale(slot)));
   }
   blockStyle.fontId = layoutFontId == fontId ? 0 : layoutFontId;
+  text.setBlockStyle(blockStyle);
   return layoutFontId;
 }
 

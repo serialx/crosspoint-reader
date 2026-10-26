@@ -136,7 +136,15 @@ void Section::writeSectionFileHeader(const ReaderRenderSpec& spec) {
 }
 
 bool Section::loadSectionFile(const ReaderRenderSpec& spec) {
-  if (!Storage.openFileForRead("SCT", filePath, file)) return false;
+  if (!Storage.openFileForRead("SCT", filePath, file)) {
+    return false;
+  }
+  if (file.size() < HEADER_SIZE) {
+    file.close();
+    LOG_ERR("SCT", "Deserialization failed: truncated section header");
+    clearCache();
+    return false;
+  }
   XpSecRecord header;
   const auto expected = sectioncodec::header(spec, 0);
   if (!sectioncodec::read(file, XP_SEC_HEADER, header) || !xp_sec_header_matches(&header, &expected)) {

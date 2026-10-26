@@ -13,11 +13,6 @@
 #include "blocks/BlockStyle.h"
 #include "blocks/TextBlock.h"
 
-#ifndef XP_RUST_LAYOUT
-#define XP_RUST_LAYOUT 1
-#endif
-
-#if XP_RUST_LAYOUT
 // Rust owns the cache allocation; element borrows expire on reserve/insert.
 class ParagraphWidths {
   friend class ParsedText;
@@ -34,8 +29,6 @@ class ParagraphWidths {
   }
   void reserve(size_t n) { xp_layout_widths_reserve(&state, n); }
   void push_back(uint16_t width) { xp_layout_widths_insert(&state, state.len, width); }
-  void insert(uint16_t* at, uint16_t width) { xp_layout_widths_insert(&state, at - state.data, width); }
-  uint16_t* begin() { return state.data; }
   uint16_t& operator[](size_t i) { return state.data[i]; }
   uint16_t operator[](size_t i) const { return state.data[i]; }
   size_t size() const { return state.len; }
@@ -96,10 +89,6 @@ class ParagraphLine {
     return {reinterpret_cast<uint16_t*>(state.data + 12 * state.count), state.count};
   }
 };
-#else
-using ParagraphWidths = std::vector<uint16_t>;
-using ParagraphBreaks = std::vector<size_t>;
-#endif
 
 class GfxRenderer;
 
@@ -158,10 +147,6 @@ class ParsedText {
   int calculateRubyExtraEndOffset(size_t lineStartIdx, size_t lineBreakIdx, const GfxRenderer& renderer,
                                   int fontId) const;
   int resolveFirstLineIndent(bool isFirstLine, const GfxRenderer& renderer, int fontId) const;
-  ParagraphBreaks computeLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                    ParagraphWidths& wordWidths);
-  ParagraphBreaks computeHyphenatedLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
-                                              ParagraphWidths& wordWidths, size_t maxLines);
   ParagraphBreaks computeRustLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth,
                                         ParagraphWidths& wordWidths, size_t maxLines);
   bool hyphenateWordAtIndex(size_t wordIndex, int availableWidth, const GfxRenderer& renderer, int fontId,

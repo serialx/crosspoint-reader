@@ -57,7 +57,7 @@ fonts and intentionally fixed; they are not device font metrics.
 ## Production code and host adapters
 
 - The target links the Rust XML core, real HTML entities, CSS parser, UTF-8
-  helpers, MiniBidi, image dimension probes, and the C++ hyphenation engine.
+  helpers, MiniBidi, image dimension probes, and the Rust hyphenation engine.
   The imported baseline used vendored Expat with `XML_GE=0` and
   `XML_CONTEXT_BYTES=0`; all 312 sections also matched on this branch before
   the chapter XML driver migrated to Rust. The target does not use
@@ -85,9 +85,13 @@ checks and its existing focused regression suites.
 
 ## Capture a baseline
 
-Capture only from the reviewed implementation that a later change must preserve:
+The dump uses Rust paragraph layout. To regenerate a baseline after an approved
+behavior or fixture change, build the reviewed revision and capture to a new
+directory:
 
 ```sh
+cmake -S test -B build/test
+cmake --build build/test --target SectionGoldenDump -j 6
 python3 test/section_golden/run.py \
   --dump build/test/section_golden/SectionGoldenDump \
   --capture-baseline --goldens /tmp/section-baseline
@@ -123,7 +127,8 @@ book/setting/spine. The Section oracle still checks the complete serialized
 result, including focus suffix positions and page placement.
 
 Capture uses `--layout --capture-baseline`, refuses an existing archive, and
-requires unchanged production sources. Never recapture to hide a mismatch.
+requires unchanged production sources. Use the same freshly built Rust-backed
+dump and a new `--goldens` directory as above. Never recapture to hide a mismatch.
 The compact archive must stay below 600 KB. Every layout call retains a SHA-256
 of its complete trace. Full records are retained for every eighth call in each
 section, the first successful split in each section, all reordered/ruby calls,

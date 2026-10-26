@@ -35,10 +35,6 @@ def instrument(source):
                         split.offset, int(split.hyphen), split.width, split.remainder_width,
                         LayoutTrace::hex(traceSplitWord), split.remainder_offset);
 ''')
-    before('  wordWidths.insert(wordWidths.begin() + wordIndex + 1, remainderWidth);', '''
-  LayoutTrace::record("split", wordIndex, availableWidth, allowFallbackBreaks,
-                      chosenOffset, chosenNeedsHyphen, chosenWidth, remainderWidth,
-                      LayoutTrace::hex(word), remainderOffset);''')
     before('  const auto focusBoundaryAt = [&](const size_t idx) {', '''
   LayoutTrace::record("line", breakIndex, lastBreakAt, lineBreak, lineVisibleOffset,
                       firstLineIndent, extraStartOffset, extraEndOffset, lineWordWidthSum,
@@ -49,9 +45,6 @@ def instrument(source):
     LayoutTrace::record("reordered-gaps", visualMetrics.width, visualMetrics.natural_gaps,
                         visualMetrics.gap_count, visualMetrics.spare, visualMetrics.justify);
 ''')
-    before('    const int justifyContribution = (effectiveAlignment == CssTextAlign::Justify && !isLastLine)', '''
-    LayoutTrace::record("reordered-gaps", reorderedWordWidthSum, reorderedNaturalGaps,
-                        reorderedGapCount, reorderedSpare, reorderedJustifyExtra);''')
     before('  if (!lineHasFocusSplit) {', '''
   for (size_t i = 0; i < lineWordCount; ++i)
     LayoutTrace::record("output", i, LayoutTrace::hex(lineWords[i]), lineXPos[i],

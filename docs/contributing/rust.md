@@ -231,8 +231,7 @@ owns no rendering or storage service and adds no task or synchronization.
 
 ## Paragraph layout
 
-`XP_RUST_LAYOUT` defaults to 1. Set it to 0 for the retained C++ layout path when
-comparing behavior. Rust owns the DP and greedy breakers, hyphenation candidate
+Rust owns the DP and greedy breakers, hyphenation candidate
 selection and token splitting, line justification and positions, and line source
 metadata. The algorithms preserve the original rounding, cost ties and fallback
 order. Hyphenation calls the existing Rust engine directly. C++ supplies renderer
@@ -254,14 +253,11 @@ allocation failure. Their lifetime is one paragraph layout call or one extracted
 line; none is cached globally. Failed growth preserves existing values, and the
 C++ facade marks the paragraph failed so Section cannot commit missing text.
 Tests cover DP allocation failure, width growth failure, split rollback, line
-limits and failed line allocation. Keep both backends compatible with the same
-captured goldens:
+limits and failed line allocation. Verify layout against the captured C++
+goldens:
 
 ```sh
-cmake -S test -B build/test -DCMAKE_CXX_FLAGS=-DXP_RUST_LAYOUT=0
-cmake --build build/test -j 6
-ctest --test-dir build/test --output-on-failure -j 6
-cmake -S test -B build/test -DCMAKE_CXX_FLAGS=
+cmake -S test -B build/test
 cmake --build build/test -j 6
 ctest --test-dir build/test --output-on-failure -j 6
 ```

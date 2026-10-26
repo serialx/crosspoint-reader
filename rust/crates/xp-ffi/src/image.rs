@@ -129,6 +129,16 @@ pub unsafe extern "C" fn xp_image_cache_begin(storage: *mut c_void) -> bool {
     c.pipeline.start_cache(&mut c.callbacks)
 }
 /// # Safety
+/// rgb and gray are disjoint readable/writable spans of 768 and 256 bytes.
+#[no_mangle]
+pub unsafe extern "C" fn xp_image_gray_palette(rgb: *const u8, gray: *mut u8) {
+    let rgb = slice::from_raw_parts(rgb, 768);
+    let gray = slice::from_raw_parts_mut(gray, 256);
+    for (pixel, out) in rgb.chunks_exact(3).zip(gray) {
+        *out = ((pixel[0] as u32 * 77 + pixel[1] as u32 * 150 + pixel[2] as u32 * 29) >> 8) as u8;
+    }
+}
+/// # Safety
 /// Row spans are readable and disjoint from context/target for this call.
 #[no_mangle]
 pub unsafe extern "C" fn xp_image_row(storage: *mut c_void, row: *const Row) -> bool {

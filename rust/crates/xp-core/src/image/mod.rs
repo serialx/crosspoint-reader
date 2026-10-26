@@ -289,35 +289,36 @@ impl Pipeline {
                 self.failed = true;
                 return;
             }
+            let line = self.line.as_slice();
+            let preserve_alpha = self.kind == Kind::Png && self.config.alpha != 0;
             let mut sx = self.crop_left;
             let mut error = 0;
-            for x in 0..self.plan.width {
+            let width = self
+                .plan
+                .width
+                .min(self.config.screen_width - self.config.x)
+                .max(0);
+            for x in 0..width {
                 let out_x = self.config.x + x;
-                if out_x < self.config.screen_width {
-                    let alpha = if self.kind == Kind::Png && self.config.alpha != 0 {
-                        self.line[self.src_width as usize + sx as usize]
-                    } else {
-                        255
-                    };
-                    if alpha >= 8
+                let visible = if preserve_alpha {
+                    let alpha = line[self.src_width as usize + sx as usize];
+                    alpha >= 8
                         && alpha > frame::BAYER[((out_y & 3) * 4 + (out_x & 3)) as usize] * 16
-                    {
-                        let gray = self.line[sx as usize];
-                        let value = if self.config.dither != 0 {
-                            frame::dither(gray, out_x, out_y)
-                        } else if self.kind == Kind::Png {
-                            gray >> 6
-                        } else {
-                            gray / 85
-                        };
-                        writer.pixel(
-                            out_x,
-                            value,
-                            self.kind == Kind::Png && self.config.alpha != 0,
-                        );
-                        if self.cache.active {
-                            self.cache.pixel(x, y, value);
-                        }
+                } else {
+                    true
+                };
+                if visible {
+                    let gray = line[sx as usize];
+                    let value = if self.config.dither != 0 {
+                        frame::dither(gray, out_x, out_y)
+                    } else if self.kind == Kind::Png {
+                        gray >> 6
+                    } else {
+                        gray / 85
+                    };
+                    writer.pixel(out_x, value, preserve_alpha);
+                    if self.cache.active {
+                        self.cache.pixel(x, y, value);
                     }
                 }
                 error += self.visible_width;
@@ -468,22 +469,28 @@ impl Pipeline {
         if self.failed {
             return false;
         }
-        self.line.copy_from_slice(&self.extra);
-        for x in row.x.max(0)..(row.x + row.width).min(self.src_width) {
-            let index = row.pixels[(x - row.x) as usize];
-            if row.has_alpha && index == row.transparent as u8 {
-                continue;
-            }
-            let i = index as usize * 3;
-            let gray = if row.palette.is_empty() {
-                0
-            } else {
-                let Some(p) = row.palette.get(i..i + 3) else {
-                    return false;
-                };
-                ((p[0] as u32 * 77 + p[1] as u32 * 150 + p[2] as u32 * 29) >> 8) as u8
+        if row.has_alpha || row.x != 0 || row.width != self.src_width {
+            self.line.copy_from_slice(&self.extra);
+        }
+        let first = row.x.max(0);
+        let end = (row.x + row.width).min(self.src_width);
+        if first < end {
+            let Some(palette) = row.palette.first_chunk::<256>() else {
+                return false;
             };
-            self.line[x as usize] = gray;
+            let pixels = &row.pixels[(first - row.x) as usize..(end - row.x) as usize];
+            let output = &mut self.line[first as usize..end as usize];
+            if row.has_alpha {
+                for (&index, gray) in pixels.iter().zip(output) {
+                    if index != row.transparent as u8 {
+                        *gray = palette[index as usize];
+                    }
+                }
+            } else {
+                for (&index, gray) in pixels.iter().zip(output) {
+                    *gray = palette[index as usize];
+                }
+            }
         }
         let (first, end) = self.range(row.y);
         self.render_line(first, end, sink);

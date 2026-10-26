@@ -935,6 +935,7 @@ typedef struct {
   int32_t x, y, width, height, stride;
   const uint8_t* pixels;
   size_t len;
+  // PNG: RGB888 plus optional alpha table. GIF: 256 preconverted gray bytes.
   const uint8_t* palette;
   size_t palette_len;
   uint32_t transparent;
@@ -942,6 +943,8 @@ typedef struct {
 } XpImageRow;
 bool xp_image_init(void*, const XpImageConfig*, int32_t width, int32_t height, bool progressive,
                    const XpImageCallbacks*, XpImagePlan*);
+// Convert 256 RGB888 entries to 256 gray entries; spans must be valid and disjoint.
+void xp_image_gray_palette(const uint8_t* rgb, uint8_t* gray);
 bool xp_image_prepare(void*);
 bool xp_image_cache_begin(void*);
 bool xp_image_row(void*, const XpImageRow*);

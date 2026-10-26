@@ -118,7 +118,8 @@ int main() {
     require(xp_image_cache_begin(&storage));
     sink.failWrite = 2;  // The two header writes succeeded.
     const std::array<uint8_t, 4> pixels{};
-    XpImageRow row{0, 0, 4, 1, 4, pixels.data(), pixels.size(), nullptr, 0, 0, 3, 8, 0};
+    const std::array<uint8_t, 256> palette{};
+    XpImageRow row{0, 0, 4, 1, 4, pixels.data(), pixels.size(), palette.data(), palette.size(), 0, 3, 8, 0};
     require(xp_image_row(&storage, &row));
     row.y = 1;
     require(!xp_image_row(&storage, &row));

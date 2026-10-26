@@ -17,6 +17,8 @@ namespace {
 struct GifContext {
   GifContext(GfxRenderer& renderer, const RenderConfig& config) : pipeline(renderer, config) {}
   ImagePipeline pipeline;
+  const uint8_t* activePalette24 = nullptr;
+  uint8_t grayPalette[256] = {};
   bool success = true;
   uint32_t lastYieldMs = 0;
 };
@@ -77,6 +79,10 @@ void gifDrawCallback(GIFDRAW* draw) {
   auto* ctx = static_cast<GifContext*>(draw->pUser);
   if (!ctx || !ctx->success) return;
   ImageToFramebufferDecoder::yieldDuringDecode(ctx->lastYieldMs);
+  if (draw->pPalette24 && draw->pPalette24 != ctx->activePalette24) {
+    xp_image_gray_palette(draw->pPalette24, ctx->grayPalette);
+    ctx->activePalette24 = draw->pPalette24;
+  }
   const XpImageRow row{draw->iX,
                        draw->iY + draw->y,
                        draw->iWidth,
@@ -84,8 +90,8 @@ void gifDrawCallback(GIFDRAW* draw) {
                        draw->iWidth,
                        draw->pPixels,
                        static_cast<size_t>(draw->iWidth),
-                       draw->pPalette24,
-                       draw->pPalette24 ? 768u : 0u,
+                       ctx->grayPalette,
+                       sizeof(ctx->grayPalette),
                        draw->ucTransparent,
                        3,
                        8,

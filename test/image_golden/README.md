@@ -17,7 +17,9 @@ python3 test/image_golden/run.py build/image-golden/image_oracle
 ```
 
 `goldens.json.gz` records the C++ baseline at
-`5d6523086a696abac78a9816f13d0956ab5ff61c`. Its inventory contains SHA-256 for
+`5d6523086a696abac78a9816f13d0956ab5ff61c`, with 696 independently verified
+PNG pixel corrections described in [the decoder checks](../png_zlib/README.md).
+Its inventory contains SHA-256 for
 every corpus member. Each of 51,024 cases records the dimension query, streaming
 header probes with 1/7/4096-byte chunks (including accepted byte count), decode
 success, framebuffer SHA-256, renderer write-target query sequence SHA-256 and
@@ -35,8 +37,9 @@ variants across all 48 targets: fit/exact dimensions, down/upscale, clipping,
 crops, alpha, dither, cache disabled, grayscale and performance flags. Extra
 cases cover uncropped fit-mode alpha PNG and independent X/Y crops for PNG,
 JPEG and GIF (GIF retains its existing crop-ignore behavior). The 864 added
-cases were captured from a scratch export of the same C++ revision; all original
-50,160 case records and corpus-member bytes remain unchanged. The three
+cases were captured from a scratch export of the same C++ revision. Apart from
+the 696 documented corrections, the original records remain unchanged; all
+corpus-member bytes are unchanged. The three
 committed archives total 1,331,567 bytes, below the 1.5 MB budget.
 
 | Feature in the corpus | Observed baseline behavior |

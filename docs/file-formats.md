@@ -756,3 +756,21 @@ Book moves rename the store and its `.deleted` journal (plus recovery sidecars)
 together. The stored source path is informational and is refreshed on the next
 save; the current file path selects the store. Local book deletion cleans up all
 of these sidecars but preserves the independent `My Clippings.txt` export.
+
+## Image pixel cache (`.px2`)
+
+Each extracted image has a pixel cache beside it, using the same filename stem
+and the `.px2` extension. The filename versions the decoded pixels; the binary
+format remains little-endian `uint16_t width`, `uint16_t height`, followed by
+row-major 2-bit pixels (four pixels per byte, most significant pixel first).
+Each row occupies `(width + 3) / 4` bytes.
+
+Version 2 replaces the unversioned `.pxc` cache after correcting PNGdec's
+back-reference copy error. Existing unversioned files are ignored, so each
+previously cached image is decoded and cached again on its first view. That
+view pays the normal decode and SD-write cost; later views reuse the new cache.
+Old cache files remain unused until the book cache is removed. Normal book deletion
+calls `clearBookCache()` in `src/util/BookCacheUtils.cpp`, then `Epub::clearCache()`;
+that removes the whole book-cache directory without filtering filename extensions.
+No manual reset is needed to obtain corrected pixels, and the automatic rebuild
+leaves reading progress, book metadata, and section caches unchanged.

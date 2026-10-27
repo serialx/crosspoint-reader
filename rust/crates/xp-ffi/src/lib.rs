@@ -10,6 +10,7 @@ mod pkg;
 
 mod section;
 mod text;
+mod textm;
 mod xml;
 mod zip;
 

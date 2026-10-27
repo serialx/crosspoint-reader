@@ -32,25 +32,6 @@ constexpr int trackingBetween(const uint32_t leftCp, const uint32_t rightCp, con
   return leftCp == 0 || isSpace(leftCp) || isSpace(rightCp) ? 0 : tracking;
 }
 
-/**
- * Resolves the requested style to the best available style in the given SD card font.
- * Falls back gracefully when the font lacks the requested variant.
- */
-uint8_t resolveSdCardStyle(const SdCardFont& font, const EpdFontFamily::Style style) {
-  return font.resolveStyle(static_cast<uint8_t>(style));
-}
-
-uint16_t getSdCardSpaceAdvance(SdCardFont& font, const EpdFontFamily::Style style) {
-  const uint8_t resolvedStyle = resolveSdCardStyle(font, style);
-  const uint16_t advance = font.getAdvance(' ', resolvedStyle);
-  if (advance != 0) return advance;
-
-  // Zero means uncached (full table, style not prewarmed, or failed
-  // preparation): read the glyph, as the per-codepoint slow path does.
-  const EpdFont* epdFont = font.getEpdFont(resolvedStyle);
-  const EpdGlyph* glyph = epdFont ? epdFont->getGlyph(' ') : nullptr;
-  return glyph ? glyph->advanceX : 0;
-}
 }  // namespace
 
 namespace {
@@ -269,35 +250,9 @@ void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) {
 }
 
 int GfxRenderer::resolveTextFontId(const int fontId, const char* text, const EpdFontFamily::Style style) const {
-  if (fallbackFontMap_.empty() || text == nullptr || *text == '\0') {
-    return fontId;
-  }
-  const auto fbIt = fallbackFontMap_.find(fontId);
-  if (fbIt == fallbackFontMap_.end()) {
-    return fontId;  // no fallback registered for this font
-  }
-  const int fallbackFontId = fbIt->second;
-  const auto fontIt = fontMap.find(fontId);
-  const auto fallbackIt = fontMap.find(fallbackFontId);
-  if (fontIt == fontMap.end() || fallbackIt == fontMap.end()) {
-    return fontId;  // unknown primary or fallback not loaded — let the caller handle it
-  }
-  const EpdFontFamily& primary = fontIt->second;
-  const EpdFontFamily& fallback = fallbackIt->second;
-  const char* cursor = text;
-  uint32_t cp;
-  while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&cursor)))) {
-    // Redirect whenever the primary font cannot draw a codepoint the fallback
-    // can — otherwise the string renders with holes. Not just CJK: Greek,
-    // Cyrillic, or any script the built-in UI fonts lack qualifies. ASCII is
-    // skipped outright (every registered font covers it), keeping Latin
-    // strings on the fast path, and a partial-coverage fallback is not worth
-    // dragging the whole string into for glyphs it would also miss.
-    if (cp >= 0x80 && !primary.hasCodepoint(cp, style) && fallback.hasCodepoint(cp, style)) {
-      return fallbackFontId;
-    }
-  }
-  return fontId;
+  if (!text || !*text || fallbackFontMap_.find(fontId) == fallbackFontMap_.end()) return fontId;
+  const auto provider = textProvider();
+  return xp_native_resolve(&provider, fontId, reinterpret_cast<const uint8_t*>(text), text ? strlen(text) : 0, style);
 }
 
 void GfxRenderer::prewarmFallbackText(const int fontId, const TextGetter getter, const void* ctx,
@@ -660,32 +615,9 @@ void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
 
 int GfxRenderer::getTextWidth(const int fontId, const char* text, const EpdFontFamily::Style style,
                               const BidiUtils::BidiBaseDir baseDir) const {
-  if (text == nullptr || *text == '\0') {
-    return 0;
-  }
-
-  // Measure with the same font drawText would render with (see resolveTextFontId)
-  // so wrapping, truncation and centering of non-Latin strings stay consistent.
-  const int resolvedFontId = resolveTextFontId(fontId, text, style);
-  const auto fontIt = fontMap.find(resolvedFontId);
-  if (fontIt == fontMap.end()) {
-    LOG_ERR("GFX", "Font %d not found", resolvedFontId);
-    return 0;
-  }
-
-  std::string visual;
-  const char* renderedText = resolveVisualText(text, visual, baseDir);
-
-  // Redirected to the SD fallback: batch-load the string's glyphs so the
-  // per-codepoint measurement loop below doesn't fault them in one SD read
-  // at a time (#2725).
-  if (resolvedFontId != fontId) {
-    ensureSdGlyphsResident(resolvedFontId, renderedText, style, true);
-  }
-
-  int w = 0, h = 0;
-  fontIt->second.getTextDimensions(renderedText, &w, &h, style);
-  return w;
+  const auto provider = textProvider();
+  return xp_native_width(&provider, fontId, reinterpret_cast<const uint8_t*>(text), text ? strlen(text) : 0, style,
+                         static_cast<int32_t>(baseDir));
 }
 
 void GfxRenderer::drawCenteredText(const int fontId, const int y, const char* text, const bool black,
@@ -2075,160 +2007,35 @@ bool GfxRenderer::copyBufferToRegion(int lx, int ly, int lw, int lh, const uint8
 }
 
 int GfxRenderer::getSpaceWidth(const int fontId, const EpdFontFamily::Style style) const {
-  // Advance table fast-path for SD card fonts during layout
-  auto sdIt = sdCardFonts_.find(fontId);
-  if (sdIt != sdCardFonts_.end() && sdIt->second->hasAdvanceTable()) {
-    return fp4::toPixel(getSdCardSpaceAdvance(*sdIt->second, style));
-  }
-
-  const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) {
-    LOG_ERR("GFX", "Font %d not found", fontId);
-    return 0;
-  }
-
-  const EpdGlyph* spaceGlyph = fontIt->second.getGlyph(' ', style);
-  return spaceGlyph ? fp4::toPixel(spaceGlyph->advanceX) : 0;  // snap 12.4 fixed-point to nearest pixel
+  const auto provider = textProvider();
+  return xp_native_space(&provider, fontId, style);
 }
 
 int GfxRenderer::getSpaceAdvance(const int fontId, const uint32_t leftCp, const uint32_t rightCp,
                                  const EpdFontFamily::Style style) const {
-  // Advance table fast-path for SD card fonts during layout.
-  // Kern data is not loaded during layout (consistent with previous metadataOnly behavior),
-  // so we return just the space advance without kerning.
-  auto sdIt = sdCardFonts_.find(fontId);
-  if (sdIt != sdCardFonts_.end() && sdIt->second->hasAdvanceTable()) {
-    return fp4::toPixel(getSdCardSpaceAdvance(*sdIt->second, style));
-  }
-
-  const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) return 0;
-  const auto& font = fontIt->second;
-  const EpdGlyph* spaceGlyph = font.getGlyph(' ', style);
-  const int32_t spaceAdvanceFP = spaceGlyph ? static_cast<int32_t>(spaceGlyph->advanceX) : 0;
-  // Combine space advance + flanking kern into one fixed-point sum before snapping.
-  // Snapping the combined value avoids the +/-1 px error from snapping each component separately.
-  const int32_t kernFP = static_cast<int32_t>(font.getKerning(leftCp, ' ', style)) +
-                         static_cast<int32_t>(font.getKerning(' ', rightCp, style));
-  return fp4::toPixel(spaceAdvanceFP + kernFP);
+  const auto provider = textProvider();
+  return xp_native_gap(&provider, fontId, leftCp, rightCp, style);
 }
 
 int GfxRenderer::getKerning(const int fontId, const uint32_t leftCp, const uint32_t rightCp,
                             const EpdFontFamily::Style style, const int8_t tracking) const {
-  const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) return 0;
-  const int kernFP = fontIt->second.getKerning(leftCp, rightCp, style);      // 4.4 fixed-point
-  return fp4::toPixel(kernFP) + trackingBetween(leftCp, rightCp, tracking);  // snap 4.4 fixed-point to nearest pixel
+  const auto provider = textProvider();
+  return xp_native_kern(&provider, fontId, leftCp, rightCp, style, tracking);
 }
 
 int GfxRenderer::getTextAdvanceX(const int fontId, const char* text, EpdFontFamily::Style style, const int8_t tracking,
                                  const BidiUtils::BidiBaseDir baseDir, const TextMeasureMode mode) const {
-  // Match the font drawText would use for non-Latin strings (see resolveTextFontId).
-  const int resolvedFontId = resolveTextFontId(fontId, text, style);
-  // Measure the exact codepoint stream drawText renders: bidi-reordered and
-  // Arabic-shaped (contextual presentation forms, Lam-Alef collapse).
-  // Measuring the raw logical text counts the Alef a ligature absorbs and
-  // uses base-letter advances instead of presentation-form advances, so RTL
-  // lines come out wider than they draw — uneven word gaps and a ragged
-  // right margin.
-  std::string visual;
-  text = resolveVisualText(text, visual, baseDir);
-
-  // Advance table fast-path for SD card fonts during layout.
-  // No kerning/ligature lookup — consistent with previous metadataOnly behavior
-  // where kern/lig data was not loaded.
-  auto sdIt = sdCardFonts_.find(resolvedFontId);
-  if (mode == TextMeasureMode::Layout && sdIt != sdCardFonts_.end() && sdIt->second->hasAdvanceTable()) {
-    int32_t widthFP = 0;
-    int trackingPx = 0;
-    uint32_t prevCp = 0;
-    const bool isSupSub = (style & (EpdFontFamily::SUP | EpdFontFamily::SUB)) != 0;
-    const uint8_t styleIdx = resolveSdCardStyle(*sdIt->second, style);
-    const auto fontIt = fontMap.find(resolvedFontId);
-    if (fontIt == fontMap.end()) {
-      LOG_ERR("GFX", "Font %d not found", resolvedFontId);
-      return 0;
-    }
-    const auto& font = fontIt->second;
-    while (uint32_t cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text))) {
-      // RTL vowel marks (niqqud/harakat) are zero-advance overlays in drawText — no width.
-      if (BidiUtils::isTransparentMark(cp)) {
-        continue;
-      }
-      const uint32_t smallCapCp = (style & EpdFontFamily::SMALL_CAPS) ? utf8SmallCapsUpper(cp) : cp;
-      const bool isSmallCap = smallCapCp != cp;
-      cp = smallCapCp;
-      int32_t advFP = sdIt->second->getAdvance(cp, styleIdx);
-      if (!utf8IsCombiningMark(cp)) {
-        if (advFP == 0 || (syntheticGlyph::isSolid(cp) && !font.hasCodepoint(cp, style))) {
-          EpdGlyph solidFallback;
-          const EpdGlyph* glyph = font.getGlyphMetrics(cp, solidFallback, style);
-          advFP = glyph ? glyph->advanceX : 0;
-        }
-        trackingPx += trackingBetween(prevCp, cp, tracking);
-        prevCp = cp;
-      }
-      widthFP += isSupSub ? (advFP + 1) / 2 : (isSmallCap ? scaleSmallCapAdvance(advFP) : advFP);
-    }
-    return fp4::toPixel(widthFP) + trackingPx;
-  }
-
-  const auto fontIt = fontMap.find(resolvedFontId);
-  if (fontIt == fontMap.end()) {
-    LOG_ERR("GFX", "Font %d not found", resolvedFontId);
-    return 0;
-  }
-
-  uint32_t cp;
-  uint32_t prevCp = 0;
-  int widthPx = 0;
-  int32_t prevAdvanceFP = 0;  // 12.4 fixed-point: prev glyph's advance + next kern for snap
-  const auto& font = fontIt->second;
-  while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
-    // RTL vowel marks (niqqud/harakat) are zero-advance overlays in drawText — no width.
-    if (BidiUtils::isTransparentMark(cp)) {
-      continue;
-    }
-    if (utf8IsCombiningMark(cp)) {
-      continue;
-    }
-    const uint32_t smallCapCp = (style & EpdFontFamily::SMALL_CAPS) ? utf8SmallCapsUpper(cp) : cp;
-    const bool isSmallCap = smallCapCp != cp;
-    if (style & EpdFontFamily::SMALL_CAPS) {
-      cp = smallCapCp;
-    } else {
-      cp = font.applyLigatures(cp, text, style);
-    }
-
-    // Differential rounding: snap (previous advance + current kern) together,
-    // matching drawText so measurement and rendering agree exactly.
-    if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
-      widthPx += fp4::toPixel(prevAdvanceFP + kernFP) + trackingBetween(prevCp, cp, tracking);
-    }
-
-    EpdGlyph solidFallback;
-    const EpdGlyph* glyph = font.getGlyphMetrics(cp, solidFallback, style);
-    prevAdvanceFP = glyph ? glyph->advanceX : 0;
-    if ((style & (EpdFontFamily::SUP | EpdFontFamily::SUB)) != 0) {
-      prevAdvanceFP = (prevAdvanceFP + 1) / 2;
-    } else if (isSmallCap) {
-      prevAdvanceFP = scaleSmallCapAdvance(prevAdvanceFP);
-    }
-    prevCp = cp;
-  }
-  widthPx += fp4::toPixel(prevAdvanceFP);  // final glyph's advance
-  return widthPx;
+  const auto provider = textProvider();
+  return xp_native_advance(&provider, fontId, reinterpret_cast<const uint8_t*>(text), text ? strlen(text) : 0, style,
+                           tracking, static_cast<int32_t>(baseDir), mode == TextMeasureMode::Layout);
 }
 
 bool GfxRenderer::getCodepointMetrics(const int fontId, const uint32_t cp, const EpdFontFamily::Style style,
                                       int32_t& advanceFP, int& top) const {
-  const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) return false;
-  const EpdGlyph* glyph = fontIt->second.getGlyph(cp, style);
-  if (!glyph) return false;
-  advanceFP = glyph->advanceX;
-  top = glyph->top;
+  const auto provider = textProvider();
+  int32_t measuredTop = 0;
+  if (!xp_native_codepoint(&provider, fontId, cp, style, &advanceFP, &measuredTop)) return false;
+  top = measuredTop;
   return true;
 }
 

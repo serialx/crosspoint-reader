@@ -23,3 +23,33 @@ target_compile_definitions(TextmDiff PRIVATE XP_FFI_HOST_FAULT_INJECTION)
 target_compile_options(TextmDiff PRIVATE -O2 -fno-exceptions)
 target_link_libraries(TextmDiff PRIVATE xp_ffi_host)
 add_test(NAME TextmDiff COMMAND TextmDiff)
+
+set(NATIVE_FONT_SDK ${REPO_ROOT}/freeink-sdk/libs/font/FreeInkFont)
+file(GLOB NATIVE_FT_SOURCES ${NATIVE_FONT_SDK}/src/freetype/*.c)
+add_executable(NativeCache NativeCache.cpp
+  ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp
+  ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
+  ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp
+  ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp ${REPO_ROOT}/lib/MiniBidi/minibidi.c
+  ${REPO_ROOT}/lib/MiniBidi/BidiUtils.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp ${REPO_ROOT}/lib/uzlib/src/tinflate.c
+  ${REPO_ROOT}/lib/Memory/BuildScratch.cpp ${NATIVE_FONT_SDK}/src/FtFont.cpp
+  ${NATIVE_FONT_SDK}/src/FontAlloc.c ${NATIVE_FONT_SDK}/src/Gsub.cpp ${NATIVE_FONT_SDK}/src/Gpos.cpp
+  ${NATIVE_FT_SOURCES})
+target_include_directories(NativeCache PRIVATE ../text_golden/stubs
+  ${REPO_ROOT}/src ${REPO_ROOT}/lib/GfxRenderer ${REPO_ROOT}/lib/EpdFont
+  ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8
+  ${REPO_ROOT}/lib/InflateReader ${REPO_ROOT}/lib/uzlib/src
+  ${NATIVE_FONT_SDK}/include ${NATIVE_FONT_SDK}/third_party/freetype/include ${NATIVE_FONT_SDK}/third_party/stb)
+target_compile_definitions(NativeCache PRIVATE BOARD_HAS_PSRAM=1 FREEINK_FONT_ENABLE_AUTOHINT=1)
+target_compile_options(NativeCache PRIVATE -ffunction-sections -fdata-sections -fno-exceptions)
+if(APPLE)
+  target_link_options(NativeCache PRIVATE -Wl,-dead_strip)
+else()
+  target_link_options(NativeCache PRIVATE -Wl,--gc-sections)
+endif()
+target_link_libraries(NativeCache PRIVATE xp_ffi_host)
+execute_process(COMMAND ${Python3_EXECUTABLE} -c
+  "import gzip,pathlib; pathlib.Path(r'${CMAKE_CURRENT_BINARY_DIR}/native.cpfont').write_bytes(gzip.decompress(pathlib.Path(r'${REPO_ROOT}/test/text_golden/fonts/NotoSans_14.cpfont.gz').read_bytes()))"
+  COMMAND_ERROR_IS_FATAL ANY)
+add_test(NAME NativeCache COMMAND NativeCache ${CMAKE_CURRENT_BINARY_DIR}/native.cpfont)

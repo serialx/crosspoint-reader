@@ -18,6 +18,7 @@ struct Source {
   bool bmp = false;
   bool decoding = false;
   bool seekFailed = false;
+  bool animated = false;
   static void diagnostic(void* raw, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
     auto& self = *static_cast<Source*>(raw);
     switch (static_cast<XpGifDiagnostic>(event)) {
@@ -110,6 +111,7 @@ struct Source {
         LOG_ERR("GIF", "GIF BMP post-process failed");
         break;
       case XP_GIF_DIAG_Complete:
+        if (self.animated) LOG_INF("GIF", "Animated GIF detected - using first frame only for BMP conversion");
         LOG_DBG("GIF", "Successfully converted GIF to BMP");
         break;
       case XP_GIF_DIAG_FrameHeader:
@@ -157,7 +159,7 @@ struct Source {
       case XP_GIF_DIAG_FrameEnd:
         if (self.file.size() > 10 && a < self.file.size() - 10) {
           if (self.bmp) {
-            LOG_INF("GIF", "Animated GIF detected - using first frame only for BMP conversion");
+            self.animated = true;
           } else {
             LOG_ERR("IMG", "Warning: Unsupported feature '%s' in image '%s'. Image may not display correctly.",
                     "animation (using first frame only)", self.path);

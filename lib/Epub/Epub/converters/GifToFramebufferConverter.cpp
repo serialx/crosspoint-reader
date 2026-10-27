@@ -64,7 +64,9 @@ bool GifToFramebufferConverter::decodeToFramebuffer(const std::string& path, Gfx
   }
   GifCommon::Source source{file};
   source.path = path.c_str();
+#if defined(ENABLE_SERIAL_LOG) && LOG_LEVEL >= 2
   source.freeHeap = HalMemory::getInternalHeap().freeBytes;
+#endif
   source.cachePath = config.cachePath.c_str();
   source.targetWidth = config.maxWidth;
   source.targetHeight = config.maxHeight;

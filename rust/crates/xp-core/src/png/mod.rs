@@ -109,12 +109,16 @@ pub fn info(source: &mut impl Source, mode: Mode) -> Option<Info> {
         );
         if header[26] != 0 || header[27] != 0 {
             source.diagnostic(Diagnostic::Method, 0, 0, 0, 0);
+            return None;
         } else if header[28] != 0 {
             source.diagnostic(Diagnostic::Interlace, 0, 0, 0, 0);
+            return None;
         } else if width == 0 || height == 0 || width > 2048 || height > 3072 {
             source.diagnostic(Diagnostic::Dimensions, width, height, 0, 0);
+            return None;
         } else if !matches!(color, 0 | 2 | 3 | 4 | 6) {
             source.diagnostic(Diagnostic::Color, u32::from(color), 0, 0, 0);
+            return None;
         }
     }
     if header[28] != 0 {
@@ -138,29 +142,13 @@ pub fn info(source: &mut impl Source, mode: Mode) -> Option<Info> {
             }
         }
         Mode::Bmp => {
-            if pitch > 16384
-                && header[26] == 0
-                && header[27] == 0
-                && width <= 2048
-                && height <= 3072
-                && width > 0
-                && height > 0
-                && matches!(color, 0 | 2 | 3 | 4 | 6)
-            {
+            if pitch > 16384 {
                 source.diagnostic(Diagnostic::RowSize, pitch as u32, 0, 0, 0);
+                return None;
             }
-            if &header[..8] != b"\x89PNG\r\n\x1a\n"
-                || header[26] != 0
-                || header[27] != 0
-                || width == 0
-                || height == 0
-                || width > 2048
-                || height > 3072
-                || !matches!(color, 0 | 2 | 3 | 4 | 6)
-                || !matches!(depth, 1 | 2 | 4 | 8 | 16)
+            if !matches!(depth, 1 | 2 | 4 | 8 | 16)
                 || (color == 3 && depth == 16)
                 || (matches!(color, 2 | 4 | 6) && depth < 8)
-                || pitch > 16384
             {
                 return None;
             }

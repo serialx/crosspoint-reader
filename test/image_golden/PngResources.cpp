@@ -85,8 +85,20 @@ struct Context {
     return operation != 1 || self.writes++ != self.failWrite;
   }
   static void progress(void*) {}
-  static void diagnostic(void* opaque, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {
-    ++static_cast<Context*>(opaque)->diagnostics;
+  static constexpr bool allocationFailure(uint32_t event) {
+#ifdef RESOURCE_GIF
+    return event == XP_GIF_DIAG_BmpRows || event == XP_GIF_DIAG_Scaling || event == XP_GIF_DIAG_Atkinson1 ||
+           event == XP_GIF_DIAG_Atkinson2 || event == XP_GIF_DIAG_DecoderAlloc || event == XP_GIF_DIAG_PipelineAlloc ||
+           event == XP_GIF_DIAG_Cache;
+#else
+    return event == XP_PNG_DIAG_Scanline || event == XP_PNG_DIAG_Inflate || event == XP_PNG_DIAG_RowScratch ||
+           event == XP_PNG_DIAG_Atkinson1 || event == XP_PNG_DIAG_Atkinson2 || event == XP_PNG_DIAG_Accumulators ||
+           event == XP_PNG_DIAG_DecoderAlloc || event == XP_PNG_DIAG_PipelineAlloc;
+#endif
+  }
+  static void diagnostic(void* opaque, uint32_t event, uint32_t, uint32_t, uint32_t, uint32_t) {
+    if (allocationFailure(event) && !std::getenv("DROP_ALLOCATION_DIAGNOSTICS"))
+      ++static_cast<Context*>(opaque)->diagnostics;
   }
   static bool bmpWrite(void* opaque, const uint8_t* bytes, size_t len) { return write(opaque, 1, bytes, len); }
   XpPngServices services() {
@@ -171,7 +183,10 @@ int main(int argc, char** argv) {
       require(live == 0);
       // Frame cache allocation is optional; every required allocation must fail cleanly.
       require(!ok || (mode == 0 && after + 1 == count));
-      if (std::getenv("VERIFY_DIAGNOSTICS")) require(context.diagnostics > 0);
+      if (!ok && std::getenv("VERIFY_DIAGNOSTICS") && context.diagnostics == 0) {
+        std::fprintf(stderr, "Missing allocation diagnostic: mode=%d allocation=%zu/%zu\n", mode, after, count);
+        require(false);
+      }
     }
     reset();
     context.writes = 0;

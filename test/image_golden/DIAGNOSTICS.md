@@ -36,14 +36,39 @@ executables. Capture is an explicit operation:
 ```sh
 python3 test/image_golden/diagnostics.py build/image \
   --capture /external/path/diagnostic-goldens.json.gz \
+  --exceptions test/image_golden/diagnostic-exceptions.json \
   --report /external/path/diagnostic-comparison.json
 ```
 
 The resource probes accept `IMAGE_ALLOCATION_TRACE=1` to print ordered allocation
 and free hashes, peaks, largest requests, and attempt counts at every replay.
-`VERIFY_DIAGNOSTICS=1` also requires a diagnostic callback on each allocation
-failure. `resource_diff.py` compares these probes against `png_resources_base`
+`VERIFY_DIAGNOSTICS=1` requires an allocation-error event for every failed
+required allocation; milestones cannot satisfy it. Optional cache fallback may
+succeed without an error. `ImageAllocationDiagnostics` suppresses those error
+events in a negative replay and requires the probe to reject the run.
+`resource_diff.py` compares these probes against `png_resources_base`
 and `gif_resources_base`, linked separately to the `e9c0cf1b` Rust host archive.
 It covers valid decode, every allocation failure, short reads, truncation, BMP
 scratch loans, and write failures. These are host allocator requests, not
 firmware allocator block sizes.
+
+`GifDiagnosticBounds` exercises completed rows and early end codes with 64 KiB,
+1 MiB, and 16 MiB nonzero sub-block tails, including truncated tails, single-frame
+and animated inputs. Both framebuffer and BMP calls must stay within 21 reads /
+2,200 bytes for these fixtures, with identical reads and pixels when the diagnostic
+callback is null. `FrameEnd` uses the existing logical read-ahead position: the
+animation warning remains a legacy heuristic, not proof of another frame.
+The test also verifies BMP gap-row write failure and successful animation-log order
+with cropping and scaling disabled. For a paired run, pass `--base-probe` (the same
+`GifReadProbe.cpp` linked to the baseline archive), `--base-bmp`, `--reference`, and
+`--report` to `gif_diagnostic_bounds.py`. The reference flag uses the optional
+frozen C++ targets described above and compares output bytes and ordered logs.
+
+The coordinator approved four additional read-ahead boundary fixtures on 2026-10-28:
+1,023 / 1,024 / 1,275 / 1,276 bytes of unused nonzero payload after a completed
+frame. Rust fills a 1,024-byte decoded-input window; AnimatedGIF read ahead roughly
+1,275 bytes. The candidate emits the animation warning while the legacy consumer
+does not. The paired test requires identical pixels, cache/BMP bytes, and status,
+and permits exactly that one line in both framebuffer and BMP logs. These cases
+are separate from the 411 parser exceptions in the original frozen corpus. This
+keeps diagnostics free of additional input reads; the warning remains heuristic.

@@ -105,3 +105,10 @@ add_test(NAME ImageDiagnosticGoldens COMMAND ${Python3_EXECUTABLE}
   --goldens ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic-goldens.json.gz
   --exceptions ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic-exceptions.json
   --report ${CMAKE_CURRENT_BINARY_DIR}/diagnostic-results.json)
+
+add_executable(gif_read_probe GifReadProbe.cpp)
+target_link_libraries(gif_read_probe PRIVATE xp_ffi_host)
+add_test(NAME GifDiagnosticBounds COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/gif_diagnostic_bounds.py ${CMAKE_CURRENT_BINARY_DIR})
+add_test(NAME ImageAllocationDiagnostics COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/allocation_diagnostics.py ${CMAKE_CURRENT_BINARY_DIR})

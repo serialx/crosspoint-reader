@@ -236,20 +236,8 @@ struct Codes<'a> {
 }
 impl Codes<'_> {
     fn report_end(&mut self) {
-        // Consume only the first frame's remaining sub-blocks to identify its end.
-        while !self.ended {
-            while self.block_left > 0 {
-                if self.raw().is_err() {
-                    return;
-                }
-                self.block_left -= 1;
-            }
-            let Ok(length) = self.raw() else {
-                return;
-            };
-            self.block_left = usize::from(length);
-            self.ended = length == 0;
-        }
+        // Match the legacy read-position heuristic using existing decoder read-ahead.
+        // Diagnostics must not read unused image data after decoding has stopped.
         let Some(unread) = self.end.checked_sub(self.at) else {
             return;
         };

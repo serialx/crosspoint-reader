@@ -1,5 +1,8 @@
 #pragma once
 
+#define ENABLE_SERIAL_LOG
+#define LOG_LEVEL 2
+
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>

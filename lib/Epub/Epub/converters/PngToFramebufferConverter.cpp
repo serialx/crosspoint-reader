@@ -39,7 +39,9 @@ void progress(void* context) {
 void diagnostic(void* raw, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
   auto& self = *static_cast<Context*>(raw);
   if (event == XP_PNG_DIAG_DecodeStart) {
+#if defined(ENABLE_SERIAL_LOG) && LOG_LEVEL >= 2
     self.decodeStart = millis();
+#endif
     return;
   }
   if (event == XP_PNG_DIAG_DecodeComplete) {

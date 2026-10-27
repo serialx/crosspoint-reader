@@ -338,19 +338,32 @@ pub unsafe extern "C" fn xp_page_render_rects(
     }
     impl Canvas for Observer {
         fn scanning(&self) -> bool {
-            true
+            false
         }
         fn font(&mut self, id: i32, _: i32) -> i32 {
             id
         }
         fn ascent(&self, _: i32) -> i32 {
-            0
+            12
         }
-        fn advance(&self, _: Text<'_>, _: MeasureMode) -> i32 {
-            0
+        fn advance(&self, text: Text<'_>, _: MeasureMode) -> i32 {
+            let mut pos = 0;
+            let mut width = 0;
+            let mut previous = 0;
+            while let Some(cp) = xp_core::utf8::next(text.bytes, &mut pos) {
+                if xp_core::text::combining(cp) {
+                    continue;
+                }
+                width += 8;
+                if previous != 0 && previous != 32 && cp != 32 {
+                    width += i32::from(text.tracking);
+                }
+                previous = cp;
+            }
+            width
         }
         fn top(&self, _: i32, _: u32, _: u8) -> Option<i32> {
-            None
+            Some(10)
         }
         fn text(&mut self, _: Text<'_>) {}
         fn end_line(&mut self) {}

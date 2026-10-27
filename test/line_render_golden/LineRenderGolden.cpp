@@ -11,6 +11,7 @@
 
 #include <chrono>
 
+#include "Allocations.h"
 #include "CrossPointSettings.h"
 #include "activities/settings/TextSettingsPreview.h"
 
@@ -51,6 +52,54 @@ static void geometry(const ClipSelectionActivity& clip) {
               << hex(w.text) << '\n';
   }
 }
+static void metrics(const char* name, linealloc::Stats stats, double micros) {
+  std::cerr << name << " requests=" << stats.requests << " peak_bytes=" << stats.peak
+            << " largest_bytes=" << stats.largest << " resident_bytes=" << stats.live << " render_us=" << micros
+            << '\n';
+}
+template <class Draw>
+static double timing(Draw draw) {
+  std::array<double, 7> samples;
+  for (auto& sample : samples) {
+    const auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < 100; ++i) draw();
+    sample = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count() / 100;
+  }
+  std::sort(samples.begin(), samples.end());
+  return samples[3];
+}
+static int resources(GfxRenderer& renderer) {
+  renderer.setRenderMode(GfxRenderer::BW);
+  renderer.setOrientation(GfxRenderer::Portrait);
+  SETTINGS = {};
+  for (int focus = 0; focus < 2; ++focus) {
+    SETTINGS.focusReadingEnabled = focus;
+    textsettings::PreviewLayout layout;
+    linealloc::begin();
+    textsettings::renderPreview(renderer, layout, 8, 4, {7, 11, 466, 280}, "Preview");
+    const auto stats = linealloc::end();
+    const double us =
+        timing([&] { textsettings::renderPreview(renderer, layout, 8, 4, {7, 11, 466, 280}, "Preview"); });
+    metrics(focus ? "preview-focus" : "preview", stats, us);
+  }
+  DictionaryDefinitionActivity owner{{}, {}, nullptr, renderer};
+  owner.lookup = &owner.storage;
+  for (int row = 0; row < 30; ++row) {
+    const auto start = owner.content.text.size();
+    owner.content.text += "The dictionary definition contains words, punctuation, e\xcc\x81 and a longerword.";
+    owner.content.lines.push_back({uint32_t(start), uint16_t(owner.content.text.size() - start), false});
+    owner.content.text += '\n';
+  }
+  owner.content.linesPerPage = 10;
+  owner.content.totalPages = 3;
+  linealloc::begin();
+  if (!owner.buildPlainSelectionPages()) return 20;
+  const auto stats = linealloc::end();
+  const double us = timing([&] { owner.storage.selectionPages[0]->render(renderer, SETTINGS.font, 12, 12); });
+  metrics("dictionary", stats, us);
+  return 0;
+}
+
 int main(int argc, char** argv) {
   const bool quick = argc > 1 && std::string(argv[1]) == "--quick";
   HalDisplay display;
@@ -62,6 +111,7 @@ int main(int argc, char** argv) {
   FontCacheManager cache(renderer.getFontMap(), renderer.getSdCardFonts(), renderer.getTtfFonts());
   cache.setFontDecompressor(&decompressor);
   renderer.setFontCacheManager(&cache);
+  if (argc > 1 && std::string(argv[1]) == "--bench") return resources(renderer);
   const int fonts[] = {NOTOSANS_12_FONT_ID, NOTOSANS_14_FONT_ID, NOTOSANS_16_FONT_ID, NOTOSANS_18_FONT_ID};
   const float compression[] = {0.90f, 0.95f, 1.0f, 1.05f};
   for (int font = 0; font < (quick ? 1 : 4); ++font)

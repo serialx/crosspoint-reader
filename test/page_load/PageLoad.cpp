@@ -12,6 +12,9 @@
 #include <new>
 #include <vector>
 
+template <class T>
+concept HasOwnedPageElements = requires(T page) { page.elements; };
+
 namespace allocations {
 bool enabled = false;
 size_t failAt = SIZE_MAX, requests = 0, live = 0, liveBytes = 0;
@@ -82,6 +85,48 @@ static std::vector<uint8_t> sample() {
   size_t size = 0;
   require(xp_page_builder_finish(&builder, &size) == 0, "builder finish");
   return {bytes, bytes + size};
+}
+static void lineBuilderTest() {
+  const uint8_t text[] = "word";
+  const uint16_t offset = 0;
+  const int16_t x = 4;
+  const uint8_t style = 0;
+  const uint32_t ranges[] = {3, 7};
+  XpParaBlock block{};
+  XpParaLine line{};
+  line.text = {text, sizeof(text)};
+  line.block = &block;
+  line.offsets = &offset;
+  line.positions = &x;
+  line.styles = &style;
+  line.sources = ranges;
+  line.count = 1;  // Null ruby means an ordinary line without annotations.
+  for (const size_t fail : {size_t(0), size_t(1), SIZE_MAX}) {
+    allocations::requests = 0;
+    allocations::failAt = fail;
+    allocations::enabled = true;
+    {
+      LinePageBuilder builder(1024);
+      const bool added = builder.addLine(line, 5, 9);
+      auto page = builder.finish();
+      require(added == (fail != 0) && bool(page) == (fail == SIZE_MAX), "builder allocation failure");
+      if (page) {
+        require(allocations::requests == 2 && allocations::live == 2, "scratch plus one page allocation");
+        require(builder.reset() && builder.addLine(line, 7, 11), "reuse line buffer");
+        auto next = builder.finish();
+        require(next && allocations::requests == 3, "reuse must allocate only the next page");
+        require(page->element(0).xPos == 5 && next->element(0).xPos == 7, "pages borrow builder storage");
+        const auto view = next->element(0).textBlock();
+        require(std::string(view.wordText(0)) == "word" && view.wordSourceRange(0).end == 7,
+                "line metadata or null ruby changed");
+      }
+    }
+    require(allocations::live == 0, "builder failure/destruction leaked storage");
+    allocations::enabled = false;
+  }
+  LinePageBuilder small(6);
+  require(!small.addLine(line, 0, 0) && !small.finish(), "overflow must reject the whole page");
+  require(small.reset() && small.finish(), "overflow must not poison reset");
 }
 static void writeSection(const std::vector<uint8_t>& bytes, bool partial = false, int offsetDelta = 0) {
   HalFile file;
@@ -193,6 +238,7 @@ int main(int argc, char** argv) {
   const auto bytes = sample();
   const std::string mode = argv[1];
   if (mode == "oom") {
+    lineBuilderTest();
     writeSection(bytes);
     for (size_t fail = 0; fail < 1; ++fail) {
       allocations::requests = 0;
@@ -209,7 +255,7 @@ int main(int argc, char** argv) {
     auto page = section.loadPage(0);
     allocations::enabled = false;
     require(page && allocations::requests == 1 && allocations::live == 1, "page must retain one allocation");
-    require(page->elements.empty(), "load materialized C++ containers");
+    static_assert(!HasOwnedPageElements<Page>, "firmware Page must not contain owned elements");
     page.reset();
     require(allocations::live == 0, "page destruction leaked storage");
     for (size_t fail = 0; fail < 1; ++fail) {

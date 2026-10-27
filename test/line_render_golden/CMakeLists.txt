@@ -39,7 +39,15 @@ target_include_directories(LineRenderGolden PRIVATE ${PAGE_INCLUDES} ${REPO_ROOT
 target_compile_definitions(LineRenderGolden PRIVATE ${PAGE_DEFINES})
 target_compile_options(LineRenderGolden PRIVATE ${PAGE_OPTIONS})
 target_link_options(LineRenderGolden PRIVATE ${PAGE_LINK_OPTIONS})
-target_link_libraries(LineRenderGolden PRIVATE xp_ffi_host)
+set(ALLOCATOR ${CMAKE_CURRENT_BINARY_DIR}/AllocatorAdapter.cpp)
+add_custom_command(OUTPUT ${ALLOCATOR}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/allocator.py
+    ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp ${ALLOCATOR}
+  DEPENDS allocator.py ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp VERBATIM)
+target_sources(LineRenderGolden PRIVATE Allocations.cpp ${ALLOCATOR})
+target_include_directories(LineRenderGolden PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${REPO_ROOT}/rust/crates/xp-ffi/include)
+target_link_libraries(LineRenderGolden PRIVATE ${XP_FFI_HOST_ARCHIVE})
+add_dependencies(LineRenderGolden xp_ffi_host_build)
 add_dependencies(LineRenderGolden PageGolden)
 add_test(NAME LineRenderGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py check
   --binary $<TARGET_FILE:LineRenderGolden> --work-dir ${CMAKE_CURRENT_BINARY_DIR}/check)

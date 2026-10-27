@@ -1,12 +1,13 @@
 #include "TextSettingsPreview.h"
 
 #include <EpdFontFamily.h>
+#include <Epub/Page.h>
 #include <Epub/Paragraph.h>
 #include <Epub/blocks/BlockStyle.h>
-#include <Epub/blocks/TextBlock.h>
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
+#include <Logging.h>
 
 #include <algorithm>
 #include <string>
@@ -28,16 +29,17 @@ CssTextAlign toCssAlign(uint8_t align) {
   return static_cast<CssTextAlign>(align);
 }
 
-// Lay the sample text out through the reader engine into layout.lines
-void relayout(PreviewLayout& layout, const GfxRenderer& renderer, int fontId, int textWidth) {
-  layout.lines.clear();
+// Store only whole visible lines from the two sample paragraphs.
+bool relayout(PreviewLayout& layout, const GfxRenderer& renderer, int fontId, int textWidth, int textHeight, int lineH,
+              int lineAdvance, int paragraphGap) {
+  layout.page.reset();
 
   BlockStyle style;
   style.alignment = toCssAlign(SETTINGS.paragraphAlignment);
   style.textAlignDefined = true;  // honor the user's choice; RTL auto-detected from text
 
   Paragraph parsed(SETTINGS.hyphenationEnabled != 0, SETTINGS.focusReadingEnabled != 0, style,
-                    SETTINGS.paragraphIndentSpaces);
+                   SETTINGS.paragraphIndentSpaces);
 
   // Feed one space-separated word at a time; addWord handles NFC/CJK/RTL/focus splitting
   const char* text = I18N.get(StrId::STR_FONT_PREVIEW_TEXT);
@@ -54,15 +56,39 @@ void relayout(PreviewLayout& layout, const GfxRenderer& renderer, int fontId, in
     }
   }
 
-  parsed.layoutAndExtractLines(
-      renderer, fontId, static_cast<uint16_t>(textWidth),
-      [&layout](std::unique_ptr<TextBlock> line, uint32_t) { layout.lines.push_back(std::move(line)); }, true,
-      SETTINGS.getCharacterSpacing(), SETTINGS.wordSpacing);
+  const int visibleLines = textHeight < lineH ? 0 : (textHeight - lineH) / lineAdvance + 1;
+  size_t wordBytes = 0;
+  for (size_t i = 0; i < parsed.size(); ++i) wordBytes += parsed.wordAt(i).size() + 1;
+  // Two copies of the packed words; each visible line can add one split word,
+  // a hyphen and a line header. Allow one indentation token per paragraph.
+  const size_t capacity = 6 + 2 * (wordBytes + parsed.size() * 20 + 24) + size_t(visibleLines) * 65;
+  LinePageBuilder builder(capacity);
+  struct Lines {
+    LinePageBuilder& builder;
+    Paragraph& paragraph;
+    int row, lineH, advance, gap, height;
+  } lines{builder, parsed, 0, lineH, lineAdvance, paragraphGap, textHeight};
+  parsed.layoutLines(
+      renderer, fontId, static_cast<uint16_t>(textWidth), &lines,
+      [](void* raw, const XpParaLine* line) -> uint8_t {
+        auto& c = *static_cast<Lines*>(raw);
+        const int firstY = c.row * c.advance;
+        const int secondY = (c.row + c.paragraph.linesAfterCurrentLine() + 1) * c.advance + c.gap + firstY;
+        bool ok = true;
+        if (firstY + c.lineH <= c.height) ok = c.builder.addLine(*line, 0, firstY);
+        if (ok && secondY + c.lineH <= c.height) ok = c.builder.addLine(*line, 0, secondY);
+        ++c.row;
+        return ok;
+      },
+      true, SETTINGS.getCharacterSpacing(), SETTINGS.wordSpacing);
+  if (parsed.hadDroppedWords()) return false;
+  layout.page = builder.finish();
+  return layout.page != nullptr;
 }
 
 }  // namespace
 
-void renderPreview(const GfxRenderer& renderer, PreviewLayout& layout, int previewPadding, int labelGap, Rect bounds,
+void renderPreview(GfxRenderer& renderer, PreviewLayout& layout, int previewPadding, int labelGap, Rect bounds,
                    const char* caption) {
   const int top = bounds.y;
   const int height = bounds.height;
@@ -96,10 +122,12 @@ void renderPreview(const GfxRenderer& renderer, PreviewLayout& layout, int previ
   // key means an identical prewarm call. This relies on nothing else evicting the SD
   // glyph cache while this activity is up — true today: the only evictor is
   // FontCacheManager::PrewarmScope, used solely by the reader/dictionary activities.
+  const int textHeight = height - labelReserved - previewPadding;
   const PreviewKey key{.fontId = fontId,
                        .fontPointSize = SETTINGS.fontPointSize,
                        .screenMargin = SETTINGS.screenMargin,
                        .textWidth = textWidth,
+                       .textHeight = textHeight,
                        .lineCompression = compression,
                        .alignment = SETTINGS.paragraphAlignment,
                        .extraParagraphSpacing = SETTINGS.extraParagraphSpacing != 0,
@@ -108,25 +136,18 @@ void renderPreview(const GfxRenderer& renderer, PreviewLayout& layout, int previ
                        .wordSpacingPercent = SETTINGS.wordSpacing,
                        .focusReading = SETTINGS.focusReadingEnabled != 0,
                        .hyphenation = SETTINGS.hyphenationEnabled != 0};
-  if (key != layout.key) {
+  if (key != layout.key || !layout.page) {
     if (auto* fcm = renderer.getFontCacheManager()) {
       fcm->prewarmCache(fontId, I18N.get(StrId::STR_FONT_PREVIEW_TEXT), SETTINGS.focusReadingEnabled ? 0x03 : 0x01);
     }
-    relayout(layout, renderer, fontId, textWidth);
+    if (!relayout(layout, renderer, fontId, textWidth, textHeight, lineH, lineAdvance, paragraphGap)) {
+      LOG_ERR("TXT", "Cannot build text preview page");
+      return;
+    }
     layout.key = key;
   }
 
-  // Draw the sample twice so the paragraph gap is visible
-  int y = top + previewPadding;
-  const int textBottomLimit = top + height - labelReserved;
-  for (int paragraph = 0; paragraph < 2; paragraph++) {
-    for (const auto& line : layout.lines) {
-      if (y + lineH > textBottomLimit) return;
-      line->render(renderer, fontId, textLeft, y);
-      y += lineAdvance;
-    }
-    y += paragraphGap;
-  }
+  if (layout.page) layout.page->render(renderer, fontId, textLeft, top + previewPadding);
 }
 
 }  // namespace textsettings

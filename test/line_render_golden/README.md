@@ -40,3 +40,13 @@ record, and keeps the candidate observations and stderr in the work directory.
 `capture` refuses changed production sources or an SDK other than the pinned
 revision. Never recapture to accept changed behavior. Public/private page and
 text oracles and firmware emulator workloads remain separate required gates.
+
+`LineRenderGolden --bench` reports cold-construction allocation requests, peak,
+largest request and retained bytes, followed by warm draw time (median of seven
+batches of 100 draws). It measures preview with/without focus and a 30-line,
+three-page dictionary window. The host allocator adapter counts C++ allocations
+and Rust allocations during those scopes; fonts and the framebuffer are initialized
+before measurement. Host `Page` objects retain test-only codec vectors, so these
+are comparative host measurements, not exact target heap sizes. The fixed recorder
+aborts if its 32,768-entry capacity is exceeded. Run both revisions serially on the
+same host and retain the source/build identities with the numbers.

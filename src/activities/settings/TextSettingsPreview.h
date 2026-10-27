@@ -7,7 +7,7 @@
 #include "components/themes/BaseTheme.h"
 
 class GfxRenderer;
-class TextBlock;
+class Page;
 
 namespace textsettings {
 
@@ -17,6 +17,7 @@ struct PreviewKey {
   int fontPointSize = -1;
   int screenMargin = -1;
   int textWidth = -1;
+  int textHeight = -1;
   float lineCompression = -1.0f;
   uint8_t alignment = 0xFF;
   bool extraParagraphSpacing = false;
@@ -33,13 +34,13 @@ struct PreviewLayout {
   PreviewLayout();
   ~PreviewLayout();
 
-  std::vector<std::unique_ptr<TextBlock>> lines;
+  std::unique_ptr<Page> page;
   PreviewKey key;
 };
 
 // Draws the sample-text pane via the reader engine, reusing layout across redraws.
 // The caption is borrowed for this draw; only the sample layout is cached.
-void renderPreview(const GfxRenderer& renderer, PreviewLayout& layout, int previewPadding, int labelGap, Rect bounds,
+void renderPreview(GfxRenderer& renderer, PreviewLayout& layout, int previewPadding, int labelGap, Rect bounds,
                    const char* caption);
 
 }  // namespace textsettings

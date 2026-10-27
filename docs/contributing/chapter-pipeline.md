@@ -1,9 +1,9 @@
 # Chapter pipeline boundary
 
 Rust owns EPUB parsing and layout, page records, page-byte construction and
-load-time decoding through `xp-core::page`. C++ owns file I/O, the loaded page
-allocation and views, and Page/TextBlock render orchestration. Glyph bitmap
-views and rasterization run in Rust; C++ retains font caches and uzlib
+load-time decoding and page rendering through `xp-core::page`. C++ owns file I/O,
+the loaded page allocation and views, and standalone TextBlock rendering. Glyph
+bitmap views and rasterization run in Rust; C++ retains font caches and uzlib
 decompression, image decoders and the UI. The wider reader also uses Rust for
 [shared ZIP/PNG/ContentProtection inflate](rust.md#zip-directory-boundary) and
 [SD font and XTC parsing](rust.md#sd-font-and-xtc-parsers).
@@ -127,8 +127,11 @@ serialized owner; it does not make font access thread-safe. On single-core C3 it
 increment uses the interrupt-masking `__atomic_fetch_add_4` helper. C++ also owns
 the shared 3,072-byte bidi storage and mutex, leased exclusively to Rust during
 measurement, ordering and glyph drawing. Rust resolves bitmap views and paints
-glyphs; C++ handles bitmap misses, cache ownership and decompression. Page and
-TextBlock rendering remain in C++. See the
+glyphs; C++ handles bitmap misses, cache ownership and decompression. Cached EPUB
+and rich dictionary pages enter Rust through `GfxRenderer::drawPage` once per
+render pass; Rust traverses the records and calls C++ once per image element.
+Standalone TextBlocks and plain dictionary PageLines retain their C++ render path.
+See the [page rendering contract](rust.md#page-rendering),
 [glyph drawing contract](rust.md#native-glyph-drawing) and
 [native measurement contract](rust.md#native-text-measurement) for
 implementation links, generation obligations and differential tests. Host synthetic

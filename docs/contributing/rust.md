@@ -5,11 +5,11 @@ portable `no_std` code and host tests. `rust/crates/xp-ffi` owns the C ABI,
 ESP-IDF allocator, and panic handler. Its public header is
 `rust/crates/xp-ffi/include/xp_ffi.h`.
 
-Rust owns the EPUB parsers and layout, page records and build/load codecs,
-image row processing, text measurement, glyph rasterization and bitmap views,
+Rust owns the EPUB parsers and layout, page records, build/load codecs, page
+rendering, image row processing, text measurement, glyph rasterization and bitmap views,
 SD font parsing, XTC parsing, and the shared ZIP/PNG/ContentProtection inflater.
 C++ retains file I/O, font caches and decompression with uzlib, image decoders,
-page/TextBlock render orchestration, and the UI. See the
+standalone TextBlock rendering, and the UI. See the
 [chapter pipeline](chapter-pipeline.md) for page ownership and lifetime.
 
 Install rustup, then install the pinned C3 toolchain:
@@ -560,11 +560,11 @@ the same ligature, scaling, fixed-point and font-table rules as measurement.
 Horizontal drawing shapes bidi text; rotated drawing preserves its existing
 unshaped, unscaled behavior. `xp-core::glyph` resolves borrowed bitmap views and
 paints pixels, including clipping, orientation, gray planes and coverage scaling.
-Drop caps use `xp_native_draw_scaled_pixels` for their advance and bilinear
-scaling. C++ Page/TextBlock rendering still controls word offsets, focus splits,
-ruby and vertical SUP/SUB shifts; loaded text data belongs to the page arena.
+Standalone scaled glyphs use `xp_native_draw_scaled_pixels` for their advance and
+bilinear scaling. Cached pages use the same Rust glyph painter through the
+page render entry below; loaded text data belongs to the page arena.
 
-C++ resolves the requested/fallback font, baseline and cache scan/prewarm work.
+C++ prepares fonts and owns font caches and prewarming.
 It lends the selected `EpdFont::data` pointer slot, bitmap-source view and exclusive
 framebuffer or strip target for one synchronous run. Rust resolves resident
 built-in/SD and decompressed page-buffer bitmap hits directly. Misses call C++
@@ -582,6 +582,29 @@ the consumed glyph array and replaces the data slot inside emission, then checks
 subsequent placements and pointers. The original public/private text and drawing
 archives cover rendering; run `test/text_golden/mutation_check.py` with a dedicated
 CMake build directory to verify independent rejection of pixel and advance changes.
+
+## Page rendering
+
+For cached EPUB and rich dictionary pages, `Page::renderArena` lends the page
+arena to `GfxRenderer::drawPage`, which enters Rust once per render pass through
+`xp_page_render`. Each physical strip is a separate pass.
+[`page::render`](../../rust/crates/xp-core/src/page/render.rs) walks the records
+and draws text lines, rules, borders, backgrounds and drop caps. It controls word
+offsets, focus splits, ruby and SUP/SUB shifts. Images use one C++ callback per
+image element per pass for the existing decode/cache or placeholder path.
+
+Prewarm scanning batches visual codepoints in a fixed 192-byte buffer, flushing
+at line, font or style boundaries and when full. C++ `FontCacheManager` receives
+the batches and retains cache ownership. The synchronous render borrows existing
+font and framebuffer storage; it adds no Rust heap allocation. Bitmap misses
+still use the C++ owners described above.
+
+`TextBlock::render` remains for the settings preview and plain dictionary pages:
+these callers own standalone TextBlocks or PageLines rather than a page arena.
+Changes to text rendering must keep this path consistent with Rust page rendering.
+Use the [page oracle](../../test/page_golden/README.md) for page records and pixels,
+and check settings preview and plain dictionary selection when changing the
+standalone path.
 
 ## SD font and XTC parsers
 

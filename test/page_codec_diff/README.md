@@ -1,7 +1,8 @@
 # Page codec differential
 
-This suite compares the production C++ `Page`, `TextBlock` and `ImageBlock`
-codecs with the allocation-free Rust page model. The only storage replacement is
+This suite compares the production C++ page views and their serializers with
+the allocation-free Rust page model. The views use the Rust decoder; the frozen
+page archives and pre-integration executable provide the independent C++ baseline. The only storage replacement is
 an in-memory `HalFile`. Rendering uses the existing section-oracle stub; this is
 a page data/codec test, not a pixel or font-metric oracle.
 
@@ -45,10 +46,11 @@ The sampler is intentionally deterministic; it does not claim exhaustive fuzzing
 
 The memory CSV records intercepted C++ `new`/`new[]` requests during page load,
 peak requested live bytes, resident allocations/bytes, and request-size counts.
-It also classifies resident bytes as page/element/TextBlock/ImageBlock objects,
-word arenas, font arrays, ruby vectors, vector backing stores and remaining
-string storage. These are host ABI sizes without allocator overhead, not ESP32
-heap measurements. A page's Rust arena size is independent of pointer width.
+Resident bytes are split into the Page object and its single storage allocation
+(Rust arena, alignment padding, and resolved C++ descriptors). No loaded element,
+line, image, vector or string owns another allocation. These are host ABI sizes
+without allocator overhead, not ESP32 heap measurements. The Rust arena size is
+independent of pointer width; C++ descriptor size is not.
 The first row is synthetic; remaining rows match `inventory.json` in order.
 
 ## Arena and builder contract
@@ -58,7 +60,11 @@ input length and exact arena capacity. `xp_page_decode` initializes one disjoint
 caller-owned buffer; failure from short input, invalid data or short capacity
 leaves that buffer unchanged. Neither operation allocates. The arena is a
 32-byte header, 24 bytes per element, four bytes per word on lines with any
-nonempty ruby, and the consumed page bytes. Normal lines need no ruby index.
+nonempty ruby, NUL-terminated copies of ruby strings and image paths, and the
+consumed page bytes. Normal lines need no ruby index. Terminated strings use a
+four-byte length plus their bytes and one NUL, including empty entries on ruby
+lines and empty image paths. The copies let C++ rendering borrow C strings
+without making per-word or per-image allocations.
 All internal references are 32-bit offsets. Byte loads permit arbitrary arena
 alignment on both host and RISC-V. The caller owns and releases the buffer;
 returned spans remain valid only while that buffer is unchanged and live.

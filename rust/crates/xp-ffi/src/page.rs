@@ -43,6 +43,9 @@ pub struct Line {
     has_fonts: u8,
     has_ruby: u8,
     has_focus: u8,
+    packed: Span,
+    font_data: Span,
+    ruby_offsets: Span,
 }
 #[repr(C)]
 pub struct Word {
@@ -150,10 +153,15 @@ pub unsafe extern "C" fn xp_page_decode(
             return Err(Error::Invalid);
         }
         let data = input(data, len)?;
-        let value = page::inspect(data)?;
-        store(info, value)?;
-        page::decode(data, visible, output(arena, capacity)?)?;
-        Ok(())
+        match page::decode(data, visible, output(arena, capacity)?) {
+            Ok(value) => store(info, value),
+            Err(error @ Error::NeedOutput(_)) => {
+                // Preserve the capacity-query contract without scanning twice on success.
+                store(info, page::inspect(data)?)?;
+                Err(error)
+            }
+            Err(error) => Err(error),
+        }
     })())
 }
 /// # Safety
@@ -188,6 +196,22 @@ pub unsafe extern "C" fn xp_page_info(
         store(info, p.info())?;
         store(visible, p.visible_offset())
     })())
+}
+#[repr(C)]
+#[derive(Default)]
+pub struct Position {
+    x: i16,
+    y: i16,
+    tag: u16,
+}
+/// # Safety
+/// Arena is a successful immutable decode. Invalid input returns tag zero.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_position(arena: *const u8, len: usize, index: u16) -> Position {
+    page(arena, len)
+        .and_then(|p| p.position(index))
+        .map(|(x, y, tag)| Position { x, y, tag })
+        .unwrap_or_default()
 }
 /// # Safety
 /// Arena is immutable; out is aligned, writable and disjoint. Returned spans
@@ -247,13 +271,16 @@ pub unsafe extern "C" fn xp_page_line(
                 has_fonts: fonts.is_some() as u8,
                 has_ruby: l.has_ruby() as u8,
                 has_focus: l.focus as u8,
+                packed: l.packed_data()?.into(),
+                font_data: l.font_data()?.into(),
+                ruby_offsets: l.ruby_offsets()?.into(),
             },
         )
     })())
 }
 /// # Safety
 /// Same arena/output contract as xp_page_element. Word text has a trailing NUL
-/// at data[len]; ruby is a length-delimited span and need not be terminated.
+/// at data[len]. Ruby on has_ruby lines also has a trailing NUL; otherwise it is empty.
 #[no_mangle]
 pub unsafe extern "C" fn xp_page_word(
     arena: *const u8,

@@ -87,8 +87,8 @@ static void compare(const Page& cpp, const std::vector<uint8_t>& arena, uint32_t
   XpPageInfo info{};
   uint32_t offset = 0;
   require(xp_page_info(arena.data(), arena.size(), &info, &offset) == 0, "page info");
-  require(offset == visible && info.elements == cpp.elements.size(), "page counts/offset");
-  require(info.footnotes == cpp.footnotes.size() && info.links == cpp.links.size(), "footer counts");
+  require(offset == visible && info.elements == cpp.elementCount(), "page counts/offset");
+  require(info.footnotes == cpp.footnoteCount() && info.links == cpp.linkCount(), "footer counts");
   int16_t actualBounds[4] = {}, expectedBounds[4] = {};
   uint8_t found = 0;
   require(xp_page_image_bounds(arena.data(), arena.size(), actualBounds, &found) == 0, "image bounds query");
@@ -97,14 +97,14 @@ static void compare(const Page& cpp, const std::vector<uint8_t>& arena, uint32_t
               bool(found) == cpp.hasImages(),
           "has images");
   require(!found || std::memcmp(actualBounds, expectedBounds, sizeof(actualBounds)) == 0, "image union bounds");
-  for (size_t i = 0; i < cpp.elements.size(); ++i) {
+  for (size_t i = 0; i < cpp.elementCount(); ++i) {
     XpPageElement e{};
     require(xp_page_element(arena.data(), arena.size(), i, &e) == 0, "element query");
-    const auto& c = *cpp.elements[i];
+    const auto c = cpp.element(i);
     require(e.tag == c.getTag() && int16_t(e.record.values[0]) == c.xPos && int16_t(e.record.values[1]) == c.yPos,
             "element position/tag");
     if (e.tag == TAG_PageLine) {
-      const auto& block = *static_cast<const PageLine&>(c).getBlock();
+      const auto block = c.textBlock();
       XpPageLine l{};
       require(xp_page_line(arena.data(), arena.size(), i, &l) == 0, "line query");
       require(l.count == block.wordCount() && bool(l.has_ruby) == block.hasRuby() && block.valid(),
@@ -130,33 +130,36 @@ static void compare(const Page& cpp, const std::vector<uint8_t>& arena, uint32_t
                     bool(w.small_caps) == block.wordHasSmallCaps(j),
                 "word flags");
         require(w.focus_boundary == block.focusBoundary(j) && w.focus_suffix == block.focusSuffixX(j), "focus arrays");
-        const auto& ruby = block.getRubyTexts();
-        const std::string empty;
-        const auto& text = j < ruby.size() ? ruby[j] : empty;
+        const auto text = block.rubyText(j);
         require(equal(w.ruby, text.data(), text.size()), "ruby bytes");
+        require(!l.has_ruby || (w.ruby.data[w.ruby.len] == 0 && text.data()[text.size()] == 0), "ruby terminator");
         ++words;
       }
       XpPageWord invalid{};
       require(xp_page_word(arena.data(), arena.size(), i, l.count, 24, &invalid) == 3, "word index bound");
     } else if (e.tag == TAG_PageImage) {
-      const auto& block = static_cast<const PageImage&>(c).getImageBlock();
+      const auto block = c.imageBlock();
+      require(e.first.data[e.first.len] == 0 && e.second.data[e.second.len] == 0, "path terminators");
       require(equal(e.first, block.getImagePath().data(), block.getImagePath().size()) && e.width == block.getWidth() &&
                   e.height == block.getHeight(),
               "image fields");
     } else if (e.tag == TAG_PageDropCap) {
-      const auto* text = static_cast<const PageDropCap&>(c).getText();
-      require(equal(e.first, text, std::strlen(text)), "drop cap text");
+      const auto text = c.dropCapText();
+      require(equal(e.first, text.data(), text.size()), "drop cap text");
     }
   }
-  for (size_t i = 0; i < cpp.footnotes.size(); ++i) {
+  for (size_t i = 0; i < cpp.footnoteCount(); ++i) {
     XpPageSpan number{}, href{};
     require(xp_page_footnote(arena.data(), arena.size(), i, &number, &href) == 0, "footnote query");
-    require(equal(number, cpp.footnotes[i].number, 32) && equal(href, cpp.footnotes[i].href, 256), "footnote bytes");
+    FootnoteEntry note;
+    cpp.footnote(i, note);
+    require(equal(number, note.number, 32) && equal(href, note.href, 256), "footnote bytes");
   }
-  for (size_t i = 0; i < cpp.links.size(); ++i) {
+  for (size_t i = 0; i < cpp.linkCount(); ++i) {
     XpPageLink link{};
     require(xp_page_link(arena.data(), arena.size(), i, &link) == 0, "link query");
-    const auto& c = cpp.links[i];
+    PageLink c;
+    cpp.link(i, c);
     require(equal(link.href, c.href, 256) && link.x == c.x && link.y == c.y && link.width == c.width &&
                 link.height == c.height,
             "link fields");
@@ -167,11 +170,11 @@ static void rebuild(const Page& cpp, const std::vector<uint8_t>& arena, const st
   std::vector<uint8_t> output(canonical.size());
   XpPageBuilder b{};
   require(xp_page_builder_init(&b, output.data(), output.size()) == 0, "builder init");
-  for (size_t i = 0; i < cpp.elements.size(); ++i) {
+  for (size_t i = 0; i < cpp.elementCount(); ++i) {
     XpPageElement e{};
     require(xp_page_element(arena.data(), arena.size(), i, &e) == 0, "builder element query");
     if (e.tag == TAG_PageLine) {
-      const auto& block = *static_cast<const PageLine&>(*cpp.elements[i]).getBlock();
+      const auto block = cpp.element(i).textBlock();
       XpPageLine query{};
       require(xp_page_line(arena.data(), arena.size(), i, &query) == 0, "builder line query");
       const auto n = block.wordCount();
@@ -242,23 +245,27 @@ static void rebuild(const Page& cpp, const std::vector<uint8_t>& arena, const st
       line.paragraph_start = query.paragraph_start;
       line.font_slots = query.has_fonts ? slots.data() : nullptr;
       line.fonts = query.fonts;
-      require(xp_page_builder_line(&b, cpp.elements[i]->xPos, cpp.elements[i]->yPos, &line) == 0, "builder line");
+      require(xp_page_builder_line(&b, cpp.element(i).xPos, cpp.element(i).yPos, &line) == 0, "builder line");
     } else {
       if (e.tag == TAG_PageImage) {
         e.record.kind = XP_SEC_IMAGE_SIZE;
         e.record.values[0] = uint16_t(e.width);
         e.record.values[1] = uint16_t(e.height);
       }
-      require(
-          xp_page_builder_element(&b, cpp.elements[i]->xPos, cpp.elements[i]->yPos, &e.record, e.first, e.second) == 0,
-          "builder append");
+      require(xp_page_builder_element(&b, cpp.element(i).xPos, cpp.element(i).yPos, &e.record, e.first, e.second) == 0,
+              "builder append");
     }
   }
-  for (const auto& note : cpp.footnotes)
+  for (uint16_t i = 0; i < cpp.footnoteCount(); ++i) {
+    FootnoteEntry note;
+    cpp.footnote(i, note);
     require(xp_page_builder_footnote(&b, reinterpret_cast<const uint8_t*>(note.number),
                                      reinterpret_cast<const uint8_t*>(note.href)) == 0,
             "builder footnote");
-  for (const auto& c : cpp.links) {
+  }
+  for (uint16_t i = 0; i < cpp.linkCount(); ++i) {
+    PageLink c;
+    cpp.link(i, c);
     XpPageLink link{{reinterpret_cast<const uint8_t*>(c.href), 256}, c.x, c.y, c.width, c.height};
     require(xp_page_builder_link(&b, &link) == 0, "builder link");
   }
@@ -272,7 +279,7 @@ static bool check(const std::vector<uint8_t>& bytes, bool fixture, uint32_t visi
   HalFile input(bytes.data(), bytes.size());
   if (fixture) allocation::reset();
   allocation::enabled = fixture;
-  auto cpp = Page::deserialize(input);
+  auto cpp = Page::load(input, bytes.size());
   allocation::enabled = false;
   XpPageInfo info{};
   const auto status = xp_page_arena_size(bytes.data(), bytes.size(), &info);
@@ -303,58 +310,28 @@ static bool check(const std::vector<uint8_t>& bytes, bool fixture, uint32_t visi
       std::map<size_t, size_t> histogram;
       for (size_t i = 0; i < allocation::requests; ++i) ++histogram[allocation::sizes[i]];
       for (const auto& [request, count] : histogram) *memory << request << ':' << count << ';';
-      size_t elementBytes = 0, textObjects = 0, wordArenas = 0, fontBytes = 0, rubyVectors = 0, imageObjects = 0;
       size_t lineCount = 0, fontCount = 0, rubyCount = 0, imageCount = 0;
-      for (size_t i = 0; i < cpp->elements.size(); ++i) {
-        switch (cpp->elements[i]->getTag()) {
+      for (size_t i = 0; i < cpp->elementCount(); ++i) {
+        switch (cpp->element(i).getTag()) {
           case TAG_PageLine: {
-            elementBytes += sizeof(PageLine);
-            textObjects += sizeof(TextBlock);
             ++lineCount;
-            XpPageLine l{};
-            xp_page_line(arena.data(), arena.size(), i, &l);
-            if (l.count) {
-              const auto& block = *static_cast<const PageLine&>(*cpp->elements[i]).getBlock();
-              const auto last = l.count - 1;
-              wordArenas += l.count * (13 + (l.has_focus ? 3 : 0)) +
-                            (block.wordText(last) + block.wordTextLen(last) + 1 - block.wordText(0));
-            }
-            if (l.has_fonts) {
-              ++fontCount;
-              fontBytes += 12 + l.count;
-            }
-            if (l.has_ruby) {
-              ++rubyCount;
-              rubyVectors += l.count * sizeof(std::string);
-            }
+            XpPageLine line{};
+            xp_page_line(arena.data(), arena.size(), i, &line);
+            fontCount += line.has_fonts;
+            rubyCount += line.has_ruby;
             break;
           }
           case TAG_PageImage:
-            elementBytes += sizeof(PageImage);
-            imageObjects += sizeof(ImageBlock);
             ++imageCount;
             break;
-          case TAG_PageHorizontalRule:
-            elementBytes += sizeof(PageHorizontalRule);
-            break;
-          case TAG_PageDropCap:
-            elementBytes += sizeof(PageDropCap);
-            break;
-          case TAG_PageBorderBox:
-            elementBytes += sizeof(PageBorderBox);
+          default:
             break;
         }
       }
-      const size_t vectors = cpp->elements.capacity() * sizeof(std::unique_ptr<PageElement>) +
-                             cpp->footnotes.capacity() * sizeof(FootnoteEntry) +
-                             cpp->links.capacity() * sizeof(PageLink);
-      const size_t classified =
-          sizeof(Page) + elementBytes + textObjects + wordArenas + fontBytes + rubyVectors + imageObjects + vectors;
-      require(classified <= allocation::current, "memory classification");
-      *memory << "\"," << sizeof(Page) << ',' << elementBytes << ',' << textObjects << ',' << wordArenas << ','
-              << fontBytes << ',' << rubyVectors << ',' << imageObjects << ',' << vectors << ','
-              << allocation::current - classified << ',' << lineCount << ',' << fontCount << ',' << rubyCount << ','
-              << imageCount << '\n';
+      require(cpp->elements.empty() && cpp->footnotes.empty() && cpp->links.empty(), "loaded containers");
+      require(allocation::remaining == 2 && allocation::current >= sizeof(Page), "resident page allocations");
+      *memory << "\"," << sizeof(Page) << ',' << allocation::current - sizeof(Page) << ',' << lineCount << ','
+              << fontCount << ',' << rubyCount << ',' << imageCount << '\n';
     }
   }
   return true;
@@ -452,8 +429,7 @@ int main(int argc, char** argv) {
   if (argc > 2) {
     memory.open(argv[2]);
     memory << "page,wire_bytes,rust_arena_bytes,cpp_allocations,cpp_requested_bytes,cpp_peak_bytes,cpp_live_"
-              "allocations,cpp_live_bytes,request_size_counts,page_object_bytes,element_object_bytes,text_object_bytes,"
-              "word_arena_bytes,font_bytes,ruby_vector_bytes,image_object_bytes,vector_bytes,string_bytes,line_count,"
+              "allocations,cpp_live_bytes,request_size_counts,page_object_bytes,page_storage_bytes,line_count,"
               "font_count,ruby_count,image_count\n";
   }
   const auto sample = synthetic();

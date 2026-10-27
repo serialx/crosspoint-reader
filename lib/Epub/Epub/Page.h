@@ -44,7 +44,6 @@ class PageLine final : public PageElement {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
   bool serialize(HalFile& file) override;
   PageElementTag getTag() const override { return TAG_PageLine; }
-  static std::unique_ptr<PageLine> deserialize(HalFile& file);
 };
 
 // New PageImage class
@@ -58,7 +57,6 @@ class PageImage final : public PageElement {
   void renderPlaceholder(GfxRenderer& renderer, int xOffset, int yOffset) const;
   bool serialize(HalFile& file) override;
   PageElementTag getTag() const override { return TAG_PageImage; }
-  static std::unique_ptr<PageImage> deserialize(HalFile& file);
   const ImageBlock& getImageBlock() const { return *imageBlock; }
 };
 
@@ -73,7 +71,6 @@ class PageHorizontalRule final : public PageElement {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
   bool serialize(HalFile& file) override;
   PageElementTag getTag() const override { return TAG_PageHorizontalRule; }
-  static std::unique_ptr<PageHorizontalRule> deserialize(HalFile& file);
 };
 
 // An initial letter spanning several lines, drawn scaled up from a font's glyph.
@@ -95,7 +92,6 @@ class PageDropCap final : public PageElement {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
   bool serialize(HalFile& file) override;
   PageElementTag getTag() const override { return TAG_PageDropCap; }
-  static std::unique_ptr<PageDropCap> deserialize(HalFile& file);
 };
 
 // A CSS border and/or background shade around a block element's slice on this page.
@@ -117,12 +113,60 @@ class PageBorderBox final : public PageElement {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
   bool serialize(HalFile& file) override;
   PageElementTag getTag() const override { return TAG_PageBorderBox; }
-  static std::unique_ptr<PageBorderBox> deserialize(HalFile& file);
   void renderBackground(GfxRenderer& renderer, int xOffset, int yOffset) const;
 };
 
-class Page {
+class Page;
+
+// Value views borrow the Page. Word/path spans remain valid until it is destroyed.
+class PageElementView {
+  const Page* page;
+  uint16_t index;
+  PageElementTag tag;
+  const XpPageElement& fields() const;
+
  public:
+  int16_t xPos;
+  int16_t yPos;
+  PageElementView(const Page& page, uint16_t index);
+  PageElementTag getTag() const { return tag; }
+  TextBlock textBlock() const;
+  ImageBlock imageBlock() const;
+  std::string_view dropCapText() const;
+  void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
+  void renderBackground(GfxRenderer& renderer, int xOffset, int yOffset) const;
+  void renderPlaceholder(GfxRenderer& renderer, int xOffset, int yOffset) const;
+  bool serialize(HalFile& file) const;
+};
+
+class Page {
+  friend class PageElementView;
+  std::unique_ptr<uint8_t[]> arena;
+  size_t arenaSize = 0;
+  XpPageInfo info{};
+  struct ElementData {
+    XpPagePosition position;
+    union {
+      TextBlock::ViewData line;
+      XpPageElement fields;
+    };
+    ElementData() : position{}, fields{} {}
+  };
+  ElementData* views = nullptr;
+
+ public:
+  size_t elementCount() const { return arena ? info.elements : elements.size(); }
+  size_t footnoteCount() const { return arena ? info.footnotes : footnotes.size(); }
+  size_t linkCount() const { return arena ? info.links : links.size(); }
+  PageElementView element(uint16_t index) const { return PageElementView(*this, index); }
+  void footnote(uint16_t index, FootnoteEntry& out) const;
+  void link(uint16_t index, PageLink& out) const;
+  void copyFootnotes(std::vector<FootnoteEntry>& out) const;
+  void copyLinks(std::vector<PageLink>& out) const;
+  static std::unique_ptr<Page> load(HalFile& file, size_t bytes, uint32_t visibleOffset = 0);
+  // Copies validated bytes into the owned arena; does not retain the input span.
+  static std::unique_ptr<Page> fromBytes(const uint8_t* bytes, size_t size, uint32_t visibleOffset = 0);
+
   // the list of block index and line numbers on this page
   std::vector<std::unique_ptr<PageElement>> elements;
   std::vector<FootnoteEntry> footnotes;
@@ -168,46 +212,8 @@ class Page {
   void renderImages(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   void renderWithImagePlaceholders(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   bool serialize(HalFile& file) const;
-  static std::unique_ptr<Page> deserialize(HalFile& file);
 
-  // Check if page contains any images (used to force full refresh)
-  bool hasImages() const {
-    return std::any_of(elements.begin(), elements.end(),
-                       [](const std::unique_ptr<PageElement>& el) { return el->getTag() == TAG_PageImage; });
-  }
-
-  bool hasImagesNeedingDecode() const {
-    return std::any_of(elements.begin(), elements.end(), [](const std::unique_ptr<PageElement>& element) {
-      return element->getTag() == TAG_PageImage &&
-             static_cast<const PageImage&>(*element).getImageBlock().needsDecode();
-    });
-  }
-
-  // Get bounding box of all images on the page (union of image rects)
-  // Returns false if no images. Coordinates are relative to page origin.
-  bool getImageBoundingBox(int16_t& outX, int16_t& outY, int16_t& outW, int16_t& outH) const {
-    bool found = false;
-    int16_t minX = INT16_MAX, minY = INT16_MAX, maxX = INT16_MIN, maxY = INT16_MIN;
-    for (const auto& el : elements) {
-      if (el->getTag() == TAG_PageImage) {
-        const auto& img = static_cast<const PageImage&>(*el);
-        int16_t x = img.xPos;
-        int16_t y = img.yPos;
-        int16_t right = x + img.getImageBlock().getWidth();
-        int16_t bottom = y + img.getImageBlock().getHeight();
-        minX = std::min(minX, x);
-        minY = std::min(minY, y);
-        maxX = std::max(maxX, right);
-        maxY = std::max(maxY, bottom);
-        found = true;
-      }
-    }
-    if (found) {
-      outX = minX;
-      outY = minY;
-      outW = maxX - minX;
-      outH = maxY - minY;
-    }
-    return found;
-  }
+  bool hasImages() const;
+  bool hasImagesNeedingDecode() const;
+  bool getImageBoundingBox(int16_t& outX, int16_t& outY, int16_t& outW, int16_t& outH) const;
 };

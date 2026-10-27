@@ -4,9 +4,11 @@
 #include <HalStorage.h>
 #include <xp_ffi.h>
 
+#include <cstring>
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,12 +16,9 @@
 #include "BlockStyle.h"
 #include "Epub/FootnoteEntry.h"
 
-// Represents a line of text on a page.
-//
-// All per-word data lives in ONE flat heap allocation (the arena) instead of
-// six parallel vectors: a resident page holds ~25-30 of these blocks, and the
-// vector-of-string layout cost ~250 throwing allocations per page load, which
-// was the primary driver of heap fragmentation on the ESP32-C3.
+// Represents an owned layout line or a borrowed line in a decoded Page.
+// Layout construction uses one allocation for packed word data; loaded views
+// borrow the page arena and allocate nothing.
 //
 // Arena layout, in order (4-byte alignment holds by construction: source ranges come first, then 16-bit
 // arrays and the arena base is allocator-aligned; RISC-V faults on
@@ -75,8 +74,8 @@ class TextBlock final : public Block {
   bool isValid = true;
   // Per-word metadata and text share one checked allocation.
   std::unique_ptr<uint8_t[]> arena;
-  // Typed views into the arena, bound once after the arena is filled. All
-  // 16-bit bases sit at even offsets, so direct dereference is alignment-safe.
+  // Typed views into packed data. Cached wire records can be unaligned;
+  // multi-byte accessors therefore use memcpy.
   const SourceRange* sourceRanges = nullptr;
   const uint16_t* textOffArr = nullptr;
   const int16_t* xposArr = nullptr;
@@ -93,9 +92,23 @@ class TextBlock final : public Block {
   // immediately; cached TextBlocks therefore keep the same compact format.
   LinkSpans linkSpans;
 
-  TextBlock() = default;  // deserialize() fills the fields directly
+  const uint8_t* pageArena = nullptr;
+  const uint8_t* rubyOffsets = nullptr;
+  bool pageHasRuby = false;
+  const uint8_t* fontData = nullptr;
+  const std::vector<std::string>* borrowedRuby = nullptr;
+  std::string_view pageRubyText(uint16_t i) const;
+
+  template <typename T>
+  static T unaligned(const T* ptr) {
+    T value;
+    memcpy(&value, ptr, sizeof(value));
+    return value;
+  }
+  uint16_t textOffset(uint16_t i) const { return unaligned(textOffArr + i); }
+  TextBlock() = default;
   static size_t arenaSize(uint16_t wordCount, bool hasFocus, uint16_t textBytes);
-  void bindArenaPointers();
+  void bindArenaPointers(const uint8_t* base);
   bool initializeLayout(size_t count, std::span<const int16_t> xpos, std::span<const EpdFontFamily::Style> styles,
                         std::span<const uint8_t> boundary, std::span<const uint16_t> suffix,
                         std::span<const SourceRange> ranges);
@@ -126,6 +139,27 @@ class TextBlock final : public Block {
             const BlockStyle& blockStyle = BlockStyle(), std::vector<std::string> rubyTexts = {},
             std::span<const XpParaLink> linkSpans = {}, std::span<const SourceRange> ranges = {},
             uint16_t paragraphStartWord = UINT16_MAX);
+  // These views borrow their source until the page/owned block is destroyed.
+  struct View {};
+  // Resolved once at page load and stored in the page's single allocation.
+  struct ViewData {
+    BlockStyle style;
+    const SourceRange* sources;
+    const uint16_t* offsets;
+    const int16_t* positions;
+    const uint16_t* suffixes;
+    const uint8_t* styles;
+    const uint8_t* boundaries;
+    const char* text;
+    const uint8_t* fonts;
+    const uint8_t* rubies;
+    uint16_t count, paragraphStart, textBytes;
+    bool focus, ruby;
+  };
+  static bool resolveView(const uint8_t* page, size_t size, uint16_t element, ViewData& out);
+  TextBlock(View, const uint8_t* page, const ViewData& data);
+  TextBlock(View, const uint8_t* page, size_t size, uint16_t element);
+  TextBlock(View, const TextBlock& source);
   ~TextBlock() override = default;
   TextBlock(const TextBlock&) = delete;
   TextBlock& operator=(const TextBlock&) = delete;
@@ -133,7 +167,9 @@ class TextBlock final : public Block {
   void setBlockStyle(const BlockStyle& blockStyle) { this->blockStyle = blockStyle; }
   const BlockStyle& getBlockStyle() const { return blockStyle; }
   // The font this line was laid out in: a CSS font-size override, else the section font.
-  int blockFontId(const int sectionFontId) const { return blockStyle.fontId ? blockStyle.fontId : sectionFontId; }
+  int blockFontId(const int sectionFontId) const {
+    return getBlockStyle().fontId ? getBlockStyle().fontId : sectionFontId;
+  }
 
   static constexpr uint8_t MAX_WORD_FONTS = 3;
   // slots[i] picks word i's font: 0 = the block font, n = fonts[n-1]; SMALL_CAPS_SLOT_FLAG
@@ -141,7 +177,7 @@ class TextBlock final : public Block {
   bool setWordFonts(const uint8_t* slots, const int32_t (&fonts)[MAX_WORD_FONTS]);
   int wordFontId(uint16_t i, int sectionFontId) const;
   bool wordHasSmallCaps(uint16_t i) const {
-    return wordFontData && (wordFontData[sizeof(int32_t) * MAX_WORD_FONTS + i] & SMALL_CAPS_SLOT_FLAG);
+    return fontData && (fontData[sizeof(int32_t) * MAX_WORD_FONTS + i] & SMALL_CAPS_SLOT_FLAG);
   }
   // fontId when it is (or can be) registered with the renderer, else the section font.
   static int renderFontId(const GfxRenderer& renderer, int fontId, int sectionFontId);
@@ -155,28 +191,57 @@ class TextBlock final : public Block {
   bool valid() const { return isValid; }
   uint16_t wordCount() const { return numWords; }
   // NUL-terminated by construction; safe to pass to C APIs directly.
-  const char* wordText(const uint16_t i) const { return textArr + textOffArr[i]; }
+  const char* wordText(const uint16_t i) const { return textArr + textOffset(i); }
   uint16_t wordTextLen(const uint16_t i) const {
-    const uint16_t end = (i + 1 < numWords) ? textOffArr[i + 1] : textBytes;
-    return end - textOffArr[i] - 1;  // exclude the NUL
+    const uint16_t end = (i + 1 < numWords) ? textOffset(i + 1) : textBytes;
+    return end - textOffset(i) - 1;  // exclude the NUL
   }
-  SourceRange wordSourceRange(const uint16_t i) const { return sourceRanges[i]; }
+  SourceRange wordSourceRange(const uint16_t i) const { return unaligned(sourceRanges + i); }
   bool wordStartsParagraph(const uint16_t i) const { return i == paragraphStartWord; }
-  int16_t wordXpos(const uint16_t i) const { return xposArr[i]; }
+  int16_t wordXpos(const uint16_t i) const { return unaligned(xposArr + i); }
   EpdFontFamily::Style wordStyle(const uint16_t i) const {
     return static_cast<EpdFontFamily::Style>((stylesArr[i] & ~DISCRETIONARY_HYPHEN_FLAG) |
                                              (wordHasSmallCaps(i) ? EpdFontFamily::SMALL_CAPS : 0));
   }
   bool wordHasDiscretionaryHyphen(const uint16_t i) const { return (stylesArr[i] & DISCRETIONARY_HYPHEN_FLAG) != 0; }
   uint8_t focusBoundary(const uint16_t i) const { return focusPresent ? focusBoundaryArr[i] : 0; }
-  uint16_t focusSuffixX(const uint16_t i) const { return focusPresent ? focusSuffixXArr[i] : 0; }
+  uint16_t focusSuffixX(const uint16_t i) const { return focusPresent ? unaligned(focusSuffixXArr + i) : 0; }
   bool hasRuby() const;
   int getRubyShift(int ascender) const { return hasRuby() ? (ascender / 2) : 0; }
-  const std::vector<std::string>& getRubyTexts() const { return rubyTexts; }
+  size_t rubyCount() const {
+    return pageArena ? (pageHasRuby ? numWords : 0) : (borrowedRuby ? borrowedRuby->size() : rubyTexts.size());
+  }
+  std::string_view rubyText(uint16_t i) const {
+    if (pageArena) return pageHasRuby ? pageRubyText(i) : std::string_view("");
+    const auto& ruby = borrowedRuby ? *borrowedRuby : rubyTexts;
+    return i < ruby.size() ? std::string_view(ruby[i]) : std::string_view("");
+  }
+  class RubyTexts {
+    const TextBlock* block;
+
+   public:
+    explicit RubyTexts(const TextBlock* block) : block(block) {}
+    size_t size() const { return block->rubyCount(); }
+    bool empty() const { return size() == 0; }
+    std::string_view operator[](uint16_t i) const { return block->rubyText(i); }
+    std::string_view back() const { return (*this)[size() - 1]; }
+    struct Iterator {
+      const TextBlock* block;
+      uint16_t index;
+      std::string_view operator*() const { return block->rubyText(index); }
+      Iterator& operator++() {
+        ++index;
+        return *this;
+      }
+      bool operator!=(const Iterator& other) const { return index != other.index; }
+    };
+    Iterator begin() const { return {block, 0}; }
+    Iterator end() const { return {block, static_cast<uint16_t>(size())}; }
+  };
+  RubyTexts getRubyTexts() const { return RubyTexts(this); }
   LinkSpans takeLinkSpans() { return std::exchange(linkSpans, LinkSpans{}); }
 
   void render(const GfxRenderer& renderer, int fontId, int x, int y) const;
   BlockType getType() override { return TEXT_BLOCK; }
   bool serialize(HalFile& file) const;
-  static std::unique_ptr<TextBlock> deserialize(HalFile& file);
 };

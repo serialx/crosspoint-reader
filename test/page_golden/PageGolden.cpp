@@ -121,10 +121,11 @@ static void queries(const Page& page, GfxRenderer& renderer, const Setting& conf
   std::vector<Word> words;
   int row = 0, ordinal = 0;
   bool paragraphPending = false;
-  for (const auto& element : page.elements) {
-    if (element->getTag() != TAG_PageLine) continue;
-    const auto& line = static_cast<const PageLine&>(*element);
-    const auto& block = *line.getBlock();
+  for (uint16_t index = 0; index < page.elementCount(); ++index) {
+    const auto element = page.element(index);
+    if (element.getTag() != TAG_PageLine) continue;
+    const auto& line = element;
+    const auto block = line.textBlock();
     if (!block.valid()) continue;
     const auto start = words.size();
     const int lineFont = TextBlock::renderFontId(renderer, block.blockFontId(config.spec.fontId), config.spec.fontId);
@@ -179,22 +180,23 @@ static bool records(Page& page, GfxRenderer& renderer, const Setting& config) {
   const int font = config.spec.fontId;
   int16_t x = 0, y = 0, w = 0, h = 0;
   const bool box = page.getImageBoundingBox(x, y, w, h);
-  std::cout << "page\t" << page.visibleTextOffset << '\t' << page.elements.size() << ',' << page.footnotes.size() << ','
-            << page.links.size() << ',' << page.hasImages() << ',' << page.hasImagesNeedingDecode() << ',' << box << ','
+  std::cout << "page\t" << page.visibleTextOffset << '\t' << page.elementCount() << ',' << page.footnoteCount() << ','
+            << page.linkCount() << ',' << page.hasImages() << ',' << page.hasImagesNeedingDecode() << ',' << box << ','
             << x << ',' << y << ',' << w << ',' << h << '\n';
-  for (const auto& element : page.elements) {
+  for (uint16_t index = 0; index < page.elementCount(); ++index) {
+    const auto element = page.element(index);
     HalFile wire("element.bin");
-    if (!element->serialize(wire)) return false;
+    if (!element.serialize(wire)) return false;
     wire.close();
-    std::cout << "element\t" << int(element->getTag()) << '\t' << element->xPos << ',' << element->yPos << '\t'
+    std::cout << "element\t" << int(element.getTag()) << '\t' << element.xPos << ',' << element.yPos << '\t'
               << hex(readBytes("element.bin")) << '\n';
-    if (element->getTag() != TAG_PageLine) {
+    if (element.getTag() != TAG_PageLine) {
       HalFile fields;
       if (!fields.open("element.bin", "rb")) return false;
       XpSecRecord value;
       XpSecKind kind = XP_SEC_U8;
       size_t count = 0;
-      switch (element->getTag()) {
+      switch (element.getTag()) {
         case TAG_PageImage: {
           std::string path, source;
           if (!sectioncodec::read(fields, XP_SEC_POSITION, value) || !sectioncodec::readString(fields, path) ||
@@ -221,14 +223,13 @@ static bool records(Page& page, GfxRenderer& renderer, const Setting& config) {
           return false;
       }
       if (!sectioncodec::read(fields, kind, value)) return false;
-      std::cout << "element-fields\t" << int(element->getTag());
+      std::cout << "element-fields\t" << int(element.getTag());
       for (size_t i = 0; i < count; ++i) std::cout << '\t' << value.values[i];
-      if (element->getTag() == TAG_PageDropCap)
-        std::cout << '\t' << hex(static_cast<const PageDropCap&>(*element).getText());
+      if (element.getTag() == TAG_PageDropCap) std::cout << '\t' << hex(element.dropCapText());
       std::cout << '\n';
       continue;
     }
-    const auto& block = *static_cast<const PageLine&>(*element).getBlock();
+    const auto block = element.textBlock();
     const auto& s = block.getBlockStyle();
     std::cout << "line\t" << block.valid() << ',' << block.wordCount() << ',' << block.blockFontId(font) << ','
               << block.lineAscent(renderer, font) << ',' << block.extraAscent(renderer, font) << ',' << block.hasRuby()
@@ -247,13 +248,19 @@ static bool records(Page& page, GfxRenderer& renderer, const Setting& config) {
                 << int(block.focusBoundary(i)) << ',' << block.focusSuffixX(i) << ',' << range.start << ',' << range.end
                 << ',' << block.wordStartsParagraph(i) << ',' << block.wordYOffset(renderer, font, i) << '\n';
     }
-    for (const auto& ruby : block.getRubyTexts()) std::cout << "ruby\t" << hex(ruby) << '\n';
+    for (uint16_t i = 0; i < block.rubyCount(); ++i) std::cout << "ruby\t" << hex(block.rubyText(i)) << '\n';
   }
-  for (const auto& note : page.footnotes)
+  for (uint16_t i = 0; i < page.footnoteCount(); ++i) {
+    FootnoteEntry note;
+    page.footnote(i, note);
     std::cout << "footnote\t" << hex(note.number) << '\t' << hex(note.href) << '\n';
-  for (const auto& link : page.links)
+  }
+  for (uint16_t i = 0; i < page.linkCount(); ++i) {
+    PageLink link;
+    page.link(i, link);
     std::cout << "link\t" << hex(link.href) << '\t' << link.x << ',' << link.y << ',' << link.width << ','
               << link.height << '\n';
+  }
   queries(page, renderer, config);
   return true;
 }

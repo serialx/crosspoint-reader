@@ -261,11 +261,12 @@ class ChapterHtmlSlimParserTest : public ::testing::TestWithParam<const char*> {
       }
       HalFile file;
       ASSERT_TRUE(file.open(cachePath.c_str(), "rb"));
-      auto cached = Page::deserialize(file);
+      auto cached = Page::load(file, file.size() - file.position());
       ASSERT_NE(cached, nullptr);
-      for (const auto& element : cached->elements) {
-        if (element->getTag() != TAG_PageLine) continue;
-        const auto& block = *static_cast<const PageLine&>(*element).getBlock();
+      for (uint16_t index = 0; index < cached->elementCount(); ++index) {
+        const auto element = cached->element(index);
+        if (element.getTag() != TAG_PageLine) continue;
+        const auto block = element.textBlock();
         for (uint16_t i = 0; i < block.wordCount(); ++i) {
           if (block.wordStartsParagraph(i)) paragraphStartPending = true;
           if (!clippingText::hasVisibleText(block.wordText(i))) continue;
@@ -721,12 +722,14 @@ TEST_F(ChapterHtmlSlimParserTest, PageImageDeserializeRejectsMissingImageBlock) 
   {
     HalFile output;
     ASSERT_TRUE(output.open(path.c_str(), "wb"));
+    const uint8_t prefix[] = {1, 0, TAG_PageImage};
+    output.write(prefix, sizeof(prefix));
     const int16_t coordinates[] = {0, 0};
     output.write(coordinates, sizeof(coordinates));
   }
   HalFile input;
   ASSERT_TRUE(input.open(path.c_str(), "rb"));
-  EXPECT_EQ(PageImage::deserialize(input), nullptr);
+  EXPECT_EQ(Page::load(input, input.size()), nullptr);
 }
 
 TEST_P(ChapterHtmlSlimParserTest, KeepsCssVerticalAlignAndInternalLinkMetadata) {
@@ -1529,11 +1532,18 @@ TEST_F(ChapterInlineSizeTest, MixedSizesWithinALineSurviveTheCache) {
   {
     HalFile output;
     ASSERT_TRUE(output.open(path.c_str(), "wb"));
+    const uint8_t prefix[] = {1, 0, TAG_PageLine, 0, 0, 0, 0};
+    ASSERT_EQ(output.write(prefix, sizeof(prefix)), sizeof(prefix));
     ASSERT_TRUE(block.serialize(output));
+    const uint8_t footer[4]{};
+    ASSERT_EQ(output.write(footer, sizeof(footer)), sizeof(footer));
   }
   HalFile input;
   ASSERT_TRUE(input.open(path.c_str(), "rb"));
-  const auto cached = TextBlock::deserialize(input);
+  const auto cachedPage = Page::load(input, input.size());
+  ASSERT_NE(cachedPage, nullptr);
+  const auto cachedBlock = cachedPage->element(0).textBlock();
+  const auto* cached = &cachedBlock;
   ASSERT_NE(cached, nullptr);
   for (uint16_t i = 0; i < block.wordCount(); ++i) {
     EXPECT_EQ(cached->wordFontId(i, NOTOSANS_14_FONT_ID), block.wordFontId(i, NOTOSANS_14_FONT_ID));
@@ -2239,10 +2249,11 @@ TEST(TextSpacingLayout, CachedPageRestoresSpacing) {
         }
         HalFile file;
         ASSERT_TRUE(file.open(path.c_str(), "rb"));
-        auto cachedPage = Page::deserialize(file);
+        auto cachedPage = Page::load(file, file.size() - file.position());
         ASSERT_NE(cachedPage, nullptr);
-        ASSERT_EQ(cachedPage->elements.size(), 1);
-        const auto* cached = static_cast<const PageLine&>(*cachedPage->elements[0]).getBlock();
+        ASSERT_EQ(cachedPage->elementCount(), 1);
+        const auto cachedBlock = cachedPage->element(0).textBlock();
+        const auto* cached = &cachedBlock;
         ASSERT_NE(cached, nullptr);
         EXPECT_EQ(cached->getBlockStyle().characterSpacing, -2);
         ASSERT_EQ(cached->wordCount(), 5);

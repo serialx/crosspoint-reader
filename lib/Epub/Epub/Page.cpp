@@ -9,27 +9,6 @@
 
 namespace {
 
-template <typename Predicate>
-void renderFilteredPageElements(const std::vector<std::unique_ptr<PageElement>>& elements, GfxRenderer& renderer,
-                                const int fontId, const int xOffset, const int yOffset, Predicate&& predicate) {
-  for (const auto& element : elements) {
-    if (predicate(*element)) {
-      element->render(renderer, fontId, xOffset, yOffset);
-    }
-  }
-}
-
-bool isBorderBox(const PageElement& element) { return element.getTag() == TAG_PageBorderBox; }
-
-void renderBoxBackgrounds(const std::vector<std::unique_ptr<PageElement>>& elements, GfxRenderer& renderer,
-                          const int xOffset, const int yOffset) {
-  for (const auto& element : elements) {
-    if (isBorderBox(*element)) {
-      static_cast<const PageBorderBox&>(*element).renderBackground(renderer, xOffset, yOffset);
-    }
-  }
-}
-
 // Draws one border edge as a strip along a box side.
 void drawBorderEdge(const GfxRenderer& renderer, const int x, const int y, const int length, const CssBorderSide& side,
                     const bool horizontal) {
@@ -75,16 +54,6 @@ bool PageLine::serialize(HalFile& file) {
          block->serialize(file);
 }
 
-std::unique_ptr<PageLine> PageLine::deserialize(HalFile& file) {
-  XpSecRecord position;
-  if (!sectioncodec::read(file, XP_SEC_POSITION, position)) return nullptr;
-  auto block = TextBlock::deserialize(file);
-  if (!block) return nullptr;
-  auto element = makeUniqueNoThrow<PageLine>(std::move(block), position.values[0], position.values[1]);
-  if (!element) LOG_ERR("PGE", "Could not allocate PageLine");
-  return element;
-}
-
 void PageImage::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
   // Images don't use fontId or text rendering
   imageBlock->render(renderer, xPos + xOffset, yPos + yOffset);
@@ -99,16 +68,6 @@ bool PageImage::serialize(HalFile& file) {
          imageBlock->serialize(file);
 }
 
-std::unique_ptr<PageImage> PageImage::deserialize(HalFile& file) {
-  XpSecRecord position;
-  if (!sectioncodec::read(file, XP_SEC_POSITION, position)) return nullptr;
-  auto block = ImageBlock::deserialize(file);
-  if (!block) return nullptr;
-  auto element = makeUniqueNoThrow<PageImage>(std::move(block), position.values[0], position.values[1]);
-  if (!element) LOG_ERR("PGE", "Could not allocate PageImage");
-  return element;
-}
-
 void PageHorizontalRule::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
   (void)fontId;
   if (width == 0 || thickness == 0) {
@@ -121,15 +80,6 @@ void PageHorizontalRule::render(GfxRenderer& renderer, const int fontId, const i
 bool PageHorizontalRule::serialize(HalFile& file) {
   return sectioncodec::write(file,
                              sectioncodec::record(XP_SEC_RULE, {uint32_t(xPos), uint32_t(yPos), width, thickness}));
-}
-
-std::unique_ptr<PageHorizontalRule> PageHorizontalRule::deserialize(HalFile& file) {
-  XpSecRecord record;
-  if (!sectioncodec::read(file, XP_SEC_RULE, record)) return nullptr;
-  auto element =
-      makeUniqueNoThrow<PageHorizontalRule>(record.values[2], record.values[3], record.values[0], record.values[1]);
-  if (!element) LOG_ERR("PGE", "Could not allocate PageHorizontalRule");
-  return element;
 }
 
 PageDropCap::PageDropCap(const int32_t fontId, const uint16_t scale256, const EpdFontFamily::Style style,
@@ -154,18 +104,6 @@ bool PageDropCap::serialize(HalFile& file) {
              file, sectioncodec::record(XP_SEC_DROP_CAP, {uint32_t(xPos), uint32_t(yPos), uint32_t(fontId), scale256,
                                                           uint32_t(style), length})) &&
          file.write(text, length) == length;
-}
-
-std::unique_ptr<PageDropCap> PageDropCap::deserialize(HalFile& file) {
-  XpSecRecord record;
-  if (!sectioncodec::read(file, XP_SEC_DROP_CAP, record)) return nullptr;
-  char text[MAX_TEXT_BYTES + 1] = {};
-  if (file.read(text, record.values[5]) != record.values[5]) return nullptr;
-  auto element = makeUniqueNoThrow<PageDropCap>(record.values[2], record.values[3],
-                                                static_cast<EpdFontFamily::Style>(record.values[4]), text,
-                                                record.values[0], record.values[1]);
-  if (!element) LOG_ERR("PGE", "Could not allocate PageDropCap");
-  return element;
 }
 
 void PageBorderBox::renderBackground(GfxRenderer& renderer, const int xOffset, const int yOffset) const {
@@ -193,65 +131,62 @@ bool PageBorderBox::serialize(HalFile& file) {
                                 sides[3].width, uint32_t(sides[3].style), shaded}));
 }
 
-std::unique_ptr<PageBorderBox> PageBorderBox::deserialize(HalFile& file) {
-  XpSecRecord record;
-  if (!sectioncodec::read(file, XP_SEC_BORDER, record)) return nullptr;
-  CssBorderSide sides[4];
-  for (size_t i = 0; i < 4; ++i) {
-    sides[i].width = record.values[4 + i * 2];
-    sides[i].style = static_cast<CssBorderStyle>(record.values[5 + i * 2]);
-  }
-  auto element = makeUniqueNoThrow<PageBorderBox>(record.values[2], record.values[3], sides, record.values[12] != 0,
-                                                  record.values[0], record.values[1]);
-  if (!element) LOG_ERR("PGE", "Could not allocate PageBorderBox");
-  return element;
-}
-
 // Backgrounds precede every border, including borders inside shaded containers.
-void Page::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) const {
-  renderBoxBackgrounds(elements, renderer, xOffset, yOffset);
-  renderFilteredPageElements(elements, renderer, fontId, xOffset, yOffset, isBorderBox);
-  renderFilteredPageElements(elements, renderer, fontId, xOffset, yOffset,
-                             [](const PageElement& element) { return !isBorderBox(element); });
+void Page::render(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
+  for (uint16_t i = 0; i < elementCount(); ++i) element(i).renderBackground(renderer, x, y);
+  for (uint16_t i = 0; i < elementCount(); ++i) {
+    const auto el = element(i);
+    if (el.getTag() == TAG_PageBorderBox) el.render(renderer, fontId, x, y);
+  }
+  for (uint16_t i = 0; i < elementCount(); ++i) {
+    const auto el = element(i);
+    if (el.getTag() != TAG_PageBorderBox) el.render(renderer, fontId, x, y);
+  }
 }
 
-void Page::renderImages(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) const {
-  renderFilteredPageElements(elements, renderer, fontId, xOffset, yOffset,
-                             [](const PageElement& element) { return element.getTag() == TAG_PageImage; });
+void Page::renderImages(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
+  for (uint16_t i = 0; i < elementCount(); ++i) {
+    const auto el = element(i);
+    if (el.getTag() == TAG_PageImage) el.render(renderer, fontId, x, y);
+  }
 }
 
-void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, const int xOffset,
-                                       const int yOffset) const {
-  renderBoxBackgrounds(elements, renderer, xOffset, yOffset);
-  renderFilteredPageElements(elements, renderer, fontId, xOffset, yOffset, isBorderBox);
-  for (const auto& element : elements) {
-    if (isBorderBox(*element)) continue;
-    if (element->getTag() == TAG_PageImage) {
-      static_cast<const PageImage&>(*element).renderPlaceholder(renderer, xOffset, yOffset);
-    } else {
-      element->render(renderer, fontId, xOffset, yOffset);
-    }
+void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
+  for (uint16_t i = 0; i < elementCount(); ++i) element(i).renderBackground(renderer, x, y);
+  for (uint16_t i = 0; i < elementCount(); ++i) {
+    const auto el = element(i);
+    if (el.getTag() == TAG_PageBorderBox) el.render(renderer, fontId, x, y);
+  }
+  for (uint16_t i = 0; i < elementCount(); ++i) {
+    const auto el = element(i);
+    if (el.getTag() == TAG_PageBorderBox) continue;
+    if (el.getTag() == TAG_PageImage)
+      el.renderPlaceholder(renderer, x, y);
+    else
+      el.render(renderer, fontId, x, y);
   }
 }
 
 bool Page::serialize(HalFile& file) const {
-  const uint16_t count = elements.size();
+  const uint16_t count = elementCount();
   if (!sectioncodec::writeValue(file, XP_SEC_U16, count)) return false;
 
-  for (const auto& el : elements) {
+  for (uint16_t i = 0; i < count; ++i) {
+    const auto el = element(i);
     // Use getTag() method to determine type
-    if (!sectioncodec::writeValue(file, XP_SEC_ELEMENT_TAG, el->getTag())) return false;
+    if (!sectioncodec::writeValue(file, XP_SEC_ELEMENT_TAG, el.getTag())) return false;
 
-    if (!el->serialize(file)) {
+    if (!el.serialize(file)) {
       return false;
     }
   }
 
   // Serialize footnotes (clamp to MAX_FOOTNOTES_PER_PAGE to match addFootnote/deserialize limits)
-  const uint16_t fnCount = std::min<uint16_t>(footnotes.size(), MAX_FOOTNOTES_PER_PAGE);
+  const uint16_t fnCount = std::min<uint16_t>(footnoteCount(), MAX_FOOTNOTES_PER_PAGE);
   if (!sectioncodec::writeValue(file, XP_SEC_FOOTNOTE_COUNT, fnCount)) return false;
   for (uint16_t i = 0; i < fnCount; i++) {
-    const auto& fn = footnotes[i];
+    FootnoteEntry fn;
+    footnote(i, fn);
     if (file.write(fn.number, sizeof(fn.number)) != sizeof(fn.number) ||
         file.write(fn.href, sizeof(fn.href)) != sizeof(fn.href)) {
       LOG_ERR("PGE", "Failed to write footnote");
@@ -259,10 +194,11 @@ bool Page::serialize(HalFile& file) const {
     }
   }
 
-  const uint16_t linkCount = std::min<uint16_t>(links.size(), MAX_LINKS_PER_PAGE);
+  const uint16_t linkCount = std::min<uint16_t>(this->linkCount(), MAX_LINKS_PER_PAGE);
   if (!sectioncodec::writeValue(file, XP_SEC_LINK_COUNT, linkCount)) return false;
   for (uint16_t i = 0; i < linkCount; i++) {
-    const auto& link = links[i];
+    PageLink link;
+    this->link(i, link);
     if (file.write(link.href, sizeof(link.href)) != sizeof(link.href)) {
       LOG_ERR("PGE", "Failed to write link %u", i);
       return false;
@@ -276,102 +212,241 @@ bool Page::serialize(HalFile& file) const {
   return true;
 }
 
-std::unique_ptr<Page> Page::deserialize(HalFile& file) {
-  auto page = makeUniqueNoThrow<Page>();
-  if (!page) {
-    LOG_ERR("PGE", "Deserialization failed: could not allocate Page");
+std::unique_ptr<Page> Page::load(HalFile& file, const size_t bytes, const uint32_t visibleOffset) {
+  const size_t start = file.position();
+  if (bytes < 6 || start > file.size() || bytes > file.size() - start) return nullptr;
+  auto input = makeUniqueNoThrow<uint8_t[]>(bytes);
+  if (!input) {
+    LOG_ERR("PGE", "OOM: page input %u bytes", static_cast<unsigned>(bytes));
     return nullptr;
   }
-
-  uint32_t count;
-  if (!sectioncodec::readValue(file, XP_SEC_U16, count)) return nullptr;
-
-  // Reserve up front so a page load costs one allocation for the element vector
-  // instead of a grow-copy-free cycle every doubling. `count` is untrusted (it
-  // comes straight off the SD cache), so clamp it: a real page holds a few dozen
-  // elements, while a corrupt header could ask for 65535 * sizeof(unique_ptr) and
-  // abort() on the failed allocation (vector's operator new is throwing, and this
-  // firmware builds with -fno-exceptions). Under-reserving is harmless -- the
-  // push_back path below still grows normally.
-  static constexpr uint16_t RESERVE_CAP = 256;
-  page->elements.reserve(std::min<uint32_t>(count, RESERVE_CAP));
-
-  for (uint16_t i = 0; i < count; i++) {
-    uint32_t tag;
-    if (!sectioncodec::readValue(file, XP_SEC_ELEMENT_TAG, tag)) return nullptr;
-
-    if (tag == TAG_PageLine) {
-      auto pl = PageLine::deserialize(file);
-      if (!pl) {
-        return nullptr;
-      }
-      page->elements.push_back(std::move(pl));
-    } else if (tag == TAG_PageImage) {
-      auto pi = PageImage::deserialize(file);
-      if (!pi) {
-        return nullptr;
-      }
-      page->elements.push_back(std::move(pi));
-    } else if (tag == TAG_PageHorizontalRule) {
-      auto rule = PageHorizontalRule::deserialize(file);
-      if (!rule) {
-        return nullptr;
-      }
-      page->elements.push_back(std::move(rule));
-    } else if (tag == TAG_PageDropCap) {
-      auto dropCap = PageDropCap::deserialize(file);
-      if (!dropCap) {
-        return nullptr;
-      }
-      page->elements.push_back(std::move(dropCap));
-    } else if (tag == TAG_PageBorderBox) {
-      auto box = PageBorderBox::deserialize(file);
-      if (!box) {
-        return nullptr;
-      }
-      page->elements.push_back(std::move(box));
-    } else {
-      LOG_ERR("PGE", "Deserialization failed: Unknown tag %u", tag);
-      return nullptr;
-    }
-  }
-
-  // Deserialize footnotes
-  uint32_t fnCount;
-  if (!sectioncodec::readValue(file, XP_SEC_FOOTNOTE_COUNT, fnCount)) return nullptr;
-  page->footnotes.resize(fnCount);
-  for (uint16_t i = 0; i < fnCount; i++) {
-    auto& entry = page->footnotes[i];
-    if (file.read(entry.number, sizeof(entry.number)) != sizeof(entry.number) ||
-        file.read(entry.href, sizeof(entry.href)) != sizeof(entry.href)) {
-      LOG_ERR("PGE", "Failed to read footnote %u", i);
-      return nullptr;
-    }
-    entry.number[sizeof(entry.number) - 1] = '\0';
-    entry.href[sizeof(entry.href) - 1] = '\0';
-  }
-
-  uint32_t linkCount;
-  if (!sectioncodec::readValue(file, XP_SEC_LINK_COUNT, linkCount)) return nullptr;
-  page->links.resize(linkCount);
-  for (uint16_t i = 0; i < linkCount; i++) {
-    auto& link = page->links[i];
-    if (file.read(link.href, sizeof(link.href)) != sizeof(link.href)) {
-      LOG_ERR("PGE", "Failed to read link %u", i);
-      return nullptr;
-    }
-    link.href[sizeof(link.href) - 1] = '\0';
-    XpSecRecord geometry;
-    if (!sectioncodec::read(file, XP_SEC_LINK_GEOMETRY, geometry)) return nullptr;
-    link.x = geometry.values[0];
-    link.y = geometry.values[1];
-    link.width = geometry.values[2];
-    link.height = geometry.values[3];
-    if (link.href[0] == '\0') {
-      LOG_ERR("PGE", "Invalid link geometry %u", i);
-      return nullptr;
-    }
-  }
-
+  if (file.read(input.get(), bytes) != bytes) return nullptr;
+  auto page = fromBytes(input.get(), bytes, visibleOffset);
+  if (page && !file.seek(start + page->info.consumed)) return nullptr;
   return page;
+}
+
+std::unique_ptr<Page> Page::fromBytes(const uint8_t* bytes, const size_t size, const uint32_t visibleOffset) {
+  XpPageInfo info{};
+  if (xp_page_arena_size(bytes, size, &info)) return nullptr;
+  auto page = makeUniqueNoThrow<Page>();
+  if (!page) {
+    LOG_ERR("PGE", "OOM: Page %u bytes", static_cast<unsigned>(sizeof(Page)));
+    return nullptr;
+  }
+  // Plain descriptors share the Rust arena allocation; no element owns heap storage.
+  const size_t alignment = alignof(ElementData);
+  if (info.arena_size > SIZE_MAX - alignment + 1) return nullptr;
+  const size_t viewOffset = (info.arena_size + alignment - 1) & ~(alignment - 1);
+  if (info.elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return nullptr;
+  const size_t allocationSize = viewOffset + info.elements * sizeof(ElementData);
+  page->arena = makeUniqueNoThrow<uint8_t[]>(allocationSize);
+  if (!page->arena) {
+    LOG_ERR("PGE", "OOM: page arena %u bytes", static_cast<unsigned>(allocationSize));
+    return nullptr;
+  }
+  if (xp_page_decode(bytes, size, visibleOffset, page->arena.get(), info.arena_size, &page->info)) return nullptr;
+  page->arenaSize = info.arena_size;
+  page->views = reinterpret_cast<ElementData*>(page->arena.get() + viewOffset);
+  for (uint16_t i = 0; i < info.elements; ++i) {
+    auto& view = *new (&page->views[i]) ElementData{};
+    view.position = xp_page_position(page->arena.get(), page->arenaSize, i);
+    if (!view.position.tag) return nullptr;
+    if (view.position.tag == TAG_PageLine) {
+      new (&view.line) TextBlock::ViewData{};
+      if (!TextBlock::resolveView(page->arena.get(), page->arenaSize, i, view.line)) return nullptr;
+    } else if (xp_page_element(page->arena.get(), page->arenaSize, i, &view.fields)) {
+      return nullptr;
+    }
+  }
+  page->visibleTextOffset = visibleOffset;
+  return page;
+}
+
+void Page::footnote(const uint16_t index, FootnoteEntry& out) const {
+  if (!arena) {
+    out = footnotes[index];
+    return;
+  }
+  XpPageSpan number{}, href{};
+  if (xp_page_footnote(arena.get(), arenaSize, index, &number, &href)) {
+    out = {};
+    return;
+  }
+  memcpy(out.number, number.data, sizeof(out.number));
+  memcpy(out.href, href.data, sizeof(out.href));
+}
+
+void Page::link(const uint16_t index, PageLink& out) const {
+  if (!arena) {
+    out = links[index];
+    return;
+  }
+  XpPageLink view{};
+  if (xp_page_link(arena.get(), arenaSize, index, &view)) {
+    out = {};
+    return;
+  }
+  memcpy(out.href, view.href.data, sizeof(out.href));
+  out.x = view.x;
+  out.y = view.y;
+  out.width = view.width;
+  out.height = view.height;
+}
+
+void Page::copyFootnotes(std::vector<FootnoteEntry>& out) const {
+  out.resize(footnoteCount());
+  for (uint16_t i = 0; i < out.size(); ++i) footnote(i, out[i]);
+}
+
+void Page::copyLinks(std::vector<PageLink>& out) const {
+  out.resize(linkCount());
+  for (uint16_t i = 0; i < out.size(); ++i) link(i, out[i]);
+}
+
+PageElementView::PageElementView(const Page& owner, const uint16_t index) : page(&owner), index(index) {
+  if (page->arena) {
+    const auto& e = page->views[index].position;
+    tag = static_cast<PageElementTag>(e.tag);
+    xPos = e.x;
+    yPos = e.y;
+  } else {
+    const auto& e = *page->elements[index];
+    tag = e.getTag();
+    xPos = e.xPos;
+    yPos = e.yPos;
+  }
+}
+
+const XpPageElement& PageElementView::fields() const { return page->views[index].fields; }
+
+TextBlock PageElementView::textBlock() const {
+  if (page->arena) return TextBlock(TextBlock::View{}, page->arena.get(), page->views[index].line);
+  return TextBlock(TextBlock::View{}, *static_cast<const PageLine&>(*page->elements[index]).getBlock());
+}
+
+ImageBlock PageElementView::imageBlock() const {
+  if (!page->arena)
+    return ImageBlock(ImageBlock::View{}, static_cast<const PageImage&>(*page->elements[index]).getImageBlock());
+  const auto& e = fields();
+  return ImageBlock(ImageBlock::View{}, {reinterpret_cast<const char*>(e.first.data), e.first.len},
+                    {reinterpret_cast<const char*>(e.second.data), e.second.len}, e.width, e.height);
+}
+
+namespace {
+PageBorderBox borderView(const XpPageElement& e) {
+  const auto& v = e.record.values;
+  CssBorderSide sides[4];
+  for (size_t i = 0; i < 4; ++i) {
+    sides[i].width = v[4 + 2 * i];
+    sides[i].style = static_cast<CssBorderStyle>(v[5 + 2 * i]);
+  }
+  return PageBorderBox(v[2], v[3], sides, v[12] != 0, v[0], v[1]);
+}
+PageDropCap dropCapView(const XpPageElement& e) {
+  char text[PageDropCap::MAX_TEXT_BYTES + 1]{};
+  memcpy(text, e.first.data, e.first.len);
+  const auto& v = e.record.values;
+  return PageDropCap(v[2], v[3], static_cast<EpdFontFamily::Style>(v[4]), text, v[0], v[1]);
+}
+}  // namespace
+
+void PageElementView::render(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
+  if (!page->arena) {
+    page->elements[index]->render(renderer, fontId, x, y);
+    return;
+  }
+  switch (tag) {
+    case TAG_PageLine:
+      textBlock().render(renderer, fontId, xPos + x, yPos + y);
+      return;
+    case TAG_PageImage:
+      imageBlock().render(renderer, xPos + x, yPos + y);
+      return;
+    case TAG_PageHorizontalRule: {
+      const auto& e = fields();
+      PageHorizontalRule(e.record.values[2], e.record.values[3], xPos, yPos).render(renderer, fontId, x, y);
+      return;
+    }
+    case TAG_PageDropCap:
+      dropCapView(fields()).render(renderer, fontId, x, y);
+      return;
+    case TAG_PageBorderBox:
+      borderView(fields()).render(renderer, fontId, x, y);
+      return;
+  }
+}
+
+void PageElementView::renderBackground(GfxRenderer& renderer, const int x, const int y) const {
+  if (tag != TAG_PageBorderBox) return;
+  if (page->arena)
+    borderView(fields()).renderBackground(renderer, x, y);
+  else
+    static_cast<const PageBorderBox&>(*page->elements[index]).renderBackground(renderer, x, y);
+}
+
+void PageElementView::renderPlaceholder(GfxRenderer& renderer, const int x, const int y) const {
+  imageBlock().renderPlaceholder(renderer, xPos + x, yPos + y);
+}
+
+bool PageElementView::serialize(HalFile& file) const {
+  if (!page->arena) return page->elements[index]->serialize(file);
+  switch (tag) {
+    case TAG_PageLine:
+      return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
+             textBlock().serialize(file);
+    case TAG_PageImage:
+      return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
+             imageBlock().serialize(file);
+    case TAG_PageHorizontalRule:
+      return sectioncodec::write(file, fields().record);
+    case TAG_PageDropCap:
+      return dropCapView(fields()).serialize(file);
+    case TAG_PageBorderBox:
+      return sectioncodec::write(file, fields().record);
+  }
+  return false;
+}
+
+bool Page::hasImages() const {
+  for (uint16_t i = 0; i < elementCount(); ++i)
+    if (element(i).getTag() == TAG_PageImage) return true;
+  return false;
+}
+
+bool Page::hasImagesNeedingDecode() const {
+  for (uint16_t i = 0; i < elementCount(); ++i) {
+    const auto e = element(i);
+    if (e.getTag() == TAG_PageImage && e.imageBlock().needsDecode()) return true;
+  }
+  return false;
+}
+
+bool Page::getImageBoundingBox(int16_t& x, int16_t& y, int16_t& w, int16_t& h) const {
+  bool found = false;
+  int16_t minX = INT16_MAX, minY = INT16_MAX, maxX = INT16_MIN, maxY = INT16_MIN;
+  for (uint16_t i = 0; i < elementCount(); ++i) {
+    const auto e = element(i);
+    if (e.getTag() != TAG_PageImage) continue;
+    const auto img = e.imageBlock();
+    const int16_t right = e.xPos + img.getWidth(), bottom = e.yPos + img.getHeight();
+    minX = std::min(minX, e.xPos);
+    minY = std::min(minY, e.yPos);
+    maxX = std::max(maxX, right);
+    maxY = std::max(maxY, bottom);
+    found = true;
+  }
+  if (found) {
+    x = minX;
+    y = minY;
+    w = maxX - minX;
+    h = maxY - minY;
+  }
+  return found;
+}
+
+std::string_view PageElementView::dropCapText() const {
+  if (!page->arena) return static_cast<const PageDropCap&>(*page->elements[index]).getText();
+  const auto& e = fields();
+  return {reinterpret_cast<const char*>(e.first.data), e.first.len};
 }

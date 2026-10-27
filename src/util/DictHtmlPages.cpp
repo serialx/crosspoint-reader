@@ -231,7 +231,7 @@ bool buildDictionaryHtmlPages(GfxRenderer& renderer, const std::string& definiti
         [&pagesOut, &parser, &retainedElements, &limitReason](std::unique_ptr<Page> page, uint16_t, uint16_t,
                                                               uint32_t) {
           if (limitReason) return;
-          const size_t pageElements = page->elements.size();
+          const size_t pageElements = page->elementCount();
           // Name the limit that fired. The three causes mean different things --
           // the count caps say the definition is genuinely too big to hold,
           // while the heap floor says only that this moment was a bad one -- and

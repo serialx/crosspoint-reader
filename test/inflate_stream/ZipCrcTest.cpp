@@ -2,6 +2,7 @@
 #include <ZipFile.h>
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -22,7 +23,8 @@ class CrcSink : public Print {
 TEST(ZipInflate, EveryEpubEntryMatchesCentralDirectoryCrc) {
   size_t archives = 0, entries = 0;
   const std::string path = "/book.epub";
-  for (const auto& item : std::filesystem::directory_iterator(EPUB_FIXTURES)) {
+  const char* fixtures = std::getenv("INFLATE_EPUB_FIXTURES");
+  for (const auto& item : std::filesystem::directory_iterator(fixtures ? fixtures : EPUB_FIXTURES)) {
     if (item.path().extension() != ".epub") continue;
     ++archives;
     std::ifstream file(item.path(), std::ios::binary);

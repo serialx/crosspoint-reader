@@ -3,21 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
-// Forward declaration keeps miniz out of consumer translation units; the
-// decompressor state is heap-allocated in the .cpp where the type is complete.
-struct tinfl_decompressor_tag;
-
-// Streaming deflate decompressor wrapping miniz's tinfl.
-//
-// Replaces the uzlib-backed InflateReader on the throughput paths (EPUB zip
-// entries, PNG IDAT). tinfl decodes via lookup tables where uzlib walks the
-// Huffman tree bit-by-bit -- several times faster on this CPU -- at the cost
-// of a larger decompressor state (~8KB, transient for the scope of the
-// stream; taken from the lent framebuffer bytes via buildscratch::claim()
-// when a FrameBufferLoan is active, heap otherwise). FontDecompressor
-// intentionally stays on InflateReader:
-// its one-shot flash-resident group decompressions are tiny, and the render
-// path should not carry the extra state allocation.
+// Streaming deflate decompressor backed by miniz_oxide. State is borrowed
+// from BuildScratch when available, otherwise allocated for this stream.
 //
 // Two modes:
 //   init(false) -- one-shot: the destination buffer holds the ENTIRE output,
@@ -62,7 +49,7 @@ class InflateStream {
   void setFill(FillFn fn, void* ctx);
 
   // Declare the input zlib-wrapped (2-byte header + trailing adler32).
-  void setZlibWrapped() { zlibWrapped = true; }
+  void setZlibWrapped();
 
   // Decompress exactly len bytes into dest. Returns false if the stream ends
   // or errors before producing len bytes.
@@ -72,10 +59,10 @@ class InflateStream {
   Status readAtMost(uint8_t* dest, size_t maxLen, size_t* produced);
 
  private:
-  tinfl_decompressor_tag* state = nullptr;  // ~8KB: heap, or inside the claimed build scratch
-  uint8_t* window = nullptr;                // 32KB ring, streaming mode only
-  uint8_t* arenaBase = nullptr;             // non-null when state/window live in lent framebuffer bytes
-  size_t windowPos = 0;                     // ring write cursor
+  void* state = nullptr;         // heap, or inside the claimed build scratch
+  uint8_t* window = nullptr;     // 32KB ring, streaming mode only
+  uint8_t* arenaBase = nullptr;  // non-null when state/window live in lent framebuffer bytes
+  size_t windowPos = 0;          // ring write cursor
   // Decompressed-but-undelivered region of the window (tinfl can overshoot the
   // caller's requested length; the overshoot waits here for the next read).
   size_t pendingStart = 0;
@@ -86,7 +73,6 @@ class InflateStream {
   FillFn fill = nullptr;
   void* fillCtx = nullptr;
   bool inputExhausted = false;
-  bool zlibWrapped = false;
   bool finished = false;
 
   // One-shot mode: tinfl needs the output buffer start for back-references.

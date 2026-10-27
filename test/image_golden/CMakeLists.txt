@@ -12,7 +12,8 @@ endforeach()
 file(GLOB PNG_C "${DECODER_SOURCE_DIR}/PNGdec/src/*.c")
 if(EXISTS "${DECODER_SOURCE_DIR}/PNGdec/src/inflate.c.disabled")
   list(APPEND PNG_C ${REPO_ROOT}/lib/PngZlib/PngZlib.cpp
-    ${REPO_ROOT}/lib/miniz/src/miniz_impl.c)
+    ${REPO_ROOT}/lib/miniz/src/miniz_impl.c
+    ${REPO_ROOT}/lib/miniz/src/MinizCompat.cpp)
 endif()
 add_executable(image_oracle Oracle.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/PngToFramebufferConverter.cpp

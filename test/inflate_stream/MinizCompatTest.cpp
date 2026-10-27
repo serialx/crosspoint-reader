@@ -117,6 +117,39 @@ TEST(MinizCompat, SdkStreamingPatternMatchesC) {
   }
 }
 
+TEST(MinizCompat, InvalidHistoryRejectedAcrossChunkSchedules) {
+  const std::vector<Bytes> inputs{{3, 2, 0}, {0x73, 4, 0x42, 0}, {3, 0x3e, 0}, {3, 0x7e, 0}};
+  for (size_t index = 0; index < inputs.size(); ++index) {
+    // Padding exercises the fast loop as well as the partial-input path.
+    for (size_t padding : {0u, 64u}) {
+      auto input = inputs[index];
+      input.resize(input.size() + padding);
+      for (size_t inputChunk : {1u, 7u, 4096u}) {
+        for (size_t outputChunk : {1u, 257u, 4096u}) {
+          mz_stream stream{};
+          ASSERT_EQ(mz_inflateInit2(&stream, -15), MZ_OK);
+          std::array<uint8_t, 4096> output{};
+          size_t supplied = 0;
+          int status = MZ_OK;
+          for (unsigned calls = 0; calls < 128 && status >= 0; ++calls) {
+            if (!stream.avail_in && supplied < input.size()) {
+              stream.next_in = input.data() + supplied;
+              stream.avail_in = std::min(inputChunk, input.size() - supplied);
+              supplied += stream.avail_in;
+            }
+            stream.next_out = output.data();
+            stream.avail_out = outputChunk;
+            status = mz_inflate(&stream, MZ_NO_FLUSH);
+          }
+          EXPECT_EQ(status, MZ_DATA_ERROR);
+          EXPECT_LE(stream.total_out, index == 1 ? 1u : 0u);
+          EXPECT_EQ(mz_inflateEnd(&stream), MZ_OK);
+        }
+      }
+    }
+  }
+}
+
 TEST(MinizCompat, MatchesPinnedSdkStreamLayout) {
   const size_t layout[] = {sizeof(mz_stream),
                            offsetof(mz_stream, next_in),

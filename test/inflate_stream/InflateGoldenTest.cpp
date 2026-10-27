@@ -35,29 +35,6 @@ struct Result {
   Bytes trace;
   Bytes output;
 };
-std::vector<Result> decodeCorpus(const Bytes& corpus) {
-  size_t pos = 0;
-  auto readWord = [&] {
-    uint32_t result = 0;
-    for (int i = 0; i < 4; ++i) result |= uint32_t(corpus.at(pos++)) << (8 * i);
-    return result;
-  };
-  std::map<uint32_t, Bytes> outputs;
-  std::vector<Result> results;
-  while (pos < corpus.size()) {
-    const size_t traceSize = readWord();
-    Bytes trace(corpus.begin() + pos, corpus.begin() + pos + traceSize);
-    pos += traceSize;
-    const auto id = readWord();
-    const auto size = readWord();
-    if (size != UINT32_MAX) {
-      outputs[id] = Bytes(corpus.begin() + pos, corpus.begin() + pos + size);
-      pos += size;
-    }
-    results.push_back({std::move(trace), outputs.at(id)});
-  }
-  return results;
-}
 
 Result run(const Bytes& input, bool wrapped, bool streaming, size_t inChunk, size_t outChunk, size_t limit) {
   InflateStream stream;
@@ -99,13 +76,11 @@ Result run(const Bytes& input, bool wrapped, bool streaming, size_t inChunk, siz
   return result;
 }
 
-TEST(InflateGolden, BytesAndStatusesMatchOriginalC) {
+TEST(InflateGolden, BytesAndStatusesMatchHardenedC) {
   const std::string root = INFLATE_FIXTURES;
   Bytes corpus;
   std::map<Bytes, uint32_t> outputs;
-  std::vector<bool> invalidDistanceCases;
-  auto append = [&](const Result& result, bool invalidDistance) {
-    invalidDistanceCases.push_back(invalidDistance);
+  auto append = [&](const Result& result) {
     word(corpus, result.trace.size());
     corpus.insert(corpus.end(), result.trace.begin(), result.trace.end());
     auto [it, inserted] = outputs.emplace(result.output, outputs.size());
@@ -129,11 +104,10 @@ TEST(InflateGolden, BytesAndStatusesMatchOriginalC) {
       for (const auto& input : variants) {
         for (size_t chunk : {size_t{0}, size_t{1}, size_t{7}, size_t{512}, size_t{1024}, size_t{8192}}) {
           for (bool streaming : {false, true}) {
-            const bool invalidDistance = !wrapped && streaming && chunk != 0 && input == Bytes{3, 255};
-            append(run(input, wrapped, streaming, chunk, chunk ? chunk : 8192, 110000), invalidDistance);
+            append(run(input, wrapped, streaming, chunk, chunk ? chunk : 8192, 110000));
             for (size_t limit :
                  {size_t{1}, size_t{32767}, size_t{32768}, size_t{32769}, load(root + "/plain.bin").size()})
-              append(run(input, wrapped, streaming, chunk, limit, limit), invalidDistance);
+              append(run(input, wrapped, streaming, chunk, limit, limit));
           }
         }
       }
@@ -146,22 +120,9 @@ TEST(InflateGolden, BytesAndStatusesMatchOriginalC) {
   } else {
     const auto expected = load(INFLATE_GOLDEN);
     ASSERT_FALSE(expected.empty());
-    const auto before = decodeCorpus(expected);
-    const auto after = decodeCorpus(corpus);
-    ASSERT_EQ(before.size(), 4032u);
-    ASSERT_EQ(after.size(), before.size());
-    for (size_t i = 0; i < before.size(); ++i) {
-      SCOPED_TRACE("case " + std::to_string(i));
-      // C accepts reserved distance symbols in wrapping mode and copies
-      // unwritten history. Rust rejects them; those bytes have no stable value.
-      if (invalidDistanceCases[i]) {
-        EXPECT_EQ(after[i].trace, (Bytes{2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}));
-        EXPECT_TRUE(after[i].output.empty());
-      } else {
-        EXPECT_EQ(after[i].trace, before[i].trace);
-        EXPECT_EQ(after[i].output, before[i].output);
-      }
-    }
+    ASSERT_EQ(corpus.size(), expected.size());
+    const auto mismatch = std::mismatch(corpus.begin(), corpus.end(), expected.begin());
+    EXPECT_EQ(mismatch.first, corpus.end()) << "golden byte offset " << (mismatch.first - corpus.begin());
   }
 }
 }  // namespace

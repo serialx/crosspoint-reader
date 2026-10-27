@@ -30,29 +30,9 @@ static_assert(sizeof(EpdLigaturePair) == 8, "EpdLigaturePair must be 8 bytes to 
 
 namespace {
 
-// FNV-1a hash for content-based font ID generation
-constexpr uint32_t FNV_OFFSET = 2166136261u;
-constexpr uint32_t FNV_PRIME = 16777619u;
-
-uint32_t fnv1a(const uint8_t* data, size_t len, uint32_t hash = FNV_OFFSET) {
-  for (size_t i = 0; i < len; i++) {
-    hash ^= data[i];
-    hash *= FNV_PRIME;
-  }
-  return hash;
-}
-
-// .cpfont magic bytes
-constexpr char CPFONT_MAGIC[8] = {'C', 'P', 'F', 'O', 'N', 'T', '\0', '\0'};
-// CPFONT_VERSION is defined as a #define in SdCardFont.h so it can be
-// stringified into FONT_MANIFEST_URL.
 constexpr uint32_t HEADER_SIZE = 32;
 constexpr uint32_t STYLE_TOC_ENTRY_SIZE = 32;
-
-// Helper to read little-endian values from byte buffer
-inline uint16_t readU16(const uint8_t* p) { return p[0] | (p[1] << 8); }
-inline int16_t readI16(const uint8_t* p) { return static_cast<int16_t>(p[0] | (p[1] << 8)); }
-inline uint32_t readU32(const uint8_t* p) { return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24); }
+static_assert(CPFONT_VERSION == 4, "Rust SD font parser requires v4");
 
 // Collects distinct codepoints into a caller-owned buffer of `limit` entries
 // (plus two reserved slots, see addReserved). Once full, a smaller codepoint
@@ -389,9 +369,9 @@ bool readKernClasses(HalFile& file, const uint32_t offset, const uint16_t entryC
       if (b + 1 == blocks) index[blocks] = block[count - 1].codepoint;
     }
     for (uint16_t i = 0; i < count && next < cpCount; i++) {
-      const uint32_t cp = block[i].codepoint;
-      // An ID past the matrix would index outside it; treat the entry as unkerned.
-      const uint8_t classId = block[i].classId <= classCount ? block[i].classId : 0;
+      uint32_t cp = 0;
+      const uint8_t classId =
+          xp_sdfont_kern_class(reinterpret_cast<const uint8_t*>(&block[i]), sizeof(block[i]), classCount, &cp);
       while (next < cpCount && codepoints[next] < cp) next++;
       for (uint32_t j = next; j < cpCount && codepoints[j] == cp; j++) classes[j] = classId;
     }
@@ -588,19 +568,6 @@ bool SdCardFont::onCoverageQuery(void* ctx, const uint32_t codepoint) {
   return octx->self->findGlobalGlyphIndex(s, codepoint) >= 0;
 }
 
-// --- Compute per-style file offsets from a base data offset ---
-
-void SdCardFont::computeStyleFileOffsets(PerStyle& s, uint32_t baseOffset) {
-  s.intervalsFileOffset = baseOffset;
-  s.glyphsFileOffset = s.intervalsFileOffset + s.header.intervalCount * sizeof(EpdUnicodeInterval);
-  s.kernLeftFileOffset = s.glyphsFileOffset + s.header.glyphCount * sizeof(EpdGlyph);
-  s.kernRightFileOffset = s.kernLeftFileOffset + s.header.kernLeftEntryCount * sizeof(EpdKernClassEntry);
-  s.kernMatrixFileOffset = s.kernRightFileOffset + s.header.kernRightEntryCount * sizeof(EpdKernClassEntry);
-  s.ligatureFileOffset =
-      s.kernMatrixFileOffset + static_cast<uint32_t>(s.header.kernLeftClassCount) * s.header.kernRightClassCount;
-  s.bitmapFileOffset = s.ligatureFileOffset + s.header.ligaturePairCount * sizeof(EpdLigaturePair);
-}
-
 // --- Load ---
 
 bool SdCardFont::load(const char* path) {
@@ -628,27 +595,12 @@ bool SdCardFont::load(const char* path) {
     return false;
   }
 
-  if (memcmp(headerBuf, CPFONT_MAGIC, 8) != 0) {
-    LOG_ERR("SDCF", "Invalid magic bytes");
+  XpSdfontDirectory directory{};
+  if (!xp_sdfont_header(headerBuf, sizeof(headerBuf), &directory)) {
+    LOG_ERR("SDCF", "Invalid .cpfont header");
     return false;
   }
-
-  uint16_t fileVersion = readU16(headerBuf + 8);
-  if (fileVersion != CPFONT_VERSION) {
-    LOG_ERR("SDCF", "Unsupported version: %u (expected %u)", fileVersion, CPFONT_VERSION);
-    return false;
-  }
-
-  // Begin content hash: accumulate global header
-  uint32_t hash = fnv1a(headerBuf, HEADER_SIZE);
-
-  bool is2Bit = (readU16(headerBuf + 10) & 1) != 0;
-
-  uint8_t styleCount = headerBuf[12];
-  if (styleCount == 0 || styleCount > MAX_STYLES) {
-    LOG_ERR("SDCF", "Invalid style count: %u", styleCount);
-    return false;
-  }
+  const uint8_t styleCount = directory.styleCount;
 
   styles_ = makeUniqueNoThrow<PerStyle[]>(styleCount);
   if (!styles_) {
@@ -666,56 +618,25 @@ bool SdCardFont::load(const char* path) {
       return false;
     }
 
-    // Accumulate TOC entry into content hash
-    hash = fnv1a(tocBuf, STYLE_TOC_ENTRY_SIZE, hash);
-
-    uint8_t styleId = tocBuf[0];
-    if (styleId >= MAX_STYLES) {
-      LOG_ERR("SDCF", "Invalid styleId %u in TOC", styleId);
-      file.close();
+    XpSdfontStyle parsed{};
+    if (!xp_sdfont_style(tocBuf, sizeof(tocBuf), &directory, &parsed)) {
+      LOG_ERR("SDCF", "Invalid style TOC entry %u", i);
       freeAll();
       return false;
     }
-
-    if (hasStyle(styleId)) {
-      LOG_ERR("SDCF", "Duplicate styleId %u in TOC", styleId);
-      freeAll();
-      return false;
-    }
-    styleSlots_[styleId] = i + 1;
-    auto& s = styleData(styleId);
-    s.header.intervalCount = readU32(tocBuf + 4);
-    s.header.glyphCount = readU32(tocBuf + 8);
-    s.header.advanceY = tocBuf[12];
-    s.header.ascender = readI16(tocBuf + 13);
-    s.header.descender = readI16(tocBuf + 15);
-    s.header.kernLeftEntryCount = readU16(tocBuf + 17);
-    s.header.kernRightEntryCount = readU16(tocBuf + 19);
-    s.header.kernLeftClassCount = tocBuf[21];
-    s.header.kernRightClassCount = tocBuf[22];
-    s.header.ligaturePairCount = tocBuf[23];
-    s.header.is2Bit = is2Bit;
-
-    // Sanity-check counts to reject malformed files before allocating.
-    // Kern class counts are uint8 (bounded by type). Entry counts are uint16
-    // but in practice a sane font has far fewer than 4096 per-side kern entries.
-    static constexpr uint32_t MAX_INTERVALS = 4096;
-    static constexpr uint32_t MAX_GLYPHS = 65536;
-    static constexpr uint32_t MAX_KERN_ENTRIES = 4096;
-    if (s.header.intervalCount > MAX_INTERVALS || s.header.glyphCount > MAX_GLYPHS ||
-        s.header.kernLeftEntryCount > MAX_KERN_ENTRIES || s.header.kernRightEntryCount > MAX_KERN_ENTRIES) {
-      LOG_ERR("SDCF", "Style %u: unreasonable counts (iv=%u, gl=%u, kL=%u, kR=%u)", styleId, s.header.intervalCount,
-              s.header.glyphCount, s.header.kernLeftEntryCount, s.header.kernRightEntryCount);
-      file.close();
-      freeAll();
-      return false;
-    }
-
-    uint32_t dataOffset = readU32(tocBuf + 24);
-    computeStyleFileOffsets(s, dataOffset);
+    styleSlots_[parsed.id] = i + 1;
+    auto& s = styleData(parsed.id);
+    s.header = parsed.header;
+    s.intervalsFileOffset = parsed.offsets[0];
+    s.glyphsFileOffset = parsed.offsets[1];
+    s.kernLeftFileOffset = parsed.offsets[2];
+    s.kernRightFileOffset = parsed.offsets[3];
+    s.kernMatrixFileOffset = parsed.offsets[4];
+    s.ligatureFileOffset = parsed.offsets[5];
+    s.bitmapFileOffset = parsed.offsets[6];
   }
 
-  contentHash_ = hash;
+  contentHash_ = directory.hash;
 
   // Load full intervals into RAM for each present style. BMP-only fonts with
   // fewer than 65536 glyphs use a compact 6-byte interval table instead of the
@@ -734,9 +655,7 @@ bool SdCardFont::load(const char* path) {
     // Validate interval contents before any later code (findGlobalGlyphIndex,
     // glyph reads) trusts them. A malformed file could otherwise drive
     // out-of-range glyph indices into bogus on-disk reads.
-    bool canUseBmp16 = s.header.glyphCount <= UINT16_MAX;
-    uint32_t expectedOffset = 0;
-    uint32_t prevLast = 0;
+    XpSdfontIntervals intervalState{0, 0, s.header.glyphCount <= UINT16_MAX};
     EpdUnicodeInterval iv{};
 
     // A loaded table with this exact content -- another style of this file, or another size of
@@ -757,27 +676,11 @@ bool SdCardFont::load(const char* path) {
         freeAll();
         return false;
       }
-      if (iv.first > iv.last) {
-        LOG_ERR("SDCF", "Style %u: invalid interval %u (first 0x%lX > last 0x%lX)", i, j,
-                static_cast<unsigned long>(iv.first), static_cast<unsigned long>(iv.last));
-        file.close();
+      if (!xp_sdfont_interval(reinterpret_cast<const uint8_t*>(&iv), sizeof(iv), s.header.glyphCount, j, &intervalState,
+                              &iv)) {
+        LOG_ERR("SDCF", "Style %u: invalid interval %u", i, j);
         freeAll();
         return false;
-      }
-      const uint32_t span = iv.last - iv.first + 1;
-      const bool overlapsPrev = (j > 0 && iv.first <= prevLast);
-      const bool spanTooBig = (span > s.header.glyphCount);
-      const bool offsetMismatch = (iv.offset != expectedOffset);
-      const bool offsetOverruns = (iv.offset > s.header.glyphCount - span);
-      if (overlapsPrev || spanTooBig || offsetMismatch || offsetOverruns) {
-        LOG_ERR("SDCF", "Style %u: invalid interval layout at %u (overlap=%d span=%u offMis=%d offOver=%d)", i, j,
-                overlapsPrev, span, offsetMismatch, offsetOverruns);
-        file.close();
-        freeAll();
-        return false;
-      }
-      if (iv.first > UINT16_MAX || iv.last > UINT16_MAX || iv.offset > UINT16_MAX) {
-        canUseBmp16 = false;
       }
       for (size_t k = 0; k < MAX_SHARED_INTERVALS && shareCandidates != 0; k++) {
         if ((shareCandidates & (1u << k)) == 0) continue;
@@ -793,9 +696,9 @@ bool SdCardFont::load(const char* path) {
         }
         if (!same) shareCandidates &= static_cast<uint16_t>(~(1u << k));
       }
-      expectedOffset += span;
-      prevLast = iv.last;
     }
+
+    const bool canUseBmp16 = intervalState.bmp16;
 
     // Survived every record: share that table instead of allocating a copy.
     bool shared = false;
@@ -924,10 +827,9 @@ int32_t SdCardFont::findGlobalGlyphIndex(const PerStyle& s, uint32_t codepoint) 
 }
 
 bool SdCardFont::glyphEntryValid(const PerStyle& s, const EpdGlyph& glyph, const uint32_t codepoint) {
-  const uint32_t pixels = static_cast<uint32_t>(glyph.width) * glyph.height;
-  const uint32_t packed = s.header.is2Bit ? (pixels + 3) / 4 : (pixels + 7) / 8;
-  const uint64_t end = static_cast<uint64_t>(s.bitmapFileOffset) + glyph.dataOffset + glyph.dataLength;
-  if (glyph.dataLength == packed && end <= fileSize_) return true;
+  if (xp_sdfont_glyph_valid(reinterpret_cast<const uint8_t*>(&glyph), sizeof(glyph), s.header.is2Bit,
+                            s.bitmapFileOffset, fileSize_))
+    return true;
   if (corruptGlyphsLogged_ == 0) corruptGlyphNotice_ = true;
   if (corruptGlyphsLogged_ < 3) {
     corruptGlyphsLogged_++;
@@ -1053,9 +955,9 @@ int SdCardFont::prewarm(TextGetter getter, const void* ctx, uint32_t textCount, 
       loadStyleLigatures(s);
       if (s.ligaturePairs && s.header.ligaturePairCount > 0) {
         for (uint8_t li = 0; li < s.header.ligaturePairCount && cpCount < MAX_PAGE_GLYPHS; li++) {
-          uint32_t leftCp = s.ligaturePairs[li].pair >> 16;
-          uint32_t rightCp = s.ligaturePairs[li].pair & 0xFFFF;
-          uint32_t outCp = s.ligaturePairs[li].ligatureCp;
+          uint32_t leftCp = 0, rightCp = 0, outCp = 0;
+          xp_sdfont_ligature(reinterpret_cast<const uint8_t*>(&s.ligaturePairs[li]), sizeof(s.ligaturePairs[li]),
+                             &leftCp, &rightCp, &outCp);
 
           bool hasLeft = false, hasRight = false;
           for (uint32_t i = 0; i < cpCount; i++) {

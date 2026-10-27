@@ -89,4 +89,4 @@ add_executable(png_header_test PngHeaderTest.cpp)
 target_link_libraries(png_header_test PRIVATE xp_ffi_host)
 add_test(NAME PngSleepHeader COMMAND png_header_test)
 add_test(NAME PngResources COMMAND ${Python3_EXECUTABLE}
-  ${CMAKE_CURRENT_SOURCE_DIR}/png_resources.py $<TARGET_FILE:png_resources>)
+  ${CMAKE_CURRENT_SOURCE_DIR}/png_resources.py $<TARGET_FILE:png_resources> $<TARGET_FILE:png_bmp_oracle>)

@@ -1,3 +1,4 @@
+#include <BuildScratch.h>
 #include <PngToBmpConverter.h>
 #include <Print.h>
 
@@ -15,7 +16,9 @@ class Output : public Print {
 };
 
 int main(int argc, char** argv) {
-  if (argc != 3) return 2;
+  if (argc != 3 && argc != 4) return 2;
+  alignas(uintptr_t) static uint8_t scratch[60000];
+  if (argc == 4) buildscratch::lend(scratch, sizeof(scratch));
   HalFile file;
   if (!file.open(argv[1], "rb")) return 2;
   Output out;
@@ -27,6 +30,12 @@ int main(int argc, char** argv) {
     ok = PngToBmpConverter::pngFileToBmpStreamWithSize(file, out, 37, 53);
   else
     ok = PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(file, out, 37, 53);
+  if (argc == 4) {
+    auto* loan = buildscratch::claim(sizeof(scratch));
+    if (loan != scratch) std::abort();
+    buildscratch::release(loan);
+    buildscratch::reclaim();
+  }
   std::putchar(ok);
   std::fwrite(out.bytes.data(), 1, out.bytes.size(), stdout);
 }

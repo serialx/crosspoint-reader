@@ -47,10 +47,16 @@ struct Context {
   std::vector<uint8_t> bytes;
   std::array<uint8_t, 792 * 528 / 8> frame{};
   size_t writes = 0, failWrite = SIZE_MAX;
+  size_t reads = 0, shortRead = SIZE_MAX, readLimit = SIZE_MAX, readable = SIZE_MAX;
   static size_t read(void* opaque, uint32_t offset, uint8_t* out, size_t length) {
-    const auto& bytes = static_cast<Context*>(opaque)->bytes;
-    if (offset > bytes.size()) return 0;
-    length = std::min(length, bytes.size() - offset);
+    auto& self = *static_cast<Context*>(opaque);
+    const auto& bytes = self.bytes;
+    require(self.reads < bytes.size() * 4 + 64);
+    const bool shorten = self.reads++ == self.shortRead;
+    const size_t end = std::min(bytes.size(), self.readable);
+    if (offset > end) return 0;
+    length = std::min(length, end - offset);
+    if (shorten) length = std::min(length, self.readLimit);
     std::memcpy(out, bytes.data() + offset, length);
     return length;
   }
@@ -109,12 +115,14 @@ int main(int argc, char** argv) {
   require(xp_png_scratch_size() <= sizeof(scratch));
   for (int mode = 0; mode < 3; ++mode) {
     const auto run = [&]() {
+      context.reads = 0;
       return mode == 0 ? xp_png_render(&services, &config, true)
                        : xp_png_bmp(&services, &bmp, mode == 2 ? scratch : nullptr, mode == 2 ? sizeof(scratch) : 0);
     };
     reset();
     const bool success = run();
     const size_t count = attempts;
+    const size_t reads = context.reads;
     require(live == 0);
     std::printf("mode=%d success=%d allocations=%zu peak=%zu largest=%zu scratch=%zu\n", mode, success, count, peak,
                 largest, mode == 2 ? xp_png_scratch_size() : 0);
@@ -132,6 +140,27 @@ int main(int argc, char** argv) {
     if (mode != 0) require(!run());
     require(live == 0);
     context.failWrite = SIZE_MAX;
+    // Inject EOF at every byte while preserving the advertised file length.
+    for (size_t end = 0; end < context.bytes.size(); ++end) {
+      reset();
+      context.readable = end;
+      run();
+      require(live == 0);
+    }
+    context.readable = SIZE_MAX;
+    for (size_t call = 0; call < reads; ++call) {
+      for (size_t limit : {size_t(0), size_t(1), size_t(7)}) {
+        reset();
+        context.shortRead = call;
+        context.readLimit = limit;
+        run();
+        require(live == 0);
+      }
+    }
+    context.shortRead = SIZE_MAX;
+    reset();
+    require(run());
+    require(live == 0);
   }
   reset();
 }

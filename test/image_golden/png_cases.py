@@ -58,3 +58,33 @@ def cases():
     result['aspect-tall'] = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', header)
                              + chunk(b'IDAT', zlib.compress(b'\0\x80' * 1000)) + chunk(b'IEND', b''))
     return result
+
+
+def transition_cases():
+    """Complete streams split at every byte, including zlib framing and palette setup."""
+    result = {}
+    for color in (0, 2, 3, 4, 6):
+        base = png(color=color)
+        offset = base.index(b'IDAT') - 4
+        size = struct.unpack('>I', base[offset:offset + 4])[0]
+        stream = base[offset + 8:offset + 8 + size]
+        prefix = base[:offset]
+        suffix = chunk(b'IEND', b'')
+        for count in (1, 4):
+            result[f'leading-{color}-{count}'] = prefix + chunk(b'IDAT', b'') * count + base[offset:]
+        for split in range(len(stream) + 1):
+            for empty in (0, 1, 4):
+                result[f'split-{color}-{split}-{empty}'] = (
+                    prefix + chunk(b'IDAT', stream[:split]) + chunk(b'IDAT', b'') * empty
+                    + chunk(b'IDAT', stream[split:]) + suffix)
+        result[f'bytewise-{color}'] = prefix + b''.join(
+            chunk(b'IDAT', bytes([byte])) + chunk(b'IDAT', b'') for byte in stream) + suffix
+    return result
+
+
+def bmp_chunk_case(name):
+    if not name.startswith('chunk-'):
+        return False
+    _, kind, size = name.split('-')
+    # The old converter copies PLTE into a fixed 768-byte array and trusts lengths.
+    return int(size) <= (768 if kind == 'PLTE' else 2048)

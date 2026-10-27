@@ -283,7 +283,7 @@ impl<'a> Decoder<'a> {
             }
             self.offset = data;
             match &header[4..] {
-                b"IDAT" => {
+                b"IDAT" if len != 0 => {
                     self.remaining = len;
                     return true;
                 }
@@ -336,16 +336,8 @@ impl<'a> Decoder<'a> {
         if self.input_pos < self.input_end {
             return true;
         }
-        while self.remaining == 0 {
-            if !self.chunk(source) {
-                return false;
-            }
-            if self.remaining == 0 {
-                self.offset = match self.offset.checked_add(4) {
-                    Some(v) => v,
-                    None => return false,
-                };
-            }
+        if self.remaining == 0 && !self.chunk(source) {
+            return false;
         }
         let count = (self.remaining as usize).min(self.workspace.input.len());
         let read = source.read(self.offset, &mut self.workspace.input[..count]);

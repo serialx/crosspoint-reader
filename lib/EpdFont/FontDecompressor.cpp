@@ -82,7 +82,7 @@ bool FontDecompressor::decompressGroup(const EpdFontData* fontData, uint16_t gro
   const EpdFontGroup& group = fontData->groups[groupIndex];
 
   const uint32_t tDecomp = millis();
-  inflateReader.init(false);
+  if (!inflateReader.init(false)) return false;
   inflateReader.setSource(&fontData->bitmap[group.compressedOffset], group.compressedSize);
   if (!inflateReader.read(outBuf, outSize)) {
     stats.decompressTimeMs += millis() - tDecomp;

@@ -1,19 +1,26 @@
 //! Allocation-free streaming inflate; the caller owns state and output history.
-use miniz_oxide::inflate::core::{decompress, inflate_flags, DecompressorOxide};
+use miniz_oxide::inflate::core::{
+    decompress, decompress_with_limit, inflate_flags, DecompressorOxide, FastTables,
+    HuffmanStorage, SmallTables,
+};
 use miniz_oxide::inflate::TINFLStatus;
 
-pub struct InflateState {
-    decoder: DecompressorOxide,
+pub type InflateState = DecoderState<FastTables>;
+pub type SmallInflateState = DecoderState<SmallTables>;
+
+pub struct DecoderState<T: HuffmanStorage> {
+    decoder: DecompressorOxide<T>,
     zlib_wrapped: bool,
 }
 
-impl InflateState {
+impl<T: HuffmanStorage> DecoderState<T> {
     /// # Safety
     /// `state` must point to aligned, writable storage for one Self, exclusively
     /// borrowed during initialization and subsequent decoding.
     pub unsafe fn init_in_place(state: *mut Self, zlib_wrapped: bool) {
         // Pinned miniz_oxide 0.9.1 contains only integers, integer arrays and a
-        // fieldless State enum whose Start discriminant is zero. All-zero is
+        // fieldless State enum whose Start discriminant is zero. The sealed
+        // table policies contain only integer arrays. All-zero is
         // its Default representation. Initialize in place to avoid an 8 KiB
         // constructor temporary on the firmware task stack.
         state.write_bytes(0, 1);
@@ -29,6 +36,25 @@ impl InflateState {
         out_pos: usize,
         wrapping_window: bool,
     ) -> (i32, usize, usize) {
+        self.step_with_limit(
+            input,
+            more_input,
+            output,
+            out_pos,
+            wrapping_window,
+            usize::MAX,
+        )
+    }
+
+    pub fn step_with_limit(
+        &mut self,
+        input: &[u8],
+        more_input: bool,
+        output: &mut [u8],
+        out_pos: usize,
+        wrapping_window: bool,
+        out_max: usize,
+    ) -> (i32, usize, usize) {
         let flags = if self.zlib_wrapped {
             inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER
         } else {
@@ -42,8 +68,11 @@ impl InflateState {
         } else {
             inflate_flags::TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF
         };
-        let (status, consumed, produced) =
-            decompress(&mut self.decoder, input, output, out_pos, flags);
+        let (status, consumed, produced) = if out_max == usize::MAX {
+            decompress(&mut self.decoder, input, output, out_pos, flags)
+        } else {
+            decompress_with_limit(&mut self.decoder, input, output, out_pos, out_max, flags)
+        };
         let status = match status {
             TINFLStatus::NeedsMoreInput => 0,
             TINFLStatus::Done => 1,
@@ -61,13 +90,26 @@ mod tests {
 
     #[test]
     fn state_fits_tinfl_budget() {
-        assert!(core::mem::size_of::<InflateState>() <= 8364);
+        assert_eq!(
+            core::mem::size_of::<InflateState>(),
+            if cfg!(target_pointer_width = "64") {
+                8336
+            } else {
+                8328
+            }
+        );
+        assert!(core::mem::size_of::<SmallInflateState>() <= 1088);
     }
 
     #[test]
     fn malformed_input_stays_bounded_in_both_output_modes() {
+        exercise_mutations::<FastTables>();
+        exercise_mutations::<SmallTables>();
+    }
+
+    fn exercise_mutations<T: HuffmanStorage>() {
         let mut random = 0x6001_u32;
-        let mut storage = MaybeUninit::<InflateState>::uninit();
+        let mut storage = MaybeUninit::<DecoderState<T>>::uninit();
         let mut input = [0_u8; 64];
         let mut output = [0_u8; 32768];
         for case in 0..50000 {
@@ -80,7 +122,7 @@ mod tests {
             let length = (random as usize) % (input.len() + 1);
             for wrapping in [false, true] {
                 for wrapped in [false, true] {
-                    unsafe { InflateState::init_in_place(storage.as_mut_ptr(), wrapped) };
+                    unsafe { DecoderState::<T>::init_in_place(storage.as_mut_ptr(), wrapped) };
                     let state = unsafe { storage.assume_init_mut() };
                     let chunk = [1, 7, 64][case % 3];
                     let mut used = 0;

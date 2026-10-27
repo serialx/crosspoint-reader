@@ -108,6 +108,17 @@ XpChapterOptions ChapterPageAssembler::chapterOptions() const {
 const XpParaMetrics ChapterPageAssembler::metrics_{
     nullptr,
     nullptr,  // Layout tracing is installed only by the host instrumenter.
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    prepareText,
+    nullptr,
+    nullptr,
+#else
     textAdvance,
     [](void* c, int32_t f, uint8_t s) -> int32_t {
       return metricRenderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
@@ -122,7 +133,17 @@ const XpParaMetrics ChapterPageAssembler::metrics_{
     [](void* c, int32_t f) -> uint8_t { return metricRenderer(c).isSdCardFont(f); },
     prepareText,
     startsRtl,
-    visualOrder};
+    visualOrder,
+#endif
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+    [](void* ctx, XpNativeProvider* out) -> uint8_t {
+      *out = metricRenderer(ctx).textProvider();
+      return true;
+    },
+#else
+    nullptr,
+#endif
+    nullptr};
 const XpChapterSink ChapterPageAssembler::sink_ = {
     paragraphAllocator,
     &metrics_,
@@ -139,6 +160,9 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
     [](void* ctx, int32_t font, float compression) -> int32_t {
       return static_cast<ChapterPageAssembler*>(ctx)->renderer.getLineHeight(font, compression);
     },
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+    nullptr,
+#else
     [](void* ctx, int32_t font, uint32_t cp, uint8_t style, int32_t* advance, int32_t* top) -> uint8_t {
       int32_t measuredAdvance = 0;
       int measuredTop = 0;
@@ -148,6 +172,7 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
       *top = measuredTop;
       return found;
     },
+#endif
     createLine,
     [](void* ctx, const void* raw, const XpChapterAssemblyOptions* options, bool row) -> XpChapterLineMetrics {
       const auto& line = *static_cast<const TextBlock*>(raw);

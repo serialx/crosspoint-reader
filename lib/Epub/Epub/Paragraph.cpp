@@ -149,6 +149,17 @@ void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uin
                                       size_t maxLines, const bool* stopRequested) {
   XpParaMetrics metrics{const_cast<GfxRenderer*>(&source),
                         nullptr,
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+                        nullptr,
+                        nullptr,
+                        nullptr,
+                        nullptr,
+                        nullptr,
+                        nullptr,
+                        prepare,
+                        nullptr,
+                        nullptr,
+#else
                         advance,
                         [](void* c, int32_t f, uint8_t s) -> int32_t {
                           return renderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
@@ -163,7 +174,17 @@ void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uin
                         [](void* c, int32_t f) -> uint8_t { return renderer(c).isSdCardFont(f); },
                         prepare,
                         startsRtl,
-                        visualOrder};
+                        visualOrder,
+#endif
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+                        [](void* ctx, XpNativeProvider* out) -> uint8_t {
+                          *out = renderer(ctx).textProvider();
+                          return true;
+                        },
+#else
+                        nullptr,
+#endif
+                        nullptr};
   XpParaLayout options{
       fontId,
       viewportWidth,

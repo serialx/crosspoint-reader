@@ -10,6 +10,11 @@
 #include <Utf8.h>
 
 #include <chrono>
+#ifdef __APPLE__
+#include <libproc.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
 
 #include "Allocations.h"
 #include "CrossPointSettings.h"
@@ -52,21 +57,37 @@ static void geometry(const ClipSelectionActivity& clip) {
               << hex(w.text) << '\n';
   }
 }
-static void metrics(const char* name, linealloc::Stats stats, double micros) {
+struct RenderCost {
+  double micros, instructions;
+};
+static uint64_t instructions() {
+#ifdef __APPLE__
+  rusage_info_v4 usage{};
+  if (!proc_pid_rusage(getpid(), RUSAGE_INFO_V4, reinterpret_cast<rusage_info_t*>(&usage)))
+    return usage.ri_instructions;
+#endif
+  return 0;
+}
+static void metrics(const char* name, linealloc::Stats stats, RenderCost cost) {
   std::cerr << name << " requests=" << stats.requests << " peak_bytes=" << stats.peak
-            << " largest_bytes=" << stats.largest << " resident_bytes=" << stats.live << " render_us=" << micros
-            << '\n';
+            << " largest_bytes=" << stats.largest << " resident_bytes=" << stats.live << " render_us=" << cost.micros
+            << " render_instructions=" << cost.instructions << '\n';
 }
 template <class Draw>
-static double timing(Draw draw) {
+static RenderCost timing(Draw draw) {
   std::array<double, 7> samples;
-  for (auto& sample : samples) {
+  std::array<double, 7> counts;
+  for (size_t n = 0; n < samples.size(); ++n) {
+    const uint64_t before = instructions();
     const auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < 100; ++i) draw();
-    sample = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count() / 100;
+    samples[n] = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count() / 100;
+    const uint64_t after = instructions();
+    counts[n] = before && after >= before ? double(after - before) / 100 : 0;
   }
   std::sort(samples.begin(), samples.end());
-  return samples[3];
+  std::sort(counts.begin(), counts.end());
+  return {samples[3], counts[3]};
 }
 static int resources(GfxRenderer& renderer) {
   renderer.setRenderMode(GfxRenderer::BW);
@@ -78,8 +99,7 @@ static int resources(GfxRenderer& renderer) {
     linealloc::begin();
     textsettings::renderPreview(renderer, layout, 8, 4, {7, 11, 466, 280}, "Preview");
     const auto stats = linealloc::end();
-    const double us =
-        timing([&] { textsettings::renderPreview(renderer, layout, 8, 4, {7, 11, 466, 280}, "Preview"); });
+    const auto us = timing([&] { textsettings::renderPreview(renderer, layout, 8, 4, {7, 11, 466, 280}, "Preview"); });
     metrics(focus ? "preview-focus" : "preview", stats, us);
   }
   DictionaryDefinitionActivity owner{{}, {}, nullptr, renderer};
@@ -95,7 +115,7 @@ static int resources(GfxRenderer& renderer) {
   linealloc::begin();
   if (!owner.buildPlainSelectionPages()) return 20;
   const auto stats = linealloc::end();
-  const double us = timing([&] { owner.storage.selectionPages[0]->render(renderer, SETTINGS.font, 12, 12); });
+  const auto us = timing([&] { owner.storage.selectionPages[0]->render(renderer, SETTINGS.font, 12, 12); });
   metrics("dictionary", stats, us);
   return 0;
 }

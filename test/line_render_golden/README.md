@@ -43,7 +43,8 @@ text oracles and firmware emulator workloads remain separate required gates.
 
 `LineRenderGolden --bench` reports cold-construction allocation requests, peak,
 largest request and retained bytes, followed by warm draw time (median of seven
-batches of 100 draws). It measures preview with/without focus and a 30-line,
+batches of 100 draws). On macOS it also reports retired instructions per draw
+from process counters; zero means unavailable. It measures preview with/without focus and a 30-line,
 three-page dictionary window. The host allocator adapter counts C++ allocations
 and Rust allocations during those scopes; fonts and the framebuffer are initialized
 before measurement. Host `Page` objects retain test-only codec vectors, so these

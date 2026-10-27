@@ -48,3 +48,14 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME ImagePipelineGoldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py $<TARGET_FILE:image_oracle>)
 
 add_test(NAME ImagePipelineCaseKeys COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_run.py)
+
+add_executable(png_bmp_oracle PngBmpOracle.cpp
+  ${REPO_ROOT}/lib/PngToBmpConverter/PngToBmpConverter.cpp
+  ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp
+  ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp
+  ${REPO_ROOT}/lib/Memory/BuildScratch.cpp)
+target_include_directories(png_bmp_oracle PRIVATE stubs
+  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
+  ${REPO_ROOT}/lib/PngToBmpConverter ${REPO_ROOT}/lib/GfxRenderer
+  ${REPO_ROOT}/lib/miniz/src ${REPO_ROOT}/lib/Memory)
+target_link_libraries(png_bmp_oracle PRIVATE xp_ffi_host)

@@ -11,9 +11,9 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(FONT_SDK ${REPO_ROOT}/freeink-sdk/libs/font/FreeInkFont)
 file(GLOB FT_SOURCES ${FONT_SDK}/src/freetype/*.c)
 set(INSTRUMENTED ${CMAKE_CURRENT_BINARY_DIR}/instrumented)
-add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h ${INSTRUMENTED}/Page.cpp ${INSTRUMENTED}/TextBlock.cpp ${INSTRUMENTED}/GlyphBitmap.h
+add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h ${INSTRUMENTED}/Page.cpp ${INSTRUMENTED}/TextBlock.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py ${REPO_ROOT} ${INSTRUMENTED}
-  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp ${REPO_ROOT}/lib/GfxRenderer/GlyphBitmap.h instrument.py ${REPO_ROOT}/lib/Epub/Epub/Page.cpp ${REPO_ROOT}/test/text_golden/instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
+  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp instrument.py ${REPO_ROOT}/lib/Epub/Epub/Page.cpp ${REPO_ROOT}/test/text_golden/instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
   VERBATIM)
 add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp

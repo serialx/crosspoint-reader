@@ -27,6 +27,9 @@ class FontDecompressor {
   // Returns the number of glyphs that couldn't be loaded (0 on full success).
   int prewarmCache(const EpdFontData* fontData, const char* utf8Text);
 
+  const void* pageSlotView() const { return pageSlots; }
+  uint32_t pageSlotViewCount() const { return pageSlotCount; }
+
   struct Stats {
     uint32_t cacheHits = 0;
     uint32_t cacheMisses = 0;

@@ -22,6 +22,8 @@ def main():
     evidence.mkdir(parents=True, exist_ok=True)
 
     def rebuild(label):
+        for obj in (build / 'CMakeFiles/TextGolden.dir/instrumented').glob('*.o'):
+            obj.unlink()
         with (evidence / (label + '-build.log')).open('w') as log:
             subprocess.run(['cmake', '--build', str(build), '--target', 'TextGolden', '-j6'],
                            stdout=log, stderr=subprocess.STDOUT, check=True)
@@ -39,16 +41,16 @@ def main():
     check('baseline', 0)
     source = build / 'instrumented/GfxRenderer.cpp'
     original = source.read_text()
-    pixel_anchor = '  if (renderer.grayPlanesAreAbsolute()) renderMode = GfxRenderer::BW;'
-    if original.count(pixel_anchor) != 2:
-        raise RuntimeError('Review the pixel mutation anchors')
-    scaled_start = original.index('  return xp_native_draw_scaled(')
-    scaled_end = original.index('  });', scaled_start)
+    pixel_anchor = '      });'
+    if original.count(pixel_anchor) != 1:
+        raise RuntimeError('Review the pixel mutation anchor')
+    scaled_start = original.index('  return xp_native_draw_scaled_pixels(')
+    scaled_end = original.index(';', scaled_start)
     mutations = {
-        'pixel': original.replace(pixel_anchor, pixel_anchor + '\n  cursorX += cp == 65 ? 1 : 0;'),
-        # U+10FFFF is last in every frozen "missing" input: no following cursor
-        # or bitmap changes can mask whether the returned value is observed.
-        'advance': original[:scaled_end] + '  }) + (cp == 0x10ffff ? 1 : 0);' + original[scaled_end + 5:],
+        'pixel': original.replace(pixel_anchor, pixel_anchor +
+                 '\n  if (!paint.target.scanning && paint.target.buffer) paint.target.buffer[0] ^= 0x80;'),
+        # U+10FFFF is last in every frozen missing input; only the return changes.
+        'advance': original[:scaled_end] + ' + (cp == 0x10ffff ? 1 : 0)' + original[scaled_end:],
     }
     try:
         for label, mutated in mutations.items():

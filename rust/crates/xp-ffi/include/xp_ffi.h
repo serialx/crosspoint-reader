@@ -1121,7 +1121,7 @@ uint8_t xp_native_codepoint(const XpNativeProvider*, int32_t, uint32_t, uint8_t,
 void* xp_native_bidi_acquire();
 void xp_native_bidi_release();
 
-// Glyph rasterization (not yet called by firmware). Numeric orientation/plane values
+// Glyph rasterization. Numeric orientation/plane values
 // match GfxRenderer. Borrow all memory for one synchronous call, with no aliasing.
 typedef struct {
   int32_t left, top, right, bottom;
@@ -1156,7 +1156,7 @@ typedef struct {
   uint16_t count;
 } XpGlyphPageSlot;
 // Generation is a live std::atomic<uint32_t>. Rebuild on any table/page-buffer
-// mutation; G2 must add FontDecompressor prewarm/clear invalidation. No view or
+// mutation, including FontDecompressor prewarm/clear. No view or
 // bitmap pointer may survive an owner callback. Page slots mirror the native
 // layout; their valid offsets and glyph sizes must fit their borrowed buffers.
 typedef struct {
@@ -1181,6 +1181,28 @@ uint8_t xp_glyph_intersects_strip(const XpGlyphTarget*, int32_t, int32_t, int32_
 // Returns 1 for resident bytes (including an empty glyph), 0 for a miss.
 // TTF, SD overflow, hot-group and stale-view misses stay with the C++ owner.
 uint8_t xp_glyph_bitmap(const XpGlyphSource*, const void* glyph, XpGlyphBitmap*);
+// Native draws trust the renderer target: it satisfies xp_glyph_draw geometry
+// bounds, owns bufferLen writable bytes, and stays immutable during callbacks.
+// Miss callbacks run without table or bitmap loans, refill source, and return
+// bytes consumed before the next
+// owner callback. Font registration and bidi reentry are forbidden.
+typedef struct {
+  XpGlyphTarget target;
+  XpGlyphSource source;
+  int32_t x, y;
+  uint8_t state;
+} XpGlyphPaint;
+// Miss may update only draw.glyph, ascender, twoBit, solid and the source view.
+typedef XpGlyphBitmap (*XpGlyphMiss)(void*, uint32_t, const void*, XpGlyphDraw*, XpGlyphSource*);
+void xp_native_draw_pixels(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t, int8_t, int32_t, uint8_t,
+                           void*, const void* const* (*)(void*, const uint8_t*, size_t), XpGlyphPaint*, XpGlyphMiss);
+int32_t xp_native_draw_scaled_pixels(const XpNativeProvider*, int32_t, uint32_t, uint8_t, int32_t, const void* const*,
+                                     void*, XpGlyphPaint*, XpGlyphMiss);
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+void xp_native_draw_pixels_traced(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t, int8_t, int32_t,
+                                  uint8_t, void*, const void* const* (*)(void*, const uint8_t*, size_t), XpGlyphPaint*,
+                                  XpGlyphMiss, void (*)(void*, const XpGlyphPlacement*));
+#endif
 
 // SD font v4 parsing. No allocation, I/O, callbacks or retained pointers.
 // Byte spans are readable for len bytes (len <= PTRDIFF_MAX), NULL only if empty.

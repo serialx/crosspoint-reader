@@ -125,6 +125,8 @@ class SdCardFont {
   // Number of styles present in this font file.
   uint8_t styleCount() const { return styleCount_; }
 
+  void bitmapView(const EpdFontData* font, XpGlyphSource& source) const;
+
   // Returns true if the glyph pointer points into the overflow buffer.
   bool isOverflowGlyph(const EpdGlyph* glyph) const;
 

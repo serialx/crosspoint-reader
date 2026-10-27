@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <FontAlloc.h>  // PSRAM-preferring font allocator (fiFontMalloc/Free)
+#include <FontTableGeneration.h>
 #include <Logging.h>
 #include <Utf8.h>
 
@@ -30,6 +31,7 @@ void FontDecompressor::clearCache() {
 }
 
 void FontDecompressor::freePageBuffer() {
+  ++fontTableGeneration;
   for (uint8_t s = 0; s < pageSlotCount; s++) {
     fiFontFree(pageSlots[s].buffer);
     fiFontFree(pageSlots[s].glyphs);
@@ -262,6 +264,7 @@ int FontDecompressor::prewarmCache(const EpdFontData* fontData, const char* utf8
     LOG_ERR("FDC", "All %u page buffer slots full, cannot prewarm fontData=%p", MAX_PAGE_SLOTS, (void*)fontData);
     return -1;
   }
+  ++fontTableGeneration;
   PageSlot& slot = pageSlots[pageSlotCount];
 
   // Step 1: Collect unique glyph indices needed for this page

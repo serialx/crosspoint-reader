@@ -1940,3 +1940,17 @@ void SdCardFont::metricViews(XpNativeFamily& family) const {
                             s.header.intervalCount};
   }
 }
+
+void SdCardFont::bitmapView(const EpdFontData* font, XpGlyphSource& source) const {
+  source.overflowFirst = &overflow_[0].glyph;
+  source.overflowStride = sizeof(OverflowEntry);
+  source.overflowCount = overflowCount_;
+  for (uint8_t style = 0; style < MAX_STYLES; ++style) {
+    if (!hasStyle(style)) continue;
+    const auto& s = styleData(style);
+    if (font != &s.miniData) continue;
+    source.glyphCount = s.miniGlyphCount;
+    source.bitmapLen = s.miniBitmapCapacity;
+    return;
+  }
+}

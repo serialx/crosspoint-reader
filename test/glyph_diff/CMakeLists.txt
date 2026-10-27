@@ -13,7 +13,7 @@ file(GLOB FT_SOURCES ${FONT_SDK}/src/freetype/*.c)
 set(INSTRUMENTED ${CMAKE_CURRENT_BINARY_DIR}/instrumented)
 add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h ${INSTRUMENTED}/FontDecompressor.cpp ${INSTRUMENTED}/SdCardFont.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py ${REPO_ROOT} ${INSTRUMENTED}
-  DEPENDS instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
+  DEPENDS instrument.py reference/Raster.inc reference/GlyphBitmap.h ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
     ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.h
     ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/SdCardFont.h
   VERBATIM)

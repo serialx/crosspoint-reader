@@ -39,13 +39,14 @@ def main():
 
     rebuild('baseline')
     baseline = check('baseline', 0)
-    paths = {name: build / 'instrumented' / name for name in ('GlyphBitmap.h', 'TextBlock.cpp', 'Page.cpp')}
+    paths = {name: build / 'instrumented' / name for name in ('GfxRenderer.cpp', 'TextBlock.cpp', 'Page.cpp')}
     originals = {name: path.read_text() for name, path in paths.items()}
     mutations = [
-        ('pixel', 'GlyphBitmap.h', '    buffer[destination >> 3] |= mask;',
-         '    buffer[destination >> 3] |= mask;\n'
-         '  static bool mutated = false;\n'
-         '  if (!mutated) { buffer[destination >> 3] ^= mask; mutated = true; }'),
+        ('pixel', 'GfxRenderer.cpp',
+         '        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);',
+         '        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);\n'
+         '        static bool mutated = false;\n'
+         '        if (!mutated) { c.paint->target.buffer[0] ^= 0x80; mutated = true; }'),
         ('word-x', 'TextBlock.cpp', '  return block;',
          '  if (wc) const_cast<int16_t*>(block->xposArr)[0] += 1;\n  return block;'),
         ('footnote', 'Page.cpp', '  return page;',

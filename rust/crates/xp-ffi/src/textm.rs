@@ -363,8 +363,41 @@ pub unsafe extern "C" fn xp_native_draw(
     ) -> *const *const xp_core::font::raw::FontData,
     emit: unsafe extern "C" fn(*mut c_void, *const textm::draw::Placement),
 ) {
+    native_draw(
+        provider,
+        id,
+        data,
+        len,
+        style,
+        tracking,
+        direction,
+        rotated,
+        context,
+        prepare,
+        |placement| emit(context, &placement),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+unsafe fn native_draw(
+    provider: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    tracking: i8,
+    direction: i32,
+    rotated: u8,
+    context: *mut c_void,
+    prepare: unsafe extern "C" fn(
+        *mut c_void,
+        *const u8,
+        usize,
+    ) -> *const *const xp_core::font::raw::FontData,
+    mut emit: impl FnMut(textm::draw::Placement),
+) {
     let text = bytes(data, len);
-    let render = |visual: &[u8]| {
+    let mut render = |visual: &[u8]| {
         let slot = prepare(context, visual.as_ptr(), visual.len());
         if slot.is_null() {
             return;
@@ -376,7 +409,7 @@ pub unsafe extern "C" fn xp_native_draw(
             style,
             tracking,
             rotated != 0,
-            &mut |placement| emit(context, &placement),
+            &mut emit,
         );
     };
     if rotated != 0 {
@@ -425,5 +458,280 @@ pub unsafe extern "C" fn xp_native_draw_scaled(
     };
     let advance = textm::to_pixel(i32::from(glyph.advance).wrapping_mul(scale) / 256);
     emit(context);
+    advance
+}
+
+use xp_core::font::raw::{FontData, Glyph as RasterGlyph};
+use xp_core::glyph::{Bitmap, BitmapSource, Draw, GlyphTarget, Kind};
+#[repr(C)]
+pub struct GlyphPaint {
+    target: GlyphTarget,
+    source: BitmapSource,
+    x: i32,
+    y: i32,
+    state: u8,
+}
+type Prepare = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> *const *const FontData;
+type Miss = unsafe extern "C" fn(
+    *mut c_void,
+    u32,
+    *const RasterGlyph,
+    *mut Draw,
+    *mut BitmapSource,
+) -> Bitmap;
+type Observer = unsafe extern "C" fn(*mut c_void, *const textm::draw::Placement);
+
+// All table loans end before miss; the returned bytes are painted before another
+// font operation. The callback may rebuild source, so never lend the whole paint.
+#[inline(always)]
+unsafe fn paint_glyph(
+    paint: *mut GlyphPaint,
+    context: *mut c_void,
+    miss: Miss,
+    placement: textm::draw::Placement,
+    kind: Kind,
+    scale: i32,
+) {
+    let mut draw = Draw {
+        glyph: RasterGlyph {
+            width: 0,
+            height: 0,
+            advance_x: 0,
+            left: 0,
+            top: 0,
+            data_length: 0,
+            data_offset: 0,
+        },
+        x: (*paint).x + placement.x,
+        y: (*paint).y + placement.y,
+        ascender: 0,
+        scale_num: i32::from(placement.scale_num),
+        scale_den: i32::from(placement.scale_den),
+        scale256: scale,
+        kind: kind as u8,
+        two_bit: 0,
+        state: (*paint).state,
+        solid: 0,
+    };
+    let bitmap = {
+        let source = &(*paint).source;
+        if !placement.glyph.is_null()
+            && !source.generation.is_null()
+            && (*source.generation).load(core::sync::atomic::Ordering::Relaxed)
+                == source.captured_generation
+        {
+            draw.glyph = *placement.glyph;
+            draw.ascender = (*source.font).ascender;
+            draw.two_bit = u8::from((*source.font).is2_bit);
+            if matches!(kind, Kind::Normal | Kind::Rotated) {
+                let g = draw.glyph;
+                let x = draw.x
+                    + if matches!(kind, Kind::Rotated) {
+                        draw.ascender - i32::from(g.top)
+                    } else {
+                        i32::from(g.left)
+                    };
+                let y = draw.y
+                    - if matches!(kind, Kind::Rotated) {
+                        i32::from(g.left)
+                    } else {
+                        i32::from(g.top)
+                    };
+                let bounds = if matches!(kind, Kind::Rotated) {
+                    (
+                        x,
+                        y - i32::from(g.width) + 1,
+                        x + i32::from(g.height) - 1,
+                        y,
+                    )
+                } else {
+                    (
+                        x,
+                        y,
+                        x + i32::from(g.width) - 1,
+                        y + i32::from(g.height) - 1,
+                    )
+                };
+                if !(*paint)
+                    .target
+                    .intersects_strip(bounds.0, bounds.1, bounds.2, bounds.3)
+                {
+                    return;
+                }
+            }
+            source.resolve(placement.glyph)
+        } else {
+            None
+        }
+    };
+    let bitmap = bitmap.unwrap_or_else(|| {
+        miss(
+            context,
+            placement.codepoint,
+            placement.glyph,
+            &mut draw,
+            core::ptr::addr_of_mut!((*paint).source),
+        )
+    });
+    // The owner supplies metrics; raster selection remains local.
+    draw.kind = kind as u8;
+    if bitmap.data.is_null() && draw.solid == 0 {
+        return;
+    }
+    let target = &(*paint).target;
+    let buffer = core::slice::from_raw_parts_mut(target.buffer, target.buffer_len as usize);
+    let bitmap = if bitmap.len == 0 {
+        &[]
+    } else {
+        core::slice::from_raw_parts(bitmap.data, bitmap.len as usize)
+    };
+    xp_core::glyph::Surface::from_validated(target, buffer).draw(bitmap, &draw);
+}
+
+/// # Safety
+/// Provider, source and callbacks obey the synchronous draw loan contract.
+/// Target geometry satisfies GlyphTarget::valid and stays immutable during callbacks.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_draw_pixels(
+    provider: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    tracking: i8,
+    direction: i32,
+    rotated: u8,
+    context: *mut c_void,
+    prepare: Prepare,
+    paint: *mut GlyphPaint,
+    miss: Miss,
+) {
+    draw_pixels(
+        provider, id, data, len, style, tracking, direction, rotated, context, prepare, paint,
+        miss, None,
+    );
+}
+#[allow(clippy::too_many_arguments)]
+unsafe fn draw_pixels(
+    provider: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    tracking: i8,
+    direction: i32,
+    rotated: u8,
+    context: *mut c_void,
+    prepare: Prepare,
+    paint: *mut GlyphPaint,
+    miss: Miss,
+    observer: Option<Observer>,
+) {
+    debug_assert!((*paint).target.valid());
+    if (*paint).target.buffer.is_null() {
+        return;
+    }
+    native_draw(
+        provider,
+        id,
+        data,
+        len,
+        style,
+        tracking,
+        direction,
+        rotated,
+        context,
+        prepare,
+        |placement| {
+            if let Some(observe) = observer {
+                observe(context, &placement);
+            }
+            let kind = if rotated != 0 {
+                Kind::Rotated
+            } else if placement.scale_num != placement.scale_den {
+                Kind::Coverage
+            } else {
+                Kind::Normal
+            };
+            paint_glyph(paint, context, miss, placement, kind, 256);
+        },
+    );
+}
+/// # Safety
+/// Same as xp_native_draw_pixels; observer must not mutate font owners.
+#[cfg(feature = "chapter-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_draw_pixels_traced(
+    provider: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    tracking: i8,
+    direction: i32,
+    rotated: u8,
+    context: *mut c_void,
+    prepare: Prepare,
+    paint: *mut GlyphPaint,
+    miss: Miss,
+    observer: Observer,
+) {
+    draw_pixels(
+        provider,
+        id,
+        data,
+        len,
+        style,
+        tracking,
+        direction,
+        rotated,
+        context,
+        prepare,
+        paint,
+        miss,
+        Some(observer),
+    );
+}
+/// # Safety
+/// Same owner/validated-target contract as xp_native_draw_pixels; slot belongs to a stable EpdFont.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_draw_scaled_pixels(
+    provider: *const Provider,
+    id: i32,
+    cp: u32,
+    style: u8,
+    scale: i32,
+    slot: *const *const FontData,
+    context: *mut c_void,
+    paint: *mut GlyphPaint,
+    miss: Miss,
+) -> i32 {
+    if scale <= 0 {
+        return 0;
+    }
+    debug_assert!((*paint).target.valid());
+    if (*paint).target.buffer.is_null() {
+        return 0;
+    }
+    let mut face = textm::native::DrawingFace::new(slot, &*provider, id);
+    let Some(glyph) = face.glyph(cp, style) else {
+        return 0;
+    };
+    let advance = textm::to_pixel(i32::from(glyph.advance).wrapping_mul(scale) / 256);
+    paint_glyph(
+        paint,
+        context,
+        miss,
+        textm::draw::Placement {
+            codepoint: cp,
+            glyph: face.glyph_pointer(cp),
+            x: 0,
+            y: 0,
+            scale_num: 1,
+            scale_den: 1,
+        },
+        Kind::Bilinear,
+        scale,
+    );
     advance
 }

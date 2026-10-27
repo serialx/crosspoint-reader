@@ -159,14 +159,21 @@ impl<'a> Surface<'a> {
         (target.valid() && buffer.len() >= target.buffer_len as usize)
             .then_some(Self { target, buffer })
     }
+    /// # Safety
+    /// target satisfies valid() and buffer covers target.buffer_len bytes.
+    /// Geometry and the exclusive buffer loan remain unchanged for the draw.
+    pub unsafe fn from_validated(target: &'a GlyphTarget, buffer: &'a mut [u8]) -> Self {
+        Self { target, buffer }
+    }
     #[inline(always)]
     fn paint(&mut self, destination: i32, ink: u8, levels: u8, clear: bool) {
         if levels & (1 << ink) == 0 {
             return;
         }
         let mask = 0x80 >> (destination & 7);
-        // Destination is bounded by the physical clip and validated stride.
-        let byte = &mut self.buffer[(destination >> 3) as usize];
+        // bitmap() clips both axes; pixel() checks physical bounds. Both use
+        // the validated stride and row band before computing this bit index.
+        let byte = unsafe { self.buffer.get_unchecked_mut((destination >> 3) as usize) };
         if clear {
             *byte &= !mask;
         } else {
@@ -250,7 +257,8 @@ impl<'a> Surface<'a> {
                     remaining -= 1;
                 }
                 while remaining >= 4 {
-                    let packed = bitmap[(source >> 2) as usize];
+                    // draw() checked the packed extent; source stays inside the glyph clip.
+                    let packed = unsafe { *bitmap.get_unchecked((source >> 2) as usize) };
                     self.paint(dest, packed >> 6, levels, clear);
                     self.paint(dest + step_x, (packed >> 4) & 3, levels, clear);
                     self.paint(dest + 2 * step_x, (packed >> 2) & 3, levels, clear);
@@ -319,6 +327,7 @@ impl<'a> Surface<'a> {
         }
     }
     /// Invalid descriptors return false before any writes. No storage is retained.
+    #[inline(always)]
     pub fn draw(&mut self, bitmap: &[u8], d: &Draw) -> bool {
         let kind = match d.kind {
             0 => Kind::Normal,
@@ -460,11 +469,12 @@ impl<'a> Surface<'a> {
     }
 }
 #[inline]
+// Callers bound pos to the glyph extent validated by Surface::draw.
 fn raw(bitmap: &[u8], pos: i32, two: bool) -> u8 {
     if two {
-        (bitmap[(pos >> 2) as usize] >> (6 - (pos & 3) * 2)) & 3
+        (unsafe { *bitmap.get_unchecked((pos >> 2) as usize) } >> (6 - (pos & 3) * 2)) & 3
     } else {
-        (bitmap[(pos >> 3) as usize] >> (7 - (pos & 7))) & 1
+        (unsafe { *bitmap.get_unchecked((pos >> 3) as usize) } >> (7 - (pos & 7))) & 1
     }
 }
 fn sample(bitmap: &[u8], pos: i32, two: bool) -> i32 {

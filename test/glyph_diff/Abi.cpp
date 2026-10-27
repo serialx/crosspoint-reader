@@ -19,3 +19,5 @@ static_assert(offsetof(XpGlyphSource, slots) == (sizeof(void*) == 4 ? 20 : 32));
 static_assert(offsetof(XpGlyphSource, overflowFirst) == (sizeof(void*) == 4 ? 28 : 48));
 static_assert(sizeof(XpGlyphPageSlot) == (sizeof(void*) == 4 ? 16 : 32));
 static_assert(sizeof(XpGlyphBitmap) == (sizeof(void*) == 4 ? 8 : 16));
+
+static_assert(sizeof(XpGlyphPaint) == (sizeof(void*) == 4 ? 104 : 136));

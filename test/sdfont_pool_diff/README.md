@@ -49,3 +49,11 @@ including its glyph queries, reads and array allocations, then checks teardown.
 `SDPOOL_USAGE=1` counts calls through the existing glyph-miss facade while looking
 up each input text after full prewarm, per text and available style. Text lines
 are corpus windows, not a replacement for paginated emulator measurements.
+
+The logging stub also captures the original level, origin and formatted text.
+`run.py` compares each operation's log multiset without changing the ordered
+state, allocation or I/O records. `SDPOOL_IO_FAILURES=1` additionally fails every
+open, seek and read in the successful operation sequence, one at a time; the
+existing OOM and mutation replays remain enabled. This can produce millions of
+records for a font with many intervals. The production callback is nullable and
+must not reenter the Rust cache.

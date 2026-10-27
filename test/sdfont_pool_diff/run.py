@@ -66,7 +66,18 @@ with tempfile.TemporaryDirectory(prefix='sdpool-') as temp:
             command = [str(args.build_dir.resolve() / f'sdpool_{variant}'), str(path)]
             if args.texts:
                 command.append(str(args.texts))
-            outputs.append(subprocess.check_output(command))
+            output = subprocess.check_output(command)
+            # Preserve operation boundaries and compare each operation's log multiset.
+            records, logs = [], []
+            for line in output.splitlines(keepends=True):
+                if line.startswith(b'LOG '):
+                    logs.append(line)
+                else:
+                    records.extend(sorted(logs))
+                    logs.clear()
+                    records.append(line)
+            records.extend(sorted(logs))
+            outputs.append(b''.join(records))
         if outputs[0] != outputs[1]:
             lines = [output.splitlines() for output in outputs]
             first = next((i for i, pair in enumerate(zip(*lines)) if pair[0] != pair[1]), min(map(len, lines)))

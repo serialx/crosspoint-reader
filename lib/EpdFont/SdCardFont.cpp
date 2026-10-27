@@ -53,6 +53,7 @@ struct SdCardFont::PoolIo {
   SdCardFont* owner;
   HalFile files[2];
   uint8_t depth = 0;
+  bool seekFailed = false;
 };
 
 XpSdfontServices SdCardFont::cacheServices(PoolIo* io) {
@@ -79,13 +80,12 @@ XpSdfontServices SdCardFont::cacheServices(PoolIo* io) {
             auto& io = *static_cast<PoolIo*>(raw);
             if (!io.depth) return false;
             auto& file = io.files[io.depth - 1];
-            if (seek && !file.seekSet(offset)) {
-              LOG_ERR("SDCF", "Failed to seek to %u", offset);
+            io.seekFailed = seek && !file.seekSet(offset);
+            if (io.seekFailed) {
               return false;
             }
             const int read = file.read(dest, length);
             if (read != static_cast<int>(length)) {
-              LOG_ERR("SDCF", "Short font read at %u (%zu bytes)", offset, length);
               return false;
             }
             return true;
@@ -93,7 +93,6 @@ XpSdfontServices SdCardFont::cacheServices(PoolIo* io) {
           [](size_t bytes, bool resident) -> uint8_t* {
             // Rust owns the returned buffer and releases it through the paired callback.
             auto* data = resident ? psramNewArray<uint8_t>(bytes) : new (std::nothrow) uint8_t[bytes];
-            if (!data) LOG_ERR("SDCF", "Failed to allocate %zu cache bytes", bytes);
             return data;
           },
           [](uint8_t* data, bool resident) {
@@ -113,6 +112,157 @@ XpSdfontServices SdCardFont::cacheServices(PoolIo* io) {
               LOG_ERR("SDCF", "Corrupt glyph for U+%04X in %s (%ux%u, %u bytes at %u); drawing it as missing",
                       static_cast<unsigned>(cp), self->filePath_, g.width, g.height, g.dataLength,
                       static_cast<unsigned>(g.dataOffset));
+            }
+          },
+          [](void* raw, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+            auto& io = *static_cast<PoolIo*>(raw);
+            switch (static_cast<XpSdfontDiagnostic>(event)) {
+              case XP_SDFONT_DIAG_LigatureOpen:
+                LOG_ERR("SDCF", "Failed to open .cpfont for ligatures: %s", io.owner->filePath_);
+                break;
+              case XP_SDFONT_DIAG_LigatureAlloc:
+                LOG_ERR("SDCF", "Failed to allocate ligature pairs");
+                break;
+              case XP_SDFONT_DIAG_LigatureRead:
+                if (io.seekFailed) {
+                  LOG_ERR("SDCF", "Failed to seek to ligature data");
+                } else {
+                  LOG_ERR("SDCF", "Failed to read ligature pairs");
+                }
+                break;
+              case XP_SDFONT_DIAG_LigaturesLoaded:
+                LOG_DBG("SDCF", "Ligatures loaded: %u", a);
+                break;
+              case XP_SDFONT_DIAG_KernOpen:
+                LOG_ERR("SDCF", "Failed to open .cpfont for mini kern: %s", io.owner->filePath_);
+                break;
+              case XP_SDFONT_DIAG_KernScratch:
+                LOG_ERR("SDCF", "Failed to allocate mini kern scratch (%u bytes)", a);
+                break;
+              case XP_SDFONT_DIAG_KernClasses:
+                LOG_ERR("SDCF", "Failed to read kern classes");
+                break;
+              case XP_SDFONT_DIAG_KernAlloc:
+                LOG_ERR("SDCF", "Failed to allocate mini kern (%u+%u+%u bytes)", a, b, c);
+                break;
+              case XP_SDFONT_DIAG_KernRow:
+                if (io.seekFailed) {
+                  LOG_ERR("SDCF", "Failed to seek to kern row %u", a);
+                } else {
+                  LOG_ERR("SDCF", "Failed to read kern row %u", a);
+                }
+                break;
+              case XP_SDFONT_DIAG_KernBuilt:
+                LOG_DBG("SDCF", "Built mini kern: %u×%u matrix (%u bytes, full was %u×%u = %u bytes)", a, b, a * b, c,
+                        d, c * d);
+                break;
+              case XP_SDFONT_DIAG_Codepoints:
+                LOG_ERR("SDCF", "Failed to allocate codepoint buffer (%u bytes)", a);
+                break;
+              case XP_SDFONT_DIAG_ArenaRetry:
+                LOG_DBG("SDCF", "Arena retry: %u -> %u glyphs (%uB/glyph, maxAlloc=%u)", a, b, c, d);
+                break;
+              case XP_SDFONT_DIAG_ResidentCodepoints:
+                LOG_ERR("SDCF", "OOM: resident kern codepoints (%u) for style %u", a, b);
+                break;
+              case XP_SDFONT_DIAG_Underuse:
+                LOG_DBG("SDCF", "mini release (underuse): used=%u cap=%u", a, b);
+                break;
+              case XP_SDFONT_DIAG_Mapping:
+                LOG_ERR("SDCF", "Failed to allocate mapping array for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_Intervals:
+                LOG_ERR("SDCF", "Failed to allocate mini intervals for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_Glyphs:
+                LOG_ERR("SDCF", "Failed to allocate mini glyphs for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_ReadOrder:
+                LOG_ERR("SDCF", "Failed to allocate read order for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_PrewarmOpen:
+                LOG_ERR("SDCF", "Failed to reopen .cpfont for prewarm (style %u)", a);
+                break;
+              case XP_SDFONT_DIAG_PrewarmGlyph:
+                if (io.seekFailed) {
+                  LOG_ERR("SDCF", "Prewarm: failed to seek to glyph %d (style %u)", static_cast<int>(a), b);
+                } else {
+                  LOG_ERR("SDCF", "Prewarm: short glyph read (style %u, glyph %d)", b, static_cast<int>(a));
+                }
+                break;
+              case XP_SDFONT_DIAG_RetryBitmap:
+                LOG_DBG("SDCF", "Retrying bitmap after advance-cache release: maxAlloc=%u -> %u", a, b);
+                break;
+              case XP_SDFONT_DIAG_ReserveBitmap:
+                LOG_ERR("SDCF", "Failed to reserve mini bitmap (%u bytes) for style %u", a, b);
+                break;
+              case XP_SDFONT_DIAG_ReservedBitmap:
+                LOG_DBG("SDCF", "Reserved bitmap before metadata rebuild (%u bytes)", a);
+                break;
+              case XP_SDFONT_DIAG_Bitmap:
+                LOG_ERR("SDCF", "Failed to allocate mini bitmap (%u bytes) for style %u", a, b);
+                break;
+              case XP_SDFONT_DIAG_BitmapOrder:
+                LOG_ERR("SDCF", "Failed to allocate bitmap read order for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_PrewarmBitmap:
+                if (io.seekFailed) {
+                  LOG_ERR("SDCF", "Prewarm: failed to seek to bitmap (style %u)", a);
+                } else {
+                  LOG_ERR("SDCF", "Prewarm: short bitmap read (style %u)", a);
+                }
+                break;
+              case XP_SDFONT_DIAG_AdvanceMerge:
+                LOG_ERR("SDCF", "mergeIntoAdvanceTable: alloc failed (%u entries) style %u", a, b);
+                break;
+              case XP_SDFONT_DIAG_AdvanceMapping:
+                LOG_ERR("SDCF", "buildAdvanceTable: failed to allocate mappings for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_AdvanceOpen:
+                LOG_ERR("SDCF", "buildAdvanceTable: failed to open .cpfont for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_AdvanceStaging:
+                LOG_ERR("SDCF", "buildAdvanceTable: failed to allocate staging for style %u", a);
+                break;
+              case XP_SDFONT_DIAG_AdvanceGlyph:
+                if (io.seekFailed) {
+                  LOG_ERR("SDCF", "buildAdvanceTable: failed to seek to glyph %d (style %u)", static_cast<int>(a), b);
+                } else {
+                  LOG_ERR("SDCF", "buildAdvanceTable: short glyph read (style %u, glyph %d)", b, static_cast<int>(a));
+                }
+                break;
+              case XP_SDFONT_DIAG_AdvanceLoaded:
+                LOG_DBG("SDCF", "Advance table style %u: +%u from SD, total=%u/%u", a, b, c, d);
+                break;
+              case XP_SDFONT_DIAG_AdvanceGrow:
+                LOG_DBG("SDCF", "Advance table pre-grow failed for style %u; the merge grows it", a);
+                break;
+              case XP_SDFONT_DIAG_AdvanceCodepoints:
+                LOG_ERR("SDCF", "buildAdvanceTable: failed to allocate codepoint buffer (%u bytes)", a);
+                break;
+              case XP_SDFONT_DIAG_OverflowOpen:
+                LOG_ERR("SDCF", "Overflow: failed to open .cpfont");
+                break;
+              case XP_SDFONT_DIAG_OverflowGlyph:
+                if (io.seekFailed) {
+                  LOG_ERR("SDCF", "Overflow: failed to seek to glyph for U+%04X style %u", a, b);
+                } else {
+                  LOG_ERR("SDCF", "Overflow: failed to read glyph metadata for U+%04X style %u", a, b);
+                }
+                break;
+              case XP_SDFONT_DIAG_OverflowAlloc:
+                LOG_ERR("SDCF", "Overflow: failed to allocate %u bytes for U+%04X bitmap", a, b);
+                break;
+              case XP_SDFONT_DIAG_OverflowBitmap:
+                if (io.seekFailed) {
+                  LOG_ERR("SDCF", "Overflow: failed to seek to bitmap for U+%04X", a);
+                } else {
+                  LOG_ERR("SDCF", "Overflow: failed to read bitmap for U+%04X", a);
+                }
+                break;
+              case XP_SDFONT_DIAG_OverflowLoaded:
+                LOG_DBG("SDCF", "Overflow: loaded U+%04X style %u on demand (slot %u/%u)", a, b, c, d);
+                break;
             }
           }};
 }

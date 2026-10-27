@@ -910,10 +910,50 @@ typedef struct {
   uint16_t canvasWidth, canvasHeight, frameX, frameY, frameWidth, frameHeight;
   uint8_t interlaced;
 } XpGifInfo;
+typedef enum {
+  XP_GIF_DIAG_BlockLength = 1,
+  XP_GIF_DIAG_BlockSkip = 2,
+  XP_GIF_DIAG_HeaderRead = 3,
+  XP_GIF_DIAG_Signature = 4,
+  XP_GIF_DIAG_MarkerRead = 5,
+  XP_GIF_DIAG_Trailer = 6,
+  XP_GIF_DIAG_ExtensionLabel = 7,
+  XP_GIF_DIAG_ExtensionData = 8,
+  XP_GIF_DIAG_Descriptor = 9,
+  XP_GIF_DIAG_CodeSize = 10,
+  XP_GIF_DIAG_Marker = 11,
+  XP_GIF_DIAG_InvalidHeader = 12,
+  XP_GIF_DIAG_InterlaceBmp = 13,
+  XP_GIF_DIAG_Dimensions = 14,
+  XP_GIF_DIAG_OutputDimensions = 15,
+  XP_GIF_DIAG_OutputLimit = 16,
+  XP_GIF_DIAG_BmpHeader = 17,
+  XP_GIF_DIAG_BmpRows = 18,
+  XP_GIF_DIAG_Scaling = 19,
+  XP_GIF_DIAG_Atkinson1 = 20,
+  XP_GIF_DIAG_Atkinson2 = 21,
+  XP_GIF_DIAG_DecoderAlloc = 22,
+  XP_GIF_DIAG_Decode = 23,
+  XP_GIF_DIAG_Postprocess = 24,
+  XP_GIF_DIAG_Complete = 25,
+  XP_GIF_DIAG_FrameHeader = 26,
+  XP_GIF_DIAG_CanvasWidth = 27,
+  XP_GIF_DIAG_Cache = 28,
+  XP_GIF_DIAG_Finish = 29,
+  XP_GIF_DIAG_Pipeline = 30,
+  XP_GIF_DIAG_PipelineAlloc = 31,
+  XP_GIF_DIAG_Open = 32,
+  XP_GIF_DIAG_Interlace = 33,
+  XP_GIF_DIAG_FrameDimensions = 34,
+  XP_GIF_DIAG_FrameEnd = 35,
+  XP_GIF_DIAG_DecodeStart = 36,
+} XpGifDiagnostic;
 typedef struct {
   void* context;
   size_t (*read)(void*, uint32_t offset, uint8_t* output, size_t len);
   void (*poll)(void*);
+  // Optional; synchronous and non-reentrant. No retained pointers.
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpGifInput;
 typedef struct {
   int32_t width, height;
@@ -1222,6 +1262,47 @@ typedef struct {
   uint32_t expectedOffset, previousLast;
   bool bmp16;
 } XpSdfontIntervals;
+typedef enum {
+  XP_SDFONT_DIAG_LigatureOpen = 1,
+  XP_SDFONT_DIAG_LigatureAlloc = 2,
+  XP_SDFONT_DIAG_LigatureRead = 3,
+  XP_SDFONT_DIAG_LigaturesLoaded = 4,
+  XP_SDFONT_DIAG_KernOpen = 5,
+  XP_SDFONT_DIAG_KernScratch = 6,
+  XP_SDFONT_DIAG_KernClasses = 7,
+  XP_SDFONT_DIAG_KernAlloc = 8,
+  XP_SDFONT_DIAG_KernRow = 9,
+  XP_SDFONT_DIAG_KernBuilt = 10,
+  XP_SDFONT_DIAG_Codepoints = 11,
+  XP_SDFONT_DIAG_ArenaRetry = 12,
+  XP_SDFONT_DIAG_ResidentCodepoints = 13,
+  XP_SDFONT_DIAG_Underuse = 14,
+  XP_SDFONT_DIAG_Mapping = 15,
+  XP_SDFONT_DIAG_Intervals = 16,
+  XP_SDFONT_DIAG_Glyphs = 17,
+  XP_SDFONT_DIAG_ReadOrder = 18,
+  XP_SDFONT_DIAG_PrewarmOpen = 19,
+  XP_SDFONT_DIAG_PrewarmGlyph = 20,
+  XP_SDFONT_DIAG_RetryBitmap = 21,
+  XP_SDFONT_DIAG_ReserveBitmap = 22,
+  XP_SDFONT_DIAG_ReservedBitmap = 23,
+  XP_SDFONT_DIAG_Bitmap = 24,
+  XP_SDFONT_DIAG_BitmapOrder = 25,
+  XP_SDFONT_DIAG_PrewarmBitmap = 26,
+  XP_SDFONT_DIAG_AdvanceMerge = 27,
+  XP_SDFONT_DIAG_AdvanceMapping = 28,
+  XP_SDFONT_DIAG_AdvanceOpen = 29,
+  XP_SDFONT_DIAG_AdvanceStaging = 30,
+  XP_SDFONT_DIAG_AdvanceGlyph = 31,
+  XP_SDFONT_DIAG_AdvanceLoaded = 32,
+  XP_SDFONT_DIAG_AdvanceGrow = 33,
+  XP_SDFONT_DIAG_AdvanceCodepoints = 34,
+  XP_SDFONT_DIAG_OverflowOpen = 35,
+  XP_SDFONT_DIAG_OverflowGlyph = 36,
+  XP_SDFONT_DIAG_OverflowAlloc = 37,
+  XP_SDFONT_DIAG_OverflowBitmap = 38,
+  XP_SDFONT_DIAG_OverflowLoaded = 39,
+} XpSdfontDiagnostic;
 // Synchronous, exclusive cache loans. Slots retain their addresses until unload.
 // Resident buffers use the paired PSRAM allocator; scratch uses ordinary arrays.
 // File callbacks are nested at most twice and may not reenter cache operations.
@@ -1236,6 +1317,8 @@ typedef struct {
   uint32_t (*heap)(bool largest);
   uint32_t (*clock)(void);
   void (*corrupt)(void*, const void* glyph, uint32_t codepoint);
+  // Optional; synchronous and non-reentrant. Integer arguments are event-specific.
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpSdfontServices;
 typedef struct {
   void* styles;
@@ -1445,6 +1528,39 @@ int32_t xp_inflate_step(void* state, const uint8_t* input, size_t in_len, uint8_
 // write operations: 0 open cache, 1 bytes, 2 close cache, 3 abort cache.
 // BMP only uses operation 1; target may be null for BMP.
 typedef size_t (*XpPngRead)(void*, uint32_t offset, uint8_t*, size_t len);
+typedef enum {
+  XP_PNG_DIAG_Signature = 1,
+  XP_PNG_DIAG_Ihdr = 2,
+  XP_PNG_DIAG_Image = 3,
+  XP_PNG_DIAG_Method = 4,
+  XP_PNG_DIAG_Interlace = 5,
+  XP_PNG_DIAG_Dimensions = 6,
+  XP_PNG_DIAG_Color = 7,
+  XP_PNG_DIAG_RowSize = 8,
+  XP_PNG_DIAG_Scanline = 9,
+  XP_PNG_DIAG_Idat = 10,
+  XP_PNG_DIAG_Inflate = 11,
+  XP_PNG_DIAG_Scaling = 12,
+  XP_PNG_DIAG_RowScratch = 13,
+  XP_PNG_DIAG_Atkinson1 = 14,
+  XP_PNG_DIAG_Atkinson2 = 15,
+  XP_PNG_DIAG_Accumulators = 16,
+  XP_PNG_DIAG_ScanlineDecode = 17,
+  XP_PNG_DIAG_Filter = 18,
+  XP_PNG_DIAG_Complete = 19,
+  XP_PNG_DIAG_Open = 20,
+  XP_PNG_DIAG_DecoderAlloc = 21,
+  XP_PNG_DIAG_Pipeline = 22,
+  XP_PNG_DIAG_PipelineAlloc = 23,
+  XP_PNG_DIAG_Cache = 24,
+  XP_PNG_DIAG_DecodeStart = 25,
+  XP_PNG_DIAG_DecodeFailed = 26,
+  XP_PNG_DIAG_DecodeComplete = 27,
+  XP_PNG_DIAG_UnsupportedDepth = 28,
+  XP_PNG_DIAG_RowBuffer = 29,
+  XP_PNG_DIAG_FrameDimensions = 30,
+  XP_PNG_DIAG_GrayWidth = 31,
+} XpPngDiagnostic;
 typedef struct {
   void* context;
   XpPngRead read;
@@ -1452,6 +1568,8 @@ typedef struct {
   bool (*write)(void*, uint32_t operation, const uint8_t*, size_t);
   void (*progress)(void*);
   uint32_t size;
+  // Optional; synchronous and non-reentrant. No retained pointers.
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpPngServices;
 typedef struct {
   int32_t width, height;

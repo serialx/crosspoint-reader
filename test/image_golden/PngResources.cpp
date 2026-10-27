@@ -13,19 +13,34 @@ namespace {
 struct Allocation {
   void* pointer;
   size_t size;
+  size_t id;
 };
 std::array<Allocation, 64> allocations{};
 size_t live = 0, peak = 0, largest = 0, attempts = 0, budget = SIZE_MAX;
+uint64_t trace = 14695981039346656037ULL;
+void event(uint64_t v) {
+  for (int i = 0; i < 8; ++i) {
+    trace = (trace ^ (v & 255)) * 1099511628211ULL;
+    v >>= 8;
+  }
+}
 void require(bool condition) {
   if (!condition) std::abort();
 }
 void reset(size_t after = SIZE_MAX) {
   require(live == 0);
+  if (std::getenv("IMAGE_ALLOCATION_TRACE"))
+    std::printf("trace=%016llx peak=%zu largest=%zu attempts=%zu\n", static_cast<unsigned long long>(trace), peak,
+                largest, attempts);
+  trace = 14695981039346656037ULL;
   peak = largest = attempts = 0;
   budget = after;
 }
 void* allocate(size_t size, size_t alignment) {
   ++attempts;
+  event(1);
+  event(attempts);
+  event(size);
   if (budget != SIZE_MAX) {
     if (budget == 0) return nullptr;
     --budget;
@@ -34,7 +49,7 @@ void* allocate(size_t size, size_t alignment) {
   if (posix_memalign(&result, std::max(alignment, sizeof(void*)), size)) return nullptr;
   for (auto& item : allocations) {
     if (!item.pointer) {
-      item = {result, size};
+      item = {result, size, attempts};
       live += size;
       peak = std::max(peak, live);
       largest = std::max(largest, size);
@@ -47,6 +62,7 @@ struct Context {
   std::vector<uint8_t> bytes;
   std::array<uint8_t, 792 * 528 / 8> frame{};
   size_t writes = 0, failWrite = SIZE_MAX;
+  size_t diagnostics = 0;
   size_t reads = 0, shortRead = SIZE_MAX, readLimit = SIZE_MAX, readable = SIZE_MAX;
   static size_t read(void* opaque, uint32_t offset, uint8_t* out, size_t length) {
     auto& self = *static_cast<Context*>(opaque);
@@ -69,7 +85,13 @@ struct Context {
     return operation != 1 || self.writes++ != self.failWrite;
   }
   static void progress(void*) {}
-  XpPngServices services() { return {this, read, target, write, progress, static_cast<uint32_t>(bytes.size())}; }
+  static void diagnostic(void* opaque, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {
+    ++static_cast<Context*>(opaque)->diagnostics;
+  }
+  static bool bmpWrite(void* opaque, const uint8_t* bytes, size_t len) { return write(opaque, 1, bytes, len); }
+  XpPngServices services() {
+    return {this, read, target, write, progress, static_cast<uint32_t>(bytes.size()), diagnostic};
+  }
 };
 }  // namespace
 
@@ -79,6 +101,8 @@ extern "C" void heap_caps_free(void* pointer) {
   if (!pointer) return;
   for (auto& item : allocations) {
     if (item.pointer == pointer) {
+      event(2);
+      event(item.id);
       live -= item.size;
       item = {};
       std::free(pointer);
@@ -113,11 +137,25 @@ int main(int argc, char** argv) {
   const XpPngBmpConfig bmp{37, 53, true, true, false};
   alignas(uintptr_t) static uint8_t scratch[60000];
   require(xp_png_scratch_size() <= sizeof(scratch));
-  for (int mode = 0; mode < 3; ++mode) {
+#ifdef RESOURCE_GIF
+  const XpGifInput input{&context, Context::read, Context::progress, Context::diagnostic};
+  const XpGifBmpConfig gifBmp{37, 53, 1, 1, 0};
+  const XpGifOutput output{&context, Context::bmpWrite};
+  const XpImageCallbacks callbacks{&context, Context::target, Context::write};
+  constexpr int modes = 2;
+#else
+  constexpr int modes = 3;
+#endif
+  for (int mode = 0; mode < modes; ++mode) {
     const auto run = [&]() {
       context.reads = 0;
+      context.diagnostics = 0;
+#ifdef RESOURCE_GIF
+      return mode == 0 ? xp_gif_frame(&input, &config, &callbacks, true) : xp_gif_bmp(&input, &gifBmp, &output);
+#else
       return mode == 0 ? xp_png_render(&services, &config, true)
                        : xp_png_bmp(&services, &bmp, mode == 2 ? scratch : nullptr, mode == 2 ? sizeof(scratch) : 0);
+#endif
     };
     reset();
     const bool success = run();
@@ -133,6 +171,7 @@ int main(int argc, char** argv) {
       require(live == 0);
       // Frame cache allocation is optional; every required allocation must fail cleanly.
       require(!ok || (mode == 0 && after + 1 == count));
+      if (std::getenv("VERIFY_DIAGNOSTICS")) require(context.diagnostics > 0);
     }
     reset();
     context.writes = 0;

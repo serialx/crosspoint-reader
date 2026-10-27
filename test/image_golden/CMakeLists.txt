@@ -21,7 +21,7 @@ target_compile_definitions(image_oracle PRIVATE __LINUX__)
 target_include_directories(image_oracle PRIVATE stubs
   ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
   ${REPO_ROOT}/lib/Epub/Epub/converters ${REPO_ROOT}/lib/GfxRenderer
-  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/GifSupport
+  ${REPO_ROOT}/lib/PngDiagnostics ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/GifSupport
   ${DECODER_SOURCE_DIR}/JPEGDEC/src)
 option(IMAGE_ASAN "Instrument host oracle" OFF)
 if(IMAGE_ASAN)
@@ -44,11 +44,11 @@ add_test(NAME ImagePipelineCaseKeys COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURREN
 
 add_executable(png_bmp_oracle PngBmpOracle.cpp
   ${REPO_ROOT}/lib/PngToBmpConverter/PngToBmpConverter.cpp
-  ${REPO_ROOT}/lib/Memory/BuildScratch.cpp)
+  ${REPO_ROOT}/lib/PngDiagnostics ${REPO_ROOT}/lib/Memory/BuildScratch.cpp)
 target_include_directories(png_bmp_oracle PRIVATE stubs
   ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
   ${REPO_ROOT}/lib/PngToBmpConverter ${REPO_ROOT}/lib/GfxRenderer
-  ${REPO_ROOT}/lib/miniz/src ${REPO_ROOT}/lib/Memory)
+  ${REPO_ROOT}/lib/miniz/src ${REPO_ROOT}/lib/PngDiagnostics ${REPO_ROOT}/lib/Memory)
 target_link_libraries(png_bmp_oracle PRIVATE xp_ffi_host)
 
 get_target_property(PNG_BENCH_SOURCES image_oracle SOURCES)
@@ -91,3 +91,17 @@ target_link_libraries(png_header_test PRIVATE xp_ffi_host)
 add_test(NAME PngSleepHeader COMMAND png_header_test)
 add_test(NAME PngResources COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/png_resources.py $<TARGET_FILE:png_resources> $<TARGET_FILE:png_bmp_oracle>)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/diagnostics.cmake)
+
+add_executable(gif_resources PngResources.cpp)
+add_dependencies(gif_resources xp_ffi_host_build)
+target_compile_definitions(gif_resources PRIVATE RESOURCE_GIF)
+target_include_directories(gif_resources PRIVATE ${REPO_ROOT}/rust/crates/xp-ffi/include)
+target_link_libraries(gif_resources PRIVATE ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME ImageDiagnosticGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/diagnostics.py ${CMAKE_CURRENT_BINARY_DIR}
+  --goldens ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic-goldens.json.gz
+  --exceptions ${CMAKE_CURRENT_SOURCE_DIR}/diagnostic-exceptions.json
+  --report ${CMAKE_CURRENT_BINARY_DIR}/diagnostic-results.json)

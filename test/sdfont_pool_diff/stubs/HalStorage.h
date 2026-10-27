@@ -5,6 +5,8 @@
 #include <vector>
 inline std::vector<uint8_t> sdFontTestFile;
 inline size_t sdFontTestReads = 0;
+inline size_t sdIoAttempts = 0, sdIoFailAt = 0;
+inline bool sdIoFails() { return ++sdIoAttempts == sdIoFailAt; }
 inline uint64_t sdTrace = 14695981039346656037ULL;
 inline void sdEvent(uint64_t v) {
   for (int i = 0; i < 8; ++i) {
@@ -25,6 +27,7 @@ class HalFile {
   bool seekSet(size_t position) {
     sdEvent(1);
     sdEvent(position);
+    if (sdIoFails()) return false;
     position_ = position;
     return opened_ && position <= sdFontTestFile.size();
   }
@@ -32,7 +35,7 @@ class HalFile {
     sdEvent(2);
     sdEvent(position_);
     sdEvent(count);
-    if (!opened_ || position_ > sdFontTestFile.size()) return 0;
+    if (sdIoFails() || !opened_ || position_ > sdFontTestFile.size()) return 0;
     count = std::min(count, sdFontTestFile.size() - position_);
     std::memcpy(output, sdFontTestFile.data() + position_, count);
     position_ += count;
@@ -53,6 +56,7 @@ class HalFile {
 class HalStorage {
  public:
   bool openFileForRead(const char*, const char*, HalFile& file) {
+    if (sdIoFails()) return false;
     file.open();
     return true;
   }

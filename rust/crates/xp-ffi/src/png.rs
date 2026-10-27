@@ -2,7 +2,7 @@
 use core::{ffi::c_void, ptr, slice};
 use xp_core::{
     image::{self, cache::ByteSink, frame::Target, Pipeline, Sink},
-    png::{self, bmp, Mode, Source},
+    png::{self, bmp, Diagnostic, Mode, Source},
 };
 
 type Read = unsafe extern "C" fn(*mut c_void, u32, *mut u8, usize) -> usize;
@@ -15,8 +15,14 @@ pub struct Services {
     write: unsafe extern "C" fn(*mut c_void, u32, *const u8, usize) -> bool,
     progress: unsafe extern "C" fn(*mut c_void),
     size: u32,
+    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 impl Source for Services {
+    fn diagnostic(&mut self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {
+        if let Some(callback) = self.diagnostic {
+            unsafe { callback(self.context, event as u32, a, b, c, d) };
+        }
+    }
     fn read(&mut self, offset: u32, bytes: &mut [u8]) -> usize {
         unsafe { (self.read)(self.context, offset, bytes.as_mut_ptr(), bytes.len()) }
     }
@@ -65,6 +71,9 @@ unsafe impl Sink for Services {
     }
 }
 impl bmp::Output for Services {
+    fn diagnostic(&mut self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {
+        Source::diagnostic(self, event, a, b, c, d);
+    }
     fn write(&mut self, bytes: &[u8]) -> bool {
         ByteSink::write(self, bytes)
     }
@@ -132,22 +141,48 @@ pub unsafe extern "C" fn xp_png_render(
         return false;
     }
     let Some(info) = png::info(&mut input, Mode::Frame) else {
+        input.diagnostic(Diagnostic::Open, 0, 0, 0, 0);
         return false;
     };
+    if info.width == 0
+        || info.height == 0
+        || info.width > 32767
+        || info.height > 32767
+        || u64::from(info.width) * u64::from(info.height) > 8388608
+    {
+        input.diagnostic(Diagnostic::FrameDimensions, info.width, info.height, 0, 0);
+        return false;
+    }
     let Some(mut pipeline) = Pipeline::new(*config, info.width as i32, info.height as i32, false)
     else {
+        input.diagnostic(Diagnostic::Pipeline, 0, 0, 0, 0);
         return false;
     };
-    let Some(mut decoder) = png::Decoder::new(info, Mode::Frame) else {
+    let Some(mut decoder) = png::Decoder::new(info, Mode::Frame, &mut input) else {
         return false;
     };
     if !pipeline.prepare() {
+        input.diagnostic(Diagnostic::PipelineAlloc, 0, 0, 0, 0);
         return false;
     }
     if cache && (*config).alpha == 0 {
-        pipeline.start_cache(&mut sink);
+        if !pipeline.start_cache(&mut sink) {
+            input.diagnostic(Diagnostic::Cache, 0, 0, 0, 0);
+        }
     }
+    input.diagnostic(Diagnostic::DecodeStart, 0, 0, 0, 0);
     let ok = decoder.decode(&mut input, |row, _| pipeline.row(row, &mut sink));
+    input.diagnostic(
+        if ok {
+            Diagnostic::DecodeComplete
+        } else {
+            Diagnostic::DecodeFailed
+        },
+        0,
+        0,
+        0,
+        0,
+    );
     if ok {
         pipeline.finish(&mut sink);
     }
@@ -188,7 +223,8 @@ pub unsafe extern "C" fn xp_png_bmp(
     } else {
         Some(slice::from_raw_parts_mut(scratch, scratch_len))
     };
-    let Some(mut decoder) = png::Decoder::with_scratch(info, Mode::Bmp, scratch) else {
+    let Some(mut decoder) = png::Decoder::with_scratch(info, Mode::Bmp, scratch, &mut source)
+    else {
         return false;
     };
     bmp::convert(&mut decoder, &mut source, *config, &mut output)

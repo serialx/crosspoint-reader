@@ -551,10 +551,16 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
       const size_t lineBytes = length * (sizeof(TextBlock::SourceRange) + 12) + sizeof(TextBlock) + 1024;
       if (heap.freeBytes < lineBytes + HEAP_HEADROOM || heap.largestBlockBytes < lineBytes) return false;
       scratch->layout(*this, fontId, line.start);
-      if (!scratch->append(builder, (row - firstLine) * lineHeight)) return false;
+      if (!scratch->append(builder, (row - firstLine) * lineHeight)) {
+        LOG_ERR("DICT", "OOM: selection line (%u byte budget)", static_cast<unsigned>(lineBytes));
+        return false;
+      }
     }
     auto page = builder.finish();
-    if (!page) return false;
+    if (!page) {
+      LOG_ERR("DICT", "OOM: selection page (%u bytes)", static_cast<unsigned>(sizeof(Page)));
+      return false;
+    }
     lookup->selectionPages.push_back(std::move(page));
   }
   return true;

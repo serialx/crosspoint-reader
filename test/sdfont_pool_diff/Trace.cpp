@@ -128,6 +128,7 @@ size_t run(const std::vector<uint32_t>& cps, const std::vector<std::string>& tex
   ESP.freeHeap = pressure ? 30 * 1024 : 200 * 1024;
   ESP.largestBlock = pressure ? 12 * 1024 : 200 * 1024;
   sdFontTestReads = 0;
+  sdIoAttempts = 0;
   SdCardFont::takeCorruptGlyphNotice();
   tracking = true;
   {
@@ -355,6 +356,16 @@ int main(int argc, char** argv) {
       if (live) return 3;
     }
     return 0;
+  }
+  if (std::getenv("SDPOOL_IO_FAILURES")) {
+    run(cps, texts, 0, false);
+    const size_t operations = sdIoAttempts;
+    for (size_t i = 1; i <= operations; ++i) {
+      sdIoFailAt = i;
+      std::printf("IO %zu\n", i);
+      run(cps, texts, 0, false);
+    }
+    sdIoFailAt = 0;
   }
   for (size_t i = 1; i <= allocations; ++i) {
     std::printf("OOM %zu\n", i);

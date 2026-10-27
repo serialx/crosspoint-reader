@@ -100,7 +100,7 @@ int main() {
   static_assert(values[40] == 24);
   static_assert(values[41] == 20);
   static_assert(values[42] == 48);
-  static_assert(values[43] == 36);
+  static_assert(values[43] == 40);
   static_assert(values[44] == 20);
 #endif
   for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {

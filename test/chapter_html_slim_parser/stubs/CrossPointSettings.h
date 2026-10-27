@@ -5,6 +5,7 @@
 struct DictionarySettingsStub {
 #ifdef XP_FOOTNOTE_SELECT_TEST
   int screenMargin = 0;
+  bool touchReaderControls = true;
 #endif
   bool extraParagraphSpacing = false;
   uint8_t paragraphAlignment = 0;

@@ -31,3 +31,16 @@ page, and checks the visible offset and borrowed word fields. This verifies the
 partial-cache read path; it does not simulate interrupted writes or hardware
 storage failures. Pixel, clipping, dictionary, and whole-book behavior remain
 covered by their existing suites and the paired emulator workloads.
+
+`PageFootnoteSelect` compiles the production selector and reader metadata input
+scopes with a test-only `RenderLock` ownership oracle. Metadata reads, scratch
+record decoding, selection access and result construction require the lock;
+navigation and child creation require it to be released. Recursive acquisition
+fails instead of hanging. The generator rejects new reader metadata consumers
+until they are included in the harness. It instruments generated host copies;
+firmware has no test hooks.
+
+The test clears metadata immediately after unlock to check that single-note
+and touch-link navigation own their href, checks both menu availability paths,
+and exercises selection, Confirm, Power and Back. It is a deterministic ownership
+check, not a threaded scheduler or physical-device concurrency test.

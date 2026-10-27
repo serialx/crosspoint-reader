@@ -32,6 +32,11 @@ static std::unique_ptr<Page> page(size_t count) {
   require(bool(result), "decoded page");
   return result;
 }
+static CheckedPageMetadata* metadataToClear;
+static void clearMetadataAfterUnlock() {
+  RenderLock::requireUnlocked();
+  metadataToClear->clear();
+}
 int main() {
   GfxRenderer renderer;
   MappedInputManager input;
@@ -64,10 +69,25 @@ int main() {
   FootnoteSection section;
   EpubReaderActivity reader(section, renderer, input);
   require(reader.currentPageMetadata.assign(*page(1)), "single footnote metadata");
+  metadataToClear = &reader.currentPageMetadata;
+  RenderLock::afterUnlock = clearMetadataAfterUnlock;
   reader.openFootnoteSelect(false);
   require(reader.navigatedHref == "#1" && reader.isFootnote && !reader.child && section.loads == 0,
           "single footnote must navigate directly without reloading or opening selector");
   reader.navigatedHref.clear();
+  require(!reader.testMenuAvailability() && !reader.testMoreAvailability(), "empty menu availability");
+  require(reader.currentPageMetadata.assign(*page(2)), "link metadata");
+  require(reader.testMenuAvailability() && reader.testMoreAvailability(), "populated menu availability");
+  input.tapped = true;
+  input.touchX = 46;
+  input.touchY = 40;
+  RenderLock::afterUnlock = clearMetadataAfterUnlock;
+  reader.testLinkTap();
+  require(reader.navigatedHref == "#2", "link href survives metadata destruction after unlock");
+  reader.navigatedHref.clear();
+  reader.testLinkTap();
+  require(reader.navigatedHref.empty(), "cleared metadata has no link target");
+  input.tapped = false;
   require(reader.currentPageMetadata.assign(*page(2)), "multiple footnote metadata");
   section.loaded = page(2);
   reader.openFootnoteSelect(true);
@@ -77,6 +97,17 @@ int main() {
   reader.child->loop();
   reader.completion(reader.child->result);
   require(reader.navigatedHref == "#1" && reader.isFootnote, "selector result navigates reader");
+  EpubReaderFootnoteSelectActivity power(renderer, input, page(2), 0, 0);
+  Activity& powerActivity = power;
+  powerActivity.onEnter();
+  input.released = MappedInputManager::Button::None;
+  input.pressed = MappedInputManager::Button::ScreenRight;
+  powerActivity.loop();
+  powerActivity.render({});
+  input.pressed = MappedInputManager::Button::None;
+  input.released = MappedInputManager::Button::Power;
+  powerActivity.loop();
+  require(powerActivity.finished && std::get<FootnoteResult>(powerActivity.result.data).href == "#2", "power href");
   reader.completion(cancel.result);
   require(reader.menuRequests == 1, "cancel reopens requested reader menu");
 }

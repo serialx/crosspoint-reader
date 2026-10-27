@@ -17,7 +17,10 @@ constexpr unsigned long WORD_REPEAT_INTERVAL_MS = 500;
 void EpubReaderFootnoteSelectActivity::onEnter() {
   Activity::onEnter();
   snapshot = makeUniqueNoThrow<uint8_t[]>(SNAPSHOT_CAPACITY);
-  buildFootnoteLinks();
+  {
+    RenderLock lock;
+    buildFootnoteLinks();
+  }
   requestUpdate();
 }
 
@@ -60,6 +63,7 @@ void EpubReaderFootnoteSelectActivity::loop() {
     return;
   }
 
+  RenderLock lock;
   if ((mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
        mappedInput.wasReleased(MappedInputManager::Button::Power)) &&
       footnoteLinkCount != 0) {

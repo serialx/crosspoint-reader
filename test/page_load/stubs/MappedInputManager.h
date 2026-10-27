@@ -3,6 +3,14 @@ class MappedInputManager {
  public:
   enum class Button { Back, Confirm, Power, ScreenLeft, ScreenRight, ScreenUp, ScreenDown, None };
   Button pressed = Button::None, released = Button::None;
+  bool tapped = false;
+  int touchX = 0, touchY = 0;
+  bool hasTouch() const { return true; }
+  bool wasScreenTapped(int& x, int& y) const {
+    x = touchX;
+    y = touchY;
+    return tapped;
+  }
   bool wasPressed(Button b) const { return pressed == b; }
   bool wasReleased(Button b) const { return released == b; }
   bool isPressed(Button) const { return false; }

@@ -6,14 +6,19 @@
 
 #include <string>
 #include <variant>
+
+#include "RenderLock.h"
 struct FootnoteResult {
   std::string href;
+  explicit FootnoteResult(const char* value) {
+    RenderLock::requireHeld();
+    href = value;
+  }
 };
 struct ActivityResult {
   bool isCancelled = false;
   std::variant<std::monostate, FootnoteResult> data;
 };
-struct RenderLock {};
 class Activity {
  protected:
   GfxRenderer& renderer;

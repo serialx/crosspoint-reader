@@ -348,22 +348,27 @@ void EpubReaderActivity::openReaderMenu() {
   const ChapterPosition position = chapterPosition();
   const int bookProgressPercent = bookPercentFor(position);
 
-  startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
-                             renderer, mappedInput, epub->getTitle(), position.displayPage(), position.totalPages,
-                             bookProgressPercent, SETTINGS.orientation, !currentPageMetadata.footnotes().empty(),
-                             !cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
-                         [this](const ActivityResult& result) {
-                           const auto& menu = std::get<MenuResult>(result.data);
+  bool hasFootnotes;
+  {
+    RenderLock lock;
+    hasFootnotes = !currentPageMetadata.footnotes().empty();
+  }
+  startActivityForResult(
+      std::make_unique<EpubReaderMenuActivity>(renderer, mappedInput, epub->getTitle(), position.displayPage(),
+                                               position.totalPages, bookProgressPercent, SETTINGS.orientation,
+                                               hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
+      [this](const ActivityResult& result) {
+        const auto& menu = std::get<MenuResult>(result.data);
 
-                           if (SETTINGS.orientation != menu.orientation) {
-                             applyOrientation(menu.orientation);
-                           }
+        if (SETTINGS.orientation != menu.orientation) {
+          applyOrientation(menu.orientation);
+        }
 
-                           toggleAutoPageTurn(menu.pageTurnOption);
-                           if (!result.isCancelled) {
-                             onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
-                           }
-                         });
+        toggleAutoPageTurn(menu.pageTurnOption);
+        if (!result.isCancelled) {
+          onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
+        }
+      });
 }
 
 // Runs on the render task, under its lock, right before every chapter build. The page turner's
@@ -576,13 +581,24 @@ void EpubReaderActivity::startClipSelection(const int initialX, const int initia
 }
 
 void EpubReaderActivity::openFootnoteSelect(const bool reopenMenuOnCancel) {
-  if (!section || currentPageMetadata.footnotes().empty()) return;
-  if (currentPageMetadata.footnotes().size() == 1) {
-    navigateToHref(currentPageMetadata.footnotes()[0].href, true);
+  std::string href;
+  bool singleFootnote;
+  std::unique_ptr<Page> page;
+  {
+    RenderLock lock;
+    if (!section || currentPageMetadata.footnotes().empty()) return;
+    singleFootnote = currentPageMetadata.footnotes().size() == 1;
+    if (singleFootnote) {
+      href = currentPageMetadata.footnotes()[0].href;
+    } else {
+      page = section->loadPage(section->currentPage);
+    }
+  }
+  // Navigation acquires RenderLock itself; only owned data may leave the scope above.
+  if (singleFootnote) {
+    navigateToHref(href, true);
     return;
   }
-
-  auto page = section->loadPage(section->currentPage);
   if (!page) return;
 
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
@@ -902,14 +918,21 @@ void EpubReaderActivity::loop() {
   }
 
   // Link taps take priority over the reader-menu and page-turn zones.
-  if (!atEndOfBook && !currentPageMetadata.links().empty() && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
+  if (!atEndOfBook && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
     int touchX = 0;
     int touchY = 0;
     if (mappedInput.wasScreenTapped(touchX, touchY)) {
-      const auto* link = EpubReaderUtils::linkAtPoint(currentPageMetadata.links(), touchX, touchY,
-                                                      currentPageLinkMarginLeft, currentPageLinkMarginTop);
-      if (link) {
-        navigateToHref(link->href, true);
+      std::string href;
+      bool matched;
+      {
+        RenderLock lock;
+        const auto* link = EpubReaderUtils::linkAtPoint(currentPageMetadata.links(), touchX, touchY,
+                                                        currentPageLinkMarginLeft, currentPageLinkMarginTop);
+        matched = link != nullptr;
+        if (matched) href = link->href;
+      }
+      if (matched) {
+        navigateToHref(href, true);
         haptic_feedback::touchAction();
         return;
       }
@@ -3076,8 +3099,12 @@ void EpubReaderActivity::applyReaderTextSettings() {
 // two entries that have their own tool (chapters -> Contents, text -> Text).
 void EpubReaderActivity::buildMoreActions() {
   using MA = EpubReaderMenuActivity::MenuAction;
-  EpubReaderMenuActivity::buildMenuItems(moreItems, !currentPageMetadata.footnotes().empty(), !cachedBookmarks.empty(),
-                                         CLIPPINGS.hasClippings());
+  bool hasFootnotes;
+  {
+    RenderLock lock;
+    hasFootnotes = !currentPageMetadata.footnotes().empty();
+  }
+  EpubReaderMenuActivity::buildMenuItems(moreItems, hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings());
   moreItems.erase(std::remove_if(moreItems.begin(), moreItems.end(),
                                  [](const auto& item) {
                                    return item.action == MA::SELECT_CHAPTER || item.action == MA::TEXT_SETTINGS;

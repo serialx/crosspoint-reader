@@ -1349,6 +1349,20 @@ typedef struct {
 // index=SIZE_MAX queries count only. Returned href borrows the arena.
 uint32_t xp_page_line_link(const uint8_t*, size_t, uint16_t element, size_t index, XpPageLineLink*, size_t* count);
 
+// Streaming inflate: caller-owned state and output history.
+size_t xp_inflate_state_size(void);
+size_t xp_inflate_state_align(void);
+int32_t xp_inflate_init(void* state, size_t state_bytes, uint8_t zlib_wrapped);
+// Result: 0 needs input, 1 done, 2 needs output; -1 corrupt, -2 checksum,
+// -3 invalid argument, -4 truncated. out_pos advances by produced bytes.
+// Buffers and counters must be disjoint. Output must be initialized, including
+// unused capacity. Preserve output history between calls.
+// For wrapping output, out_len is a power of two and out_pos is its cursor;
+// reset out_pos to zero only after it reaches out_len. Non-wrapping output
+// retains the same base address and all previous bytes. Lengths <= PTRDIFF_MAX.
+int32_t xp_inflate_step(void* state, const uint8_t* input, size_t in_len, uint8_t more_input, uint8_t* output,
+                        size_t out_len, size_t* out_pos, uint8_t wrapping_window, size_t* consumed, size_t* produced);
+
 #ifdef __cplusplus
 }
 #endif

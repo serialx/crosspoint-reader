@@ -11,3 +11,6 @@ panic = "abort"
 debug = true
 # Keep Rust's release default; wrapping arithmetic is explicit in the hashes.
 overflow-checks = false
+
+[profile.release.package.miniz_oxide]
+opt-level = 3

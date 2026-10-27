@@ -3,17 +3,15 @@
 #include <BuildScratch.h>
 #include <HalMemory.h>
 #include <Logging.h>
+#include <xp_ffi.h>
 
 #include <cstdlib>
 #include <cstring>
 
-#include "MinizConfig.h"
-
 namespace {
-// tinfl's window must be a power of two; TINFL_LZ_DICT_SIZE is 32768.
-constexpr size_t WINDOW_SIZE = TINFL_LZ_DICT_SIZE;
-// tinfl_decompressor holds mz_uint32 arrays; 8 keeps the window aligned too.
-constexpr size_t STATE_ALIGNED = (sizeof(tinfl_decompressor) + 7) & ~size_t{7};
+constexpr size_t WINDOW_SIZE = 32768;
+constexpr int32_t NEEDS_INPUT = 0;
+constexpr int32_t DONE = 1;
 void logAllocationFailure(const char* allocation, size_t bytes) {
   const auto heap = HalMemory::getDefaultHeap();
   const auto psram = HalMemory::getPsramHeap();
@@ -29,21 +27,21 @@ bool InflateStream::init(const bool streaming) {
   // from scratch each init (releasing any prior backing first).
   deinit();
 
-  // During a framebuffer loan the lent 48KB is up for grabs: state (~8KB) +
-  // window (32KB) fit inside it, so a chapter-build inflate costs the heap
-  // nothing. Absent (or already claimed): plain heap, freed in deinit().
-  const size_t needed = STATE_ALIGNED + (streaming ? WINDOW_SIZE : 0);
+  const size_t stateSize = xp_inflate_state_size();
+  const size_t alignment = xp_inflate_state_align();
+  const size_t stateAligned = (stateSize + alignment - 1) & ~(alignment - 1);
+  // State + window fit in the lent framebuffer. Absent or occupied scratch
+  // falls back to two heap blocks, both released in deinit().
+  const size_t needed = stateAligned + (streaming ? WINDOW_SIZE : 0);
   arenaBase = buildscratch::claim(needed);
   if (arenaBase) {
-    state = reinterpret_cast<tinfl_decompressor*>(arenaBase);
-    window = streaming ? arenaBase + STATE_ALIGNED : nullptr;
+    state = arenaBase;
+    window = streaming ? arenaBase + stateAligned : nullptr;
   } else {
-    // Raw malloc (not makeUniqueNoThrow): the header keeps tinfl_decompressor
-    // an incomplete type so consumers never include miniz; both blocks are
-    // freed in deinit()/the destructor.
-    state = static_cast<tinfl_decompressor*>(malloc(sizeof(tinfl_decompressor)));
+    // Opaque Rust state is caller-owned; deinit()/the destructor frees both blocks.
+    state = malloc(stateSize);
     if (!state) {
-      logAllocationFailure("state", sizeof(tinfl_decompressor));
+      logAllocationFailure("state", stateSize);
       return false;
     }
     if (streaming) {
@@ -56,7 +54,13 @@ bool InflateStream::init(const bool streaming) {
     }
   }
 
-  tinfl_init(state);
+  // Rust slices require initialized bytes, including unused ring history.
+  if (window) memset(window, 0, WINDOW_SIZE);
+  if (xp_inflate_init(state, stateSize, 0) != 0) {
+    LOG_ERR("ZIP", "Invalid inflate state storage");
+    deinit();
+    return false;
+  }
   windowPos = 0;
   pendingStart = 0;
   pendingLen = 0;
@@ -65,7 +69,6 @@ bool InflateStream::init(const bool streaming) {
   fill = nullptr;
   fillCtx = nullptr;
   inputExhausted = false;
-  zlibWrapped = false;
   finished = false;
   oneShotStart = nullptr;
   return true;
@@ -81,6 +84,10 @@ void InflateStream::deinit() {
   }
   state = nullptr;
   window = nullptr;
+}
+
+void InflateStream::setZlibWrapped() {
+  if (state) xp_inflate_init(state, xp_inflate_state_size(), 1);
 }
 
 void InflateStream::setSource(const uint8_t* src, const size_t len) {
@@ -99,11 +106,15 @@ InflateStream::Status InflateStream::readAtMost(uint8_t* dest, const size_t maxL
   if (!state) return Status::Error;
 
   const bool streaming = window != nullptr;
-  if (!streaming && !oneShotStart) oneShotStart = dest;
+  if (!streaming) {
+    if (!oneShotStart) oneShotStart = dest;
+    // Only this new output region is cleared; prior back-reference bytes stay.
+    if (maxLen) memset(dest, 0, maxLen);
+  }
 
   for (;;) {
-    // Drain window bytes left over from a previous tinfl call. In ring mode
-    // tinfl may produce more than the caller asked for in one shot -- the
+    // Drain window bytes left over from a previous decode call. In ring mode
+    // The decoder may produce more than the caller asked for in one shot -- the
     // overshoot stays pending in the window until a later readAtMost.
     if (pendingLen > 0) {
       size_t n = maxLen - *produced;
@@ -123,41 +134,37 @@ InflateStream::Status InflateStream::readAtMost(uint8_t* dest, const size_t maxL
       if (inAvail == 0) inputExhausted = true;
     }
 
-    const mz_uint32 flags = (zlibWrapped ? TINFL_FLAG_PARSE_ZLIB_HEADER : 0) |
-                            (inputExhausted ? 0 : TINFL_FLAG_HAS_MORE_INPUT) |
-                            (streaming ? 0 : TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
-
-    size_t inBytes = inAvail;
-    tinfl_status status;
-    size_t outBytes;
+    size_t inBytes = 0;
+    int32_t status;
+    size_t outBytes = 0;
     if (streaming) {
-      // Ring mode invariant: tinfl derives its wrap mask from
-      // (cursor offset + avail_out), so avail_out MUST always reach the end of
-      // the 32KB window -- never cap it to the caller's remaining space.
-      outBytes = WINDOW_SIZE - windowPos;
-      status = tinfl_decompress(state, inPtr, &inBytes, window, window + windowPos, &outBytes, flags);
+      // Keep the full ring visible for back-references; drain excess output
+      // through pendingLen rather than limiting the decoder's window.
+      size_t position = windowPos;
+      status = xp_inflate_step(state, inPtr, inAvail, !inputExhausted, window, WINDOW_SIZE, &position, 1, &inBytes,
+                               &outBytes);
       pendingStart = windowPos;
       pendingLen = outBytes;
       windowPos += outBytes;
       if (windowPos == WINDOW_SIZE) windowPos = 0;
     } else {
       // One-shot: back-references resolve directly inside the destination buffer.
-      outBytes = maxLen - *produced;
-      status = tinfl_decompress(state, inPtr, &inBytes, oneShotStart, dest + *produced, &outBytes, flags);
+      size_t position = dest + *produced - oneShotStart;
+      const size_t capacity = position + maxLen - *produced;
+      status = xp_inflate_step(state, inPtr, inAvail, !inputExhausted, oneShotStart, capacity, &position, 0, &inBytes,
+                               &outBytes);
       *produced += outBytes;
     }
-    inPtr += inBytes;
+    if (inBytes) inPtr += inBytes;
     inAvail -= inBytes;
 
-    if (status == TINFL_STATUS_DONE) {
+    if (status == DONE) {
       finished = true;  // drain any pending window bytes on the next pass
       continue;
     }
-    if (status < TINFL_STATUS_DONE) return Status::Error;  // corrupt stream / adler mismatch
-    // TINFL_STATUS_NEEDS_MORE_INPUT loops back to the fill above; once the fill
-    // runs dry the HAS_MORE_INPUT flag drops and tinfl either finishes or fails
-    // (truncated stream) instead of spinning.
-    if (status == TINFL_STATUS_NEEDS_MORE_INPUT && inputExhausted && inAvail == 0) {
+    if (status < 0) return Status::Error;  // corrupt stream / adler mismatch
+    // Refill when needed; exhausted input makes a truncated stream fail.
+    if (status == NEEDS_INPUT && inputExhausted && inAvail == 0) {
       return Status::Error;
     }
     if (*produced == maxLen) {

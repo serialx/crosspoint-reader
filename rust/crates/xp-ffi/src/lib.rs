@@ -7,6 +7,7 @@ mod font;
 mod glyph;
 mod hyphen;
 mod image;
+mod inflate;
 mod page;
 mod para;
 mod pkg;

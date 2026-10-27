@@ -8,3 +8,6 @@ publish = false
 package-trace = []
 chapter-trace = []
 chapter-test = []
+
+[dependencies]
+miniz_oxide = { path = "src/inflate/miniz" }

@@ -167,6 +167,7 @@ class Page {
     ElementData() : position{}, line{} {}
   };
   ElementData* views = nullptr;
+  static size_t allocationSize(size_t arenaBytes, size_t elements);
   static std::unique_ptr<Page> allocate(const XpPageInfo& info);
   bool resolveViews();
   void renderArena(GfxRenderer& renderer, int fontId, int x, int y, PageRenderMode mode) const;
@@ -207,6 +208,8 @@ class Page {
   static std::unique_ptr<Page> load(HalFile& file, size_t bytes, uint32_t visibleOffset = 0);
   // Copies validated bytes into the owned arena; does not retain the input span.
   static std::unique_ptr<Page> fromBytes(const uint8_t* bytes, size_t size, uint32_t visibleOffset = 0);
+  // Allocation bound for line-only pages without ruby; SIZE_MAX on overflow.
+  static size_t plainLineAllocationSize(size_t encodedBytes, size_t lines);
 
   // the list of block index and line numbers on this page
 #ifdef XP_PAGE_CODEC_TEST
@@ -272,6 +275,10 @@ class LinePageBuilder {
   bool valid = false;
 
  public:
+  // Packed text includes word NULs; rubyBytes excludes length prefixes.
+  // Optional metadata applies to every line. Returns SIZE_MAX on overflow.
+  static size_t capacityForLines(size_t lines, size_t words, size_t textBytes, bool focus = false, bool fonts = false,
+                                 size_t rubyBytes = 0);
   explicit LinePageBuilder(size_t capacity);
   bool reset();
   bool addLine(const XpParaLine& line, int16_t x, int16_t y);

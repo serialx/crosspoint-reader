@@ -59,9 +59,12 @@ bool relayout(PreviewLayout& layout, const GfxRenderer& renderer, int fontId, in
   const int visibleLines = textHeight < lineH ? 0 : (textHeight - lineH) / lineAdvance + 1;
   size_t wordBytes = 0;
   for (size_t i = 0; i < parsed.size(); ++i) wordBytes += parsed.wordAt(i).size() + 1;
-  // Two copies of the packed words; each visible line can add one split word,
-  // a hyphen and a line header. Allow one indentation token per paragraph.
-  const size_t capacity = 6 + 2 * (wordBytes + parsed.size() * 20 + 24) + size_t(visibleLines) * 65;
+  // Two copies of the words, one indentation token per paragraph, and one split
+  // word per visible line. Four bytes cover each extra token's UTF-8 text and NUL.
+  const size_t extraWords = 2 + size_t(visibleLines);
+  const size_t capacity = LinePageBuilder::capacityForLines(visibleLines, 2 * parsed.size() + extraWords,
+                                                            2 * wordBytes + 4 * extraWords, true);
+  if (capacity == SIZE_MAX) return false;
   LinePageBuilder builder(capacity);
   struct Lines {
     LinePageBuilder& builder;

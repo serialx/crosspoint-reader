@@ -74,18 +74,17 @@ struct DictionaryDefinitionActivity::PlainSelectionLine {
     return i;
   }
 
-  static size_t encodedSize(const char* bytes, const size_t length) {
-    size_t size = 41;  // Position, text header, block style and font flag.
+  static void countWords(const char* bytes, const size_t length, size_t& words, size_t& textBytes) {
     for (size_t i = 0; i < length;) {
       if (separator(bytes[i])) {
         ++i;
         continue;
       }
       const size_t end = wordEnd(bytes, length, i);
-      size += end - i + 18;  // Packed metadata, empty ruby length and NUL.
+      ++words;
+      textBytes += end - i + 1;
       i = end;
     }
-    return size;
   }
 
   void layout(const DictionaryDefinitionActivity& owner, const int fontId, const uint32_t offset) {
@@ -513,9 +512,9 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
   scratch->visualWords.reserve(MAX_PLAIN_WORDS);
   scratch->visualRanges.reserve(MAX_PLAIN_WORDS);
   lookup->selectionPages.reserve(SELECTION_PAGE_WINDOW);
-  size_t capacity = 6;
+  size_t capacity = LinePageBuilder::capacityForLines(0, 0, 0);
   for (int p = 0; p < pageCount; ++p) {
-    size_t bytes = 6;
+    size_t lines = 0, words = 0, textBytes = 0;
     const int first = (content.selectionPage + p) * content.linesPerPage;
     const int last = std::min(first + content.linesPerPage, static_cast<int>(content.lines.size()));
     for (int row = first; row < last; ++row) {
@@ -523,10 +522,14 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
       const char* text = content.text.c_str() + line.start;
       const size_t length = utf8SafeTruncateBuffer(text, std::min<size_t>(line.len, MAX_LINE_BYTES));
       scratch->text.assign(text, length);
-      if (length) bytes += PlainSelectionLine::encodedSize(scratch->text.c_str(), length);
+      if (length) {
+        ++lines;
+        PlainSelectionLine::countWords(scratch->text.c_str(), length, words, textBytes);
+      }
     }
-    capacity = std::max(capacity, bytes);
+    capacity = std::max(capacity, LinePageBuilder::capacityForLines(lines, words, textBytes));
   }
+  if (capacity > SIZE_MAX - HEAP_HEADROOM) return false;
   heap = HalMemory::getDefaultHeap();
   if (heap.freeBytes < capacity + HEAP_HEADROOM || heap.largestBlockBytes < capacity) return false;
   LinePageBuilder builder(capacity);
@@ -535,7 +538,8 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
     const int firstLine = (content.selectionPage + p) * content.linesPerPage;
     const int lastLine = std::min(firstLine + content.linesPerPage, static_cast<int>(content.lines.size()));
     heap = HalMemory::getDefaultHeap();
-    const size_t pageBytes = capacity + sizeof(Page) + 32 + (lastLine - firstLine) * 128;
+    const size_t pageBytes = Page::plainLineAllocationSize(capacity, lastLine - firstLine);
+    if (pageBytes > SIZE_MAX - HEAP_HEADROOM) return false;
     if (heap.freeBytes < pageBytes + HEAP_HEADROOM || heap.largestBlockBytes < pageBytes) return false;
     for (int row = firstLine; row < lastLine; ++row) {
       const auto& line = content.lines[row];

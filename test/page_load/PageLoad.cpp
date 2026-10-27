@@ -101,17 +101,26 @@ static void lineBuilderTest() {
   line.styles = &style;
   line.sources = ranges;
   line.count = 1;  // Null ruby means an ordinary line without annotations.
+  const size_t wireCapacity = LinePageBuilder::capacityForLines(1, 1, sizeof(text));
+  const size_t pageCapacity = Page::plainLineAllocationSize(wireCapacity, 1);
+  require(wireCapacity == 6 + 41 + 18 + sizeof(text) - 1, "plain wire capacity changed");
+  require(pageCapacity <= wireCapacity + sizeof(Page) + 32 + 128, "decoded estimate grew");
+  require(LinePageBuilder::capacityForLines(SIZE_MAX, 1, sizeof(text)) == SIZE_MAX &&
+              Page::plainLineAllocationSize(SIZE_MAX, 1) == SIZE_MAX &&
+              Page::plainLineAllocationSize(wireCapacity, SIZE_MAX) == SIZE_MAX,
+          "capacity overflow must saturate");
   for (const size_t fail : {size_t(0), size_t(1), SIZE_MAX}) {
     allocations::requests = 0;
     allocations::failAt = fail;
     allocations::enabled = true;
     {
-      LinePageBuilder builder(1024);
+      LinePageBuilder builder(wireCapacity);
       const bool added = builder.addLine(line, 5, 9);
       auto page = builder.finish();
       require(added == (fail != 0) && bool(page) == (fail == SIZE_MAX), "builder allocation failure");
       if (page) {
         require(allocations::requests == 2 && allocations::live == 2, "scratch plus one page allocation");
+        require(allocations::liveBytes == wireCapacity + pageCapacity, "decoded estimate differs from allocation");
         require(builder.reset() && builder.addLine(line, 7, 11), "reuse line buffer");
         auto next = builder.finish();
         require(next && allocations::requests == 3, "reuse must allocate only the next page");

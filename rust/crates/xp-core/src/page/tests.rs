@@ -200,3 +200,142 @@ fn direct_decode_matches_copy_and_preserves_invalid_input() {
         .is_err());
     }
 }
+
+#[test]
+fn line_capacity_matches_legacy_consumer_budgets_and_saturates() {
+    use builder::line_capacity;
+    for lines in [0, 1, 40, 65535] {
+        for words in [0, 1, 96, 10000] {
+            for text in [0, words, 65535] {
+                assert_eq!(
+                    line_capacity(lines, words, text, false, false, 0),
+                    6 + 41 * lines + 17 * words + text
+                );
+                // Preview: two paragraphs, an indent token each, and a possible
+                // split/hyphen token for each visible line, including its NUL.
+                let extra = 2 + lines;
+                assert_eq!(
+                    line_capacity(
+                        lines,
+                        2 * words + extra,
+                        2 * text + 4 * extra,
+                        true,
+                        false,
+                        0
+                    ),
+                    6 + 2 * (text + words * 20 + 24) + lines * 65
+                );
+            }
+        }
+    }
+    for index in 0..4 {
+        let mut counts = [0; 4];
+        counts[index] = usize::MAX;
+        assert_eq!(
+            line_capacity(counts[0], counts[1], counts[2], true, true, counts[3]),
+            usize::MAX
+        );
+    }
+    assert_eq!(plain_line_arena_capacity(usize::MAX, 0), usize::MAX);
+    assert_eq!(plain_line_arena_capacity(0, usize::MAX), usize::MAX);
+}
+
+#[test]
+fn line_capacity_bounds_random_and_boundary_pages() {
+    extern crate alloc;
+    use alloc::{vec, vec::Vec};
+    let mut seed = 0x1294_abcdu32;
+    let mut random = || {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        seed as usize
+    };
+    for case in 0..260 {
+        let lines = match case {
+            0 => 0,
+            1 => 65535,
+            2..=5 => 1,
+            _ => random() % 12,
+        };
+        let mut page_lines = Vec::new();
+        let (mut word_count, mut text_bytes, mut ruby_bytes) = (0, 0, 0);
+        let (mut any_focus, mut any_fonts) = (false, false);
+        for _ in 0..lines {
+            let n = match case {
+                1 => 0,
+                2 => 10000,
+                3..=5 => 1,
+                _ => random() % 97,
+            };
+            let focus = n != 0 && (case == 4 || random() & 1 != 0);
+            let fonts = case == 5 || random() & 1 != 0;
+            let mut text = Vec::new();
+            let mut offsets = Vec::new();
+            let mut rubies = Vec::new();
+            for _ in 0..n {
+                offsets.push(text.len() as u16);
+                let len = match case {
+                    2 => 1,
+                    3..=5 => 65534,
+                    _ => random() % 32,
+                };
+                text.extend(core::iter::repeat_n(b'x', len));
+                text.push(0);
+                let ruby = vec![b'r'; if case <= 5 { 0 } else { random() % 9 }];
+                ruby_bytes += ruby.len();
+                rubies.push(ruby);
+            }
+            word_count += n;
+            text_bytes += text.len();
+            any_focus |= focus;
+            any_fonts |= fonts;
+            page_lines.push((text, offsets, rubies, focus, fonts));
+        }
+        let capacity = builder::line_capacity(
+            lines, word_count, text_bytes, any_focus, any_fonts, ruby_bytes,
+        );
+        let mut output = vec![0; capacity];
+        let mut b = Builder::new(&mut output).unwrap();
+        for (text, offsets, rubies, focus, fonts) in &page_lines {
+            let n = offsets.len();
+            let positions = vec![0; n];
+            let styles = vec![0; n];
+            let sources = vec![0; n * 2];
+            let boundaries = vec![0; if *focus { n } else { 0 }];
+            let suffixes = vec![0; boundaries.len()];
+            let ruby_refs: Vec<&[u8]> = rubies.iter().map(Vec::as_slice).collect();
+            let line = PackedLine {
+                text,
+                offsets,
+                positions: &positions,
+                styles: &styles,
+                sources: &sources,
+                boundaries: &boundaries,
+                suffixes: &suffixes,
+                ruby: &ruby_refs.as_slice(),
+                paragraph_start: if n == 0 { u16::MAX } else { 0 },
+                block: section::Record {
+                    kind: Kind::BlockStyle as u32,
+                    ..Default::default()
+                },
+                fonts: if *fonts {
+                    Some(([0; 3], &styles))
+                } else {
+                    None
+                },
+            };
+            b.append(0, 0, Content::Line(&line))
+                .unwrap_or_else(|error| panic!("case {case}: {error:?}"));
+        }
+        let wire = b.finish().unwrap();
+        assert!(wire.len() <= capacity, "case {case}");
+        let info = inspect(wire).unwrap();
+        if ruby_bytes == 0 {
+            assert_eq!(
+                plain_line_arena_capacity(wire.len(), lines),
+                info.arena_size
+            );
+        }
+    }
+}

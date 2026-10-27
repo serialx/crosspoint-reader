@@ -45,12 +45,22 @@ void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, 
   renderArena(renderer, fontId, x, y, PageRenderMode::Placeholders);
 }
 
-std::unique_ptr<Page> Page::allocate(const XpPageInfo& info) {
+size_t Page::allocationSize(const size_t arenaBytes, const size_t elements) {
   const size_t alignment = alignof(ElementData);
-  if (info.arena_size > SIZE_MAX - sizeof(Page) - alignment + 1) return nullptr;
-  const size_t viewOffset = (sizeof(Page) + info.arena_size + alignment - 1) & ~(alignment - 1);
-  if (info.elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return nullptr;
-  const size_t bytes = viewOffset + info.elements * sizeof(ElementData);
+  if (arenaBytes > SIZE_MAX - sizeof(Page) - alignment + 1) return SIZE_MAX;
+  const size_t viewOffset = (sizeof(Page) + arenaBytes + alignment - 1) & ~(alignment - 1);
+  if (elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return SIZE_MAX;
+  return viewOffset + elements * sizeof(ElementData);
+}
+
+size_t Page::plainLineAllocationSize(const size_t encodedBytes, const size_t lines) {
+  return allocationSize(xp_page_plain_line_arena_capacity(encodedBytes, lines), lines);
+}
+
+std::unique_ptr<Page> Page::allocate(const XpPageInfo& info) {
+  const size_t bytes = allocationSize(info.arena_size, info.elements);
+  if (bytes == SIZE_MAX) return nullptr;
+  const size_t viewOffset = bytes - info.elements * sizeof(ElementData);
   // Page owns the header and trailing records; its unsized delete matches this allocation.
   void* allocation = ::operator new(bytes, std::nothrow);
   if (!allocation) {
@@ -314,6 +324,11 @@ std::string_view PageElementView::dropCapText() const {
 #endif
   const auto& e = fields();
   return {reinterpret_cast<const char*>(e.first.data), e.first.len};
+}
+
+size_t LinePageBuilder::capacityForLines(const size_t lines, const size_t words, const size_t textBytes,
+                                         const bool focus, const bool fonts, const size_t rubyBytes) {
+  return xp_page_line_capacity(lines, words, textBytes, focus, fonts, rubyBytes);
 }
 
 LinePageBuilder::LinePageBuilder(const size_t capacity)

@@ -116,10 +116,16 @@ struct PageLine : PageElement {
   int y;
   PageLine(std::unique_ptr<TextBlock> block, int, int y) : block(std::move(block)), y(y) {}
 };
-struct Page { std::vector<std::unique_ptr<PageElement>> elements; };
+struct Page {
+  std::vector<std::unique_ptr<PageElement>> elements;
+  static size_t plainLineAllocationSize(size_t bytes, size_t) { return bytes + sizeof(Page); }
+};
 // Keep navigation assertions independent of the page codec, covered by page/line goldens.
 struct LinePageBuilder {
   std::unique_ptr<Page> page;
+  static size_t capacityForLines(size_t lines, size_t words, size_t textBytes) {
+    return xp_page_line_capacity(lines, words, textBytes, 0, 0, 0);
+  }
   explicit LinePageBuilder(size_t) {}
   bool reset() { page = std::make_unique<Page>(); return true; }
   bool addLine(const XpParaLine& line, int16_t x, int16_t y) {

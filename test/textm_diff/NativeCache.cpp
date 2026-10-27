@@ -76,6 +76,7 @@ void sequence(void* ctx, const void* cache) {
               t.setups, t.misses);
 }
 }  // namespace
+#include "NativeDrawing.h"
 #include "NativeLayout.h"
 int main(int argc, char** argv) {
   require(argc == 2 || argc == 3, "NativeCache public.cpfont [--layout-count]");
@@ -116,4 +117,5 @@ int main(int argc, char** argv) {
     return 0;
   }
   xp_native_test_run(&provider, &test, sequence);
+  nativeDrawing(renderer);
 }

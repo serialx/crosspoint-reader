@@ -7,8 +7,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   enable_testing()
 endif()
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+execute_process(COMMAND git show 4436ccc228d23f94fd468723c8749607de1b09c4:lib/EpdFont/EpdFont.cpp
+  WORKING_DIRECTORY ${REPO_ROOT} OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/EpdFontReference.cpp
+  COMMAND_ERROR_IS_FATAL ANY)
 add_executable(FontDiff FontDiff.cpp Abi.cpp
-  ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/EpdFontReference.cpp
   ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
 target_include_directories(FontDiff PRIVATE

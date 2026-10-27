@@ -8,8 +8,8 @@ add_executable(ChapterHtmlSlimParserTest
   ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
-  ${REPO_ROOT}/lib/MiniBidi/BidiUtils.cpp
-  ${REPO_ROOT}/lib/MiniBidi/minibidi.c
+  ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
+
   ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
   ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp
   ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp

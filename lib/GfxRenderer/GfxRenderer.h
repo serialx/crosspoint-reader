@@ -114,6 +114,9 @@ class GfxRenderer {
   // has a registered fallback, returns the fallback id; otherwise returns
   // fontId unchanged. The whole string is routed as a unit so each draw/measure
   // call stays single-font (consistent bit depth, metrics, wrapping).
+  void drawScaledGlyph(int fontId, uint32_t cp, EpdFontFamily::Style style, int x, int baselineY, int scale256) const;
+  void drawGlyphRun(int fontId, int x, int y, const char* text, bool black, EpdFontFamily::Style style,
+                    BidiUtils::BidiBaseDir baseDir, int8_t tracking, bool rotated) const;
   int resolveTextFontId(int fontId, const char* text, EpdFontFamily::Style style) const;
 
   // Batch-load `text`'s glyphs into an SD-card font's resident mini tables

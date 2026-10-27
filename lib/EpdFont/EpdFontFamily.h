@@ -27,6 +27,8 @@ class EpdFontFamily {
   ~EpdFontFamily() = default;
   void getTextDimensions(const char* string, int* w, int* h, Style style = REGULAR) const;
   const EpdFontData* getData(Style style = REGULAR) const;
+  // The EpdFont owner is stable during a synchronous draw; its tables may change.
+  const EpdFontData* const* getDataSlot(Style style) const { return &getFont(style)->data; }
   const EpdGlyph* getGlyph(uint32_t cp, Style style = REGULAR) const;
   const EpdGlyph* getGlyphMetrics(uint32_t cp, EpdGlyph& solidFallback, Style style = REGULAR) const {
     return getFont(style)->getGlyphMetrics(cp, solidFallback);

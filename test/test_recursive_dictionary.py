@@ -539,14 +539,13 @@ harness = harness.replace('bool DictionaryDefinitionActivity::prepareDefinition'
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
     (path / "navigation.cpp").write_text(harness)
-    subprocess.run(["cc", "-c", str(ROOT / "lib/MiniBidi/minibidi.c"), "-o", str(path / "minibidi.o")], check=True)
     subprocess.run([
         "c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
         "-I", str(ROOT / "src"), "-I", str(ROOT / "lib/Memory"),
         "-I", str(ROOT / "lib/MiniBidi"), "-I", str(ROOT / "lib/Utf8"),
         "-I", str(ROOT / "test/minibidi_arabic/stubs"),
-        str(path / "navigation.cpp"), str(path / "minibidi.o"),
-        str(ROOT / "lib/MiniBidi/BidiUtils.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(),
+        str(path / "navigation.cpp"),
+        str(ROOT / "lib/MiniBidi/RustBidi.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(),
         "-o", str(path / "navigation"),
     ], check=True)
     subprocess.run([str(path / "navigation")], check=True)

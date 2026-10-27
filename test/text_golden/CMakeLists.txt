@@ -20,7 +20,7 @@ add_executable(TextGolden TextGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
   ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp
   ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
-  ${REPO_ROOT}/lib/MiniBidi/minibidi.c ${REPO_ROOT}/lib/MiniBidi/BidiUtils.cpp
+  ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp
   ${REPO_ROOT}/lib/uzlib/src/tinflate.c ${REPO_ROOT}/lib/Memory/BuildScratch.cpp
   ${FONT_SDK}/src/FtFont.cpp ${FONT_SDK}/src/FontAlloc.c ${FONT_SDK}/src/Gsub.cpp ${FONT_SDK}/src/Gpos.cpp

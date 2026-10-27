@@ -17,57 +17,6 @@
 #include "FontCacheManager.h"
 #include "GlyphBitmap.h"
 
-namespace {
-// Synthesized small caps: lowercase letters draw as capitals at roughly x-height.
-constexpr int SMALL_CAPS_SCALE_NUM = 3;
-constexpr int SMALL_CAPS_SCALE_DEN = 4;
-constexpr int32_t scaleSmallCapAdvance(const int32_t advanceFP) {
-  return (advanceFP * SMALL_CAPS_SCALE_NUM + SMALL_CAPS_SCALE_DEN / 2) / SMALL_CAPS_SCALE_DEN;
-}
-}  // namespace
-
-namespace {
-constexpr int trackingBetween(const uint32_t leftCp, const uint32_t rightCp, const int8_t tracking) {
-  const auto isSpace = [](const uint32_t cp) { return cp == ' ' || cp == 0xA0 || cp == 0x3000; };
-  return leftCp == 0 || isSpace(leftCp) || isSpace(rightCp) ? 0 : tracking;
-}
-
-}  // namespace
-
-namespace {
-const char* resolveVisualText(const char* text, std::string& visualBuffer, BidiUtils::BidiBaseDir baseDir);
-
-// Appends the shaped visual form of every RTL token in `text` to `shapedOut`.
-// getTextAdvanceX() measures the bidi-reordered, Arabic-shaped codepoint stream,
-// so the SD advance table must be warmed with the presentation forms as well as
-// the logical codepoints — otherwise every RTL word measurement misses the fast
-// path and falls through to onGlyphMiss(), which opens the .cpfont and reads
-// glyph metadata + bitmap into the 8-slot overflow ring, once per glyph.
-// Tokens without RTL lead bytes (0xD6-0xDB) are skipped with a byte scan, so
-// pure-LTR text pays almost nothing.
-void appendShapedRtlTokens(const char* text, std::string& shapedOut) {
-  const auto isBreak = [](const char c) { return c == ' ' || c == '\n' || c == '\r' || c == '\t'; };
-  std::string token;
-  std::string visual;
-  const char* p = text;
-  while (*p) {
-    while (*p && isBreak(*p)) ++p;
-    const char* start = p;
-    bool hasRtlBytes = false;
-    while (*p && !isBreak(*p)) {
-      const auto b = static_cast<unsigned char>(*p);
-      hasRtlBytes = hasRtlBytes || (b >= 0xD6 && b <= 0xDB);
-      ++p;
-    }
-    if (!hasRtlBytes) continue;
-    token.assign(start, p - start);
-    if (BidiUtils::applyBidiVisual(token.c_str(), visual, static_cast<int>(BidiUtils::BidiBaseDir::AUTO))) {
-      shapedOut += visual;
-    }
-  }
-}
-}  // namespace
-
 const uint8_t* GfxRenderer::getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const {
   // Vector (TTF) fonts: the glyph bitmap lives in the font's own cache, keyed by
   // the EpdGlyph the miss handler returned. Checked first so it never reaches the
@@ -106,7 +55,7 @@ void GfxRenderer::ensureSdCardFontReady(int fontId, const char* utf8Text, uint8_
   auto it = sdCardFonts_.find(fontId);
   if (it != sdCardFonts_.end()) {
     std::string shaped;
-    appendShapedRtlTokens(utf8Text, shaped);
+    BidiUtils::appendShapedRtlTokens(utf8Text, shaped);
     int missed = it->second->buildAdvanceTable(utf8Text, styleMask, shaped.empty() ? nullptr : shaped.c_str());
     if (missed > 0) {
       LOG_DBG("GFX", "ensureSdCardFontReady: %d glyph(s) not found", missed);
@@ -132,7 +81,7 @@ void GfxRenderer::ensureSdCardFontReady(const int fontId, const char* const* seg
       const char* p = segments[seg];
       const char* const end = p + segmentLens[seg];
       while (p < end) {
-        appendShapedRtlTokens(p, shaped);
+        BidiUtils::appendShapedRtlTokens(p, shaped);
         p += strlen(p) + 1;
       }
     }
@@ -425,10 +374,10 @@ enum class TextRotation { None, Rotated90CW };
 static void renderCharScaled(const GfxRenderer& renderer, GfxRenderer::RenderMode renderMode,
                              const EpdFontFamily& fontFamily, const uint32_t cp, int cursorX, int cursorY,
                              const bool pixelState, const EpdFontFamily::Style style, const int scaleNum,
-                             const int scaleDen) {
+                             const int scaleDen, const EpdGlyph* resolvedGlyph = nullptr) {
   if (renderer.grayPlanesAreAbsolute()) renderMode = GfxRenderer::BW;
   EpdGlyph solidFallback;
-  const EpdGlyph* glyph = fontFamily.getGlyphMetrics(cp, solidFallback, style);
+  const EpdGlyph* glyph = resolvedGlyph ? resolvedGlyph : fontFamily.getGlyphMetrics(cp, solidFallback, style);
   if (!glyph) return;
 
   const EpdFontData* fontData = fontFamily.getData(style);
@@ -485,10 +434,11 @@ static void renderCharScaled(const GfxRenderer& renderer, GfxRenderer::RenderMod
 template <TextRotation rotation = TextRotation::None>
 static void renderCharImpl(const GfxRenderer& renderer, GfxRenderer::RenderMode renderMode,
                            const EpdFontFamily& fontFamily, const uint32_t cp, int cursorX, int cursorY,
-                           const bool pixelState, const EpdFontFamily::Style style) {
+                           const bool pixelState, const EpdFontFamily::Style style,
+                           const EpdGlyph* resolvedGlyph = nullptr) {
   if (renderer.grayPlanesAreAbsolute()) renderMode = GfxRenderer::BW;
   EpdGlyph solidFallback;
-  const EpdGlyph* glyph = fontFamily.getGlyphMetrics(cp, solidFallback, style);
+  const EpdGlyph* glyph = resolvedGlyph ? resolvedGlyph : fontFamily.getGlyphMetrics(cp, solidFallback, style);
   if (!glyph) {
     LOG_ERR("GFX", "No glyph for codepoint %d", cp);
     return;
@@ -629,145 +579,60 @@ void GfxRenderer::drawCenteredText(const int fontId, const int y, const char* te
 void GfxRenderer::drawText(const int fontId, const int x, const int y, const char* text, const bool black,
                            const EpdFontFamily::Style style, const BidiUtils::BidiBaseDir baseDir,
                            const int8_t tracking) const {
-  // cannot draw a NULL / empty string
-  if (text == nullptr || *text == '\0') {
-    return;
-  }
+  drawGlyphRun(fontId, x, y, text, black, style, baseDir, tracking, false);
+}
 
-  // Route non-Latin strings to the fallback font when the requested font
-  // lacks the glyphs (e.g. Chinese book titles drawn with a Latin UI font).
+void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const char* text, const bool black,
+                               const EpdFontFamily::Style style, const BidiUtils::BidiBaseDir baseDir,
+                               const int8_t tracking, const bool rotated) const {
+  if (!text || !*text) return;
   const int resolvedFontId = resolveTextFontId(fontId, text, style);
-
-  std::string visual;
-  const char* renderedText = resolveVisualText(text, visual, baseDir);
-
-  // Baseline from the resolved font; when the string was redirected to the
-  // fallback, the caller positioned this line with the REQUESTED font's
-  // metrics (row bands, icon centering), so center the fallback's line box
-  // inside the requested font's line box instead of letting a taller/shorter
-  // fallback hang below or float above the row's visual center.
-  int yPos = y + getFontAscenderSize(resolvedFontId);
-  if (resolvedFontId != fontId) {
-    yPos += (getLineHeight(fontId) - getLineHeight(resolvedFontId)) / 2;
-  }
-  int lastBaseX = x;
-  int lastBaseLeft = 0;
-  int lastBaseWidth = 0;
-  int lastBaseTop = 0;
-  int32_t prevAdvanceFP = 0;  // 12.4 fixed-point: prev glyph's advance + next kern for snap
-
-  if (fontCacheManager_ && fontCacheManager_->isScanning()) {
-    fontCacheManager_->recordText(renderedText, resolvedFontId, style);
-    return;
-  }
-
-  // Redirected to the SD fallback: batch-load the string's glyphs so the draw
-  // loop below doesn't fault them in one SD read at a time (#2725).
-  if (resolvedFontId != fontId) {
-    ensureSdGlyphsResident(resolvedFontId, renderedText, style, false);
-  }
-
-  const auto fontIt = fontMap.find(resolvedFontId);
-  if (fontIt == fontMap.end()) {
-    LOG_ERR("GFX", "Font %d not found", resolvedFontId);
-    return;
-  }
-  const auto& font = fontIt->second;
-
-  const char* textCursor = renderedText;
-  uint32_t cp;
-  uint32_t prevCp = 0;
-  while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&textCursor)))) {
-    // RTL vowel marks (Hebrew niqqud, Arabic harakat) ride the combining-mark
-    // path: zero-advance overlays on the preceding base glyph (applyBidiVisual
-    // emits base-then-marks per UAX#9 L3). anchorFor pins position-sensitive
-    // niqqud (dagesh, shin/sin dots, holam) to their spot on the base; other
-    // marks stay centered, raised above the base or (kasra) at their
-    // font-native position. Fonts without their glyphs — the built-ins — miss
-    // the getGlyph lookup and skip them, as before.
-    if (utf8IsCombiningMark(cp) || BidiUtils::isTransparentMark(cp)) {
-      const EpdGlyph* combiningGlyph = font.getGlyph(cp, style);
-      if (!combiningGlyph) continue;
-      const auto anchor = combiningMark::anchorFor(cp);
-      const int raiseBy =
-          combiningMark::raiseAboveBase(anchor, combiningGlyph->top, combiningGlyph->height, lastBaseTop);
-      const int combiningX = combiningMark::anchorOver(anchor, lastBaseX, lastBaseLeft, lastBaseWidth,
-                                                       combiningGlyph->left, combiningGlyph->width);
-      renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, combiningX, yPos - raiseBy, black, style);
-      continue;
-    }
-
-    const uint32_t smallCapCp = (style & EpdFontFamily::SMALL_CAPS) ? utf8SmallCapsUpper(cp) : cp;
-    const bool isSmallCap = smallCapCp != cp;
-    if (style & EpdFontFamily::SMALL_CAPS) {
-      cp = smallCapCp;  // no ligatures: small caps set each letter separately
-    } else {
-      cp = font.applyLigatures(cp, textCursor, style);
-    }
-
-    // Differential rounding: snap (previous advance + current kern) as one unit so
-    // identical character pairs always produce the same pixel step regardless of
-    // where they fall on the line.
-    if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
-      lastBaseX += fp4::toPixel(prevAdvanceFP + kernFP) + trackingBetween(prevCp, cp, tracking);
-    }
-
-    EpdGlyph solidFallback;
-    const EpdGlyph* glyph = font.getGlyphMetrics(cp, solidFallback, style);
-
-    lastBaseLeft = glyph ? glyph->left : 0;
-    lastBaseWidth = glyph ? glyph->width : 0;
-    lastBaseTop = glyph ? glyph->top : 0;
-    prevAdvanceFP = glyph ? glyph->advanceX : 0;  // 12.4 fixed-point
-
-    const bool isSupSub = (style & (EpdFontFamily::SUP | EpdFontFamily::SUB)) != 0;
-    if (isSupSub) {
-      // Halve the advance so the cursor advances by the same amount the scaled glyph
-      // actually occupies, keeping spacing correct without needing a separate smaller font.
-      prevAdvanceFP = (prevAdvanceFP + 1) / 2;
-    } else if (isSmallCap) {
-      prevAdvanceFP = scaleSmallCapAdvance(prevAdvanceFP);
-    }
-
-    if (isSupSub) {
-      // yPos already carries the vertical offset applied by TextBlock::render().
-      renderCharScaled(*this, renderMode, font, cp, lastBaseX, yPos, black, style, 1, 2);
-    } else if (isSmallCap) {
-      renderCharScaled(*this, renderMode, font, cp, lastBaseX, yPos, black, style, SMALL_CAPS_SCALE_NUM,
-                       SMALL_CAPS_SCALE_DEN);
-    } else {
-      renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, lastBaseX, yPos, black, style);
-    }
-    prevCp = cp;
-  }
+  int baseline = rotated ? 0 : getFontAscenderSize(resolvedFontId);
+  if (!rotated && resolvedFontId != fontId) baseline += (getLineHeight(fontId) - getLineHeight(resolvedFontId)) / 2;
+  struct DrawContext {
+    const GfxRenderer& renderer;
+    const EpdFontFamily* font;
+    int requestedFont, resolvedFont, x, y;
+    EpdFontFamily::Style style;
+    bool black, rotated;
+  } context{*this, nullptr, fontId, resolvedFontId, x, y + baseline, style, black, rotated};
+  const auto provider = textProvider();
+  xp_native_draw(
+      &provider, resolvedFontId, reinterpret_cast<const uint8_t*>(text), strlen(text), style, tracking,
+      static_cast<int32_t>(baseDir), rotated, &context,
+      [](void* raw, const uint8_t* visual, size_t) -> const void* const* {
+        auto& c = *static_cast<DrawContext*>(raw);
+        const auto* text = reinterpret_cast<const char*>(visual);
+        const int resolved = c.resolvedFont;
+        if (!c.rotated && c.renderer.fontCacheManager_ && c.renderer.fontCacheManager_->isScanning()) {
+          c.renderer.fontCacheManager_->recordText(text, resolved, c.style);
+          return nullptr;
+        }
+        if (resolved != c.requestedFont) c.renderer.ensureSdGlyphsResident(resolved, text, c.style, false);
+        const auto font = c.renderer.fontMap.find(resolved);
+        if (font == c.renderer.fontMap.end()) {
+          LOG_ERR("GFX", "Font %d not found", resolved);
+          return nullptr;
+        }
+        c.font = &font->second;
+        return reinterpret_cast<const void* const*>(c.font->getDataSlot(c.style));
+      },
+      [](void* raw, const XpGlyphPlacement* glyph) {
+        const auto& c = *static_cast<DrawContext*>(raw);
+        const auto* resolvedGlyph = static_cast<const EpdGlyph*>(glyph->glyph);
+        const int gx = c.x + glyph->x, gy = c.y + glyph->y;
+        if (c.rotated) {
+          renderCharImpl<TextRotation::Rotated90CW>(c.renderer, c.renderer.renderMode, *c.font, glyph->codepoint, gx,
+                                                    gy, c.black, c.style, resolvedGlyph);
+        } else if (glyph->scaleNum != glyph->scaleDen) {
+          renderCharScaled(c.renderer, c.renderer.renderMode, *c.font, glyph->codepoint, gx, gy, c.black, c.style,
+                           glyph->scaleNum, glyph->scaleDen, resolvedGlyph);
+        } else {
+          renderCharImpl<TextRotation::None>(c.renderer, c.renderer.renderMode, *c.font, glyph->codepoint, gx, gy,
+                                             c.black, c.style, resolvedGlyph);
+        }
+      });
 }
-
-namespace {
-const char* resolveVisualText(const char* text, std::string& visualBuffer, const BidiUtils::BidiBaseDir baseDir) {
-  if (!text || *text == '\0') return text;
-
-  if (baseDir != BidiUtils::BidiBaseDir::RTL) {
-    // Byte-level scan: skip BiDi when no RTL script lead bytes are present.
-    // Hebrew UTF-8 lead bytes: 0xD6-0xD7; Arabic/Syriac: 0xD8-0xDB.
-    // This covers all RTL content without false negatives and avoids triggering
-    // the full UAX#9 algorithm for Latin-extended, em-dashes, accented text, etc.
-    bool hasRtlBytes = false;
-    for (const unsigned char* q = reinterpret_cast<const unsigned char*>(text); *q; ++q) {
-      if (*q >= 0xD6 && *q <= 0xDB) {
-        hasRtlBytes = true;
-        break;
-      }
-    }
-    if (!hasRtlBytes) return text;
-  }
-
-  if (BidiUtils::applyBidiVisual(text, visualBuffer, static_cast<int>(baseDir)) && !visualBuffer.empty()) {
-    return visualBuffer.c_str();
-  }
-  return text;
-}
-}  // namespace
 
 void GfxRenderer::drawLine(int x1, int y1, int x2, int y2, const bool state) const {
   if (fontCacheManager_ && fontCacheManager_->isScanning()) return;
@@ -2048,15 +1913,31 @@ int GfxRenderer::drawScaledCodepoint(const int fontId, const uint32_t cp, const 
     fontCacheManager_->recordText(utf8, fontId, style);
     return 0;
   }
+  struct ScaledContext {
+    const GfxRenderer& renderer;
+    int fontId;
+    uint32_t cp;
+    EpdFontFamily::Style style;
+    int x, y, scale;
+  };
+  ScaledContext context{*this, fontId, cp, style, x, baselineY, scale256};
+  const auto provider = textProvider();
+  return xp_native_draw_scaled(&provider, fontId, cp, style, scale256, &context, [](void* raw) {
+    const auto& c = *static_cast<ScaledContext*>(raw);
+    c.renderer.drawScaledGlyph(c.fontId, c.cp, c.style, c.x, c.y, c.scale);
+  });
+}
+
+void GfxRenderer::drawScaledGlyph(const int fontId, const uint32_t cp, const EpdFontFamily::Style style, const int x,
+                                  const int baselineY, const int scale256) const {
   const auto fontIt = fontMap.find(fontId);
-  if (fontIt == fontMap.end()) return 0;
-  const EpdFontFamily& font = fontIt->second;
+  if (fontIt == fontMap.end()) return;
+  const auto& font = fontIt->second;
   const EpdGlyph* glyph = font.getGlyph(cp, style);
-  if (!glyph) return 0;
-  const int advance = fp4::toPixel(static_cast<int32_t>(glyph->advanceX) * scale256 / 256);
+  if (!glyph) return;
   const EpdFontData* fontData = font.getData(style);
   const uint8_t* bitmap = getGlyphBitmap(fontData, glyph);
-  if (!bitmap) return advance;
+  if (!bitmap) return;
 
   const int srcW = glyph->width;
   const int srcH = glyph->height;
@@ -2090,7 +1971,6 @@ int GfxRenderer::drawScaledCodepoint(const int fontId, const uint32_t cp, const 
       if ((upper * (256 - fy) + lower * fy) * 2 >= 3 * 256 * 256) drawPixel(left + dx, top + dy, true);
     }
   }
-  return advance;
 }
 
 int GfxRenderer::getFontAscenderSize(const int fontId) const {
@@ -2128,75 +2008,7 @@ int GfxRenderer::getTextHeight(const int fontId) const {
 
 void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y, const char* text, const bool black,
                                       const EpdFontFamily::Style style) const {
-  // Cannot draw a NULL / empty string
-  if (text == nullptr || *text == '\0') {
-    return;
-  }
-
-  // Route non-Latin strings to the fallback font (see resolveTextFontId).
-  const int resolvedFontId = resolveTextFontId(fontId, text, style);
-  // Redirected to the SD fallback: batch-load the string's glyphs so the draw
-  // loop below doesn't fault them in one SD read at a time (#2725).
-  if (resolvedFontId != fontId) {
-    ensureSdGlyphsResident(resolvedFontId, text, style, false);
-  }
-  const auto fontIt = fontMap.find(resolvedFontId);
-  if (fontIt == fontMap.end()) {
-    LOG_ERR("GFX", "Font %d not found", resolvedFontId);
-    return;
-  }
-
-  const auto& font = fontIt->second;
-
-  int lastBaseY = y;
-  int lastBaseLeft = 0;
-  int lastBaseWidth = 0;
-  int lastBaseTop = 0;
-  int32_t prevAdvanceFP = 0;  // 12.4 fixed-point: prev glyph's advance + next kern for snap
-
-  uint32_t cp;
-  uint32_t prevCp = 0;
-  while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
-    // RTL vowel marks (Hebrew niqqud, Arabic harakat) ride the combining-mark
-    // path: zero-advance overlays on the preceding base glyph (applyBidiVisual
-    // emits base-then-marks per UAX#9 L3). anchorFor pins position-sensitive
-    // niqqud (dagesh, shin/sin dots, holam) to their spot on the base; other
-    // marks stay centered, raised above the base or (kasra) at their
-    // font-native position. Fonts without their glyphs — the built-ins — miss
-    // the getGlyph lookup and skip them, as before.
-    if (utf8IsCombiningMark(cp) || BidiUtils::isTransparentMark(cp)) {
-      const EpdGlyph* combiningGlyph = font.getGlyph(cp, style);
-      if (!combiningGlyph) continue;
-      const auto anchor = combiningMark::anchorFor(cp);
-      const int raiseBy =
-          combiningMark::raiseAboveBase(anchor, combiningGlyph->top, combiningGlyph->height, lastBaseTop);
-      const int combiningX = x - raiseBy;
-      const int combiningY = combiningMark::anchorOverRotated90CW(anchor, lastBaseY, lastBaseLeft, lastBaseWidth,
-                                                                  combiningGlyph->left, combiningGlyph->width);
-      renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, combiningX, combiningY, black, style);
-      continue;
-    }
-
-    cp = font.applyLigatures(cp, text, style);
-
-    // Differential rounding: snap (previous advance + current kern) as one unit,
-    // subtracting for the rotated coordinate direction.
-    if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
-      lastBaseY -= fp4::toPixel(prevAdvanceFP + kernFP);       // snap 12.4 fixed-point to nearest pixel
-    }
-
-    EpdGlyph solidFallback;
-    const EpdGlyph* glyph = font.getGlyphMetrics(cp, solidFallback, style);
-
-    lastBaseLeft = glyph ? glyph->left : 0;
-    lastBaseWidth = glyph ? glyph->width : 0;
-    lastBaseTop = glyph ? glyph->top : 0;
-    prevAdvanceFP = glyph ? glyph->advanceX : 0;  // 12.4 fixed-point
-
-    renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, x, lastBaseY, black, style);
-    prevCp = cp;
-  }
+  drawGlyphRun(fontId, x, y, text, black, style, BidiUtils::BidiBaseDir::LTR, 0, true);
 }
 
 uint8_t* GfxRenderer::getFrameBuffer() const { return frameBuffer; }

@@ -7,6 +7,7 @@ pub mod epub;
 pub mod font;
 pub mod hyphen;
 pub mod image;
+pub mod page;
 pub mod para;
 pub mod section;
 pub mod text;

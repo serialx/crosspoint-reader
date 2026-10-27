@@ -1121,6 +1121,88 @@ uint8_t xp_native_codepoint(const XpNativeProvider*, int32_t, uint32_t, uint8_t,
 void* xp_native_bidi_acquire();
 void xp_native_bidi_release();
 
+// Page records (section v68): no allocation; arena bytes are relocatable and
+// require no alignment. Status: 0 OK, 1 short input, 2 short output, 3 invalid.
+// Input/output allocations and scalar output objects must be live and disjoint.
+// Scalar objects/typed input arrays must have their natural alignment. Null
+// buffers are allowed only at zero length; lengths must fit PTRDIFF_MAX.
+// Query only successfully decoded arenas, unchanged for the lifetime of spans.
+typedef struct {
+  const uint8_t* data;
+  size_t len;
+} XpPageSpan;
+typedef struct {
+  size_t arena_size, consumed;
+  uint16_t elements, footnotes, links;
+} XpPageInfo;
+typedef struct {
+  uint32_t tag;
+  XpSecRecord record;
+  XpPageSpan first, second;
+  int16_t width, height;
+} XpPageElement;
+typedef struct {
+  XpSecRecord block;
+  int32_t fonts[3];
+  uint16_t count, paragraph_start;
+  uint8_t has_fonts, has_ruby, has_focus;
+} XpPageLine;
+typedef struct {
+  XpPageSpan text, ruby;
+  uint32_t source_start, source_end;
+  int32_t font;
+  int16_t x;
+  uint16_t focus_suffix;
+  uint8_t style, focus_boundary, starts_paragraph, discretionary_hyphen, small_caps;
+} XpPageWord;
+typedef struct {
+  XpPageSpan href;
+  int16_t x, y, width, height;
+} XpPageLink;
+typedef struct {
+  uintptr_t words[8];
+} XpPageBuilder;
+// Parses one page prefix, matching Page::deserialize; consumed identifies its end.
+// Decode reports required arena_size even on short output and leaves it untouched.
+uint32_t xp_page_arena_size(const uint8_t*, size_t, XpPageInfo*);
+uint32_t xp_page_decode(const uint8_t*, size_t, uint32_t visible_offset, uint8_t*, size_t, XpPageInfo*);
+uint32_t xp_page_encode(const uint8_t*, size_t, uint8_t*, size_t, size_t* required);
+uint32_t xp_page_info(const uint8_t*, size_t, XpPageInfo*, uint32_t* visible_offset);
+// Element record uses XP_SEC_POSITION/RULE/DROP_CAP/BORDER. Image spans are
+// cache/source paths; drop-cap first is its text. These spans need not end in NUL.
+uint32_t xp_page_element(const uint8_t*, size_t, uint16_t, XpPageElement*);
+uint32_t xp_page_line(const uint8_t*, size_t, uint16_t, XpPageLine*);
+// Word text.len excludes its trailing NUL; ruby is length-delimited.
+uint32_t xp_page_word(const uint8_t*, size_t, uint16_t element, uint16_t word, int32_t section_font, XpPageWord*);
+uint32_t xp_page_footnote(const uint8_t*, size_t, uint16_t, XpPageSpan* number, XpPageSpan* href);
+uint32_t xp_page_link(const uint8_t*, size_t, uint16_t, XpPageLink*);
+uint32_t xp_page_image_bounds(const uint8_t*, size_t, int16_t bounds[4], uint8_t* found);
+// Builder exclusively borrows output until finish/reset. Appends copy inputs
+// synchronously and are atomic on failure. Order: elements, footnotes, links.
+// No destroy is needed; state owns no allocation. Finish can be retried after
+// short output only by rebuilding into a larger caller buffer.
+uint32_t xp_page_builder_init(XpPageBuilder*, uint8_t*, size_t);
+// XpParaLine arrays remain borrowed for this call. Its layout-only link spans
+// remain with the assembly owner, which resolves them to page link rectangles.
+uint32_t xp_page_builder_line(XpPageBuilder*, int16_t x, int16_t y, const XpParaLine*);
+// record kind IMAGE_SIZE/RULE/DROP_CAP/BORDER; x/y override position fields.
+uint32_t xp_page_builder_element(XpPageBuilder*, int16_t x, int16_t y, const XpSecRecord*, XpPageSpan, XpPageSpan);
+uint32_t xp_page_builder_footnote(XpPageBuilder*, const uint8_t number[32], const uint8_t href[256]);
+uint32_t xp_page_builder_link(XpPageBuilder*, const XpPageLink*);
+uint32_t xp_page_builder_finish(XpPageBuilder*, size_t* written);
+
+// Optional layout-only span storage, absent from cache bytes. Reserve another
+// 262 * count bytes in the arena before attaching once to each line. Output
+// required reports the new total size; short capacity leaves the arena unchanged.
+uint32_t xp_page_attach_line_links(uint8_t*, size_t capacity, uint16_t element, const XpParaLink*, size_t count,
+                                   size_t* required);
+typedef struct {
+  XpPageSpan href;
+  int16_t x, width, top_lift;
+} XpPageLineLink;
+// index=SIZE_MAX queries count only. Returned href borrows the arena.
+uint32_t xp_page_line_link(const uint8_t*, size_t, uint16_t element, size_t index, XpPageLineLink*, size_t* count);
+
 #ifdef __cplusplus
 }
 #endif

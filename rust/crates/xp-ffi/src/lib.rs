@@ -6,6 +6,7 @@ mod css;
 mod font;
 mod hyphen;
 mod image;
+mod page;
 mod para;
 mod pkg;
 

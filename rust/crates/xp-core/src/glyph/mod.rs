@@ -288,7 +288,7 @@ impl<'a> Surface<'a> {
         }
         self.paint((py - t.origin_y) * t.stride * 8 + px, 1, 2, state);
     }
-    fn fill(&mut self, x: i32, y: i32, width: i32, height: i32, state: bool) {
+    pub fn fill(&mut self, x: i32, y: i32, width: i32, height: i32, state: bool) {
         let t = self.target;
         if width <= 0 || height <= 0 || t.scanning != 0 {
             return;
@@ -323,6 +323,65 @@ impl<'a> Surface<'a> {
                 apply(&mut self.buffer[row + start], head, state);
                 self.buffer[row + start + 1..row + end].fill(if state { 0 } else { 255 });
                 apply(&mut self.buffer[row + end], tail, state);
+            }
+        }
+    }
+    /// Light-gray CSS background, using the renderer's logical 2x2 pattern.
+    pub fn shade(&mut self, x: i32, y: i32, width: i32, height: i32) {
+        let t = self.target;
+        if width <= 0 || height <= 0 || t.scanning != 0 {
+            return;
+        }
+        let (sw, sh) = if t.orientation & 1 == 0 {
+            (t.height, t.width)
+        } else {
+            (t.width, t.height)
+        };
+        let left = x.max(0).max(t.clip.left);
+        let top = y.max(0).max(t.clip.top);
+        let right = (x + width).min(sw).min(t.clip.right);
+        let bottom = (y + height).min(sh).min(t.clip.bottom);
+        if left >= right || top >= bottom {
+            return;
+        }
+        let (ax, ay) = t.rotate(left, top);
+        let (bx, by) = t.rotate(right - 1, bottom - 1);
+        let (x0, x1) = (ax.min(bx), ax.max(bx));
+        let y0 = ay.min(by).max(t.origin_y);
+        let y1 = ay.max(by).min(t.origin_y + t.rows - 1);
+        if y0 > y1 {
+            return;
+        }
+        let start = (x0 >> 3) as usize;
+        let end = (x1 >> 3) as usize;
+        let head = 0xffu8 >> (x0 & 7);
+        let tail = 0xffu8 << (7 - (x1 & 7));
+        let mut patterns = [255u8; 2];
+        for (parity, pattern) in patterns.iter_mut().enumerate() {
+            let py = y0 + parity as i32;
+            for bit in 0..8 {
+                let px = start as i32 * 8 + bit;
+                let (lx, ly) = match t.orientation {
+                    0 => (t.height - 1 - py, px),
+                    1 => (t.width - 1 - px, t.height - 1 - py),
+                    2 => (py, t.width - 1 - px),
+                    _ => (px, py),
+                };
+                if lx % 2 == 0 && ly % 2 == 0 {
+                    *pattern &= !(0x80 >> bit);
+                }
+            }
+        }
+        for py in y0..=y1 {
+            let row = (py - t.origin_y) as usize * t.stride as usize;
+            let pattern = patterns[((py - y0) & 1) as usize];
+            let masked = |byte: &mut u8, mask: u8| *byte = (*byte & !mask) | (pattern & mask);
+            if start == end {
+                masked(&mut self.buffer[row + start], head & tail);
+            } else {
+                masked(&mut self.buffer[row + start], head);
+                self.buffer[row + start + 1..row + end].fill(pattern);
+                masked(&mut self.buffer[row + end], tail);
             }
         }
     }

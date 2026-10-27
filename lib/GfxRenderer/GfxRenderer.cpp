@@ -513,6 +513,60 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
       &paint, &glyphMiss);
 }
 
+void GfxRenderer::drawPage(const uint8_t* arena, const size_t size, const int fontId, const int x, const int y,
+                           const PageRenderMode mode, void* images,
+                           void (*image)(void*, uint16_t, int32_t, int32_t, uint8_t)) const {
+  XpGlyphPaint paint{glyphTarget(), {}, 0, 0, true};
+  PageContext context{{*this, nullptr, fontId, fontId, EpdFontFamily::REGULAR, false, &paint}, images, image};
+  const auto provider = textProvider();
+  const XpPageRenderServices services{
+      &context,
+      [](void* raw, int32_t id) -> uint8_t {
+        return static_cast<PageContext*>(raw)->glyph.renderer.ensureFontLoaded(id);
+      },
+      [](void* raw, int32_t id, uint8_t style, XpGlyphSource* source) -> const void* const* {
+        auto& c = static_cast<PageContext*>(raw)->glyph;
+        const auto font = c.renderer.fontMap.find(id);
+        if (font == c.renderer.fontMap.end()) return nullptr;
+        c.font = &font->second;
+        c.resolvedFont = id;
+        c.style = static_cast<EpdFontFamily::Style>(style);
+        c.renderer.glyphSource(c.font->getData(c.style), *source);
+        return reinterpret_cast<const void* const*>(c.font->getDataSlot(c.style));
+      },
+      [](void* raw, int32_t id, uint8_t style, const uint8_t* text, size_t length) {
+        const auto& renderer = static_cast<PageContext*>(raw)->glyph.renderer;
+        // Fallback residency accepts substrings, including focus and ruby tokens.
+        char buffer[192];
+        while (length) {
+          size_t count = std::min(length, sizeof(buffer) - 1);
+          if (count < length)
+            while (count && (text[count] & 0xC0) == 0x80) --count;
+          if (!count) break;
+          memcpy(buffer, text, count);
+          buffer[count] = 0;
+          renderer.ensureSdGlyphsResident(id, buffer, static_cast<EpdFontFamily::Style>(style), false);
+          text += count;
+          length -= count;
+        }
+      },
+      [](void* raw, int32_t id, uint8_t style, const uint8_t* text) {
+        const auto& renderer = static_cast<PageContext*>(raw)->glyph.renderer;
+        renderer.fontCacheManager_->recordText(reinterpret_cast<const char*>(text), id,
+                                               static_cast<EpdFontFamily::Style>(style));
+      },
+      [](void* raw, uint16_t index, int32_t x, int32_t y, uint8_t placeholder) {
+        auto& c = *static_cast<PageContext*>(raw);
+        c.image(c.images, index, x, y, placeholder);
+      },
+      [](void* raw, uint32_t cp, const void* glyph, XpGlyphDraw* draw, XpGlyphSource* source) {
+        return glyphMiss(&static_cast<PageContext*>(raw)->glyph, cp, glyph, draw, source);
+      }};
+  const auto renderMode = static_cast<uint8_t>(mode);
+  const auto status = xp_page_render(arena, size, &provider, &services, &paint, fontId, x, y, renderMode);
+  if (status) LOG_ERR("GFX", "Invalid page render (%u)", static_cast<unsigned>(status));
+}
+
 void GfxRenderer::drawLine(int x1, int y1, int x2, int y2, const bool state) const {
   if (fontCacheManager_ && fontCacheManager_->isScanning()) return;
   if (x1 == x2) {

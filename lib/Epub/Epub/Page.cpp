@@ -7,6 +7,7 @@
 
 #include "SectionCodec.h"
 
+#ifdef XP_PAGE_CODEC_TEST
 namespace {
 
 // Draws one border edge as a strip along a box side.
@@ -45,10 +46,13 @@ void drawBorderEdge(const GfxRenderer& renderer, const int x, const int y, const
 
 }  // namespace
 
+#endif
+
 void PageLine::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
   block->render(renderer, fontId, xPos + xOffset, yPos + yOffset);
 }
 
+#ifdef XP_PAGE_CODEC_TEST
 void PageImage::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
   // Images don't use fontId or text rendering
   imageBlock->render(renderer, xPos + xOffset, yPos + yOffset);
@@ -100,40 +104,43 @@ void PageBorderBox::render(GfxRenderer& renderer, const int, const int xOffset, 
   if (right.visible()) drawBorderEdge(renderer, x + width - right.width, y, height, right, false);
 }
 
-// Backgrounds precede every border, including borders inside shaded containers.
+#endif
+
+void Page::renderArena(GfxRenderer& renderer, const int fontId, const int x, const int y,
+                       const PageRenderMode mode) const {
+  struct Images {
+    const Page& page;
+    GfxRenderer& renderer;
+  } images{*this, renderer};
+  renderer.drawPage(arena, arenaSize, fontId, x, y, mode, &images,
+                    [](void* raw, uint16_t index, int32_t x, int32_t y, uint8_t placeholder) {
+                      const auto& c = *static_cast<Images*>(raw);
+                      auto block = c.page.element(index).imageBlock();
+                      if (placeholder)
+                        block.renderPlaceholder(c.renderer, x, y);
+                      else
+                        block.render(c.renderer, x, y);
+                    });
+}
+
 void Page::render(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  for (uint16_t i = 0; i < elementCount(); ++i) element(i).renderBackground(renderer, x, y);
-  for (uint16_t i = 0; i < elementCount(); ++i) {
-    const auto el = element(i);
-    if (el.getTag() == TAG_PageBorderBox) el.render(renderer, fontId, x, y);
+  if (arena) {
+    renderArena(renderer, fontId, x, y, PageRenderMode::All);
+    return;
   }
-  for (uint16_t i = 0; i < elementCount(); ++i) {
-    const auto el = element(i);
-    if (el.getTag() != TAG_PageBorderBox) el.render(renderer, fontId, x, y);
-  }
+  // Plain dictionary pages own PageLine objects; cached and rich pages use the arena.
+  for (const auto& element : elements) element->render(renderer, fontId, x, y);
 }
 
 void Page::renderImages(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  for (uint16_t i = 0; i < elementCount(); ++i) {
-    const auto el = element(i);
-    if (el.getTag() == TAG_PageImage) el.render(renderer, fontId, x, y);
-  }
+  if (arena) renderArena(renderer, fontId, x, y, PageRenderMode::Images);
 }
 
 void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  for (uint16_t i = 0; i < elementCount(); ++i) element(i).renderBackground(renderer, x, y);
-  for (uint16_t i = 0; i < elementCount(); ++i) {
-    const auto el = element(i);
-    if (el.getTag() == TAG_PageBorderBox) el.render(renderer, fontId, x, y);
-  }
-  for (uint16_t i = 0; i < elementCount(); ++i) {
-    const auto el = element(i);
-    if (el.getTag() == TAG_PageBorderBox) continue;
-    if (el.getTag() == TAG_PageImage)
-      el.renderPlaceholder(renderer, x, y);
-    else
-      el.render(renderer, fontId, x, y);
-  }
+  if (arena)
+    renderArena(renderer, fontId, x, y, PageRenderMode::Placeholders);
+  else
+    render(renderer, fontId, x, y);
 }
 
 std::unique_ptr<Page> Page::allocate(const XpPageInfo& info) {
@@ -349,62 +356,6 @@ ImageBlock PageElementView::imageBlock() const {
   const auto& e = fields();
   return ImageBlock(ImageBlock::View{}, {reinterpret_cast<const char*>(e.first.data), e.first.len},
                     {reinterpret_cast<const char*>(e.second.data), e.second.len}, e.width, e.height);
-}
-
-namespace {
-PageBorderBox borderView(const XpPageElement& e) {
-  const auto& v = e.record.values;
-  CssBorderSide sides[4];
-  for (size_t i = 0; i < 4; ++i) {
-    sides[i].width = v[4 + 2 * i];
-    sides[i].style = static_cast<CssBorderStyle>(v[5 + 2 * i]);
-  }
-  return PageBorderBox(v[2], v[3], sides, v[12] != 0, v[0], v[1]);
-}
-PageDropCap dropCapView(const XpPageElement& e) {
-  char text[PageDropCap::MAX_TEXT_BYTES + 1]{};
-  memcpy(text, e.first.data, e.first.len);
-  const auto& v = e.record.values;
-  return PageDropCap(v[2], v[3], static_cast<EpdFontFamily::Style>(v[4]), text, v[0], v[1]);
-}
-}  // namespace
-
-void PageElementView::render(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  if (!page->arena) {
-    page->elements[index]->render(renderer, fontId, x, y);
-    return;
-  }
-  switch (tag) {
-    case TAG_PageLine:
-      textBlock().render(renderer, fontId, xPos + x, yPos + y);
-      return;
-    case TAG_PageImage:
-      imageBlock().render(renderer, xPos + x, yPos + y);
-      return;
-    case TAG_PageHorizontalRule: {
-      const auto& e = fields();
-      PageHorizontalRule(e.record.values[2], e.record.values[3], xPos, yPos).render(renderer, fontId, x, y);
-      return;
-    }
-    case TAG_PageDropCap:
-      dropCapView(fields()).render(renderer, fontId, x, y);
-      return;
-    case TAG_PageBorderBox:
-      borderView(fields()).render(renderer, fontId, x, y);
-      return;
-  }
-}
-
-void PageElementView::renderBackground(GfxRenderer& renderer, const int x, const int y) const {
-  if (tag != TAG_PageBorderBox) return;
-  if (page->arena)
-    borderView(fields()).renderBackground(renderer, x, y);
-  else
-    static_cast<const PageBorderBox&>(*page->elements[index]).renderBackground(renderer, x, y);
-}
-
-void PageElementView::renderPlaceholder(GfxRenderer& renderer, const int x, const int y) const {
-  imageBlock().renderPlaceholder(renderer, xPos + x, yPos + y);
 }
 
 bool Page::hasImages() const {

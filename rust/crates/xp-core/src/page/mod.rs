@@ -7,6 +7,7 @@ use crate::section::{self, Kind};
 
 pub mod builder;
 pub mod probe;
+pub mod render;
 #[cfg(test)]
 mod tests;
 

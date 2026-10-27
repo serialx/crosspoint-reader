@@ -19,6 +19,9 @@
 
 #include "PageTrace.h"
 
+extern "C" size_t xp_test_allocation_attempts();
+static uint64_t owners[12]{};
+void pageGoldenOwner(unsigned kind) { ++owners[kind]; }
 static uint64_t nativeCalls = 0, emissions = 0, scaledCalls = 0;
 void pageGoldenNativeDraw() { ++nativeCalls; }
 void pageGoldenEmission() { ++emissions; }
@@ -271,13 +274,21 @@ static bool pixels(const Page& page, GfxRenderer& renderer, FontCacheManager& ca
     renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
     for (int placeholders = 0; placeholders <= int(page.hasImages()); ++placeholders) {
       const auto draw = [&] {
+        const size_t allocations = xp_test_allocation_attempts();
         if (placeholders)
           page.renderWithImagePlaceholders(renderer, config.spec.fontId, config.margin, config.margin);
         else
           page.render(renderer, config.spec.fontId, config.margin, config.margin);
+        if (xp_test_allocation_attempts() != allocations) {
+          std::cerr << "Rust allocation during page rendering\n";
+          std::exit(1);
+        }
       };
+      std::fill(std::begin(owners), std::end(owners), 0);
       auto scope = cache.createPrewarmScope();
       draw();
+      std::array<uint64_t, 12> scanOwners;
+      std::copy(std::begin(owners), std::end(owners), scanOwners.begin());
       scope.endScanAndPrewarm();
       for (int absolute = 0; absolute < 2; ++absolute) {
         for (int band : {0, 31, 80, 127}) {
@@ -290,6 +301,7 @@ static bool pixels(const Page& page, GfxRenderer& renderer, FontCacheManager& ca
             renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
             if (renderer.grayPlanesAreAbsolute() != bool(absolute && plane != 0)) return false;
             nativeCalls = emissions = scaledCalls = 0;
+            std::fill(std::begin(owners), std::end(owners), 0);
             const uint8_t clear = plane == 0 || absolute ? 0xff : 0;
             std::array<uint8_t, HalDisplay::BUFFER_SIZE> assembled{};
             display.pixels.fill(0x5a);
@@ -315,7 +327,10 @@ static bool pixels(const Page& page, GfxRenderer& renderer, FontCacheManager& ca
             }
             std::cout << "pixels\t" << orientation << ',' << placeholders << ',' << absolute << ',' << band << ','
                       << plane << '\t' << hashBytes(assembled.data(), assembled.size()) << '\n';
-            std::cout << "calls\t" << nativeCalls << ',' << emissions << ',' << scaledCalls << '\n';
+            std::cout << "calls\t" << nativeCalls << ',' << emissions << ',' << scaledCalls;
+            for (auto count : owners) std::cout << ',' << count;
+            for (auto count : scanOwners) std::cout << ',' << count;
+            std::cout << '\n';
             if (sample && orientation == config.orientation && !placeholders && !absolute && !band) {
               std::ofstream pbm("sample-" + std::to_string(plane) + ".pbm", std::ios::binary);
               pbm << "P4\n800 480\n";

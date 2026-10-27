@@ -13,6 +13,27 @@ for anchor, hook in (
     if source.count(anchor) != 1:
         raise SystemExit('Page counter anchor changed: ' + anchor)
     source = source.replace(anchor, hook + anchor if 'xp_native' in anchor else anchor + hook)
+for anchor, index in (
+    ('  const auto status = xp_page_render_traced(', 0),
+    ('        return static_cast<PageContext*>(raw)->glyph.renderer.ensureFontLoaded(id);', 1),
+    ('        auto& c = static_cast<PageContext*>(raw)->glyph;', 2),
+    ('        // Fallback residency accepts substrings, including focus and ruby tokens.', 3),
+    ('        renderer.fontCacheManager_->recordText(reinterpret_cast<const char*>(text), id,', 4),
+    ('        c.image(c.images, index, x, y, placeholder);', 5),
+    ('          [](void* ctx, int32_t id, XpNativeFamily* out) {', 6),
+    ('          [](void* ctx, int32_t id, uint32_t cp, uint8_t style, XpTextmGlyph* out) -> uint8_t {', 7),
+    ('          [](void* ctx, int32_t id, uint32_t cp, uint8_t style) -> uint8_t {', 8),
+    ('          [](void* ctx, int32_t id, uint32_t left, uint32_t right, uint8_t style) -> int8_t {', 9),
+):
+    if source.count(anchor) != 1:
+        raise SystemExit('Page owner counter anchor changed: ' + anchor)
+    hook = f'pageGoldenOwner({index});'
+    source = source.replace(anchor, anchor + '\n' + hook if index >= 6 else hook + '\n' + anchor)
+for name, index in (('xp_native_bidi_acquire', 10), ('xp_native_bidi_release', 11)):
+    anchor = '          ' + name + ','
+    if source.count(anchor) != 1:
+        raise SystemExit('Page bidi counter anchor changed: ' + anchor)
+    source = source.replace(anchor, f'          [] {{ pageGoldenOwner({index}); return {name}(); }},')
 (out / 'GfxRenderer.cpp').write_text(source)
 (out / 'Page.cpp').write_text((root / 'lib/Epub/Epub/Page.cpp').read_text())
 

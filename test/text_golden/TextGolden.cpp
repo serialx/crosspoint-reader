@@ -29,6 +29,9 @@ void textGoldenGlyph(const EpdFontFamily& family, uint32_t cp, int x, int y, Epd
   }
   *trace << cp << ',' << x << ',' << y << ',' << id << ',' << int(style) << ';';
 }
+void textGoldenScaled(int fontId, uint32_t cp, int x, int y, EpdFontFamily::Style style) {
+  if (trace) *trace << cp << ',' << x << ',' << y << ',' << fontId << ',' << int(style) << ';';
+}
 static std::string unhex(const std::string& text) {
   std::string out;
   for (size_t i = 0; i < text.size(); i += 2) out += char(std::stoi(text.substr(i, 2), nullptr, 16));
@@ -41,6 +44,107 @@ static uint64_t hashBytes(const uint8_t* bytes, size_t len) {
     h *= 1099511628211ULL;
   }
   return h;
+}
+enum class DrawPath { Text, Rotated, Scaled, Words, Centered };
+struct DrawWord {
+  int x, y, style, direction;
+  std::string text;
+};
+static bool drawCase(std::istream& in, GfxRenderer& renderer, FontCacheManager& cache, HalDisplay& display,
+                     const std::string& key, int id, int st, int tracking, int dir, int fallback,
+                     const std::string& text) {
+  int pathValue, orientation, black, absolute, x, y, cx, cy, cw, ch, stripY, stripRows, scale, wordCount;
+  if (!(in >> pathValue >> orientation >> black >> absolute >> x >> y >> cx >> cy >> cw >> ch >> stripY >> stripRows >>
+        scale >> wordCount))
+    return false;
+  if (pathValue < 0 || pathValue > 4 || orientation < 0 || orientation > 3 || wordCount < 0) return false;
+  const auto path = static_cast<DrawPath>(pathValue);
+  std::vector<DrawWord> words;
+  for (int i = 0; i < wordCount; ++i) {
+    DrawWord word;
+    std::string hex;
+    if (!(in >> word.x >> word.y >> word.style >> word.direction >> hex)) return false;
+    word.text = unhex(hex);
+    words.push_back(std::move(word));
+  }
+  renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+  renderer.setClipRect(cx, cy, cw, ch);
+  renderer.clearFallbackFonts();
+  if (fallback) renderer.setFallbackFont(id, fallback);
+  const auto prepare = [&](const std::string& value) {
+    const char* segment = value.c_str();
+    const size_t length = value.size() + 1;
+    renderer.ensureSdCardFontReady(id, &segment, &length, 1, true, true, 15, true);
+    if (fallback) renderer.ensureSdCardFontReady(fallback, &segment, &length, 1, true, true, 15, true);
+  };
+  prepare(text);
+  for (const auto& word : words) prepare(word.text);
+  const auto style = static_cast<EpdFontFamily::Style>(st);
+  const auto base = static_cast<BidiUtils::BidiBaseDir>(dir);
+  std::ostringstream advances;
+  const auto draw = [&]() {
+    switch (path) {
+      case DrawPath::Text:
+        renderer.drawText(id, x, y, text.c_str(), black, style, base, tracking);
+        break;
+      case DrawPath::Rotated:
+        renderer.drawTextRotated90CW(id, x, y, text.c_str(), black, style);
+        break;
+      case DrawPath::Scaled: {
+        int pen = x;
+        const auto* cursor = reinterpret_cast<const uint8_t*>(text.c_str());
+        while (const auto cp = utf8NextCodepoint(&cursor)) {
+          const int advance = renderer.drawScaledCodepoint(id, cp, style, pen, y, scale);
+          if (trace) advances << cp << ',' << advance << ';';
+          pen += advance;
+        }
+        break;
+      }
+      case DrawPath::Words:
+        for (const auto& word : words)
+          renderer.drawText(id, x + word.x, y + word.y, word.text.c_str(), black,
+                            static_cast<EpdFontFamily::Style>(word.style),
+                            static_cast<BidiUtils::BidiBaseDir>(word.direction), tracking);
+        break;
+      case DrawPath::Centered:
+        renderer.drawCenteredText(id, y, text.c_str(), black, style, base);
+        break;
+    }
+  };
+  auto scope = cache.createPrewarmScope();
+  // Rotated drawing has no scan branch. Scan horizontally to warm the same font tables first.
+  if (path == DrawPath::Rotated)
+    renderer.drawText(id, x, y, text.c_str(), black, style, base);
+  else
+    draw();
+  scope.endScanAndPrewarm();
+  renderer.displayGrayscaleBase(HalDisplay::FULL_REFRESH);
+  // Guard bytes expose any write outside a strip, and the untouched framebuffer is hashed too.
+  std::vector<uint8_t> strip(static_cast<size_t>(stripRows) * HalDisplay::DISPLAY_WIDTH_BYTES + 32, 0xA5);
+  std::cout << key << '\t';
+  for (int plane = 0; plane < 3; ++plane) {
+    // The reader starts the absolute pass after BW; selecting BW cancels it.
+    if (plane == 1 && absolute &&
+        !renderer.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute, HalDisplay::FULL_REFRESH))
+      return false;
+    renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
+    if (renderer.grayPlanesAreAbsolute() != (absolute && plane != 0)) return false;
+    display.pixels.fill(0x5A);
+    if (stripRows) renderer.beginStripTarget(strip.data() + 16, stripY, stripRows);
+    renderer.clearScreen(plane == 0 || absolute ? (black ? 0xFF : 0x00) : 0x00);
+    trace = plane == 0 ? &std::cout : nullptr;
+    draw();
+    trace = nullptr;
+    renderer.endStripTarget();
+    std::cout << '|' << hashBytes(display.pixels.data(), display.pixels.size());
+    if (stripRows) std::cout << ',' << hashBytes(strip.data(), strip.size());
+  }
+  std::cout << '\t' << advances.str() << '\n';
+  renderer.setRenderMode(GfxRenderer::BW);
+  renderer.displayGrayscaleBase(HalDisplay::FULL_REFRESH);
+  renderer.setOrientation(GfxRenderer::Portrait);
+  renderer.setClipRect(0, 0, 32767, 32767);
+  return true;
 }
 static void builtinFonts(GfxRenderer& renderer) {
 #define READER(SIZE, ID)                                                                \
@@ -119,6 +223,10 @@ int main(int argc, char** argv) {
     uint32_t left, right;
     if (!(in >> key >> id >> st >> tracking >> dir >> mode >> draw >> fallback >> left >> right >> hex)) return 10;
     const auto text = hex == "-" ? std::string() : unhex(hex);
+    if (key.starts_with("draw/")) {
+      if (!drawCase(in, renderer, cache, display, key, id, st, tracking, dir, fallback, text)) return 12;
+      continue;
+    }
     const auto style = static_cast<EpdFontFamily::Style>(st);
     const auto base = static_cast<BidiUtils::BidiBaseDir>(dir);
     renderer.clearFallbackFonts();

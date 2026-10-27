@@ -41,3 +41,5 @@ endif()
 target_link_libraries(TextGolden PRIVATE xp_ffi_host)
 add_test(NAME TextGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py check
   --binary $<TARGET_FILE:TextGolden> --work-dir ${CMAKE_CURRENT_BINARY_DIR}/check)
+add_test(NAME TextDrawGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/draw_run.py check
+  --binary $<TARGET_FILE:TextGolden> --work-dir ${CMAKE_CURRENT_BINARY_DIR}/draw-check)

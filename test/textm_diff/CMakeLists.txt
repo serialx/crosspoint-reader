@@ -19,6 +19,7 @@ add_executable(TextmDiff main.cpp Renderer.cpp
 target_include_directories(TextmDiff PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
   ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/lib/EpdFont
   ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory)
+target_compile_definitions(TextmDiff PRIVATE XP_FFI_HOST_FAULT_INJECTION)
 target_compile_options(TextmDiff PRIVATE -O2 -fno-exceptions)
 target_link_libraries(TextmDiff PRIVATE xp_ffi_host)
 add_test(NAME TextmDiff COMMAND TextmDiff)

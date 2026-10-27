@@ -956,6 +956,49 @@ void xp_image_probe_init(void*);
 size_t xp_image_probe_write(void*, const uint8_t*, size_t);
 bool xp_image_probe_dimensions(const void*, uint32_t* width, uint32_t* height);
 
+// Host differential-test adapter for text measurement. Firmware uses FontFace directly.
+// All callbacks are required and synchronous. The table and context outlive the call;
+// callbacks may mutate only context-owned font/cache storage, never the table or input,
+// and must not reenter measurement. No pointer is retained. A null face means absent.
+// Codepoint arrays are aligned/readable for count entries, length <= ISIZE_MAX/4;
+// null is allowed only at count zero. NUL ends the stream. Ascenders and metrics
+// obey EpdFontData ranges; compression is finite and its result fits int32_t.
+// Visual streams have already been reordered/shaped once; resolve_font takes logical text.
+typedef struct {
+  uint16_t advance;
+  uint8_t width, height;
+  int16_t left, top;
+} XpTextmGlyph;
+typedef struct {
+  void* context;
+  uint8_t (*glyph)(void*, uint32_t, uint8_t, XpTextmGlyph*);
+  uint8_t (*coverage)(void*, uint32_t, uint8_t);
+  int8_t (*kern)(void*, uint32_t, uint32_t, uint8_t);
+  uint32_t (*ligature)(void*, uint32_t, uint32_t, uint8_t);
+  uint8_t (*has_table)(void*);
+  uint8_t (*resolve_style)(void*, uint8_t);
+  uint16_t (*advance)(void*, uint32_t, uint8_t);
+  int32_t (*ascender)(void*, uint8_t);
+  uint8_t (*line_height)(void*);
+  uint8_t (*transparent)(uint32_t);
+} XpTextmFace;
+typedef struct {
+  void* context;
+  uint8_t (*fallback)(void*, int32_t, int32_t*);
+  uint8_t (*contains)(void*, int32_t);
+  uint8_t (*coverage)(void*, int32_t, uint32_t, uint8_t);
+} XpTextmRegistry;
+int32_t xp_textm_advance(const XpTextmFace*, const uint32_t*, uint32_t, uint8_t, int8_t, uint8_t layout);
+int32_t xp_textm_width(const XpTextmFace*, const uint32_t*, uint32_t, uint8_t);
+int32_t xp_textm_space_width(const XpTextmFace*, uint8_t);
+int32_t xp_textm_space_advance(const XpTextmFace*, uint32_t, uint32_t, uint8_t);
+int32_t xp_textm_kerning(const XpTextmFace*, uint32_t, uint32_t, uint8_t, int8_t);
+// On miss, both output integers are unchanged. Outputs must be writable and distinct.
+uint8_t xp_textm_codepoint(const XpTextmFace*, uint32_t, uint8_t, int32_t*, int32_t*);
+int32_t xp_textm_ascender(const XpTextmFace*);
+int32_t xp_textm_line_height(const XpTextmFace*, float);
+int32_t xp_textm_resolve_font(const XpTextmRegistry*, int32_t, const uint32_t*, uint32_t, uint8_t);
+
 #ifdef __cplusplus
 }
 #endif

@@ -8,6 +8,7 @@ pub mod image;
 pub mod para;
 pub mod section;
 pub mod text;
+pub mod textm;
 pub mod utf8;
 pub mod xml;
 pub mod zip;

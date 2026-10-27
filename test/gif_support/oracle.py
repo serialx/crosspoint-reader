@@ -96,6 +96,7 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / 'goldens.json.gz')
     parser.add_argument('--differences', type=Path)
     parser.add_argument('--allow-documented', action='store_true')
+    parser.add_argument('--timeout', type=float, default=2, help='Per-case seconds; increase for sanitizer runs')
     args = parser.parse_args()
     corpus = fixtures()
     with tempfile.TemporaryDirectory(prefix='gif-oracle-') as tmp:
@@ -108,7 +109,7 @@ def main():
             path = directory / (name + '.gif')
             command = [str(args.bmp.resolve()), str(path), str(mode)] if mode < 7 else [str(args.frame.resolve()), str(path), str(directory / (name + '.pxc')), '0', '0']
             try:
-                p = subprocess.run(command, capture_output=True, timeout=2)
+                p = subprocess.run(command, capture_output=True, timeout=args.timeout)
                 status = p.returncode
                 data = p.stdout
             except subprocess.TimeoutExpired as e:
@@ -129,7 +130,8 @@ def main():
         if args.allow_documented:
             documented = json.loads((ROOT / 'deviations.json').read_text())
             if {k:v['new'] for k,v in differences.items()} != documented['cases']:
-                raise SystemExit('Documented GIF differences changed')
+                unexpected = sorted(k for k in set(differences) | set(documented['cases']) if differences.get(k, {}).get('new') != documented['cases'].get(k))
+                raise SystemExit(f'Documented GIF differences changed: {unexpected[:20]}')
             print(f"{len(differences)} documented differences in {len(documented['reasons'])} malformed fixtures")
             differences = {}
         if differences:

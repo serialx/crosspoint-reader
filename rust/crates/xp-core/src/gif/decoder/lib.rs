@@ -155,7 +155,9 @@ struct Codes<'a> {
     block_left: usize,
     plain: &'a mut [u8],
     plain_end: usize,
-    bit: usize,
+    plain_at: usize,
+    word: usize,
+    available: usize,
     ended: bool,
 }
 impl Codes<'_> {
@@ -178,11 +180,10 @@ impl Codes<'_> {
     }
     #[inline(never)]
     fn refill(&mut self) -> Result<()> {
-        let consumed = self.bit / 8;
-        self.plain.copy_within(consumed..self.plain_end, 0);
-        self.plain_end -= consumed;
-        self.bit &= 7;
-        while self.plain_end < self.plain.len() - core::mem::size_of::<usize>() && !self.ended {
+        self.plain.copy_within(self.plain_at..self.plain_end, 0);
+        self.plain_end -= self.plain_at;
+        self.plain_at = 0;
+        while self.plain_end < self.plain.len() && !self.ended {
             if self.block_left == 0 {
                 self.block_left = match self.raw() {
                     Ok(byte) => byte as usize,
@@ -211,7 +212,7 @@ impl Codes<'_> {
                 let count = self
                     .block_left
                     .min(self.end - self.at)
-                    .min(self.plain.len() - core::mem::size_of::<usize>() - self.plain_end);
+                    .min(self.plain.len() - self.plain_end);
                 self.plain[self.plain_end..self.plain_end + count]
                     .copy_from_slice(&self.buffer[self.at..self.at + count]);
                 self.plain_end += count;
@@ -223,28 +224,40 @@ impl Codes<'_> {
     }
     #[inline(always)]
     fn next(&mut self, size: usize, mask: usize) -> Result<usize> {
-        if self.bit + size > self.plain_end * 8 {
-            self.refill()?;
-            if self.bit + size > self.plain_end * 8 {
+        if self.available < size {
+            const CHUNK: usize = core::mem::size_of::<usize>() / 2;
+            if self.plain_end - self.plain_at < CHUNK && !self.ended {
+                self.refill()?;
+            }
+            let remaining = self.plain_end - self.plain_at;
+            if remaining >= CHUNK {
+                // Half a native word fits alongside at most eleven remaining bits.
+                // All loaded bytes are available; either byte alignment is allowed.
+                let value = unsafe {
+                    let ptr = self.plain.as_ptr().add(self.plain_at);
+                    if CHUNK == 4 {
+                        core::ptr::read_unaligned(ptr.cast::<u32>()).to_le() as usize
+                    } else {
+                        core::ptr::read_unaligned(ptr.cast::<u16>()).to_le() as usize
+                    }
+                };
+                self.word |= value << self.available;
+                self.available += CHUNK * 8;
+                self.plain_at += CHUNK;
+            } else {
+                while self.plain_at < self.plain_end {
+                    self.word |= (self.plain[self.plain_at] as usize) << self.available;
+                    self.available += 8;
+                    self.plain_at += 1;
+                }
+            }
+            if self.available < size {
                 return Err(Error::Input);
             }
         }
-        const WORD: usize = core::mem::size_of::<usize>();
-        let offset = (self.bit / (WORD * 8)) * WORD;
-        let shift = self.bit & (WORD * 8 - 1);
-        // The usize allocation and word-multiple splits keep plain aligned.
-        // Its native-word guard covers the second load; valid bits were checked above.
-        let mut word = unsafe { core::ptr::read(self.plain.as_ptr().add(offset).cast::<usize>()) }
-            .to_le()
-            >> shift;
-        if shift + size > WORD * 8 {
-            word |=
-                unsafe { core::ptr::read(self.plain.as_ptr().add(offset + WORD).cast::<usize>()) }
-                    .to_le()
-                    << (WORD * 8 - shift);
-        }
-        let code = word & mask;
-        self.bit += size;
+        let code = self.word & mask;
+        self.word >>= size;
+        self.available -= size;
         Ok(code)
     }
 }
@@ -288,14 +301,10 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
     }
     // Prefix links, suffix bytes and expansion stack are bounded by the 12-bit GIF dictionary.
     let mut table = zeros::<u32>(4096)?;
-    let byte_count = 4096 + 1024 + 1032 + 256 + info.frame_width as usize;
-    let mut words = zeros::<usize>(byte_count.div_ceil(core::mem::size_of::<usize>()))?;
-    // Byte access covers initialized storage exclusively borrowed from words.
-    let bytes =
-        unsafe { core::slice::from_raw_parts_mut(words.as_mut_ptr().cast::<u8>(), byte_count) };
+    let mut bytes = zeros::<u8>(4096 + 1024 + 1024 + 256 + info.frame_width as usize)?;
     let (stack, bytes) = bytes.split_at_mut(4096);
     let (buffer, bytes) = bytes.split_at_mut(1024);
-    let (plain, bytes) = bytes.split_at_mut(1032);
+    let (plain, bytes) = bytes.split_at_mut(1024);
     let (palette, line) = bytes.split_at_mut(256);
     let mut offset = h.palette;
     exact(input, &mut offset, &mut buffer[..h.colors * 3])?;
@@ -314,7 +323,9 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
         block_left: 0,
         plain,
         plain_end: 0,
-        bit: 0,
+        plain_at: 0,
+        word: 0,
+        available: 0,
         ended: false,
     };
     let clear = 1usize << h.code_size;
@@ -325,6 +336,7 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
     let mut limit = clear * 2;
     let mut next = clear + 2;
     let mut previous = None;
+    let mut previous_length = 0;
     let mut first = 0u8;
     let mut x = 0;
     let mut y = 0;
@@ -335,6 +347,7 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
             limit = clear * 2;
             next = clear + 2;
             previous = None;
+            previous_length = 0;
             continue;
         }
         if code == clear + 1 {
@@ -373,7 +386,7 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
         if let Some(old) = previous {
             if next < 4096 {
                 table[next] =
-                    ((table[old] & 0xfff0_0000) + (1 << 20)) | ((first as u32) << 12) | old as u32;
+                    (((previous_length + 1) as u32) << 20) | ((first as u32) << 12) | old as u32;
                 next += 1;
                 if next == limit && size < 12 {
                     size += 1;
@@ -382,6 +395,7 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
             }
         }
         previous = Some(code);
+        previous_length = length;
         while start < 4096 && y < info.frame_height {
             let take = (line.len() - x).min(4096 - start);
             if !direct {

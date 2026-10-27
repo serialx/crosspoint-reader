@@ -20,6 +20,7 @@ name = "xp-core"
 version = "0.1.0"
 dependencies = [
  "miniz_oxide",
+ "xp-gif",
 ]
 
 [[package]]
@@ -28,3 +29,7 @@ version = "0.1.0"
 dependencies = [
  "xp-core",
 ]
+
+[[package]]
+name = "xp-gif"
+version = "0.1.0"

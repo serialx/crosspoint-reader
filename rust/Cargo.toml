@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/xp-core", "crates/xp-ffi"]
+members = ["crates/xp-core", "crates/xp-ffi", "crates/xp-core/src/gif/decoder"]
 default-members = ["crates/xp-core"]
 resolver = "2"
 
@@ -13,4 +13,7 @@ debug = true
 overflow-checks = false
 
 [profile.release.package.miniz_oxide]
+opt-level = 3
+
+[profile.release.package.xp-gif]
 opt-level = 3

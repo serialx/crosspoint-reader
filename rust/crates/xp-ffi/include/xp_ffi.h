@@ -900,6 +900,34 @@ void xp_image_probe_init(void*);
 size_t xp_image_probe_write(void*, const uint8_t*, size_t);
 bool xp_image_probe_dimensions(const void*, uint32_t* width, uint32_t* height);
 
+// GIF first-frame decoding. Input/output records and their contexts are borrowed
+// synchronously; callbacks must not reenter. read writes at most len bytes and
+// returns the number read (zero on failure/EOF). poll may yield, but must preserve
+// all borrowed memory. No input or output span is retained after a callback.
+// The image target/IO contract is the same as xp_image_init. All allocations are
+// fallible, decode-local Rust owners. False reports malformed input, OOM or IO.
+typedef struct {
+  uint16_t canvasWidth, canvasHeight, frameX, frameY, frameWidth, frameHeight;
+  uint8_t interlaced;
+} XpGifInfo;
+typedef struct {
+  void* context;
+  size_t (*read)(void*, uint32_t offset, uint8_t* output, size_t len);
+  void (*poll)(void*);
+} XpGifInput;
+typedef struct {
+  int32_t width, height;
+  uint8_t one_bit, crop, original_thresholds;
+} XpGifBmpConfig;
+typedef struct {
+  void* context;
+  bool (*write)(void*, const uint8_t*, size_t);
+} XpGifOutput;
+// inspect clears info, then fills fields as they are parsed (including on failure).
+bool xp_gif_inspect(const XpGifInput*, XpGifInfo*);
+bool xp_gif_frame(const XpGifInput*, const XpImageConfig*, const XpImageCallbacks*, bool cache);
+bool xp_gif_bmp(const XpGifInput*, const XpGifBmpConfig*, const XpGifOutput*);
+
 /* MiniBidi compatibility. No allocation, retained pointers, or global state.
  * Workspace: allocate workspace_size() bytes aligned to workspace_align(),
  * initialize once, then reuse exclusively; no destroy is needed. Do not put

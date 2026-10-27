@@ -1349,6 +1349,15 @@ int32_t xp_inflate_init(void* state, size_t state_bytes, uint8_t zlib_wrapped);
 int32_t xp_inflate_step(void* state, const uint8_t* input, size_t in_len, uint8_t more_input, uint8_t* output,
                         size_t out_len, size_t* out_pos, uint8_t wrapping_window, size_t* consumed, size_t* produced);
 
+// Small canonical-table mode. Same ownership and status contract as xp_inflate_*.
+// The output limit bounds one call without shrinking the caller's history ring.
+size_t xp_inflate_small_state_size(void);
+size_t xp_inflate_small_state_align(void);
+int32_t xp_inflate_small_init(void* state, size_t state_bytes, uint8_t zlib_wrapped);
+int32_t xp_inflate_small_step(void* state, const uint8_t* input, size_t in_len, uint8_t more_input, uint8_t* output,
+                              size_t out_len, size_t* out_pos, uint8_t wrapping_window, size_t* consumed,
+                              size_t* produced, size_t out_max);
+
 #ifdef __cplusplus
 }
 #endif

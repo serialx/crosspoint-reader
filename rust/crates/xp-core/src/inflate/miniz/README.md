@@ -28,3 +28,18 @@ stack temporary. Preserve that representation when updating this code.
 
 Verification lives in `test/inflate_stream`: original C facade and SDK traces,
 PNG IDAT bytes and traces, allocation failure injection, and EPUB entry CRCs.
+
+The compact policy (`SmallTables`) replaces the fast lookup/tree arrays with
+canonical count/symbol tables. Its 320 literal/distance code lengths also
+hold the temporary dynamic lengths, so a compact decoder is 1,088 B on a 64-bit
+host. The code-length alphabet shares the later distance table's slot; its
+lengths share the subsequent dynamic-length buffer. Neither earlier value is
+read after that transition. The storage trait is sealed: only the two integer-only policies support
+zero initialization. Both policies use the same block state machine, bit reader,
+length/distance bases and match-copy loop. The original fast policy keeps its
+array capacities and the lookup behavior used by the existing inflate oracles.
+
+`test/inflate_small` freezes uzlib font groups and malformed outcomes, plus
+production DictZip reads over a generated public-domain fixture. Compact decoding
+rejects missing input and invalid Huffman trees instead of manufacturing missing
+bits/bytes as zero; the test records each resulting behavior difference.

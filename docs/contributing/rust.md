@@ -517,13 +517,13 @@ for the increment and restores the mask (`esp_stdatomic.h`); Rust reads the
 aligned word with a relaxed atomic load. This does not serialize table loans
 against a concurrent free. The bidi mutex protects only bidi storage.
 
-[`BidiUtils`](../../lib/MiniBidi/BidiUtils.cpp) owns the existing lazily allocated
+[`BidiUtils`](../../lib/MiniBidi/RustBidi.cpp) owns the existing lazily allocated
 3,072-byte workspace and mutex. Rust borrows it exclusively through
 `xp_native_bidi_acquire/release`, holding the lease while visual text is used.
 Reordering scratch, shaping and anchors overlap only when their lifetimes do
-not; visual UTF-8 reuses dead logical-character storage. Measurement adds no
-second workspace or visual-string allocation. C++ drawing still performs its
-own bidi walk and visual-string preparation until the drawing port (P5-T5).
+not; visual UTF-8 reuses dead logical-character storage. Measurement and drawing
+share this workspace and add no visual-string allocation. The small C++ bidi
+wrapper also serves dictionary, selection and keyboard callers.
 
 The [bidi differential](../../test/bidi_diff/README.md),
 [font-table differential](../../test/font_diff/README.md),
@@ -531,6 +531,31 @@ The [bidi differential](../../test/bidi_diff/README.md),
 [real-font text/drawing oracle](../../test/text_golden/README.md) cover these
 boundaries. The section oracle uses a synthetic renderer; its semantic metric
 records are not counts of production cross-language calls.
+
+## Native glyph drawing
+
+`xp_native_draw` emits one placement per glyph from `textm::draw::walk`, using
+the same ligature, scaling, fixed-point and font-table rules as measurement.
+Horizontal drawing shapes bidi text; rotated drawing preserves its existing
+unshaped, unscaled behavior. Drop caps use `xp_native_draw_scaled` for their
+returned advance and keep their separate bilinear bitmap scaler in C++.
+TextBlock still owns word offsets, focus splits, ruby and vertical SUP/SUB shifts.
+
+C++ resolves the requested/fallback font, baseline and cache scan/prewarm work.
+The drawing callback lends the selected `EpdFont::data` pointer slot for one
+synchronous run. Rust rereads that slot for each operation; it does not copy
+family descriptors or retain table references across a loader or bitmap callback.
+The EpdFont owner must remain live and serialized; callbacks may evict or rebuild
+its tables but cannot unregister the font or reenter bidi. Resident glyph metadata
+is lent to C++ only for its immediate bitmap emission. Missing glyph handlers
+return copied metrics; C++ retains bitmap lookup, decompression, clipping and pixels.
+
+There is no glyph-run allocation or new permanent buffer. Each placement is
+consumed before the next query. `NativeCache` includes a drawing test that frees
+the consumed glyph array and replaces the data slot inside emission, then checks
+subsequent placements and pointers. The original public/private text and drawing
+archives cover rendering; run `test/text_golden/mutation_check.py` with a dedicated
+CMake build directory to verify independent rejection of pixel and advance changes.
 
 ## Image pixel pipeline
 

@@ -8,12 +8,19 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   enable_testing()
 endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(BIDI_REFERENCE ${CMAKE_CURRENT_BINARY_DIR}/reference)
+file(MAKE_DIRECTORY ${BIDI_REFERENCE})
+foreach(name minibidi.c minibidi.h BidiUtils.cpp bidiclasses.t bidi_pairs.t)
+  execute_process(COMMAND git show 4436ccc228d23f94fd468723c8749607de1b09c4:lib/MiniBidi/${name}
+    WORKING_DIRECTORY ${REPO_ROOT} OUTPUT_FILE ${BIDI_REFERENCE}/${name}
+    COMMAND_ERROR_IS_FATAL ANY)
+endforeach()
 add_executable(BidiDiff
   main.cpp
-  ${REPO_ROOT}/lib/MiniBidi/minibidi.c
-  ${REPO_ROOT}/lib/MiniBidi/BidiUtils.cpp
+  ${BIDI_REFERENCE}/minibidi.c
+  ${BIDI_REFERENCE}/BidiUtils.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
-target_include_directories(BidiDiff PRIVATE
+target_include_directories(BidiDiff PRIVATE ${BIDI_REFERENCE}
   ${REPO_ROOT}/test/minibidi_arabic/stubs
   ${REPO_ROOT}/lib/MiniBidi ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8)
 target_link_libraries(BidiDiff PRIVATE xp_ffi_host)

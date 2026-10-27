@@ -96,8 +96,8 @@ invalidate descriptors before reuse. The generation counter relies on the existi
 serialized owner; it does not make font access thread-safe. On single-core C3 its
 increment uses the interrupt-masking `__atomic_fetch_add_4` helper. C++ also owns
 the shared 3,072-byte bidi storage and mutex, leased exclusively to Rust during
-measurement/order operations; C++ drawing still performs its own bidi walk until
-P5-T5. See the [native measurement contract](rust.md#native-text-measurement) for
+measurement, ordering and glyph drawing. C++ consumes Rust placements while
+retaining bitmap loading, decompression and rasterization. See the [native measurement contract](rust.md#native-text-measurement) for
 implementation links, generation obligations and differential tests. Host synthetic
 renderers continue to use metric callbacks.
 

@@ -1,8 +1,9 @@
 # MiniBidi differential test
 
 This compares the allocation-free Rust bidi API with the unchanged C MiniBidi
-and C++ BidiUtils at `c9330408`. Firmware measurement and paragraph ordering
-use Rust; C++ drawing still uses its own bidi walk until P5-T5.
+and C++ BidiUtils preserved at `4436ccc2` (the same bidi algorithm as `c9330408`).
+CMake extracts the reference into its build directory from Git history. Production
+measurement, paragraph ordering and drawing use Rust.
 It tests the compatibility algorithm, not conformance with a newer Unicode
 Bidirectional Algorithm.
 
@@ -57,7 +58,8 @@ same `CMAKE_CXX_FLAGS`; Rust uses its safe slice checks but is not ASan-instrume
 ## Tables and ownership
 
 `generate_tables.py` extracts the pinned `bidiclasses.t`, `bidi_pairs.t` and
-Arabic joining/presentation-form tables from `lib/MiniBidi/minibidi.c`. Their
+Arabic joining/presentation-form tables from `4436ccc2:lib/MiniBidi/minibidi.c`
+and its adjacent `.t` files in Git history. Their
 original authors are Ahmad Khalifa and Thomas Wolff (MIT); the CrossPoint
 extensions retain their Unicode 17.0.0 data. Regenerate only after an intentional
 source-table change:
@@ -89,12 +91,11 @@ The word-order output is meaningful only on status 1.
 
 The production engine leases the existing C++-owned workspace and mutex through
 `xp_native_bidi_acquire/release`, retaining the lease while visual text is used.
-Measurement reuses that storage instead of allocating a visual `std::string`.
+Measurement and drawing reuse that storage instead of allocating visual strings.
 See the [production ownership contract](../../docs/contributing/rust.md#native-text-measurement).
 Real-device timing and font rendering are outside this differential test.
 
-`GfxRenderer::resolveVisualText` also has its own RTL-lead-byte precheck and
-falls back to the original text when a successful conversion emits no bytes.
-The native measurement engine preserves those caller rules.
-Before deleting the C implementation, keep a frozen copy for this oracle and
-update the table generator's source location.
+The native text engine preserves the original RTL-lead-byte precheck and
+falls back to logical text when visual conversion emits no bytes. The C++
+`applyBidiVisual` compatibility wrapper preserves its distinct success-with-empty
+result for callers that use that API directly.

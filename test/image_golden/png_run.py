@@ -35,6 +35,8 @@ def main():
             # BMP format corpus and all malformed cases, avoiding huge allocations
             # in the old unvalidated converter for malicious bit-depth/palette data.
             jobs.append((name, 'frame', [str(path), str(tmp / (name + '.pxc')), '6', '0']))
+            if name == 'mutation-aspect-tall':
+                jobs.extend((name, 'bmp' + str(mode), [str(path), str(mode)]) for mode in (4, 5))
             if name in corpus_names or name.startswith('mutation-format-') or name.startswith('mutation-filter-'):
                 for mode in range(6):
                     jobs.append((name, 'bmp' + str(mode), [str(path), str(mode)]))
@@ -62,7 +64,16 @@ def main():
         else:
             expected = json.loads(gzip.decompress(args.output.read_bytes()))
             assert expected['inputs'] == document['inputs'], 'input inventory changed'
-            bad = [k for k in actual if actual[k] != expected['cases'][k]]
+            exceptions = json.loads((ROOT / 'png-rejections.json').read_text())
+            bad = []
+            for key, value in actual.items():
+                before = expected['cases'][key]
+                if key in exceptions:
+                    approved = exceptions[key]
+                    if approved['old'] != before or approved['expected'] != value or before == value:
+                        bad.append(key)
+                elif value != before:
+                    bad.append(key)
             for k in bad[:20]:
                 print(k, expected['cases'][k], actual[k])
             if bad:

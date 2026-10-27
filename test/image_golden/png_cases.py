@@ -54,4 +54,7 @@ def cases():
     for name, data in {'invalid-history': '789c03020000030001', 'distance-two': '789c7304420000000000',
                        'reserved-distance': '789c033e0000000000', 'dictionary': '782000000001'}.items():
         result[name] = base[:33] + chunk(b'IDAT', bytes.fromhex(data)) + chunk(b'IEND', b'')
+    header = struct.pack('>IIBBBBB', 1, 1000, 8, 0, 0, 0, 0)
+    result['aspect-tall'] = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', header)
+                             + chunk(b'IDAT', zlib.compress(b'\0\x80' * 1000)) + chunk(b'IEND', b''))
     return result

@@ -1,7 +1,7 @@
 # Image pipeline byte oracle
 
 This standalone host target links the production PNG/JPEG/GIF converters and
-patched firmware decoder dependencies. Its X3 renderer fake exposes the real
+firmware JPEG/GIF dependencies. PNG decoding uses Rust and needs no PNGdec checkout. Its X3 renderer fake exposes the real
 write-target contract: 792 × 528 physical pixels, four orientations, BW/LSB/MSB,
 absolute/differential planes, and full-frame/41-row strip targets. The framebuffer
 starts at `0xa5` so skipped writes remain observable. File access uses the shared
@@ -18,7 +18,7 @@ python3 test/image_golden/run.py build/image-golden/image_oracle
 
 `goldens.json.gz` records the C++ baseline at
 `5d6523086a696abac78a9816f13d0956ab5ff61c`, with 696 independently verified
-PNG pixel corrections described in [the decoder checks](../png_zlib/README.md).
+PNG pixel corrections described in [the PNG compatibility notes](PNG.md).
 Its inventory contains SHA-256 for
 every corpus member. Each of 51,024 cases records the dimension query, streaming
 header probes with 1/7/4096-byte chunks (including accepted byte count), decode

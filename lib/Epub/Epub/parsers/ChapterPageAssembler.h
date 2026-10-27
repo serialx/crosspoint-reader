@@ -57,7 +57,7 @@ class ChapterPageAssembler {
   std::string imageBasePath;
   std::string imageSource_;
   std::string imageCache_;
-  TextBlock::LinkSpans lineLinks_;
+  std::function<void(XpChapterSpan, uint16_t, uint16_t, uint32_t)> completePageBytesFn;
 
   bool ensureSemantics();
   XpChapterOptions chapterOptions() const;
@@ -72,7 +72,8 @@ class ChapterPageAssembler {
   virtual void measureTableAtCurrentPosition() = 0;
   virtual uint8_t* entityBuffer(uint32_t length) = 0;
   uint8_t probeImage(XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width, uint16_t& height);
-  std::unique_ptr<Page> createPage(const XpChapterElement* elements, uint32_t count);
+  uint8_t completeBytes(XpChapterSpan bytes, XpChapterPosition position);
+  std::unique_ptr<Page> decodePage(XpChapterSpan bytes);
   explicit ChapterPageAssembler(
       std::shared_ptr<Epub> epub, GfxRenderer& renderer, const int fontId, const float lineCompression,
       const bool extraParagraphSpacing, const uint8_t paragraphAlignment, const uint16_t viewportWidth,

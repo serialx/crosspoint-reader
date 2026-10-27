@@ -51,12 +51,7 @@ def instrument_assembly(source):
     }
     for anchor, code in hooks.items():
         replace(anchor, anchor + '\n' + code)
-    # Paragraph's internal metrics stay in the layout stream. Only these two
-    # page-placement metrics were observable in the original operation stream.
-    replace('return line.getRubyShift(renderer.getFontAscenderSize(font));',
-      'const int ascender = renderer.getFontAscenderSize(font); ChapterTrace::record("getFontAscenderSize", font, ascender); return line.getRubyShift(ascender);')
-    replace('return renderer.getLineHeight(font, options->compression) + line.extraAscent(renderer, options->font);',
-      'const int base = renderer.getLineHeight(font, options->compression); ChapterTrace::record("getLineHeight", font, options->compression, base); return base + line.extraAscent(renderer, options->font);')
+    # Placement metrics are now emitted directly by the Rust assembly trace.
     return source
 
 

@@ -22,7 +22,7 @@ class Section {
   HalFile file;
 
   void writeSectionFileHeader(const ReaderRenderSpec& spec);
-  uint32_t onPageComplete(std::unique_ptr<Page> page);
+  uint32_t onPageComplete(const uint8_t* bytes, size_t length);
 
   // Page-offset table entry, kept in RAM while an incremental build is running so
   // already-built pages can be located in the partially-written .bin.

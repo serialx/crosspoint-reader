@@ -8,6 +8,8 @@ impl State {
         PageSink {
             callbacks: self.callbacks,
             context: self.ctx,
+            storage: self.page_storage.get(),
+            link_index: None,
         }
     }
     #[inline(never)]

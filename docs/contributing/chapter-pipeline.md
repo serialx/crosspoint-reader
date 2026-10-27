@@ -14,21 +14,30 @@ The remaining C boundary is a synchronous page sink:
 
 | Sink operation | Contract |
 | --- | --- |
-| Create text | Consume the borrowed `XpParaLine` layout during the callback and construct the existing `TextBlock`; return an opaque owned payload plus placement metrics and borrowed link spans. |
 | Process image | Keep path resolution, format checks, header probing, framebuffer loans, extraction, decoder retries and failed-cache removal in C++; return intrinsic dimensions and retain resolved paths in the sink context until the next probe. Rust computes CSS sizing and placement in the original order. |
-| Create image | Construct the existing `ImageBlock` from those paths and chosen dimensions; return an opaque owned payload. |
-| Drop payload | Return every unconsumed text/image payload to its C++ allocator exactly once, including stop, OOM, discarded table lines and abort. |
 | Reclaim paragraph memory | Preserve the cache-reclamation retry on paragraph allocation failure; request 4 KiB of free memory, then retry once. |
 | Font provider and preparation | C++ resolves scale to font ID, prepares fonts and supplies native descriptors and dynamic handlers. Rust reads line metrics and computes advances, spaces, kerning, codepoint metrics and SD-font status. Host callback adapters retain the metric query slots. |
-| Complete page | Create `Page` and wrappers from borrowed element records, consuming every opaque payload even on failure. Copy links, then footnotes through separate callbacks. Rust frees each source vector immediately after its copy. Finally consume the C++ page through `completePageFn`, with u16 paragraph/list indices and u32 visible offset. |
+| Complete page | Borrow one complete encoded page through one callback, with u16 paragraph/list indices and u32 visible offset. Section performs one `HalFile::write` and records the same LUT entry. The callback reports success, stop or failure; it retains no byte pointer. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
 | Anchors | Keep pending/TOC IDs and completed anchor storage in C++; query pending ID and TOC membership, defer an ID, and record its u16 page at the original Rust-controlled transition. |
 
-Rules, drop caps, boxes and table separators are plain records until page
-completion. Input spans are borrowed for one call. Returned line-link spans remain valid
-until `release_line_links`, called immediately after Rust copies them, including
-copy-allocation failure. The sink clears scratch on finish/abort too. Pending-anchor
-spans last until defer/record.
+Rust consumes each packed `XpParaLine` synchronously and encodes its text, style,
+font slots and ruby through the page builder. Metrics use native font descriptors;
+synthetic host renderers retain scalar metric callbacks. The narrow `font_ready`
+callback preserves `ensureFontLoaded` and fallback before measuring inline font
+ascent; it creates no page object. Image probing retains C++ path strings until
+`image_paths` lends them to the Rust image encoder. No `ImageBlock` is constructed
+on the Section build path.
+
+Rules, drop caps, boxes and table separators remain plain records until completion.
+Encoded lines and images live in one chapter-owned byte buffer. Slot indexes survive
+compaction and table/carry reordering; payload destruction releases the slot. A
+separate typed buffer retains layout links until placement copies them into page
+links. Completion compacts live payloads, moves emitted records into page order in
+place, patches positions, and appends the existing footnote/link trailer. It then
+lends the prefix to C++ and removes it after return, preserving carried and buffered
+table payloads. There is no second page output buffer. Pending-anchor spans last
+until defer/record.
 Stored page links own their bytes. The C++ anchor store remains outside the Rust handle because `Section`
 reads it after `finishParse` and consumes `std::string` references. This preserves
 `getAnchors`, avoids a second string copy and keeps IDs at their existing length
@@ -46,7 +55,13 @@ or dropped.
 Rust preserves eight box scopes, six carried lines, four table columns and the
 160-token/2,048-byte row fallback. Dynamic buffers use `try_reserve`; their owner
 is the chapter and their lifetime ends on completion/abort. Box storage grows
-only when a box is encountered, up to eight scopes. Table line/offset scratch is
+only when a box is encountered, up to eight scopes. Encoded bytes, slot metadata
+and typed line-link capacity are retained for the build. Growth uses checked
+`try_reserve_exact` with 25% spare capacity, or the requested size when larger.
+This limits retained and old-plus-new growth storage; a larger page can still
+require a larger contiguous block. Capacity is bounded by checked addressable
+lengths and existing page/line count limits, not by a new content-size limit.
+There is no unconditional allocation at a page boundary. Table line/offset scratch is
 local to the synchronous row operation and is freed on every exit. No second paragraph text copy or full-framebuffer allocation is added.
 The evidence report records C3 sizes, transient growth peaks and allocation
 counts; the mock tests alone do not establish those resource costs.
@@ -82,8 +97,11 @@ Semantics owns element depth, hidden-content tracking, CSS ancestors and style
 stacks, word fragments, inline continuation, lists, ruby collection, link-label
 collection, and visible-text/XPath counters. Rust assembly owns paragraph storage,
 layout, page records, carry, box and table state. The C++ sink owns hardware
-access, fonts and their preparation, image I/O, `TextBlock`/`ImageBlock` construction, completed `Page`
-construction, and pending/TOC/completed anchor strings. The driver owns the
+access, fonts and their preparation, image I/O and pending/TOC/completed anchor
+strings. Section consumes encoded bytes directly. Styled dictionary definitions
+and object-inspecting host tests retain the original owned-`Page` callback;
+`ChapterPageAssembler::decodePage` reconstructs its objects from the completed
+bytes. These objects outlive the parser and preserve the dictionary page limits. The driver owns the
 fallibly allocated Rust chapter handle, 1,024-byte input buffer, chapter file,
 and incremental parsing lifecycle. The handle contains semantics, assembly and
 the XML pull parser; XML events and CSS resolution stay inside Rust.
@@ -102,7 +120,8 @@ implementation links, generation obligations and differential tests. Host synthe
 renderers continue to use metric callbacks.
 
 Text and style payloads are borrowed for one synchronous operation. Assembly
-copies text only into its existing paragraph storage. There is no queued op
+copies text into its paragraph storage and copies extracted line data into the
+encoded payload buffer. There is no queued op
 stream in firmware and no second copy of a paragraph. Replies must be consumed
 before advancing the XML reader, whose event strings are borrowed.
 
@@ -117,22 +136,23 @@ in layout OOM. `abortParse` releases XML, buffer and file without that flush.
 `Section::suspendBuild` keeps completed pages and aborts the parser; resuming
 rebuilds the parser rather than serializing its stacks.
 
-Completion retains the original unchecked C++ `std::vector` allocation behavior
-for `Page::elements`, links and footnotes. Element reserve is exact; metadata
-copies start from empty vectors. Rust element, link and footnote allocations end
-in sequence after their respective copies, before serialization. Checked Page
-and wrapper failures consume every payload and emit no partial page. Making the
-Page containers fallible requires a separate human decision about Page storage
-ownership; it is not implemented by a free-heap precheck or a null-returning
-standard allocator. C3 destination storage is 4 bytes per element plus 264 bytes
-per link and 288 bytes per footnote (13,056 metadata bytes at the 32/16 caps).
+Builder allocation/capacity failure latches the existing layout OOM state and
+prevents partial page delivery. Abort and finish destroy all payloads before the
+chapter storage. The Section write failure still returns offset zero without
+incrementing the built-page count, preserving its existing error path. Cache
+headers, page bytes, trailers, partial-build markers and LUT order are unchanged.
+
+The dictionary compatibility decoder still uses the original C++ Page containers,
+including their unchecked vector growth, plus a checked temporary query arena.
+It is isolated from Section builds. Checked object/arena failures fail completion;
+no temporary file or new persistent state is introduced.
 
 ## Required operation families
 
 Widths below describe the target contract, not packed C++ object layouts.
 Most booleans and enum/style flags are u8. Existing exceptions use C `bool`: the
 assembly options `extra_spacing`, `hyphenation` and `focus`, box `shaded`, the
-`line_metrics` table-row argument and the `probe_image` popup pointer. Coordinates
+`probe_image` popup pointer. Coordinates
 and insets are i16, font IDs
 are i32, font scale and compression are IEEE-754 f32. Counts crossing the
 C ABI use explicit u32 rather than host `size_t`. Strings are borrowed UTF-8
@@ -265,7 +285,7 @@ test CMake configuration. Firmware's `scripts/build_rust.py` supplies neither.
 Tracing emits selected semantic observations through a synchronous callback;
 assembly emits its original observations and metric replies through a borrowed
 byte callback. The host instrumenter attaches the paragraph layout stream and
-records the driver lifecycle and remaining C++ placement metrics. Test-only
+records the driver lifecycle; Rust emits the placement metric observations. Test-only
 entry points preserve direct-callback assertions, including state checks, without
 adding per-event FFI entry points to firmware. The original C++ assembly implementation is retained in Git history and the
 captured operation archives.

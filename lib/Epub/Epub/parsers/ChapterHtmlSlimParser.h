@@ -32,6 +32,9 @@ class ChapterHtmlSlimParser final : private ChapterPageAssembler {
                              cssParser),
         filepath(filepath) {}
   ~ChapterHtmlSlimParser();
+  void setPageBytesCallback(std::function<void(XpChapterSpan, uint16_t, uint16_t, uint32_t)> callback) {
+    completePageBytesFn = std::move(callback);
+  }
   void setTextSpacing(const int8_t character, const uint8_t wordPercent) {
     characterSpacing = character;
     wordSpacingPercent = wordPercent;

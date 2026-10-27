@@ -66,34 +66,6 @@ uint8_t visualOrder(XpParaSpan text, const uint16_t* offsets, uint32_t count, ui
                                            {order, count});
 }
 
-void* createLine(void*, const XpParaLine* line) {
-  std::vector<std::string> ruby;
-  bool hasRuby = false;
-  for (uint32_t i = 0; i < line->count; ++i) hasRuby |= line->ruby[i].len != 0;
-  if (hasRuby) {
-    ruby.reserve(line->count);
-    for (uint32_t i = 0; i < line->count; ++i)
-      ruby.emplace_back(reinterpret_cast<const char*>(line->ruby[i].data), line->ruby[i].len);
-  }
-  auto block = makeUniqueNoThrow<TextBlock>(
-      TextBlock::BorrowedLayout{},
-      std::span<const char>(reinterpret_cast<const char*>(line->text.data), line->text.len),
-      std::span<const uint16_t>(line->offsets, line->count), std::span<const int16_t>(line->positions, line->count),
-      std::span<const EpdFontFamily::Style>(reinterpret_cast<const EpdFontFamily::Style*>(line->styles), line->count),
-      std::span<const uint8_t>(line->boundaries, line->boundaries ? line->count : 0),
-      std::span<const uint16_t>(line->suffixes, line->suffixes ? line->count : 0), chapterBlock(*line->block),
-      std::move(ruby), std::span<const XpParaLink>(line->links, line->link_count),
-      std::span<const TextBlock::SourceRange>(reinterpret_cast<const TextBlock::SourceRange*>(line->sources),
-                                              line->count),
-      line->paragraph_start);
-  int32_t fonts[TextBlock::MAX_WORD_FONTS];
-  memcpy(fonts, line->fonts, sizeof(fonts));
-  if (!block || !block->valid() || (line->font_slots && !block->setWordFonts(line->font_slots, fonts))) {
-    LOG_ERR("PTX", "OOM: extracted line");
-    return nullptr;
-  }
-  return block.release();
-}
 }  // namespace
 
 XpChapterOptions ChapterPageAssembler::chapterOptions() const {
@@ -173,66 +145,22 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
       return found;
     },
 #endif
-    createLine,
-    [](void* ctx, const void* raw, const XpChapterAssemblyOptions* options, bool row) -> XpChapterLineMetrics {
-      const auto& line = *static_cast<const TextBlock*>(raw);
+    [](void* ctx, int32_t font, int32_t fallback) -> int32_t {
       const auto& renderer = static_cast<ChapterPageAssembler*>(ctx)->renderer;
-      const int font = line.blockFontId(options->font);
-      const auto rubyHeight = [&]() { return line.getRubyShift(renderer.getFontAscenderSize(font)); };
-      const auto baseHeight = [&]() {
-        return renderer.getLineHeight(font, options->compression) + line.extraAscent(renderer, options->font);
-      };
-      int height, ruby;
-      if (row) {
-        height = baseHeight();
-        ruby = rubyHeight();
-      } else {
-        ruby = rubyHeight();
-        height = baseHeight();
-      }
-      return {line.getBlockStyle().leftInset(), static_cast<uint32_t>(line.wordCount()), height, ruby};
+      return font == fallback || renderer.ensureFontLoaded(font) ? font : fallback;
     },
-    [](void* raw, int16_t left) {
-      auto* line = static_cast<TextBlock*>(raw);
-      auto style = line->getBlockStyle();
-      style.marginLeft = left;
-      line->setBlockStyle(style);
-    },
-    [](void* ctx, void* raw, uint32_t* count) -> const XpChapterLineLink* {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      self->lineLinks_ = static_cast<TextBlock*>(raw)->takeLinkSpans();
-      static_assert(sizeof(TextBlock::LinkSpan) == sizeof(XpChapterLineLink));
-      *count = self->lineLinks_.count;
-      return reinterpret_cast<const XpChapterLineLink*>(self->lineLinks_.data.get());
-    },
-    [](void* ctx) { static_cast<ChapterPageAssembler*>(ctx)->lineLinks_ = {}; },
-    [](void* ctx, const XpChapterElement* elements, uint32_t count) -> void* {
-      return static_cast<ChapterPageAssembler*>(ctx)->createPage(elements, count).release();
-    },
-    [](void* raw, const XpChapterLink* links, uint32_t count) {
-      auto& page = *static_cast<Page*>(raw);
-      static_assert(sizeof(PageLink) == sizeof(XpChapterLink));
-      page.links.resize(count);
-      if (count) memcpy(page.links.data(), links, count * sizeof(PageLink));
-    },
-    [](void* raw, const XpChapterFootnote* footnotes, uint32_t count) {
-      auto& page = *static_cast<Page*>(raw);
-      static_assert(sizeof(FootnoteEntry) == sizeof(XpChapterFootnote));
-      page.footnotes.resize(count);
-      if (count) memcpy(page.footnotes.data(), footnotes, count * sizeof(FootnoteEntry));
-    },
-    [](void* ctx, void* raw, XpChapterPosition position) -> uint8_t {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      std::unique_ptr<Page> page(static_cast<Page*>(raw));
-      self->completePageFn(std::move(page), position.paragraph, position.list, position.visible);
-      return self->stopRequested ? 1 : 0;
+    [](void* ctx, XpChapterSpan bytes, XpChapterPosition position) -> uint8_t {
+      return static_cast<ChapterPageAssembler*>(ctx)->completeBytes(bytes, position);
     },
     [](void* ctx, XpChapterSpan src, int32_t* counter, bool* popup, uint16_t* width, uint16_t* height) -> uint8_t {
       return static_cast<ChapterPageAssembler*>(ctx)->probeImage(src, *counter, *popup, *width, *height);
     },
-    [](void* ctx, int32_t width, int32_t height) -> void* {
-      auto* self = static_cast<ChapterPageAssembler*>(ctx);
-      return makeUniqueNoThrow<ImageBlock>(self->imageCache_, self->imageSource_, width, height).release();
+    [](void* ctx, XpChapterSpan* cache, XpChapterSpan* source) {
+      const auto* self = static_cast<ChapterPageAssembler*>(ctx);
+      *cache = {reinterpret_cast<const uint8_t*>(self->imageCache_.data()),
+                static_cast<uint32_t>(self->imageCache_.size())};
+      *source = {reinterpret_cast<const uint8_t*>(self->imageSource_.data()),
+                 static_cast<uint32_t>(self->imageSource_.size())};
     },
     [](void* ctx) -> XpChapterSpan {
       const auto& id = static_cast<ChapterPageAssembler*>(ctx)->pendingAnchorId;
@@ -270,5 +198,3 @@ bool ChapterPageAssembler::ensureSemantics() {
   const auto options = chapterOptions();
   return xp_chapter_create(&chapter_, &sink_, this, cssParser ? cssParser->rustHandle() : nullptr, &options) == 0;
 }
-
-extern "C" void xp_chapter_release_block(void* block) { delete static_cast<Block*>(block); }

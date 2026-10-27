@@ -105,14 +105,14 @@ Section::Section(const std::shared_ptr<Epub>& epub, const int spineIndex, GfxRen
 // (no-op once a build has completed or never started).
 Section::~Section() { suspendBuild(); }
 
-uint32_t Section::onPageComplete(std::unique_ptr<Page> page) {
+uint32_t Section::onPageComplete(const uint8_t* bytes, const size_t length) {
   if (!file) {
     LOG_ERR("SCT", "File not open for writing page %d", builtPageCount_);
     return 0;
   }
 
   const uint32_t position = file.position();
-  if (!page->serialize(file)) {
+  if (file.write(bytes, length) != length) {
     LOG_ERR("SCT", "Failed to serialize page %d", builtPageCount_);
     return 0;
   }
@@ -370,14 +370,8 @@ bool Section::startBuild(const ReaderRenderSpec& spec, const std::function<void(
   ctx->parser = makeUniqueNoThrow<ChapterHtmlSlimParser>(
       epub, ctxPtr->parsePath, renderer, spec.fontId, spec.lineCompression, spec.extraParagraphSpacing,
       spec.paragraphAlignment, spec.viewportWidth, spec.viewportHeight, spec.hyphenationEnabled,
-      spec.focusReadingEnabled,
-      [this, ctxPtr](std::unique_ptr<Page> page, const uint16_t paragraphIndex, const uint16_t listItemIndex,
-                     const uint32_t visibleTextOffset) {
-        ctxPtr->lut.push_back(
-            {this->onPageComplete(std::move(page)), paragraphIndex, listItemIndex, visibleTextOffset});
-      },
-      spec.embeddedStyle, ctxPtr->contentBase, ctxPtr->imageBasePath, spec.imageRendering, std::move(tocAnchors),
-      popupFn, ctxPtr->cssParser);
+      spec.focusReadingEnabled, nullptr, spec.embeddedStyle, ctxPtr->contentBase, ctxPtr->imageBasePath,
+      spec.imageRendering, std::move(tocAnchors), popupFn, ctxPtr->cssParser);
   if (!ctx->parser) {
     LOG_ERR("SCT", "OOM: ChapterHtmlSlimParser");
     if (ctx->cssParser) ctx->cssParser->clear();
@@ -387,6 +381,11 @@ bool Section::startBuild(const ReaderRenderSpec& spec, const std::function<void(
     return false;
   }
 
+  ctx->parser->setPageBytesCallback([this, ctxPtr](XpChapterSpan bytes, const uint16_t paragraphIndex,
+                                                   const uint16_t listItemIndex, const uint32_t visibleTextOffset) {
+    ctxPtr->lut.push_back(
+        {this->onPageComplete(bytes.data, bytes.len), paragraphIndex, listItemIndex, visibleTextOffset});
+  });
   ctx->parser->setTextSpacing(spec.characterSpacing, spec.wordSpacingPercent);
   ctx->parser->setParagraphIndentSpaces(spec.paragraphIndentSpaces);
   Hyphenator::setPreferredLanguage(epub->getLanguage());

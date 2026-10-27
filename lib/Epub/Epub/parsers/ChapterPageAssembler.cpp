@@ -125,52 +125,167 @@ std::unique_ptr<T> makePageObject(Args&&... args) {
 }
 }  // namespace
 
-std::unique_ptr<Page> ChapterPageAssembler::createPage(const XpChapterElement* elements, uint32_t count) {
+namespace {
+BlockStyle decodedStyle(const XpSecRecord& record) {
+  const auto* v = record.values;
+  BlockStyle s;
+  s.alignment = static_cast<CssTextAlign>(v[0]);
+  s.textAlignDefined = v[1];
+  s.marginTop = v[2];
+  s.marginBottom = v[3];
+  s.marginLeft = v[4];
+  s.marginRight = v[5];
+  s.paddingTop = v[6];
+  s.paddingBottom = v[7];
+  s.paddingLeft = v[8];
+  s.paddingRight = v[9];
+  s.textIndent = v[10];
+  s.textIndentDefined = v[11];
+  s.isRtl = v[12];
+  s.directionDefined = v[13];
+  s.characterSpacing = v[14];
+  s.fontId = v[15];
+  return s;
+}
+std::string pageString(XpPageSpan s) { return {reinterpret_cast<const char*>(s.data), s.len}; }
+std::unique_ptr<TextBlock> decodedLine(const uint8_t* arena, size_t size, uint16_t element) {
+  XpPageLine line{};
+  if (xp_page_line(arena, size, element, &line)) return nullptr;
+  const auto style = decodedStyle(line.block);
+  std::vector<std::string> words, ruby;
+  std::vector<int16_t> positions;
+  std::vector<EpdFontFamily::Style> styles;
+  std::vector<uint8_t> boundaries, slots;
+  std::vector<uint16_t> suffixes;
+  std::vector<TextBlock::SourceRange> sources;
+  words.reserve(line.count);
+  positions.reserve(line.count);
+  styles.reserve(line.count);
+  sources.reserve(line.count);
+  if (line.has_ruby) ruby.reserve(line.count);
+  if (line.has_focus) {
+    boundaries.reserve(line.count);
+    suffixes.reserve(line.count);
+  }
+  if (line.has_fonts) slots.reserve(line.count);
+  for (uint16_t i = 0; i < line.count; ++i) {
+    XpPageWord word{};
+    if (xp_page_word(arena, size, element, i, 0, &word)) return nullptr;
+    words.push_back(pageString(word.text));
+    positions.push_back(word.x);
+    styles.push_back(
+        static_cast<EpdFontFamily::Style>((word.style & ~EpdFontFamily::SMALL_CAPS) |
+                                          (word.discretionary_hyphen ? TextBlock::DISCRETIONARY_HYPHEN_FLAG : 0)));
+    sources.push_back({word.source_start, word.source_end});
+    if (line.has_ruby) ruby.push_back(pageString(word.ruby));
+    if (line.has_focus) {
+      boundaries.push_back(word.focus_boundary);
+      suffixes.push_back(word.focus_suffix);
+    }
+    if (line.has_fonts) {
+      uint8_t slot = 0;
+      if (word.font != style.fontId) {
+        for (uint8_t j = 0; j < TextBlock::MAX_WORD_FONTS; ++j)
+          if (line.fonts[j] == word.font) {
+            slot = j + 1;
+            break;
+          }
+      }
+      slots.push_back(slot | (word.small_caps ? TextBlock::SMALL_CAPS_SLOT_FLAG : 0));
+    }
+  }
+  auto block = makeUniqueNoThrow<TextBlock>(words, positions, styles, boundaries, suffixes, style, std::move(ruby),
+                                            std::vector<TextBlock::LinkSpan>{}, sources, line.paragraph_start);
+  if (!block || !block->valid() || (line.has_fonts && !block->setWordFonts(slots.data(), line.fonts))) return nullptr;
+  return block;
+}
+}  // namespace
+
+// Dictionary definitions retain Page objects; section builds consume bytes directly.
+std::unique_ptr<Page> ChapterPageAssembler::decodePage(XpChapterSpan bytes) {
+  XpPageInfo info{};
+  if (xp_page_arena_size(bytes.data, bytes.len, &info)) return nullptr;
+  auto arena = makeUniqueNoThrow<uint8_t[]>(info.arena_size);
+  if (!arena || xp_page_decode(bytes.data, bytes.len, 0, arena.get(), info.arena_size, &info)) return nullptr;
   auto page = makePageObject<Page>();
-  if (page) page->elements.reserve(count);
-  bool failed = !page;
-  for (uint32_t i = 0; i < count; ++i) {
-    const auto& element = elements[i];
-    const auto& data = element.content.data;
-    std::unique_ptr<PageElement> output;
-    switch (element.content.kind) {
-      case 0: {
-        std::unique_ptr<TextBlock> block(static_cast<TextBlock*>(data.payload.pointer));
-        if (!failed) output = makePageObject<PageLine>(std::move(block), element.x, element.y);
+  if (!page) return nullptr;
+  page->elements.reserve(info.elements);
+  for (uint16_t i = 0; i < info.elements; ++i) {
+    XpPageElement e{};
+    if (xp_page_element(arena.get(), info.arena_size, i, &e)) return nullptr;
+    const auto* v = e.record.values;
+    const int16_t x = v[0], y = v[1];
+    std::unique_ptr<PageElement> element;
+    switch (static_cast<PageElementTag>(e.tag)) {
+      case TAG_PageLine: {
+        auto line = decodedLine(arena.get(), info.arena_size, i);
+        if (!line) return nullptr;
+        element = makePageObject<PageLine>(std::move(line), x, y);
         break;
       }
-      case 1: {
-        std::unique_ptr<ImageBlock> block(static_cast<ImageBlock*>(data.payload.pointer));
-        if (!failed) output = makePageObject<PageImage>(std::move(block), element.x, element.y);
+      case TAG_PageImage: {
+        auto image = makeUniqueNoThrow<ImageBlock>(pageString(e.first), pageString(e.second), e.width, e.height);
+        if (!image) return nullptr;
+        element = makePageObject<PageImage>(std::move(image), x, y);
         break;
       }
-      case 2:
-        if (!failed)
-          output = makePageObject<PageHorizontalRule>(data.rule.width, data.rule.thickness, element.x, element.y);
+      case TAG_PageHorizontalRule:
+        element = makePageObject<PageHorizontalRule>(v[2], v[3], x, y);
         break;
-      case 3:
-        if (!failed)
-          output = makePageObject<PageDropCap>(data.cap.font, data.cap.scale256,
-                                               static_cast<EpdFontFamily::Style>(data.cap.style),
-                                               reinterpret_cast<const char*>(data.cap.text), element.x, element.y);
+      case TAG_PageDropCap: {
+        char text[13]{};
+        memcpy(text, e.first.data, std::min(e.first.len, sizeof(text) - 1));
+        element = makePageObject<PageDropCap>(static_cast<int32_t>(v[2]), v[3], static_cast<EpdFontFamily::Style>(v[4]),
+                                              text, x, y);
         break;
-      case 4: {
+      }
+      case TAG_PageBorderBox: {
         CssBorderSide sides[4];
         for (size_t side = 0; side < 4; ++side)
-          sides[side] = {data.box.sides[side].width, static_cast<CssBorderStyle>(data.box.sides[side].style)};
-        if (!failed)
-          output = makePageObject<PageBorderBox>(data.box.width, data.box.height, sides, data.box.shaded, element.x,
-                                                 element.y);
+          sides[side] = {static_cast<uint8_t>(v[4 + side * 2]), static_cast<CssBorderStyle>(v[5 + side * 2])};
+        element = makePageObject<PageBorderBox>(v[2], v[3], sides, v[12] != 0, x, y);
         break;
       }
     }
-    if (output)
-      page->elements.push_back(std::move(output));
-    else
-      failed = true;
+    if (!element) return nullptr;
+    page->elements.push_back(std::move(element));
   }
-  if (failed) return nullptr;
+  page->footnotes.reserve(info.footnotes);
+  for (uint16_t i = 0; i < info.footnotes; ++i) {
+    XpPageSpan number{}, href{};
+    if (xp_page_footnote(arena.get(), info.arena_size, i, &number, &href)) return nullptr;
+    FootnoteEntry note{};
+    memcpy(note.number, number.data, sizeof(note.number));
+    memcpy(note.href, href.data, sizeof(note.href));
+    page->footnotes.push_back(note);
+  }
+  page->links.reserve(info.links);
+  for (uint16_t i = 0; i < info.links; ++i) {
+    XpPageLink value{};
+    if (xp_page_link(arena.get(), info.arena_size, i, &value)) return nullptr;
+    PageLink link{};
+    memcpy(link.href, value.href.data, sizeof(link.href));
+    link.x = value.x;
+    link.y = value.y;
+    link.width = value.width;
+    link.height = value.height;
+    page->links.push_back(link);
+  }
   return page;
+}
+
+uint8_t ChapterPageAssembler::completeBytes(XpChapterSpan bytes, XpChapterPosition position) {
+  if (completePageBytesFn) {
+    completePageBytesFn(bytes, position.paragraph, position.list, position.visible);
+  } else {
+    auto page = decodePage(bytes);
+    if (!page) {
+      LOG_ERR("CHP", "OOM: decoded page");
+      return 2;
+    }
+    completePageFn(std::move(page), position.paragraph, position.list, position.visible);
+  }
+  return stopRequested ? 1 : 0;
 }
 
 ChapterPageAssembler::~ChapterPageAssembler() = default;

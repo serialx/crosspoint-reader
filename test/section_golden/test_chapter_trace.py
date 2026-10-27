@@ -14,7 +14,7 @@ class ChapterTraceTest(unittest.TestCase):
     def test_original_contains_every_anchor(self):
         traced = instrument(SOURCE)
         for op in ('Text', 'Image', 'TableColumns', 'ListMarker', 'RubyGroup', 'RubyAppend',
-                   'getFontAscenderSize', 'Step', 'Finish', 'StopRequested'):
+                   'Step', 'Finish', 'StopRequested'):
             self.assertIn('"' + op + '"', traced)
         for op in ("addWord", "size", "paragraphExists", "createParagraph"):
             self.assertNotIn('"Paragraph.' + op + '"', traced)
@@ -22,7 +22,7 @@ class ChapterTraceTest(unittest.TestCase):
         self.assertIn('LayoutTrace::stream.write', traced)
         assembly = ROOT.parents[3] / 'rust/crates/xp-core/src/chapter/assembly'
         rust = ''.join(path.read_text() for path in assembly.glob('*.rs'))
-        for op in ('BeginBlock','EndBlock','BoxOpen','BoxClose','Page','ImageReply','TableRowEnd'):
+        for op in ('BeginBlock','EndBlock','BoxOpen','BoxClose','Page','ImageReply','TableRowEnd','getFontAscenderSize','getLineHeight'):
             self.assertIn('"' + op + '"', rust)
 
     def test_missing_anchor_rejects(self):

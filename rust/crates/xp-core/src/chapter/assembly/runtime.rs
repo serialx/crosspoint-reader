@@ -22,26 +22,22 @@ pub struct ParagraphContext {
     language: i32,
 }
 
-extern "C" {
-    fn xp_chapter_release_block(block: *mut c_void);
-}
+pub use super::storage::Storage;
 
-#[repr(transparent)]
 pub struct Payload {
-    pointer: NonNull<c_void>,
+    pub(super) storage: *mut Storage,
+    pub(super) index: usize,
 }
 impl Drop for Payload {
     fn drop(&mut self) {
+        // The chapter owns storage after assembly and drops every payload first.
         unsafe {
-            xp_chapter_release_block(self.pointer.as_ptr());
+            (*self.storage).release(self.index);
         }
     }
 }
 
-/// Inputs are borrowed until return. Returned link views last until
-/// release_line_links; pending-anchor views last until defer/record. create_page consumes
-/// every payload, including on allocation failure. Copy callbacks borrow their input
-/// until return; complete consumes the C++ page after Rust frees the source buffers.
+/// Input and output spans are synchronous borrows. No callback may reenter assembly.
 #[repr(C)]
 pub struct Callbacks {
     pub allocator: unsafe extern "C" fn() -> *const Allocator,
@@ -54,20 +50,11 @@ pub struct Callbacks {
     pub line_height: unsafe extern "C" fn(*mut c_void, i32, f32) -> i32,
     pub codepoint:
         Option<unsafe extern "C" fn(*mut c_void, i32, u32, u8, *mut i32, *mut i32) -> u8>,
-    pub create_line:
-        unsafe extern "C" fn(*mut c_void, *const paragraph_extract::Output) -> *mut c_void,
-    pub line_metrics:
-        unsafe extern "C" fn(*mut c_void, *const c_void, *const Options, bool) -> LineMetrics,
-    pub set_margin: unsafe extern "C" fn(*mut c_void, i16),
-    pub line_links: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut u32) -> *const LineLink,
-    pub release_line_links: unsafe extern "C" fn(*mut c_void),
-    pub create_page: unsafe extern "C" fn(*mut c_void, *const Element<Payload>, u32) -> *mut c_void,
-    pub page_links: unsafe extern "C" fn(*mut c_void, *const Link, u32),
-    pub page_footnotes: unsafe extern "C" fn(*mut c_void, *const Footnote, u32),
-    pub complete: unsafe extern "C" fn(*mut c_void, *mut c_void, Position) -> u8,
+    pub font_ready: unsafe extern "C" fn(*mut c_void, i32, i32) -> i32,
+    pub complete: unsafe extern "C" fn(*mut c_void, Span, Position) -> u8,
     pub probe_image:
         unsafe extern "C" fn(*mut c_void, Span, *mut i32, *mut bool, *mut u16, *mut u16) -> u8,
-    pub create_image: unsafe extern "C" fn(*mut c_void, i32, i32) -> *mut c_void,
+    pub image_paths: unsafe extern "C" fn(*mut c_void, *mut Span, *mut Span),
     pub pending_anchor: unsafe extern "C" fn(*mut c_void) -> Span,
     pub defer_anchor: unsafe extern "C" fn(*mut c_void, Span),
     pub anchor_is_toc: unsafe extern "C" fn(*mut c_void, Span) -> u8,
@@ -82,6 +69,8 @@ pub struct Callbacks {
 pub struct PageSink {
     pub(in crate::chapter) callbacks: *const Callbacks,
     pub(in crate::chapter) context: *mut c_void,
+    pub(in crate::chapter) storage: *mut Storage,
+    pub(in crate::chapter) link_index: Option<usize>,
 }
 impl PageSink {
     pub fn api(&self) -> &Callbacks {
@@ -99,10 +88,58 @@ impl PageSink {
             }
         }
     }
-    fn payload(&self, pointer: *mut c_void) -> Result<Payload> {
-        Ok(Payload {
-            pointer: NonNull::new(pointer).ok_or(Error::Allocation)?,
-        })
+    fn payload(&self, index: usize) -> Payload {
+        Payload {
+            storage: self.storage,
+            index,
+        }
+    }
+    fn quiet_ascender(&self, font: i32) -> i32 {
+        if let Some(e) = self.native_engine() {
+            crate::textm::font_ascender(&e.face(font))
+        } else {
+            unsafe { ((*self.api().metrics).ascender.unwrap())(self.context, font) }
+        }
+    }
+    fn extra_ascent(&self, font: i32, fonts: Option<[i32; 3]>, base: i32) -> i32 {
+        let Some(fonts) = fonts else {
+            return 0;
+        };
+        let resolve = |f| unsafe { (self.api().font_ready)(self.context, f, base) };
+        let mut ascent = self.quiet_ascender(resolve(font));
+        for f in fonts {
+            if f != 0 {
+                ascent = ascent.max(self.quiet_ascender(resolve(f)));
+            }
+        }
+        ascent - self.quiet_ascender(resolve(font))
+    }
+    fn placed_metrics(&mut self, line: &Payload, options: Options, row: bool) -> LineMetrics {
+        let (font, fonts, words, ruby, x) = unsafe { (*self.storage).font_data(line) };
+        let font = if font == 0 { options.font } else { font };
+        let ruby_height = |s: &mut Self| {
+            let ascent = s.ascender(font);
+            if ruby {
+                ascent / 2
+            } else {
+                0
+            }
+        };
+        let base_height = |s: &mut Self| {
+            s.line_height(font, options.compression) + s.extra_ascent(font, fonts, options.font)
+        };
+        let (base_height, ruby_shift) = if row {
+            (base_height(self), ruby_height(self))
+        } else {
+            let ruby = ruby_height(self);
+            (base_height(self), ruby)
+        };
+        LineMetrics {
+            x,
+            words,
+            base_height,
+            ruby_shift,
+        }
     }
 }
 impl Sink for PageSink {
@@ -118,7 +155,8 @@ impl Sink for PageSink {
         })
     }
     fn create_line(&mut self, line: &paragraph_extract::Output) -> Result<Payload> {
-        self.payload(unsafe { (self.api().create_line)(self.context, line) })
+        let index = unsafe { (*self.storage).line(line)? };
+        Ok(self.payload(index))
     }
     #[cfg(feature = "chapter-trace")]
     fn trace(&self, observation: super::trace::Observation<'_>) {
@@ -170,12 +208,20 @@ impl Sink for PageSink {
         }
     }
     fn line_height(&mut self, font: i32, compression: f32) -> i32 {
-        let value = unsafe { (self.api().line_height)(self.context, font, compression) };
+        let value = if let Some(e) = self.native_engine() {
+            crate::textm::compressed_line_height(&e.face(font), compression)
+        } else {
+            unsafe { (self.api().line_height)(self.context, font, compression) }
+        };
         observe!(self, "getLineHeight", font, compression, value);
         value
     }
     fn table_line_height(&mut self, font: i32) -> i32 {
-        let value = unsafe { (self.api().line_height)(self.context, font, 1.0) };
+        let value = if let Some(e) = self.native_engine() {
+            crate::textm::compressed_line_height(&e.face(font), 1.0)
+        } else {
+            unsafe { (self.api().line_height)(self.context, font, 1.0) }
+        };
         observe!(self, "getLineHeight", font, value);
         value
     }
@@ -214,57 +260,35 @@ impl Sink for PageSink {
         }
     }
     fn line_metrics(&mut self, line: &Payload, options: Options) -> LineMetrics {
-        unsafe { (self.api().line_metrics)(self.context, line.pointer.as_ptr(), &options, false) }
+        self.placed_metrics(line, options, false)
     }
     fn row_line_metrics(&mut self, line: &Payload, options: Options) -> LineMetrics {
-        unsafe { (self.api().line_metrics)(self.context, line.pointer.as_ptr(), &options, true) }
+        self.placed_metrics(line, options, true)
     }
     fn set_line_margin(&mut self, line: &mut Payload, left: i16) {
         unsafe {
-            (self.api().set_margin)(line.pointer.as_ptr(), left);
+            (*self.storage).set_margin(line, left);
         }
     }
     fn line_links<'a>(&'a mut self, line: &'a mut Payload) -> &'a [LineLink] {
-        let mut count = 0;
-        let data =
-            unsafe { (self.api().line_links)(self.context, line.pointer.as_ptr(), &mut count) };
-        if count == 0 {
-            &[]
-        } else {
-            unsafe { core::slice::from_raw_parts(data, count as usize) }
-        }
+        self.link_index = Some(line.index);
+        unsafe { (*self.storage).links(line) }
     }
     fn release_line_links(&mut self) {
-        unsafe { (self.api().release_line_links)(self.context) };
-    }
-    fn complete(&mut self, page: Page<Payload>, position: Position) -> Result {
-        let output = unsafe {
-            (self.api().create_page)(
-                self.context,
-                page.elements.as_ptr(),
-                page.elements.len() as u32,
-            )
-        };
-        // create_page consumes every payload even when a wrapper allocation fails.
-        for element in page.elements {
-            if let Content::Line(payload) | Content::Image(payload) = element.content {
-                core::mem::forget(payload);
+        if let Some(index) = self.link_index.take() {
+            unsafe {
+                (*self.storage).release_links(index);
             }
         }
-        if output.is_null() {
-            return Err(Error::Allocation);
-        }
-        unsafe { (self.api().page_links)(output, page.links.as_ptr(), page.links.len() as u32) };
-        drop(page.links);
+    }
+    fn complete(&mut self, page: Page<Payload>, position: Position) -> Result {
+        let bytes = unsafe { (*self.storage).encode(&page)? };
+        let length = bytes.len();
+        let status = unsafe { (self.api().complete)(self.context, Span::new(bytes), position) };
         unsafe {
-            (self.api().page_footnotes)(
-                output,
-                page.footnotes.as_ptr(),
-                page.footnotes.len() as u32,
-            );
+            (*self.storage).retire_page(length);
         }
-        drop(page.footnotes);
-        let status = unsafe { (self.api().complete)(self.context, output, position) };
+
         match status {
             0 => Ok(()),
             1 => Err(Error::Stopped),
@@ -300,7 +324,21 @@ impl Sink for PageSink {
         )
     }
     fn create_image(&mut self, _: (), width: i32, height: i32) -> Result<Payload> {
-        self.payload(unsafe { (self.api().create_image)(self.context, width, height) })
+        let mut path = Span::new(&[]);
+        let mut source = Span::new(&[]);
+        unsafe {
+            (self.api().image_paths)(self.context, &mut path, &mut source);
+            let view = |s: Span| {
+                if s.len == 0 {
+                    &[][..]
+                } else {
+                    core::slice::from_raw_parts(s.data, s.len as usize)
+                }
+            };
+            let index =
+                (*self.storage).image(view(path), view(source), width as i16, height as i16)?;
+            Ok(self.payload(index))
+        }
     }
 }
 

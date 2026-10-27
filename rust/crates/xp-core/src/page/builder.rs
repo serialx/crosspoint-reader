@@ -59,7 +59,7 @@ pub enum Content<'a> {
     },
 }
 
-pub(super) struct Writer<'a> {
+pub(crate) struct Writer<'a> {
     pub data: Option<&'a mut [u8]>,
     pub pos: usize,
 }
@@ -185,7 +185,7 @@ fn line(w: &mut Writer<'_>, l: &PackedLine<'_>) -> Result<()> {
     }
     Ok(())
 }
-fn element(w: &mut Writer<'_>, x: i16, y: i16, content: &Content<'_>) -> Result<()> {
+pub(crate) fn element(w: &mut Writer<'_>, x: i16, y: i16, content: &Content<'_>) -> Result<()> {
     let x = x as u32;
     let y = y as u32;
     match content {
@@ -312,6 +312,17 @@ impl<'a> Builder<'a> {
         self.count += 1;
         self.output[..2].copy_from_slice(&self.count.to_le_bytes());
         Ok(())
+    }
+    /// Resume after chapter assembly placed elements encoded by this module in order.
+    pub(crate) fn from_elements(output: &'a mut [u8], pos: usize, count: u16) -> Self {
+        output[..2].copy_from_slice(&count.to_le_bytes());
+        Self {
+            output,
+            pos,
+            phase: Phase::Elements,
+            count,
+            footer: 0,
+        }
     }
     fn ensure(&self, extra: usize) -> Result<()> {
         let size = self.pos.checked_add(extra).ok_or(Error::Invalid)?;

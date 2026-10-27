@@ -81,3 +81,8 @@ add_test(NAME SectionCodecCoverage COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_codec_coverage.py --dump $<TARGET_FILE:SectionGoldenDump>)
 add_test(NAME SectionMutationRules COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_read_oracle.py)
+
+target_sources(SectionGoldenDump PRIVATE ${REPO_ROOT}/test/page_codec_diff/Serialization.cpp)
+target_compile_definitions(SectionGoldenDump PRIVATE XP_PAGE_CODEC_TEST=1)
+
+target_sources(SectionGoldenDump PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)

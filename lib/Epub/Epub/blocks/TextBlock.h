@@ -143,14 +143,8 @@ class TextBlock final : public Block {
   struct View {};
   // Resolved once at page load and stored in the page's single allocation.
   struct ViewData {
-    BlockStyle style;
-    const SourceRange* sources;
-    const uint16_t* offsets;
-    const int16_t* positions;
-    const uint16_t* suffixes;
-    const uint8_t* styles;
-    const uint8_t* boundaries;
-    const char* text;
+    const uint8_t* packed;
+    const uint8_t* style;
     const uint8_t* fonts;
     const uint8_t* rubies;
     uint16_t count, paragraphStart, textBytes;
@@ -243,5 +237,7 @@ class TextBlock final : public Block {
 
   void render(const GfxRenderer& renderer, int fontId, int x, int y) const;
   BlockType getType() override { return TEXT_BLOCK; }
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) const;
+#endif
 };

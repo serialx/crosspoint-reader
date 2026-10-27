@@ -159,49 +159,44 @@ fn malformed_counts_and_trailing_bytes() {
 }
 
 #[test]
-fn layout_spans_share_arena_but_are_not_serialized() {
+fn direct_decode_matches_copy_and_preserves_invalid_input() {
     let mut wire = [0; 256];
     let mut b = Builder::new(&mut wire).unwrap();
-    let line = PackedLine {
-        text: b"a\0",
-        offsets: &[0],
-        positions: &[0],
-        styles: &[0],
-        boundaries: &[],
-        suffixes: &[],
-        sources: &[0, 1],
-        ruby: &&[][..],
-        paragraph_start: 0,
-        block: section::Record {
-            kind: Kind::BlockStyle as u32,
-            ..Default::default()
+    b.append(
+        3,
+        -4,
+        Content::Image {
+            path: b"image",
+            source: b"source",
+            width: 10,
+            height: 20,
         },
-        fonts: None,
-    };
-    b.append(0, 0, Content::Line(&line)).unwrap();
+    )
+    .unwrap();
     let wire = b.finish().unwrap();
-    let mut arena = [0; 1024];
-    let info = decode(wire, 7, &mut arena).unwrap();
-    let link = crate::para::paragraph_extract::Link {
-        href: [42; 256],
-        x: -8,
-        width: 20,
-        top_lift: 3,
-    };
-    let size = info.arena_size + 262;
-    assert_eq!(
-        attach_line_links(&mut arena[..size - 1], 0, core::slice::from_ref(&link)),
-        Err(Error::NeedOutput(size))
-    );
-    assert_eq!(
-        attach_line_links(&mut arena, 0, core::slice::from_ref(&link)),
-        Ok(size)
-    );
-    let page = Page::open(&arena).unwrap();
-    let line = page.element(0).unwrap().line().unwrap();
-    assert_eq!(line.link_count(), 1);
-    assert_eq!(line.link_span(0).unwrap(), (&link.href[..], -8, 20, 3));
-    let mut encoded = [0; 256];
-    assert_eq!(page.encode(&mut encoded), Ok(wire.len()));
-    assert_eq!(&encoded[..wire.len()], wire);
+    let sized = probe::probe(wire.len(), |at, out| {
+        out.copy_from_slice(&wire[at..at + out.len()]);
+        true
+    })
+    .unwrap();
+    assert_eq!(sized, inspect(wire).unwrap());
+    let mut copied = [0; 512];
+    decode(wire, 7, &mut copied).unwrap();
+    let mut direct = [0xa5; 512];
+    let offset = sized.arena_size - sized.consumed;
+    direct[offset..sized.arena_size].copy_from_slice(wire);
+    decode_in_place(&mut direct[..sized.arena_size], offset, wire.len(), 7).unwrap();
+    assert_eq!(&direct[..sized.arena_size], &copied[..sized.arena_size]);
+    direct[offset + 2] = 99;
+    let before = direct;
+    assert!(decode_in_place(&mut direct, offset, wire.len(), 7).is_err());
+    assert_eq!(direct, before);
+    assert!(probe::probe(wire.len(), |_, _| false).is_err());
+    for len in 0..wire.len() {
+        assert!(probe::probe(len, |at, out| {
+            out.copy_from_slice(&wire[at..at + out.len()]);
+            true
+        })
+        .is_err());
+    }
 }

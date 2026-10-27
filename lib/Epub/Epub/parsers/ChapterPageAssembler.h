@@ -73,7 +73,6 @@ class ChapterPageAssembler {
   virtual uint8_t* entityBuffer(uint32_t length) = 0;
   uint8_t probeImage(XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width, uint16_t& height);
   uint8_t completeBytes(XpChapterSpan bytes, XpChapterPosition position);
-  std::unique_ptr<Page> decodePage(XpChapterSpan bytes);
   explicit ChapterPageAssembler(
       std::shared_ptr<Epub> epub, GfxRenderer& renderer, const int fontId, const float lineCompression,
       const bool extraParagraphSpacing, const uint8_t paragraphAlignment, const uint16_t viewportWidth,

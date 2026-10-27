@@ -99,8 +99,36 @@ static void writeSection(const std::vector<uint8_t>& bytes, bool partial = false
     require(sectioncodec::writeValue(file, XP_SEC_U32, 200), "partial total");
   }
 }
+extern "C" void xp_test_fail_allocation_after(size_t);
+extern "C" size_t xp_test_live_allocations();
+extern "C" void* xp_test_rust_alloc(size_t, size_t);
+extern "C" void* xp_test_rust_realloc(void*, size_t, size_t, size_t);
+extern "C" void xp_test_rust_free(void*, size_t, size_t);
+static void allocatorTest() {
+  for (size_t alignment : {size_t(1), size_t(4), size_t(64)}) {
+    xp_test_fail_allocation_after(SIZE_MAX);
+    auto* original = static_cast<uint8_t*>(xp_test_rust_alloc(32, alignment));
+    require(original && reinterpret_cast<uintptr_t>(original) % alignment == 0, "initial alignment");
+    memset(original, 0x5a, 32);
+    xp_test_fail_allocation_after(0);
+    require(!xp_test_rust_realloc(original, 32, alignment, 4096), "realloc must propagate OOM");
+    require(xp_test_live_allocations() == 1, "failed realloc changed live allocations");
+    for (size_t i = 0; i < 32; ++i) require(original[i] == 0x5a, "failed realloc modified original");
+    xp_test_fail_allocation_after(SIZE_MAX);
+    auto* grown = static_cast<uint8_t*>(xp_test_rust_realloc(original, 32, alignment, 4096));
+    require(grown && reinterpret_cast<uintptr_t>(grown) % alignment == 0, "grown alignment");
+    for (size_t i = 0; i < 32; ++i) require(grown[i] == 0x5a, "realloc lost prefix");
+    require(xp_test_live_allocations() == 1, "successful realloc leaked original");
+    xp_test_rust_free(grown, 4096, alignment);
+    require(xp_test_live_allocations() == 0, "allocator cleanup");
+  }
+}
 int main(int argc, char** argv) {
   require(argc == 2, "mode");
+  if (std::string(argv[1]) == "allocator") {
+    allocatorTest();
+    return 0;
+  }
   const auto dir = std::filesystem::temp_directory_path() / ("crosspoint-page-load-" + std::to_string(getpid()));
   std::filesystem::create_directories(dir / "cache/sections");
   const auto old = std::filesystem::current_path();
@@ -113,7 +141,7 @@ int main(int argc, char** argv) {
   const std::string mode = argv[1];
   if (mode == "oom") {
     writeSection(bytes);
-    for (size_t fail = 0; fail < 3; ++fail) {
+    for (size_t fail = 0; fail < 1; ++fail) {
       allocations::requests = 0;
       allocations::failAt = fail;
       allocations::enabled = true;
@@ -127,12 +155,12 @@ int main(int argc, char** argv) {
     allocations::enabled = true;
     auto page = section.loadPage(0);
     allocations::enabled = false;
-    require(page && allocations::requests == 3 && allocations::live == 2, "page must retain only object + arena");
+    require(page && allocations::requests == 1 && allocations::live == 1, "page must retain one allocation");
     require(page->elements.empty() && page->links.empty() && page->footnotes.empty(),
             "load materialized C++ containers");
     page.reset();
     require(allocations::live == 0, "page destruction leaked storage");
-    for (size_t fail = 0; fail < 2; ++fail) {
+    for (size_t fail = 0; fail < 1; ++fail) {
       allocations::requests = 0;
       allocations::failAt = fail;
       allocations::enabled = true;

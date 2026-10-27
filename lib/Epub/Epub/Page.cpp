@@ -49,11 +49,6 @@ void PageLine::render(GfxRenderer& renderer, const int fontId, const int xOffset
   block->render(renderer, fontId, xPos + xOffset, yPos + yOffset);
 }
 
-bool PageLine::serialize(HalFile& file) {
-  return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
-         block->serialize(file);
-}
-
 void PageImage::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
   // Images don't use fontId or text rendering
   imageBlock->render(renderer, xPos + xOffset, yPos + yOffset);
@@ -63,11 +58,6 @@ void PageImage::renderPlaceholder(GfxRenderer& renderer, const int xOffset, cons
   imageBlock->renderPlaceholder(renderer, xPos + xOffset, yPos + yOffset);
 }
 
-bool PageImage::serialize(HalFile& file) {
-  return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
-         imageBlock->serialize(file);
-}
-
 void PageHorizontalRule::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
   (void)fontId;
   if (width == 0 || thickness == 0) {
@@ -75,11 +65,6 @@ void PageHorizontalRule::render(GfxRenderer& renderer, const int fontId, const i
   }
 
   renderer.drawLine(xPos + xOffset, yPos + yOffset, xPos + xOffset + width - 1, yPos + yOffset, thickness, true);
-}
-
-bool PageHorizontalRule::serialize(HalFile& file) {
-  return sectioncodec::write(file,
-                             sectioncodec::record(XP_SEC_RULE, {uint32_t(xPos), uint32_t(yPos), width, thickness}));
 }
 
 PageDropCap::PageDropCap(const int32_t fontId, const uint16_t scale256, const EpdFontFamily::Style style,
@@ -98,14 +83,6 @@ void PageDropCap::render(GfxRenderer& renderer, const int sectionFontId, const i
   }
 }
 
-bool PageDropCap::serialize(HalFile& file) {
-  const auto length = static_cast<uint8_t>(strnlen(text, MAX_TEXT_BYTES));
-  return sectioncodec::write(
-             file, sectioncodec::record(XP_SEC_DROP_CAP, {uint32_t(xPos), uint32_t(yPos), uint32_t(fontId), scale256,
-                                                          uint32_t(style), length})) &&
-         file.write(text, length) == length;
-}
-
 void PageBorderBox::renderBackground(GfxRenderer& renderer, const int xOffset, const int yOffset) const {
   if (shaded) renderer.fillRectDither(xPos + xOffset, yPos + yOffset, width, height, Color::LightGray);
 }
@@ -121,14 +98,6 @@ void PageBorderBox::render(GfxRenderer& renderer, const int, const int xOffset, 
   if (bottom.visible()) drawBorderEdge(renderer, x, y + height - bottom.width, width, bottom, true);
   if (left.visible()) drawBorderEdge(renderer, x, y, height, left, false);
   if (right.visible()) drawBorderEdge(renderer, x + width - right.width, y, height, right, false);
-}
-
-bool PageBorderBox::serialize(HalFile& file) {
-  return sectioncodec::write(
-      file, sectioncodec::record(
-                XP_SEC_BORDER, {uint32_t(xPos), uint32_t(yPos), width, height, sides[0].width, uint32_t(sides[0].style),
-                                sides[1].width, uint32_t(sides[1].style), sides[2].width, uint32_t(sides[2].style),
-                                sides[3].width, uint32_t(sides[3].style), shaded}));
 }
 
 // Backgrounds precede every border, including borders inside shaded containers.
@@ -167,98 +136,90 @@ void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, 
   }
 }
 
-bool Page::serialize(HalFile& file) const {
-  const uint16_t count = elementCount();
-  if (!sectioncodec::writeValue(file, XP_SEC_U16, count)) return false;
+std::unique_ptr<Page> Page::allocate(const XpPageInfo& info) {
+  const size_t alignment = alignof(ElementData);
+  if (info.arena_size > SIZE_MAX - sizeof(Page) - alignment + 1) return nullptr;
+  const size_t viewOffset = (sizeof(Page) + info.arena_size + alignment - 1) & ~(alignment - 1);
+  if (info.elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return nullptr;
+  const size_t bytes = viewOffset + info.elements * sizeof(ElementData);
+  // Page owns the header and trailing records; its unsized delete matches this allocation.
+  void* allocation = ::operator new(bytes, std::nothrow);
+  if (!allocation) {
+    LOG_ERR("PGE", "OOM: page %u bytes", static_cast<unsigned>(bytes));
+    return nullptr;
+  }
+  std::unique_ptr<Page> page(::new (allocation) Page);
+  page->arena = static_cast<uint8_t*>(allocation) + sizeof(Page);
+  page->arenaSize = info.arena_size;
+  page->views = reinterpret_cast<ElementData*>(static_cast<uint8_t*>(allocation) + viewOffset);
+  page->info = info;
+  return page;
+}
 
-  for (uint16_t i = 0; i < count; ++i) {
-    const auto el = element(i);
-    // Use getTag() method to determine type
-    if (!sectioncodec::writeValue(file, XP_SEC_ELEMENT_TAG, el.getTag())) return false;
-
-    if (!el.serialize(file)) {
-      return false;
+bool Page::resolveViews() {
+  for (uint16_t i = 0; i < info.elements; ++i) {
+    auto& view = *new (&views[i]) ElementData{};
+    view.position = xp_page_position(arena, arenaSize, i);
+    if (!view.position.tag) return false;
+    if (view.position.tag == TAG_PageLine) {
+      if (!TextBlock::resolveView(arena, arenaSize, i, view.line)) return false;
+      continue;
+    }
+    XpPageElement value{};
+    if (xp_page_element(arena, arenaSize, i, &value)) return false;
+    const auto* v = value.record.values;
+    switch (view.position.tag) {
+      case TAG_PageImage:
+        view.image = {value.first, value.second, value.width, value.height};
+        break;
+      case TAG_PageHorizontalRule:
+        view.rule = {static_cast<uint16_t>(v[2]), static_cast<uint8_t>(v[3])};
+        break;
+      case TAG_PageDropCap:
+        view.cap = {value.first, static_cast<int32_t>(v[2]), static_cast<uint16_t>(v[3]), static_cast<uint8_t>(v[4])};
+        break;
+      case TAG_PageBorderBox:
+        view.border.width = v[2];
+        view.border.height = v[3];
+        for (size_t j = 0; j < 8; ++j) view.border.sides[j] = v[4 + j];
+        view.border.shaded = v[12];
+        break;
     }
   }
-
-  // Serialize footnotes (clamp to MAX_FOOTNOTES_PER_PAGE to match addFootnote/deserialize limits)
-  const uint16_t fnCount = std::min<uint16_t>(footnoteCount(), MAX_FOOTNOTES_PER_PAGE);
-  if (!sectioncodec::writeValue(file, XP_SEC_FOOTNOTE_COUNT, fnCount)) return false;
-  for (uint16_t i = 0; i < fnCount; i++) {
-    FootnoteEntry fn;
-    footnote(i, fn);
-    if (file.write(fn.number, sizeof(fn.number)) != sizeof(fn.number) ||
-        file.write(fn.href, sizeof(fn.href)) != sizeof(fn.href)) {
-      LOG_ERR("PGE", "Failed to write footnote");
-      return false;
-    }
-  }
-
-  const uint16_t linkCount = std::min<uint16_t>(this->linkCount(), MAX_LINKS_PER_PAGE);
-  if (!sectioncodec::writeValue(file, XP_SEC_LINK_COUNT, linkCount)) return false;
-  for (uint16_t i = 0; i < linkCount; i++) {
-    PageLink link;
-    this->link(i, link);
-    if (file.write(link.href, sizeof(link.href)) != sizeof(link.href)) {
-      LOG_ERR("PGE", "Failed to write link %u", i);
-      return false;
-    }
-    if (!sectioncodec::write(
-            file, sectioncodec::record(XP_SEC_LINK_GEOMETRY, {uint32_t(link.x), uint32_t(link.y), uint32_t(link.width),
-                                                              uint32_t(link.height)})))
-      return false;
-  }
-
   return true;
 }
 
 std::unique_ptr<Page> Page::load(HalFile& file, const size_t bytes, const uint32_t visibleOffset) {
   const size_t start = file.position();
   if (bytes < 6 || start > file.size() || bytes > file.size() - start) return nullptr;
-  auto input = makeUniqueNoThrow<uint8_t[]>(bytes);
-  if (!input) {
-    LOG_ERR("PGE", "OOM: page input %u bytes", static_cast<unsigned>(bytes));
+  struct Input {
+    HalFile& file;
+    size_t start;
+  } input{file, start};
+  const auto read = [](void* context, size_t offset, uint8_t* data, size_t len) -> uint8_t {
+    auto& in = *static_cast<Input*>(context);
+    return in.file.seek(in.start + offset) && in.file.read(data, len) == len;
+  };
+  XpPageInfo sized{};
+  if (xp_page_probe(&input, read, bytes, &sized)) return nullptr;
+  auto page = allocate(sized);
+  if (!page) return nullptr;
+  const size_t offset = sized.arena_size - sized.consumed;
+  if (!file.seek(start) || file.read(page->arena + offset, sized.consumed) != sized.consumed ||
+      xp_page_decode_in_place(page->arena, page->arenaSize, offset, sized.consumed, visibleOffset, &page->info) ||
+      page->info.elements != sized.elements || !page->resolveViews())
     return nullptr;
-  }
-  if (file.read(input.get(), bytes) != bytes) return nullptr;
-  auto page = fromBytes(input.get(), bytes, visibleOffset);
-  if (page && !file.seek(start + page->info.consumed)) return nullptr;
+  page->visibleTextOffset = visibleOffset;
   return page;
 }
 
 std::unique_ptr<Page> Page::fromBytes(const uint8_t* bytes, const size_t size, const uint32_t visibleOffset) {
   XpPageInfo info{};
   if (xp_page_arena_size(bytes, size, &info)) return nullptr;
-  auto page = makeUniqueNoThrow<Page>();
-  if (!page) {
-    LOG_ERR("PGE", "OOM: Page %u bytes", static_cast<unsigned>(sizeof(Page)));
+  auto page = allocate(info);
+  if (!page || xp_page_decode(bytes, size, visibleOffset, page->arena, page->arenaSize, &page->info) ||
+      !page->resolveViews())
     return nullptr;
-  }
-  // Plain descriptors share the Rust arena allocation; no element owns heap storage.
-  const size_t alignment = alignof(ElementData);
-  if (info.arena_size > SIZE_MAX - alignment + 1) return nullptr;
-  const size_t viewOffset = (info.arena_size + alignment - 1) & ~(alignment - 1);
-  if (info.elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return nullptr;
-  const size_t allocationSize = viewOffset + info.elements * sizeof(ElementData);
-  page->arena = makeUniqueNoThrow<uint8_t[]>(allocationSize);
-  if (!page->arena) {
-    LOG_ERR("PGE", "OOM: page arena %u bytes", static_cast<unsigned>(allocationSize));
-    return nullptr;
-  }
-  if (xp_page_decode(bytes, size, visibleOffset, page->arena.get(), info.arena_size, &page->info)) return nullptr;
-  page->arenaSize = info.arena_size;
-  page->views = reinterpret_cast<ElementData*>(page->arena.get() + viewOffset);
-  for (uint16_t i = 0; i < info.elements; ++i) {
-    auto& view = *new (&page->views[i]) ElementData{};
-    view.position = xp_page_position(page->arena.get(), page->arenaSize, i);
-    if (!view.position.tag) return nullptr;
-    if (view.position.tag == TAG_PageLine) {
-      new (&view.line) TextBlock::ViewData{};
-      if (!TextBlock::resolveView(page->arena.get(), page->arenaSize, i, view.line)) return nullptr;
-    } else if (xp_page_element(page->arena.get(), page->arenaSize, i, &view.fields)) {
-      return nullptr;
-    }
-  }
   page->visibleTextOffset = visibleOffset;
   return page;
 }
@@ -269,7 +230,7 @@ void Page::footnote(const uint16_t index, FootnoteEntry& out) const {
     return;
   }
   XpPageSpan number{}, href{};
-  if (xp_page_footnote(arena.get(), arenaSize, index, &number, &href)) {
+  if (xp_page_footnote(arena, arenaSize, index, &number, &href)) {
     out = {};
     return;
   }
@@ -283,7 +244,7 @@ void Page::link(const uint16_t index, PageLink& out) const {
     return;
   }
   XpPageLink view{};
-  if (xp_page_link(arena.get(), arenaSize, index, &view)) {
+  if (xp_page_link(arena, arenaSize, index, &view)) {
     out = {};
     return;
   }
@@ -318,10 +279,48 @@ PageElementView::PageElementView(const Page& owner, const uint16_t index) : page
   }
 }
 
-const XpPageElement& PageElementView::fields() const { return page->views[index].fields; }
+XpPageElement PageElementView::fields() const {
+  const auto& view = page->views[index];
+  XpPageElement value{};
+  value.tag = tag;
+  auto* v = value.record.values;
+  v[0] = static_cast<uint32_t>(xPos);
+  v[1] = static_cast<uint32_t>(yPos);
+  switch (tag) {
+    case TAG_PageImage:
+      value.first = view.image.path;
+      value.second = view.image.source;
+      value.width = view.image.width;
+      value.height = view.image.height;
+      break;
+    case TAG_PageHorizontalRule:
+      value.record.kind = XP_SEC_RULE;
+      v[2] = view.rule.width;
+      v[3] = view.rule.thickness;
+      break;
+    case TAG_PageDropCap:
+      value.record.kind = XP_SEC_DROP_CAP;
+      value.first = view.cap.text;
+      v[2] = view.cap.font;
+      v[3] = view.cap.scale;
+      v[4] = view.cap.style;
+      v[5] = view.cap.text.len;
+      break;
+    case TAG_PageBorderBox:
+      value.record.kind = XP_SEC_BORDER;
+      v[2] = view.border.width;
+      v[3] = view.border.height;
+      for (size_t i = 0; i < 8; ++i) v[4 + i] = view.border.sides[i];
+      v[12] = view.border.shaded;
+      break;
+    case TAG_PageLine:
+      break;
+  }
+  return value;
+}
 
 TextBlock PageElementView::textBlock() const {
-  if (page->arena) return TextBlock(TextBlock::View{}, page->arena.get(), page->views[index].line);
+  if (page->arena) return TextBlock(TextBlock::View{}, page->arena, page->views[index].line);
   return TextBlock(TextBlock::View{}, *static_cast<const PageLine&>(*page->elements[index]).getBlock());
 }
 
@@ -387,25 +386,6 @@ void PageElementView::renderBackground(GfxRenderer& renderer, const int x, const
 
 void PageElementView::renderPlaceholder(GfxRenderer& renderer, const int x, const int y) const {
   imageBlock().renderPlaceholder(renderer, xPos + x, yPos + y);
-}
-
-bool PageElementView::serialize(HalFile& file) const {
-  if (!page->arena) return page->elements[index]->serialize(file);
-  switch (tag) {
-    case TAG_PageLine:
-      return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
-             textBlock().serialize(file);
-    case TAG_PageImage:
-      return sectioncodec::write(file, sectioncodec::record(XP_SEC_POSITION, {uint32_t(xPos), uint32_t(yPos)})) &&
-             imageBlock().serialize(file);
-    case TAG_PageHorizontalRule:
-      return sectioncodec::write(file, fields().record);
-    case TAG_PageDropCap:
-      return dropCapView(fields()).serialize(file);
-    case TAG_PageBorderBox:
-      return sectioncodec::write(file, fields().record);
-  }
-  return false;
 }
 
 bool Page::hasImages() const {

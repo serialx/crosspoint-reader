@@ -47,7 +47,7 @@ class DictionaryHtmlPagesTest : public ::testing::Test {
 TEST_F(DictionaryHtmlPagesTest, SmallDefinitionKeepsStyledPages) {
   ASSERT_TRUE(buildDictionaryHtmlPages(renderer, "<p>one <b>two</b> three</p>", 160, 64, pages));
   ASSERT_EQ(pages.size(), 1u);
-  EXPECT_FALSE(pages.front()->elements.empty());
+  EXPECT_FALSE(pages.front()->elementCount() == 0);
   EXPECT_FALSE(Storage.exists(Storage.dictionaryTempPath.c_str()));
 }
 

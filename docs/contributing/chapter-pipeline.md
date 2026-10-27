@@ -57,9 +57,11 @@ Rust preserves eight box scopes, six carried lines, four table columns and the
 is the chapter and their lifetime ends on completion/abort. Box storage grows
 only when a box is encountered, up to eight scopes. Encoded bytes, slot metadata
 and typed line-link capacity are retained for the build. Growth uses checked
-`try_reserve_exact` with 25% spare capacity, or the requested size when larger.
-This limits retained and old-plus-new growth storage; a larger page can still
-require a larger contiguous block. Capacity is bounded by checked addressable
+`try_reserve_exact` at the requested size, without geometric spare capacity.
+The internal allocator can extend alignments up to four bytes with
+`heap_caps_realloc`; larger alignments retain allocate/copy/free. Failed growth
+preserves the original buffer. A moved allocation can still overlap old and new
+storage inside the allocator; a larger page still needs a larger contiguous block. Capacity is bounded by checked addressable
 lengths and existing page/line count limits, not by a new content-size limit.
 There is no unconditional allocation at a page boundary. Table line/offset scratch is
 local to the synchronous row operation and is freed on every exit. No second paragraph text copy or full-framebuffer allocation is added.
@@ -99,15 +101,17 @@ collection, and visible-text/XPath counters. Rust assembly owns paragraph storag
 layout, page records, carry, box and table state. The C++ sink owns hardware
 access, fonts and their preparation, image I/O and pending/TOC/completed anchor
 strings. Section consumes encoded bytes directly. Styled dictionary definitions
-and object-inspecting host tests retain the original owned-`Page` callback;
-`ChapterPageAssembler::decodePage` reconstructs its objects from the completed
-bytes. These objects outlive the parser and preserve the dictionary page limits. The driver owns the
+and host tests retain the owned-`Page` callback. `Page::fromBytes` validates and
+copies the encoded page into its single allocation. Its views outlive the parser
+and preserve the dictionary page limits. The driver owns the
 fallibly allocated Rust chapter handle, 1,024-byte input buffer, chapter file,
 and incremental parsing lifecycle. The handle contains semantics, assembly and
 the XML pull parser; XML events and CSS resolution stay inside Rust.
 
 Production measurement and bidi execute in Rust. The synchronous engine borrows
-font tables through a temporary two-family descriptor cache. C++ owns the fonts,
+font tables through a two-family descriptor cache. Chapter metrics borrow the
+cache stored in the stable chapter handle rather than constructing it in each
+metric frame. Other synchronous measurement entries retain their own cache. C++ owns the fonts,
 storage and preparation; nonresident glyphs and TTF work retain dynamic callbacks.
 Table loans end before handlers that can mutate storage, and generation changes
 invalidate descriptors before reuse. The generation counter relies on the existing
@@ -142,10 +146,15 @@ chapter storage. The Section write failure still returns offset zero without
 incrementing the built-page count, preserving its existing error path. Cache
 headers, page bytes, trailers, partial-build markers and LUT order are unchanged.
 
-The dictionary compatibility decoder still uses the original C++ Page containers,
-including their unchecked vector growth, plus a checked temporary query arena.
-It is isolated from Section builds. Checked object/arena failures fail completion;
-no temporary file or new persistent state is introduced.
+Page loading first sizes the bounded file range through a 128-byte read cache.
+It then allocates the Page header, Rust index, encoded bytes and compact rendering
+descriptors together, reads bytes into their final location and validates them
+before exposing views. Resident and peak requested page storage are identical.
+The final validation checks the descriptor count against the sizing pass.
+`Page::fromBytes` uses the same allocation but copies its borrowed source.
+All load failures release the complete allocation. Owned TextBlock/PageLine
+constructors remain for preview and plain dictionary text. Legacy serializers
+live only in the host oracles; the firmware writes Rust-built page bytes.
 
 ## Required operation families
 

@@ -46,7 +46,9 @@ class ImageBlock final : public Block {
   bool isEmpty() override { return false; }
 
   void render(GfxRenderer& renderer, const int x, const int y);
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file);
+#endif
 
  private:
   std::string ownedImagePath;

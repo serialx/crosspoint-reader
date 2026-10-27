@@ -29,7 +29,9 @@ class PageElement {
   explicit PageElement(const int16_t xPos, const int16_t yPos) : xPos(xPos), yPos(yPos) {}
   virtual ~PageElement() = default;
   virtual void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) = 0;
+#ifdef XP_PAGE_CODEC_TEST
   virtual bool serialize(HalFile& file) = 0;
+#endif
   virtual PageElementTag getTag() const = 0;  // Add type identification
 };
 
@@ -42,7 +44,9 @@ class PageLine final : public PageElement {
       : PageElement(xPos, yPos), block(std::move(block)) {}
   const TextBlock* getBlock() const { return block.get(); }
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageLine; }
 };
 
@@ -55,7 +59,9 @@ class PageImage final : public PageElement {
       : PageElement(xPos, yPos), imageBlock(std::move(block)) {}
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
   void renderPlaceholder(GfxRenderer& renderer, int xOffset, int yOffset) const;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageImage; }
   const ImageBlock& getImageBlock() const { return *imageBlock; }
 };
@@ -69,7 +75,9 @@ class PageHorizontalRule final : public PageElement {
       : PageElement(xPos, yPos), width(width), thickness(thickness) {}
 
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageHorizontalRule; }
 };
 
@@ -90,7 +98,9 @@ class PageDropCap final : public PageElement {
               int16_t yPos);
   const char* getText() const { return text; }
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageDropCap; }
 };
 
@@ -111,7 +121,9 @@ class PageBorderBox final : public PageElement {
         sides{sides[0], sides[1], sides[2], sides[3]},
         shaded(shaded) {}
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageBorderBox; }
   void renderBackground(GfxRenderer& renderer, int xOffset, int yOffset) const;
 };
@@ -123,7 +135,7 @@ class PageElementView {
   const Page* page;
   uint16_t index;
   PageElementTag tag;
-  const XpPageElement& fields() const;
+  XpPageElement fields() const;
 
  public:
   int16_t xPos;
@@ -136,25 +148,53 @@ class PageElementView {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   void renderBackground(GfxRenderer& renderer, int xOffset, int yOffset) const;
   void renderPlaceholder(GfxRenderer& renderer, int xOffset, int yOffset) const;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) const;
+#endif
 };
 
 class Page {
   friend class PageElementView;
-  std::unique_ptr<uint8_t[]> arena;
+  uint8_t* arena = nullptr;
   size_t arenaSize = 0;
   XpPageInfo info{};
   struct ElementData {
     XpPagePosition position;
     union {
       TextBlock::ViewData line;
-      XpPageElement fields;
+      struct {
+        XpPageSpan path, source;
+        int16_t width, height;
+      } image;
+      struct {
+        uint16_t width;
+        uint8_t thickness;
+      } rule;
+      struct {
+        XpPageSpan text;
+        int32_t font;
+        uint16_t scale;
+        uint8_t style;
+      } cap;
+      struct {
+        uint16_t width, height;
+        uint8_t sides[8], shaded;
+      } border;
     };
-    ElementData() : position{}, fields{} {}
+    ElementData() : position{}, line{} {}
   };
   ElementData* views = nullptr;
+  static std::unique_ptr<Page> allocate(const XpPageInfo& info);
+  bool resolveViews();
 
  public:
+  Page() = default;
+  Page(const Page&) = delete;
+  Page& operator=(const Page&) = delete;
+  Page(Page&&) = delete;
+  Page& operator=(Page&&) = delete;
+  // The header and trailing arena share the allocation owned by unique_ptr<Page>.
+  static void operator delete(void* p) noexcept { ::operator delete(p); }
   size_t elementCount() const { return arena ? info.elements : elements.size(); }
   size_t footnoteCount() const { return arena ? info.footnotes : footnotes.size(); }
   size_t linkCount() const { return arena ? info.links : links.size(); }
@@ -211,7 +251,9 @@ class Page {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   void renderImages(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   void renderWithImagePlaceholders(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) const;
+#endif
 
   bool hasImages() const;
   bool hasImagesNeedingDecode() const;

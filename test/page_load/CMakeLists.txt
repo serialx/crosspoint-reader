@@ -26,3 +26,6 @@ target_link_libraries(PageLoad PRIVATE crosspoint_test_common xp_ffi_host)
 add_test(NAME PageLoadMalformed COMMAND PageLoad malformed)
 add_test(NAME PageLoadOom COMMAND PageLoad oom)
 add_test(NAME PageLoadPartial COMMAND PageLoad partial)
+
+target_compile_definitions(PageLoad PRIVATE XP_FFI_HOST_FAULT_INJECTION=1)
+add_test(NAME PageAllocator COMMAND PageLoad allocator)

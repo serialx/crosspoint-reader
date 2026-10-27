@@ -401,11 +401,3 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
   renderer.preserveImagePolarity(x, y, width, height);
   LOG_DBG("IMG", "Decode successful");
 }
-
-bool ImageBlock::serialize(HalFile& file) {
-  return sectioncodec::writeValue(file, XP_SEC_U32, imagePath.size()) &&
-         file.write(imagePath.data(), imagePath.size()) == imagePath.size() &&
-         sectioncodec::writeValue(file, XP_SEC_U32, srcPath.size()) &&
-         file.write(srcPath.data(), srcPath.size()) == srcPath.size() &&
-         sectioncodec::write(file, sectioncodec::record(XP_SEC_IMAGE_SIZE, {uint32_t(width), uint32_t(height)}));
-}

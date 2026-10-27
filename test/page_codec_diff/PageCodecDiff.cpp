@@ -329,7 +329,7 @@ static bool check(const std::vector<uint8_t>& bytes, bool fixture, uint32_t visi
         }
       }
       require(cpp->elements.empty() && cpp->footnotes.empty() && cpp->links.empty(), "loaded containers");
-      require(allocation::remaining == 2 && allocation::current >= sizeof(Page), "resident page allocations");
+      require(allocation::remaining == 1 && allocation::current >= sizeof(Page), "resident page allocations");
       *memory << "\"," << sizeof(Page) << ',' << allocation::current - sizeof(Page) << ',' << lineCount << ','
               << fontCount << ',' << rubyCount << ',' << imageCount << '\n';
     }
@@ -377,28 +377,19 @@ static void arenaContracts(const std::vector<uint8_t>& bytes) {
   XpPageInfo info{};
   require(xp_page_arena_size(nullptr, 1, &info) == 3, "null input");
   require(xp_page_arena_size(bytes.data(), bytes.size(), &info) == 0, "contract sizing");
-  std::vector<uint8_t> arena(info.arena_size + 262, 0xa5);
+  std::vector<uint8_t> arena(info.arena_size, 0xa5);
   require(xp_page_decode(bytes.data(), bytes.size(), 5, arena.data(), info.arena_size - 1, &info) == 2, "short arena");
   require(std::all_of(arena.begin(), arena.end(), [](uint8_t b) { return b == 0xa5; }), "atomic short decode");
   require(xp_page_decode(bytes.data(), bytes.size(), 5, arena.data(), arena.size(), &info) == 0, "contract decode");
-  XpParaLink span{};
-  std::memcpy(span.href, "#span", 6);
-  span.x = -3;
-  span.width = 12;
-  span.top_lift = 4;
-  size_t required = 0;
-  require(
-      xp_page_attach_line_links(arena.data(), info.arena_size, 0, &span, 1, &required) == 2 && required == arena.size(),
-      "short span storage");
-  require(xp_page_attach_line_links(arena.data(), arena.size(), 0, &span, 1, &required) == 0, "span storage");
-  XpPageLineLink view{};
-  size_t count = 0;
-  require(xp_page_line_link(arena.data(), arena.size(), 0, 0, &view, &count) == 0 && count == 1, "span query");
-  require(equal(view.href, span.href, 256) && view.x == -3 && view.width == 12 && view.top_lift == 4, "span fields");
-  std::vector<uint8_t> encoded(bytes.size());
-  require(
-      xp_page_encode(arena.data(), arena.size(), encoded.data(), encoded.size(), &required) == 0 && encoded == bytes,
-      "layout metadata omitted");
+  std::vector<uint8_t> direct(info.arena_size, 0xa5);
+  const size_t offset = info.arena_size - info.consumed;
+  std::memcpy(direct.data() + offset, bytes.data(), info.consumed);
+  require(xp_page_decode_in_place(direct.data(), direct.size(), offset, info.consumed, 5, &info) == 0, "direct decode");
+  require(direct == arena, "direct/copy decoder parity");
+  auto before = direct;
+  require(xp_page_decode_in_place(direct.data(), direct.size(), offset + 1, info.consumed, 5, &info) != 0,
+          "direct decode range bound");
+  require(direct == before, "atomic invalid direct decode");
 }
 
 static void mutations(const std::vector<uint8_t>& page) {

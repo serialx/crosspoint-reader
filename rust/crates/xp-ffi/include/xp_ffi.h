@@ -1254,6 +1254,7 @@ typedef struct {
   // Little-endian u32 arena offsets to [u32 length, bytes, NUL] ruby records.
   // Empty when has_ruby is false; otherwise one offset per word.
   XpPageSpan ruby_offsets;
+  XpPageSpan style_data;
 } XpPageLine;
 typedef struct {
   XpPageSpan text, ruby;
@@ -1272,6 +1273,10 @@ typedef struct {
 } XpPageBuilder;
 // Parses one page prefix, matching Page::deserialize; consumed identifies its end.
 // Decode reports required arena_size even on short output and leaves it untouched.
+// Probe performs bounded reads for sizing only; decode validates the final bytes.
+uint32_t xp_page_probe(void* context, uint8_t (*read)(void*, size_t, uint8_t*, size_t), size_t len, XpPageInfo* info);
+uint32_t xp_page_decode_in_place(uint8_t* arena, size_t capacity, size_t offset, size_t len, uint32_t visible,
+                                 XpPageInfo* info);
 uint32_t xp_page_arena_size(const uint8_t*, size_t, XpPageInfo*);
 uint32_t xp_page_decode(const uint8_t*, size_t, uint32_t visible_offset, uint8_t*, size_t, XpPageInfo*);
 uint32_t xp_page_encode(const uint8_t*, size_t, uint8_t*, size_t, size_t* required);
@@ -1305,18 +1310,6 @@ uint32_t xp_page_builder_element(XpPageBuilder*, int16_t x, int16_t y, const XpS
 uint32_t xp_page_builder_footnote(XpPageBuilder*, const uint8_t number[32], const uint8_t href[256]);
 uint32_t xp_page_builder_link(XpPageBuilder*, const XpPageLink*);
 uint32_t xp_page_builder_finish(XpPageBuilder*, size_t* written);
-
-// Optional layout-only span storage, absent from cache bytes. Reserve another
-// 262 * count bytes in the arena before attaching once to each line. Output
-// required reports the new total size; short capacity leaves the arena unchanged.
-uint32_t xp_page_attach_line_links(uint8_t*, size_t capacity, uint16_t element, const XpParaLink*, size_t count,
-                                   size_t* required);
-typedef struct {
-  XpPageSpan href;
-  int16_t x, width, top_lift;
-} XpPageLineLink;
-// index=SIZE_MAX queries count only. Returned href borrows the arena.
-uint32_t xp_page_line_link(const uint8_t*, size_t, uint16_t element, size_t index, XpPageLineLink*, size_t* count);
 
 // Streaming inflate: caller-owned state and output history.
 size_t xp_inflate_state_size(void);

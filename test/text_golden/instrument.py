@@ -7,7 +7,7 @@ out.mkdir(parents=True, exist_ok=True)
 source = (root / 'lib/GfxRenderer/GfxRenderer.cpp').read_text()
 source = source.replace('#include "../Memory/Memory.h"', '#include <Memory.h>')
 # The host-only Rust observer records placements before rasterization.
-source = '#define XP_FFI_HOST_FAULT_INJECTION\n' + source
+source = '#ifndef XP_FFI_HOST_FAULT_INJECTION\n#define XP_FFI_HOST_FAULT_INJECTION\n#endif\n' + source
 source = source.replace('#include "GfxRenderer.h"', '#include "GfxRenderer.h"\n#include "Trace.h"')
 source = source.replace('  xp_native_draw_pixels(\n', '  xp_native_draw_pixels_traced(\n')
 anchor = '\n      &paint, &glyphMiss);'
@@ -18,6 +18,15 @@ source = source.replace(anchor, '''
         const auto& c = *static_cast<GlyphContext*>(raw);
         textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
       });''')
+# Page draws share the same glyph observer without routing through drawText.
+anchor = 'xp_page_render(arena, size, &provider, &services, &paint, fontId, x, y, renderMode)'
+if source.count(anchor) != 1:
+    raise SystemExit('Page paint observer anchor changed')
+source = source.replace(anchor, """xp_page_render_traced(arena, size, &provider, &services, &paint, fontId, x, y, renderMode,
+      [](void* raw, const XpGlyphPlacement* glyph) {
+        const auto& c = static_cast<PageContext*>(raw)->glyph;
+        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
+      })""")
 # Drop caps bypass both helper entries; observe their actual API entry too.
 anchor = '  if (scale256 <= 0) return 0;'
 if source.count(anchor) != 1:

@@ -9,6 +9,7 @@ mod hyphen;
 mod image;
 mod inflate;
 mod page;
+mod page_render;
 mod para;
 mod pkg;
 

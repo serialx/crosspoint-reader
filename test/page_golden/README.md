@@ -139,8 +139,12 @@ Each raw `records.tsv` page has these ordered records; strings are UTF-8 hex:
   state machine are not executed.
 - `pixels`: orientation, placeholder path, absolute flag, strip height and plane,
   followed by FNV-1a-64 of all 48,000 assembled framebuffer bytes.
-- `calls`: xp_native_draw entries, glyph emission callbacks, and direct scaled
-  codepoint entries per render case, summed across bands. These are diagnostics:
+- `calls`: native word-draw entries, glyph-miss callbacks, direct scaled-codepoint
+  entries, page-draw entries, font-load attempts, bitmap-source selections,
+  fallback residency requests, scan batches, image callbacks and font-family
+  descriptor requests, metric misses, coverage misses, kerning misses and bidi
+  acquire/release calls per render case, summed across bands. The final twelve
+  values repeat the page/owner counters for that orientation’s prewarm scan. These are diagnostics:
   `check` permits count changes because G2/R1 intentionally remove crossings.
   All page/pixel/record observations remain strict.
 
@@ -157,6 +161,13 @@ observer, plus native draw entry and C++ bitmap-miss callback counters. The
 frozen archive counts the original per-glyph emissions; candidate counts measure
 miss callbacks after glyph integration. Page/TextBlock copies are unchanged and
 exist for mutation testing.
+The page harness also asserts that Rust makes no allocation request during each
+scan or draw. This does not count allocations made by existing C++ font/image
+owners. Scan batches preserve codepoint order within each line/font/style and
+use a bounded buffer. Cached and rich pages use the Rust page entry; plain
+in-memory dictionary pages and standalone settings previews keep TextBlock's
+existing render path.
+
 The script checks hook counts. If a later port removes an observer anchor, adapt
 the observer without changing the record schema or frozen behavior archive.
 

@@ -43,16 +43,23 @@ def main():
     originals = {name: path.read_text() for name, path in paths.items()}
     mutations = [
         ('pixel', 'GfxRenderer.cpp',
-         '        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);',
-         '        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);\n'
+         '        const auto& c = static_cast<PageContext*>(raw)->glyph;\n        textGoldenGlyph',
+         '        const auto& c = static_cast<PageContext*>(raw)->glyph;\n'
          '        static bool mutated = false;\n'
-         '        if (!mutated) { c.paint->target.buffer[0] ^= 0x80; mutated = true; }'),
-        ('word-x', 'TextBlock.cpp', '  return block;',
-         '  if (wc) const_cast<int16_t*>(block->xposArr)[0] += 1;\n  return block;'),
-        ('footnote', 'Page.cpp', '  return page;',
-         '  if (!page->footnotes.empty()) page->footnotes.pop_back();\n  return page;'),
-        ('page-byte', 'Page.cpp', '    const auto& fn = footnotes[i];',
-         '    auto fn = footnotes[i];\n    fn.number[sizeof(fn.number) - 1] ^= 1;'),
+         '        if (!mutated) { c.paint->target.buffer[0] ^= 0x80; mutated = true; }\n        textGoldenGlyph'),
+        ('word-x', 'Page.cpp',
+         '      if (!TextBlock::resolveView(arena, arenaSize, i, view.line)) return false;',
+         '      if (!TextBlock::resolveView(arena, arenaSize, i, view.line)) return false;\n'
+         '      if (view.line.count) { auto* p = const_cast<uint8_t*>(view.line.packed) + view.line.count * 10;\n'
+         '        int16_t x; memcpy(&x, p, 2); ++x; memcpy(p, &x, 2); }'),
+        ('footnote', 'Page.cpp',
+         '      page->info.elements != sized.elements || !page->resolveViews())\n    return nullptr;',
+         '      page->info.elements != sized.elements || !page->resolveViews())\n    return nullptr;\n'
+         '  if (page->info.footnotes) --page->info.footnotes;'),
+        ('page-byte', 'Page.cpp', '  memcpy(out.number, number.data, sizeof(out.number));',
+         '  memcpy(out.number, number.data, sizeof(out.number));\n'
+         '  const size_t n = strnlen(out.number, sizeof(out.number));\n'
+         '  if (n + 1 < sizeof(out.number)) out.number[n + 1] ^= 1;'),
     ]
     proof = {}
     try:

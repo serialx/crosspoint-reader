@@ -31,6 +31,8 @@ class TtfEpdFont;
 // 0 = transparent, 1-16 = gray levels (white to black)
 enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 0x0A, Black = 0x10 };
 
+enum class PageRenderMode : uint8_t { All, Images, Placeholders };
+
 class GfxRenderer {
  public:
   enum RenderMode { BW, GRAYSCALE_LSB, GRAYSCALE_MSB };
@@ -117,6 +119,11 @@ class GfxRenderer {
     EpdFontFamily::Style style;
     bool rotated;
     XpGlyphPaint* paint;
+  };
+  struct PageContext {
+    GlyphContext glyph;
+    void* images;
+    void (*image)(void*, uint16_t, int32_t, int32_t, uint8_t);
   };
   XpGlyphTarget glyphTarget() const;
   void glyphSource(const EpdFontData* font, XpGlyphSource& source) const;
@@ -370,6 +377,8 @@ class GfxRenderer {
   void drawCenteredText(int fontId, int y, const char* text, bool black = true,
                         EpdFontFamily::Style style = EpdFontFamily::REGULAR,
                         BidiUtils::BidiBaseDir baseDir = BidiUtils::BidiBaseDir::AUTO) const;
+  void drawPage(const uint8_t* arena, size_t size, int fontId, int x, int y, PageRenderMode mode, void* images,
+                void (*image)(void*, uint16_t, int32_t, int32_t, uint8_t)) const;
   void drawText(int fontId, int x, int y, const char* text, bool black = true,
                 EpdFontFamily::Style style = EpdFontFamily::REGULAR,
                 BidiUtils::BidiBaseDir baseDir = BidiUtils::BidiBaseDir::AUTO, int8_t tracking = 0) const;

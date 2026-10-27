@@ -13,6 +13,8 @@
 #include "blocks/ImageBlock.h"
 #include "blocks/TextBlock.h"
 
+enum class PageRenderMode : uint8_t;
+
 enum PageElementTag : uint8_t {
   TAG_PageLine = 1,
   TAG_PageImage = 2,
@@ -145,9 +147,6 @@ class PageElementView {
   TextBlock textBlock() const;
   ImageBlock imageBlock() const;
   std::string_view dropCapText() const;
-  void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
-  void renderBackground(GfxRenderer& renderer, int xOffset, int yOffset) const;
-  void renderPlaceholder(GfxRenderer& renderer, int xOffset, int yOffset) const;
 #ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) const;
 #endif
@@ -186,6 +185,7 @@ class Page {
   ElementData* views = nullptr;
   static std::unique_ptr<Page> allocate(const XpPageInfo& info);
   bool resolveViews();
+  void renderArena(GfxRenderer& renderer, int fontId, int x, int y, PageRenderMode mode) const;
 
  public:
   Page() = default;

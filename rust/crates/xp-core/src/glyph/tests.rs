@@ -205,3 +205,41 @@ fn source_misses_and_generation_reject_before_dereference() {
     source.slots = ptr::dangling();
     assert!(unsafe { source.resolve(ptr::dangling()) }.is_none());
 }
+
+#[test]
+fn page_shade_matches_pixels_at_byte_clip_and_strip_edges() {
+    for orientation in 0..4 {
+        for origin in [0, 3, 23] {
+            for (x, y, w, h) in [
+                (-2, -1, 12, 8),
+                (3, 4, 17, 19),
+                (7, 8, 1, 1),
+                (30, 22, 5, 4),
+            ] {
+                let mut expected = [0x5a; 96];
+                let mut actual = expected;
+                let mut t = target(&mut actual);
+                t.orientation = orientation;
+                t.origin_y = origin;
+                t.rows = 24 - origin;
+                t.clip = Clip {
+                    left: 2,
+                    top: 3,
+                    right: 29,
+                    bottom: 30,
+                };
+                Surface::new(&t, &mut actual).unwrap().shade(x, y, w, h);
+                let mut reference = Surface::new(&t, &mut expected).unwrap();
+                for py in y..y + h {
+                    for px in x..x + w {
+                        reference.pixel(px, py, px % 2 == 0 && py % 2 == 0);
+                    }
+                }
+                assert_eq!(
+                    actual, expected,
+                    "orientation={orientation}, origin={origin}, rect={x},{y},{w},{h}"
+                );
+            }
+        }
+    }
+}

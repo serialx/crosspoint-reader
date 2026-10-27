@@ -465,14 +465,14 @@ use xp_core::font::raw::{FontData, Glyph as RasterGlyph};
 use xp_core::glyph::{Bitmap, BitmapSource, Draw, GlyphTarget, Kind};
 #[repr(C)]
 pub struct GlyphPaint {
-    target: GlyphTarget,
-    source: BitmapSource,
-    x: i32,
-    y: i32,
-    state: u8,
+    pub(crate) target: GlyphTarget,
+    pub(crate) source: BitmapSource,
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) state: u8,
 }
 type Prepare = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> *const *const FontData;
-type Miss = unsafe extern "C" fn(
+pub(crate) type Miss = unsafe extern "C" fn(
     *mut c_void,
     u32,
     *const RasterGlyph,
@@ -484,7 +484,7 @@ type Observer = unsafe extern "C" fn(*mut c_void, *const textm::draw::Placement)
 // All table loans end before miss; the returned bytes are painted before another
 // font operation. The callback may rebuild source, so never lend the whole paint.
 #[inline(always)]
-unsafe fn paint_glyph(
+pub(crate) unsafe fn paint_glyph(
     paint: *mut GlyphPaint,
     context: *mut c_void,
     miss: Miss,

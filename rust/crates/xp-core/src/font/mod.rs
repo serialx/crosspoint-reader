@@ -50,8 +50,30 @@ unsafe fn table<'a, T>(ptr: *const T, count: usize) -> &'a [T] {
     }
 }
 
+fn lower_bound<T>(values: &[T], before: impl Fn(&T) -> bool) -> usize {
+    let (mut base, mut count) = (0, values.len());
+    while count != 0 {
+        let half = count / 2;
+        let middle = base + half;
+        // The remaining interval [base, base+count) is within values.
+        if before(unsafe { values.get_unchecked(middle) }) {
+            base = middle + 1;
+            count -= half + 1;
+        } else {
+            count = half;
+        }
+    }
+    base
+}
 fn interval_index(intervals: &[Interval], cp: u32) -> Option<usize> {
-    let end = intervals.partition_point(|iv| iv.first <= cp);
+    if cp < 0x80 {
+        if let Some(iv) = intervals.first() {
+            if iv.first <= cp && cp <= iv.last {
+                return Some((iv.offset + cp - iv.first) as usize);
+            }
+        }
+    }
+    let end = lower_bound(intervals, |iv| iv.first <= cp);
     let iv = intervals.get(end.checked_sub(1)?)?;
     (cp <= iv.last).then(|| (iv.offset + cp - iv.first) as usize)
 }
@@ -132,6 +154,7 @@ impl<'a> Font<'a> {
             .map(|entry| entry.advance_x)
     }
 
+    #[inline(always)]
     pub fn glyph(&self, cp: u32) -> GlyphResult {
         if let Some(index) = self.glyph_index(cp) {
             return GlyphResult::Resident(unsafe { *self.data.glyph.add(index) });
@@ -184,7 +207,9 @@ impl<'a> Font<'a> {
 
     /// Raw signed 4.4 kerning. None requests the dynamic callback face.
     pub fn kerning(&self, left: u32, right: u32) -> Option<i8> {
-        if crate::text::cjk(left) || crate::text::cjk(right) {
+        if (left >= 0x1100 && crate::text::cjk(left))
+            || (right >= 0x1100 && crate::text::cjk(right))
+        {
             return Some(0);
         }
         let d = self.data;
@@ -295,7 +320,10 @@ unsafe fn kern_class(
     }
     if split {
         let cps = unsafe { table(codepoints, usize::from(count)) };
-        let i = cps.partition_point(|&value| value < cp as u16);
+        if cps.first().is_none_or(|&first| cp < u32::from(first)) {
+            return 0;
+        }
+        let i = lower_bound(cps, |&value| value < cp as u16);
         if cps.get(i).copied() == Some(cp as u16) {
             unsafe { *ids.add(i) }
         } else {
@@ -303,7 +331,13 @@ unsafe fn kern_class(
         }
     } else {
         let entries = unsafe { table(packed, usize::from(count)) };
-        let i = entries.partition_point(|entry| entry.codepoint < cp as u16);
+        if entries
+            .first()
+            .is_none_or(|first| cp < u32::from(first.codepoint))
+        {
+            return 0;
+        }
+        let i = lower_bound(entries, |entry| entry.codepoint < cp as u16);
         entries
             .get(i)
             .filter(|entry| entry.codepoint == cp as u16)

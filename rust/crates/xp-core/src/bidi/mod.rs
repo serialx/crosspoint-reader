@@ -45,6 +45,7 @@ struct Character {
     pub reserved: u8,
 }
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct Scratch {
     types: [u8; MAX_LINE],
     levels: [u8; MAX_LINE],
@@ -53,16 +54,19 @@ struct Scratch {
     openers: [[u32; 2]; 63],
 }
 #[repr(C)]
-pub struct Workspace {
-    line: [Character; MAX_LINE],
+union Auxiliary {
     shaped: [Character; MAX_LINE],
     scratch: Scratch,
-    first_any: [u16; MAX_LINE],
-    first_natural: [u16; MAX_LINE],
+    anchors: [[u16; MAX_LINE]; 2],
 }
-
+#[repr(C)]
+pub struct Workspace {
+    line: [Character; MAX_LINE],
+    auxiliary: Auxiliary,
+}
 impl Workspace {
-    /// Initialize caller-owned persistent storage; avoid task-stack temporaries.
+    // Reordering finishes before shaping or anchor selection starts. The union
+    // retains the existing C++ owner's 3072 bytes without task-stack scratch.
     pub const EMPTY: Self = Self {
         line: [Character {
             original: 0,
@@ -71,24 +75,18 @@ impl Workspace {
             joiners: 0,
             reserved: 0,
         }; MAX_LINE],
-        shaped: [Character {
-            original: 0,
-            wc: 0,
-            index: 0,
-            joiners: 0,
-            reserved: 0,
-        }; MAX_LINE],
-        scratch: Scratch {
-            types: [0; MAX_LINE],
-            levels: [0; MAX_LINE],
-            skip: [0; MAX_LINE],
-            stack: [[0; 3]; MAX_LINE + 1],
-            openers: [[0; 2]; 63],
+        auxiliary: Auxiliary {
+            shaped: [Character {
+                original: 0,
+                wc: 0,
+                index: 0,
+                joiners: 0,
+                reserved: 0,
+            }; MAX_LINE],
         },
-        first_any: [0; MAX_LINE],
-        first_natural: [0; MAX_LINE],
     };
 }
+const _: () = assert!(core::mem::size_of::<Workspace>() == 3072);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
@@ -232,6 +230,27 @@ pub fn apply_visual(
     work: &mut Workspace,
     out: &mut [u8],
 ) -> (Status, usize) {
+    let Some(count) = prepare_visual(text, paragraph, work) else {
+        return (Status::Unchanged, 0);
+    };
+    let shaped = unsafe { &work.auxiliary.shaped[..count] };
+    let mut required = 0;
+    emit_visual(shaped, &mut |cp| {
+        required += utf8::encode(cp, &mut [0; 4]);
+    });
+    if out.len() < required {
+        return (Status::BufferTooSmall, required);
+    }
+    let mut written = 0;
+    emit_visual(shaped, &mut |cp| {
+        let mut bytes = [0; 4];
+        let n = utf8::encode(cp, &mut bytes);
+        out[written..written + n].copy_from_slice(&bytes[..n]);
+        written += n;
+    });
+    (Status::Applied, written)
+}
+fn prepare_visual(text: &[u8], paragraph: i32, work: &mut Workspace) -> Option<usize> {
     let mut count = 0;
     let mut position = 0;
     let mut last_base: Option<usize> = None;
@@ -239,7 +258,7 @@ pub fn apply_visual(
     while text.get(position).is_some_and(|&b| b != 0) {
         // Check before decoding: even an invalid 129th character declines the call.
         if count == MAX_LINE {
-            return (Status::Unchanged, 0);
+            return None;
         }
         let Some(cp) = utf8::next(text, &mut position) else {
             break;
@@ -268,7 +287,7 @@ pub fn apply_visual(
         count += 1;
     }
     if count == 0 {
-        return (Status::Unchanged, 0);
+        return None;
     }
     algorithm::reorder(
         &mut work.line[..count],
@@ -278,25 +297,28 @@ pub fn apply_visual(
         } else {
             (paragraph & 1) as u8
         },
-        &mut work.scratch,
+        unsafe { &mut work.auxiliary.scratch },
     );
-    shape(&work.line[..count], &mut work.shaped[..count]);
-    let shaped = &work.shaped[..count];
-    let mut required = 0;
-    emit_visual(shaped, &mut |cp| {
-        required += utf8::encode(cp, &mut [0; 4]);
+    shape(&work.line[..count], unsafe {
+        &mut work.auxiliary.shaped[..count]
     });
-    if out.len() < required {
-        return (Status::BufferTooSmall, required);
-    }
-    let mut written = 0;
+    Some(count)
+}
+/// Borrow visual UTF-8 from the dead logical-character buffer until next use.
+pub fn visual<'a>(text: &[u8], paragraph: i32, work: &'a mut Workspace) -> Option<&'a [u8]> {
+    let count = prepare_visual(text, paragraph, work)?;
+    let shaped = unsafe { &work.auxiliary.shaped[..count] };
+    let out = unsafe { core::slice::from_raw_parts_mut(work.line.as_mut_ptr().cast::<u8>(), 1536) };
+    let mut len = 0;
     emit_visual(shaped, &mut |cp| {
         let mut bytes = [0; 4];
         let n = utf8::encode(cp, &mut bytes);
-        out[written..written + n].copy_from_slice(&bytes[..n]);
-        written += n;
+        out[len..len + n].copy_from_slice(&bytes[..n]);
+        len += n;
     });
-    (Status::Applied, written)
+    // C++ width prewarming still consumes a terminated view.
+    out[len] = 0;
+    (len != 0).then_some(&out[..len])
 }
 fn filtered(cp: u32) -> bool {
     matches!(cp, 0xffff | 0x200c | 0x200d)
@@ -438,19 +460,22 @@ pub fn visual_word_order(
         }
         return Status::Applied;
     }
-    algorithm::reorder(line, false, u8::from(rtl), &mut work.scratch);
-    work.first_any[..words].fill(u16::MAX);
-    work.first_natural[..words].fill(u16::MAX);
+    algorithm::reorder(line, false, u8::from(rtl), unsafe {
+        &mut work.auxiliary.scratch
+    });
+    let [first_any, first_natural] = unsafe { &mut work.auxiliary.anchors };
+    first_any[..words].fill(u16::MAX);
+    first_natural[..words].fill(u16::MAX);
     for (i, ch) in line.iter().enumerate() {
         let w = ch.index as usize;
         if w >= words {
             continue;
         }
-        if work.first_any[w] == u16::MAX {
-            work.first_any[w] = i as u16;
+        if first_any[w] == u16::MAX {
+            first_any[w] = i as u16;
         }
-        if work.first_natural[w] == u16::MAX && matches!(class(ch.wc), L | R | AL | EN | AN) {
-            work.first_natural[w] = i as u16;
+        if first_natural[w] == u16::MAX && matches!(class(ch.wc), L | R | AL | EN | AN) {
+            first_natural[w] = i as u16;
         }
     }
     let mut written = 0;
@@ -459,10 +484,10 @@ pub fn visual_word_order(
         if w >= words {
             continue;
         }
-        let anchor = if work.first_natural[w] != u16::MAX {
-            work.first_natural[w]
+        let anchor = if first_natural[w] != u16::MAX {
+            first_natural[w]
         } else {
-            work.first_any[w]
+            first_any[w]
         };
         if anchor == u16::MAX {
             return Status::Unchanged;

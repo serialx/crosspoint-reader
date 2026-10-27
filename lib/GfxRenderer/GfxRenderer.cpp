@@ -261,6 +261,7 @@ void GfxRenderer::FrameBufferLoan::end() {
 bool GfxRenderer::isFontCacheScanning() const { return fontCacheManager_ && fontCacheManager_->isScanning(); }
 
 void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) {
+  ++fontTableGeneration;
   auto result = fontMap.insert({fontId, font});
   if (!result.second) {
     LOG_ERR("GFX", "Font ID %d already registered, ignoring duplicate", fontId);
@@ -2576,4 +2577,54 @@ void GfxRenderer::getOrientedViewableTRBL(int* outTop, int* outRight, int* outBo
       *outLeft = vi.top;
       break;
   }
+}
+
+XpNativeProvider GfxRenderer::textProvider() const {
+  return {const_cast<GfxRenderer*>(this),
+          &fontTableGeneration,
+          [](void* ctx, int32_t id, XpNativeFamily* out) {
+            const auto& self = *static_cast<const GfxRenderer*>(ctx);
+            const auto font = self.fontMap.find(id);
+            if (font == self.fontMap.end()) return;
+            const auto fallback = self.fallbackFontMap_.find(id);
+            if (fallback != self.fallbackFontMap_.end()) {
+              out->fallback = fallback->second;
+              out->hasFallback = true;
+            }
+            for (uint8_t style = 0; style < 4; ++style) {
+              out->styles[style].data = font->second.getData(static_cast<EpdFontFamily::Style>(style));
+              out->resolved[style] = style;
+            }
+            const auto sd = self.sdCardFonts_.find(id);
+            if (sd != self.sdCardFonts_.end()) sd->second->metricViews(*out);
+          },
+          [](void* ctx, int32_t id, uint32_t cp, uint8_t style, XpTextmGlyph* out) -> uint8_t {
+            const auto& self = *static_cast<const GfxRenderer*>(ctx);
+            const auto font = self.fontMap.find(id);
+            if (font == self.fontMap.end()) return false;
+            // TTF lazy styles can replace metrics and tables while faulting.
+            ++fontTableGeneration;
+            const auto* glyph = font->second.getGlyph(cp, static_cast<EpdFontFamily::Style>(style));
+            if (!glyph) return false;
+            *out = {glyph->advanceX, glyph->width, glyph->height, glyph->left, glyph->top};
+            return true;
+          },
+          [](void* ctx, int32_t id, uint32_t cp, uint8_t style) -> uint8_t {
+            const auto& fonts = static_cast<const GfxRenderer*>(ctx)->fontMap;
+            const auto font = fonts.find(id);
+            return font != fonts.end() && font->second.hasCodepoint(cp, static_cast<EpdFontFamily::Style>(style));
+          },
+          [](void* ctx, int32_t id, uint32_t left, uint32_t right, uint8_t style) -> int8_t {
+            const auto& fonts = static_cast<const GfxRenderer*>(ctx)->fontMap;
+            const auto font = fonts.find(id);
+            ++fontTableGeneration;
+            return font == fonts.end() ? 0
+                                       : font->second.getKerning(left, right, static_cast<EpdFontFamily::Style>(style));
+          },
+          xp_native_bidi_acquire,
+          xp_native_bidi_release,
+          [](void* ctx, int32_t id, const uint8_t* text, size_t, uint8_t style) {
+            static_cast<const GfxRenderer*>(ctx)->ensureSdGlyphsResident(
+                id, reinterpret_cast<const char*>(text), static_cast<EpdFontFamily::Style>(style), true);
+          }};
 }

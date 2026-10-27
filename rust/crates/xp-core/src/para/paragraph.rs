@@ -58,18 +58,22 @@ impl Span {
     }
 }
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Metrics {
     pub context: *mut c_void,
     pub trace: Option<unsafe extern "C" fn(*mut c_void, Span)>,
-    pub advance: unsafe extern "C" fn(*mut c_void, i32, Span, u8, i8) -> i32,
-    pub space: unsafe extern "C" fn(*mut c_void, i32, u8) -> i32,
-    pub kerning: unsafe extern "C" fn(*mut c_void, i32, u32, u32, u8, i8) -> i32,
-    pub space_advance: unsafe extern "C" fn(*mut c_void, i32, u32, u32, u8) -> i32,
-    pub ascender: unsafe extern "C" fn(*mut c_void, i32) -> i32,
-    pub is_sd: unsafe extern "C" fn(*mut c_void, i32) -> u8,
+    pub advance: Option<unsafe extern "C" fn(*mut c_void, i32, Span, u8, i8) -> i32>,
+    pub space: Option<unsafe extern "C" fn(*mut c_void, i32, u8) -> i32>,
+    pub kerning: Option<unsafe extern "C" fn(*mut c_void, i32, u32, u32, u8, i8) -> i32>,
+    pub space_advance: Option<unsafe extern "C" fn(*mut c_void, i32, u32, u32, u8) -> i32>,
+    pub ascender: Option<unsafe extern "C" fn(*mut c_void, i32) -> i32>,
+    pub is_sd: Option<unsafe extern "C" fn(*mut c_void, i32) -> u8>,
     pub prepare: unsafe extern "C" fn(*mut c_void, i32, *const Span, u32, u8, u8, u8, u8),
-    pub starts_rtl: unsafe extern "C" fn(Span, i32) -> u8,
-    pub visual_order: unsafe extern "C" fn(Span, *const u16, u32, u8, *mut u16) -> u8,
+    pub starts_rtl: Option<unsafe extern "C" fn(Span, i32) -> u8>,
+    pub visual_order: Option<unsafe extern "C" fn(Span, *const u16, u32, u8, *mut u16) -> u8>,
+    pub native:
+        Option<unsafe extern "C" fn(*mut c_void, *mut crate::textm::native::Provider) -> u8>,
+    pub engine: *const crate::textm::native::Engine,
 }
 
 pub struct Paragraph {
@@ -306,7 +310,7 @@ impl Paragraph {
         let style = style | if underline { 4 } else { 0 };
         let rtl = !self.has_rtl
             && word.iter().any(|b| (0xd6..=0xdb).contains(b))
-            && unsafe { (self.starts_rtl)(Span::from_bytes(word), 64) != 0 };
+            && crate::bidi::starts_with_rtl(word, 64);
         let mut flags = u8::from(attach) | (u8::from(no_space) << 1);
         if attach && !self.tokens.is_empty() {
             let previous = last(self.word(self.tokens.len() - 1));

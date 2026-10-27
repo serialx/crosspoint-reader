@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_ffi.h>
+
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -86,6 +88,7 @@ class SdCardFont {
 
   // Returns true if advance table is populated for at least one style.
   bool hasAdvanceTable() const;
+  void metricViews(XpNativeFamily& family) const;
 
   // Free mini data for all styles and restore stub EpdFontData.
   // Preserves the persistent advance cache so repeated layout passes can reuse

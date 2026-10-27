@@ -36,10 +36,51 @@ impl Metrics {
     /// # Safety
     /// Nonempty text has a readable NUL at text.as_ptr().add(text.len()).
     unsafe fn advance(&self, font: i32, text: &[u8], style: u8, spacing: i8) -> i32 {
-        unsafe { (self.advance)(self.context, font, Span::from_bytes(text), style, spacing) }
+        if let Some(engine) = self.engine.as_ref() {
+            return engine.advance(
+                font,
+                text,
+                style,
+                spacing,
+                -1,
+                crate::textm::MeasureMode::Layout,
+            );
+        }
+        (self.advance.unwrap())(self.context, font, Span::from_bytes(text), style, spacing)
+    }
+    pub fn ascender_value(&self, font: i32) -> i32 {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return crate::textm::font_ascender(&e.face(font));
+        }
+        unsafe { (self.ascender.unwrap())(self.context, font) }
+    }
+    pub fn sd(&self, font: i32) -> bool {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return e.is_sd(font);
+        }
+        unsafe { (self.is_sd.unwrap())(self.context, font) != 0 }
+    }
+    pub fn kern(&self, font: i32, left: u32, right: u32, style: u8, tracking: i8) -> i32 {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return if e.exists(font) {
+                crate::textm::kerning(&mut e.face(font), left, right, style, tracking)
+            } else {
+                0
+            };
+        }
+        unsafe { (self.kerning.unwrap())(self.context, font, left, right, style, tracking) }
+    }
+    pub fn space_gap(&self, font: i32, left: u32, right: u32, style: u8) -> i32 {
+        if let Some(e) = unsafe { self.engine.as_ref() } {
+            return e.gap(font, left, right, style);
+        }
+        unsafe { (self.space_advance.unwrap())(self.context, font, left, right, style) }
     }
     pub fn space(&self, font: i32, style: u8) -> i32 {
-        unsafe { (self.space)(self.context, font, style) }
+        if let Some(engine) = unsafe { self.engine.as_ref() } {
+            return crate::textm::space_width(&mut engine.face(font), style);
+        }
+        unsafe { (self.space.unwrap())(self.context, font, style) }
     }
     #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.
     pub fn gap(
@@ -52,21 +93,14 @@ impl Metrics {
         tracking: i8,
         spacing: u8,
     ) -> i32 {
-        unsafe {
+        {
             if flags & 1 != 0 {
-                (self.kerning)(
-                    self.context,
-                    font,
-                    last(left),
-                    first(right),
-                    style,
-                    tracking,
-                )
+                self.kern(font, last(left), first(right), style, tracking)
             } else if flags & 2 != 0 {
                 i32::from(tracking)
             } else {
                 scaled(
-                    (self.space_advance)(self.context, font, last(left), first(right), style),
+                    self.space_gap(font, last(left), first(right), style),
                     spacing,
                 )
             }
@@ -79,16 +113,7 @@ impl Metrics {
         let bold = style | 1;
         let mut pos = usize::from(focus).min(word.len());
         let next = crate::utf8::next(word, &mut pos).unwrap_or(0);
-        let kern = unsafe {
-            (self.kerning)(
-                self.context,
-                font,
-                last(&buffer[..len]),
-                next,
-                bold,
-                tracking,
-            )
-        };
+        let kern = self.kern(font, last(&buffer[..len]), next, bold, tracking);
         // The zero-filled buffer retains a NUL after the copied prefix.
         (unsafe { self.advance(font, &buffer[..len], bold, tracking) } + kern) as u16
     }

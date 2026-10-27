@@ -54,13 +54,21 @@ pub fn resolve_font_id(registry: &impl FontRegistry, id: i32, logical: &[u32], s
     if logical.is_empty() {
         return id;
     }
+    resolve_stream(registry, id, logical.iter().copied(), style)
+}
+pub fn resolve_stream(
+    registry: &impl FontRegistry,
+    id: i32,
+    logical: impl Iterator<Item = u32>,
+    style: u8,
+) -> i32 {
     let Some(fallback) = registry.fallback_id(id) else {
         return id;
     };
     if !registry.contains(id) || !registry.contains(fallback) {
         return id;
     }
-    for &cp in logical {
+    for cp in logical {
         if cp == 0 {
             break;
         }
@@ -142,8 +150,17 @@ pub fn glyph_metrics(face: &mut impl FontFace, cp: u32, style: u8) -> Option<Gly
     })
 }
 
-fn apply_ligatures(face: &impl FontFace, mut cp: u32, rest: &mut &[u32], style: u8) -> u32 {
-    while let Some((&next, tail)) = rest.split_first() {
+fn apply_ligatures(
+    face: &impl FontFace,
+    mut cp: u32,
+    rest: &mut (impl Iterator<Item = u32> + Clone),
+    style: u8,
+) -> u32 {
+    loop {
+        let mut tail = rest.clone();
+        let Some(next) = tail.next() else {
+            break;
+        };
         if next == 0 {
             break;
         }
@@ -161,7 +178,24 @@ fn apply_ligatures(face: &impl FontFace, mut cp: u32, rest: &mut &[u32], style: 
 /// classify the visual stream without modifying it or the face.
 pub fn text_advance_x(
     face: &mut impl FontFace,
-    mut visual: &[u32],
+    visual: &[u32],
+    style: u8,
+    tracking: i8,
+    mode: MeasureMode,
+    transparent: impl Fn(u32) -> bool,
+) -> i32 {
+    advance_stream(
+        face,
+        visual.iter().copied(),
+        style,
+        tracking,
+        mode,
+        transparent,
+    )
+}
+pub fn advance_stream(
+    face: &mut impl FontFace,
+    mut visual: impl Iterator<Item = u32> + Clone,
     style: u8,
     tracking: i8,
     mode: MeasureMode,
@@ -172,7 +206,7 @@ pub fn text_advance_x(
         let resolved = face.resolve_style(style);
         let mut width = 0i32;
         let mut spacing = 0i32;
-        for &cp in visual {
+        for cp in visual {
             if cp == 0 {
                 break;
             }
@@ -185,7 +219,7 @@ pub fn text_advance_x(
                 cp
             };
             let mut advance = i32::from(face.advance(mapped, resolved));
-            if !combining(mapped) {
+            if mapped < 0x300 || !combining(mapped) {
                 if advance == 0 || (solid(mapped) && !face.has_codepoint(mapped, style)) {
                     advance =
                         glyph_metrics(face, mapped, style).map_or(0, |g| i32::from(g.advance));
@@ -199,12 +233,11 @@ pub fn text_advance_x(
     }
     let mut width = 0i32;
     let mut previous_advance = 0;
-    while let Some((&cp, tail)) = visual.split_first() {
-        visual = tail;
+    while let Some(cp) = visual.next() {
         if cp == 0 {
             break;
         }
-        if transparent(cp) || combining(cp) {
+        if transparent(cp) || (cp >= 0x300 && combining(cp)) {
             continue;
         }
         let small = if style & SMALL_CAPS != 0 {
@@ -278,16 +311,22 @@ pub fn compressed_line_height(face: &impl FontFace, compression: f32) -> i32 {
 
 /// Ink bounds, matching EpdFont::getTextDimensions. Decorations, small caps,
 /// sup/sub and transparent-mark skipping deliberately do not apply here.
-pub fn text_dimensions(face: &mut impl FontFace, mut visual: &[u32], style: u8) -> (i32, i32) {
+pub fn text_dimensions(face: &mut impl FontFace, visual: &[u32], style: u8) -> (i32, i32) {
+    dimensions_stream(face, visual.iter().copied(), style)
+}
+pub fn dimensions_stream(
+    face: &mut impl FontFace,
+    mut visual: impl Iterator<Item = u32> + Clone,
+    style: u8,
+) -> (i32, i32) {
     let (mut min_x, mut max_x, mut min_y, mut max_y) = (0i32, 0i32, 0i32, 0i32);
     let (mut x, mut left, mut width, mut top, mut advance, mut prev) =
         (0i32, 0i32, 0i32, 0i32, 0i32, 0u32);
-    while let Some((&cp, tail)) = visual.split_first() {
-        visual = tail;
+    while let Some(cp) = visual.next() {
         if cp == 0 {
             break;
         }
-        let mark = combining(cp);
+        let mark = cp >= 0x300 && combining(cp);
         let cp = if mark {
             cp
         } else {
@@ -336,3 +375,5 @@ pub fn text_dimensions(face: &mut impl FontFace, mut visual: &[u32], style: u8) 
 pub fn text_width(face: &mut impl FontFace, visual: &[u32], style: u8) -> i32 {
     text_dimensions(face, visual, style).0
 }
+
+pub mod native;

@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "EpdFontFamily.h"
+#include "FontTableGeneration.h"
 
 // Resident SD-font buffers (glyph/kern arenas, interval + advance tables, the
 // overflow ring) are placed in PSRAM when the board has it — freeing scarce
@@ -248,6 +249,7 @@ void SdCardFont::freeStyleAll(PerStyle& s) {
 // --- Global free/cleanup ---
 
 void SdCardFont::releaseResidentCaches() {
+  ++fontTableGeneration;
   clearOverflow();
   clearPersistentCache();
   for (uint8_t i = 0; i < MAX_STYLES; i++) {
@@ -259,6 +261,7 @@ void SdCardFont::releaseResidentCaches() {
 }
 
 void SdCardFont::freeAll() {
+  ++fontTableGeneration;
   clearOverflow();
   clearPersistentCache();
   for (uint8_t i = 0; i < styleCount_; i++) {
@@ -601,6 +604,7 @@ void SdCardFont::computeStyleFileOffsets(PerStyle& s, uint32_t baseOffset) {
 // --- Load ---
 
 bool SdCardFont::load(const char* path) {
+  ++fontTableGeneration;
   freeAll();
   if (strlen(path) >= sizeof(filePath_)) {
     LOG_ERR("SDCF", "Path too long (%zu bytes, max %zu)", strlen(path), sizeof(filePath_) - 1);
@@ -941,11 +945,13 @@ const char* singleTextGetter(const void* ctx, uint32_t) { return static_cast<con
 }  // namespace
 
 int SdCardFont::prewarm(const char* utf8Text, uint8_t styleMask, bool metadataOnly, bool loadKernLig, bool accumulate) {
+  ++fontTableGeneration;
   return prewarm(&singleTextGetter, utf8Text, 1, styleMask, metadataOnly, loadKernLig, accumulate);
 }
 
 int SdCardFont::prewarm(TextGetter getter, const void* ctx, uint32_t textCount, uint8_t styleMask, bool metadataOnly,
                         bool loadKernLig, bool accumulate) {
+  ++fontTableGeneration;
   if (!loaded_ || getter == nullptr) return -1;
   styleMask = resolveStyleMask(styleMask);
   if (styleMask == 0) return 0;
@@ -1515,6 +1521,7 @@ int SdCardFont::prewarmStyle(uint8_t styleIdx, const uint32_t* codepoints, uint3
 // --- Cache management ---
 
 void SdCardFont::clearCache() {
+  ++fontTableGeneration;
   clearOverflow();
   // Note: advance table is intentionally preserved here. It persists across
   // layout passes so repeated section indexing amortizes SD reads. Use
@@ -1529,6 +1536,7 @@ void SdCardFont::clearCache() {
 // --- Advance table ---
 
 void SdCardFont::clearPersistentCache() {
+  ++fontTableGeneration;
   for (uint8_t i = 0; i < MAX_STYLES; i++) {
     psramDeleteArray(advanceTable_[i]);
     advanceTable_[i] = nullptr;
@@ -1751,6 +1759,7 @@ int SdCardFont::fetchAdvancesForCodepoints(uint32_t* codepoints, uint32_t cpCoun
 int SdCardFont::buildAdvanceTablePacked(const char* const* segments, const size_t* segmentLens,
                                         const size_t segmentCount, const bool includeSpace, const bool includeHyphen,
                                         uint8_t styleMask, const char* extraText, const bool includeSmallCaps) {
+  ++fontTableGeneration;
   if (!loaded_) return -1;
   styleMask = resolveStyleMask(styleMask);
   if (styleMask == 0) return 0;
@@ -1854,6 +1863,7 @@ int SdCardFont::buildAdvanceTablePacked(const char* const* segments, const size_
 }
 
 int SdCardFont::buildAdvanceTable(const char* utf8Text, uint8_t styleMask, const char* extraText) {
+  ++fontTableGeneration;
   const size_t len = strlen(utf8Text);
   return buildAdvanceTablePacked(&utf8Text, &len, 1, false, false, styleMask, extraText);
 }
@@ -1909,6 +1919,7 @@ uint8_t SdCardFont::resolveStyleMask(uint8_t styleMask) const {
 // --- On-demand glyph loading (overflow buffer) ---
 
 const EpdGlyph* SdCardFont::onGlyphMiss(void* ctx, uint32_t codepoint) {
+  ++fontTableGeneration;
   auto* oc = static_cast<OverflowContext*>(ctx);
   auto* self = oc->self;
   uint8_t styleIdx = oc->styleIdx;
@@ -2010,3 +2021,20 @@ const uint8_t* SdCardFont::getOverflowBitmap(const EpdGlyph* glyph) const {
 }
 
 SdCardFont* SdCardFont::fromMissCtx(void* ctx) { return static_cast<OverflowContext*>(ctx)->self; }
+
+void SdCardFont::metricViews(XpNativeFamily& family) const {
+  family.sd = true;
+  family.advanceTable = hasAdvanceTable();
+  for (uint8_t style = 0; style < MAX_STYLES; ++style) {
+    const auto resolved = resolveStyle(style);
+    family.resolved[style] = resolved;
+    if (!hasStyle(resolved)) continue;
+    const auto& s = styleData(resolved);
+    family.styles[style] = {s.epdFont.data,
+                            advanceTable_[resolved],
+                            advanceTableSize_[resolved],
+                            s.fullIntervals,
+                            s.intervalsAreBmp16 ? s.bmpIntervals : nullptr,
+                            s.header.intervalCount};
+  }
+}

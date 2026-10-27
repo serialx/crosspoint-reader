@@ -52,7 +52,8 @@ pub struct Callbacks {
     pub entity_buffer: unsafe extern "C" fn(*mut c_void, u32) -> *mut u8,
     pub font_variant: unsafe extern "C" fn(*mut c_void, i32, f32) -> i32,
     pub line_height: unsafe extern "C" fn(*mut c_void, i32, f32) -> i32,
-    pub codepoint: unsafe extern "C" fn(*mut c_void, i32, u32, u8, *mut i32, *mut i32) -> u8,
+    pub codepoint:
+        Option<unsafe extern "C" fn(*mut c_void, i32, u32, u8, *mut i32, *mut i32) -> u8>,
     pub create_line:
         unsafe extern "C" fn(*mut c_void, *const paragraph_extract::Output) -> *mut c_void,
     pub line_metrics:
@@ -85,6 +86,18 @@ pub struct PageSink {
 impl PageSink {
     pub fn api(&self) -> &Callbacks {
         unsafe { &*self.callbacks }
+    }
+    pub(in crate::chapter) fn native_engine(&self) -> Option<crate::textm::native::Engine> {
+        let metrics = unsafe { &*self.api().metrics };
+        let fill = metrics.native?;
+        let mut provider = core::mem::MaybeUninit::uninit();
+        unsafe {
+            if fill(self.context, provider.as_mut_ptr()) == 0 {
+                None
+            } else {
+                Some(crate::textm::native::Engine::new(provider.assume_init()))
+            }
+        }
     }
     fn payload(&self, pointer: *mut c_void) -> Result<Payload> {
         Ok(Payload {
@@ -168,20 +181,32 @@ impl Sink for PageSink {
     }
     fn ascender(&mut self, font: i32) -> i32 {
         let metrics = unsafe { &*self.api().metrics };
-        let value = unsafe { (metrics.ascender)(self.context, font) };
+        let value = if let Some(e) = self.native_engine() {
+            crate::textm::font_ascender(&e.face(font))
+        } else {
+            unsafe { (metrics.ascender.unwrap())(self.context, font) }
+        };
         observe!(self, "getFontAscenderSize", font, value);
         value
     }
     fn space_width(&mut self, font: i32) -> i32 {
         let metrics = unsafe { &*self.api().metrics };
-        let value = unsafe { (metrics.space)(self.context, font, 0) };
+        let value = if let Some(e) = self.native_engine() {
+            crate::textm::space_width(&mut e.face(font), 0)
+        } else {
+            unsafe { (metrics.space.unwrap())(self.context, font, 0) }
+        };
         observe!(self, "getSpaceWidth", font, 0u8, value);
         value
     }
     fn codepoint(&mut self, font: i32, cp: u32, style: u8) -> Option<(i32, i32)> {
+        if let Some(e) = self.native_engine() {
+            return crate::textm::codepoint_metrics(&mut e.face(font), cp, style);
+        }
         let (mut advance, mut top) = (0, 0);
-        if unsafe { (self.api().codepoint)(self.context, font, cp, style, &mut advance, &mut top) }
-            != 0
+        if unsafe {
+            (self.api().codepoint.unwrap())(self.context, font, cp, style, &mut advance, &mut top)
+        } != 0
         {
             Some((advance, top))
         } else {
@@ -316,7 +341,7 @@ impl<B> Paragraph<B> for OwnedParagraph {
                 options.hyphenation,
                 options.focus,
                 options.indent_spaces,
-                (*context.metrics).starts_rtl,
+                native_starts_rtl,
             );
         }
         Ok(Self(pointer))
@@ -451,6 +476,17 @@ unsafe fn extract(
         prepare: prototype.prepare,
         starts_rtl: prototype.starts_rtl,
         visual_order: prototype.visual_order,
+        native: prototype.native,
+        engine: ptr::null(),
     };
     paragraph_extract::layout(paragraph, &metrics, &options);
+}
+
+unsafe extern "C" fn native_starts_rtl(text: paragraph::Span, depth: i32) -> u8 {
+    let bytes = if text.len == 0 {
+        &[]
+    } else {
+        core::slice::from_raw_parts(text.data, text.len as usize)
+    };
+    u8::from(crate::bidi::starts_with_rtl(bytes, depth))
 }

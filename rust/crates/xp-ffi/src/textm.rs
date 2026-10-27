@@ -198,3 +198,146 @@ pub unsafe extern "C" fn xp_textm_resolve_font(
         .as_ref()
         .map_or(id, |r| textm::resolve_font_id(r, id, stream(p, len), style))
 }
+
+use xp_core::textm::native::{Engine, Provider};
+unsafe fn bytes<'a>(data: *const u8, len: usize) -> &'a [u8] {
+    if len == 0 {
+        &[]
+    } else {
+        core::slice::from_raw_parts(data, len)
+    }
+}
+/// # Safety
+/// Provider and input satisfy the synchronous xp_native_* contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_advance(
+    p: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    tracking: i8,
+    direction: i32,
+    layout: u8,
+) -> i32 {
+    Engine::new(*p).advance(
+        id,
+        bytes(data, len),
+        style,
+        tracking,
+        direction,
+        if layout != 0 {
+            MeasureMode::Layout
+        } else {
+            MeasureMode::Render
+        },
+    )
+}
+/// # Safety
+/// See xp_native_advance.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_width(
+    p: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    direction: i32,
+) -> i32 {
+    Engine::new(*p).width(id, bytes(data, len), style, direction)
+}
+/// # Safety
+/// See xp_native_advance.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_resolve(
+    p: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+) -> i32 {
+    Engine::new(*p).resolve(id, bytes(data, len), style)
+}
+/// # Safety
+/// See xp_native_advance.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_space(p: *const Provider, id: i32, style: u8) -> i32 {
+    let e = Engine::new(*p);
+    textm::space_width(&mut e.face(id), style)
+}
+/// # Safety
+/// See xp_native_advance.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_gap(
+    p: *const Provider,
+    id: i32,
+    left: u32,
+    right: u32,
+    style: u8,
+) -> i32 {
+    let e = Engine::new(*p);
+    e.gap(id, left, right, style)
+}
+/// # Safety
+/// See xp_native_advance.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_kern(
+    p: *const Provider,
+    id: i32,
+    left: u32,
+    right: u32,
+    style: u8,
+    tracking: i8,
+) -> i32 {
+    let e = Engine::new(*p);
+    if e.exists(id) {
+        textm::kerning(&mut e.face(id), left, right, style, tracking)
+    } else {
+        0
+    }
+}
+/// # Safety
+/// See xp_native_advance. Outputs are live, disjoint writable integers.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_codepoint(
+    p: *const Provider,
+    id: i32,
+    cp: u32,
+    style: u8,
+    advance: *mut i32,
+    top: *mut i32,
+) -> u8 {
+    let e = Engine::new(*p);
+    if let Some((a, t)) = textm::codepoint_metrics(&mut e.face(id), cp, style) {
+        *advance = a;
+        *top = t;
+        1
+    } else {
+        0
+    }
+}
+
+/// # Safety
+/// Host-only callback may query this synchronous cache between owner mutations.
+#[cfg(feature = "chapter-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_test_run(
+    p: *const Provider,
+    ctx: *mut c_void,
+    run: unsafe extern "C" fn(*mut c_void, *const Engine),
+) {
+    run(ctx, &Engine::new(*p));
+}
+/// # Safety
+/// Engine is the live synchronous handle from xp_native_test_run; input is readable.
+#[cfg(feature = "chapter-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_test_advance(
+    e: *const Engine,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+) -> i32 {
+    (&*e).advance(id, bytes(data, len), style, 0, -1, MeasureMode::Layout)
+}

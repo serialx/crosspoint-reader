@@ -40,6 +40,8 @@ struct BidiWorkspace {
   bidi_char line[BIDI_MAX_LINE];
   bidi_char shaped[BIDI_MAX_LINE];
 };
+static_assert(sizeof(BidiWorkspace) == 3072);
+static_assert(alignof(BidiWorkspace) >= alignof(uint32_t));
 
 // Retained after first use to avoid allocation churn on every RTL token.
 std::unique_ptr<BidiWorkspace> bidiWorkspace;
@@ -370,3 +372,11 @@ bool computeVisualWordOrder(std::span<const char> text, std::span<const uint16_t
 }
 
 }  // namespace BidiUtils
+
+extern "C" void* xp_native_bidi_acquire() {
+  bidiMutex.lock();
+  auto* workspace = getWorkspace();
+  if (!workspace) bidiMutex.unlock();
+  return workspace;
+}
+extern "C" void xp_native_bidi_release() { bidiMutex.unlock(); }

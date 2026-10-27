@@ -249,13 +249,17 @@ unsafe fn extract(
     };
     let logical = layout_line::metrics(&spec, &callbacks);
     let reordered = ((*p).block.rtl != 0 || (*p).has_rtl)
-        && (m.visual_order)(
-            Span::from_bytes(text),
-            offsets.as_ptr(),
-            count as u32,
-            (*p).block.rtl,
-            order.as_mut_ptr(),
-        ) != 0;
+        && if let Some(engine) = m.engine.as_ref() {
+            engine.word_order(text, offsets, (*p).block.rtl != 0, order)
+        } else {
+            (m.visual_order.unwrap())(
+                Span::from_bytes(text),
+                offsets.as_ptr(),
+                count as u32,
+                (*p).block.rtl,
+                order.as_mut_ptr(),
+            ) != 0
+        };
     if reordered {
         context.reordered = true;
         context.order = order;
@@ -369,7 +373,7 @@ unsafe fn extract(
         let width = i32::from(*widths.0.data.add(logical));
         let x = *positions.add(i);
         let top = if *styles.add(i) & 16 != 0 {
-            (m.ascender)(m.context, o.font) * 2 / 5
+            m.ascender_value(o.font) * 2 / 5
         } else {
             0
         };
@@ -474,6 +478,20 @@ unsafe fn extract(
 /// All owners/callbacks remain live and serialized. Sink may query paragraph scalars,
 /// but cannot change or destroy the paragraph; metrics callbacks cannot reenter it.
 pub unsafe fn layout(p: *mut Paragraph, m: &Metrics, o: &Options) {
+    if let Some(fill) = m.native {
+        let mut provider = core::mem::MaybeUninit::uninit();
+        if fill(m.context, provider.as_mut_ptr()) != 0 {
+            let engine = crate::textm::native::Engine::new(provider.assume_init());
+            let metrics = Metrics {
+                engine: &engine,
+                ..*m
+            };
+            return layout_inner(p, &metrics, o);
+        }
+    }
+    layout_inner(p, m, o);
+}
+unsafe fn layout_inner(p: *mut Paragraph, m: &Metrics, o: &Options) {
     let stopped = || !o.stop.is_null() && *o.stop != 0;
     if (*p).tokens.is_empty() || o.max_lines == 0 || stopped() {
         return;
@@ -482,7 +500,7 @@ pub unsafe fn layout(p: *mut Paragraph, m: &Metrics, o: &Options) {
     (*p).spacing = o.spacing;
     if (*p).block.direction_defined == 0 && (*p).has_rtl {
         for i in 0..(*p).tokens.len().min(3) {
-            if (m.starts_rtl)(Span::from_bytes((*p).word(i)), 5) != 0 {
+            if crate::bidi::starts_with_rtl((*p).word(i), 5) {
                 (*p).block.rtl = 1;
                 break;
             }
@@ -599,7 +617,7 @@ unsafe fn prepare(p: &Paragraph, m: &Metrics, font: i32) -> Option<()> {
             count += 1;
         }
     }
-    if !(0..count).any(|i| (m.is_sd)(m.context, fonts[i]) != 0) {
+    if !(0..count).any(|i| m.sd(fonts[i])) {
         return Some(());
     }
     let mut styles = 0;
@@ -624,7 +642,7 @@ unsafe fn prepare(p: &Paragraph, m: &Metrics, font: i32) -> Option<()> {
         }
     }
     for font in fonts.iter().take(count) {
-        if (m.is_sd)(m.context, *font) != 0 {
+        if m.sd(*font) {
             (m.prepare)(
                 m.context,
                 *font,

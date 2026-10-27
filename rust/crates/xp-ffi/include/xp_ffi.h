@@ -302,6 +302,7 @@ typedef struct {
   uint8_t break_after;
   uint8_t keep_with_next;
 } XpParaBlock;
+typedef struct XpNativeProvider XpNativeProvider;
 typedef struct {
   void* context;
   void (*trace)(void*, XpParaSpan);
@@ -316,6 +317,8 @@ typedef struct {
   void (*prepare)(void*, int32_t, const XpParaSpan*, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t);
   uint8_t (*starts_rtl)(XpParaSpan, int32_t);
   uint8_t (*visual_order)(XpParaSpan, const uint16_t*, uint32_t, uint8_t, uint16_t*);
+  uint8_t (*native)(void*, XpNativeProvider*);
+  const void* engine;  // Internal synchronous Rust layout context; C++ initializes null.
 } XpParaMetrics;
 typedef struct {
   char href[256];
@@ -1061,6 +1064,35 @@ bool xp_font_kerning(const void* data, uint32_t left, uint32_t right, int8_t* ou
 uint32_t xp_font_ligature(const void* data, uint32_t left, uint32_t right);
 // text is len readable bytes (null allowed only for zero len); consumed is bytes.
 uint32_t xp_font_apply_ligatures(const void* data, uint32_t cp, const uint8_t* text, size_t len, size_t* consumed);
+
+// Native measurement: synchronous, serialized loans of renderer-owned tables.
+// Every table or registration mutation increments generation. Setup fills all
+// styles; glyph/kern/coverage callbacks run only after native table loans end.
+typedef struct {
+  XpFontSdView styles[4];
+  int32_t fallback;
+  uint8_t hasFallback, sd, advanceTable, resolved[4];
+} XpNativeFamily;
+struct XpNativeProvider {
+  void* context;
+  const void* generation;  // Atomic uint32_t, same size/alignment as Rust AtomicU32.
+  void (*family)(void*, int32_t, XpNativeFamily*);
+  uint8_t (*glyph)(void*, int32_t, uint32_t, uint8_t, XpTextmGlyph*);
+  uint8_t (*coverage)(void*, int32_t, uint32_t, uint8_t);
+  int8_t (*kern)(void*, int32_t, uint32_t, uint32_t, uint8_t);
+  void* (*bidiAcquire)();
+  void (*bidiRelease)();
+  void (*prewarm)(void*, int32_t, const uint8_t*, size_t, uint8_t);
+};
+int32_t xp_native_advance(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t, int8_t, int32_t, uint8_t);
+int32_t xp_native_width(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t, int32_t);
+int32_t xp_native_resolve(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t);
+int32_t xp_native_space(const XpNativeProvider*, int32_t, uint8_t);
+int32_t xp_native_gap(const XpNativeProvider*, int32_t, uint32_t, uint32_t, uint8_t);
+int32_t xp_native_kern(const XpNativeProvider*, int32_t, uint32_t, uint32_t, uint8_t, int8_t);
+uint8_t xp_native_codepoint(const XpNativeProvider*, int32_t, uint32_t, uint8_t, int32_t*, int32_t*);
+void* xp_native_bidi_acquire();
+void xp_native_bidi_release();
 
 #ifdef __cplusplus
 }

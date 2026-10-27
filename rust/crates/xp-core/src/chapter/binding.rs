@@ -108,7 +108,11 @@ impl State {
     }
     pub(super) fn call_body_sd(&mut self) -> u8 {
         let metrics = unsafe { &*(*self.callbacks).metrics };
-        let value = unsafe { (metrics.is_sd)(self.ctx, self.assembly.options.font) };
+        let value = if let Some(e) = self.sink().native_engine() {
+            u8::from(e.is_sd(self.assembly.options.font))
+        } else {
+            unsafe { (metrics.is_sd.unwrap())(self.ctx, self.assembly.options.font) }
+        };
         observe!(
             self.sink(),
             "isSdCardFont",
@@ -157,8 +161,20 @@ impl State {
             data: bytes.as_ptr(),
             len: text.len,
         };
-        let value =
-            unsafe { (metrics.advance)(self.ctx, self.assembly.options.font, span, style, 0) };
+        let value = if let Some(e) = self.sink().native_engine() {
+            e.advance(
+                self.assembly.options.font,
+                &bytes[..text.len as usize],
+                style,
+                0,
+                -1,
+                crate::textm::MeasureMode::Layout,
+            )
+        } else {
+            unsafe {
+                (metrics.advance.unwrap())(self.ctx, self.assembly.options.font, span, style, 0)
+            }
+        };
         observe!(
             self.sink(),
             "getTextAdvanceX",

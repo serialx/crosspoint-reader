@@ -47,6 +47,7 @@ static int decode(std::vector<unsigned char> input, unsigned inputChunk, unsigne
   }
   if (expectBytes) {
     CHECK(produced == 70000);
+    CHECK(decoder.stream.adler == (checkCrc ? mz_adler32(1, output.data(), produced) : 1));
     for (size_t i = 0; i < produced; ++i) CHECK(output[i] == (i * i / 71 + i * 13) % 256);
     for (size_t i = produced; i < output.size(); ++i) CHECK(output[i] == 0xa5);
   }

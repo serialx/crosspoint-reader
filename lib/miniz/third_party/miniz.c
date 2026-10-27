@@ -438,8 +438,13 @@ mz_ulong mz_crc32(mz_ulong crc, const mz_uint8 *ptr, size_t buf_len)
 
     int mz_inflate(mz_streamp pStream, int flush)
     {
+        return mz_inflate_ex(pStream, flush, MZ_TRUE);
+    }
+
+    int mz_inflate_ex(mz_streamp pStream, int flush, int compute_adler32)
+    {
         inflate_state *pState;
-        mz_uint n, first_call, decomp_flags = TINFL_FLAG_COMPUTE_ADLER32;
+        mz_uint n, first_call, decomp_flags = compute_adler32 ? TINFL_FLAG_COMPUTE_ADLER32 : 0;
         size_t in_bytes, out_bytes, orig_avail_in;
         tinfl_status status;
 

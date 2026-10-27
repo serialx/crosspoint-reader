@@ -438,6 +438,10 @@ extern "C"
     /*   with more input data, or with more room in the output buffer (except when using single call decompression, described above). */
     MINIZ_EXPORT int mz_inflate(mz_streamp pStream, int flush);
 
+    /* Raw streams may skip Adler computation; keep this choice fixed for the stream. */
+    /* Zlib-wrapped streams always compute and verify Adler regardless of this option. */
+    MINIZ_EXPORT int mz_inflate_ex(mz_streamp pStream, int flush, int compute_adler32);
+
     /* Deinitializes a decompressor. */
     MINIZ_EXPORT int mz_inflateEnd(mz_streamp pStream);
 

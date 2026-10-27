@@ -52,7 +52,7 @@ int pngZlibInflate(PngZlibStream* decoder, int flush, int checkCrc) {
         if (!readBytes(decoder, 4)) goto needInput;
         return MZ_NEED_DICT;
       case Phase::Deflate: {
-        const int status = mz_inflate(&stream, flush);
+        const int status = mz_inflate_ex(&stream, flush, checkCrc != 0);
         if (status != MZ_STREAM_END) {
           // PNGdec delivers a full row only on OK/END; miniz can report BUF_ERROR
           // after producing bytes from its bit reservoir without fresh input.

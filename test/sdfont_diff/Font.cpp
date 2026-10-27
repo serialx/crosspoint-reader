@@ -122,7 +122,12 @@ void glyphs() {
               style.bitmapFileOffset = base;
               for (uint32_t fileSize : {0u, 64u, 65536u, 0xffffffffu}) {
                 font.fileSize_ = fileSize;
+#ifdef SD_FONT_CANDIDATE
+                value(xp_sdfont_glyph_valid(reinterpret_cast<const uint8_t*>(&glyph), sizeof(glyph), twoBit, base,
+                                            fileSize));
+#else
                 value(font.glyphEntryValid(style, glyph, 65));
+#endif
               }
             }
           }

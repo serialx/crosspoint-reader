@@ -136,3 +136,4 @@ add_subdirectory(glyph_diff)
 add_subdirectory(xtc_diff)
 
 add_subdirectory(inflate_small)
+add_subdirectory(sdfont_pool_diff)

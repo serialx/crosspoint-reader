@@ -18,6 +18,9 @@ foreach(variant IN ITEMS oracle candidate)
     ${REPO_ROOT}/test/sd_card_font/stubs ${REPO_ROOT}/lib/EpdFont
     ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/Memory)
   target_link_libraries(sdfont_${variant} PRIVATE xp_ffi_host)
+  if(variant STREQUAL candidate)
+    target_compile_definitions(sdfont_${variant} PRIVATE SD_FONT_CANDIDATE)
+  endif()
   add_executable(sdalloc_${variant} Allocation.cpp ${font_dir}/SdCardFont.cpp
     ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
   target_include_directories(sdalloc_${variant} PRIVATE ${font_dir}

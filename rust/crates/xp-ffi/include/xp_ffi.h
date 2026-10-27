@@ -1222,6 +1222,60 @@ typedef struct {
   uint32_t expectedOffset, previousLast;
   bool bmp16;
 } XpSdfontIntervals;
+// Synchronous, exclusive cache loans. Slots retain their addresses until unload.
+// Resident buffers use the paired PSRAM allocator; scratch uses ordinary arrays.
+// File callbacks are nested at most twice and may not reenter cache operations.
+// close(false) closes the file; close(true) also releases its HAL handle.
+typedef struct {
+  void* context;
+  bool (*open)(void*);
+  void (*close)(void*, bool release);
+  bool (*read)(void*, uint32_t offset, uint8_t* destination, size_t length, bool seek);
+  uint8_t* (*alloc)(size_t bytes, bool resident);
+  void (*free)(uint8_t*, bool resident);
+  uint32_t (*heap)(bool largest);
+  uint32_t (*clock)(void);
+  void (*corrupt)(void*, const void* glyph, uint32_t codepoint);
+} XpSdfontServices;
+typedef struct {
+  void* styles;
+  const uint8_t* slots;
+  void** advances;
+  uint32_t* advanceSizes;
+  uint32_t* advanceCapacities;
+  void* overflow;
+  uint32_t* overflowCount;
+  uint32_t* overflowNext;
+  void* stats;
+  uint32_t fileSize;
+  bool loaded;
+  const XpSdfontServices* services;
+} XpSdfontPool;
+typedef struct {
+  const char* const* segments;
+  const size_t* lengths;
+  size_t count;
+  const char* extra;
+  bool space;
+  bool hyphen;
+  bool smallCaps;
+} XpSdfontTexts;
+int32_t xp_sdfont_pool_prewarm(XpSdfontPool*, const char* (*getter)(const void*, uint32_t), const void*, uint32_t,
+                               uint8_t, bool metadata, bool kern, bool accumulate);
+int32_t xp_sdfont_pool_advances(XpSdfontPool*, const XpSdfontTexts*, uint8_t mask);
+bool xp_sdfont_pool_lookup(const XpSdfontPool*, uint32_t cp, uint8_t style, uint16_t* outAdvance);
+uint16_t xp_sdfont_pool_advance(const XpSdfontPool*, uint32_t cp, uint8_t style);
+uint8_t xp_sdfont_pool_resolve(const XpSdfontPool*, uint8_t style);
+uint8_t xp_sdfont_pool_mask(const XpSdfontPool*, uint8_t mask);
+bool xp_sdfont_pool_coverage(const XpSdfontPool*, uint32_t cp, uint8_t style);
+const void* xp_sdfont_pool_miss(XpSdfontPool*, uint32_t cp, uint8_t style);
+void xp_sdfont_pool_clear_advances(XpSdfontPool*);
+void xp_sdfont_pool_clear_overflow(XpSdfontPool*);
+void xp_sdfont_pool_clear_cache(XpSdfontPool*);
+void xp_sdfont_pool_free_mini(void* style, const XpSdfontServices*);
+void xp_sdfont_pool_free_ligatures(void* style, const XpSdfontServices*);
+// Host ABI test: field offsets and sizes of the stable native cache slots.
+size_t xp_sdfont_pool_layout(uint32_t field);
 bool xp_sdfont_header(const uint8_t*, size_t, XpSdfontDirectory*);
 bool xp_sdfont_style(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontStyle*);
 // out points to a writable EpdUnicodeInterval (three uint32 fields).

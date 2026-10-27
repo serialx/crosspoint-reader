@@ -21,12 +21,12 @@ void EpdFont::getTextDimensions(const char* text, int* w, int* h) const {
       [](void* ctx, uint32_t left, uint32_t right, uint8_t) -> uint32_t {
         return static_cast<EpdFont*>(ctx)->getLigature(left, right);
       },
-      nullptr,
-      nullptr,
-      nullptr,
+      [](void*) -> uint8_t { return false; },
+      [](void*, uint8_t) -> uint8_t { return 0; },
+      [](void*, uint32_t, uint8_t) -> uint16_t { return 0; },
       [](void* ctx, uint8_t) -> int32_t { return static_cast<EpdFont*>(ctx)->data->ascender; },
-      nullptr,
-      nullptr};
+      [](void* ctx) -> uint8_t { return static_cast<EpdFont*>(ctx)->data->advanceY; },
+      xp_bidi_transparent_mark};
   int32_t width, height;
   xp_textm_dimensions_utf8(&face, reinterpret_cast<const uint8_t*>(text), strlen(text), &width, &height);
   *w = width;

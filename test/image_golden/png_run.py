@@ -64,7 +64,9 @@ def main():
         else:
             expected = json.loads(gzip.decompress(args.output.read_bytes()))
             assert expected['inputs'] == document['inputs'], 'input inventory changed'
+            assert expected['cases'].keys() == actual.keys(), 'consumer inventory changed'
             exceptions = json.loads((ROOT / 'png-rejections.json').read_text())
+            assert exceptions.keys() <= actual.keys(), 'unknown exception key'
             bad = []
             for key, value in actual.items():
                 before = expected['cases'][key]

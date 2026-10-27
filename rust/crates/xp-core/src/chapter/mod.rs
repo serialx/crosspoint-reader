@@ -41,6 +41,7 @@ pub struct State {
     callbacks: *const Callbacks,
     pub assembly: assembly::Assembly<OwnedParagraph, Payload>,
     page_storage: core::cell::UnsafeCell<assembly::runtime::Storage>,
+    native_engine: Option<crate::textm::native::Engine>,
     ctx: *mut c_void,
     css: *const Store,
     alignment: u8,
@@ -133,6 +134,13 @@ impl State {
         core::ptr::addr_of_mut!((*out).page_storage).write(core::cell::UnsafeCell::new(
             assembly::runtime::Storage::default(),
         ));
+        let metrics = &*(*callbacks).metrics;
+        let mut provider = core::mem::MaybeUninit::uninit();
+        let engine = metrics.native.and_then(|fill| {
+            (fill(ctx, provider.as_mut_ptr()) != 0)
+                .then(|| crate::textm::native::Engine::new(provider.assume_init()))
+        });
+        core::ptr::addr_of_mut!((*out).native_engine).write(engine);
         core::ptr::addr_of_mut!((*out).ctx).write(ctx);
         core::ptr::addr_of_mut!((*out).css).write(css);
         core::ptr::addr_of_mut!((*out).alignment).write(alignment);

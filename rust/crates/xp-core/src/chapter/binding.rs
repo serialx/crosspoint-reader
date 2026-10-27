@@ -10,6 +10,7 @@ impl State {
             context: self.ctx,
             storage: self.page_storage.get(),
             link_index: None,
+            engine: self.native_engine.as_ref().map_or(core::ptr::null(), |e| e),
         }
     }
     #[inline(never)]

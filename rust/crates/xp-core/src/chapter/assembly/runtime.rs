@@ -71,22 +71,15 @@ pub struct PageSink {
     pub(in crate::chapter) context: *mut c_void,
     pub(in crate::chapter) storage: *mut Storage,
     pub(in crate::chapter) link_index: Option<usize>,
+    pub(in crate::chapter) engine: *const crate::textm::native::Engine,
 }
 impl PageSink {
     pub fn api(&self) -> &Callbacks {
         unsafe { &*self.callbacks }
     }
-    pub(in crate::chapter) fn native_engine(&self) -> Option<crate::textm::native::Engine> {
-        let metrics = unsafe { &*self.api().metrics };
-        let fill = metrics.native?;
-        let mut provider = core::mem::MaybeUninit::uninit();
-        unsafe {
-            if fill(self.context, provider.as_mut_ptr()) == 0 {
-                None
-            } else {
-                Some(crate::textm::native::Engine::new(provider.assume_init()))
-            }
-        }
+    pub(in crate::chapter) fn native_engine(&self) -> Option<&crate::textm::native::Engine> {
+        // The stable chapter owner outlives every synchronous sink operation.
+        unsafe { self.engine.as_ref() }
     }
     fn payload(&self, index: usize) -> Payload {
         Payload {

@@ -1222,6 +1222,51 @@ uint8_t xp_sdfont_kern_class(const uint8_t*, size_t, uint8_t count, uint32_t* cp
 bool xp_sdfont_ligature(const uint8_t*, size_t, uint32_t* left, uint32_t* right, uint32_t* out);
 bool xp_sdfont_filename(const uint8_t*, size_t, uint8_t* size);
 
+// XTC byte parsing. No allocation, I/O, retained pointers, or UTF-8 normalization.
+// Input: len readable bytes in one allocation, len <= PTRDIFF_MAX; NULL only at
+// zero length. Output objects are writable and disjoint from inputs and each
+// other; natural alignment is required except for the packed header.
+// Status matches XtcError: 0 OK, 2 magic, 3 version, 4 corrupt, 6 short/invalid
+// input. Outputs remain unchanged on error. Flags/dimensions retain legacy rules.
+#pragma pack(push, 1)
+typedef struct {
+  uint32_t magic;
+  uint8_t versionMajor, versionMinor;
+  uint16_t pageCount;
+  uint8_t readDirection, hasMetadata, hasThumbnails, hasChapters;
+  uint32_t currentPage;
+  uint64_t metadataOffset, pageTableOffset, dataOffset, thumbOffset;
+  uint32_t chapterOffset, padding;
+} XpXtcHeader;
+#pragma pack(pop)
+typedef struct {
+  uint64_t offset;
+  uint32_t size;
+  uint16_t width, height;
+} XpXtcEntry;
+#ifdef __cplusplus
+enum class XpXtcChapterAction : uint16_t { Skip, Emit, Stop };
+#else
+typedef uint16_t XpXtcChapterAction;
+#endif
+typedef struct {
+  uint16_t name_len, start, end;
+  XpXtcChapterAction action;
+} XpXtcChapter;
+int32_t xp_xtc_header(const uint8_t* data, size_t len, XpXtcHeader* out);
+uint8_t xp_xtc_bit_depth(const uint8_t* data, size_t len);  // 0 invalid, 1 XTC, 2 XTCH.
+bool xp_xtc_table_valid(const XpXtcHeader* header, uint64_t file_size);
+bool xp_xtc_has_chapters(const XpXtcHeader* header);
+bool xp_xtc_chapter_flag(uint8_t flag);
+int32_t xp_xtc_entry(const uint8_t* data, size_t len, XpXtcEntry* out);
+uint32_t xp_xtc_bitmap_size(uint16_t width, uint16_t height, uint8_t depth);
+int32_t xp_xtc_page(const uint8_t* data, size_t len, uint8_t depth, bool streaming, uint32_t* size);
+uint32_t xp_xtc_metadata_offset(bool author);
+size_t xp_xtc_text_len(const uint8_t* data, size_t len);
+void xp_xtc_chapter_span(const XpXtcHeader* header, const uint8_t* data, size_t len, uint64_t file_size,
+                         uint64_t* offset, uint64_t* count);
+int32_t xp_xtc_chapter(const uint8_t* data, size_t len, uint16_t page_count, XpXtcChapter* out);
+
 #ifdef __cplusplus
 }
 #endif

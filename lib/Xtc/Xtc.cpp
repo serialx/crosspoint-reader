@@ -161,12 +161,7 @@ bool Xtc::generateCoverBmp() const {
   // Allocate buffer for page data
   // XTG (1-bit): Row-major, ((width+7)/8) * height bytes
   // XTH (2-bit): Two column-major bit planes; each column occupies ceil(height/8) bytes
-  size_t bitmapSize;
-  if (bitDepth == 2) {
-    bitmapSize = static_cast<size_t>(pageInfo.width) * ((static_cast<size_t>(pageInfo.height) + 7) / 8) * 2;
-  } else {
-    bitmapSize = ((pageInfo.width + 7) / 8) * pageInfo.height;
-  }
+  const size_t bitmapSize = xp_xtc_bitmap_size(pageInfo.width, pageInfo.height, bitDepth);
   const uint32_t rowSize2 = ((static_cast<uint32_t>(pageInfo.width) * 2 + 31) / 32) * 4;
   const size_t rowBufferSize = (bitDepth == 2) ? rowSize2 : 0;
   auto coverScratch = makeUniqueNoThrow<uint8_t[]>(bitmapSize + rowBufferSize);
@@ -345,12 +340,7 @@ bool Xtc::generateThumbBmp(int height) const {
           thumbHeight, scale);
 
   // Allocate buffer for page data
-  size_t bitmapSize;
-  if (bitDepth == 2) {
-    bitmapSize = static_cast<size_t>(pageInfo.width) * ((static_cast<size_t>(pageInfo.height) + 7) / 8) * 2;
-  } else {
-    bitmapSize = ((pageInfo.width + 7) / 8) * pageInfo.height;
-  }
+  const size_t bitmapSize = xp_xtc_bitmap_size(pageInfo.width, pageInfo.height, bitDepth);
   const uint32_t rowSize = (thumbWidth + 31) / 32 * 4;
   auto thumbScratch = makeUniqueNoThrow<uint8_t[]>(bitmapSize + rowSize);
   if (!thumbScratch) {

@@ -15,6 +15,7 @@ pub mod text;
 pub mod textm;
 pub mod utf8;
 pub mod xml;
+pub mod xtc;
 pub mod zip;
 
 /// FNV-1a 64, matching ZipFile::fnvHash64 over raw bytes.

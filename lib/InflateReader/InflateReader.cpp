@@ -16,6 +16,9 @@ bool InflateReader::init(bool streaming) {
     ownsRing = true;
     memset(ringBuffer, 0, RING_BYTES);
   }
+  // Changing the facade layout requires deliberate heap remeasurement.
+  static_assert(sizeof(InflateReader) == (sizeof(void*) == 4 ? 1292 : 1328));
+  static_assert(alignof(InflateReader) == (sizeof(void*) == 4 ? 4 : 8));
   ready = xp_inflate_small_state_size() <= sizeof(state) && xp_inflate_small_state_align() <= alignof(InflateReader) &&
           xp_inflate_small_init(state, sizeof(state), 0) == 0;
   if (!ready) deinit();

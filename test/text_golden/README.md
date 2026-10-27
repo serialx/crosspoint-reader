@@ -4,8 +4,9 @@ This freezes the C++ text behavior at `c9330408c0ff5fd22a95d0dbb635b1ff5ffa5dca`
 with SDK `37d272d42732c31065ebed4d9cb90cef7bfa7416`. It compiles the production
 `GfxRenderer`, `EpdFont`, `EpdFontFamily`, `SdCardFont`, `FontDecompressor`,
 `FontCacheManager`, `TtfEpdFont`, MiniBidi and UTF-8 code. The SDK's vendored
-FreeType, GSUB and GPOS code are included. The Rust archive supplies the existing
-UTF-8 helpers. No measurement function is stubbed.
+FreeType, GSUB and GPOS code are included. At capture, the Rust archive supplied
+UTF-8 helpers; current checks also use its text measurement, glyph walking and
+rasterization. No measurement function is stubbed.
 
 ## Run
 
@@ -141,15 +142,17 @@ provenance; generated `.cpfont` hashes are in the archive.
   new glyph emission point, preserving this schema and the frozen archive.
 
 `instrument.py` creates copies in the build directory. It inserts an observer
-at entry to `renderCharImpl` and `renderCharScaled`, and exposes the private font
-resolver in the copied header. It checks anchor counts and otherwise keeps the
-production source intact. It never edits the production files. The observer
-records values only; font lookup, shaping, kerning, glyph walking, decompression
-and pixel writes still execute the production code.
+through the host-only `xp_native_draw_pixels_traced` entry point, recording Rust
+glyph placements before rasterization with the original record schema. A separate
+observer at `drawScaledCodepoint` entry records direct drop-cap calls. The script
+also exposes the private font resolver in the copied header and checks anchor
+counts. It never edits production files. Observers record values only; font
+lookup, shaping, kerning, glyph walking, decompression and pixel writes still
+execute production code. Keep the frozen archives unchanged.
 
 ## Additional drawing paths
 
-[DRAWING.md](DRAWING.md) inventories the production glyph walks and documents the
+[DRAWING.md](DRAWING.md) inventories the pre-port glyph walks and documents the
 `TextDrawGolden` check. It adds rotated text, direct scaled codepoints, white
 text, four orientations, edge/UI/strip clipping, absolute gray planes and
 per-word offsets from public EPUB excerpts. Its separate format-1 `draw.json.gz`

@@ -5,6 +5,13 @@ portable `no_std` code and host tests. `rust/crates/xp-ffi` owns the C ABI,
 ESP-IDF allocator, and panic handler. Its public header is
 `rust/crates/xp-ffi/include/xp_ffi.h`.
 
+Rust owns the EPUB parsers and layout, page records and build/load codecs,
+image row processing, text measurement, glyph rasterization and bitmap views,
+SD font parsing, XTC parsing, and the shared ZIP/PNG/ContentProtection inflater.
+C++ retains file I/O, font caches and decompression with uzlib, image decoders,
+page/TextBlock render orchestration, and the UI. See the
+[chapter pipeline](chapter-pipeline.md) for page ownership and lifetime.
+
 Install rustup, then install the pinned C3 toolchain:
 
 ```sh
@@ -48,6 +55,8 @@ cargo test -p xp-core
 
 The release profile uses `opt-level = "s"` to balance code size and chapter-build
 speed, with fat LTO, one codegen unit, and abort-on-panic behavior.
+The decoder-only `miniz_oxide` package overrides this with `opt-level = 3`
+in [`rust/Cargo.toml`](../../rust/Cargo.toml); the rest keeps `"s"`.
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
 
@@ -167,7 +176,12 @@ wire-byte checks, and allocation-failure coverage. The cache version remains 19.
 
 `ZipFile` keeps HalFile I/O, cached slim stats, sequential lookup position, and
 last-lookup caching. `xp-core::zip` parses the directory without allocation.
-The C inflater and content-protection route are unchanged.
+ZIP entries use `InflateStream`, backed by `xp-core::inflate`. PNGdec and SDK
+ContentProtection reach the same Rust inflater through the `mz_*` compatibility
+adapter in `lib/miniz`. Its compact vendored
+[miniz_oxide subset](../../rust/crates/xp-core/src/inflate/miniz/README.md)
+owns no buffers; callers supply decoder storage and the output window. uzlib
+remains behind `InflateReader` for font decompression and DictZip.
 
 The caller initializes a 16-byte `XpZipWalker` with the central-directory and
 starting offsets. `xp_zip_request` returns a 46-byte absolute header read;
@@ -271,8 +285,8 @@ uses 16-entry chunks (512 bytes each on C3), with a small fallible pointer table
 consuming a prefix releases whole chunks, and consuming all text releases the table.
 Long annotation/target text has separate fallible byte storage; short text stays
 inline. Rust executes measurement and bidi; C++ retains font/storage ownership,
-the shared bidi workspace and mutex, and TextBlock construction. The ABI adds
-no rendering/storage service, task or synchronization.
+the shared bidi workspace and mutex, and standalone TextBlock construction.
+The ABI adds no rendering/storage service, task or synchronization.
 
 ## Paragraph layout
 
@@ -461,7 +475,8 @@ A line borrows packed NUL-separated text, word offsets and numeric arrays until
 the sink returns. One fallible allocation holds the line metadata, ruby spans,
 order indices and text; it is released immediately after the sink returns. The
 standalone C++ paragraph adapter uses `TextBlock::BorrowedLayout` to copy these
-values into an owned TextBlock arena for preview and plain dictionary rendering.
+values into an owned TextBlock arena for the settings preview. Plain dictionary
+rendering constructs owned TextBlocks directly from word and position vectors.
 Chapter assembly writes Rust-owned encoded page records instead; loaded pages
 lend immutable TextBlock views from their arena. Production TextBlock objects no
 longer serialize cache bytes. See [chapter-pipeline.md](chapter-pipeline.md) for
@@ -540,28 +555,49 @@ records are not counts of production cross-language calls.
 
 ## Native glyph drawing
 
-`xp_native_draw` emits one placement per glyph from `textm::draw::walk`, using
+`xp_native_draw_pixels` consumes placements from `textm::draw::walk`, using
 the same ligature, scaling, fixed-point and font-table rules as measurement.
 Horizontal drawing shapes bidi text; rotated drawing preserves its existing
-unshaped, unscaled behavior. Drop caps use `xp_native_draw_scaled` for their
-returned advance and keep their separate bilinear bitmap scaler in C++.
-TextBlock still owns word offsets, focus splits, ruby and vertical SUP/SUB shifts.
+unshaped, unscaled behavior. `xp-core::glyph` resolves borrowed bitmap views and
+paints pixels, including clipping, orientation, gray planes and coverage scaling.
+Drop caps use `xp_native_draw_scaled_pixels` for their advance and bilinear
+scaling. C++ Page/TextBlock rendering still controls word offsets, focus splits,
+ruby and vertical SUP/SUB shifts; loaded text data belongs to the page arena.
 
 C++ resolves the requested/fallback font, baseline and cache scan/prewarm work.
-The drawing callback lends the selected `EpdFont::data` pointer slot for one
-synchronous run. Rust rereads that slot for each operation; it does not copy
-family descriptors or retain table references across a loader or bitmap callback.
-The EpdFont owner must remain live and serialized; callbacks may evict or rebuild
-its tables but cannot unregister the font or reenter bidi. Resident glyph metadata
-is lent to C++ only for its immediate bitmap emission. Missing glyph handlers
-return copied metrics; C++ retains bitmap lookup, decompression, clipping and pixels.
+It lends the selected `EpdFont::data` pointer slot, bitmap-source view and exclusive
+framebuffer or strip target for one synchronous run. Rust resolves resident
+built-in/SD and decompressed page-buffer bitmap hits directly. Misses call C++
+for loading, SD overflow, hot-group decompression or TTF bitmaps, then refresh
+the view.
+Generation changes invalidate borrowed sources; no table or bitmap loan survives
+a callback that can mutate its owner. The EpdFont owner stays live and serialized;
+callbacks cannot unregister it, reenter drawing or change the target geometry.
 
 There is no glyph-run allocation or new permanent buffer. Each placement is
-consumed before the next query. `NativeCache` includes a drawing test that frees
+painted before the next query. The
+[glyph differential](../../test/glyph_diff/README.md) documents bitmap-view and
+target contracts. `NativeCache` includes a drawing test that frees
 the consumed glyph array and replaces the data slot inside emission, then checks
 subsequent placements and pointers. The original public/private text and drawing
 archives cover rendering; run `test/text_golden/mutation_check.py` with a dedicated
 CMake build directory to verify independent rejection of pixel and advance changes.
+
+## SD font and XTC parsers
+
+`xp-core::sdfont` parses `.cpfont` headers, style directories and intervals,
+validates glyph extents, decodes kerning/ligature fields, and parses filename
+sizes. C++ retains HalFile reads, resident storage, sharing, prewarm and cache
+policy, bitmap I/O and font discovery. See the `xp_sdfont_*` contract in
+[`xp_ffi.h`](../../rust/crates/xp-ffi/include/xp_ffi.h) and the
+[SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
+
+`xp-core::xtc` interprets XTC/XTCH headers, page tables, metadata and chapter
+records, and XTG/XTH page headers. C++ retains HalFile I/O, buffers, owned strings,
+lazy chapter storage, streaming callbacks and bitmap rendering. Both parsers
+borrow input bytes for one call and allocate no storage. Their compatibility
+rules preserve existing permissive cases; the
+[XTC differential](../../test/xtc_diff/README.md) describes those cases and checks.
 
 ## Image pixel pipeline
 

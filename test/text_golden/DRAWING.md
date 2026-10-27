@@ -2,10 +2,12 @@
 
 This inventory refers to firmware `e75c7dda` and SDK `37d272d4`. All file paths
 below are relative to the repository root. `draw.json.gz` adds a format-1 `draw/`
-record family beside the unchanged T0 `golden.json.gz`. Run both checks after a
-port; neither archive should be recaptured to accept a changed drawing result.
+record family beside the unchanged T0 `golden.json.gz`. The function names and
+line numbers in the inventory describe that revision, not the current renderer.
+Run both checks after a port; neither archive should be recaptured to accept a
+changed drawing result.
 
-## Production inventory
+## Production inventory at capture
 
 | Function and source | Production callers | Parameters and behavior to preserve |
 | --- | --- | --- |
@@ -109,9 +111,11 @@ Absolute mode is activated after the BW pass, as in the reader; the harness
 checks that the renderer actually enters the requested encoding for each plane.
 
 The pixel hashes retain T0's FNV-1a 64-bit algorithm; ordered full records are
-hashed with SHA-256. Unscaled/scaled helper observers are unchanged. A new
-observer at `drawScaledCodepoint` entry records direct calls, including missing
-or zero-scale attempts. All rasterization still uses production code. For strips,
+hashed with SHA-256. The current host instrumenter observes Rust placements
+through `xp_native_draw_pixels_traced`, preserving the original helper-entry
+record schema. The observer at `drawScaledCodepoint` entry records direct calls,
+including missing or zero-scale attempts. See [README.md](README.md) for the
+instrumentation boundary. All rasterization still uses production code. For strips,
 16 bytes of 0xa5 surround the scratch allocation, and the framebuffer is filled
 with 0x5a so accidental writes to the inactive target affect the recorded hash.
 

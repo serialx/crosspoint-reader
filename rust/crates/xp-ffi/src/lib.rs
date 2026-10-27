@@ -13,6 +13,7 @@ mod section;
 mod text;
 mod textm;
 mod xml;
+mod xtc;
 mod zip;
 
 use core::alloc::{GlobalAlloc, Layout};

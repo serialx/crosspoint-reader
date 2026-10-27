@@ -123,3 +123,4 @@ add_subdirectory(expat_compat)
 set_tests_properties(clipping_selection_text recursive_dictionary PROPERTIES
   ENVIRONMENT "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}")
 add_subdirectory(text_golden)
+add_subdirectory(png_zlib)

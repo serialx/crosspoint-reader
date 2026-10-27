@@ -250,8 +250,6 @@ void GfxRenderer::FrameBufferLoan::end() {
   }
 }
 
-bool GfxRenderer::isFontCacheScanning() const { return fontCacheManager_ && fontCacheManager_->isScanning(); }
-
 void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) {
   ++fontTableGeneration;
   auto result = fontMap.insert({fontId, font});

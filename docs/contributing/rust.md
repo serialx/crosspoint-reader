@@ -9,7 +9,7 @@ Rust owns the EPUB parsers and layout, page records, build/load codecs, page
 rendering, image row processing, text measurement, glyph rasterization and bitmap views,
 SD font parsing, XTC parsing, and the shared ZIP/PNG/ContentProtection inflater.
 C++ retains file I/O, font caches and decompression with uzlib, image decoders,
-standalone TextBlock rendering, and the UI. See the
+and the UI. See the
 [chapter pipeline](chapter-pipeline.md) for page ownership and lifetime.
 
 Install rustup, then install the pinned C3 toolchain:
@@ -284,8 +284,8 @@ source accounting, ruby text, link targets and size-slot font tables. Ruby metad
 uses 16-entry chunks (512 bytes each on C3), with a small fallible pointer table;
 consuming a prefix releases whole chunks, and consuming all text releases the table.
 Long annotation/target text has separate fallible byte storage; short text stays
-inline. Rust executes measurement and bidi; C++ retains font/storage ownership,
-the shared bidi workspace and mutex, and standalone TextBlock construction.
+inline. Rust executes measurement and bidi; C++ retains font/storage ownership
+and the shared bidi workspace and mutex. TextBlock is a borrowed page view in firmware.
 The ABI adds no rendering/storage service, task or synchronization.
 
 ## Paragraph layout
@@ -309,9 +309,8 @@ words and B packed bytes on C3, it uses `align4(W * (focus ? 14 : 11)) + 12*W + 
 bytes. The bounds are 10,000 words and 65,535 sanitized bytes, including NULs;
 these are validation limits, not a guarantee that the device can allocate that
 much memory. Rust bidi receives borrowed text and writes order indices. The
-standalone C++ paragraph adapter copies each completed line into a checked
-TextBlock arena and retains optional links in checked C++ storage. Chapter
-assembly instead encodes the line and retains its links in Rust chapter storage
+settings preview passes each completed line to the Rust page-byte builder. Chapter
+assembly encodes the line and retains its links in Rust chapter storage
 before scratch is released. Both sinks propagate destination allocation failure;
 see [chapter ownership](chapter-pipeline.md).
 
@@ -474,12 +473,12 @@ builder rejects incomplete output.
 A line borrows packed NUL-separated text, word offsets and numeric arrays until
 the sink returns. One fallible allocation holds the line metadata, ruby spans,
 order indices and text; it is released immediately after the sink returns. The
-standalone C++ paragraph adapter uses `TextBlock::BorrowedLayout` to copy these
-values into an owned TextBlock arena for the settings preview. Plain dictionary
-rendering constructs owned TextBlocks directly from word and position vectors.
-Chapter assembly writes Rust-owned encoded page records instead; loaded pages
-lend immutable TextBlock views from their arena. Production TextBlock objects no
-longer serialize cache bytes. See [chapter-pipeline.md](chapter-pipeline.md) for
+settings preview copies these values through the Rust page-byte builder. Plain
+dictionary selection uses the same builder with its existing word and position
+vectors. Both load the finished bytes through `Page::fromBytes`; chapter assembly
+also writes Rust-built page records. Loaded pages lend immutable TextBlock views
+from their arena. Owning TextBlocks remain only in host codec/layout fixtures.
+See [chapter-pipeline.md](chapter-pipeline.md) for
 those ownership and cache boundaries. Rust computes direction and visual word
 order using the existing C++-owned shared workspace and mutex. Host callback adapters retain the
 borrowed-span contract without reconstructing temporary word-string vectors.
@@ -599,12 +598,12 @@ the batches and retains cache ownership. The synchronous render borrows existing
 font and framebuffer storage; it adds no Rust heap allocation. Bitmap misses
 still use the C++ owners described above.
 
-`TextBlock::render` remains for the settings preview and plain dictionary pages:
-these callers own standalone TextBlocks or PageLines rather than a page arena.
-Changes to text rendering must keep this path consistent with Rust page rendering.
-Use the [page oracle](../../test/page_golden/README.md) for page records and pixels,
-and check settings preview and plain dictionary selection when changing the
-standalone path.
+Settings preview and dictionary selection pages use this same renderer. Clip
+selection reads positions and source ranges through borrowed page views.
+`TextBlock::render` and `PageLine::render` no longer exist. Use the
+[page oracle](../../test/page_golden/README.md) for page records and pixels and the
+[preview and selection oracle](../../test/line_render_golden/README.md) for those
+consumers' pixels and selection geometry.
 
 ## SD font and XTC parsers
 

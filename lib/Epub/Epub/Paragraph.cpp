@@ -143,10 +143,10 @@ void Paragraph::setBlockStyle(const BlockStyle& style) {
   const auto wire = paraBlock(style);
   xp_para_set_style(handle(), &wire);
 }
-void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uint16_t viewportWidth,
-                                      const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
-                                      bool includeLastLine, int8_t characterSpacing, uint8_t wordSpacingPercent,
-                                      size_t maxLines, const bool* stopRequested) {
+void Paragraph::layoutLines(const GfxRenderer& source, int fontId, uint16_t viewportWidth, void* context,
+                            uint8_t (*processLine)(void*, const XpParaLine*), bool includeLastLine,
+                            int8_t characterSpacing, uint8_t wordSpacingPercent, size_t maxLines,
+                            const bool* stopRequested) {
   XpParaMetrics metrics{const_cast<GfxRenderer*>(&source),
                         nullptr,
 #ifdef XP_NATIVE_TEXT_MEASUREMENT
@@ -185,16 +185,26 @@ void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uin
                         nullptr,
 #endif
                         nullptr};
-  XpParaLayout options{
-      fontId,
-      viewportWidth,
-      static_cast<uint8_t>(includeLastLine),
-      characterSpacing,
-      wordSpacingPercent,
-      static_cast<uint32_t>(std::min<size_t>(maxLines, UINT32_MAX)),
-      Hyphenator::preferredLanguageId(),
-      reinterpret_cast<const uint8_t*>(stopRequested),
-      const_cast<void*>(static_cast<const void*>(&processLine)),
+  XpParaLayout options{fontId,
+                       viewportWidth,
+                       static_cast<uint8_t>(includeLastLine),
+                       characterSpacing,
+                       wordSpacingPercent,
+                       static_cast<uint32_t>(std::min<size_t>(maxLines, UINT32_MAX)),
+                       Hyphenator::preferredLanguageId(),
+                       reinterpret_cast<const uint8_t*>(stopRequested),
+                       context,
+                       processLine};
+  xp_para_layout(handle(), &metrics, &options);
+}
+
+#ifdef XP_PAGE_CODEC_TEST
+void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uint16_t viewportWidth,
+                                      const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
+                                      bool includeLastLine, int8_t characterSpacing, uint8_t wordSpacingPercent,
+                                      size_t maxLines, const bool* stopRequested) {
+  layoutLines(
+      source, fontId, viewportWidth, const_cast<void*>(static_cast<const void*>(&processLine)),
       [](void* raw, const XpParaLine* line) -> uint8_t {
         const auto& process = *static_cast<const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>*>(raw);
         std::vector<std::string> ruby;
@@ -226,6 +236,8 @@ void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uin
         }
         process(std::move(block), line->visible_offset);
         return true;
-      }};
-  xp_para_layout(handle(), &metrics, &options);
+      },
+      includeLastLine, characterSpacing, wordSpacingPercent, maxLines, stopRequested);
 }
+
+#endif

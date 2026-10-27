@@ -15,6 +15,14 @@ const HEADER: usize = 32;
 const ELEMENT: usize = 16;
 const MAGIC: u32 = 0x31504758;
 
+/// Decoded arena bound for a line-only page without ruby annotations.
+/// Counts/bytes may be upper bounds; overflow returns usize::MAX.
+pub fn plain_line_arena_capacity(encoded_bytes: usize, lines: usize) -> usize {
+    HEADER
+        .saturating_add(lines.saturating_mul(ELEMENT))
+        .saturating_add(encoded_bytes)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     Invalid,

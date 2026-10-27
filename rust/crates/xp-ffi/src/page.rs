@@ -11,6 +11,23 @@ use xp_core::{
     section::{Kind, Record},
 };
 
+#[unsafe(no_mangle)]
+pub extern "C" fn xp_page_line_capacity(
+    lines: usize,
+    words: usize,
+    text_bytes: usize,
+    focus: u8,
+    fonts: u8,
+    ruby_bytes: usize,
+) -> usize {
+    page::builder::line_capacity(lines, words, text_bytes, focus != 0, fonts != 0, ruby_bytes)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn xp_page_plain_line_arena_capacity(encoded_bytes: usize, lines: usize) -> usize {
+    page::plain_line_arena_capacity(encoded_bytes, lines)
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Span {
@@ -474,7 +491,7 @@ pub unsafe extern "C" fn xp_page_builder_line(
             b.character_spacing as u32,
             b.font_id as u32,
         ]);
-        let ruby = RubySpans(input(l.ruby, n)?);
+        let ruby = RubySpans(input(l.ruby, if l.ruby.is_null() { 0 } else { n })?);
         for span in ruby.0 {
             input(span.data, span.len as usize)?;
         }

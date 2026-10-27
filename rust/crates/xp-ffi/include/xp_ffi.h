@@ -1295,6 +1295,13 @@ typedef struct {
 typedef struct {
   uintptr_t words[8];
 } XpPageBuilder;
+// Line-only page capacity, with no footnotes/links. text_bytes includes word NULs;
+// ruby_bytes excludes length prefixes. Nonzero focus/fonts allows that metadata
+// on every line. Counts may be upper bounds. Both sizing calls return SIZE_MAX on overflow.
+size_t xp_page_line_capacity(size_t lines, size_t words, size_t text_bytes, uint8_t focus, uint8_t fonts,
+                             size_t ruby_bytes);
+// Decoded arena bound for line-only pages without ruby annotations.
+size_t xp_page_plain_line_arena_capacity(size_t encoded_bytes, size_t lines);
 // Parses one page prefix, matching Page::deserialize; consumed identifies its end.
 // Decode reports required arena_size even on short output and leaves it untouched.
 // Probe performs bounded reads for sizing only; decode validates the final bytes.
@@ -1328,6 +1335,7 @@ uint32_t xp_page_image_bounds(const uint8_t*, size_t, int16_t bounds[4], uint8_t
 uint32_t xp_page_builder_init(XpPageBuilder*, uint8_t*, size_t);
 // XpParaLine arrays remain borrowed for this call. Its layout-only link spans
 // remain with the assembly owner, which resolves them to page link rectangles.
+// A null line->ruby denotes no annotations; otherwise it has line->count spans.
 uint32_t xp_page_builder_line(XpPageBuilder*, int16_t x, int16_t y, const XpParaLine*);
 // record kind IMAGE_SIZE/RULE/DROP_CAP/BORDER; x/y override position fields.
 uint32_t xp_page_builder_element(XpPageBuilder*, int16_t x, int16_t y, const XpSecRecord*, XpPageSpan, XpPageSpan);

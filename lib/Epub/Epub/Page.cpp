@@ -8,100 +8,10 @@
 #include "SectionCodec.h"
 
 #ifdef XP_PAGE_CODEC_TEST
-namespace {
-
-// Draws one border edge as a strip along a box side.
-void drawBorderEdge(const GfxRenderer& renderer, const int x, const int y, const int length, const CssBorderSide& side,
-                    const bool horizontal) {
-  const int thickness = side.width;
-  const auto strip = [&](const int offset, const int along, const int span, const int depth) {
-    if (horizontal) {
-      renderer.fillRect(x + along, y + offset, span, depth, true);
-    } else {
-      renderer.fillRect(x + offset, y + along, depth, span, true);
-    }
-  };
-  switch (side.style) {
-    case CssBorderStyle::Double:
-      if (thickness >= 3) {
-        const int line = std::max(1, thickness / 3);
-        strip(0, 0, length, line);
-        strip(thickness - line, 0, length, line);
-        return;
-      }
-      break;
-    case CssBorderStyle::Dotted:
-    case CssBorderStyle::Dashed: {
-      const int dash = side.style == CssBorderStyle::Dotted ? thickness : std::max(3, thickness * 3);
-      const int gap = side.style == CssBorderStyle::Dotted ? std::max(2, thickness) : std::max(2, thickness * 2);
-      for (int along = 0; along < length; along += dash + gap)
-        strip(0, along, std::min(dash, length - along), thickness);
-      return;
-    }
-    default:
-      break;
-  }
-  strip(0, 0, length, thickness);
-}
-
-}  // namespace
-
-#endif
-
-void PageLine::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
-  block->render(renderer, fontId, xPos + xOffset, yPos + yOffset);
-}
-
-#ifdef XP_PAGE_CODEC_TEST
-void PageImage::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
-  // Images don't use fontId or text rendering
-  imageBlock->render(renderer, xPos + xOffset, yPos + yOffset);
-}
-
-void PageImage::renderPlaceholder(GfxRenderer& renderer, const int xOffset, const int yOffset) const {
-  imageBlock->renderPlaceholder(renderer, xPos + xOffset, yPos + yOffset);
-}
-
-void PageHorizontalRule::render(GfxRenderer& renderer, const int fontId, const int xOffset, const int yOffset) {
-  (void)fontId;
-  if (width == 0 || thickness == 0) {
-    return;
-  }
-
-  renderer.drawLine(xPos + xOffset, yPos + yOffset, xPos + xOffset + width - 1, yPos + yOffset, thickness, true);
-}
-
 PageDropCap::PageDropCap(const int32_t fontId, const uint16_t scale256, const EpdFontFamily::Style style,
                          const char* utf8, const int16_t xPos, const int16_t yPos)
     : PageElement(xPos, yPos), fontId(fontId), scale256(scale256), style(style) {
   strncpy(text, utf8, MAX_TEXT_BYTES);
-}
-
-void PageDropCap::render(GfxRenderer& renderer, const int sectionFontId, const int xOffset, const int yOffset) {
-  // A sized variant that can no longer be loaded draws from the section font instead.
-  const int drawFontId = renderer.ensureFontLoaded(fontId) ? fontId : sectionFontId;
-  int x = xPos + xOffset;
-  const auto* cursor = reinterpret_cast<const unsigned char*>(text);
-  while (const uint32_t cp = utf8NextCodepoint(&cursor)) {
-    x += renderer.drawScaledCodepoint(drawFontId, cp, style, x, yPos + yOffset, scale256);
-  }
-}
-
-void PageBorderBox::renderBackground(GfxRenderer& renderer, const int xOffset, const int yOffset) const {
-  if (shaded) renderer.fillRectDither(xPos + xOffset, yPos + yOffset, width, height, Color::LightGray);
-}
-
-void PageBorderBox::render(GfxRenderer& renderer, const int, const int xOffset, const int yOffset) {
-  const int x = xPos + xOffset;
-  const int y = yPos + yOffset;
-  const CssBorderSide& top = sides[0];
-  const CssBorderSide& right = sides[1];
-  const CssBorderSide& bottom = sides[2];
-  const CssBorderSide& left = sides[3];
-  if (top.visible()) drawBorderEdge(renderer, x, y, width, top, true);
-  if (bottom.visible()) drawBorderEdge(renderer, x, y + height - bottom.width, width, bottom, true);
-  if (left.visible()) drawBorderEdge(renderer, x, y, height, left, false);
-  if (right.visible()) drawBorderEdge(renderer, x + width - right.width, y, height, right, false);
 }
 
 #endif
@@ -124,31 +34,33 @@ void Page::renderArena(GfxRenderer& renderer, const int fontId, const int x, con
 }
 
 void Page::render(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  if (arena) {
-    renderArena(renderer, fontId, x, y, PageRenderMode::All);
-    return;
-  }
-  // Plain dictionary pages own PageLine objects; cached and rich pages use the arena.
-  for (const auto& element : elements) element->render(renderer, fontId, x, y);
+  renderArena(renderer, fontId, x, y, PageRenderMode::All);
 }
 
 void Page::renderImages(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  if (arena) renderArena(renderer, fontId, x, y, PageRenderMode::Images);
+  renderArena(renderer, fontId, x, y, PageRenderMode::Images);
 }
 
 void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, const int x, const int y) const {
-  if (arena)
-    renderArena(renderer, fontId, x, y, PageRenderMode::Placeholders);
-  else
-    render(renderer, fontId, x, y);
+  renderArena(renderer, fontId, x, y, PageRenderMode::Placeholders);
+}
+
+size_t Page::allocationSize(const size_t arenaBytes, const size_t elements) {
+  const size_t alignment = alignof(ElementData);
+  if (arenaBytes > SIZE_MAX - sizeof(Page) - alignment + 1) return SIZE_MAX;
+  const size_t viewOffset = (sizeof(Page) + arenaBytes + alignment - 1) & ~(alignment - 1);
+  if (elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return SIZE_MAX;
+  return viewOffset + elements * sizeof(ElementData);
+}
+
+size_t Page::plainLineAllocationSize(const size_t encodedBytes, const size_t lines) {
+  return allocationSize(xp_page_plain_line_arena_capacity(encodedBytes, lines), lines);
 }
 
 std::unique_ptr<Page> Page::allocate(const XpPageInfo& info) {
-  const size_t alignment = alignof(ElementData);
-  if (info.arena_size > SIZE_MAX - sizeof(Page) - alignment + 1) return nullptr;
-  const size_t viewOffset = (sizeof(Page) + info.arena_size + alignment - 1) & ~(alignment - 1);
-  if (info.elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return nullptr;
-  const size_t bytes = viewOffset + info.elements * sizeof(ElementData);
+  const size_t bytes = allocationSize(info.arena_size, info.elements);
+  if (bytes == SIZE_MAX) return nullptr;
+  const size_t viewOffset = bytes - info.elements * sizeof(ElementData);
   // Page owns the header and trailing records; its unsized delete matches this allocation.
   void* allocation = ::operator new(bytes, std::nothrow);
   if (!allocation) {
@@ -232,10 +144,12 @@ std::unique_ptr<Page> Page::fromBytes(const uint8_t* bytes, const size_t size, c
 }
 
 void Page::footnote(const uint16_t index, FootnoteEntry& out) const {
+#ifdef XP_PAGE_CODEC_TEST
   if (!arena) {
     out = footnotes[index];
     return;
   }
+#endif
   XpPageSpan number{}, href{};
   if (xp_page_footnote(arena, arenaSize, index, &number, &href)) {
     out = {};
@@ -246,10 +160,12 @@ void Page::footnote(const uint16_t index, FootnoteEntry& out) const {
 }
 
 void Page::link(const uint16_t index, PageLink& out) const {
+#ifdef XP_PAGE_CODEC_TEST
   if (!arena) {
     out = links[index];
     return;
   }
+#endif
   XpPageLink view{};
   if (xp_page_link(arena, arenaSize, index, &view)) {
     out = {};
@@ -292,17 +208,19 @@ bool PageMetadata::assign(const Page& page) {
 }
 
 PageElementView::PageElementView(const Page& owner, const uint16_t index) : page(&owner), index(index) {
-  if (page->arena) {
-    const auto& e = page->views[index].position;
-    tag = static_cast<PageElementTag>(e.tag);
-    xPos = e.x;
-    yPos = e.y;
-  } else {
+#ifdef XP_PAGE_CODEC_TEST
+  if (!page->arena) {
     const auto& e = *page->elements[index];
     tag = e.getTag();
     xPos = e.xPos;
     yPos = e.yPos;
+    return;
   }
+#endif
+  const auto& e = page->views[index].position;
+  tag = static_cast<PageElementTag>(e.tag);
+  xPos = e.x;
+  yPos = e.y;
 }
 
 XpPageElement PageElementView::fields() const {
@@ -346,13 +264,18 @@ XpPageElement PageElementView::fields() const {
 }
 
 TextBlock PageElementView::textBlock() const {
-  if (page->arena) return TextBlock(TextBlock::View{}, page->arena, page->views[index].line);
-  return TextBlock(TextBlock::View{}, *static_cast<const PageLine&>(*page->elements[index]).getBlock());
+#ifdef XP_PAGE_CODEC_TEST
+  if (!page->arena)
+    return TextBlock(TextBlock::View{}, *static_cast<const PageLine&>(*page->elements[index]).getBlock());
+#endif
+  return TextBlock(TextBlock::View{}, page->arena, page->views[index].line);
 }
 
 ImageBlock PageElementView::imageBlock() const {
+#ifdef XP_PAGE_CODEC_TEST
   if (!page->arena)
     return ImageBlock(ImageBlock::View{}, static_cast<const PageImage&>(*page->elements[index]).getImageBlock());
+#endif
   const auto& e = fields();
   return ImageBlock(ImageBlock::View{}, {reinterpret_cast<const char*>(e.first.data), e.first.len},
                     {reinterpret_cast<const char*>(e.second.data), e.second.len}, e.width, e.height);
@@ -396,7 +319,38 @@ bool Page::getImageBoundingBox(int16_t& x, int16_t& y, int16_t& w, int16_t& h) c
 }
 
 std::string_view PageElementView::dropCapText() const {
+#ifdef XP_PAGE_CODEC_TEST
   if (!page->arena) return static_cast<const PageDropCap&>(*page->elements[index]).getText();
+#endif
   const auto& e = fields();
   return {reinterpret_cast<const char*>(e.first.data), e.first.len};
+}
+
+size_t LinePageBuilder::capacityForLines(const size_t lines, const size_t words, const size_t textBytes,
+                                         const bool focus, const bool fonts, const size_t rubyBytes) {
+  return xp_page_line_capacity(lines, words, textBytes, focus, fonts, rubyBytes);
+}
+
+LinePageBuilder::LinePageBuilder(const size_t capacity)
+    : bytes(makeUniqueNoThrow<uint8_t[]>(capacity)), capacity(capacity) {
+  if (!bytes) LOG_ERR("PGE", "OOM: line page buffer %u bytes", static_cast<unsigned>(capacity));
+  reset();
+}
+
+bool LinePageBuilder::reset() {
+  valid = bytes && xp_page_builder_init(&state, bytes.get(), capacity) == 0;
+  return valid;
+}
+
+bool LinePageBuilder::addLine(const XpParaLine& line, const int16_t x, const int16_t y) {
+  if (!valid) return false;
+  valid = xp_page_builder_line(&state, x, y, &line) == 0;
+  if (!valid) LOG_ERR("PGE", "Line page exceeds %u byte buffer or has invalid data", static_cast<unsigned>(capacity));
+  return valid;
+}
+
+std::unique_ptr<Page> LinePageBuilder::finish() {
+  size_t size = 0;
+  if (!valid || xp_page_builder_finish(&state, &size)) return nullptr;
+  return Page::fromBytes(bytes.get(), size);
 }

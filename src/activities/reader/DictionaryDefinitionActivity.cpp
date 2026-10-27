@@ -48,44 +48,62 @@ struct DictionaryDefinitionActivity::PlainSelectionLine {
   std::string text;
   std::vector<std::string> words;
   std::vector<int16_t> positions;
-  std::vector<EpdFontFamily::Style> styles;
   std::vector<TextBlock::SourceRange> ranges;
   std::vector<uint16_t> visualOrder;
   std::vector<std::string> visualWords;
   std::vector<TextBlock::SourceRange> visualRanges;
   BlockStyle style;
 
+  static bool separator(const char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == DICTIONARY_PLAIN_HEADWORD_MARKER;
+  }
+
+  static size_t wordEnd(const char* bytes, const size_t length, size_t i) {
+    auto* ptr = reinterpret_cast<const unsigned char*>(bytes + i);
+    uint32_t previous = utf8NextCodepoint(&ptr);
+    i = ptr - reinterpret_cast<const unsigned char*>(bytes);
+    while (i < length && !separator(bytes[i])) {
+      ptr = reinterpret_cast<const unsigned char*>(bytes + i);
+      const uint32_t cp = utf8NextCodepoint(&ptr);
+      if (!utf8IsHangul(previous) && !utf8IsHangul(cp) && (utf8IsCjkBreakable(previous) || utf8IsCjkBreakable(cp)) &&
+          !utf8IsCombiningMark(cp))
+        break;
+      previous = cp;
+      i = ptr - reinterpret_cast<const unsigned char*>(bytes);
+    }
+    return i;
+  }
+
+  static void countWords(const char* bytes, const size_t length, size_t& words, size_t& textBytes) {
+    for (size_t i = 0; i < length;) {
+      if (separator(bytes[i])) {
+        ++i;
+        continue;
+      }
+      const size_t end = wordEnd(bytes, length, i);
+      ++words;
+      textBytes += end - i + 1;
+      i = end;
+    }
+  }
+
   void layout(const DictionaryDefinitionActivity& owner, const int fontId, const uint32_t offset) {
     const char* bytes = text.c_str();
     const size_t length = text.size();
     words.clear();
     positions.clear();
-    styles.clear();
     ranges.clear();
     size_t i = 0;
     while (i < length) {
       // The headword label marker is a control byte, not text: it must not
       // end up inside a selected word.
-      if (bytes[i] == ' ' || bytes[i] == '\t' || bytes[i] == '\r' || bytes[i] == DICTIONARY_PLAIN_HEADWORD_MARKER) {
+      if (separator(bytes[i])) {
         ++i;
         continue;
       }
       const size_t start = i;
-      auto* ptr = reinterpret_cast<const unsigned char*>(bytes + i);
-      uint32_t previous = utf8NextCodepoint(&ptr);
-      i = ptr - reinterpret_cast<const unsigned char*>(bytes);
-      while (i < length && bytes[i] != ' ' && bytes[i] != '\t' && bytes[i] != '\r' &&
-             bytes[i] != DICTIONARY_PLAIN_HEADWORD_MARKER) {
-        ptr = reinterpret_cast<const unsigned char*>(bytes + i);
-        const uint32_t cp = utf8NextCodepoint(&ptr);
-        if (!utf8IsHangul(previous) && !utf8IsHangul(cp) && (utf8IsCjkBreakable(previous) || utf8IsCjkBreakable(cp)) &&
-            !utf8IsCombiningMark(cp))
-          break;
-        previous = cp;
-        i = ptr - reinterpret_cast<const unsigned char*>(bytes);
-      }
+      i = wordEnd(bytes, length, i);
       words.emplace_back(bytes + start, i - start);
-      styles.push_back(EpdFontFamily::REGULAR);
       ranges.push_back({static_cast<uint32_t>(offset + start), static_cast<uint32_t>(offset + i)});
     }
     style.isRtl = BidiUtils::detectParagraphLevel(bytes) == 1;
@@ -116,9 +134,29 @@ struct DictionaryDefinitionActivity::PlainSelectionLine {
     }
   }
 
-  std::unique_ptr<TextBlock> pack() const {
-    return makeUniqueNoThrow<TextBlock>(words, positions, styles, std::vector<uint8_t>{}, std::vector<uint16_t>{},
-                                        style, std::vector<std::string>{}, std::vector<TextBlock::LinkSpan>{}, ranges);
+  bool append(LinePageBuilder& builder, const int16_t y) {
+    if (words.size() > MAX_PLAIN_WORDS) return false;
+    text.clear();
+    visualOrder.clear();
+    for (const auto& word : words) {
+      if (word.size() + 1 > MAX_LINE_BYTES + MAX_PLAIN_WORDS - text.size()) return false;
+      visualOrder.push_back(text.size());
+      text.append(word);
+      text.push_back('\0');
+    }
+    static constexpr uint8_t STYLES[MAX_PLAIN_WORDS] = {};
+    XpParaBlock block{};
+    block.rtl = style.isRtl;
+    XpParaLine line{};
+    line.text = {reinterpret_cast<const uint8_t*>(text.data()), static_cast<uint32_t>(text.size())};
+    line.offsets = visualOrder.data();
+    line.count = words.size();
+    line.positions = positions.data();
+    line.styles = STYLES;
+    line.sources = reinterpret_cast<const uint32_t*>(ranges.data());
+    line.block = &block;
+    line.paragraph_start = UINT16_MAX;
+    return builder.addLine(line, 0, y);
   }
 };
 
@@ -456,10 +494,9 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
   const int fontId = SETTINGS.getReaderFontId();
   const int lineHeight = renderer.getLineHeight(fontId, PLAIN_TEXT_LINE_SPACING);
   const int pageCount = std::min<int>(SELECTION_PAGE_WINDOW, content.totalPages - content.selectionPage);
-  const size_t scratchBytes =
-      sizeof(PlainSelectionLine) + MAX_LINE_BYTES + 1 +
-      MAX_PLAIN_WORDS * (2 * sizeof(std::string) + sizeof(int16_t) + sizeof(EpdFontFamily::Style) +
-                         2 * sizeof(TextBlock::SourceRange) + sizeof(uint16_t) + 4);
+  const size_t scratchBytes = sizeof(PlainSelectionLine) + MAX_LINE_BYTES + MAX_PLAIN_WORDS + 1 +
+                              MAX_PLAIN_WORDS * (2 * sizeof(std::string) + sizeof(int16_t) +
+                                                 2 * sizeof(TextBlock::SourceRange) + sizeof(uint16_t) + 4);
   auto heap = HalMemory::getDefaultHeap();
   if (heap.freeBytes < scratchBytes + HEAP_HEADROOM || heap.largestBlockBytes < scratchBytes) return false;
   auto scratch = makeUniqueNoThrow<PlainSelectionLine>();
@@ -467,27 +504,43 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
     LOG_ERR("DICT", "OOM: selection scratch (%u bytes)", static_cast<unsigned>(sizeof(PlainSelectionLine)));
     return false;
   }
-  scratch->text.reserve(MAX_LINE_BYTES);
+  scratch->text.reserve(MAX_LINE_BYTES + MAX_PLAIN_WORDS);
   scratch->words.reserve(MAX_PLAIN_WORDS);
   scratch->positions.reserve(MAX_PLAIN_WORDS);
-  scratch->styles.reserve(MAX_PLAIN_WORDS);
   scratch->ranges.reserve(MAX_PLAIN_WORDS);
   scratch->visualOrder.reserve(MAX_PLAIN_WORDS);
   scratch->visualWords.reserve(MAX_PLAIN_WORDS);
   scratch->visualRanges.reserve(MAX_PLAIN_WORDS);
   lookup->selectionPages.reserve(SELECTION_PAGE_WINDOW);
+  size_t capacity = LinePageBuilder::capacityForLines(0, 0, 0);
   for (int p = 0; p < pageCount; ++p) {
-    auto page = makeUniqueNoThrow<Page>();
-    if (!page) {
-      LOG_ERR("DICT", "OOM: selection page (%u bytes)", static_cast<unsigned>(sizeof(Page)));
-      return false;
+    size_t lines = 0, words = 0, textBytes = 0;
+    const int first = (content.selectionPage + p) * content.linesPerPage;
+    const int last = std::min(first + content.linesPerPage, static_cast<int>(content.lines.size()));
+    for (int row = first; row < last; ++row) {
+      const auto& line = content.lines[row];
+      const char* text = content.text.c_str() + line.start;
+      const size_t length = utf8SafeTruncateBuffer(text, std::min<size_t>(line.len, MAX_LINE_BYTES));
+      scratch->text.assign(text, length);
+      if (length) {
+        ++lines;
+        PlainSelectionLine::countWords(scratch->text.c_str(), length, words, textBytes);
+      }
     }
+    capacity = std::max(capacity, LinePageBuilder::capacityForLines(lines, words, textBytes));
+  }
+  if (capacity > SIZE_MAX - HEAP_HEADROOM) return false;
+  heap = HalMemory::getDefaultHeap();
+  if (heap.freeBytes < capacity + HEAP_HEADROOM || heap.largestBlockBytes < capacity) return false;
+  LinePageBuilder builder(capacity);
+  for (int p = 0; p < pageCount; ++p) {
+    if (!builder.reset()) return false;
     const int firstLine = (content.selectionPage + p) * content.linesPerPage;
     const int lastLine = std::min(firstLine + content.linesPerPage, static_cast<int>(content.lines.size()));
     heap = HalMemory::getDefaultHeap();
-    const size_t pageBytes = (lastLine - firstLine) * (sizeof(PageLine) + sizeof(std::unique_ptr<PageElement>));
+    const size_t pageBytes = Page::plainLineAllocationSize(capacity, lastLine - firstLine);
+    if (pageBytes > SIZE_MAX - HEAP_HEADROOM) return false;
     if (heap.freeBytes < pageBytes + HEAP_HEADROOM || heap.largestBlockBytes < pageBytes) return false;
-    page->elements.reserve(lastLine - firstLine);
     for (int row = firstLine; row < lastLine; ++row) {
       const auto& line = content.lines[row];
       if (!line.len) continue;
@@ -498,18 +551,10 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
       const size_t lineBytes = length * (sizeof(TextBlock::SourceRange) + 12) + sizeof(TextBlock) + 1024;
       if (heap.freeBytes < lineBytes + HEAP_HEADROOM || heap.largestBlockBytes < lineBytes) return false;
       scratch->layout(*this, fontId, line.start);
-      auto block = scratch->pack();
-      if (!block || !block->valid()) {
-        LOG_ERR("DICT", "OOM: selection line (%u byte budget)", static_cast<unsigned>(lineBytes));
-        return false;
-      }
-      auto element = makeUniqueNoThrow<PageLine>(std::move(block), 0, (row - firstLine) * lineHeight);
-      if (!element) {
-        LOG_ERR("DICT", "OOM: selection element (%u bytes)", static_cast<unsigned>(sizeof(PageLine)));
-        return false;
-      }
-      page->elements.push_back(std::move(element));
+      if (!scratch->append(builder, (row - firstLine) * lineHeight)) return false;
     }
+    auto page = builder.finish();
+    if (!page) return false;
     lookup->selectionPages.push_back(std::move(page));
   }
   return true;

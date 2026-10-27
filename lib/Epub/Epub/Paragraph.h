@@ -19,7 +19,7 @@ class Paragraph {
   XpParagraph* handle() { return reinterpret_cast<XpParagraph*>(state); }
   const XpParagraph* handle() const { return reinterpret_cast<const XpParagraph*>(state); }
   explicit Paragraph(bool hyphenation = false, bool focus = false, const BlockStyle& style = BlockStyle(),
-                      uint8_t indent = 2);
+                     uint8_t indent = 2);
   ~Paragraph() { xp_para_destroy(handle()); }
   Paragraph(const Paragraph&) = delete;
   Paragraph& operator=(const Paragraph&) = delete;
@@ -56,8 +56,15 @@ class Paragraph {
     xp_para_token(handle(), index, &token);
     return token;
   }
+  // Line spans are borrowed only for the callback. No TextBlock is allocated.
+  void layoutLines(const GfxRenderer& renderer, int fontId, uint16_t viewportWidth, void* context,
+                   uint8_t (*processLine)(void*, const XpParaLine*), bool includeLastLine = true,
+                   int8_t characterSpacing = 0, uint8_t wordSpacingPercent = 100, size_t maxLines = SIZE_MAX,
+                   const bool* stopRequested = nullptr);
+#ifdef XP_PAGE_CODEC_TEST
   void layoutAndExtractLines(const GfxRenderer& renderer, int fontId, uint16_t viewportWidth,
                              const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                              bool includeLastLine = true, int8_t characterSpacing = 0, uint8_t wordSpacingPercent = 100,
                              size_t maxLines = SIZE_MAX, const bool* stopRequested = nullptr);
+#endif
 };

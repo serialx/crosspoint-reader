@@ -51,7 +51,6 @@ class GfxRenderer {
         },
         x, y, static_cast<uint8_t>(mode));
   }
-  bool isFontCacheScanning() const { return false; }
   mutable int lastLineY = -1;
   mutable int drawnLineCount = 0;
   void drawLine(int, int y, int, int, int, bool) const {
@@ -59,7 +58,13 @@ class GfxRenderer {
     ++drawnLineCount;
   }
   mutable std::string boxPaints;
-  void fillRect(int, int, int, int, bool = true) const { boxPaints += 'b'; }
+  void fillRect(int, int y, int, int h, bool = true) const {
+    boxPaints += 'b';
+    if (h == 2) {
+      lastLineY = y;
+      ++drawnLineCount;
+    }
+  }
   void fillRectDither(int, int, int, int, Color) const { boxPaints += 's'; }
   // Fixture glyphs: 8 px advance, capitals 10 px tall.
   int drawScaledCodepoint(int, uint32_t, EpdFontFamily::Style, int, int, int scale256) const {

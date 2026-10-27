@@ -3,6 +3,38 @@
 use super::{c_len, Error, Result};
 use crate::section::{self, Kind, Record};
 
+/// Wire capacity for line-only pages without footnotes or links. Text includes
+/// each word's NUL; ruby bytes exclude length prefixes. Enable optional metadata
+/// if any line uses it. Overestimates are allowed; overflow returns usize::MAX.
+pub fn line_capacity(
+    lines: usize,
+    words: usize,
+    text_bytes: usize,
+    focus: bool,
+    fonts: bool,
+    ruby_bytes: usize,
+) -> usize {
+    let framing = Kind::U16.size() + Kind::FootnoteCount.size() + Kind::LinkCount.size();
+    let line = Kind::ElementTag.size()
+        + Kind::Position.size()
+        + Kind::TextHeader.size()
+        + Kind::BlockStyle.size()
+        + Kind::WordFontFlag.size()
+        + if fonts {
+            core::mem::size_of::<[i32; 3]>()
+        } else {
+            0
+        };
+    let word = section::arena_size(1, focus, 0)
+        + Kind::U32.size()
+        + if fonts { core::mem::size_of::<u8>() } else { 0 };
+    framing
+        .saturating_add(lines.saturating_mul(line))
+        .saturating_add(words.saturating_mul(word))
+        .saturating_add(text_bytes)
+        .saturating_add(ruby_bytes)
+}
+
 pub trait Rubies {
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool {

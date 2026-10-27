@@ -2461,14 +2461,18 @@ TEST(TextDecorationPosition, StrikeUsesGlyphBodyAndFollowsScriptScaling) {
   for (const auto script : {EpdFontFamily::REGULAR, EpdFontFamily::SUP, EpdFontFamily::SUB}) {
     Paragraph text(false, false, BlockStyle{}, 0);
     text.addWord("example", static_cast<EpdFontFamily::Style>(EpdFontFamily::STRIKETHROUGH | script));
-    text.layoutAndExtractLines(renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, uint32_t) {
-      renderer.drawnLineCount = 0;
-      line->render(renderer, 0, 0, top);
-      ASSERT_EQ(renderer.drawnLineCount, 1);
-      // Fixture baseline is top + 12; glyph body is 10 pixels, halved for scripts.
-      const int expected = script == EpdFontFamily::SUP ? 26 : script == EpdFontFamily::SUB ? 33 : 27;
-      EXPECT_EQ(renderer.lastLineY, expected);
+    LinePageBuilder builder(512);
+    text.layoutLines(renderer, 0, 200, &builder, [](void* raw, const XpParaLine* line) -> uint8_t {
+      return static_cast<LinePageBuilder*>(raw)->addLine(*line, 0, 0);
     });
+    auto page = builder.finish();
+    ASSERT_NE(page, nullptr);
+    renderer.drawnLineCount = 0;
+    page->render(renderer, 0, 0, top);
+    ASSERT_EQ(renderer.drawnLineCount, 1);
+    // Fixture baseline is top + 12; glyph body is 10 pixels, halved for scripts.
+    const int expected = script == EpdFontFamily::SUP ? 26 : script == EpdFontFamily::SUB ? 33 : 27;
+    EXPECT_EQ(renderer.lastLineY, expected);
   }
 }
 
@@ -2476,10 +2480,14 @@ TEST(TextDecorationPosition, UnderlineStaysBelowBaseline) {
   GfxRenderer renderer;
   Paragraph text(false, false, BlockStyle{}, 0);
   text.addWord("example", EpdFontFamily::UNDERLINE);
-  text.layoutAndExtractLines(renderer, 0, 200, [&](std::unique_ptr<TextBlock> line, uint32_t) {
-    line->render(renderer, 0, 0, 20);
-    EXPECT_EQ(renderer.lastLineY, 34);
+  LinePageBuilder builder(512);
+  text.layoutLines(renderer, 0, 200, &builder, [](void* raw, const XpParaLine* line) -> uint8_t {
+    return static_cast<LinePageBuilder*>(raw)->addLine(*line, 0, 0);
   });
+  auto page = builder.finish();
+  ASSERT_NE(page, nullptr);
+  page->render(renderer, 0, 0, 20);
+  EXPECT_EQ(renderer.lastLineY, 34);
 }
 
 TEST(ParagraphStorageAbi, WordAllocationFailureLeavesOutputUnchanged) {

@@ -31,3 +31,5 @@ target_link_libraries(EmDashLineBreakingTest PRIVATE
 )
 
 gtest_discover_tests(EmDashLineBreakingTest)
+
+target_compile_definitions(EmDashLineBreakingTest PRIVATE XP_PAGE_CODEC_TEST=1)

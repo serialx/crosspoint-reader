@@ -116,7 +116,34 @@ struct PageLine : PageElement {
   int y;
   PageLine(std::unique_ptr<TextBlock> block, int, int y) : block(std::move(block)), y(y) {}
 };
-struct Page { std::vector<std::unique_ptr<PageElement>> elements; };
+struct Page {
+  std::vector<std::unique_ptr<PageElement>> elements;
+  static size_t plainLineAllocationSize(size_t bytes, size_t) { return bytes + sizeof(Page); }
+};
+// Keep navigation assertions independent of the page codec, covered by page/line goldens.
+struct LinePageBuilder {
+  std::unique_ptr<Page> page;
+  static size_t capacityForLines(size_t lines, size_t words, size_t textBytes) {
+    return xp_page_line_capacity(lines, words, textBytes, 0, 0, 0);
+  }
+  explicit LinePageBuilder(size_t) {}
+  bool reset() { page = std::make_unique<Page>(); return true; }
+  bool addLine(const XpParaLine& line, int16_t x, int16_t y) {
+    std::vector<std::string> words;
+    std::vector<TextBlock::SourceRange> ranges;
+    for (size_t i = 0; i < line.count; ++i) {
+      words.emplace_back(reinterpret_cast<const char*>(line.text.data) + line.offsets[i]);
+      ranges.push_back({line.sources[i * 2], line.sources[i * 2 + 1]});
+    }
+    auto block = std::make_unique<TextBlock>(words,
+        std::vector<int16_t>(line.positions, line.positions + line.count),
+        std::vector<EpdFontFamily::Style>{}, std::vector<uint8_t>{}, std::vector<uint16_t>{},
+        BlockStyle{}, std::vector<std::string>{}, std::vector<TextBlock::LinkSpan>{}, ranges);
+    page->elements.push_back(std::make_unique<PageLine>(std::move(block), x, y));
+    return true;
+  }
+  std::unique_ptr<Page> finish() { return std::move(page); }
+};
 struct FontCacheManager {
   bool released = false;
   void releaseSdFontCaches() { released = true; }

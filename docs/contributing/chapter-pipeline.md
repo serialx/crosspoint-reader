@@ -2,8 +2,8 @@
 
 Rust owns EPUB parsing and layout, page records, page-byte construction and
 load-time decoding and page rendering through `xp-core::page`. C++ owns file I/O,
-the loaded page allocation and views, and standalone TextBlock rendering. Glyph
-bitmap views and rasterization run in Rust; C++ retains font caches and uzlib
+the loaded page allocation and views. Glyph bitmap views and rasterization run
+in Rust; C++ retains font caches and uzlib
 decompression, image decoders and the UI. The wider reader also uses Rust for
 [shared ZIP/PNG/ContentProtection inflate](rust.md#zip-directory-boundary) and
 [SD font and XTC parsing](rust.md#sd-font-and-xtc-parsers).
@@ -127,10 +127,10 @@ serialized owner; it does not make font access thread-safe. On single-core C3 it
 increment uses the interrupt-masking `__atomic_fetch_add_4` helper. C++ also owns
 the shared 3,072-byte bidi storage and mutex, leased exclusively to Rust during
 measurement, ordering and glyph drawing. Rust resolves bitmap views and paints
-glyphs; C++ handles bitmap misses, cache ownership and decompression. Cached EPUB
-and rich dictionary pages enter Rust through `GfxRenderer::drawPage` once per
-render pass; Rust traverses the records and calls C++ once per image element.
-Standalone TextBlocks and plain dictionary PageLines retain their C++ render path.
+glyphs; C++ handles bitmap misses, cache ownership and decompression. Cached EPUB,
+rich dictionary, settings preview and dictionary selection pages enter Rust through
+`GfxRenderer::drawPage` once per render pass. Rust traverses the records and calls
+C++ once per image element. Plain dictionary display still draws wrapped spans directly.
 See the [page rendering contract](rust.md#page-rendering),
 [glyph drawing contract](rust.md#native-glyph-drawing) and
 [native measurement contract](rust.md#native-text-measurement) for
@@ -166,9 +166,10 @@ descriptors together, reads bytes into their final location and validates them
 before exposing views. Resident and peak requested page storage are identical.
 The final validation checks the descriptor count against the sizing pass.
 `Page::fromBytes` uses the same allocation but copies its borrowed source.
-All load failures release the complete allocation. Owned TextBlock/PageLine
-constructors remain for preview and plain dictionary text. Legacy serializers
-live only in the host oracles; the firmware writes Rust-built page bytes.
+All load failures release the complete allocation. Preview and plain dictionary
+selection build bounded page bytes and load them through this factory. TextBlock
+is a borrowed view in firmware; owning constructors and legacy serializers remain
+only in host codec/layout fixtures.
 
 ## Required operation families
 

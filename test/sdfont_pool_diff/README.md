@@ -42,7 +42,9 @@ Zero-length resident glyph offsets are compared as zero: unstable sorts can plac
 an empty glyph before or after another glyph at the same file offset. This field
 selects no bitmap bytes. All nonempty offsets, reads and allocations remain exact.
 `SDPOOL_EXACT_ZERO_OFFSETS=1` restores raw offset comparison; `SDPOOL_BASE_ONLY=1`
-runs only the initial valid-font sequence for auditing this exception separately.
+runs the initial valid-font sequence without mutation/OOM replays. With `--texts`,
+it also records prewarm and advance results for each supplied corpus window,
+including its glyph queries, reads and array allocations, then checks teardown.
 
 `SDPOOL_USAGE=1` counts calls through the existing glyph-miss facade while looking
 up each input text after full prewarm, per text and available style. Text lines

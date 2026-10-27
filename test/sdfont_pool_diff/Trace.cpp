@@ -296,7 +296,30 @@ int main(int argc, char** argv) {
     return 0;
   }
   const size_t allocations = run(cps, texts, 0, false);
-  if (std::getenv("SDPOOL_BASE_ONLY")) return 0;
+  if (std::getenv("SDPOOL_BASE_ONLY")) {
+    if (argc > 2) {
+      state = allocationTrace = sdTrace = SEED;
+      live = peak = largest = attempts = 0;
+      tracking = true;
+      {
+        SdCardFont font;
+        if (!font.load("trace.cpfont")) return 2;
+        for (size_t i = 5; i < texts.size(); ++i) {
+          std::vector<uint32_t> queries;
+          const auto* p = reinterpret_cast<const unsigned char*>(texts[i].c_str());
+          while (*p) queries.push_back(utf8NextCodepoint(&p));
+          std::printf("page %zu\n", i - 5);
+          font.clearCache();
+          record("corpus-prewarm", font.prewarm(texts[i].c_str(), 15, false, true, false), font, queries);
+          record("corpus-advances", font.buildAdvanceTable(texts[i].c_str(), 15), font, queries);
+        }
+      }
+      tracking = false;
+      std::printf("corpus-unload live=%zu\n", live);
+      if (live) return 3;
+    }
+    return 0;
+  }
   for (size_t i = 1; i <= allocations; ++i) {
     std::printf("OOM %zu\n", i);
     run(cps, texts, i, false);

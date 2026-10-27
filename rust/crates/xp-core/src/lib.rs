@@ -3,6 +3,7 @@
 pub mod chapter;
 pub mod css;
 pub mod epub;
+pub mod font;
 pub mod hyphen;
 pub mod image;
 pub mod para;

@@ -956,6 +956,45 @@ void xp_image_probe_init(void*);
 size_t xp_image_probe_write(void*, const uint8_t*, size_t);
 bool xp_image_probe_dimensions(const void*, uint32_t* width, uint32_t* height);
 
+// Native font tables (test ABI; no firmware callers yet).
+// data points to an EpdFontData with valid sorted tables and in-range glyph,
+// class and CSR indices. All pointers/counts describe immutable live memory
+// for the call, including optional packed arrays (alignment 1). No function
+// invokes callbacks, loads storage, allocates, retains or frees memory.
+// Rebuild views after cache mutation; do not mutate/reenter while borrowed.
+// Outputs must be non-null and disjoint from inputs. A failed/absent lookup
+// leaves its output untouched. All advances/kerns retain their raw fp4 units.
+typedef struct {
+  uint8_t width, height;
+  uint16_t advanceX;
+  int16_t left, top;
+  uint16_t dataLength;
+  uint32_t dataOffset;
+} XpFontGlyph;
+
+typedef struct {
+  const void* data;      // Resolved style's EpdFontData, non-null.
+  const void* advances;  // SdCardFont::AdvanceEntry[advanceCount].
+  uint32_t advanceCount;
+  const void* fullIntervals;  // EpdUnicodeInterval[coverageCount], unless compact.
+  const void* bmpIntervals;   // Packed { uint16 first, last, offset }[coverageCount].
+  uint32_t coverageCount;     // Complete coverage; not just the mini glyph set.
+} XpFontSdView;
+
+enum { XP_FONT_MISSING = 0, XP_FONT_RESIDENT = 1, XP_FONT_SYNTHETIC = 2, XP_FONT_NOT_RESIDENT = 3 };
+uint32_t xp_font_glyph(const void* data, uint32_t cp, bool metrics, XpFontGlyph* out);
+uint32_t xp_font_sd_glyph(const XpFontSdView* view, uint32_t cp, bool metrics, XpFontGlyph* out);
+// -1 means a coverage callback would be needed, 0 absent, 1 covered.
+int32_t xp_font_has_codepoint(const void* data, uint32_t cp);
+bool xp_font_sd_has_codepoint(const XpFontSdView* view, uint32_t cp);
+// True includes a resident zero advance; false means not in the advance table.
+bool xp_font_sd_advance(const XpFontSdView* view, uint32_t cp, uint16_t* out);
+// False means the dynamic kernHandler is required; CJK pairs return true/zero first.
+bool xp_font_kerning(const void* data, uint32_t left, uint32_t right, int8_t* out);
+uint32_t xp_font_ligature(const void* data, uint32_t left, uint32_t right);
+// text is len readable bytes (null allowed only for zero len); consumed is bytes.
+uint32_t xp_font_apply_ligatures(const void* data, uint32_t cp, const uint8_t* text, size_t len, size_t* consumed);
+
 #ifdef __cplusplus
 }
 #endif

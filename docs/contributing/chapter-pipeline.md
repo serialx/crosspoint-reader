@@ -19,7 +19,7 @@ The remaining C boundary is a synchronous page sink:
 | Create image | Construct the existing `ImageBlock` from those paths and chosen dimensions; return an opaque owned payload. |
 | Drop payload | Return every unconsumed text/image payload to its C++ allocator exactly once, including stop, OOM, discarded table lines and abort. |
 | Reclaim paragraph memory | Preserve the cache-reclamation retry on paragraph allocation failure; request 4 KiB of free memory, then retry once. |
-| Font metrics | Resolve scale to font ID; query ascender, compressed/uncompressed line height, space width, codepoint metrics, SD-font status, text preparation and advance. Reuse M11's metrics contract where signatures agree. |
+| Font provider and preparation | C++ resolves scale to font ID, prepares fonts and supplies native descriptors and dynamic handlers. Rust reads line metrics and computes advances, spaces, kerning, codepoint metrics and SD-font status. Host callback adapters retain the metric query slots. |
 | Complete page | Create `Page` and wrappers from borrowed element records, consuming every opaque payload even on failure. Copy links, then footnotes through separate callbacks. Rust frees each source vector immediately after its copy. Finally consume the C++ page through `completePageFn`, with u16 paragraph/list indices and u32 visible offset. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
 | Anchors | Keep pending/TOC IDs and completed anchor storage in C++; query pending ID and TOC membership, defer an ID, and record its u16 page at the original Rust-controlled transition. |
@@ -56,7 +56,9 @@ oracles. `chapter-trace` emits the old operation names, replies, field order
 and f32 bits at the corresponding direct Rust calls. The explicit exclusion set
 in `run.py` lists the migrated paragraph and scalar assembly queries; unknown
 operation names still fail comparison. Nested font metric records and replies
-remain observable. Behavioral block/page/table operations retain their trace. Page records, image dimension/sizing observations, block/box
+remain observable as semantic observations, not production FFI-call counts.
+Behavioral block/page/table operations retain their trace. Page records, image
+dimension/sizing observations, block/box
 changes, table results, anchors and stop feedback remain observable. The frozen
 C++ instrumented executable is retained before porting; no extra element oracle
 is needed because the section read oracle already exposes each element and its
@@ -79,12 +81,25 @@ C++ implementation captured before the port.
 Semantics owns element depth, hidden-content tracking, CSS ancestors and style
 stacks, word fragments, inline continuation, lists, ruby collection, link-label
 collection, and visible-text/XPath counters. Rust assembly owns paragraph storage,
-layout, page records, carry, box and table state. The C++ sink owns hardware/font
-access, image I/O, `TextBlock`/`ImageBlock` construction, completed `Page`
+layout, page records, carry, box and table state. The C++ sink owns hardware
+access, fonts and their preparation, image I/O, `TextBlock`/`ImageBlock` construction, completed `Page`
 construction, and pending/TOC/completed anchor strings. The driver owns the
 fallibly allocated Rust chapter handle, 1,024-byte input buffer, chapter file,
 and incremental parsing lifecycle. The handle contains semantics, assembly and
 the XML pull parser; XML events and CSS resolution stay inside Rust.
+
+Production measurement and bidi execute in Rust. The synchronous engine borrows
+font tables through a temporary two-family descriptor cache. C++ owns the fonts,
+storage and preparation; nonresident glyphs and TTF work retain dynamic callbacks.
+Table loans end before handlers that can mutate storage, and generation changes
+invalidate descriptors before reuse. The generation counter relies on the existing
+serialized owner; it does not make font access thread-safe. On single-core C3 its
+increment uses the interrupt-masking `__atomic_fetch_add_4` helper. C++ also owns
+the shared 3,072-byte bidi storage and mutex, leased exclusively to Rust during
+measurement/order operations; C++ drawing still performs its own bidi walk until
+P5-T5. See the [native measurement contract](rust.md#native-text-measurement) for
+implementation links, generation obligations and differential tests. Host synthetic
+renderers continue to use metric callbacks.
 
 Text and style payloads are borrowed for one synchronous operation. Assembly
 copies text only into its existing paragraph storage. There is no queued op

@@ -303,6 +303,11 @@ typedef struct {
   uint8_t keep_with_next;
 } XpParaBlock;
 typedef struct XpNativeProvider XpNativeProvider;
+// Callback backend: native is null; advance/space/kerning/space_advance/ascender,
+// is_sd/starts_rtl/visual_order are required. Native backend: native fills a live
+// provider and returns nonzero; those callbacks may be null. If native can return
+// zero, the complete callback backend is required as fallback. Both require prepare;
+// trace is optional. engine is reserved for Rust and must be null from C++.
 typedef struct {
   void* context;
   void (*trace)(void*, XpParaSpan);

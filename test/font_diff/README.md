@@ -34,7 +34,7 @@ reported as `NotResident`, including an overflow-ring hit: the ring is accessed
 through the C++ miss handler and remains outside the Rust view. Every Rust
 allocation attempt fails during the tests, and the attempt count must stay zero.
 This tests font preparation directly, not GfxRenderer's bidi/token preparation;
-that integration belongs to the text oracle and the subsequent measurement port.
+that integration is covered by the text oracle and native measurement tests.
 
 Test-only private-member inspection exposes resident advance and coverage tables.
 Production code, allocation policy and cache visibility are unchanged. The native
@@ -43,8 +43,8 @@ and full coverage intervals (packed BMP or full-width). Its EpdFontData already
 contains the resident mini kerning tables and loaded ligatures; the full on-disk
 kerning matrix is never retained. Views must end before *any* cache mutation,
 including advance growth, prewarm, eviction, font unload or a glyph miss callback.
-Reconstruct the view afterward. C++ integration will need a scoped accessor for
-these private tables; the test bridge is not a production accessor.
+Reconstruct the view afterward. Production uses `SdCardFont::metricViews` and
+scoped native engine loans; the test bridge remains separate from that accessor.
 
 `Font::advance` preserves a cached zero as `Some(0)`, distinct from `None`.
 The current renderer uses zero to trigger full metrics for non-combining glyphs,
@@ -79,9 +79,10 @@ when the first fault initializes a style. Its glyph vectors, slot indices and
 kerning cache are private and may move or flush during a fault. A stable native
 resident view is therefore not available through the current EpdFontData.
 
-Use a callback face for TTF in the measurement integration. Generic Rust lookups
-return `NotResident` for glyph misses and `None` for dynamic coverage or kerning;
+Production measurement retains callbacks for dynamic TTF operations. Generic
+Rust lookups return `NotResident` for glyph misses and `None` for dynamic coverage or kerning;
 they never invoke those handlers. CJK kerning still returns zero before the
-handler, matching EpdFont. T4 must release the borrowed view before faulting and
-read current metrics/ligatures again afterward. This task does not implement a
-TTF adapter or prove runtime TTF measurement parity.
+handler, matching EpdFont. The native engine releases each borrowed view before
+faulting and reads current metrics/ligatures afterward. See the
+[production contract](../../docs/contributing/rust.md#native-text-measurement)
+and text oracle for runtime TTF measurement coverage.

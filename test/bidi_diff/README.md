@@ -1,7 +1,8 @@
 # MiniBidi differential test
 
 This compares the allocation-free Rust bidi API with the unchanged C MiniBidi
-and C++ BidiUtils at `c9330408`. Firmware still uses the C/C++ implementation.
+and C++ BidiUtils at `c9330408`. Firmware measurement and paragraph ordering
+use Rust; C++ drawing still uses its own bidi walk until P5-T5.
 It tests the compatibility algorithm, not conformance with a newer Unicode
 Bidirectional Algorithm.
 
@@ -68,9 +69,11 @@ cargo fmt --all --manifest-path rust/Cargo.toml
 
 `xp-core::bidi::Workspace::EMPTY` can initialize persistent caller-owned storage.
 C callers use `xp_bidi_workspace_size/align/init`; initialize once and reuse
-exclusively. The current workspace is 4,860 bytes with 4-byte alignment on C3
-and the host. It contains two 128-character arrays, algorithm scratch and word
-anchors. It should not be constructed on a firmware task stack. Each call
+exclusively. The current workspace is 3,072 bytes with 4-byte alignment on C3
+and the host. A 1,536-byte logical line shares storage with visual UTF-8 after
+reordering; the other 1,536 bytes overlay algorithm scratch, shaped characters
+and anchors whose lifetimes do not overlap. It should not be constructed on a
+firmware task stack. Each call
 borrows the workspace and input/output buffers synchronously, retains nothing
 and performs no allocation. Separate workspaces permit independent calls; a
 shared workspace needs the caller's existing synchronization.
@@ -84,13 +87,14 @@ status -1 reports insufficient output, and -2 invalid ABI/span arguments.
 Malformed input after a valid prefix emits that prefix, matching BidiUtils.
 The word-order output is meaningful only on status 1.
 
-The Rust implementation does not add a process-wide cache. Later integration
-must choose a workspace owner, reuse the caller's existing synchronization and
-replace the per-call C++ `std::string visual` with reusable output storage.
-That integration, real-device timing and font rendering are outside this test.
+The production engine leases the existing C++-owned workspace and mutex through
+`xp_native_bidi_acquire/release`, retaining the lease while visual text is used.
+Measurement reuses that storage instead of allocating a visual `std::string`.
+See the [production ownership contract](../../docs/contributing/rust.md#native-text-measurement).
+Real-device timing and font rendering are outside this differential test.
 
 `GfxRenderer::resolveVisualText` also has its own RTL-lead-byte precheck and
 falls back to the original text when a successful conversion emits no bytes.
-Those caller rules are unchanged here and must be retained by integration.
+The native measurement engine preserves those caller rules.
 Before deleting the C implementation, keep a frozen copy for this oracle and
 update the table generator's source location.

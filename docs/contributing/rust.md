@@ -270,18 +270,21 @@ source accounting, ruby text, link targets and size-slot font tables. Ruby metad
 uses 16-entry chunks (512 bytes each on C3), with a small fallible pointer table;
 consuming a prefix releases whole chunks, and consuming all text releases the table.
 Long annotation/target text has separate fallible byte storage; short text stays
-inline. C++ retains font measurement, MiniBidi's shared workspace, and TextBlock
-construction. The ABI adds no rendering/storage service, task or synchronization.
+inline. Rust executes measurement and bidi; C++ retains font/storage ownership,
+the shared bidi workspace and mutex, and TextBlock construction. The ABI adds
+no rendering/storage service, task or synchronization.
 
 ## Paragraph layout
 
 Rust owns the DP and greedy breakers, hyphenation candidate
 selection and token splitting, line justification and positions, and line source
 metadata. The algorithms preserve the original rounding, cost ties and fallback
-order. Hyphenation calls the existing Rust engine directly. C++ supplies renderer
-advances, kerning and space metrics through synchronous callbacks. Rust computes
-ruby adjustments; MiniBidi runs at the same point and supplies the original visual order.
-Metric callbacks cannot reenter layout or retain borrowed pointers.
+order. Hyphenation calls the existing Rust engine directly. Production advances,
+kerning, spaces, ruby adjustments and bidi word order run in Rust over native
+font descriptors. C++ prepares fonts and handles dynamic glyph/kerning work;
+host oracle adapters can still supply metric callbacks. Neither provider
+callbacks nor metric callbacks may reenter layout or retain borrowed pointers.
+See [native text measurement](#native-text-measurement) for the ownership contract.
 
 The width cache owns 2 × N bytes initially and doubles only when a split needs
 more slots. DP owns exact `int32_t[N]` and `size_t[N]` arrays (8 × N bytes on C3);
@@ -291,7 +294,7 @@ ruby spans, word offsets, visual order and sanitized NUL-separated text. For W
 words and B packed bytes on C3, it uses `align4(W * (focus ? 14 : 11)) + 12*W + B`
 bytes. The bounds are 10,000 words and 65,535 sanitized bytes, including NULs;
 these are validation limits, not a guarantee that the device can allocate that
-much memory. MiniBidi receives borrowed text and writes order indices. TextBlock
+much memory. Rust bidi receives borrowed text and writes order indices. TextBlock
 copies the completed line into its checked arena before scratch is released.
 Optional line links use separate fallible Rust vectors and checked C++ owned
 storage; the sink propagates destination allocation failure.
@@ -446,7 +449,8 @@ Section tests when changing these helpers. `VisibleTextUtils` remains in C++.
 
 Rust owns paragraph words, token metadata, links, ruby annotations, size slots,
 style, line breaking and line extraction. The C++ paragraph adapter embeds the
-Rust state and supplies synchronous font metrics and a completed-line sink.
+Rust state and supplies a native font provider, preparation callback and
+completed-line sink. Host synthetic renderers retain synchronous metric callbacks.
 Words retain the existing 2 KiB arena chunks; token source ranges retain NFC and
 hyphenation provenance. Allocation failure latches dropped text so the section
 builder rejects incomplete output.
@@ -455,9 +459,9 @@ A line borrows packed NUL-separated text, word offsets and numeric arrays until
 the sink returns. One fallible allocation holds the line metadata, ruby spans,
 order indices and text; it is released immediately after the sink returns. The
 packed `TextBlock::BorrowedLayout` overload copies these values directly into the existing arena, with unchanged rendering and cache
-serialization. MiniBidi remains in C++ behind borrowed-span direction and order
-callbacks, using its existing mutex and shared workspace. These adapters avoid
-reconstructing temporary word-string vectors at the boundary.
+serialization. Rust computes direction and visual word order using the existing
+C++-owned shared workspace and mutex. Host callback adapters retain the
+borrowed-span contract without reconstructing temporary word-string vectors.
 
 The sink may query paragraph scalars, including the number of remaining lines,
 but must not mutate or destroy the paragraph. Renderer callbacks cannot reenter
@@ -476,13 +480,57 @@ until the first successful parse; it no longer assumes all Rust owners fit withi
 128 allocation requests. Dedicated ruby tests fail each chunk allocation and
 check cleanup, and link tests force the C++ destination allocation to fail.
 
-Chapter semantics accesses the current Rust paragraph directly. Assembly updates
-that borrowed handle on creation, reset, table-cell moves and restoration, using
-the current semantic state reborrow. It must bind the replacement before another
-semantic operation can run. The transitional service table retains its layout,
-with unused paragraph callbacks set to null; Rust represents those entries as
-optional function pointers. Paragraph creation/reset and assembler-state services
-still cross into C++ until the assembly port replaces that table.
+Chapter semantics and assembly access the current Rust paragraph directly;
+the page sink only crosses into C++ for the operations described in the
+[chapter boundary](chapter-pipeline.md).
+
+## Native text measurement
+
+Production paragraph/chapter layout and `GfxRenderer` measurements use
+[`textm::native::Engine`](../../rust/crates/xp-core/src/textm/native.rs).
+Rust executes measurement rules, resident font-table reads, bidi shaping and
+word ordering. C++ owns font registration, storage, preparation and cache
+mutation. [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp)
+supplies resolved style descriptors and dynamic handlers; SD glyphs that are
+not resident and TTF glyph/coverage/kerning work still use those handlers.
+The [paragraph binding](../../lib/Epub/Epub/Paragraph.cpp) and
+[chapter sink](../../lib/Epub/Epub/parsers/ChapterPageServices.cpp) leave the
+production per-word metric callbacks null. Host synthetic renderers and
+differential tests retain the callback backend.
+
+Each synchronous engine keeps a temporary, stack-owned cache of two family
+descriptors (272 bytes on C3), borrowing tables rather than copying or owning
+them. A generation change invalidates the cache before the next table loan.
+Registration, fallback changes, SD preparation/rebuild/eviction/release/reload
+and dynamic TTF operations must invalidate descriptors when tables can change.
+Every table loan ends before a handler that can mutate storage; handlers return
+copied metrics. The longer built-in table walk excludes SD and dynamic handlers.
+See the engine's safety contract and
+[`FontTableGeneration.h`](../../lib/EpdFont/FontTableGeneration.h).
+
+This generation is an invalidation signal under the existing serialized font
+owner, not thread safety for font access. Owners must remain live and serialized
+through layout/measurement; callbacks cannot reenter the engine. On the
+single-core ESP32-C3, the linked `__atomic_fetch_add_4` helper from ESP-IDF
+`components/newlib/src/stdatomic.c` saves the interrupt mask, disables interrupts
+for the increment and restores the mask (`esp_stdatomic.h`); Rust reads the
+aligned word with a relaxed atomic load. This does not serialize table loans
+against a concurrent free. The bidi mutex protects only bidi storage.
+
+[`BidiUtils`](../../lib/MiniBidi/BidiUtils.cpp) owns the existing lazily allocated
+3,072-byte workspace and mutex. Rust borrows it exclusively through
+`xp_native_bidi_acquire/release`, holding the lease while visual text is used.
+Reordering scratch, shaping and anchors overlap only when their lifetimes do
+not; visual UTF-8 reuses dead logical-character storage. Measurement adds no
+second workspace or visual-string allocation. C++ drawing still performs its
+own bidi walk and visual-string preparation until the drawing port (P5-T5).
+
+The [bidi differential](../../test/bidi_diff/README.md),
+[font-table differential](../../test/font_diff/README.md),
+[measurement differential](../../test/textm_diff/README.md) and
+[real-font text/drawing oracle](../../test/text_golden/README.md) cover these
+boundaries. The section oracle uses a synthetic renderer; its semantic metric
+records are not counts of production cross-language calls.
 
 ## Image pixel pipeline
 

@@ -39,8 +39,8 @@ lookup must retain the Arabic presentation-form guard.
 
 Resolve the font with `FontRegistry` on the original logical codepoints, then
 shape/reorder once and pass a borrowed visual codepoint slice. The
-`text_advance_x` predicate is the bidi provider's `isTransparentMark`; T4 can
-supply T1's native function. SD preparation and the redirected-font prewarm
+`text_advance_x` predicate is the bidi provider's `isTransparentMark`; production
+uses the native Rust bidi predicate. SD preparation and redirected-font prewarm
 remain with the existing owner. T3 table loans must end before any miss handler
 can rebuild their storage. Do not keep an immutable table loan across a mutable
 glyph lookup.
@@ -51,13 +51,13 @@ Width measures ink bounds and intentionally does not apply the advance path's
 small-caps/sup/sub scaling or transparent-mark exclusion. Space measurements
 also preserve their separate rounding and SD style-resolution rules.
 
-The `xp_textm_*` C ABI is a host comparison adapter. No firmware caller is
-changed here; T4 should use the trait with native tables and retain callbacks
-only for providers that need them. It is not a proposal to add per-glyph
-callbacks to the firmware hot path. Rust measurement allocates no storage;
-the test rejects every Rust allocation attempt. The existing C++ bidi string
-allocation is outside this seam; T1/T4 must supply reusable caller-owned shaping
-scratch instead. There is no fixed input length limit or hidden truncation.
+The `xp_textm_*` C ABI is a host comparison adapter. Production uses native
+tables and retains callbacks for dynamic providers; see the
+[native ownership contract](../../docs/contributing/rust.md#native-text-measurement).
+Rust measurement allocates no storage; the test rejects every Rust allocation
+attempt. The existing C++ bidi string allocation is outside this seam; production
+measurement uses the shared caller-owned bidi scratch. The measurement-rule seam
+has no fixed input limit; bidi retains its 128-codepoint compatibility limit.
 
 `SideEffects.h` compares independent SD owners, including cold overflow-ring
 loads and cache churn, and checks both results and storage-read counts.
@@ -110,3 +110,4 @@ This lays out 100 paragraphs of 20 source words for each width/focus/hyphenation
 configuration. It counts repeated prefix/suffix measurements and space/kerning
 queries, rather than assuming one callback per source word. Its ASCII workload
 uses the real built-in font; it does not represent a whole EPUB or SD workload.
+

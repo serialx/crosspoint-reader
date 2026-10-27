@@ -11,8 +11,8 @@
 #include <HalStorage.h>
 #include <I18n.h>
 #include <Memory.h>
-#include <PNGdec.h>
 #include <Xtc.h>
+#include <xp_ffi.h>
 
 #include <algorithm>
 #include <cmath>
@@ -98,48 +98,10 @@ uint32_t readLE32(HalFile& file) {
          (static_cast<uint32_t>(b3) << 24);
 }
 
-uint32_t readBE32(HalFile& file) {
-  const int c0 = file.read();
-  const int c1 = file.read();
-  const int c2 = file.read();
-  const int c3 = file.read();
-  if (c0 < 0 || c1 < 0 || c2 < 0 || c3 < 0) return 0;
-  return (static_cast<uint32_t>(c0) << 24) | (static_cast<uint32_t>(c1) << 16) | (static_cast<uint32_t>(c2) << 8) |
-         static_cast<uint32_t>(c3);
-}
-
 bool isValidPngHeader(HalFile& file) {
-  static constexpr uint8_t PNG_SIGNATURE[8] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
-  static constexpr uint32_t MAX_SOURCE_PIXELS = 2048u * 1536u;
-  uint8_t signature[8];
-  if (!file.seek(0) || file.read(signature, sizeof(signature)) != static_cast<int>(sizeof(signature)) ||
-      !std::equal(std::begin(signature), std::end(signature), std::begin(PNG_SIGNATURE))) {
-    return false;
-  }
-
-  const uint32_t ihdrLength = readBE32(file);
-  char chunkType[4];
-  if (file.read(reinterpret_cast<uint8_t*>(chunkType), sizeof(chunkType)) != static_cast<int>(sizeof(chunkType)) ||
-      ihdrLength != 13 || !std::equal(std::begin(chunkType), std::end(chunkType), "IHDR")) {
-    return false;
-  }
-
-  const uint32_t width = readBE32(file);
-  const uint32_t height = readBE32(file);
-  const int bitDepth = file.read();
-  const int colorType = file.read();
-  const int compression = file.read();
-  const int filter = file.read();
-  const int interlace = file.read();
-
-  const bool supportedBitDepth =
-      bitDepth == 8 || ((colorType == PNG_PIXEL_GRAYSCALE || colorType == PNG_PIXEL_INDEXED) &&
-                        (bitDepth == 1 || bitDepth == 2 || bitDepth == 4));
-  const bool supportedColorType = colorType == PNG_PIXEL_GRAYSCALE || colorType == PNG_PIXEL_TRUECOLOR ||
-                                  colorType == PNG_PIXEL_INDEXED || colorType == PNG_PIXEL_GRAY_ALPHA ||
-                                  colorType == PNG_PIXEL_TRUECOLOR_ALPHA;
-  return width > 0 && height > 0 && width <= 2048 && height <= 3072 && width * height <= MAX_SOURCE_PIXELS &&
-         supportedBitDepth && supportedColorType && compression == 0 && filter == 0 && interlace == 0;
+  uint8_t header[29];
+  return file.seek(0) && file.read(header, sizeof(header)) == static_cast<int>(sizeof(header)) &&
+         xp_png_sleep_header(header, sizeof(header));
 }
 
 BitmapPlacement calculateBitmapPlacement(const int bitmapWidth, const int bitmapHeight, const GfxRenderer& renderer) {

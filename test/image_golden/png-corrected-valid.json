@@ -1,0 +1,98 @@
+{
+  "transition-bytewise-2/frame": {
+    "old": {
+      "bytes": 52370,
+      "exit": 0,
+      "sha256": "14d8bddad21fb247f656aa6c3e7e3a6c3bf58609e31edf8c8b60a12ec637336a",
+      "success": 0
+    },
+    "expected": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "34dbc6bf6001e76eca72264f0d45bec354a6ce24d96440f2f556bee7edf290eb",
+      "success": 1
+    },
+    "ordinary": "mutation-format-2-8/frame",
+    "pixels": {
+      "frame": "06665af536c447a91b96b6cb4b2d75fb0ab1489f2279fdec4d0918ea0e808c1e",
+      "calls": "feaa6d1e4c86ec2e1f7e7e461f68b9b501285eecb7bfa9a63e21e6cd1f7900a3",
+      "call_bytes": 27,
+      "cache_exists": 0,
+      "cache": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cache_bytes": 0
+    },
+    "reason": "The old PNGdec framebuffer decoder fails when every compressed byte is separated by an empty IDAT; the complete valid stream decodes to the ordinary single-IDAT image in Rust."
+  },
+  "transition-bytewise-3/frame": {
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "6fe7e8a6b0abac9ab8d0a7098f55ccaeed62b8be2f02b8cc19da3d7dce9db422",
+      "success": 0
+    },
+    "expected": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "9f9ae213965ed245feb9cc88a45a115a3bf7676b2df3893cd596727aa284fa12",
+      "success": 1
+    },
+    "ordinary": "mutation-format-3-8/frame",
+    "pixels": {
+      "frame": "83b88b741ef7a2b1c3697a9bc5280b30988bea1423626d221b470f9c32e7bafb",
+      "calls": "feaa6d1e4c86ec2e1f7e7e461f68b9b501285eecb7bfa9a63e21e6cd1f7900a3",
+      "call_bytes": 27,
+      "cache_exists": 0,
+      "cache": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cache_bytes": 0
+    },
+    "reason": "The old PNGdec framebuffer decoder fails when every compressed byte is separated by an empty IDAT; the complete valid stream decodes to the ordinary single-IDAT image in Rust."
+  },
+  "transition-bytewise-4/frame": {
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "5bf3261bc0e5ea7f350195c1c943774b97f8e8b24e1fa3f8ae02f5ef39238095",
+      "success": 0
+    },
+    "expected": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "b62da86169d2375b7b83ef667e7538f2e6b9a39e769795ab7e1fc26a054c962c",
+      "success": 1
+    },
+    "ordinary": "mutation-format-4-8/frame",
+    "pixels": {
+      "frame": "e402520f5f450ce446471484aa5e3fa6bf366757fb83c38419b97bf15dcedd1e",
+      "calls": "feaa6d1e4c86ec2e1f7e7e461f68b9b501285eecb7bfa9a63e21e6cd1f7900a3",
+      "call_bytes": 27,
+      "cache_exists": 0,
+      "cache": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cache_bytes": 0
+    },
+    "reason": "The old PNGdec framebuffer decoder fails when every compressed byte is separated by an empty IDAT; the complete valid stream decodes to the ordinary single-IDAT image in Rust."
+  },
+  "transition-bytewise-6/frame": {
+    "old": {
+      "bytes": 52361,
+      "exit": 0,
+      "sha256": "5612eace37ef550f955a16f41908fc6a53376d4ad7789d094dac412e35aa3d8f",
+      "success": 0
+    },
+    "expected": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "7bd4b65b260d87cb1b9022bc8f8a8ce8b10ba5ab8e0998f9274a3f70131b54d8",
+      "success": 1
+    },
+    "ordinary": "mutation-format-6-8/frame",
+    "pixels": {
+      "frame": "a4693043e8941f2453b899cf1ec664a38396000896f06ffd92e4cbb38deb3b5f",
+      "calls": "feaa6d1e4c86ec2e1f7e7e461f68b9b501285eecb7bfa9a63e21e6cd1f7900a3",
+      "call_bytes": 27,
+      "cache_exists": 0,
+      "cache": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cache_bytes": 0
+    },
+    "reason": "The old PNGdec framebuffer decoder fails when every compressed byte is separated by an empty IDAT; the complete valid stream decodes to the ordinary single-IDAT image in Rust."
+  }
+}

@@ -12,6 +12,7 @@ mod page;
 mod page_render;
 mod para;
 mod pkg;
+mod png;
 
 mod sdfont;
 mod section;

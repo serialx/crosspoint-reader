@@ -1357,6 +1357,31 @@ int32_t xp_inflate_init(void* state, size_t state_bytes, uint8_t zlib_wrapped);
 int32_t xp_inflate_step(void* state, const uint8_t* input, size_t in_len, uint8_t more_input, uint8_t* output,
                         size_t out_len, size_t* out_pos, uint8_t wrapping_window, size_t* consumed, size_t* produced);
 
+// PNG: synchronous decode; read(offset) writes at most len bytes and returns its count.
+// Callbacks/context remain live, do not reenter, and retain no byte spans.
+// Target lends exclusive framebuffer storage; write callbacks preserve its loan.
+// write operations: 0 open cache, 1 bytes, 2 close cache, 3 abort cache.
+// BMP only uses operation 1; target may be null for BMP.
+typedef size_t (*XpPngRead)(void*, uint32_t offset, uint8_t*, size_t len);
+typedef struct {
+  void* context;
+  XpPngRead read;
+  void (*target)(void*, XpImageTarget*);
+  bool (*write)(void*, uint32_t operation, const uint8_t*, size_t);
+  void (*progress)(void*);
+  uint32_t size;
+} XpPngServices;
+typedef struct {
+  int32_t width, height;
+  bool oneBit, crop, originalThresholds;
+} XpPngBmpConfig;
+bool xp_png_dimensions(void*, XpPngRead, uint32_t size, uint32_t* width, uint32_t* height);
+bool xp_png_render(const XpPngServices*, const XpImageConfig*, bool cache);
+// Optional exclusive framebuffer scratch loan, aligned to sizeof(uintptr_t).
+size_t xp_png_scratch_size(void);
+bool xp_png_bmp(const XpPngServices*, const XpPngBmpConfig*, uint8_t* scratch, size_t scratch_len);
+bool xp_png_sleep_header(const uint8_t*, size_t);
+
 #ifdef __cplusplus
 }
 #endif

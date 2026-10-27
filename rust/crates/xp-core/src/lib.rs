@@ -11,6 +11,7 @@ pub mod image;
 pub mod inflate;
 pub mod page;
 pub mod para;
+pub mod png;
 pub mod sdfont;
 pub mod section;
 pub mod text;

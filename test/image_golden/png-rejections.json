@@ -1,0 +1,3293 @@
+{
+  "mutation-chunk-ABCD-2147483647/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 0,
+      "exit": -10,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-IEND-2147483647/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 0,
+      "exit": -10,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-IHDR-2147483647/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 0,
+      "exit": -10,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-PLTE-1024/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "34dbc6bf6001e76eca72264f0d45bec354a6ce24d96440f2f556bee7edf290eb",
+      "success": 1
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-PLTE-2048/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "34dbc6bf6001e76eca72264f0d45bec354a6ce24d96440f2f556bee7edf290eb",
+      "success": 1
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-PLTE-2147483647/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 0,
+      "exit": -10,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-PLTE-769/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "34dbc6bf6001e76eca72264f0d45bec354a6ce24d96440f2f556bee7edf290eb",
+      "success": 1
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-abCD-2147483647/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 0,
+      "exit": -10,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-chunk-tRNS-2147483647/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 0,
+      "exit": -10,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reason": "Oversized chunk length or palette payload: reject before offset arithmetic or copying."
+  },
+  "mutation-color-1/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "06f1f405563e50b09be1bb08fcf53f83b793c8e504d497426d71400915e09008",
+      "success": 1
+    },
+    "reason": "Unsupported color type: reject instead of synthesizing gray pixels."
+  },
+  "mutation-color-255/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "06f1f405563e50b09be1bb08fcf53f83b793c8e504d497426d71400915e09008",
+      "success": 1
+    },
+    "reason": "Unsupported color type: reject instead of synthesizing gray pixels."
+  },
+  "mutation-color-5/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "06f1f405563e50b09be1bb08fcf53f83b793c8e504d497426d71400915e09008",
+      "success": 1
+    },
+    "reason": "Unsupported color type: reject instead of synthesizing gray pixels."
+  },
+  "mutation-color-7/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52379,
+      "exit": 0,
+      "sha256": "06f1f405563e50b09be1bb08fcf53f83b793c8e504d497426d71400915e09008",
+      "success": 1
+    },
+    "reason": "Unsupported color type: reject instead of synthesizing gray pixels."
+  },
+  "mutation-format-2-1/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "3d0b7e9ea3c432acd0e9bce6b3b2e8e9b9444bd4e5c0858172cc4a43337addc3",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-1/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "f773dab1afcd904e1af45e45815a9a0a0438de43c1654b8ed677374f24677d37",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-1/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "3d0b7e9ea3c432acd0e9bce6b3b2e8e9b9444bd4e5c0858172cc4a43337addc3",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-1/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "f773dab1afcd904e1af45e45815a9a0a0438de43c1654b8ed677374f24677d37",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-1/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "912906b5dc85b9f3cf505c0bd3b7c32735040a4ef22707b4b688279669518e5d",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-1/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 63,
+      "exit": 0,
+      "sha256": "82e6aa303b8e4d7b5624f18e94f72b9889d10b973471f6dbe745cebd7fcac044",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-2/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "58021bd90e43be8c1e8baec58a6ce5cd81d26eaed442031c3785f0f2bdb9acc4",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-2/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "9a6d771f29551c62d2283adf7feeefcf9a39a58c38d281e65a15564d9914a0e4",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-2/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "1141ee9264910c3eb8218a45f01fe7ad72a0a1db01cfe3c0b21aab4ad21b7a29",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-2/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "426f9e02810b9ab9daf532a68fd2f9e4e57ba7f6527996a1c0f8695937877ee2",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-2/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 271,
+      "exit": 0,
+      "sha256": "f384211812ce32fa1cdd3b1d1b2f06a106119a3edb0ca0131b003b9e31980618",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-2/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 183,
+      "exit": 0,
+      "sha256": "c82330bfcfb1d2def51674579020335afbcb9e17ef42f8910268ca1338478a8c",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-4/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "b5a9c16ce130196926ff0cc9f87332eb2003d3554849d3dcbd65df06a78894ce",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-4/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "fedc2db5ad313cf562f0ae338c288477493e40ed39c9da145a600ad635ea2eb1",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-4/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "4cf6c63645750cffa32e2d4c3ee1416fbca2c0b2a43c64f95187f9413ed21394",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-4/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "5520704fe2190ce503503b52a36f9d532235a1b3064e79ee92b5d14b3b370668",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-4/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 271,
+      "exit": 0,
+      "sha256": "54a89ae090911412132dba9d323ee24ef587985047d4d4b21c34b18f9d21730e",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-2-4/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 183,
+      "exit": 0,
+      "sha256": "f548ff58740f7f19358d0f468b0dd3ae3ac0ff52e35a69511f36eebd3f39a182",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-3-16/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 49835,
+      "exit": 0,
+      "sha256": "34a5d9f415b9a2e857b8a2e369578bf85a7b000073dd3696e0d85e89996bc4ae",
+      "success": 1
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-3-16/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 221831,
+      "exit": 0,
+      "sha256": "a3530ecd3b76ea26f797f9c36ab795c2e1679bf8faee13da6e96eb82e3c78440",
+      "success": 1
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-3-16/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 49835,
+      "exit": 0,
+      "sha256": "8dc3a0a2d450771f473205a83a6666b0919ffa7a1691d5783e6e34a60b5a21d5",
+      "success": 1
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-3-16/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 221831,
+      "exit": 0,
+      "sha256": "96c7b3fa2756692eef83f2b1042cc503db9af7d1244bf24a8fea6e8bcb4e51ff",
+      "success": 1
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-3-16/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 1131,
+      "exit": 0,
+      "sha256": "bde0d588d977df1780c4b74b615446b456aac9bf26349acdc409c19d4bddca8a",
+      "success": 1
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-3-16/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 699,
+      "exit": 0,
+      "sha256": "88b4ed367ae30221809e2928ffbe61250345253752ce2a02453e13f6e2a46171",
+      "success": 1
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-1/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "ebe9aa281ed4dadac82a3a3929401134d385e2fdb86f5c2ea294e4fdd6119965",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-1/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "34acfdadd7c2a33a02cc22792034fc7aa49e12cafb80c31b5f74874da6c4096e",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-1/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "167072b250c65a995d1fd1a368b10bf8c29efc74f78b0336c410115c1e362b4c",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-1/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "3afe5483efcdfb446170a8f1552c3832fd70265a8f71408f41be3e3d5278e25d",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-1/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 271,
+      "exit": 0,
+      "sha256": "d3390451c711ed977d35e66880de361e36401391e9176155586f083ef44148d3",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-1/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 183,
+      "exit": 0,
+      "sha256": "6812870d30a1e72fa390badc6c7f1397b24e40dcb9fbf878dcb87b6c2c76c78a",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-2/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "09b13d1865d5b43384af939e187ed82aafb88caae16e7b1d233a89da093346d3",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-2/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "5c2d80f23c4606859beb91f39f8c7067230760e6a6c5582a84289c4099f361fd",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-2/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "3e0a25c27fdefa53753c3c4b880a402a22f675bfe08bd5e0c3e193966314b5e0",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-2/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "df7bcf00279809f61df27bd1dee38bc0eb387354eb73573f0254513ae63a1cbe",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-2/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 271,
+      "exit": 0,
+      "sha256": "c7bf6327c96883cd0e690699921c8fb049b0d5d5e8d85171c5c3d0ca44a1c7d9",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-2/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 183,
+      "exit": 0,
+      "sha256": "596ec64272ac4e2e812f43985b2f890c13f9e267b6c2c0b7e5c381893c735450",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-4/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "3bcb8025663ec878be8d7454aaf8d6734c3da7a36976d26937cca501afa11bdf",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-4/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "1f6efa455d207fa3695fdda0930419102bffb14e4227b42fe630ea97c93690d4",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-4/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "a249a7777e5876fc3de94ce91a021b04cedd9b6cadfe26361ab14ea34f045485",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-4/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "1ffe4a4462a02b3483a9dea8a36b568dbab18cbe7f6b70a088f39d135b0430de",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-4/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 271,
+      "exit": 0,
+      "sha256": "9f1690ce51313f6a5079382d500c1c4067f93a894ee77f900187cb9b00c82d48",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-4-4/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 183,
+      "exit": 0,
+      "sha256": "f986ab69f7ca738a1f2854d9e02abd52fbaa2052da27c5e30a0b9666787b1e75",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-1/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "3d0b7e9ea3c432acd0e9bce6b3b2e8e9b9444bd4e5c0858172cc4a43337addc3",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-1/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "f773dab1afcd904e1af45e45815a9a0a0438de43c1654b8ed677374f24677d37",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-1/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "3d0b7e9ea3c432acd0e9bce6b3b2e8e9b9444bd4e5c0858172cc4a43337addc3",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-1/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "f773dab1afcd904e1af45e45815a9a0a0438de43c1654b8ed677374f24677d37",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-1/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 71,
+      "exit": 0,
+      "sha256": "912906b5dc85b9f3cf505c0bd3b7c32735040a4ef22707b4b688279669518e5d",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-1/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 63,
+      "exit": 0,
+      "sha256": "82e6aa303b8e4d7b5624f18e94f72b9889d10b973471f6dbe745cebd7fcac044",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-2/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "f5769b833ce73fdc3ddd4bf49e7086f4bac38c2e88fad9bf513f46e59f3e97ff",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-2/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "2f482251ac64b1cbfa2e6b72864adf4465e41373b24f4d6ee9f56d3ee593e2ef",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-2/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "646d40d6092c47a6f54a390eb7e7abe9f67f48d0df7dd3901847a693a5805454",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-2/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "3f73ffb3cd8cac58d0f57feb82b94b1afc3f05c7b01d72167c45d29127a33ea0",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-2/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 271,
+      "exit": 0,
+      "sha256": "ae40156510cf3a09e8efce2d7dedb06adf1ac753e72a22c33826d477ebea9c7e",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-2/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 183,
+      "exit": 0,
+      "sha256": "203f50075dbfbef8beede7a32b3a41c1daa02fea2ef04c13518b8de714a4488b",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-4/bmp0": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "ec03636650e584347fc9e2be71ee4857c0a18b7dd3f5c08072f1bea0873670a7",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-4/bmp1": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "9de3f4e4a3edcb2aee517e2930659edbcf3cc7595c15d4da97437530499df255",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-4/bmp2": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 9971,
+      "exit": 0,
+      "sha256": "d14a51e9f906e6d6869d09a75863cdf85a24e8c6bea538f804f77222af9ce67a",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-4/bmp3": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 44311,
+      "exit": 0,
+      "sha256": "05eff84593ad69efc17120e8bb63680151ee2c163b6b35f04dabfc19db010954",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-4/bmp4": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 271,
+      "exit": 0,
+      "sha256": "599be77c6527e7d03c8066addef5ef14e2573ce7586a5ea537f7b366bbee439f",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-format-6-4/bmp5": {
+    "expected": {
+      "bytes": 1,
+      "exit": 0,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "success": 0
+    },
+    "old": {
+      "bytes": 183,
+      "exit": 0,
+      "sha256": "f64c16d42008453b7ab0635f45f375fd8b88e90204ecd06cb0b74e79b8c1c8b3",
+      "success": 0
+    },
+    "reason": "Unsupported PNG sample/color combination: reject before BMP header or partial output."
+  },
+  "mutation-height-3072/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "72e3c59e171629eef2348fb7261ed4ef1cf000ea70673d3acb42e572e06ff7bc",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "db263eec863148af920a2a6558faca3c368b8043f745737e49de4e66aedfe607",
+      "success": 1
+    },
+    "reason": "Too few decoded rows for IHDR height: reject incomplete image."
+  },
+  "mutation-height-32767/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c78156e798e89c51930691174275567ef2943c63d85b43ead69a14a4d9718478",
+      "success": 0
+    },
+    "old": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "af099bd351fec3565c67e97228c489f151ee80f7463172976cbc1e6f68f846dc",
+      "success": 1
+    },
+    "reason": "Too few decoded rows for IHDR height: reject incomplete image."
+  },
+  "mutation-truncate-0-57/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-58/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-59/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-60/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-61/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-62/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-63/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-64/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-65/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-66/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-67/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-68/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-69/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-70/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-71/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-72/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-73/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-74/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-75/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-76/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-77/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-78/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-79/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-80/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-81/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-82/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-83/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-84/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-85/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-86/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-87/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-88/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-0-89/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-129/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-130/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-131/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-132/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-133/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-134/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-135/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-136/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-137/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-138/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-139/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-140/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-141/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-142/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-143/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-144/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-145/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-146/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-147/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-148/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-149/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-150/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-151/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-152/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-153/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-154/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-155/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-156/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-157/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-158/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-159/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-160/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-2-161/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1089/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1090/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1091/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1092/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1093/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1094/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1095/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1096/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1097/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1098/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1099/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1100/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1101/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1102/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1103/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1104/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1105/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1106/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1107/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1108/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1109/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1110/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1111/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1112/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1113/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1114/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1115/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1116/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1117/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1118/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1119/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1120/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1121/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1122/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1123/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1124/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1125/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1126/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1127/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1128/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1129/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1130/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1131/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1132/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1133/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1134/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1135/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1136/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-3-1137/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-100/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-101/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-102/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-103/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-104/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-105/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-106/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-107/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-108/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-109/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-110/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-111/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-112/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-113/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-114/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-115/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-116/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-117/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-118/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-119/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-120/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-121/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-122/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-123/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-124/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-125/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-126/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-94/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-95/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-96/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-97/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-98/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-4-99/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-164/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-165/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-166/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-167/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-168/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-169/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-170/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-171/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-172/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-173/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-174/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-175/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-176/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-177/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-178/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-179/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-180/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-181/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-182/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-183/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-184/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-185/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-186/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-187/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-188/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-189/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-190/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-191/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-192/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-193/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-194/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-195/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  },
+  "mutation-truncate-6-196/frame": {
+    "expected": {
+      "bytes": 52352,
+      "exit": 0,
+      "sha256": "c86fa2698cf80dbee5d9a85b51ae62896b338ea0dd06332132a4f93272c0346e",
+      "success": 0
+    },
+    "old": {
+      "timeout": true
+    },
+    "reason": "Truncated IDAT: old decoder hangs; reject before decoding."
+  }
+}

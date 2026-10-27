@@ -10,6 +10,7 @@ mod image;
 mod para;
 mod pkg;
 
+mod sdfont;
 mod section;
 mod text;
 mod textm;

@@ -1,5 +1,7 @@
 #include "SdCardFontRegistry.h"
 
+#include <xp_ffi.h>
+
 #if CROSSPOINT_VECTOR_FONTS
 #include <FtFont.h>
 #endif
@@ -111,37 +113,7 @@ bool SdCardFontFamilyInfo::filePath(const SdCardFontFileInfo& file, char* out, c
 // --- SdCardFontRegistry ---
 
 bool SdCardFontRegistry::parseFilename(const char* filename, uint8_t& size, uint8_t& style) {
-  // V4 naming: <name>_<size>.cpfont (e.g. Bookerly-SD_14.cpfont)
-  // Use an ends-with check rather than strstr() so that in-progress downloads
-  // like "Foo_14.cpfont.tmp" or backups like "Foo_14.cpfont~" aren't accepted.
-  static constexpr char kExt[] = ".cpfont";
-  static constexpr size_t kExtLen = sizeof(kExt) - 1;
-  const size_t nameLen = strlen(filename);
-  if (nameLen <= kExtLen) return false;
-  if (strcmp(filename + nameLen - kExtLen, kExt) != 0) return false;
-  const char* ext = filename + nameLen - kExtLen;
-
-  size_t baseLen = ext - filename;
-  if (baseLen == 0 || baseLen > 127) return false;
-
-  char base[128];
-  memcpy(base, filename, baseLen);
-  base[baseLen] = '\0';
-
-  char* lastUnderscore = strrchr(base, '_');
-  if (!lastUnderscore || lastUnderscore == base) return false;
-
-  const char* sizeStr = lastUnderscore + 1;
-  char* endPtr;
-  long sizeVal = strtol(sizeStr, &endPtr, 10);
-  if (endPtr == sizeStr || *endPtr != '\0' || sizeVal < 1 || sizeVal > 255) return false;
-  size = static_cast<uint8_t>(sizeVal);
-  // V4 .cpfont files bundle every style (regular/bold/italic/bold-italic) into
-  // one file, so style is always 0 at the registry level. The per-style
-  // bitstream is selected later by SdCardFont::getEpdFont(style). The `style`
-  // field in SdCardFontFileInfo is reserved for future formats that split
-  // styles across files; scanDirectory() defends against accidental
-  // (pointSize, style) collisions in that scenario.
+  if (!xp_sdfont_filename(reinterpret_cast<const uint8_t*>(filename), strlen(filename), &size)) return false;
   style = 0;
   return true;
 }

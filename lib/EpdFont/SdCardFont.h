@@ -155,19 +155,7 @@ class SdCardFont {
 
  private:
   // Per-style metadata (parsed from file header/TOC)
-  struct CpFontHeader {
-    uint32_t intervalCount = 0;
-    uint32_t glyphCount = 0;
-    uint8_t advanceY = 0;
-    int16_t ascender = 0;
-    int16_t descender = 0;
-    bool is2Bit = false;
-    uint16_t kernLeftEntryCount = 0;
-    uint16_t kernRightEntryCount = 0;
-    uint8_t kernLeftClassCount = 0;
-    uint8_t kernRightClassCount = 0;
-    uint8_t ligaturePairCount = 0;
-  };
+  using CpFontHeader = XpSdfontHeader;
 
   // All per-style data: file offsets, intervals, kern/lig, prewarm cache, EpdFont
   struct PerStyle {
@@ -362,7 +350,6 @@ class SdCardFont {
   // Global helpers
   void freeAll();
   void clearOverflow();
-  static void computeStyleFileOffsets(PerStyle& s, uint32_t baseOffset);
 
   // Static callback for EpdFontData::glyphMissHandler (per-style via OverflowContext)
   static const EpdGlyph* onGlyphMiss(void* ctx, uint32_t codepoint);

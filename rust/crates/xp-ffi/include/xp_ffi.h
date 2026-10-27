@@ -1182,6 +1182,46 @@ uint8_t xp_glyph_intersects_strip(const XpGlyphTarget*, int32_t, int32_t, int32_
 // TTF, SD overflow, hot-group and stale-view misses stay with the C++ owner.
 uint8_t xp_glyph_bitmap(const XpGlyphSource*, const void* glyph, XpGlyphBitmap*);
 
+// SD font v4 parsing. No allocation, I/O, callbacks or retained pointers.
+// Byte spans are readable for len bytes (len <= PTRDIFF_MAX), NULL only if empty.
+// Typed outputs/state are live, aligned and exclusive for the call. State is
+// initialized by header (Directory) or {0, 0, glyphCount <= UINT16_MAX} (Intervals).
+// Input/output/state do not overlap, except interval output may alias its bytes.
+// False leaves outputs/state unchanged. Malformed bytes never panic.
+// Offsets retain uint32 wrap; table I/O and bitmap extent checks remain deferred.
+typedef struct {
+  uint32_t intervalCount, glyphCount;
+  uint8_t advanceY;
+  int16_t ascender, descender;
+  bool is2Bit;
+  uint16_t kernLeftEntryCount, kernRightEntryCount;
+  uint8_t kernLeftClassCount, kernRightClassCount, ligaturePairCount;
+} XpSdfontHeader;
+typedef struct {
+  uint32_t hash;
+  uint8_t styleCount;
+  bool is2Bit;
+  uint8_t seen;
+} XpSdfontDirectory;
+typedef struct {
+  XpSdfontHeader header;
+  uint32_t offsets[7];  // intervals, glyphs, left/right kern, matrix, ligatures, bitmap
+  uint8_t id;
+} XpSdfontStyle;
+typedef struct {
+  uint32_t expectedOffset, previousLast;
+  bool bmp16;
+} XpSdfontIntervals;
+bool xp_sdfont_header(const uint8_t*, size_t, XpSdfontDirectory*);
+bool xp_sdfont_style(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontStyle*);
+// out points to a writable EpdUnicodeInterval (three uint32 fields).
+bool xp_sdfont_interval(const uint8_t*, size_t, uint32_t glyphs, uint32_t index, XpSdfontIntervals*, void* out);
+bool xp_sdfont_glyph_valid(const uint8_t*, size_t, bool twoBit, uint32_t bitmapOffset, uint32_t fileSize);
+// A class ID outside count is returned as zero. Invalid input leaves cp unchanged.
+uint8_t xp_sdfont_kern_class(const uint8_t*, size_t, uint8_t count, uint32_t* cp);
+bool xp_sdfont_ligature(const uint8_t*, size_t, uint32_t* left, uint32_t* right, uint32_t* out);
+bool xp_sdfont_filename(const uint8_t*, size_t, uint8_t* size);
+
 #ifdef __cplusplus
 }
 #endif

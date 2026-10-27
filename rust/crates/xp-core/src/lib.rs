@@ -9,6 +9,7 @@ pub mod glyph;
 pub mod hyphen;
 pub mod image;
 pub mod para;
+pub mod sdfont;
 pub mod section;
 pub mod text;
 pub mod textm;

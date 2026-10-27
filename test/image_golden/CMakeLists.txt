@@ -38,6 +38,7 @@ if(IMAGE_ASAN)
 endif()
 
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+include(${REPO_ROOT}/test/gif_support/oracle.cmake)
 target_link_libraries(image_oracle PRIVATE xp_ffi_host)
 add_executable(image_failures FailureTest.cpp)
 target_link_libraries(image_failures PRIVATE xp_ffi_host)

@@ -5,7 +5,7 @@
 #include <Logging.h>
 
 #include <optional>
-#include <vector>
+#include <span>
 
 #include "ProgressFile.h"
 
@@ -41,8 +41,8 @@ inline bool saveProgress(const Epub& epub, int spineIndex, int pageNumber, int p
   return true;
 }
 
-inline const PageLink* linkAtPoint(const std::vector<PageLink>& links, const int x, const int y, const int marginLeft,
-                                   const int marginTop) {
+inline const PageLink* linkAtPoint(const std::span<const PageLink> links, const int x, const int y,
+                                   const int marginLeft, const int marginTop) {
   // Finger slop, plus a floor on the target width: a note marker is often a single superscript
   // digit only a few pixels wide. The box is never grown vertically beyond its own line, so
   // taps on the lines above and below still reach the page-turn zones.

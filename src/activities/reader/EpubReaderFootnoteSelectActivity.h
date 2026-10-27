@@ -4,8 +4,8 @@
 #include <Epub/PageLink.h>
 #include <I18n.h>
 
+#include <array>
 #include <memory>
-#include <vector>
 
 #include "activities/Activity.h"
 
@@ -38,10 +38,14 @@ class EpubReaderFootnoteSelectActivity final : public Activity {
   const int marginTop;
 
   struct FootnoteLink {
-    const PageLink* link;
-    const FootnoteEntry* footnote;
+    uint16_t link;
+    uint16_t footnote;
   };
-  std::vector<FootnoteLink> footnoteLinks;
+  std::array<FootnoteLink, Page::MAX_FOOTNOTES_PER_PAGE> footnoteLinks{};
+  size_t footnoteLinkCount = 0;
+  // Footer records exceed the per-local stack budget; reuse activity-owned scratch.
+  FootnoteEntry footnoteScratch;
+  PageLink linkScratch;
   int selected = 0;
 
   // Differential highlight repaint: pixels under the current highlight box.

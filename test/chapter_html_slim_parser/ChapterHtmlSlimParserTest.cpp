@@ -210,12 +210,14 @@ void installSyntheticVariants(GfxRenderer& renderer) {
 
 static std::vector<FootnoteEntry> notes(const Page& page) {
   std::vector<FootnoteEntry> result;
-  page.copyFootnotes(result);
+  result.resize(page.footnoteCount());
+  for (uint16_t i = 0; i < result.size(); ++i) page.footnote(i, result[i]);
   return result;
 }
 static std::vector<PageLink> pageLinks(const Page& page) {
   std::vector<PageLink> result;
-  page.copyLinks(result);
+  result.resize(page.linkCount());
+  for (uint16_t i = 0; i < result.size(); ++i) page.link(i, result[i]);
   return result;
 }
 

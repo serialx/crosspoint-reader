@@ -22,25 +22,25 @@ void EpubReaderFootnoteSelectActivity::onEnter() {
 }
 
 void EpubReaderFootnoteSelectActivity::buildFootnoteLinks() {
-  footnoteLinks.clear();
-  footnoteLinks.reserve(page->footnotes.size());
-
-  // Match each footnote entry to its PageLink on this page. Footnote links
-  // and footnote entries share the same href, so we can cross-reference them.
-  for (const auto& footnote : page->footnotes) {
-    const auto link = std::find_if(page->links.begin(), page->links.end(), [&footnote](const PageLink& candidate) {
-      return strcmp(candidate.href, footnote.href) == 0;
-    });
-    if (link != page->links.end()) {
-      footnoteLinks.push_back({&*link, &footnote});
+  footnoteLinkCount = 0;
+  // Preserve footnote order and the first link with the same href.
+  for (uint16_t i = 0; i < page->footnoteCount(); ++i) {
+    page->footnote(i, footnoteScratch);
+    for (uint16_t j = 0; j < page->linkCount(); ++j) {
+      page->link(j, linkScratch);
+      if (strcmp(linkScratch.href, footnoteScratch.href) == 0) {
+        footnoteLinks[footnoteLinkCount++] = {j, i};
+        break;
+      }
     }
   }
 }
 
 void EpubReaderFootnoteSelectActivity::performJump() {
-  if (footnoteLinks.empty()) return;
+  if (footnoteLinkCount == 0) return;
   ActivityResult result;
-  result.data = FootnoteResult{footnoteLinks[selected].footnote->href};
+  page->footnote(footnoteLinks[selected].footnote, footnoteScratch);
+  result.data = FootnoteResult{footnoteScratch.href};
   setResult(std::move(result));
   finish();
 }
@@ -62,14 +62,14 @@ void EpubReaderFootnoteSelectActivity::loop() {
 
   if ((mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
        mappedInput.wasReleased(MappedInputManager::Button::Power)) &&
-      !footnoteLinks.empty()) {
+      footnoteLinkCount != 0) {
     performJump();
     return;
   }
 
-  if (footnoteLinks.empty()) return;
+  if (footnoteLinkCount == 0) return;
 
-  const bool hasNext = selected + 1 < static_cast<int>(footnoteLinks.size());
+  const bool hasNext = selected + 1 < static_cast<int>(footnoteLinkCount);
   const unsigned long now = millis();
   const bool repeat =
       mappedInput.getHeldTime() >= WORD_REPEAT_START_MS && now - lastHorizontalMoveTime >= WORD_REPEAT_INTERVAL_MS;
@@ -89,15 +89,15 @@ void EpubReaderFootnoteSelectActivity::loop() {
 }
 
 bool EpubReaderFootnoteSelectActivity::drawHighlightWithSnapshot() {
-  if (footnoteLinks.empty()) return false;
-  const PageLink* link = footnoteLinks[selected].link;
+  if (footnoteLinkCount == 0) return false;
+  page->link(footnoteLinks[selected].link, linkScratch);
 
-  const int x = link->x + marginLeft;
-  const int y = link->y + marginTop;
+  const int x = linkScratch.x + marginLeft;
+  const int y = linkScratch.y + marginTop;
   int hx = x - 2;
   int hy = y - 2;
-  int hw = link->width + 4;
-  int hh = link->height + 4;
+  int hw = linkScratch.width + 4;
+  int hh = linkScratch.height + 4;
 
   if (hx < 0) {
     hw += hx;
@@ -120,7 +120,8 @@ bool EpubReaderFootnoteSelectActivity::drawHighlightWithSnapshot() {
 
   renderer.fillRect(hx, hy, hw, hh, true);
   // Draw a small marker (the footnote number) at the highlight position
-  const char* number = footnoteLinks[selected].footnote->number;
+  page->footnote(footnoteLinks[selected].footnote, footnoteScratch);
+  const char* number = footnoteScratch.number;
   if (number[0]) {
     renderer.drawText(SETTINGS.getReaderFontId(), x, y - 1, number, false);
   }
@@ -130,7 +131,7 @@ bool EpubReaderFootnoteSelectActivity::drawHighlightWithSnapshot() {
 void EpubReaderFootnoteSelectActivity::render(RenderLock&&) {
   // Differential fast path: only the highlight moved and the framebuffer still
   // holds a clean page.
-  if (snapshotIdx >= 0 && !footnoteLinks.empty() && selected != snapshotIdx) {
+  if (snapshotIdx >= 0 && footnoteLinkCount != 0 && selected != snapshotIdx) {
     renderer.writeFramebufferRegion(snapshotX, snapshotY, snapshotW, snapshotH, snapshot.get());
     if (drawHighlightWithSnapshot()) {
       drawHints();
@@ -147,7 +148,7 @@ void EpubReaderFootnoteSelectActivity::render(RenderLock&&) {
     page->render(renderer, SETTINGS.getReaderFontId(), marginLeft, marginTop);
   }
 
-  if (!footnoteLinks.empty()) {
+  if (footnoteLinkCount != 0) {
     drawHighlightWithSnapshot();
   }
 

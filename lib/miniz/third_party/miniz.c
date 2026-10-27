@@ -2476,6 +2476,7 @@ extern "C"
 
         bit_buf = num_bits = dist = counter = num_extra = r->m_zhdr0 = r->m_zhdr1 = 0;
         r->m_z_adler32 = r->m_check_adler32 = 1;
+        r->m_history_size = 0;
         if (decomp_flags & TINFL_FLAG_PARSE_ZLIB_HEADER)
         {
             TINFL_GET_BYTE(1, r->m_zhdr0);
@@ -2782,7 +2783,10 @@ extern "C"
                     }
 
                     dist_from_out_buf_start = pOut_buf_cur - pOut_buf_start;
-                    if ((dist == 0 || dist > dist_from_out_buf_start || dist_from_out_buf_start == 0) && (decomp_flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF))
+                    /* Ring offsets alone cannot distinguish valid history from unwritten dictionary bytes. */
+                    if (dist == 0 || ((decomp_flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF)
+                        ? dist > dist_from_out_buf_start
+                        : dist > r->m_history_size + (size_t)(pOut_buf_cur - pOut_buf_next)))
                     {
                         TINFL_CR_RETURN_FOREVER(37, TINFL_STATUS_FAILED);
                     }
@@ -2895,6 +2899,7 @@ extern "C"
         r->m_dist_from_out_buf_start = dist_from_out_buf_start;
         *pIn_buf_size = pIn_buf_cur - pIn_buf_next;
         *pOut_buf_size = pOut_buf_cur - pOut_buf_next;
+        r->m_history_size += (mz_uint16)MZ_MIN(TINFL_LZ_DICT_SIZE - r->m_history_size, *pOut_buf_size);
         if ((decomp_flags & (TINFL_FLAG_PARSE_ZLIB_HEADER | TINFL_FLAG_COMPUTE_ADLER32)) && (status >= 0))
         {
             const mz_uint8 *ptr = pOut_buf_next;

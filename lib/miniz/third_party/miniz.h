@@ -1047,6 +1047,7 @@ typedef mz_uint32 tinfl_bit_buf_t;
         mz_uint8 m_code_size_1[TINFL_MAX_HUFF_SYMBOLS_1];
         mz_uint8 m_code_size_2[TINFL_MAX_HUFF_SYMBOLS_2];
         mz_uint8 m_raw_header[4], m_len_codes[TINFL_MAX_HUFF_SYMBOLS_0 + TINFL_MAX_HUFF_SYMBOLS_1 + 137];
+        mz_uint16 m_history_size; /* Saturates at TINFL_LZ_DICT_SIZE (32768). */
     };
 
 #ifdef __cplusplus

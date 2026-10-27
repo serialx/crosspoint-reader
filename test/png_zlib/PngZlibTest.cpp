@@ -58,7 +58,41 @@ static int decode(std::vector<unsigned char> input, unsigned inputChunk, unsigne
   return status;
 }
 
+static void invalidHistory(const std::vector<unsigned char>& input, size_t validPrefix) {
+  for (unsigned chunk : {1u, 7u, 2048u}) {
+    for (bool crc : {false, true}) {
+      auto arena = std::make_unique<PngZlibArena>();
+      PngZlibStream decoder;
+      CHECK(pngZlibInit(&decoder, arena.get()) == MZ_OK);
+      unsigned char output[16];
+      std::fill(std::begin(output), std::end(output), 0xa5);
+      size_t supplied = 0;
+      int status = MZ_OK;
+      for (unsigned calls = 0; calls < 32 && status >= 0; ++calls) {
+        auto& stream = decoder.stream;
+        if (!stream.avail_in && supplied < input.size()) {
+          stream.next_in = input.data() + supplied;
+          stream.avail_in = std::min<size_t>(chunk, input.size() - supplied);
+          supplied += stream.avail_in;
+        }
+        stream.next_out = output + stream.total_out;
+        stream.avail_out = sizeof(output) - stream.total_out;
+        status = pngZlibInflate(&decoder, MZ_NO_FLUSH, crc);
+      }
+      CHECK(status == MZ_DATA_ERROR);
+      CHECK(decoder.stream.total_out <= validPrefix);
+      for (size_t i = validPrefix; i < sizeof(output); ++i) CHECK(output[i] == 0xa5);
+      CHECK(pngZlibEnd(&decoder) == MZ_OK);
+    }
+  }
+}
+
 int main() {
+  // Empty history, one literal followed by distance two, and reserved distance symbols.
+  invalidHistory({0x78, 0x9c, 0x03, 0x02, 0x00, 0x00, 0x03, 0x00, 0x01}, 0);
+  invalidHistory({0x78, 0x9c, 0x73, 0x04, 0x42, 0x00, 0, 0, 0, 0}, 1);
+  invalidHistory({0x78, 0x9c, 0x03, 0x3e, 0x00, 0, 0, 0, 0}, 0);
+  invalidHistory({0x78, 0x9c, 0x03, 0x7e, 0x00, 0, 0, 0, 0}, 0);
   const std::vector<unsigned char> valid(std::begin(COMPRESSED), std::end(COMPRESSED));
   for (unsigned in : {1u, 2u, 7u, 2048u, 65536u}) {
     for (unsigned out : {1u, 37u, 32768u, 70000u}) {

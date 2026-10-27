@@ -23,5 +23,7 @@ if(PNG_SOURCE_DIR)
   if(EXISTS "${PNG_SOURCE_DIR}/src/inflate.c.disabled")
     target_sources(png_decoder_probe PRIVATE ${PNG_ZLIB_ROOT}/lib/PngZlib/PngZlib.cpp
       ${PNG_ZLIB_ROOT}/lib/miniz/src/miniz_impl.c)
+    add_test(NAME PngInvalidHistory COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/test_invalid_history.py $<TARGET_FILE:png_decoder_probe>)
   endif()
 endif()

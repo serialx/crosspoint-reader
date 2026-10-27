@@ -40,6 +40,7 @@ pub struct State {
     paragraph: *mut crate::para::paragraph::Paragraph,
     callbacks: *const Callbacks,
     pub assembly: assembly::Assembly<OwnedParagraph, Payload>,
+    page_storage: core::cell::UnsafeCell<assembly::runtime::Storage>,
     ctx: *mut c_void,
     css: *const Store,
     alignment: u8,
@@ -129,6 +130,9 @@ impl State {
         core::ptr::addr_of_mut!((*out).paragraph).write(core::ptr::null_mut());
         core::ptr::addr_of_mut!((*out).callbacks).write(callbacks);
         core::ptr::addr_of_mut!((*out).assembly).write(assembly::Assembly::new(assembly_options));
+        core::ptr::addr_of_mut!((*out).page_storage).write(core::cell::UnsafeCell::new(
+            assembly::runtime::Storage::default(),
+        ));
         core::ptr::addr_of_mut!((*out).ctx).write(ctx);
         core::ptr::addr_of_mut!((*out).css).write(css);
         core::ptr::addr_of_mut!((*out).alignment).write(alignment);

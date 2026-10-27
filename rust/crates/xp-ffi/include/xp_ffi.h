@@ -738,63 +738,16 @@ typedef struct {
   const XpChapterBlock* block;
 } XpChapterTrace;
 typedef struct {
-  void* pointer;
-} XpChapterPayload;
-typedef struct {
-  uint16_t width;
-  uint8_t thickness;
-} XpChapterRule;
-typedef struct {
-  int32_t font;
-  uint16_t scale256;
-  uint8_t style;
-  uint8_t text[13];
-} XpChapterCap;
-typedef struct {
-  uint8_t width, style;
-} XpChapterBorder;
-typedef struct {
-  uint16_t width, height;
-  XpChapterBorder sides[4];
-  bool shaded;
-} XpChapterBox;
-typedef struct {
-  uint8_t kind; /* line=0, image=1, rule=2, drop cap=3, border box=4 */
-  union {
-    XpChapterPayload payload;
-    XpChapterRule rule;
-    XpChapterCap cap;
-    XpChapterBox box;
-  } data;
-} XpChapterContent;
-typedef struct {
-  int16_t x, y;
-  XpChapterContent content;
-} XpChapterElement;
-typedef struct {
   uint8_t href[256];
   int16_t x, y, width, height;
 } XpChapterLink;
-typedef struct {
-  uint8_t href[256];
-  int16_t x, width, top_lift;
-} XpChapterLineLink;
-typedef struct {
-  int16_t x;
-  uint32_t words;
-  int32_t base_height, ruby_shift;
-} XpChapterLineMetrics;
 typedef struct {
   uint16_t paragraph, list;
   uint32_t visible;
   int16_t next_y;
 } XpChapterPosition;
-/* Borrowed sink/metrics/context outlive the chapter. create_page always consumes
- * every line/image payload, including failure (null). page_links/page_footnotes
- * borrow their arrays until return; Rust then frees each source buffer. complete
- * consumes the C++ page after these copies. Input spans are borrowed
- * until return; returned line_links views last until release_line_links,
- * pending_anchor until defer/record. Only measure_table may use its supplied state. */
+/* Borrowed sink/metrics/context outlive the chapter. All spans are borrowed
+ * synchronously. Only measure_table may use its supplied state pointer. */
 typedef struct {
   const XpParaAllocator* (*allocator)(void);
   const XpParaMetrics* metrics;
@@ -805,29 +758,14 @@ typedef struct {
   int32_t (*font_variant)(void* context, int32_t font, float scale);
   int32_t (*line_height)(void* context, int32_t font, float compression);
   uint8_t (*codepoint)(void* context, int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top);
-  /* Null create results report allocation failure. create_line borrows XpParaLine
-   * only until return; a non-null payload belongs to Rust until consumed/dropped. */
-  void* (*create_line)(void* context, const XpParaLine* line);
-  XpChapterLineMetrics (*line_metrics)(void* context, const void* line, const XpChapterAssemblyOptions* options,
-                                       bool table_row);
-  void (*set_margin)(void* line, int16_t left);
-  const XpChapterLineLink* (*line_links)(void* context, void* line, uint32_t* count);
-  /* Called once after each line_links borrow, including when copying fails. */
-  void (*release_line_links)(void* context);
-  /* create_page consumes all payloads even on null. A non-null C++ page is passed
-   * through the two copy callbacks and consumed exactly once by complete. */
-  void* (*create_page)(void* context, const XpChapterElement* elements, uint32_t count);
-  void (*page_links)(void* page, const XpChapterLink* links, uint32_t count);
-  void (*page_footnotes)(void* page, const XpChapterFootnote* footnotes, uint32_t count);
-  /* 0 = success, 1 = stop, other = allocation failure. A page callback may set
-   * a separate C++ stop latch; complete returns it after completePageFn returns. */
-  uint8_t (*complete)(void* context, void* page, XpChapterPosition position);
-  /* 0 = unsupported, 1 = failed, other = ready. Ready may be followed by one
-   * create_image after an intervening text flush. The context owns the probed
-   * paths until the next probe; Rust owns no temporary image allocation. */
+  int32_t (*font_ready)(void* context, int32_t font, int32_t fallback);
+  /* One complete encoded page. 0 = success, 1 = stop, other = failure.
+   * The callback may set its stop latch, but cannot reenter/destroy the parser. */
+  uint8_t (*complete)(void* context, XpChapterSpan page, XpChapterPosition position);
+  /* Ready paths are borrowed by image_paths after the intervening text flush. */
   uint8_t (*probe_image)(void* context, XpChapterSpan source, int32_t* counter, bool* popup_shown, uint16_t* width,
                          uint16_t* height);
-  void* (*create_image)(void* context, int32_t width, int32_t height);
+  void (*image_paths)(void* context, XpChapterSpan* cache, XpChapterSpan* source);
   XpChapterSpan (*pending_anchor)(void* context);
   void (*defer_anchor)(void* context, XpChapterSpan id);
   uint8_t (*anchor_is_toc)(void* context, XpChapterSpan id);
@@ -837,8 +775,6 @@ typedef struct {
   void (*trace)(void* context, const XpChapterTrace* observation);
   void (*trace_bytes)(void* context, XpChapterSpan bytes);
 } XpChapterSink;
-/* Fixed C++ sink destructor; accepts one owned TextBlock or ImageBlock. */
-void xp_chapter_release_block(void* block);
 typedef enum {
   XP_CHAPTER_QUERY_STOPPED = 0,
   XP_CHAPTER_QUERY_OOM = 1,

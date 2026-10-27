@@ -2493,45 +2493,16 @@ struct CompletionAudit {
   uint32_t elements = 0, links = 0, notes = 0;
   XpChapterSink original{};
 } completionAudit;
-void watchPayload(void* raw) {
-  if (!raw) return;
-  const auto kind = static_cast<Block*>(raw)->getType();
-  ++completionAudit.created[kind];
-  completionAudit.payloads.emplace(raw, kind);
-}
 XpChapterSink auditedSink(const XpChapterSink& original) {
   completionAudit.original = original;
   auto sink = original;
-  sink.create_line = [](void* ctx, const XpParaLine* line) -> void* {
-    auto* raw = completionAudit.original.create_line(ctx, line);
-    watchPayload(raw);
-    return raw;
-  };
-  sink.create_image = [](void* ctx, int32_t width, int32_t height) -> void* {
-    auto* raw = completionAudit.original.create_image(ctx, width, height);
-    watchPayload(raw);
-    return raw;
-  };
-  sink.create_page = [](void* ctx, const XpChapterElement* elements, uint32_t count) -> void* {
-    completionAudit.beforeElements = xp_test_live_bytes();
-    completionAudit.elements = count;
-    auto* page = completionAudit.original.create_page(ctx, elements, count);
-    completionAudit.afterElements = xp_test_live_bytes();
-    return page;
-  };
-  sink.page_links = [](void* page, const XpChapterLink* links, uint32_t count) {
-    completionAudit.beforeLinks = xp_test_live_bytes();
-    completionAudit.links = count;
-    completionAudit.original.page_links(page, links, count);
-    EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeLinks);
-  };
-  sink.page_footnotes = [](void* page, const XpChapterFootnote* notes, uint32_t count) {
-    completionAudit.beforeNotes = xp_test_live_bytes();
-    completionAudit.notes = count;
-    completionAudit.original.page_footnotes(page, notes, count);
-    EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeNotes);
-  };
-  sink.complete = [](void* ctx, void* page, XpChapterPosition position) -> uint8_t {
+  sink.complete = [](void* ctx, XpChapterSpan page, XpChapterPosition position) -> uint8_t {
+    XpPageInfo info{};
+    EXPECT_EQ(xp_page_arena_size(page.data, page.len, &info), 0u);
+    EXPECT_EQ(info.consumed, page.len);
+    completionAudit.elements = info.elements;
+    completionAudit.links = info.links;
+    completionAudit.notes = info.footnotes;
     completionAudit.beforeComplete = xp_test_live_bytes();
     return completionAudit.original.complete(ctx, page, position);
   };
@@ -2546,7 +2517,7 @@ void chapterTestBlockDestroyed(const void* raw) {
   completionAudit.payloads.erase(found);
 }
 
-TEST_F(ChapterHtmlSlimParserTest, CompletionReleasesEachRustBufferBeforeSerialization) {
+TEST_F(ChapterHtmlSlimParserTest, CompletionPassesOneCompletePageWithMetadata) {
   completionAudit = {};
   auto sink = auditedSink(parser.sink_);
   const auto options = parser.chapterOptions();
@@ -2568,18 +2539,8 @@ TEST_F(ChapterHtmlSlimParserTest, CompletionReleasesEachRustBufferBeforeSerializ
   };
   ChapterTestAccess::assembly(parser, 104);
   EXPECT_EQ(pages, 1u);
-  EXPECT_EQ(completionAudit.beforeElements, completionAudit.afterElements);
-  EXPECT_GE(completionAudit.afterElements - completionAudit.beforeLinks,
-            completionAudit.elements * sizeof(XpChapterElement));
-  EXPECT_EQ(completionAudit.beforeLinks - completionAudit.beforeNotes, 32 * sizeof(XpChapterLink));
-  EXPECT_EQ(completionAudit.beforeNotes - completionAudit.beforeComplete, 16 * sizeof(XpChapterFootnote));
   EXPECT_EQ(completionAudit.links, 32u);
   EXPECT_EQ(completionAudit.notes, 16u);
-  RecordProperty("rust_before_elements", completionAudit.beforeElements);
-  RecordProperty("rust_before_links", completionAudit.beforeLinks);
-  RecordProperty("rust_before_footnotes", completionAudit.beforeNotes);
-  RecordProperty("rust_before_completion", completionAudit.beforeComplete);
-  RecordProperty("metadata_destination_bytes", 32 * sizeof(PageLink) + 16 * sizeof(FootnoteEntry));
   parser.abortParse();
   EXPECT_TRUE(completionAudit.payloads.empty());
   EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
@@ -2620,8 +2581,6 @@ TEST_F(ChapterHtmlSlimParserTest, CompletionObjectFailuresConsumeEveryPayloadExa
     EXPECT_EQ(done, iteration == 0);
     EXPECT_EQ(pages, iteration == 0 ? 1u : 0u);
     candidate.abortParse();
-    EXPECT_GT(completionAudit.created[TEXT_BLOCK], 0u);
-    EXPECT_GT(completionAudit.created[IMAGE_BLOCK], 0u);
     EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
     EXPECT_EQ(completionAudit.created[IMAGE_BLOCK], completionAudit.destroyed[IMAGE_BLOCK]);
     EXPECT_TRUE(completionAudit.payloads.empty());
@@ -2631,25 +2590,20 @@ TEST_F(ChapterHtmlSlimParserTest, CompletionObjectFailuresConsumeEveryPayloadExa
   completionAudit = {};
 }
 
-TEST_F(ChapterHtmlSlimParserTest, LinkOwnerAllocationFailureRejectsChapter) {
-  const std::string html = "<html><body><p><a href='target.xhtml'>linked</a></p></body></html>";
-  {
-    HalFile file;
-    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
-    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
-  }
-  size_t pages = 0;
-  parser.completePageFn = [&](std::unique_ptr<Page>, auto, auto, auto) { ++pages; };
-  xp_test_fail_array_bytes(sizeof(TextBlock::LinkSpan));
-  const bool completed = parser.parseAndBuildPages();
-  const size_t failures = xp_test_array_failures();
-  xp_test_fail_array_bytes(0);
-  EXPECT_FALSE(completed);
-  EXPECT_GT(failures, 0u);
-  EXPECT_EQ(pages, 0u);
+TEST_F(ChapterHtmlSlimParserTest, ByteSinkFailureRejectsChapter) {
+  auto sink = parser.sink_;
+  sink.complete = [](void*, XpChapterSpan bytes, XpChapterPosition) -> uint8_t {
+    EXPECT_GT(bytes.len, 6u);
+    return 2;
+  };
+  const auto options = parser.chapterOptions();
+  ASSERT_EQ(xp_chapter_create(&parser.chapter_, &sink, &parser, cssParser.rustHandle(), &options), 0);
+  ASSERT_TRUE(xp_chapter_begin(parser.chapter_));
+  const std::string html = "<html><body><p><a href='#one'>one</a></p></body></html>";
+  xp_chapter_feed(parser.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 1);
+  EXPECT_FALSE(xp_chapter_finish(parser.chapter_));
   parser.abortParse();
   EXPECT_EQ(xp_test_live_allocations(), 0u);
-  std::filesystem::remove(filepath);
 }
 
 TEST(ParagraphLinks, ManyLinksUseCheckedDestinationAndPropagateFailure) {
@@ -2721,43 +2675,25 @@ TEST_F(ChapterHtmlSlimParserTest, MultilingualImageFallbackMatchesCppCacheText) 
   }
 }
 
-TEST_F(ChapterHtmlSlimParserTest, LineLinkScratchIsReleasedOnSuccessAndCopyFailure) {
-  for (bool failCopy : {false, true}) {
-    SCOPED_TRACE(failCopy);
-    completionAudit = {};
-    auto sink = auditedSink(parser.sink_);
-    static bool failLinks;
-    static size_t releases;
-    failLinks = failCopy;
-    releases = 0;
-    sink.line_links = [](void* ctx, void* line, uint32_t* count) -> const XpChapterLineLink* {
-      const auto* links = completionAudit.original.line_links(ctx, line, count);
-      EXPECT_EQ(*count, 1u);
-      if (failLinks) xp_test_fail_allocation_after(0);
-      return links;
-    };
-    sink.release_line_links = [](void* ctx) {
-      ++releases;
-      completionAudit.original.release_line_links(ctx);
-      xp_test_fail_allocation_after(SIZE_MAX);
-    };
-    const auto options = parser.chapterOptions();
-    ASSERT_EQ(xp_chapter_create(&parser.chapter_, &sink, &parser, cssParser.rustHandle(), &options), 0);
-    size_t pages = 0;
-    parser.completePageFn = [&](std::unique_ptr<Page>, auto, auto, auto) { ++pages; };
-    xp_chapter_begin(parser.chapter_);
-    const std::string html = "<html><body><p><a href='#one'>one</a></p></body></html>";
-    const auto fed = xp_chapter_feed(parser.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 1);
-    EXPECT_EQ(releases, 1u);
-    EXPECT_EQ(parser.lineLinks_.data, nullptr);
-    EXPECT_EQ(parser.lineLinks_.count, 0u);
-    const bool finished = fed == 1 && parser.finishParse();
-    EXPECT_EQ(finished, !failCopy);
-    EXPECT_EQ(pages, failCopy ? 0u : 1u);
-    parser.abortParse();
-    EXPECT_EQ(parser.lineLinks_.data, nullptr);
-    EXPECT_EQ(xp_test_live_allocations(), 0u);
-    EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
-  }
-  completionAudit = {};
+TEST_F(ChapterHtmlSlimParserTest, EncodedLineLinksSurviveCarryAndReleaseAtAbort) {
+  parser.viewportHeight = 32;
+  size_t pages = 0, links = 0;
+  parser.setPageBytesCallback([&](XpChapterSpan bytes, auto, auto, auto) {
+    XpPageInfo info{};
+    ASSERT_EQ(xp_page_arena_size(bytes.data, bytes.len, &info), 0u);
+    ++pages;
+    links += info.links;
+  });
+  const auto options = parser.chapterOptions();
+  ASSERT_EQ(xp_chapter_create(&parser.chapter_, &parser.sink_, &parser, cssParser.rustHandle(), &options), 0);
+  ASSERT_TRUE(xp_chapter_begin(parser.chapter_));
+  const std::string html =
+      "<html><body><p><a href='#one'>one</a></p><p><a href='#two'>two</a></p><p><a "
+      "href='#three'>three</a></p></body></html>";
+  ASSERT_NE(xp_chapter_feed(parser.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 1), 2u);
+  EXPECT_TRUE(xp_chapter_finish(parser.chapter_));
+  EXPECT_GE(pages, 2u);
+  EXPECT_EQ(links, 3u);
+  parser.abortParse();
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
 }

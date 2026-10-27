@@ -75,8 +75,8 @@ int main() {
         if (status != InflateStatus::Ok || !produced) break;
       } while (total < capacity);
     }
-    const uint64_t elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                 std::chrono::steady_clock::now() - start).count();
+    const uint64_t elapsed =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
     if (total > capacity) status = InflateStatus::Error;
     for (size_t i = capacity; i < output.size(); ++i) {
       if (output[i] != 0xa5) return 5;

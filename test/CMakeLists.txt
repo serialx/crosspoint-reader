@@ -134,3 +134,5 @@ add_subdirectory(png_zlib)
 add_subdirectory(page_golden)
 add_subdirectory(glyph_diff)
 add_subdirectory(xtc_diff)
+
+add_subdirectory(inflate_small)

@@ -32,11 +32,13 @@ def fonts():
             yield f'{path.stem}/{i}', data[offset:offset + size], length
 
 
-def fixture(size=4096):
+def fixture(size=4096, length=None):
     # Public-domain opening of the US Declaration of Independence, plus byte diversity.
     text = (b'When in the Course of human events, it becomes necessary for one people '
             b'to dissolve the political bands which have connected them with another.\n')
     data = (text * 800) + bytes(range(256)) * 100
+    if length is not None:
+        data = data[:length]
     compressor = zlib.compressobj(9, zlib.DEFLATED, -15)
     chunks = [compressor.compress(data[i:i + size]) + compressor.flush(
         zlib.Z_FINISH if i + size >= len(data) else zlib.Z_FULL_FLUSH)
@@ -106,6 +108,14 @@ def dictionary(binary, output):
         assert status == 0 and length == size, (offset, size, status, length)
         assert result.stdout[16:] == data[offset:offset + size], (offset, size)
         results[f'{offset}/{size}'] = {'length': size, 'sha256': hashlib.sha256(result.stdout[16:]).hexdigest(), 'ns': ns}
+    # The final chunk ends exactly at DictZip's 512-byte read boundary.
+    data, _, encoded = fixture(512, 1536)
+    path.write_bytes(encoded)
+    result = subprocess.run([binary, str(path)], input=struct.pack('<II', 1024, 512),
+                            capture_output=True, check=True)
+    status, size, ns = struct.unpack('<iIQ', result.stdout[:16])
+    assert (status, size, result.stdout[16:]) == (0, 512, data[1024:])
+    results['final-full-buffer'] = {'length': size, 'sha256': hashlib.sha256(result.stdout[16:]).hexdigest(), 'ns': ns}
     return results
 
 
@@ -122,7 +132,8 @@ def main():
     p.add_argument('--dict-probe')
     a = p.parse_args()
     expected_path = pathlib.Path(__file__).with_name('uzlib-oracle.json.gz')
-    results = {'fonts': {}, 'chunks': {}, 'malformed': {}}
+    expected = None if a.record else json.loads(gzip.decompress(expected_path.read_bytes()))
+    results = {'fonts': {}, 'chunks': {}, 'streams': {}, 'malformed': {}}
     for name, data, length in fonts():
         decoded = zlib.decompress(data, -15)
         assert len(decoded) == length
@@ -140,7 +151,19 @@ def main():
             result = probe(a.probe, chunk, len(decoded), 1, inchunk, outchunk)
             assert result.get('sha256') == hashlib.sha256(decoded).hexdigest(), (name, result)
             results['chunks'][name] = result
-    for name, compressed, capacity in malformed():
+    rng = random.Random(191)
+    blocks = [b'a' * 1000, bytes(rng.getrandbits(8) for _ in range(50000)), b'abcdef' * 10000]
+    compressor = zlib.compressobj(9, zlib.DEFLATED, -15)
+    compressed = b''.join(compressor.compress(block) + compressor.flush(zlib.Z_SYNC_FLUSH)
+                          for block in blocks) + compressor.flush(zlib.Z_FINISH)
+    decoded = b''.join(blocks)
+    for inchunk, outchunk in [(1, 1), (7, 511), (2048, 512), (65536, 32768)]:
+        result = probe(a.probe, compressed, len(decoded), 1, inchunk, outchunk)
+        assert result.get('sha256') == hashlib.sha256(decoded).hexdigest()
+        results['streams'][f'{inchunk}/{outchunk}'] = result
+    cases = malformed() if a.record else (
+        (name, bytes.fromhex(case['input']), case['capacity']) for name, case in expected['malformed'].items())
+    for name, compressed, capacity in cases:
         results['malformed'][name] = {
             'input': compressed.hex(), 'capacity': capacity,
             'result': stable(probe(a.probe, compressed, capacity))}
@@ -151,16 +174,19 @@ def main():
     if a.record:
         expected_path.write_bytes(gzip.compress(json.dumps(frozen, sort_keys=True).encode(), mtime=0))
     else:
-        expected = json.loads(gzip.decompress(expected_path.read_bytes()))
         assert results['fonts'].keys() == expected['fonts'].keys()
-        for group in ['fonts', 'chunks', 'dictionary']:
+        for group in ['fonts', 'chunks', 'streams', 'dictionary']:
             for name, value in results.get(group, {}).items():
                 for key in ['length', 'sha256']:
                     assert value[key] == expected[group][name][key], (group, name, key)
         changes = {k: {'old': expected['malformed'][k], 'new': v}
                    for k, v in results['malformed'].items() if v != expected['malformed'][k]}
         (a.output / 'malformed-differences.json').write_text(json.dumps(changes, indent=2) + '\n')
-        print(f'{len(changes)} malformed differences require review')
+        documented = json.loads(pathlib.Path(__file__).with_name('strict-results.json').read_text())
+        assert changes.keys() == documented.keys(), 'Malformed difference set changed'
+        for name, change in changes.items():
+            assert change['new']['result'] == documented[name], name
+        print(f'{len(changes)} documented malformed differences')
     print({group: len(values) for group, values in results.items()})
 
 

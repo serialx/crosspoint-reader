@@ -1,83 +1,100 @@
 #include "InflateReader.h"
 
+#include <xp_ffi.h>
+
+#include <algorithm>
+#include <cstdlib>
 #include <cstring>
-#include <type_traits>
-
-namespace {
-constexpr size_t INFLATE_DICT_SIZE = InflateReader::RING_BYTES;
-}
-
-// Guarantee the cast pattern in the header comment is valid.
-static_assert(std::is_standard_layout<InflateReader>::value,
-              "InflateReader must be standard-layout for the uzlib callback cast to work");
 
 InflateReader::~InflateReader() { deinit(); }
 
-bool InflateReader::init(const bool streaming) {
-  deinit();  // free any previously allocated ring buffer and reset state
-
+bool InflateReader::init(bool streaming) {
+  deinit();
   if (streaming) {
-    ringBuffer = static_cast<uint8_t*>(malloc(INFLATE_DICT_SIZE));
+    ringBuffer = static_cast<uint8_t*>(malloc(RING_BYTES));
     if (!ringBuffer) return false;
     ownsRing = true;
-    memset(ringBuffer, 0, INFLATE_DICT_SIZE);
+    memset(ringBuffer, 0, RING_BYTES);
   }
-
-  uzlib_uncompress_init(&decomp, ringBuffer, ringBuffer ? INFLATE_DICT_SIZE : 0);
-  return true;
+  ready = xp_inflate_small_state_size() <= sizeof(state) && xp_inflate_small_state_align() <= alignof(InflateReader) &&
+          xp_inflate_small_init(state, sizeof(state), 0) == 0;
+  if (!ready) deinit();
+  return ready;
 }
 
 bool InflateReader::initWithRing(uint8_t* ring) {
-  deinit();  // free any owned ring buffer and reset state
-  if (!ring) return false;
+  if (!init(false) || !ring) {
+    deinit();
+    return false;
+  }
   ringBuffer = ring;
-  ownsRing = false;  // caller's buffer: never freed here
-  memset(ringBuffer, 0, INFLATE_DICT_SIZE);
-  uzlib_uncompress_init(&decomp, ringBuffer, INFLATE_DICT_SIZE);
+  memset(ringBuffer, 0, RING_BYTES);
   return true;
 }
 
 void InflateReader::deinit() {
-  if (ringBuffer && ownsRing) free(ringBuffer);
+  if (ownsRing) free(ringBuffer);
   ringBuffer = nullptr;
-  ownsRing = false;
-  memset(&decomp, 0, sizeof(decomp));
+  input = nullptr;
+  available = position = 0;
+  fill = nullptr;
+  context = nullptr;
+  outputStart = nullptr;
+  ownsRing = exhausted = ready = finished = false;
 }
 
 void InflateReader::setSource(const uint8_t* src, size_t len) {
-  decomp.source = src;
-  decomp.source_limit = src + len;
+  input = src;
+  available = len;
+  exhausted = true;
 }
 
-void InflateReader::setReadCallback(int (*cb)(struct uzlib_uncomp*)) { decomp.source_read_cb = cb; }
-
-bool InflateReader::read(uint8_t* dest, size_t len) {
-  if (!ringBuffer) {
-    // One-shot mode: back-references use absolute offset from dest_start.
-    // Valid only when read() is called once with the full output buffer.
-    decomp.dest_start = dest;
-  }
-  decomp.dest = dest;
-  decomp.dest_limit = dest + len;
-
-  const int res = uzlib_uncompress(&decomp);
-  if (res < 0) return false;
-  return decomp.dest == decomp.dest_limit;
+void InflateReader::setFill(FillFn fn, void* ctx) {
+  fill = fn;
+  context = ctx;
 }
 
 InflateStatus InflateReader::readAtMost(uint8_t* dest, size_t maxLen, size_t* produced) {
+  *produced = 0;
+  if (!ready || (!dest && maxLen)) return InflateStatus::Error;
+  if (!maxLen) return finished ? InflateStatus::Done : InflateStatus::Ok;
   if (!ringBuffer) {
-    // One-shot mode: back-references use absolute offset from dest_start.
-    // Valid only when readAtMost() is called once with the full output buffer.
-    decomp.dest_start = dest;
+    if (!outputStart) outputStart = dest;
+    if (dest != outputStart + position) return InflateStatus::Error;
+    if (maxLen) memset(dest, 0, maxLen);  // Rust output slices require initialized bytes.
   }
-  decomp.dest = dest;
-  decomp.dest_limit = dest + maxLen;
+  while (*produced < maxLen && !finished) {
+    if (!available && !exhausted) {
+      available = fill ? fill(context, &input) : 0;
+      if (!available) exhausted = true;
+    }
+    const size_t start = position;
+    const size_t count = ringBuffer ? std::min(maxLen - *produced, RING_BYTES - position) : maxLen - *produced;
+    size_t used = 0, written = 0;
+    const int32_t status = xp_inflate_small_step(
+        state, input, available, !exhausted, ringBuffer ? ringBuffer : outputStart,
+        ringBuffer ? RING_BYTES : position + count, &position, ringBuffer != nullptr, &used, &written, count);
+    if (used) input += used;
+    available -= used;
+    if (ringBuffer) {
+      memcpy(dest + *produced, ringBuffer + start, written);
+      if (position == RING_BYTES) position = 0;
+    }
+    *produced += written;
+    if (status < 0) {
+      ready = false;
+      return InflateStatus::Error;
+    }
+    if (status == 1) finished = true;
+    if (!finished && !used && !written && (available || exhausted)) {
+      ready = false;
+      return InflateStatus::Error;
+    }
+  }
+  return finished ? InflateStatus::Done : InflateStatus::Ok;
+}
 
-  const int res = uzlib_uncompress(&decomp);
-  *produced = static_cast<size_t>(decomp.dest - dest);
-
-  if (res == TINF_DONE) return InflateStatus::Done;
-  if (res < 0) return InflateStatus::Error;
-  return InflateStatus::Ok;
+bool InflateReader::read(uint8_t* dest, size_t len) {
+  size_t produced = 0;
+  return readAtMost(dest, len, &produced) != InflateStatus::Error && produced == len;
 }

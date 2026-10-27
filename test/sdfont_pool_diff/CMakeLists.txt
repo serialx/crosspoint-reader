@@ -24,3 +24,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME SdFontPoolDifferential COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
   --build-dir $<TARGET_FILE_DIR:sdpool_candidate>)
 
+add_executable(sdpool_abi Abi.cpp)
+target_include_directories(sdpool_abi PRIVATE ${REPO_ROOT}/lib/EpdFont)
+target_link_libraries(sdpool_abi PRIVATE xp_ffi_host)
+add_test(NAME SdFontPoolAbi COMMAND sdpool_abi)

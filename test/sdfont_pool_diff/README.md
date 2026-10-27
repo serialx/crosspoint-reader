@@ -10,7 +10,8 @@ cmake --build build/sdfont-pool -j 6
 ctest --test-dir build/sdfont-pool --output-on-failure
 ```
 
-The runner unpacks the three existing public fonts into a temporary directory.
+The runner unpacks the three existing public fonts into a temporary directory and
+adds synthetic four-style, kerning/ligature, and above-BMP fixtures.
 Use `--private-font-dir PATH` for an additional directory of private `.cpfont`
 files, `--texts PATH` for UTF-8 text lines, and `--save PATH` to retain compressed
 traces outside the repository. Private fonts and texts must stay outside Git.
@@ -42,3 +43,7 @@ an empty glyph before or after another glyph at the same file offset. This field
 selects no bitmap bytes. All nonempty offsets, reads and allocations remain exact.
 `SDPOOL_EXACT_ZERO_OFFSETS=1` restores raw offset comparison; `SDPOOL_BASE_ONLY=1`
 runs only the initial valid-font sequence for auditing this exception separately.
+
+`SDPOOL_USAGE=1` counts calls through the existing glyph-miss facade while looking
+up each input text after full prewarm, per text and available style. Text lines
+are corpus windows, not a replacement for paginated emulator measurements.

@@ -1,4 +1,5 @@
-//! Allocation-free .cpfont v4 decoding. File I/O and resident storage stay in C++.
+//! .cpfont v4 decoding and resident cache algorithms. HAL file I/O stays in C++.
+pub mod pool;
 use crate::font::raw::Interval;
 
 #[repr(C)]

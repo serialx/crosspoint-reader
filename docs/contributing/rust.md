@@ -294,10 +294,12 @@ ruby spans, word offsets, visual order and sanitized NUL-separated text. For W
 words and B packed bytes on C3, it uses `align4(W * (focus ? 14 : 11)) + 12*W + B`
 bytes. The bounds are 10,000 words and 65,535 sanitized bytes, including NULs;
 these are validation limits, not a guarantee that the device can allocate that
-much memory. Rust bidi receives borrowed text and writes order indices. TextBlock
-copies the completed line into its checked arena before scratch is released.
-Optional line links use separate fallible Rust vectors and checked C++ owned
-storage; the sink propagates destination allocation failure.
+much memory. Rust bidi receives borrowed text and writes order indices. The
+standalone C++ paragraph adapter copies each completed line into a checked
+TextBlock arena and retains optional links in checked C++ storage. Chapter
+assembly instead encodes the line and retains its links in Rust chapter storage
+before scratch is released. Both sinks propagate destination allocation failure;
+see [chapter ownership](chapter-pipeline.md).
 
 Word/token storage, widths, breaks, numeric scratch and ruby chunks use the
 paragraph allocator. Link/ruby byte owners, pointer tables and temporary vectors
@@ -458,9 +460,13 @@ builder rejects incomplete output.
 A line borrows packed NUL-separated text, word offsets and numeric arrays until
 the sink returns. One fallible allocation holds the line metadata, ruby spans,
 order indices and text; it is released immediately after the sink returns. The
-packed `TextBlock::BorrowedLayout` overload copies these values directly into the existing arena, with unchanged rendering and cache
-serialization. Rust computes direction and visual word order using the existing
-C++-owned shared workspace and mutex. Host callback adapters retain the
+standalone C++ paragraph adapter uses `TextBlock::BorrowedLayout` to copy these
+values into an owned TextBlock arena for preview and plain dictionary rendering.
+Chapter assembly writes Rust-owned encoded page records instead; loaded pages
+lend immutable TextBlock views from their arena. Production TextBlock objects no
+longer serialize cache bytes. See [chapter-pipeline.md](chapter-pipeline.md) for
+those ownership and cache boundaries. Rust computes direction and visual word
+order using the existing C++-owned shared workspace and mutex. Host callback adapters retain the
 borrowed-span contract without reconstructing temporary word-string vectors.
 
 The sink may query paragraph scalars, including the number of remaining lines,

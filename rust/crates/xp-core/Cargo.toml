@@ -11,3 +11,4 @@ chapter-test = []
 
 [dependencies]
 miniz_oxide = { path = "src/inflate/miniz" }
+xp-gif = { path = "src/gif/decoder" }

@@ -1,8 +1,10 @@
 #include <GfxRenderer.h>
 #include <GifToFramebufferConverter.h>
 #include <ImageDimsProbe.h>
+#ifndef GIF_ONLY
 #include <JpegToFramebufferConverter.h>
 #include <PngToFramebufferConverter.h>
+#endif
 
 #include <fstream>
 #include <iterator>
@@ -60,12 +62,18 @@ int main(int argc, char** argv) {
   }
   if (variant != 3) config.cachePath = cache;
   std::remove(cache.c_str());
+#ifndef GIF_ONLY
   PngToFramebufferConverter png;
   JpegToFramebufferConverter jpeg;
+#endif
   GifToFramebufferConverter gif;
+#ifdef GIF_ONLY
+  ImageToFramebufferDecoder* decoder = &gif;
+#else
   ImageToFramebufferDecoder* decoder = path.ends_with(".png")   ? static_cast<ImageToFramebufferDecoder*>(&png)
                                        : path.ends_with(".gif") ? static_cast<ImageToFramebufferDecoder*>(&gif)
                                                                 : static_cast<ImageToFramebufferDecoder*>(&jpeg);
+#endif
   ImageDimensions dims{};
   u32(decoder->getDimensions(path, dims));
   u32(dims.width);

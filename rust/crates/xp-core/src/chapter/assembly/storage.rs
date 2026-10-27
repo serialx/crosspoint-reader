@@ -27,7 +27,7 @@ struct Slot {
 // Growth is build-scoped and fallible; capacity is retained across page completions.
 fn grow<T>(v: &mut Vec<T>, needed: usize) -> Result {
     if needed > v.capacity() {
-        let target = needed.max(v.capacity().saturating_add((v.capacity() / 4).max(1)));
+        let target = needed;
         v.try_reserve_exact(target - v.len())
             .map_err(|_| Error::Allocation)?;
     }

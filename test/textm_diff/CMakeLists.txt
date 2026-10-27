@@ -53,3 +53,18 @@ execute_process(COMMAND ${Python3_EXECUTABLE} -c
   "import gzip,pathlib; pathlib.Path(r'${CMAKE_CURRENT_BINARY_DIR}/native.cpfont').write_bytes(gzip.decompress(pathlib.Path(r'${REPO_ROOT}/test/text_golden/fonts/NotoSans_14.cpfont.gz').read_bytes()))"
   COMMAND_ERROR_IS_FATAL ANY)
 add_test(NAME NativeCache COMMAND NativeCache ${CMAKE_CURRENT_BINARY_DIR}/native.cpfont)
+
+# Reuse the real renderer/font sources and host flags for the paragraph comparison.
+get_target_property(NATIVE_PARAGRAPH_SOURCES NativeCache SOURCES)
+list(REMOVE_ITEM NATIVE_PARAGRAPH_SOURCES NativeCache.cpp)
+add_executable(NativeParagraph NativeParagraph.cpp FrozenRenderer.cpp ${NATIVE_PARAGRAPH_SOURCES})
+target_include_directories(NativeParagraph PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+foreach(PROPERTY INCLUDE_DIRECTORIES COMPILE_DEFINITIONS COMPILE_OPTIONS LINK_OPTIONS)
+  get_target_property(NATIVE_PROPERTY NativeCache ${PROPERTY})
+  if(NATIVE_PROPERTY)
+    set_property(TARGET NativeParagraph APPEND PROPERTY ${PROPERTY} ${NATIVE_PROPERTY})
+  endif()
+endforeach()
+target_link_libraries(NativeParagraph PRIVATE xp_ffi_host)
+add_test(NAME NativeParagraph COMMAND NativeParagraph ${CMAKE_CURRENT_BINARY_DIR}/native.cpfont
+  ${REPO_ROOT}/lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Regular.ttf)

@@ -111,3 +111,49 @@ configuration. It counts repeated prefix/suffix measurements and space/kerning
 queries, rather than assuming one callback per source word. Its ASCII workload
 uses the real built-in font; it does not represent a whole EPUB or SD workload.
 
+## Native paragraph lifetime comparison
+
+`NativeParagraph` compares the native provider with the callback backend using
+`FrozenRenderer`, which compiles the pre-T4 C++ methods from `c9330408` through
+`extract.py`. Each backend gets fresh SD and TTF owners. The paragraph engine is
+identical on both sides; measurements come from independent implementations.
+Unlike `TextmDiff`, this comparison includes each backend's bidi preparation.
+
+The public Noto Sans SD/TTF fonts and two built-in families cover focus on/off,
+hyphenation on/off, 80/240-pixel widths and missing U+10FFFF glyphs. It compares
+packed line text, positions, styles, focus boundaries/suffix widths, source
+ranges, paragraph offsets and font slots. Assertions require actual splits,
+focus output and all four font families. A persistent-engine measurement
+sequence cycles three stable families through the two-entry descriptor cache,
+then measures TTF and SD again after eviction.
+
+Both backends wrap the real regular TTF glyph-miss handler to release the
+prepared SD resident cache during that callback. The native engine remains
+alive across the callback and subsequent SD reads; assertions verify eviction
+and later descriptor refresh. This is synchronous owner mutation under memory
+pressure, not a concurrent-access test. The host memory-manager stub does not
+simulate allocator exhaustion.
+
+```sh
+build/textm-diff/NativeParagraph build/textm-diff/native.cpfont \
+  lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Regular.ttf
+```
+
+To instrument both languages on macOS, use the installed Homebrew LLVM compiler
+and Rust sanitizer support (a separate build prevents mixing archives):
+
+```sh
+cmake -S test/textm_diff -B build/native-asan-llvm \
+  -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
+  -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
+  -DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer' \
+  -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer'
+RUSTC_BOOTSTRAP=1 RUSTFLAGS=-Zsanitizer=address \
+  cmake --build build/native-asan-llvm --target NativeParagraph -j 6
+UBSAN_OPTIONS=halt_on_error=1 \
+  build/native-asan-llvm/NativeParagraph build/native-asan-llvm/native.cpfont \
+  lib/EpdFont/builtinFonts/source/NotoSans/NotoSans-Regular.ttf
+```
+
+Rust and C/C++ use ASan; C/C++ also use UBSan. The original `NativeCache` test
+separately covers explicit unregister/reload, fallback changes and cache rebuilds.

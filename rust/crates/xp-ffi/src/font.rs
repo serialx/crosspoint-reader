@@ -1,4 +1,4 @@
-//! Test ABI for font-table differential checks; firmware does not call it yet.
+//! Synchronous font-table queries; C++ owns bitmap storage and dynamic callbacks.
 
 use core::ffi::c_void;
 use xp_core::font::{
@@ -109,4 +109,24 @@ pub unsafe extern "C" fn xp_font_apply_ligatures(
     let result = unsafe { font(data) }.apply_ligatures(cp, bytes, &mut pos);
     unsafe { consumed.write(pos) };
     result
+}
+
+/// # Safety
+/// Same table loan contract as xp_font_glyph. The result expires at the next owner mutation.
+#[no_mangle]
+pub unsafe extern "C" fn xp_font_resident_glyph(data: *const FontData, cp: u32) -> *const Glyph {
+    Font::new(&*data)
+        .glyph_index(cp)
+        .map_or(core::ptr::null(), |i| (*data).glyph.add(i))
+}
+/// # Safety
+/// out is a live, aligned writable glyph; no bitmap storage is allocated.
+#[no_mangle]
+pub unsafe extern "C" fn xp_font_solid_metrics(
+    cp: u32,
+    ascender: i32,
+    em_advance: u16,
+    out: *mut Glyph,
+) {
+    out.write(xp_core::font::solid_metrics(cp, ascender, Some(em_advance)));
 }

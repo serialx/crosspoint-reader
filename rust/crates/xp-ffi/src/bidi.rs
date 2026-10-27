@@ -147,3 +147,69 @@ pub unsafe extern "C" fn xp_bidi_word_order(
         output,
     ) as i32
 }
+
+/// # Safety
+/// work is initialized exclusive storage. Callback spans remain live for this call;
+/// callbacks cannot reenter bidi. The consumer cannot retain the visual pointer.
+#[no_mangle]
+pub unsafe extern "C" fn xp_bidi_visual_visit(
+    data: *const u8,
+    len: usize,
+    direction: i32,
+    work: *mut c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) -> u8 {
+    if let Some(text) = bidi::visual_including_empty(bytes(data, len), direction, &mut *work.cast())
+    {
+        visit(context, text.as_ptr(), text.len());
+        1
+    } else {
+        0
+    }
+}
+/// # Safety
+/// Same workspace and callback contract as xp_bidi_visual_visit.
+#[no_mangle]
+pub unsafe extern "C" fn xp_bidi_rtl_tokens(
+    data: *const u8,
+    len: usize,
+    work: *mut c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    for token in bytes(data, len).split(|b| matches!(b, b' ' | b'\n' | b'\r' | b'\t')) {
+        if token.iter().any(|b| (0xd6..=0xdb).contains(b)) {
+            if let Some(text) = bidi::visual(token, -1, &mut *work.cast()) {
+                visit(context, text.as_ptr(), text.len());
+            }
+        }
+    }
+}
+/// # Safety
+/// work is initialized and exclusive, output holds count u16 values. Word callback
+/// supplies readable spans valid for the call and cannot reenter bidi.
+#[no_mangle]
+pub unsafe extern "C" fn xp_bidi_words(
+    count: usize,
+    context: *const c_void,
+    word: unsafe extern "C" fn(*const c_void, usize, *mut usize) -> *const u8,
+    rtl: u8,
+    work: *mut c_void,
+    output: *mut u16,
+) -> i32 {
+    if count <= 1 || count > bidi::MAX_LINE {
+        return Status::Unchanged as i32;
+    }
+    bidi::visual_words(
+        count,
+        |i| {
+            let mut len = 0;
+            let data = word(context, i, &mut len);
+            bytes(data, len)
+        },
+        rtl != 0,
+        &mut *work.cast(),
+        slice::from_raw_parts_mut(output, count),
+    ) as i32
+}

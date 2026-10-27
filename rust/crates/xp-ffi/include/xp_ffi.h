@@ -1089,6 +1089,28 @@ struct XpNativeProvider {
   void (*bidiRelease)();
   void (*prewarm)(void*, int32_t, const uint8_t*, size_t, uint8_t);
 };
+// Borrow the existing initialized bidi workspace exclusively for these calls.
+// Visitor pointers are valid only during the callback; callbacks cannot reenter bidi.
+uint8_t xp_bidi_visual_visit(const uint8_t*, size_t, int32_t, void*, void*, void (*)(void*, const uint8_t*, size_t));
+void xp_bidi_rtl_tokens(const uint8_t*, size_t, void*, void*, void (*)(void*, const uint8_t*, size_t));
+int32_t xp_bidi_words(size_t, const void*, const uint8_t* (*)(const void*, size_t, size_t*), uint8_t, void*, uint16_t*);
+// The resident pointer expires before any font-owner mutation or next bitmap request.
+const void* xp_font_resident_glyph(const void*, uint32_t);
+void xp_font_solid_metrics(uint32_t, int32_t, uint16_t, XpFontGlyph*);
+void xp_textm_dimensions_utf8(const XpTextmFace*, const uint8_t*, size_t, int32_t*, int32_t*);
+int32_t xp_native_draw_scaled(const XpNativeProvider*, int32_t, uint32_t, uint8_t, int32_t, void*, void (*)(void*));
+// Synchronous glyph emission: callbacks cannot reenter bidi, register/unregister
+// fonts, or retain pointers. prepare receives terminated visual text and returns
+// a null slot for a cache scan. A returned data slot belongs to the stable EpdFont
+// owner and is reread after every callback. Each placement is consumed before the next query.
+typedef struct {
+  uint32_t codepoint;
+  const void* glyph;  // Optional borrowed EpdGlyph; valid only during emission.
+  int32_t x, y;
+  uint8_t scaleNum, scaleDen;
+} XpGlyphPlacement;
+void xp_native_draw(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t, int8_t, int32_t, uint8_t, void*,
+                    const void* const* (*)(void*, const uint8_t*, size_t), void (*)(void*, const XpGlyphPlacement*));
 int32_t xp_native_advance(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t, int8_t, int32_t, uint8_t);
 int32_t xp_native_width(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t, int32_t);
 int32_t xp_native_resolve(const XpNativeProvider*, int32_t, const uint8_t*, size_t, uint8_t);

@@ -306,6 +306,14 @@ fn prepare_visual(text: &[u8], paragraph: i32, work: &mut Workspace) -> Option<u
 }
 /// Borrow visual UTF-8 from the dead logical-character buffer until next use.
 pub fn visual<'a>(text: &[u8], paragraph: i32, work: &'a mut Workspace) -> Option<&'a [u8]> {
+    visual_including_empty(text, paragraph, work).filter(|text| !text.is_empty())
+}
+
+pub fn visual_including_empty<'a>(
+    text: &[u8],
+    paragraph: i32,
+    work: &'a mut Workspace,
+) -> Option<&'a [u8]> {
     let count = prepare_visual(text, paragraph, work)?;
     let shaped = unsafe { &work.auxiliary.shaped[..count] };
     let out = unsafe { core::slice::from_raw_parts_mut(work.line.as_mut_ptr().cast::<u8>(), 1536) };
@@ -318,7 +326,7 @@ pub fn visual<'a>(text: &[u8], paragraph: i32, work: &'a mut Workspace) -> Optio
     });
     // C++ width prewarming still consumes a terminated view.
     out[len] = 0;
-    (len != 0).then_some(&out[..len])
+    Some(&out[..len])
 }
 fn filtered(cp: u32) -> bool {
     matches!(cp, 0xffff | 0x200c | 0x200d)
@@ -400,13 +408,28 @@ pub fn visual_word_order(
             return Status::InvalidArgument;
         }
     }
+    visual_words(words, |w| &text[offsets[w] as usize..], rtl, work, out)
+}
+
+/// Word spans are borrowed independently; no packed copy is needed for UI vectors.
+pub fn visual_words<'a>(
+    words: usize,
+    mut word: impl FnMut(usize) -> &'a [u8],
+    rtl: bool,
+    work: &mut Workspace,
+    out: &mut [u16],
+) -> Status {
+    if out.len() != words {
+        return Status::BufferTooSmall;
+    }
     if words <= 1 || words > MAX_LINE {
         return Status::Unchanged;
     }
     let mut count = 0;
-    for (w, &offset) in offsets.iter().enumerate() {
-        let mut pos = offset as usize;
-        while text[pos] != 0 {
+    for w in 0..words {
+        let text = word(w);
+        let mut pos = 0;
+        while pos < text.len() && text[pos] != 0 {
             if count == MAX_LINE {
                 return Status::Unchanged;
             }

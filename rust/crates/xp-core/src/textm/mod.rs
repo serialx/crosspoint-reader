@@ -21,6 +21,12 @@ pub struct Glyph {
 /// One registered font family; style bits retain EpdFontFamily's encoding.
 /// All returned metrics are copied, never pointers into an SD overflow ring.
 pub trait FontFace {
+    /// Optional bitmap metadata for the most recent glyph query. The pointer
+    /// expires at the next face/owner operation; consumers must finish synchronously.
+    fn glyph_pointer(&self, _cp: u32) -> *const crate::font::raw::Glyph {
+        core::ptr::null()
+    }
+
     /// EpdFont::getGlyph, including replacement/turned-comma fallback. May do
     /// SD I/O, evict overflow glyphs, or rasterize/cache a TTF glyph.
     fn glyph(&mut self, cp: u32, style: u8) -> Option<Glyph>;
@@ -122,34 +128,17 @@ pub fn glyph_metrics(face: &mut impl FontFace, cp: u32, style: u8) -> Option<Gly
     } else {
         None
     };
-    let ascender = face.ascender(style);
-    let ascender = if ascender > 0 { ascender } else { 8 };
-    let advance = match em {
-        Some(g) if g.advance > 0 => g.advance,
-        _ => ((ascender * 3 + 3) / 4).max(1).wrapping_shl(4) as u16,
-    };
-    let px = to_pixel(i32::from(advance)).max(1);
-    let square = cp == 0x25a0;
-    let height = (if square {
-        (ascender * 2 + 2) / 3
-    } else {
-        ascender
-    })
-    .clamp(1, 255);
-    let width = (if square { height.min(px) } else { px }).min(255);
+    let g = crate::font::solid_metrics(cp, face.ascender(style), em.map(|g| g.advance));
     Some(Glyph {
-        advance,
-        width: width as u8,
-        height: height as u8,
-        left: (if square { ((px - width) / 2).max(0) } else { 0 }) as i16,
-        top: (if square {
-            height + ((ascender - height) / 2).max(0)
-        } else {
-            height
-        }) as i16,
+        advance: g.advance_x,
+        width: g.width,
+        height: g.height,
+        left: g.left,
+        top: g.top,
     })
 }
 
+#[inline(always)]
 fn apply_ligatures(
     face: &impl FontFace,
     mut cp: u32,
@@ -377,3 +366,5 @@ pub fn text_width(face: &mut impl FontFace, visual: &[u32], style: u8) -> i32 {
 }
 
 pub mod native;
+
+pub mod draw;

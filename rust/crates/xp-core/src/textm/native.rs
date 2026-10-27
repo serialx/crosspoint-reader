@@ -133,24 +133,7 @@ impl Engine {
         super::resolve_stream(self, id, Codepoints(text), style)
     }
     fn visual<T>(&self, text: &[u8], direction: i32, f: impl FnOnce(&[u8]) -> T) -> T {
-        if direction != 1
-            && !text
-                .iter()
-                .take_while(|&&b| b != 0)
-                .any(|&b| (0xd6..=0xdb).contains(&b))
-        {
-            return f(text);
-        }
-        unsafe {
-            let work = (self.provider.bidi_acquire)();
-            if work.is_null() {
-                return f(text);
-            }
-            let visual = bidi::visual(text, direction, &mut *work).unwrap_or(text);
-            let result = f(visual);
-            (self.provider.bidi_release)();
-            result
-        }
+        with_visual(&self.provider, text, direction, f)
     }
     pub fn advance(
         &self,
@@ -251,7 +234,7 @@ impl Engine {
     }
 }
 #[derive(Clone)]
-struct Codepoints<'a>(&'a [u8]);
+pub struct Codepoints<'a>(pub &'a [u8]);
 impl Iterator for Codepoints<'_> {
     type Item = u32;
     #[inline]
@@ -386,5 +369,120 @@ impl FontFace for FlashFace<'_> {
     }
     fn line_height(&self) -> u8 {
         self.0.data().advance_y
+    }
+}
+
+pub fn with_visual<T>(
+    provider: &Provider,
+    text: &[u8],
+    direction: i32,
+    f: impl FnOnce(&[u8]) -> T,
+) -> T {
+    if direction != 1
+        && !text
+            .iter()
+            .take_while(|&&b| b != 0)
+            .any(|&b| (0xd6..=0xdb).contains(&b))
+    {
+        return f(text);
+    }
+    unsafe {
+        let work = (provider.bidi_acquire)();
+        if work.is_null() {
+            return f(text);
+        }
+        let visual = bidi::visual(text, direction, &mut *work).unwrap_or(text);
+        let result = f(visual);
+        (provider.bidi_release)();
+        result
+    }
+}
+
+/// A selected EpdFont's stable data slot, reread after every owner callback.
+/// No table reference survives a bitmap emission, glyph miss, or kerning call.
+pub struct DrawingFace<'a> {
+    slot: *const *const crate::font::raw::FontData,
+    provider: &'a Provider,
+    id: i32,
+    glyph_cp: u32,
+    glyph_ptr: *const crate::font::raw::Glyph,
+}
+impl<'a> DrawingFace<'a> {
+    /// # Safety
+    /// The slot and provider stay live and serialized for the draw. Callbacks
+    /// may replace its tables, but cannot unregister or replace the EpdFont owner.
+    pub unsafe fn new(
+        slot: *const *const crate::font::raw::FontData,
+        provider: &'a Provider,
+        id: i32,
+    ) -> Self {
+        Self {
+            slot,
+            provider,
+            id,
+            glyph_cp: 0,
+            glyph_ptr: core::ptr::null(),
+        }
+    }
+    #[inline]
+    fn loan<T>(&self, query: impl FnOnce(&Font<'_>) -> T) -> T {
+        query(&unsafe { Font::new(&**self.slot) })
+    }
+}
+impl FontFace for DrawingFace<'_> {
+    fn glyph_pointer(&self, cp: u32) -> *const crate::font::raw::Glyph {
+        if cp == self.glyph_cp {
+            self.glyph_ptr
+        } else {
+            core::ptr::null()
+        }
+    }
+    #[inline(always)]
+    fn glyph(&mut self, cp: u32, style: u8) -> Option<Glyph> {
+        let (result, ptr) = self.loan(|font| font.glyph_with_pointer(cp));
+        self.glyph_cp = cp;
+        self.glyph_ptr = ptr;
+        match result {
+            GlyphResult::Resident(g) | GlyphResult::Synthetic(g) => Some(glyph(g)),
+            GlyphResult::Missing => None,
+            GlyphResult::NotResident => {
+                let mut g = Glyph::default();
+                let p = self.provider;
+                (unsafe { (p.glyph)(p.context, self.id, cp, style, &mut g) } != 0).then_some(g)
+            }
+        }
+    }
+    fn has_codepoint(&self, cp: u32, style: u8) -> bool {
+        self.loan(|font| font.has_codepoint(cp)).unwrap_or_else(|| {
+            let p = self.provider;
+            unsafe { (p.coverage)(p.context, self.id, cp, style) != 0 }
+        })
+    }
+    #[inline(always)]
+    fn kerning(&mut self, left: u32, right: u32, style: u8) -> i8 {
+        self.loan(|font| font.kerning(left, right))
+            .unwrap_or_else(|| {
+                let p = self.provider;
+                unsafe { (p.kern)(p.context, self.id, left, right, style) }
+            })
+    }
+    #[inline(always)]
+    fn ligature(&self, left: u32, right: u32, _: u8) -> u32 {
+        self.loan(|font| font.ligature(left, right))
+    }
+    fn has_advance_table(&self) -> bool {
+        false
+    }
+    fn resolve_style(&self, style: u8) -> u8 {
+        style & 3
+    }
+    fn advance(&self, _: u32, _: u8) -> u16 {
+        0
+    }
+    fn ascender(&self, _: u8) -> i32 {
+        self.loan(|font| font.data().ascender)
+    }
+    fn line_height(&self) -> u8 {
+        self.loan(|font| font.data().advance_y)
     }
 }

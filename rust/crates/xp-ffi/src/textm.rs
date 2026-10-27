@@ -341,3 +341,89 @@ pub unsafe extern "C" fn xp_native_test_advance(
 ) -> i32 {
     (&*e).advance(id, bytes(data, len), style, 0, -1, MeasureMode::Layout)
 }
+
+/// # Safety
+/// Provider and text obey xp_native_*; callbacks are synchronous and cannot reenter
+/// bidi or font registration. They must not retain any supplied pointers.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_draw(
+    provider: *const Provider,
+    id: i32,
+    data: *const u8,
+    len: usize,
+    style: u8,
+    tracking: i8,
+    direction: i32,
+    rotated: u8,
+    context: *mut c_void,
+    prepare: unsafe extern "C" fn(
+        *mut c_void,
+        *const u8,
+        usize,
+    ) -> *const *const xp_core::font::raw::FontData,
+    emit: unsafe extern "C" fn(*mut c_void, *const textm::draw::Placement),
+) {
+    let text = bytes(data, len);
+    let render = |visual: &[u8]| {
+        let slot = prepare(context, visual.as_ptr(), visual.len());
+        if slot.is_null() {
+            return;
+        }
+        let mut face = textm::native::DrawingFace::new(slot, &*provider, id);
+        textm::draw::walk(
+            &mut face,
+            textm::native::Codepoints(visual),
+            style,
+            tracking,
+            rotated != 0,
+            &mut |placement| emit(context, &placement),
+        );
+    };
+    if rotated != 0 {
+        render(text);
+    } else {
+        textm::native::with_visual(&*provider, text, direction, render);
+    }
+}
+
+/// # Safety
+/// The face is live for this call and callbacks cannot retain any borrows.
+#[no_mangle]
+pub unsafe extern "C" fn xp_textm_dimensions_utf8(
+    face: *const Face,
+    data: *const u8,
+    len: usize,
+    width: *mut i32,
+    height: *mut i32,
+) {
+    let (w, h) = textm::dimensions_stream(
+        &mut CallbackFace(&*face),
+        textm::native::Codepoints(bytes(data, len)),
+        0,
+    );
+    *width = w;
+    *height = h;
+}
+/// # Safety
+/// Same provider contract as xp_native_draw. emit consumes the bitmap immediately.
+#[no_mangle]
+pub unsafe extern "C" fn xp_native_draw_scaled(
+    provider: *const Provider,
+    id: i32,
+    cp: u32,
+    style: u8,
+    scale: i32,
+    context: *mut c_void,
+    emit: unsafe extern "C" fn(*mut c_void),
+) -> i32 {
+    if scale <= 0 {
+        return 0;
+    }
+    let engine = Engine::new(*provider);
+    let Some(glyph) = engine.face(id).glyph(cp, style) else {
+        return 0;
+    };
+    let advance = textm::to_pixel(i32::from(glyph.advance).wrapping_mul(scale) / 256);
+    emit(context);
+    advance
+}

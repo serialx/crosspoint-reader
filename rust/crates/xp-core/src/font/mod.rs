@@ -156,27 +156,34 @@ impl<'a> Font<'a> {
 
     #[inline(always)]
     pub fn glyph(&self, cp: u32) -> GlyphResult {
+        self.glyph_with_pointer(cp).0
+    }
+
+    /// The pointer is borrowed from this loan and must be consumed before any
+    /// cache mutation. Metrics remain a value for callers that need no bitmap.
+    #[inline(always)]
+    pub fn glyph_with_pointer(&self, cp: u32) -> (GlyphResult, *const Glyph) {
         if let Some(index) = self.glyph_index(cp) {
-            return GlyphResult::Resident(unsafe { *self.data.glyph.add(index) });
+            let ptr = unsafe { self.data.glyph.add(index) };
+            return (GlyphResult::Resident(unsafe { *ptr }), ptr);
         }
-        // Defer even an overflow-ring hit: getGlyph would call the miss handler.
         if self.data.glyph_miss_handler.is_some() {
-            return GlyphResult::NotResident;
+            return (GlyphResult::NotResident, core::ptr::null());
         }
         if self.data.interval_count == 0 {
-            return GlyphResult::Missing;
+            return (GlyphResult::Missing, core::ptr::null());
         }
         if cp == 0x02bb {
             match self.has_codepoint(0x2018) {
-                Some(true) => return self.glyph(0x2018),
-                None => return GlyphResult::NotResident,
+                Some(true) => return self.glyph_with_pointer(0x2018),
+                None => return (GlyphResult::NotResident, core::ptr::null()),
                 Some(false) => (),
             }
         }
         if cp != 0xfffd {
-            self.glyph(0xfffd)
+            self.glyph_with_pointer(0xfffd)
         } else {
-            GlyphResult::Missing
+            (GlyphResult::Missing, core::ptr::null())
         }
     }
 
@@ -279,7 +286,7 @@ impl<'a> Font<'a> {
             )
         };
         let key = (left << 16) | right;
-        let i = pairs.partition_point(|pair| pair.pair < key);
+        let i = lower_bound(pairs, |pair| pair.pair < key);
         pairs
             .get(i)
             .filter(|pair| pair.pair == key)
@@ -350,7 +357,7 @@ fn arabic_form(cp: u32) -> bool {
 }
 
 /// Same integer evaluation order as EpdFont::getGlyphMetrics.
-fn solid_metrics(cp: u32, ascender: i32, em_advance: Option<u16>) -> Glyph {
+pub fn solid_metrics(cp: u32, ascender: i32, em_advance: Option<u16>) -> Glyph {
     let ascender = if ascender > 0 { ascender } else { 8 };
     let advance = em_advance
         .filter(|&a| a > 0)

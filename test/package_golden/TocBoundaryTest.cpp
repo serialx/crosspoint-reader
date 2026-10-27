@@ -124,6 +124,21 @@ extern "C" void* heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t
   check(alignment <= alignof(std::max_align_t));
   return allocate(size);
 }
+extern "C" void* heap_caps_realloc(void* ptr, size_t size, uint32_t caps) {
+  if (!ptr) return heap_caps_malloc(size, caps);
+  if (failNothrowArray && size == 32767) {
+    ++failures;
+    return nullptr;
+  }
+  auto* old = static_cast<Allocation*>(ptr) - 1;
+  const size_t oldSize = old->size;
+  auto* replacement = static_cast<Allocation*>(std::realloc(old, sizeof(Allocation) + size));
+  if (!replacement) return nullptr;
+  replacement->size = size;
+  liveBytes = liveBytes - oldSize + size;
+  peakBytes = std::max(peakBytes, liveBytes);
+  return replacement + 1;
+}
 extern "C" void heap_caps_free(void* ptr) { release(ptr); }
 extern "C" void xp_chapter_release_block(void*) { std::abort(); }
 int main(int argc, char** argv) {

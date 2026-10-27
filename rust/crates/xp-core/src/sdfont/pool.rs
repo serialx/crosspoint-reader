@@ -469,6 +469,19 @@ impl Cache {
             *self.overflow_next = 0;
         }
     }
+    /// # Safety
+    /// The facade lends valid, exclusively owned cache slots and paired services.
+    /// All referenced arrays must remain live for the complete operation.
+    pub unsafe fn clear_cache(&mut self) {
+        unsafe { self.clear_overflow() };
+        let io = unsafe { self.io() };
+        for style in 0..4 {
+            // Releasing an earlier style can restore the retention floor.
+            if unsafe { self.has(style) && (io.heap)(false) < RETAIN_HEAP } {
+                unsafe { (*self.resident(style)).free_mini(io) };
+            }
+        }
+    }
     unsafe fn valid(&self, s: &Resident, g: &Glyph, cp: u32) -> bool {
         let pixels = u32::from(g.width) * u32::from(g.height);
         let packed = pixels.div_ceil(if s.header.is2_bit { 4 } else { 8 });

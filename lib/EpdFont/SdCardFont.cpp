@@ -493,11 +493,9 @@ int SdCardFont::prewarm(TextGetter getter, const void* ctx, uint32_t textCount, 
 
 void SdCardFont::clearCache() {
   ++fontTableGeneration;
-  clearOverflow();
-  if (ESP.getFreeHeap() < 40 * 1024) {
-    for (uint8_t i = 0; i < MAX_STYLES; ++i)
-      if (hasStyle(i)) freeStyleMiniData(styleData(i));
-  }
+  auto services = cacheServices(nullptr);
+  auto pool = cacheView(&services);
+  xp_sdfont_pool_clear_cache(&pool);
 }
 
 // --- Advance table ---

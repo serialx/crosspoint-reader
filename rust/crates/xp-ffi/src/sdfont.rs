@@ -190,6 +190,12 @@ pub unsafe extern "C" fn xp_sdfont_pool_clear_overflow(pool: *mut Cache) {
     }
 }
 #[no_mangle]
+pub unsafe extern "C" fn xp_sdfont_pool_clear_cache(pool: *mut Cache) {
+    if let Some(p) = pool.as_mut() {
+        p.clear_cache();
+    }
+}
+#[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_pool_free_mini(style: *mut Resident, io: *const Services) {
     if let (Some(s), Some(io)) = (style.as_mut(), io.as_ref()) {
         s.free_mini(io);

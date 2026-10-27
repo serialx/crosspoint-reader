@@ -187,6 +187,40 @@ size_t run(const std::vector<uint32_t>& cps, const std::vector<std::string>& tex
   if (live) std::exit(3);
   return attempts;
 }
+void retention(const std::vector<uint32_t>& cps, const std::string& sample) {
+  for (size_t floor : {40 * 1024 - 1, 30 * 1024, 40 * 1024}) {
+    state = allocationTrace = sdTrace = SEED;
+    live = peak = largest = attempts = failAt = 0;
+    ESP.freeHeap = ESP.largestBlock = 200 * 1024;
+    sdFontTestReads = 0;
+    tracking = true;
+    {
+      SdCardFont font;
+      if (!font.load("trace.cpfont")) std::exit(2);
+      record("retention-prewarm", font.prewarm(sample.c_str(), 15, false, true, false), font, cps);
+      ESP.freeHeap = floor;
+      ESP.creditArrayFrees = true;
+      font.clearCache();
+      ESP.creditArrayFrees = false;
+      record("retention-clear", 0, font, cps);
+      unsigned retained = 0;
+      uint8_t lastStyle = 0;
+      for (uint8_t style = 0; style < 4; ++style) {
+        if (!font.hasStyle(style)) continue;
+        lastStyle = style;
+        if (font.getEpdFont(style)->data->intervalCount) retained |= 1u << style;
+      }
+      std::printf("retention floor=%zu heap=%zu retained=%u\n", floor, ESP.freeHeap, retained);
+      ESP.freeHeap = 200 * 1024;
+      const size_t reads = sdFontTestReads, requests = attempts;
+      record("retention-subset", font.prewarm(sample.c_str(), 1u << lastStyle, false, true, false), font, cps);
+      std::printf("retention-subset reads=%zu requests=%zu\n", sdFontTestReads - reads, attempts - requests);
+    }
+    std::printf("retention-destroy alloc=%016llx live=%zu\n", (unsigned long long)allocationTrace, live);
+    tracking = false;
+    if (live) std::exit(3);
+  }
+}
 size_t missCalls = 0;
 const EpdGlyph* (*originalMiss)(void*, uint32_t) = nullptr;
 const EpdGlyph* countMiss(void* context, uint32_t cp) {
@@ -261,6 +295,7 @@ void operator delete[](void* p) noexcept {
     hash(allocationTrace, a->id);
     hash(allocationTrace, a->size);
     live -= a->size;
+    if (ESP.creditArrayFrees) ESP.freeHeap += a->size;
   }
   std::free(a);
 }
@@ -296,6 +331,7 @@ int main(int argc, char** argv) {
     return 0;
   }
   const size_t allocations = run(cps, texts, 0, false);
+  retention(cps, texts[0]);
   if (std::getenv("SDPOOL_BASE_ONLY")) {
     if (argc > 2) {
       state = allocationTrace = sdTrace = SEED;

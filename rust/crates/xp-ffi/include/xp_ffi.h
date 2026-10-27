@@ -1243,6 +1243,7 @@ bool xp_sdfont_pool_coverage(const XpSdfontPool*, uint32_t cp, uint8_t style);
 const void* xp_sdfont_pool_miss(XpSdfontPool*, uint32_t cp, uint8_t style);
 void xp_sdfont_pool_clear_advances(XpSdfontPool*);
 void xp_sdfont_pool_clear_overflow(XpSdfontPool*);
+void xp_sdfont_pool_clear_cache(XpSdfontPool*);
 void xp_sdfont_pool_free_mini(void* style, const XpSdfontServices*);
 void xp_sdfont_pool_free_ligatures(void* style, const XpSdfontServices*);
 // Host ABI test: field offsets and sizes of the stable native cache slots.

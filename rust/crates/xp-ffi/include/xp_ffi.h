@@ -956,6 +956,32 @@ void xp_image_probe_init(void*);
 size_t xp_image_probe_write(void*, const uint8_t*, size_t);
 bool xp_image_probe_dimensions(const void*, uint32_t* width, uint32_t* height);
 
+/* MiniBidi compatibility. No allocation, retained pointers, or global state.
+ * Workspace: allocate workspace_size() bytes aligned to workspace_align(),
+ * initialize once, then reuse exclusively; no destroy is needed. Do not put
+ * this workspace on the firmware task stack. All input/output/work spans must
+ * be disjoint. Null span pointers are accepted only for zero length.
+ * Text is length-bounded and stops at NUL or the first replacement character.
+ * Status: 1 applied, 0 unchanged/fallback, -1 short output, -2 invalid argument.
+ * apply_visual leaves output unchanged on failure and does not append NUL;
+ * written is the byte count on success or required size on short output.
+ * word_order requires capacity == count and NUL-terminated packed words.
+ * Ignore word_order output unless status == 1 (C++ also writes partial results).
+ * The original 128-codepoint/128-word limits still return 0, not an error.
+ */
+size_t xp_bidi_workspace_size(void);
+size_t xp_bidi_workspace_align(void);
+int32_t xp_bidi_workspace_init(void* work, size_t size);
+uint8_t xp_bidi_class(uint32_t cp);
+uint32_t xp_bidi_mirror(uint32_t cp);
+uint8_t xp_bidi_transparent_mark(uint32_t cp);
+uint8_t xp_bidi_starts_rtl(const uint8_t* data, size_t len, int32_t depth);
+int32_t xp_bidi_paragraph_level(const uint8_t* data, size_t len, int32_t fallback, int32_t depth);
+int32_t xp_bidi_apply_visual(const uint8_t* data, size_t len, int32_t paragraph, void* work, size_t work_size,
+                             uint8_t* out, size_t capacity, size_t* written);
+int32_t xp_bidi_word_order(const uint8_t* data, size_t len, const uint16_t* offsets, size_t count, uint8_t rtl,
+                           void* work, size_t work_size, uint16_t* out, size_t capacity);
+
 #ifdef __cplusplus
 }
 #endif

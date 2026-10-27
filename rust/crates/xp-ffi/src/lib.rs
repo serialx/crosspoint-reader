@@ -1,5 +1,6 @@
 #![no_std]
 
+mod bidi;
 mod chapter;
 mod css;
 mod hyphen;

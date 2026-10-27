@@ -54,3 +54,5 @@ target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_FFI_HOST_FAULT_I
 target_sources(ChapterHtmlSlimParserTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)
 target_sources(ChapterHtmlSlimParserTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/Serialization.cpp)
 target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_PAGE_CODEC_TEST=1)
+
+target_sources(ChapterHtmlSlimParserTest PRIVATE ChapterStorageRetryTest.cpp)

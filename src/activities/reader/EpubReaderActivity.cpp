@@ -348,10 +348,15 @@ void EpubReaderActivity::openReaderMenu() {
   const ChapterPosition position = chapterPosition();
   const int bookProgressPercent = bookPercentFor(position);
 
+  bool hasFootnotes;
+  {
+    RenderLock lock;
+    hasFootnotes = !currentPageMetadata.footnotes().empty();
+  }
   startActivityForResult(
-      std::make_unique<EpubReaderMenuActivity>(
-          renderer, mappedInput, epub->getTitle(), position.displayPage(), position.totalPages, bookProgressPercent,
-          SETTINGS.orientation, !currentPageFootnotes.empty(), !cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
+      std::make_unique<EpubReaderMenuActivity>(renderer, mappedInput, epub->getTitle(), position.displayPage(),
+                                               position.totalPages, bookProgressPercent, SETTINGS.orientation,
+                                               hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
       [this](const ActivityResult& result) {
         const auto& menu = std::get<MenuResult>(result.data);
 
@@ -576,13 +581,24 @@ void EpubReaderActivity::startClipSelection(const int initialX, const int initia
 }
 
 void EpubReaderActivity::openFootnoteSelect(const bool reopenMenuOnCancel) {
-  if (!section || currentPageFootnotes.empty()) return;
-  if (currentPageFootnotes.size() == 1) {
-    navigateToHref(currentPageFootnotes[0].href, true);
+  std::string href;
+  bool singleFootnote;
+  std::unique_ptr<Page> page;
+  {
+    RenderLock lock;
+    if (!section || currentPageMetadata.footnotes().empty()) return;
+    singleFootnote = currentPageMetadata.footnotes().size() == 1;
+    if (singleFootnote) {
+      href = currentPageMetadata.footnotes()[0].href;
+    } else {
+      page = section->loadPage(section->currentPage);
+    }
+  }
+  // Navigation acquires RenderLock itself; only owned data may leave the scope above.
+  if (singleFootnote) {
+    navigateToHref(href, true);
     return;
   }
-
-  auto page = section->loadPage(section->currentPage);
   if (!page) return;
 
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
@@ -902,14 +918,21 @@ void EpubReaderActivity::loop() {
   }
 
   // Link taps take priority over the reader-menu and page-turn zones.
-  if (!atEndOfBook && !currentPageLinks.empty() && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
+  if (!atEndOfBook && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
     int touchX = 0;
     int touchY = 0;
     if (mappedInput.wasScreenTapped(touchX, touchY)) {
-      const auto* link = EpubReaderUtils::linkAtPoint(currentPageLinks, touchX, touchY, currentPageLinkMarginLeft,
-                                                      currentPageLinkMarginTop);
-      if (link) {
-        navigateToHref(link->href, true);
+      std::string href;
+      bool matched;
+      {
+        RenderLock lock;
+        const auto* link = EpubReaderUtils::linkAtPoint(currentPageMetadata.links(), touchX, touchY,
+                                                        currentPageLinkMarginLeft, currentPageLinkMarginTop);
+        matched = link != nullptr;
+        if (matched) href = link->href;
+      }
+      if (matched) {
+        navigateToHref(href, true);
         haptic_feedback::touchAction();
         return;
       }
@@ -1602,7 +1625,7 @@ bool EpubReaderActivity::skipLoopDelay() {
 }
 
 void EpubReaderActivity::renderBook() {
-  currentPageLinks.clear();
+  currentPageMetadata.clear();
   if (!epub) return;
   // A radio start in flight takes ~50 KB while the stack comes up: the page waits for it rather than
   // take the heap beside it (X3: abort() in a page restore at free 22,676 B). About 20 ms, once a visit.
@@ -1891,8 +1914,8 @@ void EpubReaderActivity::renderBook() {
 
   {
     auto p = section->loadPage(section->currentPage);
-    if (!p) {
-      LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
+    if (!p || !currentPageMetadata.assign(*p)) {
+      LOG_ERR("ERS", "Failed to load page or metadata - clearing section cache");
       automaticPageTurnActive = false;
       const bool giveUp = ++pageLoadRetryCount > MAX_PAGE_LOAD_RETRIES;
       section->abandonBuild();
@@ -1914,8 +1937,6 @@ void EpubReaderActivity::renderBook() {
     pageLoadRetryCount = 0;
 
     currentPageVisibleOffset = p->visibleTextOffset;
-    p->copyFootnotes(currentPageFootnotes);
-    p->copyLinks(currentPageLinks);
     currentPageLinkMarginLeft = orientedMarginLeft;
     currentPageLinkMarginTop = orientedMarginTop;
 
@@ -3078,8 +3099,12 @@ void EpubReaderActivity::applyReaderTextSettings() {
 // two entries that have their own tool (chapters -> Contents, text -> Text).
 void EpubReaderActivity::buildMoreActions() {
   using MA = EpubReaderMenuActivity::MenuAction;
-  EpubReaderMenuActivity::buildMenuItems(moreItems, !currentPageFootnotes.empty(), !cachedBookmarks.empty(),
-                                         CLIPPINGS.hasClippings());
+  bool hasFootnotes;
+  {
+    RenderLock lock;
+    hasFootnotes = !currentPageMetadata.footnotes().empty();
+  }
+  EpubReaderMenuActivity::buildMenuItems(moreItems, hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings());
   moreItems.erase(std::remove_if(moreItems.begin(), moreItems.end(),
                                  [](const auto& item) {
                                    return item.action == MA::SELECT_CHAPTER || item.action == MA::TEXT_SETTINGS;

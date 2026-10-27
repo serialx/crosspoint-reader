@@ -29,3 +29,28 @@ add_test(NAME PageLoadPartial COMMAND PageLoad partial)
 
 target_compile_definitions(PageLoad PRIVATE XP_FFI_HOST_FAULT_INJECTION=1)
 add_test(NAME PageAllocator COMMAND PageLoad allocator)
+
+add_test(NAME PageReaderMetadata COMMAND PageLoad metadata)
+
+get_target_property(PAGE_LOAD_SOURCES PageLoad SOURCES)
+list(REMOVE_ITEM PAGE_LOAD_SOURCES PageLoad.cpp)
+add_executable(FootnoteSelect FootnoteSelect.cpp ${PAGE_LOAD_SOURCES}
+  ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp)
+target_include_directories(FootnoteSelect PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_LOAD_INCLUDES})
+target_link_libraries(FootnoteSelect PRIVATE crosspoint_test_common xp_ffi_host)
+add_test(NAME PageFootnoteSelect COMMAND FootnoteSelect)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_footnote_entry.py
+    ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
+    ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
+  DEPENDS extract_footnote_entry.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+    ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
+  VERBATIM)
+target_sources(FootnoteSelect PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp)
+target_include_directories(FootnoteSelect PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(FootnoteSelect PRIVATE XP_FOOTNOTE_SELECT_TEST=1)

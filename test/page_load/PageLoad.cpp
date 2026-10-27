@@ -14,13 +14,15 @@
 
 namespace allocations {
 bool enabled = false;
-size_t failAt = SIZE_MAX, requests = 0, live = 0;
+size_t failAt = SIZE_MAX, requests = 0, live = 0, liveBytes = 0;
+size_t sizes[8]{};
 void* pointers[8]{};
 void removed(void* p) {
   for (auto& entry : pointers)
     if (entry && entry == p) {
       entry = nullptr;
       --live;
+      liveBytes -= sizes[&entry - pointers];
     }
 }
 }  // namespace allocations
@@ -31,6 +33,8 @@ void* operator new(size_t size, const std::nothrow_t&) noexcept {
     for (auto& entry : allocations::pointers)
       if (!entry) {
         entry = p;
+        allocations::sizes[&entry - allocations::pointers] = size;
+        allocations::liveBytes += size;
         ++allocations::live;
         return p;
       }
@@ -123,10 +127,59 @@ static void allocatorTest() {
     require(xp_test_live_allocations() == 0, "allocator cleanup");
   }
 }
+
+static void metadataTest() {
+  std::vector<uint8_t> bytes(14000);
+  XpPageBuilder builder{};
+  require(!xp_page_builder_init(&builder, bytes.data(), bytes.size()), "metadata builder");
+  uint8_t number[32] = {'1'}, href[256] = {'#', 'n'};
+  for (size_t i = 0; i < 16; ++i) require(!xp_page_builder_footnote(&builder, number, href), "footnote");
+  const XpPageLink link{{href, sizeof(href)}, 1, 2, 3, 4};
+  for (size_t i = 0; i < 32; ++i) require(!xp_page_builder_link(&builder, &link), "link");
+  size_t length = 0;
+  require(!xp_page_builder_finish(&builder, &length), "finish metadata");
+  auto page = Page::fromBytes(bytes.data(), length);
+  const auto emptyBytes = sample();
+  auto empty = Page::fromBytes(emptyBytes.data(), emptyBytes.size());
+  require(page && empty, "load metadata pages");
+  PageMetadata metadata;
+  allocations::enabled = true;
+  allocations::failAt = SIZE_MAX;
+  allocations::requests = 0;
+  require(metadata.assign(*page), "metadata allocation");
+  require(metadata.footnotes().size() == 16 && metadata.links().size() == 32, "metadata counts");
+  require(allocations::liveBytes == 13056 && allocations::live == 2, "metadata exact live budget");
+  page.reset();
+  require(std::string(metadata.footnotes()[0].href) == "#n" && std::string(metadata.links()[0].href) == "#n",
+          "metadata must outlive the rendered page");
+  std::cout << "full metadata live bytes: " << allocations::liveBytes << '\n';
+  require(metadata.assign(*empty), "empty metadata assignment");
+  require(metadata.footnotes().empty() && metadata.links().empty() && allocations::liveBytes == 0,
+          "empty page retained metadata");
+  std::cout << "empty metadata live bytes: " << allocations::liveBytes << '\n';
+  allocations::enabled = false;
+  page = Page::fromBytes(bytes.data(), length);
+  require(bool(page), "reload metadata page for failure injection");
+  allocations::enabled = true;
+  for (size_t fail : {0u, 1u}) {
+    allocations::failAt = SIZE_MAX;
+    require(metadata.assign(*page), "seed prior metadata");
+    allocations::requests = 0;
+    allocations::failAt = fail;
+    require(!metadata.assign(*page), "metadata failure not propagated");
+    require(metadata.footnotes().empty() && metadata.links().empty() && allocations::liveBytes == 0,
+            "failed metadata retained stale targets or leaked allocation");
+  }
+  allocations::enabled = false;
+}
 int main(int argc, char** argv) {
   require(argc == 2, "mode");
   if (std::string(argv[1]) == "allocator") {
     allocatorTest();
+    return 0;
+  }
+  if (std::string(argv[1]) == "metadata") {
+    metadataTest();
     return 0;
   }
   const auto dir = std::filesystem::temp_directory_path() / ("crosspoint-page-load-" + std::to_string(getpid()));
@@ -156,8 +209,7 @@ int main(int argc, char** argv) {
     auto page = section.loadPage(0);
     allocations::enabled = false;
     require(page && allocations::requests == 1 && allocations::live == 1, "page must retain one allocation");
-    require(page->elements.empty() && page->links.empty() && page->footnotes.empty(),
-            "load materialized C++ containers");
+    require(page->elements.empty(), "load materialized C++ containers");
     page.reset();
     require(allocations::live == 0, "page destruction leaked storage");
     for (size_t fail = 0; fail < 1; ++fail) {

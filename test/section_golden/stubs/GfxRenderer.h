@@ -13,6 +13,21 @@
 // Font ids are integer em sizes. No host font installation influences the oracle.
 class GfxRenderer : public ChapterTestRenderer {
  public:
+#ifdef XP_FOOTNOTE_SELECT_TEST
+  void getOrientedViewableTRBL(int* top, int* right, int* bottom, int* left) { *top = *right = *bottom = *left = 0; }
+  int highlightX = 0, highlightY = 0;
+  std::string highlightNumber;
+  void clearScreen() {}
+  void displayBuffer(int) {}
+  size_t readFramebufferRegion(int x, int y, int, int, uint8_t*, size_t) {
+    highlightX = x;
+    highlightY = y;
+    return 1;
+  }
+  void writeFramebufferRegion(int, int, int, int, const uint8_t*) {}
+  using ChapterTestRenderer::drawText;
+  void drawText(int, int, int, const char* text, bool) { highlightNumber = text; }
+#endif
   GfxRenderer() {
     for (int em = 8; em <= 80; ++em) {
       fontMap.emplace(em, EpdFontFamily(nullptr));
@@ -81,3 +96,9 @@ class GfxRenderer : public ChapterTestRenderer {
   bool glyphIntersectsStrip(int, int, int, int) const { return false; }
   void preserveImagePolarity(int, int, int, int) {}
 };
+
+#ifdef XP_FOOTNOTE_SELECT_TEST
+namespace HalDisplay {
+constexpr int FAST_REFRESH = 0;
+}
+#endif

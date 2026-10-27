@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Epub.h>
-#include <Epub/FootnoteEntry.h>
+#include <Epub/Page.h>
 #include <Epub/PageLink.h>
 #include <Epub/Section.h>
 
@@ -104,8 +104,7 @@ class EpubReaderActivity final : public ReaderActivity {
   std::vector<EpubReaderMenuActivity::MenuItem> moreItems;
 
   // Footnote support
-  std::vector<FootnoteEntry> currentPageFootnotes;
-  std::vector<PageLink> currentPageLinks;
+  PageMetadata currentPageMetadata;
   int currentPageLinkMarginLeft = 0;
   int currentPageLinkMarginTop = 0;
   struct SavedPosition {

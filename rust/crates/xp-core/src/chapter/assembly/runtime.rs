@@ -148,7 +148,7 @@ impl Sink for PageSink {
         })
     }
     fn create_line(&mut self, line: &paragraph_extract::Output) -> Result<Payload> {
-        let index = unsafe { (*self.storage).line(line)? };
+        let index = unsafe { (*self.storage).line(line, self.api().reclaim_paragraph_memory)? };
         Ok(self.payload(index))
     }
     #[cfg(feature = "chapter-trace")]
@@ -275,7 +275,7 @@ impl Sink for PageSink {
         }
     }
     fn complete(&mut self, page: Page<Payload>, position: Position) -> Result {
-        let bytes = unsafe { (*self.storage).encode(&page)? };
+        let bytes = unsafe { (*self.storage).encode(&page, self.api().reclaim_paragraph_memory)? };
         let length = bytes.len();
         let status = unsafe { (self.api().complete)(self.context, Span::new(bytes), position) };
         unsafe {
@@ -328,8 +328,13 @@ impl Sink for PageSink {
                     core::slice::from_raw_parts(s.data, s.len as usize)
                 }
             };
-            let index =
-                (*self.storage).image(view(path), view(source), width as i16, height as i16)?;
+            let index = (*self.storage).image(
+                view(path),
+                view(source),
+                width as i16,
+                height as i16,
+                self.api().reclaim_paragraph_memory,
+            )?;
             Ok(self.payload(index))
         }
     }

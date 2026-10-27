@@ -276,6 +276,12 @@ pub extern "C" fn xp_chapter_handle_size() -> u32 {
 // These symbols are absent from firmware builds.
 #[cfg(feature = "chapter-test")]
 mod test_access {
+    #[no_mangle]
+    pub extern "C" fn xp_chapter_test_storage_retry(reclaim: unsafe extern "C" fn()) -> u8 {
+        let mut storage = xp_core::chapter::assembly::runtime::Storage::default();
+        u8::from(storage.image(b"image", b"source", 10, 20, reclaim).is_ok())
+    }
+
     use super::*;
     use alloc::vec::Vec;
     use xp_core::{

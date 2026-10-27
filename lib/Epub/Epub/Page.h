@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -186,6 +187,8 @@ class Page {
   static std::unique_ptr<Page> allocate(const XpPageInfo& info);
   bool resolveViews();
   void renderArena(GfxRenderer& renderer, int fontId, int x, int y, PageRenderMode mode) const;
+  std::vector<FootnoteEntry> footnotes;
+  std::vector<PageLink> links;
 
  public:
   Page() = default;
@@ -201,17 +204,13 @@ class Page {
   PageElementView element(uint16_t index) const { return PageElementView(*this, index); }
   void footnote(uint16_t index, FootnoteEntry& out) const;
   void link(uint16_t index, PageLink& out) const;
-  void copyFootnotes(std::vector<FootnoteEntry>& out) const;
-  void copyLinks(std::vector<PageLink>& out) const;
   static std::unique_ptr<Page> load(HalFile& file, size_t bytes, uint32_t visibleOffset = 0);
   // Copies validated bytes into the owned arena; does not retain the input span.
   static std::unique_ptr<Page> fromBytes(const uint8_t* bytes, size_t size, uint32_t visibleOffset = 0);
 
   // the list of block index and line numbers on this page
   std::vector<std::unique_ptr<PageElement>> elements;
-  std::vector<FootnoteEntry> footnotes;
   static constexpr uint16_t MAX_FOOTNOTES_PER_PAGE = 16;
-  std::vector<PageLink> links;
   static constexpr uint16_t MAX_LINKS_PER_PAGE = 32;
 
   // Zero-based visible-codepoint offset where this page starts. Not part of the serialized page
@@ -258,4 +257,18 @@ class Page {
   bool hasImages() const;
   bool hasImagesNeedingDecode() const;
   bool getImageBoundingBox(int16_t& outX, int16_t& outY, int16_t& outW, int16_t& outH) const;
+};
+
+// Reader-owned copies outlive the rendered Page; failed assignment leaves no stale targets.
+class PageMetadata {
+  std::unique_ptr<FootnoteEntry[]> ownedFootnotes;
+  std::unique_ptr<PageLink[]> ownedLinks;
+  uint16_t footnoteSize = 0;
+  uint16_t linkSize = 0;
+
+ public:
+  std::span<const FootnoteEntry> footnotes() const { return {ownedFootnotes.get(), footnoteSize}; }
+  std::span<const PageLink> links() const { return {ownedLinks.get(), linkSize}; }
+  void clear();
+  bool assign(const Page& page);
 };

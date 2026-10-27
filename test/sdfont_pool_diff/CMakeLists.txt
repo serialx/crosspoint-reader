@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.16)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  project(sdfont_pool_diff C CXX)
+  set(CMAKE_CXX_STANDARD 20)
+  get_filename_component(REPO_ROOT "../.." ABSOLUTE)
+  include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+  enable_testing()
+endif()
+foreach(variant IN ITEMS reference candidate)
+  if(variant STREQUAL reference)
+    set(font_dir ${CMAKE_CURRENT_SOURCE_DIR}/reference)
+  else()
+    set(font_dir ${REPO_ROOT}/lib/EpdFont)
+  endif()
+  add_executable(sdpool_${variant} Trace.cpp ${font_dir}/SdCardFont.cpp
+    ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+  target_include_directories(sdpool_${variant} PRIVATE ${font_dir}
+    ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${REPO_ROOT}/test/sd_card_font/stubs
+    ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/lib/Memory)
+  target_link_libraries(sdpool_${variant} PRIVATE xp_ffi_host)
+  target_compile_options(sdpool_${variant} PRIVATE -O2 -fno-exceptions)
+endforeach()
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME SdFontPoolDifferential COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
+  --build-dir $<TARGET_FILE_DIR:sdpool_candidate>)
+

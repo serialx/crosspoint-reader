@@ -1250,6 +1250,10 @@ typedef struct {
   int32_t fonts[3];
   uint16_t count, paragraph_start;
   uint8_t has_fonts, has_ruby, has_focus;
+  XpPageSpan packed, font_data;  // Multi-byte packed values may be unaligned.
+  // Little-endian u32 arena offsets to [u32 length, bytes, NUL] ruby records.
+  // Empty when has_ruby is false; otherwise one offset per word.
+  XpPageSpan ruby_offsets;
 } XpPageLine;
 typedef struct {
   XpPageSpan text, ruby;
@@ -1273,10 +1277,17 @@ uint32_t xp_page_decode(const uint8_t*, size_t, uint32_t visible_offset, uint8_t
 uint32_t xp_page_encode(const uint8_t*, size_t, uint8_t*, size_t, size_t* required);
 uint32_t xp_page_info(const uint8_t*, size_t, XpPageInfo*, uint32_t* visible_offset);
 // Element record uses XP_SEC_POSITION/RULE/DROP_CAP/BORDER. Image spans are
-// cache/source paths; drop-cap first is its text. These spans need not end in NUL.
+// cache/source paths with a trailing NUL; drop-cap first is its text (not NUL-terminated).
 uint32_t xp_page_element(const uint8_t*, size_t, uint16_t, XpPageElement*);
 uint32_t xp_page_line(const uint8_t*, size_t, uint16_t, XpPageLine*);
-// Word text.len excludes its trailing NUL; ruby is length-delimited.
+typedef struct {
+  int16_t x, y;
+  uint16_t tag;
+} XpPagePosition;
+// Tag/position without decoding the element payload; invalid input has tag zero.
+XpPagePosition xp_page_position(const uint8_t*, size_t, uint16_t);
+// Word text.len excludes its trailing NUL. Ruby records on has_ruby lines also
+// have a trailing NUL; absent ruby is an empty span.
 uint32_t xp_page_word(const uint8_t*, size_t, uint16_t element, uint16_t word, int32_t section_font, XpPageWord*);
 uint32_t xp_page_footnote(const uint8_t*, size_t, uint16_t, XpPageSpan* number, XpPageSpan* href);
 uint32_t xp_page_link(const uint8_t*, size_t, uint16_t, XpPageLink*);

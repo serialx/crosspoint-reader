@@ -2,7 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <string>
+#include <string_view>
 #include <vector>
 
 // Shared CJK break-opportunity rules. Used by ParsedText (line breaking of body text) and by
@@ -24,6 +24,6 @@ bool hasBreakOpportunityBetween(uint32_t leftCp, uint32_t rightCp);
 
 // Byte offsets inside `text` where it splits into tokens. Empty => the text is a single token.
 // Combining marks and no-break punctuation stay attached to their neighbour.
-std::vector<size_t> characterBreakByteOffsets(const std::string& text);
+std::vector<size_t> characterBreakByteOffsets(const std::string_view text);
 
 }  // namespace CjkBreaks

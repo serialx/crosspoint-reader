@@ -101,7 +101,17 @@ struct PageLine {
   int getTag() const { return TAG_PageLine; }
   const Block* getBlock() const { return &block; }
 };
-struct Page { std::vector<std::unique_ptr<PageLine>> elements; };
+struct PageElementView {
+  const PageLine* line;
+  int xPos, yPos;
+  int getTag() const { return line->getTag(); }
+  const Block& textBlock() const { return *line->getBlock(); }
+};
+struct Page {
+  std::vector<std::unique_ptr<PageLine>> elements;
+  size_t elementCount() const { return elements.size(); }
+  PageElementView element(size_t i) const { return {elements[i].get(), elements[i]->xPos, elements[i]->yPos}; }
+};
 struct Renderer {
   enum RenderMode { BW };
   struct Draw { int x, width, tracking; };

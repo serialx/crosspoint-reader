@@ -78,9 +78,10 @@ int clippingWordFont(const GfxRenderer& renderer, const int fontId, const TextBl
   return TextBlock::renderFontId(renderer, block.wordFontId(i, fontId), fontId);
 }
 
-Rect clippingWordRect(const GfxRenderer& renderer, const int fontId, const PageLine& line, const uint16_t i,
-                      const int top, const int left, const int wordWidth) {
-  const auto& block = line.getBlock();
+Rect clippingWordRect(const GfxRenderer& renderer, const int fontId, const PageElementView& line,
+                      const TextBlock& textBlock, const uint16_t i, const int top, const int left,
+                      const int wordWidth) {
+  const auto* block = &textBlock;
   const int wordFont = clippingWordFont(renderer, fontId, *block, i);
   const char* text = block->wordText(i);
   const auto style = static_cast<EpdFontFamily::Style>(block->wordStyle(i) & ~EpdFontFamily::UNDERLINE);
@@ -1913,8 +1914,8 @@ void EpubReaderActivity::renderBook() {
     pageLoadRetryCount = 0;
 
     currentPageVisibleOffset = p->visibleTextOffset;
-    currentPageFootnotes = std::move(p->footnotes);
-    currentPageLinks = std::move(p->links);
+    p->copyFootnotes(currentPageFootnotes);
+    p->copyLinks(currentPageLinks);
     currentPageLinkMarginLeft = orientedMarginLeft;
     currentPageLinkMarginTop = orientedMarginTop;
 
@@ -2304,10 +2305,11 @@ int EpubReaderActivity::clippingAtPoint(const Page& page, const int x, const int
   const uint32_t signature =
       readerRenderSpecSignature(SETTINGS.readerRenderSpec(buildViewportWidth, buildViewportHeight));
   uint16_t wordIndex = 0;
-  for (const auto& element : page.elements) {
-    if (element->getTag() != TAG_PageLine) continue;
-    const auto& line = static_cast<const PageLine&>(*element);
-    const auto& block = line.getBlock();
+  for (uint16_t elementIndex = 0; elementIndex < page.elementCount(); ++elementIndex) {
+    const auto line = page.element(elementIndex);
+    if (line.getTag() != TAG_PageLine) continue;
+    const auto& textBlock = line.textBlock();
+    const auto* block = &textBlock;
     if (!block || !block->valid()) continue;
     for (uint16_t i = 0; i < block->wordCount(); ++i) {
       const char* text = block->wordText(i);
@@ -2317,8 +2319,8 @@ int EpubReaderActivity::clippingAtPoint(const Page& page, const int x, const int
                                                  block->getBlockStyle().characterSpacing);
       if (width <= 0) continue;
       const uint16_t index = wordIndex++;
-      const Rect rect =
-          clippingWordRect(renderer, fontId, line, i, top + SETTINGS.screenMargin, left + SETTINGS.screenMargin, width);
+      const Rect rect = clippingWordRect(renderer, fontId, line, *block, i, top + SETTINGS.screenMargin,
+                                         left + SETTINGS.screenMargin, width);
       if (x < rect.x || x >= rect.x + rect.width || y < rect.y || y >= rect.y + rect.height) continue;
       const auto range = block->wordSourceRange(i);
       for (size_t j = 0; j < CLIPPINGS.clippingCount(); ++j) {
@@ -2371,10 +2373,11 @@ void EpubReaderActivity::drawClippingHighlights(const Page& page, const int font
   };
 
   uint16_t pageWordIndex = 0;
-  for (const auto& element : page.elements) {
-    if (element->getTag() != TAG_PageLine) continue;
-    const auto& line = static_cast<const PageLine&>(*element);
-    const auto& block = line.getBlock();
+  for (uint16_t elementIndex = 0; elementIndex < page.elementCount(); ++elementIndex) {
+    const auto line = page.element(elementIndex);
+    if (line.getTag() != TAG_PageLine) continue;
+    const auto& textBlock = line.textBlock();
+    const auto* block = &textBlock;
     if (!block || !block->valid()) continue;
     bool hasPreviousHighlight = false;
     int previousHighlightX = 0;
@@ -2392,7 +2395,8 @@ void EpubReaderActivity::drawClippingHighlights(const Page& page, const int font
         continue;
       }
 
-      const Rect rect = clippingWordRect(renderer, fontId, line, i, orientedMarginTop, orientedMarginLeft, width);
+      const Rect rect =
+          clippingWordRect(renderer, fontId, line, *block, i, orientedMarginTop, orientedMarginLeft, width);
       const int x = rect.x;
       const int y = rect.y;
       width = rect.width;

@@ -1,0 +1,30 @@
+# Page load failures and ownership
+
+These tests call the production `Section::loadPage` with a real section file
+and the host HAL. The section-oracle renderer and image-decoder stubs satisfy
+unrelated build-path dependencies; they do not replace the page loader.
+
+```sh
+cmake -S test -B build/test
+cmake --build build/test --target PageLoad -j 6
+ctest --test-dir build/test -R '^PageLoad' --output-on-failure
+```
+
+`PageLoadMalformed` tries every truncation of a one-line page, two bit flips at
+every byte, and 16-/32-bit boundary values at every position. Acceptance must
+match the Rust byte validator. It also rejects page LUT offsets outside the
+bounded page range. The independent pre-integration decoder comparison and
+frozen page records are covered by `page_codec_diff` and `page_golden`.
+
+`PageLoadOom` fails each of the three checked allocations: bounded input,
+Page object, and arena plus descriptors. Each failure returns null and releases
+all earlier allocations. A successful load makes exactly three allocations and
+retains only the Page and its storage. It also checks both allocations in
+`Page::fromBytes` and overwrites the source bytes to verify the page owns its
+backing storage.
+
+`PageLoadPartial` opens a partial section through `loadSectionFile`, loads its
+page, and checks the visible offset and borrowed word fields. This verifies the
+partial-cache read path; it does not simulate interrupted writes or hardware
+storage failures. Pixel, clipping, dictionary, and whole-book behavior remain
+covered by their existing suites and the paired emulator workloads.

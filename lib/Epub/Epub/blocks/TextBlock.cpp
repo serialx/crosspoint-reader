@@ -23,8 +23,7 @@ size_t TextBlock::arenaSize(const uint16_t wordCount, const bool hasFocus, const
   return size + textBytes;
 }
 
-void TextBlock::bindArenaPointers() {
-  uint8_t* base = arena.get();
+void TextBlock::bindArenaPointers(const uint8_t* base) {
   const size_t wc = numWords;
   sourceRanges = reinterpret_cast<const SourceRange*>(base);
   base += wc * sizeof(SourceRange);
@@ -98,7 +97,7 @@ bool TextBlock::initializeArena(const size_t totalText) {
     isValid = false;
     return false;
   }
-  bindArenaPointers();
+  bindArenaPointers(arena.get());
 
   return true;
 }
@@ -203,6 +202,8 @@ bool TextBlock::allocateLinks(const size_t count) {
 }
 
 bool TextBlock::hasRuby() const {
+  if (pageArena) return pageHasRuby;
+  if (borrowedRuby) return !borrowedRuby->empty();
   for (const auto& rt : rubyTexts) {
     if (!rt.empty()) return true;
   }
@@ -211,6 +212,7 @@ bool TextBlock::hasRuby() const {
 
 bool TextBlock::setWordFonts(const uint8_t* slots, const int32_t (&fonts)[MAX_WORD_FONTS]) {
   wordFontData = makeUniqueNoThrow<uint8_t[]>(sizeof(fonts) + numWords);
+  fontData = wordFontData.get();
   if (!wordFontData) return false;
   memcpy(wordFontData.get(), fonts, sizeof(fonts));
   memcpy(wordFontData.get() + sizeof(fonts), slots, numWords);
@@ -222,33 +224,33 @@ int TextBlock::renderFontId(const GfxRenderer& renderer, const int fontId, const
 }
 
 int TextBlock::wordFontId(const uint16_t i, const int sectionFontId) const {
-  if (!wordFontData) return blockFontId(sectionFontId);
-  const uint8_t slot = wordFontData[sizeof(int32_t) * MAX_WORD_FONTS + i] & ~SMALL_CAPS_SLOT_FLAG;
+  if (!fontData) return blockFontId(sectionFontId);
+  const uint8_t slot = fontData[sizeof(int32_t) * MAX_WORD_FONTS + i] & ~SMALL_CAPS_SLOT_FLAG;
   if (slot == 0) return blockFontId(sectionFontId);
   int32_t font = 0;
-  memcpy(&font, wordFontData.get() + sizeof(int32_t) * (slot - 1), sizeof(font));
+  memcpy(&font, fontData + sizeof(int32_t) * (slot - 1), sizeof(font));
   return font;
 }
 
 int TextBlock::lineAscent(const GfxRenderer& renderer, const int sectionFontId) const {
   int ascent = renderer.getFontAscenderSize(renderFontId(renderer, blockFontId(sectionFontId), sectionFontId));
-  if (!wordFontData) return ascent;
+  if (!fontData) return ascent;
   for (uint8_t slot = 0; slot < MAX_WORD_FONTS; ++slot) {
     int32_t font = 0;
-    memcpy(&font, wordFontData.get() + sizeof(int32_t) * slot, sizeof(font));
+    memcpy(&font, fontData + sizeof(int32_t) * slot, sizeof(font));
     if (font != 0) ascent = std::max(ascent, renderer.getFontAscenderSize(renderFontId(renderer, font, sectionFontId)));
   }
   return ascent;
 }
 
 int TextBlock::wordYOffset(const GfxRenderer& renderer, const int sectionFontId, const uint16_t i) const {
-  if (!wordFontData) return 0;
+  if (!fontData) return 0;
   return lineAscent(renderer, sectionFontId) -
          renderer.getFontAscenderSize(renderFontId(renderer, wordFontId(i, sectionFontId), sectionFontId));
 }
 
 int TextBlock::extraAscent(const GfxRenderer& renderer, const int sectionFontId) const {
-  if (!wordFontData) return 0;
+  if (!fontData) return 0;
   return lineAscent(renderer, sectionFontId) -
          renderer.getFontAscenderSize(renderFontId(renderer, blockFontId(sectionFontId), sectionFontId));
 }
@@ -258,6 +260,7 @@ void TextBlock::render(const GfxRenderer& renderer, const int sectionFontId, con
     LOG_ERR("TXB", "Render skipped: invalid block");
     return;
   }
+  const auto& blockStyle = getBlockStyle();
   // A sized variant that can no longer be loaded falls back to the section font.
   const int fontId = renderFontId(renderer, blockFontId(sectionFontId), sectionFontId);
   const int8_t tracking = blockStyle.characterSpacing;
@@ -291,7 +294,7 @@ void TextBlock::render(const GfxRenderer& renderer, const int sectionFontId, con
   if (blockHasRuby && !scanning) {
     rubies.resize(numWords);
     for (uint16_t i = 0; i < numWords; i++) {
-      if (i < rubyTexts.size() && !rubyTexts[i].empty() && (wordStyle(i) & EpdFontFamily::RUBY_CONTINUE) == 0) {
+      if (!rubyText(i).empty() && (wordStyle(i) & EpdFontFamily::RUBY_CONTINUE) == 0) {
         int groupWordCount = 1;
         while (i + groupWordCount < numWords && (wordStyle(i + groupWordCount) & EpdFontFamily::RUBY_CONTINUE) != 0) {
           groupWordCount++;
@@ -301,13 +304,13 @@ void TextBlock::render(const GfxRenderer& renderer, const int sectionFontId, con
           groupActualWidth += renderer.getTextAdvanceX(fontId, wordText(i + k), wordStyle(i + k), tracking);
         }
         // Whole-string width: the same measure layout uses to decide whether the ruby overhangs.
-        const int rubyWidth = renderer.getTextAdvanceX(fontId, rubyTexts[i].c_str(), EpdFontFamily::SUP, tracking);
-        const int leaderWordX = xposArr[i] + x;
+        const int rubyWidth = renderer.getTextAdvanceX(fontId, rubyText(i).data(), EpdFontFamily::SUP, tracking);
+        const int leaderWordX = wordXpos(i) + x;
         const auto baseDir =
             static_cast<BidiUtils::BidiBaseDir>(BidiUtils::detectParagraphLevel(wordText(i), blockStyle.isRtl ? 1 : 0));
 
         RubyDrawInfo& info = rubies[i];
-        info.text = rubyTexts[i];
+        info.text = rubyText(i);
         info.baseDir = baseDir;
         info.x = leaderWordX - (rubyWidth - groupActualWidth) / 2;  // default: centered
 
@@ -315,7 +318,7 @@ void TextBlock::render(const GfxRenderer& renderer, const int sectionFontId, con
         // split so that each gap between ruby characters is twice the gap at either end; the centers
         // still coincide. A ruby with a single token (e.g. Latin text) degenerates to centering.
         if (rubyWidth < groupActualWidth) {
-          auto breaks = CjkBreaks::characterBreakByteOffsets(rubyTexts[i]);
+          auto breaks = CjkBreaks::characterBreakByteOffsets(rubyText(i));
           if (!breaks.empty()) {
             int tokenSum = 0;
             std::string tok;
@@ -385,13 +388,13 @@ void TextBlock::render(const GfxRenderer& renderer, const int sectionFontId, con
 
   for (uint16_t i = 0; i < numWords; i++) {
     const char* word = wordText(i);
-    const int wordX = xposArr[i] + x;
+    const int wordX = wordXpos(i) + x;
     const EpdFontFamily::Style currentStyle = wordStyle(i);
     const auto baseDir =
         static_cast<BidiUtils::BidiBaseDir>(BidiUtils::detectParagraphLevel(word, blockStyle.isRtl ? 1 : 0));
     const uint8_t boundary = focusBoundary(i);
-    const int wordFont = wordFontData ? renderFontId(renderer, wordFontId(i, sectionFontId), sectionFontId) : fontId;
-    const int wordAscender = wordFont == fontId && !wordFontData ? ascender : renderer.getFontAscenderSize(wordFont);
+    const int wordFont = fontData ? renderFontId(renderer, wordFontId(i, sectionFontId), sectionFontId) : fontId;
+    const int wordAscender = wordFont == fontId && !fontData ? ascender : renderer.getFontAscenderSize(wordFont);
 
     // SUP/SUB shift the baseline passed to drawText; the glyph is also scaled 50% inside
     // drawText, so these offsets are chosen relative to the full-size ascender:
@@ -421,22 +424,21 @@ void TextBlock::render(const GfxRenderer& renderer, const int sectionFontId, con
       memcpy(boldBuf, word, boldLen);
       boldBuf[boldLen] = '\0';
       renderer.drawText(wordFont, drawX, wordY, boldBuf, true, boldStyle, baseDir, tracking);
-      const int suffixX = drawX + focusSuffixXArr[i];
+      const int suffixX = drawX + focusSuffixX(i);
       renderer.drawText(wordFont, suffixX, wordY, word + boldLen, true, currentStyle, baseDir, tracking);
     } else {
       renderer.drawText(wordFont, drawX, wordY, word, true, currentStyle, baseDir, tracking);
     }
 
     // Horizontal ruby text rendering
-    if (blockHasRuby && i < rubyTexts.size() && !rubyTexts[i].empty() &&
-        (wordStyle(i) & EpdFontFamily::RUBY_CONTINUE) == 0) {
+    if (blockHasRuby && !rubyText(i).empty() && (wordStyle(i) & EpdFontFamily::RUBY_CONTINUE) == 0) {
       if (scanning) {
-        renderer.drawText(fontId, 0, 0, rubyTexts[i].c_str(), true, EpdFontFamily::SUP);
+        renderer.drawText(fontId, 0, 0, rubyText(i).data(), true, EpdFontFamily::SUP);
       } else {
         const int rubyY = wordY - ascender;
         const RubyDrawInfo& ruby = rubies[i];
         if (ruby.spread == 0) {
-          renderer.drawText(fontId, ruby.x, rubyY, rubyTexts[i].c_str(), true, EpdFontFamily::SUP, ruby.baseDir,
+          renderer.drawText(fontId, ruby.x, rubyY, rubyText(i).data(), true, EpdFontFamily::SUP, ruby.baseDir,
                             tracking);
         } else {
           // The edge gap is capped (see layout), so the remaining space is split evenly over the n-1
@@ -516,6 +518,7 @@ void TextBlock::render(const GfxRenderer& renderer, const int sectionFontId, con
 }
 
 bool TextBlock::serialize(HalFile& file) const {
+  const auto& blockStyle = getBlockStyle();
   if (!isValid) {
     LOG_ERR("TXB", "Serialization failed: invalid block");
     return false;
@@ -529,7 +532,7 @@ bool TextBlock::serialize(HalFile& file) const {
     return false;
   if (numWords > 0) {
     const size_t size = xp_sec_arena_size(numWords, focusPresent, textBytes);
-    if (file.write(arena.get(), size) != size) {
+    if (file.write(sourceRanges, size) != size) {
       LOG_ERR("TXB", "Serialization failed: arena write (%u bytes)", static_cast<uint32_t>(size));
       return false;
     }
@@ -537,7 +540,9 @@ bool TextBlock::serialize(HalFile& file) const {
 
   // Ruby text data
   for (size_t i = 0; i < numWords; i++) {
-    if (!sectioncodec::writeString(file, (i < rubyTexts.size()) ? rubyTexts[i] : std::string())) return false;
+    const auto ruby = rubyText(i);
+    if (!sectioncodec::writeValue(file, XP_SEC_U32, ruby.size()) || file.write(ruby.data(), ruby.size()) != ruby.size())
+      return false;
   }
 
   // Style (alignment + margins/padding/indent)
@@ -554,11 +559,11 @@ bool TextBlock::serialize(HalFile& file) const {
     return false;
 
   // Per-word fonts: a flag, then the font table and one slot per word.
-  const uint8_t hasWordFonts = wordFontData ? 1 : 0;
+  const uint8_t hasWordFonts = fontData ? 1 : 0;
   if (!sectioncodec::writeValue(file, XP_SEC_WORD_FONT_FLAG, hasWordFonts)) return false;
   if (hasWordFonts) {
     const size_t size = sizeof(int32_t) * MAX_WORD_FONTS + numWords;
-    if (file.write(wordFontData.get(), size) != size) {
+    if (file.write(fontData, size) != size) {
       LOG_ERR("TXB", "Serialization failed: word fonts");
       return false;
     }
@@ -567,67 +572,41 @@ bool TextBlock::serialize(HalFile& file) const {
   return true;
 }
 
-std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
-  XpSecRecord header;
-  if (!sectioncodec::read(file, XP_SEC_TEXT_HEADER, header)) return nullptr;
-  const uint16_t wc = header.values[0];
-  const bool hasFocus = header.values[1] != 0;
-  const uint16_t textBytes = header.values[2];
-  const uint16_t paragraphStartWord = header.values[3];
+TextBlock::TextBlock(View, const TextBlock& s)
+    : blockStyle(s.getBlockStyle()),
+      numWords(s.numWords),
+      paragraphStartWord(s.paragraphStartWord),
+      textBytes(s.textBytes),
+      focusPresent(s.focusPresent),
+      isValid(s.isValid),
+      sourceRanges(s.sourceRanges),
+      textOffArr(s.textOffArr),
+      xposArr(s.xposArr),
+      focusSuffixXArr(s.focusSuffixXArr),
+      stylesArr(s.stylesArr),
+      focusBoundaryArr(s.focusBoundaryArr),
+      textArr(s.textArr),
+      pageArena(s.pageArena),
+      rubyOffsets(s.rubyOffsets),
+      pageHasRuby(s.pageHasRuby),
+      fontData(s.fontData),
+      borrowedRuby(s.borrowedRuby ? s.borrowedRuby : &s.rubyTexts) {}
 
-  std::unique_ptr<TextBlock> block(new (std::nothrow) TextBlock());
-  if (!block) {
-    LOG_ERR("TXB", "OOM: TextBlock");
-    return nullptr;
+TextBlock::TextBlock(View, const uint8_t* page, const size_t size, const uint16_t element) : pageArena(page) {
+  XpPageLine line{};
+  if (xp_page_line(page, size, element, &line)) {
+    isValid = false;
+    return;
   }
-  block->numWords = wc;
-  block->textBytes = textBytes;
-  block->paragraphStartWord = paragraphStartWord;
-  block->focusPresent = hasFocus != 0;
-
-  if (wc > 0) {
-    const size_t size = xp_sec_arena_size(wc, block->focusPresent, textBytes);
-    block->arena = makeUniqueNoThrow<uint8_t[]>(size);
-    if (!block->arena) {
-      LOG_ERR("TXB", "OOM: arena %u bytes", static_cast<uint32_t>(size));
-      return nullptr;
-    }
-    if (file.read(block->arena.get(), size) != size) {
-      LOG_ERR("TXB", "Deserialization failed: arena read (%u bytes)", static_cast<uint32_t>(size));
-      return nullptr;
-    }
-    block->bindArenaPointers();
-
-    if (!xp_sec_validate_arena(wc, block->focusPresent, textBytes, block->arena.get(), size)) {
-      LOG_ERR("TXB", "Deserialization failed: corrupt text layout");
-      return nullptr;
-    }
-  }
-
-  // Ruby text data. Ruby is a CJK feature, so for nearly every book every entry here
-  // is the empty string. Materializing the vector regardless costs wordCount * 24 bytes
-  // (sizeof(std::string)) plus a heap block per line, held for as long as the page is
-  // resident -- several KB of DRAM on a full page, none of it ever read. An empty
-  // rubyTexts is already the "no ruby" representation: hasRuby() reports false and every
-  // other reader is guarded by `i < rubyTexts.size()`, so allocate lazily and only once a
-  // non-empty annotation actually shows up.
-  //
-  // `scratch` is reused across words: readString() resizes it to the incoming length and
-  // overwrites every byte, so a moved-from value carries nothing into the next iteration.
-  std::string scratch;
-  for (uint16_t i = 0; i < wc; i++) {
-    if (!sectioncodec::readString(file, scratch)) return nullptr;
-    if (scratch.empty()) continue;
-    if (block->rubyTexts.empty()) {
-      block->rubyTexts.resize(wc);
-    }
-    block->rubyTexts[i] = std::move(scratch);
-  }
-
-  // Style (alignment + margins/padding/indent)
-  BlockStyle& blockStyle = block->blockStyle;
-  XpSecRecord style;
-  if (!sectioncodec::read(file, XP_SEC_BLOCK_STYLE, style)) return nullptr;
+  numWords = line.count;
+  paragraphStartWord = line.paragraph_start;
+  focusPresent = line.has_focus;
+  pageHasRuby = line.has_ruby;
+  rubyOffsets = line.ruby_offsets.data;
+  textBytes = line.packed.len - size_t(numWords) * (13 + (focusPresent ? 3 : 0));
+  if (numWords) bindArenaPointers(line.packed.data);
+  fontData = line.font_data.len ? line.font_data.data : nullptr;
+  const auto& style = line.block;
   blockStyle.alignment = static_cast<CssTextAlign>(style.values[0]);
   blockStyle.textAlignDefined = style.values[1];
   blockStyle.marginTop = style.values[2];
@@ -644,21 +623,39 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile& file) {
   blockStyle.directionDefined = style.values[13];
   blockStyle.characterSpacing = style.values[14];
   blockStyle.fontId = style.values[15];
+}
 
-  uint32_t hasWordFonts = 0;
-  if (!sectioncodec::readValue(file, XP_SEC_WORD_FONT_FLAG, hasWordFonts)) return nullptr;
-  if (hasWordFonts) {
-    const size_t size = sizeof(int32_t) * MAX_WORD_FONTS + wc;
-    block->wordFontData = makeUniqueNoThrow<uint8_t[]>(size);
-    if (!block->wordFontData || file.read(block->wordFontData.get(), size) != size) {
-      LOG_ERR("TXB", "Deserialization failed: word fonts");
-      return nullptr;
-    }
-    if (!xp_sec_validate_fonts(wc, block->wordFontData.get(), size)) {
-      LOG_ERR("TXB", "Deserialization failed: bad word font slots");
-      return nullptr;
-    }
-  }
+bool TextBlock::resolveView(const uint8_t* page, const size_t size, const uint16_t element, ViewData& out) {
+  const TextBlock source(View{}, page, size, element);
+  if (!source.valid()) return false;
+  out = {source.blockStyle, source.sourceRanges,       source.textOffArr, source.xposArr,      source.focusSuffixXArr,
+         source.stylesArr,  source.focusBoundaryArr,   source.textArr,    source.fontData,     source.rubyOffsets,
+         source.numWords,   source.paragraphStartWord, source.textBytes,  source.focusPresent, source.pageHasRuby};
+  return true;
+}
 
-  return block;
+TextBlock::TextBlock(View, const uint8_t* page, const ViewData& data)
+    : blockStyle(data.style),
+      numWords(data.count),
+      paragraphStartWord(data.paragraphStart),
+      textBytes(data.textBytes),
+      focusPresent(data.focus),
+      sourceRanges(data.sources),
+      textOffArr(data.offsets),
+      xposArr(data.positions),
+      focusSuffixXArr(data.suffixes),
+      stylesArr(data.styles),
+      focusBoundaryArr(data.boundaries),
+      textArr(data.text),
+      pageArena(page),
+      rubyOffsets(data.rubies),
+      pageHasRuby(data.ruby),
+      fontData(data.fonts) {}
+
+std::string_view TextBlock::pageRubyText(const uint16_t i) const {
+  if (i >= numWords) return "";
+  const uint32_t offset = unaligned(reinterpret_cast<const uint32_t*>(rubyOffsets + size_t(i) * 4));
+  const uint8_t* record = pageArena + offset;
+  const uint32_t length = unaligned(reinterpret_cast<const uint32_t*>(record));
+  return {reinterpret_cast<const char*>(record + 4), length};
 }

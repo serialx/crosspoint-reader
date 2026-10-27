@@ -19,7 +19,12 @@
 // - uint8_t pixels[...] - 2 bits per pixel, packed (4 pixels per byte), row-major order
 
 ImageBlock::ImageBlock(const std::string& imagePath, const std::string& srcPath, int16_t width, int16_t height)
-    : imagePath(imagePath), srcPath(srcPath), width(width), height(height) {}
+    : ownedImagePath(imagePath),
+      ownedSrcPath(srcPath),
+      imagePath(ownedImagePath),
+      srcPath(ownedSrcPath),
+      width(width),
+      height(height) {}
 
 void* ImageBlock::extractCtx = nullptr;
 ImageBlock::ExtractFn ImageBlock::extractFn = nullptr;
@@ -34,13 +39,13 @@ namespace {
 // Version 2 rebuilds pixels decoded by PNGdec's faulty zlib fast-copy path.
 constexpr char PIXEL_CACHE_EXTENSION[] = ".px2";
 
-std::string getCachePath(const std::string& imagePath) {
+std::string getCachePath(const std::string_view imagePath) {
   // The filename versions decoded pixels without changing the packed format.
   size_t dotPos = imagePath.rfind('.');
   if (dotPos != std::string::npos) {
-    return imagePath.substr(0, dotPos) + PIXEL_CACHE_EXTENSION;
+    return std::string(imagePath.substr(0, dotPos)) + PIXEL_CACHE_EXTENSION;
   }
-  return imagePath + PIXEL_CACHE_EXTENSION;
+  return std::string(imagePath) + PIXEL_CACHE_EXTENSION;
 }
 
 bool readValidCacheHeader(HalFile& cacheFile, const int expectedWidth, const int expectedHeight, uint16_t& cachedWidth,
@@ -66,7 +71,7 @@ constexpr size_t MAX_RENDER_IMAGE_FAILURES = 16;
 uint64_t failedImageHashes[MAX_RENDER_IMAGE_FAILURES];
 size_t failedImageCount = 0;
 
-uint64_t imagePathHash(const std::string& path) {
+uint64_t imagePathHash(const std::string_view path) {
   uint64_t hash = 14695981039346656037ull;
   for (const char c : path) {
     hash ^= static_cast<uint8_t>(c);
@@ -75,7 +80,7 @@ uint64_t imagePathHash(const std::string& path) {
   return hash;
 }
 
-bool imageFailedThisRender(const std::string& path) {
+bool imageFailedThisRender(const std::string_view path) {
   const uint64_t hash = imagePathHash(path);
   for (size_t i = 0; i < failedImageCount; i++) {
     if (failedImageHashes[i] == hash) return true;
@@ -83,7 +88,7 @@ bool imageFailedThisRender(const std::string& path) {
   return false;
 }
 
-void rememberImageFailure(const std::string& path) {
+void rememberImageFailure(const std::string_view path) {
   if (failedImageCount == MAX_RENDER_IMAGE_FAILURES || imageFailedThisRender(path)) return;
   failedImageHashes[failedImageCount++] = imagePathHash(path);
 }
@@ -299,7 +304,7 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
   FontCacheManager* fcm = renderer.getFontCacheManager();
   if (fcm && fcm->isScanning()) return;
 
-  LOG_DBG("IMG", "Rendering image at %d,%d: %s (%dx%d)", x, y, imagePath.c_str(), width, height);
+  LOG_DBG("IMG", "Rendering image at %d,%d: %s (%dx%d)", x, y, imagePath.data(), width, height);
 
   const int screenWidth = renderer.getScreenWidth();
   const int screenHeight = renderer.getScreenHeight();
@@ -335,18 +340,18 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
 
   // The build only header-probed the image for dimensions; pull the actual
   // file out of the book now, on first visit to the page.
-  if (!srcPath.empty() && extractFn && !Storage.exists(imagePath.c_str())) {
-    LOG_DBG("IMG", "Lazy-extracting %s -> %s", srcPath.c_str(), imagePath.c_str());
-    if (!extractFn(extractCtx, srcPath.c_str(), imagePath.c_str())) {
-      LOG_ERR("IMG", "Lazy extraction failed: %s", srcPath.c_str());
+  if (!srcPath.empty() && extractFn && !Storage.exists(imagePath.data())) {
+    LOG_DBG("IMG", "Lazy-extracting %s -> %s", srcPath.data(), imagePath.data());
+    if (!extractFn(extractCtx, srcPath.data(), imagePath.data())) {
+      LOG_ERR("IMG", "Lazy extraction failed: %s", srcPath.data());
     }
   }
 
   // No cache - need to decode the image
   // Check if image file exists
   HalFile file;
-  if (!Storage.openFileForRead("IMG", imagePath, file)) {
-    LOG_ERR("IMG", "Image file not found: %s", imagePath.c_str());
+  if (!Storage.openFileForRead("IMG", imagePath.data(), file)) {
+    LOG_ERR("IMG", "Image file not found: %s", imagePath.data());
     rememberImageFailure(imagePath);
     renderPlaceholder(renderer, x, y);
     return;
@@ -355,13 +360,13 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
   file.close();
 
   if (fileSize == 0) {
-    LOG_ERR("IMG", "Image file is empty: %s", imagePath.c_str());
+    LOG_ERR("IMG", "Image file is empty: %s", imagePath.data());
     rememberImageFailure(imagePath);
     renderPlaceholder(renderer, x, y);
     return;
   }
 
-  LOG_DBG("IMG", "Decoding and caching: %s", imagePath.c_str());
+  LOG_DBG("IMG", "Decoding and caching: %s", imagePath.data());
 
   RenderConfig config;
   config.x = x;
@@ -374,9 +379,10 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
   config.useExactDimensions = true;  // Use pre-calculated dimensions to avoid rounding mismatches
   config.cachePath = cachePath;      // Enable caching during decode
 
-  ImageToFramebufferDecoder* decoder = ImageDecoderFactory::getDecoder(imagePath);
+  const std::string decodePath(imagePath);
+  ImageToFramebufferDecoder* decoder = ImageDecoderFactory::getDecoder(decodePath);
   if (!decoder) {
-    LOG_ERR("IMG", "No decoder found for image: %s", imagePath.c_str());
+    LOG_ERR("IMG", "No decoder found for image: %s", imagePath.data());
     rememberImageFailure(imagePath);
     renderPlaceholder(renderer, x, y);
     return;
@@ -384,9 +390,9 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
 
   LOG_DBG("IMG", "Using %s decoder", decoder->getFormatName());
 
-  bool success = decoder->decodeToFramebuffer(imagePath, renderer, config);
+  bool success = decoder->decodeToFramebuffer(decodePath, renderer, config);
   if (!success) {
-    LOG_ERR("IMG", "Failed to decode image: %s", imagePath.c_str());
+    LOG_ERR("IMG", "Failed to decode image: %s", imagePath.data());
     rememberImageFailure(imagePath);
     renderPlaceholder(renderer, x, y);
     return;
@@ -397,16 +403,9 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
 }
 
 bool ImageBlock::serialize(HalFile& file) {
-  return sectioncodec::writeString(file, imagePath) && sectioncodec::writeString(file, srcPath) &&
+  return sectioncodec::writeValue(file, XP_SEC_U32, imagePath.size()) &&
+         file.write(imagePath.data(), imagePath.size()) == imagePath.size() &&
+         sectioncodec::writeValue(file, XP_SEC_U32, srcPath.size()) &&
+         file.write(srcPath.data(), srcPath.size()) == srcPath.size() &&
          sectioncodec::write(file, sectioncodec::record(XP_SEC_IMAGE_SIZE, {uint32_t(width), uint32_t(height)}));
-}
-
-std::unique_ptr<ImageBlock> ImageBlock::deserialize(HalFile& file) {
-  std::string path;
-  std::string src;
-  XpSecRecord size;
-  if (!sectioncodec::readString(file, path) || !sectioncodec::readString(file, src) ||
-      !sectioncodec::read(file, XP_SEC_IMAGE_SIZE, size))
-    return nullptr;
-  return std::unique_ptr<ImageBlock>(new (std::nothrow) ImageBlock(path, src, size.values[0], size.values[1]));
 }

@@ -41,6 +41,20 @@ fn c_len(bytes: &[u8]) -> usize {
     bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())
 }
 
+fn terminated(bytes: &[u8], extra: &mut usize, out: Option<&mut [u8]>) -> Result<usize> {
+    let at = *extra;
+    *extra = at
+        .checked_add(bytes.len())
+        .and_then(|end| end.checked_add(5))
+        .ok_or(Error::Invalid)?;
+    if let Some(out) = out {
+        put(out, at, bytes.len());
+        out[at + 4..at + 4 + bytes.len()].copy_from_slice(bytes);
+        out[at + 4 + bytes.len()] = 0;
+    }
+    Ok(at)
+}
+
 struct Reader<'a> {
     data: &'a [u8],
     pos: usize,
@@ -110,14 +124,14 @@ fn scan(bytes: &[u8], mut index: Option<&mut [u8]>) -> Result<Info> {
                     extra = extra
                         .checked_add(usize::from(n) * 4)
                         .ok_or(Error::Invalid)?;
-                    if let Some(ref mut out) = index {
-                        let mut ruby = Reader {
-                            data: bytes,
-                            pos: ruby_start,
-                        };
-                        for word in 0..usize::from(n) {
-                            put(out, ruby_index + word * 4, ruby.pos);
-                            ruby.string()?;
+                    let mut ruby = Reader {
+                        data: bytes,
+                        pos: ruby_start,
+                    };
+                    for word in 0..usize::from(n) {
+                        let at = terminated(ruby.string()?, &mut extra, index.as_deref_mut())?;
+                        if let Some(ref mut out) = index {
+                            put(out, ruby_index + word * 4, at);
                         }
                     }
                 }
@@ -131,8 +145,8 @@ fn scan(bytes: &[u8], mut index: Option<&mut [u8]>) -> Result<Info> {
             }
             2 => {
                 r.record(Kind::Position)?;
-                r.string()?;
-                r.string()?;
+                style = terminated(r.string()?, &mut extra, index.as_deref_mut())?;
+                ruby_index = terminated(r.string()?, &mut extra, index.as_deref_mut())?;
                 r.record(Kind::ImageSize)?;
             }
             3 => {
@@ -306,6 +320,18 @@ impl<'a> Page<'a> {
     fn footer(&self, at: usize) -> Result<usize> {
         Ok(u32_at(self.arena, at)? as usize)
     }
+    pub fn position(&self, index: u16) -> Result<(i16, i16, u16)> {
+        if index >= self.element_count() {
+            return Err(Error::Invalid);
+        }
+        let start = u32_at(self.arena, HEADER + usize::from(index) * ELEMENT)? as usize;
+        let bytes = range(self.wire, start, 5)?;
+        Ok((
+            u16_at(bytes, 1)? as i16,
+            u16_at(bytes, 3)? as i16,
+            u16::from(bytes[0]),
+        ))
+    }
     pub fn element(&self, index: u16) -> Result<Element<'a>> {
         if index >= self.element_count() {
             return Err(Error::Invalid);
@@ -446,9 +472,19 @@ impl<'a> Element<'a> {
             data: self.data,
             pos: 5,
         };
-        let path = r.string()?;
-        let src = r.string()?;
+        r.string()?;
+        r.string()?;
         let size = r.record(Kind::ImageSize)?;
+        let path = Reader {
+            data: self.page.arena,
+            pos: self.style,
+        }
+        .string()?;
+        let src = Reader {
+            data: self.page.arena,
+            pos: self.ruby_index,
+        }
+        .string()?;
         Ok((path, src, size.values[0] as i16, size.values[1] as i16))
     }
     pub fn line(&self) -> Result<Line<'a>> {
@@ -491,6 +527,30 @@ pub struct Word<'a> {
     pub font: i32,
 }
 impl<'a> Line<'a> {
+    pub fn ruby_offsets(&self) -> Result<&'a [u8]> {
+        if !self.has_ruby() {
+            return Ok(&[]);
+        }
+        range(
+            self.element.page.arena,
+            self.element.ruby_index,
+            usize::from(self.count) * 4,
+        )
+    }
+    pub fn packed_data(&self) -> Result<&'a [u8]> {
+        range(
+            self.element.data,
+            12,
+            section::arena_size(self.count, self.focus, self.text_bytes),
+        )
+    }
+    pub fn font_data(&self) -> Result<&'a [u8]> {
+        let at = self.element.style + Kind::BlockStyle.size();
+        if self.element.page.wire[at] == 0 {
+            return Ok(&[]);
+        }
+        range(self.element.page.wire, at + 1, 12 + usize::from(self.count))
+    }
     pub fn block_style(&self) -> Result<section::Record> {
         section::decode(
             Kind::BlockStyle,
@@ -533,7 +593,7 @@ impl<'a> Line<'a> {
             self.element.ruby_index + usize::from(word) * 4,
         )? as usize;
         Reader {
-            data: self.element.page.wire,
+            data: self.element.page.arena,
             pos: at,
         }
         .string()

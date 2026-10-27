@@ -165,10 +165,8 @@ pub unsafe extern "C" fn xp_png_render(
         input.diagnostic(Diagnostic::PipelineAlloc, 0, 0, 0, 0);
         return false;
     }
-    if cache && (*config).alpha == 0 {
-        if !pipeline.start_cache(&mut sink) {
-            input.diagnostic(Diagnostic::Cache, 0, 0, 0, 0);
-        }
+    if cache && (*config).alpha == 0 && !pipeline.start_cache(&mut sink) {
+        input.diagnostic(Diagnostic::Cache, 0, 0, 0, 0);
     }
     input.diagnostic(Diagnostic::DecodeStart, 0, 0, 0, 0);
     let ok = decoder.decode(&mut input, |row, _| pipeline.row(row, &mut sink));

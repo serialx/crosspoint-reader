@@ -1121,6 +1121,67 @@ uint8_t xp_native_codepoint(const XpNativeProvider*, int32_t, uint32_t, uint8_t,
 void* xp_native_bidi_acquire();
 void xp_native_bidi_release();
 
+// Glyph rasterization (not yet called by firmware). Numeric orientation/plane values
+// match GfxRenderer. Borrow all memory for one synchronous call, with no aliasing.
+typedef struct {
+  int32_t left, top, right, bottom;
+} XpGlyphClip;
+typedef struct {
+  uint8_t* buffer;
+  uint32_t bufferLen;
+  int32_t width, height, stride, originY, rows;
+  XpGlyphClip clip;
+  uint8_t orientation, plane, absolute, strip, scanning;
+} XpGlyphTarget;
+typedef struct {
+  uint8_t width, height;
+  uint16_t advanceX;
+  int16_t left, top;
+  uint16_t dataLength;
+  uint32_t dataOffset;
+} XpRasterGlyph;
+typedef enum { XP_GLYPH_NORMAL, XP_GLYPH_ROTATED, XP_GLYPH_COVERAGE, XP_GLYPH_BILINEAR } XpGlyphKind;
+typedef struct {
+  XpRasterGlyph glyph;
+  int32_t x, y, ascender, scaleNum, scaleDen, scale256;
+  uint8_t kind, twoBit, state, solid;
+} XpGlyphDraw;
+typedef struct {
+  uint32_t glyphIndex, bufferOffset, alignedOffset;
+} XpGlyphPageEntry;
+typedef struct {
+  const uint8_t* buffer;
+  const void* font;
+  const XpGlyphPageEntry* entries;
+  uint16_t count;
+} XpGlyphPageSlot;
+// Generation is a live std::atomic<uint32_t>. Rebuild on any table/page-buffer
+// mutation; G2 must add FontDecompressor prewarm/clear invalidation. No view or
+// bitmap pointer may survive an owner callback. Page slots mirror the native
+// layout; their valid offsets and glyph sizes must fit their borrowed buffers.
+typedef struct {
+  const void* generation;
+  uint32_t capturedGeneration;
+  const void* font;
+  uint32_t glyphCount, bitmapLen;
+  const XpGlyphPageSlot* slots;
+  uint32_t slotCount;
+  const void* overflowFirst;
+  uint32_t overflowStride, overflowCount;
+} XpGlyphSource;
+typedef struct {
+  const uint8_t* data;
+  uint32_t len;
+} XpGlyphBitmap;
+// Draw returns 0 for invalid descriptors, 1 for a completed (possibly clipped) draw.
+// Glyph dimensions are u8; coordinates/clip are bounded to +/-1,000,000;
+// coverage ratios use positive components <=256, bilinear scale256 is 1..4096.
+uint8_t xp_glyph_draw(const XpGlyphTarget*, const XpGlyphDraw*, const uint8_t*, uint32_t);
+uint8_t xp_glyph_intersects_strip(const XpGlyphTarget*, int32_t, int32_t, int32_t, int32_t);
+// Returns 1 for resident bytes (including an empty glyph), 0 for a miss.
+// TTF, SD overflow, hot-group and stale-view misses stay with the C++ owner.
+uint8_t xp_glyph_bitmap(const XpGlyphSource*, const void* glyph, XpGlyphBitmap*);
+
 #ifdef __cplusplus
 }
 #endif

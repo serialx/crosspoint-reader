@@ -129,3 +129,4 @@ add_subdirectory(font_diff)
 add_subdirectory(png_zlib)
 
 add_subdirectory(page_golden)
+add_subdirectory(glyph_diff)

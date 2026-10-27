@@ -43,6 +43,10 @@ pub struct Line {
     has_fonts: u8,
     has_ruby: u8,
     has_focus: u8,
+    packed: Span,
+    font_data: Span,
+    ruby_offsets: Span,
+    style_data: Span,
 }
 #[repr(C)]
 pub struct Word {
@@ -66,13 +70,6 @@ pub struct Link {
     y: i16,
     width: i16,
     height: i16,
-}
-#[repr(C)]
-pub struct LineLink {
-    href: Span,
-    x: i16,
-    width: i16,
-    top_lift: i16,
 }
 #[repr(C)]
 pub struct BuilderStorage {
@@ -134,6 +131,48 @@ pub unsafe extern "C" fn xp_page_arena_size(
     status((|| store(info, page::inspect(input(data, len)?)?))())
 }
 /// # Safety
+/// The callback writes every requested byte or returns zero; info is writable.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_probe(
+    context: *mut core::ffi::c_void,
+    read: unsafe extern "C" fn(*mut core::ffi::c_void, usize, *mut u8, usize) -> u8,
+    len: usize,
+    info: *mut page::Info,
+) -> u32 {
+    status((|| {
+        if !aligned(info) {
+            return Err(Error::Invalid);
+        }
+        store(
+            info,
+            page::probe::probe(len, |at, bytes| {
+                read(context, at, bytes.as_mut_ptr(), bytes.len()) != 0
+            })?,
+        )
+    })())
+}
+/// # Safety
+/// Arena is writable and contains the input at offset/length; info is disjoint.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_decode_in_place(
+    arena: *mut u8,
+    capacity: usize,
+    offset: usize,
+    len: usize,
+    visible: u32,
+    info: *mut page::Info,
+) -> u32 {
+    status((|| {
+        if !aligned(info) {
+            return Err(Error::Invalid);
+        }
+        store(
+            info,
+            page::decode_in_place(output(arena, capacity)?, offset, len, visible)?,
+        )
+    })())
+}
+/// # Safety
 /// Input, writable arena and info are live, disjoint allocations; null buffers
 /// are allowed only at zero length. info is aligned and writable.
 #[no_mangle]
@@ -150,10 +189,15 @@ pub unsafe extern "C" fn xp_page_decode(
             return Err(Error::Invalid);
         }
         let data = input(data, len)?;
-        let value = page::inspect(data)?;
-        store(info, value)?;
-        page::decode(data, visible, output(arena, capacity)?)?;
-        Ok(())
+        match page::decode(data, visible, output(arena, capacity)?) {
+            Ok(value) => store(info, value),
+            Err(error @ Error::NeedOutput(_)) => {
+                // Preserve the capacity-query contract without scanning twice on success.
+                store(info, page::inspect(data)?)?;
+                Err(error)
+            }
+            Err(error) => Err(error),
+        }
     })())
 }
 /// # Safety
@@ -188,6 +232,22 @@ pub unsafe extern "C" fn xp_page_info(
         store(info, p.info())?;
         store(visible, p.visible_offset())
     })())
+}
+#[repr(C)]
+#[derive(Default)]
+pub struct Position {
+    x: i16,
+    y: i16,
+    tag: u16,
+}
+/// # Safety
+/// Arena is a successful immutable decode. Invalid input returns tag zero.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_position(arena: *const u8, len: usize, index: u16) -> Position {
+    page(arena, len)
+        .and_then(|p| p.position(index))
+        .map(|(x, y, tag)| Position { x, y, tag })
+        .unwrap_or_default()
 }
 /// # Safety
 /// Arena is immutable; out is aligned, writable and disjoint. Returned spans
@@ -247,13 +307,17 @@ pub unsafe extern "C" fn xp_page_line(
                 has_fonts: fonts.is_some() as u8,
                 has_ruby: l.has_ruby() as u8,
                 has_focus: l.focus as u8,
+                packed: l.packed_data()?.into(),
+                font_data: l.font_data()?.into(),
+                ruby_offsets: l.ruby_offsets()?.into(),
+                style_data: l.style_data()?.into(),
             },
         )
     })())
 }
 /// # Safety
 /// Same arena/output contract as xp_page_element. Word text has a trailing NUL
-/// at data[len]; ruby is a length-delimited span and need not be terminated.
+/// at data[len]. Ruby on has_ruby lines also has a trailing NUL; otherwise it is empty.
 #[no_mangle]
 pub unsafe extern "C" fn xp_page_word(
     arena: *const u8,
@@ -542,63 +606,6 @@ pub unsafe extern "C" fn xp_page_builder_finish(
             return Err(Error::Invalid);
         }
         store(written, builder(state)?.finish()?.len())
-    })())
-}
-
-/// # Safety
-/// Arena is exclusively borrowed, with capacity writable bytes. Spans are
-/// aligned readable XpParaLink records, disjoint from arena and required.
-#[no_mangle]
-pub unsafe extern "C" fn xp_page_attach_line_links(
-    arena: *mut u8,
-    capacity: usize,
-    element: u16,
-    spans: *const xp_core::para::paragraph_extract::Link,
-    count: usize,
-    required: *mut usize,
-) -> u32 {
-    status((|| {
-        if !aligned(required) {
-            return Err(Error::Invalid);
-        }
-        match page::attach_line_links(output(arena, capacity)?, element, input(spans, count)?) {
-            Ok(size) => store(required, size),
-            Err(Error::NeedOutput(size)) => {
-                store(required, size)?;
-                Err(Error::NeedOutput(size))
-            }
-            Err(e) => Err(e),
-        }
-    })())
-}
-/// # Safety
-/// Same arena/output contract as xp_page_element. Count may be queried with
-/// index=SIZE_MAX without an output span.
-#[no_mangle]
-pub unsafe extern "C" fn xp_page_line_link(
-    arena: *const u8,
-    len: usize,
-    element: u16,
-    index: usize,
-    out: *mut LineLink,
-    count: *mut usize,
-) -> u32 {
-    status((|| {
-        let l = page(arena, len)?.element(element)?.line()?;
-        store(count, l.link_count())?;
-        if index == usize::MAX {
-            return Ok(());
-        }
-        let (href, x, width, lift) = l.link_span(index)?;
-        store(
-            out,
-            LineLink {
-                href: href.into(),
-                x,
-                width,
-                top_lift: lift,
-            },
-        )
     })())
 }
 

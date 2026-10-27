@@ -29,6 +29,7 @@ extern "C" {
     fn heap_caps_malloc(size: usize, caps: u32) -> *mut c_void;
     fn heap_caps_aligned_alloc(alignment: usize, size: usize, caps: u32) -> *mut c_void;
     fn heap_caps_free(ptr: *mut c_void);
+    fn heap_caps_realloc(ptr: *mut c_void, size: usize, caps: u32) -> *mut c_void;
 }
 
 struct InternalHeap;
@@ -44,6 +45,18 @@ unsafe impl GlobalAlloc for InternalHeap {
         } else {
             heap_caps_malloc(layout.size(), HEAP_CAPS).cast()
         }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, size: usize) -> *mut u8 {
+        if layout.align() <= 4 {
+            return heap_caps_realloc(ptr.cast(), size, HEAP_CAPS).cast();
+        }
+        let replacement = self.alloc(Layout::from_size_align_unchecked(size, layout.align()));
+        if !replacement.is_null() {
+            core::ptr::copy_nonoverlapping(ptr, replacement, layout.size().min(size));
+            self.dealloc(ptr, layout);
+        }
+        replacement
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
@@ -88,4 +101,25 @@ pub unsafe extern "C" fn xp_crc32(data: *const u8, len: usize) -> u32 {
         core::slice::from_raw_parts(data, len)
     };
     xp_core::crc32(bytes)
+}
+
+#[cfg(feature = "chapter-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_test_rust_alloc(size: usize, align: usize) -> *mut u8 {
+    ALLOCATOR.alloc(Layout::from_size_align(size, align).unwrap())
+}
+#[cfg(feature = "chapter-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_test_rust_realloc(
+    p: *mut u8,
+    old: usize,
+    align: usize,
+    size: usize,
+) -> *mut u8 {
+    ALLOCATOR.realloc(p, Layout::from_size_align(old, align).unwrap(), size)
+}
+#[cfg(feature = "chapter-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_test_rust_free(p: *mut u8, size: usize, align: usize) {
+    ALLOCATOR.dealloc(p, Layout::from_size_align(size, align).unwrap());
 }

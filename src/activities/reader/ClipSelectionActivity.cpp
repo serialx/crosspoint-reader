@@ -121,9 +121,11 @@ bool ClipSelectionActivity::extractWords() {
   if (mode == Mode::DefinitionLookup) {
     capacity = 0;
     for (size_t i = 0; i < pageCount(); ++i) {
-      for (const auto& element : pageAt(i).elements) {
-        if (element->getTag() == TAG_PageLine) {
-          const auto* block = static_cast<const PageLine&>(*element).getBlock();
+      for (uint16_t index = 0; index < pageAt(i).elementCount(); ++index) {
+        const auto element = pageAt(i).element(index);
+        if (element.getTag() == TAG_PageLine) {
+          const auto& textBlock = element.textBlock();
+          const auto* block = &textBlock;
           if (block && block->valid()) capacity += block->wordCount();
         }
       }
@@ -146,10 +148,11 @@ bool ClipSelectionActivity::extractWords() {
 
   for (size_t pageOffset = 0; pageOffset < pageCount(); ++pageOffset) {
     uint16_t pageWordIndex = 0;
-    for (const auto& element : pageAt(pageOffset).elements) {
-      if (element->getTag() != TAG_PageLine) continue;
-      const auto& line = static_cast<const PageLine&>(*element);
-      const auto& block = line.getBlock();
+    for (uint16_t index = 0; index < pageAt(pageOffset).elementCount(); ++index) {
+      const auto line = pageAt(pageOffset).element(index);
+      if (line.getTag() != TAG_PageLine) continue;
+      const auto& textBlock = line.textBlock();
+      const auto* block = &textBlock;
       if (!block || !block->valid()) continue;
 
       if (needsFontPrewarm && block->wordCount() != 0) {

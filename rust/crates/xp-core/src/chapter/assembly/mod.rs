@@ -15,6 +15,7 @@ mod boxes;
 mod image;
 mod model;
 pub mod runtime;
+mod storage;
 mod table;
 #[cfg(feature = "chapter-trace")]
 pub mod trace;

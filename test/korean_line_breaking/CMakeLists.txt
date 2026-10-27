@@ -31,3 +31,6 @@ target_link_libraries(KoreanLineBreakingTest PRIVATE
 )
 
 gtest_discover_tests(KoreanLineBreakingTest)
+
+target_sources(KoreanLineBreakingTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)
+target_compile_definitions(KoreanLineBreakingTest PRIVATE XP_PAGE_CODEC_TEST=1)

@@ -108,69 +108,22 @@ uint8_t ChapterPageAssembler::probeImage(XpChapterSpan src, int32_t& counter, bo
   return 0;
 }
 
+uint8_t ChapterPageAssembler::completeBytes(XpChapterSpan bytes, XpChapterPosition position) {
+  if (completePageBytesFn) {
+    completePageBytesFn(bytes, position.paragraph, position.list, position.visible);
+  } else {
 #ifdef XP_CHAPTER_SINK_FAULT_INJECTION
-extern bool chapterTestFailPageAllocation();
+    extern bool chapterTestFailPageAllocation();
+    if (chapterTestFailPageAllocation()) return 2;
 #endif
-namespace {
-template <typename T, typename... Args>
-std::unique_ptr<T> makePageObject(Args&&... args) {
-#ifdef XP_CHAPTER_SINK_FAULT_INJECTION
-  const bool fail = chapterTestFailPageAllocation();
-  auto result = fail ? nullptr : makeUniqueNoThrow<T>(std::forward<Args>(args)...);
-#else
-  auto result = makeUniqueNoThrow<T>(std::forward<Args>(args)...);
-#endif
-  if (!result) LOG_ERR("CHP", "OOM: page object %u bytes", static_cast<uint32_t>(sizeof(T)));
-  return result;
-}
-}  // namespace
-
-std::unique_ptr<Page> ChapterPageAssembler::createPage(const XpChapterElement* elements, uint32_t count) {
-  auto page = makePageObject<Page>();
-  if (page) page->elements.reserve(count);
-  bool failed = !page;
-  for (uint32_t i = 0; i < count; ++i) {
-    const auto& element = elements[i];
-    const auto& data = element.content.data;
-    std::unique_ptr<PageElement> output;
-    switch (element.content.kind) {
-      case 0: {
-        std::unique_ptr<TextBlock> block(static_cast<TextBlock*>(data.payload.pointer));
-        if (!failed) output = makePageObject<PageLine>(std::move(block), element.x, element.y);
-        break;
-      }
-      case 1: {
-        std::unique_ptr<ImageBlock> block(static_cast<ImageBlock*>(data.payload.pointer));
-        if (!failed) output = makePageObject<PageImage>(std::move(block), element.x, element.y);
-        break;
-      }
-      case 2:
-        if (!failed)
-          output = makePageObject<PageHorizontalRule>(data.rule.width, data.rule.thickness, element.x, element.y);
-        break;
-      case 3:
-        if (!failed)
-          output = makePageObject<PageDropCap>(data.cap.font, data.cap.scale256,
-                                               static_cast<EpdFontFamily::Style>(data.cap.style),
-                                               reinterpret_cast<const char*>(data.cap.text), element.x, element.y);
-        break;
-      case 4: {
-        CssBorderSide sides[4];
-        for (size_t side = 0; side < 4; ++side)
-          sides[side] = {data.box.sides[side].width, static_cast<CssBorderStyle>(data.box.sides[side].style)};
-        if (!failed)
-          output = makePageObject<PageBorderBox>(data.box.width, data.box.height, sides, data.box.shaded, element.x,
-                                                 element.y);
-        break;
-      }
+    auto page = Page::fromBytes(bytes.data, bytes.len, position.visible);
+    if (!page) {
+      LOG_ERR("CHP", "OOM: decoded page");
+      return 2;
     }
-    if (output)
-      page->elements.push_back(std::move(output));
-    else
-      failed = true;
+    completePageFn(std::move(page), position.paragraph, position.list, position.visible);
   }
-  if (failed) return nullptr;
-  return page;
+  return stopRequested ? 1 : 0;
 }
 
 ChapterPageAssembler::~ChapterPageAssembler() = default;

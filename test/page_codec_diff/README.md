@@ -1,7 +1,9 @@
 # Page codec differential
 
-This suite compares the production C++ `Page`, `TextBlock` and `ImageBlock`
-codecs with the allocation-free Rust page model. The only storage replacement is
+This suite compares the production C++ page views and host-only legacy serializers
+with the allocation-free Rust page model. The views use the Rust decoder; the frozen
+page archives and pre-integration executable provide the independent C++ baseline.
+The only storage replacement is
 an in-memory `HalFile`. Rendering uses the existing section-oracle stub; this is
 a page data/codec test, not a pixel or font-metric oracle.
 
@@ -45,10 +47,11 @@ The sampler is intentionally deterministic; it does not claim exhaustive fuzzing
 
 The memory CSV records intercepted C++ `new`/`new[]` requests during page load,
 peak requested live bytes, resident allocations/bytes, and request-size counts.
-It also classifies resident bytes as page/element/TextBlock/ImageBlock objects,
-word arenas, font arrays, ruby vectors, vector backing stores and remaining
-string storage. These are host ABI sizes without allocator overhead, not ESP32
-heap measurements. A page's Rust arena size is independent of pointer width.
+Resident bytes comprise the Page header, Rust arena, alignment padding, and
+resolved C++ descriptors in one allocation. No loaded element,
+line, image, vector or string owns another allocation. These are host ABI sizes
+without allocator overhead, not ESP32 heap measurements. The Rust arena size is
+independent of pointer width; C++ descriptor size is not.
 The first row is synthetic; remaining rows match `inventory.json` in order.
 
 ## Arena and builder contract
@@ -57,18 +60,23 @@ The first row is synthetic; remaining rows match `inventory.json` in order.
 input length and exact arena capacity. `xp_page_decode` initializes one disjoint
 caller-owned buffer; failure from short input, invalid data or short capacity
 leaves that buffer unchanged. Neither operation allocates. The arena is a
-32-byte header, 24 bytes per element, four bytes per word on lines with any
-nonempty ruby, and the consumed page bytes. Normal lines need no ruby index.
+32-byte header, 16 bytes per element, four bytes per word on lines with any
+nonempty ruby, NUL-terminated copies of ruby strings and image paths, and the
+consumed page bytes. Normal lines need no ruby index. Terminated strings use a
+four-byte length plus their bytes and one NUL, including empty entries on ruby
+lines and empty image paths. The copies let C++ rendering borrow C strings
+without making per-word or per-image allocations.
 All internal references are 32-bit offsets. Byte loads permit arbitrary arena
 alignment on both host and RISC-V. The caller owns and releases the buffer;
 returned spans remain valid only while that buffer is unchanged and live.
 
-The input buffer is borrowed for decoding, then can be reused or released.
-Input bytes and the destination coexist during decode; integration must budget
-both or reuse an existing input buffer. No hidden allocation or global storage
-exists in this module. The C++ section limits are retained, including 10,000
-words, 16-bit text size, 16 footnotes and 32 page links. These validation limits
-are not promises that the C3 can allocate every accepted page.
+`xp_page_decode` borrows a disjoint input. The file loader instead sizes through
+`xp_page_probe`, reads into the final byte region, then calls
+`xp_page_decode_in_place`. The probe is a sizing pass, not validation; direct
+decode validates before writing the separate index. Both forms allocate nothing.
+The Page header and compact render descriptors share the caller allocation.
+Limits remain 10,000 words per line, 16-bit text size, 16 footnotes and 32 links;
+these limits do not promise every accepted page fits the C3.
 
 The byte arena is an internal representation, not a new disk format. Its header
 is not a public serialization ABI; use queries rather than reading its fields.
@@ -86,12 +94,8 @@ input arrays require natural alignment, and all inputs must be disjoint from
 the state/output. No input pointer survives an append. Finish yields wire
 bytes; a caller needing resident query records sizes and decodes those bytes.
 
-Layout-only link spans are not present in cached lines. The assembly owner can
-consume `XpParaLine::links` synchronously to produce page-link rectangles, or
-reserve another `262 * count` bytes and attach a line's spans once with
-`xp_page_attach_line_links`. They live in the same arena, remain queryable with
-`xp_page_line_link`, and are excluded from encoding. Link transfer/removal and
-renderer/storage services remain ownership decisions for the integration task.
+Layout-only link spans stay in the chapter builder until placement produces page
+links. The unused arena attachment/query API and its index slots were removed.
 
 No stricter content rejection is introduced. A supplied input may contain a
 following page or LUT: `consumed` ends at the decoded page, matching C++.
@@ -121,7 +125,7 @@ Paths and line numbers refer to the task base, `9738db01`.
 | `TextBlock.h:137-169`, `ChapterPageServices.cpp:176-199` blockFontId, lineAscent, extraAscent, wordYOffset, ruby shift, left inset | `xp_page_line.block.values[15]`, `.fonts`, `.has_fonts`, `.has_ruby`; word font from `xp_page_word`; resolve fonts through renderer, take max ascent of block plus nonzero font slots, subtract word/block ascent as C++ does |
 | `TextBlock.cpp:280-480` focus/ruby/decorations render inputs | word style, small-caps/hyphen flags, focus boundary/suffix, word/ruby spans; rule/border/drop-cap record fields |
 | `ChapterPageServices.cpp:74-105` packed line construction | `xp_page_builder_line` using the unchanged `XpParaLine` |
-| `ChapterPageServices.cpp:200-210` takeLinkSpans | borrowed packed-line spans or optional arena span attachment/query |
+| `ChapterPageServices.cpp:200-210` takeLinkSpans | borrowed packed-line spans in build-owned storage |
 | `ChapterPageAssembler.cpp:128-173` line/image/rule/drop-cap/border construction | builder line/element APIs; `xp_page_element` exposes each payload |
 | `Section.cpp:108,831-847` page serialization and text extraction | `xp_page_encode` or builder output; indexed line/word queries |
 | `DictionaryDefinitionActivity.cpp:119-121,488-506` TextBlock/PageLine construction | feed equivalent packed line arrays into builder; this is a separate UI integration call site |

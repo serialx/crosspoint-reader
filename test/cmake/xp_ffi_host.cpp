@@ -82,6 +82,22 @@ extern "C" void* heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t
   void* result = nullptr;
   return posix_memalign(&result, alignment, size) == 0 ? recordAllocation(result, size) : nullptr;
 }
+extern "C" void* heap_caps_realloc(void* ptr, size_t size, uint32_t) {
+  if (failAllocation()) return nullptr;
+  const auto address = reinterpret_cast<uintptr_t>(ptr);
+  void* result = std::realloc(ptr, size);
+  if (!result) return nullptr;
+#ifdef XP_CHAPTER_SINK_FAULT_INJECTION
+  if (address) liveSizes.erase(reinterpret_cast<void*>(address));
+  liveSizes[result] = size;
+#endif
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+  if (!address) ++liveAllocations;
+#else
+  (void)address;
+#endif
+  return result;
+}
 extern "C" void heap_caps_free(void* ptr) {
 #ifdef XP_CHAPTER_SINK_FAULT_INJECTION
   if (ptr) liveSizes.erase(ptr);

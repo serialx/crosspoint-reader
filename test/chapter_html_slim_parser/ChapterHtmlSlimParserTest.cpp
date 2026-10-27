@@ -208,6 +208,19 @@ void installSyntheticVariants(GfxRenderer& renderer) {
                                    }});
 }
 
+static std::vector<FootnoteEntry> notes(const Page& page) {
+  std::vector<FootnoteEntry> result;
+  result.resize(page.footnoteCount());
+  for (uint16_t i = 0; i < result.size(); ++i) page.footnote(i, result[i]);
+  return result;
+}
+static std::vector<PageLink> pageLinks(const Page& page) {
+  std::vector<PageLink> result;
+  result.resize(page.linkCount());
+  for (uint16_t i = 0; i < result.size(); ++i) page.link(i, result[i]);
+  return result;
+}
+
 class ChapterHtmlSlimParserTest : public ::testing::TestWithParam<const char*> {
  protected:
   std::string filepath = "unused.xhtml";
@@ -261,11 +274,12 @@ class ChapterHtmlSlimParserTest : public ::testing::TestWithParam<const char*> {
       }
       HalFile file;
       ASSERT_TRUE(file.open(cachePath.c_str(), "rb"));
-      auto cached = Page::deserialize(file);
+      auto cached = Page::load(file, file.size() - file.position());
       ASSERT_NE(cached, nullptr);
-      for (const auto& element : cached->elements) {
-        if (element->getTag() != TAG_PageLine) continue;
-        const auto& block = *static_cast<const PageLine&>(*element).getBlock();
+      for (uint16_t index = 0; index < cached->elementCount(); ++index) {
+        const auto element = cached->element(index);
+        if (element.getTag() != TAG_PageLine) continue;
+        const auto block = element.textBlock();
         for (uint16_t i = 0; i < block.wordCount(); ++i) {
           if (block.wordStartsParagraph(i)) paragraphStartPending = true;
           if (!clippingText::hasVisibleText(block.wordText(i))) continue;
@@ -609,12 +623,12 @@ TEST_F(ChapterHtmlSlimParserTest, UnequalTableCellsAndRubySurvivePageBreaks) {
   unsigned rubyLines = 0;
   auto inspect = [&](std::unique_ptr<Page> page, auto, auto, auto) {
     ++pages;
-    for (const auto& element : page->elements) {
-      if (element->getTag() != TAG_PageLine) continue;
-      const auto& line = static_cast<const PageLine&>(*element);
-      const auto& block = *line.getBlock();
+    for (uint16_t elementIndex = 0; elementIndex < page->elementCount(); ++elementIndex) {
+      const auto element = page->element(elementIndex);
+      if (element.getTag() != TAG_PageLine) continue;
+      const auto block = element.textBlock();
       ASSERT_TRUE(block.valid());
-      EXPECT_LE(element->yPos + 16 + block.getRubyShift(12), parser.viewportHeight);
+      EXPECT_LE(element.yPos + 16 + block.getRubyShift(12), parser.viewportHeight);
       rubyLines += block.hasRuby();
       for (uint16_t word = 0; word < block.wordCount(); ++word) actual.insert(block.wordText(word));
     }
@@ -721,12 +735,14 @@ TEST_F(ChapterHtmlSlimParserTest, PageImageDeserializeRejectsMissingImageBlock) 
   {
     HalFile output;
     ASSERT_TRUE(output.open(path.c_str(), "wb"));
+    const uint8_t prefix[] = {1, 0, TAG_PageImage};
+    output.write(prefix, sizeof(prefix));
     const int16_t coordinates[] = {0, 0};
     output.write(coordinates, sizeof(coordinates));
   }
   HalFile input;
   ASSERT_TRUE(input.open(path.c_str(), "rb"));
-  EXPECT_EQ(PageImage::deserialize(input), nullptr);
+  EXPECT_EQ(Page::load(input, input.size()), nullptr);
 }
 
 TEST_P(ChapterHtmlSlimParserTest, KeepsCssVerticalAlignAndInternalLinkMetadata) {
@@ -823,7 +839,7 @@ TEST_F(ChapterHtmlSlimParserTest, SmallCapsSpanMarksWordsWithoutChangingText) {
   ASSERT_EQ(ChapterTestAccess::paragraph(parser).size(), 0u);  // flushed to the page on </p>
   auto currentPage = ChapterTestAccess::takePage(parser);
   ASSERT_NE(currentPage, nullptr);
-  const auto& block = *static_cast<const PageLine&>(*currentPage->elements.front()).getBlock();
+  const auto& block = currentPage->element(0).textBlock();
   ASSERT_EQ(block.wordCount(), 3);
   EXPECT_STREQ(block.wordText(1), "Chapter");
   EXPECT_EQ(block.wordStyle(0) & EpdFontFamily::SMALL_CAPS, 0);
@@ -926,12 +942,13 @@ class ChapterBlockDecorationTest : public ChapterHtmlSlimParserTest {
     for (int i = 0; i < count; ++i) result += "word ";
     return result;
   }
-  std::vector<const PageElement*> elementsWithTag(PageElementTag tag) {
-    std::vector<const PageElement*> found;
+  std::vector<PageElementView> elementsWithTag(PageElementTag tag) {
+    std::vector<PageElementView> found;
     if (auto page = ChapterTestAccess::takePage(parser)) pages.push_back(std::move(page));
     for (const auto& page : pages) {
-      for (const auto& element : page->elements) {
-        if (element->getTag() == tag) found.push_back(element.get());
+      for (uint16_t elementIndex = 0; elementIndex < page->elementCount(); ++elementIndex) {
+        const auto element = page->element(elementIndex);
+        if (element.getTag() == tag) found.push_back(element);
       }
     }
     return found;
@@ -967,7 +984,7 @@ TEST_F(ChapterBlockDecorationTest, InlineBreakDoesNotAddParagraphSpacing) {
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  EXPECT_EQ(lines[1]->yPos - lines[0]->yPos, renderer.getLineHeight(0));
+  EXPECT_EQ(lines[1].yPos - lines[0].yPos, renderer.getLineHeight(0));
 }
 
 TEST_F(ChapterBlockDecorationTest, LeadingBreakDoesNotAddBlankSpace) {
@@ -978,7 +995,7 @@ TEST_F(ChapterBlockDecorationTest, LeadingBreakDoesNotAddBlankSpace) {
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 1u);
-  EXPECT_EQ(lines[0]->yPos, 0);
+  EXPECT_EQ(lines[0].yPos, 0);
 }
 
 TEST_F(ChapterBlockDecorationTest, BreakAfterHeadingAddsOneLine) {
@@ -1000,7 +1017,7 @@ TEST_F(ChapterBlockDecorationTest, PreWrapPreservesSpacesAndLineBreaksAcrossCall
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  const auto& first = *static_cast<const PageLine*>(lines[0])->getBlock();
+  const auto& first = lines[0].textBlock();
   ASSERT_EQ(first.wordCount(), 6);
   EXPECT_STREQ(first.wordText(0), " ");
   EXPECT_STREQ(first.wordText(1), " ");
@@ -1010,7 +1027,7 @@ TEST_F(ChapterBlockDecorationTest, PreWrapPreservesSpacesAndLineBreaksAcrossCall
   EXPECT_STREQ(first.wordText(5), "word");
   // Literal spaces use the font's space advance, with no inserted word gaps.
   EXPECT_EQ(first.wordXpos(2) - first.wordXpos(0), 2 * renderer.getSpaceWidth(0, EpdFontFamily::REGULAR));
-  EXPECT_EQ(lines[1]->yPos - lines[0]->yPos, renderer.getLineHeight(0));
+  EXPECT_EQ(lines[1].yPos - lines[0].yPos, renderer.getLineHeight(0));
 }
 
 TEST_F(ChapterBlockDecorationTest, BlockEmphasisIsInheritedOverriddenAndRestored) {
@@ -1031,7 +1048,7 @@ TEST_F(ChapterBlockDecorationTest, BlockEmphasisIsInheritedOverriddenAndRestored
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 4u);
   for (size_t i = 0; i < lines.size(); ++i) {
-    const auto& block = *static_cast<const PageLine*>(lines[i])->getBlock();
+    const auto& block = lines[i].textBlock();
     EXPECT_EQ((block.wordStyle(0) & EpdFontFamily::ITALIC) != 0, i == 0 || i == 2);
   }
 }
@@ -1059,8 +1076,8 @@ TEST_F(ChapterBlockDecorationTest, ExplicitFontInheritancePreservesInlineAndBloc
   close("body");
   const auto lines = elementsWithTag(TAG_PageLine);
   std::vector<std::pair<std::string, uint8_t>> actual;
-  for (const auto* element : lines) {
-    const auto& block = *static_cast<const PageLine*>(element)->getBlock();
+  for (const auto element : lines) {
+    const auto& block = element.textBlock();
     for (uint16_t i = 0; i < block.wordCount(); ++i) actual.emplace_back(block.wordText(i), block.wordStyle(i));
   }
   const uint8_t emphasis = EpdFontFamily::BOLD | EpdFontFamily::ITALIC;
@@ -1086,7 +1103,7 @@ TEST_F(ChapterBlockDecorationTest, InheritReplacesEarlierDeclarationsAndAllowsLa
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 3u);
   for (size_t i = 0; i < lines.size(); ++i) {
-    const auto& block = *static_cast<const PageLine*>(lines[i])->getBlock();
+    const auto& block = lines[i].textBlock();
     EXPECT_EQ(block.wordStyle(0), i == 0 ? EpdFontFamily::BOLD | EpdFontFamily::ITALIC : 0);
   }
 }
@@ -1104,7 +1121,7 @@ TEST_F(ChapterBlockDecorationTest, InheritUsesSemanticParentEmphasisAndRestoresS
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 1u);
-  const auto& block = *static_cast<const PageLine*>(lines[0])->getBlock();
+  const auto& block = lines[0].textBlock();
   ASSERT_EQ(block.wordCount(), 2u);
   EXPECT_EQ(block.wordStyle(0), EpdFontFamily::BOLD | EpdFontFamily::ITALIC);
   EXPECT_EQ(block.wordStyle(1), EpdFontFamily::REGULAR);
@@ -1145,7 +1162,7 @@ TEST_F(ChapterBlockDecorationTest, FontInheritanceUsesWinningCssRuleBeforeInline
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 3u);
   for (size_t i = 0; i < lines.size(); ++i) {
-    const auto& block = *static_cast<const PageLine*>(lines[i])->getBlock();
+    const auto& block = lines[i].textBlock();
     EXPECT_EQ(block.wordStyle(0), i == 1 ? EpdFontFamily::BOLD | EpdFontFamily::ITALIC : 0);
   }
 }
@@ -1159,7 +1176,7 @@ TEST_F(ChapterBlockDecorationTest, PreElementPreservesNewlinesWithoutLeakingToFo
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 3u);
-  const auto& last = *static_cast<const PageLine*>(lines[2])->getBlock();
+  const auto& last = lines[2].textBlock();
   ASSERT_EQ(last.wordCount(), 2);
   EXPECT_STREQ(last.wordText(0), "three");
   EXPECT_STREQ(last.wordText(1), "four");
@@ -1175,14 +1192,14 @@ TEST_F(ChapterBlockDecorationTest, FloatedLeadingSpanBecomesDropCap) {
 
   const auto caps = elementsWithTag(TAG_PageDropCap);
   ASSERT_EQ(caps.size(), 1u);
-  EXPECT_STREQ(static_cast<const PageDropCap*>(caps[0])->getText(), "T");
+  EXPECT_STREQ(std::string(caps[0].dropCapText()).c_str(), "T");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_GT(lines.size(), 4u);
   // Three lines wrap beside the letter, then text returns to the margin.
-  EXPECT_GT(lines[0]->xPos, 0);
-  EXPECT_EQ(lines[2]->xPos, lines[0]->xPos);
-  EXPECT_EQ(lines[3]->xPos, 0);
-  EXPECT_STREQ(static_cast<const PageLine*>(lines[0])->getBlock()->wordText(0), "he");
+  EXPECT_GT(lines[0].xPos, 0);
+  EXPECT_EQ(lines[2].xPos, lines[0].xPos);
+  EXPECT_EQ(lines[3].xPos, 0);
+  EXPECT_STREQ(lines[0].textBlock().wordText(0), "he");
 }
 
 TEST_F(ChapterBlockDecorationTest, LatinMultibyteDropCap) {
@@ -1195,14 +1212,14 @@ TEST_F(ChapterBlockDecorationTest, LatinMultibyteDropCap) {
 
   const auto caps = elementsWithTag(TAG_PageDropCap);
   ASSERT_EQ(caps.size(), 1u);
-  EXPECT_STREQ(static_cast<const PageDropCap*>(caps[0])->getText(), "É");
+  EXPECT_STREQ(std::string(caps[0].dropCapText()).c_str(), "É");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_GT(lines.size(), 4u);
   // Three lines wrap beside the letter, then text returns to the margin.
-  EXPECT_GT(lines[0]->xPos, 0);
-  EXPECT_EQ(lines[2]->xPos, lines[0]->xPos);
-  EXPECT_EQ(lines[3]->xPos, 0);
-  EXPECT_STREQ(static_cast<const PageLine*>(lines[0])->getBlock()->wordText(0), "he");
+  EXPECT_GT(lines[0].xPos, 0);
+  EXPECT_EQ(lines[2].xPos, lines[0].xPos);
+  EXPECT_EQ(lines[3].xPos, 0);
+  EXPECT_STREQ(lines[0].textBlock().wordText(0), "he");
 }
 
 TEST_F(ChapterBlockDecorationTest, HangulMultibyteDropCap) {
@@ -1215,14 +1232,14 @@ TEST_F(ChapterBlockDecorationTest, HangulMultibyteDropCap) {
 
   const auto caps = elementsWithTag(TAG_PageDropCap);
   ASSERT_EQ(caps.size(), 1u);
-  EXPECT_STREQ(static_cast<const PageDropCap*>(caps[0])->getText(), "한");
+  EXPECT_STREQ(std::string(caps[0].dropCapText()).c_str(), "한");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_GT(lines.size(), 4u);
   // Three lines wrap beside the letter, then text returns to the margin.
-  EXPECT_GT(lines[0]->xPos, 0);
-  EXPECT_EQ(lines[2]->xPos, lines[0]->xPos);
-  EXPECT_EQ(lines[3]->xPos, 0);
-  EXPECT_STREQ(static_cast<const PageLine*>(lines[0])->getBlock()->wordText(0), "he");
+  EXPECT_GT(lines[0].xPos, 0);
+  EXPECT_EQ(lines[2].xPos, lines[0].xPos);
+  EXPECT_EQ(lines[3].xPos, 0);
+  EXPECT_STREQ(lines[0].textBlock().wordText(0), "he");
 }
 
 TEST_F(ChapterBlockDecorationTest, DropCapPreservesDetectedDirectionAcrossExtraction) {
@@ -1235,7 +1252,7 @@ TEST_F(ChapterBlockDecorationTest, DropCapPreservesDetectedDirectionAcrossExtrac
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_GT(lines.size(), 4u);
   for (size_t i = 0; i < lines.size(); ++i) {
-    const auto& block = *static_cast<const PageLine*>(lines[i])->getBlock();
+    const auto& block = lines[i].textBlock();
     EXPECT_TRUE(block.getBlockStyle().isRtl) << "line " << i;
   }
 }
@@ -1250,7 +1267,7 @@ TEST_F(ChapterBlockDecorationTest, MultiWordSpanStaysText) {
   EXPECT_TRUE(elementsWithTag(TAG_PageDropCap).empty());
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 1u);
-  EXPECT_STREQ(static_cast<const PageLine*>(lines[0])->getBlock()->wordText(0), "Once");
+  EXPECT_STREQ(lines[0].textBlock().wordText(0), "Once");
 }
 
 TEST_F(ChapterBlockDecorationTest, FirstLetterRuleCapturesQuoteAndLetter) {
@@ -1275,7 +1292,7 @@ TEST_F(ChapterBlockDecorationTest, FirstLetterRuleCapturesQuoteAndLetter) {
 
   const auto caps = elementsWithTag(TAG_PageDropCap);
   ASSERT_EQ(caps.size(), 1u);
-  EXPECT_STREQ(static_cast<const PageDropCap*>(caps[0])->getText(), "\xe2\x80\x9cI");
+  EXPECT_STREQ(std::string(caps[0].dropCapText()).c_str(), "\xe2\x80\x9cI");
   std::filesystem::remove(cssPath);
 }
 
@@ -1293,9 +1310,9 @@ TEST_F(ChapterBlockDecorationTest, BorderedBlockFramesItsTextAndInsetsIt) {
   ASSERT_EQ(boxes.size(), 1u);
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  EXPECT_GE(lines[0]->xPos, 6);  // 2 px border + 4 px gap
-  EXPECT_GT(lines[0]->yPos, boxes[0]->yPos);
-  EXPECT_EQ(lines[1]->xPos, 0);
+  EXPECT_GE(lines[0].xPos, 6);  // 2 px border + 4 px gap
+  EXPECT_GT(lines[0].yPos, boxes[0].yPos);
+  EXPECT_EQ(lines[1].xPos, 0);
 }
 
 TEST_F(ChapterBlockDecorationTest, EmptyBorderedBlockDrawsARule) {
@@ -1311,8 +1328,8 @@ TEST_F(ChapterBlockDecorationTest, EmptyBorderedBlockDrawsARule) {
   ASSERT_EQ(boxes.size(), 1u);
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  EXPECT_GT(boxes[0]->yPos, lines[0]->yPos);
-  EXPECT_GT(lines[1]->yPos, boxes[0]->yPos);
+  EXPECT_GT(boxes[0].yPos, lines[0].yPos);
+  EXPECT_GT(lines[1].yPos, boxes[0].yPos);
 }
 
 TEST_F(ChapterBlockDecorationTest, ShadedBoxSplitsAcrossPages) {
@@ -1354,8 +1371,8 @@ TEST_F(ChapterTableBorderTest, CellCssBorderFramesEveryCell) {
   table(nullptr, "border: 1px solid black");
   const auto boxes = elementsWithTag(TAG_PageBorderBox);
   ASSERT_EQ(boxes.size(), 2u);
-  EXPECT_EQ(boxes[0]->yPos, boxes[1]->yPos);
-  EXPECT_LT(boxes[0]->xPos, boxes[1]->xPos);
+  EXPECT_EQ(boxes[0].yPos, boxes[1].yPos);
+  EXPECT_LT(boxes[0].xPos, boxes[1].xPos);
 }
 
 TEST_F(ChapterTableBorderTest, UnborderedTableKeepsRowRule) {
@@ -1395,14 +1412,14 @@ TEST_F(ChapterTableBorderTest, RichCellsPreserveParagraphStylesAndFollowingFlow)
   ASSERT_EQ(lines.size(), 4u);
   const char* expected[] = {"Firstcell", "Entryone", "Entrytwo", "Outside"};
   for (size_t i = 0; i < lines.size(); ++i) {
-    EXPECT_STREQ(static_cast<const PageLine*>(lines[i])->getBlock()->wordText(0), expected[i]);
-    if (i > 0) EXPECT_GT(lines[i]->yPos, lines[i - 1]->yPos);
+    EXPECT_STREQ(lines[i].textBlock().wordText(0), expected[i]);
+    if (i > 0) EXPECT_GT(lines[i].yPos, lines[i - 1].yPos);
   }
-  EXPECT_GE(lines[1]->xPos, 24);
-  const auto& left = *static_cast<const PageLine*>(lines[1])->getBlock();
-  const auto& right = *static_cast<const PageLine*>(lines[2])->getBlock();
-  EXPECT_GT(lines[2]->xPos + right.wordXpos(0), lines[1]->xPos + left.wordXpos(0));
-  EXPECT_EQ(lines[3]->xPos, 0);
+  EXPECT_GE(lines[1].xPos, 24);
+  const auto& left = lines[1].textBlock();
+  const auto& right = lines[2].textBlock();
+  EXPECT_GT(lines[2].xPos + right.wordXpos(0), lines[1].xPos + left.wordXpos(0));
+  EXPECT_EQ(lines[3].xPos, 0);
 }
 
 TEST_F(ChapterTableBorderTest, CellImagesUseNormalImageHandlingAndRespectDisplayNone) {
@@ -1424,10 +1441,10 @@ TEST_F(ChapterTableBorderTest, CellImagesUseNormalImageHandlingAndRespectDisplay
 
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 1u);
-  const auto* block = static_cast<const PageLine*>(lines[0])->getBlock();
-  ASSERT_EQ(block->wordCount(), 2u);
-  EXPECT_STREQ(block->wordText(0), "[Image:");
-  EXPECT_STREQ(block->wordText(1), "skull]");
+  const auto block = lines[0].textBlock();
+  ASSERT_EQ(block.wordCount(), 2u);
+  EXPECT_STREQ(block.wordText(0), "[Image:");
+  EXPECT_STREQ(block.wordText(1), "skull]");
 }
 
 class ChapterInlineSizeTest : public ChapterBlockDecorationTest {
@@ -1442,7 +1459,7 @@ class ChapterInlineSizeTest : public ChapterBlockDecorationTest {
   }
   int firstLineFontId() {
     const auto lines = elementsWithTag(TAG_PageLine);
-    return lines.empty() ? -1 : static_cast<const PageLine*>(lines[0])->getBlock()->getBlockStyle().fontId;
+    return lines.empty() ? -1 : lines[0].textBlock().getBlockStyle().fontId;
   }
 };
 
@@ -1469,12 +1486,12 @@ TEST_F(ChapterInlineSizeTest, ShortSizedHeadingSpanFallsBackToStyledText) {
   EXPECT_TRUE(elementsWithTag(TAG_PageDropCap).empty());
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  const auto& heading = *static_cast<const PageLine*>(lines[0])->getBlock();
+  const auto& heading = lines[0].textBlock();
   ASSERT_EQ(heading.wordCount(), 1u);
   EXPECT_STREQ(heading.wordText(0), "II");
   EXPECT_EQ(heading.getBlockStyle().fontId, NOTOSANS_18_FONT_ID);
   EXPECT_EQ(heading.wordStyle(0), EpdFontFamily::BOLD | EpdFontFamily::ITALIC);
-  const auto& following = *static_cast<const PageLine*>(lines[1])->getBlock();
+  const auto& following = lines[1].textBlock();
   ASSERT_EQ(following.wordCount(), 1u);
   EXPECT_STREQ(following.wordText(0), "After");
   EXPECT_EQ(following.wordStyle(0), EpdFontFamily::REGULAR);
@@ -1501,7 +1518,7 @@ TEST_F(ChapterInlineSizeTest, TextAfterTheSpanKeepsBodySize) {
   close("p");
   EXPECT_EQ(firstLineFontId(), 0);
   // The lead words keep their own size inline.
-  const auto& block = *static_cast<const PageLine*>(elementsWithTag(TAG_PageLine)[0])->getBlock();
+  const auto& block = elementsWithTag(TAG_PageLine)[0].textBlock();
   EXPECT_EQ(block.wordFontId(0, NOTOSANS_14_FONT_ID), NOTOSANS_18_FONT_ID);
   EXPECT_EQ(block.wordFontId(1, NOTOSANS_14_FONT_ID), NOTOSANS_14_FONT_ID);
 }
@@ -1519,7 +1536,7 @@ TEST_F(ChapterInlineSizeTest, MixedSizesWithinALineSurviveTheCache) {
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 1u);
-  const auto& block = *static_cast<const PageLine*>(lines[0])->getBlock();
+  const auto& block = lines[0].textBlock();
   ASSERT_EQ(block.wordCount(), 4);
   EXPECT_EQ(block.wordFontId(0, NOTOSANS_14_FONT_ID), NOTOSANS_14_FONT_ID);
   EXPECT_EQ(block.wordFontId(1, NOTOSANS_14_FONT_ID), NOTOSANS_12_FONT_ID);
@@ -1529,11 +1546,18 @@ TEST_F(ChapterInlineSizeTest, MixedSizesWithinALineSurviveTheCache) {
   {
     HalFile output;
     ASSERT_TRUE(output.open(path.c_str(), "wb"));
+    const uint8_t prefix[] = {1, 0, TAG_PageLine, 0, 0, 0, 0};
+    ASSERT_EQ(output.write(prefix, sizeof(prefix)), sizeof(prefix));
     ASSERT_TRUE(block.serialize(output));
+    const uint8_t footer[4]{};
+    ASSERT_EQ(output.write(footer, sizeof(footer)), sizeof(footer));
   }
   HalFile input;
   ASSERT_TRUE(input.open(path.c_str(), "rb"));
-  const auto cached = TextBlock::deserialize(input);
+  const auto cachedPage = Page::load(input, input.size());
+  ASSERT_NE(cachedPage, nullptr);
+  const auto cachedBlock = cachedPage->element(0).textBlock();
+  const auto* cached = &cachedBlock;
   ASSERT_NE(cached, nullptr);
   for (uint16_t i = 0; i < block.wordCount(); ++i) {
     EXPECT_EQ(cached->wordFontId(i, NOTOSANS_14_FONT_ID), block.wordFontId(i, NOTOSANS_14_FONT_ID));
@@ -1557,8 +1581,8 @@ TEST_F(ChapterBlockDecorationTest, SdAndVectorFontsSizeThroughTheVariantProvider
 
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  EXPECT_EQ(static_cast<const PageLine*>(lines[0])->getBlock()->getBlockStyle().fontId, SD_FONT * 1000 + 200);
-  const auto& body = *static_cast<const PageLine*>(lines[1])->getBlock();
+  EXPECT_EQ(lines[0].textBlock().getBlockStyle().fontId, SD_FONT * 1000 + 200);
+  const auto& body = lines[1].textBlock();
   EXPECT_EQ(body.wordFontId(0, SD_FONT), SD_FONT);
   EXPECT_EQ(body.wordFontId(1, SD_FONT), SD_FONT * 1000 + 80);
 }
@@ -1573,7 +1597,7 @@ TEST_F(ChapterInlineSizeTest, UniformLinesCarryNoWordFonts) {
   open("p", nullptr);
   text("Plain text only");
   close("p");
-  const auto& block = *static_cast<const PageLine*>(elementsWithTag(TAG_PageLine)[0])->getBlock();
+  const auto& block = elementsWithTag(TAG_PageLine)[0].textBlock();
   EXPECT_EQ(block.wordFontId(1, NOTOSANS_14_FONT_ID), NOTOSANS_14_FONT_ID);
   EXPECT_EQ(block.extraAscent(renderer, NOTOSANS_14_FONT_ID), 0);
 }
@@ -1629,8 +1653,8 @@ TEST_F(ChapterTableBorderTest, RowsUsePlannedColumnWidths) {
   close("table");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  EXPECT_EQ(lines[0]->xPos, 4);
-  EXPECT_EQ(lines[1]->xPos, 104);
+  EXPECT_EQ(lines[0].xPos, 4);
+  EXPECT_EQ(lines[1].xPos, 104);
 }
 
 TEST_F(ChapterTableBorderTest, CssCellPaddingInsetsContentAndReservesRowHeight) {
@@ -1648,12 +1672,12 @@ TEST_F(ChapterTableBorderTest, CssCellPaddingInsetsContentAndReservesRowHeight) 
   const int rowBottom = static_cast<int32_t>(ChapterTestAccess::assembly(parser, 1));
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  EXPECT_EQ(lines[0]->xPos, 11);
-  EXPECT_EQ(lines[1]->xPos, 100);
-  EXPECT_EQ(lines[0]->yPos, 9);
-  EXPECT_EQ(lines[1]->yPos, 3);
-  const auto& first = *static_cast<const PageLine*>(lines[0])->getBlock();
-  EXPECT_EQ(lines[0]->xPos + first.wordXpos(0) + renderer.getTextAdvanceX(0, "alpha", EpdFontFamily::REGULAR), 83);
+  EXPECT_EQ(lines[0].xPos, 11);
+  EXPECT_EQ(lines[1].xPos, 100);
+  EXPECT_EQ(lines[0].yPos, 9);
+  EXPECT_EQ(lines[1].yPos, 3);
+  const auto& first = lines[0].textBlock();
+  EXPECT_EQ(lines[0].xPos + first.wordXpos(0) + renderer.getTextAdvanceX(0, "alpha", EpdFontFamily::REGULAR), 83);
   EXPECT_GE(rowBottom, 9 + renderer.getLineHeight(0) + 13);
 }
 
@@ -1664,9 +1688,9 @@ TEST_F(ChapterTableBorderTest, PaddedRowsBreakBeforeTheBottomPaddingOverflows) {
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 4u);
   ASSERT_EQ(pages.size(), 2u);
-  for (const auto* line : lines) {
-    EXPECT_EQ(line->yPos, 8);
-    EXPECT_LE(line->yPos + renderer.getLineHeight(0) + 8, parser.viewportHeight);
+  for (const auto line : lines) {
+    EXPECT_EQ(line.yPos, 8);
+    EXPECT_LE(line.yPos + renderer.getLineHeight(0) + 8, parser.viewportHeight);
   }
 }
 
@@ -1688,10 +1712,10 @@ TEST_F(ChapterTableBorderTest, StackedCellPaddingSurroundsChildParagraphs) {
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  EXPECT_EQ(lines[0]->xPos, 10);
-  EXPECT_EQ(lines[0]->yPos, 7);
+  EXPECT_EQ(lines[0].xPos, 10);
+  EXPECT_EQ(lines[0].yPos, 7);
   EXPECT_GE(rowBottom, 7 + renderer.getLineHeight(0) + 9);
-  EXPECT_EQ(lines[1]->xPos, 0);
+  EXPECT_EQ(lines[1].xPos, 0);
 }
 
 TEST_F(ChapterTableBorderTest, LongTwoColumnFixtureKeepsColumnsAcrossPages) {
@@ -1725,13 +1749,14 @@ TEST_F(ChapterTableBorderTest, LongTwoColumnFixtureKeepsColumnsAcrossPages) {
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_GT(pages.size(), 1u);
   std::multiset<std::string> actual[2];
-  for (const auto* element : lines) {
-    const auto& line = *static_cast<const PageLine*>(element);
+  for (const auto element : lines) {
+    const auto line = element;
+    const auto block = line.textBlock();
     const size_t column = line.xPos == 6 ? 0 : 1;
     EXPECT_EQ(line.xPos, column == 0 ? 6 : 166);
     EXPECT_LE(line.yPos + renderer.getLineHeight(0), parser.viewportHeight);
-    for (uint16_t i = 0; i < line.getBlock()->wordCount(); ++i) {
-      actual[column].insert(line.getBlock()->wordText(i));
+    for (uint16_t i = 0; i < block.wordCount(); ++i) {
+      actual[column].insert(block.wordText(i));
     }
   }
   EXPECT_EQ(actual[0], expected[0]);
@@ -1759,8 +1784,8 @@ TEST_F(ChapterTableBorderTest, RowBudgetFallsBackAndResetsForTheNextRow) {
   close("tr");
   close("table");
   size_t count = 0;
-  for (const auto* element : elementsWithTag(TAG_PageLine)) {
-    count += static_cast<const PageLine*>(element)->getBlock()->wordCount();
+  for (const auto element : elementsWithTag(TAG_PageLine)) {
+    count += element.textBlock().wordCount();
   }
   EXPECT_EQ(count, 340u);
 }
@@ -1778,7 +1803,8 @@ class ChapterWidowOrphanTest : public ChapterBlockDecorationTest {
   }
   size_t linesOnPage(size_t index) {
     size_t count = 0;
-    for (const auto& element : pages[index]->elements) count += element->getTag() == TAG_PageLine;
+    for (uint16_t i = 0; i < pages[index]->elementCount(); ++i)
+      count += pages[index]->element(i).getTag() == TAG_PageLine;
     return count;
   }
 };
@@ -1796,7 +1822,7 @@ TEST_F(ChapterWidowOrphanTest, LoneLastLineTakesALineAlong) {
   ASSERT_GE(pages.size(), 1u);
   EXPECT_EQ(linesOnPage(0), 4u);
   auto currentPage = ChapterTestAccess::takePage(parser);
-  const auto& firstOnNext = *currentPage->elements.front();
+  const auto& firstOnNext = currentPage->element(0);
   EXPECT_EQ(firstOnNext.yPos, 0);
 }
 
@@ -1809,7 +1835,7 @@ TEST_F(ChapterWidowOrphanTest, HeadingMovesWithTheParagraphAfterIt) {
   ASSERT_GE(pages.size(), 1u);
   EXPECT_EQ(linesOnPage(0), 4u);
   auto currentPage = ChapterTestAccess::takePage(parser);
-  const auto& first = *static_cast<const PageLine&>(*currentPage->elements.front()).getBlock();
+  const auto& first = currentPage->element(0).textBlock();
   EXPECT_STREQ(first.wordText(0), "Heading");
 }
 
@@ -1861,13 +1887,14 @@ TEST_F(ChapterWidowOrphanTest, CarriedReferenceKeepsItsFootnote) {
     xp_chapter_test_carry(ChapterTestAccess::state(parser), 1, 1, 20);
     auto currentPage = ChapterTestAccess::takePage(parser);
     ASSERT_EQ(pages.size(), 1u);
-    ASSERT_EQ(currentPage->footnotes.size(), 1u);
-    EXPECT_STREQ(currentPage->footnotes[0].href, "#note");
-    EXPECT_STREQ(currentPage->footnotes[0].number, "1");
-    EXPECT_EQ(pages[0]->footnotes.size(), repeated ? 2u : 1u);
-    EXPECT_TRUE(std::any_of(pages[0]->footnotes.begin(), pages[0]->footnotes.end(),
+    ASSERT_EQ(notes(*currentPage).size(), 1u);
+    EXPECT_STREQ(notes(*currentPage)[0].href, "#note");
+    EXPECT_STREQ(notes(*currentPage)[0].number, "1");
+    EXPECT_EQ(notes(*pages[0]).size(), repeated ? 2u : 1u);
+    const auto previousNotes = notes(*pages[0]);
+    EXPECT_TRUE(std::any_of(previousNotes.begin(), previousNotes.end(),
                             [](const auto& note) { return strcmp(note.href, "#other") == 0; }));
-    EXPECT_EQ(currentPage->links[0].y, 0);
+    EXPECT_EQ(pageLinks(*currentPage)[0].y, 0);
   }
 }
 
@@ -1891,13 +1918,14 @@ TEST_F(ChapterWidowOrphanTest, CarriedReferenceKeepsMultibyteFootnoteLabel) {
     xp_chapter_test_carry(ChapterTestAccess::state(parser), 1, 1, 20);
     auto currentPage = ChapterTestAccess::takePage(parser);
     ASSERT_EQ(pages.size(), 1u);
-    ASSERT_EQ(currentPage->footnotes.size(), 1u);
-    EXPECT_STREQ(currentPage->footnotes[0].href, "#note");
-    EXPECT_STREQ(currentPage->footnotes[0].number, "각주一");
-    EXPECT_EQ(pages[0]->footnotes.size(), repeated ? 2u : 1u);
-    EXPECT_TRUE(std::any_of(pages[0]->footnotes.begin(), pages[0]->footnotes.end(),
+    ASSERT_EQ(notes(*currentPage).size(), 1u);
+    EXPECT_STREQ(notes(*currentPage)[0].href, "#note");
+    EXPECT_STREQ(notes(*currentPage)[0].number, "각주一");
+    EXPECT_EQ(notes(*pages[0]).size(), repeated ? 2u : 1u);
+    const auto previousNotes = notes(*pages[0]);
+    EXPECT_TRUE(std::any_of(previousNotes.begin(), previousNotes.end(),
                             [](const auto& note) { return strcmp(note.href, "#other") == 0; }));
-    EXPECT_EQ(currentPage->links[0].y, 0);
+    EXPECT_EQ(pageLinks(*currentPage)[0].y, 0);
   }
 }
 
@@ -1929,7 +1957,7 @@ TEST_F(ChapterInlineSizeTest, NestedRemResetKeepsItsFontInsideSizedParagraph) {
   close("p");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 1u);
-  const auto& block = *static_cast<const PageLine*>(lines[0])->getBlock();
+  const auto& block = lines[0].textBlock();
   ASSERT_EQ(block.wordCount(), 3u);
   EXPECT_EQ(block.wordFontId(0, parser.fontId), NOTOSANS_12_FONT_ID);
   EXPECT_EQ(block.wordFontId(1, parser.fontId), NOTOSANS_14_FONT_ID);
@@ -1952,7 +1980,7 @@ TEST_F(ChapterInlineSizeTest, DescendantFontSizeResolvesAfterAncestorSize) {
   ASSERT_EQ(lines.size(), 3u);
   const int expected[] = {NOTOSANS_16_FONT_ID, NOTOSANS_14_FONT_ID, NOTOSANS_12_FONT_ID};
   for (size_t i = 0; i < lines.size(); ++i) {
-    const auto& block = *static_cast<const PageLine*>(lines[i])->getBlock();
+    const auto& block = lines[i].textBlock();
     EXPECT_EQ(block.wordFontId(0, NOTOSANS_14_FONT_ID), expected[i]);
   }
 }
@@ -1969,7 +1997,7 @@ TEST_F(ChapterInlineSizeTest, SpecializedInlineTagsKeepTheirFontSize) {
     text(" after");
     close("p");
     const auto lines = elementsWithTag(TAG_PageLine);
-    const auto& block = *static_cast<const PageLine*>(lines.back())->getBlock();
+    const auto& block = lines.back().textBlock();
     ASSERT_EQ(block.wordCount(), 3u);
     EXPECT_EQ(block.wordFontId(1, NOTOSANS_14_FONT_ID), NOTOSANS_12_FONT_ID);
     EXPECT_EQ(block.wordFontId(2, NOTOSANS_14_FONT_ID), NOTOSANS_14_FONT_ID);
@@ -2000,18 +2028,18 @@ TEST_F(ChapterInlineSizeTest, EnlargedGridCellsReserveTheirHeightAcrossPages) {
   size_t enlargedLines = 0;
   for (const auto& page : pages) {
     std::map<int, int> bottomByColumn;
-    for (const auto& element : page->elements) {
-      if (element->getTag() != TAG_PageLine) continue;
-      const auto& line = static_cast<const PageLine&>(*element);
-      const auto& block = *line.getBlock();
+    for (uint16_t elementIndex = 0; elementIndex < page->elementCount(); ++elementIndex) {
+      const auto element = page->element(elementIndex);
+      if (element.getTag() != TAG_PageLine) continue;
+      const auto block = element.textBlock();
       const int lineFont = block.blockFontId(parser.fontId);
       const int height = renderer.getLineHeight(lineFont, parser.lineCompression) +
                          block.extraAscent(renderer, parser.fontId) +
                          block.getRubyShift(renderer.getFontAscenderSize(lineFont));
-      EXPECT_GE(line.yPos, bottomByColumn[line.xPos]);
-      EXPECT_LE(line.yPos + height, parser.viewportHeight);
-      bottomByColumn[line.xPos] = line.yPos + height;
-      if (line.xPos < parser.viewportWidth / 2) {
+      EXPECT_GE(element.yPos, bottomByColumn[element.xPos]);
+      EXPECT_LE(element.yPos + height, parser.viewportHeight);
+      bottomByColumn[element.xPos] = element.yPos + height;
+      if (element.xPos < parser.viewportWidth / 2) {
         ++enlargedLines;
         EXPECT_EQ(block.wordFontId(0, parser.fontId), NOTOSANS_16_FONT_ID);
       }
@@ -2035,8 +2063,8 @@ TEST_F(ChapterInlineSizeTest, GridCellsResolveBlockAndWordFonts) {
   close("table");
   const auto lines = elementsWithTag(TAG_PageLine);
   ASSERT_EQ(lines.size(), 2u);
-  const auto& large = *static_cast<const PageLine*>(lines[0])->getBlock();
-  const auto& small = *static_cast<const PageLine*>(lines[1])->getBlock();
+  const auto& large = lines[0].textBlock();
+  const auto& small = lines[1].textBlock();
   EXPECT_EQ(large.wordFontId(0, NOTOSANS_14_FONT_ID), NOTOSANS_16_FONT_ID);
   EXPECT_EQ(small.wordFontId(0, NOTOSANS_14_FONT_ID), NOTOSANS_12_FONT_ID);
 }
@@ -2054,8 +2082,8 @@ TEST_F(ChapterBlockDecorationTest, BorderScopeExcludesPrecedingParentText) {
     const auto lines = elementsWithTag(TAG_PageLine);
     ASSERT_GE(lines.size(), 2u);
     ASSERT_FALSE(boxes.empty());
-    EXPECT_GT(boxes.back()->yPos, lines[lines.size() - 2]->yPos);
-    EXPECT_LT(boxes.back()->yPos, lines.back()->yPos);
+    EXPECT_GT(boxes.back().yPos, lines[lines.size() - 2].yPos);
+    EXPECT_LT(boxes.back().yPos, lines.back().yPos);
   }
 }
 
@@ -2239,10 +2267,11 @@ TEST(TextSpacingLayout, CachedPageRestoresSpacing) {
         }
         HalFile file;
         ASSERT_TRUE(file.open(path.c_str(), "rb"));
-        auto cachedPage = Page::deserialize(file);
+        auto cachedPage = Page::load(file, file.size() - file.position());
         ASSERT_NE(cachedPage, nullptr);
-        ASSERT_EQ(cachedPage->elements.size(), 1);
-        const auto* cached = static_cast<const PageLine&>(*cachedPage->elements[0]).getBlock();
+        ASSERT_EQ(cachedPage->elementCount(), 1);
+        const auto cachedBlock = cachedPage->element(0).textBlock();
+        const auto* cached = &cachedBlock;
         ASSERT_NE(cached, nullptr);
         EXPECT_EQ(cached->getBlockStyle().characterSpacing, -2);
         ASSERT_EQ(cached->wordCount(), 5);
@@ -2268,9 +2297,10 @@ TEST_F(ChapterHtmlSlimParserTest, ParserAppliesTextSpacingToParagraphs) {
   auto currentPage = ChapterTestAccess::takePage(parser);
   ASSERT_NE(currentPage, nullptr);
   unsigned lines = 0;
-  for (const auto& element : currentPage->elements) {
-    if (element->getTag() != TAG_PageLine) continue;
-    const auto& block = *static_cast<const PageLine&>(*element).getBlock();
+  for (uint16_t elementIndex = 0; elementIndex < currentPage->elementCount(); ++elementIndex) {
+    const auto element = currentPage->element(elementIndex);
+    if (element.getTag() != TAG_PageLine) continue;
+    const auto& block = element.textBlock();
     ++lines;
     ASSERT_EQ(block.wordCount(), 5);
     EXPECT_EQ(block.getBlockStyle().characterSpacing, -1);
@@ -2297,9 +2327,10 @@ TEST_F(ChapterHtmlSlimParserTest, NfdWordAcrossInlineStyleKeepsSourceRange) {
   std::string selected;
   uint32_t previousEnd = 0;
   unsigned words = 0;
-  for (const auto& element : currentPage->elements) {
-    if (element->getTag() != TAG_PageLine) continue;
-    const auto& block = *static_cast<const PageLine&>(*element).getBlock();
+  for (uint16_t elementIndex = 0; elementIndex < currentPage->elementCount(); ++elementIndex) {
+    const auto element = currentPage->element(elementIndex);
+    if (element.getTag() != TAG_PageLine) continue;
+    const auto& block = element.textBlock();
     for (uint16_t i = 0; i < block.wordCount(); ++i) {
       const auto range = block.wordSourceRange(i);
       EXPECT_EQ(range.start, words == 0 ? 0u : 5u);
@@ -2493,45 +2524,16 @@ struct CompletionAudit {
   uint32_t elements = 0, links = 0, notes = 0;
   XpChapterSink original{};
 } completionAudit;
-void watchPayload(void* raw) {
-  if (!raw) return;
-  const auto kind = static_cast<Block*>(raw)->getType();
-  ++completionAudit.created[kind];
-  completionAudit.payloads.emplace(raw, kind);
-}
 XpChapterSink auditedSink(const XpChapterSink& original) {
   completionAudit.original = original;
   auto sink = original;
-  sink.create_line = [](void* ctx, const XpParaLine* line) -> void* {
-    auto* raw = completionAudit.original.create_line(ctx, line);
-    watchPayload(raw);
-    return raw;
-  };
-  sink.create_image = [](void* ctx, int32_t width, int32_t height) -> void* {
-    auto* raw = completionAudit.original.create_image(ctx, width, height);
-    watchPayload(raw);
-    return raw;
-  };
-  sink.create_page = [](void* ctx, const XpChapterElement* elements, uint32_t count) -> void* {
-    completionAudit.beforeElements = xp_test_live_bytes();
-    completionAudit.elements = count;
-    auto* page = completionAudit.original.create_page(ctx, elements, count);
-    completionAudit.afterElements = xp_test_live_bytes();
-    return page;
-  };
-  sink.page_links = [](void* page, const XpChapterLink* links, uint32_t count) {
-    completionAudit.beforeLinks = xp_test_live_bytes();
-    completionAudit.links = count;
-    completionAudit.original.page_links(page, links, count);
-    EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeLinks);
-  };
-  sink.page_footnotes = [](void* page, const XpChapterFootnote* notes, uint32_t count) {
-    completionAudit.beforeNotes = xp_test_live_bytes();
-    completionAudit.notes = count;
-    completionAudit.original.page_footnotes(page, notes, count);
-    EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeNotes);
-  };
-  sink.complete = [](void* ctx, void* page, XpChapterPosition position) -> uint8_t {
+  sink.complete = [](void* ctx, XpChapterSpan page, XpChapterPosition position) -> uint8_t {
+    XpPageInfo info{};
+    EXPECT_EQ(xp_page_arena_size(page.data, page.len, &info), 0u);
+    EXPECT_EQ(info.consumed, page.len);
+    completionAudit.elements = info.elements;
+    completionAudit.links = info.links;
+    completionAudit.notes = info.footnotes;
     completionAudit.beforeComplete = xp_test_live_bytes();
     return completionAudit.original.complete(ctx, page, position);
   };
@@ -2546,7 +2548,7 @@ void chapterTestBlockDestroyed(const void* raw) {
   completionAudit.payloads.erase(found);
 }
 
-TEST_F(ChapterHtmlSlimParserTest, CompletionReleasesEachRustBufferBeforeSerialization) {
+TEST_F(ChapterHtmlSlimParserTest, CompletionPassesOneCompletePageWithMetadata) {
   completionAudit = {};
   auto sink = auditedSink(parser.sink_);
   const auto options = parser.chapterOptions();
@@ -2562,24 +2564,14 @@ TEST_F(ChapterHtmlSlimParserTest, CompletionReleasesEachRustBufferBeforeSerializ
   size_t pages = 0;
   parser.completePageFn = [&](std::unique_ptr<Page> page, auto, auto, auto) {
     ++pages;
-    EXPECT_EQ(page->links.size(), 32u);
-    EXPECT_EQ(page->footnotes.size(), 16u);
+    EXPECT_EQ(page->linkCount(), 32u);
+    EXPECT_EQ(page->footnoteCount(), 16u);
     EXPECT_EQ(xp_test_live_bytes(), completionAudit.beforeComplete);
   };
   ChapterTestAccess::assembly(parser, 104);
   EXPECT_EQ(pages, 1u);
-  EXPECT_EQ(completionAudit.beforeElements, completionAudit.afterElements);
-  EXPECT_GE(completionAudit.afterElements - completionAudit.beforeLinks,
-            completionAudit.elements * sizeof(XpChapterElement));
-  EXPECT_EQ(completionAudit.beforeLinks - completionAudit.beforeNotes, 32 * sizeof(XpChapterLink));
-  EXPECT_EQ(completionAudit.beforeNotes - completionAudit.beforeComplete, 16 * sizeof(XpChapterFootnote));
   EXPECT_EQ(completionAudit.links, 32u);
   EXPECT_EQ(completionAudit.notes, 16u);
-  RecordProperty("rust_before_elements", completionAudit.beforeElements);
-  RecordProperty("rust_before_links", completionAudit.beforeLinks);
-  RecordProperty("rust_before_footnotes", completionAudit.beforeNotes);
-  RecordProperty("rust_before_completion", completionAudit.beforeComplete);
-  RecordProperty("metadata_destination_bytes", 32 * sizeof(PageLink) + 16 * sizeof(FootnoteEntry));
   parser.abortParse();
   EXPECT_TRUE(completionAudit.payloads.empty());
   EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
@@ -2620,36 +2612,29 @@ TEST_F(ChapterHtmlSlimParserTest, CompletionObjectFailuresConsumeEveryPayloadExa
     EXPECT_EQ(done, iteration == 0);
     EXPECT_EQ(pages, iteration == 0 ? 1u : 0u);
     candidate.abortParse();
-    EXPECT_GT(completionAudit.created[TEXT_BLOCK], 0u);
-    EXPECT_GT(completionAudit.created[IMAGE_BLOCK], 0u);
     EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
     EXPECT_EQ(completionAudit.created[IMAGE_BLOCK], completionAudit.destroyed[IMAGE_BLOCK]);
     EXPECT_TRUE(completionAudit.payloads.empty());
     EXPECT_EQ(xp_test_live_allocations(), 0u);
   }
-  EXPECT_GE(required, 6u);  // Page plus line, image, rule, drop cap and border box.
+  EXPECT_EQ(required, 1u);  // One page arena replaces the object reconstruction.
   completionAudit = {};
 }
 
-TEST_F(ChapterHtmlSlimParserTest, LinkOwnerAllocationFailureRejectsChapter) {
-  const std::string html = "<html><body><p><a href='target.xhtml'>linked</a></p></body></html>";
-  {
-    HalFile file;
-    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
-    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
-  }
-  size_t pages = 0;
-  parser.completePageFn = [&](std::unique_ptr<Page>, auto, auto, auto) { ++pages; };
-  xp_test_fail_array_bytes(sizeof(TextBlock::LinkSpan));
-  const bool completed = parser.parseAndBuildPages();
-  const size_t failures = xp_test_array_failures();
-  xp_test_fail_array_bytes(0);
-  EXPECT_FALSE(completed);
-  EXPECT_GT(failures, 0u);
-  EXPECT_EQ(pages, 0u);
+TEST_F(ChapterHtmlSlimParserTest, ByteSinkFailureRejectsChapter) {
+  auto sink = parser.sink_;
+  sink.complete = [](void*, XpChapterSpan bytes, XpChapterPosition) -> uint8_t {
+    EXPECT_GT(bytes.len, 6u);
+    return 2;
+  };
+  const auto options = parser.chapterOptions();
+  ASSERT_EQ(xp_chapter_create(&parser.chapter_, &sink, &parser, cssParser.rustHandle(), &options), 0);
+  ASSERT_TRUE(xp_chapter_begin(parser.chapter_));
+  const std::string html = "<html><body><p><a href='#one'>one</a></p></body></html>";
+  xp_chapter_feed(parser.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 1);
+  EXPECT_FALSE(xp_chapter_finish(parser.chapter_));
   parser.abortParse();
   EXPECT_EQ(xp_test_live_allocations(), 0u);
-  std::filesystem::remove(filepath);
 }
 
 TEST(ParagraphLinks, ManyLinksUseCheckedDestinationAndPropagateFailure) {
@@ -2690,9 +2675,10 @@ TEST_F(ChapterHtmlSlimParserTest, LongSingleRubyElementKeepsAllAnnotations) {
   }
   size_t words = 0;
   parser.completePageFn = [&](std::unique_ptr<Page> page, auto, auto, auto) {
-    for (const auto& element : page->elements) {
-      if (element->getTag() != TAG_PageLine) continue;
-      const auto& block = *static_cast<const PageLine&>(*element).getBlock();
+    for (uint16_t elementIndex = 0; elementIndex < page->elementCount(); ++elementIndex) {
+      const auto element = page->element(elementIndex);
+      if (element.getTag() != TAG_PageLine) continue;
+      const auto& block = element.textBlock();
       ASSERT_EQ(block.getRubyTexts().size(), block.wordCount());
       for (uint16_t i = 0; i < block.wordCount(); ++i) {
         EXPECT_STREQ(block.wordText(i), "a");
@@ -2721,43 +2707,25 @@ TEST_F(ChapterHtmlSlimParserTest, MultilingualImageFallbackMatchesCppCacheText) 
   }
 }
 
-TEST_F(ChapterHtmlSlimParserTest, LineLinkScratchIsReleasedOnSuccessAndCopyFailure) {
-  for (bool failCopy : {false, true}) {
-    SCOPED_TRACE(failCopy);
-    completionAudit = {};
-    auto sink = auditedSink(parser.sink_);
-    static bool failLinks;
-    static size_t releases;
-    failLinks = failCopy;
-    releases = 0;
-    sink.line_links = [](void* ctx, void* line, uint32_t* count) -> const XpChapterLineLink* {
-      const auto* links = completionAudit.original.line_links(ctx, line, count);
-      EXPECT_EQ(*count, 1u);
-      if (failLinks) xp_test_fail_allocation_after(0);
-      return links;
-    };
-    sink.release_line_links = [](void* ctx) {
-      ++releases;
-      completionAudit.original.release_line_links(ctx);
-      xp_test_fail_allocation_after(SIZE_MAX);
-    };
-    const auto options = parser.chapterOptions();
-    ASSERT_EQ(xp_chapter_create(&parser.chapter_, &sink, &parser, cssParser.rustHandle(), &options), 0);
-    size_t pages = 0;
-    parser.completePageFn = [&](std::unique_ptr<Page>, auto, auto, auto) { ++pages; };
-    xp_chapter_begin(parser.chapter_);
-    const std::string html = "<html><body><p><a href='#one'>one</a></p></body></html>";
-    const auto fed = xp_chapter_feed(parser.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 1);
-    EXPECT_EQ(releases, 1u);
-    EXPECT_EQ(parser.lineLinks_.data, nullptr);
-    EXPECT_EQ(parser.lineLinks_.count, 0u);
-    const bool finished = fed == 1 && parser.finishParse();
-    EXPECT_EQ(finished, !failCopy);
-    EXPECT_EQ(pages, failCopy ? 0u : 1u);
-    parser.abortParse();
-    EXPECT_EQ(parser.lineLinks_.data, nullptr);
-    EXPECT_EQ(xp_test_live_allocations(), 0u);
-    EXPECT_EQ(completionAudit.created[TEXT_BLOCK], completionAudit.destroyed[TEXT_BLOCK]);
-  }
-  completionAudit = {};
+TEST_F(ChapterHtmlSlimParserTest, EncodedLineLinksSurviveCarryAndReleaseAtAbort) {
+  parser.viewportHeight = 32;
+  size_t pages = 0, links = 0;
+  parser.setPageBytesCallback([&](XpChapterSpan bytes, auto, auto, auto) {
+    XpPageInfo info{};
+    ASSERT_EQ(xp_page_arena_size(bytes.data, bytes.len, &info), 0u);
+    ++pages;
+    links += info.links;
+  });
+  const auto options = parser.chapterOptions();
+  ASSERT_EQ(xp_chapter_create(&parser.chapter_, &parser.sink_, &parser, cssParser.rustHandle(), &options), 0);
+  ASSERT_TRUE(xp_chapter_begin(parser.chapter_));
+  const std::string html =
+      "<html><body><p><a href='#one'>one</a></p><p><a href='#two'>two</a></p><p><a "
+      "href='#three'>three</a></p></body></html>";
+  ASSERT_NE(xp_chapter_feed(parser.chapter_, reinterpret_cast<const uint8_t*>(html.data()), html.size(), 1), 2u);
+  EXPECT_TRUE(xp_chapter_finish(parser.chapter_));
+  EXPECT_GE(pages, 2u);
+  EXPECT_EQ(links, 3u);
+  parser.abortParse();
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
 }

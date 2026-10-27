@@ -50,3 +50,9 @@ gtest_discover_tests(ChapterHtmlSlimParserTest)
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
 target_link_libraries(ChapterHtmlSlimParserTest PRIVATE xp_ffi_host)
 target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_FFI_HOST_FAULT_INJECTION XP_PARA_LINK_FAULT_INJECTION XP_CHAPTER_SINK_FAULT_INJECTION)
+
+target_sources(ChapterHtmlSlimParserTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)
+target_sources(ChapterHtmlSlimParserTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/Serialization.cpp)
+target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_PAGE_CODEC_TEST=1)
+
+target_sources(ChapterHtmlSlimParserTest PRIVATE ChapterStorageRetryTest.cpp)

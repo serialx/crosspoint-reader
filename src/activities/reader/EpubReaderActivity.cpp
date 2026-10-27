@@ -78,9 +78,10 @@ int clippingWordFont(const GfxRenderer& renderer, const int fontId, const TextBl
   return TextBlock::renderFontId(renderer, block.wordFontId(i, fontId), fontId);
 }
 
-Rect clippingWordRect(const GfxRenderer& renderer, const int fontId, const PageLine& line, const uint16_t i,
-                      const int top, const int left, const int wordWidth) {
-  const auto& block = line.getBlock();
+Rect clippingWordRect(const GfxRenderer& renderer, const int fontId, const PageElementView& line,
+                      const TextBlock& textBlock, const uint16_t i, const int top, const int left,
+                      const int wordWidth) {
+  const auto* block = &textBlock;
   const int wordFont = clippingWordFont(renderer, fontId, *block, i);
   const char* text = block->wordText(i);
   const auto style = static_cast<EpdFontFamily::Style>(block->wordStyle(i) & ~EpdFontFamily::UNDERLINE);
@@ -347,10 +348,15 @@ void EpubReaderActivity::openReaderMenu() {
   const ChapterPosition position = chapterPosition();
   const int bookProgressPercent = bookPercentFor(position);
 
+  bool hasFootnotes;
+  {
+    RenderLock lock;
+    hasFootnotes = !currentPageMetadata.footnotes().empty();
+  }
   startActivityForResult(
-      std::make_unique<EpubReaderMenuActivity>(
-          renderer, mappedInput, epub->getTitle(), position.displayPage(), position.totalPages, bookProgressPercent,
-          SETTINGS.orientation, !currentPageFootnotes.empty(), !cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
+      std::make_unique<EpubReaderMenuActivity>(renderer, mappedInput, epub->getTitle(), position.displayPage(),
+                                               position.totalPages, bookProgressPercent, SETTINGS.orientation,
+                                               hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
       [this](const ActivityResult& result) {
         const auto& menu = std::get<MenuResult>(result.data);
 
@@ -575,13 +581,24 @@ void EpubReaderActivity::startClipSelection(const int initialX, const int initia
 }
 
 void EpubReaderActivity::openFootnoteSelect(const bool reopenMenuOnCancel) {
-  if (!section || currentPageFootnotes.empty()) return;
-  if (currentPageFootnotes.size() == 1) {
-    navigateToHref(currentPageFootnotes[0].href, true);
+  std::string href;
+  bool singleFootnote;
+  std::unique_ptr<Page> page;
+  {
+    RenderLock lock;
+    if (!section || currentPageMetadata.footnotes().empty()) return;
+    singleFootnote = currentPageMetadata.footnotes().size() == 1;
+    if (singleFootnote) {
+      href = currentPageMetadata.footnotes()[0].href;
+    } else {
+      page = section->loadPage(section->currentPage);
+    }
+  }
+  // Navigation acquires RenderLock itself; only owned data may leave the scope above.
+  if (singleFootnote) {
+    navigateToHref(href, true);
     return;
   }
-
-  auto page = section->loadPage(section->currentPage);
   if (!page) return;
 
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
@@ -901,14 +918,21 @@ void EpubReaderActivity::loop() {
   }
 
   // Link taps take priority over the reader-menu and page-turn zones.
-  if (!atEndOfBook && !currentPageLinks.empty() && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
+  if (!atEndOfBook && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
     int touchX = 0;
     int touchY = 0;
     if (mappedInput.wasScreenTapped(touchX, touchY)) {
-      const auto* link = EpubReaderUtils::linkAtPoint(currentPageLinks, touchX, touchY, currentPageLinkMarginLeft,
-                                                      currentPageLinkMarginTop);
-      if (link) {
-        navigateToHref(link->href, true);
+      std::string href;
+      bool matched;
+      {
+        RenderLock lock;
+        const auto* link = EpubReaderUtils::linkAtPoint(currentPageMetadata.links(), touchX, touchY,
+                                                        currentPageLinkMarginLeft, currentPageLinkMarginTop);
+        matched = link != nullptr;
+        if (matched) href = link->href;
+      }
+      if (matched) {
+        navigateToHref(href, true);
         haptic_feedback::touchAction();
         return;
       }
@@ -1601,7 +1625,7 @@ bool EpubReaderActivity::skipLoopDelay() {
 }
 
 void EpubReaderActivity::renderBook() {
-  currentPageLinks.clear();
+  currentPageMetadata.clear();
   if (!epub) return;
   // A radio start in flight takes ~50 KB while the stack comes up: the page waits for it rather than
   // take the heap beside it (X3: abort() in a page restore at free 22,676 B). About 20 ms, once a visit.
@@ -1890,8 +1914,8 @@ void EpubReaderActivity::renderBook() {
 
   {
     auto p = section->loadPage(section->currentPage);
-    if (!p) {
-      LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
+    if (!p || !currentPageMetadata.assign(*p)) {
+      LOG_ERR("ERS", "Failed to load page or metadata - clearing section cache");
       automaticPageTurnActive = false;
       const bool giveUp = ++pageLoadRetryCount > MAX_PAGE_LOAD_RETRIES;
       section->abandonBuild();
@@ -1913,8 +1937,6 @@ void EpubReaderActivity::renderBook() {
     pageLoadRetryCount = 0;
 
     currentPageVisibleOffset = p->visibleTextOffset;
-    currentPageFootnotes = std::move(p->footnotes);
-    currentPageLinks = std::move(p->links);
     currentPageLinkMarginLeft = orientedMarginLeft;
     currentPageLinkMarginTop = orientedMarginTop;
 
@@ -2304,10 +2326,11 @@ int EpubReaderActivity::clippingAtPoint(const Page& page, const int x, const int
   const uint32_t signature =
       readerRenderSpecSignature(SETTINGS.readerRenderSpec(buildViewportWidth, buildViewportHeight));
   uint16_t wordIndex = 0;
-  for (const auto& element : page.elements) {
-    if (element->getTag() != TAG_PageLine) continue;
-    const auto& line = static_cast<const PageLine&>(*element);
-    const auto& block = line.getBlock();
+  for (uint16_t elementIndex = 0; elementIndex < page.elementCount(); ++elementIndex) {
+    const auto line = page.element(elementIndex);
+    if (line.getTag() != TAG_PageLine) continue;
+    const auto& textBlock = line.textBlock();
+    const auto* block = &textBlock;
     if (!block || !block->valid()) continue;
     for (uint16_t i = 0; i < block->wordCount(); ++i) {
       const char* text = block->wordText(i);
@@ -2317,8 +2340,8 @@ int EpubReaderActivity::clippingAtPoint(const Page& page, const int x, const int
                                                  block->getBlockStyle().characterSpacing);
       if (width <= 0) continue;
       const uint16_t index = wordIndex++;
-      const Rect rect =
-          clippingWordRect(renderer, fontId, line, i, top + SETTINGS.screenMargin, left + SETTINGS.screenMargin, width);
+      const Rect rect = clippingWordRect(renderer, fontId, line, *block, i, top + SETTINGS.screenMargin,
+                                         left + SETTINGS.screenMargin, width);
       if (x < rect.x || x >= rect.x + rect.width || y < rect.y || y >= rect.y + rect.height) continue;
       const auto range = block->wordSourceRange(i);
       for (size_t j = 0; j < CLIPPINGS.clippingCount(); ++j) {
@@ -2371,10 +2394,11 @@ void EpubReaderActivity::drawClippingHighlights(const Page& page, const int font
   };
 
   uint16_t pageWordIndex = 0;
-  for (const auto& element : page.elements) {
-    if (element->getTag() != TAG_PageLine) continue;
-    const auto& line = static_cast<const PageLine&>(*element);
-    const auto& block = line.getBlock();
+  for (uint16_t elementIndex = 0; elementIndex < page.elementCount(); ++elementIndex) {
+    const auto line = page.element(elementIndex);
+    if (line.getTag() != TAG_PageLine) continue;
+    const auto& textBlock = line.textBlock();
+    const auto* block = &textBlock;
     if (!block || !block->valid()) continue;
     bool hasPreviousHighlight = false;
     int previousHighlightX = 0;
@@ -2392,7 +2416,8 @@ void EpubReaderActivity::drawClippingHighlights(const Page& page, const int font
         continue;
       }
 
-      const Rect rect = clippingWordRect(renderer, fontId, line, i, orientedMarginTop, orientedMarginLeft, width);
+      const Rect rect =
+          clippingWordRect(renderer, fontId, line, *block, i, orientedMarginTop, orientedMarginLeft, width);
       const int x = rect.x;
       const int y = rect.y;
       width = rect.width;
@@ -3074,8 +3099,12 @@ void EpubReaderActivity::applyReaderTextSettings() {
 // two entries that have their own tool (chapters -> Contents, text -> Text).
 void EpubReaderActivity::buildMoreActions() {
   using MA = EpubReaderMenuActivity::MenuAction;
-  EpubReaderMenuActivity::buildMenuItems(moreItems, !currentPageFootnotes.empty(), !cachedBookmarks.empty(),
-                                         CLIPPINGS.hasClippings());
+  bool hasFootnotes;
+  {
+    RenderLock lock;
+    hasFootnotes = !currentPageMetadata.footnotes().empty();
+  }
+  EpubReaderMenuActivity::buildMenuItems(moreItems, hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings());
   moreItems.erase(std::remove_if(moreItems.begin(), moreItems.end(),
                                  [](const auto& item) {
                                    return item.action == MA::SELECT_CHAPTER || item.action == MA::TEXT_SETTINGS;

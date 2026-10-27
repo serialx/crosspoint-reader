@@ -16,3 +16,8 @@ target_include_directories(PageCodecDiff PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stu
 target_link_libraries(PageCodecDiff PRIVATE crosspoint_test_common xp_ffi_host)
 add_test(NAME PageCodecDiff COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
   --dump $<TARGET_FILE:PageCodecDiff>)
+
+target_sources(PageCodecDiff PRIVATE ${REPO_ROOT}/test/page_codec_diff/Serialization.cpp)
+target_compile_definitions(PageCodecDiff PRIVATE XP_PAGE_CODEC_TEST=1)
+
+target_sources(PageCodecDiff PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)

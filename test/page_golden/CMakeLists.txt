@@ -65,3 +65,8 @@ target_link_libraries(PageGolden PRIVATE xp_ffi_host)
 add_test(NAME PageGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py check
   --binary $<TARGET_FILE:PageGolden> --work-dir ${CMAKE_CURRENT_BINARY_DIR}/check)
 add_test(NAME PageGoldenComparator COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
+
+target_sources(PageGolden PRIVATE ${REPO_ROOT}/test/page_codec_diff/Serialization.cpp)
+target_compile_definitions(PageGolden PRIVATE XP_PAGE_CODEC_TEST=1)
+
+target_sources(PageGolden PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)

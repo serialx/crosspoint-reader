@@ -39,7 +39,10 @@ pub struct Measure {
 pub struct State {
     paragraph: *mut crate::para::paragraph::Paragraph,
     callbacks: *const Callbacks,
+    // Payload drops dereference page_storage: assembly must be dropped first.
     pub assembly: assembly::Assembly<OwnedParagraph, Payload>,
+    page_storage: core::cell::UnsafeCell<assembly::runtime::Storage>,
+    native_engine: Option<crate::textm::native::Engine>,
     ctx: *mut c_void,
     css: *const Store,
     alignment: u8,
@@ -112,6 +115,7 @@ impl State {
     /// # Safety
     /// out is writable, aligned uninitialized storage for State. Callbacks/context
     /// and the optional CSS store outlive this state. Calls are serialized.
+    /// State must remain at this address until dropped: payloads borrow page_storage.
     /// Callbacks may reborrow the supplied State pointer only synchronously; they must
     /// never use an older pointer while a more recent callback owns the reborrow.
     #[allow(clippy::too_many_arguments)] // Construction mirrors the fixed C options and callbacks.
@@ -129,6 +133,16 @@ impl State {
         core::ptr::addr_of_mut!((*out).paragraph).write(core::ptr::null_mut());
         core::ptr::addr_of_mut!((*out).callbacks).write(callbacks);
         core::ptr::addr_of_mut!((*out).assembly).write(assembly::Assembly::new(assembly_options));
+        core::ptr::addr_of_mut!((*out).page_storage).write(core::cell::UnsafeCell::new(
+            assembly::runtime::Storage::default(),
+        ));
+        let metrics = &*(*callbacks).metrics;
+        let mut provider = core::mem::MaybeUninit::uninit();
+        let engine = metrics.native.and_then(|fill| {
+            (fill(ctx, provider.as_mut_ptr()) != 0)
+                .then(|| crate::textm::native::Engine::new(provider.assume_init()))
+        });
+        core::ptr::addr_of_mut!((*out).native_engine).write(engine);
         core::ptr::addr_of_mut!((*out).ctx).write(ctx);
         core::ptr::addr_of_mut!((*out).css).write(css);
         core::ptr::addr_of_mut!((*out).alignment).write(alignment);

@@ -105,14 +105,14 @@ Section::Section(const std::shared_ptr<Epub>& epub, const int spineIndex, GfxRen
 // (no-op once a build has completed or never started).
 Section::~Section() { suspendBuild(); }
 
-uint32_t Section::onPageComplete(std::unique_ptr<Page> page) {
+uint32_t Section::onPageComplete(const uint8_t* bytes, const size_t length) {
   if (!file) {
     LOG_ERR("SCT", "File not open for writing page %d", builtPageCount_);
     return 0;
   }
 
   const uint32_t position = file.position();
-  if (!page->serialize(file)) {
+  if (file.write(bytes, length) != length) {
     LOG_ERR("SCT", "Failed to serialize page %d", builtPageCount_);
     return 0;
   }
@@ -370,14 +370,8 @@ bool Section::startBuild(const ReaderRenderSpec& spec, const std::function<void(
   ctx->parser = makeUniqueNoThrow<ChapterHtmlSlimParser>(
       epub, ctxPtr->parsePath, renderer, spec.fontId, spec.lineCompression, spec.extraParagraphSpacing,
       spec.paragraphAlignment, spec.viewportWidth, spec.viewportHeight, spec.hyphenationEnabled,
-      spec.focusReadingEnabled,
-      [this, ctxPtr](std::unique_ptr<Page> page, const uint16_t paragraphIndex, const uint16_t listItemIndex,
-                     const uint32_t visibleTextOffset) {
-        ctxPtr->lut.push_back(
-            {this->onPageComplete(std::move(page)), paragraphIndex, listItemIndex, visibleTextOffset});
-      },
-      spec.embeddedStyle, ctxPtr->contentBase, ctxPtr->imageBasePath, spec.imageRendering, std::move(tocAnchors),
-      popupFn, ctxPtr->cssParser);
+      spec.focusReadingEnabled, nullptr, spec.embeddedStyle, ctxPtr->contentBase, ctxPtr->imageBasePath,
+      spec.imageRendering, std::move(tocAnchors), popupFn, ctxPtr->cssParser);
   if (!ctx->parser) {
     LOG_ERR("SCT", "OOM: ChapterHtmlSlimParser");
     if (ctx->cssParser) ctx->cssParser->clear();
@@ -387,6 +381,11 @@ bool Section::startBuild(const ReaderRenderSpec& spec, const std::function<void(
     return false;
   }
 
+  ctx->parser->setPageBytesCallback([this, ctxPtr](XpChapterSpan bytes, const uint16_t paragraphIndex,
+                                                   const uint16_t listItemIndex, const uint32_t visibleTextOffset) {
+    ctxPtr->lut.push_back(
+        {this->onPageComplete(bytes.data, bytes.len), paragraphIndex, listItemIndex, visibleTextOffset});
+  });
   ctx->parser->setTextSpacing(spec.characterSpacing, spec.wordSpacingPercent);
   ctx->parser->setParagraphIndentSpaces(spec.paragraphIndentSpaces);
   Hyphenator::setPreferredLanguage(epub->getLanguage());
@@ -765,8 +764,9 @@ std::unique_ptr<Page> Section::loadPageDuringBuild(const int page) {
   // The .bin is open O_RDWR for the build. Read the already-written page, then restore
   // the write cursor so the next onPageComplete keeps appending where it left off.
   const uint32_t writePos = file.position();
-  file.seek(pos);
-  auto p = Page::deserialize(file);
+  const uint32_t end = page + 1 < static_cast<int>(build_->lut.size()) ? build_->lut[page + 1].fileOffset : writePos;
+  if (end <= pos || end > writePos || !file.seek(pos)) return nullptr;
+  auto p = Page::load(file, end - pos, build_->lut[page].visibleTextOffset);
   file.seek(writePos);
   if (p) {
     p->visibleTextOffset = build_->lut[page].visibleTextOffset;
@@ -793,8 +793,15 @@ std::unique_ptr<Page> Section::loadPageAt(const int page) const {
       xp_sec_table_entry(header.values[19], page, 4, f.size(), HEADER_SIZE, &entry) && f.seek(entry)) {
     sectioncodec::readValue(f, XP_SEC_U32, visibleTextOffset);
   }
-  if (!f.seek(pagePos)) return nullptr;
-  auto p = Page::deserialize(f);
+  uint32_t pageEnd = header.values[15];
+  if (static_cast<uint32_t>(page) + 1 < header.values[14] &&
+      (!xp_sec_table_entry(header.values[15], page + 1, 4, f.size(), 0, &entry) || !f.seek(entry) ||
+       !sectioncodec::readValue(f, XP_SEC_U32, pageEnd)))
+    return nullptr;
+  if (pagePos < HEADER_SIZE || pageEnd <= pagePos || pageEnd > header.values[15] || pageEnd > f.size() ||
+      !f.seek(pagePos))
+    return nullptr;
+  auto p = Page::load(f, pageEnd - pagePos, visibleTextOffset);
   if (p) p->visibleTextOffset = visibleTextOffset;
   return p;
 }
@@ -819,11 +826,11 @@ std::string Section::getTextFromSectionFile() {
   std::string fullText;
   auto p = loadPage(currentPage);
   if (p) {
-    for (const auto& el : p->elements) {
-      if (el->getTag() == TAG_PageLine) {
-        const auto& line = static_cast<const PageLine&>(*el);
-        if (line.getBlock()) {
-          const auto& block = *line.getBlock();
+    for (uint16_t index = 0; index < p->elementCount(); ++index) {
+      const auto line = p->element(index);
+      if (line.getTag() == TAG_PageLine) {
+        const auto block = line.textBlock();
+        if (block.valid()) {
           for (uint16_t i = 0; i < block.wordCount(); i++) {
             const char* word = block.wordText(i);
             const size_t length = strlen(word);

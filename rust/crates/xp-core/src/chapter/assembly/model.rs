@@ -129,6 +129,7 @@ pub struct Line<B> {
     pub visible_offset: u32,
     pub lines_after: u32,
 }
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct LineLink {
     pub href: [u8; 256],

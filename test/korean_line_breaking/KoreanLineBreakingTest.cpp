@@ -212,7 +212,16 @@ TEST(ClippingAnchors, NfcHyphenationMarksSurviveCacheRoundTrip) {
       }
       HalFile file;
       ASSERT_TRUE(file.open(path.c_str(), "rb"));
-      auto restored = TextBlock::deserialize(file);
+      std::vector<uint8_t> wire(file.size() + 11, 0);
+      wire[0] = 1;
+      wire[2] = 1;
+      ASSERT_EQ(file.read(wire.data() + 7, file.size()), file.size());
+      XpPageInfo info{};
+      ASSERT_EQ(xp_page_arena_size(wire.data(), wire.size(), &info), 0u);
+      std::vector<uint8_t> arena(info.arena_size);
+      ASSERT_EQ(xp_page_decode(wire.data(), wire.size(), 0, arena.data(), arena.size(), &info), 0u);
+      const TextBlock restoredBlock(TextBlock::View{}, arena.data(), arena.size(), 0);
+      const auto* restored = &restoredBlock;
       ASSERT_NE(restored, nullptr);
       for (uint16_t i = 0; i < restored->wordCount(); ++i) {
         const auto range = restored->wordSourceRange(i);

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -29,7 +30,9 @@ class PageElement {
   explicit PageElement(const int16_t xPos, const int16_t yPos) : xPos(xPos), yPos(yPos) {}
   virtual ~PageElement() = default;
   virtual void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) = 0;
+#ifdef XP_PAGE_CODEC_TEST
   virtual bool serialize(HalFile& file) = 0;
+#endif
   virtual PageElementTag getTag() const = 0;  // Add type identification
 };
 
@@ -42,9 +45,10 @@ class PageLine final : public PageElement {
       : PageElement(xPos, yPos), block(std::move(block)) {}
   const TextBlock* getBlock() const { return block.get(); }
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageLine; }
-  static std::unique_ptr<PageLine> deserialize(HalFile& file);
 };
 
 // New PageImage class
@@ -56,9 +60,10 @@ class PageImage final : public PageElement {
       : PageElement(xPos, yPos), imageBlock(std::move(block)) {}
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
   void renderPlaceholder(GfxRenderer& renderer, int xOffset, int yOffset) const;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageImage; }
-  static std::unique_ptr<PageImage> deserialize(HalFile& file);
   const ImageBlock& getImageBlock() const { return *imageBlock; }
 };
 
@@ -71,9 +76,10 @@ class PageHorizontalRule final : public PageElement {
       : PageElement(xPos, yPos), width(width), thickness(thickness) {}
 
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageHorizontalRule; }
-  static std::unique_ptr<PageHorizontalRule> deserialize(HalFile& file);
 };
 
 // An initial letter spanning several lines, drawn scaled up from a font's glyph.
@@ -93,9 +99,10 @@ class PageDropCap final : public PageElement {
               int16_t yPos);
   const char* getText() const { return text; }
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageDropCap; }
-  static std::unique_ptr<PageDropCap> deserialize(HalFile& file);
 };
 
 // A CSS border and/or background shade around a block element's slice on this page.
@@ -115,19 +122,95 @@ class PageBorderBox final : public PageElement {
         sides{sides[0], sides[1], sides[2], sides[3]},
         shaded(shaded) {}
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) override;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) override;
+#endif
   PageElementTag getTag() const override { return TAG_PageBorderBox; }
-  static std::unique_ptr<PageBorderBox> deserialize(HalFile& file);
   void renderBackground(GfxRenderer& renderer, int xOffset, int yOffset) const;
 };
 
-class Page {
+class Page;
+
+// Value views borrow the Page. Word/path spans remain valid until it is destroyed.
+class PageElementView {
+  const Page* page;
+  uint16_t index;
+  PageElementTag tag;
+  XpPageElement fields() const;
+
  public:
+  int16_t xPos;
+  int16_t yPos;
+  PageElementView(const Page& page, uint16_t index);
+  PageElementTag getTag() const { return tag; }
+  TextBlock textBlock() const;
+  ImageBlock imageBlock() const;
+  std::string_view dropCapText() const;
+  void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
+  void renderBackground(GfxRenderer& renderer, int xOffset, int yOffset) const;
+  void renderPlaceholder(GfxRenderer& renderer, int xOffset, int yOffset) const;
+#ifdef XP_PAGE_CODEC_TEST
+  bool serialize(HalFile& file) const;
+#endif
+};
+
+class Page {
+  friend class PageElementView;
+  uint8_t* arena = nullptr;
+  size_t arenaSize = 0;
+  XpPageInfo info{};
+  struct ElementData {
+    XpPagePosition position;
+    union {
+      TextBlock::ViewData line;
+      struct {
+        XpPageSpan path, source;
+        int16_t width, height;
+      } image;
+      struct {
+        uint16_t width;
+        uint8_t thickness;
+      } rule;
+      struct {
+        XpPageSpan text;
+        int32_t font;
+        uint16_t scale;
+        uint8_t style;
+      } cap;
+      struct {
+        uint16_t width, height;
+        uint8_t sides[8], shaded;
+      } border;
+    };
+    ElementData() : position{}, line{} {}
+  };
+  ElementData* views = nullptr;
+  static std::unique_ptr<Page> allocate(const XpPageInfo& info);
+  bool resolveViews();
+  std::vector<FootnoteEntry> footnotes;
+  std::vector<PageLink> links;
+
+ public:
+  Page() = default;
+  Page(const Page&) = delete;
+  Page& operator=(const Page&) = delete;
+  Page(Page&&) = delete;
+  Page& operator=(Page&&) = delete;
+  // The header and trailing arena share the allocation owned by unique_ptr<Page>.
+  static void operator delete(void* p) noexcept { ::operator delete(p); }
+  size_t elementCount() const { return arena ? info.elements : elements.size(); }
+  size_t footnoteCount() const { return arena ? info.footnotes : footnotes.size(); }
+  size_t linkCount() const { return arena ? info.links : links.size(); }
+  PageElementView element(uint16_t index) const { return PageElementView(*this, index); }
+  void footnote(uint16_t index, FootnoteEntry& out) const;
+  void link(uint16_t index, PageLink& out) const;
+  static std::unique_ptr<Page> load(HalFile& file, size_t bytes, uint32_t visibleOffset = 0);
+  // Copies validated bytes into the owned arena; does not retain the input span.
+  static std::unique_ptr<Page> fromBytes(const uint8_t* bytes, size_t size, uint32_t visibleOffset = 0);
+
   // the list of block index and line numbers on this page
   std::vector<std::unique_ptr<PageElement>> elements;
-  std::vector<FootnoteEntry> footnotes;
   static constexpr uint16_t MAX_FOOTNOTES_PER_PAGE = 16;
-  std::vector<PageLink> links;
   static constexpr uint16_t MAX_LINKS_PER_PAGE = 32;
 
   // Zero-based visible-codepoint offset where this page starts. Not part of the serialized page
@@ -167,47 +250,25 @@ class Page {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   void renderImages(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   void renderWithImagePlaceholders(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file) const;
-  static std::unique_ptr<Page> deserialize(HalFile& file);
+#endif
 
-  // Check if page contains any images (used to force full refresh)
-  bool hasImages() const {
-    return std::any_of(elements.begin(), elements.end(),
-                       [](const std::unique_ptr<PageElement>& el) { return el->getTag() == TAG_PageImage; });
-  }
+  bool hasImages() const;
+  bool hasImagesNeedingDecode() const;
+  bool getImageBoundingBox(int16_t& outX, int16_t& outY, int16_t& outW, int16_t& outH) const;
+};
 
-  bool hasImagesNeedingDecode() const {
-    return std::any_of(elements.begin(), elements.end(), [](const std::unique_ptr<PageElement>& element) {
-      return element->getTag() == TAG_PageImage &&
-             static_cast<const PageImage&>(*element).getImageBlock().needsDecode();
-    });
-  }
+// Reader-owned copies outlive the rendered Page; failed assignment leaves no stale targets.
+class PageMetadata {
+  std::unique_ptr<FootnoteEntry[]> ownedFootnotes;
+  std::unique_ptr<PageLink[]> ownedLinks;
+  uint16_t footnoteSize = 0;
+  uint16_t linkSize = 0;
 
-  // Get bounding box of all images on the page (union of image rects)
-  // Returns false if no images. Coordinates are relative to page origin.
-  bool getImageBoundingBox(int16_t& outX, int16_t& outY, int16_t& outW, int16_t& outH) const {
-    bool found = false;
-    int16_t minX = INT16_MAX, minY = INT16_MAX, maxX = INT16_MIN, maxY = INT16_MIN;
-    for (const auto& el : elements) {
-      if (el->getTag() == TAG_PageImage) {
-        const auto& img = static_cast<const PageImage&>(*el);
-        int16_t x = img.xPos;
-        int16_t y = img.yPos;
-        int16_t right = x + img.getImageBlock().getWidth();
-        int16_t bottom = y + img.getImageBlock().getHeight();
-        minX = std::min(minX, x);
-        minY = std::min(minY, y);
-        maxX = std::max(maxX, right);
-        maxY = std::max(maxY, bottom);
-        found = true;
-      }
-    }
-    if (found) {
-      outX = minX;
-      outY = minY;
-      outW = maxX - minX;
-      outH = maxY - minY;
-    }
-    return found;
-  }
+ public:
+  std::span<const FootnoteEntry> footnotes() const { return {ownedFootnotes.get(), footnoteSize}; }
+  std::span<const PageLink> links() const { return {ownedLinks.get(), linkSize}; }
+  void clear();
+  bool assign(const Page& page);
 };

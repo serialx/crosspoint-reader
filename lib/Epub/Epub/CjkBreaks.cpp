@@ -9,7 +9,7 @@ bool boundaryAllowsBreak(const uint32_t leftCp, const uint32_t rightCp) { return
 bool hasBreakOpportunityBetween(const uint32_t leftCp, const uint32_t rightCp) {
   return xp_text_opportunity(leftCp, rightCp);
 }
-std::vector<size_t> characterBreakByteOffsets(const std::string& text) {
+std::vector<size_t> characterBreakByteOffsets(const std::string_view text) {
   const auto* bytes = reinterpret_cast<const uint8_t*>(text.data());
   const auto count = xp_text_offsets(bytes, text.size(), nullptr, 0);
   if (!count) return {};

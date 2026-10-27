@@ -6,10 +6,11 @@ ESP-IDF allocator, and panic handler. Its public header is
 `rust/crates/xp-ffi/include/xp_ffi.h`.
 
 Rust owns the EPUB parsers and layout, page records, build/load codecs, page
-rendering, image row processing, text measurement, glyph rasterization and bitmap views,
-SD font parsing, XTC parsing, and the shared ZIP/PNG/ContentProtection inflater.
-C++ retains file I/O, font caches and decompression with uzlib, image decoders,
-and the UI. See the
+rendering, PNG/GIF decoding and image row processing, text measurement, glyph
+rasterization and bitmap views, SD font parsing and cache policy, XTC parsing,
+and the shared inflater for ZIP, PNG, ContentProtection, fonts and DictZip.
+C++ retains file I/O, font registration and preparation, built-in/TTF caches,
+JPEGDEC integration, page storage and views, and the UI. See the
 [chapter pipeline](chapter-pipeline.md) for page ownership and lifetime.
 
 Install rustup, then install the pinned C3 toolchain:
@@ -49,14 +50,17 @@ Run portable checks from the workspace:
 ```sh
 cd rust
 cargo fmt --check
-cargo clippy -p xp-core --all-targets -- -D warnings
-cargo test -p xp-core
+cargo clippy -p xp-core -p xp-gif --all-targets -- -D warnings
+cargo test -p xp-core -p xp-gif
 ```
 
 The release profile uses `opt-level = "s"` to balance code size and chapter-build
 speed, with fat LTO, one codegen unit, and abort-on-panic behavior.
-The decoder-only `miniz_oxide` package overrides this with `opt-level = 3`
-in [`rust/Cargo.toml`](../../rust/Cargo.toml); the rest keeps `"s"`.
+The decoder packages `miniz_oxide` and `xp-gif` use `opt-level = 3` in
+[`rust/Cargo.toml`](../../rust/Cargo.toml) to keep inflate and GIF decoding within
+their timing budgets; the rest keeps `"s"`. `xp-gif` is the local, dependency-free
+package under [`rust/crates/xp-core/src/gif/decoder`](../../rust/crates/xp-core/src/gif/decoder),
+reexported by `xp-core::gif`.
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
 
@@ -176,12 +180,20 @@ wire-byte checks, and allocation-failure coverage. The cache version remains 19.
 
 `ZipFile` keeps HalFile I/O, cached slim stats, sequential lookup position, and
 last-lookup caching. `xp-core::zip` parses the directory without allocation.
-ZIP entries use `InflateStream`, backed by `xp-core::inflate`. PNGdec and SDK
-ContentProtection reach the same Rust inflater through the `mz_*` compatibility
-adapter in `lib/miniz`. Its compact vendored
+ZIP entries use `InflateStream`, backed by `xp-core::inflate`. SDK
+ContentProtection reaches it through the `mz_*` compatibility adapter in
+`lib/miniz`; the Rust PNG decoder calls it directly. The vendored
 [miniz_oxide subset](../../rust/crates/xp-core/src/inflate/miniz/README.md)
-owns no buffers; callers supply decoder storage and the output window. uzlib
-remains behind `InflateReader` for font decompression and DictZip.
+shares one block parser, bit reader and match-copy loop between fast lookup
+tables and compact canonical tables. It owns no buffers; callers supply decoder
+storage and output history.
+
+`InflateReader` embeds compact Rust state for font decompression and DictZip.
+Font groups decode directly into the existing output allocation; DictZip supplies
+a 32 KiB history ring. C++ retains I/O and decompressed-font cache ownership.
+The facade's size and alignment are guarded because changing its footprint can
+shift heap boundaries. See the [compact inflater checks](../../test/inflate_small/README.md)
+for frozen outputs, malformed-input differences and recovery tests.
 
 The caller initializes a 16-byte `XpZipWalker` with the central-directory and
 starting offsets. `xp_zip_request` returns a 46-byte absolute header read;
@@ -509,8 +521,9 @@ the page sink only crosses into C++ for the operations described in the
 Production paragraph/chapter layout and `GfxRenderer` measurements use
 [`textm::native::Engine`](../../rust/crates/xp-core/src/textm/native.rs).
 Rust executes measurement rules, resident font-table reads, bidi shaping and
-word ordering. C++ owns font registration, storage, preparation and cache
-mutation. [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp)
+word ordering. C++ owns font registration and preparation, built-in/TTF storage
+and caches, and the SD-font facade; Rust owns SD cache policy and buffer
+lifetimes. [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp)
 supplies resolved style descriptors and dynamic handlers; SD glyphs that are
 not resident and TTF glyph/coverage/kerning work still use those handlers.
 The [paragraph binding](../../lib/Epub/Epub/Paragraph.cpp) and
@@ -563,12 +576,14 @@ Standalone scaled glyphs use `xp_native_draw_scaled_pixels` for their advance an
 bilinear scaling. Cached pages use the same Rust glyph painter through the
 page render entry below; loaded text data belongs to the page arena.
 
-C++ prepares fonts and owns font caches and prewarming.
+C++ prepares fonts and manages built-in/TTF caches. SD prewarm, resident buffers
+and overflow policy belong to the Rust pool described below.
 It lends the selected `EpdFont::data` pointer slot, bitmap-source view and exclusive
 framebuffer or strip target for one synchronous run. Rust resolves resident
 built-in/SD and decompressed page-buffer bitmap hits directly. Misses call C++
-for loading, SD overflow, hot-group decompression or TTF bitmaps, then refresh
-the view.
+for loading, the SD pool facade, hot-group decompression or TTF bitmaps, then
+refresh the view. FontDecompressor retains its C++ cache and uses the shared Rust
+inflater for compressed groups.
 Generation changes invalidate borrowed sources; no table or bitmap loan survives
 a callback that can mutate its owner. The EpdFont owner stays live and serialized;
 callbacks cannot unregister it, reenter drawing or change the target geometry.
@@ -594,9 +609,10 @@ image element per pass for the existing decode/cache or placeholder path.
 
 Prewarm scanning batches visual codepoints in a fixed 192-byte buffer, flushing
 at line, font or style boundaries and when full. C++ `FontCacheManager` receives
-the batches and retains cache ownership. The synchronous render borrows existing
-font and framebuffer storage; it adds no Rust heap allocation. Bitmap misses
-still use the C++ owners described above.
+the batches and dispatches to the font owners, including the Rust SD pool through
+its C++ facade. The synchronous render borrows existing font and framebuffer
+storage; page traversal adds no heap allocation. Prewarm and bitmap misses use
+the cache operations described above.
 
 Settings preview and dictionary selection pages use this same renderer. Clip
 selection reads positions and source ranges through borrowed page views.
@@ -609,14 +625,27 @@ consumers' pixels and selection geometry.
 
 `xp-core::sdfont` parses `.cpfont` headers, style directories and intervals,
 validates glyph extents, decodes kerning/ligature fields, and parses filename
-sizes. C++ retains HalFile reads, resident storage, sharing, prewarm and cache
-policy, bitmap I/O and font discovery. See the `xp_sdfont_*` contract in
+sizes. These parser calls borrow bytes and allocate no storage. C++ retains
+HalFile I/O, font discovery/loading, stable per-style slots, shared interval
+tables, generation invalidation and corrupt-glyph notice delivery. See the
+`xp_sdfont_*` contract in
 [`xp_ffi.h`](../../rust/crates/xp-ffi/include/xp_ffi.h) and the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
 
+`sdfont::pool` owns resident glyph/bitmap buffers, prewarm and retention policy,
+advance tables, mini kerning/ligature tables, coverage, overflow and statistics.
+The facade lends exclusive slots and a synchronous service descriptor for each
+call; callbacks cannot reenter the pool. Rust chooses allocation sizes and release
+points through paired C++ callbacks: resident buffers use the existing
+PSRAM-preferring allocator, scratch uses ordinary arrays. Cache operations can
+allocate fallibly; unlike parsing, they retain buffers across calls. Views expire
+when their cache owner mutates or releases storage. The
+[pool differential](../../test/sdfont_pool_diff/README.md) checks ordered I/O,
+allocation lifetimes, retention under heap pressure and failure recovery.
+
 `xp-core::xtc` interprets XTC/XTCH headers, page tables, metadata and chapter
 records, and XTG/XTH page headers. C++ retains HalFile I/O, buffers, owned strings,
-lazy chapter storage, streaming callbacks and bitmap rendering. Both parsers
+lazy chapter storage, streaming callbacks and bitmap rendering. XTC parser calls
 borrow input bytes for one call and allocate no storage. Their compatibility
 rules preserve existing permissive cases; the
 [XTC differential](../../test/xtc_diff/README.md) describes those cases and checks.
@@ -625,12 +654,22 @@ rules preserve existing permissive cases; the
 
 `xp-core::image` owns image scale/crop planning, row selection, grayscale and
 alpha conversion, Bayer dithering, framebuffer writes, streaming 2-bit pixel
-cache packing, and header dimension probes. PNGdec, JPEGDEC, and AnimatedGIF
-remain C++ decoders. `ImagePipeline.h` owns HalFile cache I/O and obtains write
-targets from GfxRenderer; ImageBlock keeps cache reads and render orchestration.
-The cache format and decoder limits are unchanged.
+cache packing, and header dimension probes. `xp-core::png` owns PNG decoding and
+BMP conversion; `xp-core::gif` exposes the local `xp-gif` decoder and BMP converter.
+Both feed rows directly into the Rust pipeline. JPEGDEC remains the C/C++ decoder.
+C++ owns HalFile input/output, renderer targets and cache I/O; ImageBlock keeps
+cache reads and render orchestration. Cache byte formats are unchanged.
 
-The `xp_image_*` ABI in `xp_ffi.h` uses caller-owned opaque storage. After a
+PNG uses synchronous `xp_png_dimensions`, `xp_png_render`, `xp_png_bmp` and
+`xp_png_sleep_header` calls. GIF uses `xp_gif_inspect`, `xp_gif_frame` and
+`xp_gif_bmp`. Callbacks and contexts stay live for the call and cannot reenter;
+input reads and output writes retain no byte spans. Target callbacks lend
+exclusive framebuffer memory, and I/O callbacks preserve that loan. Decoder
+rows stay within Rust; file, target, cache and progress callbacks still cross
+the ABI. PNG BMP conversion can borrow exclusive aligned scratch through the
+C++ BuildScratch facade; Rust neither frees nor retains that loan.
+
+JPEG's `xp_image_*` lifecycle in `xp_ffi.h` uses caller-owned opaque storage. After a
 successful init, call prepare once, optionally begin the cache, submit rows,
 finish once, then destroy exactly once. Destroy also aborts an unfinished cache.
 JPEG prepare is a no-op but follows the same lifecycle. The C++ adapter keeps
@@ -641,12 +680,14 @@ call returns; cache I/O callbacks must preserve that loan and cannot reenter.
 Target geometry is physical, byte stride is explicit, and placement is logical;
 compile-time assertions tie renderer modes and orientations to the ABI values.
 
-Rust allocates temporary PNG/GIF rows and cache bands fallibly and releases them
-at context destruction. JPEG needs no additional row buffer. GIF keeps a
-256-byte grayscale palette in its existing heap-owned context, converted by Rust
-when the decoder palette pointer changes; row callbacks do indexed lookups.
-This adds no allocation request or callback-stack array. No image allocation
-survives decoding, apart from ImageBlock's existing cache-read buffers.
+Rust allocates PNG/GIF decoder state, reusable rows and conversion buffers
+fallibly and releases them on success or failure. GIF keeps its 256-byte gray
+palette with decoder storage. There is no per-row allocation. JPEG needs no
+additional row buffer. No image allocation survives decoding, apart from
+ImageBlock's existing cache-read buffers. The
+[PNG compatibility checks](../../test/image_golden/PNG.md) and
+[GIF compatibility checks](../../test/gif_support/README.md) document consumer
+limits, malformed-input rejections, corrected decodes and allocation-failure tests.
 
 Framebuffer writes deliberately retain the former 16-bit byte-offset wrap.
 Full targets above 65,535 bytes can therefore place pixels incorrectly; this

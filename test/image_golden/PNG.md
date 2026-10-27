@@ -1,11 +1,13 @@
 # PNG compatibility checks
 
 The normal image oracle replays all 51,024 framebuffer/cache records without
-PNGdec. `png_run.py` additionally checks 4,306 consumer outcomes over 3,806 PNG
+PNGdec. `png_run.py` additionally checks 14,641 consumer outcomes over 5,219 PNG
 inputs, including six cover/thumbnail modes, truncations, byte mutations,
-chunk-length boundaries, unsupported sample combinations, and wide rows.
-The baseline is `da609bbf`; the tall-aspect fixture was captured later from the
-preserved baseline executable. No expected output was captured from Rust.
+chunk-length boundaries, unsupported sample combinations, wide rows, and empty
+or split IDAT transitions. Every BMP case runs with heap storage and borrowed
+scratch; both outputs must match. The baseline is `da609bbf`; later additions
+were captured from preserved baseline executables. No golden was captured from
+Rust; approved replacement outcomes are recorded separately below.
 
 ```sh
 cmake -S test/image_golden -B build/image-golden \
@@ -25,9 +27,17 @@ stale exceptions. These changes were approved by the Phase 7 coordinator:
 - Four unsupported color types reject instead of producing invented gray pixels.
 - Two images with fewer decoded rows than their IHDR height reject.
 
-Valid outputs remain identical. PNGdec's permissive unknown-chunk behavior,
+Valid images decoded by the baseline retain identical output.
+`png-corrected-valid.json` records four valid RGB, indexed, gray-alpha and RGBA
+inputs with one-byte IDAT chunks
+separated by empty IDATs. The old framebuffer decoder rejected them; Rust accepts
+them with the same pixels as each ordinary single-IDAT image. The comparator
+checks the exact old/new outcomes and that ordinary-image equivalence separately
+from the unchanged malformed-input allowlist.
+
+The decoder retains PNGdec's permissive unknown-chunk behavior,
 unchecked non-IHDR CRCs, framebuffer filter-byte fallback, and low-byte tRNS
-handling remain observable. Framebuffer decode still rejects 16-bit samples and
+handling. Framebuffer decode still rejects 16-bit samples and
 Adam7; cover conversion still accepts 16-bit gray/RGB/gray-alpha/RGBA and rejects
 Adam7. Framebuffer rows retain the former 16,416-byte combined-row limit and the
 8,208-pixel expanded-gray limit. BMP has its original 2,048 × 3,072 source bounds.
@@ -42,6 +52,9 @@ variants in the image oracle. These tests do not exercise activity navigation.
 
 `PngResources` fails every Rust allocation, verifies complete cleanup, checks
 BMP output failures, and repeats with an exclusive caller-owned scratch loan.
+The resource runner also checks EOF at every input byte, short reads and recovery
+on format/IDAT-transition fixtures; the BMP facade checks scratch release after
+truncated inputs.
 `png_resources FILE.png` prints allocation count, peak live requested bytes and
 largest request separately for framebuffer, BMP heap and BMP scratch paths.
 Counts cover Rust allocations; HalFile and renderer ownership remain with C++.

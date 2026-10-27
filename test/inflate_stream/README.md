@@ -41,9 +41,11 @@ For capture, build the test against the original C implementation and set
 the miniz sources from `c9330408`; its expected bytes were produced by zlib
 1.2.12. Never replace these goldens with Rust output to resolve a mismatch.
 
-The PNG schedule reproduces the streaming API and row-buffer sizes, not the
-whole PNGdec implementation. Full image and emulator oracles remain necessary
-when switching PNGdec's backend. `mz_inflate` supports `MZ_NO_FLUSH` only;
+The PNG schedule is retained historical adapter coverage: it reproduces
+PNGdec's streaming API calls and row-buffer sizes, not a complete PNG decoder.
+The current Rust PNG decoder calls the inflater directly; use the
+[PNG consumer checks](../image_golden/PNG.md) and image/emulator oracles when
+changing that path. `mz_inflate` supports `MZ_NO_FLUSH` only;
 `mz_inflateInit2` supports window bits 15 and -15.
 
 `InflateMutations` generates 47,886 deterministic schedules: all truncations and

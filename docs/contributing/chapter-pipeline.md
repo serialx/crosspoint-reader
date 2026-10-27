@@ -3,10 +3,11 @@
 Rust owns EPUB parsing and layout, page records, page-byte construction and
 load-time decoding and page rendering through `xp-core::page`. C++ owns file I/O,
 the loaded page allocation and views. Glyph bitmap views and rasterization run
-in Rust; C++ retains font caches and uzlib
-decompression, image decoders and the UI. The wider reader also uses Rust for
-[shared ZIP/PNG/ContentProtection inflate](rust.md#zip-directory-boundary) and
-[SD font and XTC parsing](rust.md#sd-font-and-xtc-parsers).
+in Rust. C++ retains font registration/preparation, built-in/TTF caches,
+JPEGDEC integration and the UI. The wider reader also uses Rust for
+[shared inflate](rust.md#zip-directory-boundary),
+[SD font parsing/cache policy and XTC parsing](rust.md#sd-font-and-xtc-parsers),
+and [PNG/GIF decoding](rust.md#image-pixel-pipeline).
 
 ## Rust chapter assembly
 
@@ -120,14 +121,16 @@ Production measurement and bidi execute in Rust. The synchronous engine borrows
 font tables through a two-family descriptor cache. Chapter metrics borrow the
 cache stored in the stable chapter handle rather than constructing it in each
 metric frame. Other synchronous measurement entries retain their own cache. C++ owns the fonts,
-storage and preparation; nonresident glyphs and TTF work retain dynamic callbacks.
+facade storage and preparation; Rust owns SD cache policy and buffer lifetimes.
+Nonresident glyphs and TTF work retain dynamic callbacks.
 Table loans end before handlers that can mutate storage, and generation changes
 invalidate descriptors before reuse. The generation counter relies on the existing
 serialized owner; it does not make font access thread-safe. On single-core C3 its
 increment uses the interrupt-masking `__atomic_fetch_add_4` helper. C++ also owns
 the shared 3,072-byte bidi storage and mutex, leased exclusively to Rust during
 measurement, ordering and glyph drawing. Rust resolves bitmap views and paints
-glyphs; C++ handles bitmap misses, cache ownership and decompression. Cached EPUB,
+glyphs; C++ routes bitmap misses through the font facades. SD misses use the Rust
+pool; built-in compressed groups use the C++ cache and shared Rust inflater. Cached EPUB,
 rich dictionary, settings preview and dictionary selection pages enter Rust through
 `GfxRenderer::drawPage` once per render pass. Rust traverses the records and calls
 C++ once per image element. Plain dictionary display still draws wrapped spans directly.

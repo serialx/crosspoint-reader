@@ -39,6 +39,7 @@ pub struct Measure {
 pub struct State {
     paragraph: *mut crate::para::paragraph::Paragraph,
     callbacks: *const Callbacks,
+    // Payload drops dereference page_storage: assembly must be dropped first.
     pub assembly: assembly::Assembly<OwnedParagraph, Payload>,
     page_storage: core::cell::UnsafeCell<assembly::runtime::Storage>,
     native_engine: Option<crate::textm::native::Engine>,
@@ -114,6 +115,7 @@ impl State {
     /// # Safety
     /// out is writable, aligned uninitialized storage for State. Callbacks/context
     /// and the optional CSS store outlive this state. Calls are serialized.
+    /// State must remain at this address until dropped: payloads borrow page_storage.
     /// Callbacks may reborrow the supplied State pointer only synchronously; they must
     /// never use an older pointer while a more recent callback owns the reborrow.
     #[allow(clippy::too_many_arguments)] // Construction mirrors the fixed C options and callbacks.

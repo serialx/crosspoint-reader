@@ -25,16 +25,22 @@ struct Slot {
 }
 
 // Growth is build-scoped and fallible; capacity is retained across page completions.
-fn grow<T>(v: &mut Vec<T>, needed: usize) -> Result {
+fn grow<T>(v: &mut Vec<T>, needed: usize, reclaim: unsafe extern "C" fn()) -> Result {
     if needed > v.capacity() {
-        let target = needed;
-        v.try_reserve_exact(target - v.len())
-            .map_err(|_| Error::Allocation)?;
+        let extra = needed - v.len();
+        if v.try_reserve_exact(extra).is_err() {
+            unsafe { reclaim() };
+            v.try_reserve_exact(extra).map_err(|_| Error::Allocation)?;
+        }
     }
     Ok(())
 }
 impl Storage {
-    pub fn encode(&mut self, page: &Page<Payload>) -> Result<&[u8]> {
+    pub fn encode(
+        &mut self,
+        page: &Page<Payload>,
+        reclaim: unsafe extern "C" fn(),
+    ) -> Result<&[u8]> {
         if page.elements.len() > u16::MAX as usize {
             return Err(Error::Allocation);
         }
@@ -57,7 +63,7 @@ impl Storage {
             .len()
             .checked_add(extra)
             .ok_or(Error::Allocation)?;
-        grow(&mut self.bytes, needed)?;
+        grow(&mut self.bytes, needed, reclaim)?;
         self.insert(0, 2);
         let mut cursor = 2;
         for e in &page.elements {
@@ -201,6 +207,7 @@ impl Storage {
         content: Content<'_>,
         links: &[LineLink],
         mut slot: Slot,
+        reclaim: unsafe extern "C" fn(),
     ) -> Result<usize> {
         let mut size = Writer { data: None, pos: 0 };
         builder::element(&mut size, 0, 0, &content).map_err(|_| Error::Allocation)?;
@@ -219,16 +226,16 @@ impl Storage {
             .position(|s| !s.live)
             .unwrap_or(self.slots.len());
         if id == self.slots.len() {
-            grow(&mut self.slots, id + 1)?;
+            grow(&mut self.slots, id + 1, reclaim)?;
         }
         let end = self
             .bytes
             .len()
             .checked_add(size)
             .ok_or(Error::Allocation)?;
-        grow(&mut self.bytes, end)?;
+        grow(&mut self.bytes, end, reclaim)?;
         let link_len = self.links.len() + links.len();
-        grow(&mut self.links, link_len)?;
+        grow(&mut self.links, link_len, reclaim)?;
         let start = self.bytes.len();
         self.bytes.resize(end, 0);
         let mut writer = Writer {
@@ -248,7 +255,14 @@ impl Storage {
         }
         Ok(id)
     }
-    pub fn image(&mut self, path: &[u8], source: &[u8], width: i16, height: i16) -> Result<usize> {
+    pub fn image(
+        &mut self,
+        path: &[u8],
+        source: &[u8],
+        width: i16,
+        height: i16,
+        reclaim: unsafe extern "C" fn(),
+    ) -> Result<usize> {
         self.append(
             Content::Image {
                 path,
@@ -258,11 +272,12 @@ impl Storage {
             },
             &[],
             Slot::empty(),
+            reclaim,
         )
     }
     /// # Safety
     /// The packed graph is valid, aligned and disjoint from storage. It is borrowed from paragraph extraction until this call returns.
-    pub unsafe fn line(&mut self, l: &Output) -> Result<usize> {
+    pub unsafe fn line(&mut self, l: &Output, reclaim: unsafe extern "C" fn()) -> Result<usize> {
         let n = l.count as usize;
         let b = &*l.block;
         let ruby = RubySpans(view(l.ruby, n));
@@ -312,6 +327,7 @@ impl Storage {
             Content::Line(&packed),
             view(l.links.cast(), l.link_count as usize),
             slot,
+            reclaim,
         )?;
         // Cached style: alignment/defined, top/bottom, then the left margin.
         self.slots[id].margin = self.slots[id].size
@@ -404,8 +420,10 @@ mod tests {
     use super::*;
     use crate::page::{self, builder::Builder};
 
+    unsafe extern "C" fn reclaim() {}
+
     fn image(s: &mut Storage, name: &[u8]) -> Payload {
-        let index = s.image(name, b"source", 10, 20).unwrap();
+        let index = s.image(name, b"source", 10, 20, reclaim).unwrap();
         Payload { storage: s, index }
     }
     #[test]
@@ -466,7 +484,7 @@ mod tests {
             },
         )
         .unwrap();
-        let actual = s.encode(&p).unwrap();
+        let actual = s.encode(&p, reclaim).unwrap();
         assert_eq!(actual, b.finish().unwrap());
         let n = actual.len();
         s.retire_page(n);
@@ -479,7 +497,7 @@ mod tests {
             y: 0,
             content: super::super::Content::Image(carried),
         });
-        let actual = s.encode(&p).unwrap();
+        let actual = s.encode(&p, reclaim).unwrap();
         let info = page::inspect(actual).unwrap();
         assert_eq!(info.elements, 1);
         let n = actual.len();
@@ -502,7 +520,7 @@ mod tests {
                 y: 0,
                 content: super::super::Content::Image(line),
             });
-            let length = s.encode(&p).unwrap().len();
+            let length = s.encode(&p, reclaim).unwrap().len();
             s.retire_page(length);
             drop(p);
             let current = (s.bytes.capacity(), s.slots.capacity(), s.links.capacity());

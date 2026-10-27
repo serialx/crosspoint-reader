@@ -1,6 +1,6 @@
 //! Streaming cover/thumbnail conversion with the existing integer box filter and Atkinson thresholds.
 use super::alloc::vec::Vec;
-use super::{zeros, Error, Info, Result, Rows};
+use super::{zeros, Diagnostic, Error, Info, Read, Result, Rows};
 
 pub trait Write {
     fn write(&mut self, bytes: &[u8]) -> bool;
@@ -39,7 +39,12 @@ pub struct Bmp<'a> {
     error_row: usize,
 }
 impl<'a> Bmp<'a> {
-    pub fn new(info: Info, config: Config, output: &'a mut dyn Write) -> Result<Self> {
+    pub fn new(
+        info: Info,
+        config: Config,
+        output: &'a mut dyn Write,
+        input: &mut dyn Read,
+    ) -> Result<Self> {
         let sw = info.width as usize;
         let sh = info.height as usize;
         if sw == 0
@@ -51,6 +56,17 @@ impl<'a> Bmp<'a> {
             || config.width > 3072
             || config.height > 3072
         {
+            if sw == 0 || sh == 0 || sw > 3072 || sh > 3072 {
+                input.diagnostic(Diagnostic::Dimensions, sw as u32, sh as u32, 0, 0);
+            } else {
+                input.diagnostic(
+                    Diagnostic::OutputDimensions,
+                    config.width as u32,
+                    config.height as u32,
+                    0,
+                    0,
+                );
+            }
             return Err(Error::Format);
         }
         let (mut width, mut height) = (config.width as usize, config.height as usize);
@@ -75,6 +91,7 @@ impl<'a> Bmp<'a> {
         let header_size = 54 + colors * 4;
         let image_size = row_bytes * height;
         if image_size + header_size > 4 * 1024 * 1024 {
+            input.diagnostic(Diagnostic::OutputLimit, 0, 0, 0, 0);
             return Err(Error::Format);
         }
         let mut header = [0u8; 70];
@@ -99,6 +116,7 @@ impl<'a> Bmp<'a> {
             header[54 + i * 4..57 + i * 4].fill((i * 255 / (colors - 1)) as u8);
         }
         if !output.write(&header[..header_size]) {
+            input.diagnostic(Diagnostic::BmpHeader, 0, 0, 0, 0);
             return Err(Error::Output);
         }
         let scaling = source_width != width || source_height != height;
@@ -117,11 +135,26 @@ impl<'a> Bmp<'a> {
             next_source_y: 0,
             out_y: 0,
             next_y_end: ((source_height << 16) / height) as u32,
-            gray: zeros(sw)?,
-            scaled: zeros(if scaling { width } else { 0 })?,
-            accum: zeros(if scaling { width * 2 } else { 0 })?,
-            packed: zeros(row_bytes)?,
-            errors: zeros((width + 4) * 3)?,
+            gray: zeros(sw).inspect_err(|_| input.diagnostic(Diagnostic::BmpRows, 0, 0, 0, 0))?,
+            scaled: zeros(if scaling { width } else { 0 })
+                .inspect_err(|_| input.diagnostic(Diagnostic::Scaling, 0, 0, 0, 0))?,
+            accum: zeros(if scaling { width * 2 } else { 0 })
+                .inspect_err(|_| input.diagnostic(Diagnostic::Scaling, 0, 0, 0, 0))?,
+            packed: zeros(row_bytes)
+                .inspect_err(|_| input.diagnostic(Diagnostic::BmpRows, 0, 0, 0, 0))?,
+            errors: zeros((width + 4) * 3).inspect_err(|_| {
+                input.diagnostic(
+                    if config.one_bit != 0 {
+                        Diagnostic::Atkinson1
+                    } else {
+                        Diagnostic::Atkinson2
+                    },
+                    0,
+                    0,
+                    0,
+                    0,
+                )
+            })?,
             error_row: 0,
         })
     }
@@ -265,6 +298,12 @@ impl Rows for Bmp<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    struct Input;
+    impl Read for Input {
+        fn read(&mut self, _: u32, _: &mut [u8]) -> usize {
+            0
+        }
+    }
     struct Output;
     impl Write for Output {
         fn write(&mut self, _: &[u8]) -> bool {
@@ -290,6 +329,7 @@ mod tests {
                         original_thresholds: 0,
                     },
                     &mut output,
+                    &mut Input,
                 )
                 .unwrap();
                 assert_eq!(
@@ -318,6 +358,7 @@ mod tests {
                 original_thresholds: 0,
             },
             &mut output,
+            &mut Input,
         )
         .unwrap();
         assert_eq!((bmp.width, bmp.height), (240, 180));
@@ -340,7 +381,8 @@ mod tests {
                     one_bit: 0,
                     original_thresholds: 0
                 },
-                &mut output
+                &mut output,
+                &mut Input
             )
             .is_err());
         }

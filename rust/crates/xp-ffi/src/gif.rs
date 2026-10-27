@@ -2,7 +2,7 @@
 use crate::image::Callbacks;
 use core::ffi::c_void;
 use xp_core::{
-    gif::{self, bmp, Info, Read, Rows},
+    gif::{self, bmp, Diagnostic, Info, Read, Rows},
     image::{self, Config, Pipeline},
 };
 
@@ -12,8 +12,14 @@ pub struct Input {
     context: *mut c_void,
     read: unsafe extern "C" fn(*mut c_void, u32, *mut u8, usize) -> usize,
     poll: unsafe extern "C" fn(*mut c_void),
+    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 impl Read for Input {
+    fn diagnostic(&mut self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {
+        if let Some(callback) = self.diagnostic {
+            unsafe { callback(self.context, event as u32, a, b, c, d) };
+        }
+    }
     fn read(&mut self, offset: u32, bytes: &mut [u8]) -> usize {
         unsafe { (self.read)(self.context, offset, bytes.as_mut_ptr(), bytes.len()) }
     }
@@ -96,26 +102,89 @@ pub unsafe extern "C" fn xp_gif_frame(
     }
     let mut input = *input;
     let mut info = Info::default();
-    if !gif::inspect(&mut input, &mut info) || info.interlaced != 0 || info.width > gif::MAX_WIDTH {
+    if !gif::inspect(&mut input, &mut info) {
+        input.diagnostic(Diagnostic::InvalidHeader, 0, 0, 0, 0);
         return false;
     }
+    if info.interlaced != 0 {
+        input.diagnostic(Diagnostic::Interlace, 0, 0, 0, 0);
+        return false;
+    }
+    if info.width > gif::MAX_WIDTH {
+        if info.width > gif::MAX_WIDTH {
+            input.diagnostic(
+                Diagnostic::CanvasWidth,
+                u32::from(info.width),
+                u32::from(info.height),
+                0,
+                0,
+            );
+        }
+        return false;
+    }
+    if info.width == 0
+        || info.height == 0
+        || info.height > 32767
+        || u32::from(info.width) * u32::from(info.height) > 8388608
+    {
+        input.diagnostic(
+            Diagnostic::FrameDimensions,
+            u32::from(info.width),
+            u32::from(info.height),
+            0,
+            0,
+        );
+        return false;
+    }
+    input.diagnostic(
+        Diagnostic::FrameHeader,
+        u32::from(info.width) | u32::from(info.height) << 16,
+        u32::from(info.frame_width) | u32::from(info.frame_height) << 16,
+        u32::from(info.x) | u32::from(info.y) << 16,
+        u32::from(info.interlaced),
+    );
     let mut config = *config;
     config.kind = 2;
     let Some(pipeline) = Pipeline::new(config, info.width as i32, info.height as i32, false) else {
+        input.diagnostic(Diagnostic::Pipeline, 0, 0, 0, 0);
         return false;
     };
     let mut frame = Frame {
         pipeline,
         sink: *sink,
     };
-    if !frame.pipeline.prepare() || (cache && !frame.pipeline.start_cache(&mut frame.sink)) {
+    if !frame.pipeline.prepare() {
+        input.diagnostic(Diagnostic::PipelineAlloc, 0, 0, 0, 0);
         return false;
     }
-    if gif::decode(&mut input, &mut frame).is_err() {
+    if cache && !frame.pipeline.start_cache(&mut frame.sink) {
+        input.diagnostic(Diagnostic::Cache, 0, 0, 0, 0);
+        return false;
+    }
+    input.diagnostic(Diagnostic::DecodeStart, 0, 0, 0, 0);
+    if let Err(error) = gif::decode(&mut input, &mut frame) {
+        if error == gif::Error::Memory {
+            return false;
+        }
+        input.diagnostic(
+            if error == gif::Error::Open {
+                Diagnostic::Open
+            } else {
+                Diagnostic::Decode
+            },
+            u32::from(info.width),
+            u32::from(info.height),
+            0,
+            0,
+        );
         return false;
     }
     let cached = frame.pipeline.finish(&mut frame.sink);
-    frame.pipeline.success() && (!cache || cached)
+    let ok = frame.pipeline.success() && (!cache || cached);
+    if !ok {
+        input.diagnostic(Diagnostic::Finish, 0, 0, 0, 0);
+    }
+    ok
 }
 
 /// # Safety
@@ -132,12 +201,40 @@ pub unsafe extern "C" fn xp_gif_bmp(
     }
     let mut input = *input;
     let mut info = Info::default();
-    if !gif::inspect(&mut input, &mut info) || info.interlaced != 0 {
+    if !gif::inspect(&mut input, &mut info) {
+        input.diagnostic(Diagnostic::InvalidHeader, 0, 0, 0, 0);
+        return false;
+    }
+    if info.interlaced != 0 {
+        input.diagnostic(Diagnostic::InterlaceBmp, 0, 0, 0, 0);
         return false;
     }
     let mut output = *output;
-    let Ok(mut bmp) = bmp::Bmp::new(info, *config, &mut output) else {
+    let Ok(mut bmp) = bmp::Bmp::new(info, *config, &mut output, &mut input) else {
         return false;
     };
-    gif::decode(&mut input, &mut bmp).is_ok() && bmp.finish()
+    input.diagnostic(Diagnostic::DecodeStart, 0, 0, 0, 0);
+    if let Err(error) = gif::decode(&mut input, &mut bmp) {
+        if error == gif::Error::Memory {
+            return false;
+        }
+        input.diagnostic(
+            if error == gif::Error::Open {
+                Diagnostic::Open
+            } else {
+                Diagnostic::Decode
+            },
+            0,
+            0,
+            0,
+            0,
+        );
+        return false;
+    }
+    if !bmp.finish() {
+        input.diagnostic(Diagnostic::Postprocess, 0, 0, 0, 0);
+        return false;
+    }
+    input.diagnostic(Diagnostic::Complete, 0, 0, 0, 0);
+    true
 }

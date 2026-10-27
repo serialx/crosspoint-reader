@@ -6,7 +6,49 @@ pub mod bmp;
 
 pub const MAX_WIDTH: u16 = 3072;
 
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum Diagnostic {
+    BlockLength = 1,
+    BlockSkip = 2,
+    HeaderRead = 3,
+    Signature = 4,
+    MarkerRead = 5,
+    Trailer = 6,
+    ExtensionLabel = 7,
+    ExtensionData = 8,
+    Descriptor = 9,
+    CodeSize = 10,
+    Marker = 11,
+    InvalidHeader = 12,
+    InterlaceBmp = 13,
+    Dimensions = 14,
+    OutputDimensions = 15,
+    OutputLimit = 16,
+    BmpHeader = 17,
+    BmpRows = 18,
+    Scaling = 19,
+    Atkinson1 = 20,
+    Atkinson2 = 21,
+    DecoderAlloc = 22,
+    Decode = 23,
+    Postprocess = 24,
+    Complete = 25,
+    FrameHeader = 26,
+    CanvasWidth = 27,
+    Cache = 28,
+    Finish = 29,
+    Pipeline = 30,
+    PipelineAlloc = 31,
+    Open = 32,
+    Interlace = 33,
+    FrameDimensions = 34,
+    FrameEnd = 35,
+    DecodeStart = 36,
+}
+
 pub trait Read {
+    fn diagnostic(&mut self, _event: Diagnostic, _a: u32, _b: u32, _c: u32, _d: u32) {}
     fn read(&mut self, offset: u32, output: &mut [u8]) -> usize;
     fn poll(&mut self) {}
 }
@@ -26,6 +68,7 @@ pub struct Info {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     Input,
+    Open,
     Format,
     Memory,
     Output,
@@ -47,12 +90,15 @@ fn byte(input: &mut dyn Read, offset: &mut u32) -> Result<u8> {
     Ok(b[0])
 }
 fn skip_blocks(input: &mut dyn Read, offset: &mut u32) -> Result<()> {
+    let mut previous = 0;
     loop {
-        let len = byte(input, offset)?;
+        let len = byte(input, offset)
+            .inspect_err(|_| input.diagnostic(Diagnostic::BlockLength, previous, 0, 0, 0))?;
         if len == 0 {
             return Ok(());
         }
         *offset = offset.checked_add(len as u32).ok_or(Error::Input)?;
+        previous = u32::from(len);
     }
 }
 fn le16(b: &[u8]) -> u16 {
@@ -71,8 +117,10 @@ fn header(input: &mut dyn Read, info: &mut Info) -> Result<Header> {
     *info = Info::default();
     let mut offset = 0;
     let mut head = [0; 13];
-    exact(input, &mut offset, &mut head)?;
+    exact(input, &mut offset, &mut head)
+        .inspect_err(|_| input.diagnostic(Diagnostic::HeaderRead, 0, 0, 0, 0))?;
     if &head[..6] != b"GIF87a" && &head[..6] != b"GIF89a" {
+        input.diagnostic(Diagnostic::Signature, 0, 0, 0, 0);
         return Err(Error::Format);
     }
     info.width = le16(&head[6..]);
@@ -87,9 +135,18 @@ fn header(input: &mut dyn Read, info: &mut Info) -> Result<Header> {
     let mut transparent = None;
     let mut supported_extensions = true;
     loop {
-        match byte(input, &mut offset)? {
+        match byte(input, &mut offset).inspect_err(|_| {
+            input.diagnostic(
+                Diagnostic::MarkerRead,
+                u32::from(offset == 13 + colors as u32 * 3 && colors != 0),
+                0,
+                0,
+                0,
+            )
+        })? {
             0x21 => {
-                let label = byte(input, &mut offset)?;
+                let label = byte(input, &mut offset)
+                    .inspect_err(|_| input.diagnostic(Diagnostic::ExtensionLabel, 0, 0, 0, 0))?;
                 if ![1, 0xf9, 0xfe, 0xff].contains(&label) {
                     supported_extensions = false;
                 }
@@ -102,11 +159,13 @@ fn header(input: &mut dyn Read, info: &mut Info) -> Result<Header> {
                         supported_extensions = false;
                     }
                 }
-                skip_blocks(input, &mut offset)?;
+                skip_blocks(input, &mut offset)
+                    .inspect_err(|_| input.diagnostic(Diagnostic::ExtensionData, 0, 0, 0, 0))?;
             }
             0x2c => {
                 let mut desc = [0; 9];
-                exact(input, &mut offset, &mut desc)?;
+                exact(input, &mut offset, &mut desc)
+                    .inspect_err(|_| input.diagnostic(Diagnostic::Descriptor, 0, 0, 0, 0))?;
                 info.x = le16(&desc);
                 info.y = le16(&desc[2..]);
                 info.frame_width = le16(&desc[4..]);
@@ -117,8 +176,10 @@ fn header(input: &mut dyn Read, info: &mut Info) -> Result<Header> {
                     palette = offset;
                     offset = offset.checked_add(colors as u32 * 3).ok_or(Error::Input)?;
                 }
-                let code_size = byte(input, &mut offset)?;
+                let code_size = byte(input, &mut offset)
+                    .inspect_err(|_| input.diagnostic(Diagnostic::CodeSize, 0, 0, 0, 0))?;
                 if !(2..=8).contains(&code_size) {
+                    input.diagnostic(Diagnostic::CodeSize, 0, 0, 0, 0);
                     return Err(Error::Format);
                 }
                 return Ok(Header {
@@ -130,7 +191,20 @@ fn header(input: &mut dyn Read, info: &mut Info) -> Result<Header> {
                     supported_extensions,
                 });
             }
-            _ => return Err(Error::Format),
+            marker => {
+                input.diagnostic(
+                    if marker == 0x3b {
+                        Diagnostic::Trailer
+                    } else {
+                        Diagnostic::Marker
+                    },
+                    u32::from(marker),
+                    0,
+                    0,
+                    0,
+                );
+                return Err(Error::Format);
+            }
         }
     }
 }
@@ -161,6 +235,18 @@ struct Codes<'a> {
     ended: bool,
 }
 impl Codes<'_> {
+    fn report_end(&mut self) {
+        // Match the legacy read-position heuristic using existing decoder read-ahead.
+        // Diagnostics must not read unused image data after decoding has stopped.
+        let Some(unread) = self.end.checked_sub(self.at) else {
+            return;
+        };
+        let Some(offset) = self.offset.checked_sub(unread as u32) else {
+            return;
+        };
+        self.input.diagnostic(Diagnostic::FrameEnd, offset, 0, 0, 0);
+    }
+
     #[inline(always)]
     fn raw(&mut self) -> Result<u8> {
         if self.at == self.end {
@@ -289,8 +375,10 @@ fn expand(mut current: usize, table: &[u32], output: &mut [u8]) {
 pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
     let mut info = Info::default();
     let h = header(input, &mut info)?;
-    if !h.supported_extensions
-        || info.width == 0
+    if !h.supported_extensions {
+        return Err(Error::Open);
+    }
+    if info.width == 0
         || info.height == 0
         || info.width > MAX_WIDTH
         || info.height > 32767
@@ -300,8 +388,10 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
         return Err(Error::Format);
     }
     // Prefix links, suffix bytes and expansion stack are bounded by the 12-bit GIF dictionary.
-    let mut table = zeros::<u32>(4096)?;
-    let mut bytes = zeros::<u8>(4096 + 1024 + 1024 + 256 + info.frame_width as usize)?;
+    let mut table = zeros::<u32>(4096)
+        .inspect_err(|_| input.diagnostic(Diagnostic::DecoderAlloc, 0, 0, 0, 0))?;
+    let mut bytes = zeros::<u8>(4096 + 1024 + 1024 + 256 + info.frame_width as usize)
+        .inspect_err(|_| input.diagnostic(Diagnostic::DecoderAlloc, 0, 0, 0, 0))?;
     let (stack, bytes) = bytes.split_at_mut(4096);
     let (buffer, bytes) = bytes.split_at_mut(1024);
     let (plain, bytes) = bytes.split_at_mut(1024);
@@ -351,6 +441,7 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
             continue;
         }
         if code == clear + 1 {
+            codes.report_end();
             return Ok(());
         }
         let special = code == next && previous.is_some();
@@ -427,6 +518,9 @@ pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
                 x = 0;
             }
         }
+    }
+    if info.frame_width != 0 && info.frame_height != 0 {
+        codes.report_end();
     }
     Ok(())
 }

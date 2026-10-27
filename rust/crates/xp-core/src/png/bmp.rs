@@ -1,6 +1,6 @@
 //! PNG cover scaling and Atkinson output, preserving the existing BMP bytes.
 use super::alloc::vec::Vec;
-use super::{zeros, Decoder, Info, Source};
+use super::{zeros, Decoder, Diagnostic, Info, Source};
 use crate::image::Row;
 
 #[repr(C)]
@@ -16,6 +16,7 @@ pub struct Config {
 pub trait Output {
     fn write(&mut self, bytes: &[u8]) -> bool;
     fn yield_rows(&mut self);
+    fn diagnostic(&mut self, _event: Diagnostic, _a: u32, _b: u32, _c: u32, _d: u32) {}
 }
 
 struct Bmp {
@@ -36,7 +37,7 @@ struct Bmp {
 }
 
 impl Bmp {
-    fn new(info: Info, config: Config) -> Option<Self> {
+    fn new(info: Info, config: Config, output: &mut impl Output) -> Option<Self> {
         let mut width = info.width;
         let mut height = info.height;
         let scaling = config.width > 0
@@ -56,6 +57,9 @@ impl Bmp {
         if width > i32::MAX as u32 || height > i32::MAX as u32 || scale_x == 0 || scale_y == 0 {
             return None;
         }
+        if scaling {
+            output.diagnostic(Diagnostic::Scaling, info.width, info.height, width, height);
+        }
         let width = width as usize;
         let stride = (width * if config.one_bit { 1 } else { 2 }).div_ceil(32) * 4;
         Some(Self {
@@ -66,11 +70,36 @@ impl Bmp {
             scaling,
             y: 0,
             next_y: scale_y,
-            row: zeros(stride)?,
-            gray: zeros(info.width as usize)?,
-            errors: zeros(width.checked_add(4)?.checked_mul(3)?)?,
-            accum: zeros(if scaling { width } else { 0 })?,
-            counts: zeros(if scaling { width } else { 0 })?,
+            row: zeros(stride).or_else(|| {
+                output.diagnostic(Diagnostic::RowScratch, stride as u32, 0, 0, 0);
+                None
+            })?,
+            gray: zeros(info.width as usize).or_else(|| {
+                output.diagnostic(Diagnostic::RowScratch, info.width, 0, 0, 0);
+                None
+            })?,
+            errors: zeros(width.checked_add(4)?.checked_mul(3)?).or_else(|| {
+                output.diagnostic(
+                    if config.one_bit {
+                        Diagnostic::Atkinson1
+                    } else {
+                        Diagnostic::Atkinson2
+                    },
+                    0,
+                    0,
+                    0,
+                    0,
+                );
+                None
+            })?,
+            accum: zeros(if scaling { width } else { 0 }).or_else(|| {
+                output.diagnostic(Diagnostic::Accumulators, 0, 0, 0, 0);
+                None
+            })?,
+            counts: zeros(if scaling { width } else { 0 }).or_else(|| {
+                output.diagnostic(Diagnostic::Accumulators, 0, 0, 0, 0);
+                None
+            })?,
             error_row: 0,
             config,
         })
@@ -253,13 +282,18 @@ pub fn convert(
     output: &mut impl Output,
 ) -> bool {
     if !decoder.chunk(source) {
+        source.diagnostic(Diagnostic::Idat, 0, 0, 0, 0);
         return false;
     }
-    let Some(mut bmp) = Bmp::new(decoder.info, config) else {
+    let Some(mut bmp) = Bmp::new(decoder.info, config, output) else {
         return false;
     };
     if !bmp.header(output) {
         return false;
     }
-    decoder.decode(source, |row, entries| bmp.row(row, entries, output))
+    let ok = decoder.decode(source, |row, entries| bmp.row(row, entries, output));
+    if ok {
+        output.diagnostic(Diagnostic::Complete, 0, 0, 0, 0);
+    }
+    ok
 }

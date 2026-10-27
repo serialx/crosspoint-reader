@@ -75,6 +75,56 @@ pub struct Services {
     pub heap: unsafe extern "C" fn(bool) -> u32,
     pub clock: unsafe extern "C" fn() -> u32,
     pub corrupt: unsafe extern "C" fn(*mut c_void, *const Glyph, u32),
+    pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
+}
+#[repr(u32)]
+enum Diagnostic {
+    LigatureOpen = 1,
+    LigatureAlloc = 2,
+    LigatureRead = 3,
+    LigaturesLoaded = 4,
+    KernOpen = 5,
+    KernScratch = 6,
+    KernClasses = 7,
+    KernAlloc = 8,
+    KernRow = 9,
+    KernBuilt = 10,
+    Codepoints = 11,
+    ArenaRetry = 12,
+    ResidentCodepoints = 13,
+    Underuse = 14,
+    Mapping = 15,
+    Intervals = 16,
+    Glyphs = 17,
+    ReadOrder = 18,
+    PrewarmOpen = 19,
+    PrewarmGlyph = 20,
+    RetryBitmap = 21,
+    ReserveBitmap = 22,
+    ReservedBitmap = 23,
+    Bitmap = 24,
+    BitmapOrder = 25,
+    PrewarmBitmap = 26,
+    AdvanceMerge = 27,
+    AdvanceMapping = 28,
+    AdvanceOpen = 29,
+    AdvanceStaging = 30,
+    AdvanceGlyph = 31,
+    AdvanceLoaded = 32,
+    AdvanceGrow = 33,
+    AdvanceCodepoints = 34,
+    OverflowOpen = 35,
+    OverflowGlyph = 36,
+    OverflowAlloc = 37,
+    OverflowBitmap = 38,
+    OverflowLoaded = 39,
+}
+impl Services {
+    fn log(&self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {
+        if let Some(callback) = self.diagnostic {
+            unsafe { callback(self.context, event as u32, a, b, c, d) };
+        }
+    }
 }
 #[repr(C)]
 pub struct Cache {
@@ -297,11 +347,13 @@ impl Resident {
             return true;
         }
         let Some(file) = File::open(io) else {
+            io.log(Diagnostic::LigatureOpen, 0, 0, 0, 0);
             return false;
         };
         self.ligature_pairs =
             unsafe { (io.alloc)(usize::from(self.header.ligature_pair_count) * 8, true) }.cast();
         if self.ligature_pairs.is_null() {
+            io.log(Diagnostic::LigatureAlloc, 0, 0, 0, 0);
             return false;
         }
         if !file.read(
@@ -309,6 +361,7 @@ impl Resident {
             self.ligature_pairs,
             usize::from(self.header.ligature_pair_count),
         ) {
+            io.log(Diagnostic::LigatureRead, 0, 0, 0, 0);
             unsafe {
                 self.free_ligatures(io);
             }
@@ -317,6 +370,13 @@ impl Resident {
         self.ligatures_loaded = true;
         self.stub.ligature_pairs = self.ligature_pairs;
         self.stub.ligature_pair_count = u32::from(self.header.ligature_pair_count);
+        io.log(
+            Diagnostic::LigaturesLoaded,
+            u32::from(self.header.ligature_pair_count),
+            0,
+            0,
+            0,
+        );
         true
     }
     fn apply_kern(&mut self) {
@@ -421,6 +481,7 @@ impl Cache {
         }
         let cap = (old + new.len()).min(ADVANCE_LIMIT);
         if !unsafe { self.grow(style, cap as u32) } {
+            unsafe { self.io() }.log(Diagnostic::AdvanceMerge, cap as u32, style as u32, 0, 0);
             return;
         }
         let p = unsafe { *self.advances.add(style) };
@@ -615,6 +676,7 @@ impl Cache {
         let s = unsafe { &*self.resident(style) };
         let mappings = Buffer::<Mapping>::new(cps.len(), io);
         if !mappings.ok() {
+            io.log(Diagnostic::AdvanceMapping, style as u32, 0, 0, 0);
             return cps.len() as i32;
         }
         let mut need = 0;
@@ -639,10 +701,12 @@ impl Cache {
             |m| m.index,
         );
         let Some(file) = File::open(io) else {
+            io.log(Diagnostic::AdvanceOpen, style as u32, 0, 0, 0);
             return missed;
         };
         let staged = Buffer::<Advance>::new(need, io);
         if !staged.ok() {
+            io.log(Diagnostic::AdvanceStaging, style as u32, 0, 0, 0);
             return missed;
         }
         let mut fetched = 0;
@@ -656,6 +720,7 @@ impl Cache {
                 1,
                 m.index as i32 != last.wrapping_add(1),
             ) {
+                io.log(Diagnostic::AdvanceGlyph, m.index, style as u32, 0, 0);
                 break;
             }
             last = m.index as i32;
@@ -676,6 +741,13 @@ impl Cache {
         let staged = unsafe { slice::from_raw_parts_mut(staged.data, fetched) };
         sort_by_key(staged, |a| a.codepoint);
         unsafe { self.merge(style, staged) };
+        io.log(
+            Diagnostic::AdvanceLoaded,
+            style as u32,
+            fetched as u32,
+            unsafe { *self.advance_sizes.add(style) },
+            ADVANCE_LIMIT as u32,
+        );
         missed
     }
     /// # Safety
@@ -698,8 +770,9 @@ impl Cache {
             let size = unsafe { *self.advance_sizes.add(style) };
             if size < ADVANCE_LIMIT as u32
                 && unsafe { *self.advance_capacities.add(style) } - size < 64
+                && !unsafe { self.grow(style, (size + 64).min(ADVANCE_LIMIT as u32)) }
             {
-                unsafe { self.grow(style, (size + 64).min(ADVANCE_LIMIT as u32)) };
+                io.log(Diagnostic::AdvanceGrow, style as u32, 0, 0, 0);
             }
         }
         let mut open = 0;
@@ -731,6 +804,13 @@ impl Cache {
         };
         let values = if let Some(b) = heap.as_mut() {
             if !b.ok() {
+                io.log(
+                    Diagnostic::AdvanceCodepoints,
+                    ((limit + 2) * 4) as u32,
+                    0,
+                    0,
+                    0,
+                );
                 return -1;
             }
             unsafe {
@@ -806,6 +886,7 @@ impl Cache {
         };
         let io = unsafe { &*self.services };
         let Some(file) = File::open(io) else {
+            io.log(Diagnostic::OverflowOpen, 0, 0, 0, 0);
             return ptr::null();
         };
         let mut glyph: Glyph = unsafe { zero() };
@@ -814,6 +895,7 @@ impl Cache {
             &mut glyph,
             1,
         ) {
+            io.log(Diagnostic::OverflowGlyph, cp, style as u32, 0, 0);
             return ptr::null();
         }
         if !unsafe { self.valid(s, &glyph, cp) } {
@@ -823,6 +905,13 @@ impl Cache {
         if glyph.data_length > 0 {
             bitmap = unsafe { (io.alloc)(usize::from(glyph.data_length), true) };
             if bitmap.is_null() {
+                io.log(
+                    Diagnostic::OverflowAlloc,
+                    u32::from(glyph.data_length),
+                    cp,
+                    0,
+                    0,
+                );
                 return ptr::null();
             }
             if !file.read(
@@ -830,6 +919,7 @@ impl Cache {
                 bitmap,
                 usize::from(glyph.data_length),
             ) {
+                io.log(Diagnostic::OverflowBitmap, cp, 0, 0, 0);
                 unsafe { (io.free)(bitmap, true) };
                 return ptr::null();
             }
@@ -846,6 +936,7 @@ impl Cache {
         e.bitmap = bitmap;
         e.codepoint = cp;
         e.style = style as u8;
+        io.log(Diagnostic::OverflowLoaded, cp, style as u32, slot as u32, 8);
         &e.glyph
     }
 }
@@ -937,6 +1028,7 @@ impl Resident {
             return true;
         }
         let Some(file) = File::open(io) else {
+            io.log(Diagnostic::KernOpen, 0, 0, 0, 0);
             unsafe { self.free_kern(io) };
             return false;
         };
@@ -945,6 +1037,7 @@ impl Resident {
             io,
         );
         if !scratch.ok() {
+            io.log(Diagnostic::KernScratch, scratch.count as u32, 0, 0, 0);
             unsafe { self.free_kern(io) };
             return false;
         }
@@ -985,6 +1078,7 @@ impl Resident {
                 self.kern_block_index_ready,
             )
         } {
+            io.log(Diagnostic::KernClasses, 0, 0, 0, 0);
             unsafe { self.free_kern(io) };
             return false;
         }
@@ -1044,6 +1138,13 @@ impl Resident {
                 )
             }
         {
+            io.log(
+                Diagnostic::KernAlloc,
+                u32::from(lentries) * 3,
+                u32::from(rentries) * 3,
+                (lc * rc) as u32,
+                0,
+            );
             unsafe { self.free_kern(io) };
             return false;
         }
@@ -1077,6 +1178,7 @@ impl Resident {
                 block,
                 usize::from(self.header.kern_right_class_count),
             ) {
+                io.log(Diagnostic::KernRow, u32::from(old_l), 0, 0, 0);
                 unsafe { self.free_kern(io) };
                 return false;
             }
@@ -1091,6 +1193,13 @@ impl Resident {
         self.kern_right_entries = ri as u16;
         self.kern_left_count = lc as u8;
         self.kern_right_count = rc as u8;
+        io.log(
+            Diagnostic::KernBuilt,
+            lc as u32,
+            rc as u32,
+            u32::from(self.header.kern_left_class_count),
+            u32::from(self.header.kern_right_class_count),
+        );
         true
     }
 }
@@ -1145,6 +1254,7 @@ impl Cache {
         }
         let buffer = Buffer::<u32>::new(PAGE_LIMIT, io);
         if !buffer.ok() {
+            io.log(Diagnostic::Codepoints, (PAGE_LIMIT * 4) as u32, 0, 0, 0);
             return -1;
         }
         let p = buffer.data;
@@ -1204,9 +1314,17 @@ impl Cache {
             let mut result = unsafe { self.prewarm_style(style, cps, metadata, kern, accumulate) };
             if result == ARENA_TOO_LARGE {
                 let per = unsafe { (*self.resident(style)).measured_bytes_per_glyph }.max(1);
-                let arena = unsafe { (io.heap)(true) }.saturating_sub(4096);
+                let max_alloc = unsafe { (io.heap)(true) };
+                let arena = max_alloc.saturating_sub(4096);
                 let mut fit = ((arena / per) as usize).min(count);
                 while fit > 0 {
+                    io.log(
+                        Diagnostic::ArenaRetry,
+                        count as u32,
+                        fit as u32,
+                        per,
+                        max_alloc,
+                    );
                     result = unsafe {
                         self.prewarm_style(style, &cps[..fit], metadata, kern, accumulate)
                     };
@@ -1270,6 +1388,15 @@ impl Cache {
                             }
                         }
                     }
+                    if !resident.ok() {
+                        io.log(
+                            Diagnostic::ResidentCodepoints,
+                            s.glyph_count,
+                            style as u32,
+                            0,
+                            0,
+                        );
+                    }
                     let cps = if resident.ok() {
                         unsafe { table(resident.data, n) }
                     } else {
@@ -1288,6 +1415,7 @@ impl Cache {
             if s.bitmap_used < s.bitmap_capacity - s.bitmap_capacity / 4 {
                 s.underuse_runs += 1;
                 if s.underuse_runs >= 3 {
+                    io.log(Diagnostic::Underuse, s.bitmap_used, s.bitmap_capacity, 0, 0);
                     unsafe { s.free_mini(io) }
                 }
             } else {
@@ -1354,6 +1482,7 @@ impl Cache {
         let mut mappings = Some(Buffer::<Mapping>::new(cps.len(), io));
         let mapping = mappings.as_ref().map_or(ptr::null_mut(), |b| b.data);
         if mapping.is_null() {
+            io.log(Diagnostic::Mapping, style as u32, 0, 0, 0);
             return cps.len() as i32;
         }
         let mut valid = 0;
@@ -1384,6 +1513,7 @@ impl Cache {
                 io,
             )
         } {
+            io.log(Diagnostic::Intervals, style as u32, 0, 0, 0);
             return cps.len() as i32;
         }
         let mut range = 0;
@@ -1405,6 +1535,7 @@ impl Cache {
             }
         }
         if !unsafe { ensure(&mut s.mini_glyphs, &mut s.glyph_capacity, valid as u32, io) } {
+            io.log(Diagnostic::Glyphs, style as u32, 0, 0, 0);
             unsafe { s.free_mini(io) };
             return cps.len() as i32;
         }
@@ -1412,6 +1543,7 @@ impl Cache {
         let mut order = Some(Buffer::<u32>::new(valid, io));
         let p = order.as_ref().map_or(ptr::null_mut(), |b| b.data);
         if p.is_null() {
+            io.log(Diagnostic::ReadOrder, style as u32, 0, 0, 0);
             unsafe { s.free_mini(io) };
             return cps.len() as i32;
         }
@@ -1420,6 +1552,7 @@ impl Cache {
         }
         // Validated intervals map ascending codepoints to ascending glyph indices.
         let Some(file) = File::open(io) else {
+            io.log(Diagnostic::PrewarmOpen, style as u32, 0, 0, 0);
             unsafe { s.free_mini(io) };
             return cps.len() as i32;
         };
@@ -1439,6 +1572,7 @@ impl Cache {
                 1,
                 m.index as i32 != last.wrapping_add(1),
             ) {
+                io.log(Diagnostic::PrewarmGlyph, m.index, style as u32, 0, 0);
                 unsafe { s.free_mini(io) };
                 return cps.len() as i32;
             }
@@ -1465,14 +1599,24 @@ impl Cache {
                     let mut ready =
                         unsafe { ensure(&mut s.mini_bitmap, &mut s.bitmap_capacity, total, io) };
                     if !ready && (0..4).any(|i| unsafe { *self.advance_sizes.add(i) > 0 }) {
+                        let before = unsafe { (io.heap)(true) };
                         unsafe { self.clear_advances() };
+                        io.log(
+                            Diagnostic::RetryBitmap,
+                            before,
+                            unsafe { (io.heap)(true) },
+                            0,
+                            0,
+                        );
                         ready = unsafe {
                             ensure(&mut s.mini_bitmap, &mut s.bitmap_capacity, total, io)
                         };
                     }
                     if !ready {
+                        io.log(Diagnostic::ReserveBitmap, total, style as u32, 0, 0);
                         return ARENA_TOO_LARGE;
                     }
+                    io.log(Diagnostic::ReservedBitmap, total, 0, 0, 0);
                     unsafe {
                         (*self.stats).read_ms = (*self.stats)
                             .read_ms
@@ -1483,6 +1627,7 @@ impl Cache {
                 }
             }
             if !unsafe { ensure(&mut s.mini_bitmap, &mut s.bitmap_capacity, total, io) } {
+                io.log(Diagnostic::Bitmap, total, style as u32, 0, 0);
                 unsafe { s.free_mini(io) };
                 return ARENA_TOO_LARGE;
             }
@@ -1490,6 +1635,7 @@ impl Cache {
             if order.is_none() {
                 let buffer = Buffer::<u32>::new(valid, io);
                 if !buffer.ok() {
+                    io.log(Diagnostic::BitmapOrder, style as u32, 0, 0, 0);
                     unsafe { s.free_mini(io) };
                     return cps.len() as i32;
                 }
@@ -1521,6 +1667,7 @@ impl Cache {
                     usize::from(g.data_length),
                     offset != last_end,
                 ) {
+                    io.log(Diagnostic::PrewarmBitmap, style as u32, 0, 0, 0);
                     unsafe { s.free_mini(io) };
                     return cps.len() as i32;
                 }
@@ -1625,7 +1772,7 @@ const _: () = {
     let expected = [
         400, 0, 24, 52, 56, 60, 64, 68, 72, 76, 80, 200, 320, 324, 328, 332, 336, 340, 344, 348,
         352, 356, 360, 361, 362, 364, 368, 372, 374, 376, 377, 380, 384, 386, 388, 392, 396, 28,
-        16, 20, 24, 20, 48, 36, 20,
+        16, 20, 24, 20, 48, 40, 20,
     ];
     let mut i = 0;
     while i < LAYOUT.len() {

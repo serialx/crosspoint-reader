@@ -14,7 +14,44 @@ pub mod bmp;
 pub const ROW_LIMIT: usize = 16416;
 const WINDOW: usize = 32768;
 
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum Diagnostic {
+    Signature = 1,
+    Ihdr = 2,
+    Image = 3,
+    Method = 4,
+    Interlace = 5,
+    Dimensions = 6,
+    Color = 7,
+    RowSize = 8,
+    Scanline = 9,
+    Idat = 10,
+    Inflate = 11,
+    Scaling = 12,
+    RowScratch = 13,
+    Atkinson1 = 14,
+    Atkinson2 = 15,
+    Accumulators = 16,
+    ScanlineDecode = 17,
+    Filter = 18,
+    Complete = 19,
+    Open = 20,
+    DecoderAlloc = 21,
+    Pipeline = 22,
+    PipelineAlloc = 23,
+    Cache = 24,
+    DecodeStart = 25,
+    DecodeFailed = 26,
+    DecodeComplete = 27,
+    UnsupportedDepth = 28,
+    RowBuffer = 29,
+    FrameDimensions = 30,
+    GrayWidth = 31,
+}
+
 pub trait Source {
+    fn diagnostic(&mut self, _event: Diagnostic, _a: u32, _b: u32, _c: u32, _d: u32) {}
     fn read(&mut self, offset: u32, bytes: &mut [u8]) -> usize;
     fn len(&self) -> u32;
     fn progress(&mut self) {}
@@ -45,16 +82,45 @@ fn be32(bytes: &[u8]) -> u32 {
 
 pub fn info(source: &mut impl Source, mode: Mode) -> Option<Info> {
     let mut header = [0; 33];
-    if source.read(0, &mut header) != header.len()
-        || &header[..4] != b"\x89PNG"
-        || &header[12..16] != b"IHDR"
-    {
+    let read = source.read(0, &mut header);
+    if mode == Mode::Bmp {
+        if read < 8 || &header[..8] != b"\x89PNG\r\n\x1a\n" {
+            source.diagnostic(Diagnostic::Signature, 0, 0, 0, 0);
+            return None;
+        } else if read >= 12 && (read < 16 || &header[12..16] != b"IHDR") {
+            source.diagnostic(Diagnostic::Ihdr, 0, 0, 0, 0);
+            return None;
+        }
+    }
+    if read != header.len() || &header[..4] != b"\x89PNG" || &header[12..16] != b"IHDR" {
         return None;
     }
     let width = be32(&header[16..20]);
     let height = be32(&header[20..24]);
     let depth = header[24];
     let color = header[25];
+    if mode == Mode::Bmp {
+        source.diagnostic(
+            Diagnostic::Image,
+            width,
+            height,
+            u32::from(depth) | u32::from(color) << 8 | u32::from(header[28]) << 16,
+            0,
+        );
+        if header[26] != 0 || header[27] != 0 {
+            source.diagnostic(Diagnostic::Method, 0, 0, 0, 0);
+            return None;
+        } else if header[28] != 0 {
+            source.diagnostic(Diagnostic::Interlace, 0, 0, 0, 0);
+            return None;
+        } else if width == 0 || height == 0 || width > 2048 || height > 3072 {
+            source.diagnostic(Diagnostic::Dimensions, width, height, 0, 0);
+            return None;
+        } else if !matches!(color, 0 | 2 | 3 | 4 | 6) {
+            source.diagnostic(Diagnostic::Color, u32::from(color), 0, 0, 0);
+            return None;
+        }
+    }
     if header[28] != 0 {
         return None;
     }
@@ -76,18 +142,13 @@ pub fn info(source: &mut impl Source, mode: Mode) -> Option<Info> {
             }
         }
         Mode::Bmp => {
-            if &header[..8] != b"\x89PNG\r\n\x1a\n"
-                || header[26] != 0
-                || header[27] != 0
-                || width == 0
-                || height == 0
-                || width > 2048
-                || height > 3072
-                || !matches!(color, 0 | 2 | 3 | 4 | 6)
-                || !matches!(depth, 1 | 2 | 4 | 8 | 16)
+            if pitch > 16384 {
+                source.diagnostic(Diagnostic::RowSize, pitch as u32, 0, 0, 0);
+                return None;
+            }
+            if !matches!(depth, 1 | 2 | 4 | 8 | 16)
                 || (color == 3 && depth == 16)
                 || (matches!(color, 2 | 4 | 6) && depth < 8)
-                || pitch > 16384
             {
                 return None;
             }
@@ -213,12 +274,46 @@ pub struct Decoder<'a> {
 }
 
 impl<'a> Decoder<'a> {
-    pub fn new(info: Info, mode: Mode) -> Option<Self> {
-        Self::with_scratch(info, mode, None)
+    pub fn new(info: Info, mode: Mode, source: &mut impl Source) -> Option<Self> {
+        Self::with_scratch(info, mode, None, source)
     }
 
-    pub fn with_scratch(info: Info, mode: Mode, scratch: Option<&'a mut [u8]>) -> Option<Self> {
+    pub fn with_scratch(
+        info: Info,
+        mode: Mode,
+        scratch: Option<&'a mut [u8]>,
+        source: &mut impl Source,
+    ) -> Option<Self> {
         if mode == Mode::Frame && !info.frame_supported() {
+            let pitch = if matches!(info.color, 0 | 3) && info.depth < 8 {
+                info.pitch
+            } else {
+                info.width as usize * info.channels
+            };
+            let required = (pitch + 1) * 2 + 32;
+            if required > ROW_LIMIT {
+                source.diagnostic(
+                    Diagnostic::RowBuffer,
+                    required as u32,
+                    info.width,
+                    u32::from(info.color),
+                    u32::from(info.depth),
+                );
+            } else if info.depth != 8
+                && !(matches!(info.depth, 1 | 2 | 4) && matches!(info.color, 0 | 3))
+            {
+                source.diagnostic(
+                    Diagnostic::UnsupportedDepth,
+                    u32::from(info.depth),
+                    u32::from(info.color),
+                    0,
+                    0,
+                );
+            } else if info.width > (ROW_LIMIT / 2) as u32 {
+                source.diagnostic(Diagnostic::GrayWidth, info.width, 0, 0, 0);
+            } else {
+                source.diagnostic(Diagnostic::DecodeFailed, 0, 0, 0, 0);
+            }
             return None;
         }
         let (workspace, window) = if let Some(scratch) = scratch {
@@ -239,14 +334,56 @@ impl<'a> Decoder<'a> {
             }
         } else {
             // Reserve the largest block before smaller buffers can fragment it.
-            let window = Window::Owned(zeros(WINDOW)?);
-            (Work::Owned(Workspace::new(mode)?), window)
+            let window = Window::Owned(zeros(WINDOW).or_else(|| {
+                source.diagnostic(
+                    if mode == Mode::Bmp {
+                        Diagnostic::Inflate
+                    } else {
+                        Diagnostic::DecoderAlloc
+                    },
+                    0,
+                    0,
+                    0,
+                    0,
+                );
+                None
+            })?);
+            (
+                Work::Owned(Workspace::new(mode).or_else(|| {
+                    source.diagnostic(
+                        if mode == Mode::Bmp {
+                            Diagnostic::Inflate
+                        } else {
+                            Diagnostic::DecoderAlloc
+                        },
+                        0,
+                        0,
+                        0,
+                        0,
+                    );
+                    None
+                })?),
+                window,
+            )
         };
         Some(Self {
             info,
             mode,
             workspace,
-            rows: zeros((info.pitch + 1) * 2)?,
+            rows: zeros((info.pitch + 1) * 2).or_else(|| {
+                source.diagnostic(
+                    if mode == Mode::Bmp {
+                        Diagnostic::Scanline
+                    } else {
+                        Diagnostic::DecoderAlloc
+                    },
+                    info.pitch as u32,
+                    0,
+                    0,
+                    0,
+                );
+                None
+            })?,
             window,
             offset: 33,
             remaining: 0,
@@ -429,6 +566,9 @@ impl<'a> Decoder<'a> {
                     source.progress();
                 }
                 if !self.refill(source) {
+                    if self.mode == Mode::Bmp {
+                        source.diagnostic(Diagnostic::ScanlineDecode, self.y, 0, 0, 0);
+                    }
                     return false;
                 }
             }
@@ -453,6 +593,8 @@ impl<'a> Decoder<'a> {
                 self.info.channels * self.info.depth as usize / 8
             };
             if !unfilter(current, previous, bpp, self.mode == Mode::Frame) {
+                source.diagnostic(Diagnostic::Filter, u32::from(current[0]), 0, 0, 0);
+                source.diagnostic(Diagnostic::ScanlineDecode, self.y, 0, 0, 0);
                 return false;
             }
             let row = Row {
@@ -662,7 +804,7 @@ mod tests {
         let bytes = fixture(&[0x78, 0x9c, 3, 2, 0, 0, 3, 0, 1]);
         let mut source = Bytes(&bytes);
         let info = info(&mut source, Mode::Frame).unwrap();
-        let mut decoder = Decoder::new(info, Mode::Frame).unwrap();
+        let mut decoder = Decoder::new(info, Mode::Frame, &mut source).unwrap();
         let mut rows = 0;
         assert!(!decoder.decode(&mut source, |_, _| {
             rows += 1;
@@ -687,7 +829,7 @@ mod tests {
                 fixture(&compressed[..(seed as usize % 63) + 2.min(64 - seed as usize % 63)]);
             let mut source = Bytes(&bytes);
             let info = info(&mut source, Mode::Frame).unwrap();
-            let mut decoder = Decoder::new(info, Mode::Frame).unwrap();
+            let mut decoder = Decoder::new(info, Mode::Frame, &mut source).unwrap();
             decoder.decode(&mut source, |_, _| true);
         }
     }

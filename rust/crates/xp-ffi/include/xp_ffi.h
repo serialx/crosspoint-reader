@@ -910,10 +910,62 @@ typedef struct {
   uint16_t canvasWidth, canvasHeight, frameX, frameY, frameWidth, frameHeight;
   uint8_t interlaced;
 } XpGifInfo;
+/* GIF diagnostic protocol: optional, synchronous, no retained pointers. The callback
+ * must not reenter Rust or perform I/O on the borrowed input/output. Unlisted a-d
+ * arguments are zero. Packed pairs are low 16 = width/x, high 16 = height/y, pixels.
+ * Read-failure events observe the immediately preceding failed I/O before another
+ * I/O operation; adapters may inspect their last seek result. Specific errors may
+ * be followed by consumer summary errors, in call order (not a unique-error stream).
+ * DecodeStart precedes decoder reads; FrameEnd is advisory, not successful output.
+ * FrameEnd uses buffered state only (zero diagnostic reads), not a parsed frame end
+ * or proof of animation. Compare a < file_size - 10 only when file_size > 10.
+ * BMP consumers defer the animation message until Complete, before completion text;
+ * framebuffer consumers may report it immediately. Postprocess excludes Complete.
+ */
+typedef enum {
+  XP_GIF_DIAG_BlockLength = 1,        // Sub-block length read failed; a = previous block payload bytes.
+  XP_GIF_DIAG_BlockSkip = 2,          // Reserved (not emitted); a = skipped payload bytes.
+  XP_GIF_DIAG_HeaderRead = 3,         // Header read failed (including seek failure).
+  XP_GIF_DIAG_Signature = 4,          // Invalid GIF signature.
+  XP_GIF_DIAG_MarkerRead = 5,         // Marker read failed; a = 1 at global palette end, otherwise 0.
+  XP_GIF_DIAG_Trailer = 6,            // Trailer before first descriptor; a = trailer byte (0x3b).
+  XP_GIF_DIAG_ExtensionLabel = 7,     // Extension label read failed.
+  XP_GIF_DIAG_ExtensionData = 8,      // Extension sub-block scan failed; follows BlockLength when applicable.
+  XP_GIF_DIAG_Descriptor = 9,         // First image descriptor read failed.
+  XP_GIF_DIAG_CodeSize = 10,          // Missing/invalid LZW minimum code size.
+  XP_GIF_DIAG_Marker = 11,            // Unexpected block marker; a = marker byte.
+  XP_GIF_DIAG_InvalidHeader = 12,     // Consumer header inspection failed; follows parser events.
+  XP_GIF_DIAG_InterlaceBmp = 13,      // BMP rejected interlaced input before output/allocation.
+  XP_GIF_DIAG_Dimensions = 14,        // BMP rejected canvas size; a/b = width/height in pixels.
+  XP_GIF_DIAG_OutputDimensions = 15,  // BMP rejected target size; a/b = int32 width/height bits, pixels.
+  XP_GIF_DIAG_OutputLimit = 16,       // BMP byte-size overflow before writing header.
+  XP_GIF_DIAG_BmpHeader = 17,         // BMP header output callback failed.
+  XP_GIF_DIAG_BmpRows = 18,           // BMP row-buffer allocation failed.
+  XP_GIF_DIAG_Scaling = 19,           // BMP scaling-accumulator allocation failed.
+  XP_GIF_DIAG_Atkinson1 = 20,         // BMP 1-bit dither-buffer allocation failed.
+  XP_GIF_DIAG_Atkinson2 = 21,         // BMP 2-bit dither-buffer allocation failed.
+  XP_GIF_DIAG_DecoderAlloc = 22,      // LZW table or workspace allocation failed; no Decode summary.
+  XP_GIF_DIAG_Decode = 23,            // Frame decode/output failed; a/b = framebuffer canvas pixels (0 for BMP).
+  XP_GIF_DIAG_Postprocess = 24,       // BMP gap-row post-processing failed after successful decode.
+  XP_GIF_DIAG_Complete = 25,          // BMP finished successfully, after all output writes.
+  XP_GIF_DIAG_FrameHeader = 26,       // Validated frame setup; a=canvas, b=frame, c=offset packed pairs; d=interlaced.
+  XP_GIF_DIAG_CanvasWidth = 27,       // Framebuffer canvas exceeds decoder width; a/b = canvas pixels.
+  XP_GIF_DIAG_Cache = 28,             // Framebuffer cache start failed; conversion fails.
+  XP_GIF_DIAG_Finish = 29,            // Framebuffer pipeline/cache finish failed after decoding.
+  XP_GIF_DIAG_Pipeline = 30,          // Framebuffer pipeline configuration rejected.
+  XP_GIF_DIAG_PipelineAlloc = 31,     // Framebuffer pipeline/row-buffer allocation failed.
+  XP_GIF_DIAG_Open = 32,              // Unsupported extension; a/b = framebuffer canvas pixels (0 for BMP).
+  XP_GIF_DIAG_Interlace = 33,         // Framebuffer rejected interlaced input before pipeline creation.
+  XP_GIF_DIAG_FrameDimensions = 34,   // Framebuffer rejected canvas size; a/b = width/height pixels.
+  XP_GIF_DIAG_FrameEnd = 35,          // Decode stopped at EOI/completed rows; a = logical read-ahead byte offset.
+  XP_GIF_DIAG_DecodeStart = 36,       // Consumer starts decoding; sets facade read/seek-error logging state.
+} XpGifDiagnostic;
 typedef struct {
   void* context;
   size_t (*read)(void*, uint32_t offset, uint8_t* output, size_t len);
   void (*poll)(void*);
+  // Optional; synchronous and non-reentrant. No retained pointers.
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpGifInput;
 typedef struct {
   int32_t width, height;
@@ -1222,6 +1274,60 @@ typedef struct {
   uint32_t expectedOffset, previousLast;
   bool bmp16;
 } XpSdfontIntervals;
+/* SD-font diagnostic protocol: optional synchronous callback; no reentry to cache
+ * operations or I/O on its borrowed handles. Unlisted a-d arguments are zero;
+ * counts/indices are unsigned, indices are zero-based; style is 0..3 in slot order.
+ * Read-failure events precede any subsequent I/O so the adapter's last seek result
+ * still describes that failure. Events follow execution order across retries and
+ * styles, so multiple failures or progress events can occur per call. Allocation
+ * failures can trigger fallbacks; a diagnostic alone does not specify call status.
+ * Loaded/Built events follow the named operation; retry events mark the transition
+ * described below. No pointers, strings, or heap ownership cross this callback.
+ */
+typedef enum {
+  XP_SDFONT_DIAG_LigatureOpen = 1,     // Ligature file open failed.
+  XP_SDFONT_DIAG_LigatureAlloc = 2,    // Ligature pair allocation failed.
+  XP_SDFONT_DIAG_LigatureRead = 3,     // Ligature seek/read failed.
+  XP_SDFONT_DIAG_LigaturesLoaded = 4,  // Pairs loaded; a = pair count.
+  XP_SDFONT_DIAG_KernOpen = 5,         // Mini-kern file open failed.
+  XP_SDFONT_DIAG_KernScratch = 6,      // Mini-kern scratch allocation failed; a = requested bytes.
+  XP_SDFONT_DIAG_KernClasses = 7,      // Kern class seek/read failed.
+  XP_SDFONT_DIAG_KernAlloc = 8,        // Mini-kern allocation failed; a/b/c = left/right/matrix requested bytes.
+  XP_SDFONT_DIAG_KernRow = 9,          // Kern row seek/read failed; a = original row index (zero-based).
+  XP_SDFONT_DIAG_KernBuilt = 10,       // Mini-kern built; a/b = new left/right counts, c/d = full counts.
+  XP_SDFONT_DIAG_Codepoints = 11,      // Prewarm codepoint allocation failed; a = requested bytes.
+  XP_SDFONT_DIAG_ArenaRetry =
+      12,  // Before smaller prewarm retry; a/b = old/new glyph count, c = bytes/glyph, d = largest free bytes.
+  XP_SDFONT_DIAG_ResidentCodepoints = 13,  // Resident kern codepoints allocation failed; a = count, b = style.
+  XP_SDFONT_DIAG_Underuse = 14,            // Before releasing underused mini cache; a/b = used/capacity bytes.
+  XP_SDFONT_DIAG_Mapping = 15,             // Prewarm mapping allocation failed; a = style.
+  XP_SDFONT_DIAG_Intervals = 16,           // Mini interval allocation failed; a = style.
+  XP_SDFONT_DIAG_Glyphs = 17,              // Mini glyph allocation failed; a = style.
+  XP_SDFONT_DIAG_ReadOrder = 18,           // Prewarm read-order allocation failed; a = style.
+  XP_SDFONT_DIAG_PrewarmOpen = 19,         // Prewarm file reopen failed; a = style.
+  XP_SDFONT_DIAG_PrewarmGlyph = 20,        // Prewarm glyph seek/read failed; a = glyph index, b = style.
+  XP_SDFONT_DIAG_RetryBitmap = 21,  // After advance-cache release, before retry; a/b = largest free bytes before/after.
+  XP_SDFONT_DIAG_ReserveBitmap = 22,   // Bitmap reservation failed; a = requested bytes, b = style.
+  XP_SDFONT_DIAG_ReservedBitmap = 23,  // Bitmap reserved before metadata rebuild; a = bytes.
+  XP_SDFONT_DIAG_Bitmap = 24,          // Mini bitmap allocation failed; a = requested bytes, b = style.
+  XP_SDFONT_DIAG_BitmapOrder = 25,     // Bitmap read-order allocation failed; a = style.
+  XP_SDFONT_DIAG_PrewarmBitmap = 26,   // Prewarm bitmap seek/read failed; a = style.
+  XP_SDFONT_DIAG_AdvanceMerge = 27,    // Advance-table merge allocation failed; a = requested entries, b = style.
+  XP_SDFONT_DIAG_AdvanceMapping = 28,  // Advance mapping allocation failed; a = style.
+  XP_SDFONT_DIAG_AdvanceOpen = 29,     // Advance-table file open failed; a = style.
+  XP_SDFONT_DIAG_AdvanceStaging = 30,  // Advance staging allocation failed; a = style.
+  XP_SDFONT_DIAG_AdvanceGlyph = 31,    // Advance glyph seek/read failed; a = glyph index, b = style.
+  XP_SDFONT_DIAG_AdvanceLoaded =
+      32,  // After merge attempt; a = style, b = fetched entries, c = total entries, d = entry limit.
+  XP_SDFONT_DIAG_AdvanceGrow = 33,        // Optional advance-table pre-grow failed; a = style; merge can retry.
+  XP_SDFONT_DIAG_AdvanceCodepoints = 34,  // Advance codepoint allocation failed; a = requested bytes.
+  XP_SDFONT_DIAG_OverflowOpen = 35,       // Overflow file open failed.
+  XP_SDFONT_DIAG_OverflowGlyph = 36,      // Overflow metadata seek/read failed; a = Unicode codepoint, b = style.
+  XP_SDFONT_DIAG_OverflowAlloc = 37,      // Overflow bitmap allocation failed; a = requested bytes, b = codepoint.
+  XP_SDFONT_DIAG_OverflowBitmap = 38,     // Overflow bitmap seek/read failed; a = Unicode codepoint.
+  XP_SDFONT_DIAG_OverflowLoaded =
+      39,  // Overflow slot loaded; a = codepoint, b = style, c = slot index, d = slot count.
+} XpSdfontDiagnostic;
 // Synchronous, exclusive cache loans. Slots retain their addresses until unload.
 // Resident buffers use the paired PSRAM allocator; scratch uses ordinary arrays.
 // File callbacks are nested at most twice and may not reenter cache operations.
@@ -1236,6 +1342,8 @@ typedef struct {
   uint32_t (*heap)(bool largest);
   uint32_t (*clock)(void);
   void (*corrupt)(void*, const void* glyph, uint32_t codepoint);
+  // Optional; synchronous and non-reentrant. Integer arguments are event-specific.
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpSdfontServices;
 typedef struct {
   void* styles;
@@ -1445,6 +1553,52 @@ int32_t xp_inflate_step(void* state, const uint8_t* input, size_t in_len, uint8_
 // write operations: 0 open cache, 1 bytes, 2 close cache, 3 abort cache.
 // BMP only uses operation 1; target may be null for BMP.
 typedef size_t (*XpPngRead)(void*, uint32_t offset, uint8_t*, size_t len);
+/* PNG diagnostic protocol: optional synchronous callback, no retained pointers and
+ * no reentry to Rust or I/O on borrowed handles. Unlisted a-d arguments are zero.
+ * Image.c packs depth in bits 0..7, color type in 8..15, interlace in 16..23.
+ * Read-related errors precede subsequent I/O. Events follow call order: BMP Image
+ * precedes ordered validation (Method, Interlace, Dimensions, Color, RowSize), then
+ * optional Scaling and allocations. Milestones are not proof of overall success.
+ * Framebuffer DecodeStart starts a debug-only clock interval; DecodeFailed or
+ * DecodeComplete ends it. Specific errors may precede a summary; null callbacks
+ * suppress all events without changing decoding, allocation, or I/O behavior.
+ */
+typedef enum {
+  XP_PNG_DIAG_Signature = 1,        // BMP signature check failed.
+  XP_PNG_DIAG_Ihdr = 2,             // BMP IHDR check failed.
+  XP_PNG_DIAG_Image = 3,            // BMP header read; a/b = canvas pixels, c = packed depth/color/interlace.
+  XP_PNG_DIAG_Method = 4,           // BMP rejected compression/filter method.
+  XP_PNG_DIAG_Interlace = 5,        // BMP rejected interlace method.
+  XP_PNG_DIAG_Dimensions = 6,       // BMP rejected canvas size; a/b = width/height pixels.
+  XP_PNG_DIAG_Color = 7,            // BMP rejected color type; a = PNG color-type byte.
+  XP_PNG_DIAG_RowSize = 8,          // BMP rejected row length; a = row bytes (low 32 bits).
+  XP_PNG_DIAG_Scanline = 9,         // BMP scanline allocation failed; a = pixel row bytes excluding filter byte.
+  XP_PNG_DIAG_Idat = 10,            // BMP has no IDAT input.
+  XP_PNG_DIAG_Inflate = 11,         // BMP inflate window/workspace allocation failed.
+  XP_PNG_DIAG_Scaling = 12,         // BMP scaling chosen before buffer allocation; a/b = source, c/d = output pixels.
+  XP_PNG_DIAG_RowScratch = 13,      // BMP output/gray row allocation failed; a = requested bytes.
+  XP_PNG_DIAG_Atkinson1 = 14,       // BMP 1-bit dither allocation failed.
+  XP_PNG_DIAG_Atkinson2 = 15,       // BMP 2-bit dither allocation failed.
+  XP_PNG_DIAG_Accumulators = 16,    // BMP scaling-accumulator allocation failed.
+  XP_PNG_DIAG_ScanlineDecode = 17,  // BMP row decode failed; a = zero-based row index.
+  XP_PNG_DIAG_Filter = 18,          // BMP unknown filter; a = filter byte; followed by ScanlineDecode.
+  XP_PNG_DIAG_Complete = 19,        // BMP output finished successfully, after all writes.
+  XP_PNG_DIAG_Open = 20,            // Framebuffer header inspection failed.
+  XP_PNG_DIAG_DecoderAlloc = 21,    // Framebuffer decoder allocation failed; a = row bytes for rows, else 0.
+  XP_PNG_DIAG_Pipeline = 22,        // Framebuffer pipeline configuration rejected.
+  XP_PNG_DIAG_PipelineAlloc = 23,   // Framebuffer pipeline/row-buffer allocation failed.
+  XP_PNG_DIAG_Cache = 24,           // Framebuffer cache start failed; decode continues without cache.
+  XP_PNG_DIAG_DecodeStart = 25,     // Framebuffer timing start, after decoder/pipeline/cache setup, before row decode.
+  XP_PNG_DIAG_DecodeFailed = 26,    // Framebuffer format/row decode failed; may follow specific error.
+  XP_PNG_DIAG_DecodeComplete = 27,  // Framebuffer row decode succeeded, before pipeline/cache finish; closes timing.
+  XP_PNG_DIAG_UnsupportedDepth =
+      28,  // Framebuffer rejected depth/color combination; a = bits/sample, b = PNG color type.
+  XP_PNG_DIAG_RowBuffer =
+      29,  // Framebuffer row limit exceeded; a = required bytes, b = width pixels, c = color type, d = bits/sample.
+  XP_PNG_DIAG_FrameDimensions =
+      30,  // Framebuffer rejected canvas size; a/b = width/height pixels (int32 bits for signed logs).
+  XP_PNG_DIAG_GrayWidth = 31,  // Framebuffer expanded gray width rejected; a = width pixels (= expanded row bytes).
+} XpPngDiagnostic;
 typedef struct {
   void* context;
   XpPngRead read;
@@ -1452,6 +1606,8 @@ typedef struct {
   bool (*write)(void*, uint32_t operation, const uint8_t*, size_t);
   void (*progress)(void*);
   uint32_t size;
+  // Optional; synchronous and non-reentrant. No retained pointers.
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpPngServices;
 typedef struct {
   int32_t width, height;

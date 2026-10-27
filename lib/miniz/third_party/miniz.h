@@ -438,6 +438,10 @@ extern "C"
     /*   with more input data, or with more room in the output buffer (except when using single call decompression, described above). */
     MINIZ_EXPORT int mz_inflate(mz_streamp pStream, int flush);
 
+    /* Raw streams may skip Adler computation; keep this choice fixed for the stream. */
+    /* Zlib-wrapped streams always compute and verify Adler regardless of this option. */
+    MINIZ_EXPORT int mz_inflate_ex(mz_streamp pStream, int flush, int compute_adler32);
+
     /* Deinitializes a decompressor. */
     MINIZ_EXPORT int mz_inflateEnd(mz_streamp pStream);
 
@@ -1047,6 +1051,7 @@ typedef mz_uint32 tinfl_bit_buf_t;
         mz_uint8 m_code_size_1[TINFL_MAX_HUFF_SYMBOLS_1];
         mz_uint8 m_code_size_2[TINFL_MAX_HUFF_SYMBOLS_2];
         mz_uint8 m_raw_header[4], m_len_codes[TINFL_MAX_HUFF_SYMBOLS_0 + TINFL_MAX_HUFF_SYMBOLS_1 + 137];
+        mz_uint16 m_history_size; /* Saturates at TINFL_LZ_DICT_SIZE (32768). */
     };
 
 #ifdef __cplusplus

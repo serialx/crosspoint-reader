@@ -31,13 +31,16 @@ void ImageBlock::setExtractor(void* ctx, ExtractFn fn) {
 
 namespace {
 
+// Version 2 rebuilds pixels decoded by PNGdec's faulty zlib fast-copy path.
+constexpr char PIXEL_CACHE_EXTENSION[] = ".px2";
+
 std::string getCachePath(const std::string& imagePath) {
-  // Replace extension with .pxc (pixel cache)
+  // The filename versions decoded pixels without changing the packed format.
   size_t dotPos = imagePath.rfind('.');
   if (dotPos != std::string::npos) {
-    return imagePath.substr(0, dotPos) + ".pxc";
+    return imagePath.substr(0, dotPos) + PIXEL_CACHE_EXTENSION;
   }
-  return imagePath + ".pxc";
+  return imagePath + PIXEL_CACHE_EXTENSION;
 }
 
 bool readValidCacheHeader(HalFile& cacheFile, const int expectedWidth, const int expectedHeight, uint16_t& cachedWidth,

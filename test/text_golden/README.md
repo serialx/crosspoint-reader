@@ -95,7 +95,8 @@ free/largest heap blocks and does not emulate memory pressure or storage timing.
 Public Noto fonts do not cover CJK; their CJK results test replacement/missing
 behavior. Real Korean/CJK glyphs require private SD inputs. Sup/sub records test
 the renderer's scaling; the vertical shift owned by TextBlock is outside scope.
-No hardware display, orientation matrix or refresh waveform is tested.
+The T0 records do not test hardware display, orientation changes or refresh waveforms.
+The separate [drawing extension](DRAWING.md) covers the orientation and clipping matrix.
 
 ## Records and use by T1–T5
 
@@ -145,6 +146,14 @@ resolver in the copied header. It checks anchor counts and otherwise keeps the
 production source intact. It never edits the production files. The observer
 records values only; font lookup, shaping, kerning, glyph walking, decompression
 and pixel writes still execute the production code.
+
+## Additional drawing paths
+
+[DRAWING.md](DRAWING.md) inventories the production glyph walks and documents the
+`TextDrawGolden` check. It adds rotated text, direct scaled codepoints, white
+text, four orientations, edge/UI/strip clipping, absolute gray planes and
+per-word offsets from public EPUB excerpts. Its separate format-1 `draw.json.gz`
+archive leaves every original T0 record and the original archive unchanged.
 
 ## Regenerate public fonts
 

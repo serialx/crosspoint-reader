@@ -6,12 +6,18 @@ root, out = map(pathlib.Path, sys.argv[1:])
 out.mkdir(parents=True, exist_ok=True)
 source = (root / 'lib/GfxRenderer/GfxRenderer.cpp').read_text()
 source = source.replace('#include "../Memory/Memory.h"', '#include <Memory.h>')
-# Observe helper entry, including missing glyphs, before any bitmap access.
-anchor = '  if (renderer.grayPlanesAreAbsolute()) renderMode = GfxRenderer::BW;'
-if source.count(anchor) != 2:
-    raise SystemExit('Glyph hook anchors changed: review instrument.py')
-source = source.replace(anchor, '  textGoldenGlyph(fontFamily, cp, cursorX, cursorY, style);\n' + anchor)
-source = source.replace('#include "GlyphBitmap.h"', '#include "GlyphBitmap.h"\n#include "Trace.h"')
+# The host-only Rust observer records placements before rasterization.
+source = '#define XP_FFI_HOST_FAULT_INJECTION\n' + source
+source = source.replace('#include "GfxRenderer.h"', '#include "GfxRenderer.h"\n#include "Trace.h"')
+source = source.replace('  xp_native_draw_pixels(\n', '  xp_native_draw_pixels_traced(\n')
+anchor = '\n      &paint, &glyphMiss);'
+if source.count(anchor) != 1:
+    raise SystemExit('Glyph paint observer anchor changed')
+source = source.replace(anchor, '''
+      &paint, &glyphMiss, [](void* raw, const XpGlyphPlacement* glyph) {
+        const auto& c = *static_cast<GlyphContext*>(raw);
+        textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
+      });''')
 # Drop caps bypass both helper entries; observe their actual API entry too.
 anchor = '  if (scale256 <= 0) return 0;'
 if source.count(anchor) != 1:

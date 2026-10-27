@@ -151,10 +151,12 @@ The public archive is capped at 1.5 MB. PBM files for the first page of the firs
 chapter retain physical BW/LSB/MSB planes; overlay plane pictures visualize bits,
 not composite gray luminance.
 
-`instrument.py` makes build-directory copies of GfxRenderer, Page, TextBlock and
-GlyphBitmap. Only the renderer receives observers: text_golden's glyph helper
-hooks, plus xp_native_draw entry and actual glyph-emission callback counters.
-Page/TextBlock/GlyphBitmap copies are unchanged and exist for mutation testing.
+`instrument.py` makes build-directory copies of GfxRenderer, Page and TextBlock.
+Only the renderer receives observers: text_golden's host-only Rust placement
+observer, plus native draw entry and C++ bitmap-miss callback counters. The
+frozen archive counts the original per-glyph emissions; candidate counts measure
+miss callbacks after glyph integration. Page/TextBlock copies are unchanged and
+exist for mutation testing.
 The script checks hook counts. If a later port removes an observer anchor, adapt
 the observer without changing the record schema or frozen behavior archive.
 
@@ -169,7 +171,7 @@ the **committed** archive through the same `check` command.
 python3 test/page_golden/mutation_check.py build/page-golden /tmp/page-mutations
 ```
 
-It proves rejection of a single glyph-raster pixel flip, a loaded word x increment,
+It proves rejection of a single framebuffer pixel flip at the draw observer, a loaded word x increment,
 a dropped loaded footnote, and one serialized byte changed in ignored footnote
 padding. The pixel experiment also requires exactly one changed bit in its PBM;
 semantic/raw data must stay identical. The padding experiment requires identical

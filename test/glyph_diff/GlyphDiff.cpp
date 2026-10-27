@@ -101,6 +101,11 @@ static void checkBitmap(GfxRenderer& r, FontDecompressor& dc, const EpdFontData*
     require(got.data == expected, "Bitmap pointer differs");
     require(got.len == (uint32_t(g->width) * g->height * (f->is2Bit ? 2 : 1) + 7) / 8, "Bitmap length differs");
   }
+  XpGlyphSource ownerView{};
+  r.glyphSource(f, ownerView);
+  XpGlyphBitmap ownerBitmap{};
+  require(checkedBitmap(&ownerView, g, &ownerBitmap) == hit, "Owner bitmap view hit differs");
+  if (hit) require(ownerBitmap.data == got.data && ownerBitmap.len == got.len, "Owner bitmap view differs");
   ++bitmapCases;
   ++gen;
   // Deliberately poison borrowed pointers: stale rejection must precede reads.
@@ -284,6 +289,76 @@ static void panelMatrix(GfxRenderer& r) {
   r.frameBuffer = saved;
 }
 
+// A miss may free the old tables. The next placement must use the new slot,
+// while the just-returned bitmap and copied metrics remain consumable.
+static void integrationLifetime(GfxRenderer& renderer) {
+  std::vector<EpdGlyph> old(3);
+  std::array<EpdGlyph, 3> next{};
+  const std::array<uint8_t, 3> bits{0x80, 0x80, 0x80};
+  const EpdUnicodeInterval interval{'A', 'C', 0};
+  for (size_t i = 0; i < 3; ++i) {
+    old[i] = {1, 1, static_cast<uint16_t>((i + 1) * 16), 0, 0, 1, static_cast<uint32_t>(i)};
+    next[i] = {1, 1, static_cast<uint16_t>((i + 1) * 160), 0, 0, 1, static_cast<uint32_t>(i)};
+  }
+  EpdFontData before{}, after{};
+  before.glyph = old.data();
+  after.glyph = next.data();
+  before.bitmap = after.bitmap = bits.data();
+  before.intervals = after.intervals = &interval;
+  before.intervalCount = after.intervalCount = 1;
+  EpdFont font(&before);
+  renderer.insertFont(998, EpdFontFamily(&font));
+  std::array<uint8_t, 64> buffer;
+  buffer.fill(0xff);
+  XpGlyphPaint paint{{buffer.data(), 64, 32, 16, 4, 0, 16, {0, 0, 32, 16}, 3, 0, 0, 0, 0}, {}, 1, 1, 1};
+  struct State {
+    GfxRenderer& renderer;
+    EpdFont& font;
+    EpdFontData& after;
+    std::vector<EpdGlyph>& old;
+    const uint8_t* bits;
+    XpGlyphPaint& paint;
+    unsigned misses = 0, observed = 0;
+  } state{renderer, font, after, old, bits.data(), paint};
+  const auto provider = renderer.textProvider();
+  xp_test_fail_allocation_after(0);
+  xp_native_draw_pixels_traced(
+      &provider, 998, reinterpret_cast<const uint8_t*>("ABC"), 3, 0, 0, 0, 0, &state,
+      [](void* raw, const uint8_t*, size_t) -> const void* const* {
+        auto& s = *static_cast<State*>(raw);
+        s.renderer.glyphSource(s.font.data, s.paint.source);
+        ++fontTableGeneration;
+        s.paint.source.font = reinterpret_cast<const void*>(1);
+        s.paint.source.slots = reinterpret_cast<const XpGlyphPageSlot*>(1);
+        return reinterpret_cast<const void* const*>(&s.font.data);
+      },
+      &paint,
+      [](void* raw, uint32_t cp, const void* ptr, XpGlyphDraw* draw, XpGlyphSource* source) -> XpGlyphBitmap {
+        auto& s = *static_cast<State*>(raw);
+        require(cp == 'A' && ptr == s.old.data() && s.misses++ == 0, "Unexpected integrated miss");
+        memcpy(&draw->glyph, ptr, sizeof(EpdGlyph));
+        s.font.data = &s.after;
+        ++fontTableGeneration;
+        std::vector<EpdGlyph>().swap(s.old);
+        s.renderer.glyphSource(s.font.data, *source);
+        return {s.bits, 1};
+      },
+      [](void* raw, const XpGlyphPlacement* placement) {
+        auto& s = *static_cast<State*>(raw);
+        constexpr int positions[]{0, 1, 21};
+        require(s.observed < 3 && placement->x == positions[s.observed++], "Stale integrated placement");
+      });
+  require(xp_test_allocation_attempts() == 0, "Integrated draw allocated");
+  xp_test_fail_allocation_after(SIZE_MAX);
+  require(state.misses == 1 && state.observed == 3, "Integrated callback count");
+  for (int x = 0; x < 32; ++x) {
+    const bool black = (buffer[4 + x / 8] & (0x80 >> (x % 8))) == 0;
+    require(black == (x == 1 || x == 2 || x == 22), "Integrated pixels after table replacement");
+  }
+  renderer.removeFont(998);
+  std::cout << "Integrated lifetime: stale poisoned view, table free/replacement, one miss, zero allocations passed\n";
+}
+
 int main(int argc, char** argv) {
   HalDisplay display;
   GfxRenderer r(display);
@@ -293,6 +368,7 @@ int main(int argc, char** argv) {
   FontCacheManager cache(r.getFontMap(), r.getSdCardFonts(), r.getTtfFonts());
   cache.setFontDecompressor(&dc);
   r.setFontCacheManager(&cache);
+  integrationLifetime(r);
   std::atomic<uint32_t> gen{1};
   const EpdFontData* faces[] = {
 #define FACE(S) &notosans_##S##_regular, &notosans_##S##_bold, &notosans_##S##_italic, &notosans_##S##_bolditalic,

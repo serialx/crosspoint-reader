@@ -27,10 +27,6 @@ class TtfEpdFont;
 #include "Bitmap.h"
 #include "FontVariantProvider.h"
 
-namespace glyphBitmap {
-struct Frame;
-}
-
 // Color representation: uint8_t mapped to 4x4 Bayer matrix dithering levels
 // 0 = transparent, 1-16 = gray levels (white to black)
 enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 0x0A, Black = 0x10 };
@@ -114,7 +110,17 @@ class GfxRenderer {
   // has a registered fallback, returns the fallback id; otherwise returns
   // fontId unchanged. The whole string is routed as a unit so each draw/measure
   // call stays single-font (consistent bit depth, metrics, wrapping).
-  void drawScaledGlyph(int fontId, uint32_t cp, EpdFontFamily::Style style, int x, int baselineY, int scale256) const;
+  struct GlyphContext {
+    const GfxRenderer& renderer;
+    const EpdFontFamily* font;
+    int requestedFont, resolvedFont;
+    EpdFontFamily::Style style;
+    bool rotated;
+    XpGlyphPaint* paint;
+  };
+  XpGlyphTarget glyphTarget() const;
+  void glyphSource(const EpdFontData* font, XpGlyphSource& source) const;
+  static XpGlyphBitmap glyphMiss(void* raw, uint32_t cp, const void* glyph, XpGlyphDraw* draw, XpGlyphSource* source);
   void drawGlyphRun(int fontId, int x, int y, const char* text, bool black, EpdFontFamily::Style style,
                     BidiUtils::BidiBaseDir baseDir, int8_t tracking, bool rotated) const;
   int resolveTextFontId(int fontId, const char* text, EpdFontFamily::Style style) const;
@@ -130,8 +136,6 @@ class GfxRenderer {
   // fonts.
   void ensureSdGlyphsResident(int fontId, const char* text, EpdFontFamily::Style style, bool metadataOnly) const;
 
-  void renderChar(const EpdFontFamily& fontFamily, uint32_t cp, int* x, int* y, bool pixelState,
-                  EpdFontFamily::Style style) const;
   void freeBwBufferChunks();
   template <Color color>
   void drawPixelDither(int x, int y) const;
@@ -325,9 +329,6 @@ class GfxRenderer {
     clipBottom_ = y + height;
   }
   void drawPixel(int x, int y, bool state = true) const;
-  // Draw glyph ink with clipping and orientation resolved once per glyph.
-  void drawGlyphBitmap(const uint8_t* bitmap, int width, int height, const glyphBitmap::Frame& frame, bool twoBit,
-                       RenderMode mode, bool state) const;
   void drawLine(int x1, int y1, int x2, int y2, bool state = true) const;
   void drawLine(int x1, int y1, int x2, int y2, int lineWidth, bool state) const;
   void drawArc(int maxRadius, int cx, int cy, int xDir, int yDir, int lineWidth, bool state) const;

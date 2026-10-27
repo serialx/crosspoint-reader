@@ -1,9 +1,9 @@
 # Glyph raster and bitmap-source differential
 
-`GlyphDiff` compares `xp_glyph_draw` with production `GlyphBitmap.h` and the
-GfxRenderer glyph helpers. `instrument.py` exposes private members in build
-copies and appends a wrapper around the production static helpers. It does not
-replace their arithmetic or pixel writes. The firmware still uses C++ drawing.
+`GlyphDiff` compares `xp_glyph_draw` with the C++ raster helpers frozen from
+`11be2799` in `reference/`. `instrument.py` exposes owner state in build copies
+and appends that independent raster reference. Firmware draws glyph pixels in
+Rust; bitmap loading, decompression and cache ownership remain in C++.
 
 ```sh
 cmake -S test/glyph_diff -B build/glyph-diff -DCMAKE_BUILD_TYPE=Release
@@ -70,8 +70,8 @@ resident-view contract, not an input-file parser.
 
 Use the existing serialized font-table generation rule. A generation change
 invalidates the whole descriptor before any borrowed font or glyph is read.
-**G2 must add generation increments to FontDecompressor prewarm and page-buffer
-clear/free**, which currently do not increment `fontTableGeneration`. Rebuild
+FontDecompressor prewarm and page-buffer clear/free increment
+`fontTableGeneration`. Rebuild
 views after any owner callback or mutation. Do not retain a returned pointer
 across callbacks; the generation check is not synchronization or a lifetime
 extension. SD's overflow view identifies the first glyph address, entry stride
@@ -79,8 +79,16 @@ and live entry count, so metadata fields inside an entry are never mistaken for
 a glyph. TTF and nonresident/hot-group/overflow sources return a miss; C++ owns
 loading and decompression. No miss callback is invoked while a Rust loan exists.
 
-The new code is not wired into firmware. These host tests prove pixel rules and
-borrowed view behavior; they do not measure future G2 draw speed or device
-waveforms. G2 still needs integrated emulator/device tests and owner review. Before deleting
-or delegating the C++ helpers, preserve the pre-port reference so this differential
-continues to compare independent implementations.
+The integrated draw test poisons a stale source view, then frees the consumed
+glyph table and replaces its stable data slot inside the bitmap-miss callback.
+Later placements and pixels must use the new table. It checks one miss for three
+glyphs and zero Rust allocation attempts. Every public bitmap also checks the
+production renderer's source accessor against the independent owner view.
+
+Native draw entries borrow a renderer-owned target whose geometry already
+satisfies `GlyphTarget::valid`; callbacks cannot change that geometry. Standalone
+`xp_glyph_draw` continues validating external descriptors before writes. The
+raster's clipped physical coordinates and checked bitmap extent bound pixel
+accesses. Public/private text and page oracles and emulator comparisons remain
+the integrated behavior and performance gates; these host tests do not establish
+device timing or waveforms.

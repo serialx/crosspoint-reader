@@ -81,7 +81,12 @@ pub fn walk(
                     tracking_between(previous, mapped, tracking)
                 };
         }
-        base = glyph_metrics(face, mapped, style).unwrap_or_default();
+        base = if matches!(mapped, 0x2588 | 0x25a0) {
+            glyph_metrics(face, mapped, style)
+        } else {
+            face.glyph(mapped, style)
+        }
+        .unwrap_or_default();
         let (num, den) = if !rotated && style & (SUP | SUB) != 0 {
             (1, 2)
         } else if upper != cp {

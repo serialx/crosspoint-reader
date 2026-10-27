@@ -46,7 +46,8 @@ cargo clippy -p xp-core --all-targets -- -D warnings
 cargo test -p xp-core
 ```
 
-The release profile uses `opt-level = "z"` for size, enables fat LTO, and aborts on panic.
+The release profile uses `opt-level = "s"` to balance code size and chapter-build
+speed, with fat LTO, one codegen unit, and abort-on-panic behavior.
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
 

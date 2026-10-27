@@ -32,12 +32,11 @@ def fonts():
             yield f'{path.stem}/{i}', data[offset:offset + size], length
 
 
-def fixture():
+def fixture(size=4096):
     # Public-domain opening of the US Declaration of Independence, plus byte diversity.
     text = (b'When in the Course of human events, it becomes necessary for one people '
             b'to dissolve the political bands which have connected them with another.\n')
     data = (text * 800) + bytes(range(256)) * 100
-    size = 4096
     compressor = zlib.compressobj(9, zlib.DEFLATED, -15)
     chunks = [compressor.compress(data[i:i + size]) + compressor.flush(
         zlib.Z_FINISH if i + size >= len(data) else zlib.Z_FULL_FLUSH)
@@ -64,8 +63,11 @@ def probe(binary, data, capacity, streaming=0, inchunk=2048, outchunk=512, itera
 
 
 def malformed():
+    rng = random.Random(7)
+    dynamic = raw(bytes(rng.choices(range(8), weights=[50, 20, 10, 7, 5, 4, 3, 1], k=150)))
+    assert (dynamic[0] >> 1) & 3 == 2
     seeds = [raw(b'hello hello hello', zlib.Z_FIXED), raw(bytes(range(16))),
-             bytes.fromhex('010300fcff616263'), raw(bytes(range(24)) * 40)]
+             bytes.fromhex('010300fcff616263'), raw(bytes(range(24)) * 40), dynamic]
     for s, seed in enumerate(seeds):
         for n in range(len(seed)):
             yield f'truncate/{s}/{n}', seed[:n], 128
@@ -76,9 +78,35 @@ def malformed():
         for cap in [1, 2, 7, 15]:
             yield f'output-limit/{s}/{cap}', seed, cap
     # Reserved block type; fixed backreference before any output; malformed dynamic tables.
-    for label, value in [('reserved', '07'), ('history', '030200'),
-                         ('oversubscribed', '05009200'), ('incomplete', '05008000')]:
+    for label, value in [('reserved', '07'), ('history', '030200')]:
         yield label, bytes.fromhex(value), 128
+    for label, lengths in [('oversubscribed', [1, 1, 1, 1]), ('incomplete', [2, 2, 0, 0])]:
+        bits = 5  # Final dynamic block, minimum HLIT/HDIST/HCLEN.
+        for i, length in enumerate(lengths):
+            bits |= length << (17 + 3 * i)
+        yield label, bits.to_bytes(4, 'little'), 128
+
+
+def dictionary(binary, output):
+    data, _, encoded = fixture(58000)
+    assert gzip.decompress(encoded) == data
+    path = output / 'dictionary.dz'
+    path.write_bytes(encoded)
+    rng = random.Random(71)
+    ranges = [(0, len(data)), (57999, 2), (58000, 1), (115999, 2), (len(data) - 1, 1)]
+    ranges += [(offset, min(5000, len(data) - offset)) for offset in range(0, len(data), 4096)]
+    for _ in range(100):
+        offset = rng.randrange(len(data))
+        ranges.append((offset, rng.randrange(min(70000, len(data) - offset)) + 1))
+    results = {}
+    for offset, size in ranges:
+        request = struct.pack('<II', offset, size)
+        result = subprocess.run([binary, str(path)], input=request, capture_output=True, check=True)
+        status, length, ns = struct.unpack('<iIQ', result.stdout[:16])
+        assert status == 0 and length == size, (offset, size, status, length)
+        assert result.stdout[16:] == data[offset:offset + size], (offset, size)
+        results[f'{offset}/{size}'] = {'length': size, 'sha256': hashlib.sha256(result.stdout[16:]).hexdigest(), 'ns': ns}
+    return results
 
 
 def stable(result):
@@ -91,6 +119,7 @@ def main():
     p.add_argument('--record', action='store_true')
     p.add_argument('--output', type=pathlib.Path, required=True)
     p.add_argument('--iterations', type=int, default=30)
+    p.add_argument('--dict-probe')
     a = p.parse_args()
     expected_path = pathlib.Path(__file__).with_name('uzlib-oracle.json.gz')
     results = {'fonts': {}, 'chunks': {}, 'malformed': {}}
@@ -115,6 +144,8 @@ def main():
         results['malformed'][name] = {
             'input': compressed.hex(), 'capacity': capacity,
             'result': stable(probe(a.probe, compressed, capacity))}
+    if a.dict_probe:
+        results['dictionary'] = dictionary(a.dict_probe, a.output)
     (a.output / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
     frozen = {group: {k: stable(v) for k, v in values.items()} for group, values in results.items()}
     if a.record:
@@ -122,6 +153,10 @@ def main():
     else:
         expected = json.loads(gzip.decompress(expected_path.read_bytes()))
         assert results['fonts'].keys() == expected['fonts'].keys()
+        for group in ['fonts', 'chunks', 'dictionary']:
+            for name, value in results.get(group, {}).items():
+                for key in ['length', 'sha256']:
+                    assert value[key] == expected[group][name][key], (group, name, key)
         changes = {k: {'old': expected['malformed'][k], 'new': v}
                    for k, v in results['malformed'].items() if v != expected['malformed'][k]}
         (a.output / 'malformed-differences.json').write_text(json.dumps(changes, indent=2) + '\n')

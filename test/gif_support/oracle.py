@@ -45,6 +45,42 @@ def fixtures():
     result['local-palette'] = b[:43] + SMALL[13:25] + b[43:]
     for label in (1, 0xfe, 0xff, 0x42):
         result[f'extension-{label}'] = SMALL[:25] + bytes([0x21, label, 3, 1, 2, 3, 0]) + SMALL[25:]
+    def lzw(codes, minimum=2):
+        size, next_code, previous = minimum + 1, (1 << minimum) + 2, False
+        bits = count = 0
+        output = bytearray()
+        for code in codes:
+            bits |= code << count
+            count += size
+            while count >= 8:
+                output.append(bits & 255)
+                bits >>= 8
+                count -= 8
+            if code == 1 << minimum:
+                size, next_code, previous = minimum + 1, (1 << minimum) + 2, False
+            elif code != (1 << minimum) + 1:
+                if previous and next_code < 4096:
+                    next_code += 1
+                    if next_code == 1 << size and size < 12:
+                        size += 1
+                previous = True
+        if count:
+            output.append(bits & 255)
+        blocks = b''.join(bytes([len(output[i:i+255])]) + output[i:i+255] for i in range(0,len(output),255))
+        return bytes([minimum]) + blocks + b'\0;'
+    for name, codes in [('full-table', [4, 0] + [0] * 5000 + [5]),
+                        ('full-clear', [4, 0] + [0] * 4090 + [4, 0, 0, 5]),
+                        ('early-eoi', [4, 0, 5]), ('zero-frame', [4, 5]),
+                        ('maximum-chain', [4, 0] + list(range(6, 4096)) + [5])]:
+        data = bytearray(SMALL[:43])
+        struct.pack_into('<HH', data, 6, 3072, 2)
+        struct.pack_into('<HH', data, 38, 3072, 2)
+        if name == 'maximum-chain':
+            struct.pack_into('<H', data, 8, 2730)
+            struct.pack_into('<H', data, 40, 2730)
+        if name == 'zero-frame':
+            struct.pack_into('<HH', data, 38, 0, 0)
+        result[name] = bytes(data) + lzw(codes)
     with tarfile.open(ROOT.parent / 'image_golden/corpus.tar.gz') as archive:
         for entry in archive.getmembers():
             if entry.name.endswith('.gif'):
@@ -59,6 +95,7 @@ def main():
     parser.add_argument('--capture', action='store_true')
     parser.add_argument('--output', type=Path, default=ROOT / 'goldens.json.gz')
     parser.add_argument('--differences', type=Path)
+    parser.add_argument('--allow-documented', action='store_true')
     args = parser.parse_args()
     corpus = fixtures()
     with tempfile.TemporaryDirectory(prefix='gif-oracle-') as tmp:
@@ -89,6 +126,12 @@ def main():
         differences = {k: {'old': old['cases'][k], 'new': v} for k, v in cases.items() if old['cases'][k] != v}
         if args.differences:
             args.differences.write_text(json.dumps(differences, indent=2))
+        if args.allow_documented:
+            documented = json.loads((ROOT / 'deviations.json').read_text())
+            if {k:v['new'] for k,v in differences.items()} != documented['cases']:
+                raise SystemExit('Documented GIF differences changed')
+            print(f"{len(differences)} documented differences in {len(documented['reasons'])} malformed fixtures")
+            differences = {}
         if differences:
             raise SystemExit(f'{len(differences)}/{len(cases)} differ: {list(differences)[:12]}')
     print(f'{len(corpus)} fixtures; {len(cases)} outcomes')

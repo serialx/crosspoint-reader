@@ -135,7 +135,8 @@ pub unsafe extern "C" fn xp_gif_bmp(
     if !gif::inspect(&mut input, &mut info) || info.interlaced != 0 {
         return false;
     }
-    let Ok(mut bmp) = bmp::Bmp::new(info, *config, *output) else {
+    let mut output = *output;
+    let Ok(mut bmp) = bmp::Bmp::new(info, *config, &mut output) else {
         return false;
     };
     gif::decode(&mut input, &mut bmp).is_ok() && bmp.finish()

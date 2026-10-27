@@ -1,7 +1,8 @@
 [package]
-name="xp-gif"
-version="0.1.0"
-edition="2021"
-publish=false
+name = "xp-gif"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
 [lib]
-path="lib.rs"
+path = "lib.rs"

@@ -16,8 +16,8 @@ pub struct Config {
     pub original_thresholds: u8,
 }
 
-pub struct Bmp<W> {
-    output: W,
+pub struct Bmp<'a> {
+    output: &'a mut dyn Write,
     config: Config,
     source_x: usize,
     source_y: usize,
@@ -38,8 +38,8 @@ pub struct Bmp<W> {
     errors: Vec<i16>,
     error_row: usize,
 }
-impl<W: Write> Bmp<W> {
-    pub fn new(info: Info, config: Config, mut output: W) -> Result<Self> {
+impl<'a> Bmp<'a> {
+    pub fn new(info: Info, config: Config, output: &'a mut dyn Write) -> Result<Self> {
         let sw = info.width as usize;
         let sh = info.height as usize;
         if sw == 0
@@ -238,7 +238,7 @@ impl<W: Write> Bmp<W> {
         self.gaps(self.canvas_height)
     }
 }
-impl<W: Write> Rows for Bmp<W> {
+impl Rows for Bmp<'_> {
     fn row(
         &mut self,
         info: Info,
@@ -259,5 +259,90 @@ impl<W: Write> Rows for Bmp<W> {
         let result = self.canvas_row(y);
         self.next_source_y = y + 1;
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    struct Output;
+    impl Write for Output {
+        fn write(&mut self, _: &[u8]) -> bool {
+            true
+        }
+    }
+    #[test]
+    fn cropped_tall_and_wide_sources_stay_bounded() {
+        for (width, height) in [(1, 3072), (3072, 1), (640, 480)] {
+            for (target_w, target_h) in [(480, 800), (800, 480)] {
+                let mut output = Output;
+                let bmp = Bmp::new(
+                    Info {
+                        width,
+                        height,
+                        ..Info::default()
+                    },
+                    Config {
+                        width: target_w,
+                        height: target_h,
+                        crop: 1,
+                        one_bit: 0,
+                        original_thresholds: 0,
+                    },
+                    &mut output,
+                )
+                .unwrap();
+                assert_eq!(
+                    (bmp.width, bmp.height),
+                    (target_w as usize, target_h as usize)
+                );
+                assert!(bmp.source_x + bmp.source_width <= width as usize);
+                assert!(bmp.source_y + bmp.source_height <= height as usize);
+            }
+        }
+    }
+    #[test]
+    fn fit_retains_the_whole_source() {
+        let mut output = Output;
+        let bmp = Bmp::new(
+            Info {
+                width: 640,
+                height: 480,
+                ..Info::default()
+            },
+            Config {
+                width: 240,
+                height: 400,
+                crop: 0,
+                one_bit: 0,
+                original_thresholds: 0,
+            },
+            &mut output,
+        )
+        .unwrap();
+        assert_eq!((bmp.width, bmp.height), (240, 180));
+        assert_eq!((bmp.source_width, bmp.source_height), (640, 480));
+    }
+    #[test]
+    fn invalid_targets_are_rejected() {
+        for (width, height) in [(0, 800), (480, -1), (480, 32767)] {
+            let mut output = Output;
+            assert!(Bmp::new(
+                Info {
+                    width: 1,
+                    height: 1,
+                    ..Info::default()
+                },
+                Config {
+                    width,
+                    height,
+                    crop: 1,
+                    one_bit: 0,
+                    original_thresholds: 0
+                },
+                &mut output
+            )
+            .is_err());
+        }
     }
 }

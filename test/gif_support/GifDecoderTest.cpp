@@ -1,4 +1,3 @@
-#include <AnimatedGIF.h>
 #include <GifCommon.h>
 #include <gtest/gtest.h>
 
@@ -71,51 +70,4 @@ TEST_F(GifDecoderTest, RejectsMissingCodeSizeAndTruncatedLocalPalette) {
   EXPECT_FALSE(inspect(bytes, info));
 }
 
-struct DrawCount {
-  int rows = 0;
-  int pixels = 0;
-};
-void countRow(GIFDRAW* row) {
-  auto* count = static_cast<DrawCount*>(row->pUser);
-  ASSERT_NE(count, nullptr);
-  ++count->rows;
-  count->pixels += row->iWidth;
-  for (int i = 0; i < row->iWidth; ++i) EXPECT_EQ(row->pPixels[i], 0);
-}
-
-TEST_F(GifDecoderTest, DecodesSmallFourColorAndMaximumWidthImages) {
-  for (const char* fixture : {SMALL_GIF, WIDE_GIF}) {
-    auto bytes = fromHex(fixture);
-    AnimatedGIF decoder;
-    decoder.begin(GIF_PALETTE_RGB888);
-    ASSERT_TRUE(decoder.open(bytes.data(), bytes.size(), countRow));
-    DrawCount count;
-    decoder.playFrame(false, nullptr, &count);
-    EXPECT_EQ(decoder.getLastError(), GIF_SUCCESS);
-    EXPECT_EQ(count.rows, decoder.getCanvasHeight());
-    EXPECT_EQ(count.pixels, decoder.getCanvasWidth() * decoder.getCanvasHeight());
-    decoder.close();
-  }
-}
-
-TEST_F(GifDecoderTest, DecodesLargeGlobalPalettesFromMemoryAndFiles) {
-  for (const uint8_t paletteBits : {6, 7}) {
-    auto bytes = fromHex(SMALL_GIF);
-    bytes[10] = static_cast<uint8_t>(0x80 | paletteBits);
-    bytes.insert(bytes.begin() + 25, (3u << (paletteBits + 1)) - 12, 0);
-    GifBasicInfo info;
-    ASSERT_TRUE(inspect(bytes, info));
-    for (const bool fromFile : {false, true}) {
-      AnimatedGIF decoder;
-      decoder.begin(GIF_PALETTE_RGB888);
-      ASSERT_TRUE(fromFile ? decoder.open(path.c_str(), countRow) : decoder.open(bytes.data(), bytes.size(), countRow));
-      DrawCount count;
-      decoder.playFrame(false, nullptr, &count);
-      EXPECT_EQ(decoder.getLastError(), GIF_SUCCESS);
-      EXPECT_EQ(count.rows, 1);
-      EXPECT_EQ(count.pixels, 1);
-      decoder.close();
-    }
-  }
-}
 }  // namespace

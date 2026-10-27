@@ -1,7 +1,8 @@
 # Image pipeline byte oracle
 
 This standalone host target links the production PNG/JPEG/GIF converters and
-patched firmware decoder dependencies. Its X3 renderer fake exposes the real
+patched PNG/JPEG firmware decoder dependencies. GIF decoding uses Rust and
+does not require AnimatedGIF. Its X3 renderer fake exposes the real
 write-target contract: 792 × 528 physical pixels, four orientations, BW/LSB/MSB,
 absolute/differential planes, and full-frame/41-row strip targets. The framebuffer
 starts at `0xa5` so skipped writes remain observable. File access uses the shared
@@ -74,3 +75,6 @@ cache. The in-memory sink does not verify filesystem deletion. The full host sui
 failures remove the partial file through the host HalFile implementation. The X3 oracle does not establish
 correct output on panels whose framebuffer exceeds 65,535 bytes. The existing
 16-bit image offset is preserved and covered by a Rust regression test.
+
+The [GIF compatibility suite](../gif_support/README.md) separately covers BMP
+consumers, malformed streams, allocation failures, and large-fixture timing.

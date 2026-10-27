@@ -32,7 +32,7 @@ pub enum Error {
 }
 type Result<T> = core::result::Result<T, Error>;
 
-fn exact(input: &mut impl Read, offset: &mut u32, output: &mut [u8]) -> Result<()> {
+fn exact(input: &mut dyn Read, offset: &mut u32, output: &mut [u8]) -> Result<()> {
     if input.read(*offset, output) != output.len() {
         return Err(Error::Input);
     }
@@ -41,12 +41,12 @@ fn exact(input: &mut impl Read, offset: &mut u32, output: &mut [u8]) -> Result<(
         .ok_or(Error::Input)?;
     Ok(())
 }
-fn byte(input: &mut impl Read, offset: &mut u32) -> Result<u8> {
+fn byte(input: &mut dyn Read, offset: &mut u32) -> Result<u8> {
     let mut b = [0];
     exact(input, offset, &mut b)?;
     Ok(b[0])
 }
-fn skip_blocks(input: &mut impl Read, offset: &mut u32) -> Result<()> {
+fn skip_blocks(input: &mut dyn Read, offset: &mut u32) -> Result<()> {
     loop {
         let len = byte(input, offset)?;
         if len == 0 {
@@ -67,7 +67,7 @@ struct Header {
     code_size: u8,
     supported_extensions: bool,
 }
-fn header(input: &mut impl Read, info: &mut Info) -> Result<Header> {
+fn header(input: &mut dyn Read, info: &mut Info) -> Result<Header> {
     *info = Info::default();
     let mut offset = 0;
     let mut head = [0; 13];
@@ -115,7 +115,7 @@ fn header(input: &mut impl Read, info: &mut Info) -> Result<Header> {
                 if desc[8] & 0x80 != 0 {
                     colors = 2 << (desc[8] & 7);
                     palette = offset;
-                    offset += colors as u32 * 3;
+                    offset = offset.checked_add(colors as u32 * 3).ok_or(Error::Input)?;
                 }
                 let code_size = byte(input, &mut offset)?;
                 if !(2..=8).contains(&code_size) {
@@ -135,7 +135,7 @@ fn header(input: &mut impl Read, info: &mut Info) -> Result<Header> {
     }
 }
 
-pub fn inspect(input: &mut impl Read, info: &mut Info) -> bool {
+pub fn inspect(input: &mut dyn Read, info: &mut Info) -> bool {
     header(input, info).is_ok()
 }
 
@@ -146,8 +146,8 @@ pub(crate) fn zeros<T: Default + Clone>(count: usize) -> Result<Vec<T>> {
     Ok(v)
 }
 
-struct Codes<'a, R> {
-    input: &'a mut R,
+struct Codes<'a> {
+    input: &'a mut dyn Read,
     buffer: &'a mut [u8],
     offset: u32,
     at: usize,
@@ -158,7 +158,7 @@ struct Codes<'a, R> {
     bit: usize,
     ended: bool,
 }
-impl<R: Read> Codes<'_, R> {
+impl Codes<'_> {
     #[inline(always)]
     fn raw(&mut self) -> Result<u8> {
         if self.at == self.end {
@@ -222,21 +222,29 @@ impl<R: Read> Codes<'_, R> {
         Ok(())
     }
     #[inline(always)]
-    fn next(&mut self, size: u8) -> Result<u16> {
-        if self.bit + size as usize > self.plain_end * 8 {
+    fn next(&mut self, size: usize, mask: usize) -> Result<usize> {
+        if self.bit + size > self.plain_end * 8 {
             self.refill()?;
-            if self.bit + size as usize > self.plain_end * 8 {
+            if self.bit + size > self.plain_end * 8 {
                 return Err(Error::Input);
             }
         }
-        let offset = self.bit / 8;
-        // The dechunk buffer has a native-word guard after its valid bytes.
-        // Available bits were checked above; the unused high bits are masked.
-        let word =
-            unsafe { core::ptr::read_unaligned(self.plain.as_ptr().add(offset).cast::<usize>()) }
-                .to_le();
-        let code = ((word >> (self.bit & 7)) & ((1 << size) - 1)) as u16;
-        self.bit += size as usize;
+        const WORD: usize = core::mem::size_of::<usize>();
+        let offset = (self.bit / (WORD * 8)) * WORD;
+        let shift = self.bit & (WORD * 8 - 1);
+        // The usize allocation and word-multiple splits keep plain aligned.
+        // Its native-word guard covers the second load; valid bits were checked above.
+        let mut word = unsafe { core::ptr::read(self.plain.as_ptr().add(offset).cast::<usize>()) }
+            .to_le()
+            >> shift;
+        if shift + size > WORD * 8 {
+            word |=
+                unsafe { core::ptr::read(self.plain.as_ptr().add(offset + WORD).cast::<usize>()) }
+                    .to_le()
+                    << (WORD * 8 - shift);
+        }
+        let code = word & mask;
+        self.bit += size;
         Ok(code)
     }
 }
@@ -253,7 +261,19 @@ pub trait Rows {
     ) -> bool;
 }
 
-pub fn decode(input: &mut impl Read, sink: &mut impl Rows) -> Result<()> {
+// Entries pack a 12-bit length, an 8-bit tail and a 12-bit prefix.
+// Direct row expansion avoids copying long strings through the scratch buffer.
+#[inline(never)]
+fn expand(mut current: usize, table: &[u32], output: &mut [u8]) {
+    for pixel in output.iter_mut().rev() {
+        // The caller validates the first code; every stored prefix is below 4096.
+        let entry = unsafe { *table.get_unchecked(current) };
+        *pixel = (entry >> 12) as u8;
+        current = (entry & 0xfff) as usize;
+    }
+}
+
+pub fn decode(input: &mut dyn Read, sink: &mut dyn Rows) -> Result<()> {
     let mut info = Info::default();
     let h = header(input, &mut info)?;
     if !h.supported_extensions
@@ -267,10 +287,13 @@ pub fn decode(input: &mut impl Read, sink: &mut impl Rows) -> Result<()> {
         return Err(Error::Format);
     }
     // Prefix links, suffix bytes and expansion stack are bounded by the 12-bit GIF dictionary.
-    let mut tables = zeros::<u16>(8192)?;
-    let (prefix, suffix) = tables.split_at_mut(4096);
-    let mut bytes = zeros::<u8>(4104 + 1024 + 1032 + 256 + info.frame_width as usize)?;
-    let (stack, bytes) = bytes.split_at_mut(4104);
+    let mut table = zeros::<u32>(4096)?;
+    let byte_count = 4096 + 1024 + 1032 + 256 + info.frame_width as usize;
+    let mut words = zeros::<usize>(byte_count.div_ceil(core::mem::size_of::<usize>()))?;
+    // Byte access covers initialized storage exclusively borrowed from words.
+    let bytes =
+        unsafe { core::slice::from_raw_parts_mut(words.as_mut_ptr().cast::<u8>(), byte_count) };
+    let (stack, bytes) = bytes.split_at_mut(4096);
     let (buffer, bytes) = bytes.split_at_mut(1024);
     let (plain, bytes) = bytes.split_at_mut(1032);
     let (palette, line) = bytes.split_at_mut(256);
@@ -294,21 +317,22 @@ pub fn decode(input: &mut impl Read, sink: &mut impl Rows) -> Result<()> {
         bit: 0,
         ended: false,
     };
-    let clear = 1u16 << h.code_size;
-    for (i, b) in suffix[..clear as usize].iter_mut().enumerate() {
-        *b = i as u16;
-        prefix[i] = 4096;
+    let clear = 1usize << h.code_size;
+    for (i, entry) in table[..clear].iter_mut().enumerate() {
+        *entry = (1 << 20) | ((i as u32) << 12);
     }
-    let mut size = h.code_size + 1;
+    let mut size = h.code_size as usize + 1;
+    let mut limit = clear * 2;
     let mut next = clear + 2;
     let mut previous = None;
     let mut first = 0u8;
     let mut x = 0;
     let mut y = 0;
     while y < info.frame_height {
-        let code = codes.next(size)?;
+        let code = codes.next(size, limit - 1)?;
         if code == clear {
-            size = h.code_size + 1;
+            size = h.code_size as usize + 1;
+            limit = clear * 2;
             next = clear + 2;
             previous = None;
             continue;
@@ -316,56 +340,51 @@ pub fn decode(input: &mut impl Read, sink: &mut impl Rows) -> Result<()> {
         if code == clear + 1 {
             return Ok(());
         }
-        let mut current = code;
-        let mut start = 4096;
-        if code == next && previous.is_some() {
-            start -= 1;
-            stack[start] = first;
-            current = previous.unwrap_or(0);
-        } else if code >= next {
+        let special = code == next && previous.is_some();
+        let current = if special {
+            previous.unwrap_or(0)
+        } else if code < next {
+            code
+        } else {
             return Err(Error::Format);
+        };
+        // Dictionary lengths grow by one and cannot exceed 4091 with a 12-bit table.
+        let length = (table[current] >> 20) as usize + usize::from(special);
+        let mut start = 4096 - length;
+        let direct = length <= line.len() - x;
+        let output = if direct {
+            &mut line[x..x + length]
+        } else {
+            &mut stack[start..4096]
+        };
+        if special {
+            output[length - 1] = first;
         }
-        while current < 4096 {
-            // Prefix links only refer to earlier codes (or the 4096 sentinel).
-            // Each entry stores one or two tail bytes; at most 4096 bytes expand.
-            unsafe {
-                let link = *prefix.get_unchecked(current as usize);
-                let tail = *suffix.get_unchecked(current as usize);
-                start -= 1;
-                *stack.get_unchecked_mut(start) = tail as u8;
-                if link & 0x8000 != 0 {
-                    start -= 1;
-                    *stack.get_unchecked_mut(start) = (tail >> 8) as u8;
-                }
-                current = link & 0x1fff;
-            }
+        if current < clear {
+            output[0] = current as u8;
+        } else {
+            expand(
+                current,
+                &table,
+                &mut output[..length - usize::from(special)],
+            );
         }
-        first = stack[start];
+        first = output[0];
         if let Some(old) = previous {
             if next < 4096 {
-                let link = prefix[old as usize];
-                if link & 0x8000 == 0 {
-                    prefix[next as usize] = link | 0x8000;
-                    suffix[next as usize] = (suffix[old as usize] << 8) | first as u16;
-                } else {
-                    prefix[next as usize] = old;
-                    suffix[next as usize] = first as u16;
-                }
+                table[next] =
+                    ((table[old] & 0xfff0_0000) + (1 << 20)) | ((first as u32) << 12) | old as u32;
                 next += 1;
-                if next == 1 << size && size < 12 {
+                if next == limit && size < 12 {
                     size += 1;
+                    limit *= 2;
                 }
             }
         }
         previous = Some(code);
         while start < 4096 && y < info.frame_height {
             let take = (line.len() - x).min(4096 - start);
-            const WORD: usize = core::mem::size_of::<usize>();
-            // Extra pixels from short word copies are overwritten by later codes.
-            // The stack has tail padding; the copy cannot cross a row boundary.
-            if take <= WORD && x + WORD <= line.len() {
-                line[x..x + WORD].copy_from_slice(&stack[start..start + WORD]);
-            } else {
+            if !direct {
                 line[x..x + take].copy_from_slice(&stack[start..start + take]);
             }
             x += take;
@@ -416,9 +435,11 @@ mod tests {
     struct Pixels {
         values: Vec<u8>,
         rows: usize,
+        positions: Vec<u16>,
     }
     impl Rows for Pixels {
-        fn row(&mut self, _: Info, _: u16, pixels: &[u8], _: &[u8], _: Option<u8>) -> bool {
+        fn row(&mut self, _: Info, y: u16, pixels: &[u8], _: &[u8], _: Option<u8>) -> bool {
+            self.positions.push(y);
             self.values.extend_from_slice(pixels);
             self.rows += 1;
             true
@@ -448,6 +469,36 @@ mod tests {
         let mut pixels = Pixels::default();
         assert_eq!(decode(&mut input, &mut pixels), Ok(()));
         assert_eq!(pixels.values, [0]);
+    }
+    #[test]
+    fn interlaced_rows_keep_the_four_pass_order() {
+        let mut bytes = Vec::from(&b"GIF89a\x02\x00\x08\x00\x81\x00\x00"[..]);
+        bytes.extend_from_slice(&[0; 12]);
+        bytes.extend_from_slice(b",\x00\x00\x00\x00\x02\x00\x08\x00\x40\x02");
+        let mut data = Vec::new();
+        let (mut bits, mut count) = (0u32, 0);
+        for code in (0..16).flat_map(|i| [4u32, (i / 2) % 4]).chain([5]) {
+            bits |= code << count;
+            count += 3;
+            while count >= 8 {
+                data.push(bits as u8);
+                bits >>= 8;
+                count -= 8;
+            }
+        }
+        if count != 0 {
+            data.push(bits as u8);
+        }
+        bytes.push(data.len() as u8);
+        bytes.extend_from_slice(&data);
+        bytes.extend_from_slice(&[0, b';']);
+        let mut pixels = Pixels::default();
+        assert_eq!(decode(&mut Memory(&bytes), &mut pixels), Ok(()));
+        assert_eq!(pixels.positions, [0, 4, 2, 6, 1, 3, 5, 7]);
+        assert_eq!(
+            pixels.values,
+            [0, 0, 1, 1, 2, 2, 3, 3, 0, 0, 1, 1, 2, 2, 3, 3]
+        );
     }
     #[test]
     fn every_truncation_and_bit_flip_terminates() {

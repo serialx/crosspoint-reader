@@ -3,6 +3,7 @@
 mod bidi;
 mod chapter;
 mod css;
+mod font;
 mod hyphen;
 mod image;
 mod para;

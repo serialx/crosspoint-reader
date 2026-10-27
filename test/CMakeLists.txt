@@ -126,3 +126,4 @@ set_tests_properties(clipping_selection_text recursive_dictionary PROPERTIES
 add_subdirectory(text_golden)
 
 add_subdirectory(textm_diff)
+add_subdirectory(font_diff)

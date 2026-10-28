@@ -110,6 +110,37 @@ nothing. Future Rust allocations use byte-addressable internal RAM and must
 have an explicit budget and failure policy; the allocator returns null on OOM.
 Rust panics call C `abort()` to enter the existing ESP-IDF panic path.
 
+## Diagnostics
+
+Rust never logs. C++ owns every `LOG_*` call, format string, origin tag and
+log-level gate. Diagnostics must preserve behavior and add no heap allocations.
+When an event ends a Rust call, return a status or failure detail for C++ to log.
+For events inside a call that continues, use one nullable, synchronous diagnostic
+callback in the services/options descriptor: context, `event, a, b, c, d`, and
+optional borrowed text slices with lengths. A null callback means silent.
+The callback must not reenter Rust or retain pointers. Text is borrowed only for
+the callback; use `%.*s` in C++ when it is not NUL-terminated.
+
+Do not add callbacks on per-word, per-glyph or per-row success paths. Keep copies
+needed only for diagnostics in cold, non-inlined helpers so hot stack frames do
+not grow. For example, `Assembly::add_line` calls `diagnose_dropped_link` only
+after a rejected link; that helper copies at most 48 bytes in
+`rust/crates/xp-core/src/chapter/assembly/mod.rs`.
+
+When porting C++, inventory `LOG_*` statements before and after by counting
+`(level, origin, format)` tuples, including duplicates. Restore each line for the
+same event, or record why that event no longer exists. Document unavailable
+arguments and borrowed-slice format changes. Compare emulator logs with upstream
+for the same workloads, checking message text, values and occurrence counts.
+
+Event tables and payload contracts live beside each relevant ABI block in
+`rust/crates/xp-ffi/include/xp_ffi.h`; C++ mapping functions define the log lines.
+Examples are `lib/Epub/Epub/parsers/ChapterPageServices.cpp`,
+`lib/Epub/Epub/parsers/PackageDiagnostics.h`, `lib/Epub/Epub/css/CssParser.cpp`,
+`lib/Epub/Epub/Page.cpp`, `lib/Epub/Epub/converters/ImageDiagnostics.h`,
+`lib/PngDiagnostics/PngDiagnostics.h`, `lib/GifSupport/GifCommon.h` and
+`lib/EpdFont/SdCardFont.cpp`.
+
 ## Hyphenation boundary
 
 `Hyphenator` keeps the existing C++ interface and stores a Rust language id.

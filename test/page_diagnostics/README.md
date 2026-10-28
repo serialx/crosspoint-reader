@@ -26,7 +26,7 @@ do not model ESP heap block overhead or hardware failure timing.
 
 To rebuild the upstream reference, run from the repository root after building
 `PageDiagnosticProbe`. The following procedure uses macOS host tools; on Linux,
-replace `-Wl,-dead_strip` with `-Wl,--gc-sections` and select the host Rust archive.
+replace `-Wl,-dead_strip` with `-Wl,--gc-sections`.
 Keep the exported source and adapted harness outside the repository.
 
 1. Create a scratch directory and export the original page implementations:
@@ -64,7 +64,7 @@ Keep the exported source and adapted harness outside the repository.
      "$PAGE_REF/lib/Epub/Epub/CjkBreaks.cpp" \
      "$PAGE_REF/lib/Epub/Epub/hyphenation/HyphenationCommon.cpp" \
      lib/Utf8/Utf8.cpp lib/MiniBidi/RustBidi.cpp test/cmake/xp_ffi_host.cpp \
-     build/test/xp-ffi-host-target/aarch64-apple-darwin/release/libxp_ffi.a \
+     "build/test/xp-ffi-host-target/$(rustc -vV | sed -n 's/^host: //p')/release/libxp_ffi.a" \
      -o "$PAGE_REF/PageReference"
    python3 test/page_diagnostics/run.py \
      build/test/page_diagnostics/PageDiagnosticProbe \

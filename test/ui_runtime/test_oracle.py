@@ -3,6 +3,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+import geometry_oracle
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
@@ -23,6 +24,9 @@ def record(source=None):
 
 
 class Golden(unittest.TestCase):
+    def test_cpp_widget_pixels(self):
+        self.assertEqual(geometry_oracle.record(), (HERE / "geometry.golden").read_bytes())
+
     def test_sdk_layout(self):
         self.assertEqual(record(), (HERE / "layout.golden").read_bytes())
 

@@ -1,0 +1,75 @@
+CASE 0
+create 0
+load /fonts/Example/Example_14.cpfont 0
+register 180421160
+LOG DBG SDMGR Loaded /fonts/Example/Example_14.cpfont size=14 id=180421160 styles=4
+insert 180421160
+family 1
+state Example 14 1 1
+lookup 180421160 0 0
+reuse 180421160
+create 0
+load /fonts/Example/Example_18.cpfont 0
+register 101
+LOG DBG SDMGR Loaded /fonts/Example/Example_18.cpfont size=18 id=101 styles=4
+insert 101
+extra 101
+create 0
+load /fonts/Example/Example_18.cpfont 0
+register 102
+LOG DBG SDMGR Loaded /fonts/Example/Example_18.cpfont size=18 id=102 styles=4
+insert 102
+variant 1
+create 0
+load /fonts/Example/Example_20.cpfont 0
+LOG ERR SDMGR Font ID 102 collides with existing font, skipping /fonts/Example/Example_20.cpfont
+destroy
+collision 0
+missing 0
+remove 101
+destroy
+state Example 14 2 2
+clear fallbacks
+clear sd
+remove 180421160
+destroy
+remove 102
+destroy
+create 0
+load /fonts/Second/Second_20.cpfont 0
+register -1410173056
+LOG DBG SDMGR Loaded /fonts/Second/Second_20.cpfont size=20 id=-1410173056 styles=4
+insert -1410173056
+replace 1
+state Second 20 1 1
+clear fallbacks
+clear sd
+remove -1410173056
+destroy
+LOG ERR SDMGR Family Second has no files to load
+empty 0
+state  0 0 0
+create 0
+load /fonts/Example/Example_18.cpfont 0
+register -155131220
+LOG DBG SDMGR Loaded /fonts/Example/Example_18.cpfont size=18 id=-155131220 styles=4
+insert -155131220
+reload 1
+destroy
+final live 0
+CASE 1
+create 1
+LOG ERR SDMGR Failed to allocate SdCardFont for /fonts/Example/Example_14.cpfont
+family 0
+state  0 0 0
+CASE 2
+create 0
+load /fonts/Example/Example_14.cpfont 1
+LOG ERR SDMGR Failed to load /fonts/Example/Example_14.cpfont
+destroy
+family 0
+state  0 0 0
+CASE 3
+LOG ERR SDMGR Font path too long in family xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+family 0
+state  0 0 0

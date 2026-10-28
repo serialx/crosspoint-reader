@@ -145,3 +145,5 @@ add_subdirectory(chapter_diagnostics)
 add_subdirectory(display_trace)
 
 add_subdirectory(font_cache)
+
+add_subdirectory(font_manager)

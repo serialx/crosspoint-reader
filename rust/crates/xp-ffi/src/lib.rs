@@ -1,6 +1,11 @@
 #![no_std]
 
 mod bidi;
+mod ble;
+#[cfg(not(target_has_atomic = "ptr"))]
+mod ble_atomic;
+mod ble_json;
+mod ble_runtime;
 mod chapter;
 mod css;
 mod font;

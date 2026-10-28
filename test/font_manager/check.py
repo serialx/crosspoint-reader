@@ -1,4 +1,4 @@
-"""Compare cache bytes, allocation order, diagnostics, stats and lifetime."""
+"""Compare font registration, diagnostics, ownership and manager state."""
 import pathlib
 import re
 import subprocess
@@ -15,4 +15,4 @@ else:
     if result != expected:
         print("".join(difflib.unified_diff(expected.splitlines(True), result.splitlines(True))))
         sys.exit(1)
-    print("Font cache golden matches")
+    print("Font manager golden matches")

@@ -73,3 +73,11 @@ CASE 3
 LOG ERR SDMGR Font path too long in family xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 family 0
 state  0 0 0
+create 0
+load /fonts/Embedded/Embedded_14.cpfont 0
+register 1676914004
+LOG DBG SDMGR Loaded /fonts/Embedded/Embedded_14.cpfont size=14 id=1676914004 styles=4
+insert 1676914004
+embedded 1
+names 15 1676914004 0
+destroy

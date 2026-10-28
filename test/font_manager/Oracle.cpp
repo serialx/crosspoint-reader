@@ -45,4 +45,14 @@ int main() {
     }
     std::printf("final live %u\n", SdCardFont::live);
   }
+  {
+    GfxRenderer renderer;
+    SdCardFontManager manager;
+    auto f = family("Embedded");
+    f.name.append("\0suffix", 7);
+    std::printf("embedded %d\n", manager.loadFamily(f, renderer, 14));
+    std::printf("names %zu %d %d\n", manager.currentFamilyName().size(), manager.getFontId(f.name),
+                manager.getFontId("Embedded"));
+  }
+
 }

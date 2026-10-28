@@ -121,23 +121,36 @@ static OPM: Config = Config {
 };
 
 // Only scalar state is retained. The static config and LUTs live in flash.
+const STATE_MIRROR_X: u16 = 1 << 0;
+const STATE_MIRROR_Y: u16 = 1 << 1;
+const STATE_FAST_DU: u16 = 1 << 2;
+const STATE_PENDING_SYNC: u16 = 1 << 3;
+const STATE_NEEDS_GRAY_CLEAR: u16 = 1 << 4;
+const STATE_ABSOLUTE_INPUT: u16 = 1 << 5;
+const STATE_SCREEN_ON: u16 = 1 << 6;
+const STATE_IN_GRAY: u16 = 1 << 7;
+const STATE_CUSTOM_LUT: u16 = 1 << 8;
+const STATE_PENDING_OFF: u16 = 1 << 9;
+const STATE_INITIAL_FULL: u16 = 1 << 10;
+
 pub struct Ssd1677 {
     cfg: &'static Config,
     pub width: u16,
     pub height: u16,
-    mirror_x: bool,
-    mirror_y: bool,
-    fast_du: bool,
-    pending_sync: bool,
-    needs_gray_clear: bool,
-    absolute_input: bool,
-    screen_on: bool,
-    in_gray: bool,
-    custom_lut: bool,
-    pending_off: bool,
-    initial_full: bool,
+    state_flags: u16,
 }
 impl Ssd1677 {
+    fn has(&self, flag: u16) -> bool {
+        self.state_flags & flag != 0
+    }
+    fn set(&mut self, flag: u16, value: bool) {
+        if value {
+            self.state_flags |= flag;
+        } else {
+            self.state_flags &= !flag;
+        }
+    }
+
     pub fn new(width: u16, height: u16, variant: u32, flags: u32) -> Option<Self> {
         if width == 0
             || !width.is_multiple_of(8)
@@ -157,20 +170,22 @@ impl Ssd1677 {
             _ => return None,
         };
         Some(Self {
+            state_flags: if flags & SSD1677_MIRROR_X != 0 {
+                STATE_MIRROR_X
+            } else {
+                0
+            } | if flags & SSD1677_MIRROR_Y != 0 {
+                STATE_MIRROR_Y
+            } else {
+                0
+            } | if flags & SSD1677_FAST_DU != 0 {
+                STATE_FAST_DU
+            } else {
+                0
+            },
             cfg,
             width,
             height,
-            mirror_x: flags & SSD1677_MIRROR_X != 0,
-            mirror_y: flags & SSD1677_MIRROR_Y != 0,
-            fast_du: flags & SSD1677_FAST_DU != 0,
-            pending_sync: false,
-            needs_gray_clear: false,
-            absolute_input: false,
-            screen_on: false,
-            in_gray: false,
-            custom_lut: false,
-            pending_off: false,
-            initial_full: false,
         })
     }
     pub fn frame_size(&self) -> usize {
@@ -196,15 +211,15 @@ impl Ssd1677 {
         }
         bus.cmd(0x01);
         Self::word(bus, self.height - 1);
-        bus.data8(self.cfg.scan | u8::from(self.mirror_y));
+        bus.data8(self.cfg.scan | u8::from(self.has(STATE_MIRROR_Y)));
         Self::reg(bus, 0x3c, self.cfg.border_init);
         self.area(bus, 0, 0, self.width, self.height);
         Self::reg(bus, 0x46, 0xf7);
         bus.busy_wait(0, TAG_SSD_AUTO_BW);
         Self::reg(bus, 0x47, 0xf7);
         bus.busy_wait(0, TAG_SSD_AUTO_RED);
-        self.screen_on = false;
-        self.initial_full = self.cfg.full_seq != 0;
+        self.set(STATE_SCREEN_ON, false);
+        self.set(STATE_INITIAL_FULL, self.cfg.full_seq != 0);
     }
     fn reg(bus: &mut impl Bus, command: u8, value: u8) {
         bus.cmd(command);
@@ -216,10 +231,14 @@ impl Ssd1677 {
     }
     fn area(&self, bus: &mut impl Bus, x: u16, y: u16, width: u16, height: u16) {
         let hi = x.wrapping_add(width).wrapping_sub(1);
-        let (start, end) = if self.mirror_x { (hi, x) } else { (x, hi) };
+        let (start, end) = if self.has(STATE_MIRROR_X) {
+            (hi, x)
+        } else {
+            (x, hi)
+        };
         let y = self.height.wrapping_sub(y).wrapping_sub(height);
         let top = y.wrapping_add(height).wrapping_sub(1);
-        Self::reg(bus, 0x11, u8::from(!self.mirror_x));
+        Self::reg(bus, 0x11, u8::from(!self.has(STATE_MIRROR_X)));
         bus.cmd(0x44);
         Self::word(bus, start);
         Self::word(bus, end);
@@ -251,7 +270,7 @@ impl Ssd1677 {
     }
     pub fn set_lut(&mut self, bus: &mut impl Bus, data: Option<&[u8]>) {
         let Some(data) = data else {
-            self.custom_lut = false;
+            self.set(STATE_CUSTOM_LUT, false);
             return;
         };
         if data.len() < 110 {
@@ -270,10 +289,10 @@ impl Ssd1677 {
         if self.cfg.border_gray != 0 {
             Self::reg(bus, 0x3c, self.cfg.border_gray);
         }
-        self.custom_lut = true;
+        self.set(STATE_CUSTOM_LUT, true);
     }
     fn refresh(&mut self, bus: &mut impl Bus, mode: Refresh, turn_off: bool, deferred: bool) {
-        self.pending_off = false;
+        self.set(STATE_PENDING_OFF, false);
         Self::reg(bus, 0x21, if mode == Refresh::Fast { 0 } else { 0x40 });
         if self.cfg.second_control {
             bus.data8(0);
@@ -286,7 +305,7 @@ impl Ssd1677 {
             Refresh::Half => self.cfg.half_lut,
             Refresh::Full => self.cfg.full_lut,
         };
-        let board_lut = lut.is_some() && !self.custom_lut;
+        let board_lut = lut.is_some() && !self.has(STATE_CUSTOM_LUT);
         if board_lut {
             self.set_lut(bus, lut);
             if mode == Refresh::Fast && self.cfg.border_fast != 0 {
@@ -294,12 +313,12 @@ impl Ssd1677 {
             }
         }
         let seq = match mode {
-            Refresh::Fast if self.fast_du => 0,
+            Refresh::Fast if self.has(STATE_FAST_DU) => 0,
             Refresh::Fast => self.cfg.fast_seq,
             Refresh::Half if self.cfg.half_seq != 0 => self.cfg.half_seq,
             _ => self.cfg.full_seq,
         };
-        if seq != 0 && !self.custom_lut {
+        if seq != 0 && !self.has(STATE_CUSTOM_LUT) {
             let border = match mode {
                 Refresh::Fast => self.cfg.border_fast,
                 Refresh::Half if self.cfg.border_half != 0 => self.cfg.border_half,
@@ -316,8 +335,8 @@ impl Ssd1677 {
             if !deferred {
                 bus.refresh_wait(63);
             }
-            self.screen_on = seq & 3 == 0;
-            self.pending_off = turn_off && self.screen_on;
+            self.set(STATE_SCREEN_ON, seq & 3 == 0);
+            self.set(STATE_PENDING_OFF, turn_off && self.has(STATE_SCREEN_ON));
             return;
         }
         if board_lut && mode != Refresh::Fast {
@@ -329,7 +348,7 @@ impl Ssd1677 {
             if turn_off {
                 control |= 3;
             }
-            self.screen_on = !turn_off;
+            self.set(STATE_SCREEN_ON, !turn_off);
             Self::reg(bus, 0x22, control);
             bus.cmd(0x20);
             if !deferred {
@@ -338,8 +357,8 @@ impl Ssd1677 {
             self.set_lut(bus, None);
             return;
         }
-        let mut control = if self.screen_on { 0 } else { 0xc0 };
-        self.screen_on = !turn_off;
+        let mut control = if self.has(STATE_SCREEN_ON) { 0 } else { 0xc0 };
+        self.set(STATE_SCREEN_ON, !turn_off);
         if turn_off {
             control |= 3;
         }
@@ -349,7 +368,9 @@ impl Ssd1677 {
                 Self::reg(bus, 0x1a, self.cfg.half_temp);
                 control |= 0xd4;
             }
-            Refresh::Fast if self.custom_lut => control = 0xcc | if turn_off { 3 } else { 0 },
+            Refresh::Fast if self.has(STATE_CUSTOM_LUT) => {
+                control = 0xcc | if turn_off { 3 } else { 0 }
+            }
             Refresh::Fast => control |= 0x1c,
         }
         Self::reg(bus, 0x22, control);
@@ -362,16 +383,16 @@ impl Ssd1677 {
         }
     }
     fn power_on(&mut self, bus: &mut impl Bus) {
-        if self.screen_on {
+        if self.has(STATE_SCREEN_ON) {
             return;
         }
         Self::reg(bus, 0x22, 0xc0);
         bus.cmd(0x20);
         bus.busy_wait(0, TAG_SSD_GRAY_POWER_ON);
-        self.screen_on = true;
+        self.set(STATE_SCREEN_ON, true);
     }
     fn power_off(&mut self, bus: &mut impl Bus) {
-        if !self.screen_on {
+        if !self.has(STATE_SCREEN_ON) {
             return;
         }
         Self::reg(bus, 0x3c, self.cfg.border_init);
@@ -379,7 +400,7 @@ impl Ssd1677 {
         bus.cmd(0x20);
         bus.delay_ms(200);
         bus.busy_wait(0, TAG_SSD_POWER_DOWN);
-        self.screen_on = false;
+        self.set(STATE_SCREEN_ON, false);
     }
     pub fn sleep(&mut self, bus: &mut impl Bus) {
         self.power_off(bus);
@@ -401,24 +422,24 @@ impl Ssd1677 {
         turn_off: bool,
         deferred: bool,
     ) {
-        let cold = self.initial_full;
-        self.pending_sync = self.cfg.black_pulse && deferred;
-        if self.needs_gray_clear {
+        let cold = self.has(STATE_INITIAL_FULL);
+        self.set(STATE_PENDING_SYNC, self.cfg.black_pulse && deferred);
+        if self.has(STATE_NEEDS_GRAY_CLEAR) {
             if mode == Refresh::Fast {
                 mode = self.clean_mode();
             }
-            self.needs_gray_clear = false;
+            self.set(STATE_NEEDS_GRAY_CLEAR, false);
         }
-        if self.initial_full {
+        if self.has(STATE_INITIAL_FULL) {
             if mode == Refresh::Fast {
                 mode = self.clean_mode();
             }
-            self.initial_full = false;
-        } else if !turn_off && !self.screen_on && self.cfg.full_seq == 0 {
+            self.set(STATE_INITIAL_FULL, false);
+        } else if !turn_off && !self.has(STATE_SCREEN_ON) && self.cfg.full_seq == 0 {
             mode = Refresh::Half;
         }
-        if self.in_gray {
-            self.in_gray = false;
+        if self.has(STATE_IN_GRAY) {
+            self.set(STATE_IN_GRAY, false);
             if mode == Refresh::Fast {
                 mode = Refresh::Half;
             }
@@ -459,19 +480,19 @@ impl Ssd1677 {
         Self::write(bus, 0x26, frame);
     }
     fn finish_power_off(&mut self, bus: &mut impl Bus) {
-        if self.pending_off {
-            self.pending_off = false;
+        if self.has(STATE_PENDING_OFF) {
+            self.set(STATE_PENDING_OFF, false);
             self.power_off(bus);
         }
     }
     pub fn finish(&mut self, bus: &mut impl Bus, frame: Option<&[u8]>) {
         bus.refresh_wait(63);
-        if self.pending_sync {
+        if self.has(STATE_PENDING_SYNC) {
             if let Some(frame) = frame {
                 self.sync(bus, frame);
             }
         }
-        self.pending_sync = false;
+        self.set(STATE_PENDING_SYNC, false);
         self.finish_power_off(bus);
     }
     pub fn display_window(
@@ -496,7 +517,7 @@ impl Ssd1677 {
         {
             return Ok(());
         }
-        if self.in_gray || self.needs_gray_clear {
+        if self.has(STATE_IN_GRAY) || self.has(STATE_NEEDS_GRAY_CLEAR) {
             self.display(bus, frame, None, self.clean_mode(), turn_off, false);
             return Ok(());
         }
@@ -546,8 +567,8 @@ impl Ssd1677 {
         fallback: Refresh,
         turn_off: bool,
     ) {
-        self.absolute_input = mode == 1;
-        if !self.absolute_input {
+        self.set(STATE_ABSOLUTE_INPUT, mode == 1);
+        if !self.has(STATE_ABSOLUTE_INPUT) {
             self.display(bus, frame, None, fallback, turn_off, false);
         }
     }
@@ -557,7 +578,7 @@ impl Ssd1677 {
         }
         self.area(bus, 0, y, self.width, height);
         let cmd = if msb { 0x26 } else { 0x24 };
-        if !self.absolute_input {
+        if !self.has(STATE_ABSOLUTE_INPUT) {
             Self::write(bus, cmd, rows);
             return;
         }
@@ -579,7 +600,7 @@ impl Ssd1677 {
         lut: Option<&[u8]>,
         factory: bool,
     ) {
-        self.in_gray = !factory;
+        self.set(STATE_IN_GRAY, !factory);
         self.set_lut(
             bus,
             Some(lut.unwrap_or(if factory {
@@ -593,11 +614,11 @@ impl Ssd1677 {
             Self::reg(bus, 0x22, 0xcc);
             bus.cmd(0x20);
             bus.refresh_wait(66);
-            self.screen_on = true;
+            self.set(STATE_SCREEN_ON, true);
             if turn_off {
                 self.power_off(bus);
             }
-            self.needs_gray_clear = true;
+            self.set(STATE_NEEDS_GRAY_CLEAR, true);
         } else {
             if self.cfg.gray_power_first {
                 self.power_on(bus);
@@ -605,15 +626,15 @@ impl Ssd1677 {
             self.refresh(bus, Refresh::Fast, turn_off, false);
         }
         self.set_lut(bus, None);
-        self.absolute_input = false;
+        self.set(STATE_ABSOLUTE_INPUT, false);
     }
     pub fn cleanup_gray(&mut self, bus: &mut impl Bus, frame: &[u8]) {
         self.seed(bus, frame);
-        self.in_gray = false;
+        self.set(STATE_IN_GRAY, false);
     }
     pub fn resync(&mut self) {
-        self.needs_gray_clear = true;
-        self.absolute_input = false;
+        self.set(STATE_NEEDS_GRAY_CLEAR, true);
+        self.set(STATE_ABSOLUTE_INPUT, false);
     }
 }
 

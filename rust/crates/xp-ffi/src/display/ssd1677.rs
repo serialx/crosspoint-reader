@@ -7,7 +7,7 @@ struct State {
     platform: *const Platform,
     panel: Ssd1677,
 }
-const _: () = assert!(size_of::<State>() <= 24 + 2 * size_of::<*const c_void>());
+const _: () = assert!(size_of::<State>() <= 16 + 2 * size_of::<*const c_void>());
 const _: () = assert!(align_of::<State>() <= align_of::<*const c_void>());
 
 struct Allocator<'a>(Option<&'a Platform>);

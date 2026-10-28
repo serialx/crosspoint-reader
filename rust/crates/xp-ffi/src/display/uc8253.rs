@@ -5,7 +5,7 @@ struct State {
     header: Header,
     panel: Uc8253,
 }
-const _: () = assert!(size_of::<State>() <= 24 + 2 * size_of::<*const c_void>());
+const _: () = assert!(size_of::<State>() <= 16 + size_of::<*const c_void>());
 const _: () = assert!(align_of::<State>() <= align_of::<*const c_void>());
 #[inline(always)]
 pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {

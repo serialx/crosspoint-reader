@@ -58,27 +58,40 @@ pub fn direct_luts() -> [*const u8; 5] {
     luts::DIRECT.each_ref().map(|row| row.as_ptr())
 }
 
+const STATE_SCREEN_ON: u16 = 1 << 0;
+const STATE_RED_SYNCED: u16 = 1 << 1;
+const STATE_IN_GRAY: u16 = 1 << 2;
+const STATE_ABSOLUTE: u16 = 1 << 3;
+const STATE_DIRECT_PASS: u16 = 1 << 4;
+const STATE_DIRECT_ON_PANEL: u16 = 1 << 5;
+const STATE_FORCE_SYNC: u16 = 1 << 6;
+const STATE_LSB_VALID: u16 = 1 << 7;
+const STATE_PENDING: u16 = 1 << 8;
+const STATE_PENDING_OFF: u16 = 1 << 9;
+const STATE_PENDING_FULL: u16 = 1 << 10;
+const STATE_PENDING_FAST: u16 = 1 << 11;
+
 pub struct Uc8253 {
     width: u16,
     height: u16,
     custom: *const X3Config,
-    screen_on: bool,
-    red_synced: bool,
-    in_gray: bool,
-    absolute: bool,
-    direct_pass: bool,
-    direct_on_panel: bool,
     initial_syncs: u8,
-    force_sync: bool,
     condition_passes: u8,
-    lsb_valid: bool,
-    pending: bool,
-    pending_off: bool,
-    pending_full: bool,
-    pending_fast: bool,
+    state_flags: u16,
 }
 
 impl Uc8253 {
+    fn has(&self, flag: u16) -> bool {
+        self.state_flags & flag != 0
+    }
+    fn set(&mut self, flag: u16, value: bool) {
+        if value {
+            self.state_flags |= flag;
+        } else {
+            self.state_flags &= !flag;
+        }
+    }
+
     /// # Safety
     /// A nonnull custom config and all its LUT arrays are immutable and valid
     /// until the controller is dropped. Each LUT covers lut_len bytes.
@@ -103,23 +116,12 @@ impl Uc8253 {
             }
         }
         Ok(Self {
+            state_flags: 0,
             width,
             height,
             custom,
-            screen_on: false,
-            red_synced: false,
-            in_gray: false,
-            absolute: false,
-            direct_pass: false,
-            direct_on_panel: false,
             initial_syncs: 0,
-            force_sync: false,
             condition_passes: 0,
-            lsb_valid: false,
-            pending: false,
-            pending_off: false,
-            pending_full: false,
-            pending_fast: false,
         })
     }
     fn direct_supported(&self) -> bool {
@@ -219,37 +221,39 @@ impl Uc8253 {
         self.window(bus, 0, self.width - 1, 0, self.height - 1);
     }
     fn trigger(&mut self, bus: &mut impl Bus, off: bool, tag: u32) {
-        if !self.screen_on {
+        if !self.has(STATE_SCREEN_ON) {
             bus.cmd(0x04);
             bus.busy_wait(2, TAG_X3_PON);
-            self.screen_on = true;
+            self.set(STATE_SCREEN_ON, true);
         }
         bus.cmd(0x12);
         bus.busy_wait(2, tag);
         if off {
             bus.cmd(0x02);
             bus.busy_wait(2, TAG_X3_POF);
-            self.screen_on = false;
+            self.set(STATE_SCREEN_ON, false);
         }
     }
     fn display_start(&mut self, bus: &mut impl Bus, fb: &[u8], mut mode: Refresh, off: bool) {
-        let leaving_direct = self.direct_on_panel;
-        self.absolute = false;
-        self.direct_pass = false;
-        if self.direct_on_panel {
-            self.direct_on_panel = false;
-            self.red_synced = false;
-            self.in_gray = false;
+        let leaving_direct = self.has(STATE_DIRECT_ON_PANEL);
+        self.set(STATE_ABSOLUTE, false);
+        self.set(STATE_DIRECT_PASS, false);
+        if self.has(STATE_DIRECT_ON_PANEL) {
+            self.set(STATE_DIRECT_ON_PANEL, false);
+            self.set(STATE_RED_SYNCED, false);
+            self.set(STATE_IN_GRAY, false);
         }
-        if !self.screen_on && !off {
+        if !self.has(STATE_SCREEN_ON) && !off {
             mode = Refresh::Half;
         }
-        if self.in_gray {
+        if self.has(STATE_IN_GRAY) {
             self.revert(bus);
         }
         let fast = mode == Refresh::Fast;
-        let full =
-            mode == Refresh::Full || !self.red_synced || self.initial_syncs > 0 || self.force_sync;
+        let full = mode == Refresh::Full
+            || !self.has(STATE_RED_SYNCED)
+            || self.initial_syncs > 0
+            || self.has(STATE_FORCE_SYNC);
         if leaving_direct && full {
             self.load_cdi(bus, 0xa9, Bank::Half);
             self.full_window(bus);
@@ -267,38 +271,38 @@ impl Uc8253 {
             self.load_cdi(bus, 0x29, Bank::Fast);
         }
         self.plane(bus, 0x13, fb, self.height);
-        if !self.screen_on {
+        if !self.has(STATE_SCREEN_ON) {
             bus.cmd(0x04);
             bus.busy_wait(2, TAG_X3_PON);
-            self.screen_on = true;
+            self.set(STATE_SCREEN_ON, true);
         }
         bus.cmd(0x12);
         let start = bus.clock_ms();
         while bus.busy_level() == 1 && bus.clock_ms().wrapping_sub(start) < 50 {
             bus.delay_ms(1);
         }
-        self.pending_off = off;
-        self.pending_full = full;
-        self.pending_fast = fast;
-        self.pending = true;
+        self.set(STATE_PENDING_OFF, off);
+        self.set(STATE_PENDING_FULL, full);
+        self.set(STATE_PENDING_FAST, fast);
+        self.set(STATE_PENDING, true);
     }
     fn display_finish(&mut self, bus: &mut impl Bus, fb: &[u8]) {
-        if !self.pending {
+        if !self.has(STATE_PENDING) {
             return;
         }
-        self.pending = false;
-        let off = self.pending_off;
-        let full = self.pending_full;
+        self.set(STATE_PENDING, false);
+        let off = self.has(STATE_PENDING_OFF);
+        let full = self.has(STATE_PENDING_FULL);
         bus.refresh_wait(TAG_X3_DRF);
         if off {
             bus.cmd(0x02);
             bus.busy_wait(2, TAG_X3_POF);
-            self.screen_on = false;
+            self.set(STATE_SCREEN_ON, false);
         }
-        if !self.pending_fast {
+        if !self.has(STATE_PENDING_FAST) {
             bus.delay_ms(200);
         }
-        let passes = if full && self.force_sync {
+        let passes = if full && self.has(STATE_FORCE_SYNC) {
             self.condition_passes
         } else if full && self.initial_syncs == 1 {
             1
@@ -316,8 +320,8 @@ impl Uc8253 {
         }
         self.plane(bus, 0x10, fb, self.height);
         bus.cmd(0x11);
-        self.lsb_valid = false;
-        self.red_synced = true;
+        self.set(STATE_LSB_VALID, false);
+        self.set(STATE_RED_SYNCED, true);
         if full {
             self.load_cdi(bus, 0x29, Bank::Fast);
             self.plane(bus, 0x13, fb, self.height);
@@ -328,7 +332,7 @@ impl Uc8253 {
         if full && self.initial_syncs > 0 {
             self.initial_syncs -= 1;
         }
-        self.force_sync = false;
+        self.set(STATE_FORCE_SYNC, false);
         self.condition_passes = 0;
     }
     fn display(&mut self, bus: &mut impl Bus, fb: &[u8], mode: Refresh, off: bool) {
@@ -336,12 +340,16 @@ impl Uc8253 {
         self.display_finish(bus, fb);
     }
     fn gray_base(&mut self, bus: &mut impl Bus, fb: &[u8], mode: Refresh, off: bool) {
-        self.absolute = false;
-        self.direct_pass = false;
-        if self.in_gray {
+        self.set(STATE_ABSOLUTE, false);
+        self.set(STATE_DIRECT_PASS, false);
+        if self.has(STATE_IN_GRAY) {
             self.revert(bus);
         }
-        if !self.red_synced || self.lsb_valid || self.force_sync || self.initial_syncs > 0 {
+        if !self.has(STATE_RED_SYNCED)
+            || self.has(STATE_LSB_VALID)
+            || self.has(STATE_FORCE_SYNC)
+            || self.initial_syncs > 0
+        {
             self.display(bus, fb, mode, false);
             self.load_cdi(bus, 0xa9, Bank::PreBwMid);
             self.trigger(bus, off, TAG_X3_DRF);
@@ -352,16 +360,16 @@ impl Uc8253 {
         self.trigger(bus, off, TAG_X3_DRF);
         self.plane(bus, 0x10, fb, self.height);
         bus.cmd(0x11);
-        self.red_synced = true;
+        self.set(STATE_RED_SYNCED, true);
     }
     fn precondition(&mut self, bus: &mut impl Bus, x: u16, y: u16, w: u16, h: u16) {
         if w == 0
             || h == 0
             || x >= self.width
             || y >= self.height
-            || self.in_gray
-            || !self.red_synced
-            || self.lsb_valid
+            || self.has(STATE_IN_GRAY)
+            || !self.has(STATE_RED_SYNCED)
+            || self.has(STATE_LSB_VALID)
         {
             return;
         }
@@ -407,35 +415,35 @@ impl Uc8253 {
         self.plane(bus, if msb { 0x13 } else { 0x10 }, data, rows);
         bus.cmd(0x92);
         if !msb {
-            self.lsb_valid = true;
+            self.set(STATE_LSB_VALID, true);
         }
         Ok(())
     }
     fn gray_display(&mut self, bus: &mut impl Bus, off: bool, factory: bool) {
-        if !self.lsb_valid {
+        if !self.has(STATE_LSB_VALID) {
             return;
         }
-        if self.direct_pass {
+        if self.has(STATE_DIRECT_PASS) {
             self.load_cdi(bus, 0xa9, Bank::Direct);
             self.full_window(bus);
             self.trigger(bus, off, TAG_X3_DIRECT_GRAY_DRF);
             bus.cmd(0x92);
-            self.direct_on_panel = true;
-            self.absolute = false;
-            self.direct_pass = false;
-            self.lsb_valid = false;
-            self.red_synced = false;
-            self.in_gray = false;
+            self.set(STATE_DIRECT_ON_PANEL, true);
+            self.set(STATE_ABSOLUTE, false);
+            self.set(STATE_DIRECT_PASS, false);
+            self.set(STATE_LSB_VALID, false);
+            self.set(STATE_RED_SYNCED, false);
+            self.set(STATE_IN_GRAY, false);
             self.initial_syncs = 0;
-            self.force_sync = false;
+            self.set(STATE_FORCE_SYNC, false);
             self.condition_passes = 0;
             return;
         }
-        self.in_gray = self.absolute || !factory;
+        self.set(STATE_IN_GRAY, self.has(STATE_ABSOLUTE) || !factory);
         self.load_cdi(
             bus,
             0x29,
-            if self.absolute {
+            if self.has(STATE_ABSOLUTE) {
                 Bank::Absolute
             } else if factory {
                 Bank::Full
@@ -444,55 +452,55 @@ impl Uc8253 {
             },
         );
         self.trigger(bus, off, TAG_X3_DRF);
-        self.red_synced = false;
-        self.force_sync = false;
+        self.set(STATE_RED_SYNCED, false);
+        self.set(STATE_FORCE_SYNC, false);
         self.condition_passes = 0;
-        self.lsb_valid = false;
-        self.absolute = false;
-        self.direct_pass = false;
+        self.set(STATE_LSB_VALID, false);
+        self.set(STATE_ABSOLUTE, false);
+        self.set(STATE_DIRECT_PASS, false);
     }
     fn cleanup(&mut self, bus: &mut impl Bus, bw: Option<&[u8]>) -> Result<(), u32> {
-        if self.direct_pass || self.direct_on_panel {
-            self.absolute = false;
-            self.direct_pass = false;
-            self.lsb_valid = false;
-            self.red_synced = false;
+        if self.has(STATE_DIRECT_PASS) || self.has(STATE_DIRECT_ON_PANEL) {
+            self.set(STATE_ABSOLUTE, false);
+            self.set(STATE_DIRECT_PASS, false);
+            self.set(STATE_LSB_VALID, false);
+            self.set(STATE_RED_SYNCED, false);
             return Ok(());
         }
         if let Some(bw) = bw {
             self.frame(Some(bw))?;
         }
-        self.absolute = false;
-        self.direct_pass = false;
+        self.set(STATE_ABSOLUTE, false);
+        self.set(STATE_DIRECT_PASS, false);
         let Some(bw) = bw else {
-            self.lsb_valid = false;
-            self.red_synced = false;
+            self.set(STATE_LSB_VALID, false);
+            self.set(STATE_RED_SYNCED, false);
             return Ok(());
         };
         self.plane(bus, 0x13, bw, self.height);
         bus.cmd(0x11);
         self.plane(bus, 0x10, bw, self.height);
         bus.cmd(0x11);
-        self.lsb_valid = false;
-        self.red_synced = true;
-        self.force_sync = false;
+        self.set(STATE_LSB_VALID, false);
+        self.set(STATE_RED_SYNCED, true);
+        self.set(STATE_FORCE_SYNC, false);
         self.condition_passes = 0;
-        self.in_gray = false;
+        self.set(STATE_IN_GRAY, false);
         Ok(())
     }
     fn revert(&mut self, bus: &mut impl Bus) {
-        if !self.in_gray {
+        if !self.has(STATE_IN_GRAY) {
             return;
         }
-        self.in_gray = false;
+        self.set(STATE_IN_GRAY, false);
         self.fill(bus, 0x10);
         bus.cmd(0x11);
         self.fill(bus, 0x13);
         bus.cmd(0x11);
         self.load_cdi(bus, 0xa9, Bank::Half);
         self.trigger(bus, false, TAG_X3_DRF);
-        self.lsb_valid = false;
-        self.red_synced = true;
+        self.set(STATE_LSB_VALID, false);
+        self.set(STATE_RED_SYNCED, true);
     }
     pub fn execute(&mut self, bus: &mut impl Bus, r: Request<'_>) -> Result<u32, u32> {
         let off = r.flags & FLAG_TURN_OFF != 0;
@@ -500,13 +508,13 @@ impl Uc8253 {
         match r.operation {
             OP_BEGIN => self.begin(bus),
             OP_SLEEP => {
-                self.lsb_valid = false;
-                self.absolute = false;
-                self.direct_pass = false;
-                if self.screen_on {
+                self.set(STATE_LSB_VALID, false);
+                self.set(STATE_ABSOLUTE, false);
+                self.set(STATE_DIRECT_PASS, false);
+                if self.has(STATE_SCREEN_ON) {
                     bus.cmd(0x02);
                     bus.busy_wait(2, TAG_X3_POWER_DOWN);
-                    self.screen_on = false;
+                    self.set(STATE_SCREEN_ON, false);
                 }
                 bus.cmd(0x07);
                 bus.data8(0xa5);
@@ -526,7 +534,7 @@ impl Uc8253 {
                 }
             }
             OP_DISPLAY_FINISH => {
-                if self.pending {
+                if self.has(STATE_PENDING) {
                     self.display_finish(bus, self.frame(r.data)?);
                 }
             }
@@ -536,33 +544,33 @@ impl Uc8253 {
                 }
                 let fallback = Refresh::decode(r.arg)?;
                 if r.mode == 2 && self.direct_supported() {
-                    self.absolute = true;
-                    self.direct_pass = true;
-                    self.lsb_valid = false;
-                    self.red_synced = false;
-                    self.in_gray = false;
+                    self.set(STATE_ABSOLUTE, true);
+                    self.set(STATE_DIRECT_PASS, true);
+                    self.set(STATE_LSB_VALID, false);
+                    self.set(STATE_RED_SYNCED, false);
+                    self.set(STATE_IN_GRAY, false);
                     bus.cmd_data(0x00, &[0x3f, 0x0a]);
                 } else {
                     self.gray_base(bus, self.frame(r.data)?, fallback, off);
-                    self.absolute = r.mode == 1;
+                    self.set(STATE_ABSOLUTE, r.mode == 1);
                 }
             }
             OP_GRAY_BASE => self.gray_base(bus, self.frame(r.data)?, Refresh::decode(r.mode)?, off),
             OP_GRAY_PRECONDITION => self.precondition(bus, r.x, r.y, r.width, r.height),
             OP_GRAY_LSB => {
-                if self.direct_pass {
+                if self.has(STATE_DIRECT_PASS) {
                     self.strip(bus, r.data, false, 0, self.height)?;
                 } else if let Some(data) = r.data {
                     self.plane(bus, 0x10, self.frame(Some(data))?, self.height);
                     bus.cmd(0x11);
-                    self.lsb_valid = true;
+                    self.set(STATE_LSB_VALID, true);
                 } else {
-                    self.lsb_valid = false;
+                    self.set(STATE_LSB_VALID, false);
                 }
             }
             OP_GRAY_MSB => {
-                if let Some(data) = r.data.filter(|_| self.lsb_valid) {
-                    if self.direct_pass {
+                if let Some(data) = r.data.filter(|_| self.has(STATE_LSB_VALID)) {
+                    if self.has(STATE_DIRECT_PASS) {
                         self.strip(bus, Some(data), true, 0, self.height)?;
                     } else {
                         self.plane(bus, 0x13, self.frame(Some(data))?, self.height);
@@ -584,15 +592,15 @@ impl Uc8253 {
                 if r.arg > 255 {
                     return Err(INVALID);
                 }
-                self.lsb_valid = false;
-                self.absolute = false;
-                self.direct_pass = false;
-                self.force_sync = true;
+                self.set(STATE_LSB_VALID, false);
+                self.set(STATE_ABSOLUTE, false);
+                self.set(STATE_DIRECT_PASS, false);
+                self.set(STATE_FORCE_SYNC, true);
                 self.condition_passes = r.arg as u8;
             }
             OP_SKIP_INITIAL_RESYNC => {
                 self.initial_syncs = 0;
-                self.red_synced = true;
+                self.set(STATE_RED_SYNCED, true);
             }
             OP_SEED_PREVIOUS | OP_GRAY_PREPARE | OP_BACKGROUND | OP_BEGIN_WORK | OP_ABORT_POST
             | OP_QUERY | OP_MAINTENANCE | OP_IDLE | OP_COMPLETE_NEXT | OP_FULL_COMPLETES
@@ -605,15 +613,15 @@ impl Uc8253 {
 impl Panel for Uc8253 {
     fn begin(&mut self, bus: &mut impl Bus) {
         bus.reset(50);
-        self.red_synced = false;
+        self.set(STATE_RED_SYNCED, false);
         self.initial_syncs = 1;
-        self.force_sync = false;
+        self.set(STATE_FORCE_SYNC, false);
         self.condition_passes = 0;
-        self.in_gray = false;
-        self.lsb_valid = false;
-        self.absolute = false;
-        self.direct_pass = false;
-        self.direct_on_panel = false;
+        self.set(STATE_IN_GRAY, false);
+        self.set(STATE_LSB_VALID, false);
+        self.set(STATE_ABSOLUTE, false);
+        self.set(STATE_DIRECT_PASS, false);
+        self.set(STATE_DIRECT_ON_PANEL, false);
         // Separate cmd/data calls preserve the reset script's CS/DC edges.
         for (command, data) in [
             (0x00, &[0x3f, 0x0a][..]),
@@ -635,7 +643,7 @@ impl Panel for Uc8253 {
         bus.cmd(0x11);
         self.fill(bus, 0x13);
         bus.cmd(0x11);
-        self.screen_on = false;
+        self.set(STATE_SCREEN_ON, false);
     }
     fn capabilities(&self, mode: u32) -> u32 {
         let gray = match mode {

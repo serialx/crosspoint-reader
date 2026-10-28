@@ -32,6 +32,23 @@ pub struct Config {
     pub row_reverse: u8,
     pub mirror: u8,
 }
+const STATE_BASE_VALID: u16 = 1 << 0;
+const STATE_ABSOLUTE_PLANES: u16 = 1 << 1;
+const STATE_ABSOLUTE_INPUT: u16 = 1 << 2;
+const STATE_DIRECT_PASS: u16 = 1 << 3;
+const STATE_DIRECT_ON_PANEL: u16 = 1 << 4;
+const STATE_DIRECT_CONFIGURED: u16 = 1 << 5;
+const STATE_SCREEN_ON: u16 = 1 << 6;
+const STATE_NEED_FULL: u16 = 1 << 7;
+const STATE_OLD_VALID: u16 = 1 << 8;
+const STATE_SYNCED: u16 = 1 << 9;
+const STATE_REDRIVE: u16 = 1 << 10;
+const STATE_GRAY_ONCE: u16 = 1 << 11;
+const STATE_GRAY_IMAGE: u16 = 1 << 12;
+const STATE_PENDING: u16 = 1 << 13;
+const STATE_PENDING_OFF: u16 = 1 << 14;
+const STATE_PENDING_PARTIAL: u16 = 1 << 15;
+
 pub struct X4 {
     config: &'static Config,
     width: u16,
@@ -39,26 +56,22 @@ pub struct X4 {
     kind: Kind,
     variant: u8,
     base: Plane,
-    base_valid: bool,
-    absolute_planes: bool,
-    absolute_input: bool,
-    direct_pass: bool,
-    direct_on_panel: bool,
-    direct_configured: bool,
     direct_planes: u8,
-    screen_on: bool,
-    need_full: bool,
-    old_valid: bool,
-    synced: bool,
-    redrive: bool,
-    gray_once: bool,
-    gray_image: bool,
-    pending: bool,
-    pending_off: bool,
-    pending_partial: bool,
+    state_flags: u16,
 }
 
 impl X4 {
+    fn has(&self, flag: u16) -> bool {
+        self.state_flags & flag != 0
+    }
+    fn set(&mut self, flag: u16, value: bool) {
+        if value {
+            self.state_flags |= flag;
+        } else {
+            self.state_flags &= !flag;
+        }
+    }
+
     pub const fn new(
         width: u16,
         height: u16,
@@ -67,29 +80,14 @@ impl X4 {
         config: &'static Config,
     ) -> Self {
         Self {
+            state_flags: STATE_NEED_FULL,
             config,
             width,
             height,
             kind,
             variant,
             base: Plane::new(),
-            base_valid: false,
-            absolute_planes: false,
-            absolute_input: false,
-            direct_pass: false,
-            direct_on_panel: false,
-            direct_configured: false,
             direct_planes: 0,
-            screen_on: false,
-            need_full: true,
-            old_valid: false,
-            synced: false,
-            redrive: false,
-            gray_once: false,
-            gray_image: false,
-            pending: false,
-            pending_off: false,
-            pending_partial: false,
         }
     }
     fn is8179(&self) -> bool {
@@ -133,16 +131,16 @@ impl X4 {
         }
     }
     fn on(&mut self, bus: &mut impl Bus, tag: u32) {
-        if !self.screen_on {
+        if !self.has(STATE_SCREEN_ON) {
             bus.cmd(4);
             Self::wait(bus, tag);
-            self.screen_on = true;
+            self.set(STATE_SCREEN_ON, true);
         }
     }
     fn off(&mut self, bus: &mut impl Bus, tag: u32) {
         bus.cmd(2);
         Self::wait(bus, tag);
-        self.screen_on = false;
+        self.set(STATE_SCREEN_ON, false);
     }
     fn init(&mut self, bus: &mut impl Bus) {
         let c = self.config;
@@ -168,37 +166,37 @@ impl X4 {
         if self.is8179() && c.power_save != 0 {
             Self::bytes(bus, 0xe3, &[c.power_save]);
         }
-        self.screen_on = false;
-        self.gray_once = false;
+        self.set(STATE_SCREEN_ON, false);
+        self.set(STATE_GRAY_ONCE, false);
         if self.is8179() {
-            self.synced = false;
-            self.base_valid = false;
-            self.absolute_planes = false;
+            self.set(STATE_SYNCED, false);
+            self.set(STATE_BASE_VALID, false);
+            self.set(STATE_ABSOLUTE_PLANES, false);
         }
     }
     pub fn begin(&mut self, bus: &mut impl Bus, memory: &mut impl Memory) {
-        self.direct_on_panel = false;
-        self.direct_pass = false;
-        self.need_full = true;
-        self.old_valid = false;
-        self.redrive = false;
+        self.set(STATE_DIRECT_ON_PANEL, false);
+        self.set(STATE_DIRECT_PASS, false);
+        self.set(STATE_NEED_FULL, true);
+        self.set(STATE_OLD_VALID, false);
+        self.set(STATE_REDRIVE, false);
         let n = self.size();
         if self.is8179() {
-            self.direct_configured = false;
+            self.set(STATE_DIRECT_CONFIGURED, false);
             self.direct_planes = 0;
             if self.config.psram != 0 {
                 self.base.ensure(memory, n, true);
             }
         } else {
-            self.gray_image = false;
-            self.absolute_input = false;
+            self.set(STATE_GRAY_IMAGE, false);
+            self.set(STATE_ABSOLUTE_INPUT, false);
         }
         bus.reset(50);
         self.init(bus);
         if !self.is8179() {
             self.base.ensure(memory, n, false);
-            self.base_valid = false;
-            self.absolute_planes = false;
+            self.set(STATE_BASE_VALID, false);
+            self.set(STATE_ABSOLUTE_PLANES, false);
         }
     }
     fn stream(&self, bus: &mut impl Bus, cmd: u8, data: &[u8], xor: Option<&[u8]>, invert: bool) {
@@ -247,34 +245,34 @@ impl X4 {
         }
     }
     fn snapshot(&mut self, data: &[u8]) {
-        self.base_valid = false;
-        self.absolute_planes = false;
+        self.set(STATE_BASE_VALID, false);
+        self.set(STATE_ABSOLUTE_PLANES, false);
         let n = self.size();
         if let Some(base) = self.base.bytes_mut(n) {
             base.copy_from_slice(data);
-            self.base_valid = true;
+            self.set(STATE_BASE_VALID, true);
         }
     }
     fn restore_bw(&mut self, bus: &mut impl Bus) {
-        if !self.direct_configured {
+        if !self.has(STATE_DIRECT_CONFIGURED) {
             return;
         }
-        if self.screen_on {
+        if self.has(STATE_SCREEN_ON) {
             bus.cmd(2);
             Self::wait(bus, TAG_UC8179_DIRECT_EXIT_POF);
         }
         bus.reset(50);
         self.init(bus);
-        self.direct_configured = false;
-        self.need_full = true;
-        self.old_valid = false;
-        self.redrive = false;
+        self.set(STATE_DIRECT_CONFIGURED, false);
+        self.set(STATE_NEED_FULL, true);
+        self.set(STATE_OLD_VALID, false);
+        self.set(STATE_REDRIVE, false);
     }
     fn direct_setup(&mut self, bus: &mut impl Bus) {
-        if self.direct_configured {
+        if self.has(STATE_DIRECT_CONFIGURED) {
             return;
         }
-        if self.screen_on {
+        if self.has(STATE_SCREEN_ON) {
             bus.cmd(2);
             Self::wait(bus, TAG_UC8179_DIRECT_SETUP_POF);
         }
@@ -291,10 +289,15 @@ impl X4 {
         Self::bytes(bus, 0x2a, &[c[2] & 0xc0, c[4]]);
         Self::bytes(bus, 0x82, &[c[5]]);
         bus.cmd_data(0x50, &[self.config.cdi_active, 7]);
-        self.direct_configured = true;
+        self.set(STATE_DIRECT_CONFIGURED, true);
     }
     pub fn display(&mut self, bus: &mut impl Bus, data: &[u8], mode: u32, off: bool) {
-        if mode == 2 && self.redrive && self.gray_once && self.old_valid && !self.need_full {
+        if mode == 2
+            && self.has(STATE_REDRIVE)
+            && self.has(STATE_GRAY_ONCE)
+            && self.has(STATE_OLD_VALID)
+            && !self.has(STATE_NEED_FULL)
+        {
             self.transition(bus, data, off);
             return;
         }
@@ -302,19 +305,19 @@ impl X4 {
         self.finish(bus, data);
     }
     pub fn start(&mut self, bus: &mut impl Bus, data: &[u8], mode: u32, off: bool) {
-        let paint = self.direct_on_panel;
-        self.direct_on_panel = false;
+        let paint = self.has(STATE_DIRECT_ON_PANEL);
+        self.set(STATE_DIRECT_ON_PANEL, false);
         if self.is8179() {
             self.restore_bw(bus);
             self.direct_planes = 0;
-            self.synced = false;
+            self.set(STATE_SYNCED, false);
         } else {
-            self.gray_image = false;
+            self.set(STATE_GRAY_IMAGE, false);
         }
-        self.absolute_input = false;
-        self.direct_pass = false;
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.set(STATE_DIRECT_PASS, false);
         self.snapshot(data);
-        let fast = mode == 2 && !self.need_full && self.old_valid;
+        let fast = mode == 2 && !self.has(STATE_NEED_FULL) && self.has(STATE_OLD_VALID);
         if paint {
             self.stream(bus, 0x10, data, None, true);
             self.stream(bus, 0x13, data, None, false);
@@ -329,14 +332,14 @@ impl X4 {
             } else {
                 fill(bus, 0x10, self.config.controller_height, self.width / 8);
             }
-        } else if !self.is8179() && self.redrive {
+        } else if !self.is8179() && self.has(STATE_REDRIVE) {
             self.stream(bus, 0x10, data, None, true);
         }
-        self.redrive = false;
+        self.set(STATE_REDRIVE, false);
         self.bw_refresh(bus, fast);
-        self.pending_partial = fast;
-        self.pending_off = off;
-        self.pending = true;
+        self.set(STATE_PENDING_PARTIAL, fast);
+        self.set(STATE_PENDING_OFF, off);
+        self.set(STATE_PENDING, true);
     }
     fn window(&self, bus: &mut impl Bus, span: bool) {
         let xe = self.width - 1;
@@ -391,47 +394,47 @@ impl X4 {
         wait_start(bus);
     }
     pub fn finish(&mut self, bus: &mut impl Bus, data: &[u8]) {
-        if !self.pending {
+        if !self.has(STATE_PENDING) {
             return;
         }
-        self.pending = false;
+        self.set(STATE_PENDING, false);
         bus.refresh_wait(self.tag(TAG_UC8179_DRF, TAG_UC8279_X4_DRF));
-        if self.pending_partial {
+        if self.has(STATE_PENDING_PARTIAL) {
             bus.cmd(0x92);
         }
         if self.is8179() {
             Self::bytes(bus, 0x50, &[self.config.cdi_idle, 7]);
         }
         self.stream(bus, 0x10, data, None, false);
-        self.old_valid = true;
-        self.synced = true;
-        self.need_full = false;
-        if self.pending_off {
+        self.set(STATE_OLD_VALID, true);
+        self.set(STATE_SYNCED, true);
+        self.set(STATE_NEED_FULL, false);
+        if self.has(STATE_PENDING_OFF) {
             self.off(bus, self.tag(TAG_UC8179_POF, TAG_UC8279_X4_POF));
         }
     }
     pub fn resync(&mut self) {
-        self.gray_image = false;
-        self.absolute_input = false;
-        self.direct_pass = false;
+        self.set(STATE_GRAY_IMAGE, false);
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.set(STATE_DIRECT_PASS, false);
         self.direct_planes = 0;
-        self.need_full = true;
+        self.set(STATE_NEED_FULL, true);
     }
     pub fn skip_initial(&mut self) {
-        self.need_full = false;
+        self.set(STATE_NEED_FULL, false);
     }
     pub fn sleep(&mut self, bus: &mut impl Bus) {
-        self.direct_on_panel = false;
-        self.absolute_input = false;
-        self.direct_pass = false;
+        self.set(STATE_DIRECT_ON_PANEL, false);
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.set(STATE_DIRECT_PASS, false);
         if self.is8179() {
             self.direct_planes = 0;
-            self.base_valid = false;
-            self.absolute_planes = false;
+            self.set(STATE_BASE_VALID, false);
+            self.set(STATE_ABSOLUTE_PLANES, false);
         } else {
-            self.gray_image = false;
+            self.set(STATE_GRAY_IMAGE, false);
         }
-        if self.screen_on {
+        if self.has(STATE_SCREEN_ON) {
             self.off(
                 bus,
                 self.tag(TAG_UC8179_POWER_DOWN, TAG_UC8279_X4_POWER_DOWN),
@@ -443,7 +446,11 @@ impl X4 {
         let Some(data) = data else {
             return;
         };
-        if mode != 2 || !self.gray_once || !self.old_valid || self.need_full {
+        if mode != 2
+            || !self.has(STATE_GRAY_ONCE)
+            || !self.has(STATE_OLD_VALID)
+            || self.has(STATE_NEED_FULL)
+        {
             self.display(bus, data, mode, off);
         } else {
             self.transition(bus, data, off);
@@ -456,14 +463,14 @@ impl X4 {
             self.tag(TAG_UC8179_GRAY_BASE_READY, TAG_UC8279_X4_GRAY_BASE_READY),
         );
         self.stream(bus, 0x13, data, None, false);
-        self.synced = false;
+        self.set(STATE_SYNCED, false);
         self.precondition(bus);
         self.stream(bus, 0x10, data, None, false);
-        self.old_valid = true;
-        self.synced = true;
-        self.redrive = false;
-        self.need_full = false;
-        if off && self.screen_on {
+        self.set(STATE_OLD_VALID, true);
+        self.set(STATE_SYNCED, true);
+        self.set(STATE_REDRIVE, false);
+        self.set(STATE_NEED_FULL, false);
+        if off && self.has(STATE_SCREEN_ON) {
             self.off(
                 bus,
                 self.tag(TAG_UC8179_GRAY_BASE_POF, TAG_UC8279_X4_GRAY_BASE_POF),
@@ -471,7 +478,7 @@ impl X4 {
         }
     }
     fn precondition(&mut self, bus: &mut impl Bus) {
-        if !self.old_valid || !self.gray_once {
+        if !self.has(STATE_OLD_VALID) || !self.has(STATE_GRAY_ONCE) {
             return;
         }
         Self::wait(
@@ -517,16 +524,16 @@ impl X4 {
         off: bool,
     ) {
         if !self.is8179() {
-            self.gray_image = false;
-            self.absolute_input = false;
-            self.direct_pass = false;
+            self.set(STATE_GRAY_IMAGE, false);
+            self.set(STATE_ABSOLUTE_INPUT, false);
+            self.set(STATE_DIRECT_PASS, false);
         }
         if mode == 2 {
             if self.is8179() {
                 self.direct_setup(bus);
             }
-            self.absolute_input = true;
-            self.direct_pass = true;
+            self.set(STATE_ABSOLUTE_INPUT, true);
+            self.set(STATE_DIRECT_PASS, true);
             if self.is8179() {
                 for (i, row) in DIRECT.iter().enumerate() {
                     bus.cmd(0x20 + i as u8);
@@ -534,38 +541,38 @@ impl X4 {
                 }
             }
             self.direct_planes = 0;
-            self.base_valid = false;
-            self.absolute_planes = false;
-            self.old_valid = false;
-            self.synced = false;
-            self.need_full = true;
-            self.redrive = false;
+            self.set(STATE_BASE_VALID, false);
+            self.set(STATE_ABSOLUTE_PLANES, false);
+            self.set(STATE_OLD_VALID, false);
+            self.set(STATE_SYNCED, false);
+            self.set(STATE_NEED_FULL, true);
+            self.set(STATE_REDRIVE, false);
             return;
         }
-        self.absolute_input = false;
-        self.direct_pass = false;
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.set(STATE_DIRECT_PASS, false);
         self.direct_planes = 0;
         self.gray_base(bus, data, fallback, off);
-        self.absolute_input = mode == 1;
+        self.set(STATE_ABSOLUTE_INPUT, mode == 1);
     }
     pub fn lsb(&mut self, bus: &mut impl Bus, data: Option<&[u8]>) {
         let Some(data) = data else {
             return;
         };
-        if self.absolute_input {
+        if self.has(STATE_ABSOLUTE_INPUT) {
             Self::wait(bus, TAG_ABSOLUTE_PLANE);
             self.stream(bus, 0x10, data, None, !self.is8179());
-            if self.direct_pass {
+            if self.has(STATE_DIRECT_PASS) {
                 self.direct_planes |= 1;
             }
-            self.synced = false;
+            self.set(STATE_SYNCED, false);
             return;
         }
         if self.is8179() {
             Self::wait(bus, TAG_UC8179_GRAY_LSB);
         }
-        self.absolute_planes = false;
-        if self.base_valid {
+        self.set(STATE_ABSOLUTE_PLANES, false);
+        if self.has(STATE_BASE_VALID) {
             let n = self.size();
             if let Some(base) = self.base.bytes_mut(n) {
                 for (b, d) in base.iter_mut().zip(data) {
@@ -573,33 +580,36 @@ impl X4 {
                 }
             }
             self.stream_base(bus, 0x10, None, !self.is8179());
-            self.absolute_planes = true;
+            self.set(STATE_ABSOLUTE_PLANES, true);
         } else {
             self.stream(bus, 0x10, data, None, !self.is8179());
         }
-        self.base_valid = false;
-        self.synced = false;
+        self.set(STATE_BASE_VALID, false);
+        self.set(STATE_SYNCED, false);
     }
     pub fn msb(&mut self, bus: &mut impl Bus, data: Option<&[u8]>) {
         let Some(data) = data else {
             return;
         };
-        if self.absolute_input {
+        if self.has(STATE_ABSOLUTE_INPUT) {
             Self::wait(bus, TAG_ABSOLUTE_PLANE);
             self.stream(bus, 0x13, data, None, !self.is8179());
-            if self.direct_pass {
+            if self.has(STATE_DIRECT_PASS) {
                 self.direct_planes |= 2;
             }
-            self.synced = false;
+            self.set(STATE_SYNCED, false);
             return;
         }
         if self.is8179() {
             Self::wait(bus, TAG_UC8179_GRAY_MSB);
         } else {
             let gray: u32 = data.iter().map(|b| b.count_ones()).sum();
-            self.gray_image = gray * 100 > self.size() as u32 * 8 * QUALITY_COVERAGE;
+            self.set(
+                STATE_GRAY_IMAGE,
+                gray * 100 > self.size() as u32 * 8 * QUALITY_COVERAGE,
+            );
         }
-        if self.absolute_planes {
+        if self.has(STATE_ABSOLUTE_PLANES) {
             self.stream_base(bus, 0x13, Some(data), !self.is8179());
             let n = self.size();
             if let Some(base) = self.base.bytes_mut(n) {
@@ -607,7 +617,7 @@ impl X4 {
                     *b &= *b ^ d;
                 }
             }
-            self.base_valid = true;
+            self.set(STATE_BASE_VALID, true);
         } else {
             self.stream(bus, 0x13, data, None, !self.is8179());
         }
@@ -620,7 +630,7 @@ impl X4 {
         }
     }
     fn gray8179(&mut self, bus: &mut impl Bus, off: bool, factory: bool) {
-        if self.direct_pass {
+        if self.has(STATE_DIRECT_PASS) {
             if self.direct_planes != 3 {
                 return;
             }
@@ -628,28 +638,28 @@ impl X4 {
             self.on(bus, TAG_UC8179_DIRECT_PON);
             bus.cmd(0x12);
             Self::wait(bus, TAG_UC8179_DIRECT_GRAY_DRF);
-            self.direct_on_panel = true;
-            self.direct_pass = false;
+            self.set(STATE_DIRECT_ON_PANEL, true);
+            self.set(STATE_DIRECT_PASS, false);
             self.direct_planes = 0;
-            self.absolute_input = false;
-            self.need_full = true;
-            self.old_valid = false;
-            self.redrive = false;
+            self.set(STATE_ABSOLUTE_INPUT, false);
+            self.set(STATE_NEED_FULL, true);
+            self.set(STATE_OLD_VALID, false);
+            self.set(STATE_REDRIVE, false);
             if off {
                 self.off(bus, TAG_UC8179_DIRECT_POF);
             }
             return;
         }
         Self::wait(bus, TAG_UC8179_GRAY_READY);
-        self.synced = false;
+        self.set(STATE_SYNCED, false);
         Self::bytes(bus, 0, &[self.config.psr0, self.config.psr1]);
         for (i, row) in AA8179.iter().enumerate() {
             bus.cmd(0x20 + i as u8);
             bus.data_span(if i == 3 { &DARK8179[0] } else { row });
         }
         Self::bytes(bus, 0x50, &[self.config.cdi_active, 7]);
-        self.gray_once = true;
-        let slower = factory && self.absolute_input;
+        self.set(STATE_GRAY_ONCE, true);
+        let slower = factory && self.has(STATE_ABSOLUTE_INPUT);
         if slower {
             Self::bytes(bus, 0x30, &[5]);
         }
@@ -659,26 +669,30 @@ impl X4 {
         if slower {
             Self::bytes(bus, 0x30, &[6]);
         }
-        if self.base_valid {
+        if self.has(STATE_BASE_VALID) {
             self.stream_base(bus, 0x10, None, false);
             self.stream_base(bus, 0x13, None, false);
-            self.old_valid = true;
-            self.synced = true;
-            self.need_full = false;
+            self.set(STATE_OLD_VALID, true);
+            self.set(STATE_SYNCED, true);
+            self.set(STATE_NEED_FULL, false);
         }
-        self.base_valid = false;
-        self.absolute_planes = false;
-        self.redrive = true;
-        self.absolute_input = false;
-        self.direct_pass = false;
+        self.set(STATE_BASE_VALID, false);
+        self.set(STATE_ABSOLUTE_PLANES, false);
+        self.set(STATE_REDRIVE, true);
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.set(STATE_DIRECT_PASS, false);
         self.direct_planes = 0;
-        if factory && off && self.screen_on {
+        if factory && off && self.has(STATE_SCREEN_ON) {
             self.off(bus, TAG_UC8179_ABSOLUTE_POF);
         }
     }
     fn gray8279(&mut self, bus: &mut impl Bus, off: bool, factory: bool) {
         Self::bytes(bus, 0, &[self.config.psr0, self.config.psr1]);
-        if self.direct_pass || self.absolute_input || factory || self.gray_image {
+        if self.has(STATE_DIRECT_PASS)
+            || self.has(STATE_ABSOLUTE_INPUT)
+            || factory
+            || self.has(STATE_GRAY_IMAGE)
+        {
             for (reg, row) in [0x20, 0x21, 0x23, 0x22, 0x24].iter().zip(QUALITY.iter()) {
                 bus.cmd(*reg);
                 bus.data_span(row);
@@ -696,15 +710,15 @@ impl X4 {
                 bus.data_span(row);
             }
         }
-        self.gray_image = false;
+        self.set(STATE_GRAY_IMAGE, false);
         Self::bytes(bus, 0x50, &[self.config.cdi_active]);
-        self.gray_once = true;
+        self.set(STATE_GRAY_ONCE, true);
         self.on(bus, TAG_UC8279_X4_GRAY_PON);
         Self::bytes(bus, 0, &[self.config.psr0, self.config.psr1]);
         bus.cmd(0x12);
         Self::wait(
             bus,
-            if self.direct_pass {
+            if self.has(STATE_DIRECT_PASS) {
                 TAG_UC8279_X4_DIRECT_GRAY_DRF
             } else {
                 TAG_UC8279_X4_GRAY
@@ -713,53 +727,53 @@ impl X4 {
         if off {
             self.off(bus, TAG_UC8279_X4_GRAY_POF);
         }
-        if self.base_valid {
+        if self.has(STATE_BASE_VALID) {
             self.stream_base(bus, 0x10, None, false);
             self.stream_base(bus, 0x13, None, false);
-            self.old_valid = true;
-            self.need_full = false;
+            self.set(STATE_OLD_VALID, true);
+            self.set(STATE_NEED_FULL, false);
         }
-        self.base_valid = false;
-        self.absolute_planes = false;
-        self.direct_on_panel = self.direct_pass;
-        self.redrive = !self.direct_pass;
-        if self.direct_pass {
-            self.need_full = true;
+        self.set(STATE_BASE_VALID, false);
+        self.set(STATE_ABSOLUTE_PLANES, false);
+        self.set(STATE_DIRECT_ON_PANEL, self.has(STATE_DIRECT_PASS));
+        self.set(STATE_REDRIVE, !self.has(STATE_DIRECT_PASS));
+        if self.has(STATE_DIRECT_PASS) {
+            self.set(STATE_NEED_FULL, true);
         }
-        self.gray_image = false;
-        self.absolute_input = false;
-        self.direct_pass = false;
+        self.set(STATE_GRAY_IMAGE, false);
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.set(STATE_DIRECT_PASS, false);
     }
     pub fn cleanup(&mut self, bus: &mut impl Bus, data: Option<&[u8]>) {
         if self.is8179() {
             Self::wait(bus, TAG_UC8179_GRAY_CLEANUP);
         }
-        self.gray_image = false;
-        self.absolute_input = false;
-        self.direct_pass = false;
+        self.set(STATE_GRAY_IMAGE, false);
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.set(STATE_DIRECT_PASS, false);
         self.direct_planes = 0;
-        self.base_valid = false;
-        self.absolute_planes = false;
-        if self.is8179() && self.direct_configured {
-            self.need_full = true;
-            self.old_valid = false;
-            self.synced = false;
+        self.set(STATE_BASE_VALID, false);
+        self.set(STATE_ABSOLUTE_PLANES, false);
+        if self.is8179() && self.has(STATE_DIRECT_CONFIGURED) {
+            self.set(STATE_NEED_FULL, true);
+            self.set(STATE_OLD_VALID, false);
+            self.set(STATE_SYNCED, false);
             return;
         }
         let Some(data) = data else {
-            self.need_full = true;
-            self.old_valid = false;
+            self.set(STATE_NEED_FULL, true);
+            self.set(STATE_OLD_VALID, false);
             return;
         };
-        if self.is8179() && self.synced && self.old_valid {
+        if self.is8179() && self.has(STATE_SYNCED) && self.has(STATE_OLD_VALID) {
             return;
         }
         self.stream(bus, 0x10, data, None, false);
         if self.is8179() {
             self.stream(bus, 0x13, data, None, false);
-            self.synced = true;
+            self.set(STATE_SYNCED, true);
         }
-        self.old_valid = true;
+        self.set(STATE_OLD_VALID, true);
     }
 }
 

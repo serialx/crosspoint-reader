@@ -8,7 +8,7 @@ struct State {
     platform: *const Platform,
     panel: X4,
 }
-const _: () = assert!(size_of::<State>() <= 32 + 4 * size_of::<*const c_void>());
+const _: () = assert!(size_of::<State>() <= 16 + 4 * size_of::<*const c_void>());
 const _: () = assert!(align_of::<State>() <= align_of::<*const c_void>());
 #[cfg(feature = "display-uc8179")]
 #[inline(always)]

@@ -43,7 +43,7 @@ int main() {
   check(xp_display_execute(storage.data(), nullptr, nullptr, &result) == XP_DISPLAY_INVALID);
   check(result == 0);
   xp_display_drop(storage.data());
-  for (uint32_t controller = 2; controller <= 8; ++controller) {
+  for (uint32_t controller = 3; controller <= 8; ++controller) {
     config.controller = controller;
     check(xp_display_state_size(controller) == 0);
     check(xp_display_init(storage.data(), storage.size(), &config) == XP_DISPLAY_UNSUPPORTED);

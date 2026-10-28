@@ -1,6 +1,8 @@
 #![no_std]
 
 pub mod constants;
+pub mod ssd1677;
+mod ssd1677_luts;
 
 /// Physical I/O only; controller commands and state remain in the panel.
 pub trait Bus {

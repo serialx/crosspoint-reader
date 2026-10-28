@@ -12,20 +12,46 @@ unsafe fn bytes<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
         core::slice::from_raw_parts(ptr, len)
     })
 }
+unsafe fn parse_result<T>(
+    result: Result<T, sdfont::Diagnostic>,
+    out: *mut T,
+    diagnostic: *mut sdfont::Diagnostic,
+) -> bool {
+    match result {
+        Ok(value) => {
+            out.write(value);
+            true
+        }
+        Err(error) => {
+            if !diagnostic.is_null() {
+                diagnostic.write(error);
+            }
+            false
+        }
+    }
+}
 #[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_header(
     data: *const u8,
     len: usize,
     out: *mut Directory,
 ) -> bool {
+    xp_sdfont_header_diagnostic(data, len, out, core::ptr::null_mut())
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_sdfont_header_diagnostic(
+    data: *const u8,
+    len: usize,
+    out: *mut Directory,
+    diagnostic: *mut sdfont::Diagnostic,
+) -> bool {
     if out.is_null() {
         return false;
     }
-    let Some(value) = bytes(data, len).and_then(sdfont::header) else {
+    let Some(data) = bytes(data, len) else {
         return false;
     };
-    out.write(value);
-    true
+    parse_result(sdfont::header_diagnostic(data), out, diagnostic)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_style(
@@ -34,14 +60,23 @@ pub unsafe extern "C" fn xp_sdfont_style(
     state: *mut Directory,
     out: *mut Style,
 ) -> bool {
+    xp_sdfont_style_diagnostic(data, len, state, out, core::ptr::null_mut())
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_sdfont_style_diagnostic(
+    data: *const u8,
+    len: usize,
+    state: *mut Directory,
+    out: *mut Style,
+    diagnostic: *mut sdfont::Diagnostic,
+) -> bool {
     if state.is_null() || out.is_null() {
         return false;
     }
-    let Some(value) = bytes(data, len).and_then(|b| sdfont::style(b, &mut *state)) else {
+    let Some(data) = bytes(data, len) else {
         return false;
     };
-    out.write(value);
-    true
+    parse_result(sdfont::style_diagnostic(data, &mut *state), out, diagnostic)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_interval(
@@ -52,16 +87,29 @@ pub unsafe extern "C" fn xp_sdfont_interval(
     state: *mut Intervals,
     out: *mut Interval,
 ) -> bool {
+    xp_sdfont_interval_diagnostic(data, len, glyphs, index, state, out, core::ptr::null_mut())
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_sdfont_interval_diagnostic(
+    data: *const u8,
+    len: usize,
+    glyphs: u32,
+    index: u32,
+    state: *mut Intervals,
+    out: *mut Interval,
+    diagnostic: *mut sdfont::Diagnostic,
+) -> bool {
     if state.is_null() || out.is_null() {
         return false;
     }
-    let Some(value) =
-        bytes(data, len).and_then(|b| sdfont::interval(b, glyphs, index, &mut *state))
-    else {
+    let Some(data) = bytes(data, len) else {
         return false;
     };
-    out.write(value);
-    true
+    parse_result(
+        sdfont::interval_diagnostic(data, glyphs, index, &mut *state),
+        out,
+        diagnostic,
+    )
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_glyph_valid(

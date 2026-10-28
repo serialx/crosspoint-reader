@@ -230,7 +230,7 @@ pub fn apply_visual(
     work: &mut Workspace,
     out: &mut [u8],
 ) -> (Status, usize) {
-    let Some(count) = prepare_visual(text, paragraph, work) else {
+    let Ok(count) = prepare_visual(text, paragraph, work) else {
         return (Status::Unchanged, 0);
     };
     let shaped = unsafe { &work.auxiliary.shaped[..count] };
@@ -250,7 +250,13 @@ pub fn apply_visual(
     });
     (Status::Applied, written)
 }
-fn prepare_visual(text: &[u8], paragraph: i32, work: &mut Workspace) -> Option<usize> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VisualError {
+    Empty,
+    TooLong,
+}
+
+fn prepare_visual(text: &[u8], paragraph: i32, work: &mut Workspace) -> Result<usize, VisualError> {
     let mut count = 0;
     let mut position = 0;
     let mut last_base: Option<usize> = None;
@@ -258,7 +264,7 @@ fn prepare_visual(text: &[u8], paragraph: i32, work: &mut Workspace) -> Option<u
     while text.get(position).is_some_and(|&b| b != 0) {
         // Check before decoding: even an invalid 129th character declines the call.
         if count == MAX_LINE {
-            return None;
+            return Err(VisualError::TooLong);
         }
         let Some(cp) = utf8::next(text, &mut position) else {
             break;
@@ -287,7 +293,7 @@ fn prepare_visual(text: &[u8], paragraph: i32, work: &mut Workspace) -> Option<u
         count += 1;
     }
     if count == 0 {
-        return None;
+        return Err(VisualError::Empty);
     }
     algorithm::reorder(
         &mut work.line[..count],
@@ -302,7 +308,7 @@ fn prepare_visual(text: &[u8], paragraph: i32, work: &mut Workspace) -> Option<u
     shape(&work.line[..count], unsafe {
         &mut work.auxiliary.shaped[..count]
     });
-    Some(count)
+    Ok(count)
 }
 /// Borrow visual UTF-8 from the dead logical-character buffer until next use.
 pub fn visual<'a>(text: &[u8], paragraph: i32, work: &'a mut Workspace) -> Option<&'a [u8]> {
@@ -314,6 +320,14 @@ pub fn visual_including_empty<'a>(
     paragraph: i32,
     work: &'a mut Workspace,
 ) -> Option<&'a [u8]> {
+    visual_diagnostic(text, paragraph, work).ok()
+}
+
+pub fn visual_diagnostic<'a>(
+    text: &[u8],
+    paragraph: i32,
+    work: &'a mut Workspace,
+) -> Result<&'a [u8], VisualError> {
     let count = prepare_visual(text, paragraph, work)?;
     let shaped = unsafe { &work.auxiliary.shaped[..count] };
     let out = unsafe { core::slice::from_raw_parts_mut(work.line.as_mut_ptr().cast::<u8>(), 1536) };
@@ -326,7 +340,7 @@ pub fn visual_including_empty<'a>(
     });
     // C++ width prewarming still consumes a terminated view.
     out[len] = 0;
-    Some(&out[..len])
+    Ok(&out[..len])
 }
 fn filtered(cp: u32) -> bool {
     matches!(cp, 0xffff | 0x200c | 0x200d)

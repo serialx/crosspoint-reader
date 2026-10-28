@@ -384,6 +384,42 @@ bool SdCardFont::onCoverageQuery(void* ctx, const uint32_t codepoint) {
 
 // --- Load ---
 
+namespace {
+void logParseFailure(const XpSdfontParseDiagnostic& detail, uint32_t style = 0, uint32_t index = 0) {
+  const auto* a = detail.args;
+  switch (detail.kind) {
+    case XpSdfontParseError::ShortInput:
+      break;  // The HAL read guards report short records before parsing.
+    case XpSdfontParseError::Magic:
+      LOG_ERR("SDCF", "Invalid magic bytes");
+      break;
+    case XpSdfontParseError::Version:
+      LOG_ERR("SDCF", "Unsupported version: %u (expected %u)", a[0], a[1]);
+      break;
+    case XpSdfontParseError::StyleCount:
+      LOG_ERR("SDCF", "Invalid style count: %u", a[0]);
+      break;
+    case XpSdfontParseError::StyleId:
+      LOG_ERR("SDCF", "Invalid styleId %u in TOC", a[0]);
+      break;
+    case XpSdfontParseError::DuplicateStyle:
+      LOG_ERR("SDCF", "Duplicate styleId %u in TOC", a[0]);
+      break;
+    case XpSdfontParseError::Counts:
+      LOG_ERR("SDCF", "Style %u: unreasonable counts (iv=%u, gl=%u, kL=%u, kR=%u)", style, a[0], a[1], a[2], a[3]);
+      break;
+    case XpSdfontParseError::IntervalOrder:
+      LOG_ERR("SDCF", "Style %u: invalid interval %u (first 0x%lX > last 0x%lX)", style, index,
+              static_cast<unsigned long>(a[0]), static_cast<unsigned long>(a[1]));
+      break;
+    case XpSdfontParseError::IntervalLayout:
+      LOG_ERR("SDCF", "Style %u: invalid interval layout at %u (overlap=%d span=%u offMis=%d offOver=%d)", style, index,
+              static_cast<int>(a[0]), a[1], static_cast<int>(a[2]), static_cast<int>(a[3]));
+      break;
+  }
+}
+}  // namespace
+
 bool SdCardFont::load(const char* path) {
   ++fontTableGeneration;
   freeAll();
@@ -410,8 +446,9 @@ bool SdCardFont::load(const char* path) {
   }
 
   XpSdfontDirectory directory{};
-  if (!xp_sdfont_header(headerBuf, sizeof(headerBuf), &directory)) {
-    LOG_ERR("SDCF", "Invalid .cpfont header");
+  XpSdfontParseDiagnostic diagnostic{};
+  if (!xp_sdfont_header_diagnostic(headerBuf, sizeof(headerBuf), &directory, &diagnostic)) {
+    logParseFailure(diagnostic);
     return false;
   }
   const uint8_t styleCount = directory.styleCount;
@@ -433,8 +470,8 @@ bool SdCardFont::load(const char* path) {
     }
 
     XpSdfontStyle parsed{};
-    if (!xp_sdfont_style(tocBuf, sizeof(tocBuf), &directory, &parsed)) {
-      LOG_ERR("SDCF", "Invalid style TOC entry %u", i);
+    if (!xp_sdfont_style_diagnostic(tocBuf, sizeof(tocBuf), &directory, &parsed, &diagnostic)) {
+      logParseFailure(diagnostic, tocBuf[0]);
       freeAll();
       return false;
     }
@@ -490,9 +527,9 @@ bool SdCardFont::load(const char* path) {
         freeAll();
         return false;
       }
-      if (!xp_sdfont_interval(reinterpret_cast<const uint8_t*>(&iv), sizeof(iv), s.header.glyphCount, j, &intervalState,
-                              &iv)) {
-        LOG_ERR("SDCF", "Style %u: invalid interval %u", i, j);
+      if (!xp_sdfont_interval_diagnostic(reinterpret_cast<const uint8_t*>(&iv), sizeof(iv), s.header.glyphCount, j,
+                                         &intervalState, &iv, &diagnostic)) {
+        logParseFailure(diagnostic, i, j);
         freeAll();
         return false;
       }

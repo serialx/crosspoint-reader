@@ -97,6 +97,9 @@ XpGlyphBitmap GfxRenderer::glyphMiss(void* raw, uint32_t cp, const void* resolve
     glyph = draw->kind == XP_GLYPH_BILINEAR ? c.font->getGlyph(cp, c.style)
                                             : c.font->getGlyphMetrics(cp, fallback, c.style);
   }
+  if (!glyph && (draw->kind == XP_GLYPH_NORMAL || draw->kind == XP_GLYPH_ROTATED)) {
+    LOG_ERR("GFX", "No glyph for codepoint %d", static_cast<int32_t>(cp));
+  }
   const auto* font = c.font->getData(c.style);
   XpGlyphBitmap bitmap{};
   if (glyph) {
@@ -482,7 +485,11 @@ void GfxRenderer::drawGlyphRun(const int fontId, const int x, const int y, const
                                const int8_t tracking, const bool rotated) const {
   if (!text || !*text) return;
   const int resolvedFontId = resolveTextFontId(fontId, text, style);
-  int baseline = rotated ? 0 : getFontAscenderSize(resolvedFontId);
+  int baseline = 0;
+  if (!rotated) {
+    const auto font = fontMap.find(resolvedFontId);
+    if (font != fontMap.end()) baseline = font->second.getData(EpdFontFamily::REGULAR)->ascender;
+  }
   if (!rotated && resolvedFontId != fontId) baseline += (getLineHeight(fontId) - getLineHeight(resolvedFontId)) / 2;
   XpGlyphPaint paint{glyphTarget(), {}, x, y + baseline, static_cast<uint8_t>(black)};
   GlyphContext context{*this, nullptr, fontId, resolvedFontId, style, rotated, &paint};
@@ -525,7 +532,10 @@ void GfxRenderer::drawPage(const uint8_t* arena, const size_t size, const int fo
       [](void* raw, int32_t id, uint8_t style, XpGlyphSource* source) -> const void* const* {
         auto& c = static_cast<PageContext*>(raw)->glyph;
         const auto font = c.renderer.fontMap.find(id);
-        if (font == c.renderer.fontMap.end()) return nullptr;
+        if (font == c.renderer.fontMap.end()) {
+          LOG_ERR("GFX", "Font %d not found", id);
+          return nullptr;
+        }
         c.font = &font->second;
         c.resolvedFont = id;
         c.style = static_cast<EpdFontFamily::Style>(style);
@@ -2127,5 +2137,16 @@ XpNativeProvider GfxRenderer::textProvider() const {
           [](void* ctx, int32_t id, const uint8_t* text, size_t, uint8_t style) {
             static_cast<const GfxRenderer*>(ctx)->ensureSdGlyphsResident(
                 id, reinterpret_cast<const char*>(text), static_cast<EpdFontFamily::Style>(style), true);
+          },
+          [](void*, uint32_t event, uint32_t a, uint32_t, uint32_t, uint32_t) {
+            switch (static_cast<XpNativeDiagnostic>(event)) {
+              case XpNativeDiagnostic::MissingFont:
+                LOG_ERR("GFX", "Font %d not found", static_cast<int32_t>(a));
+                break;
+              case XpNativeDiagnostic::BidiLimit:
+                LOG_DBG("BIDI", "applyBidiVisual: input exceeds BIDI_MAX_LINE (%d chars), returning unprocessed",
+                        static_cast<int>(a));
+                break;
+            }
           }};
 }

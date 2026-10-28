@@ -263,6 +263,13 @@ pub unsafe extern "C" fn xp_native_resolve(
 #[no_mangle]
 pub unsafe extern "C" fn xp_native_space(p: *const Provider, id: i32, style: u8) -> i32 {
     let e = Engine::new(*p);
+    if !e.exists(id) {
+        (*p).report(
+            xp_core::textm::native::DiagnosticEvent::MissingFont,
+            id as u32,
+        );
+        return 0;
+    }
     textm::space_width(&mut e.face(id), style)
 }
 /// # Safety

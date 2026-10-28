@@ -34,6 +34,14 @@ impl Family {
         resolved: [0; 4],
     };
 }
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum DiagnosticEvent {
+    MissingFont = 1,
+    BidiLimit = 2,
+}
+pub type Diagnostic = unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32);
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Provider {
@@ -46,13 +54,23 @@ pub struct Provider {
     pub bidi_acquire: unsafe extern "C" fn() -> *mut bidi::Workspace,
     pub bidi_release: unsafe extern "C" fn(),
     pub prewarm: unsafe extern "C" fn(*mut c_void, i32, *const u8, usize, u8),
+    pub diagnostic: Option<Diagnostic>,
+}
+impl Provider {
+    pub fn report(&self, event: DiagnosticEvent, value: u32) {
+        if let Some(diagnostic) = self.diagnostic {
+            unsafe {
+                diagnostic(self.context, event as u32, value, 0, 0, 0);
+            }
+        }
+    }
 }
 struct Cache {
     families: [core::mem::MaybeUninit<Family>; 2],
     ids: [i32; 2],
     valid: [bool; 2],
     generation: u32,
-    next: usize,
+    next: u8,
 }
 pub struct Engine {
     provider: Provider,
@@ -87,7 +105,7 @@ impl Engine {
             if let Some(i) = (0..2).find(|&i| cache.valid[i] && cache.ids[i] == id) {
                 return i;
             }
-            let i = cache.next;
+            let i = usize::from(cache.next);
             cache.next ^= 1;
             cache.families[i].write(Family::EMPTY);
             (self.provider.family)(self.provider.context, id, cache.families[i].as_mut_ptr());
@@ -146,6 +164,8 @@ impl Engine {
     ) -> i32 {
         let id = self.resolve(id, text, style);
         if !self.exists(id) {
+            self.provider
+                .report(DiagnosticEvent::MissingFont, id as u32);
             return 0;
         }
         self.visual(text, direction, |visual| {
@@ -203,6 +223,10 @@ impl Engine {
     pub fn width(&self, id: i32, text: &[u8], style: u8, direction: i32) -> i32 {
         let resolved = self.resolve(id, text, style);
         if !self.exists(resolved) {
+            if text.first().is_some_and(|&b| b != 0) {
+                self.provider
+                    .report(DiagnosticEvent::MissingFont, resolved as u32);
+            }
             return 0;
         }
         self.visual(text, direction, |visual| {
@@ -391,7 +415,14 @@ pub fn with_visual<T>(
         if work.is_null() {
             return f(text);
         }
-        let visual = bidi::visual(text, direction, &mut *work).unwrap_or(text);
+        let visual = match bidi::visual_diagnostic(text, direction, &mut *work) {
+            Ok(visual) if !visual.is_empty() => visual,
+            Err(bidi::VisualError::TooLong) => {
+                provider.report(DiagnosticEvent::BidiLimit, bidi::MAX_LINE as u32);
+                text
+            }
+            _ => text,
+        };
         let result = f(visual);
         (provider.bidi_release)();
         result

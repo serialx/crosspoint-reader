@@ -160,14 +160,16 @@ pub unsafe extern "C" fn xp_bidi_visual_visit(
     context: *mut c_void,
     visit: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) -> u8 {
-    if let Some(text) = bidi::visual_including_empty(bytes(data, len), direction, &mut *work.cast())
-    {
-        visit(context, text.as_ptr(), text.len());
-        1
-    } else {
-        0
+    match bidi::visual_diagnostic(bytes(data, len), direction, &mut *work.cast()) {
+        Ok(text) => {
+            visit(context, text.as_ptr(), text.len());
+            1
+        }
+        Err(bidi::VisualError::Empty) => 0,
+        Err(bidi::VisualError::TooLong) => 2,
     }
 }
+
 /// # Safety
 /// Same workspace and callback contract as xp_bidi_visual_visit.
 #[no_mangle]
@@ -177,15 +179,30 @@ pub unsafe extern "C" fn xp_bidi_rtl_tokens(
     work: *mut c_void,
     context: *mut c_void,
     visit: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    diagnostic: Option<xp_core::textm::native::Diagnostic>,
 ) {
     for token in bytes(data, len).split(|b| matches!(b, b' ' | b'\n' | b'\r' | b'\t')) {
         if token.iter().any(|b| (0xd6..=0xdb).contains(b)) {
-            if let Some(text) = bidi::visual(token, -1, &mut *work.cast()) {
-                visit(context, text.as_ptr(), text.len());
+            match bidi::visual_diagnostic(token, -1, &mut *work.cast()) {
+                Ok(text) if !text.is_empty() => visit(context, text.as_ptr(), text.len()),
+                Err(bidi::VisualError::TooLong) => {
+                    if let Some(report) = diagnostic {
+                        report(
+                            context,
+                            xp_core::textm::native::DiagnosticEvent::BidiLimit as u32,
+                            bidi::MAX_LINE as u32,
+                            0,
+                            0,
+                            0,
+                        );
+                    }
+                }
+                _ => {}
             }
         }
     }
 }
+
 /// # Safety
 /// work is initialized and exclusive, output holds count u16 values. Word callback
 /// supplies readable spans valid for the call and cannot reenter bidi.

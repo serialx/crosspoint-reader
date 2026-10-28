@@ -10,7 +10,7 @@ embedded-graphics-core = { path = "vendor/embedded-graphics-core-0.4.0", version
 [profile.release]
 opt-level = "s"
 lto = "fat"
-codegen-units = 1
+codegen-units = 8
 panic = "abort"
 debug = true
 # Keep Rust's release default; wrapping arithmetic is explicit in the hashes.

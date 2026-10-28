@@ -55,7 +55,7 @@ cargo test -p xp-core -p xp-gif
 ```
 
 The release profile uses `opt-level = "s"` to balance code size and chapter-build
-speed, with fat LTO, one codegen unit, and abort-on-panic behavior.
+speed, with fat LTO, eight codegen units, and abort-on-panic behavior.
 The decoder packages `miniz_oxide` and `xp-gif` use `opt-level = 3` in
 [`rust/Cargo.toml`](../../rust/Cargo.toml) to keep inflate and GIF decoding within
 their timing budgets; the rest keeps `"s"`. `xp-gif` is the local, dependency-free
@@ -63,6 +63,11 @@ package under [`rust/crates/xp-core/src/gif/decoder`](../../rust/crates/xp-core/
 reexported by `xp-core::gif`.
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
+
+With the pinned toolchains, eight codegen units saves 560 bytes on C3 and
+272 bytes on S3 versus one unit, with identical emulator pixels and heap and
+timing within 2 ms. Fat LTO still emits one xp-ffi machine-code object. FFI-only
+`"z"` saves about 6 KB but regresses reader timing by up to 26 ms; keep `"s"`.
 
 For C3 firmware, the build script enables LLVM's `--force-dwarf-frame-section`
 option so the Rust LTO object retains call-frame information in `.debug_frame`.

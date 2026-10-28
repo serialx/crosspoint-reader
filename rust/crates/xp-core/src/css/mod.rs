@@ -11,6 +11,40 @@ use style::{tokens, trim, whitespace};
 const MAX_RULES: usize = 1500;
 const SELECTOR_CAP: usize = 32768;
 const MAX_STYLES: usize = 256;
+
+#[derive(Clone, Copy)]
+#[repr(u32)]
+pub enum Diagnostic {
+    IndexOom = 1,
+    SelectorOom,
+    StyleOom,
+    SelectorLong,
+    StoreLimit,
+    StoreOom,
+    InputTruncated,
+    CacheFlags,
+    CacheCount,
+    CacheSelectorLength,
+    CacheDuplicate,
+    ScratchOom,
+    CacheScratchOom,
+}
+
+/// Borrowed for one call; never stored in parser state or used on success hot paths.
+#[derive(Clone, Copy, Default)]
+#[repr(C)]
+pub struct Diagnostics {
+    pub ctx: *mut core::ffi::c_void,
+    pub diagnostic: Option<extern "C" fn(*mut core::ffi::c_void, u32, u32, u32, u32, u32)>,
+}
+impl Diagnostics {
+    pub fn emit(&self, event: Diagnostic, a: usize, b: usize) {
+        if let Some(callback) = self.diagnostic {
+            callback(self.ctx, event as u32, a as u32, b as u32, 0, 0);
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     Limit,
@@ -31,7 +65,14 @@ struct Entry {
     style: u16,
     len: u16,
 }
-fn grow<T>(pool: &mut Vec<T>, needed: usize, initial: usize, cap: usize) -> Result<(), Error> {
+fn grow<T>(
+    pool: &mut Vec<T>,
+    needed: usize,
+    initial: usize,
+    cap: usize,
+    diagnostics: &Diagnostics,
+    event: Diagnostic,
+) -> Result<(), Error> {
     if needed <= pool.capacity() {
         return Ok(());
     }
@@ -47,8 +88,10 @@ fn grow<T>(pool: &mut Vec<T>, needed: usize, initial: usize, cap: usize) -> Resu
         capacity *= 2;
     }
     capacity = capacity.min(cap);
-    pool.try_reserve_exact(capacity - pool.len())
-        .map_err(|_| Error::OutOfMemory)
+    pool.try_reserve_exact(capacity - pool.len()).map_err(|_| {
+        diagnostics.emit(event, capacity, 0);
+        Error::OutOfMemory
+    })
 }
 #[derive(Default)]
 pub struct Store {
@@ -89,17 +132,29 @@ impl Store {
     fn exact(&self, key: &Key<'_>, i: usize) -> bool {
         i < self.entries.len() && key.compare(self.selector(i), false) == Ordering::Equal
     }
-    fn intern(&mut self, s: Style) -> Result<u16, Error> {
+    fn intern(&mut self, s: Style, diagnostics: &Diagnostics) -> Result<u16, Error> {
         if let Some(i) = self.styles.iter().position(|v| *v == s) {
             return Ok(i as u16);
         }
         let needed = self.styles.len() + 1;
-        grow(&mut self.styles, needed, 16, MAX_STYLES)?;
+        grow(
+            &mut self.styles,
+            needed,
+            16,
+            MAX_STYLES,
+            diagnostics,
+            Diagnostic::StyleOom,
+        )?;
         let i = self.styles.len();
         self.styles.push(s);
         Ok(i as u16)
     }
-    fn insert(&mut self, key: &Key<'_>, style: Style) -> Result<bool, Error> {
+    fn insert(
+        &mut self,
+        key: &Key<'_>,
+        style: Style,
+        diagnostics: &Diagnostics,
+    ) -> Result<bool, Error> {
         let pos = self.lower_bound(key);
         if self.exact(key, pos)
             && self.entries[pos].offset as usize + usize::from(self.entries[pos].len)
@@ -114,7 +169,7 @@ impl Store {
                 .enumerate()
                 .any(|(i, e)| i != pos && e.style == current)
             {
-                let idx = self.intern(merged)?;
+                let idx = self.intern(merged, diagnostics)?;
                 self.entries[pos].style = idx;
             } else {
                 self.styles[usize::from(current)] = merged;
@@ -122,10 +177,24 @@ impl Store {
             return Ok(true);
         }
         let n = self.entries.len() + 1;
-        grow(&mut self.entries, n, 32, MAX_RULES)?;
+        grow(
+            &mut self.entries,
+            n,
+            32,
+            MAX_RULES,
+            diagnostics,
+            Diagnostic::IndexOom,
+        )?;
         let n = self.selectors.len() + key.len;
-        grow(&mut self.selectors, n, 512, SELECTOR_CAP)?;
-        let idx = self.intern(style)?;
+        grow(
+            &mut self.selectors,
+            n,
+            512,
+            SELECTOR_CAP,
+            diagnostics,
+            Diagnostic::SelectorOom,
+        )?;
+        let idx = self.intern(style, diagnostics)?;
         let offset = self.selectors.len();
         self.selectors.extend(key.bytes());
         self.entries.insert(
@@ -145,7 +214,7 @@ impl Store {
         self.has_first |= subject.contains(&b':');
         Ok(false)
     }
-    fn rule(&mut self, selectors: &[u8], style: Style) {
+    fn rule(&mut self, selectors: &[u8], style: Style, diagnostics: &Diagnostics) {
         if style.flags() == 0 {
             return;
         }
@@ -154,13 +223,22 @@ impl Store {
             .map(trim)
             .filter(|s| !s.is_empty())
         {
+            if s.len() > 256 {
+                diagnostics.emit(Diagnostic::SelectorLong, s.len(), 256);
+            }
             let Some(key) = selector::canonical(s) else {
                 continue;
             };
             if self.stopped && !self.exact(&key, self.lower_bound(&key)) {
                 continue;
             }
-            if self.insert(&key, style).is_err() {
+            if let Err(error) = self.insert(&key, style, diagnostics) {
+                let event = match error {
+                    Error::Limit => Diagnostic::StoreLimit,
+                    Error::OutOfMemory => Diagnostic::StoreOom,
+                    Error::Invalid => Diagnostic::StoreLimit,
+                };
+                diagnostics.emit(event, self.entries.len(), 0);
                 self.stopped = true;
             }
         }
@@ -345,10 +423,35 @@ impl Store {
         Ok(size)
     }
     pub fn cache_begin(&mut self, count: usize) -> Result<(), Error> {
+        self.cache_begin_with_diagnostics(count, &Diagnostics::default())
+    }
+    pub fn cache_begin_with_diagnostics(
+        &mut self,
+        count: usize,
+        diagnostics: &Diagnostics,
+    ) -> Result<(), Error> {
         self.clear();
-        grow(&mut self.entries, count, 32, MAX_RULES)
+        if count > MAX_RULES {
+            diagnostics.emit(Diagnostic::CacheCount, count, MAX_RULES);
+        }
+        grow(
+            &mut self.entries,
+            count,
+            32,
+            MAX_RULES,
+            diagnostics,
+            Diagnostic::IndexOom,
+        )
     }
     pub fn cache_insert(&mut self, key: &[u8], wire: &[u8]) -> Result<(), Error> {
+        self.cache_insert_with_diagnostics(key, wire, &Diagnostics::default())
+    }
+    pub fn cache_insert_with_diagnostics(
+        &mut self,
+        key: &[u8],
+        wire: &[u8],
+        diagnostics: &Diagnostics,
+    ) -> Result<(), Error> {
         if key.is_empty() || key.len() > 257 || wire.len() != WIRE_BYTES {
             return Err(Error::Invalid);
         }
@@ -359,9 +462,12 @@ impl Store {
         }
         let mut pieces = Key::default();
         pieces.add(key);
-        match self.insert(&pieces, style) {
+        match self.insert(&pieces, style, diagnostics) {
             Ok(false) => Ok(()),
-            Ok(true) => Err(Error::Invalid),
+            Ok(true) => {
+                diagnostics.emit(Diagnostic::CacheDuplicate, 0, 0);
+                Err(Error::Invalid)
+            }
             Err(e) => Err(e),
         }
     }
@@ -425,6 +531,14 @@ impl Stream {
             .map_err(|_| Error::OutOfMemory)
     }
     pub fn feed(&mut self, store: &mut Store, bytes: &[u8]) {
+        self.feed_with_diagnostics(store, bytes, &Diagnostics::default());
+    }
+    pub fn feed_with_diagnostics(
+        &mut self,
+        store: &mut Store,
+        bytes: &[u8],
+        diagnostics: &Diagnostics,
+    ) {
         for &c in bytes {
             if self.comment {
                 if self.star && c == b'/' {
@@ -442,19 +556,29 @@ impl Stream {
                     self.star = false;
                     continue;
                 }
-                self.character(store, b'/');
+                self.character(store, b'/', diagnostics);
                 self.slash = false;
             }
             if c == b'/' {
                 self.slash = true;
                 continue;
             }
-            self.character(store, c);
+            self.character(store, c, diagnostics);
         }
     }
     pub fn finish(&mut self, store: &mut Store) -> ParseResult {
+        self.finish_with_diagnostics(store, &Diagnostics::default())
+    }
+    pub fn finish_with_diagnostics(
+        &mut self,
+        store: &mut Store,
+        diagnostics: &Diagnostics,
+    ) -> ParseResult {
         if self.slash {
-            self.character(store, b'/');
+            self.character(store, b'/', diagnostics);
+        }
+        if self.truncated {
+            diagnostics.emit(Diagnostic::InputTruncated, 0, 0);
         }
         if store.stopped
             || self.truncated
@@ -468,7 +592,7 @@ impl Stream {
             ParseResult::Complete
         }
     }
-    fn character(&mut self, store: &mut Store, c: u8) {
+    fn character(&mut self, store: &mut Store, c: u8, diagnostics: &Diagnostics) {
         if self.at_rule {
             match c {
                 b'{' => self.at_depth = self.at_depth.saturating_add(1),
@@ -518,7 +642,7 @@ impl Stream {
                     self.style.declaration(&self.declaration);
                 }
                 if !self.skip {
-                    store.rule(&self.selector, self.style);
+                    store.rule(&self.selector, self.style, diagnostics);
                 }
                 self.selector.clear();
                 self.declaration.clear();

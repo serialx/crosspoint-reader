@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 extern "C" size_t xp_test_live_allocations();
+extern "C" size_t xp_test_allocation_attempts();
 extern "C" void xp_test_fail_allocation_after(size_t count);
 
 TEST(KOReaderXPathResolver, RustAllocationFailuresReturnEmptyAndReleaseParser) {
@@ -60,7 +61,11 @@ TEST(KOReaderXPathResolver, DiagnosticsKeepOriginalErrorTextAndFinalPrefix) {
 }
 TEST(KOReaderXPathResolver, DiagnosticsDistinguishCreationAndParseOom) {
   auto epub = std::make_shared<Epub>(std::vector<std::string>{"<html><body><p>Hello</p></body></html>"});
-  for (size_t count = 0; count < 12; ++count) {
+  xp_test_fail_allocation_after(SIZE_MAX);
+  ChapterXPathResolver::findXPathForParagraph(epub, 0, 99);
+  const size_t allocations = xp_test_allocation_attempts();
+  ASSERT_GT(allocations, 1u);
+  for (size_t count = 0; count < allocations; ++count) {
     logging_stub::Capture logs;
     xp_test_fail_allocation_after(count);
     auto result = ChapterXPathResolver::findXPathForParagraph(epub, 0, 99);

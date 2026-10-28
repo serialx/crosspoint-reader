@@ -10,6 +10,56 @@
 #include <cstring>
 
 namespace {
+void cssDiagnostic(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t, uint32_t) {
+  switch (static_cast<XpCssDiagnosticEvent>(event)) {
+    case XP_CSS_INDEX_OOM:
+      LOG_ERR("CSS", "OOM: selector index (%zu entries)", static_cast<size_t>(a));
+      break;
+    case XP_CSS_SELECTOR_OOM:
+      LOG_ERR("CSS", "OOM: selector pool (%zu bytes)", static_cast<size_t>(a));
+      break;
+    case XP_CSS_STYLE_OOM:
+      LOG_ERR("CSS", "OOM: style pool (%zu styles)", static_cast<size_t>(a));
+      break;
+    case XP_CSS_SELECTOR_LONG:
+      LOG_DBG("CSS", "Selector too long (%zu > %zu), skipping", static_cast<size_t>(a), static_cast<size_t>(b));
+      break;
+    case XP_CSS_STORE_LIMIT:
+      LOG_ERR("CSS", "CSS rule store limit reached at %u rules", a);
+      break;
+    case XP_CSS_STORE_OOM:
+      LOG_ERR("CSS", "OOM while growing CSS rule store at %u rules", a);
+      break;
+    case XP_CSS_INPUT_TRUNCATED:
+      LOG_ERR("CSS", "CSS input exceeded parser buffer; cache will remain partial");
+      break;
+    case XP_CSS_CACHE_FLAGS:
+      LOG_DBG("CSS", "Invalid CSS cache flags: %u", a);
+      break;
+    case XP_CSS_CACHE_COUNT:
+      LOG_DBG("CSS", "Invalid cache rule count (%u > %zu)", a, static_cast<size_t>(b));
+      break;
+    case XP_CSS_CACHE_SELECTOR_LENGTH:
+      LOG_DBG("CSS", "Invalid selector length in cache: %u", a);
+      break;
+    case XP_CSS_CACHE_DUPLICATE:
+      LOG_DBG("CSS", "Duplicate selector in CSS cache");
+      break;
+    case XP_CSS_SCRATCH_OOM:
+      LOG_ERR("CSS", "OOM: CSS parser scratch");
+      break;
+    case XP_CSS_CACHE_SCRATCH_OOM:
+      LOG_ERR("CSS", "Cache load failed (%ld)", static_cast<long>(a));
+      break;
+  }
+}
+constexpr XpCssDiagnostics CSS_DIAGNOSTICS = {nullptr, cssDiagnostic};
+int32_t readCssCache(XpCss* handle, const uint8_t* data, size_t len, bool end) {
+  XpCssCacheDiagnostic detail{};
+  const auto status = xp_css_cache_read_with_diagnostic(handle, data, len, end, &detail);
+  if (detail.event != 0) cssDiagnostic(nullptr, detail.event, detail.a, detail.b, 0, 0);
+  return status;
+}
 constexpr size_t MAX_RULES = 1500;
 constexpr size_t SELECTOR_POOL_CAP = 32 * 1024;
 constexpr size_t MAX_STORED_KEY_LENGTH = 257;
@@ -171,14 +221,18 @@ CssParser::ParseResult CssParser::loadFromStream(HalFile& source) {
     return ParseResult::Partial;
   }
   bool partial = false;
+  size_t totalRead = 0;
   while (source.available()) {
     const int count = source.read(buffer.get(), READ_BUFFER_SIZE);
     if (count <= 0) break;
-    partial |= xp_css_feed(handle, buffer.get(), static_cast<size_t>(count), false) != 0;
+    totalRead += static_cast<size_t>(count);
+    partial |=
+        xp_css_feed_with_diagnostics(handle, buffer.get(), static_cast<size_t>(count), false, &CSS_DIAGNOSTICS) != 0;
   }
-  const auto result = static_cast<ParseResult>(xp_css_feed(handle, nullptr, 0, true));
+  const auto result =
+      static_cast<ParseResult>(xp_css_feed_with_diagnostics(handle, nullptr, 0, true, &CSS_DIAGNOSTICS));
+  LOG_DBG("CSS", "Parsed %zu rules from %zu bytes", ruleCount(), totalRead);
   if (partial || result == ParseResult::Partial) {
-    LOG_ERR("CSS", "CSS input or rule storage incomplete; cache will remain partial");
     return ParseResult::Partial;
   }
   return result;
@@ -329,7 +383,11 @@ bool CssParser::saveToCache(const bool complete) const {
   if (handle) {
     auto order = makeUniqueNoThrow<uint16_t[]>(ruleCount);
     if (!order || xp_css_cache_write_begin(handle, complete, order.get(), ruleCount) != 0) {
-      LOG_ERR("CSS", "Could not prepare cache source order");
+      if (!order) {
+        LOG_ERR("CSS", "OOM sorting CSS cache rules");
+      } else {
+        LOG_ERR("CSS", "Could not prepare cache source order");
+      }
       file.close();
       Storage.remove(tmpPath.c_str());
       return false;
@@ -391,6 +449,8 @@ CssParser::CacheLoadResult CssParser::loadFromCache() {
   clear();
   uint8_t version = 0;
   if (file.read(&version, 1) != 1 || version != CSS_CACHE_VERSION) {
+    LOG_DBG("CSS", "Cache version mismatch (got %u, expected %u), removing stale cache for rebuild", version,
+            CSS_CACHE_VERSION);
     file.close();
     Storage.remove((cachePath + rulesCache).c_str());
     return CacheLoadResult::Invalid;
@@ -402,20 +462,27 @@ CssParser::CacheLoadResult CssParser::loadFromCache() {
     clear();
     return CacheLoadResult::LowMemory;
   }
-  int32_t status = xp_css_cache_read(handle, &version, 1, false);
+  uint8_t flags = 0;
+  bool firstChunk = true;
+  int32_t status = readCssCache(handle, &version, 1, false);
   while (status == 0 && file.available()) {
     const int count = file.read(buffer.get(), READ_BUFFER_SIZE);
     if (count <= 0) {
       status = 2;
       break;
     }
-    status = xp_css_cache_read(handle, buffer.get(), static_cast<size_t>(count), false);
+    if (firstChunk) {
+      flags = buffer[0];
+      firstChunk = false;
+    }
+    status = readCssCache(handle, buffer.get(), static_cast<size_t>(count), false);
   }
-  if (status == 0) status = xp_css_cache_read(handle, nullptr, 0, true);
+  if (status == 0) status = readCssCache(handle, nullptr, 0, true);
   if (status != 0) {
-    LOG_ERR("CSS", "Cache load failed (%ld)", static_cast<long>(status));
     clear();
     return status == 1 ? CacheLoadResult::LowMemory : CacheLoadResult::Invalid;
   }
+  LOG_DBG("CSS", "Loaded %u rules from %s cache", static_cast<unsigned>(ruleCount()),
+          (flags & CSS_CACHE_FLAG_PARTIAL) ? "partial" : "complete");
   return CacheLoadResult::Complete;
 }

@@ -15,6 +15,53 @@
 #include <vector>
 
 namespace {
+// The XML core preserves Expat error numbers; text and log gating stay in C++.
+const char* xmlErrorText(const uint32_t code) {
+  static constexpr const char* messages[] = {"unknown XML error",
+                                             "out of memory",
+                                             "syntax error",
+                                             "no element found",
+                                             "not well-formed (invalid token)",
+                                             "unclosed token",
+                                             "partial character",
+                                             "mismatched tag",
+                                             "duplicate attribute",
+                                             "junk after document element",
+                                             "illegal parameter entity reference",
+                                             "undefined entity",
+                                             "recursive entity reference",
+                                             "asynchronous entity",
+                                             "reference to invalid character number",
+                                             "reference to binary entity",
+                                             "reference to external entity in attribute",
+                                             "XML or text declaration not at start of entity",
+                                             "unknown encoding",
+                                             "encoding specified in XML declaration is incorrect",
+                                             "unclosed CDATA section",
+                                             "error in processing external entity reference",
+                                             "document is not standalone",
+                                             "unexpected parser state - please send a bug report",
+                                             "entity declared in parameter entity",
+                                             "requested feature requires XML_DTD support in Expat",
+                                             "cannot change setting once parsing has begun",
+                                             "unbound prefix",
+                                             "must not undeclare prefix",
+                                             "incomplete markup in parameter entity",
+                                             "XML declaration not well-formed",
+                                             "text declaration not well-formed",
+                                             "illegal character(s) in public id",
+                                             "parser suspended",
+                                             "parser not suspended",
+                                             "parsing aborted"};
+  return code < sizeof(messages) / sizeof(messages[0]) ? messages[code] : messages[0];
+}
+void logXmlError(const uint32_t error, const bool final) {
+  if (final) {
+    LOG_ERR("KOX", "Final XML parse error: %s", xmlErrorText(error));
+  } else {
+    LOG_ERR("KOX", "XML parse error: %s", xmlErrorText(error));
+  }
+}
 std::string stripPrefix(const char* name) {
   if (!name) {
     return "";
@@ -108,7 +155,7 @@ class XPathParser : public Print {
       parseOk = parse(nullptr, 0, true);
       // A match first delivered by finalization was an aborted final parse in Expat.
       if (stopped) {
-        LOG_ERR("KOX", "Final XML parse aborted");
+        logXmlError(35, true);
         parseOk = false;
       }
     }
@@ -139,8 +186,13 @@ class XPathParser : public Print {
       offset += consumed;
       for (;;) {
         XpXmlEvent event{};
-        if (xp_xml_next(parser, &event) != 0) {
-          LOG_ERR("KOX", "Failed to read XML event");
+        const int32_t status = xp_xml_next(parser, &event);
+        if (status != 0) {
+          if (status == -2) {
+            logXmlError(1, final);
+          } else {
+            LOG_ERR("KOX", "Failed to read XML event");
+          }
           return false;
         }
         switch (event.kind) {
@@ -167,7 +219,7 @@ class XPathParser : public Print {
           case XP_XML_NEED_INPUT:
             break;
           case XP_XML_ERROR:
-            LOG_ERR("KOX", "XML parse error %u at byte %llu", event.error, static_cast<unsigned long long>(event.byte));
+            logXmlError(event.error, final);
             return false;
           default:
             LOG_ERR("KOX", "Unexpected XML event %u", event.kind);

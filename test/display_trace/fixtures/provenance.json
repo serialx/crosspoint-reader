@@ -1,0 +1,9 @@
+{
+  "source": "p6-r1/merge/public-page/case-0000/sample-0.pbm",
+  "book": "test/epubs/crosspoint-table-edge-cases.epub",
+  "case": "crosspoint-table-edge-cases/public/0",
+  "renderer": "test/page_golden/PageGolden.cpp",
+  "pbm_sha256": "892b0b15740304c7849848e8607137b57b221ea2186543b55f9d1f0472f8a823",
+  "raw_sha256": "687189f86ed30257d4b5f418d19e3e31c625982c85d7bd2013f60ee382d089d3",
+  "conversion": "Strip P4 header; complement bytes (PBM 1=black, panel 1=white). Other geometries crop right columns and pad bottom with white."
+}

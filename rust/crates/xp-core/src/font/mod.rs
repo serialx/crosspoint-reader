@@ -396,3 +396,8 @@ pub fn solid_metrics(cp: u32, ascender: i32, em_advance: Option<u16>) -> Glyph {
         data_offset: 0,
     }
 }
+
+pub mod cache;
+pub mod manager;
+pub mod registry;
+pub mod vector;

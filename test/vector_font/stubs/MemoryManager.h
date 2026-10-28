@@ -1,12 +1,16 @@
 #pragma once
 #include <esp_heap_caps.h>
+
 #include <cstdio>
 inline void (*vectorEvict)() = nullptr;
 inline bool vectorRecover = false;
 namespace freeink {
 class MemoryManager {
  public:
-  static MemoryManager& instance() { static MemoryManager m; return m; }
+  static MemoryManager& instance() {
+    static MemoryManager m;
+    return m;
+  }
   bool ensureFree(size_t bytes) {
     std::printf("evict %zu\n", bytes);
     if (vectorEvict) vectorEvict();
@@ -14,4 +18,4 @@ class MemoryManager {
     return vectorRecover;
   }
 };
-}
+}  // namespace freeink

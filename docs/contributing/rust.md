@@ -9,7 +9,7 @@ Rust owns the EPUB parsers and layout, page records, build/load codecs, page
 rendering, PNG/GIF decoding and image row processing, text measurement, glyph
 rasterization and bitmap views, SD font parsing and cache policy, XTC parsing,
 and the shared inflater for ZIP, PNG, ContentProtection, fonts and DictZip.
-C++ retains file I/O, font registration and preparation, built-in/TTF caches,
+C++ retains file I/O, font containers and platform callbacks,
 JPEGDEC integration, page storage and views, and the UI. See the
 [chapter pipeline](chapter-pipeline.md) for page ownership and lifetime.
 
@@ -552,9 +552,9 @@ the page sink only crosses into C++ for the operations described in the
 Production paragraph/chapter layout and `GfxRenderer` measurements use
 [`textm::native::Engine`](../../rust/crates/xp-core/src/textm/native.rs).
 Rust executes measurement rules, resident font-table reads, bidi shaping and
-word ordering. C++ owns font registration and preparation, built-in/TTF storage
-and caches, and the SD-font facade; Rust owns SD cache policy and buffer
-lifetimes. [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp)
+word ordering. Rust also owns font discovery, registration policy, built-in/TTF
+caches and SD buffer lifetimes. C++ retains the font facades, containers and
+platform callbacks. [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRenderer.cpp)
 supplies resolved style descriptors and dynamic handlers; SD glyphs that are
 not resident and TTF glyph/coverage/kerning work still use those handlers.
 The [paragraph binding](../../lib/Epub/Epub/Paragraph.cpp) and
@@ -607,14 +607,14 @@ Standalone scaled glyphs use `xp_native_draw_scaled_pixels` for their advance an
 bilinear scaling. Cached pages use the same Rust glyph painter through the
 page render entry below; loaded text data belongs to the page arena.
 
-C++ prepares fonts and manages built-in/TTF caches. SD prewarm, resident buffers
-and overflow policy belong to the Rust pool described below.
-It lends the selected `EpdFont::data` pointer slot, bitmap-source view and exclusive
+C++ font facades dispatch preparation and cache work to Rust, retaining the
+existing containers and platform objects. The renderer lends the selected
+`EpdFont::data` pointer slot, bitmap-source view and exclusive
 framebuffer or strip target for one synchronous run. Rust resolves resident
 built-in/SD and decompressed page-buffer bitmap hits directly. Misses call C++
 for loading, the SD pool facade, hot-group decompression or TTF bitmaps, then
-refresh the view. FontDecompressor retains its C++ cache and uses the shared Rust
-inflater for compressed groups.
+refresh the view. `font::cache` owns the inline FontDecompressor state and buffer
+lifecycle, using the shared Rust inflater for compressed groups.
 Generation changes invalidate borrowed sources; no table or bitmap loan survives
 a callback that can mutate its owner. The EpdFont owner stays live and serialized;
 callbacks cannot unregister it, reenter drawing or change the target geometry.
@@ -656,9 +656,11 @@ consumers' pixels and selection geometry.
 
 `xp-core::sdfont` parses `.cpfont` headers, style directories and intervals,
 validates glyph extents, decodes kerning/ligature fields, and parses filename
-sizes. These parser calls borrow bytes and allocate no storage. C++ retains
-HalFile I/O, font discovery/loading, stable per-style slots, shared interval
-tables, generation invalidation and corrupt-glyph notice delivery. See the
+sizes. These parser calls borrow bytes and allocate no storage. `sdfont::load`
+owns loading and shared-interval reference counts; `font::registry` owns discovery
+and selection, and `font::manager` owns registration and unload order. C++ retains
+HalFile I/O, stable per-style storage, the shared interval slots, generation
+invalidation and diagnostic delivery. See the
 `xp_sdfont_*` contract in
 [`xp_ffi.h`](../../rust/crates/xp-ffi/include/xp_ffi.h) and the
 [SD font differential](../../test/sdfont_diff/README.md) for compatibility limits.
@@ -673,6 +675,15 @@ allocate fallibly; unlike parsing, they retain buffers across calls. Views expir
 when their cache owner mutates or releases storage. The
 [pool differential](../../test/sdfont_pool_diff/README.md) checks ordered I/O,
 allocation lifetimes, retention under heap pressure and failure recovery.
+
+`font::cache` keeps the existing eight built-in page slots, hot decompression
+buffer and glyph scratch buffer. Its allocation failures and release order are
+covered by `test/font_cache`. `font::vector` controls lazy FreeType faces, source
+selection, glyph quantization, kerning, cache growth and eviction. C++ provides
+the SDK FreeType calls and existing `PsramVector` storage; borrowed source files
+must outlive the font. No new permanent buffer is added. `test/vector_font`
+records real FreeType glyph bytes and allocation traces under heap pressure;
+`test/font_manager` records registration, ownership and failure paths.
 
 `xp-core::xtc` interprets XTC/XTCH headers, page tables, metadata and chapter
 records, and XTG/XTH page headers. C++ retains HalFile I/O, buffers, owned strings,

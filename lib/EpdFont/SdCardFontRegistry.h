@@ -86,25 +86,17 @@ class SdCardFontRegistry {
 #endif
 
  private:
+  static bool parseFilename(const char*, uint8_t& size, uint8_t& style);
+  static bool isCanonicalCpfontName(const char*, const std::string& family, uint8_t size);
+
   std::vector<SdCardFontFamilyInfo> families_;  // sorted alphabetically
 
-  static bool parseFilename(const char* filename, uint8_t& size, uint8_t& style);
-  // True when `filename` is exactly "<family>_<size>.cpfont", the name
-  // filePath() rebuilds without a stored string.
-  static bool isCanonicalCpfontName(const char* filename, const std::string& family, uint8_t size);
 #if CROSSPOINT_VECTOR_FONTS
-  // Match a loose vector font filename (.ttf/.otf/.ttc, case-insensitive) and
-  // return the length of the base name (extension stripped) in `baseLen`.
-  static bool parseVectorFontName(const char* filename, size_t& baseLen);
-  // Style role (0=regular, 1=bold, 2=italic, 3=bold-italic) inferred from a
-  // vector font's base name (case-insensitive "bold"/"italic"/"oblique" tokens).
-  static uint8_t parseVectorStyle(const char* baseName, size_t baseLen);
   // Refine each vector file's style role from its real face metadata
   // (FtFont::inspectStream: OS/2 weight + italic flag), keeping the
   // filename-derived role when the face can't be read. Then dedup by role.
   static void refineVectorStyles(const char* dirPath, std::vector<SdCardFontFileInfo>& files);
 #endif
-  static void scanDirectory(const char* dirPath, SdCardFontFamilyInfo& family);
   // Scan one root (e.g. "/.fonts"), append families to `out`, dedup by name.
   static void scanRoot(const char* rootPath, std::vector<SdCardFontFamilyInfo>& out);
 };

@@ -1,5 +1,6 @@
 #include <FontDecompressor.h>
 #include <FontTableGeneration.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -26,8 +27,7 @@ extern "C" void fiFontFree(void* ptr) {
 
 // Raw DEFLATE stored block containing three byte-aligned 2-bit glyphs.
 static const uint8_t bitmap[] = {1, 9, 0, 246, 255, 0x1b, 0x40, 0xe4, 0x80, 0xff, 0xaa, 0x55, 0, 0x6c, 0};
-static const EpdGlyph glyphs[] = {
-    {3, 2, 48, 0, 2, 2, 0}, {4, 1, 64, 0, 1, 1, 2}, {5, 2, 80, 0, 2, 3, 3}};
+static const EpdGlyph glyphs[] = {{3, 2, 48, 0, 2, 2, 0}, {4, 1, 64, 0, 1, 1, 2}, {5, 2, 80, 0, 2, 3, 3}};
 static const EpdUnicodeInterval intervals[] = {{65, 67, 0}};
 static const EpdFontGroup groups[] = {{0, sizeof(bitmap) - 1, 9, 3, 0}};
 static const uint16_t mapping[] = {0, 0, 0};
@@ -61,16 +61,17 @@ static void run(int fail, bool mapped, bool broken) {
           std::printf("glyph %u ", i);
           if (p) {
             for (uint16_t j = 0; j < glyphs[i].dataLength; ++j) std::printf("%02x", p[j]);
-          } else std::printf("null");
+          } else
+            std::printf("null");
           std::putchar('\n');
         }
       }
     }
     for (int i = 0; i < 9; ++i) std::printf("slot %d %d\n", i, cache.prewarmCache(&font, "C"));
     const auto& s = cache.getStats();
-    std::printf("stats %u %u %u %u %u %u %u %u %u %u\n", s.cacheHits, s.cacheMisses,
-                s.decompressTimeMs, s.uniqueGroupsAccessed, s.pageBufferBytes, s.pageGlyphsBytes,
-                s.hotGroupBytes, s.peakTempBytes, s.getBitmapTimeUs, s.getBitmapCalls);
+    std::printf("stats %u %u %u %u %u %u %u %u %u %u\n", s.cacheHits, s.cacheMisses, s.decompressTimeMs,
+                s.uniqueGroupsAccessed, s.pageBufferBytes, s.pageGlyphsBytes, s.hotGroupBytes, s.peakTempBytes,
+                s.getBitmapTimeUs, s.getBitmapCalls);
     std::printf("slots %u\n", cache.pageSlotViewCount());
   }
   std::printf("generation %u live %zu\n", fontTableGeneration.load(), live.size());

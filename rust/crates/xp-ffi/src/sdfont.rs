@@ -281,3 +281,24 @@ pub unsafe extern "C" fn xp_sdfont_pool_lookup(
     }
     true
 }
+#[no_mangle]
+pub unsafe extern "C" fn xp_sdfont_load(
+    slots: *mut u8,
+    hash: *mut u32,
+    shared: *mut sdfont::load::Shared,
+    io: *const sdfont::load::Services,
+) -> bool {
+    sdfont::load::load(slots, hash, shared, &*io)
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_sdfont_clear_loaded(
+    pool: *mut Cache,
+    shared: *mut sdfont::load::Shared,
+    count: u8,
+    all: bool,
+    ctx: *mut core::ffi::c_void,
+    setup: Option<unsafe extern "C" fn(*mut core::ffi::c_void, u8)>,
+    generation: unsafe extern "C" fn(),
+) {
+    sdfont::load::clear(&mut *pool, shared, count, all, ctx, setup, generation);
+}

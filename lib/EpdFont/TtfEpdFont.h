@@ -44,6 +44,7 @@
 
 #include <FontPsram.h>
 #include <FtFont.h>
+#include <xp_ffi.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -90,38 +91,13 @@ class TtfEpdFont {
 
  private:
   // A borrowed source file (one per style role that the caller supplies).
-  struct Source {
-    bool present = false;
-    bool streamed = false;
-    const uint8_t* data = nullptr;  // resident form
-    uint32_t len = 0;
-    freeink::font::FtFont::ReadFn read = nullptr;  // streamed form
-    void* ctx = nullptr;
-    unsigned long fileSize = 0;
-  };
+  using Source = XpVectorSource;
 
   struct Face {
     TtfEpdFont* owner = nullptr;
     freeink::font::FtFont ft;
     freeink::font::PsramVector<uint8_t> bmp;
-    size_t used = 0;
-    size_t cap = 0;
-    uint16_t maxGlyphs = 0;
-    bool twoBit = true;
-    uint16_t sizePx = 0;
-    uint8_t srcIndex = 0;     // which Source this face initializes from
-    int weight = 400;         // design weight requested (wght axis / faux bold)
-    bool wantItalic = false;  // request italic from the source (axis or oblique)
-    bool inited = false;      // init attempted (lazy)
-    bool ready = false;       // FreeType face live
-    // GSUB 'liga' resolution (fi fl ff ffi ffl), resolved once at initFace():
-    // ligGid[i] is the raw glyph ID for U+FB00+i (0 = none), and ligPairs is
-    // the EpdFont pair table (sorted by key) that routes applyLigatures() to
-    // those presentation codepoints; faultGlyph() then rasterizes them by
-    // glyph ID even when the face's cmap has no entry for them.
-    uint32_t ligGid[5] = {0, 0, 0, 0, 0};
-    EpdLigaturePair ligPairs[5] = {};
-    uint8_t ligPairCount = 0;
+    XpVectorState state{};
     freeink::font::PsramVector<EpdGlyph> glyphs;
     freeink::font::PsramVector<uint32_t> cps;
     freeink::font::PsramVector<uint16_t> slot;
@@ -140,15 +116,14 @@ class TtfEpdFont {
   static bool coverageThunk(void* ctx, uint32_t codepoint);
   static int8_t kernThunk(void* ctx, uint32_t leftCp, uint32_t rightCp);
 
-  void resolveFaces();             // map the 4 faces onto the configured sources
-  void initFace(Face& f);          // lazy: create the FT face on first use
-  void setupFace(Face& f);         // wire data handlers + metrics
-  void resolveLigatures(Face& f);  // query GSUB once, build ligGid/ligPairs
+  static XpVectorServices services(Face&);
+  XpVectorFamily familyServices();
+  void initFace(Face& f);   // lazy: create the FT face on first use
+  void setupFace(Face& f);  // wire data handlers + metrics
   const EpdGlyph* faultGlyph(Face& f, uint32_t codepoint);
   int8_t faultKern(Face& f, uint32_t leftCp, uint32_t rightCp);
-  static void flushFace(Face& f);
 
-  Source sources_[4];      // indexed by Style role
+  Source sources_[4]{};    // indexed by Style role
   Face faces_[4];          // 0=regular 1=bold 2=italic 3=bold-italic
   uint32_t size26_6_ = 0;  // exact 26.6 ppem (pt @150DPI), no whole-pixel rounding
   bool loaded_ = false;

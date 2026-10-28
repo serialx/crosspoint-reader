@@ -1,21 +1,10 @@
 #include "EpdFontFamily.h"
 
+#include <xp_ffi.h>
+
 const EpdFont* EpdFontFamily::getFont(const Style style) const {
-  // Extract font style bits; render-time overlay bits do not affect font selection.
-  const bool hasBold = (style & BOLD) != 0;
-  const bool hasItalic = (style & ITALIC) != 0;
-
-  if (hasBold && hasItalic) {
-    if (boldItalic) return boldItalic;
-    if (bold) return bold;
-    if (italic) return italic;
-  } else if (hasBold && bold) {
-    return bold;
-  } else if (hasItalic && italic) {
-    return italic;
-  }
-
-  return regular;
+  const EpdFont* fonts[] = {regular, bold, italic, boldItalic};
+  return fonts[xp_font_style(style, bold != nullptr, italic != nullptr, boldItalic != nullptr)];
 }
 
 void EpdFontFamily::getTextDimensions(const char* string, int* w, int* h, const Style style) const {

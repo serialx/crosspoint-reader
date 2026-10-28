@@ -2,11 +2,13 @@
 #include <SdCardFont.h>
 #include <SdCardFontManager.h>
 #include <SdCardFontRegistry.h>
+
 #include <cstdio>
 
 static SdCardFontFamilyInfo family(const char* name) {
   SdCardFontFamilyInfo f;
-  f.name = name; f.root = "/fonts";
+  f.name = name;
+  f.root = "/fonts";
   for (uint8_t size : {14, 18, 20}) f.files.push_back({nullptr, size, 0});
   return f;
 }
@@ -21,19 +23,22 @@ int main() {
     auto f = family("Example");
     {
       SdCardFontManager manager;
-      SdCardFont::failCreate = mode == 1; SdCardFont::failLoad = mode == 2;
+      SdCardFont::failCreate = mode == 1;
+      SdCardFont::failLoad = mode == 2;
       if (mode == 3) f.name.assign(150, 'x');
       std::printf("family %d\n", manager.loadFamily(f, renderer, 16));
       state(manager, renderer);
       SdCardFont::failCreate = SdCardFont::failLoad = false;
       if (mode) continue;
-      std::printf("lookup %d %d %d\n", manager.getFontId("Example"), manager.getFontId("Other"), manager.getFontId("Example", 18));
+      std::printf("lookup %d %d %d\n", manager.getFontId("Example"), manager.getFontId("Other"),
+                  manager.getFontId("Example", 18));
       std::printf("reuse %d\n", manager.loadFamilyExtraSize(f, renderer, 14, 100));
       std::printf("extra %d\n", manager.loadFamilyExtraSize(f, renderer, 18, 101));
       std::printf("variant %d\n", manager.loadFamilyVariant(f, renderer, 18, 102));
       std::printf("collision %d\n", manager.loadFamilyVariant(f, renderer, 20, 102));
       std::printf("missing %d\n", manager.loadFamilyExtraSize(f, renderer, 19, 103));
-      manager.unloadFont(renderer, 101); manager.unloadFont(renderer, 999);
+      manager.unloadFont(renderer, 101);
+      manager.unloadFont(renderer, 999);
       state(manager, renderer);
       auto second = family("Second");
       std::printf("replace %d\n", manager.loadFamily(second, renderer, 20));
@@ -54,5 +59,4 @@ int main() {
     std::printf("names %zu %d %d\n", manager.currentFamilyName().size(), manager.getFontId(f.name),
                 manager.getFontId("Embedded"));
   }
-
 }

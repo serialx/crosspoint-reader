@@ -18,3 +18,9 @@ regenerates the archive; use only on the original implementation, never to accep
 a port mismatch. The independent XPath suite covers XML mutations and allocation
 failures. A separate negative control changes the first document sample from
 offset 0 to 1 in an external source copy and must fail this golden.
+
+`reverse-golden.txt.gz` adds 11,360 reverse-mapping cases captured from an archived
+copy of the same original C++ files: truncated and byte-mutated XML, malformed
+XPath, chunk sizes 1/7/1024, five cache states, and cross-spine cache fallback. Build `SyncReverseOracle` and
+run `SyncReverseGoldens` to compare those cases. Its capture mode is subject to
+the same original-implementation-only rule.

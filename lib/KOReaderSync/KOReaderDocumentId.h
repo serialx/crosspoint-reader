@@ -36,10 +36,4 @@ class KOReaderDocumentId {
  private:
   // Size of each chunk to read at each offset
   static constexpr size_t CHUNK_SIZE = 1024;
-
-  // Number of offsets to try (i = -1 to 10, so 12 offsets)
-  static constexpr int OFFSET_COUNT = 12;
-
-  // Calculate offset for index i: 1024 << (2*i)
-  static size_t getOffset(int i);
 };

@@ -74,3 +74,5 @@ mod tests {
 }
 
 pub mod strip;
+
+pub mod sync;

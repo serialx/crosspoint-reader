@@ -1,0 +1,85 @@
+# Sequential stateful contract. Refresh modes: 0 Full, 1 Half, 2 Fast.
+begin
+clear 255
+display 0
+clear 0
+display 1
+frame 0
+display 2
+frame 1
+trigger 0
+complete
+trigger 1
+complete
+trigger 2
+complete
+trigger-async 0
+finish-async
+trigger-async 1
+finish-async
+trigger-async 2
+finish-async
+async 2
+wait
+async-no-shadow 2
+poll
+wait
+frame 1
+window 0
+frame 1
+window 1
+resync 2
+frame 1
+display 2
+gray-base 0
+condition
+gray-full
+gray-show
+cleanup
+frame 1
+gray-base 0
+gray-strips
+gray-show
+cleanup
+gray-base 1
+gray-full
+gray-show
+cleanup
+gray-base 1
+gray-strips
+gray-show
+cleanup
+invert 1
+frame 0
+display 2
+frame 1
+window 0
+frame 1
+window 1
+invert 0
+display 2
+seed
+async 2
+lend
+return
+frame 0
+display 2
+seed
+release-secondary
+frame 1
+display 2
+realloc-secondary
+async 2
+release
+realloc
+frame 0
+display 1
+page
+display 2
+maintenance
+display-off 2
+sleep
+wake
+frame 0
+display 0
+release

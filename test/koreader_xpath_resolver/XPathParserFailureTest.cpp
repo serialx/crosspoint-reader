@@ -1,4 +1,5 @@
 #include <ChapterXPathResolver.h>
+#include <Logging.h>
 #include <gtest/gtest.h>
 
 extern "C" size_t xp_test_live_allocations();
@@ -35,5 +36,38 @@ TEST(KOReaderXPathResolver, RustAllocationFailuresReturnEmptyAndReleaseParser) {
       }
     }
     EXPECT_TRUE(completed) << method;
+  }
+}
+
+TEST(KOReaderXPathResolver, DiagnosticsKeepOriginalErrorTextAndFinalPrefix) {
+  const std::pair<std::string, std::string> cases[] = {
+      {"<html><body></wrong>", "XML parse error: mismatched tag"},
+      {"", "Final XML parse error: no element found"},
+      {"<html><body", "Final XML parse error: unclosed token"},
+      {"<html><body a='1' a='2'>", "XML parse error: duplicate attribute"},
+      {"<html><body>&missing;</body></html>", "XML parse error: undefined entity"},
+  };
+  for (const auto& [xml, error] : cases) {
+    auto epub = std::make_shared<Epub>(std::vector<std::string>{xml});
+    for (int method = 0; method < 3; ++method) {
+      logging_stub::Capture logs;
+      if (method == 0) ChapterXPathResolver::findXPathForParagraph(epub, 0, 99);
+      if (method == 1) ChapterXPathResolver::findXPathForVisibleTextOffset(epub, 0, 999);
+      if (method == 2) ChapterXPathResolver::findXPathForProgress(epub, 0, 1.0f);
+      EXPECT_EQ(logs.lines, (std::vector<std::string>{"ERR\tKOX\t" + error}));
+    }
+  }
+}
+TEST(KOReaderXPathResolver, DiagnosticsDistinguishCreationAndParseOom) {
+  auto epub = std::make_shared<Epub>(std::vector<std::string>{"<html><body><p>Hello</p></body></html>"});
+  for (size_t count = 0; count < 12; ++count) {
+    logging_stub::Capture logs;
+    xp_test_fail_allocation_after(count);
+    auto result = ChapterXPathResolver::findXPathForParagraph(epub, 0, 99);
+    xp_test_fail_allocation_after(SIZE_MAX);
+    ASSERT_FALSE(logs.lines.empty());
+    EXPECT_EQ(logs.lines[0],
+              count == 0 ? "ERR\tKOX\tFailed to create XML parser" : "ERR\tKOX\tXML parse error: out of memory");
+    EXPECT_EQ(xp_test_live_allocations(), 0u);
   }
 }

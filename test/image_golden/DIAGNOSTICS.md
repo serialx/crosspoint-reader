@@ -72,3 +72,30 @@ does not. The paired test requires identical pixels, cache/BMP bytes, and status
 and permits exactly that one line in both framebuffer and BMP logs. These cases
 are separate from the 411 parser exceptions in the original frozen corpus. This
 keeps diagnostics free of additional input reads; the warning remains heuristic.
+
+## Image pipeline diagnostics
+
+`ImagePipelineDiagnostics` replays 96 public images across 14 render configurations
+against `pipeline-diagnostic-goldens.json.gz`. These logs were captured from the
+`116195b4` framebuffer converters and pixel cache writer. It checks the PNG and
+JPEG summaries, progressive JPEG notice, cache milestones, and pipeline errors
+as exact `(level, origin, formatted text)` multisets. Input and cache paths are
+normalized; the current `.px2` cache suffix is accepted.
+
+`ImageCacheDiagnostics` triggers cache open, header, row, close, allocation, and
+band-size failures, row-buffer OOM, and degenerate GIF/JPEG output dimensions.
+`GifPipelineDiagnostics` distinguishes gap-row post-processing failure from final
+cache-write failure. Both tests call production Rust and C++ diagnostic mappings.
+
+The Phase 7 `ImageDiagnosticGoldens` and optional GIF reference replay exclude
+these pipeline lines, which their older frozen snapshot predates. Their decoder
+exceptions are unchanged; the separate upstream pipeline oracle owns the restored
+lines. Capture the pipeline reference explicitly, using an executable built from
+the upstream converters exported outside the repository:
+
+```sh
+python3 test/image_golden/pipeline_diagnostics.py /external/upstream/image_oracle \
+  --corpus test/image_golden/corpus.tar.gz \
+  --capture /external/pipeline-diagnostic-goldens.json.gz \
+  --report /external/pipeline-diagnostic-capture.json
+```

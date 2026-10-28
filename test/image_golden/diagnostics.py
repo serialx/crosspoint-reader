@@ -13,6 +13,7 @@ import subprocess
 import tarfile
 import tempfile
 from png_cases import cases, bmp_chunk_case
+from pipeline_diagnostics import selected
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('gif_oracle', HERE.parent / 'gif_support/oracle.py')
@@ -71,7 +72,8 @@ def main():
                     continue
                 try:
                     result = subprocess.run([str(build / binary), *argv], env=env, capture_output=True, timeout=3)
-                    logs.append(sorted(normalize(s) for s in result.stderr.decode(errors='replace').splitlines()))
+                    logs.append(sorted(normalize(s) for s in result.stderr.decode(errors='replace').splitlines()
+                                       if not selected([s])))
                     status.append(result.returncode)
                 except subprocess.TimeoutExpired:
                     logs.append(['TIMEOUT'])

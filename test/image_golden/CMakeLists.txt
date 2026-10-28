@@ -112,3 +112,23 @@ add_test(NAME GifDiagnosticBounds COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/gif_diagnostic_bounds.py ${CMAKE_CURRENT_BINARY_DIR})
 add_test(NAME ImageAllocationDiagnostics COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/allocation_diagnostics.py ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(pipeline_diagnostic_probe PipelineDiagnosticProbe.cpp)
+target_include_directories(pipeline_diagnostic_probe PRIVATE stubs
+  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs ${REPO_ROOT}/lib/Epub/Epub/converters)
+target_compile_definitions(pipeline_diagnostic_probe PRIVATE XP_FFI_HOST_FAULT_INJECTION)
+target_link_libraries(pipeline_diagnostic_probe PRIVATE xp_ffi_host)
+add_test(NAME ImageCacheDiagnostics COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/cache_diagnostics.py $<TARGET_FILE:pipeline_diagnostic_probe>)
+add_executable(gif_pipeline_diagnostic_probe GifPipelineDiagnosticProbe.cpp)
+target_include_directories(gif_pipeline_diagnostic_probe PRIVATE stubs
+  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs ${REPO_ROOT}/lib/GifSupport)
+target_link_libraries(gif_pipeline_diagnostic_probe PRIVATE xp_ffi_host)
+add_test(NAME GifPipelineDiagnostics COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/gif_pipeline_diagnostics.py $<TARGET_FILE:gif_pipeline_diagnostic_probe>
+  ${REPO_ROOT}/test/gif_support/oracle.py)
+add_test(NAME ImagePipelineDiagnostics COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/pipeline_diagnostics.py $<TARGET_FILE:image_oracle>
+  --corpus ${CMAKE_CURRENT_SOURCE_DIR}/corpus.tar.gz
+  --goldens ${CMAKE_CURRENT_SOURCE_DIR}/pipeline-diagnostic-goldens.json.gz
+  --report ${CMAKE_CURRENT_BINARY_DIR}/pipeline-diagnostic-results.json)

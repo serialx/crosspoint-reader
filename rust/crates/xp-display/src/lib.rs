@@ -45,3 +45,8 @@ pub struct Request<'a> {
     pub height: u16,
     pub data: Option<&'a [u8]>,
 }
+
+pub mod papermono;
+pub mod retained;
+pub mod ssd2677;
+mod ssd2677_luts;

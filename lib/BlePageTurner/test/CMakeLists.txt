@@ -25,7 +25,9 @@ include(GoogleTest)
 
 get_filename_component(BLETURNER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 
+include(${BLETURNER_ROOT}/../../test/cmake/xp_ffi_host.cmake)
 add_library(bleturner_test_flags INTERFACE)
+target_link_libraries(bleturner_test_flags INTERFACE xp_ffi_host)
 target_include_directories(bleturner_test_flags INTERFACE
   ${BLETURNER_ROOT}/include ${BLETURNER_ROOT}/src
   ${BLETURNER_ROOT}/../../freeink-sdk/libs/network/BleKeyboardHost/include
@@ -87,3 +89,9 @@ foreach(profile IN ITEMS c3 s3)
     -DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/oracle-${profile}.txt
     -P ${CMAKE_CURRENT_SOURCE_DIR}/CompareOracle.cmake)
 endforeach()
+add_executable(BleJsonAllocationOracle JsonAllocationOracle.cpp)
+target_link_libraries(BleJsonAllocationOracle PRIVATE bleturner_test_flags bleturner_arduinojson)
+add_test(NAME BleJsonAllocationOracle COMMAND ${CMAKE_COMMAND}
+  -DPROGRAM=$<TARGET_FILE:BleJsonAllocationOracle>
+  -DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/oracle-json-allocations.txt
+  -P ${CMAKE_CURRENT_SOURCE_DIR}/CompareOracle.cmake)

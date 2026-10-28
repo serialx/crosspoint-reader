@@ -6,8 +6,7 @@
 
 #include "BlePageTurner.h"
 
-// The page turner's rules, pure and constexpr so the tests can run them with a pretend clock
-// and a pretend heap.
+// Rust policy entry points; the profile remains selected by the firmware build.
 namespace bleturner {
 
 // X3 numbers (the default profile below; the S3 has its own). The stack needs both to start; after it
@@ -56,8 +55,18 @@ inline constexpr const Profile& activeProfile() { return kS3Profile; }
 inline constexpr const Profile& activeProfile() { return kX3Profile; }
 #endif
 
-constexpr bool radioRearmWanted(bool idleStopped, bool entered, bool requested, bool buildPainted) {
-  return entered || requested || (buildPainted && !idleStopped);
+struct RadioInputs;
+struct NoteInputs;
+extern "C" {
+bool xp_ble_rearm(bool idleStopped, bool entered, bool requested, bool buildPainted);
+uint8_t xp_ble_verdict(const RadioInputs*, const Profile*);
+uint8_t xp_ble_next_note(uint8_t, const NoteInputs*);
+bool xp_ble_should_restart(uint8_t, uint8_t, bool);
+bool xp_ble_tracker_refused(uint8_t, uint8_t*, uint32_t, bool*);
+}
+
+inline bool radioRearmWanted(bool idleStopped, bool entered, bool requested, bool buildPainted) {
+  return xp_ble_rearm(idleStopped, entered, requested, buildPainted);
 }
 
 // Where the question is asked.
@@ -86,57 +95,8 @@ struct RadioInputs {
 
 // The ONE answer to "may the radio be on now". Everything that starts, keeps or stops the
 // radio asks here.
-constexpr Why radioVerdict(const RadioInputs& in, const Profile& profile = activeProfile()) {
-  const bool stackFits = in.heap.freeBytes >= profile.startFreeBytes && in.heap.largestBlock >= profile.minimumLargest;
-  switch (in.phase) {
-    case Phase::Idle:
-      if (!in.enabled) return Why::Off;
-      if (in.storageBusy) return Why::StorageBusy;
-      // Pairing is the user asking for the radio now: the book's conditions do not apply.
-      if (in.where == Where::PairingScreen) return Why::Ok;
-      // S3: the stack goes in at Home, whose heap is whole, and the book inherits it.
-      if (in.where == Where::Home) {
-        if (profile.homeStartLargest == 0 || !in.hasBond) return Why::NotReading;
-        if (!in.pageShown) return Why::PageNotShown;
-        return in.idleStopped ? Why::IdleNoLink : Why::Ok;
-      }
-      if (in.where != Where::Reader) return Why::NotReading;
-      if (!in.hasBond) return Why::NoBond;
-      if (!in.pageShown) return Why::PageNotShown;
-      // A radio stopped for a starved build waits for the page, not for a key: restarting it
-      // on a key release starved the build again and the start held the loop for 2.85 s (X3,
-      // 23/09/2026).
-      if (in.heldForBuild) return Why::BuildNeedsHeap;
-      if (in.idleStopped) return Why::IdleNoLink;
-      // A book still building its index needs the heap the radio would take; its keys work.
-      if (in.bookIndexing) return Why::Indexing;
-      return Why::Ok;
-    case Phase::BeforeStart:
-      if (in.storageBusy) return Why::StorageBusy;
-      // A start at Home needs the block the reader will want after the stack; a refusal there is HeapLow, which
-      // never asks for a restart into the book (there is none to restart into).
-      if (in.where == Where::Home) {
-        return stackFits && in.heap.largestBlock >= profile.homeStartLargest ? Why::Ok : Why::HeapLow;
-      }
-      if (stackFits) return Why::Ok;
-      // Enough bytes in total, but no block the stack can take, or too few to leave the reader's
-      // block beside the stack: the same verdict the rollback right after the start gave before
-      // 07/10/2026, so the restart comes as it did. A heap short in total is not this: a restart
-      // cannot give back bytes the book really uses.
-      return in.heap.freeBytes >= kMinimumFreeBytes ? Why::HeapInPieces : Why::HeapLow;
-    case Phase::JustStarted:
-      if (in.storageBusy) return Why::StorageBusy;
-      // The stack may come up and take the reader's last large block. The check before the start
-      // found the bytes, so a stack that leaves no whole block behind split the heap: in pieces.
-      return in.heap.largestBlock >= profile.minimumLargest ? Why::Ok : Why::HeapInPieces;
-    case Phase::Running:
-      if (!in.enabled) return Why::Off;
-      if (in.storageBusy) return Why::StorageBusy;
-      // A linked remote is never idle: it sits quiet between two presses for a long time.
-      if (!in.linked && !in.connectionBusy && in.idleMs >= kIdleOffMs) return Why::IdleNoLink;
-      return Why::Ok;
-  }
-  return Why::Off;
+inline Why radioVerdict(const RadioInputs& in, const Profile& profile = activeProfile()) {
+  return static_cast<Why>(xp_ble_verdict(&in, &profile));
 }
 
 // --- The link note ---------------------------------------------------------------
@@ -156,24 +116,8 @@ struct NoteInputs {
 };
 
 // The ONE answer to "what does the status bar say about the remote now".
-constexpr LinkNote nextLinkNote(const LinkNote note, const NoteInputs& in) {
-  if (!in.enabled || !in.reading) return LinkNote::None;
-  // Every visit starts over. A remote still linked has nothing to wait for, and a radio off for
-  // idleness does not try until a key of the device wakes it.
-  if (in.entered) return in.linked || in.idleStopped || !in.hasBond ? LinkNote::None : LinkNote::Connecting;
-  switch (note) {
-    case LinkNote::Connecting:
-      if (in.linked) return LinkNote::None;
-      return in.refused || !in.hasBond || in.runningMs >= kLinkNoteFailMs ? LinkNote::Failed : LinkNote::Connecting;
-    case LinkNote::Failed:
-    case LinkNote::Connected:
-    case LinkNote::LowMemory:
-      // Read once: the next page turn gives the title back, whatever the radio does meanwhile.
-      return in.acknowledged ? LinkNote::None : note;
-    case LinkNote::None:
-      return LinkNote::None;
-  }
-  return LinkNote::None;
+inline LinkNote nextLinkNote(const LinkNote note, const NoteInputs& in) {
+  return static_cast<LinkNote>(xp_ble_next_note(static_cast<uint8_t>(note), &in));
 }
 
 // --- The heap restart ------------------------------------------------------------
@@ -189,8 +133,8 @@ inline constexpr uint32_t kRestartSpentMagic = 0x42485231u;
 
 // The second decision, kept apart: restart to hand the radio a whole heap. `why` is the
 // verdict that ended this start (before or right after the stack came up).
-constexpr bool shouldRestart(const Why why, const uint8_t inPiecesInRow, const bool restartedSinceRadioUp) {
-  return !restartedSinceRadioUp && why == Why::HeapInPieces && inPiecesInRow >= kRefusalsBeforeRestart;
+inline bool shouldRestart(const Why why, const uint8_t inPiecesInRow, const bool restartedSinceRadioUp) {
+  return xp_ble_should_restart(static_cast<uint8_t>(why), inPiecesInRow, restartedSinceRadioUp);
 }
 
 // Kept in RTC memory, so it outlives ESP.restart. Power-on garbage is anything but the magic and
@@ -212,14 +156,10 @@ struct Tracker {
   // cannot give back bytes the book really uses) and drops a restart asked earlier. True when
   // this one asks for the restart.
   bool refused(const Why why) {
-    if (why != Why::HeapInPieces) {
-      inconclusive();
-    } else if (fragmentedInRow < UINT8_MAX) {
-      ++fragmentedInRow;
-    }
-    const bool restart = shouldRestart(why, fragmentedInRow, memo.magic == kRestartSpentMagic);
-    if (restart) wanted.store(true, std::memory_order_release);
-    return restart;
+    bool pending = wanted.load(std::memory_order_relaxed);
+    const bool result = xp_ble_tracker_refused(static_cast<uint8_t>(why), &fragmentedInRow, memo.magic, &pending);
+    wanted.store(pending, std::memory_order_release);
+    return result;
   }
   // The start ended for a reason other than the heap (the stack failed, the start was cancelled,
   // the card was taken): no sign of pieces, the streak starts again.

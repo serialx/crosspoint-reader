@@ -17,10 +17,10 @@ static void add(uint32_t value) {
 
 static void snapshot() {
   const auto s = status();
-  std::printf("state %d%d%d%d%d%d%d%d%d why %u note %u heap %d clock %u calls %u/%u/%u/%u\n",
-              s.compiledIn, s.running, s.stopping, s.starting, s.scanning, s.connected, s.connecting,
-              s.idleStopped, s.readerDeferred, unsigned(why()), unsigned(linkNote()), holdsHeap(), fake::radio().now,
-              fake::radio().beginCalls, fake::radio().endCalls, fake::radio().armCalls, fake::radio().polls);
+  std::printf("state %d%d%d%d%d%d%d%d%d why %u note %u heap %d clock %u calls %u/%u/%u/%u\n", s.compiledIn, s.running,
+              s.stopping, s.starting, s.scanning, s.connected, s.connecting, s.idleStopped, s.readerDeferred,
+              unsigned(why()), unsigned(linkNote()), holdsHeap(), fake::radio().now, fake::radio().beginCalls,
+              fake::radio().endCalls, fake::radio().armCalls, fake::radio().polls);
   for (auto a : fake::host().delivered) std::printf("action %u\n", unsigned(a));
   for (const auto& log : fake::host().logs) std::printf("%s", log.c_str());
   fake::host().logs.clear();
@@ -66,18 +66,20 @@ int main() {
   for (unsigned note = 0; note < 5; ++note) {
     for (unsigned bits = 0; bits < 256; ++bits) {
       for (uint32_t ms : {0u, 19999u, 20000u, 0xFFFFFFFFu}) {
-        NoteInputs in{bool(bits & 1), bool(bits & 2), bool(bits & 4), bool(bits & 8),
-                      bool(bits & 16), bool(bits & 32), ms, bool(bits & 64), bool(bits & 128)};
+        NoteInputs in{
+            bool(bits & 1),  bool(bits & 2),  bool(bits & 4), bool(bits & 8), bool(bits & 16), bool(bits & 32), ms,
+            bool(bits & 64), bool(bits & 128)};
         add(unsigned(nextLinkNote(LinkNote(note), in)));
       }
     }
   }
   std::printf("policy %016llx\n", static_cast<unsigned long long>(digest));
-  for (const char* value : {"null", "false", "true", "-1", "0", "1", "255", "256", "4294967295", "1.5", "\"1\"", "[]", "{}"}) {
+  for (const char* value :
+       {"null", "false", "true", "-1", "0", "1", "255", "256", "4294967295", "1.5", "\"1\"", "[]", "{}"}) {
     std::string text = std::string("{\"blePageTurnerEnabled\":") + value + ",\"blePick\":" + value +
-                       ",\"blePrevKeyUsage\":" + value + ",\"bleNextKeyUsage\":" + value +
-                       ",\"blePeerAddr\":" + value + ",\"blePeerName\":" + value +
-                       ",\"bleRemotes\":[{\"addr\":\"AA\",\"binds\":[" + value + ",268632065,553844744]}]}";
+                       ",\"blePrevKeyUsage\":" + value + ",\"bleNextKeyUsage\":" + value + ",\"blePeerAddr\":" + value +
+                       ",\"blePeerName\":" + value + ",\"bleRemotes\":[{\"addr\":\"AA\",\"binds\":[" + value +
+                       ",268632065,553844744]}]}";
     JsonDocument doc;
     if (deserializeJson(doc, text)) return 1;
     Config config;
@@ -122,14 +124,36 @@ int main() {
         fake::radio().raw.push_back({3, 1, 2, true, 0, 0, false, fake::radio().now});
         fake::radio().keys.push_back({0x4F, 0, true});
       }
-      if (step == 6) { fake::radio().connected = false; acknowledgeLinkNote(); }
-      if (step == 8) { scene.storageBusy = true; }
-      if (step == 9) { scene.storageBusy = false; ++scene.visit; }
-      if (step == 10) { std::printf("build %u\n", unsigned(beforeChapterBuild())); afterPaint(); }
-      if (step == 12) { std::printf("pair %d\n", pair("BB", "Free3-B")); }
-      if (step == 13) { fake::radio().connected = true; fake::radio().addr = "BB"; std::printf("service %d\n", service()); }
-      if (step == 14) { std::printf("forget %d\n", forget("BB")); disconnect(); }
-      if (step == 15) { std::printf("screen %d\n", beforeScreenChange(0, true)); }
+      if (step == 6) {
+        fake::radio().connected = false;
+        acknowledgeLinkNote();
+      }
+      if (step == 8) {
+        scene.storageBusy = true;
+      }
+      if (step == 9) {
+        scene.storageBusy = false;
+        ++scene.visit;
+      }
+      if (step == 10) {
+        std::printf("build %u\n", unsigned(beforeChapterBuild()));
+        afterPaint();
+      }
+      if (step == 12) {
+        std::printf("pair %d\n", pair("BB", "Free3-B"));
+      }
+      if (step == 13) {
+        fake::radio().connected = true;
+        fake::radio().addr = "BB";
+        std::printf("service %d\n", service());
+      }
+      if (step == 14) {
+        std::printf("forget %d\n", forget("BB"));
+        disconnect();
+      }
+      if (step == 15) {
+        std::printf("screen %d\n", beforeScreenChange(0, true));
+      }
       if (step == 17) config.enabled = 0;
       std::printf("tick %d\n", tick(scene));
       if (fake::radio().startQueued) fake::radio().runStart();

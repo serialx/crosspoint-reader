@@ -45,3 +45,6 @@ pub struct Request<'a> {
     pub height: u16,
     pub data: Option<&'a [u8]>,
 }
+
+#[cfg(test)]
+mod tests;

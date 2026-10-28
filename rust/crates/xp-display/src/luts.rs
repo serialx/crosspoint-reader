@@ -1,5 +1,5 @@
 // MIT: Copyright (c) 2026 FreeInk. See LICENSE.freeink.
-// Byte-exact from FreeInk SDK 37d272d4 Uc8253X3Luts.h; transmit 42 of 43 bytes.
+// Byte-exact from FreeInk SDK 37d272d4 Uc8253X3Luts.h; 42-byte payloads.
 // Normal/full/gc and pre-BW-mid retain the community/OEM provenance there;
 // fast is the community papyrix turbo bank, not an OEM waveform.
 pub static NORMAL: [[u8; 42]; 5] = [

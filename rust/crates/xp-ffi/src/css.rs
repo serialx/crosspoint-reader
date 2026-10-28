@@ -2,7 +2,7 @@
 extern crate alloc;
 use alloc::{alloc::alloc, boxed::Box, vec::Vec};
 use core::{alloc::Layout, ptr};
-use xp_core::css::{self, Error, Store, Stream, WIRE_BYTES};
+use xp_core::css::{self, Diagnostic, Diagnostics, Error, Store, Stream, WIRE_BYTES};
 
 pub struct Css {
     pub(crate) store: Store,
@@ -12,6 +12,27 @@ pub struct Css {
     write_header: bool,
     complete: bool,
     feed_failed: bool,
+}
+#[repr(C)]
+#[derive(Default)]
+pub struct CacheDiagnostic {
+    event: u32,
+    a: u32,
+    b: u32,
+}
+extern "C" fn record_cache_diagnostic(
+    ctx: *mut core::ffi::c_void,
+    event: u32,
+    a: u32,
+    b: u32,
+    _: u32,
+    _: u32,
+) {
+    // Installed only with a writable, per-call CacheDiagnostic output.
+    unsafe {
+        ctx.cast::<CacheDiagnostic>()
+            .write(CacheDiagnostic { event, a, b });
+    }
 }
 struct CacheReader {
     bytes: Vec<u8>,
@@ -92,6 +113,20 @@ pub unsafe extern "C" fn xp_css_clear(handle: *mut Css) {
 /// end marks the stylesheet boundary; 0/1/2 are Complete/Partial/Error.
 #[no_mangle]
 pub unsafe extern "C" fn xp_css_feed(handle: *mut Css, data: *const u8, len: usize, end: u8) -> u8 {
+    xp_css_feed_with_diagnostics(handle, data, len, end, ptr::null())
+}
+/// # Safety
+/// Same as xp_css_feed; diagnostics is null or borrowed for this call only.
+/// Its callback must not reenter Rust or retain borrowed pointers.
+#[no_mangle]
+pub unsafe extern "C" fn xp_css_feed_with_diagnostics(
+    handle: *mut Css,
+    data: *const u8,
+    len: usize,
+    end: u8,
+    diagnostics: *const Diagnostics,
+) -> u8 {
+    let diagnostics = diagnostics.as_ref().copied().unwrap_or_default();
     let h = &mut *handle;
     if h.feed_failed {
         if end != 0 {
@@ -101,11 +136,13 @@ pub unsafe extern "C" fn xp_css_feed(handle: *mut Css, data: *const u8, len: usi
     }
     if h.stream.is_none() {
         let Some(mut stream) = boxed(Stream::default()) else {
+            diagnostics.emit(Diagnostic::ScratchOom, 0, 0);
             h.feed_failed = end == 0;
             h.store.stop_growth();
             return css::ParseResult::Partial as u8;
         };
         if stream.prepare().is_err() {
+            diagnostics.emit(Diagnostic::ScratchOom, 0, 0);
             h.feed_failed = end == 0;
             h.store.stop_growth();
             return css::ParseResult::Partial as u8;
@@ -113,9 +150,9 @@ pub unsafe extern "C" fn xp_css_feed(handle: *mut Css, data: *const u8, len: usi
         h.stream = Some(stream);
     }
     let stream = h.stream.as_mut().unwrap();
-    stream.feed(&mut h.store, bytes(data, len));
+    stream.feed_with_diagnostics(&mut h.store, bytes(data, len), &diagnostics);
     if end != 0 {
-        let result = stream.finish(&mut h.store);
+        let result = stream.finish_with_diagnostics(&mut h.store, &diagnostics);
         h.stream = None;
         result as u8
     } else {
@@ -241,7 +278,13 @@ pub unsafe extern "C" fn xp_css_cache_write(
     }
 }
 impl CacheReader {
-    fn feed(&mut self, store: &mut Store, input: &[u8], end: bool) -> Result<(), Error> {
+    fn feed(
+        &mut self,
+        store: &mut Store,
+        input: &[u8],
+        end: bool,
+        diagnostics: &Diagnostics,
+    ) -> Result<(), Error> {
         for &b in input {
             if self.header && self.read == self.expected {
                 return Err(Error::Invalid);
@@ -250,10 +293,13 @@ impl CacheReader {
             if !self.header {
                 if self.bytes.len() == 4 {
                     if self.bytes[0] != 19 || self.bytes[1] > 1 {
+                        if self.bytes[1] > 1 {
+                            diagnostics.emit(Diagnostic::CacheFlags, usize::from(self.bytes[1]), 0);
+                        }
                         return Err(Error::Invalid);
                     }
                     self.expected = usize::from(u16::from_le_bytes([self.bytes[2], self.bytes[3]]));
-                    store.cache_begin(self.expected)?;
+                    store.cache_begin_with_diagnostics(self.expected, diagnostics)?;
                     self.header = true;
                     self.bytes.clear();
                 }
@@ -264,15 +310,27 @@ impl CacheReader {
             }
             let len = usize::from(u16::from_le_bytes([self.bytes[0], self.bytes[1]]));
             if len == 0 || len > 257 {
+                diagnostics.emit(Diagnostic::CacheSelectorLength, len, 0);
                 return Err(Error::Invalid);
             }
             if self.bytes.len() == 2 + len + WIRE_BYTES {
-                store.cache_insert(&self.bytes[2..2 + len], &self.bytes[2 + len..])?;
+                store.cache_insert_with_diagnostics(
+                    &self.bytes[2..2 + len],
+                    &self.bytes[2 + len..],
+                    diagnostics,
+                )?;
                 self.read += 1;
                 self.bytes.clear();
             }
         }
         if end && (!self.header || self.read != self.expected || !self.bytes.is_empty()) {
+            if !self.header && (self.bytes.len() < 2 || self.bytes[1] > 1) {
+                diagnostics.emit(
+                    Diagnostic::CacheFlags,
+                    usize::from(*self.bytes.get(1).unwrap_or(&0)),
+                    0,
+                );
+            }
             return Err(Error::Invalid);
         }
         Ok(())
@@ -288,6 +346,30 @@ pub unsafe extern "C" fn xp_css_cache_read(
     len: usize,
     end: u8,
 ) -> i32 {
+    xp_css_cache_read_with_diagnostic(handle, data, len, end, ptr::null_mut())
+}
+/// # Safety
+/// Same as xp_css_cache_read; diagnostic is null or writable, aligned and disjoint.
+/// Returns one failure detail (event zero when none); no callback crosses into C++.
+#[no_mangle]
+pub unsafe extern "C" fn xp_css_cache_read_with_diagnostic(
+    handle: *mut Css,
+    data: *const u8,
+    len: usize,
+    end: u8,
+    diagnostic: *mut CacheDiagnostic,
+) -> i32 {
+    if let Some(out) = diagnostic.as_mut() {
+        *out = CacheDiagnostic::default();
+    }
+    let diagnostics = Diagnostics {
+        ctx: diagnostic.cast(),
+        diagnostic: if diagnostic.is_null() {
+            None
+        } else {
+            Some(record_cache_diagnostic)
+        },
+    };
     let h = &mut *handle;
     if h.cache.is_none() {
         h.store.clear();
@@ -297,18 +379,20 @@ pub unsafe extern "C" fn xp_css_cache_read(
             expected: 0,
             read: 0,
         }) else {
+            diagnostics.emit(Diagnostic::CacheScratchOom, 1, 0);
             return 1;
         };
         if c.bytes.try_reserve_exact(347).is_err() {
+            diagnostics.emit(Diagnostic::CacheScratchOom, 1, 0);
             return 1;
         }
         h.cache = Some(c);
     }
-    let result = h
-        .cache
-        .as_mut()
-        .unwrap()
-        .feed(&mut h.store, bytes(data, len), end != 0);
+    let result =
+        h.cache
+            .as_mut()
+            .unwrap()
+            .feed(&mut h.store, bytes(data, len), end != 0, &diagnostics);
     if result.is_err() || end != 0 {
         h.cache = None;
     }

@@ -1,3 +1,4 @@
+#include <Logging.h>
 #include <gtest/gtest.h>
 
 #include <cstring>
@@ -762,4 +763,93 @@ TEST_F(CssParserTest, DescendantRetriesWholeChildChain) {
   const auto style = parser.resolveStyle("p", "", "", ancestors, 3);
   EXPECT_EQ(style.fontWeight, CssFontWeight::Bold);
   EXPECT_FALSE(style.hasFontStyle());
+}
+
+TEST_F(CssParserTest, DiagnosticsPreserveParseAndCacheMilestones) {
+  logging_stub::Capture logs;
+  CssParser parser(cachePath());
+  EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(parser.saveToCache(false));
+  EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tParsed 1 rules from 20 bytes",
+                                                  "DBG\tCSS\tSaved 1 rules to partial cache",
+                                                  "DBG\tCSS\tLoaded 1 rules from partial cache"}));
+}
+TEST_F(CssParserTest, DiagnosticsDistinguishTruncationFromIncompleteSyntax) {
+  logging_stub::Capture logs;
+  CssParser parser(cachePath());
+  EXPECT_EQ(loadCss(parser, "/*unfinished"), CssParser::ParseResult::Partial);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tParsed 0 rules from 12 bytes"}));
+  logs.lines.clear();
+  const std::string source = "." + std::string(1100, 'a') + "{font-weight:bold}";
+  EXPECT_EQ(loadCss(parser, source), CssParser::ParseResult::Partial);
+  ASSERT_EQ(logs.lines.size(), 2u);
+  EXPECT_EQ(logs.lines[0], "ERR\tCSS\tCSS input exceeded parser buffer; cache will remain partial");
+}
+TEST_F(CssParserTest, DiagnosticsReportSelectorAndStoreLimits) {
+  logging_stub::Capture logs;
+  CssParser parser(cachePath());
+  EXPECT_EQ(loadCss(parser, "." + std::string(256, 'a') + "{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_FALSE(logs.lines.empty());
+  EXPECT_EQ(logs.lines.front(), "DBG\tCSS\tSelector too long (257 > 256), skipping");
+  logs.lines.clear();
+  std::string css;
+  for (int i = 0; i < 1501; ++i) css += ".r" + std::to_string(i) + "{font-weight:bold}";
+  EXPECT_EQ(loadCss(parser, css), CssParser::ParseResult::Partial);
+  ASSERT_FALSE(logs.lines.empty());
+  EXPECT_EQ(logs.lines.front(), "ERR\tCSS\tCSS rule store limit reached at 1500 rules");
+}
+TEST_F(CssParserTest, DiagnosticsReportCacheValidation) {
+  const std::vector<std::pair<std::vector<uint8_t>, std::string>> cases = {
+      {{}, "Cache version mismatch (got 0, expected 19), removing stale cache for rebuild"},
+      {{18}, "Cache version mismatch (got 18, expected 19), removing stale cache for rebuild"},
+      {{19}, "Invalid CSS cache flags: 0"},
+      {{19, 2, 0, 0}, "Invalid CSS cache flags: 2"},
+      {{19, 0, 221, 5}, "Invalid cache rule count (1501 > 1500)"},
+      {{19, 0, 1, 0, 0, 0}, "Invalid selector length in cache: 0"},
+      {{19, 0, 1, 0, 2, 1}, "Invalid selector length in cache: 258"},
+  };
+  for (const auto& [bytes, text] : cases) {
+    SCOPED_TRACE(text);
+    writeCache(bytes);
+    logging_stub::Capture logs;
+    CssParser parser(cachePath());
+    EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Invalid);
+    EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\t" + text}));
+  }
+}
+TEST_F(CssParserTest, DiagnosticsReportDuplicateAndSortFailure) {
+  CssParser parser(cachePath());
+  ASSERT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(parser.saveToCache(true));
+  auto bytes = readCache();
+  const std::vector<uint8_t> record(bytes.begin() + 4, bytes.end());
+  bytes[2] = 2;
+  bytes.insert(bytes.end(), record.begin(), record.end());
+  writeCache(bytes);
+  logging_stub::Capture logs;
+  CssParser reader(cachePath());
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Invalid);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tDuplicate selector in CSS cache"}));
+  logs.lines.clear();
+  FailScratchAllocation fail(sizeof(uint16_t));
+  EXPECT_FALSE(parser.saveToCache(true));
+  EXPECT_TRUE(scratchFailureHit);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"ERR\tCSS\tOOM sorting CSS cache rules"}));
+}
+extern "C" void cssTestFailAllocation(size_t);
+TEST_F(CssParserTest, DiagnosticsReportEachPoolOomBeforeStoreFailure) {
+  // Handle, stream box, two token vectors, then the index/selector/style pools.
+  const char* pool[] = {"selector index (32 entries)", "selector pool (512 bytes)", "style pool (16 styles)"};
+  for (size_t i = 0; i < 3; ++i) {
+    logging_stub::Capture logs;
+    CssParser parser(cachePath());
+    cssTestFailAllocation(4 + i);
+    const auto result = loadCss(parser, ".a{font-weight:bold}");
+    cssTestFailAllocation(SIZE_MAX);
+    EXPECT_EQ(result, CssParser::ParseResult::Partial);
+    ASSERT_GE(logs.lines.size(), 2u);
+    EXPECT_EQ(logs.lines[0], std::string("ERR\tCSS\tOOM: ") + pool[i]);
+    EXPECT_EQ(logs.lines[1], "ERR\tCSS\tOOM while growing CSS rule store at 0 rules");
+  }
 }

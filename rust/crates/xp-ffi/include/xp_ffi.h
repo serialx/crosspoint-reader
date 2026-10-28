@@ -39,6 +39,33 @@ int32_t xp_hyphen_breaks(int32_t language, const uint8_t* word, size_t len, uint
 #define XP_CSS_WIRE_BYTES 88
 #define XP_CSS_CACHE_BUFFER_BYTES 347
 typedef struct XpCss XpCss;
+// Events 1..3: requested index entries / selector bytes / style count on OOM.
+// 4: selector length, limit. 5..6: stored rule count on limit/OOM (after 1..3).
+// 7: truncated parser input, once at stylesheet end. 8: invalid cache flags.
+// 9: cache rule count, limit. 10: invalid selector length. 11: duplicate key.
+// 12..13: new parser/cache scratch OOM (13's a is the LowMemory status).
+// Unused a/b and all c/d are zero. No successful per-rule callbacks.
+typedef enum {
+  XP_CSS_INDEX_OOM = 1,
+  XP_CSS_SELECTOR_OOM,
+  XP_CSS_STYLE_OOM,
+  XP_CSS_SELECTOR_LONG,
+  XP_CSS_STORE_LIMIT,
+  XP_CSS_STORE_OOM,
+  XP_CSS_INPUT_TRUNCATED,
+  XP_CSS_CACHE_FLAGS,
+  XP_CSS_CACHE_COUNT,
+  XP_CSS_CACHE_SELECTOR_LENGTH,
+  XP_CSS_CACHE_DUPLICATE,
+  XP_CSS_SCRATCH_OOM,
+  XP_CSS_CACHE_SCRATCH_OOM
+} XpCssDiagnosticEvent;
+typedef struct {
+  void* ctx;
+  // Synchronous, nullable=silent; do not reenter Rust or retain pointers.
+  void (*diagnostic)(void* ctx, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
+} XpCssDiagnostics;
+
 typedef struct {
   const uint8_t* data;
   size_t len;
@@ -56,6 +83,9 @@ void xp_css_clear(XpCss* handle);
 // NULL is allowed only for len == 0; output buffers must be writable and disjoint.
 // feed returns 0 Complete, 1 Partial, 2 Error; end marks each stylesheet boundary.
 uint8_t xp_css_feed(XpCss* handle, const uint8_t* data, size_t len, uint8_t end);
+// Same contracts/results; diagnostics is null or borrowed unchanged for this call.
+uint8_t xp_css_feed_with_diagnostics(XpCss* handle, const uint8_t* data, size_t len, uint8_t end,
+                                     const XpCssDiagnostics* diagnostics);
 void xp_css_resolve(const XpCss* handle, XpCssSlice tag, XpCssSlice classes, XpCssSlice id,
                     const XpCssAncestor* ancestors, size_t count, uint8_t first_letter, uint8_t out[XP_CSS_WIRE_BYTES]);
 void xp_css_inline(const uint8_t* data, size_t len, uint8_t out[XP_CSS_WIRE_BYTES]);
@@ -68,6 +98,13 @@ int32_t xp_css_cache_write_begin(XpCss* handle, uint8_t complete, uint16_t* orde
 int32_t xp_css_cache_write(XpCss* handle, const uint16_t* order, size_t count, uint8_t* out, size_t cap,
                            size_t* written);
 int32_t xp_css_cache_read(XpCss* handle, const uint8_t* data, size_t len, uint8_t end);
+typedef struct {
+  uint32_t event, a, b;
+} XpCssCacheDiagnostic;
+// Same status/output contract. detail is null or writable, aligned, disjoint storage.
+// event=0 means no diagnostic; otherwise uses the event/arguments above. No callback.
+int32_t xp_css_cache_read_with_diagnostic(XpCss* handle, const uint8_t* data, size_t len, uint8_t end,
+                                          XpCssCacheDiagnostic* detail);
 
 // ZIP32 directory: caller owns all storage and performs absolute HalFile reads.
 // No allocation or retained pointers. Inputs/outputs must be valid, aligned,

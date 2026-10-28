@@ -382,10 +382,20 @@ pub unsafe extern "C" fn xp_display_abort(storage: *mut c_void) -> u32 {
     if storage.is_null() {
         return 0;
     }
-    (*storage.cast::<Header>())
-        .generation
-        .fetch_add(1, Ordering::AcqRel)
-        .wrapping_add(1)
+    let generation = &(*storage.cast::<Header>()).generation;
+    #[cfg(target_has_atomic = "32")]
+    {
+        generation.fetch_add(1, Ordering::AcqRel).wrapping_add(1)
+    }
+    #[cfg(not(target_has_atomic = "32"))]
+    {
+        // ESP32-C3 lacks atomic RMW instructions. The SDK uses the platform's
+        // compiler atomic runtime, as its C++ atomic counters already do.
+        extern "C" {
+            fn xp_display_platform_increment(value: *mut u32) -> u32;
+        }
+        xp_display_platform_increment(generation.as_ptr())
+    }
 }
 /// # Safety
 /// Same lifetime and concurrency contract as xp_display_abort.

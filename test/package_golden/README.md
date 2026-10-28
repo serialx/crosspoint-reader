@@ -119,10 +119,55 @@ that collection refinements do not print the collection-limit warning.
 `ZipDiagnosticFailures` checks small archives, local-header reads and requested
 entry-name reads. The logging and ZIP-size adapters are host-only.
 
-To recapture diagnostics, export the package/cache parsers and their supporting
-C++ libraries from `116195b4` outside the repository with `git archive`. Build
-them with Expat from `test/vendor/expat` (`XML_GE=0`, `XML_CONTEXT_BYTES=0`), the
-package harness at `52ec852e`, and `logging/Logging.h` first in the include path.
-Pass that reference executable to `diagnostics.py --record --golden PATH`.
-Never record expectations from the candidate. The P8-H3 evidence report retains
-the exact export/build script and the reference executable.
+To rebuild the diagnostic reference, run from the repository root. Keep all
+exports outside the repository; the historical harness uses the original parser
+classes, which the current harness no longer supports.
+
+```sh
+PACKAGE_REF=$(mktemp -d)
+git archive 116195b4 lib/Epub lib/Utf8 lib/FsHelpers lib/Memory \
+  lib/Serialization lib/XmlParserUtils | tar -x -C "$PACKAGE_REF"
+mkdir -p "$PACKAGE_REF/test/package_golden"
+for stub_name in xml_oracle fs_helpers book_metadata_cache chapter_html_slim_parser content_opf_parser; do
+  mkdir -p "$PACKAGE_REF/test/$stub_name"
+  cp -R "test/$stub_name/stubs" "$PACKAGE_REF/test/$stub_name/"
+done
+mkdir -p "$PACKAGE_REF/test/vendor"
+cp -R test/vendor/expat "$PACKAGE_REF/test/vendor/"
+cp -R test/package_golden/logging "$PACKAGE_REF/test/package_golden/"
+for name in PackageOracle.cpp instrument.py CMakeLists.txt; do
+  git show "52ec852e:test/package_golden/$name" > "$PACKAGE_REF/test/package_golden/$name"
+done
+```
+
+In the exported `test/package_golden/CMakeLists.txt`, replace everything starting
+with `include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)` with the following.
+This links the original Expat parser and enables exact log capture instead of
+linking the current Rust parser.
+
+```cmake
+target_sources(PackageOracle PRIVATE
+  ${REPO_ROOT}/test/vendor/expat/xmlparse.c
+  ${REPO_ROOT}/test/vendor/expat/xmlrole.c
+  ${REPO_ROOT}/test/vendor/expat/xmltok.c)
+target_include_directories(PackageOracle BEFORE PRIVATE
+  ${REPO_ROOT}/test/vendor/expat ${CMAKE_CURRENT_SOURCE_DIR}/logging)
+target_compile_definitions(PackageOracle PRIVATE XML_GE=0 XML_CONTEXT_BYTES=0)
+```
+
+Build `PackageOracle`, capture to a new external file, then replay the candidate
+against it with the existing exact exception list:
+
+```sh
+cmake -S "$PACKAGE_REF/test/package_golden" -B "$PACKAGE_REF/build"
+cmake --build "$PACKAGE_REF/build" --target PackageOracle -j 6
+python3 test/package_golden/diagnostics.py \
+  --oracle "$PACKAGE_REF/build/PackageOracle" --record \
+  --golden "$PACKAGE_REF/diagnostics.json.gz"
+python3 test/package_golden/diagnostics.py \
+  --oracle build/package-golden/PackageOracle \
+  --golden "$PACKAGE_REF/diagnostics.json.gz"
+```
+
+Never record expectations from the candidate or replace checked-in goldens
+without reviewing the differences.

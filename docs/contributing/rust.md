@@ -64,10 +64,19 @@ reexported by `xp-core::gif`.
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
 
-With the pinned toolchains, eight codegen units saves 560 bytes on C3 and
-272 bytes on S3 versus one unit, with identical emulator pixels and heap and
-timing within 2 ms. Fat LTO still emits one xp-ffi machine-code object. FFI-only
-`"z"` saves about 6 KB but regresses reader timing by up to 26 ms; keep `"s"`.
+With the pinned toolchains, eight codegen units saved 560 bytes on C3 and
+272 bytes on S3 versus one unit. In the default C3 eink-qemu runs, Korean,
+English, mixed matrix, mixed tables, and mixed PNG workloads had identical
+pixels and heap snapshots across three interleaved runs per profile. No recorded
+timing metric's median increased by more than 3 ms plus its baseline range
+(maximum minus minimum). The Korean full chapter build had medians of 2,769 ms
+with one unit and 2,771 ms with eight; baseline samples ranged from 2,768 to
+2,778 ms, and eight-unit samples from 2,771 to 2,775 ms.
+
+Fat LTO still emits one xp-ffi machine-code object. FFI-only `"z"` saved about
+6 KB but increased open/page-render times by up to 26 ms in the original default
+C3 eink-qemu comparison of those five workloads; keep `"s"`. These runtime
+results do not establish device timing or S3 runtime behavior.
 
 For C3 firmware, the build script enables LLVM's `--force-dwarf-frame-section`
 option so the Rust LTO object retains call-frame information in `.debug_frame`.
@@ -147,6 +156,11 @@ a benefit. Both firmware targets have 32-bit `usize`; changing it to `u32` does
 not narrow arithmetic. A bounded-slice rewrite of BLE lookup grew archive code
 by 14 / 26 bytes. Check both targets, real text/page goldens, and reader timing
 before retaining an optimization profile or source rewrite.
+
+Function prologue sizes do not bound peak task stack use. Inlining and outlining
+can move stack space between callers and callees whose frames coexist. Device
+stack high-water marks and timing remain to be qualified on C3 and S3; default
+C3 eink-qemu measurements do not establish hardware or S3 runtime behavior.
 
 ## Diagnostics
 

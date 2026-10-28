@@ -18,6 +18,7 @@ mod png;
 
 mod sdfont;
 mod section;
+mod settings;
 mod text;
 mod textm;
 mod xml;

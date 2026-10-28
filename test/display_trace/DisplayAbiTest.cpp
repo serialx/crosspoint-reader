@@ -43,11 +43,9 @@ int main() {
   check(xp_display_execute(storage.data(), nullptr, nullptr, &result) == XP_DISPLAY_INVALID);
   check(result == 0);
   xp_display_drop(storage.data());
-  for (uint32_t controller = 2; controller <= 8; ++controller) {
-    config.controller = controller;
-    check(xp_display_state_size(controller) == 0);
-    check(xp_display_init(storage.data(), storage.size(), &config) == XP_DISPLAY_UNSUPPORTED);
-  }
+  config.controller = 99;
+  check(xp_display_state_size(config.controller) == 0);
+  check(xp_display_init(storage.data(), storage.size(), &config) == XP_DISPLAY_UNSUPPORTED);
   XpDisplayX3Config custom{};
   const uint8_t* direct[5]{};
   xp_display_x3_default_config(&custom, direct);

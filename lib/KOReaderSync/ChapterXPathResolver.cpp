@@ -4,6 +4,7 @@
 #include <Logging.h>
 #include <Print.h>
 #include <Utf8.h>
+#include <expat.h>
 #include <xp_ffi.h>
 
 #include <algorithm>
@@ -17,43 +18,8 @@
 namespace {
 // The XML core preserves Expat error numbers; text and log gating stay in C++.
 const char* xmlErrorText(const uint32_t code) {
-  static constexpr const char* messages[] = {"unknown XML error",
-                                             "out of memory",
-                                             "syntax error",
-                                             "no element found",
-                                             "not well-formed (invalid token)",
-                                             "unclosed token",
-                                             "partial character",
-                                             "mismatched tag",
-                                             "duplicate attribute",
-                                             "junk after document element",
-                                             "illegal parameter entity reference",
-                                             "undefined entity",
-                                             "recursive entity reference",
-                                             "asynchronous entity",
-                                             "reference to invalid character number",
-                                             "reference to binary entity",
-                                             "reference to external entity in attribute",
-                                             "XML or text declaration not at start of entity",
-                                             "unknown encoding",
-                                             "encoding specified in XML declaration is incorrect",
-                                             "unclosed CDATA section",
-                                             "error in processing external entity reference",
-                                             "document is not standalone",
-                                             "unexpected parser state - please send a bug report",
-                                             "entity declared in parameter entity",
-                                             "requested feature requires XML_DTD support in Expat",
-                                             "cannot change setting once parsing has begun",
-                                             "unbound prefix",
-                                             "must not undeclare prefix",
-                                             "incomplete markup in parameter entity",
-                                             "XML declaration not well-formed",
-                                             "text declaration not well-formed",
-                                             "illegal character(s) in public id",
-                                             "parser suspended",
-                                             "parser not suspended",
-                                             "parsing aborted"};
-  return code < sizeof(messages) / sizeof(messages[0]) ? messages[code] : messages[0];
+  const char* message = XML_ErrorString(static_cast<XML_Error>(code));
+  return message ? message : "unknown XML error";
 }
 void logXmlError(const uint32_t error, const bool final) {
   if (final) {

@@ -3,6 +3,7 @@ add_executable(KOReaderXPathResolverTest
   XPathParserFailureTest.cpp
   ${REPO_ROOT}/lib/KOReaderSync/ChapterXPathResolver.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
 )
 
 target_include_directories(KOReaderXPathResolverTest PRIVATE
@@ -10,6 +11,7 @@ target_include_directories(KOReaderXPathResolverTest PRIVATE
   ${REPO_ROOT}/lib/KOReaderSync
   ${REPO_ROOT}/lib/Epub
   ${REPO_ROOT}/lib/Utf8
+  ${REPO_ROOT}/lib/expat
 )
 
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
@@ -28,6 +30,7 @@ add_executable(XPathOracle
   XPathOracle.cpp
   ${REPO_ROOT}/lib/KOReaderSync/ChapterXPathResolver.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
 )
 get_target_property(XPATH_INCLUDES KOReaderXPathResolverTest INCLUDE_DIRECTORIES)
 target_include_directories(XPathOracle PRIVATE ${XPATH_INCLUDES})

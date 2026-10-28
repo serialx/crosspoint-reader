@@ -147,3 +147,5 @@ add_subdirectory(display_trace)
 add_subdirectory(font_cache)
 
 add_subdirectory(font_manager)
+
+add_subdirectory(vector_font)

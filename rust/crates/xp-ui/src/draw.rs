@@ -131,14 +131,17 @@ fn fill(target: &mut Strip<'_>, rect: Rect, paint: u8) {
                 BinaryColor::On
             },
         );
+    } else if paint == 2 {
+        target.surface().shade(
+            i32::from(rect.x),
+            i32::from(rect.y),
+            i32::from(rect.w),
+            i32::from(rect.h),
+        );
     } else {
         let pixels = (i32::from(rect.y)..i32::from(rect.y) + i32::from(rect.h)).flat_map(|y| {
             (i32::from(rect.x)..i32::from(rect.x) + i32::from(rect.w)).map(move |x| {
-                let ink = if paint == 2 {
-                    x & 1 == 0 && y & 1 == 0
-                } else {
-                    (x + y) & 1 == 0
-                };
+                let ink = (x + y) & 1 == 0;
                 Pixel(
                     Point::new(x, y),
                     if ink {

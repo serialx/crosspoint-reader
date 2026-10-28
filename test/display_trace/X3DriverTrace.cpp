@@ -32,7 +32,8 @@ int main(int argc, char** argv) {
   BoardConfig::ACTIVE = BoardConfig::XTEINK_X3;
   trace::configure(false, 2, {});
 #if defined(FREEINK_RUST_PANEL) && FREEINK_RUST_PANEL
-  RustPanelDriver panel(XP_DISPLAY_UC8253_X3);
+  alignas(void*) uint8_t state[XP_DISPLAY_UC8253_X3_STATE_BYTES]{};
+  RustPanelDriver panel(XP_DISPLAY_UC8253_X3, state, sizeof(state), 0, nullptr, 0);
 #else
   Uc8253X3Driver panel(traceX3Config());
 #endif

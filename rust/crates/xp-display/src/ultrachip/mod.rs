@@ -1,11 +1,17 @@
 //! UltraChip controller policy, preserving SDK 08effe64 bus transactions.
 use crate::Bus;
+#[cfg(feature = "uc8279c-a4")]
 pub mod a4;
+#[cfg(feature = "uc8279c-a4")]
 mod a4_luts;
 mod tags;
+#[cfg(feature = "uc8279-x3")]
 pub mod x3;
+#[cfg(any(feature = "uc8279-x3", feature = "uc8179", feature = "uc8279-x4"))]
 mod x3_luts;
+#[cfg(any(feature = "uc8179", feature = "uc8279-x4"))]
 pub mod x4;
+#[cfg(any(feature = "uc8179", feature = "uc8279-x4"))]
 mod x4_luts;
 
 /// Platform allocations retain the SDK's placement and failure policy.
@@ -20,7 +26,9 @@ pub unsafe trait Memory {
     unsafe fn release(&mut self, ptr: *mut u8);
 }
 
+#[cfg(any(feature = "uc8179", feature = "uc8279-x4", feature = "uc8279c-a4"))]
 struct Plane(*mut u8);
+#[cfg(any(feature = "uc8179", feature = "uc8279-x4", feature = "uc8279c-a4"))]
 impl Plane {
     const fn new() -> Self {
         Self(core::ptr::null_mut())
@@ -34,6 +42,7 @@ impl Plane {
             }
         }
     }
+    #[cfg(feature = "uc8279c-a4")]
     fn present(&self) -> bool {
         !self.0.is_null()
     }
@@ -75,6 +84,7 @@ fn fill(bus: &mut impl Bus, cmd: u8, height: u16, stride: u16) {
     bus.txn_end();
 }
 
+#[cfg(feature = "uc8279-x3")]
 fn flipped(bus: &mut impl Bus, cmd: u8, data: &[u8], stride: u16, invert: bool) {
     let mut row = [0; 128];
     bus.cmd(cmd);
@@ -94,6 +104,7 @@ fn flipped(bus: &mut impl Bus, cmd: u8, data: &[u8], stride: u16, invert: bool) 
     bus.txn_end();
 }
 
+#[cfg(any(feature = "uc8179", feature = "uc8279-x4", feature = "uc8279-x3"))]
 fn wait_start(bus: &mut impl Bus) {
     let start = bus.clock_ms();
     while bus.busy_level() == 1 && bus.clock_ms().wrapping_sub(start) < 50 {

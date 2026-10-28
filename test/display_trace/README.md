@@ -165,7 +165,8 @@ inputs; it supplies no hardware timing, power, heap or pixel-quality measurement
 ## Rust UC8253 adapter
 
 The Rust controller is opt-in: firmware builds use `FREEINK_RUST_PANEL=1`,
-which selects the `display-panel` feature in the existing `xp-ffi` archive.
+which selects controller features from the SDK board flags in the existing
+`xp-ffi` archive. The host oracle uses `display-panel` to enable all controllers.
 The SDK bus, reset, SPI transactions, and BUSY waits remain the trace boundary.
 The default build continues to select the C++ controller.
 

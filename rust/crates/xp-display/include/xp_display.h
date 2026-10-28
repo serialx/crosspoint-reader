@@ -11,6 +11,13 @@ enum {
   XP_DISPLAY_ABI_VERSION = 1,
   XP_DISPLAY_STATE_BYTES = 64,
   XP_DISPLAY_STATE_ALIGN = 8,
+  // Factory capacities are checked against each Rust state on the target.
+  XP_DISPLAY_UC8253_X3_STATE_BYTES = 24 + 2 * sizeof(void*),
+  XP_DISPLAY_SSD1677_STATE_BYTES = 24 + 2 * sizeof(void*),
+  XP_DISPLAY_UC8279_X3_STATE_BYTES = 24,
+  XP_DISPLAY_UC8179_STATE_BYTES = 32 + 4 * sizeof(void*),
+  XP_DISPLAY_UC8279_X4_STATE_BYTES = XP_DISPLAY_UC8179_STATE_BYTES,
+  XP_DISPLAY_UC8279C_A4_STATE_BYTES = 8 + 7 * sizeof(void*),
   XP_DISPLAY_UC8253_X3 = 1,
   XP_DISPLAY_OK = 0,
   XP_DISPLAY_INVALID = 1,
@@ -260,8 +267,8 @@ typedef struct {
 // Platform allocations use PSRAM_ONLY and remain retained until drop.
 // PaperMono extra(version=1): 1 = one lightFrames byte, 2 = resetGray (no payload).
 enum {
-  XP_DISPLAY_SSD2677_STATE_BYTES = 128,
-  XP_DISPLAY_PAPER_MONO_STATE_BYTES = 512,
+  XP_DISPLAY_SSD2677_STATE_BYTES = 16 + 8 * sizeof(void*),
+  XP_DISPLAY_PAPER_MONO_STATE_BYTES = 176 + 18 * sizeof(void*),
   XP_DISPLAY_TAG_SSD2677_RESET = 90,
   XP_DISPLAY_TAG_SSD2677_INIT = 91,
   XP_DISPLAY_TAG_SSD2677_LATCH = 92,

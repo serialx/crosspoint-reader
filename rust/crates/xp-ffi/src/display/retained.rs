@@ -53,7 +53,8 @@ pub(super) unsafe fn data<'a>(
     }
     Ok(Some(core::slice::from_raw_parts(request.data, size)))
 }
-impl xp_display::papermono::Diagnostics for DisplayBus {
+#[cfg(feature = "display-paper-mono")]
+impl xp_display::papermono::Diagnostics for &DisplayBus {
     fn event(&mut self, event: u32, values: [u32; 4]) {
         if let Some(callback) = self.diagnostic {
             unsafe {

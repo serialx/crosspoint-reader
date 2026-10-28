@@ -2,7 +2,9 @@ use core::ffi::c_void;
 use core::mem::{align_of, size_of};
 use core::sync::atomic::{AtomicU32, Ordering};
 use xp_display::constants::*;
-use xp_display::{Bus, X3Config};
+use xp_display::Bus;
+#[cfg(feature = "display-uc8253")]
+use xp_display::X3Config;
 
 #[repr(C)]
 pub struct DisplayBus {
@@ -54,7 +56,7 @@ impl DisplayBus {
             && self.probe.is_some()
     }
 }
-impl Bus for DisplayBus {
+impl Bus for &DisplayBus {
     fn cmd(&mut self, command: u8) {
         if let Some(callback) = self.cmd {
             unsafe { callback(self.ctx, command) }
@@ -184,15 +186,32 @@ pub struct DisplayRequest {
     lut_len: u32,
 }
 
+#[cfg(feature = "display-paper-mono")]
 mod paper_mono;
+#[cfg(any(feature = "display-ssd2677", feature = "display-paper-mono"))]
 mod retained;
+#[cfg(feature = "display-ssd1677")]
 mod ssd1677;
+#[cfg(feature = "display-ssd2677")]
 mod ssd2677;
+#[cfg(any(feature = "display-uc8179", feature = "display-uc8279-x4"))]
 mod uc8179;
+#[cfg(feature = "display-uc8253")]
 mod uc8253;
+#[cfg(feature = "display-uc8279-x3")]
 mod uc8279_x3;
+#[cfg(feature = "display-uc8279-x4")]
 mod uc8279_x4;
+#[cfg(feature = "display-uc8279c-a4")]
 mod uc8279c_a4;
+
+#[cfg(any(
+    feature = "display-uc8179",
+    feature = "display-uc8279-x3",
+    feature = "display-uc8279-x4",
+    feature = "display-uc8279c-a4"
+))]
+mod ultrachip;
 
 #[repr(C)]
 pub struct Platform {
@@ -224,6 +243,8 @@ impl Header {
 }
 // Each controller has a repr(C) state starting with Header. Only the panel field
 // is mutably borrowed during execute, so generation remains concurrently readable.
+// Some operations are unused when only a subset of controllers is enabled.
+#[allow(dead_code)]
 enum Action<'a> {
     Size,
     Align,
@@ -239,7 +260,7 @@ enum Action<'a> {
     },
     Execute {
         storage: *mut c_void,
-        bus: &'a mut DisplayBus,
+        bus: &'a mut &'a DisplayBus,
         request: &'a DisplayRequest,
         result: *mut u32,
     },
@@ -251,16 +272,26 @@ enum Action<'a> {
         version: u32,
     },
 }
-// This is the only controller-ID dispatch. Each port owns its arm and module.
+// Specialize the action at each C entry point instead of copying the action
+// descriptor through a shared stack frame. Each port owns its arm and module.
+#[inline(always)]
 unsafe fn dispatch(controller: u32, action: Action<'_>) -> u32 {
     match controller {
+        #[cfg(feature = "display-uc8253")]
         UC8253_X3 => uc8253::dispatch(action),
+        #[cfg(feature = "display-ssd1677")]
         SSD1677 => ssd1677::dispatch(action),
+        #[cfg(feature = "display-uc8179")]
         UC8179 => uc8179::dispatch(action),
+        #[cfg(feature = "display-uc8279-x3")]
         UC8279_X3 => uc8279_x3::dispatch(action),
+        #[cfg(feature = "display-uc8279-x4")]
         UC8279_X4 => uc8279_x4::dispatch(action),
+        #[cfg(feature = "display-uc8279c-a4")]
         UC8279C_A4 => uc8279c_a4::dispatch(action),
+        #[cfg(feature = "display-ssd2677")]
         SSD2677 => ssd2677::dispatch(action),
+        #[cfg(feature = "display-paper-mono")]
         PAPER_MONO => paper_mono::dispatch(action),
         _ => match action {
             Action::Size | Action::Align => 0,
@@ -430,7 +461,7 @@ pub unsafe extern "C" fn xp_display_execute(
     if request.struct_size as usize != size_of::<DisplayRequest>() || !(&*bus).valid() {
         return INVALID;
     }
-    let mut bus = core::ptr::read(bus);
+    let mut bus = &*bus;
     dispatch(
         (*storage.cast::<Header>()).controller,
         Action::Execute {
@@ -469,6 +500,7 @@ pub unsafe extern "C" fn xp_display_extra(
 /// # Safety
 /// Config and direct point to writable storage for one X3Config and five LUT
 /// pointers respectively. Config borrows direct until its controller is dropped.
+#[cfg(feature = "display-uc8253")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_display_x3_default_config(
     config: *mut X3Config,

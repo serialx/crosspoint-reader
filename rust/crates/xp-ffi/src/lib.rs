@@ -1,6 +1,6 @@
 #![no_std]
 
-#[cfg(feature = "display-panel")]
+#[cfg(feature = "display-api")]
 mod display;
 
 mod bidi;

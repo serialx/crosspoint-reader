@@ -1,4 +1,4 @@
-use super::uc8179::data;
+use super::ultrachip::data;
 use super::*;
 use xp_display::ultrachip::x3::Uc8279X3;
 #[repr(C)]
@@ -6,8 +6,9 @@ struct State {
     header: Header,
     panel: Uc8279X3,
 }
-const _: () = assert!(size_of::<State>() <= STATE_BYTES as usize);
-const _: () = assert!(align_of::<State>() <= STATE_ALIGN as usize);
+const _: () = assert!(size_of::<State>() <= 24);
+const _: () = assert!(align_of::<State>() <= align_of::<*const c_void>());
+#[inline(always)]
 pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
     match action {
         Action::Size => size_of::<State>() as u32,

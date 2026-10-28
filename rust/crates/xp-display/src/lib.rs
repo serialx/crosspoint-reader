@@ -1,8 +1,16 @@
 #![no_std]
 
 pub mod constants;
+#[cfg(feature = "ssd1677")]
 pub mod ssd1677;
+#[cfg(feature = "ssd1677")]
 mod ssd1677_luts;
+#[cfg(any(
+    feature = "uc8179",
+    feature = "uc8279-x3",
+    feature = "uc8279-x4",
+    feature = "uc8279c-a4"
+))]
 pub mod ultrachip;
 
 /// Physical I/O only; controller commands and state remain in the panel.
@@ -32,8 +40,11 @@ pub trait Panel {
     fn capabilities(&self, mode: u32) -> u32;
 }
 
+#[cfg(any(feature = "uc8253", feature = "uc8179", feature = "uc8279-x4"))]
 mod luts;
+#[cfg(feature = "uc8253")]
 mod uc8253;
+#[cfg(feature = "uc8253")]
 pub use uc8253::{default_config, direct_luts, Uc8253, X3Config};
 
 #[derive(Default)]
@@ -49,10 +60,14 @@ pub struct Request<'a> {
     pub data: Option<&'a [u8]>,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "uc8253"))]
 mod tests;
 
+#[cfg(feature = "paper-mono")]
 pub mod papermono;
+#[cfg(any(feature = "paper-mono", feature = "ssd2677"))]
 pub mod retained;
+#[cfg(feature = "ssd2677")]
 pub mod ssd2677;
+#[cfg(feature = "ssd2677")]
 mod ssd2677_luts;

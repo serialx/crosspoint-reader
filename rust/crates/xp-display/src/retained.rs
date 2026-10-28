@@ -23,6 +23,7 @@ impl Plane {
             size,
         }
     }
+    #[cfg(feature = "paper-mono")]
     pub fn as_ptr(&self) -> *const u8 {
         self.pointer
     }

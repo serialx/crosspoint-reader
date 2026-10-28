@@ -9,6 +9,20 @@ static void check(bool ok) {
   if (!ok) std::abort();
 }
 int main() {
+  const uint32_t capacities[] = {0,
+                                 XP_DISPLAY_UC8253_X3_STATE_BYTES,
+                                 XP_DISPLAY_SSD1677_STATE_BYTES,
+                                 XP_DISPLAY_UC8179_STATE_BYTES,
+                                 XP_DISPLAY_UC8279_X3_STATE_BYTES,
+                                 XP_DISPLAY_UC8279_X4_STATE_BYTES,
+                                 XP_DISPLAY_UC8279C_A4_STATE_BYTES,
+                                 XP_DISPLAY_SSD2677_STATE_BYTES,
+                                 XP_DISPLAY_PAPER_MONO_STATE_BYTES};
+  for (uint32_t controller = 1; controller <= 8; ++controller) {
+    check(xp_display_state_size(controller) > 0);
+    check(xp_display_state_size(controller) <= capacities[controller]);
+    check(xp_display_state_align(controller) <= alignof(void*));
+  }
   alignas(XP_DISPLAY_STATE_ALIGN) std::array<uint8_t, XP_DISPLAY_STATE_BYTES> storage;
   storage.fill(0x5a);
   auto original = storage;

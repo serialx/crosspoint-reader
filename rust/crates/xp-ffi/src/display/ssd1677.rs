@@ -7,8 +7,8 @@ struct State {
     platform: *const Platform,
     panel: Ssd1677,
 }
-const _: () = assert!(size_of::<State>() <= STATE_BYTES as usize);
-const _: () = assert!(align_of::<State>() <= STATE_ALIGN as usize);
+const _: () = assert!(size_of::<State>() <= 24 + 2 * size_of::<*const c_void>());
+const _: () = assert!(align_of::<State>() <= align_of::<*const c_void>());
 
 struct Allocator<'a>(Option<&'a Platform>);
 struct Buffer<'a> {
@@ -83,7 +83,7 @@ unsafe fn optional<'a>(ptr: *const u8, len: u32, needed: usize) -> Result<Option
 unsafe fn execute(
     panel: &mut Ssd1677,
     platform: *const Platform,
-    bus: &mut DisplayBus,
+    bus: &mut &DisplayBus,
     r: &DisplayRequest,
 ) -> Result<u32, u32> {
     let turn_off = r.flags & FLAG_TURN_OFF != 0;
@@ -225,6 +225,7 @@ unsafe fn execute(
     Ok(result)
 }
 
+#[inline(always)]
 pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
     match action {
         Action::Size => size_of::<State>() as u32,

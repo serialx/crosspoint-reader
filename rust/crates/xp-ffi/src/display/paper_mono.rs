@@ -8,8 +8,9 @@ struct State {
     platform: *const Platform,
     scratch: *mut [u8; CHUNK],
 }
-const _: () = assert!(size_of::<State>() <= 512);
-const _: () = assert!(align_of::<State>() <= STATE_ALIGN as usize);
+const _: () = assert!(size_of::<State>() <= 176 + 18 * size_of::<*const c_void>());
+const _: () = assert!(align_of::<State>() <= align_of::<*const c_void>());
+#[inline(always)]
 pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
     match action {
         Action::Size => size_of::<State>() as u32,

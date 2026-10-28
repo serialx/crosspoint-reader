@@ -1,60 +1,21 @@
 use super::*;
-use xp_display::ultrachip::{
-    x4::{Config, Kind, X4},
-    Memory,
-};
+use xp_display::ultrachip::x4::{Config, Kind, X4};
 
-pub(super) struct Allocator(pub *const Platform);
-unsafe impl Memory for Allocator {
-    fn allocate(&mut self, bytes: usize, psram_only: bool) -> *mut u8 {
-        if self.0.is_null() {
-            return core::ptr::null_mut();
-        }
-        unsafe {
-            let platform = &*self.0;
-            let Some(allocate) = platform.alloc else {
-                return core::ptr::null_mut();
-            };
-            let ptr = allocate(platform.ctx, bytes as u32, 2);
-            if ptr.is_null() && !psram_only {
-                allocate(platform.ctx, bytes as u32, 3).cast()
-            } else {
-                ptr.cast()
-            }
-        }
-    }
-    unsafe fn release(&mut self, ptr: *mut u8) {
-        if !ptr.is_null() && !self.0.is_null() {
-            if let Some(f) = (*self.0).free {
-                f((*self.0).ctx, ptr.cast());
-            }
-        }
-    }
-}
-
-pub(super) unsafe fn data<'a>(
-    r: &DisplayRequest,
-    expected: usize,
-) -> Result<Option<&'a [u8]>, u32> {
-    if r.data.is_null() {
-        return Ok(None);
-    }
-    if (r.data_len as usize) < expected {
-        return Err(INVALID);
-    }
-    Ok(Some(core::slice::from_raw_parts(r.data, expected)))
-}
+use super::ultrachip::{data, Allocator};
 #[repr(C)]
 struct State {
     header: Header,
     platform: *const Platform,
     panel: X4,
 }
-const _: () = assert!(size_of::<State>() <= STATE_BYTES as usize);
-const _: () = assert!(align_of::<State>() <= STATE_ALIGN as usize);
+const _: () = assert!(size_of::<State>() <= 32 + 4 * size_of::<*const c_void>());
+const _: () = assert!(align_of::<State>() <= align_of::<*const c_void>());
+#[cfg(feature = "display-uc8179")]
+#[inline(always)]
 pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
     dispatch_x4(action, UC8179)
 }
+#[inline(always)]
 pub(super) unsafe fn dispatch_x4(action: Action<'_>, controller: u32) -> u32 {
     match action {
         Action::Size => size_of::<State>() as u32,

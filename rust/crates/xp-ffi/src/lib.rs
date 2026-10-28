@@ -7,6 +7,7 @@ mod font;
 mod gif;
 mod glyph;
 mod hyphen;
+mod i18n;
 mod image;
 mod inflate;
 mod page;

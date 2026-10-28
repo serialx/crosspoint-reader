@@ -8,6 +8,7 @@ pub mod font;
 pub mod gif;
 pub mod glyph;
 pub mod hyphen;
+pub mod i18n;
 pub mod image;
 pub mod inflate;
 pub mod page;

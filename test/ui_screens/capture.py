@@ -111,6 +111,30 @@ def summarize(run, group, machine):
                        'panel_refresh_ms': round(after['panel_refresh_ms'] - before['panel_refresh_ms'], 3),
                        'host_seconds': round(after['t'] - before['t'], 3),
                        'guest_ms': after['guest_ms'] - before['guest_ms']})
+    first = result[0]
+    after = by_name['after-' + first['id']]
+    startup_logs = [r['line'] for r in console if r['t'] <= after['t']]
+    startup_requests, startup_modes = [], []
+    for line in startup_logs:
+        match = re.search(r'\[EPD\] displayBuffer mode=(\d+)', line)
+        if match:
+            startup_requests.append(['full', 'half', 'fast'][int(match[1])])
+        elif '[EPD] displayGrayBuffer' in line:
+            startup_requests.append('grayscale')
+        elif '[EPD] displayWindow' in line:
+            startup_requests.append('window')
+    if machine == 'x3':
+        startup_modes = waveforms[:after['panel_refreshes']]
+        if len(startup_modes) != after['panel_refreshes']:
+            raise RuntimeError(f'{run}: incomplete startup controller trace')
+    else:
+        lines = [r['line'] for r in console] if first['activity_expected'] == 'Boot' else startup_logs
+        for line in lines:
+            match = re.search(r'\[SSD1677\] (FULL|HALF|FAST) refresh .*?(\(ctrl2=.*)', line)
+            if match:
+                startup_modes.append(match[1].lower() + ' ' + match[2])
+    first['startup'] = {'refresh_requests': startup_requests, 'controller_refreshes': startup_modes,
+                        'panel_refreshes': after['panel_refreshes']}
     return result
 
 
@@ -125,6 +149,7 @@ def main():
     p.add_argument('--groups', nargs='+')
     p.add_argument('--gdb', type=Path, default=Path.home() / '.platformio/packages/tool-riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb')
     args = p.parse_args()
+    from contracts import executable_identity, expected_contract, validate_recording
     suite = json.loads((HERE / 'screens.json').read_text())
     groups = [g for g in suite['groups'] if not args.groups or g['id'] in args.groups]
     if args.groups and set(args.groups) - {g['id'] for g in groups}:
@@ -137,11 +162,11 @@ def main():
     artifacts = {name: sha(build / name) for name in ['firmware.bin', 'firmware.elf', 'partitions.bin', 'bootloader.bin']}
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=False)
-    meta = {'schema': 1, 'status': 'running', 'suite_sha256': sha(HERE / 'screens.json'),
+    meta = {'schema': 2, 'status': 'running', 'suite_sha256': sha(HERE / 'screens.json'),
             'harness_sha256': {name: sha(HERE / name) for name in
-                               ['capture.py', 'fixtures.py', 'fault.py', 'screens.json']},
+                               ['capture.py', 'contracts.py', 'fixtures.py', 'fault.py', 'screens.json']},
             'xtc_fixture_sha256': sha(HERE.parent / 'xtc_diff/generate.py'),
-            'emulator': identity, 'artifacts': artifacts,
+            'emulator': identity, 'executable_identity': executable_identity(identity), 'artifacts': artifacts,
             'build': str(build), 'rtc': '2026-01-01T09:00:00', 'sleep': 'off', 'turbo': False,
             'ghosting': False, 'input_quiet_ms': 200, 'runs': []}
     save(out / 'manifest.json', meta)
@@ -192,7 +217,7 @@ def main():
                             else:
                                 code = subprocess.run(cmd, stdout=stdout, stderr=stderr).returncode
                         entry = {'name': name, 'machine': machine, 'orientation': orientation, 'dark': dark,
-                                 'group': group['id'], 'command': cmd, 'exit_code': code,
+                                 'group': group['id'], 'artifact_dir': name, 'command': cmd, 'exit_code': code,
                                  'host_seconds': round(time.monotonic() - tick, 3), 'screens': []}
                         meta['runs'].append(entry)
                         if code:
@@ -204,6 +229,8 @@ def main():
                                                  for folder in [config, case / 'assets']
                                                  for path in sorted(folder.rglob('*')) if path.is_file()}
                         entry['script_sha256'] = sha(script)
+                        entry['contract'] = expected_contract(suite, group, machine, orientation, dark)
+                        validate_recording(case, entry, entry['contract'])
                         for screen in entry['screens']:
                             if screen['activity_observed'] != screen['activity_expected']:
                                 raise RuntimeError(f'{name}/{screen["id"]}: expected {screen["activity_expected"]}, '

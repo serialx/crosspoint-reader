@@ -8,9 +8,11 @@ flashes firmware, or contacts a real access point.
 The baseline is firmware `539ebafcadd233bf11c68cdeb05c24454bdab22a`, with FreeInk
 SDK `37d272d42732c31065ebed4d9cb90cef7bfa7416`. The Phase 9 evidence lives outside
 the repository in `crosspoint-evidence/riir-round-2026-10/p9-o2/`.
-The verified manifests are `complete-a/manifest.json` and
-`complete-b/manifest.json`: all 1,044 screenshots and refresh sequences match.
-See `comparison.json`, `screen-timings.csv`, and `timing-summary.json` there.
+The original schema-1 manifests are `complete-a/manifest.json` and
+`complete-b/manifest.json`. The validated schema-2 generation is under
+`p9-o2b/goldens-a/` and `p9-o2b/goldens-b/`: all 1,044 screenshots,
+refresh sequences, and 430 startup intervals match. See `p9-o2b/comparison-final.json`.
+Original provenance, timings, and raw recordings remain in `p9-o2/`.
 Earlier pilot and interrupted recordings are retained as diagnostic evidence.
 
 ## Coverage
@@ -62,7 +64,11 @@ Use Python 3.9+ and Pillow (`12.1.0` was used for the recorded comparison). Capt
 itself uses only the standard library. Use the pinned eink-qemu 0.9.1 identity file
 from the evidence harness; `capture.py` verifies both executable hashes before
 running. The identity JSON must contain `cli`, `cli_sha256`, `qemu`, and
-`qemu_sha256`, with absolute executable paths. The recorded executables are:
+`qemu_sha256`, `cli_version`, and `qemu_version`. Use absolute executable paths
+for capture. Digests and versions define executable identity; locations are
+provenance only and may differ between captures. A relocated QEMU installation
+also needs its unchanged ROM data: for this C3 build, copy `esp32c3-rom.bin`
+into `../share/qemu/` relative to the QEMU executable directory. The recorded executables are:
 
 | Executable | SHA-256 |
 | --- | --- |
@@ -117,7 +123,36 @@ python3 -m unittest discover -s test/ui_screens -v
 emulators. Use `capture.py` directly for a focused run, for example
 `--machines x3 --orientations 0 --dark 0 --groups reader toolbar`. It accepts the
 same required build, identity, and output arguments. A focused run is not the
-complete matrix; compare only captures with the same screen set and inputs.
+complete matrix. Compare it against the full baseline with the same explicit
+selection applied to both manifests:
+
+```sh
+python3 test/ui_screens/capture.py --build CANDIDATE_BUILD \
+  --emulator-identity EMULATOR_JSON --out CANDIDATE \
+  --machines x3 --orientations 0 --dark 0 --groups reader toolbar
+python3 test/ui_screens/compare.py BASELINE CANDIDATE \
+  --machines x3 --orientations 0 --dark 0 --groups reader toolbar
+```
+
+Every declared screen in that selection must exist on both sides. Unknown groups,
+missing selected cases, and missing selected screens fail; comparison never uses
+the intersection of available screens. Omitted selectors cover all values on
+that axis. Without any selectors, the original strict whole-manifest comparison
+remains the default. The Python API accepts the same selection as a dictionary:
+`compare(baseline, candidate, {"machines": ["x3"], "orientations": [0],
+"dark": [0], "groups": ["reader", "toolbar"]})`.
+
+Before porting an activity, look up its source path in `coverage.json` and take
+the union of its `groups` with those of any touched shared implementation. Choose
+board, orientation, and polarity coverage explicitly; a focused pass proves only
+that selection. Read the inventory's gaps before claiming coverage of a new path.
+For a new screen state, extend `screens.json` and `coverage.json`, then record two
+new sets using the archived pinned baseline firmware and the new harness. Compare
+them before recording the candidate. Give the new generation a fresh directory,
+retain its suite/harness/build hashes and both accepted old sets, and never
+replace baseline pixels with candidate output. If the pinned firmware cannot
+reach the new state, it needs a separately reviewed oracle rather than a claimed
+parity baseline.
 
 Each case keeps its exact command, generated input hashes, button script, card,
 console log, controller trace, screenshots, and emulator metrics. The root
@@ -136,7 +171,13 @@ port. Host duration and measured busy duration are reported, not equality gates.
 ## Refresh evidence
 
 Each screenshot owns the interval from its `before-…` marker to its `after-…`
-marker, including navigation transitions. `refresh_requests` records the ordered
+marker, including navigation transitions. The first screenshot also owns a
+`startup` record from process boot (panel counter zero) through its `after-…`
+marker. Its ordered API requests, controller signatures, and cumulative panel
+count are compared independently. This covers the initial Boot-to-Home paint for
+every board, polarity, and home theme, even when `ready` finishes after it.
+For groups that navigate before their first shot, startup includes that navigation.
+`refresh_requests` records the ordered
 SDK calls (`full`, `half`, `fast`, `grayscale`, or `window`), not merely the last
 paint. These come from `FreeInkDisplay.cpp:661,858,878` with the probe flag.
 
@@ -171,14 +212,14 @@ synthetic. EPUB ZIP timestamps are fixed. The XTC fixture reuses
 fresh card, fixed RTC `2026-01-01T09:00:00`, `--sleep off`, no turbo, no ghosting,
 and no access points. Normal captures wait for serial quiet and a settled panel.
 Before each press, the emulator seeks 200 ms of guest log/panel/CPU idle. EPUB
-reader groups additionally wait for one second of serial/panel quiet before
+reader groups additionally use `wait-quiet:1` for display stability before
 each button. The first reader paint
-waits for two seconds of serial quiet so delayed font prewarming cannot swallow
+uses `wait-quiet:2` for display stability so delayed font prewarming cannot swallow
 Select. Bookmark/clipping-list navigation waits for the 2.5-second saved-message timeout
 before opening the menu, keeping its redraw separate from button-driven paints.
 The cache-warning group is an explicit exception: its waiting UI never satisfies
 the emulator's CPU-idle heuristic, even with the default 200 ms threshold. That
-group disables the CPU input gate and instead waits for serial/panel quiet after
+group disables the CPU input gate and instead waits for display stability after
 every button; its route, pixels, and refresh sequence still have exact checks.
 QEMU limits its CPU-idle heuristic to three host seconds, which can expire under
 host load even when navigation succeeds. These events are preserved in
@@ -195,12 +236,19 @@ python3 test/ui_screens/assemble.py ORIGINAL FOCUSED_RETRY MISSING_CASES \
 ```
 
 `--allow-partial` permits a failed source manifest, but every selected case must
-pass and the complete declared matrix must be present. Assembly verifies fixture
-code, settings, byte-exact current navigation scripts, input/image hashes, and
-activity/controller evidence. It records all original manifest hashes and source
+pass and the complete declared matrix must be present. Each schema-2 case stores
+its fixture kind, full settings/config inventory, deterministic asset digests,
+normalized SD destinations, navigation, pacing, and screen expectations. Assembly
+regenerates this contract from the current suite and verifies the recording,
+including the emulator's actual staged-file and pacing records. A fixture-only
+change, extra/removed config, changed destination, or dropped press requires a
+recapture. Assembly cannot stamp an unvalidated recording with the current suite
+hash. Image hashes and extracted pixel/refresh/startup records must still match. It records all original manifest hashes and source
 code hashes, every replacement, and the current extraction-source hashes. It
-never alters raw recordings or images. Keep the source directories alongside the
-assembled manifest: its image paths refer to them. Assembled total time is the
+never alters raw recordings or images. Case `artifact_dir` and image paths are
+relative to the manifest. Keep their relative directory layout when copying
+assembled evidence. Historical absolute commands, executable paths, and source
+manifest paths remain unchanged as provenance; they are not live artifact locators. Assembled total time is the
 elapsed source-recording interval including retries, derived from source manifest
 completion timestamps; per-case and per-screen times remain the recorded values.
 
@@ -218,3 +266,29 @@ the first is HAL initialization. This renders Crash without causing a real
 panic, writing a panic record, opening a TCP port, or touching hardware. If that
 call ordering or symbol changes, update and revalidate the fixture explicitly.
 These two fault images validate display routes, not recovery behavior.
+
+
+## Explicit schema-1 migration
+
+Schema-1 evidence is rejected by capture comparison and assembly. Migrate each
+accepted recording into a new directory before using it:
+
+```sh
+python3 test/ui_screens/migrate.py OLD_COMPLETE --out NEW_GENERATION
+python3 test/ui_screens/compare.py NEW_GENERATION_A NEW_GENERATION_B
+```
+
+Migration validates every case before creating its output. It regenerates the
+expected deterministic inputs, checks the exact config inventory and staging
+against retained emulator logs, validates navigation and pacing, then re-extracts
+startup from raw logs. All previous image, activity, and refresh fields must agree.
+The byte-exact original manifest is retained as `original-manifest.json`; the
+migration record names its digest, source, tool digest, and validation performed.
+Raw logs, inputs, traces, and images are copied with relative case paths. Disposable
+`card.img` files are omitted. Original recordings are never rewritten.
+
+A moved schema-1 tree can also be migrated: retain the manifest's relative image
+paths and associated case directories. Migration locates cases from these paths;
+it uses old absolute commands only to interpret case-relative input names.
+Insufficient raw evidence or a mismatched deterministic fixture fails validation
+and requires recapture from the pinned baseline.

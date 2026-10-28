@@ -24,9 +24,10 @@ class OracleTests(unittest.TestCase):
 
     def write_manifest(self, path, **changes):
         screen = {'id': 'home', 'image': 'screen.png', 'png_sha256': hashlib.sha256((path/'screen.png').read_bytes()).hexdigest(),
-                  'refresh_requests': ['half', 'fast'], 'panel_refreshes': 2}
+                  'refresh_requests': ['half', 'fast'], 'panel_refreshes': 2,
+                  'startup': {'refresh_requests': ['fast'], 'controller_refreshes': ['wave'], 'panel_refreshes': 1}}
         screen.update(changes)
-        data = {'schema': 1, 'status': 'passed', 'suite_sha256': 'suite', 'emulator': 'pinned', 'rtc': 'fixed',
+        data = {'schema': 2, 'status': 'passed', 'suite_sha256': 'suite', 'emulator': 'pinned', 'rtc': 'fixed',
                 'sleep': 'off', 'turbo': False, 'ghosting': False,
                 'runs': [{'name': 'x3', 'exit_code': 0, 'screens': [screen]}]}
         (path / 'manifest.json').write_text(json.dumps(data))
@@ -99,6 +100,31 @@ class OracleTests(unittest.TestCase):
         a, b = self.root / 'a.epub', self.root / 'b.epub'
         epub(a); epub(b)
         self.assertEqual(a.read_bytes(), b.read_bytes())
+
+    def test_startup_home_before_ready_is_extracted(self):
+        run = self.root / 'case/run'
+        run.mkdir(parents=True)
+        Image.new('RGB', (3, 2), 'white').save(run / 'home.png')
+        rows = [
+            {'step': 'mark', 'name': 'before-home', 't': 4, 'guest_ms': 4000,
+             'panel_refreshes': 2, 'panel_refresh_ms': 600},
+            {'step': 'shot', 'name': 'home', 't': 5, 'file': 'home.png',
+             'pixels_sha256': 'pixels', 'size': [3, 2]},
+            {'step': 'mark', 'name': 'after-home', 't': 6, 'guest_ms': 6000,
+             'panel_refreshes': 2, 'panel_refresh_ms': 600},
+        ]
+        logs = [{'t': 1, 'line': 'Entering activity: Home'},
+                {'t': 2, 'line': '[EPD] displayBuffer mode=2 off=0'},
+                {'t': 3, 'line': '[EPD] displayBuffer mode=1 off=0'}]
+        (run / 'run.jsonl').write_text('\n'.join(map(json.dumps, rows)))
+        (run / 'console.jsonl').write_text('\n'.join(map(json.dumps, logs)))
+        (run.parent / 'panel.trace').write_text('uc8279_refresh first\nuc8279_refresh second\n')
+        result = summarize(run, {'screens': [{'id': 'home', 'activity': 'Home'}]}, 'x3')[0]
+        self.assertEqual(result['refresh_requests'], [])
+        self.assertEqual(result['panel_refreshes'], 0)
+        self.assertEqual(result['startup'], {'refresh_requests': ['fast', 'half'],
+                         'controller_refreshes': ['uc8279_refresh first', 'uc8279_refresh second'],
+                         'panel_refreshes': 2})
 
     def test_boot_completion_log_after_marker(self):
         run = self.root / 'case/run'

@@ -48,6 +48,7 @@ def main():
         if code or part['status'] != 'passed':
             combined['status'] = 'failed'
         for run in part['runs']:
+            run['artifact_dir'] = name + '/' + run['artifact_dir']
             for screen in run['screens']:
                 screen['image'] = name + '/' + screen['image']
             combined['runs'].append(run)

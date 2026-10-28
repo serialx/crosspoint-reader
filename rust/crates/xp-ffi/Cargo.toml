@@ -12,7 +12,10 @@ bench = false
 [dependencies]
 xp-core = { path = "../xp-core" }
 
+xp-display = { path = "../xp-display", optional = true }
+
 [features]
+display-panel = ["dep:xp-display"]
 package-trace = ["xp-core/package-trace"]
 chapter-trace = ["xp-core/chapter-trace"]
 chapter-test = ["xp-core/chapter-test"]

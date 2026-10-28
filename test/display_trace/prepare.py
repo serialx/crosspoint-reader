@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Stage exact SDK sources and add host-only BUSY scope annotations."""
 import pathlib
+import re
 import shutil
 import sys
 
@@ -11,6 +12,12 @@ shutil.copytree(source / "include", out / "include", dirs_exist_ok=True, copy_fu
 shutil.copy(sdk / "libs/hardware/BoardConfig/include/BoardConfig.h", out / "BoardConfig.h")
 # This header is quoted by BoardConfig; place the host rail hook beside it.
 shutil.copy(stubs / "MetalioEInk4Board.h", out / "MetalioEInk4Board.h")
+# Track the retained UltraChip planes without interposing host STL allocations.
+for name in ("Uc8179", "Uc8279X4", "Uc8279cA4", "RustPanel"):
+    driver = out / "src/driver" / f"{name}Driver.cpp"
+    text = driver.read_text().replace("std::malloc(", "trace::allocateDefault(")
+    text = re.sub(r"(?<![\w:])malloc\(", "trace::allocateDefault(", text)
+    driver.write_text('#include "Trace.h"\n' + text)
 bus = out / "src/bus/EpdBus.cpp"
 text = bus.read_text()
 if sys.platform == "darwin":

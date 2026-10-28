@@ -52,6 +52,13 @@ else:
     command += ["--offline"]
 
 process_env = os.environ.copy()
+for name in ("FREEINK_UC8279X4_GRAY_SPEED", "FREEINK_UC8279X4_QUALITY_COVERAGE_PCT"):
+    value = next((str(d[1]) for d in defines
+                  if isinstance(d, (tuple, list)) and len(d) == 2 and d[0] == name), None)
+    if value is None:
+        process_env.pop(name, None)
+    else:
+        process_env[name] = value
 if mcu == "esp32c3":
     # Preserve offline Rust backtraces in non-flashed DWARF before filtering EH.
     flag = "-Cllvm-args=--force-dwarf-frame-section"

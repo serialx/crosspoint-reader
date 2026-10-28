@@ -9,6 +9,10 @@ void configure(bool full, int polarity, std::vector<uint8_t> probe);
 void busyDuration(uint64_t us);
 void step(const std::string& name);
 void boardHook(const char* name, bool value);
+void allocationTrace(int failAfter);
+void allocationRecovery();
+void* allocateCaps(size_t bytes, int caps);
+void* allocateDefault(size_t bytes);
 struct Wait {
   int previousPolarity;
   uint64_t previousStart;

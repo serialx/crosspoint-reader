@@ -141,3 +141,5 @@ add_subdirectory(sdfont_pool_diff)
 add_subdirectory(h6_diagnostics)
 add_subdirectory(page_diagnostics)
 add_subdirectory(chapter_diagnostics)
+
+add_subdirectory(settings_store)

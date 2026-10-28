@@ -13,7 +13,7 @@ inline void log(const char* level, const char* origin, const char* format, ...) 
   va_end(args);
   logs.push_back(std::string(level) + ":" + origin + ":" + buffer);
 }
-}
+}  // namespace store_test
 #define LOG_ERR(origin, ...) store_test::log("ERR", origin, __VA_ARGS__)
 #define LOG_DBG(origin, ...) store_test::log("DBG", origin, __VA_ARGS__)
 #define LOG_INF(origin, ...) store_test::log("INF", origin, __VA_ARGS__)

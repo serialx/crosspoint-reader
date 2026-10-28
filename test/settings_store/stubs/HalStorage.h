@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+
 #include <algorithm>
 #include <cstring>
 #include <map>
@@ -9,7 +10,7 @@ inline std::map<std::string, String> files;
 inline std::vector<std::string> io;
 inline bool failWrite = false;
 inline bool failRead = false;
-}
+}  // namespace store_test
 class HalFile {
  public:
   std::vector<uint8_t> bytes;
@@ -44,9 +45,18 @@ class HalFile {
   }
 };
 struct TestStorage {
-  bool mkdir(const char* p) { store_test::io.push_back(std::string("mkdir:") + p); return true; }
-  bool exists(const char* p) { store_test::io.push_back(std::string("exists:") + p); return store_test::files.count(p); }
-  String readFile(const char* p) { store_test::io.push_back(std::string("readFile:") + p); return store_test::failRead ? String{} : store_test::files[p]; }
+  bool mkdir(const char* p) {
+    store_test::io.push_back(std::string("mkdir:") + p);
+    return true;
+  }
+  bool exists(const char* p) {
+    store_test::io.push_back(std::string("exists:") + p);
+    return store_test::files.count(p);
+  }
+  String readFile(const char* p) {
+    store_test::io.push_back(std::string("readFile:") + p);
+    return store_test::failRead ? String{} : store_test::files[p];
+  }
   bool writeFile(const char* p, const String& s) {
     store_test::io.push_back(std::string("writeFile:") + p);
     if (store_test::failWrite) return false;

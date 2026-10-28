@@ -4,6 +4,7 @@
 #include <I18n.h>
 #include <Logging.h>
 #include <ObfuscationUtils.h>
+#include <StoreBridge.h>
 
 #include <algorithm>
 #include <cstring>
@@ -19,289 +20,112 @@
 #include "util/PluginLocations.h"
 
 namespace {
-
-// Stack buffer for "<key>_obf" key construction — avoids a std::string
-// allocation per obfuscated setting on every save and load.
-constexpr size_t OBF_KEY_BUF = 64;
-
-// Null-terminated copy into a fixed-size settings field.
-void copyToField(char* dest, const char* src, const size_t maxLen) {
-  strncpy(dest, src, maxLen - 1);
-  dest[maxLen - 1] = '\0';
+XpStoreSettings view(CrossPointSettings& s) {
+  return {{&s.frontButtonBack, &s.frontButtonConfirm, &s.frontButtonLeft, &s.frontButtonRight},
+          &s.fontFamily,
+          &s.fontPointSize,
+          &s.longPressMenuFunction,
+          &s.shortPwrBtn,
+          &s.language,
+          &s.keyboardLayouts,
+          &s.pluginsEnabled,
+          &s.paragraphIndentSpaces,
+          &s.extraParagraphSpacing,
+          &s.touchReaderControls,
+          &s.pageTurnGesture,
+          &s.previousPageGesture,
+          &s.sleepTimeoutMinutes,
+          &s.homeButtonLongPressAction,
+          reinterpret_cast<uint8_t*>(s.sdFontFamilyName),
+          sizeof(s.sdFontFamilyName),
+          reinterpret_cast<uint8_t*>(s.dictionaryName),
+          sizeof(s.dictionaryName),
+          PluginLocations::anyPluginInstalledOnDisk,
+          [](uint8_t language) -> XpStoreBytes {
+            const char* code = language < getLanguageCount() ? LANGUAGE_CODES[language] : "EN";
+            return {reinterpret_cast<const uint8_t*>(code), strlen(code)};
+          },
+          [](const uint8_t* code) {
+            return static_cast<uint8_t>(I18n::languageFromCode(reinterpret_cast<const char*>(code)));
+          },
+          BoardConfig::hasHomeKey(),
+          CrossPointSettings::LONG_PRESS_MENU_FUNCTION_COUNT,
+          CrossPointSettings::SHORT_PWRBTN_COUNT};
 }
 
+struct FieldCodec {
+  std::string decoded;
+  String encoded;
+  XpSettingCodec ops() {
+    return {this,
+            [](void* ctx, XpStoreBytes value, size_t limit, uint32_t* status) {
+              auto& self = *static_cast<FieldCodec*>(ctx);
+              bool ok = false, tooLong = false;
+              self.decoded =
+                  obfuscation::deobfuscateFromBase64(reinterpret_cast<const char*>(value.data), limit, &ok, &tooLong);
+              *status = static_cast<uint32_t>(ok) | (static_cast<uint32_t>(tooLong) << 1);
+              return store_bridge::bytes(self.decoded);
+            },
+            [](void* ctx, const uint8_t* value) -> XpStoreBytes {
+              auto& self = *static_cast<FieldCodec*>(ctx);
+              self.encoded = obfuscation::obfuscateToBase64(reinterpret_cast<const char*>(value));
+              return {reinterpret_cast<const uint8_t*>(self.encoded.c_str()), self.encoded.length()};
+            },
+            [](void*, uint32_t event, const char* key) {
+              if (event == 1) LOG_ERR("CPS", "Misconfigured SettingInfo: stringMaxLen is 0 for key '%s'", key);
+              if (event == 2) LOG_ERR("CPS", "Oversized obfuscated value for key '%s'", key);
+            }};
+  }
+};
+
+bool transferSetting(CrossPointSettings& settings, const SettingInfo& info, const XpStoreJsonOps& json, bool save) {
+  FieldCodec codec;
+  const auto codecOps = codec.ops();
+  const XpSettingField field{info.key,
+                             info.valuePtr ? &(settings.*info.valuePtr) : nullptr,
+                             info.stringOffset ? reinterpret_cast<uint8_t*>(&settings) + info.stringOffset : nullptr,
+                             info.stringMaxLen,
+                             static_cast<uint32_t>(info.type),
+                             info.valueRange.min,
+                             info.type == SettingType::ENUM     ? static_cast<uint8_t>(info.enumLabels().size())
+                             : info.type == SettingType::TOGGLE ? uint8_t{2}
+                                                                : info.valueRange.max,
+                             info.obfuscated};
+  return xp_setting_field(&field, &json, &codecOps, save);
+}
 }  // namespace
 
-void CrossPointSettings::validateFrontButtonMapping(CrossPointSettings& settings) {
-  const uint8_t mapping[] = {settings.frontButtonBack, settings.frontButtonConfirm, settings.frontButtonLeft,
-                             settings.frontButtonRight};
-  for (size_t i = 0; i < 4; i++) {
-    for (size_t j = i + 1; j < 4; j++) {
-      if (mapping[i] == mapping[j]) {
-        settings.frontButtonBack = FRONT_HW_BACK;
-        settings.frontButtonConfirm = FRONT_HW_CONFIRM;
-        settings.frontButtonLeft = FRONT_HW_LEFT;
-        settings.frontButtonRight = FRONT_HW_RIGHT;
-        return;
-      }
-    }
-  }
+void CrossPointSettings::validateFrontButtonMapping(CrossPointSettings& s) {
+  uint8_t* front[] = {&s.frontButtonBack, &s.frontButtonConfirm, &s.frontButtonLeft, &s.frontButtonRight};
+  xp_setting_front(front);
 }
-
-uint8_t CrossPointSettings::sleepTimeoutEnumToMinutes(const uint8_t legacyValue) {
-  switch (legacyValue) {
-    case SLEEP_1_MIN:
-      return 1;
-    case SLEEP_5_MIN:
-      return 5;
-    case SLEEP_15_MIN:
-      return 15;
-    case SLEEP_30_MIN:
-      return 30;
-    case SLEEP_10_MIN:
-    default:
-      return 10;
-  }
+uint8_t CrossPointSettings::sleepTimeoutEnumToMinutes(uint8_t legacyValue) {
+  return xp_setting_sleep_minutes(legacyValue);
 }
-
 void CrossPointSettings::toJson(JsonDocument& doc) const {
-  const CrossPointSettings& s = *this;
-
-  auto visit = [&](const SettingInfo& info) {
-    if (!info.key) return;
-    // Dynamic entries (KOReader etc.) are stored in their own files — skip.
-    if (!info.valuePtr && !info.stringOffset) return;
-
-    if (info.stringOffset) {
-      const char* strPtr = (const char*)&s + info.stringOffset;
-      if (info.obfuscated) {
-        char obfKey[OBF_KEY_BUF];
-        snprintf(obfKey, sizeof(obfKey), "%s_obf", info.key);
-        doc[obfKey] = obfuscation::obfuscateToBase64(strPtr);
-      } else {
-        doc[info.key] = strPtr;
-      }
-    } else {
-      doc[info.key] = s.*(info.valuePtr);
-    }
-  };
+  auto& self = const_cast<CrossPointSettings&>(*this);
+  store_bridge::Json json(doc);
+  const auto ops = json.ops();
+  auto visit = [&](const SettingInfo& info) { transferSetting(self, info, ops, true); };
   forEachBaseSetting(visit);
-
-  // Front button remap — managed by RemapFrontButtons sub-activity, not in SettingsList.
-  doc["frontButtonBack"] = frontButtonBack;
-  doc["frontButtonConfirm"] = frontButtonConfirm;
-  doc["frontButtonLeft"] = frontButtonLeft;
-  doc["frontButtonRight"] = frontButtonRight;
-  // Font family and size — both use dynamic getter/setters in SettingsList (the
-  // option lists depend on the SD font registry), so the generic loop skips them.
-  doc["fontFamily"] = STORED_NOTOSANS;
-  doc["fontSize"] = fontPointSize;
-  // SD card font family name — not in SettingsList, save manually
-  if (sdFontFamilyName[0] != '\0') {
-    doc["sdFontFamilyName"] = sdFontFamilyName;
-  }
-  // Dictionary folder name — uses dynamic getter/setter in SettingsList, save manually
-  if (dictionaryName[0] != '\0') {
-    doc["dictionaryName"] = dictionaryName;
-  }
-  // The displayed option list varies by board, so this setting uses a dynamic
-  // display-index mapping and is skipped by the generic persistence loop.
-  doc["longPressMenuFunction"] = longPressMenuFunction;
-  doc["shortPwrBtn"] = shortPwrBtn;
-
-  // Language -- managed by LanguageSelectActivity, not in SettingsList.
-  // Stored as ISO code string ("EN", "DE", ...) for stability across enum reorders.
-  doc["language"] = (language < getLanguageCount()) ? LANGUAGE_CODES[language] : "EN";
-
-  // A uint16_t mask, so it does not fit the uint8_t generic loop. Omitted while
-  // unconfigured, so the default keeps following the UI language.
-  if (keyboardLayouts != 0) {
-    doc["keyboardLayouts"] = keyboardLayouts;
-  }
-
+  const auto settings = view(self);
+  xp_settings_tail(&settings, &ops, true);
   bleturner::writeJson(ble, doc);
 }
-
 bool CrossPointSettings::fromJson(JsonVariantConst doc) {
-  CrossPointSettings& s = *this;
+  store_bridge::JsonInput json(doc);
+  const auto ops = json.ops();
   bool needsResave = false;
-
-  auto clamp = [](uint8_t val, uint8_t maxVal, uint8_t def) -> uint8_t { return val < maxVal ? val : def; };
-
-  auto visit = [&](const SettingInfo& info) {
-    if (!info.key) return;
-    // Dynamic entries (KOReader etc.) are stored in their own files — skip.
-    if (!info.valuePtr && !info.stringOffset) return;
-
-    if (info.stringOffset) {
-      // destPtr starts out holding the struct-initializer default; it stays that
-      // way unless the document actually carries a value for this key.
-      char* destPtr = (char*)&s + info.stringOffset;
-      if (info.stringMaxLen == 0) {
-        LOG_ERR("CPS", "Misconfigured SettingInfo: stringMaxLen is 0 for key '%s'", info.key);
-        destPtr[0] = '\0';
-        needsResave = true;
-        return;
-      }
-
-      bool loaded = false;
-      if (info.obfuscated) {
-        char obfKey[OBF_KEY_BUF];
-        snprintf(obfKey, sizeof(obfKey), "%s_obf", info.key);
-        bool ok = false;
-        bool tooLong = false;
-        const std::string decoded =
-            obfuscation::deobfuscateFromBase64(doc[obfKey] | "", info.stringMaxLen - 1, &ok, &tooLong);
-        if (tooLong) {
-          LOG_ERR("CPS", "Oversized obfuscated value for key '%s'", info.key);
-          needsResave = true;
-        }
-        if (ok && !decoded.empty()) {
-          copyToField(destPtr, decoded.c_str(), info.stringMaxLen);
-          loaded = true;
-        }
-      }
-      if (!loaded) {
-        // Read as const char*, never `| std::string(...)`: ArduinoJson's
-        // std::string converter drags a per-TU copy of the serializer into
-        // flash. See the note in PersistableStore.h.
-        const char* raw = doc[info.key].is<const char*>() ? doc[info.key].as<const char*>() : nullptr;
-        if (raw) {
-          // Obfuscated field recovered from a legacy plaintext value -> resave.
-          if (info.obfuscated && strcmp(raw, destPtr) != 0) needsResave = true;
-          copyToField(destPtr, raw, info.stringMaxLen);
-        }
-      }
-    } else {
-      const uint8_t fieldDefault = s.*(info.valuePtr);  // struct-initializer default, read before we overwrite it
-      uint8_t v = doc[info.key] | fieldDefault;
-      if (info.type == SettingType::ENUM) {
-        v = clamp(v, (uint8_t)info.enumLabels().size(), fieldDefault);
-      } else if (info.type == SettingType::TOGGLE) {
-        v = clamp(v, (uint8_t)2, fieldDefault);
-      } else if (info.type == SettingType::VALUE) {
-        if (v < info.valueRange.min)
-          v = info.valueRange.min;
-        else if (v > info.valueRange.max)
-          v = info.valueRange.max;
-      }
-      s.*(info.valuePtr) = v;
-    }
-  };
+  auto visit = [&](const SettingInfo& info) { needsResave |= transferSetting(*this, info, ops, false); };
   forEachBaseSetting(visit);
-
-  // Plugin System did not exist in older settings files. Preserve the behavior
-  // of users who already have SD plugins installed, while keeping the new
-  // default disabled on clean installs.
-  if (doc["pluginsEnabled"].isNull()) {
-    pluginsEnabled = PluginLocations::anyPluginInstalledOnDisk() ? 1 : 0;
-    needsResave = true;
-  }
-
-  const auto indentSpaces = doc["paragraphIndentSpaces"];
-  const bool hasSavedWidth = indentSpaces.is<int>();
-  const int savedWidth = hasSavedWidth ? indentSpaces.as<int>() : 0;
-  paragraphIndentSpaces = migrateParagraphIndentSpaces(hasSavedWidth, savedWidth, extraParagraphSpacing != 0);
-  if (!hasSavedWidth || savedWidth < 0 || savedWidth > 5) needsResave = true;
-
-  // Older files stored one combined touch mode under "touchReaderControls":
-  // 0=off, 1=tap, 2=swipe, 3=inverted tap. Split it into the master toggle
-  // plus the per-direction gesture pair (the generic loop above already folded
-  // out-of-range toggle values back to the On default).
-  if (doc["pageTurnGesture"].isNull() && doc["previousPageGesture"].isNull() &&
-      doc["touchReaderControls"].is<uint8_t>()) {
-    const uint8_t mode = doc["touchReaderControls"].as<uint8_t>();
-    if (mode >= 1 && mode <= 3) {
-      touchReaderControls = TOUCH_READER_ON;
-      pageTurnGesture = mode == 1 ? TAP_ONLY : mode == 2 ? SWIPE_ONLY : INVERTED_TAP;
-      previousPageGesture = pageTurnGesture;
-      needsResave = true;
-    }
-  }
-
-  if (doc["sleepTimeoutMinutes"].isNull() && !doc["sleepTimeout"].isNull()) {
-    const uint8_t legacyValue =
-        clamp(doc["sleepTimeout"] | (uint8_t)SLEEP_10_MIN, SLEEP_TIMEOUT_COUNT, (uint8_t)SLEEP_10_MIN);
-    sleepTimeoutMinutes = sleepTimeoutEnumToMinutes(legacyValue);
-    needsResave = true;
-  }
-  // Front button remap — managed by RemapFrontButtons sub-activity, not in SettingsList.
-  frontButtonBack = clamp(doc["frontButtonBack"] | (uint8_t)FRONT_HW_BACK, FRONT_BUTTON_HARDWARE_COUNT, FRONT_HW_BACK);
-  frontButtonConfirm =
-      clamp(doc["frontButtonConfirm"] | (uint8_t)FRONT_HW_CONFIRM, FRONT_BUTTON_HARDWARE_COUNT, FRONT_HW_CONFIRM);
-  frontButtonLeft = clamp(doc["frontButtonLeft"] | (uint8_t)FRONT_HW_LEFT, FRONT_BUTTON_HARDWARE_COUNT, FRONT_HW_LEFT);
-  frontButtonRight =
-      clamp(doc["frontButtonRight"] | (uint8_t)FRONT_HW_RIGHT, FRONT_BUTTON_HARDWARE_COUNT, FRONT_HW_RIGHT);
-  validateFrontButtonMapping(s);
-
-  // Reader font size — an actual point size since 1.5. Files written by 1.4 and
-  // earlier hold the old SMALL/MEDIUM/LARGE/EXTRA_LARGE slot in 0..3; no font is
-  // renderable at those sizes, so the range is unambiguous and folds to the
-  // point sizes those slots used to mean. Drop this once 1.4 upgrades are done.
-  uint8_t storedFontSize = doc["fontSize"] | DEFAULT_FONT_POINT_SIZE;
-  if (storedFontSize <= LEGACY_FONT_SIZE_MAX) {
-    storedFontSize = 12 + storedFontSize * 2;  // 0,1,2,3 -> 12,14,16,18
-    needsResave = true;
-  }
-  fontPointSize = storedFontSize;
-
-  // Font family — uses dynamic getter/setter in SettingsList so the generic loop skips it.
-  const uint8_t storedFontFamily = doc["fontFamily"] | STORED_NOTOSANS;
-  fontFamily = NOTOSANS;
-  // These controls use board-specific display-index mappings and are skipped by
-  // the generic settings loop. Persisted action IDs remain stable across boards.
-  longPressMenuFunction = clamp(doc["longPressMenuFunction"] | (uint8_t)LP_MENU_DISABLED,
-                                (uint8_t)LONG_PRESS_MENU_FUNCTION_COUNT, (uint8_t)LP_MENU_DISABLED);
-  shortPwrBtn = clamp(doc["shortPwrBtn"] | (uint8_t)IGNORE, (uint8_t)SHORT_PWRBTN_COUNT, (uint8_t)IGNORE);
-  if (BoardConfig::hasHomeKey() && doc["homeButtonLongPressAction"].isNull() &&
-      !doc["longPressMenuFunction"].isNull()) {
-    static constexpr HomeButtonAction LEGACY[] = {HomeButtonAction::Sync,       HomeButtonAction::Ignore,
-                                                  HomeButtonAction::Bookmark,   HomeButtonAction::Dictionary,
-                                                  HomeButtonAction::ReaderMenu, HomeButtonAction::CreateClipping};
-    if (s.longPressMenuFunction < sizeof(LEGACY) / sizeof(LEGACY[0])) {
-      s.homeButtonLongPressAction = static_cast<uint8_t>(LEGACY[s.longPressMenuFunction]);
-      needsResave = true;
-    }
-  }
-
-  // SD card font family name — not in SettingsList, load manually
-  const char* sfn = doc["sdFontFamilyName"] | "";
-  strncpy(sdFontFamilyName, sfn, sizeof(sdFontFamilyName) - 1);
-  sdFontFamilyName[sizeof(sdFontFamilyName) - 1] = '\0';
-  if (sdFontFamilyName[0] == '\0') {
-    switch (storedFontFamily) {
-      case LEGACY_NOTOSERIF:
-        copyToField(sdFontFamilyName, "NotoSerif", sizeof(sdFontFamilyName));
-        break;
-      case LEGACY_OPENDYSLEXIC:
-        copyToField(sdFontFamilyName, "OpenDyslexic", sizeof(sdFontFamilyName));
-        break;
-    }
-  }
-  if (storedFontFamily != STORED_NOTOSANS) needsResave = true;
-  // Dictionary folder name — uses dynamic getter/setter in SettingsList, load manually
-  copyToField(dictionaryName, doc["dictionaryName"] | "", sizeof(dictionaryName));
-  // Language -- stored as code string for stability across enum reorders.
-  if (doc["language"].is<const char*>()) {
-    language = static_cast<uint8_t>(I18n::languageFromCode(doc["language"].as<const char*>()));
-  }
-
-  // Absent means unconfigured, which is the default.
-  if (doc["keyboardLayouts"].is<uint16_t>()) {
-    keyboardLayouts = doc["keyboardLayouts"].as<uint16_t>();
-  }
-
-  if (!bleturner::readJson(ble, doc)) {
-    needsResave = true;
-  }
-
+  const auto settings = view(*this);
+  needsResave |= xp_settings_tail(&settings, &ops, false);
+  if (!bleturner::readJson(ble, doc)) needsResave = true;
   if (needsResave) {
     LOG_DBG("CPS", "Resaving settings to update format");
     requestResave();
   }
-
   LOG_DBG("CPS", "Settings loaded from file");
-
   return true;
 }
 
@@ -341,62 +165,12 @@ ReaderRenderSpec CrossPointSettings::readerRenderSpec(const uint16_t viewportWid
 }
 
 float CrossPointSettings::getReaderLineCompression() const {
-  // One scale for all SD card fonts, whatever their format: .cpfont and vector
-  // fonts both take their line height from FreeType's size metrics. Same values
-  // as the former built-in Noto Serif; Normal keeps the font's own line height.
-  if (sdFontFamilyName[0] != '\0') {
-    switch (lineSpacing) {
-      case TIGHT:
-        return 0.95f;
-      case NORMAL:
-      default:
-        return 1.0f;
-      case WIDE:
-        return 1.1f;
-      case EXTRA_WIDE:
-        return 1.2f;
-    }
-  }
-
-  switch (lineSpacing) {
-    case TIGHT:
-      return 0.90f;
-    case NORMAL:
-    default:
-      return 0.95f;
-    case WIDE:
-      return 1.0f;
-    case EXTRA_WIDE:
-      return 1.05f;
-  }
+  return xp_setting_line_compression(sdFontFamilyName[0] != 0, lineSpacing);
 }
 
-unsigned long CrossPointSettings::getSleepTimeoutMs() const {
-  if (sleepTimeoutMinutes >= SLEEP_TIMEOUT_NEVER_MINUTES) return 0UL;
-  const uint8_t minutes =
-      std::clamp(sleepTimeoutMinutes, MIN_SLEEP_TIMEOUT_MINUTES, static_cast<uint8_t>(SLEEP_TIMEOUT_NEVER_MINUTES - 1));
-  return static_cast<unsigned long>(minutes) * 60UL * 1000UL;
-}
+unsigned long CrossPointSettings::getSleepTimeoutMs() const { return xp_setting_sleep_ms(sleepTimeoutMinutes); }
 
-int CrossPointSettings::getRefreshFrequency() const {
-  switch (refreshFrequency) {
-    case REFRESH_1:
-      return 1;
-    case REFRESH_5:
-      return 5;
-    case REFRESH_10:
-      return 10;
-    case REFRESH_15:
-    default:
-      return 15;
-    case REFRESH_30:
-      return 30;
-    case REFRESH_NEVER:
-      // Effectively disables the periodic full refresh; the page counter
-      // counts down from here and never reaches the threshold in practice.
-      return std::numeric_limits<int>::max();
-  }
-}
+int CrossPointSettings::getRefreshFrequency() const { return xp_setting_refresh(refreshFrequency); }
 
 void CrossPointSettings::clearSdFontFamily() {
   sdFontFamilyName[0] = '\0';

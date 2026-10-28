@@ -10,4 +10,4 @@ inline String encode(const uint8_t* p, size_t n) {
   out.resize(size);
   return out;
 }
-}
+}  // namespace base64

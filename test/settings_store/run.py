@@ -38,8 +38,13 @@ def corpus():
         cases[kind] = inputs
     cases['settings'] += [json.dumps({key: value}) for key in ['sleepScreen', 'wordSpacing', 'fontSize', 'fontFamily', 'frontButtonBack', 'touchReaderControls', 'sleepTimeout', 'paragraphIndentSpaces', 'longPressMenuFunction', 'shortPwrBtn', 'keyboardLayouts', 'language', 'opdsDownloadFolder'] for value in [None, True, -1, 0, 1, 2, 3, 4, 5, 6, 7, 255, 256, 65535, 65536, 'KO', [], {}, 'x'*128]]
     cases['settings-home'] = cases['settings']
+    for n in [2047, 2048, 2049]:
+        encoded = base64.b64encode(b'x' * n).decode()
+        cases['tokens'].append(json.dumps({'tokens': [{'url': 'limit', 'access_obf': encoded, 'refresh_obf': encoded}]}))
     cases['obf'] = ['', '!', '====', 'AA', 'AAA', 'AAAA', 'AA==', 'AAA=', 'AA A', 'AAAA ', 'AAAA\t', 'AA=A']
     cases['obf'] += [base64.b64encode(bytes(range(i))).decode() for i in range(100)]
+    cases['alloc-recent'] = [str(i) for i in range(30)]
+    cases['alloc-opds'] = [str(i) for i in range(30)]
     cases['actions'] = ['0', '1']
     cases['buffer'] = [str(i) for i in range(100)]
     return cases
@@ -51,7 +56,6 @@ def main():
     p.add_argument('--arduinojson', type=Path, required=True)
     p.add_argument('--mbedtls', type=Path, required=True)
     p.add_argument('--archive', type=Path)
-    p.add_argument('--extra-object', type=Path)
     p.add_argument('--record', type=Path)
     p.add_argument('--golden', type=Path, default=HERE/'golden.json.gz')
     args = p.parse_args()
@@ -70,8 +74,6 @@ def main():
     assert declaration
     languages.write_text('#include <I18nKeys.h>\n' + declaration.group())
     sources += [settings_source, languages]
-    if args.extra_object:
-        sources += [args.extra_object]
     if args.archive:
         sources += [ROOT/'test/cmake/xp_ffi_host.cpp', args.archive]
     subprocess.run(['c++', '-std=c++20', '-O2', '-DARDUINOJSON_ENABLE_ARDUINO_STRING=0', '-DARDUINOJSON_ENABLE_ARDUINO_STREAM=0', '-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0', *flags, *map(str, sources), str(args.build/'base64.o'), '-o', str(args.build/'oracle')], check=True)

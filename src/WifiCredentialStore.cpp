@@ -3,133 +3,89 @@
 #include <CredentialIntegrity.h>
 #include <Logging.h>
 #include <ObfuscationUtils.h>
+#include <StoreBridge.h>
 
 #include <algorithm>
 
+namespace {
+template <typename T>
+std::string& rowField(T& row, uint32_t field) {
+  switch (field) {
+    case 0:
+      return row.ssid;
+    case 1:
+      return row.password;
+    default:
+      return row.ssid;
+  }
+}
+
+}  // namespace
+
 void WifiCredentialStore::toJson(JsonDocument& doc) const {
   std::lock_guard<std::mutex> lock(credentialMutex);
-  doc["lastConnectedSsid"] = lastConnectedSsid;
-
-  JsonArray arr = doc["credentials"].to<JsonArray>();
-  for (const auto& cred : credentials) {
-    JsonObject obj = arr.add<JsonObject>();
-    obj["ssid"] = cred.ssid;
-    obj["password_obf"] = obfuscation::obfuscateToBase64(cred.password);
-    // XOR and base64 must round-trip to exactly this many bytes. Keeping the
-    // original length lets the loader reject a decodable-but-corrupted value
-    // instead of silently trying a different password.
-    obj["password_len"] = cred.password.size();
-    obj["password_crc32"] = credential_integrity::crc32(cred.password);
-  }
+  store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{const_cast<std::vector<WifiCredential>&>(credentials),
+                                                             nullptr, rowField<WifiCredential>,
+                                                             const_cast<std::string*>(&lastConnectedSsid)};
+  store_bridge::save(XP_STOREKIND_WIFI, doc, rows);
 }
 
 bool WifiCredentialStore::fromJson(JsonVariantConst doc) {
   std::lock_guard<std::mutex> lock(credentialMutex);
-  lastConnectedSsid = doc["lastConnectedSsid"] | "";
-
-  // Tolerate a missing/invalid 'credentials' key (treat as empty list); only
-  // a JSON parse error is fatal. A null JsonArray iterates zero times.
-  credentials.clear();
-  JsonArrayConst arr = doc["credentials"].as<JsonArrayConst>();
-  credentials.reserve(std::min(arr.size(), MAX_NETWORKS));
-  bool needsResave = false;
-
-  for (JsonObjectConst obj : arr) {
-    if (credentials.size() >= MAX_NETWORKS) break;
-    WifiCredential cred;
-    cred.ssid = obj["ssid"] | "";
-
-    const JsonVariantConst passwordLength = obj["password_len"];
-    const bool hasPasswordLength = !passwordLength.isNull();
-    size_t expectedLength = 0;
-    if (hasPasswordLength) {
-      if (!passwordLength.is<size_t>()) {
-        LOG_ERR("WCS", "Discarding corrupted password for %s (invalid length)", cred.ssid.c_str());
-        needsResave = true;
-        continue;
-      }
-      expectedLength = passwordLength.as<size_t>();
-      if (expectedLength > MAX_PASSWORD_LENGTH) {
-        LOG_ERR("WCS", "Discarding oversized password for %s (%zu bytes)", cred.ssid.c_str(), expectedLength);
-        needsResave = true;
-        continue;
-      }
+  WifiCredential scratch;
+  store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{credentials, &scratch, rowField<WifiCredential>,
+                                                             &lastConnectedSsid};
+  const auto diagnostic = +[](void* ctx, uint32_t event, size_t a, size_t b, size_t) {
+    const auto& ssid =
+        static_cast<store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI>*>(static_cast<store_bridge::RowStrings*>(ctx))
+            ->scratch->ssid;
+    switch (event) {
+      case XP_ROWEVENT_INVALIDLENGTH:
+        LOG_ERR("WCS", "Discarding corrupted password for %s (invalid length)", ssid.c_str());
+        break;
+      case XP_ROWEVENT_OVERSIZELENGTH:
+        LOG_ERR("WCS", "Discarding oversized password for %s (%zu bytes)", ssid.c_str(), a);
+        break;
+      case XP_ROWEVENT_OVERSIZEPASSWORD:
+        LOG_ERR("WCS", "Discarding oversized password for %s", ssid.c_str());
+        break;
+      case XP_ROWEVENT_LENGTHMISMATCH:
+        LOG_ERR("WCS", "Discarding corrupted password for %s (expected %zu bytes, decoded %zu)", ssid.c_str(), a, b);
+        break;
+      case XP_ROWEVENT_CHECKSUMMISMATCH:
+        LOG_ERR("WCS", "Discarding corrupted password for %s (checksum mismatch)", ssid.c_str());
+        break;
+      case XP_ROWEVENT_INVALIDCHECKSUM:
+        LOG_ERR("WCS", "Discarding corrupted password for %s (invalid checksum)", ssid.c_str());
+        break;
+      case XP_ROWEVENT_LOADED:
+        LOG_DBG("WCS", "Loaded %zu WiFi credentials from file", a);
+        break;
+      case XP_ROWEVENT_RESAVE:
+        LOG_DBG("WCS", "Resaving JSON with obfuscated passwords");
+        break;
+      default:
+        break;
     }
-
-    bool passwordValid = false;
-    cred.password = extractPassword(obj, needsResave, MAX_PASSWORD_LENGTH, passwordValid);
-    if (!passwordValid) {
-      LOG_ERR("WCS", "Discarding oversized password for %s", cred.ssid.c_str());
-      needsResave = true;
-      continue;
-    }
-
-    bool integrityValid = true;
-    if (hasPasswordLength) {
-      if (cred.password.size() != expectedLength) {
-        LOG_ERR("WCS", "Discarding corrupted password for %s (expected %zu bytes, decoded %zu)", cred.ssid.c_str(),
-                expectedLength, cred.password.size());
-        integrityValid = false;
-      }
-    } else {
-      // Upgrade existing JSON after it has loaded successfully.
-      needsResave = true;
-    }
-
-    const JsonVariantConst checksum = obj["password_crc32"];
-    if (checksum.is<uint32_t>()) {
-      const uint32_t expectedCrc32 = checksum.as<uint32_t>();
-      if (credential_integrity::crc32(cred.password) != expectedCrc32) {
-        LOG_ERR("WCS", "Discarding corrupted password for %s (checksum mismatch)", cred.ssid.c_str());
-        integrityValid = false;
-      }
-    } else if (checksum.isNull()) {
-      // password_crc32 was added after password_len; accept and upgrade files
-      // written by older firmware.
-      needsResave = true;
-    } else {
-      LOG_ERR("WCS", "Discarding corrupted password for %s (invalid checksum)", cred.ssid.c_str());
-      integrityValid = false;
-    }
-
-    if (!integrityValid) {
-      needsResave = true;
-      continue;
-    }
-    credentials.push_back(cred);
-  }
-
-  LOG_DBG("WCS", "Loaded %zu WiFi credentials from file", credentials.size());
-
-  if (needsResave) {
-    LOG_DBG("WCS", "Resaving JSON with obfuscated passwords");
-    requestResave();
-  }
-
+  };
+  if (store_bridge::load(XP_STOREKIND_WIFI, doc, rows, diagnostic)) requestResave();
   return true;
 }
 
 bool WifiCredentialStore::addCredential(const std::string& ssid, const std::string& password) {
   {
     std::lock_guard<std::mutex> lock(credentialMutex);
-
-    // Check if this SSID already exists and update it
-    const auto cred = find_if(credentials.begin(), credentials.end(),
-                              [&ssid](const WifiCredential& cred) { return cred.ssid == ssid; });
-    if (cred != credentials.end()) {
-      cred->password = password;
-      LOG_DBG("WCS", "Updated credentials for: %s", ssid.c_str());
-    } else {
-      // Check if we've reached the limit
-      if (credentials.size() >= MAX_NETWORKS) {
-        LOG_DBG("WCS", "Cannot add more networks, limit of %zu reached", MAX_NETWORKS);
-        return false;
-      }
-
-      // Add new credential
-      credentials.push_back({ssid, password});
-      LOG_DBG("WCS", "Added credentials for: %s", ssid.c_str());
+    WifiCredential scratch;
+    store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{credentials, &scratch, rowField<WifiCredential>};
+    const auto ops = rows.ops(nullptr);
+    const XpStoreBytes args[] = {store_bridge::bytes(ssid), store_bridge::bytes(password)};
+    const auto action = xp_store_mutate(&ops, XP_MUTATION_WIFIUPSERT, args);
+    if (action == XP_MUTATIONRESULT_REJECTED) {
+      LOG_DBG("WCS", "Cannot add more networks, limit of %zu reached", MAX_NETWORKS);
+      return false;
     }
+    if (action == XP_MUTATIONRESULT_UPDATED) LOG_DBG("WCS", "Updated credentials for: %s", ssid.c_str());
+    if (action == XP_MUTATIONRESULT_INSERTED) LOG_DBG("WCS", "Added credentials for: %s", ssid.c_str());
   }
   return saveToFile();
 }
@@ -137,29 +93,23 @@ bool WifiCredentialStore::addCredential(const std::string& ssid, const std::stri
 bool WifiCredentialStore::removeCredential(const std::string& ssid) {
   {
     std::lock_guard<std::mutex> lock(credentialMutex);
-    const auto cred = find_if(credentials.begin(), credentials.end(),
-                              [&ssid](const WifiCredential& cred) { return cred.ssid == ssid; });
-    if (cred == credentials.end()) {
-      return false;  // Not found
-    }
-    credentials.erase(cred);
+    store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{credentials, nullptr, rowField<WifiCredential>,
+                                                               &lastConnectedSsid};
+    const auto ops = rows.ops(nullptr);
+    const auto key = store_bridge::bytes(ssid);
+    if (xp_store_mutate(&ops, XP_MUTATION_WIFIREMOVE, &key) == XP_MUTATIONRESULT_REJECTED) return false;
     LOG_DBG("WCS", "Removed credentials for: %s", ssid.c_str());
-    if (ssid == lastConnectedSsid) lastConnectedSsid.clear();
   }
   return saveToFile();
 }
 
 std::optional<WifiCredential> WifiCredentialStore::findCredential(const std::string& ssid) const {
   std::lock_guard<std::mutex> lock(credentialMutex);
-
-  const auto cred = find_if(credentials.begin(), credentials.end(),
-                            [&ssid](const WifiCredential& cred) { return cred.ssid == ssid; });
-
-  if (cred != credentials.end()) {
-    return *cred;
-  }
-
-  return std::nullopt;
+  store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{const_cast<std::vector<WifiCredential>&>(credentials),
+                                                             nullptr, rowField<WifiCredential>};
+  const auto ops = rows.ops(nullptr);
+  const auto index = xp_store_find(&ops, 0, store_bridge::bytes(ssid));
+  return index == SIZE_MAX ? std::nullopt : std::optional<WifiCredential>(credentials[index]);
 }
 
 std::optional<WifiCredential> WifiCredentialStore::getCredentialAt(const size_t index) const {
@@ -191,15 +141,19 @@ std::vector<WifiCredentialSummary> WifiCredentialStore::getCredentialSummaries()
 
 bool WifiCredentialStore::hasSavedCredential(const std::string& ssid) const {
   std::lock_guard<std::mutex> lock(credentialMutex);
-  return find_if(credentials.begin(), credentials.end(),
-                 [&ssid](const WifiCredential& cred) { return cred.ssid == ssid; }) != credentials.end();
+  store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{const_cast<std::vector<WifiCredential>&>(credentials),
+                                                             nullptr, rowField<WifiCredential>};
+  const auto ops = rows.ops(nullptr);
+  return xp_store_find(&ops, 0, store_bridge::bytes(ssid)) != SIZE_MAX;
 }
 
 void WifiCredentialStore::setLastConnectedSsid(const std::string& ssid) {
   {
     std::lock_guard<std::mutex> lock(credentialMutex);
-    if (lastConnectedSsid == ssid) return;
-    lastConnectedSsid = ssid;
+    store_bridge::Rows<WifiCredential, XP_STOREKIND_WIFI> rows{credentials, nullptr, rowField<WifiCredential>,
+                                                               &lastConnectedSsid};
+    const auto ops = rows.ops(nullptr);
+    if (!xp_store_last_connected(&ops, store_bridge::bytes(ssid))) return;
   }
   saveToFile();
 }

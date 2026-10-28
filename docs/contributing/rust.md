@@ -55,7 +55,7 @@ cargo test -p xp-core -p xp-gif
 ```
 
 The release profile uses `opt-level = "s"` to balance code size and chapter-build
-speed, with fat LTO, one codegen unit, and abort-on-panic behavior.
+speed, with fat LTO, eight codegen units, and abort-on-panic behavior.
 The decoder packages `miniz_oxide` and `xp-gif` use `opt-level = 3` in
 [`rust/Cargo.toml`](../../rust/Cargo.toml) to keep inflate and GIF decoding within
 their timing budgets; the rest keeps `"s"`. `xp-gif` is the local, dependency-free
@@ -63,6 +63,20 @@ package under [`rust/crates/xp-core/src/gif/decoder`](../../rust/crates/xp-core/
 reexported by `xp-core::gif`.
 Overflow checks retain the release default (off); hash arithmetic wraps
 explicitly. Debug symbols remain in the ELF, not the firmware binary.
+
+With the pinned toolchains, eight codegen units saved 560 bytes on C3 and
+272 bytes on S3 versus one unit. In the default C3 eink-qemu runs, Korean,
+English, mixed matrix, mixed tables, and mixed PNG workloads had identical
+pixels and heap snapshots across three interleaved runs per profile. No recorded
+timing metric's median increased by more than 3 ms plus its baseline range
+(maximum minus minimum). The Korean full chapter build had medians of 2,769 ms
+with one unit and 2,771 ms with eight; baseline samples ranged from 2,768 to
+2,778 ms, and eight-unit samples from 2,771 to 2,775 ms.
+
+Fat LTO still emits one xp-ffi machine-code object. FFI-only `"z"` saved about
+6 KB but increased open/page-render times by up to 26 ms in the original default
+C3 eink-qemu comparison of those five workloads; keep `"s"`. These runtime
+results do not establish device timing or S3 runtime behavior.
 
 For C3 firmware, the build script enables LLVM's `--force-dwarf-frame-section`
 option so the Rust LTO object retains call-frame information in `.debug_frame`.
@@ -109,6 +123,44 @@ logs the ABI version and result. It borrows a constant buffer and allocates
 nothing. Future Rust allocations use byte-addressable internal RAM and must
 have an explicit budget and failure policy; the allocator returns null on OOM.
 Rust panics call C `abort()` to enter the existing ESP-IDF panic path.
+
+## Rust size rules
+
+Measure the linked image from the same worktree path and profile. Compare
+`firmware.bin`, `.flash.text`, `.flash.rodata`, and static RAM; archive size
+includes exports that the firmware may discard. [`scripts/rust_size.py`](../../scripts/rust_size.py) compares
+saved build directories with the selected target's binutils and counts symbol
+aliases once. Count the remaining C++ facade and callback adapters as part of a
+port. A small Rust entry point can move its cost into shared callees.
+
+Keep internal records naturally aligned when their fields need no padding.
+Read packed input through the existing unaligned-copy boundary and assert wire
+sizes and offsets. In the library port, changing only the internal record
+alignment saved 622 C3 / 621 S3 bytes of archive code without changing the
+64-byte header or 128-byte record. Do not apply this to formats that need padding.
+
+Use bounded, shared algorithms where they remove measured duplication. The
+library's shared sorter and bounded author-token sort reduced linked C3 sorting
+code by 752 bytes. Keep fallible allocation and input checks; the shared panic
+runtime did not grow in the library, BLE, settings, or display ports.
+
+Inspect repeated callback setup and value copies before adding inline hints.
+Rust LTO cannot inline through the separately compiled C++ services. Preserve
+callback lifetime and synchronization contracts when changing these boundaries.
+Seven BLE helpers marked cold and non-inline grew C3 archive code by 68 bytes
+while saving 167 bytes on S3. A separate BLE policy crate at `"z"` grew code by
+116 / 133 bytes. Neither is a general size rule.
+
+Keep ordinary Rust iteration and target-sized indices unless measurement shows
+a benefit. Both firmware targets have 32-bit `usize`; changing it to `u32` does
+not narrow arithmetic. A bounded-slice rewrite of BLE lookup grew archive code
+by 14 / 26 bytes. Check both targets, real text/page goldens, and reader timing
+before retaining an optimization profile or source rewrite.
+
+Function prologue sizes do not bound peak task stack use. Inlining and outlining
+can move stack space between callers and callees whose frames coexist. Device
+stack high-water marks and timing remain to be qualified on C3 and S3; default
+C3 eink-qemu measurements do not establish hardware or S3 runtime behavior.
 
 ## Diagnostics
 

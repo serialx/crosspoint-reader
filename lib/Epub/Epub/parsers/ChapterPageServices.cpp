@@ -191,6 +191,74 @@ const XpChapterSink ChapterPageAssembler::sink_ = {
     },
     [](void*, const XpChapterTrace* record) { (void)record; },
     [](void*, XpChapterSpan record) { (void)record; },
+    [](void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t, const uint8_t* text, uint32_t length) {
+      switch (static_cast<XpChapterDiagnostic>(event)) {
+        case XpChapterDiagnostic::BorderBox:
+          LOG_ERR("EHP", "OOM: PageBorderBox");
+          break;
+        case XpChapterDiagnostic::DropCap:
+          LOG_ERR("EHP", "OOM: PageDropCap");
+          break;
+        case XpChapterDiagnostic::Paragraph:
+          LOG_ERR("EHP", "OOM: ParsedText");
+          break;
+        case XpChapterDiagnostic::HorizontalRule:
+          LOG_ERR("EHP", "Failed to create PageHorizontalRule");
+          break;
+        case XpChapterDiagnostic::RowSeparator:
+          LOG_ERR("EHP", "OOM: table row separator");
+          break;
+        case XpChapterDiagnostic::CellBorder:
+          LOG_ERR("EHP", "OOM: table cell border");
+          break;
+        case XpChapterDiagnostic::TableCell:
+          LOG_ERR("EHP", "OOM: table cell");
+          break;
+        case XpChapterDiagnostic::ImageBlock:
+          LOG_ERR("EHP", "Failed to create ImageBlock");
+          break;
+        case XpChapterDiagnostic::PageImage:
+          LOG_ERR("EHP", "Failed to create PageImage");
+          break;
+        case XpChapterDiagnostic::CharacterParagraph:
+          LOG_ERR("EHP", "OOM: text block for character data");
+          break;
+        case XpChapterDiagnostic::AfterTableParagraph:
+          LOG_ERR("EHP", "OOM: text block after table");
+          break;
+        case XpChapterDiagnostic::PageLine:
+          LOG_ERR("EHP", "OOM: PageLine");
+          break;
+        case XpChapterDiagnostic::NoParagraph:
+          LOG_ERR("EHP", "!! No text block to make pages for !!");
+          break;
+        case XpChapterDiagnostic::SoftFlush:
+          LOG_DBG("EHP", "Text block soft flush (%u words)", static_cast<unsigned>(a));
+          break;
+        case XpChapterDiagnostic::NestedTable:
+          LOG_DBG("EHP", "nested table flattened into enclosing cell");
+          break;
+        case XpChapterDiagnostic::ImageCssBoth:
+          LOG_DBG("EHP", "Display size from CSS height+width: %dx%d", static_cast<int32_t>(a), static_cast<int32_t>(b));
+          break;
+        case XpChapterDiagnostic::ImageCssHeight:
+          LOG_DBG("EHP", "Display size from CSS height: %dx%d", static_cast<int32_t>(a), static_cast<int32_t>(b));
+          break;
+        case XpChapterDiagnostic::ImageCssWidth:
+          LOG_DBG("EHP", "Display size from CSS width: %dx%d", static_cast<int32_t>(a), static_cast<int32_t>(b));
+          break;
+        case XpChapterDiagnostic::ImageScale: {
+          float scale;
+          memcpy(&scale, &c, sizeof(scale));
+          LOG_DBG("EHP", "Display size: %dx%d (scale %.2f)", static_cast<int32_t>(a), static_cast<int32_t>(b), scale);
+          break;
+        }
+        case XpChapterDiagnostic::DroppedLink:
+          LOG_DBG("EHP", "Dropped page link: %.*s", static_cast<int>(std::min<uint32_t>(length, 48)),
+                  reinterpret_cast<const char*>(text));
+          break;
+      }
+    },
 };
 
 bool ChapterPageAssembler::ensureSemantics() {

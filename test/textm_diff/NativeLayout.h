@@ -13,7 +13,7 @@ inline void nativeLayout(Test& test, const XpNativeProvider& provider) {
     return 1;
   };
   metrics.prepare = [](void*, int32_t, const XpParaSpan*, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t) {};
-  const XpParaAllocator allocator{std::malloc, std::free};
+  const XpParaAllocator allocator{[](size_t bytes, uint8_t) { return std::malloc(bytes); }, std::free};
   constexpr const char* words[] = {"office",      "AVATAR",     "discretionary", "internationalization",
                                    "measurement", "rendering",  "reader",        "a",
                                    "font",        "hyphenation"};

@@ -26,8 +26,9 @@ impl<T: Copy> Array<T> {
         if bytes == 0 || bytes > isize::MAX as usize {
             return None;
         }
-        let data = ((*allocator).allocate)(bytes).cast::<T>();
+        let data = ((*allocator).allocate)(bytes, 0).cast::<T>();
         if data.is_null() {
+            (*allocator).diagnose(super::Diagnostic::Storage, bytes as u32);
             return None;
         }
         // DP fallback reads initialized answers, including unreachable line ends.
@@ -247,8 +248,9 @@ impl<T: Copy> Buffer<T> {
             self.failed = 1;
             return false;
         };
-        let data = ((*self.allocator).allocate)(bytes).cast::<T>();
+        let data = ((*self.allocator).allocate)(bytes, 0).cast::<T>();
         if data.is_null() {
+            (*self.allocator).diagnose(super::Diagnostic::Storage, bytes as u32);
             self.failed = 1;
             return false;
         }
@@ -298,7 +300,7 @@ mod tests {
     std::thread_local! {
         static HEAP: RefCell<(usize, usize, usize)> = const { RefCell::new((0, 0, 0)) };
     }
-    unsafe extern "C" fn allocate(bytes: usize) -> *mut u8 {
+    unsafe extern "C" fn allocate(bytes: usize, _: u8) -> *mut u8 {
         let failed = HEAP.with(|h| {
             let mut h = h.borrow_mut();
             h.0 += 1;
@@ -325,7 +327,11 @@ mod tests {
         );
         HEAP.with(|h| h.borrow_mut().2 -= 1);
     }
-    static ALLOCATOR: Allocator = Allocator { allocate, release };
+    static ALLOCATOR: Allocator = Allocator {
+        allocate,
+        release,
+        diagnostic: None,
+    };
     struct Fixture {
         widths: Vec<u16>,
         cache: Widths,

@@ -396,14 +396,18 @@ fn carry_never_empties_page_or_crosses_decoration() {
     assert!(!asm.can_carry(1));
     asm.add_line(sink.line(2), &flow, &mut sink).unwrap();
     assert!(asm.can_carry(1));
-    asm.add_element(Element {
-        x: 0,
-        y: 0,
-        content: Content::Rule {
-            width: 1,
-            thickness: 1,
+    asm.add_element(
+        Element {
+            x: 0,
+            y: 0,
+            content: Content::Rule {
+                width: 1,
+                thickness: 1,
+            },
         },
-    })
+        Diagnostic::HorizontalRule,
+        &sink,
+    )
     .unwrap();
     assert!(!asm.can_carry(1));
 }
@@ -852,11 +856,15 @@ fn cpp_carry_reply_oracle() {
                     thickness: 1,
                 }
             };
-            asm.add_element(Element {
-                x: 0,
-                y: 0,
-                content,
-            })
+            asm.add_element(
+                Element {
+                    x: 0,
+                    y: 0,
+                    content,
+                },
+                Diagnostic::HorizontalRule,
+                &sink,
+            )
             .unwrap();
         }
         assert_eq!(asm.lines_to_carry(), (expected[0], expected[1]), "{line}");

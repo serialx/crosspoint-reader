@@ -3,6 +3,21 @@
 #include <Logging.h>
 #include <Memory.h>
 
+#include "../../../expat/expat.h"
+
+namespace {
+[[gnu::cold, gnu::noinline]] void logParseError(const uint64_t result) {
+  const auto error = static_cast<uint32_t>(result) >> 8;
+  const auto line = static_cast<uint32_t>(result >> 32);
+  [[maybe_unused]] const char* message = XML_ErrorString(static_cast<XML_Error>(error));
+  if (static_cast<uint8_t>(result) == 1) {
+    LOG_DBG("EHP", "Ignoring trailing data after </html>: %s", message);
+  } else {
+    LOG_ERR("EHP", "Parse error at line %lu:\n%s", static_cast<unsigned long>(line), message);
+  }
+}
+}  // namespace
+
 constexpr size_t MIN_SIZE_FOR_POPUP = 10 * 1024;
 constexpr size_t PARSE_BUFFER_SIZE = 1024;
 
@@ -56,7 +71,14 @@ ChapterHtmlSlimParser::ParseStatus ChapterHtmlSlimParser::parseStep() {
     return ParseStatus::Error;
   }
   const bool done = parseFile_.available() == 0;
-  switch (xp_chapter_feed(chapter_, parseBuffer_.get(), static_cast<uint32_t>(len), done)) {
+  const auto result = xp_chapter_feed_diagnostic(chapter_, parseBuffer_.get(), static_cast<uint32_t>(len), done);
+  const auto status = static_cast<uint8_t>(result);
+  if (static_cast<uint32_t>(result) >> 8) {
+    logParseError(result);
+  } else if (status == 2 && semanticOom()) {
+    LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
+  }
+  switch (status) {
     case 0:
       return ParseStatus::More;
     case 1:
@@ -101,6 +123,9 @@ bool ChapterHtmlSlimParser::finishParse() {
   parseBufferCapacity_ = 0;
   parseFile_.close();
   const bool success = finishAssembly();
+  if (!stopRequested && semanticOom()) {
+    LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
+  }
   xp_chapter_destroy(chapter_);
   chapter_ = nullptr;
   return success;

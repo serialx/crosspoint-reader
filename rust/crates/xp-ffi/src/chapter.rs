@@ -124,6 +124,18 @@ pub unsafe extern "C" fn xp_chapter_feed(
     len: u32,
     final_input: u8,
 ) -> u8 {
+    xp_chapter_feed_diagnostic(handle, data, len, final_input) as u8
+}
+/// # Safety
+/// Same contract as xp_chapter_feed. Returns status in bits 0..7,
+/// Expat error in bits 8..31, and one-based line in bits 32..63.
+#[no_mangle]
+pub unsafe extern "C" fn xp_chapter_feed_diagnostic(
+    handle: *mut Chapter,
+    data: *const u8,
+    len: u32,
+    final_input: u8,
+) -> u64 {
     if handle.is_null() || (data.is_null() && len != 0) || len > 1024 || final_input > 1 {
         return 2;
     }
@@ -180,8 +192,12 @@ pub unsafe extern "C" fn xp_chapter_feed(
             }
             Kind::Comment | Kind::Pi | Kind::CdataStart | Kind::CdataEnd => {}
             Kind::Done => return 1,
-            Kind::NeedInput => return u8::from(final_input != 0),
-            Kind::Error => return if chapter.state.ended { 1 } else { 2 },
+            Kind::NeedInput => return u64::from(final_input != 0),
+            Kind::Error => {
+                return (u64::from(event.line as u32) << 32)
+                    | (u64::from(event.error) << 8)
+                    | if chapter.state.ended { 1 } else { 2 };
+            }
             Kind::Stopped => return 2,
         }
         if chapter.state.stopped {

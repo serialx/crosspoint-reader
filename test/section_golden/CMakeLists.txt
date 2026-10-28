@@ -14,6 +14,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
     ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp instrument_chapter.py
   VERBATIM)
 add_executable(SectionGoldenDump
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
   SectionGoldenDump.cpp
   ImageDecoderStub.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Section.cpp

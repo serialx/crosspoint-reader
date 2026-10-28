@@ -74,21 +74,25 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         Ok(())
     }
-    pub fn row_separator(&mut self) -> Result {
+    pub fn row_separator<S: Sink<Payload = B>>(&mut self, sink: &S) -> Result {
         if !self.nonempty_page()
             || self.options.width == 0
             || i32::from(self.next_y) + 4 > i32::from(self.options.height)
         {
             return Ok(());
         }
-        self.add_element(Element {
-            x: 0,
-            y: self.next_y.wrapping_add(1),
-            content: Content::Rule {
-                width: self.options.width,
-                thickness: 1,
+        self.add_element(
+            Element {
+                x: 0,
+                y: self.next_y.wrapping_add(1),
+                content: Content::Rule {
+                    width: self.options.width,
+                    thickness: 1,
+                },
             },
-        })?;
+            Diagnostic::RowSeparator,
+            sink,
+        )?;
         self.next_y = self.next_y.wrapping_add(4);
         Ok(())
     }
@@ -104,7 +108,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         self.close_cell(flow, sink)?;
         if self.cells.is_empty() {
             if self.table_stacked {
-                self.row_separator()?;
+                self.row_separator(sink)?;
             }
             self.table_stacked = false;
             return Ok(());
@@ -116,7 +120,14 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         let result = self.layout_row(flow, sink, &mut row);
         self.latch(result)
     }
-    fn frame_cells(&mut self, top: i32, bottom: i32, widths: &[u16], border: Border) -> Result {
+    fn frame_cells<S: Sink<Payload = B>>(
+        &mut self,
+        top: i32,
+        bottom: i32,
+        widths: &[u16],
+        border: Border,
+        sink: &S,
+    ) -> Result {
         let height = (bottom + 1).min(i32::from(self.options.height)) - top;
         if height <= 0 {
             return Ok(());
@@ -128,16 +139,20 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             } else {
                 i32::from(widths[column]) + 1
             };
-            self.add_element(Element {
-                x: x as i16,
-                y: top as i16,
-                content: Content::Box {
-                    width: width as u16,
-                    height: height as u16,
-                    sides: [border; 4],
-                    shaded: false,
+            self.add_element(
+                Element {
+                    x: x as i16,
+                    y: top as i16,
+                    content: Content::Box {
+                        width: width as u16,
+                        height: height as u16,
+                        sides: [border; 4],
+                        shaded: false,
+                    },
                 },
-            })?;
+                Diagnostic::CellBorder,
+                sink,
+            )?;
         }
         Ok(())
     }
@@ -174,7 +189,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         if !fits {
             self.fallback_row(flow, sink)?;
-            self.row_separator()?;
+            self.row_separator(sink)?;
             self.table_stacked = false;
             return Ok(());
         }
@@ -257,6 +272,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                             i32::from(self.next_y) + bottom_gap,
                             &widths[..columns],
                             border,
+                            sink,
                         )?;
                     }
                     slice_top = -1;
@@ -309,9 +325,10 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                 i32::from(self.next_y),
                 &widths[..columns],
                 border,
+                sink,
             )?;
         } else {
-            self.row_separator()?;
+            self.row_separator(sink)?;
         }
         self.table_stacked = false;
         Ok(())

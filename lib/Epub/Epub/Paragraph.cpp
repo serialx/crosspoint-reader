@@ -14,18 +14,36 @@
 namespace {
 constexpr size_t RECLAIM_HEADROOM = 8 * 1024;
 
-void* allocateParagraphBytes(const size_t bytes) {
+void* allocateParagraphBytes(const size_t bytes, const uint8_t wordChunk) {
   auto data = makeUniqueNoThrow<uint8_t[]>(bytes);
   if (!data) {
     freeink::MemoryManager::instance().ensureFree(bytes + RECLAIM_HEADROOM);
     data = makeUniqueNoThrow<uint8_t[]>(bytes);
+    if (data && wordChunk)
+      LOG_DBG("WST", "Cache eviction rescued a %u-byte chunk allocation", static_cast<unsigned>(bytes));
   }
-  if (!data) LOG_ERR("PTX", "OOM: paragraph storage (%zu bytes)", bytes);
   // Rust owns this C-ABI allocation and returns it to releaseParagraphBytes.
   return data.release();
 }
 void releaseParagraphBytes(void* data) { delete[] static_cast<uint8_t*>(data); }
-const XpParaAllocator ALLOCATOR = {allocateParagraphBytes, releaseParagraphBytes};
+const XpParaAllocator ALLOCATOR = {
+    allocateParagraphBytes, releaseParagraphBytes,
+    [](void*, uint32_t event, uint32_t bytes, uint32_t, uint32_t, uint32_t) {
+      switch (static_cast<XpParaDiagnostic>(event)) {
+        case XpParaDiagnostic::NfcOffsets:
+          LOG_ERR("PTX", "OOM: NFC source offsets (%u bytes)", static_cast<unsigned>(bytes));
+          break;
+        case XpParaDiagnostic::WordArena:
+          LOG_ERR("PTX", "OOM: dropping paragraph text (arena chunk alloc failed)");
+          break;
+        case XpParaDiagnostic::LineArena:
+          LOG_ERR("PTX", "Dropping line: TextBlock or arena allocation failed");
+          break;
+        case XpParaDiagnostic::OtherStorage:
+          LOG_ERR("PTX", "OOM: paragraph storage (%zu bytes)", static_cast<size_t>(bytes));
+          break;
+      }
+    }};
 }  // namespace
 
 const XpParaAllocator* paragraphAllocator() { return &ALLOCATOR; }
@@ -231,7 +249,7 @@ void Paragraph::layoutAndExtractLines(const GfxRenderer& source, int fontId, uin
         int32_t fonts[TextBlock::MAX_WORD_FONTS];
         memcpy(fonts, line->fonts, sizeof(fonts));
         if (!block || !block->valid() || (line->font_slots && !block->setWordFonts(line->font_slots, fonts))) {
-          LOG_ERR("PTX", "OOM: extracted line");
+          LOG_ERR("PTX", "Dropping line: TextBlock or arena allocation failed");
           return false;
         }
         process(std::move(block), line->visible_offset);

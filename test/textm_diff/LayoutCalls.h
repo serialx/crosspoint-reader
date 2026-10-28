@@ -46,7 +46,7 @@ inline int layoutCalls(GfxRenderer& renderer) {
                         },
                         [](XpParaSpan, int32_t) -> uint8_t { return 0; },
                         [](XpParaSpan, const uint16_t*, uint32_t, uint8_t, uint16_t*) -> uint8_t { return 0; }};
-  const XpParaAllocator allocator{std::malloc, std::free};
+  const XpParaAllocator allocator{[](size_t bytes, uint8_t) { return std::malloc(bytes); }, std::free};
   constexpr const char* words[] = {"office",      "AVATAR",     "discretionary", "internationalization",
                                    "measurement", "rendering",  "reader",        "a",
                                    "font",        "hyphenation"};

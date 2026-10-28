@@ -2492,7 +2492,7 @@ TEST(TextDecorationPosition, UnderlineStaysBelowBaseline) {
 
 TEST(ParagraphStorageAbi, WordAllocationFailureLeavesOutputUnchanged) {
   alignas(void*) uint8_t state[4 * sizeof(void*)];
-  const XpParaAllocator allocator = {[](size_t) -> void* { return nullptr; }, [](void*) {}};
+  const XpParaAllocator allocator = {[](size_t, uint8_t) -> void* { return nullptr; }, [](void*) {}};
   auto* store = reinterpret_cast<XpWordStore*>(state);
   xp_word_store_init(store, &allocator);
   XpStoredWord output{123, 45, 67};
@@ -2506,7 +2506,7 @@ TEST(ParagraphStorageAbi, WordAllocationFailureLeavesOutputUnchanged) {
 
 TEST(ParagraphStorageAbi, MetadataAllocationFailureLeavesSequenceEmpty) {
   alignas(void*) uint8_t state[26 * sizeof(void*)];
-  const XpParaAllocator allocator = {[](size_t) -> void* { return nullptr; }, [](void*) {}};
+  const XpParaAllocator allocator = {[](size_t, uint8_t) -> void* { return nullptr; }, [](void*) {}};
   auto* tokens = reinterpret_cast<XpTokens*>(state);
   xp_tokens_init(tokens, &allocator);
   const XpToken input{{0, 0, 4}, 1, 2, 3, 4, 3};

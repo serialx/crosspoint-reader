@@ -199,7 +199,7 @@ Result paragraph(const char* sd, const char* ttf, bool native, bool evict, uint8
   auto m = metrics(f, native);
   alignas(uintptr_t) uintptr_t storage[64]{};
   auto* state = reinterpret_cast<XpParagraph*>(storage);
-  const XpParaAllocator allocator{std::malloc, std::free};
+  const XpParaAllocator allocator{[](size_t bytes, uint8_t) { return std::malloc(bytes); }, std::free};
   XpParaBlock block{};
   block.font_scale = 1;
   xp_para_init(state, &allocator, &block, hyphen, focus, 0, startsRtl);

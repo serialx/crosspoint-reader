@@ -63,6 +63,8 @@ pub struct Callbacks {
     pub measure_table: unsafe extern "C" fn(*mut c_void, *mut crate::chapter::State),
     pub trace: unsafe extern "C" fn(*mut c_void, *const Trace),
     pub trace_bytes: unsafe extern "C" fn(*mut c_void, Span),
+    pub diagnostic:
+        Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32, *const u8, u32)>,
 }
 
 #[derive(Clone, Copy)]
@@ -138,6 +140,22 @@ impl PageSink {
 impl Sink for PageSink {
     type Payload = Payload;
     type Image = ();
+    fn diagnostic(&self, event: Diagnostic, a: u32, b: u32, c: u32, text: &[u8]) {
+        if let Some(callback) = self.api().diagnostic {
+            unsafe {
+                callback(
+                    self.context,
+                    event as u32,
+                    a,
+                    b,
+                    c,
+                    0,
+                    text.as_ptr(),
+                    text.len() as u32,
+                )
+            };
+        }
+    }
     fn paragraph_context(&self) -> Option<ParagraphContext> {
         let api = self.api();
         Some(ParagraphContext {
@@ -148,7 +166,11 @@ impl Sink for PageSink {
         })
     }
     fn create_line(&mut self, line: &paragraph_extract::Output) -> Result<Payload> {
-        let index = unsafe { (*self.storage).line(line, self.api().reclaim_paragraph_memory)? };
+        let result = unsafe { (*self.storage).line(line, self.api().reclaim_paragraph_memory) };
+        if result.is_err() {
+            unsafe { (&*(self.api().allocator)()).diagnose(crate::para::Diagnostic::LineArena, 0) };
+        }
+        let index = result?;
         Ok(self.payload(index))
     }
     #[cfg(feature = "chapter-trace")]

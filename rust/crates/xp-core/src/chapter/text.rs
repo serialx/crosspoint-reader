@@ -93,6 +93,7 @@ impl State {
             };
             self.call_create_paragraph(&style);
             if !self.paragraph_exists() {
+                self.diagnostic(assembly::Diagnostic::CharacterParagraph, 0, &[]);
                 self.oom = true;
                 return;
             }
@@ -251,6 +252,7 @@ impl State {
         }
         let words = self.call_paragraph_size();
         if words > if self.embedded { 320 } else { 750 } && !self.in_ruby {
+            self.diagnostic(assembly::Diagnostic::SoftFlush, words, &[]);
             self.make_pages(false);
         }
     }

@@ -82,14 +82,20 @@ impl<B> Page<B> {
         x: i16,
         y: i16,
         metrics: LineMetrics,
+        diagnostic: impl FnOnce(&[u8]),
     ) -> Result {
-        self.append_link(
+        let before = self.links.len();
+        let result = self.append_link(
             &link.href,
             x.wrapping_add(link.x),
             (i32::from(y) + metrics.ruby_shift - i32::from(link.top_lift)) as i16,
             link.width,
             (metrics.base_height + i32::from(link.top_lift)) as i16,
-        )
+        );
+        if self.links.len() == before {
+            diagnostic(super::c_string(&link.href));
+        }
+        result
     }
     pub fn add_link(&mut self, link: &Link) -> Result {
         self.append_link(&link.href, link.x, link.y, link.width, link.height)
@@ -208,7 +214,33 @@ pub enum ImageProbe<R> {
     },
 }
 
+#[derive(Clone, Copy, Debug)]
+#[repr(u32)]
+pub enum Diagnostic {
+    BorderBox = 1,
+    DropCap = 2,
+    Paragraph = 3,
+    HorizontalRule = 4,
+    RowSeparator = 5,
+    CellBorder = 6,
+    TableCell = 7,
+    ImageBlock = 8,
+    PageImage = 9,
+    CharacterParagraph = 10,
+    AfterTableParagraph = 11,
+    PageLine = 12,
+    NoParagraph = 13,
+    SoftFlush = 14,
+    NestedTable = 15,
+    ImageCssBoth = 16,
+    ImageCssHeight = 17,
+    ImageCssWidth = 18,
+    ImageScale = 19,
+    DroppedLink = 20,
+}
+
 pub trait Sink {
+    fn diagnostic(&self, _event: Diagnostic, _a: u32, _b: u32, _c: u32, _text: &[u8]) {}
     type Payload;
     type Image;
     fn paragraph_context(&self) -> Option<super::runtime::ParagraphContext> {

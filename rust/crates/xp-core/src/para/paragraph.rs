@@ -251,6 +251,7 @@ impl Paragraph {
             return;
         }
         let Some(word) = self.store.append(text) else {
+            unsafe { (*self.allocator).diagnose(super::Diagnostic::WordArena, 0) };
             self.dropped = true;
             return;
         };

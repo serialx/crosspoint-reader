@@ -18,8 +18,9 @@ impl Line {
             return false;
         }
         let bytes = count * if focus { 14 } else { 11 };
-        let data = ((*self.allocator).allocate)(bytes);
+        let data = ((*self.allocator).allocate)(bytes, 0);
         if data.is_null() {
+            (*self.allocator).diagnose(super::Diagnostic::Storage, bytes as u32);
             return false;
         }
         ptr::write_bytes(data, 0, bytes);
@@ -130,7 +131,7 @@ mod tests {
         std::thread_local! {
             static STATE: std::cell::Cell<(bool, usize, usize)> = const { std::cell::Cell::new((false, 0, 0)) };
         }
-        unsafe extern "C" fn allocate(bytes: usize) -> *mut u8 {
+        unsafe extern "C" fn allocate(bytes: usize, _: u8) -> *mut u8 {
             STATE.with(|state| {
                 let (fail, calls, live) = state.get();
                 state.set((fail, calls + 1, live));
@@ -157,7 +158,11 @@ mod tests {
                 s.set((f, c, l - 1));
             });
         }
-        let allocator = Allocator { allocate, release };
+        let allocator = Allocator {
+            allocate,
+            release,
+            diagnostic: None,
+        };
         let mut line = Line {
             data: ptr::null_mut(),
             count: 0,

@@ -128,12 +128,20 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             .as_ref()
             .is_some_and(|page| !page.elements.is_empty())
     }
-    fn add_element(&mut self, element: Element<B>) -> Result {
+    fn add_element<S: Sink<Payload = B>>(
+        &mut self,
+        element: Element<B>,
+        event: Diagnostic,
+        sink: &S,
+    ) -> Result {
         self.ensure_page();
         let result = match self.page.as_mut() {
             Some(page) => push(&mut page.elements, element),
             None => Err(Error::Allocation),
         };
+        if result.is_err() {
+            sink.diagnostic(event, 0, 0, 0, &[]);
+        }
         self.latch(result)
     }
     pub fn set_visible<S: Sink<Payload = B>>(&mut self, offset: u32, _sink: &mut S) {
@@ -188,7 +196,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
     fn emit_page<S: Sink<Payload = B>>(&mut self, flow: &Flow, sink: &mut S) -> Result {
         for index in 0..self.boxes.len() {
             let box_scope = self.boxes[index];
-            self.emit_box(box_scope, false)?;
+            self.emit_box(box_scope, false, sink)?;
             let scope = &mut self.boxes[index];
             if scope.top >= 0 {
                 scope.continued = true;
@@ -288,6 +296,9 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             sink.reclaim_paragraph_memory();
             paragraph = P::create(style, self.options, sink);
         }
+        if paragraph.is_err() {
+            sink.diagnostic(Diagnostic::Paragraph, 0, 0, 0, &[]);
+        }
         self.paragraph = Some(self.latch(paragraph)?);
         self.extracted = 0;
         flow.marker_only = false;
@@ -338,6 +349,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         observe!(sink, "EndBlock", last, end, flow.position.visible);
         self.running()?;
         let Some(paragraph) = self.paragraph.as_ref() else {
+            sink.diagnostic(Diagnostic::NoParagraph, 0, 0, 0, &[]);
             return Ok(());
         };
         if paragraph.dropped() {
@@ -644,21 +656,36 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         let x = metrics.x;
         let links_result = if let Some(page) = self.page.as_mut() {
-            let result = sink
-                .line_links(&mut line.payload)
-                .iter()
-                .try_for_each(|link| page.add_line_link(link, x, self.next_y, metrics));
+            let mut result = Ok(());
+            let mut index = 0;
+            while let Some(link) = sink.line_links(&mut line.payload).get(index) {
+                let mut dropped = false;
+                result = page.add_line_link(link, x, self.next_y, metrics, |_| {
+                    dropped = true;
+                });
+                if dropped {
+                    diagnose_dropped_link(sink, &mut line.payload, index);
+                }
+                if result.is_err() {
+                    break;
+                }
+                index += 1;
+            }
             sink.release_line_links();
             result
         } else {
             Ok(())
         };
         self.latch(links_result)?;
-        self.add_element(Element {
-            x,
-            y: self.next_y,
-            content: Content::Line(line.payload),
-        })?;
+        self.add_element(
+            Element {
+                x,
+                y: self.next_y,
+                content: Content::Line(line.payload),
+            },
+            Diagnostic::PageLine,
+            sink,
+        )?;
         self.note_content(
             i32::from(self.next_y),
             i32::from(self.next_y) + metrics.height(),
@@ -675,6 +702,16 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         self.recent_count += 1;
         Ok(())
     }
+}
+
+#[cold]
+#[inline(never)]
+fn diagnose_dropped_link<S: Sink>(sink: &mut S, payload: &mut S::Payload, index: usize) {
+    let mut text = [0u8; 48];
+    let href = c_string(&sink.line_links(payload)[index].href);
+    let len = href.len().min(text.len());
+    text[..len].copy_from_slice(&href[..len]);
+    sink.diagnostic(Diagnostic::DroppedLink, 0, 0, 0, &text[..len]);
 }
 fn c_string(text: &[u8]) -> &[u8] {
     &text[..text.iter().position(|b| *b == 0).unwrap_or(text.len())]

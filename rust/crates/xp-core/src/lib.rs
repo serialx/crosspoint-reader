@@ -72,3 +72,5 @@ mod tests {
         assert_eq!(crc32(&[0xff, 0x80, 0, 0x7f]), 0xdece_aec0);
     }
 }
+
+pub mod strip;

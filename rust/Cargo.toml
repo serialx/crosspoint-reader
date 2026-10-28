@@ -2,6 +2,10 @@
 members = ["crates/xp-core", "crates/xp-ffi", "crates/xp-core/src/gif/decoder"]
 default-members = ["crates/xp-core"]
 resolver = "2"
+exclude = ["vendor/embedded-graphics-core-0.4.0", "vendor/az-1.2.1", "vendor/byteorder-1.5.0"]
+
+[workspace.dependencies]
+embedded-graphics-core = { path = "vendor/embedded-graphics-core-0.4.0", version = "=0.4.0" }
 
 [profile.release]
 opt-level = "s"

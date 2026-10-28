@@ -8,7 +8,9 @@ publish = false
 package-trace = []
 chapter-trace = []
 chapter-test = []
+strip-spike = []
 
 [dependencies]
+embedded-graphics-core.workspace = true
 miniz_oxide = { path = "src/inflate/miniz" }
 xp-gif = { path = "src/gif/decoder" }

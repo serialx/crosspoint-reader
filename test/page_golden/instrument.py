@@ -34,8 +34,31 @@ for name, index in (('xp_native_bidi_acquire', 10), ('xp_native_bidi_release', 1
     if source.count(anchor) != 1:
         raise SystemExit('Page bidi counter anchor changed: ' + anchor)
     source = source.replace(anchor, f'          [] {{ pageGoldenOwner({index}); return {name}(); }},')
+source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
+anchor = '  const auto status = xp_page_render_traced('
+source = source.replace(anchor, """  const auto status =
+#ifdef XP_STRIP_SPIKE
+      stripPhase ? xp_page_strip_render(arena, size, &provider, &services, &paint, fontId, x, y, renderMode,
+          stripBounds.data(), stripBounds.size(), &stripStats, stripPhase == 1) :
+#endif
+      xp_page_render_traced(""")
 (out / 'GfxRenderer.cpp').write_text(source)
 (out / 'Page.cpp').write_text((root / 'lib/Epub/Epub/Page.cpp').read_text())
 
 source = (root / 'lib/Epub/Epub/blocks/TextBlock.cpp').read_text().replace('#include "../SectionCodec.h"', '#include <SectionCodec.h>')
 (out / 'TextBlock.cpp').write_text(source)
+
+source = (root / 'lib/Epub/Epub/blocks/ImageBlock.cpp').read_text()
+source = source.replace('#include "../SectionCodec.h"', '#include <SectionCodec.h>')
+source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
+# Keep the original image writer for the full-frame reference.
+for width in ('pxcSlotWidth', 'cachedWidth'):
+    anchor = f'    xp_image_packed_row(&target, x, y + row, {width}, rowBuffer, bytesPerRow);'
+    if source.count(anchor) != 1:
+        raise SystemExit('Image row observer anchor changed')
+    source = source.replace(anchor, f"""#ifdef XP_STRIP_SPIKE
+    if (stripPhase == 2) xp_strip_packed_row(&target, x, y + row, {width}, rowBuffer, bytesPerRow);
+    else
+#endif
+{anchor}""")
+(out / 'ImageBlock.cpp').write_text(source)

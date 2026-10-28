@@ -218,3 +218,60 @@ TTF code is linked to preserve the real renderer, but this page matrix does not
 register TTF faces or claim TTF support on C3. Keep text_golden's TTF tests, existing
 section/package/image tests, and emulator/device evidence for their separate
 contracts. No shipped firmware or firmware build configuration changes here.
+
+## Strip-rendering host spike
+
+`STRIP_SPIKE` enables a host-only Rust entry point (`strip-spike` Cargo feature).
+The firmware build does not enable it. The normal oracle and its frozen archive
+remain unchanged. This mode adds byte-for-byte comparisons against the current
+full-frame draw for native row heights 1, 8, 16, 32, 37, 48, 64 and 480, in all
+four orientations and BW/LSB/MSB, with both overlay and absolute planes.
+
+```sh
+cmake -S test/page_golden -B build/strip -DCMAKE_BUILD_TYPE=Release \
+  -DSTRIP_SPIKE=ON \
+  -DXP_FFI_HOST_FEATURES=chapter-test,chapter-trace,package-trace,strip-spike
+cmake --build build/strip -j 6
+python3 test/page_golden/run.py check --binary build/strip/PageGolden \
+  --strips --work-dir /external/strip-public
+python3 test/page_golden/strip_cost.py /external/strip-public /external/strip-cost
+```
+
+Use the private-run arguments above to check the private books and fonts against
+their frozen archive. Keep those outputs outside the repository.
+
+The preparation pass uses only a guarded one-row buffer and must leave it and
+the inactive framebuffer untouched. It writes a caller-owned physical row range
+for each page element (8 bytes per element). Rendering skips nonintersecting
+records before word/glyph walking; the existing rasterizer clips resident glyphs.
+Missing glyph metrics and drop caps conservatively retain the whole row range.
+Rebuild bounds after any page, font, orientation or origin change. Bounds cover
+all planes and can be reused for the X3 old-frame copy.
+
+To exercise real image pixels, add `-DSTRIP_IMAGES=ON` and
+`-DDECODER_SOURCE_DIR=/absolute/path/to/.pio/libdeps/default` when configuring a
+separate build directory. Run with `--strips --decoded-images`. This installs a
+host file extractor and the production PNG/GIF/JPEG converters, decodes once,
+and compares every strip to the current full-frame cache playback. The ordinary
+page archive contains placeholders, so decoded-image mode checks schedule/page
+coverage and exact strip/full equality rather than comparing image pixels with
+that archive. The independent image oracle checks decode output. A `.px2` cache
+contains dimensions followed by packed 2-bpp luminance rows; the new target skips
+off-band rows/columns before unpacking. Existing C++ cache I/O is unchanged.
+
+`cost` records contain orientation, placeholder flag, absolute flag, height and
+plane, followed by host wall microseconds, preparation microseconds, record
+checks, records dispatched, glyph placements visited, preparation record checks
+and preparation glyph placements. Full-frame baseline counters use zero because
+that path is uninstrumented; preparation counters provide its traversal count.
+Scaled drop-cap glyphs are excluded from glyph-placement counters. Timing includes
+buffer clear, assembly and guard checks, but strip storage is allocated once per
+plane before timing. Prewarm and image decode are outside timing. Ratios are host
+estimates, not device cycle measurements; concurrent host load adds noise.
+
+The CSV retains every page/orientation/plane. The summary selects overlay BW
+without placeholders and excludes references below 20 microseconds from timing
+ratios. It reports preparation separately and estimates two draws as
+`(preparation + 2 * strip_draw) / full_draw`; SPI transfer and panel refresh time
+are not included in that estimate. Physical X3 (792×528), X4 (800×480), and odd
+widths also have direct target tests in `xp-core::strip::tests`.

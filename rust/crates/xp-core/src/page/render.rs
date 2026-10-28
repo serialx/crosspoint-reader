@@ -16,6 +16,11 @@ pub struct Text<'a> {
     pub direction: i32,
 }
 pub trait Canvas {
+    #[cfg(feature = "strip-spike")]
+    fn element(&mut self, _index: u16, _element: Element<'_>, _x: i32, _y: i32) -> bool {
+        true
+    }
+
     fn scanning(&self) -> bool;
     fn font(&mut self, requested: i32, section: i32) -> i32;
     fn ascent(&self, font: i32) -> i32;
@@ -48,6 +53,13 @@ pub fn page(
                 continue;
             }
             let e = page.element(i)?;
+            #[cfg(feature = "strip-spike")]
+            {
+                let (ex, ey) = e.position()?;
+                if !canvas.element(i, e, x + i32::from(ex), y + i32::from(ey)) {
+                    continue;
+                }
+            }
             let d = e.data.get(..18).ok_or(super::Error::Invalid)?;
             if d[17] != 0 {
                 let (ex, ey) = e.position()?;
@@ -62,7 +74,15 @@ pub fn page(
         }
         for i in 0..page.element_count() {
             if page.position(i)?.2 == 5 {
-                border(page.element(i)?, canvas, x, y)?;
+                let e = page.element(i)?;
+                #[cfg(feature = "strip-spike")]
+                {
+                    let (ex, ey) = e.position()?;
+                    if !canvas.element(i, e, x + i32::from(ex), y + i32::from(ey)) {
+                        continue;
+                    }
+                }
+                border(e, canvas, x, y)?;
             }
         }
     }
@@ -70,6 +90,10 @@ pub fn page(
         let e = page.element(i)?;
         let (ex, ey) = e.position()?;
         let (ex, ey) = (x + i32::from(ex), y + i32::from(ey));
+        #[cfg(feature = "strip-spike")]
+        if !canvas.element(i, e, ex, ey) {
+            continue;
+        }
         match e.tag()? {
             2 => canvas.image(i, ex, ey, mode == Mode::Placeholders),
             1 if mode != Mode::Images => line(render_line(e)?, canvas, font, ex, ey)?,

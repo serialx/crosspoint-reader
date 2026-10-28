@@ -12,12 +12,20 @@
 #include <clippings/ClippingText.h>
 #include <fontIds.h>
 
+#include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 
 #include "PageTrace.h"
+#ifdef XP_STRIP_SPIKE
+#include "StripTrace.h"
+std::vector<StripBounds> stripBounds;
+StripStats stripStats{};
+int stripPhase = 0;
+#endif
 
 extern "C" size_t xp_test_allocation_attempts();
 static uint64_t owners[12]{};
@@ -346,6 +354,127 @@ static bool pixels(const Page& page, GfxRenderer& renderer, FontCacheManager& ca
   return true;
 }
 
+#ifdef XP_STRIP_SPIKE
+static bool stripPixels(const Page& page, GfxRenderer& renderer, FontCacheManager& cache, HalDisplay& display,
+                        const Setting& config, bool sample) {
+  stripBounds.resize(std::max(size_t(1), page.elementCount()));
+  for (int orientation = 0; orientation < 4; ++orientation) {
+    renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+    for (int placeholders = 0; placeholders <= int(page.hasImages()); ++placeholders) {
+      const auto draw = [&] {
+        const size_t allocations = xp_test_allocation_attempts();
+        if (placeholders)
+          page.renderWithImagePlaceholders(renderer, config.spec.fontId, config.margin, config.margin);
+        else
+          page.render(renderer, config.spec.fontId, config.margin, config.margin);
+        if (xp_test_allocation_attempts() != allocations) {
+          std::cerr << "Rust allocation during page rendering\n";
+          std::exit(1);
+        }
+      };
+      std::fill(std::begin(owners), std::end(owners), 0);
+      auto scope = cache.createPrewarmScope();
+      draw();
+      std::array<uint64_t, 12> scanOwners;
+      std::copy(std::begin(owners), std::end(owners), scanOwners.begin());
+      scope.endScanAndPrewarm();
+      for (int absolute = 0; absolute < 2; ++absolute) {
+        std::array<std::array<uint8_t, HalDisplay::BUFFER_SIZE>, 3> reference{};
+        stripPhase = 1;
+        stripStats = {};
+        std::array<uint8_t, HalDisplay::DISPLAY_WIDTH_BYTES + 32> prepareBuffer;
+        prepareBuffer.fill(0xa5);
+        display.pixels.fill(0x5a);
+        renderer.beginStripTarget(prepareBuffer.data() + 16, 0, 1);
+        const auto prepareStart = std::chrono::steady_clock::now();
+        draw();
+        renderer.endStripTarget();
+        const auto prepareUs =
+            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - prepareStart)
+                .count();
+        for (uint8_t byte : prepareBuffer)
+          if (byte != 0xa5) return false;
+        for (uint8_t byte : display.pixels)
+          if (byte != 0x5a) return false;
+        const auto prepareStats = stripStats;
+        stripPhase = 0;
+        for (int band : {0, 1, 8, 16, 32, 37, 48, 64, int(HalDisplay::DISPLAY_HEIGHT)}) {
+          renderer.setRenderMode(GfxRenderer::BW);
+          renderer.displayGrayscaleBase(HalDisplay::FULL_REFRESH);
+          for (int plane = 0; plane < 3; ++plane) {
+            if (plane == 1 && absolute &&
+                !renderer.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute, HalDisplay::FULL_REFRESH))
+              return false;
+            renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
+            if (renderer.grayPlanesAreAbsolute() != bool(absolute && plane != 0)) return false;
+            nativeCalls = emissions = scaledCalls = 0;
+            std::fill(std::begin(owners), std::end(owners), 0);
+            const uint8_t clear = plane == 0 || absolute ? 0xff : 0;
+            std::array<uint8_t, HalDisplay::BUFFER_SIZE> assembled{};
+            display.pixels.fill(0x5a);
+            stripStats = {};
+            stripPhase = band ? 2 : 0;
+            std::vector<uint8_t> strip(band * HalDisplay::DISPLAY_WIDTH_BYTES + 32, 0xa5);
+            const auto start = std::chrono::steady_clock::now();
+            if (band == 0) {
+              renderer.clearScreen(clear);
+              draw();
+              assembled = display.pixels;
+            } else {
+              for (int row = 0; row < HalDisplay::DISPLAY_HEIGHT; row += band) {
+                const int rows = std::min(band, int(HalDisplay::DISPLAY_HEIGHT) - row);
+                std::fill(strip.begin(), strip.end(), 0xa5);
+                const auto stripEnd = strip.begin() + 16 + rows * HalDisplay::DISPLAY_WIDTH_BYTES;
+                renderer.beginStripTarget(strip.data() + 16, row, rows);
+                renderer.clearScreen(clear);
+                draw();
+                renderer.endStripTarget();
+                for (int i = 0; i < 16; ++i)
+                  if (strip[i] != 0xa5 || stripEnd[i] != 0xa5) return false;
+                std::copy(strip.begin() + 16, stripEnd, assembled.begin() + row * HalDisplay::DISPLAY_WIDTH_BYTES);
+              }
+              for (uint8_t byte : display.pixels)
+                if (byte != 0x5a) return false;
+            }
+            const auto elapsedUs =
+                std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
+            if (band == 0)
+              reference[plane] = assembled;
+            else if (reference[plane] != assembled) {
+              size_t offset = 0;
+              while (offset < assembled.size() && reference[plane][offset] == assembled[offset]) ++offset;
+              std::cerr << "strip mismatch orientation=" << orientation << " plane=" << plane << " band=" << band
+                        << " absolute=" << absolute << " offset=" << offset << '\n';
+              return false;
+            }
+            std::cout << "cost\t" << orientation << ',' << placeholders << ',' << absolute << ',' << band << ','
+                      << plane << '\t' << elapsedUs << ',' << prepareUs << ',' << stripStats.records << ','
+                      << stripStats.drawn << ',' << stripStats.glyphs << ',' << prepareStats.records << ','
+                      << prepareStats.glyphs << '\n';
+            stripPhase = 0;
+            std::cout << "pixels\t" << orientation << ',' << placeholders << ',' << absolute << ',' << band << ','
+                      << plane << '\t' << hashBytes(assembled.data(), assembled.size()) << '\n';
+            std::cout << "calls\t" << nativeCalls << ',' << emissions << ',' << scaledCalls;
+            for (auto count : owners) std::cout << ',' << count;
+            for (auto count : scanOwners) std::cout << ',' << count;
+            std::cout << '\n';
+            if (sample && orientation == config.orientation && !placeholders && !absolute && !band) {
+              std::ofstream pbm("sample-" + std::to_string(plane) + ".pbm", std::ios::binary);
+              pbm << "P4\n800 480\n";
+              for (uint8_t byte : assembled) pbm.put(char(~byte));
+            }
+          }
+        }
+      }
+    }
+  }
+  renderer.setRenderMode(GfxRenderer::BW);
+  renderer.setOrientation(static_cast<GfxRenderer::Orientation>(config.orientation));
+  return true;
+}
+
+#endif
+
 int main(int argc, char** argv) {
   if (argc != 4) {
     std::cerr << "PageGolden extracted-book config sd-font\n";
@@ -389,6 +518,16 @@ int main(int argc, char** argv) {
   }
   if (!css.saveToCache(complete)) return 8;
   epub->css = &css;
+#ifdef XP_STRIP_IMAGES
+  ImageBlock::setExtractor(nullptr, [](void*, const char* src, const char* dest) {
+    std::error_code error;
+    const auto source = std::filesystem::path("book") / src;
+    if (!std::filesystem::is_regular_file(source)) return false;
+    std::filesystem::create_directories(std::filesystem::path(dest).parent_path(), error);
+    std::filesystem::copy_file(source, dest, std::filesystem::copy_options::overwrite_existing, error);
+    return !error;
+  });
+#endif
   for (size_t spine = 0; spine < epub->spine.size(); ++spine) {
     Section section(epub, int(spine), renderer);
     if (!section.createSectionFile(config.spec) || !section.loadSectionFile(config.spec)) return 9;
@@ -423,7 +562,18 @@ int main(int argc, char** argv) {
         scope.endScanAndPrewarm();
         if (!records(*page, renderer, config)) return 17;
       }
-      if (!pixels(*page, renderer, cache, display, config, spine == 0 && index == 0)) return 18;
+#ifdef XP_STRIP_IMAGES
+      // Decode once through the real converter, then measure pixel-cache playback.
+      renderer.setRenderMode(GfxRenderer::BW);
+      page->render(renderer, config.spec.fontId, config.margin, config.margin);
+#endif
+#ifdef XP_STRIP_SPIKE
+      if (std::getenv("XP_STRIP_MATRIX")) {
+        if (!stripPixels(*page, renderer, cache, display, config, false)) return 18;
+      } else
+#endif
+          if (!pixels(*page, renderer, cache, display, config, spine == 0 && index == 0))
+        return 18;
       std::cout << "end\n";
     }
   }

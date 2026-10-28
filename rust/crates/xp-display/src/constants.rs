@@ -66,3 +66,24 @@ pub const UC8279_X4: u32 = 5;
 pub const UC8279C_A4: u32 = 6;
 pub const SSD2677: u32 = 7;
 pub const PAPER_MONO: u32 = 8;
+
+pub const TAG_SSD_SOFT_RESET: u32 = 60;
+pub const TAG_SSD_AUTO_BW: u32 = 61;
+pub const TAG_SSD_AUTO_RED: u32 = 62;
+pub const TAG_SSD_REFRESH: u32 = 63;
+pub const TAG_SSD_GRAY_POWER_ON: u32 = 64;
+pub const TAG_SSD_POWER_DOWN: u32 = 65;
+pub const TAG_SSD_FACTORY_GRAY: u32 = 66;
+
+pub const ALLOC_DEFAULT: u32 = 3;
+pub const DIAG_SSD_WINDOW_ALLOCATION: u32 = 67;
+
+pub const SSD1677_X4: u32 = 0;
+pub const SSD1677_STICKY: u32 = 1;
+pub const SSD1677_METALIO: u32 = 2;
+pub const SSD1677_PICCO_YRD: u32 = 3;
+pub const SSD1677_PICCO_DEPG: u32 = 4;
+pub const SSD1677_PICCO_OPM: u32 = 5;
+pub const SSD1677_MIRROR_X: u32 = 1;
+pub const SSD1677_MIRROR_Y: u32 = 2;
+pub const SSD1677_FAST_DU: u32 = 4;

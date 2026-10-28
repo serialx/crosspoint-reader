@@ -124,3 +124,9 @@ if(DISPLAY_TRACE_RUST)
   add_test(NAME display_trace_x3_extended COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/x3_compare.py --bin-dir ${CMAKE_CURRENT_BINARY_DIR})
 endif()
+
+if(DISPLAY_TRACE_RUST)
+  add_executable(ssd1677_abi_test Ssd1677AbiTest.cpp)
+  target_link_libraries(ssd1677_abi_test PRIVATE xp_ffi_host)
+  add_test(NAME ssd1677_abi COMMAND ssd1677_abi_test)
+endif()

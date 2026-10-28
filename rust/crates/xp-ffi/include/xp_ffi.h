@@ -1094,6 +1094,13 @@ typedef struct {
   int32_t fallback;
   uint8_t hasFallback, sd, advanceTable, resolved[4];
 } XpNativeFamily;
+// Failure-only, synchronous diagnostics. MissingFont: a is the signed font ID
+// bit pattern; BidiLimit: a is the codepoint limit (128). b/c/d are zero.
+// NULL is silent. The callback must not reenter Rust or retain borrowed pointers.
+#ifdef __cplusplus
+enum class XpNativeDiagnostic : uint32_t { MissingFont = 1, BidiLimit = 2 };
+#endif
+typedef void (*XpNativeDiagnosticFn)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 struct XpNativeProvider {
   void* context;
   const void* generation;  // Atomic uint32_t, same size/alignment as Rust AtomicU32.
@@ -1104,11 +1111,20 @@ struct XpNativeProvider {
   void* (*bidiAcquire)();
   void (*bidiRelease)();
   void (*prewarm)(void*, int32_t, const uint8_t*, size_t, uint8_t);
+  XpNativeDiagnosticFn diagnostic;
 };
 // Borrow the existing initialized bidi workspace exclusively for these calls.
 // Visitor pointers are valid only during the callback; callbacks cannot reenter bidi.
-uint8_t xp_bidi_visual_visit(const uint8_t*, size_t, int32_t, void*, void*, void (*)(void*, const uint8_t*, size_t));
-void xp_bidi_rtl_tokens(const uint8_t*, size_t, void*, void*, void (*)(void*, const uint8_t*, size_t));
+#ifdef __cplusplus
+enum class XpBidiVisitStatus : uint8_t { Unchanged, Applied, TooLong };
+#else
+typedef uint8_t XpBidiVisitStatus;
+#endif
+XpBidiVisitStatus xp_bidi_visual_visit(const uint8_t*, size_t, int32_t, void*, void*,
+                                       void (*)(void*, const uint8_t*, size_t));
+// Each oversized token reports BidiLimit before visiting the next token.
+void xp_bidi_rtl_tokens(const uint8_t*, size_t, void*, void*, void (*)(void*, const uint8_t*, size_t),
+                        XpNativeDiagnosticFn);
 int32_t xp_bidi_words(size_t, const void*, const uint8_t* (*)(const void*, size_t, size_t*), uint8_t, void*, uint16_t*);
 // The resident pointer expires before any font-owner mutation or next bitmap request.
 const void* xp_font_resident_glyph(const void*, uint32_t);
@@ -1384,6 +1400,35 @@ void xp_sdfont_pool_free_mini(void* style, const XpSdfontServices*);
 void xp_sdfont_pool_free_ligatures(void* style, const XpSdfontServices*);
 // Host ABI test: field offsets and sizes of the stable native cache slots.
 size_t xp_sdfont_pool_layout(uint32_t field);
+// Failure details are written only on a parsed rejection; all other outputs and
+// state remain unchanged. NULL detail is silent. Caller supplies style/index.
+// args: Version=(actual,expected,0,0); StyleCount/StyleId/DuplicateStyle=(value,0,0,0);
+// Counts=(intervals,glyphs,kernLeft,kernRight); IntervalOrder=(first,last,0,0);
+// IntervalLayout=(overlap,span,offsetMismatch,offsetOverrun); others all zero.
+#ifdef __cplusplus
+enum class XpSdfontParseError : uint32_t {
+  ShortInput,
+  Magic,
+  Version,
+  StyleCount,
+  StyleId,
+  DuplicateStyle,
+  Counts,
+  IntervalOrder,
+  IntervalLayout
+};
+#else
+typedef uint32_t XpSdfontParseError;
+#endif
+typedef struct {
+  XpSdfontParseError kind;
+  uint32_t args[4];
+} XpSdfontParseDiagnostic;
+// Detail is writable, aligned, and disjoint from input, state and output.
+bool xp_sdfont_header_diagnostic(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontParseDiagnostic*);
+bool xp_sdfont_style_diagnostic(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontStyle*, XpSdfontParseDiagnostic*);
+bool xp_sdfont_interval_diagnostic(const uint8_t*, size_t, uint32_t glyphs, uint32_t index, XpSdfontIntervals*,
+                                   void* out, XpSdfontParseDiagnostic*);
 bool xp_sdfont_header(const uint8_t*, size_t, XpSdfontDirectory*);
 bool xp_sdfont_style(const uint8_t*, size_t, XpSdfontDirectory*, XpSdfontStyle*);
 // out points to a writable EpdUnicodeInterval (three uint32 fields).

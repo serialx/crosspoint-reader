@@ -1,6 +1,7 @@
 #include <BidiUtils.h>
 #include <GfxRenderer.h>
 #include <Logging.h>
+
 #include <cstdlib>
 #include <iostream>
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
@@ -27,6 +28,9 @@ int main() {
   expect("empty width", {});
   renderer.getTextAdvanceX(404, "abc", EpdFontFamily::REGULAR);
   expect("advance missing font", {"ERR GFX Font 404 not found"});
+  renderer.getTextAdvanceX(404, "abc", EpdFontFamily::REGULAR, 0, BidiUtils::BidiBaseDir::AUTO,
+                           GfxRenderer::TextMeasureMode::Rendered);
+  expect("rendered advance missing font", {"ERR GFX Font 404 not found"});
   renderer.getSpaceWidth(404);
   expect("space missing font", {"ERR GFX Font 404 not found"});
   renderer.drawText(404, 0, 0, "abc");
@@ -63,5 +67,10 @@ int main() {
   expect("token bidi overflow", {overflow});
   BidiUtils::applyBidiVisual(std::string(128, 'A').c_str(), out);
   expect("bidi boundary", {});
+  auto silent = renderer.textProvider();
+  silent.diagnostic = nullptr;
+  if (xp_native_width(&silent, 404, reinterpret_cast<const uint8_t*>("abc"), 3, 0, -1) != 0) return 1;
+  xp_native_width(&silent, 2, reinterpret_cast<const uint8_t*>(longText.data()), longText.size(), 0, 1);
+  expect("null diagnostic callback", {});
   std::cout << "renderer and bidi diagnostic cases passed\n";
 }

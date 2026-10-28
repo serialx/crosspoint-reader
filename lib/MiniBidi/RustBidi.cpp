@@ -8,6 +8,9 @@
 #include "BidiUtils.h"
 
 namespace {
+void logBidiLimit() {
+  LOG_DBG("BIDI", "applyBidiVisual: input exceeds BIDI_MAX_LINE (%d chars), returning unprocessed", 128);
+}
 std::mutex bidiMutex;
 struct alignas(uint32_t) BidiWorkspace {
   uint8_t bytes[3072];
@@ -43,10 +46,13 @@ bool applyBidiVisual(const char* text, std::string& out, int direction) {
   const std::lock_guard<std::mutex> lock(bidiMutex);
   auto* work = getWorkspace();
   if (!work) return false;
-  return xp_bidi_visual_visit(reinterpret_cast<const uint8_t*>(text), strlen(text), direction, work, &out,
-                              [](void* ctx, const uint8_t* bytes, size_t len) {
-                                static_cast<std::string*>(ctx)->assign(reinterpret_cast<const char*>(bytes), len);
-                              });
+  const auto status =
+      xp_bidi_visual_visit(reinterpret_cast<const uint8_t*>(text), strlen(text), direction, work, &out,
+                           [](void* ctx, const uint8_t* bytes, size_t len) {
+                             static_cast<std::string*>(ctx)->assign(reinterpret_cast<const char*>(bytes), len);
+                           });
+  if (status == XpBidiVisitStatus::TooLong) logBidiLimit();
+  return status == XpBidiVisitStatus::Applied;
 }
 void appendShapedRtlTokens(const char* text, std::string& out) {
   // Avoid allocating the retained workspace for entirely LTR chapters.
@@ -56,10 +62,12 @@ void appendShapedRtlTokens(const char* text, std::string& out) {
   const std::lock_guard<std::mutex> lock(bidiMutex);
   auto* work = getWorkspace();
   if (!work) return;
-  xp_bidi_rtl_tokens(reinterpret_cast<const uint8_t*>(text), strlen(text), work, &out,
-                     [](void* ctx, const uint8_t* bytes, size_t len) {
-                       static_cast<std::string*>(ctx)->append(reinterpret_cast<const char*>(bytes), len);
-                     });
+  xp_bidi_rtl_tokens(
+      reinterpret_cast<const uint8_t*>(text), strlen(text), work, &out,
+      [](void* ctx, const uint8_t* bytes, size_t len) {
+        static_cast<std::string*>(ctx)->append(reinterpret_cast<const char*>(bytes), len);
+      },
+      [](void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) { logBidiLimit(); });
 }
 bool computeVisualWordOrder(const std::vector<std::string>& words, bool rtl, std::vector<uint16_t>& order) {
   order.clear();

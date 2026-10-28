@@ -55,12 +55,63 @@ fn hash(bytes: &[u8], seed: u32) -> u32 {
         .fold(seed, |h, b| (h ^ u32::from(*b)).wrapping_mul(16777619))
 }
 
-pub fn header(bytes: &[u8]) -> Option<Directory> {
-    let b = bytes.get(..32)?;
-    if &b[..8] != b"CPFONT\0\0" || u16le(b, 8) != 4 || !(1..=4).contains(&b[12]) {
-        return None;
+#[repr(u32)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParseError {
+    ShortInput,
+    Magic,
+    Version,
+    StyleCount,
+    StyleId,
+    DuplicateStyle,
+    Counts,
+    IntervalOrder,
+    IntervalLayout,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct Diagnostic {
+    pub kind: ParseError,
+    pub args: [u32; 4],
+}
+impl Diagnostic {
+    fn new(kind: ParseError, args: [u32; 4]) -> Self {
+        Self { kind, args }
     }
-    Some(Directory {
+    fn short() -> Self {
+        Self::new(ParseError::ShortInput, [0; 4])
+    }
+}
+
+pub fn header(bytes: &[u8]) -> Option<Directory> {
+    header_diagnostic(bytes).ok()
+}
+pub fn style(bytes: &[u8], directory: &mut Directory) -> Option<Style> {
+    style_diagnostic(bytes, directory).ok()
+}
+pub fn interval(bytes: &[u8], glyphs: u32, index: u32, state: &mut Intervals) -> Option<Interval> {
+    interval_diagnostic(bytes, glyphs, index, state).ok()
+}
+
+pub fn header_diagnostic(bytes: &[u8]) -> Result<Directory, Diagnostic> {
+    let b = bytes.get(..32).ok_or_else(Diagnostic::short)?;
+    if &b[..8] != b"CPFONT\0\0" {
+        return Err(Diagnostic::new(ParseError::Magic, [0; 4]));
+    }
+    let version = u16le(b, 8);
+    if version != 4 {
+        return Err(Diagnostic::new(
+            ParseError::Version,
+            [u32::from(version), 4, 0, 0],
+        ));
+    }
+    if !(1..=4).contains(&b[12]) {
+        return Err(Diagnostic::new(
+            ParseError::StyleCount,
+            [u32::from(b[12]), 0, 0, 0],
+        ));
+    }
+    Ok(Directory {
         hash: hash(b, 2166136261),
         style_count: b[12],
         is2_bit: u16le(b, 10) & 1 != 0,
@@ -68,11 +119,20 @@ pub fn header(bytes: &[u8]) -> Option<Directory> {
     })
 }
 
-pub fn style(bytes: &[u8], directory: &mut Directory) -> Option<Style> {
-    let b = bytes.get(..32)?;
+pub fn style_diagnostic(bytes: &[u8], directory: &mut Directory) -> Result<Style, Diagnostic> {
+    let b = bytes.get(..32).ok_or_else(Diagnostic::short)?;
     let id = b[0];
-    if id >= 4 || directory.seen & (1 << id) != 0 {
-        return None;
+    if id >= 4 {
+        return Err(Diagnostic::new(
+            ParseError::StyleId,
+            [u32::from(id), 0, 0, 0],
+        ));
+    }
+    if directory.seen & (1 << id) != 0 {
+        return Err(Diagnostic::new(
+            ParseError::DuplicateStyle,
+            [u32::from(id), 0, 0, 0],
+        ));
     }
     let h = Header {
         interval_count: u32le(b, 4),
@@ -92,7 +152,15 @@ pub fn style(bytes: &[u8], directory: &mut Directory) -> Option<Style> {
         || h.kern_left_entry_count > 4096
         || h.kern_right_entry_count > 4096
     {
-        return None;
+        return Err(Diagnostic::new(
+            ParseError::Counts,
+            [
+                h.interval_count,
+                h.glyph_count,
+                u32::from(h.kern_left_entry_count),
+                u32::from(h.kern_right_entry_count),
+            ],
+        ));
     }
     // Preserve the loader's uint32 offset wrap and deferred table-read checks.
     let mut offsets = [0; 7];
@@ -110,36 +178,51 @@ pub fn style(bytes: &[u8], directory: &mut Directory) -> Option<Style> {
     }
     directory.hash = hash(b, directory.hash);
     directory.seen |= 1 << id;
-    Some(Style {
+    Ok(Style {
         header: h,
         offsets,
         id,
     })
 }
 
-pub fn interval(bytes: &[u8], glyphs: u32, index: u32, state: &mut Intervals) -> Option<Interval> {
-    let b = bytes.get(..12)?;
+pub fn interval_diagnostic(
+    bytes: &[u8],
+    glyphs: u32,
+    index: u32,
+    state: &mut Intervals,
+) -> Result<Interval, Diagnostic> {
+    let b = bytes.get(..12).ok_or_else(Diagnostic::short)?;
     let iv = Interval {
         first: u32le(b, 0),
         last: u32le(b, 4),
         offset: u32le(b, 8),
     };
     if iv.first > iv.last {
-        return None;
+        return Err(Diagnostic::new(
+            ParseError::IntervalOrder,
+            [iv.first, iv.last, 0, 0],
+        ));
     }
     // The legacy validator accepts the full uint32 range as a zero-length span.
     let span = iv.last.wrapping_sub(iv.first).wrapping_add(1);
-    if (index > 0 && iv.first <= state.previous_last)
-        || span > glyphs
-        || iv.offset != state.expected_offset
-        || iv.offset > glyphs.wrapping_sub(span)
-    {
-        return None;
+    let overlap = index > 0 && iv.first <= state.previous_last;
+    let mismatch = iv.offset != state.expected_offset;
+    let overrun = iv.offset > glyphs.wrapping_sub(span);
+    if overlap || span > glyphs || mismatch || overrun {
+        return Err(Diagnostic::new(
+            ParseError::IntervalLayout,
+            [
+                u32::from(overlap),
+                span,
+                u32::from(mismatch),
+                u32::from(overrun),
+            ],
+        ));
     }
     state.bmp16 &= iv.first <= 65535 && iv.last <= 65535 && iv.offset <= 65535;
     state.expected_offset = state.expected_offset.wrapping_add(span);
     state.previous_last = iv.last;
-    Some(iv)
+    Ok(iv)
 }
 
 pub fn glyph_valid(bytes: &[u8], two_bit: bool, bitmap_offset: u32, file_size: u32) -> bool {

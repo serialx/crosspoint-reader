@@ -19,6 +19,11 @@ trigger-async 1
 finish-async
 trigger-async 2
 finish-async
+# The second shadowed update must use the previous, distinct frame.
+frame 0
+async 2
+wait
+frame 1
 async 2
 wait
 async-no-shadow 2

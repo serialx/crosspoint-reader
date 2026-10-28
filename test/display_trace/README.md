@@ -57,9 +57,25 @@ unsupported grayscale operations too; `gray.cap` and `gray.accepted` identify
 rejection, and the golden records any fallback or no-op behavior. It does not
 claim unsupported operations became available.
 
-The frame patterns are defined in `DisplayTrace.cpp`. A real 800x480 public page
-from `test/page_golden` is stored in `fixtures/page-800x480.raw.gz`; provenance and
-hashes are in `fixtures/provenance.json`. It uses the repository's table-edge
+After initial conditioning, two shadowed async updates use distinct consecutive
+frames, each followed by a wait. `frame 0` copies the current BW pattern;
+`frame 1` complements the pattern before copying it. This sequence runs on every
+profile and detects copying the new frame into the single-buffer shadow before
+`displayStart` on all nine SSD1677 cases (X4, X4 Pro, X4C, Sticky, Metalio and four
+Picco panel probes). UC8179 and UC8279-X4 also enter the shadowed path but ignore
+the previous-frame argument; X3, A4, Paper Mono and SSD2677 use blocking fallbacks
+for this API. Their traces preserve those behaviors.
+
+The frame patterns are defined in `DisplayTrace.cpp`. Grayscale bytes mix the
+full byte index, row and byte column with separate LSB/MSB seeds. At all three
+geometries, every pair of rows separated by 8, 64 or 256 rows differs in each
+plane. This distinguishes full-plane row-addressing faults such as repeating
+the A4 source rows modulo eight; the first full-plane `gray-show` detects that
+fault before strip uploads run.
+
+A real 800x480 public page from `test/page_golden` is stored in
+`fixtures/page-800x480.raw.gz`; provenance and hashes are in
+`fixtures/provenance.json`. It uses the repository's table-edge
 EPUB and public font. For X3 and A4, crop the rightmost columns and pad extra
 bottom rows white; these are bus inputs, not a claim of native-layout rendering.
 To use private page frames, pass `--page-dir DIR` containing `800x480.raw`,

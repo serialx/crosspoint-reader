@@ -10,6 +10,18 @@
 
 using freeink::FreeInkDisplay;
 
+static uint8_t grayscaleByte(uint32_t index, uint32_t widthBytes, uint32_t seed) {
+  const uint32_t row = index / widthBytes;
+  const uint32_t column = index % widthBytes;
+  uint32_t value = seed ^ (index * 0x9e3779b9u) ^ (row * 0x85ebca6bu) ^ (column * 0xc2b2ae35u);
+  value ^= value >> 16;
+  value *= 0x7feb352du;
+  value ^= value >> 15;
+  value *= 0x846ca68bu;
+  value ^= value >> 16;
+  return static_cast<uint8_t>(value);
+}
+
 int main(int argc, char** argv) {
   if (argc < 3) {
     std::cerr << "usage: runner CONTROLLER SCRIPT [--full] [PAGE.raw]\n";
@@ -90,8 +102,8 @@ int main(int argc, char** argv) {
       msb.resize(n);
       for (size_t i = 0; i < n; ++i) {
         bw[i] = static_cast<uint8_t>((i * 37) ^ (i >> 8) ^ 0xa5);
-        lsb[i] = static_cast<uint8_t>((i * 13) ^ 0x55);
-        msb[i] = static_cast<uint8_t>((i * 71) ^ 0xaa);
+        lsb[i] = grayscaleByte(i, display.getDisplayWidthBytes(), 0x13579bdfu);
+        msb[i] = grayscaleByte(i, display.getDisplayWidthBytes(), 0x2468ace0u);
       }
       trace::event("geometry " + std::to_string(display.getDisplayWidth()) + " " +
                    std::to_string(display.getDisplayHeight()));

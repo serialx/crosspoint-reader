@@ -10,6 +10,7 @@ test = false
 bench = false
 
 [dependencies]
+xp-ui = { path = "../xp-ui" }
 embedded-graphics-core = { workspace = true, optional = true }
 xp-core = { path = "../xp-core" }
 

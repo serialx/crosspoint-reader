@@ -1,0 +1,8 @@
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME ui_runtime_cpp_goldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
+add_test(NAME ui_runtime_rust COMMAND cargo test --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/../../rust/Cargo.toml -p xp-ui)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/xp_ffi_host.cmake)
+add_executable(ui_runtime_abi abi.cpp)
+target_link_libraries(ui_runtime_abi PRIVATE xp_ffi_host)
+target_compile_options(ui_runtime_abi PRIVATE -UNDEBUG)
+add_test(NAME ui_runtime_abi COMMAND ui_runtime_abi)

@@ -23,6 +23,8 @@ mod xml;
 mod xtc;
 mod zip;
 
+pub use xp_ui::ffi;
+
 use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_void;
 use core::panic::PanicInfo;

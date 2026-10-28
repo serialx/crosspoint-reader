@@ -1,4 +1,5 @@
 #pragma once
+#include <xp_ui.h>
 #define XP_NATIVE_TEXT_MEASUREMENT 1
 
 #include <EpdFontFamily.h>
@@ -162,6 +163,8 @@ class GfxRenderer {
 
   // Setup
   XpNativeProvider textProvider() const;
+  bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
+  void drawUiText(const XpUiCommand& command, XpUiRect clip, const char* text) const;
   void begin();  // must be called right after display.begin()
   void insertFont(int fontId, EpdFontFamily font);
   // Clears both the flash-font map and any SD-font registration for fontId.

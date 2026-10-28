@@ -27,6 +27,15 @@ class Golden(unittest.TestCase):
     def test_cpp_widget_pixels(self):
         self.assertEqual(geometry_oracle.record(), (HERE / "geometry.golden").read_bytes())
 
+    def test_top_corner_pixels(self):
+        self.assertEqual(geometry_oracle.record(True), (HERE / "top-corners.golden").read_bytes())
+
+    def test_message_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            binary = pathlib.Path(directory) / "message"
+            subprocess.run(["c++", str(HERE / "message_oracle.cpp"), "-o", str(binary)], check=True)
+            self.assertEqual(subprocess.check_output([str(binary)]), (HERE / "message.golden").read_bytes())
+
     def test_sdk_layout(self):
         self.assertEqual(record(), (HERE / "layout.golden").read_bytes())
 

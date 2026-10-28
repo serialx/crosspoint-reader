@@ -18,7 +18,7 @@ def function(source, signature):
     return source[start:end]
 
 
-def record():
+def record(top_corners=False):
     source = (ROOT / 'lib/GfxRenderer/GfxRenderer.cpp').read_text()
     methods = [function(source, 'void GfxRenderer::drawLine(int x1, int y1, int x2, int y2, const bool state)'),
                function(source, 'void GfxRenderer::drawRect(const int x, const int y, const int width, const int height, const int lineWidth,'),
@@ -83,6 +83,8 @@ int main() {
  }
 }
 '''
+    if top_corners:
+        suffix = suffix.replace("radius,true,true,true,true,true)", "radius,true,true,false,false,true)")
     with tempfile.TemporaryDirectory() as tmp:
         cpp = pathlib.Path(tmp) / 'oracle.cpp'
         binary = pathlib.Path(tmp) / 'oracle'

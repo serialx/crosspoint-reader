@@ -115,6 +115,39 @@ nothing. Future Rust allocations use byte-addressable internal RAM and must
 have an explicit budget and failure policy; the allocator returns null on OOM.
 Rust panics call C `abort()` to enter the existing ESP-IDF panic path.
 
+## Rust size rules
+
+Measure the linked image from the same worktree path and profile. Compare
+`firmware.bin`, `.flash.text`, `.flash.rodata`, and static RAM; archive size
+includes exports that the firmware may discard. [`scripts/rust_size.py`](../../scripts/rust_size.py) compares
+saved build directories with the selected target's binutils and counts symbol
+aliases once. Count the remaining C++ facade and callback adapters as part of a
+port. A small Rust entry point can move its cost into shared callees.
+
+Keep internal records naturally aligned when their fields need no padding.
+Read packed input through the existing unaligned-copy boundary and assert wire
+sizes and offsets. In the library port, changing only the internal record
+alignment saved 622 C3 / 621 S3 bytes of archive code without changing the
+64-byte header or 128-byte record. Do not apply this to formats that need padding.
+
+Use bounded, shared algorithms where they remove measured duplication. The
+library's shared sorter and bounded author-token sort reduced linked C3 sorting
+code by 752 bytes. Keep fallible allocation and input checks; the shared panic
+runtime did not grow in the library, BLE, settings, or display ports.
+
+Inspect repeated callback setup and value copies before adding inline hints.
+Rust LTO cannot inline through the separately compiled C++ services. Preserve
+callback lifetime and synchronization contracts when changing these boundaries.
+Seven BLE helpers marked cold and non-inline grew C3 archive code by 68 bytes
+while saving 167 bytes on S3. A separate BLE policy crate at `"z"` grew code by
+116 / 133 bytes. Neither is a general size rule.
+
+Keep ordinary Rust iteration and target-sized indices unless measurement shows
+a benefit. Both firmware targets have 32-bit `usize`; changing it to `u32` does
+not narrow arithmetic. A bounded-slice rewrite of BLE lookup grew archive code
+by 14 / 26 bytes. Check both targets, real text/page goldens, and reader timing
+before retaining an optimization profile or source rewrite.
+
 ## Diagnostics
 
 Rust never logs. C++ owns every `LOG_*` call, format string, origin tag and

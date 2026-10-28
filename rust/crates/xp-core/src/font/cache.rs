@@ -3,7 +3,7 @@ use super::{
     raw::{FontData, Glyph},
     Font,
 };
-use core::{ffi::c_void, mem::MaybeUninit, ptr};
+use core::{ffi::c_void, ptr};
 
 #[repr(C)]
 #[derive(Default, Clone, Copy)]
@@ -296,18 +296,16 @@ impl Cache {
             return -1;
         }
         (io.generation)();
-        // Only the initialized prefixes are read; avoid clearing unused scratch entries.
-        let mut needed_storage = [MaybeUninit::<u32>::uninit(); 512];
-        let needed = needed_storage.as_mut_ptr().cast::<u32>();
+        let mut needed = [0u32; 512];
         let mut count = 0usize;
         let mut warned = false;
         let mut pos = 0;
         let view = Font::new(font);
         while let Some(cp) = crate::utf8::next(text, &mut pos) {
             if let Some(index) = view.glyph_index(cp) {
-                if !core::slice::from_raw_parts(needed, count).contains(&(index as u32)) {
+                if !needed.get_unchecked(..count).contains(&(index as u32)) {
                     if count < 512 {
-                        needed.add(count).write(index as u32);
+                        *needed.get_unchecked_mut(count) = index as u32;
                         count += 1;
                     } else if !warned {
                         io.log(6, 512, 0, 0, 0);
@@ -326,13 +324,13 @@ impl Cache {
                     view.glyph_index(lig.pair >> 16),
                     view.glyph_index(lig.pair & 0xffff),
                 ) {
-                    let values = core::slice::from_raw_parts(needed, count);
+                    let values = needed.get_unchecked(..count);
                     if !values.contains(&(left as u32)) || !values.contains(&(right as u32)) {
                         continue;
                     }
                     if let Some(out) = view.glyph_index(lig.ligature_cp) {
                         if !values.contains(&(out as u32)) {
-                            needed.add(count).write(out as u32);
+                            *needed.get_unchecked_mut(count) = out as u32;
                             count += 1;
                         }
                     }
@@ -342,15 +340,14 @@ impl Cache {
         if count == 0 {
             return 0;
         }
-        let mut group_storage = [MaybeUninit::<u16>::uninit(); 128];
-        let groups = group_storage.as_mut_ptr().cast::<u16>();
+        let mut groups = [0u16; 128];
         let (mut group_count, mut bytes, mut group_warned) = (0usize, 0u32, false);
-        for &index in core::slice::from_raw_parts(needed, count) {
+        for &index in needed.get_unchecked(..count) {
             bytes += u32::from((*font.glyph.add(index as usize)).data_length);
             let group = group_index(font, index);
-            if !core::slice::from_raw_parts(groups, group_count).contains(&group) {
+            if !groups.get_unchecked(..group_count).contains(&group) {
                 if group_count < 128 {
-                    groups.add(group_count).write(group);
+                    *groups.get_unchecked_mut(group_count) = group;
                     group_count += 1;
                 } else if !group_warned {
                     io.log(7, 0, 0, 0, 0);
@@ -374,10 +371,7 @@ impl Cache {
         slot.font = font;
         slot.count = count as u16;
         self.count += 1;
-        for (i, &index) in core::slice::from_raw_parts(needed, count)
-            .iter()
-            .enumerate()
-        {
+        for (i, &index) in needed.get_unchecked(..count).iter().enumerate() {
             slot.entries.add(i).write(Entry {
                 index,
                 offset: u32::MAX,
@@ -400,7 +394,8 @@ impl Cache {
             let total = last.offset + last.last - last.first + 1;
             for i in 0..total {
                 let group = *font.glyph_to_group.add(i as usize);
-                let Some(gp) = core::slice::from_raw_parts(groups, group_count)
+                let Some(gp) = groups
+                    .get_unchecked(..group_count)
                     .iter()
                     .position(|&g| g == group)
                 else {
@@ -413,7 +408,7 @@ impl Cache {
                 *offset += aligned_size(&*font.glyph.add(i as usize));
             }
         } else {
-            for &group in core::slice::from_raw_parts(groups, group_count) {
+            for &group in groups.get_unchecked(..group_count) {
                 let g = &*font.groups.add(group as usize);
                 let mut offset = 0;
                 for j in 0..u32::from(g.glyph_count) {
@@ -426,7 +421,7 @@ impl Cache {
             }
         }
         let (mut written, mut missed) = (0u32, 0i32);
-        for &group in core::slice::from_raw_parts(groups, group_count) {
+        for &group in groups.get_unchecked(..group_count) {
             let g = &*font.groups.add(group as usize);
             let temp = (io.alloc)(g.uncompressed_size as usize);
             if temp.is_null() {

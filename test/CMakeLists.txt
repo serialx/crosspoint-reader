@@ -143,3 +143,5 @@ add_subdirectory(page_diagnostics)
 add_subdirectory(chapter_diagnostics)
 
 add_subdirectory(display_trace)
+
+add_subdirectory(sync_golden)

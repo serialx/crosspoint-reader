@@ -123,7 +123,7 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             self.next_y = (top + height + below) as i16;
             self.note_content(top, top + height);
         }
-        self.emit_box(scope, true)
+        self.emit_box(scope, true, sink)
     }
     pub(super) fn note_content(&mut self, top: i32, bottom: i32) {
         for scope in &mut self.boxes {
@@ -133,7 +133,12 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             scope.bottom = i32::from(scope.bottom).max(bottom) as i16;
         }
     }
-    pub(super) fn emit_box(&mut self, scope: BoxScope, closing: bool) -> Result {
+    pub(super) fn emit_box<S: Sink<Payload = B>>(
+        &mut self,
+        scope: BoxScope,
+        closing: bool,
+        sink: &S,
+    ) -> Result {
         if scope.top < 0 || self.page.is_none() {
             return Ok(());
         }
@@ -163,16 +168,20 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             },
             scope.sides[3],
         ];
-        self.add_element(Element {
-            x: scope.left,
-            y: top as i16,
-            content: Content::Box {
-                width: scope.right.wrapping_sub(scope.left) as u16,
-                height: (bottom - top) as u16,
-                sides,
-                shaded: scope.shaded,
+        self.add_element(
+            Element {
+                x: scope.left,
+                y: top as i16,
+                content: Content::Box {
+                    width: scope.right.wrapping_sub(scope.left) as u16,
+                    height: (bottom - top) as u16,
+                    sides,
+                    shaded: scope.shaded,
+                },
             },
-        })
+            Diagnostic::BorderBox,
+            sink,
+        )
     }
     /// The semantic caller flushes its pending word before entering this operation.
     #[inline(never)]
@@ -214,14 +223,18 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
             self.complete_page(flow, sink)?;
         }
         self.next_y = self.next_y.wrapping_add(top_gap);
-        self.add_element(Element {
-            x,
-            y: self.next_y,
-            content: Content::Rule {
-                width: width as u16,
-                thickness: 2,
+        self.add_element(
+            Element {
+                x,
+                y: self.next_y,
+                content: Content::Rule {
+                    width: width as u16,
+                    thickness: 2,
+                },
             },
-        })?;
+            Diagnostic::HorizontalRule,
+            sink,
+        )?;
         self.set_visible(flow.position.visible, sink);
         self.note_content(i32::from(self.next_y), i32::from(self.next_y) + 2);
         self.keep_lines = 0;
@@ -277,16 +290,20 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         let top = i32::from(self.next_y);
         let mut block = paragraph.style();
-        self.add_element(Element {
-            x: left(block),
-            y: (top + (i32::from(cap.lines) - 1) * line_height + ascender) as i16,
-            content: Content::DropCap {
-                font,
-                scale256: scale as u16,
-                style,
-                text: cap.text,
+        self.add_element(
+            Element {
+                x: left(block),
+                y: (top + (i32::from(cap.lines) - 1) * line_height + ascender) as i16,
+                content: Content::DropCap {
+                    font,
+                    scale256: scale as u16,
+                    style,
+                    text: cap.text,
+                },
             },
-        })?;
+            Diagnostic::DropCap,
+            sink,
+        )?;
         self.note_content(top, top + i32::from(cap.lines) * line_height);
         paragraph.suppress_indent();
         block.text_indent = 0;

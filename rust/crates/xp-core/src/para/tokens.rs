@@ -22,8 +22,9 @@ impl<T: Copy> Buffer<T> {
         else {
             return false;
         };
-        let data = (allocator.allocate)(bytes).cast::<T>();
+        let data = (allocator.allocate)(bytes, 0).cast::<T>();
         if data.is_null() {
+            allocator.diagnose(super::Diagnostic::Storage, bytes as u32);
             return false;
         }
         if used != 0 {
@@ -248,8 +249,12 @@ impl Tokens {
                         return false;
                     }
                 }
-                let chunk = (a.allocate)(64 * mem::size_of::<Word>()).cast::<Word>();
+                let chunk = (a.allocate)(64 * mem::size_of::<Word>(), 0).cast::<Word>();
                 if chunk.is_null() {
+                    (*self.allocator).diagnose(
+                        super::Diagnostic::Storage,
+                        (64 * mem::size_of::<Word>()) as u32,
+                    );
                     return false;
                 }
                 self.chunks.data.add(self.chunk_count).write(chunk);
@@ -365,8 +370,12 @@ impl Tokens {
                 || offset - (*self.absorbed_tail).base > u16::MAX as u32
             {
                 let chunk =
-                    ((*self.allocator).allocate)(mem::size_of::<Absorbed>()).cast::<Absorbed>();
+                    ((*self.allocator).allocate)(mem::size_of::<Absorbed>(), 0).cast::<Absorbed>();
                 if chunk.is_null() {
+                    (*self.allocator).diagnose(
+                        super::Diagnostic::NfcOffsets,
+                        mem::size_of::<Absorbed>() as u32,
+                    );
                     return false;
                 }
                 // Initialize in place, avoiding a 140-byte temporary on the render task stack.

@@ -20,8 +20,26 @@ use core::{mem, ptr, slice};
 
 #[repr(C)]
 pub struct Allocator {
-    pub allocate: unsafe extern "C" fn(usize) -> *mut u8,
+    pub allocate: unsafe extern "C" fn(usize, u8) -> *mut u8,
     pub release: unsafe extern "C" fn(*mut u8),
+    pub diagnostic: Option<unsafe extern "C" fn(*mut core::ffi::c_void, u32, u32, u32, u32, u32)>,
+}
+
+#[derive(Clone, Copy)]
+#[repr(u32)]
+pub enum Diagnostic {
+    NfcOffsets = 1,
+    WordArena = 2,
+    LineArena = 3,
+    Storage = 4,
+}
+
+impl Allocator {
+    pub fn diagnose(&self, event: Diagnostic, bytes: u32) {
+        if let Some(callback) = self.diagnostic {
+            unsafe { callback(core::ptr::null_mut(), event as u32, bytes, 0, 0, 0) };
+        }
+    }
 }
 
 #[repr(C)]
@@ -79,7 +97,7 @@ impl WordStore {
             return false;
         };
         unsafe {
-            let grown = ((*self.allocator).allocate)(bytes).cast::<Chunk>();
+            let grown = ((*self.allocator).allocate)(bytes, 0).cast::<Chunk>();
             if grown.is_null() {
                 return false;
             }
@@ -108,7 +126,7 @@ impl WordStore {
                     return None;
                 }
                 let capacity = need.max(2048);
-                let data = ((*self.allocator).allocate)(capacity);
+                let data = ((*self.allocator).allocate)(capacity, 1);
                 if data.is_null() {
                     return None;
                 }
@@ -214,7 +232,7 @@ mod tests {
         fail_at: Option<usize>,
     }
     std::thread_local! { static HEAP: RefCell<Heap> = RefCell::new(Heap::default()); }
-    unsafe extern "C" fn allocate(bytes: usize) -> *mut u8 {
+    unsafe extern "C" fn allocate(bytes: usize, _: u8) -> *mut u8 {
         HEAP.with(|heap| {
             let mut heap = heap.borrow_mut();
             heap.requests.push(bytes);
@@ -237,7 +255,11 @@ mod tests {
             );
         });
     }
-    static ALLOC: Allocator = Allocator { allocate, release };
+    static ALLOC: Allocator = Allocator {
+        allocate,
+        release,
+        diagnostic: None,
+    };
     fn reset(fail_at: Option<usize>) {
         HEAP.with(|heap| {
             assert!(heap.borrow().live.is_empty());

@@ -41,6 +41,16 @@ pub fn image_size(
     em: f32,
     css: ImageStyle,
 ) -> (i32, i32) {
+    image_size_diagnostic(intrinsic, container, em, css, |_, _, _, _| {})
+}
+
+fn image_size_diagnostic(
+    intrinsic: (u16, u16),
+    container: (i32, u16),
+    em: f32,
+    css: ImageStyle,
+    mut diagnostic: impl FnMut(Diagnostic, i32, i32, u32),
+) -> (i32, i32) {
     let (width, height) = intrinsic;
     let (container_width, viewport_height) = (container.0, i32::from(container.1));
     let valid = width > 0 && height > 0;
@@ -64,6 +74,7 @@ pub fn image_size(
                 display_width = ((display_width as f32 * scale + 0.5) as i32).max(1);
                 display_height = ((display_height as f32 * scale + 0.5) as i32).max(1);
             }
+            diagnostic(Diagnostic::ImageCssBoth, display_width, display_height, 0);
         }
         (None, Some(h), true) => {
             display_height = ((h.pixels(em, viewport_height as f32) + 0.5) as i32).max(1);
@@ -82,6 +93,7 @@ pub fn image_size(
                     .max(1);
             }
             display_width = display_width.max(1);
+            diagnostic(Diagnostic::ImageCssHeight, display_width, display_height, 0);
         }
         (Some(w), None, true) => {
             display_width = ((w.pixels(em, container_width as f32) + 0.5) as i32)
@@ -96,6 +108,7 @@ pub fn image_size(
                     .max(1);
             }
             display_height = display_height.max(1);
+            diagnostic(Diagnostic::ImageCssWidth, display_width, display_height, 0);
         }
         _ => {
             let sx = if i32::from(width) > container_width {
@@ -111,6 +124,12 @@ pub fn image_size(
             let scale = (if sx < sy { sx } else { sy }).min(1.0);
             display_width = (f32::from(width) * scale) as i32;
             display_height = (f32::from(height) * scale) as i32;
+            diagnostic(
+                Diagnostic::ImageScale,
+                display_width,
+                display_height,
+                scale.to_bits(),
+            );
         }
     }
     (display_width, display_height)
@@ -176,8 +195,13 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
                 container -= inset;
             }
         }
-        let (width, height) =
-            image_size((width, height), (container, self.options.height), em, css);
+        let (width, height) = image_size_diagnostic(
+            (width, height),
+            (container, self.options.height),
+            em,
+            css,
+            |event, w, h, scale| sink.diagnostic(event, w as u32, h as u32, scale, &[]),
+        );
         observe!(sink, "ImageSize", width, height);
         Ok(Some(PreparedImage {
             resource,
@@ -237,13 +261,20 @@ impl<P: Paragraph<B>, B> Assembly<P, B> {
         }
         self.next_y = self.next_y.wrapping_add(top_margin);
         let result = sink.create_image(resource, width, height);
+        if result.is_err() {
+            sink.diagnostic(Diagnostic::ImageBlock, 0, 0, 0, &[]);
+        }
         let payload = self.latch(result)?;
         let x = ((i32::from(self.options.width) - width) / 2) as i16;
-        self.add_element(Element {
-            x,
-            y: self.next_y,
-            content: Content::Image(payload),
-        })?;
+        self.add_element(
+            Element {
+                x,
+                y: self.next_y,
+                content: Content::Image(payload),
+            },
+            Diagnostic::PageImage,
+            sink,
+        )?;
         self.set_visible(flow.position.visible, sink);
         self.note_content(i32::from(self.next_y), i32::from(self.next_y) + height);
         self.keep_lines = 0;

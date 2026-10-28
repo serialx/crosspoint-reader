@@ -53,9 +53,13 @@ impl Ruby {
         }
         while self.chunks.len() < count {
             unsafe {
-                let chunk =
-                    ((*self.allocator).allocate)(CHUNK * mem::size_of::<Bytes>()).cast::<Bytes>();
+                let chunk = ((*self.allocator).allocate)(CHUNK * mem::size_of::<Bytes>(), 0)
+                    .cast::<Bytes>();
                 if chunk.is_null() {
+                    (*self.allocator).diagnose(
+                        super::Diagnostic::Storage,
+                        (CHUNK * mem::size_of::<Bytes>()) as u32,
+                    );
                     return false;
                 }
                 // Initialize in place: no chunk-sized render-task stack temporary.
@@ -132,7 +136,7 @@ mod tests {
     std::thread_local! {
         static STATE: Cell<(usize, usize, usize, usize)> = const { Cell::new((usize::MAX, 0, 0, 0)) };
     }
-    unsafe extern "C" fn allocate(size: usize) -> *mut u8 {
+    unsafe extern "C" fn allocate(size: usize, _: u8) -> *mut u8 {
         STATE.with(|state| {
             let (budget, live, peak, largest) = state.get();
             if budget == 0 {
@@ -162,7 +166,11 @@ mod tests {
         });
         dealloc(p, Layout::new::<[Bytes; CHUNK]>());
     }
-    static ALLOCATOR: Allocator = Allocator { allocate, release };
+    static ALLOCATOR: Allocator = Allocator {
+        allocate,
+        release,
+        diagnostic: None,
+    };
 
     #[test]
     fn growth_boundaries_and_consumption_release_chunks() {

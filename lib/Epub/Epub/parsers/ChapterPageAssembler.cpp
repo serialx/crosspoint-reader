@@ -26,6 +26,7 @@
 
 uint8_t ChapterPageAssembler::probeImage(XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width,
                                          uint16_t& height) {
+  LOG_DBG("EHP", "Found image: src=%.*s", static_cast<int>(src.len), reinterpret_cast<const char*>(src.data));
   auto* self = this;
   // Resolve the image path relative to the HTML file
   std::string resolvedPath = FsHelpers::normalisePath(
@@ -96,6 +97,7 @@ uint8_t ChapterPageAssembler::probeImage(XpChapterSpan src, int32_t& counter, bo
       width = dims.width;
       height = dims.height;
       if (gotDimensions) {
+        LOG_DBG("EHP", "Image dimensions: %dx%d", dims.width, dims.height);
         imageSource_ = std::move(resolvedPath);
         imageCache_ = std::move(cachedImagePath);
         return 2;

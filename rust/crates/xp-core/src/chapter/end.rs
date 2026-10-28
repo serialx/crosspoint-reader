@@ -66,6 +66,7 @@ impl State {
             self.continued = false;
             self.table_depth -= 1;
             self.depth -= 1;
+            self.diagnostic(assembly::Diagnostic::NestedTable, 0, &[]);
             return;
         }
         if self.word_len > 0 {
@@ -144,6 +145,7 @@ impl State {
             };
             self.call_create_paragraph(&style);
             if !self.paragraph_exists() {
+                self.diagnostic(assembly::Diagnostic::AfterTableParagraph, 0, &[]);
                 self.oom = true;
             }
             self.call_reset_extracted();

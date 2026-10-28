@@ -147,9 +147,21 @@ int32_t xp_zip_name_matches(const uint8_t* name, size_t len, const uint8_t* targ
 // The allocator record and callbacks outlive the store. No callback may reenter it.
 // All calls are externally serialized. destroy is required exactly once after init.
 typedef struct XpWordStore XpWordStore;
-typedef struct {
-  void* (*allocate)(size_t bytes);
+#ifdef __cplusplus
+enum class XpParaDiagnostic : uint32_t { NfcOffsets = 1, WordArena = 2, LineArena = 3, OtherStorage = 4 };
+#endif
+typedef struct XpParaAllocator {
+  // word_chunk is 1 only for word-byte chunks; it affects diagnostics only.
+  void* (*allocate)(size_t bytes, uint8_t word_chunk);
   void (*release)(void* data);
+  /* Nullable, synchronous, no reentry. event 1: NFC chunk failure (a=bytes),
+   * 2: word arena failure, 3: line extraction failure, 4: other storage failure
+   * (a=bytes). Context is null; other arguments are zero. */
+  void (*diagnostic)(void* context, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+#ifdef __cplusplus
+      = nullptr
+#endif
+      ;
 } XpParaAllocator;
 typedef struct {
   uint32_t chunk;
@@ -824,6 +836,35 @@ typedef struct {
   uint32_t visible;
   int16_t next_y;
 } XpChapterPosition;
+/* Diagnostic callbacks are nullable and synchronous: no reentry or retained text.
+ * Failure events 1-13 carry zero arguments. SoftFlush: a=word count.
+ * NestedTable: zero arguments. ImageCss*: a/b=signed pixel width/height.
+ * ImageScale: a/b=pixels, c=IEEE-754 float scale bits. DroppedLink: borrowed href.
+ * d and unused arguments are zero. No successful word/line callback is emitted. */
+#ifdef __cplusplus
+enum class XpChapterDiagnostic : uint32_t {
+  BorderBox = 1,
+  DropCap = 2,
+  Paragraph = 3,
+  HorizontalRule = 4,
+  RowSeparator = 5,
+  CellBorder = 6,
+  TableCell = 7,
+  ImageBlock = 8,
+  PageImage = 9,
+  CharacterParagraph = 10,
+  AfterTableParagraph = 11,
+  PageLine = 12,
+  NoParagraph = 13,
+  SoftFlush = 14,
+  NestedTable = 15,
+  ImageCssBoth = 16,
+  ImageCssHeight = 17,
+  ImageCssWidth = 18,
+  ImageScale = 19,
+  DroppedLink = 20,
+};
+#endif
 /* Borrowed sink/metrics/context outlive the chapter. All spans are borrowed
  * synchronously. Only measure_table may use its supplied state pointer. */
 typedef struct {
@@ -852,6 +893,8 @@ typedef struct {
   void (*measure_table)(void* context, XpChapterState* state);
   void (*trace)(void* context, const XpChapterTrace* observation);
   void (*trace_bytes)(void* context, XpChapterSpan bytes);
+  void (*diagnostic)(void* context, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t* text,
+                     uint32_t text_len);
 } XpChapterSink;
 typedef enum {
   XP_CHAPTER_QUERY_STOPPED = 0,
@@ -892,6 +935,9 @@ typedef enum {
   XP_CHAPTER_NOTIFY_BEGIN_BLOCKS = 10,
   XP_CHAPTER_NOTIFY_BEGIN_LISTS = 11,
 } XpChapterNotify;
+/* Packed feed result: bits 0..7 = More/Done/Error, 8..31 = Expat error,
+ * 32..63 = one-based line. Error/line are zero without an XML error. */
+uint64_t xp_chapter_feed_diagnostic(XpChapter*, const uint8_t*, uint32_t, uint8_t);
 int32_t xp_chapter_create(XpChapter** out, const XpChapterSink* sink, void* ctx, const XpCss* css,
                           const XpChapterOptions* options);
 void xp_chapter_destroy(XpChapter* handle);

@@ -280,6 +280,7 @@ impl State {
             }
             self.call_create_paragraph(&cell);
             if !self.paragraph_exists() {
+                self.diagnostic(assembly::Diagnostic::TableCell, 0, &[]);
                 self.skip = self.depth;
                 self.depth += 1;
                 return;

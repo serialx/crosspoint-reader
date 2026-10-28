@@ -4,6 +4,9 @@ use assembly::{Assembly, Flow, ImageStyle, Paragraph, Position, Result, Sink};
 type Assembler = Assembly<OwnedParagraph, Payload>;
 
 impl State {
+    pub fn diagnostic(&self, event: assembly::Diagnostic, a: u32, text: &[u8]) {
+        self.sink().diagnostic(event, a, 0, 0, text);
+    }
     fn sink(&self) -> PageSink {
         PageSink {
             callbacks: self.callbacks,

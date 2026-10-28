@@ -1,5 +1,6 @@
 get_target_property(PAGE_LOAD_INCLUDES SectionGoldenDump INCLUDE_DIRECTORIES)
 add_executable(PageLoad
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
   PageLoad.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Section.cpp
   ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp

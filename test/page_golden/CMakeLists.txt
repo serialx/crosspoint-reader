@@ -16,6 +16,7 @@ add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRen
   DEPENDS ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp instrument.py ${REPO_ROOT}/lib/Epub/Epub/Page.cpp ${REPO_ROOT}/test/text_golden/instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
   VERBATIM)
 add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
   ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
   ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp

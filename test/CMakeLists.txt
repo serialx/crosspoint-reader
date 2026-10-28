@@ -141,3 +141,5 @@ add_subdirectory(sdfont_pool_diff)
 add_subdirectory(h6_diagnostics)
 add_subdirectory(page_diagnostics)
 add_subdirectory(chapter_diagnostics)
+
+add_test(NAME i18n_oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/i18n_oracle/run.py)

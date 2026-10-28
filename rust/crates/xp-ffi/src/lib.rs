@@ -9,6 +9,7 @@ mod glyph;
 mod hyphen;
 mod image;
 mod inflate;
+mod library;
 mod page;
 mod page_render;
 mod para;

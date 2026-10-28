@@ -15,27 +15,101 @@ extern "C" void xp_test_fail_allocation_after(size_t count);
 extern "C" size_t xp_test_live_allocations();
 
 TEST(LibraryRustAllocation, ScratchFailuresKeepThePreviousIndexAndReleaseStorage) {
-  for (size_t fail = 0; fail < 160; ++fail) {
-    SCOPED_TRACE(fail);
-    xp_test_fail_allocation_after(SIZE_MAX);
-    fake::reset();
-    bookMetadata.clear();
-    fake::add("/a.epub");
-    bookMetadata["/a.epub"] = {std::string(200, 'a'), std::string(120, 'b'), true};
-    library::BuildStats stats;
-    ASSERT_TRUE(library::buildLibraryIndex("/", stats, true));
-    const auto before = fake::files[library::libraryIndexPath()]->bytes;
-    fake::add("/b.epub", "new book");
-    bookMetadata["/b.epub"] = {std::string(200, 'c'), std::string(120, 'd'), true};
-    xp_test_fail_allocation_after(fail);
-    const bool ok = library::buildLibraryIndex("/", stats, true);
-    xp_test_fail_allocation_after(SIZE_MAX);
-    EXPECT_EQ(xp_test_live_allocations(), 0u);
-    if (!ok) EXPECT_EQ(fake::files[library::libraryIndexPath()]->bytes, before);
-    library::LibraryIndexFile index;
-    ASSERT_TRUE(index.open(library::libraryIndexPath()));
-    EXPECT_EQ(index.bookCount(), ok ? 2u : 1u);
+  for (const auto& author : {std::string(), std::string(120, 'b')}) {
+    SCOPED_TRACE(author.size());
+    std::vector<uint8_t> expected;
+    for (size_t fail = 0; fail <= 160; ++fail) {
+      SCOPED_TRACE(fail);
+      xp_test_fail_allocation_after(SIZE_MAX);
+      fake::reset();
+      bookMetadata.clear();
+      fake::add("/a.epub");
+      bookMetadata["/a.epub"] = {std::string(200, 'a'), author, true};
+      library::BuildStats stats;
+      ASSERT_TRUE(library::buildLibraryIndex("/", stats, true));
+      const auto before = fake::files[library::libraryIndexPath()]->bytes;
+      if (author.empty()) {
+        fake::add("/b.txt", "new book");
+      } else {
+        fake::add("/b.epub", "new book");
+        bookMetadata["/b.epub"] = {std::string(200, 'c'), std::string(120, 'd'), true};
+      }
+      ASSERT_TRUE(library::markLibraryIndexDirty());
+      // First capture a complete successful rebuild, then inject each failure position.
+      xp_test_fail_allocation_after(fail == 0 ? SIZE_MAX : fail - 1);
+      const bool ok = library::buildLibraryIndex("/", stats, true);
+      xp_test_fail_allocation_after(SIZE_MAX);
+      EXPECT_EQ(xp_test_live_allocations(), 0u);
+      if (fail == 0) {
+        ASSERT_TRUE(ok);
+        expected = fake::files[library::libraryIndexPath()]->bytes;
+      }
+      EXPECT_EQ(fake::files[library::libraryIndexPath()]->bytes, ok ? expected : before);
+      EXPECT_EQ(library::isLibraryIndexDirty(), !ok);
+      library::LibraryIndexFile index;
+      ASSERT_TRUE(index.open(library::libraryIndexPath()));
+      EXPECT_EQ(index.bookCount(), ok ? 2u : 1u);
+    }
   }
+}
+
+TEST(LibraryRustAllocation, CachedTitleAllocationFailureKeepsMetadataAndDirtyState) {
+  fake::reset();
+  bookMetadata.clear();
+  fake::add("/a.epub", "book", 7);
+  const std::string title(200, 'a');
+  bookMetadata["/a.epub"] = {title, "", true};
+  library::BuildStats stats;
+  ASSERT_TRUE(library::buildLibraryIndex("/", stats, true));
+  const auto before = fake::files[library::libraryIndexPath()]->bytes;
+  fake::add("/b.txt");
+  ASSERT_TRUE(library::markLibraryIndexDirty());
+  xp_test_fail_allocation_after(0);
+  const bool ok = library::buildLibraryIndex("/", stats, true);
+  xp_test_fail_allocation_after(SIZE_MAX);
+  EXPECT_FALSE(ok);
+  EXPECT_FALSE(stats.indexReplaced);
+  EXPECT_EQ(fake::files[library::libraryIndexPath()]->bytes, before);
+  EXPECT_TRUE(library::isLibraryIndexDirty());
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
+  ASSERT_TRUE(library::buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(stats.metadataReused, 1u);
+  EXPECT_FALSE(library::isLibraryIndexDirty());
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
+  library::LibraryIndexFile index;
+  ASSERT_TRUE(index.open(library::libraryIndexPath()));
+  ASSERT_EQ(index.bookCount(), 2u);
+  library::ClixRecord record;
+  ASSERT_TRUE(index.readRecord(0, record));
+  std::string actual;
+  ASSERT_TRUE(index.readTitle(record, actual));
+  EXPECT_EQ(actual, title);
+  EXPECT_FALSE(index.readAuthor(record, actual));
+  EXPECT_TRUE(actual.empty());
+}
+
+TEST(LibraryRustAllocation, EmptyCachedTitleReusesWithoutAllocation) {
+  fake::reset();
+  bookMetadata.clear();
+  fake::add("/a.epub", "book", 7);
+  bookMetadata["/a.epub"] = {"", "", true};
+  library::BuildStats stats;
+  ASSERT_TRUE(library::buildLibraryIndex("/", stats, true));
+  fake::add("/b.txt");
+  xp_test_fail_allocation_after(0);
+  const bool ok = library::buildLibraryIndex("/", stats, true);
+  xp_test_fail_allocation_after(SIZE_MAX);
+  ASSERT_TRUE(ok);
+  EXPECT_EQ(stats.metadataReused, 1u);
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
+  library::LibraryIndexFile index;
+  ASSERT_TRUE(index.open(library::libraryIndexPath()));
+  EXPECT_EQ(index.bookCount(), 2u);
+  library::ClixRecord record;
+  ASSERT_TRUE(index.readRecord(0, record));
+  std::string title;
+  EXPECT_FALSE(index.readTitle(record, title));
+  EXPECT_TRUE(title.empty());
 }
 
 TEST(LibraryRustAllocation, CorruptStagingAuthorCannotPanicOrReplaceTheIndex) {

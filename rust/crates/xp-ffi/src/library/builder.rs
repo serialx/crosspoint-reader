@@ -518,7 +518,10 @@ impl Read for Index<'_> {
             self.output.clear();
         }
         let start = self.output.len();
-        self.output.try_reserve(len).ok()?;
+        if self.output.try_reserve(len).is_err() {
+            self.failed = true;
+            return None;
+        }
         self.output.resize(start + len, 0);
         if len > 0 && !self.file.at(u64::from(at), &mut self.output[start..]) {
             self.failed = true;

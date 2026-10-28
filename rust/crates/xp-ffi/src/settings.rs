@@ -2,6 +2,9 @@
 use core::ffi::c_void;
 use core::ptr;
 
+// Fixed ABI width: XP_STORE_SLEEP_RECENT_COUNT in xp_settings.h.
+const SLEEP_RECENT_COUNT: usize = 16;
+
 #[repr(u32)]
 #[derive(Clone, Copy)]
 enum JsonQuery {
@@ -241,8 +244,8 @@ pub unsafe extern "C" fn xp_store_recent_push(
     index: u16,
 ) {
     *images.add(*pos as usize) = index;
-    *pos = (*pos + 1) % 16;
-    if *fill < 16 {
+    *pos = (*pos + 1) % SLEEP_RECENT_COUNT as u8;
+    if *fill < SLEEP_RECENT_COUNT as u8 {
         *fill += 1;
     }
 }
@@ -258,7 +261,7 @@ pub unsafe extern "C" fn xp_store_recent_contains(
     count: u8,
 ) -> bool {
     for i in 0..count.min(fill) {
-        let slot = (pos as usize + 16 - 1 - i as usize) % 16;
+        let slot = (pos as usize + SLEEP_RECENT_COUNT - 1 - i as usize) % SLEEP_RECENT_COUNT;
         if *images.add(slot) == index {
             return true;
         }
@@ -642,15 +645,21 @@ unsafe fn load_ring(
     keys: [&'static core::ffi::CStr; 3],
 ) {
     let mut root = JsonPath::root(keys[0]);
-    let count = json.num(&root, JsonQuery::ArraySize, 0).min(16) as usize;
-    ptr::write_bytes(images, 0, 16);
+    let count = json
+        .num(&root, JsonQuery::ArraySize, 0)
+        .min(SLEEP_RECENT_COUNT as u64) as usize;
+    ptr::write_bytes(images, 0, SLEEP_RECENT_COUNT);
     for i in 0..count {
         root.index = i;
         *images.add(i) = json.num(&root, JsonQuery::U16, 0) as u16;
     }
     *pos = json.num(&JsonPath::root(keys[1]), JsonQuery::U8, 0) as u8;
-    if *pos >= 16 {
-        *pos = if count > 0 { *pos % 16 } else { 0 };
+    if *pos >= SLEEP_RECENT_COUNT as u8 {
+        *pos = if count > 0 {
+            *pos % SLEEP_RECENT_COUNT as u8
+        } else {
+            0
+        };
     }
     *fill = (json.num(&JsonPath::root(keys[2]), JsonQuery::U8, 0) as u8).min(count as u8);
 }
@@ -663,7 +672,7 @@ unsafe fn save_ring(
 ) {
     let mut root = JsonPath::root(keys[0]);
     json.put(&root, JsonWrite::Array, 0);
-    for i in 0..16 {
+    for i in 0..SLEEP_RECENT_COUNT {
         root.index = i;
         json.put(&root, JsonWrite::Number, *images.add(i) as u64);
     }

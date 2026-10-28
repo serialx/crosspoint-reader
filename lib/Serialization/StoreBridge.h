@@ -16,12 +16,32 @@ inline XpStoreBytes bytes(const std::string& value) {
 
 class JsonInput {
   JsonVariantConst input;
+  struct Cursor {
+    JsonArrayConst array;
+    JsonArrayConst::iterator current;
+    size_t index = 0;
 
-  JsonVariantConst get(const XpStoreJsonPath& path) const {
+    JsonVariantConst get(JsonVariantConst value, size_t target) {
+      const auto next = value.as<JsonArrayConst>();
+      // Iterator identity avoids a deep array comparison; input stays immutable.
+      if (array.begin() != next.begin() || target < index) {
+        array = next;
+        current = array.begin();
+        index = 0;
+      }
+      while (index < target && current != array.end()) {
+        ++current;
+        ++index;
+      }
+      return current != array.end() ? *current : JsonVariantConst();
+    }
+  } row, subrow;
+
+  JsonVariantConst get(const XpStoreJsonPath& path) {
     JsonVariantConst value = input[path.key];
-    if (path.index != SIZE_MAX) value = value[path.index];
+    if (path.index != SIZE_MAX) value = row.get(value, path.index);
     if (path.field) value = value[path.field];
-    if (path.subindex != SIZE_MAX) value = value[path.subindex];
+    if (path.subindex != SIZE_MAX) value = subrow.get(value, path.subindex);
     if (path.subfield) value = value[path.subfield];
     return value;
   }
@@ -74,7 +94,7 @@ class JsonInput {
   }
 };
 
-class Json : public JsonInput {
+class Json {
   JsonDocument* output;
   JsonArray array, subarray;
   JsonVariant row, subrow;
@@ -114,12 +134,16 @@ class Json : public JsonInput {
   }
 
  public:
-  explicit Json(JsonDocument& output) : JsonInput(output.as<JsonVariantConst>()), output(&output) {}
+  explicit Json(JsonDocument& output) : output(&output) {}
 
   XpStoreJsonOps ops() {
-    auto result = JsonInput::ops();
+    // Save policies only call put; the ABI still requires non-null read callbacks.
+    XpStoreJsonOps result{
+        this, [](void*, const XpStoreJsonPath*, uint32_t, uint64_t) -> uint64_t { return 0; },
+        [](void*, const XpStoreJsonPath*) -> XpStoreBytes { return {reinterpret_cast<const uint8_t*>(""), 0}; },
+        nullptr};
     result.put = [](void* ctx, const XpStoreJsonPath* path, uint32_t kind, uint64_t number, XpStoreBytes text) {
-      auto& self = *static_cast<Json*>(static_cast<JsonInput*>(ctx));
+      auto& self = *static_cast<Json*>(ctx);
       JsonVariant value = self.getOutput(*path);
       switch (static_cast<XpStoreJsonWrite>(kind)) {
         case XP_JSONWRITE_BORROWEDSTRING:

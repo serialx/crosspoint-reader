@@ -166,6 +166,47 @@ void actions(JsonDocument& result, bool failWrite) {
   store_test::failWrite = false;
 }
 
+void scaling(JsonDocument& result, const std::string& kind, size_t count) {
+  JsonDocument doc;
+  const bool wifi = kind == "scaling-wifi-invalid";
+  auto rows = doc[wifi ? "credentials" : "tokens"].to<JsonArray>();
+  for (size_t i = 0; i < count; ++i) {
+    if (kind == "scaling-tokens-null") {
+      rows.add(nullptr);
+    } else {
+      auto row = rows.add<JsonObject>();
+      if (wifi)
+        row["password_len"] = -1;
+      else
+        row["url"] = "";
+    }
+  }
+  auto valid = rows.add<JsonObject>();
+  valid[wifi ? "ssid" : "url"] = "valid";
+  CountingAllocator allocator;
+  JsonDocument saved(&allocator);
+  store_test_list_steps = 0;
+  if (wifi) {
+    auto& store = WifiCredentialStore::getInstance();
+    store.fromJson(doc.as<JsonVariantConst>());
+    result["steps"] = store_test_list_steps;
+    store.toJson(saved);
+    result["valid"] = saved["credentials"].size() == 1 && saved["credentials"][0]["ssid"] == "valid";
+  } else {
+    auto& store = OpdsTokenStore::getInstance();
+    store.fromJson(doc.as<JsonVariantConst>());
+    result["steps"] = store_test_list_steps;
+    store.toJson(saved);
+    result["valid"] = saved["tokens"].size() == 1 && saved["tokens"][0]["url"] == "valid";
+  }
+  std::string bytes;
+  serializeJson(saved, bytes);
+  result["state"] = bytes;
+  JsonArray allocations = result["jsonAllocations"].to<JsonArray>();
+  for (const auto& event : allocator.events) allocations.add(event);
+  result["jsonPeak"] = allocator.peak;
+}
+
 void buffered(JsonDocument& result, size_t capacity, bool failAlloc, bool shortIo) {
   store_test::failAlloc = failAlloc;
   HalFile file;
@@ -203,7 +244,9 @@ int main(int argc, char** argv) {
     store_test::logs.clear();
     store_test::io.clear();
     JsonDocument result;
-    if (kind == "alloc-recent") {
+    if (kind.starts_with("scaling-")) {
+      scaling(result, kind, std::stoul(input));
+    } else if (kind == "alloc-recent") {
       roundTrip<RecentBooksStore>(
           R"({"books":[{"path":"/long-path-first","title":"long-title-first"},{"path":"/long-path-second","title":"long-title-second"}]})",
           result, std::stoi(input));

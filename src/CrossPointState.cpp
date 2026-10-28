@@ -3,6 +3,8 @@
 #include <StoreBridge.h>
 
 namespace {
+static_assert(sizeof(CrossPointState::recentSleepImages) / sizeof(uint16_t) == XP_STORE_SLEEP_RECENT_COUNT);
+static_assert(sizeof(CrossPointState::recentOverlaySleepImages) / sizeof(uint16_t) == XP_STORE_SLEEP_RECENT_COUNT);
 XpStoreState view(CrossPointState& state) {
   return {&state.openEpubPath,
           [](void* ctx) { return store_bridge::bytes(*static_cast<std::string*>(ctx)); },

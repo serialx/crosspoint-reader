@@ -99,6 +99,8 @@ bool xp_store_buffer_flush(XpStoreWriter*, const uint8_t*, const XpStoreFileOps*
 size_t xp_store_buffer_read(XpStoreReader*, uint8_t*, size_t, const XpStoreFileOps*, uint8_t*, size_t);
 bool xp_store_buffer_seek(XpStoreReader*, size_t, const XpStoreFileOps*, size_t);
 void xp_store_xor(uint8_t*, size_t, const uint8_t*, size_t);
+// Fixed persisted ring width; images and overlay each borrow this many elements.
+enum { XP_STORE_SLEEP_RECENT_COUNT = 16 };
 void xp_store_recent_push(uint16_t*, uint8_t*, uint8_t*, uint16_t);
 bool xp_store_recent_contains(const uint16_t*, uint8_t, uint8_t, uint16_t, uint8_t);
 typedef struct {

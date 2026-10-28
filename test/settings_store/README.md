@@ -17,6 +17,15 @@ shape. They compile the actual settings migrations and BLE JSON helpers, with bo
 home-button capability values. Full board-specific SettingsList and settings-screen coverage must run in the
 firmware/O2 checks; these synthetic descriptors do not replace them.
 
+The runner links the generated translation unit and exported language metadata;
+it does not parse generated C++ definitions. After the i18n port, the Rust archive
+supplies the same metadata symbols. A private ArduinoJson copy counts linked-list
+advances during token and Wi-Fi loads with 256–4,096 rejected rows before a valid
+row. The linear operation bound catches repeated indexed traversal independently
+of host timing. `scaling-golden.json.gz`, captured from the original C++ with
+`--record-scaling`, also checks saved bytes, diagnostics and JSON allocation traces
+for those 15 inputs; the original 2,529 golden cases remain unchanged.
+
 CMake registers `settings_store_oracle` when ArduinoJson and mbedTLS sources are
 available. Set `STORE_TEST_ARDUINOJSON` to the ArduinoJson `src` directory and
 `STORE_TEST_MBEDTLS` to the mbedTLS root if they are outside the usual PlatformIO

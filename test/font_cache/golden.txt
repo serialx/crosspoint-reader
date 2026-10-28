@@ -1,0 +1,2772 @@
+CASE 0 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 1 0 0
+empty 0
+alloc 9 1
+glyph 0 null
+alloc 9 0
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 15 3 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 2 0 0
+empty 0
+alloc 9 0
+alloc 2 1
+glyph 0 null
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 3 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 1
+glyph 2 null
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 4 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 1
+alloc 36 0
+free 36
+prewarm 3
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 24 96 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 5 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 1
+free 6
+prewarm 3
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 24 96 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 6 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 1
+prewarm 1
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 7 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 1
+glyph 0 null
+alloc 9 0
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 15 3 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 8 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 1
+glyph 0 null
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 9 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 1
+glyph 2 null
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 10 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 1
+alloc 12 0
+free 12
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 8 0
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 14 live 0
+CASE 11 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 1
+free 3
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 8 0
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 14 live 0
+CASE 12 0 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 1
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 0 0 1
+empty 0
+alloc 9 0
+glyph 0 null
+glyph 1 null
+glyph 2 null
+glyph 0 null
+glyph 1 null
+glyph 2 null
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 1
+glyph 0 null
+glyph 1 null
+glyph 2 null
+glyph 0 null
+glyph 1 null
+glyph 2 null
+free 6
+free 36
+free 9
+alloc 9 0
+glyph 0 null
+glyph 1 null
+glyph 2 null
+glyph 0 null
+glyph 1 null
+glyph 2 null
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 1
+slot 8 -1
+stats 0 18 0 1 30 132 0 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+generation 13 live 0
+CASE 0 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 1 1 0
+empty 0
+alloc 9 1
+glyph 0 null
+alloc 9 0
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 15 3 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 2 1 0
+empty 0
+alloc 9 0
+alloc 2 1
+glyph 0 null
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 3 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 1
+glyph 2 null
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 4 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 1
+alloc 36 0
+free 36
+prewarm 3
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 24 96 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 5 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 1
+free 6
+prewarm 3
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 24 96 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 6 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 1
+prewarm 1
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 7 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 1
+glyph 0 null
+alloc 9 0
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 15 3 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 8 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 1
+glyph 0 null
+alloc 1 0
+glyph 1 e4
+free 1
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 9 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 1
+glyph 2 null
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 10 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 1
+alloc 12 0
+free 12
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 8 0
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 14 live 0
+CASE 11 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 1
+free 3
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 8 0
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 14 live 0
+CASE 12 1 0
+empty 0
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 0
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+free 6
+free 36
+free 9
+free 3
+alloc 9 0
+alloc 2 0
+glyph 0 1900
+glyph 1 e4
+free 2
+alloc 3 0
+glyph 2 80ea90
+glyph 0 1900
+glyph 1 e4
+glyph 2 80ea90
+alloc 3 0
+alloc 12 0
+alloc 9 1
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 0
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 0
+slot 8 -1
+stats 16 2 0 1 30 132 9 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+free 3
+generation 13 live 0
+CASE 0 1 1
+empty 0
+alloc 9 0
+glyph 0 null
+glyph 1 null
+glyph 2 null
+glyph 0 null
+glyph 1 null
+glyph 2 null
+alloc 6 0
+alloc 36 0
+alloc 9 0
+free 9
+prewarm 1
+glyph 0 null
+glyph 1 null
+glyph 2 null
+glyph 0 null
+glyph 1 null
+glyph 2 null
+free 6
+free 36
+free 9
+alloc 9 0
+glyph 0 null
+glyph 1 null
+glyph 2 null
+glyph 0 null
+glyph 1 null
+glyph 2 null
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 0 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 1 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 2 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 3 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 4 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 5 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 6 1
+alloc 3 0
+alloc 12 0
+alloc 9 0
+free 9
+slot 7 1
+slot 8 -1
+stats 0 18 0 1 30 132 0 9 0 18
+slots 8
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 3
+free 12
+free 9
+generation 13 live 0

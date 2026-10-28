@@ -1,0 +1,577 @@
+{
+  "schema": 1,
+  "baseline": "539ebafcadd233bf11c68cdeb05c24454bdab22a",
+  "scope": "Finite offline state families declared in screens.json; not an exhaustive product of settings, content, languages, and injected failures.",
+  "sources": [
+    {
+      "source": "src/activities/Activity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/ActivityManager.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/CatalogActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/UiListActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/UiTabListActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/boot_sleep/BootActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "boot"
+      ],
+      "activity": "Boot"
+    },
+    {
+      "source": "src/activities/boot_sleep/SleepActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "sleep-0",
+        "sleep-1",
+        "sleep-2",
+        "sleep-3",
+        "sleep-4",
+        "sleep-5",
+        "sleep-6",
+        "sleep-7",
+        "sleep-8",
+        "sleep-cover-3",
+        "sleep-cover-4",
+        "sleep-cover-8",
+        "sleep-custom-image",
+        "sleep-overlay-image"
+      ],
+      "activity": "Sleep"
+    },
+    {
+      "source": "src/activities/browser/OpdsBookBrowserActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "opds-offline"
+      ],
+      "reason": "OPDS requires a successful Wi-Fi connection before catalog results, details, pagination, and download/progress/error states.",
+      "contract": "src/activities/CatalogActivity.cpp:52"
+    },
+    {
+      "source": "src/activities/home/CrashActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "crash"
+      ],
+      "activity": "Crash"
+    },
+    {
+      "source": "src/activities/home/FileBrowserActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "empty-files",
+        "files",
+        "firmware-error"
+      ],
+      "activity": "FileBrowser"
+    },
+    {
+      "source": "src/activities/home/HomeActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "broken-book",
+        "general",
+        "home-theme-0",
+        "home-theme-1",
+        "home-theme-2",
+        "home-theme-3",
+        "home-theme-4",
+        "plugins"
+      ],
+      "activity": "Home"
+    },
+    {
+      "source": "src/activities/library/LibraryListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "library",
+        "library-actions",
+        "library-search"
+      ],
+      "activity": "Library"
+    },
+    {
+      "source": "src/activities/network/CalibreConnectActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "calibre"
+      ],
+      "reason": "Wi-Fi gate captured; discovery, pairing, transfer, and server errors require a reachable Calibre server.",
+      "contract": "src/activities/network/CalibreConnectActivity.cpp:37"
+    },
+    {
+      "source": "src/activities/network/CrossPointWebServerActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "hotspot"
+      ],
+      "activity": "CrossPointWebServer"
+    },
+    {
+      "source": "src/activities/network/NetworkModeSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "transfer"
+      ],
+      "activity": "NetworkModeSelection"
+    },
+    {
+      "source": "src/activities/network/UsbDriveActivity.cpp",
+      "status": "unsupported-profile",
+      "reason": "X3/X4 ESP32-C3 profiles compile FREEINK_CAP_USB_MSC=0; network/NetworkModeSelectionActivity.cpp:17."
+    },
+    {
+      "source": "src/activities/network/WifiSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "calibre",
+        "clock",
+        "font-download",
+        "koreader-auth",
+        "opds-offline",
+        "ota",
+        "plugins",
+        "reader-sync",
+        "transfer",
+        "wifi"
+      ],
+      "activity": "WifiSelection"
+    },
+    {
+      "source": "src/activities/plugins/PluginCatalogActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "plugin-readme",
+        "plugins"
+      ],
+      "activity": "PluginCatalog"
+    },
+    {
+      "source": "src/activities/reader/ClipSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clip",
+        "dictionary"
+      ],
+      "activity": "ClipSelection"
+    },
+    {
+      "source": "src/activities/reader/DictionaryDefinitionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "dictionary",
+        "plugin-readme"
+      ],
+      "activity": "DictionaryDefinition"
+    },
+    {
+      "source": "src/activities/reader/DictionaryWordSelectActivity.cpp",
+      "status": "transient-route",
+      "groups": [
+        "dictionary"
+      ],
+      "reason": "Lookup/index busy popup is traversed before DictionaryDefinition; the settled screenshot is the definition. Lookup misses and I/O/OOM popups are not captured.",
+      "contract": "src/activities/reader/DictionaryWordSelectActivity.cpp:30"
+    },
+    {
+      "source": "src/activities/reader/EndOfBookOptions.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/EpubReaderActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bookmarks",
+        "clippings",
+        "end-book",
+        "end-book-next",
+        "footnotes",
+        "reader",
+        "toolbar"
+      ],
+      "activity": "EpubReader"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderBookmarksActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bookmarks"
+      ],
+      "activity": "EpubReaderBookmarks"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderChapterSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "reader"
+      ],
+      "activity": "EpubReaderChapterSelection"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderClippingListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clippings"
+      ],
+      "activity": "EpubReaderClippings"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderFootnoteSelectActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "footnotes"
+      ],
+      "activity": "EpubReaderFootnoteSelect"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderMenuActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "reader",
+        "reader-popups"
+      ],
+      "activity": "EpubReaderMenu"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderPercentSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "percent"
+      ],
+      "activity": "EpubReaderPercentSelection"
+    },
+    {
+      "source": "src/activities/reader/KOReaderSyncActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "reader-sync"
+      ],
+      "reason": "Wi-Fi gate captured; fetch/upload, remote progress confirmation, and service errors require a reachable sync service.",
+      "contract": "src/activities/reader/KOReaderSyncActivity.cpp:474"
+    },
+    {
+      "source": "src/activities/reader/QrDisplayActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "qr"
+      ],
+      "activity": "QrDisplay"
+    },
+    {
+      "source": "src/activities/reader/ReaderActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/ReaderSession.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/ReaderToolbarUi.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/XtcReaderActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "xtc"
+      ],
+      "activity": "XtcReader"
+    },
+    {
+      "source": "src/activities/reader/XtcReaderChapterSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "xtc"
+      ],
+      "activity": "XtcReaderChapterSelection"
+    },
+    {
+      "source": "src/activities/settings/AboutActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "About"
+    },
+    {
+      "source": "src/activities/settings/BleSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bluetooth"
+      ],
+      "activity": "BleSettings"
+    },
+    {
+      "source": "src/activities/settings/ButtonRemapActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "controls"
+      ],
+      "activity": "ButtonRemap"
+    },
+    {
+      "source": "src/activities/settings/ClearCacheActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "status-cache"
+      ],
+      "activity": "ClearCache"
+    },
+    {
+      "source": "src/activities/settings/ClockSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clock"
+      ],
+      "activity": "ClockSettings"
+    },
+    {
+      "source": "src/activities/settings/ClockSyncActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "clock"
+      ],
+      "reason": "X3 Wi-Fi gate captured; NTP success/failure states require connection; X4 has no RTC settings entry.",
+      "contract": "src/activities/settings/ClockSyncActivity.cpp:44"
+    },
+    {
+      "source": "src/activities/settings/FontDownloadActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "font-download"
+      ],
+      "reason": "Wi-Fi gate captured; font catalog, downloads, and service errors require network access.",
+      "contract": "src/activities/settings/FontDownloadActivity.cpp:76"
+    },
+    {
+      "source": "src/activities/settings/HomeButtonSettingsActivity.cpp",
+      "status": "unsupported-profile",
+      "reason": "Neither X3 nor X4 has a Home button; settings/SettingsActivity.cpp and SettingsList.cpp gate the entry on HAL input capability."
+    },
+    {
+      "source": "src/activities/settings/KOReaderAuthActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "koreader-auth"
+      ],
+      "reason": "Wi-Fi gate captured with synthetic credentials; login/register responses require a service.",
+      "contract": "src/activities/settings/KOReaderAuthActivity.cpp:66"
+    },
+    {
+      "source": "src/activities/settings/KOReaderSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "koreader"
+      ],
+      "activity": "KOReaderSettings"
+    },
+    {
+      "source": "src/activities/settings/KeyboardLayoutsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "KeyboardLayouts"
+    },
+    {
+      "source": "src/activities/settings/LanguageSelectActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "LanguageSelect"
+    },
+    {
+      "source": "src/activities/settings/OpdsServerListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "opds"
+      ],
+      "activity": "OpdsServerList"
+    },
+    {
+      "source": "src/activities/settings/OpdsSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "opds"
+      ],
+      "activity": "OpdsSettings"
+    },
+    {
+      "source": "src/activities/settings/OtaUpdateActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "ota"
+      ],
+      "reason": "Wi-Fi gate captured; update check/download/install states require a release service and valid firmware.",
+      "contract": "src/activities/settings/OtaUpdateActivity.cpp:84"
+    },
+    {
+      "source": "src/activities/settings/PluginHubInstallActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "plugins"
+      ],
+      "reason": "Wi-Fi gate captured; remote plugin catalog/download/install states require the hub.",
+      "contract": "src/activities/settings/PluginHubInstallActivity.cpp:39"
+    },
+    {
+      "source": "src/activities/settings/SdFirmwareUpdateActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "firmware-error"
+      ],
+      "activity": "SdFirmwareUpdate"
+    },
+    {
+      "source": "src/activities/settings/SettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "controls",
+        "display",
+        "general",
+        "koreader",
+        "library-settings",
+        "reader-settings"
+      ],
+      "activity": "Settings"
+    },
+    {
+      "source": "src/activities/settings/SettingsListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "SettingsList"
+    },
+    {
+      "source": "src/activities/settings/StatusBarSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "status-cache"
+      ],
+      "activity": "StatusBarSettings"
+    },
+    {
+      "source": "src/activities/settings/TextSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "reader-settings",
+        "reader-text"
+      ],
+      "activity": "TextSettings"
+    },
+    {
+      "source": "src/activities/settings/TextSettingsPreview.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/settings/TimezonePickerActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clock"
+      ],
+      "activity": "TimezonePicker"
+    },
+    {
+      "source": "src/activities/util/BmpViewerActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "image"
+      ],
+      "activity": "BmpViewer"
+    },
+    {
+      "source": "src/activities/util/ConfirmationActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "files",
+        "image",
+        "library-actions",
+        "plugin-readme"
+      ],
+      "activity": "Confirmation"
+    },
+    {
+      "source": "src/activities/util/DetailsActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "opds-offline"
+      ],
+      "reason": "Shared details view requires an online OPDS or plugin-hub entry; installed plugin help uses DictionaryDefinition instead.",
+      "contract": "src/activities/browser/OpdsBookBrowserActivity.cpp:864"
+    },
+    {
+      "source": "src/activities/util/FrontlightPanelActivity.cpp",
+      "status": "unsupported-profile",
+      "reason": "No detected frontlight on emulated X3/X4; ActivityManager.cpp:142 gates the panel on detection."
+    },
+    {
+      "source": "src/activities/util/FullScreenMessageActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "sd-error"
+      ],
+      "activity": "FullScreenMessage"
+    },
+    {
+      "source": "src/activities/util/IntervalSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "display"
+      ],
+      "activity": "SleepTimeoutInterval"
+    },
+    {
+      "source": "src/activities/util/KeyboardEntryActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bookmarks",
+        "files",
+        "keyboard-layers",
+        "koreader",
+        "library-search",
+        "opds",
+        "wifi"
+      ],
+      "activity": "KeyboardEntry"
+    },
+    {
+      "source": "src/activities/util/KeyboardLayoutSet.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    }
+  ],
+  "additional_limits": [
+    "Wi-Fi uses no access points. Empty scan, hidden SSID/password, and failed connection are captured; real AP lists, saved credentials, forget/save prompts, successful connections, and downstream network responses are not.",
+    "BLE menu, enable, scan/no peers, and empty paired list are captured. Pairing, remote mapping/learning, disconnect/failure, and persisted peer states need an emulated or physical BLE peer.",
+    "Crash is a GDB-forced second isRebootFromPanic return, not a real crash; SD error is an emulated SD-card eject before mount. Neither proves recovery or hardware fault behavior.",
+    "Stock English text and built-in fonts only. Arbitrary translations, installed fonts, books, library sizes, content layout variants, and every setting combination are outside this finite matrix.",
+    "OOM, corrupted cache, failing writes, update success, intermediate loading paints, every popup selection, and every touch/remapping path are not exhaustively injected. Reader and sleep images cover representative grayscale paths.",
+    "Nonreader screens are portrait; EPUB and its children use all four orientations. XTC explicitly forces portrait. Sleep ignores inversion by design; both requested polarities are retained."
+  ]
+}

@@ -1,0 +1,476 @@
+policy 8e580981770d9ea7
+json 0 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":0,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":1,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":1,"bleNextKeyUsage":1,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":1,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":255,"bleNextKeyUsage":255,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"1","blePeerName":"1","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+json 1 {"blePageTurnerEnabled":0,"blePick":1,"blePeerAddr":"","blePeerName":"","blePrevKeyUsage":0,"bleNextKeyUsage":0,"bleRemotes":[{"addr":"AA","binds":[268632065,553844744]}]}
+scenario 0
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 15001 calls 1/0/0/0
+INF Reader BLE start requested
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 20002 calls 1/0/1/1
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 25003 calls 1/0/1/2
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 30004 calls 1/0/1/3
+tick 0
+state 110001000 why 0 note 0 heap 1 clock 35005 calls 1/0/1/4
+tick 1
+state 110001000 why 0 note 0 heap 1 clock 40006 calls 1/0/1/5
+action 3
+INF raw 3:1=02 down -> next_chapter
+INF key 0x4F mods 0x00 down -> none
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 45007 calls 1/0/1/6
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 50008 calls 1/0/1/7
+tick 0
+state 100000000 why 7 note 0 heap 0 clock 55009 calls 1/1/1/7
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 60010 calls 2/1/1/7
+INF Reader BLE start requested
+build 1
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 65011 calls 3/2/1/7
+INF Section build starved of heap; stopping the radio until the page is shown free=81920 largest=32768
+INF Reader BLE start requested
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 70012 calls 3/2/2/8
+pair 1
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 75013 calls 3/2/2/9
+service 1
+tick 0
+state 110001000 why 0 note 0 heap 1 clock 80014 calls 3/2/2/11
+forget 1
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 85015 calls 3/2/2/12
+screen 1
+tick 0
+state 100000000 why 3 note 0 heap 0 clock 90016 calls 3/3/2/12
+tick 0
+state 100000000 why 3 note 0 heap 0 clock 95017 calls 3/3/2/12
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 3/3/2/12
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 3/3/2/12
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 3/3/2/12
+sleep 1
+scenario 1
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 15001 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=87308 largest=23540 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 20002 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 25003 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=87308 largest=23540 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 4 heap 1 clock 30004 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 4 heap 1 clock 35005 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (1)
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=87308 largest=23540 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 4 heap 1 clock 40006 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 45007 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (2)
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=87308 largest=23540 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 50008 calls 0/0/0/0
+tick 0
+state 100000001 why 7 note 0 heap 1 clock 55009 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 60010 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=87308 largest=23540 required_free=81920 required_largest=32768
+build 1
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 65011 calls 0/0/0/0
+INF Section build starved of heap; stopping the radio until the page is shown free=87308 largest=23540
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=87308 largest=23540 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 70012 calls 0/0/0/0
+INF Heap fragmented for radio: free=87308 largest=23540; silent restart to reader
+pair 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 75013 calls 0/0/0/0
+ERR HID begin skipped (insufficient-internal-heap): free=87308 largest=23540 required_free=81920 required_largest=32768
+service 0
+tick 0
+state 100001000 why 0 note 2 heap 0 clock 80014 calls 0/0/0/1
+forget 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 85015 calls 0/0/0/1
+screen 1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 90016 calls 0/0/0/1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 95017 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 0/0/0/1
+sleep 1
+scenario 2
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 15001 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=60000 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 20002 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 25003 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=60000 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 4 heap 1 clock 30004 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 4 heap 1 clock 35005 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (1)
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=60000 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 4 heap 1 clock 40006 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 45007 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (2)
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=60000 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 50008 calls 0/0/0/0
+tick 0
+state 100000001 why 7 note 0 heap 1 clock 55009 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 60010 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=60000 largest=32768 required_free=81920 required_largest=32768
+build 1
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 65011 calls 0/0/0/0
+INF Section build starved of heap; stopping the radio until the page is shown free=60000 largest=32768
+INF Reader BLE start requested
+ERR HID begin skipped (insufficient-internal-heap): free=60000 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 70012 calls 0/0/0/0
+pair 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 75013 calls 0/0/0/0
+ERR HID begin skipped (insufficient-internal-heap): free=60000 largest=32768 required_free=81920 required_largest=32768
+service 0
+tick 0
+state 100001000 why 0 note 2 heap 0 clock 80014 calls 0/0/0/1
+forget 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 85015 calls 0/0/0/1
+screen 1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 90016 calls 0/0/0/1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 95017 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 0/0/0/1
+sleep 1
+scenario 3
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 15001 calls 0/0/0/0
+ERR Reader BLE start deferred: insufficient memory or unavailable radio
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 20002 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 25003 calls 0/0/0/0
+ERR Reader BLE start deferred: insufficient memory or unavailable radio
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 30004 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 35005 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (1)
+ERR Reader BLE start deferred: insufficient memory or unavailable radio
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 40006 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 45007 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (2)
+ERR Reader BLE start deferred: insufficient memory or unavailable radio
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 50008 calls 0/0/0/0
+tick 0
+state 100000001 why 7 note 0 heap 1 clock 55009 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 60010 calls 0/0/0/0
+ERR Reader BLE start deferred: insufficient memory or unavailable radio
+build 1
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 65011 calls 0/0/0/0
+INF Section build starved of heap; stopping the radio until the page is shown free=81920 largest=32768
+ERR Reader BLE start deferred: insufficient memory or unavailable radio
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 70012 calls 0/0/0/0
+pair 1
+tick 1
+state 110000000 why 0 note 2 heap 1 clock 75013 calls 1/0/1/1
+action 1
+INF key 0x4F mods 0x00 down -> next
+service 1
+tick 0
+state 110001000 why 0 note 2 heap 1 clock 80014 calls 1/0/1/3
+forget 1
+tick 0
+state 110000000 why 0 note 2 heap 1 clock 85015 calls 1/0/1/4
+screen 1
+tick 0
+state 100000000 why 3 note 2 heap 0 clock 90016 calls 1/1/1/4
+tick 0
+state 100000000 why 3 note 2 heap 0 clock 95017 calls 1/1/1/4
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 1/1/1/4
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 1/1/1/4
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 1/1/1/4
+sleep 1
+scenario 4
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 15001 calls 1/0/0/0
+INF Reader BLE start requested
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 20002 calls 1/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 25003 calls 2/0/0/0
+INF Reader BLE start requested
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 30004 calls 2/0/0/0
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 35005 calls 3/0/0/0
+INF Retrying reader BLE start after memory refusal (1)
+INF Reader BLE start requested
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 40006 calls 3/0/0/0
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 45007 calls 4/0/0/0
+INF Retrying reader BLE start after memory refusal (2)
+INF Reader BLE start requested
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 50008 calls 4/0/0/0
+tick 0
+state 100000001 why 7 note 0 heap 1 clock 55009 calls 4/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 60010 calls 5/0/0/0
+INF Reader BLE start requested
+build 1
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 65011 calls 6/0/0/0
+INF Section build starved of heap; stopping the radio until the page is shown free=81920 largest=32768
+INF Reader BLE start requested
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 70012 calls 6/0/0/0
+pair 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 75013 calls 7/0/0/0
+service 0
+tick 0
+state 100001000 why 0 note 2 heap 0 clock 80014 calls 7/0/0/1
+forget 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 85015 calls 7/0/0/1
+screen 1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 90016 calls 7/0/0/1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 95017 calls 7/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 7/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 7/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 7/0/0/1
+sleep 1
+scenario 5
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 15001 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 20002 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 25003 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 30004 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 35005 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 40006 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 45007 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 50008 calls 0/0/0/0
+tick 0
+state 100000000 why 7 note 0 heap 0 clock 55009 calls 0/0/0/0
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 60010 calls 0/0/0/0
+build 1
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 65011 calls 0/0/0/0
+INF Section build starved of heap; stopping the radio until the page is shown free=81920 largest=32768
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 70012 calls 0/0/0/0
+pair 1
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 75013 calls 1/0/0/0
+service 1
+tick 0
+state 110001000 why 0 note 0 heap 1 clock 80014 calls 1/0/0/1
+forget 1
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 85015 calls 1/0/0/1
+screen 1
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 90016 calls 1/1/0/1
+tick 0
+state 100000000 why 2 note 0 heap 0 clock 95017 calls 1/1/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 1/1/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 1/1/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 1/1/0/1
+sleep 1
+scenario 6
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 15001 calls 1/0/0/0
+INF Reader BLE start requested
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 20002 calls 1/0/1/1
+INF Bonded reader reconnect was not armed
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 25003 calls 1/0/1/2
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 30004 calls 1/0/1/3
+tick 0
+state 110001000 why 0 note 0 heap 1 clock 35005 calls 1/0/1/4
+tick 1
+state 110001000 why 0 note 0 heap 1 clock 40006 calls 1/0/1/5
+action 3
+INF raw 3:1=02 down -> next_chapter
+INF key 0x4F mods 0x00 down -> none
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 45007 calls 1/0/1/6
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 50008 calls 1/0/1/7
+tick 0
+state 100000000 why 7 note 0 heap 0 clock 55009 calls 1/1/1/7
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 60010 calls 2/1/1/7
+INF Reader BLE start requested
+build 1
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 65011 calls 3/2/1/7
+INF Section build starved of heap; stopping the radio until the page is shown free=81920 largest=32768
+INF Reader BLE start requested
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 70012 calls 3/2/2/8
+INF Bonded reader reconnect was not armed
+pair 1
+tick 0
+state 110000000 why 0 note 1 heap 1 clock 75013 calls 3/2/2/9
+service 1
+tick 0
+state 110001000 why 0 note 0 heap 1 clock 80014 calls 3/2/2/11
+forget 1
+tick 0
+state 110000000 why 0 note 0 heap 1 clock 85015 calls 3/2/2/12
+screen 1
+tick 0
+state 100000000 why 3 note 0 heap 0 clock 90016 calls 3/3/2/12
+tick 0
+state 100000000 why 3 note 0 heap 0 clock 95017 calls 3/3/2/12
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 3/3/2/12
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 3/3/2/12
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 3/3/2/12
+sleep 1
+scenario 7
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 15001 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (filetransfer-active): free=81920 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 20002 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 25003 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (filetransfer-active): free=81920 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 30004 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 35005 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (1)
+INF Reader BLE start requested
+ERR HID begin skipped (filetransfer-active): free=81920 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 40006 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 45007 calls 0/0/0/0
+INF Retrying reader BLE start after memory refusal (2)
+INF Reader BLE start requested
+ERR HID begin skipped (filetransfer-active): free=81920 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 0 heap 1 clock 50008 calls 0/0/0/0
+tick 0
+state 100000001 why 7 note 0 heap 1 clock 55009 calls 0/0/0/0
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 60010 calls 0/0/0/0
+INF Reader BLE start requested
+ERR HID begin skipped (filetransfer-active): free=81920 largest=32768 required_free=81920 required_largest=32768
+build 1
+tick 0
+state 100000001 why 0 note 1 heap 1 clock 65011 calls 0/0/0/0
+INF Section build starved of heap; stopping the radio until the page is shown free=81920 largest=32768
+INF Reader BLE start requested
+ERR HID begin skipped (filetransfer-active): free=81920 largest=32768 required_free=81920 required_largest=32768
+tick 0
+state 100000001 why 0 note 2 heap 1 clock 70012 calls 0/0/0/0
+pair 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 75013 calls 0/0/0/0
+ERR HID begin skipped (filetransfer-active): free=81920 largest=32768 required_free=81920 required_largest=32768
+service 0
+tick 0
+state 100001000 why 0 note 2 heap 0 clock 80014 calls 0/0/0/1
+forget 0
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 85015 calls 0/0/0/1
+screen 1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 90016 calls 0/0/0/1
+tick 0
+state 100000000 why 0 note 2 heap 0 clock 95017 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 100018 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 105019 calls 0/0/0/1
+tick 0
+state 100000000 why 1 note 0 heap 0 clock 110020 calls 0/0/0/1
+sleep 1

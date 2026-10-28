@@ -73,3 +73,17 @@ add_executable(BlePageTurnerSourceContractTest SourceContractTest.cpp)
 target_compile_definitions(BlePageTurnerSourceContractTest PRIVATE BLETURNER_ROOT_PATH="${BLETURNER_ROOT}")
 target_link_libraries(BlePageTurnerSourceContractTest PRIVATE bleturner_test_flags GTest::gtest_main)
 gtest_discover_tests(BlePageTurnerSourceContractTest)
+
+# Frozen C++ outputs: policies, persisted bytes, radio effects and diagnostic text.
+foreach(profile IN ITEMS c3 s3)
+  add_executable(BleOracle_${profile} Oracle.cpp Fakes.cpp ${BLETURNER_ROOT}/src/Runtime.cpp)
+  target_compile_definitions(BleOracle_${profile} PRIVATE BLETURNER_TESTING)
+  if(profile STREQUAL "s3")
+    target_compile_definitions(BleOracle_${profile} PRIVATE FREEINK_BLE_STACK_IN_PSRAM=1)
+  endif()
+  target_link_libraries(BleOracle_${profile} PRIVATE bleturner_test_flags bleturner_arduinojson)
+  add_test(NAME BleOracle_${profile} COMMAND ${CMAKE_COMMAND}
+    -DPROGRAM=$<TARGET_FILE:BleOracle_${profile}>
+    -DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/oracle-${profile}.txt
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/CompareOracle.cmake)
+endforeach()

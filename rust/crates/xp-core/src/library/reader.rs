@@ -7,7 +7,7 @@ pub trait Read {
     fn fail(&mut self);
 }
 fn record_bytes(r: &mut Record) -> &mut [u8] {
-    // Record is packed POD with no padding and all bit patterns valid.
+    // Record is POD with no padding and all bit patterns valid.
     unsafe { core::slice::from_raw_parts_mut(core::ptr::from_mut(r).cast(), 128) }
 }
 pub fn record(h: &Header, io: &mut impl Read, n: u16, r: &mut Record) -> bool {

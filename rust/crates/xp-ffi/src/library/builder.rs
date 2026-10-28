@@ -81,12 +81,15 @@ impl Services {
     fn storage(&self, op: u8, path: &[u8], other: &[u8]) -> bool {
         unsafe { (self.storage)(self.ctx, op, path.as_ptr(), other.as_ptr()) != 0 }
     }
+    #[inline(never)]
     fn exists(&self, path: &[u8]) -> bool {
         self.storage(0, path, b"\0")
     }
+    #[inline(never)]
     fn remove(&self, path: &[u8]) -> bool {
         self.storage(1, path, b"\0")
     }
+    #[inline(never)]
     fn rename(&self, a: &[u8], b: &[u8]) -> bool {
         self.storage(3, a, b)
     }
@@ -98,12 +101,14 @@ impl Services {
             (self.clock)(self.ctx, 1);
         }
     }
+    #[inline(never)]
     fn service(&self, n: &mut u32) {
         *n = n.wrapping_add(1);
         if *n & 31 == 0 {
             self.delay();
         }
     }
+    #[inline(never)]
     fn log(&self, event: u32, a: u32, b: u32, c: u32, d: u32, path: &[u8]) {
         if let Some(f) = self.diagnostic {
             unsafe {
@@ -111,6 +116,7 @@ impl Services {
             }
         }
     }
+    #[inline(never)]
     fn event(&self, event: u32) {
         self.log(event, 0, 0, 0, 0, b"\0");
     }
@@ -160,6 +166,7 @@ struct File<'a> {
     id: u32,
 }
 impl<'a> File<'a> {
+    #[inline(never)]
     fn open(s: &'a Services, path: &[u8], mode: u8) -> Self {
         Self {
             s,
@@ -169,6 +176,7 @@ impl<'a> File<'a> {
     fn valid(&self) -> bool {
         self.id != 0
     }
+    #[inline(never)]
     fn close(&mut self) -> bool {
         if self.id == 0 {
             return true;
@@ -177,23 +185,29 @@ impl<'a> File<'a> {
         self.id = 0;
         self.s.op(4, id, b"\0", ptr::null_mut(), 0, 0) != 0
     }
+    #[inline(never)]
     fn read(&self, out: &mut [u8]) -> i64 {
         self.s.op(5, self.id, b"\0", out.as_mut_ptr(), out.len(), 0)
     }
+    #[inline(never)]
     fn write(&self, data: &[u8]) -> bool {
         self.s
             .op(6, self.id, b"\0", data.as_ptr().cast_mut(), data.len(), 0)
             == data.len() as i64
     }
+    #[inline(never)]
     fn seek(&self, at: u64) -> bool {
         self.s.op(7, self.id, b"\0", ptr::null_mut(), 0, at) != 0
     }
+    #[inline(never)]
     fn value(&self, op: u8) -> u64 {
         self.s.op(op, self.id, b"\0", ptr::null_mut(), 0, 0) as u64
     }
+    #[inline(never)]
     fn at(&self, at: u64, out: &mut [u8]) -> bool {
         self.seek(at) && self.read(out) == out.len() as i64
     }
+    #[inline(never)]
     fn next(&self) -> Self {
         Self {
             s: self.s,
@@ -231,7 +245,11 @@ impl<'a, 'b> Writer<'a, 'b> {
     }
     fn flush(&mut self) -> bool {
         if self.fill > 0 {
-            self.ok &= self.file.write(&self.buffer.as_ref().unwrap()[..self.fill]);
+            self.ok &= self
+                .buffer
+                .as_ref()
+                .and_then(|buffer| buffer.get(..self.fill))
+                .is_some_and(|bytes| self.file.write(bytes));
             self.fill = 0;
         }
         self.ok
@@ -338,37 +356,54 @@ impl DerefMut for Text {
         }
     }
 }
-// Iterative heapsort avoids the large recursive frames of slice::sort_unstable
-// on ESP32-C3. Every caller supplies an ordinal tie-breaker.
-fn sort_by<T>(items: &mut [T], mut compare: impl FnMut(&T, &T) -> core::cmp::Ordering) {
-    fn sift<T>(
-        items: &mut [T],
-        mut root: usize,
-        compare: &mut impl FnMut(&T, &T) -> core::cmp::Ordering,
-    ) {
+// One iterative heapsort core serves all record types without allocating.
+trait SortEntries {
+    fn less(&mut self, a: usize, b: usize) -> bool;
+    fn swap(&mut self, a: usize, b: usize);
+}
+#[inline(never)]
+fn sort_entries(items: &mut dyn SortEntries, len: usize) {
+    fn sift(items: &mut dyn SortEntries, mut root: usize, len: usize) {
         loop {
             let mut child = root * 2 + 1;
-            if child >= items.len() {
+            if child >= len {
                 return;
             }
-            if child + 1 < items.len() && compare(&items[child], &items[child + 1]).is_lt() {
+            if child + 1 < len && items.less(child, child + 1) {
                 child += 1;
             }
-            if !compare(&items[root], &items[child]).is_lt() {
+            if !items.less(root, child) {
                 return;
             }
             items.swap(root, child);
             root = child;
         }
     }
-    for root in (0..items.len() / 2).rev() {
-        sift(items, root, &mut compare);
+    for root in (0..len / 2).rev() {
+        sift(items, root, len);
     }
-    for end in (1..items.len()).rev() {
+    for end in (1..len).rev() {
         items.swap(0, end);
-        sift(&mut items[..end], 0, &mut compare);
+        sift(items, 0, end);
     }
 }
+fn sort_by<T>(items: &mut [T], compare: impl FnMut(&T, &T) -> core::cmp::Ordering) {
+    struct Entries<'a, T, F> {
+        items: &'a mut [T],
+        compare: F,
+    }
+    impl<T, F: FnMut(&T, &T) -> core::cmp::Ordering> SortEntries for Entries<'_, T, F> {
+        fn less(&mut self, a: usize, b: usize) -> bool {
+            (self.compare)(&self.items[a], &self.items[b]).is_lt()
+        }
+        fn swap(&mut self, a: usize, b: usize) {
+            self.items.swap(a, b);
+        }
+    }
+    let len = items.len();
+    sort_entries(&mut Entries { items, compare }, len);
+}
+#[inline(never)]
 fn copy(data: &[u8]) -> Option<Text> {
     let mut v = Text::new();
     v.try_reserve(data.len()).ok()?;
@@ -389,6 +424,7 @@ fn path_join(folder: &[u8], name: &[u8]) -> Option<Text> {
     v.push(0);
     Some(v)
 }
+#[inline(never)]
 fn transformed(data: &[u8], f: fn(&mut [u8]) -> usize) -> Option<Text> {
     let mut b = copy(data)?;
     let n = f(&mut b);
@@ -415,6 +451,7 @@ struct Index<'a> {
     output: Text,
 }
 impl<'a> Index<'a> {
+    #[inline(never)]
     fn open(s: &'a Services, path: &[u8], stale: bool) -> Self {
         let file = File::open(s, path, 0);
         let mut v = Self {
@@ -461,12 +498,14 @@ impl<'a> Index<'a> {
             reader::blob(&h, self, r, field)
         }
     }
+    #[inline(never)]
     fn close(&mut self) {
         self.file.close();
         self.opened = false;
     }
 }
 impl Read for Index<'_> {
+    #[inline(never)]
     fn read(&mut self, at: u32, out: &mut [u8]) -> bool {
         let ok = self.opened && self.file.at(u64::from(at), out);
         if !ok {
@@ -663,6 +702,51 @@ struct Walk<'a, 'b> {
 }
 impl Walk<'_, '_> {
     #[inline(never)]
+    fn load_prior(&mut self, units: &mut u32) -> Option<usize> {
+        let s = self.s;
+        let mut prior_count = 0;
+        if s.exists(INDEX) {
+            let index = self.previous.insert(Index::open(s, INDEX, true));
+            if index.opened {
+                self.next_seen = index.head.next_seen;
+                prior_count = index.head.books as usize;
+                let Some(mut list) = Buffer::<Prior>::new(s, prior_count.max(1)) else {
+                    s.event(37);
+                    return None;
+                };
+                for i in 0..prior_count {
+                    s.service(units);
+                    let mut r = Record::default();
+                    if !index.record(i as u16, &mut r) {
+                        s.log(38, i as u32, 0, 0, 0, b"\0");
+                        return None;
+                    }
+                    let Some(hash) = index.hash(&r) else {
+                        s.log(38, i as u32, 0, 0, 0, b"\0");
+                        return None;
+                    };
+                    list[i] = Prior {
+                        hash,
+                        size: r.size,
+                        seen: r.seen,
+                        ordinal: i as u16,
+                    };
+                }
+                list.n = prior_count;
+                sort_by(&mut list[..prior_count], |a, b| {
+                    (a.hash, a.ordinal & 0x7fff).cmp(&(b.hash, b.ordinal & 0x7fff))
+                });
+                self.prior = Some(list);
+            } else if index.failed {
+                s.event(39);
+                return None;
+            } else {
+                self.previous = None;
+            }
+        }
+        Some(prior_count)
+    }
+    #[inline(never)]
     fn stage(
         &mut self,
         out: &mut Writer<'_, '_>,
@@ -673,6 +757,7 @@ impl Walk<'_, '_> {
         mtime: u32,
     ) -> Option<()> {
         self.s.service(&mut self.units);
+        let entry = self.entry.first_mut()?;
         let hash = xp_core::fnv1a64(&path[..path.len() - 1]);
         let prior = self.prior.as_ref().and_then(|p| {
             let start = p.partition_point(|p| p.hash < hash);
@@ -690,9 +775,9 @@ impl Walk<'_, '_> {
         let (mut title_book, mut author_book) = (false, false);
         let mut title_staged = false;
         unsafe {
-            ptr::write_bytes(self.entry.p.cast::<u8>(), 0, size_of::<Staged>());
+            ptr::write_bytes(ptr::from_mut(entry).cast::<u8>(), 0, size_of::<Staged>());
         }
-        self.entry[0].hash = hash;
+        entry.hash = hash;
         let xtc = ext(name, b".xtc") || ext(name, b".xtch");
         let expected = self.metadata && (ext(name, b".epub") || xtc);
         let mut reuse = false;
@@ -718,7 +803,7 @@ impl Walk<'_, '_> {
                 if !has_title && previous.failed {
                     return None;
                 }
-                self.entry[0].record = r;
+                entry.record = r;
                 author_book = !author.is_empty();
                 if has_title {
                     title = copy(&previous.output)?;
@@ -743,13 +828,13 @@ impl Walk<'_, '_> {
                 ) != 0
             };
             let _loan = MetadataLoan(self.s);
-            self.entry[0].record.metadata = if loaded { 1 } else { 2 };
+            entry.record.metadata = if loaded { 1 } else { 2 };
             if loaded {
                 if title_len > 0 {
                     // Fold the loaned title after retaining its on-disk prefix. This
                     // avoids a second allocation proportional to untrusted metadata.
                     let title = unsafe { slice::from_raw_parts_mut(title_ptr, title_len) };
-                    let e = &mut self.entry[0];
+                    let e = &mut *entry;
                     let shown = title.len().min(255);
                     e.title_len = shown as u8;
                     e.title[..shown].copy_from_slice(&title[..shown]);
@@ -776,7 +861,7 @@ impl Walk<'_, '_> {
         if title_book || author_book {
             self.enriched += 1;
         }
-        let e = &mut self.entry[0];
+        let e = &mut *entry;
         e.record.size = size;
         e.record.mtime = mtime;
         e.record.folder = folder;
@@ -1266,6 +1351,9 @@ fn emit(
         s.remove(NEW);
         return false;
     };
+    let [entry, canonical_entry] = &mut *staged else {
+        return false;
+    };
     let mut cursor = 0;
     for (i, &ord) in order.iter().enumerate() {
         s.service(&mut units);
@@ -1274,24 +1362,24 @@ fn emit(
             &stage,
             &mut failed,
             u64::from(ord) * STAGE_STRIDE as u64,
-            pod_mut(&mut staged[0]),
+            pod_mut(entry),
         ) {
             break;
         }
-        staged[0].record.name_off = cursor;
+        entry.record.name_off = cursor;
         let from = canonical.as_ref().map_or(i, |c| c[i] as usize);
         if !stage_read(
             s,
             &stage,
             &mut failed,
             u64::from(order[from]) * STAGE_STRIDE as u64,
-            pod_mut(&mut staged[1]),
+            pod_mut(canonical_entry),
         ) {
             break;
         }
-        cursor += blob_size(&staged[0], &staged[1]);
-        staged[0].record.seen = seen[ord as usize];
-        writer.put(pod(&staged[0].record));
+        cursor += blob_size(entry, canonical_entry);
+        entry.record.seen = seen[ord as usize];
+        writer.put(pod(&entry.record));
     }
     if !failed {
         writer.pad(head.perm_start, &mut units);
@@ -1320,35 +1408,35 @@ fn emit(
             &stage,
             &mut failed,
             u64::from(ord) * STAGE_STRIDE as u64,
-            pod_mut(&mut staged[0]),
+            pod_mut(entry),
         ) {
             break;
         }
-        writer.put(&staged[0].hash.to_le_bytes());
-        writer.put(&staged[0].name[..staged[0].record.name_len as usize]);
+        writer.put(&entry.hash.to_le_bytes());
+        writer.put(&entry.name[..entry.record.name_len as usize]);
         let from = canonical.as_ref().map_or(i, |c| c[i] as usize);
         if !stage_read(
             s,
             &stage,
             &mut failed,
             u64::from(order[from]) * STAGE_STRIDE as u64,
-            pod_mut(&mut staged[1]),
+            pod_mut(canonical_entry),
         ) {
             break;
         }
-        writer.put(&[staged[1].author_len]);
-        if staged[1].author_len > 0 {
-            writer.put(&staged[1].author[..staged[1].author_len as usize]);
+        writer.put(&[canonical_entry.author_len]);
+        if canonical_entry.author_len > 0 {
+            writer.put(&canonical_entry.author[..canonical_entry.author_len as usize]);
         }
-        writer.put(&[staged[0].title_len]);
-        if staged[0].title_len > 0 {
-            writer.put(&staged[0].title[..staged[0].title_len as usize]);
+        writer.put(&[entry.title_len]);
+        if entry.title_len > 0 {
+            writer.put(&entry.title[..entry.title_len as usize]);
         }
-        writer.put(&[staged[0].author_len]);
-        if staged[0].author_len > 0 {
-            writer.put(&staged[0].author[..staged[0].author_len as usize]);
+        writer.put(&[entry.author_len]);
+        if entry.author_len > 0 {
+            writer.put(&entry.author[..entry.author_len as usize]);
         }
-        written_blob += blob_size(&staged[0], &staged[1]);
+        written_blob += blob_size(entry, canonical_entry);
     }
     head.name_len = written_blob;
     head.size = head.name_start + written_blob;
@@ -1417,48 +1505,6 @@ pub fn build(
     if dedup.is_none() {
         s.event(36);
     }
-    let mut prior = None;
-    let mut previous = None;
-    let mut next_seen = 0;
-    let mut prior_count = 0;
-    if s.exists(INDEX) {
-        let mut index = Index::open(s, INDEX, true);
-        if index.opened {
-            next_seen = index.head.next_seen;
-            prior_count = index.head.books as usize;
-            let Some(mut list) = Buffer::<Prior>::new(s, prior_count.max(1)) else {
-                s.event(37);
-                return BuildResult::Failed;
-            };
-            for i in 0..prior_count {
-                s.service(&mut units);
-                let mut r = Record::default();
-                if !index.record(i as u16, &mut r) {
-                    s.log(38, i as u32, 0, 0, 0, b"\0");
-                    return BuildResult::Failed;
-                }
-                let Some(hash) = index.hash(&r) else {
-                    s.log(38, i as u32, 0, 0, 0, b"\0");
-                    return BuildResult::Failed;
-                };
-                list[i] = Prior {
-                    hash,
-                    size: r.size,
-                    seen: r.seen,
-                    ordinal: i as u16,
-                };
-            }
-            list.n = prior_count;
-            sort_by(&mut list[..prior_count], |a, b| {
-                (a.hash, a.ordinal & 0x7fff).cmp(&(b.hash, b.ordinal & 0x7fff))
-            });
-            prior = Some(list);
-            previous = Some(index);
-        } else if index.failed {
-            s.event(39);
-            return BuildResult::Failed;
-        }
-    }
     let mut walk = Walk {
         s,
         entry,
@@ -1466,13 +1512,13 @@ pub fn build(
         degraded: dedup.is_none(),
         dedup,
         active: 0,
-        prior,
-        previous,
+        prior: None,
+        previous: None,
         stats,
         books: 0,
         folders: 0,
         folder_bytes: 0,
-        next_seen,
+        next_seen: 0,
         reused: 0,
         enriched: 0,
         duplicates: 0,
@@ -1480,6 +1526,9 @@ pub fn build(
         metadata,
         failed: false,
         units: 0,
+    };
+    let Some(prior_count) = walk.load_prior(&mut units) else {
+        return BuildResult::Failed;
     };
     let mut stage = File::open(s, STAGE, 1);
     let mut folders = if stage.valid() {

@@ -1,6 +1,8 @@
 //! CLX1 v2 layout. Arithmetic intentionally matches the persisted C++ u32 format.
 #[derive(Clone, Copy)]
-#[repr(C, packed)]
+// Fields need no padding. Keep Rust copies aligned; the ABI reads packed
+// caller buffers with read_unaligned before borrowing these types.
+#[repr(C)]
 pub struct Header {
     pub magic: [u8; 4],
     pub version: u8,
@@ -44,7 +46,7 @@ impl Default for Header {
     }
 }
 #[derive(Clone, Copy)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Record {
     pub name_off: u32,
     pub size: u32,
@@ -75,8 +77,15 @@ impl Default for Record {
         }
     }
 }
-const _: () =
-    assert!(core::mem::size_of::<Header>() == 64 && core::mem::size_of::<Record>() == 128);
+const _: () = assert!(
+    core::mem::size_of::<Header>() == 64
+        && core::mem::offset_of!(Header, folder_start) == 16
+        && core::mem::offset_of!(Header, reserved) == 44
+        && core::mem::size_of::<Record>() == 128
+        && core::mem::offset_of!(Record, fold) == 16
+        && core::mem::offset_of!(Record, author) == 112
+        && core::mem::offset_of!(Record, mtime) == 124
+);
 pub fn align(value: u32) -> u32 {
     value.wrapping_add(511) / 512 * 512
 }

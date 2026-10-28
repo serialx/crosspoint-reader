@@ -290,7 +290,18 @@ pub fn author(buf: &mut [u8]) -> usize {
             kept += 1;
         }
     }
-    tokens[..kept].sort_unstable_by(|&(a, b), &(c, d)| buf[a..b].cmp(&buf[c..d]));
+    for i in 1..kept {
+        let mut j = i;
+        while j > 0 {
+            let (a, b) = tokens[j - 1];
+            let (c, d) = tokens[j];
+            if buf[a..b] <= buf[c..d] {
+                break;
+            }
+            tokens.swap(j - 1, j);
+            j -= 1;
+        }
+    }
     let mut key = [0; 12];
     let mut w = 0;
     let mut total = 0;

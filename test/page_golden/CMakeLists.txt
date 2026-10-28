@@ -11,10 +11,16 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(FONT_SDK ${REPO_ROOT}/freeink-sdk/libs/font/FreeInkFont)
 file(GLOB FT_SOURCES ${FONT_SDK}/src/freetype/*.c)
 set(INSTRUMENTED ${CMAKE_CURRENT_BINARY_DIR}/instrumented)
-add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h ${INSTRUMENTED}/Page.cpp ${INSTRUMENTED}/TextBlock.cpp
+add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h ${INSTRUMENTED}/Page.cpp ${INSTRUMENTED}/TextBlock.cpp ${INSTRUMENTED}/ImageBlock.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py ${REPO_ROOT} ${INSTRUMENTED}
-  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp instrument.py ${REPO_ROOT}/lib/Epub/Epub/Page.cpp ${REPO_ROOT}/test/text_golden/instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
+  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp instrument.py ${REPO_ROOT}/lib/Epub/Epub/Page.cpp ${REPO_ROOT}/test/text_golden/instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
   VERBATIM)
+option(STRIP_IMAGES "Exercise decoded image cache playback in the strip matrix" OFF)
+if(STRIP_IMAGES)
+  set(PAGE_IMAGE_SOURCE ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDecoderFactory.cpp)
+else()
+  set(PAGE_IMAGE_SOURCE ImageDecoderStub.cpp)
+endif()
 add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
   ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp
@@ -25,7 +31,7 @@ add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
   ${INSTRUMENTED}/Page.cpp
   ${INSTRUMENTED}/TextBlock.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
+  ${INSTRUMENTED}/ImageBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
@@ -38,7 +44,7 @@ add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/HyphenationCommon.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
-  ImageDecoderStub.cpp
+  ${PAGE_IMAGE_SOURCE}
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp ${REPO_ROOT}/lib/InflateReader/InflateReader.cpp
   ${REPO_ROOT}/lib/Memory/BuildScratch.cpp
@@ -71,3 +77,20 @@ target_sources(PageGolden PRIVATE ${REPO_ROOT}/test/page_codec_diff/Serializatio
 target_compile_definitions(PageGolden PRIVATE XP_PAGE_CODEC_TEST=1 XP_FFI_HOST_FAULT_INJECTION=1)
 
 target_sources(PageGolden PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)
+
+option(STRIP_SPIKE "Host strip proof; requires strip-spike in XP_FFI_HOST_FEATURES" OFF)
+if(STRIP_SPIKE)
+  target_compile_definitions(PageGolden PRIVATE XP_STRIP_SPIKE=1)
+endif()
+
+if(STRIP_IMAGES)
+  set(DECODER_SOURCE_DIR "" CACHE PATH "Patched PlatformIO libdeps")
+  target_sources(PageGolden PRIVATE
+    ${REPO_ROOT}/lib/Epub/Epub/converters/PngToFramebufferConverter.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/converters/GifToFramebufferConverter.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp
+    ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp)
+  target_include_directories(PageGolden PRIVATE ${REPO_ROOT}/lib/GifSupport ${REPO_ROOT}/lib/PngDiagnostics
+    ${DECODER_SOURCE_DIR}/JPEGDEC/src)
+  target_compile_definitions(PageGolden PRIVATE __LINUX__ XP_STRIP_IMAGES=1)
+endif()

@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -45,7 +46,7 @@ def capture_guard():
         raise ValueError('Capture requires clean pinned SDK')
 
 
-def parse_records(path):
+def parse_records(path, strips=False):
     pages, chapters, counts = {}, {}, {'pages': 0, 'pixel_cases': 0, 'words': 0, 'footnotes': 0,
                                       'links': 0, 'ruby': 0, 'small_caps': 0, 'focus_words': 0,
                                       'discretionary_hyphens': 0, 'element_tags': {}}
@@ -82,6 +83,8 @@ def parse_records(path):
             elif tag == 'pixels':
                 record['pixels'].append(fields[1:])
                 counts['pixel_cases'] += 1
+            elif tag == 'cost':
+                continue
             elif tag == 'calls':
                 record['calls'].append(fields[1])
             else:
@@ -101,7 +104,7 @@ def parse_records(path):
     if current is not None or pages.keys() != expected:
         raise ValueError('Missing or extra pages')
     for page in pages.values():
-        if len(page['pixels']) not in (96, 192) or len(page['calls']) != len(page['pixels']):
+        if len(page['pixels']) not in ((216, 432) if strips else (96, 192)) or len(page['calls']) != len(page['pixels']):
             raise ValueError('Incomplete render matrix')
         if 'raw_sha256' not in page or 'wire_sha256' not in page:
             raise ValueError('Missing page bytes')
@@ -143,8 +146,16 @@ def main():
     ap.add_argument('--work-dir', type=pathlib.Path)
     ap.add_argument('--private-epub', type=pathlib.Path, action='append', default=[])
     ap.add_argument('--private-font-dir', type=pathlib.Path)
+    ap.add_argument('--decoded-images', action='store_true', help='Current full-frame reference with real image decoders')
+    ap.add_argument('--strips', action='store_true', help='Assert exact strip/full equality and record costs')
     ap.add_argument('--case', help='Check exactly one case from the frozen archive')
     args = ap.parse_args()
+    if args.strips:
+        os.environ['XP_STRIP_MATRIX'] = '1'
+    if args.decoded_images and not args.strips:
+        ap.error('--decoded-images requires --strips')
+    if args.strips and args.action != 'check':
+        ap.error('Strip mode checks current full frames; it cannot capture goldens')
     if args.case and args.action != 'check':
         ap.error('--case is only for checking, never baseline capture')
     private = bool(args.private_epub or args.private_font_dir)
@@ -205,7 +216,7 @@ def main():
         with output.open('wb') as raw, (destination / 'stderr.log').open('wb') as errors:
             subprocess.run([str(args.binary.resolve()), str(destination), str(config), str(font.resolve())],
                            stdout=raw, stderr=errors, check=True)
-        result = parse_records(output)
+        result = parse_records(output, args.strips)
         if len(result['chapters']) != len(spine):
             raise ValueError(f'Missing chapters in {key}')
         result['spine'] = spine
@@ -223,7 +234,29 @@ def main():
         if args.case:
             expected['cases'] = {args.case: expected['cases'][args.case]}
         try:
-            compare(expected, result)
+            if args.strips:
+                # Full frames still match frozen pixels; the executable compares every
+                # assembled strip byte against its unmodified full-frame draw.
+                import copy
+                expected = copy.deepcopy(expected)
+                actual = copy.deepcopy(result)
+                for value in (expected, actual):
+                    for case in value['cases'].values():
+                        case['counts']['pixel_cases'] = 0
+                        for page in case['pages'].values():
+                            page['pixels'] = [p for p in page['pixels'] if p[0].split(',')[3] == '0']
+                if not args.decoded_images:
+                    compare(expected, actual)
+                else:
+                    # Decoded pixels are outside the placeholder-only frozen archive.
+                    # Every assembled buffer is compared byte-for-byte in the executable.
+                    if expected['cases'].keys() != actual['cases'].keys():
+                        raise ValueError('Missing image schedules')
+                    for key in actual['cases']:
+                        if expected['cases'][key]['pages'].keys() != actual['cases'][key]['pages'].keys():
+                            raise ValueError('Missing image pages')
+            else:
+                compare(expected, result)
         except ValueError:
             (work / 'actual.json.gz').write_bytes(archive)
             raise

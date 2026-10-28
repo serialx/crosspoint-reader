@@ -1,0 +1,13 @@
+[package]
+name = "embedded-graphics-core"
+version = "0.4.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+[dependencies]
+az = { path = "../az-1.2.1", version = "=1.2.1" }
+byteorder = { path = "../byteorder-1.5.0", version = "=1.5.0", default-features = false }
+[features]
+default = []
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("defmt", "nalgebra_support"))'] }

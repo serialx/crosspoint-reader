@@ -10,9 +10,11 @@ test = false
 bench = false
 
 [dependencies]
+embedded-graphics-core = { workspace = true, optional = true }
 xp-core = { path = "../xp-core" }
 
 [features]
+strip-spike = ["xp-core/strip-spike", "dep:embedded-graphics-core"]
 package-trace = ["xp-core/package-trace"]
 chapter-trace = ["xp-core/chapter-trace"]
 chapter-test = ["xp-core/chapter-test"]

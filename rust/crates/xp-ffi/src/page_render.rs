@@ -1,4 +1,7 @@
 //! Synchronous page draw: one font cache and one bitmap-source loan per pass.
+#[cfg(feature = "strip-spike")]
+#[path = "strip_state.rs"]
+mod strip_state;
 use crate::textm::{paint_glyph, GlyphPaint, Miss};
 use core::{ffi::c_void, ptr, slice};
 use xp_core::{
@@ -39,6 +42,8 @@ struct Renderer<'a> {
     scan_font: i32,
     scan_style: u8,
     observer: Option<Observer>,
+    #[cfg(feature = "strip-spike")]
+    strip: Option<strip_state::State<'a>>,
 }
 impl Renderer<'_> {
     fn flush_scan(&mut self) {
@@ -93,6 +98,14 @@ impl Renderer<'_> {
     }
 }
 impl Canvas for Renderer<'_> {
+    #[cfg(feature = "strip-spike")]
+    fn element(&mut self, index: u16, e: page::Element<'_>, x: i32, y: i32) -> bool {
+        match self.strip.as_mut() {
+            Some(s) => unsafe { s.element(&(*self.paint).target, index, e, x, y) },
+            None => true,
+        }
+    }
+
     fn scanning(&self) -> bool {
         unsafe { (*self.paint).target.scanning != 0 }
     }
@@ -155,6 +168,33 @@ impl Canvas for Renderer<'_> {
                     t.tracking,
                     false,
                     &mut |placement| {
+                        #[cfg(feature = "strip-spike")]
+                        if let Some(s) = self.strip.as_mut() {
+                            s.stats.glyphs += 1;
+                            if s.prepare {
+                                let target = &(*self.paint).target;
+                                if placement.glyph.is_null() {
+                                    s.unbounded(target);
+                                } else {
+                                    let g = *placement.glyph;
+                                    let n = i32::from(placement.scale_num);
+                                    let d = i32::from(placement.scale_den).max(1);
+                                    let left = t.x + placement.x + i32::from(g.left) * n / d;
+                                    let top =
+                                        t.y + baseline + placement.y - i32::from(g.top) * n / d;
+                                    s.add(
+                                        target,
+                                        xp_core::glyph::Clip {
+                                            left,
+                                            top,
+                                            right: left + (i32::from(g.width) * n + d - 1) / d,
+                                            bottom: top + (i32::from(g.height) * n + d - 1) / d,
+                                        },
+                                    );
+                                }
+                                return;
+                            }
+                        }
                         if let Some(observer) = self.observer {
                             observer(self.services.context, &placement);
                         }
@@ -180,12 +220,50 @@ impl Canvas for Renderer<'_> {
         self.flush_scan();
     }
     fn rect(&mut self, x: i32, y: i32, w: i32, h: i32, shade: bool) {
+        #[cfg(feature = "strip-spike")]
+        if let Some(s) = self.strip.as_mut() {
+            if s.prepare {
+                unsafe {
+                    s.add(
+                        &(*self.paint).target,
+                        xp_core::glyph::Clip {
+                            left: x,
+                            top: y,
+                            right: x + w,
+                            bottom: y + h,
+                        },
+                    );
+                }
+                return;
+            }
+        }
         unsafe {
             let target = &(*self.paint).target;
             if target.buffer.is_null() {
                 return;
             }
             let buffer = slice::from_raw_parts_mut(target.buffer, target.buffer_len as usize);
+            #[cfg(feature = "strip-spike")]
+            if self.strip.is_some() && !shade {
+                use embedded_graphics_core::{
+                    draw_target::DrawTarget,
+                    geometry::{Point, Size},
+                    pixelcolor::BinaryColor,
+                    primitives::Rectangle,
+                };
+                // Descriptor ownership stays with GlyphPaint; the target borrows its pixel loan.
+                let descriptor = core::ptr::read(target);
+                if let Some(mut strip) = xp_core::strip::Strip::new(descriptor, buffer) {
+                    let _ = strip.fill_solid(
+                        &Rectangle::new(
+                            Point::new(x, y),
+                            Size::new(w.max(0) as u32, h.max(0) as u32),
+                        ),
+                        BinaryColor::Off,
+                    );
+                }
+                return;
+            }
             let mut surface = Surface::from_validated(target, buffer);
             if shade {
                 surface.shade(x, y, w, h);
@@ -195,6 +273,15 @@ impl Canvas for Renderer<'_> {
         }
     }
     fn scaled(&mut self, font: i32, text: &[u8], style: u8, scale: i32, mut x: i32, y: i32) {
+        #[cfg(feature = "strip-spike")]
+        if let Some(s) = self.strip.as_mut() {
+            if s.prepare {
+                unsafe {
+                    s.unbounded(&(*self.paint).target);
+                }
+                return;
+            }
+        }
         if scale <= 0 {
             return;
         }
@@ -225,6 +312,10 @@ impl Canvas for Renderer<'_> {
     }
     fn image(&mut self, i: u16, x: i32, y: i32, placeholder: bool) {
         self.flush_scan();
+        #[cfg(feature = "strip-spike")]
+        if self.strip.as_ref().is_some_and(|s| s.prepare) {
+            return;
+        }
         unsafe {
             (self.services.image)(self.services.context, i, x, y, u8::from(placeholder));
         }
@@ -244,6 +335,7 @@ unsafe fn render(
     y: i32,
     mode: u8,
     observer: Option<Observer>,
+    #[cfg(feature = "strip-spike")] strip: Option<strip_state::State<'_>>,
 ) -> u32 {
     let Ok(page) = page::Page::open(slice::from_raw_parts(arena, len)) else {
         return 1;
@@ -267,6 +359,8 @@ unsafe fn render(
         scan_font: 0,
         scan_style: 0,
         observer,
+        #[cfg(feature = "strip-spike")]
+        strip,
     };
     u32::from(page::render::page(page, &mut renderer, font, x, y, mode).is_err())
 }
@@ -286,7 +380,18 @@ pub unsafe extern "C" fn xp_page_render(
     mode: u8,
 ) -> u32 {
     render(
-        arena, len, provider, services, paint, font, x, y, mode, None,
+        arena,
+        len,
+        provider,
+        services,
+        paint,
+        font,
+        x,
+        y,
+        mode,
+        None,
+        #[cfg(feature = "strip-spike")]
+        None,
     )
 }
 /// # Safety
@@ -316,6 +421,8 @@ pub unsafe extern "C" fn xp_page_render_traced(
         y,
         mode,
         Some(observer),
+        #[cfg(feature = "strip-spike")]
+        None,
     )
 }
 
@@ -384,4 +491,69 @@ pub unsafe extern "C" fn xp_page_render_rects(
         };
         let _ = page::render::page(page, &mut observer, 0, x, y, mode);
     }
+}
+
+/// # Safety
+/// Same loans as xp_page_render. Bounds has one entry per element, stats is writable.
+/// prepare=1 initializes bounds without pixels; reuse only with identical page, fonts,
+/// orientation and origin. prepare=0 renders into the validated borrowed strip.
+#[cfg(feature = "strip-spike")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_strip_render(
+    arena: *const u8,
+    len: usize,
+    provider: *const Provider,
+    services: *const Services,
+    paint: *mut GlyphPaint,
+    font: i32,
+    x: i32,
+    y: i32,
+    mode: u8,
+    bounds: *mut strip_state::RowBounds,
+    count: usize,
+    stats: *mut strip_state::Stats,
+    prepare: u8,
+) -> u32 {
+    if arena.is_null()
+        || provider.is_null()
+        || services.is_null()
+        || paint.is_null()
+        || bounds.is_null()
+        || stats.is_null()
+    {
+        return 1;
+    }
+    let Ok(page) = page::Page::open(slice::from_raw_parts(arena, len)) else {
+        return 1;
+    };
+    let n = usize::from(page.element_count());
+    if count < n || !(*paint).target.valid() {
+        return 1;
+    }
+    let bounds = slice::from_raw_parts_mut(bounds, n);
+    if prepare != 0 {
+        bounds.fill(strip_state::RowBounds {
+            start: (*paint).target.height,
+            end: 0,
+        });
+    }
+    let state = strip_state::State {
+        bounds,
+        stats: &mut *stats,
+        prepare: prepare != 0,
+        current: 0,
+    };
+    render(
+        arena,
+        len,
+        provider,
+        services,
+        paint,
+        font,
+        x,
+        y,
+        mode,
+        None,
+        Some(state),
+    )
 }

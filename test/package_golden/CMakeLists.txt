@@ -56,3 +56,35 @@ target_link_libraries(PackageWriterTest PRIVATE xp_ffi_host)
 target_compile_definitions(PackageWriterTest PRIVATE XP_FFI_HOST_FAULT_INJECTION)
 target_compile_options(PackageWriterTest PRIVATE -UNDEBUG)
 add_test(NAME PackageWriterFailure COMMAND PackageWriterTest)
+
+# Capture the production formatter, including errors returned by the Rust XML core.
+foreach(target PackageOracle TocBoundaryTest)
+  target_sources(${target} PRIVATE ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
+  target_include_directories(${target} BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/logging ${REPO_ROOT}/lib/expat)
+endforeach()
+add_test(NAME PackageDiagnosticGoldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/diagnostics.py --oracle $<TARGET_FILE:PackageOracle>)
+
+add_executable(PackageDiagnosticsTest PackageDiagnosticsTest.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
+target_include_directories(PackageDiagnosticsTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/logging ${REPO_ROOT}/lib/expat ${PACKAGE_INCLUDES})
+target_link_libraries(PackageDiagnosticsTest PRIVATE xp_ffi_host)
+target_compile_definitions(PackageDiagnosticsTest PRIVATE XP_FFI_HOST_FAULT_INJECTION)
+target_compile_options(PackageDiagnosticsTest PRIVATE -UNDEBUG)
+add_test(NAME PackageDiagnosticFailures COMMAND PackageDiagnosticsTest ${CMAKE_CURRENT_BINARY_DIR}/diagnostic-failures)
+
+add_executable(ZipDiagnosticsTest ZipDiagnosticsTest.cpp
+  ${REPO_ROOT}/lib/ZipFile/ZipFile.cpp
+  ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp
+  ${REPO_ROOT}/lib/miniz/src/miniz_impl.c
+  ${REPO_ROOT}/lib/Memory/BuildScratch.cpp
+  ${REPO_ROOT}/lib/hal/HalMemory.cpp)
+target_include_directories(ZipDiagnosticsTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/zip_logging
+  ${REPO_ROOT}/test/zip_file/stubs ${REPO_ROOT}/lib/ZipFile ${REPO_ROOT}/lib/Memory
+  ${REPO_ROOT}/lib/hal ${REPO_ROOT}/lib/miniz/src)
+target_link_libraries(ZipDiagnosticsTest PRIVATE xp_ffi_host)
+target_compile_options(ZipDiagnosticsTest PRIVATE -UNDEBUG -fno-access-control)
+add_test(NAME ZipDiagnosticFailures COMMAND ZipDiagnosticsTest)

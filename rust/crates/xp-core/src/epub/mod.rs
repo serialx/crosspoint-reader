@@ -3,6 +3,7 @@
 extern crate alloc;
 
 pub mod cache;
+pub mod diagnostic;
 pub mod facade;
 mod href;
 pub mod opf;
@@ -66,6 +67,7 @@ pub enum RecordKind {
 pub struct Record<'a> {
     pub kind: RecordKind,
     pub error: u32,
+    pub line: u32,
     pub value: &'a [u8],
     pub href: &'a [u8],
     pub anchor: &'a [u8],
@@ -99,6 +101,10 @@ impl Parser {
     }
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Record<'_> {
+        self.next_diagnostic(&diagnostic::SILENT)
+    }
+    pub fn next_diagnostic(&mut self, diagnostics: &diagnostic::Diagnostics) -> Record<'_> {
+        let mut line = 0;
         let (kind, error) = loop {
             if self.failed {
                 break (RecordKind::Error, 1);
@@ -107,12 +113,13 @@ impl Parser {
             match event.kind {
                 Kind::Error => {
                     self.failed = true;
+                    line = event.line as u32;
                     break (RecordKind::Error, event.error);
                 }
                 Kind::NeedInput => break (RecordKind::NeedInput, 0),
                 Kind::Done => break (RecordKind::Done, 0),
                 Kind::Stopped => break (RecordKind::Error, 35),
-                _ => match self.state.event(&event) {
+                _ => match self.state.event(&event, diagnostics) {
                     Ok(Some(kind)) => break (kind, 0),
                     Ok(None) => {}
                     Err(error) => {
@@ -125,6 +132,7 @@ impl Parser {
         Record {
             kind,
             error,
+            line,
             value: &self.state.label,
             href: &self.state.href,
             anchor: &self.state.anchor,

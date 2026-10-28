@@ -117,7 +117,7 @@ bool ZipFile::loadFileStatSlim(const char* filename, FileStatSlim* fileStat) {
   char itemName[256];
   while (readDirectoryEntry(walker, entry)) {
     if (entry.name.length != targetLen || entry.name.length >= sizeof(itemName)) continue;
-    if (!readEntryName(entry, itemName)) break;
+    if (!readEntryName(entry, itemName, filename)) break;
     if (xp_zip_name_matches(reinterpret_cast<const uint8_t*>(itemName), entry.name.length,
                             reinterpret_cast<const uint8_t*>(filename), targetLen) == 1) {
       *fileStat = {entry.method, entry.compressed_size, entry.uncompressed_size, entry.local_offset};
@@ -158,9 +158,14 @@ bool ZipFile::readDirectoryEntry(XpZipWalker& walker, XpZipEntry& entry) {
   return false;
 }
 
-bool ZipFile::readEntryName(const XpZipEntry& entry, char* name) {
-  if (file.read(name, entry.name.length) != static_cast<int>(entry.name.length)) {
-    LOG_ERR("ZIP", "Failed to read entry name");
+bool ZipFile::readEntryName(const XpZipEntry& entry, char* name, const char* target) {
+  const int count = file.read(name, entry.name.length);
+  if (count != static_cast<int>(entry.name.length)) {
+    if (target)
+      LOG_ERR("ZIP", "Failed to read entry name for %s: expected %u bytes, got %d", target,
+              static_cast<unsigned>(entry.name.length), count);
+    else
+      LOG_ERR("ZIP", "Failed to read entry name");
     return false;
   }
   name[entry.name.length] = '\0';
@@ -175,7 +180,7 @@ long ZipFile::getDataOffset(const FileStatSlim& fileStat) {
   xp_zip_local_request(fileStat.localHeaderOffset, &request);
   uint8_t header[30];
   if (!file.seek(request.offset) || file.read(header, request.length) != static_cast<int>(request.length)) {
-    LOG_ERR("ZIP", "Failed to read local header");
+    LOG_ERR("ZIP", "Something went wrong reading the local header");
     return -1;
   }
   uint64_t offset;
@@ -196,6 +201,10 @@ bool ZipFile::loadZipDetails() {
 
   XpZipRead request;
   const size_t fileSize = file.size();
+  if (fileSize < 22) {
+    LOG_ERR("ZIP", "File too small to be a valid zip");
+    return false;
+  }
   if (fileSize > UINT32_MAX || xp_zip_eocd_request(static_cast<uint32_t>(fileSize), &request) != 0) {
     LOG_ERR("ZIP", "Invalid zip file size");
     return false;

@@ -1,5 +1,6 @@
 //! Book v10 build records. The sink owns files and the existing buffered streams.
 extern crate alloc;
+use super::diagnostic::{Diagnostics, Event as Diagnostic};
 use super::Result;
 use alloc::alloc::{alloc, dealloc};
 use alloc::vec::Vec;
@@ -171,7 +172,7 @@ mod node_element {
 // 256 i16 mappings = 512 B. Nodes avoid a book-sized contiguous allocation.
 pub(super) struct Nodes<T: node_element::Sealed> {
     nodes: Vec<NonNull<T>>,
-    len: usize,
+    pub(super) len: usize,
 }
 impl<T: node_element::Sealed> Default for Nodes<T> {
     fn default() -> Self {
@@ -523,16 +524,17 @@ impl Cache {
             Err(2)
         }
     }
-    pub fn create_spine(&mut self, io: &Io, href: &[u8]) -> Result<()> {
+    pub fn create_spine(&mut self, io: &Io, href: &[u8], diagnostics: &Diagnostics) -> Result<()> {
         io.observe(0, &[], href, &[], 0);
         if !self.building || io.control(SPINE, IS_OPEN) == 0 {
+            diagnostics.emit(Diagnostic::SpineClosed, 0, 0, &[], &[]);
             return Ok(());
         }
         spine(io, SPINE, href, 0, -1)?;
         self.spine_count = self.spine_count.wrapping_add(1);
         Ok(())
     }
-    pub fn begin_toc(&mut self, io: &Io) -> Result<()> {
+    pub fn begin_toc(&mut self, io: &Io, diagnostics: &Diagnostics) -> Result<()> {
         if io.control(SPINE, OPEN_READ) == 0 {
             return Err(2);
         }
@@ -555,12 +557,28 @@ impl Cache {
                     })
                     .is_err()
                 {
+                    diagnostics.emit(
+                        Diagnostic::IndexOom,
+                        u32::from(self.spine_count),
+                        0,
+                        &[],
+                        &[],
+                    );
                     self.index = Nodes::default();
                     break;
                 }
             }
             self.index.sort(href_less)?;
             io.seek(SPINE, 0)?;
+            if !self.index.is_empty() {
+                diagnostics.emit(
+                    Diagnostic::IndexReady,
+                    u32::from(self.spine_count),
+                    0,
+                    &[],
+                    &[],
+                );
+            }
         }
         io.control(TOC, BEGIN_PASS);
         Ok(())
@@ -572,9 +590,11 @@ impl Cache {
         href: &[u8],
         anchor: &[u8],
         level: u8,
+        diagnostics: &Diagnostics,
     ) -> Result<()> {
         io.observe(1, title, href, anchor, level);
         if !self.building || io.control(TOC, IS_OPEN) == 0 || io.control(SPINE, IS_OPEN) == 0 {
+            diagnostics.emit(Diagnostic::TocClosed, 0, 0, &[], &[]);
             return Err(2);
         }
         let mut index = -1;
@@ -600,6 +620,9 @@ impl Cache {
                     break;
                 }
             }
+        }
+        if index == -1 {
+            diagnostics.emit(Diagnostic::MissingTocHref, 0, 0, href, &[]);
         }
         let mut normalized = Vec::new();
         let title = if crate::utf8::may_compose(title) {
@@ -634,7 +657,12 @@ impl Cache {
             Err(2)
         }
     }
-    pub fn build(&mut self, io: &Io, metadata: [&[u8]; 5]) -> Result<()> {
+    pub fn build(
+        &mut self,
+        io: &Io,
+        metadata: [&[u8]; 5],
+        diagnostics: &Diagnostics,
+    ) -> Result<()> {
         if io.control(BOOK, OPEN_WRITE) == 0 {
             return Err(2);
         }
@@ -648,7 +676,7 @@ impl Cache {
             return Err(2);
         }
         io.control(BOOK, BEGIN_BUILD);
-        let result = self.build_records(io, metadata);
+        let result = self.build_records(io, metadata, diagnostics);
         let flushed = io.control(BOOK, END_BUILD) != 0;
         io.control(BOOK, CLOSE);
         io.control(SPINE, CLOSE);
@@ -663,7 +691,12 @@ impl Cache {
             Err(2)
         }
     }
-    fn build_records(&self, io: &Io, metadata: [&[u8]; 5]) -> Result<()> {
+    fn build_records(
+        &self,
+        io: &Io,
+        metadata: [&[u8]; 5],
+        diagnostics: &Diagnostics,
+    ) -> Result<()> {
         let lut_offset = metadata
             .iter()
             .fold(29u32, |sum, v| sum.wrapping_add(v.len() as u32));
@@ -733,6 +766,7 @@ impl Cache {
                 read_spine(io, &mut href)?;
                 let mut index = mapping.get(i as usize)?;
                 if index == -1 {
+                    diagnostics.emit(Diagnostic::MissingSpineTitle, u32::from(i), 0, &href, &[]);
                     index = previous;
                 }
                 previous = index;

@@ -1,5 +1,6 @@
 //! Package document passes, including manifest lookup and Print short counts.
 extern crate alloc;
+use super::diagnostic::{Diagnostics, Error, Event as Diagnostic};
 use super::{
     cache::{self, Io, Nodes, Scratch},
     opf, Parser, ParserKind, RecordKind, Result,
@@ -8,8 +9,15 @@ use alloc::vec::Vec;
 
 pub trait Sink {
     fn io(&self) -> Option<&Io>;
-    fn spine(&mut self, href: &[u8]) -> Result<()>;
-    fn toc(&mut self, title: &[u8], href: &[u8], anchor: &[u8], level: u8) -> Result<()>;
+    fn spine(&mut self, href: &[u8], diagnostics: &Diagnostics) -> Result<()>;
+    fn toc(
+        &mut self,
+        title: &[u8],
+        href: &[u8],
+        anchor: &[u8],
+        level: u8,
+        diagnostics: &Diagnostics,
+    ) -> Result<()>;
 }
 pub struct Simple {
     pub parser: Parser,
@@ -30,25 +38,44 @@ impl Simple {
             failed: false,
         }
     }
-    fn drain(&mut self, sink: &mut impl Sink) -> Result<()> {
+    fn drain(
+        &mut self,
+        sink: &mut impl Sink,
+        diagnostics: &Diagnostics,
+        detail: &mut Error,
+    ) -> Result<()> {
         loop {
-            let record = self.parser.next();
+            let record = self.parser.next_diagnostic(diagnostics);
             match record.kind {
                 RecordKind::NeedInput => return Ok(()),
                 RecordKind::Done => {
                     self.completed = true;
                     return Ok(());
                 }
-                RecordKind::Error => return Err(record.error),
-                RecordKind::Protection => self.protection = true,
-                RecordKind::Toc => {
-                    sink.toc(record.value, record.href, record.anchor, record.level)?
+                RecordKind::Error => {
+                    detail.code = record.error;
+                    detail.line = record.line;
+                    return Err(record.error);
                 }
+                RecordKind::Protection => self.protection = true,
+                RecordKind::Toc => sink.toc(
+                    record.value,
+                    record.href,
+                    record.anchor,
+                    record.level,
+                    diagnostics,
+                )?,
                 RecordKind::ContainerPath => {}
             }
         }
     }
-    pub fn write(&mut self, bytes: &[u8], sink: &mut impl Sink) -> usize {
+    pub fn write(
+        &mut self,
+        bytes: &[u8],
+        sink: &mut impl Sink,
+        diagnostics: &Diagnostics,
+        detail: &mut Error,
+    ) -> usize {
         if self.failed || (self.encryption && (self.completed || bytes.len() > i32::MAX as usize)) {
             return 0;
         }
@@ -63,8 +90,11 @@ impl Simple {
             let consumed = self
                 .parser
                 .feed(input, !self.encryption && self.remaining == count);
-            if self.drain(sink).is_err() || consumed == 0 || (!self.encryption && consumed != count)
+            if self.drain(sink, diagnostics, detail).is_err()
+                || consumed == 0
+                || (!self.encryption && consumed != count)
             {
+                detail.buffer = u8::from(consumed == 0 && detail.code == 1);
                 self.failed = true;
                 return 0;
             }
@@ -73,12 +103,17 @@ impl Simple {
         }
         bytes.len()
     }
-    pub fn finish(&mut self, sink: &mut impl Sink) -> bool {
+    pub fn finish(
+        &mut self,
+        sink: &mut impl Sink,
+        diagnostics: &Diagnostics,
+        detail: &mut Error,
+    ) -> bool {
         if self.failed || self.completed {
             return false;
         }
         self.parser.feed(&[], true);
-        if self.drain(sink).is_err() {
+        if self.drain(sink, diagnostics, detail).is_err() {
             self.failed = true;
             return false;
         }
@@ -123,12 +158,21 @@ impl Opf {
             css: Vec::new(),
         }
     }
-    fn drain(&mut self, sink: &mut impl Sink) -> Result<()> {
+    fn drain(
+        &mut self,
+        sink: &mut impl Sink,
+        diagnostics: &Diagnostics,
+        detail: &mut Error,
+    ) -> Result<()> {
         loop {
-            let record = self.parser.next();
+            let record = self.parser.next_diagnostic(diagnostics);
             match record.id {
                 opf::NEED_INPUT | opf::DONE => return Ok(()),
-                opf::ERROR => return Err(record.error),
+                opf::ERROR => {
+                    detail.code = record.error;
+                    detail.line = record.line;
+                    return Err(record.error);
+                }
                 opf::COMPLETE => self.complete = true,
                 opf::CSS => {
                     let mut value = Scratch::default();
@@ -148,9 +192,17 @@ impl Opf {
                     if !self.items.is_empty() {
                         self.items.sort(less)?;
                         self.indexed = true;
+                        diagnostics.emit(
+                            Diagnostic::ManifestIndex,
+                            self.items.len as u32,
+                            0,
+                            &[],
+                            &[],
+                        );
                     }
                 }
                 opf::GUIDE_BEGIN => {
+                    diagnostics.emit(Diagnostic::GuideBegin, 0, 0, &[], &[]);
                     if let Some(io) = sink.io() {
                         io.control(cache::ITEMS, cache::OPEN_READ);
                     }
@@ -215,7 +267,7 @@ impl Opf {
                             }
                         }
                         if found {
-                            sink.spine(&href)?;
+                            sink.spine(&href, diagnostics)?;
                         }
                     }
                 }
@@ -223,7 +275,13 @@ impl Opf {
             }
         }
     }
-    pub fn write(&mut self, bytes: &[u8], sink: &mut impl Sink) -> usize {
+    pub fn write(
+        &mut self,
+        bytes: &[u8],
+        sink: &mut impl Sink,
+        diagnostics: &Diagnostics,
+        detail: &mut Error,
+    ) -> usize {
         if self.failed {
             return 0;
         }
@@ -234,7 +292,8 @@ impl Opf {
                 bytes.get(offset..offset + count).unwrap_or(&[]),
                 self.remaining == count,
             );
-            if self.drain(sink).is_err() || consumed != count {
+            if self.drain(sink, diagnostics, detail).is_err() || consumed != count {
+                detail.buffer = u8::from(consumed == 0 && detail.code == 1);
                 self.failed = true;
                 return 0;
             }

@@ -95,3 +95,34 @@ small book build, exercises the 400-spine index path, and checks short-write and
 flush-failure cleanup. `TocBoundaryAllocation` retains the long ASCII/NFD label
 cases; its injected NFC failure now targets the Rust allocation for the same
 32 KiB label. All owners must release their allocations after teardown.
+
+## Package and ZIP diagnostics
+
+`PackageDiagnosticGoldens` compares exact `(level, origin, formatted text)`
+multisets and exit statuses for 2,808 schedules against C++ `116195b4`.
+The frozen capture includes the existing 480 schedules, cover/guide/collection
+notices, a 405-item spine, every truncation of four small package documents,
+and selected high-bit mutations. It retains repeated lines. The eight exact
+exceptions in `diagnostic-exceptions.json` are existing XML error classifications:
+both implementations reject, but Expat reports `partial character` and Rust
+reports `not well-formed (invalid token)`. The test rejects unused exceptions.
+
+```sh
+ctest --test-dir build/package-golden --output-on-failure
+python3 test/package_golden/diagnostics.py --oracle build/package-golden/PackageOracle
+```
+
+`PackageDiagnosticFailures` injects parser/input-buffer allocation failures,
+manifest open failures, temporary/final write failures, ZIP-size failures and
+spine-index allocation failure through the production facades. It also checks
+that collection refinements do not print the collection-limit warning.
+`ZipDiagnosticFailures` checks small archives, local-header reads and requested
+entry-name reads. The logging and ZIP-size adapters are host-only.
+
+To recapture diagnostics, export the package/cache parsers and their supporting
+C++ libraries from `116195b4` outside the repository with `git archive`. Build
+them with Expat from `test/vendor/expat` (`XML_GE=0`, `XML_CONTEXT_BYTES=0`), the
+package harness at `52ec852e`, and `logging/Logging.h` first in the include path.
+Pass that reference executable to `diagnostics.py --record --golden PATH`.
+Never record expectations from the candidate. The P8-H3 evidence report retains
+the exact export/build script and the reference executable.

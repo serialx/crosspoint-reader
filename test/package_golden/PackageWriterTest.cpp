@@ -94,22 +94,22 @@ bool run(size_t limit, size_t count, bool shortWrite = false, bool failFlush = f
   XpPkgPass* pass = nullptr;
   xp_test_fail_allocation_after(limit);
   bool ok = xp_pkg_cache_create(&cache) == 0;
-  if (ok) ok = xp_pkg_cache_control(cache, &io, 0) == 0;
+  if (ok) ok = xp_pkg_cache_control(cache, &io, 0, nullptr) == 0;
   if (ok) ok = xp_pkg_pass_create(XP_PKG_OPF_PASS, {}, opf.size(), 0, &io, cache, &io, &pass) == 0;
-  if (ok) ok = xp_pkg_pass_write(pass, span(opf)) == opf.size();
+  if (ok) ok = xp_pkg_pass_write(pass, span(opf), nullptr, nullptr) == opf.size();
   xp_pkg_pass_destroy(pass);
-  if (ok) ok = xp_pkg_cache_count(cache, 0) == count && xp_pkg_cache_control(cache, &io, 1) == 0;
-  if (ok) ok = xp_pkg_cache_control(cache, &io, 2) == 0;
+  if (ok) ok = xp_pkg_cache_count(cache, 0) == count && xp_pkg_cache_control(cache, &io, 1, nullptr) == 0;
+  if (ok) ok = xp_pkg_cache_control(cache, &io, 2, nullptr) == 0;
   if (ok) {
     std::string href = "chapter0.xhtml";
-    ok = xp_pkg_cache_entry(cache, &io, 1, span(title), span(href), {}, 1) == 0;
+    ok = xp_pkg_cache_entry(cache, &io, 1, span(title), span(href), {}, 1, nullptr) == 0;
   }
-  if (ok) ok = xp_pkg_cache_control(cache, &io, 3) == 0 && xp_pkg_cache_control(cache, &io, 4) == 0;
+  if (ok) ok = xp_pkg_cache_control(cache, &io, 3, nullptr) == 0 && xp_pkg_cache_control(cache, &io, 4, nullptr) == 0;
   if (ok) {
     store.shortWrite = shortWrite;
     store.failFlush = failFlush;
     XpPkgSpan fields[5] = {span(title), {}, {}, {}, {}};
-    ok = xp_pkg_cache_build(cache, &io, fields) == 0;
+    ok = xp_pkg_cache_build(cache, &io, fields, nullptr) == 0;
     if (!ok) assert(store.files[XP_PKG_BOOK_FILE].bytes.empty());
     if (ok) {
       assert(store.sizeLookups == count);

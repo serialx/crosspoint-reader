@@ -80,10 +80,10 @@ int main() {
       xp_test_fail_allocation_after(limit);
       XpPkgPass* pass = nullptr;
       if (xp_pkg_pass_create(kind + 1, {}, inputs[kind].size(), 0, nullptr, nullptr, nullptr, &pass) == 0) {
-        assert(xp_pkg_pass_write(pass, {nullptr, 1}) == 0);
+        assert(xp_pkg_pass_write(pass, {nullptr, 1}, nullptr, nullptr) == 0);
         const auto input = XpPkgSpan{reinterpret_cast<const uint8_t*>(inputs[kind].data()), inputs[kind].size()};
-        success = xp_pkg_pass_write(pass, input) == input.len;
-        if (kind == 3 && success) success = xp_pkg_pass_finish(pass);
+        success = xp_pkg_pass_write(pass, input, nullptr, nullptr) == input.len;
+        if (kind == 3 && success) success = xp_pkg_pass_finish(pass, nullptr, nullptr);
       } else {
         assert(pass == nullptr);
       }

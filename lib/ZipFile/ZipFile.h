@@ -51,7 +51,7 @@ class ZipFile {
   long getDataOffset(const FileStatSlim& fileStat);
   bool loadZipDetails();
   bool readDirectoryEntry(XpZipWalker& walker, XpZipEntry& entry);
-  bool readEntryName(const XpZipEntry& entry, char* name);
+  bool readEntryName(const XpZipEntry& entry, char* name, const char* target = nullptr);
 
  public:
   explicit ZipFile(const std::string& filePath) : filePath(filePath) {}

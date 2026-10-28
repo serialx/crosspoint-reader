@@ -52,3 +52,6 @@ target_include_directories(XmlAbiTest PRIVATE ${REPO_ROOT}/lib/XmlParserUtils ${
 
 add_test(NAME XmlRegressionGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/regressions.py --oracle $<TARGET_FILE:XmlOracle> verify)
+
+target_sources(XmlConsumerOracle PRIVATE ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
+target_include_directories(XmlConsumerOracle PRIVATE ${REPO_ROOT}/lib/expat)

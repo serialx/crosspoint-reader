@@ -20,6 +20,7 @@ class PackageParser final : public Print {
   bool metadataOnly;
   HalFile items;
   XpPkgPass* pass = nullptr;
+  void logError(const XpPkgError&) const;
   static uint32_t control(void*, uint32_t, uint32_t);
   static size_t read(void*, uint32_t, uint8_t*, size_t);
   static size_t write(void*, uint32_t, const uint8_t*, size_t);
@@ -36,7 +37,7 @@ class PackageParser final : public Print {
   bool setup();
   size_t write(uint8_t byte) override { return write(&byte, 1); }
   size_t write(const uint8_t* bytes, size_t len) override;
-  bool finish() { return xp_pkg_pass_finish(pass); }
+  bool finish();
   bool needsProtectionCheck() const { return xp_pkg_pass_count(pass) != 0; }
   // Borrowed until setup(), write(), finish(), or destruction; value() returns a copy.
   std::string_view view(uint32_t field = 0) const;

@@ -165,7 +165,57 @@ pub fn encode(record: &Record, output: &mut [u8]) -> Result<usize, Error> {
     Ok(size)
 }
 
+/// Failure details contain no borrowed storage and never affect acceptance.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u32)]
+pub enum DiagnosticEvent {
+    #[default]
+    None = 0,
+    WordCount,
+    TextSize,
+    Rule,
+    DropCap,
+    BorderStyle,
+    EmptyBorder,
+    Tag,
+    FootnoteCount,
+    LinkCount,
+    FontFlag,
+    ArenaRead,
+    ArenaLayout,
+    WordOffset,
+    WordFonts,
+    FontSlot,
+    FootnoteRead,
+    LinkRead,
+    LinkGeometry,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct Diagnostic {
+    pub event: DiagnosticEvent,
+    pub a: u32,
+    pub b: u32,
+    pub element: u32,
+}
+impl Diagnostic {
+    pub fn set(&mut self, event: DiagnosticEvent, a: u32, b: u32) {
+        self.event = event;
+        self.a = a;
+        self.b = b;
+    }
+}
+
 pub fn decode(kind: Kind, input: &[u8]) -> Result<(Record, usize), Error> {
+    decode_detailed(kind, input, &mut Diagnostic::default())
+}
+
+pub fn decode_detailed(
+    kind: Kind,
+    input: &[u8],
+    detail: &mut Diagnostic,
+) -> Result<(Record, usize), Error> {
     let size = kind.size();
     if input.len() < size {
         return Err(Error::NeedInput(size));
@@ -182,37 +232,62 @@ pub fn decode(kind: Kind, input: &[u8]) -> Result<(Record, usize), Error> {
         *value = u32::from_le_bytes(bytes);
         pos += width;
     }
-    validate(&record)?;
+    validate(&record, detail)?;
     Ok((record, size))
 }
 
-fn validate(record: &Record) -> Result<(), Error> {
+fn validate(record: &Record, detail: &mut Diagnostic) -> Result<(), Error> {
+    use DiagnosticEvent as D;
     let v = &record.values;
-    let valid = match Kind::from_raw(record.kind).ok_or(Error::Invalid)? {
-        Kind::Header => {
-            matches!(v[0], n if n == u32::from(VERSION) || n == u32::from(PARTIAL_VERSION))
+    let failure = match Kind::from_raw(record.kind).ok_or(Error::Invalid)? {
+        Kind::Header if v[0] != u32::from(VERSION) && v[0] != u32::from(PARTIAL_VERSION) => {
+            return Err(Error::Invalid)
         }
         Kind::TextHeader => {
-            v[0] <= 10000
-                && (v[3] == 65535 || v[3] < v[0])
-                && if v[0] == 0 { v[2] == 0 } else { v[2] >= v[0] }
+            if v[0] > 10000 || (v[3] != 65535 && v[3] >= v[0]) {
+                Some((D::WordCount, v[0], 0))
+            } else if if v[0] == 0 { v[2] != 0 } else { v[2] < v[0] } {
+                Some((D::TextSize, v[2], v[0]))
+            } else {
+                None
+            }
         }
-        Kind::Rule => v[2] != 0 && v[3] != 0,
-        Kind::DropCap => v[3] != 0 && (1..=12).contains(&v[5]),
-        Kind::Border => v[2] != 0 && v[3] != 0 && [5, 7, 9, 11].iter().all(|&i| v[i] <= 4),
-        Kind::ElementTag => (1..=5).contains(&v[0]),
-        Kind::WordFontFlag => v[0] <= 1,
-        Kind::FootnoteCount => v[0] <= 16,
-        Kind::LinkCount => v[0] <= 32,
-        Kind::LinkGeometry => v[2] as i16 > 0 && v[3] as i16 > 0,
-        Kind::U8 | Kind::U16 | Kind::U32 | Kind::BlockStyle | Kind::Position | Kind::ImageSize => {
-            true
+        Kind::Rule if v[2] == 0 || v[3] == 0 => Some((D::Rule, v[2], v[3])),
+        Kind::DropCap if v[3] == 0 || !(1..=12).contains(&v[5]) => Some((D::DropCap, 0, 0)),
+        Kind::Border => {
+            if let Some(i) = [5, 7, 9, 11].into_iter().find(|&i| v[i] > 4) {
+                Some((D::BorderStyle, v[i], 0))
+            } else if v[2] == 0 || v[3] == 0 {
+                Some((D::EmptyBorder, 0, 0))
+            } else {
+                None
+            }
         }
+        Kind::ElementTag if !(1..=5).contains(&v[0]) => Some((D::Tag, v[0], 0)),
+        Kind::WordFontFlag if v[0] > 1 => Some((D::FontFlag, v[0], 0)),
+        Kind::FootnoteCount if v[0] > 16 => Some((D::FootnoteCount, v[0], 0)),
+        Kind::LinkCount if v[0] > 32 => Some((D::LinkCount, v[0], 0)),
+        Kind::LinkGeometry if v[2] as i16 <= 0 || v[3] as i16 <= 0 => Some((D::LinkGeometry, 0, 0)),
+        Kind::Header
+        | Kind::Rule
+        | Kind::DropCap
+        | Kind::ElementTag
+        | Kind::WordFontFlag
+        | Kind::FootnoteCount
+        | Kind::LinkCount
+        | Kind::LinkGeometry
+        | Kind::U8
+        | Kind::U16
+        | Kind::U32
+        | Kind::BlockStyle
+        | Kind::Position
+        | Kind::ImageSize => None,
     };
-    if valid {
-        Ok(())
-    } else {
+    if let Some((event, a, b)) = failure {
+        detail.set(event, a, b);
         Err(Error::Invalid)
+    } else {
+        Ok(())
     }
 }
 
@@ -225,6 +300,16 @@ pub fn arena_size(words: u16, focus: bool, text_bytes: u16) -> usize {
 }
 
 pub fn validate_arena(words: u16, focus: bool, text_bytes: u16, data: &[u8]) -> bool {
+    validate_arena_detailed(words, focus, text_bytes, data, &mut Diagnostic::default())
+}
+
+pub fn validate_arena_detailed(
+    words: u16,
+    focus: bool,
+    text_bytes: u16,
+    data: &[u8],
+    detail: &mut Diagnostic,
+) -> bool {
     let n = usize::from(words);
     let text_len = usize::from(text_bytes);
     if data.len() != arena_size(words, focus, text_bytes) {
@@ -239,12 +324,14 @@ pub fn validate_arena(words: u16, focus: bool, text_bytes: u16, data: &[u8]) -> 
     let offsets = &data[n * 8..n * 10];
     let text = &data[data.len() - text_len..];
     if offsets[..2] != [0, 0] || text[text_len - 1] != 0 {
+        detail.set(DiagnosticEvent::ArenaLayout, 0, 0);
         return false;
     }
     let mut previous = 0;
     for i in 1..n {
         let offset = usize::from(u16::from_le_bytes([offsets[i * 2], offsets[i * 2 + 1]]));
         if offset <= previous || offset >= text_len || text[offset - 1] != 0 {
+            detail.set(DiagnosticEvent::WordOffset, i as u32, 0);
             return false;
         }
         previous = offset;
@@ -253,13 +340,21 @@ pub fn validate_arena(words: u16, focus: bool, text_bytes: u16, data: &[u8]) -> 
 }
 
 pub fn validate_fonts(words: u16, data: &[u8]) -> bool {
+    validate_fonts_detailed(words, data, &mut Diagnostic::default())
+}
+
+pub fn validate_fonts_detailed(words: u16, data: &[u8], detail: &mut Diagnostic) -> bool {
     if data.len() != 12 + usize::from(words) {
         return false;
     }
-    data[12..].iter().all(|&slot| {
-        let slot = usize::from(slot & 0x7f);
-        slot <= 3 && (slot == 0 || data[(slot - 1) * 4..slot * 4] != [0, 0, 0, 0])
-    })
+    for &raw in &data[12..] {
+        let slot = usize::from(raw & 0x7f);
+        if slot > 3 || (slot != 0 && data[(slot - 1) * 4..slot * 4] == [0, 0, 0, 0]) {
+            detail.set(DiagnosticEvent::FontSlot, u32::from(raw), 0);
+            return false;
+        }
+    }
+    true
 }
 
 pub fn header_matches(header: &Record, expected: &Record) -> bool {
@@ -396,9 +491,12 @@ mod tests {
         };
         cap.values[3] = 256;
         cap.values[5] = 12;
-        assert_eq!(validate(&cap), Ok(()));
+        assert_eq!(validate(&cap, &mut Diagnostic::default()), Ok(()));
         cap.values[5] = 13;
-        assert_eq!(validate(&cap), Err(Error::Invalid));
+        assert_eq!(
+            validate(&cap, &mut Diagnostic::default()),
+            Err(Error::Invalid)
+        );
         let mut output = [0xa5; 8];
         assert_eq!(encode_text_word(0, b"", &mut output), Ok(0));
         assert_eq!(

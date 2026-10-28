@@ -7,6 +7,71 @@
 
 #include "SectionCodec.h"
 
+namespace {
+void logPageDiagnostic(const XpPageDiagnostic& detail) {
+  [[maybe_unused]] const unsigned a = detail.a, b = detail.b;
+  switch (static_cast<XpPageDiagnosticEvent>(detail.event)) {
+    case XP_PAGE_DIAG_NONE:
+      break;
+    case XP_PAGE_DIAG_WORD_COUNT:
+      LOG_ERR("TXB", "Deserialization failed: word count %u exceeds maximum", a);
+      break;
+    case XP_PAGE_DIAG_TEXT_SIZE:
+      LOG_ERR("TXB", "Deserialization failed: bad text size %u for %u words", a, b);
+      break;
+    case XP_PAGE_DIAG_RULE:
+      LOG_ERR("PGE", "Deserialization failed: invalid horizontal rule metadata (width=%u thickness=%u)", a, b);
+      break;
+    case XP_PAGE_DIAG_DROP_CAP:
+      LOG_ERR("PGE", "Deserialization failed: invalid drop cap");
+      break;
+    case XP_PAGE_DIAG_BORDER_STYLE:
+      LOG_ERR("PGE", "Deserialization failed: invalid border style %u", a);
+      break;
+    case XP_PAGE_DIAG_EMPTY_BORDER:
+      LOG_ERR("PGE", "Deserialization failed: empty border box");
+      break;
+    case XP_PAGE_DIAG_TAG:
+      LOG_ERR("PGE", "Deserialization failed: Unknown tag %u", a);
+      break;
+    case XP_PAGE_DIAG_FOOTNOTE_COUNT:
+      LOG_ERR("PGE", "Invalid footnote count %u", a);
+      break;
+    case XP_PAGE_DIAG_LINK_COUNT:
+      LOG_ERR("PGE", "Invalid link count %u", a);
+      break;
+    case XP_PAGE_DIAG_FONT_FLAG:
+      LOG_ERR("TXB", "Deserialization failed: bad word font flag %u", a);
+      break;
+    case XP_PAGE_DIAG_ARENA_READ:
+      LOG_ERR("TXB", "Deserialization failed: arena read (%u bytes)", a);
+      break;
+    case XP_PAGE_DIAG_ARENA_LAYOUT:
+      LOG_ERR("TXB", "Deserialization failed: corrupt text layout");
+      break;
+    case XP_PAGE_DIAG_WORD_OFFSET:
+      LOG_ERR("TXB", "Deserialization failed: corrupt word offset %u", a);
+      break;
+    case XP_PAGE_DIAG_WORD_FONTS:
+      LOG_ERR("TXB", "Deserialization failed: word fonts");
+      break;
+    case XP_PAGE_DIAG_FONT_SLOT:
+      LOG_ERR("TXB", "Deserialization failed: bad word font slot %u", a);
+      break;
+    case XP_PAGE_DIAG_FOOTNOTE_READ:
+      LOG_ERR("PGE", "Failed to read footnote %u", a);
+      break;
+    case XP_PAGE_DIAG_LINK_READ:
+      LOG_ERR("PGE", "Failed to read link %u", a);
+      break;
+    case XP_PAGE_DIAG_LINK_GEOMETRY:
+      LOG_ERR("PGE", "Invalid link geometry %u", a);
+      break;
+  }
+  if (detail.element == 1) LOG_ERR("PGE", "Deserialization failed: null TextBlock");
+}
+}  // namespace
+
 #ifdef XP_PAGE_CODEC_TEST
 PageDropCap::PageDropCap(const int32_t fontId, const uint16_t scale256, const EpdFontFamily::Style style,
                          const char* utf8, const int16_t xPos, const int16_t yPos)
@@ -64,7 +129,7 @@ std::unique_ptr<Page> Page::allocate(const XpPageInfo& info) {
   // Page owns the header and trailing records; its unsized delete matches this allocation.
   void* allocation = ::operator new(bytes, std::nothrow);
   if (!allocation) {
-    LOG_ERR("PGE", "OOM: page %u bytes", static_cast<unsigned>(bytes));
+    LOG_ERR("PGE", "Deserialization failed: could not allocate Page");
     return nullptr;
   }
   std::unique_ptr<Page> page(::new (allocation) Page);
@@ -120,25 +185,39 @@ std::unique_ptr<Page> Page::load(HalFile& file, const size_t bytes, const uint32
     return in.file.seek(in.start + offset) && in.file.read(data, len) == len;
   };
   XpPageInfo sized{};
-  if (xp_page_probe(&input, read, bytes, &sized)) return nullptr;
+  XpPageDiagnostic detail{};
+  if (xp_page_probe_diagnostic(&input, read, bytes, &sized, &detail)) {
+    logPageDiagnostic(detail);
+    return nullptr;
+  }
   auto page = allocate(sized);
   if (!page) return nullptr;
   const size_t offset = sized.arena_size - sized.consumed;
   if (!file.seek(start) || file.read(page->arena + offset, sized.consumed) != sized.consumed ||
-      xp_page_decode_in_place(page->arena, page->arenaSize, offset, sized.consumed, visibleOffset, &page->info) ||
-      page->info.elements != sized.elements || !page->resolveViews())
+      xp_page_decode_in_place_diagnostic(page->arena, page->arenaSize, offset, sized.consumed, visibleOffset,
+                                         &page->info, &detail) ||
+      page->info.elements != sized.elements || !page->resolveViews()) {
+    logPageDiagnostic(detail);
     return nullptr;
+  }
   page->visibleTextOffset = visibleOffset;
   return page;
 }
 
 std::unique_ptr<Page> Page::fromBytes(const uint8_t* bytes, const size_t size, const uint32_t visibleOffset) {
   XpPageInfo info{};
-  if (xp_page_arena_size(bytes, size, &info)) return nullptr;
-  auto page = allocate(info);
-  if (!page || xp_page_decode(bytes, size, visibleOffset, page->arena, page->arenaSize, &page->info) ||
-      !page->resolveViews())
+  XpPageDiagnostic detail{};
+  if (xp_page_arena_size_diagnostic(bytes, size, &info, &detail)) {
+    logPageDiagnostic(detail);
     return nullptr;
+  }
+  auto page = allocate(info);
+  if (!page ||
+      xp_page_decode_diagnostic(bytes, size, visibleOffset, page->arena, page->arenaSize, &page->info, &detail) ||
+      !page->resolveViews()) {
+    logPageDiagnostic(detail);
+    return nullptr;
+  }
   page->visibleTextOffset = visibleOffset;
   return page;
 }

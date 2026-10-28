@@ -147,9 +147,18 @@ bool Section::loadSectionFile(const ReaderRenderSpec& spec) {
   }
   XpSecRecord header;
   const auto expected = sectioncodec::header(spec, 0);
-  if (!sectioncodec::read(file, XP_SEC_HEADER, header) || !xp_sec_header_matches(&header, &expected)) {
+  uint32_t rejectedVersion = UINT32_MAX;
+  if (!sectioncodec::read(file, XP_SEC_HEADER, header, &rejectedVersion)) {
     file.close();
-    LOG_ERR("SCT", "Invalid section header or layout parameters");
+    if (rejectedVersion != UINT32_MAX) {
+      LOG_ERR("SCT", "Deserialization failed: Unknown version %u", static_cast<unsigned>(rejectedVersion));
+    }
+    clearCache();
+    return false;
+  }
+  if (!xp_sec_header_matches(&header, &expected)) {
+    file.close();
+    LOG_ERR("SCT", "Deserialization failed: Parameters do not match");
     clearCache();
     return false;
   }
@@ -985,9 +994,12 @@ std::optional<uint16_t> Section::getPageForVisibleTextOffset(const uint32_t offs
   uint32_t position;
   if (!Storage.openFileForRead("SCT", filePath, f) || !sectioncodec::read(f, XP_SEC_HEADER, header) ||
       header.values[14] == 0 ||
-      !xp_sec_table_entry(header.values[19], header.values[14] - 1, 4, f.size(), HEADER_SIZE, &position) ||
-      !f.seek(header.values[19]))
+      !xp_sec_table_entry(header.values[19], header.values[14] - 1, 4, f.size(), HEADER_SIZE, &position))
     return std::nullopt;
+  if (!f.seek(header.values[19])) {
+    LOG_ERR("SCT", "Failed to seek visible-text LUT");
+    return std::nullopt;
+  }
   uint16_t result = 0;
   uint32_t lastPageStart = 0;
   constexpr uint32_t BATCH_PAGE_COUNT = 32;
@@ -997,7 +1009,10 @@ std::optional<uint16_t> Section::getPageForVisibleTextOffset(const uint32_t offs
   for (uint32_t base = 0; base < count; base += BATCH_PAGE_COUNT) {
     const uint32_t batch = std::min<uint32_t>(BATCH_PAGE_COUNT, count - base);
     const size_t bytes = batch * 4;
-    if (f.read(starts, bytes) != bytes) return std::nullopt;
+    if (f.read(starts, bytes) != bytes) {
+      LOG_ERR("SCT", "Failed to read visible-text LUT batch");
+      return std::nullopt;
+    }
     XpSecDecoder decoder{starts, bytes, 0, XP_SEC_U32};
     for (uint32_t i = 0; i < batch; ++i) {
       if (xp_sec_decode_next(&decoder, &header) != XP_SEC_OK) return std::nullopt;

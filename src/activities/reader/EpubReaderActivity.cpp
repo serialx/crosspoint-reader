@@ -1915,7 +1915,11 @@ void EpubReaderActivity::renderBook() {
   {
     auto p = section->loadPage(section->currentPage);
     if (!p || !currentPageMetadata.assign(*p)) {
-      LOG_ERR("ERS", "Failed to load page or metadata - clearing section cache");
+      if (!p) {
+        LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
+      } else {
+        LOG_ERR("ERS", "Failed to copy page metadata - clearing section cache");
+      }
       automaticPageTurnActive = false;
       const bool giveUp = ++pageLoadRetryCount > MAX_PAGE_LOAD_RETRIES;
       section->abandonBuild();

@@ -1638,6 +1638,42 @@ size_t xp_page_plain_line_arena_capacity(size_t encoded_bytes, size_t lines);
 // Parses one page prefix, matching Page::deserialize; consumed identifies its end.
 // Decode reports required arena_size even on short output and leaves it untouched.
 // Probe performs bounded reads for sizing only; decode validates the final bytes.
+// Failure-only details; no callbacks, allocations, or borrowed pointers.
+// a/b: WORD_COUNT=count/0, TEXT_SIZE=bytes/words, RULE=width/thickness;
+// BORDER_STYLE, TAG, counts, FONT_FLAG, FONT_SLOT=value/0;
+// ARENA_READ=bytes/0; WORD_OFFSET, FOOTNOTE_READ, LINK_READ, LINK_GEOMETRY=index/0.
+// Other events use zero/zero. element=1 adds the parent null TextBlock
+// message after the detail. Zero means no parent message. Success clears all fields.
+// diagnostic may be null; otherwise it must be aligned, writable and disjoint.
+typedef enum {
+  XP_PAGE_DIAG_NONE = 0,
+  XP_PAGE_DIAG_WORD_COUNT = 1,
+  XP_PAGE_DIAG_TEXT_SIZE = 2,
+  XP_PAGE_DIAG_RULE = 3,
+  XP_PAGE_DIAG_DROP_CAP = 4,
+  XP_PAGE_DIAG_BORDER_STYLE = 5,
+  XP_PAGE_DIAG_EMPTY_BORDER = 6,
+  XP_PAGE_DIAG_TAG = 7,
+  XP_PAGE_DIAG_FOOTNOTE_COUNT = 8,
+  XP_PAGE_DIAG_LINK_COUNT = 9,
+  XP_PAGE_DIAG_FONT_FLAG = 10,
+  XP_PAGE_DIAG_ARENA_READ = 11,
+  XP_PAGE_DIAG_ARENA_LAYOUT = 12,
+  XP_PAGE_DIAG_WORD_OFFSET = 13,
+  XP_PAGE_DIAG_WORD_FONTS = 14,
+  XP_PAGE_DIAG_FONT_SLOT = 15,
+  XP_PAGE_DIAG_FOOTNOTE_READ = 16,
+  XP_PAGE_DIAG_LINK_READ = 17,
+  XP_PAGE_DIAG_LINK_GEOMETRY = 18,
+} XpPageDiagnosticEvent;
+typedef struct {
+  uint32_t event, a, b, element;
+} XpPageDiagnostic;
+uint32_t xp_page_probe_diagnostic(void*, uint8_t (*read)(void*, size_t, uint8_t*, size_t), size_t, XpPageInfo*,
+                                  XpPageDiagnostic*);
+uint32_t xp_page_arena_size_diagnostic(const uint8_t*, size_t, XpPageInfo*, XpPageDiagnostic*);
+uint32_t xp_page_decode_diagnostic(const uint8_t*, size_t, uint32_t, uint8_t*, size_t, XpPageInfo*, XpPageDiagnostic*);
+uint32_t xp_page_decode_in_place_diagnostic(uint8_t*, size_t, size_t, size_t, uint32_t, XpPageInfo*, XpPageDiagnostic*);
 uint32_t xp_page_probe(void* context, uint8_t (*read)(void*, size_t, uint8_t*, size_t), size_t len, XpPageInfo* info);
 uint32_t xp_page_decode_in_place(uint8_t* arena, size_t capacity, size_t offset, size_t len, uint32_t visible,
                                  XpPageInfo* info);

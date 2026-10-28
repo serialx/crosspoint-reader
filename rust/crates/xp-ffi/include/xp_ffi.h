@@ -1866,6 +1866,79 @@ int32_t xp_inflate_small_step(void* state, const uint8_t* input, size_t in_len, 
                               size_t out_len, size_t* out_pos, uint8_t wrapping_window, size_t* consumed,
                               size_t* produced, size_t out_max);
 
+// Library CLX1. All descriptors and buffers are borrowed for the call only.
+// Build status preserves the terminal summary in C++ before dirty-marker cleanup.
+enum {
+  XP_LIBRARY_BUILD_FAILED = 0,
+  XP_LIBRARY_BUILD_UNCHANGED = 1,
+  XP_LIBRARY_BUILD_EMIT_FAILED = 2,
+  XP_LIBRARY_BUILD_INSTALLED = 3
+};
+// file operations: 0 read-open, 1 write-open, 2 open, 3 next-entry, 4 close,
+// 5 read, 6 write, 7 seek, 8 position, 9 size, 10 mtime, 11 is-directory,
+// 12 rewind-directory, 13 get-name. Handles are nonzero, owned until close.
+// storage operations: 0 exists, 1 remove, 2 mkdir, 3 rename.
+// Allocation returns zeroed max_align_t-aligned storage; release pairs with it.
+// Metadata: 0 EPUB, 1 XTC, 2 release. Title is exclusively writable; author is
+// readable until release. Release takes null path/output pointers and frees both.
+// clock: 0 millis, 1 delay(1). dirty: 0 query, 1 mark, 2 clear.
+// Diagnostics: text is a borrowed NUL-terminated path; null callback is silent.
+// Events 1..13: recovery/install/dirty cleanup; 14 no metadata (text),
+// 15 directory resume (text,a=offset), 16 dedup cap (a=count,text), 17 folder write,
+// 18 arrival allocation, 19 stage read (a=offset), 20 folder truncation (a=got,b=want),
+// 21 folder open, 22 folder copy, 23 author allocation (a=bytes), 24 canonical OOM,
+// 25 spelling OOM, 26 mtime OOM (a=bytes), 27 degraded sort (a=count), 28 stage I/O,
+// 29 staged OOM, 30 incomplete emit (a=I/O failed,b=closed,c=written,d=expected),
+// 32..33 dirty creation, 34..35 buffer OOM (a=bytes), 36 dedup OOM, 37 prior OOM,
+// 38 prior read (a=ordinal), 39 prior open, 40 staging open, 41..42 phase ms (a),
+// 43 staging failed, 44 unchanged (a=reused,b=parsed,c=ms), 45 firstSeen OOM,
+// 46 reconciliation open, 47 read (a=ordinal), 48 close, 49 reconciliation ms (a),
+// 50 order OOM (a=count), 51 title allocation (a=bytes), 52 title stage open,
+// 53 title stage read (a=offset), 54 close, 55 sort OOM, 56..57 phase ms (a),
+// 59 restored backup over invalid live index; 60 rejected (a=ClixValidity). C++ owns text, levels, and heap log values.
+// Callbacks must not unwind, retain borrowed pointers, or reenter Rust.
+typedef struct {
+  void* context;
+  uint8_t (*read)(void*, uint32_t, uint8_t*, size_t);
+  uint8_t (*string)(void*, uint32_t, size_t, uint8_t, uint8_t*);
+  void (*append)(void*, const uint8_t*, size_t);
+  void (*fail)(void*);
+} XpLibraryIndexIo;
+typedef struct {
+  uint64_t hash;
+  uint32_t size;
+} XpLibraryIdentity;
+typedef struct {
+  uint16_t books, folders, duplicates, unreadable;
+  uint32_t walk_ms;
+  uint16_t unchanged, added, renamed, removed, enriched, parsed, reused;
+  uint8_t replaced, ranks_degraded, dedup_degraded;
+} XpLibraryStats;
+typedef struct {
+  void* context;
+  int64_t (*file)(void*, uint8_t, uint32_t, const uint8_t*, uint8_t*, size_t, uint64_t);
+  uint8_t (*storage)(void*, uint8_t, const uint8_t*, const uint8_t*);
+  uint8_t* (*allocate)(void*, size_t);
+  void (*release)(void*, uint8_t*);
+  uint32_t (*clock)(void*, uint8_t);
+  uint8_t (*metadata)(void*, const uint8_t*, uint8_t, uint8_t**, size_t*, const uint8_t**, size_t*);
+  void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const uint8_t*);
+} XpLibraryServices;
+size_t xp_library_text(uint8_t*, size_t, uint8_t);
+uint8_t xp_library_matches(const uint8_t*, size_t, const uint8_t*, size_t);
+uint32_t xp_library_initial(const uint8_t*, size_t);
+uint64_t xp_library_hash(const uint8_t*, size_t);
+uint32_t xp_library_align(uint32_t);
+void xp_library_layout(void*, uint32_t, uint32_t);
+uint8_t xp_library_validate(const void*, uint64_t, uint8_t);
+uint32_t xp_library_offset(const void*, uint16_t, uint8_t);
+uint32_t xp_library_read(const void*, XpLibraryIndexIo*, void*, uint8_t, uint32_t, uint64_t*);
+uint8_t xp_library_recent(const void*, XpLibraryIndexIo*, const XpLibraryIdentity*, size_t, uint16_t*, uint8_t*);
+size_t xp_library_join(const uint8_t*, size_t, const uint8_t*, size_t, uint8_t*);
+uint8_t xp_library_book(const uint8_t*, size_t);
+uint8_t xp_library_build(const XpLibraryServices*, const uint8_t*, size_t, XpLibraryStats*, uint8_t, uint8_t*);
+uint8_t xp_library_dirty(const XpLibraryServices*, uint8_t*, uint8_t);
+
 #ifdef __cplusplus
 }
 #endif

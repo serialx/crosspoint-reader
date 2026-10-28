@@ -10,6 +10,7 @@ mod hyphen;
 mod i18n;
 mod image;
 mod inflate;
+mod library;
 mod page;
 mod page_render;
 mod para;

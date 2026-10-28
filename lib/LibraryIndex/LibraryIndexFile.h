@@ -8,6 +8,7 @@
 // recordStart + 128k, so no offset table has to be loaded to find it.
 
 #include <HalStorage.h>
+#include <xp_ffi.h>
 
 #include <cstdint>
 #include <string>
@@ -97,6 +98,11 @@ class LibraryIndexFile {
   bool readAt(uint32_t offset, void* dst, size_t len);
   bool readBlobField(const ClixRecord& record, uint8_t field, std::string& out);
 
+  struct RustIoContext {
+    LibraryIndexFile& index;
+    std::string* output = nullptr;
+  };
+  static XpLibraryIndexIo rustIo(RustIoContext& context);
   HalFile file;
   ClixHeader head{};
   bool opened = false;

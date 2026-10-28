@@ -46,14 +46,7 @@ inline constexpr uint16_t CLIX_MAX_RECORDS = 4096;
 // Complete-path fingerprint stored in front of every record's name blob.
 // Shared by the builder's reconciliation and the browser's recent-book lookup,
 // which must agree byte-for-byte on the hash of the same path.
-inline uint64_t clixPathHash(const char* data, const size_t len) {
-  uint64_t hash = 14695981039346656037ULL;  // FNV-1a 64
-  for (size_t i = 0; i < len; i++) {
-    hash ^= static_cast<unsigned char>(data[i]);
-    hash *= 1099511628211ULL;
-  }
-  return hash;
-}
+uint64_t clixPathHash(const char* data, const size_t len);
 
 enum ClixFlags : uint8_t {
   CLIX_FLAG_RANKS_DEGRADED = 1 << 0,
@@ -114,29 +107,15 @@ static_assert(sizeof(ClixFolderHeader) == 1, "ClixFolderHeader must be 1 byte");
 
 #pragma pack(pop)
 
-inline uint32_t alignUp(const uint32_t value) { return (value + CLIX_ALIGN - 1) / CLIX_ALIGN * CLIX_ALIGN; }
+uint32_t alignUp(const uint32_t value);
 
 // Fill in every offset and the expected file size from the counts alone, so the
 // writer and the reader can never disagree about where a section starts.
-inline void layoutSections(ClixHeader& h, const uint32_t folderBytes, const uint32_t nameBytes) {
-  h.folderStart = CLIX_ALIGN;
-  h.folderLen = folderBytes;
-  h.recordStart = alignUp(h.folderStart + folderBytes);
-  h.permStart = alignUp(h.recordStart + static_cast<uint32_t>(h.bookCount) * sizeof(ClixRecord));
-  h.nameStart = alignUp(h.permStart + static_cast<uint32_t>(h.bookCount) * 2u * sizeof(uint16_t));
-  h.nameLen = nameBytes;
-  h.selfSize = h.nameStart + nameBytes;
-}
+void layoutSections(ClixHeader& h, const uint32_t folderBytes, const uint32_t nameBytes);
 
-inline uint32_t recordOffset(const ClixHeader& h, const uint16_t ordinal) {
-  return h.recordStart + static_cast<uint32_t>(ordinal) * sizeof(ClixRecord);
-}
-inline uint32_t authorOrderOffset(const ClixHeader& h, const uint16_t k) {
-  return h.permStart + static_cast<uint32_t>(k) * sizeof(uint16_t);
-}
-inline uint32_t arrivalOrderOffset(const ClixHeader& h, const uint16_t k) {
-  return h.permStart + (static_cast<uint32_t>(h.bookCount) + k) * sizeof(uint16_t);
-}
+uint32_t recordOffset(const ClixHeader& h, const uint16_t ordinal);
+uint32_t authorOrderOffset(const ClixHeader& h, const uint16_t k);
+uint32_t arrivalOrderOffset(const ClixHeader& h, const uint16_t k);
 
 // Why a loaded index was rejected. Reported rather than swallowed so a rebuild
 // loop caused by a format bug shows up in the log instead of looking like a slow
@@ -154,34 +133,9 @@ enum class ClixValidity : uint8_t {
 // Validate a header against the real file size. Cheap enough to run on the one
 // sector already read, and strict enough that nothing downstream has to
 // re-check bounds.
-inline ClixValidity validateHeaderStructure(const ClixHeader& h, const uint64_t actualFileSize) {
-  for (size_t i = 0; i < sizeof(CLIX_MAGIC); i++) {
-    if (h.magic[i] != CLIX_MAGIC[i]) return ClixValidity::BadMagic;
-  }
-  if (h.formatVersion != CLIX_FORMAT_VERSION) return ClixValidity::UnknownFormatVersion;
-  if (h.bookCount > CLIX_MAX_RECORDS) return ClixValidity::CountOutOfRange;
-  if (h.metadataEnabled > 1) return ClixValidity::SectionsInconsistent;
-  if (actualFileSize != h.selfSize) return ClixValidity::SizeMismatch;
+ClixValidity validateHeaderStructure(const ClixHeader& h, const uint64_t actualFileSize);
 
-  // Both lengths are attacker-controlled bytes. Capped against the real file
-  // size they cannot wrap the 32-bit section sums below, so the layout
-  // comparison stays sound instead of re-deriving the same wrapped values.
-  if (h.folderLen > actualFileSize || h.nameLen > actualFileSize) return ClixValidity::SectionsInconsistent;
-
-  ClixHeader expected = h;
-  layoutSections(expected, h.folderLen, h.nameLen);
-  if (expected.folderStart != h.folderStart || expected.recordStart != h.recordStart ||
-      expected.permStart != h.permStart || expected.nameStart != h.nameStart || expected.selfSize != h.selfSize) {
-    return ClixValidity::SectionsInconsistent;
-  }
-  return ClixValidity::Ok;
-}
-
-inline ClixValidity validateHeader(const ClixHeader& h, const uint64_t actualFileSize) {
-  const ClixValidity structure = validateHeaderStructure(h, actualFileSize);
-  if (structure != ClixValidity::Ok) return structure;
-  return h.foldVersion == CLIX_FOLD_VERSION ? ClixValidity::Ok : ClixValidity::StaleFoldVersion;
-}
+ClixValidity validateHeader(const ClixHeader& h, const uint64_t actualFileSize);
 
 const char* clixValidityName(ClixValidity v);
 

@@ -70,6 +70,45 @@ enum {
   XP_DISPLAY_TAG_X3_POWER_DOWN = 6,
 };
 
+// Shared registry; append values without changing existing descriptor layouts.
+enum {
+  XP_DISPLAY_SSD1677 = 2,
+  XP_DISPLAY_UC8179 = 3,
+  XP_DISPLAY_UC8279_X3 = 4,
+  XP_DISPLAY_UC8279_X4 = 5,
+  XP_DISPLAY_UC8279C_A4 = 6,
+  XP_DISPLAY_SSD2677 = 7,
+  XP_DISPLAY_PAPER_MONO = 8,
+  XP_DISPLAY_TAG_V1_FIRST = 0,
+  XP_DISPLAY_TAG_V1_LAST = 29,
+  XP_DISPLAY_TAG_V3_FIRST = 30,
+  XP_DISPLAY_TAG_V3_LAST = 59,
+  XP_DISPLAY_TAG_V2_FIRST = 60,
+  XP_DISPLAY_TAG_V2_LAST = 89,
+  XP_DISPLAY_TAG_V4_FIRST = 90,
+  XP_DISPLAY_TAG_V4_LAST = 119,
+  XP_DISPLAY_TAG_V3_EXTRA_FIRST = 120,
+  XP_DISPLAY_TAG_V3_EXTRA_LAST = 159,
+  XP_DISPLAY_PLATFORM_VERSION = 1,
+  XP_DISPLAY_INIT_OPTIONS_VERSION = 1,
+  XP_DISPLAY_ALLOC_PSRAM_THEN_INTERNAL = 0,
+  XP_DISPLAY_ALLOC_INTERNAL = 1,
+  XP_DISPLAY_ALLOC_PSRAM_ONLY = 2
+};
+
+typedef struct {
+  uint32_t abi_version, struct_size;
+  void* ctx;
+  void* (*alloc)(void*, uint32_t size, uint32_t caps);
+  void (*free)(void*, void*);
+} XpDisplayPlatform;
+
+typedef struct {
+  uint32_t abi_version, struct_size, controller_config_version;
+  // Optional, retained until drop; never routed through Rust's global allocator.
+  const XpDisplayPlatform* platform;
+} XpDisplayInitOptions;
+
 typedef struct {
   uint32_t abi_version, struct_size;
   void* ctx;
@@ -127,12 +166,25 @@ typedef struct {
   uint32_t lut_len;
 } XpDisplayX3Config;
 
+// Writes default immutable Rust LUT pointers; direct has room for five pointers
+// and must outlive config. No copy of the LUT bytes or allocation is made.
+void xp_display_x3_default_config(XpDisplayX3Config* config, const uint8_t** direct);
+
 uint32_t xp_display_abi_version(void);
 uint32_t xp_display_state_size(uint32_t controller);
 uint32_t xp_display_state_align(uint32_t controller);
 // Storage must be aligned, writable, exclusive, and remain at this address.
 // Init failure leaves it untouched; only successful init may be used/dropped.
 uint32_t xp_display_init(void* storage, uint32_t size, const XpDisplayConfig* config);
+// Additive v2 init; null options equals v1 init (config version 1, no platform).
+uint32_t xp_display_init_v2(void* storage, uint32_t size, const XpDisplayConfig* config,
+                            const XpDisplayInitOptions* options);
+// May race execute, but not init/drop. Returns the incremented generation.
+uint32_t xp_display_abort(void* storage);
+uint32_t xp_display_generation(const void* storage);
+// Serialized controller-specific operation. Payload is borrowed for the call.
+uint32_t xp_display_extra(void* storage, uint32_t operation, const void* payload, uint32_t payload_size,
+                          uint32_t payload_version);
 void xp_display_drop(void* storage);
 uint32_t xp_display_capabilities(const void* storage, uint32_t gray_mode);
 // result may be null. Other pointers must be valid; bus is needed for I/O ops.

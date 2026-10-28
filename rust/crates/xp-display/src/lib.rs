@@ -29,16 +29,19 @@ pub trait Panel {
     fn capabilities(&self, mode: u32) -> u32;
 }
 
-// ABI milestone stub; UC8253 behavior is added after consumers can branch.
-pub struct Uc8253 {
+mod luts;
+mod uc8253;
+pub use uc8253::{default_config, direct_luts, Uc8253, X3Config};
+
+#[derive(Default)]
+pub struct Request<'a> {
+    pub operation: u32,
+    pub mode: u32,
+    pub flags: u32,
+    pub arg: u32,
+    pub x: u16,
+    pub y: u16,
     pub width: u16,
     pub height: u16,
-}
-impl Panel for Uc8253 {
-    fn begin(&mut self, bus: &mut impl Bus) {
-        bus.reset(50);
-    }
-    fn capabilities(&self, _mode: u32) -> u32 {
-        0
-    }
+    pub data: Option<&'a [u8]>,
 }

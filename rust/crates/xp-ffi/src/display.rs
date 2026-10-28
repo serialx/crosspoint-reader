@@ -1,7 +1,8 @@
 use core::ffi::c_void;
 use core::mem::{align_of, size_of};
+use core::sync::atomic::{AtomicU32, Ordering};
 use xp_display::constants::*;
-use xp_display::{Bus, Panel, Uc8253};
+use xp_display::{Bus, X3Config};
 
 #[repr(C)]
 pub struct DisplayBus {
@@ -183,86 +184,224 @@ pub struct DisplayRequest {
     lut_len: u32,
 }
 
+mod paper_mono;
+mod ssd1677;
+mod ssd2677;
+mod uc8179;
+mod uc8253;
+mod uc8279_x3;
+mod uc8279_x4;
+mod uc8279c_a4;
+
+#[repr(C)]
+pub struct Platform {
+    pub abi_version: u32,
+    pub struct_size: u32,
+    pub ctx: *mut c_void,
+    pub alloc: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> *mut c_void>,
+    pub free: Option<unsafe extern "C" fn(*mut c_void, *mut c_void)>,
+}
+#[repr(C)]
+pub struct InitOptions {
+    pub abi_version: u32,
+    pub struct_size: u32,
+    pub controller_config_version: u32,
+    pub platform: *const Platform,
+}
+#[repr(C)]
+struct Header {
+    controller: u32,
+    generation: AtomicU32,
+}
+impl Header {
+    fn new(controller: u32) -> Self {
+        Self {
+            controller,
+            generation: AtomicU32::new(0),
+        }
+    }
+}
+// Each controller has a repr(C) state starting with Header. Only the panel field
+// is mutably borrowed during execute, so generation remains concurrently readable.
+enum Action<'a> {
+    Size,
+    Align,
+    Init {
+        storage: *mut c_void,
+        config: &'a DisplayConfig,
+        options: &'a InitOptions,
+    },
+    Drop(*mut c_void),
+    Capabilities {
+        storage: *const c_void,
+        mode: u32,
+    },
+    Execute {
+        storage: *mut c_void,
+        bus: &'a mut DisplayBus,
+        request: &'a DisplayRequest,
+        result: *mut u32,
+    },
+    Extra {
+        storage: *mut c_void,
+        operation: u32,
+        payload: *const c_void,
+        size: u32,
+        version: u32,
+    },
+}
+// This is the only controller-ID dispatch. Each port owns its arm and module.
+unsafe fn dispatch(controller: u32, action: Action<'_>) -> u32 {
+    match controller {
+        UC8253_X3 => uc8253::dispatch(action),
+        SSD1677 => ssd1677::dispatch(action),
+        UC8179 => uc8179::dispatch(action),
+        UC8279_X3 => uc8279_x3::dispatch(action),
+        UC8279_X4 => uc8279_x4::dispatch(action),
+        UC8279C_A4 => uc8279c_a4::dispatch(action),
+        SSD2677 => ssd2677::dispatch(action),
+        PAPER_MONO => paper_mono::dispatch(action),
+        _ => match action {
+            Action::Size | Action::Align => 0,
+            _ => UNSUPPORTED,
+        },
+    }
+}
 #[no_mangle]
 pub extern "C" fn xp_display_abi_version() -> u32 {
     ABI_VERSION
 }
 #[no_mangle]
 pub extern "C" fn xp_display_state_size(controller: u32) -> u32 {
-    if controller == UC8253_X3 {
-        size_of::<Uc8253>() as u32
-    } else {
-        0
-    }
+    unsafe { dispatch(controller, Action::Size) }
 }
 #[no_mangle]
 pub extern "C" fn xp_display_state_align(controller: u32) -> u32 {
-    if controller == UC8253_X3 {
-        align_of::<Uc8253>() as u32
-    } else {
-        0
-    }
+    unsafe { dispatch(controller, Action::Align) }
 }
 
 /// # Safety
-/// Storage is exclusive, aligned writable memory of size bytes. Config and any
-/// controller-specific immutable LUT storage remain valid through drop.
+/// Storage is exclusive writable memory of size bytes. Config and all retained
+/// controller resources remain valid until drop. No concurrent init/drop calls.
 #[no_mangle]
 pub unsafe extern "C" fn xp_display_init(
     storage: *mut c_void,
     size: u32,
     config: *const DisplayConfig,
 ) -> u32 {
-    if storage.is_null()
-        || config.is_null()
-        || !(storage as usize).is_multiple_of(align_of::<Uc8253>())
-        || size < size_of::<Uc8253>() as u32
-    {
+    xp_display_init_v2(storage, size, config, core::ptr::null())
+}
+/// # Safety
+/// Same as xp_display_init. Options and platform are valid; the platform table
+/// and its context remain valid until drop. Allocations are owned by the panel.
+#[no_mangle]
+pub unsafe extern "C" fn xp_display_init_v2(
+    storage: *mut c_void,
+    size: u32,
+    config: *const DisplayConfig,
+    options: *const InitOptions,
+) -> u32 {
+    if storage.is_null() || config.is_null() {
         return INVALID;
     }
     let config = &*config;
     if config.abi_version != ABI_VERSION
         || config.struct_size as usize != size_of::<DisplayConfig>()
-        || config.width == 0
-        || !config.width.is_multiple_of(8)
-        || config.height == 0
-        || config.variant != 0
-        || config.flags != 0
     {
         return INVALID;
     }
-    if config.controller != UC8253_X3 || !config.controller_config.is_null() {
+    let needed = xp_display_state_size(config.controller);
+    let align = xp_display_state_align(config.controller);
+    if needed == 0 || align == 0 {
         return UNSUPPORTED;
     }
-    storage.cast::<Uc8253>().write(Uc8253 {
-        width: config.width,
-        height: config.height,
-    });
-    OK
+    if size < needed || !(storage as usize).is_multiple_of(align as usize) {
+        return INVALID;
+    }
+    let default = InitOptions {
+        abi_version: 1,
+        struct_size: size_of::<InitOptions>() as u32,
+        controller_config_version: 1,
+        platform: core::ptr::null(),
+    };
+    let options = if options.is_null() {
+        &default
+    } else {
+        &*options
+    };
+    if options.abi_version != 1 || options.struct_size as usize != size_of::<InitOptions>() {
+        return INVALID;
+    }
+    if !options.platform.is_null() {
+        let platform = &*options.platform;
+        if platform.abi_version != 1
+            || platform.struct_size as usize != size_of::<Platform>()
+            || platform.alloc.is_none()
+            || platform.free.is_none()
+        {
+            return INVALID;
+        }
+    }
+    dispatch(
+        config.controller,
+        Action::Init {
+            storage,
+            config,
+            options,
+        },
+    )
 }
-
 /// # Safety
-/// Storage came from successful init and has not been dropped.
+/// Storage is initialized and no other call, including abort, overlaps drop.
 #[no_mangle]
 pub unsafe extern "C" fn xp_display_drop(storage: *mut c_void) {
     if !storage.is_null() {
-        core::ptr::drop_in_place(storage.cast::<Uc8253>());
+        dispatch(
+            (*storage.cast::<Header>()).controller,
+            Action::Drop(storage),
+        );
     }
 }
-
 /// # Safety
-/// Storage is a live initialized controller and no mutable call is concurrent.
+/// Storage is initialized and no mutable controller call overlaps this query.
 #[no_mangle]
-pub unsafe extern "C" fn xp_display_capabilities(storage: *const c_void, gray_mode: u32) -> u32 {
+pub unsafe extern "C" fn xp_display_capabilities(storage: *const c_void, mode: u32) -> u32 {
     if storage.is_null() {
         return 0;
     }
-    (&*storage.cast::<Uc8253>()).capabilities(gray_mode)
+    dispatch(
+        (*storage.cast::<Header>()).controller,
+        Action::Capabilities { storage, mode },
+    )
 }
-
 /// # Safety
-/// Storage is initialized and exclusive. All descriptors and nonnull buffers
-/// cover their declared sizes. Callbacks do not reenter or retain Rust borrows.
+/// Storage is initialized. May overlap execute but never init/drop. This only
+/// increments generation; a controller decides where optional work may stop.
+#[no_mangle]
+pub unsafe extern "C" fn xp_display_abort(storage: *mut c_void) -> u32 {
+    if storage.is_null() {
+        return 0;
+    }
+    (*storage.cast::<Header>())
+        .generation
+        .fetch_add(1, Ordering::AcqRel)
+        .wrapping_add(1)
+}
+/// # Safety
+/// Same lifetime and concurrency contract as xp_display_abort.
+#[no_mangle]
+pub unsafe extern "C" fn xp_display_generation(storage: *const c_void) -> u32 {
+    if storage.is_null() {
+        return 0;
+    }
+    (*storage.cast::<Header>())
+        .generation
+        .load(Ordering::Acquire)
+}
+/// # Safety
+/// Storage is initialized and exclusive except for atomic generation accesses.
+/// Descriptors and all buffers cover their declared sizes; callbacks cannot
+/// reenter Rust or retain borrows. The bus table itself is borrowed for the call.
 #[no_mangle]
 pub unsafe extern "C" fn xp_display_execute(
     storage: *mut c_void,
@@ -270,26 +409,66 @@ pub unsafe extern "C" fn xp_display_execute(
     request: *const DisplayRequest,
     result: *mut u32,
 ) -> u32 {
-    if storage.is_null() || request.is_null() || bus.is_null() {
+    if !result.is_null() {
+        *result = 0;
+    }
+    if storage.is_null() || bus.is_null() || request.is_null() {
         return INVALID;
     }
     let request = &*request;
     if request.struct_size as usize != size_of::<DisplayRequest>() || !(&*bus).valid() {
         return INVALID;
     }
-    // The descriptor is copied; C owns ctx and its transaction for this call.
     let mut bus = core::ptr::read(bus);
-    let panel = &mut *storage.cast::<Uc8253>();
-    if !result.is_null() {
-        *result = RESULT_COMMITTED;
-    }
-    match request.operation {
-        OP_BEGIN => panel.begin(&mut bus),
-        OP_QUERY => {}
-        _ => return UNSUPPORTED,
-    }
-    OK
+    dispatch(
+        (*storage.cast::<Header>()).controller,
+        Action::Execute {
+            storage,
+            bus: &mut bus,
+            request,
+            result,
+        },
+    )
 }
-
-const _: () = assert!(size_of::<Uc8253>() <= STATE_BYTES as usize);
-const _: () = assert!(align_of::<Uc8253>() <= STATE_ALIGN as usize);
+/// # Safety
+/// Storage is initialized and exclusive. Payload covers size readable bytes
+/// and follows the controller-specific versioned operation contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_display_extra(
+    storage: *mut c_void,
+    operation: u32,
+    payload: *const c_void,
+    size: u32,
+    version: u32,
+) -> u32 {
+    if storage.is_null() || (payload.is_null() && size != 0) {
+        return INVALID;
+    }
+    dispatch(
+        (*storage.cast::<Header>()).controller,
+        Action::Extra {
+            storage,
+            operation,
+            payload,
+            size,
+            version,
+        },
+    )
+}
+/// # Safety
+/// Config and direct point to writable storage for one X3Config and five LUT
+/// pointers respectively. Config borrows direct until its controller is dropped.
+#[no_mangle]
+pub unsafe extern "C" fn xp_display_x3_default_config(
+    config: *mut X3Config,
+    direct: *mut *const u8,
+) {
+    if config.is_null() || direct.is_null() {
+        return;
+    }
+    let pointers = xp_display::direct_luts();
+    core::ptr::copy_nonoverlapping(pointers.as_ptr(), direct, 5);
+    let mut value = xp_display::default_config();
+    value.direct = direct;
+    config.write(value);
+}

@@ -79,3 +79,9 @@ add_test(NAME display_trace COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE
   verify --bin-dir ${CMAKE_CURRENT_BINARY_DIR})
 add_test(NAME display_trace_sensitivity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/mutation_check.py
   --work-dir ${CMAKE_CURRENT_BINARY_DIR}/sensitivity)
+
+if(DISPLAY_TRACE_RUST)
+  add_executable(display_abi_test DisplayAbiTest.cpp)
+  target_link_libraries(display_abi_test PRIVATE xp_ffi_host)
+  add_test(NAME display_abi COMMAND display_abi_test)
+endif()

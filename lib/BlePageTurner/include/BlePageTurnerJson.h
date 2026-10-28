@@ -10,8 +10,10 @@ namespace detail {
 struct JsonReader {
   void (*root)(void*);
   void (*key)(void*, const char*);
-  void (*index)(void*, size_t);
-  size_t (*arrayLen)(void*);
+  // Two nested arrays (depth 0/1), borrowed for this read; begin precedes next/item.
+  void (*arrayBegin)(void*, uint8_t);
+  bool (*arrayNext)(void*, uint8_t);
+  void (*arrayItem)(void*, uint8_t);
   bool (*u8Value)(void*, uint8_t*);
   bool (*u32Value)(void*, uint32_t*);
   const char* (*text)(void*);
@@ -33,6 +35,8 @@ extern "C" void xp_ble_write_json(const Config*, const JsonWriter*, void*);
 struct ReadCursor {
   JsonVariantConst root;
   JsonVariantConst value;
+  JsonArrayConstIterator next[2];
+  JsonVariantConst item[2];
 };
 struct WriteCursor {
   JsonDocument& doc;
@@ -42,8 +46,19 @@ inline ReadCursor& readCursor(void* ctx) { return *static_cast<ReadCursor*>(ctx)
 inline WriteCursor& writeCursor(void* ctx) { return *static_cast<WriteCursor*>(ctx); }
 inline const JsonReader reader{[](void* c) { readCursor(c).value = readCursor(c).root; },
                                [](void* c, const char* key) { readCursor(c).value = readCursor(c).value[key]; },
-                               [](void* c, size_t i) { readCursor(c).value = readCursor(c).value[i]; },
-                               [](void* c) { return readCursor(c).value.as<JsonArrayConst>().size(); },
+                               [](void* c, uint8_t depth) {
+                                 auto& cursor = readCursor(c);
+                                 cursor.next[depth] = cursor.value.as<JsonArrayConst>().begin();
+                               },
+                               [](void* c, uint8_t depth) {
+                                 auto& cursor = readCursor(c);
+                                 auto& next = cursor.next[depth];
+                                 if (next == JsonArrayConst{}.end()) return false;
+                                 cursor.value = cursor.item[depth] = *next;
+                                 ++next;
+                                 return true;
+                               },
+                               [](void* c, uint8_t depth) { readCursor(c).value = readCursor(c).item[depth]; },
                                [](void* c, uint8_t* out) {
                                  const auto v = readCursor(c).value;
                                  if (!v.is<uint8_t>()) return false;
@@ -89,7 +104,7 @@ inline void writeJson(const Config& config, JsonDocument& doc) {
   detail::xp_ble_write_json(&config, &detail::writer, &cursor);
 }
 inline bool readJson(Config& config, JsonVariantConst doc) {
-  detail::ReadCursor cursor{doc, doc};
+  detail::ReadCursor cursor{doc, doc, {}, {}};
   return detail::xp_ble_read_json(&config, &detail::reader, &cursor);
 }
 }  // namespace bleturner

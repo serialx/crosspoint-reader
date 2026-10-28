@@ -95,3 +95,21 @@ add_test(NAME BleJsonAllocationOracle COMMAND ${CMAKE_COMMAND}
   -DPROGRAM=$<TARGET_FILE:BleJsonAllocationOracle>
   -DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/oracle-json-allocations.txt
   -P ${CMAKE_CURRENT_SOURCE_DIR}/CompareOracle.cmake)
+
+# Count real linked-list advances in an isolated ArduinoJson copy. This catches
+# indexed traversal regressions without timing thresholds or firmware hooks.
+set(BLE_JSON_COUNTED "${CMAKE_CURRENT_BINARY_DIR}/counted-json")
+file(COPY "${arduinojson_SOURCE_DIR}/src/" DESTINATION "${BLE_JSON_COUNTED}")
+set(BLE_JSON_COLLECTION "${BLE_JSON_COUNTED}/ArduinoJson/Collection/CollectionImpl.hpp")
+file(READ "${BLE_JSON_COLLECTION}" BLE_JSON_SOURCE)
+set(BLE_JSON_NEXT "inline void CollectionIterator::next(const ResourceManager* resources) {")
+string(FIND "${BLE_JSON_SOURCE}" "${BLE_JSON_NEXT}" BLE_JSON_NEXT_OFFSET)
+if(BLE_JSON_NEXT_OFFSET EQUAL -1)
+  message(FATAL_ERROR "ArduinoJson iterator instrumentation needs updating")
+endif()
+string(REPLACE "${BLE_JSON_NEXT}" "${BLE_JSON_NEXT}\n  ++::bleJsonIteratorSteps;" BLE_JSON_SOURCE "${BLE_JSON_SOURCE}")
+file(WRITE "${BLE_JSON_COLLECTION}" "${BLE_JSON_SOURCE}")
+add_executable(BleJsonScalingTest JsonScalingTest.cpp)
+target_include_directories(BleJsonScalingTest SYSTEM BEFORE PRIVATE "${BLE_JSON_COUNTED}")
+target_link_libraries(BleJsonScalingTest PRIVATE bleturner_test_flags GTest::gtest_main)
+gtest_discover_tests(BleJsonScalingTest)

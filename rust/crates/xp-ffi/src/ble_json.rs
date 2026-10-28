@@ -5,8 +5,9 @@ use core::ffi::{c_char, c_void};
 pub struct JsonReader {
     pub root: unsafe extern "C" fn(*mut c_void),
     pub key: unsafe extern "C" fn(*mut c_void, *const c_char),
-    pub index: unsafe extern "C" fn(*mut c_void, usize),
-    pub array_len: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub array_begin: unsafe extern "C" fn(*mut c_void, u8),
+    pub array_next: unsafe extern "C" fn(*mut c_void, u8) -> bool,
+    pub array_item: unsafe extern "C" fn(*mut c_void, u8),
     pub u8_value: unsafe extern "C" fn(*mut c_void, *mut u8) -> bool,
     pub u32_value: unsafe extern "C" fn(*mut c_void, *mut u32) -> bool,
     pub text: unsafe extern "C" fn(*mut c_void) -> *const u8,
@@ -43,10 +44,6 @@ unsafe fn read_byte(r: &JsonReader, ctx: *mut c_void, key: &core::ffi::CStr, def
         default
     }
 }
-unsafe fn read_remote(r: &JsonReader, ctx: *mut c_void, index: usize) {
-    read_key(r, ctx, REMOTES);
-    (r.index)(ctx, index);
-}
 unsafe fn write_key(w: &JsonWriter, ctx: *mut c_void, key: &core::ffi::CStr) {
     (w.root)(ctx);
     (w.key)(ctx, key.as_ptr());
@@ -77,12 +74,8 @@ pub unsafe extern "C" fn xp_ble_read_json(
     (*config).next_key_usage = read_byte(r, ctx, NEXT, 0);
     (*config).remote_count = 0;
     read_key(r, ctx, REMOTES);
-    let count = (r.array_len)(ctx);
-    for index in 0..count {
-        if (*config).remote_count >= 4 {
-            break;
-        }
-        read_remote(r, ctx, index);
+    (r.array_begin)(ctx, 0);
+    while (*config).remote_count < 4 && (r.array_next)(ctx, 0) {
         (r.key)(ctx, c"addr".as_ptr());
         let addr = (r.text)(ctx);
         if *addr == 0 {
@@ -90,16 +83,10 @@ pub unsafe extern "C" fn xp_ble_read_json(
         }
         let mut table = RemoteTable::default();
         copy_string(&mut table.addr, addr);
-        read_remote(r, ctx, index);
+        (r.array_item)(ctx, 0);
         (r.key)(ctx, c"binds".as_ptr());
-        let slots = (r.array_len)(ctx);
-        for slot in 0..slots {
-            if table.count >= 8 {
-                break;
-            }
-            read_remote(r, ctx, index);
-            (r.key)(ctx, c"binds".as_ptr());
-            (r.index)(ctx, slot);
+        (r.array_begin)(ctx, 1);
+        while table.count < 8 && (r.array_next)(ctx, 1) {
             let mut binding = 0;
             if (r.u32_value)(ctx, &mut binding) && valid(binding) {
                 table.bindings[usize::from(table.count)] = binding;

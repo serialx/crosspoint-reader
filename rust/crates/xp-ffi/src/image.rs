@@ -5,7 +5,7 @@ use xp_core::image::{
     cache::ByteSink,
     frame::{Target, Writer},
     probe::Probe,
-    Config, Pipeline, Plan, Sink,
+    Config, Diagnostic, Pipeline, Plan, Sink,
 };
 
 #[repr(C)]
@@ -14,8 +14,14 @@ pub struct Callbacks {
     context: *mut c_void,
     target: unsafe extern "C" fn(*mut c_void, *mut Target),
     io: unsafe extern "C" fn(*mut c_void, u32, *const u8, usize) -> bool,
+    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 impl ByteSink for Callbacks {
+    fn image_diagnostic(&mut self, event: Diagnostic, a: u32, b: u32, c: u32, d: u32) {
+        if let Some(callback) = self.diagnostic {
+            unsafe { callback(self.context, event as u32, a, b, c, d) };
+        }
+    }
     fn open(&mut self) -> bool {
         unsafe { (self.io)(self.context, 0, ptr::null(), 0) }
     }
@@ -102,7 +108,8 @@ pub unsafe extern "C" fn xp_image_init(
     if storage.is_null() || config.is_null() || callbacks.is_null() || plan.is_null() {
         return false;
     }
-    let Some(pipeline) = Pipeline::new(*config, width, height, progressive) else {
+    let mut callbacks = *callbacks;
+    let Some(pipeline) = Pipeline::new(*config, width, height, progressive, &mut callbacks) else {
         return false;
     };
     *plan = pipeline.plan;
@@ -110,7 +117,7 @@ pub unsafe extern "C" fn xp_image_init(
         storage.cast::<Context>(),
         Context {
             pipeline,
-            callbacks: *callbacks,
+            callbacks,
         },
     );
     true
@@ -119,7 +126,8 @@ pub unsafe extern "C" fn xp_image_init(
 /// Storage is a live exclusive initialized context, as for all context calls.
 #[no_mangle]
 pub unsafe extern "C" fn xp_image_prepare(storage: *mut c_void) -> bool {
-    (&mut *storage.cast::<Context>()).pipeline.prepare()
+    let context = &mut *storage.cast::<Context>();
+    context.pipeline.prepare(&mut context.callbacks)
 }
 /// # Safety
 /// Same live exclusive context contract as xp_image_prepare.

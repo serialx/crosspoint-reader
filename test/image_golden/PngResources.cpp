@@ -86,6 +86,7 @@ struct Context {
   }
   static void progress(void*) {}
   static constexpr bool allocationFailure(uint32_t event) {
+    if (event == XP_IMAGE_DIAG_RowAllocation || event == XP_IMAGE_DIAG_CacheAllocation) return true;
 #ifdef RESOURCE_GIF
     return event == XP_GIF_DIAG_BmpRows || event == XP_GIF_DIAG_Scaling || event == XP_GIF_DIAG_Atkinson1 ||
            event == XP_GIF_DIAG_Atkinson2 || event == XP_GIF_DIAG_DecoderAlloc || event == XP_GIF_DIAG_PipelineAlloc ||
@@ -153,7 +154,7 @@ int main(int argc, char** argv) {
   const XpGifInput input{&context, Context::read, Context::progress, Context::diagnostic};
   const XpGifBmpConfig gifBmp{37, 53, 1, 1, 0};
   const XpGifOutput output{&context, Context::bmpWrite};
-  const XpImageCallbacks callbacks{&context, Context::target, Context::write};
+  const XpImageCallbacks callbacks{&context, Context::target, Context::write, Context::diagnostic};
   constexpr int modes = 2;
 #else
   constexpr int modes = 3;

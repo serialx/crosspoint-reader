@@ -48,6 +48,7 @@ pub enum Diagnostic {
     RowBuffer = 29,
     FrameDimensions = 30,
     GrayWidth = 31,
+    FrameFormat = 32,
 }
 
 pub trait Source {

@@ -870,10 +870,30 @@ typedef struct {
   int32_t stride, origin, rows, width, height;
   uint8_t mode, orientation, absolute;
 } XpImageTarget;
+// Shared image events also travel through XpPngServices::diagnostic. All calls
+// are synchronous; nullable callbacks are silent and must not reenter Rust.
+// Unlisted arguments are zero. Dimension pairs put width in low 16 bits.
+typedef enum {
+  XP_IMAGE_DIAG_CacheBand = 256,         // a/b: available/required rows; c/d: width/height.
+  XP_IMAGE_DIAG_CacheAllocation = 257,   // a: requested bytes; failed band allocation.
+  XP_IMAGE_DIAG_CacheOpen = 258,         // Cache open failed.
+  XP_IMAGE_DIAG_CacheHeader = 259,       // Either two-byte header write failed.
+  XP_IMAGE_DIAG_CacheStarted = 260,      // a/b: width/height; c: band rows; header written.
+  XP_IMAGE_DIAG_CacheRow = 261,          // a: image-local row; advance or final write failed.
+  XP_IMAGE_DIAG_CacheClose = 262,        // Cache close failed.
+  XP_IMAGE_DIAG_CacheWritten = 263,      // a/b: width/height; c: total bytes; close succeeded.
+  XP_IMAGE_DIAG_OutputDimensions = 264,  // a: kind; b/c: signed degenerate output width/height.
+  XP_IMAGE_DIAG_RowAllocation = 265,     // a: kind (0 PNG, 2 GIF); b: failed row-buffer bytes.
+  XP_IMAGE_DIAG_Configuration = 266,     // Other pipeline configuration rejection.
+  XP_IMAGE_DIAG_PngSummary = 267,        // a/b/c: source/visible/output pairs; d: f32 scale bits.
+  XP_IMAGE_DIAG_JpegSummary = 268,       // a: source w[0:14], h[15:29], log2 denominator[30:31];
+                                    // b: output w[0:14], h[16:30], progressive[31]; c/d: f32 scale/fine-scale bits.
+} XpImageDiagnostic;
 typedef struct {
   void* context;
   void (*target)(void*, XpImageTarget*);
   bool (*io)(void*, uint32_t operation, const uint8_t*, size_t);
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 } XpImageCallbacks;
 typedef struct {
   int32_t x, y, width, height, stride;
@@ -951,9 +971,9 @@ typedef enum {
   XP_GIF_DIAG_FrameHeader = 26,       // Validated frame setup; a=canvas, b=frame, c=offset packed pairs; d=interlaced.
   XP_GIF_DIAG_CanvasWidth = 27,       // Framebuffer canvas exceeds decoder width; a/b = canvas pixels.
   XP_GIF_DIAG_Cache = 28,             // Framebuffer cache start failed; conversion fails.
-  XP_GIF_DIAG_Finish = 29,            // Framebuffer pipeline/cache finish failed after decoding.
-  XP_GIF_DIAG_Pipeline = 30,          // Framebuffer pipeline configuration rejected.
-  XP_GIF_DIAG_PipelineAlloc = 31,     // Framebuffer pipeline/row-buffer allocation failed.
+  XP_GIF_DIAG_Finish = 29,            // a: 1 for gap post-processing failure, 0 for cache finalization failure.
+  XP_GIF_DIAG_Pipeline = 30,          // Reserved legacy rejection event; now XP_IMAGE_DIAG_Configuration.
+  XP_GIF_DIAG_PipelineAlloc = 31,     // Reserved legacy row-allocation event; now XP_IMAGE_DIAG_RowAllocation.
   XP_GIF_DIAG_Open = 32,              // Unsupported extension; a/b = framebuffer canvas pixels (0 for BMP).
   XP_GIF_DIAG_Interlace = 33,         // Framebuffer rejected interlaced input before pipeline creation.
   XP_GIF_DIAG_FrameDimensions = 34,   // Framebuffer rejected canvas size; a/b = width/height pixels.
@@ -1585,8 +1605,8 @@ typedef enum {
   XP_PNG_DIAG_Complete = 19,        // BMP output finished successfully, after all writes.
   XP_PNG_DIAG_Open = 20,            // Framebuffer header inspection failed.
   XP_PNG_DIAG_DecoderAlloc = 21,    // Framebuffer decoder allocation failed; a = row bytes for rows, else 0.
-  XP_PNG_DIAG_Pipeline = 22,        // Framebuffer pipeline configuration rejected.
-  XP_PNG_DIAG_PipelineAlloc = 23,   // Framebuffer pipeline/row-buffer allocation failed.
+  XP_PNG_DIAG_Pipeline = 22,        // Reserved legacy rejection event; now XP_IMAGE_DIAG_Configuration.
+  XP_PNG_DIAG_PipelineAlloc = 23,   // Reserved legacy row-allocation event; now XP_IMAGE_DIAG_RowAllocation.
   XP_PNG_DIAG_Cache = 24,           // Framebuffer cache start failed; decode continues without cache.
   XP_PNG_DIAG_DecodeStart = 25,     // Framebuffer timing start, after decoder/pipeline/cache setup, before row decode.
   XP_PNG_DIAG_DecodeFailed = 26,    // Framebuffer format/row decode failed; may follow specific error.
@@ -1597,7 +1617,8 @@ typedef enum {
       29,  // Framebuffer row limit exceeded; a = required bytes, b = width pixels, c = color type, d = bits/sample.
   XP_PNG_DIAG_FrameDimensions =
       30,  // Framebuffer rejected canvas size; a/b = width/height pixels (int32 bits for signed logs).
-  XP_PNG_DIAG_GrayWidth = 31,  // Framebuffer expanded gray width rejected; a = width pixels (= expanded row bytes).
+  XP_PNG_DIAG_GrayWidth = 31,    // Framebuffer expanded gray width rejected; a = width pixels (= expanded row bytes).
+  XP_PNG_DIAG_FrameFormat = 32,  // a: color type; b: bit depth; precedes XP_IMAGE_DIAG_PngSummary.
 } XpPngDiagnostic;
 typedef struct {
   void* context;

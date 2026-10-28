@@ -129,7 +129,11 @@ struct Source {
         LOG_ERR("GIF", "Failed to start cache stream");
         break;
       case XP_GIF_DIAG_Finish:
-        LOG_ERR("GIF", "Failed to finish image/cache: %s", self.cachePath);
+        if (a) {
+          LOG_ERR("GIF", "GIF post-process failed: %s", self.path);
+        } else {
+          LOG_ERR("GIF", "Failed to finalize pixel cache: %s", self.cachePath);
+        }
         break;
       case XP_GIF_DIAG_Pipeline:
         LOG_ERR("IMG", "Invalid image pipeline dimensions/configuration");

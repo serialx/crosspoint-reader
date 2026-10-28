@@ -99,3 +99,14 @@ python3 test/image_golden/pipeline_diagnostics.py /external/upstream/image_oracl
   --capture /external/pipeline-diagnostic-goldens.json.gz \
   --report /external/pipeline-diagnostic-capture.json
 ```
+
+The coordinator approved nine inherited-order GIF exceptions on 2026-10-28:
+`flip-026-0` through `flip-026-7`, and `extension-66`. The Rust consumer already
+opens its pixel cache before rejecting these unsupported extension headers;
+the upstream consumer rejected them before opening its cache. Restoring the
+cache-start message therefore exposes an existing operation. Fixture hashes and
+exact ordered logs are in `pipeline-mutation-exceptions.json`.
+`GifPipelineDiagnostics` verifies that the cache-start line is followed by the
+GIF error and that the partial cache is absent. Its optional `--baseline-frame`
+argument also compares the complete binary oracle output against a preserved
+283256eb executable. Allocation schedules for these cases were unchanged.

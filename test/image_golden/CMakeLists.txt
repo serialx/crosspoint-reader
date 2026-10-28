@@ -126,7 +126,9 @@ target_include_directories(gif_pipeline_diagnostic_probe PRIVATE stubs
 target_link_libraries(gif_pipeline_diagnostic_probe PRIVATE xp_ffi_host)
 add_test(NAME GifPipelineDiagnostics COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/gif_pipeline_diagnostics.py $<TARGET_FILE:gif_pipeline_diagnostic_probe>
-  ${REPO_ROOT}/test/gif_support/oracle.py)
+  ${REPO_ROOT}/test/gif_support/oracle.py
+  --frame-oracle $<TARGET_FILE:image_oracle>
+  --exceptions ${CMAKE_CURRENT_SOURCE_DIR}/pipeline-mutation-exceptions.json)
 add_test(NAME ImagePipelineDiagnostics COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/pipeline_diagnostics.py $<TARGET_FILE:image_oracle>
   --corpus ${CMAKE_CURRENT_SOURCE_DIR}/corpus.tar.gz

@@ -159,7 +159,11 @@ bool JpegToFramebufferConverter::decodeToFramebuffer(const std::string& imagePat
   ImageDimensions sourceDimensions;
   if (!validateAndStoreDimensions(jpeg->getWidth(), jpeg->getHeight(), sourceDimensions, "JPEG")) return false;
   const bool progressive = jpeg->getJPEGType() == JPEG_MODE_PROGRESSIVE;
-  if (!ctx.pipeline.init(sourceDimensions.width, sourceDimensions.height, ImagePipeline::Kind::Jpeg, progressive) ||
+  if (progressive) {
+    LOG_INF("JPG", "Progressive JPEG detected - decoding DC coefficients only (lower quality)");
+  }
+  if (!ctx.pipeline.init(sourceDimensions.width, sourceDimensions.height, ImagePipeline::Kind::Jpeg, progressive,
+                         imagePath.c_str()) ||
       !ctx.pipeline.prepare())
     return false;
   int jpegScaleOption = 0;

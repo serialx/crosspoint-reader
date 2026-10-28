@@ -145,16 +145,18 @@ pub unsafe extern "C" fn xp_gif_frame(
     );
     let mut config = *config;
     config.kind = 2;
-    let Some(pipeline) = Pipeline::new(config, info.width as i32, info.height as i32, false) else {
-        input.diagnostic(Diagnostic::Pipeline, 0, 0, 0, 0);
+    let mut sink = *sink;
+    let Some(pipeline) = Pipeline::new(
+        config,
+        info.width as i32,
+        info.height as i32,
+        false,
+        &mut sink,
+    ) else {
         return false;
     };
-    let mut frame = Frame {
-        pipeline,
-        sink: *sink,
-    };
-    if !frame.pipeline.prepare() {
-        input.diagnostic(Diagnostic::PipelineAlloc, 0, 0, 0, 0);
+    let mut frame = Frame { pipeline, sink };
+    if !frame.pipeline.prepare(&mut frame.sink) {
         return false;
     }
     if cache && !frame.pipeline.start_cache(&mut frame.sink) {
@@ -180,9 +182,10 @@ pub unsafe extern "C" fn xp_gif_frame(
         return false;
     }
     let cached = frame.pipeline.finish(&mut frame.sink);
-    let ok = frame.pipeline.success() && (!cache || cached);
+    let processed = frame.pipeline.success();
+    let ok = processed && (!cache || cached);
     if !ok {
-        input.diagnostic(Diagnostic::Finish, 0, 0, 0, 0);
+        input.diagnostic(Diagnostic::Finish, u32::from(!processed), 0, 0, 0);
     }
     ok
 }

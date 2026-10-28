@@ -34,6 +34,11 @@ impl Source for Services {
     }
 }
 impl ByteSink for Services {
+    fn image_diagnostic(&mut self, event: image::Diagnostic, a: u32, b: u32, c: u32, d: u32) {
+        if let Some(callback) = self.diagnostic {
+            unsafe { callback(self.context, event as u32, a, b, c, d) };
+        }
+    }
     fn open(&mut self) -> bool {
         unsafe { (self.write)(self.context, 0, ptr::null(), 0) }
     }
@@ -153,16 +158,26 @@ pub unsafe extern "C" fn xp_png_render(
         input.diagnostic(Diagnostic::FrameDimensions, info.width, info.height, 0, 0);
         return false;
     }
-    let Some(mut pipeline) = Pipeline::new(*config, info.width as i32, info.height as i32, false)
-    else {
-        input.diagnostic(Diagnostic::Pipeline, 0, 0, 0, 0);
+    input.diagnostic(
+        Diagnostic::FrameFormat,
+        u32::from(info.color),
+        u32::from(info.depth),
+        0,
+        0,
+    );
+    let Some(mut pipeline) = Pipeline::new(
+        *config,
+        info.width as i32,
+        info.height as i32,
+        false,
+        &mut sink,
+    ) else {
         return false;
     };
     let Some(mut decoder) = png::Decoder::new(info, Mode::Frame, &mut input) else {
         return false;
     };
-    if !pipeline.prepare() {
-        input.diagnostic(Diagnostic::PipelineAlloc, 0, 0, 0, 0);
+    if !pipeline.prepare(&mut sink) {
         return false;
     }
     if cache && (*config).alpha == 0 && !pipeline.start_cache(&mut sink) {

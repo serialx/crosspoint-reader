@@ -7,6 +7,28 @@ pub mod probe;
 use cache::{ByteSink, PixelCacheWriter};
 use frame::{Target, Writer};
 
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum Diagnostic {
+    CacheBand = 256,
+    CacheAllocation = 257,
+    CacheOpen = 258,
+    CacheHeader = 259,
+    CacheStarted = 260,
+    CacheRow = 261,
+    CacheClose = 262,
+    CacheWritten = 263,
+    OutputDimensions = 264,
+    RowAllocation = 265,
+    Configuration = 266,
+    PngSummary = 267,
+    JpegSummary = 268,
+}
+
+fn dimensions(width: i32, height: i32) -> u32 {
+    u32::from(width as u16) | (u32::from(height as u16) << 16)
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Config {
@@ -83,7 +105,13 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(config: Config, width: i32, height: i32, progressive: bool) -> Option<Self> {
+    pub fn new(
+        config: Config,
+        width: i32,
+        height: i32,
+        progressive: bool,
+        sink: &mut impl ByteSink,
+    ) -> Option<Self> {
         if width <= 0
             || height <= 0
             || width > 32767
@@ -92,13 +120,17 @@ impl Pipeline {
             || !config.crop_x.is_finite()
             || !config.crop_y.is_finite()
         {
+            sink.image_diagnostic(Diagnostic::Configuration, 0, 0, 0, 0);
             return None;
         }
         let kind = match config.kind {
             0 => Kind::Png,
             1 => Kind::Jpeg,
             2 => Kind::Gif,
-            _ => return None,
+            _ => {
+                sink.image_diagnostic(Diagnostic::Configuration, 0, 0, 0, 0);
+                return None;
+            }
         };
         let crop_x = if kind == Kind::Gif {
             0.0
@@ -143,15 +175,33 @@ impl Pipeline {
                 scale,
             )
         };
-        if dw <= 0
-            || dh <= 0
-            || dw > 32767
+        if kind == Kind::Png && (-32768..=32767).contains(&dw) && (-32768..=32767).contains(&dh) {
+            sink.image_diagnostic(
+                Diagnostic::PngSummary,
+                dimensions(width, height),
+                dimensions(visible_width, visible_height),
+                dimensions(dw, dh),
+                scale.to_bits(),
+            );
+        }
+        if dw <= 0 || dh <= 0 {
+            sink.image_diagnostic(
+                Diagnostic::OutputDimensions,
+                u32::from(config.kind),
+                dw as u32,
+                dh as u32,
+                0,
+            );
+            return None;
+        }
+        if dw > 32767
             || dh > 32767
             || config.x < 0
             || config.y < 0
             || config.x > 32767
             || config.y > 32767
         {
+            sink.image_diagnostic(Diagnostic::Configuration, 0, 0, 0, 0);
             return None;
         }
         let denominator = if kind != Kind::Jpeg {
@@ -172,6 +222,17 @@ impl Pipeline {
             crop_top = (sh as f32 * crop_y / 2.0) as i32;
             visible_width = sw - 2 * crop_left;
             visible_height = sh - 2 * crop_top;
+            let source = width as u32
+                | ((height as u32) << 15)
+                | ((denominator as u32).trailing_zeros() << 30);
+            let output = dimensions(dw, dh) | (u32::from(progressive) << 31);
+            sink.image_diagnostic(
+                Diagnostic::JpegSummary,
+                source,
+                output,
+                scale.to_bits(),
+                (dw as f32 / visible_width as f32).to_bits(),
+            );
         }
         let fine_x = (dw as i64 * 65536 / visible_width as i64) as i32;
         let fine_y = (dh as i64 * 65536 / visible_height as i64) as i32;
@@ -206,18 +267,32 @@ impl Pipeline {
             failed: false,
         })
     }
-    pub fn prepare(&mut self) -> bool {
+    pub fn prepare(&mut self, sink: &mut impl ByteSink) -> bool {
         let bytes = match self.kind {
             Kind::Png => self.src_width as usize * if self.config.alpha != 0 { 2 } else { 1 },
             Kind::Gif => self.src_width as usize,
             Kind::Jpeg => return true,
         };
         if self.line.try_reserve_exact(bytes).is_err() {
+            sink.image_diagnostic(
+                Diagnostic::RowAllocation,
+                u32::from(self.config.kind),
+                bytes as u32,
+                0,
+                0,
+            );
             return false;
         }
         self.line.resize(bytes, 0);
         if self.kind == Kind::Gif {
             if self.extra.try_reserve_exact(bytes).is_err() {
+                sink.image_diagnostic(
+                    Diagnostic::RowAllocation,
+                    u32::from(self.config.kind),
+                    bytes as u32,
+                    0,
+                    0,
+                );
                 return false;
             }
             self.extra.resize(bytes, 255);

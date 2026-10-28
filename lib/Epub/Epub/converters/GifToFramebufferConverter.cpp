@@ -12,6 +12,11 @@ struct Target {
   GfxRenderer& renderer;
   const RenderConfig& config;
   HalFile cache;
+  const char* path;
+  static void diagnostic(void* raw, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+    auto& self = *static_cast<Target*>(raw);
+    logImageDiagnostic(event, a, b, c, d, self.config.cachePath.c_str(), self.path);
+  }
   static void target(void* context, XpImageTarget* out) {
     *out = imageWriteTarget(static_cast<Target*>(context)->renderer);
   }
@@ -22,13 +27,9 @@ struct Target {
       case Operation::Open:
         return Storage.openFileForWrite("IMG", self.config.cachePath, self.cache);
       case Operation::Write:
-        if (self.cache.write(bytes, len) == len) return true;
-        LOG_ERR("IMG", "Pixel cache write failed (%u bytes)", static_cast<unsigned>(len));
-        return false;
+        return self.cache.write(bytes, len) == len;
       case Operation::Close:
-        if (self.cache.close()) return true;
-        LOG_ERR("IMG", "Pixel cache close failed");
-        return false;
+        return self.cache.close();
       case Operation::Abort:
         if (self.cache.isOpen()) self.cache.close();
         Storage.remove(self.config.cachePath.c_str());
@@ -83,8 +84,8 @@ bool GifToFramebufferConverter::decodeToFramebuffer(const std::string& path, Gfx
                               config.useDithering,
                               config.preserveAlpha,
                               2};
-  Target target{renderer, config, {}};
-  const XpImageCallbacks sink{&target, Target::target, Target::io};
+  Target target{renderer, config, {}, path.c_str()};
+  const XpImageCallbacks sink{&target, Target::target, Target::io, Target::diagnostic};
   if (xp_gif_frame(&input, &options, &sink, !config.cachePath.empty())) return true;
   return false;
 }

@@ -5,6 +5,7 @@
 #include <Logging.h>
 #include <xp_ffi.h>
 
+#include "ImageDiagnostics.h"
 #include "ImageToFramebufferDecoder.h"
 
 static_assert(GfxRenderer::BW == 0 && GfxRenderer::GRAYSCALE_LSB == 1 && GfxRenderer::GRAYSCALE_MSB == 2,
@@ -39,7 +40,8 @@ class ImagePipeline {
   ImagePipeline(const ImagePipeline&) = delete;
   ImagePipeline& operator=(const ImagePipeline&) = delete;
 
-  bool init(int width, int height, Kind kind, bool progressive = false) {
+  bool init(int width, int height, Kind kind, bool progressive = false, const char* imagePath = "") {
+    path = imagePath;
     const XpImageConfig options{config.x,
                                 config.y,
                                 config.maxWidth,
@@ -52,22 +54,21 @@ class ImagePipeline {
                                 config.useDithering,
                                 config.preserveAlpha,
                                 static_cast<uint8_t>(kind)};
-    const XpImageCallbacks callbacks{this, target, io};
+    const XpImageCallbacks callbacks{this, target, io, diagnostic};
     live = xp_image_init(&storage, &options, width, height, progressive, &callbacks, &plan);
-    if (!live) LOG_ERR("IMG", "Invalid image pipeline dimensions/configuration");
     return live;
   }
-  bool prepare() {
-    if (xp_image_prepare(&storage)) return true;
-    LOG_ERR("IMG", "Failed to allocate image row buffers");
-    return false;
-  }
+  bool prepare() { return xp_image_prepare(&storage); }
   bool beginCache() { return xp_image_cache_begin(&storage); }
   bool row(const XpImageRow& row) { return xp_image_row(&storage, &row); }
   bool finish(bool& success) { return xp_image_finish(&storage, &success); }
   XpImagePlan plan{};
 
  private:
+  static void diagnostic(void* raw, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+    auto& self = *static_cast<ImagePipeline*>(raw);
+    logImageDiagnostic(event, a, b, c, d, self.config.cachePath.c_str(), self.path);
+  }
   static void target(void* context, XpImageTarget* out) {
     *out = imageWriteTarget(static_cast<ImagePipeline*>(context)->renderer);
   }
@@ -78,13 +79,9 @@ class ImagePipeline {
       case Operation::Open:
         return Storage.openFileForWrite("IMG", self.config.cachePath, self.file);
       case Operation::Write:
-        if (self.file.write(bytes, len) == len) return true;
-        LOG_ERR("IMG", "Pixel cache write failed (%u bytes)", static_cast<unsigned>(len));
-        return false;
+        return self.file.write(bytes, len) == len;
       case Operation::Close:
-        if (self.file.close()) return true;
-        LOG_ERR("IMG", "Pixel cache close failed");
-        return false;
+        return self.file.close();
       case Operation::Abort:
         if (self.file.isOpen()) self.file.close();
         Storage.remove(self.config.cachePath.c_str());
@@ -97,4 +94,5 @@ class ImagePipeline {
   const RenderConfig& config;
   HalFile file;
   bool live = false;
+  const char* path = "";
 };

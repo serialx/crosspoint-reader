@@ -18,6 +18,7 @@ struct Context {
   const char* path;
   uint32_t lastYieldMs = 0;
   uint32_t decodeStart = 0;
+  uint8_t color = 0, depth = 0;
 };
 
 size_t readFile(void* context, uint32_t offset, uint8_t* bytes, size_t length) {
@@ -38,6 +39,15 @@ void progress(void* context) {
 }
 void diagnostic(void* raw, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
   auto& self = *static_cast<Context*>(raw);
+  if (event >= XP_IMAGE_DIAG_CacheBand && event <= XP_IMAGE_DIAG_JpegSummary) {
+    logImageDiagnostic(event, a, b, c, d, self.config.cachePath.c_str(), self.path, self.color, self.depth);
+    return;
+  }
+  if (event == XP_PNG_DIAG_FrameFormat) {
+    self.color = a;
+    self.depth = b;
+    return;
+  }
   if (event == XP_PNG_DIAG_DecodeStart) {
 #if defined(ENABLE_SERIAL_LOG) && LOG_LEVEL >= 2
     self.decodeStart = millis();
@@ -58,13 +68,9 @@ bool write(void* context, uint32_t operation, const uint8_t* bytes, size_t lengt
     case Operation::Open:
       return Storage.openFileForWrite("IMG", self.config.cachePath, self.cache);
     case Operation::Write:
-      if (self.cache.write(bytes, length) == length) return true;
-      LOG_ERR("IMG", "Pixel cache write failed (%u bytes)", static_cast<unsigned>(length));
-      return false;
+      return self.cache.write(bytes, length) == length;
     case Operation::Close:
-      if (self.cache.close()) return true;
-      LOG_ERR("IMG", "Pixel cache close failed");
-      return false;
+      return self.cache.close();
     case Operation::Abort:
       if (self.cache.isOpen()) self.cache.close();
       Storage.remove(self.config.cachePath.c_str());

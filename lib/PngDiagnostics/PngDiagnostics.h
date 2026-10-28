@@ -109,6 +109,7 @@ inline void logPngDiagnostic(uint32_t event, uint32_t a, uint32_t b, uint32_t c,
       LOG_ERR("PNG", "Failed to start cache stream, continuing without caching");
       break;
     case XP_PNG_DIAG_DecodeStart:
+    case XP_PNG_DIAG_FrameFormat:
       break;
     case XP_PNG_DIAG_DecodeFailed:
       LOG_ERR("PNG", "Decode failed");

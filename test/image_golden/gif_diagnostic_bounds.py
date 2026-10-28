@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 
 from diagnostics import gif, normalize
+from pipeline_diagnostics import selected
 
 
 def fixtures():
@@ -82,7 +83,7 @@ def main():
                     run = subprocess.run([str(build / binary), str(path), '4'], capture_output=True,
                                          check=True, env=dict(os.environ, IMAGE_DIAGNOSTIC_LOGS='1'))
                     outputs.append(dict(output=hashlib.sha256(run.stdout).hexdigest(),
-                                        logs=[normalize(s) for s in run.stderr.decode().splitlines()]))
+                                        logs=[normalize(s) for s in run.stderr.decode().splitlines() if not selected([s])]))
                 if name.startswith('boundary-'):
                     # Approved 2026-10-28: the decoder read-ahead windows differ.
                     warning = 'INF GIF Animated GIF detected - using first frame only for BMP conversion'
@@ -101,7 +102,7 @@ def main():
                                              env=dict(os.environ, IMAGE_DIAGNOSTIC_LOGS='1'))
                         assert struct.unpack_from('<I', run.stdout, 60)[0] == 1
                         frames.append(dict(output=hashlib.sha256(run.stdout).hexdigest(),
-                                           logs=[normalize(s) for s in run.stderr.decode().splitlines()]))
+                                           logs=[normalize(s) for s in run.stderr.decode().splitlines() if not selected([s])]))
                     warning = ("ERR IMG Warning: Unsupported feature 'animation (using first frame only)' "
                                "in image '<input>'. Image may not display correctly.")
                     assert frames[0]['output'] == frames[1]['output']

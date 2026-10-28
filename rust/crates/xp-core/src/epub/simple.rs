@@ -1,4 +1,5 @@
 extern crate alloc;
+use super::diagnostic::{Diagnostics, Event as Diagnostic};
 use super::Element;
 use super::{
     append, assign, attr, field, href, local, Event, Kind, ParserKind, RecordKind, Result,
@@ -54,7 +55,11 @@ impl Simple {
     pub fn set_base(&mut self, base: &[u8]) -> Result<()> {
         assign(&mut self.base, base)
     }
-    pub fn event(&mut self, event: &Event<'_>) -> Result<Option<RecordKind>> {
+    pub fn event(
+        &mut self,
+        event: &Event<'_>,
+        diagnostics: &Diagnostics,
+    ) -> Result<Option<RecordKind>> {
         if self.clear {
             self.label.clear();
             self.raw.clear();
@@ -79,7 +84,7 @@ impl Simple {
                 }
                 Ok(None)
             }
-            ParserKind::Ncx | ParserKind::Nav => self.toc(event),
+            ParserKind::Ncx | ParserKind::Nav => self.toc(event, diagnostics),
         }
     }
     fn container(&mut self, event: &Event<'_>) -> Result<Option<RecordKind>> {
@@ -120,7 +125,7 @@ impl Simple {
         self.clear = true;
         Ok(Some(RecordKind::Toc))
     }
-    fn toc(&mut self, event: &Event<'_>) -> Result<Option<RecordKind>> {
+    fn toc(&mut self, event: &Event<'_>, diagnostics: &Diagnostics) -> Result<Option<RecordKind>> {
         let name = if matches!(event.kind, Kind::Start | Kind::End) {
             Element::parse(field(event, 0))
         } else {
@@ -168,6 +173,7 @@ impl Simple {
                         && field(event, i + 1) == b"toc"
                 }) {
                     self.state = State::NavToc;
+                    diagnostics.emit(Diagnostic::NavBegin, 0, 0, &[], &[]);
                 }
             } else if self.state >= State::NavToc {
                 match (self.state, name) {
@@ -204,7 +210,10 @@ impl Simple {
                         State::Li
                     };
                 }
-                (s, Element::Nav) if s >= State::NavToc => self.state = State::Body,
+                (s, Element::Nav) if s >= State::NavToc => {
+                    self.state = State::Body;
+                    diagnostics.emit(Diagnostic::NavEnd, 0, 0, &[], &[]);
+                }
                 _ => {}
             }
         }

@@ -1,5 +1,6 @@
 //! OPF semantic state; the caller retains the SD manifest store and its index.
 extern crate alloc;
+use super::diagnostic::{Diagnostics, Event as Diagnostic};
 use super::Element;
 use super::{append, assign, attr, field, href, local, Event, Kind, Result};
 use crate::xml::Parser as Xml;
@@ -166,6 +167,7 @@ fn metadata_text(
     text: &[u8],
     space: &mut bool,
     separator: &mut bool,
+    diagnostics: &Diagnostics,
 ) -> Result<()> {
     if out.len() >= 512 {
         return Ok(());
@@ -176,6 +178,7 @@ fn metadata_text(
             continue;
         }
         if out.len() >= 512 {
+            diagnostics.emit(Diagnostic::MetadataTruncated, 512, 0, &[], &[]);
             break;
         }
         if *separator {
@@ -221,6 +224,7 @@ pub struct Record<'a> {
     pub href: &'a [u8],
     pub index: Option<f32>,
     pub error: u32,
+    pub line: u32,
 }
 pub struct Parser {
     xml: Xml,
@@ -280,6 +284,10 @@ impl Parser {
     }
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Record<'_> {
+        self.next_diagnostic(&super::diagnostic::SILENT)
+    }
+    pub fn next_diagnostic(&mut self, diagnostics: &Diagnostics) -> Record<'_> {
+        let mut line = 0;
         let id = loop {
             if self.semantics.pending != 0 {
                 let id = self.semantics.pending.trailing_zeros();
@@ -295,6 +303,7 @@ impl Parser {
                 Kind::Done => break DONE,
                 Kind::Error => {
                     self.semantics.error = event.error;
+                    line = event.line as u32;
                     break ERROR;
                 }
                 Kind::Stopped => {
@@ -305,7 +314,7 @@ impl Parser {
                     if self.semantics.metadata_only && self.semantics.complete {
                         continue;
                     }
-                    if let Err(error) = self.semantics.event(&event) {
+                    if let Err(error) = self.semantics.event(&event, diagnostics) {
                         self.semantics.error = error;
                     }
                 }
@@ -322,11 +331,12 @@ impl Parser {
             href: &self.semantics.href,
             index: self.semantics.metadata.index,
             error: self.semantics.error,
+            line,
         }
     }
 }
 impl Semantics {
-    fn event(&mut self, event: &Event<'_>) -> Result<()> {
+    fn event(&mut self, event: &Event<'_>, diagnostics: &Diagnostics) -> Result<()> {
         let Self {
             state,
             metadata: m,
@@ -371,6 +381,7 @@ impl Semantics {
                     } else {
                         &mut no_separator
                     },
+                    diagnostics,
                 )?;
                 emit(pending, id);
             } else if *state == State::Identifier {
@@ -379,6 +390,7 @@ impl Semantics {
                     field(event, 0),
                     &mut m.space,
                     &mut no_separator,
+                    diagnostics,
                 )?;
             } else if *state == State::MetaText {
                 metadata_text(
@@ -386,6 +398,7 @@ impl Semantics {
                     field(event, 0),
                     &mut m.space,
                     &mut no_separator,
+                    diagnostics,
                 )?;
             }
             return Ok(());
@@ -495,14 +508,21 @@ impl Semantics {
                     let media = attr(event, b"media-type", false).unwrap_or(&[]);
                     let properties = attr(event, b"properties", false).unwrap_or(&[]);
                     emit(pending, MANIFEST);
-                    if *item == m.cover_id && media.get(..6).is_some_and(|v| equal_ci(v, b"image/"))
-                    {
-                        m.put(COVER, path)?;
-                        emit(pending, COVER);
+                    if *item == m.cover_id {
+                        if media.get(..6).is_some_and(|v| equal_ci(v, b"image/")) {
+                            m.put(COVER, path)?;
+                            emit(pending, COVER);
+                        } else {
+                            diagnostics.emit(Diagnostic::CoverIgnored, 0, 0, item, media);
+                        }
                     }
-                    if media == b"application/x-dtbncx+xml" && m.get(NCX).is_empty() {
-                        m.put(NCX, path)?;
-                        emit(pending, NCX);
+                    if media == b"application/x-dtbncx+xml" {
+                        if m.get(NCX).is_empty() {
+                            m.put(NCX, path)?;
+                            emit(pending, NCX);
+                        } else {
+                            diagnostics.emit(Diagnostic::NcxDuplicate, 0, 0, path, &[]);
+                        }
                     }
                     if media == b"text/css" {
                         emit(pending, CSS);
@@ -510,6 +530,7 @@ impl Semantics {
                     if m.get(NAV).is_empty() && property_has(properties, b"nav") {
                         m.put(NAV, path)?;
                         emit(pending, NAV);
+                        diagnostics.emit(Diagnostic::NavDocument, 0, 0, path, &[]);
                     }
                     if m.get(COVER).is_empty() && property_has(properties, b"cover-image") {
                         m.put(COVER, path)?;
@@ -534,12 +555,14 @@ impl Semantics {
                     let kind = attr(event, b"type", false).unwrap_or(&[]);
                     if !path.is_empty() {
                         if kind == b"start" && !*explicit_start {
+                            diagnostics.emit(Diagnostic::GuideStart, 0, 0, path, &[]);
                             m.put(TEXT, path)?;
                             *explicit_start = true;
                             emit(pending, TEXT);
                         } else if matches!(kind, b"cover" | b"cover-page")
                             && m.get(GUIDE).is_empty()
                         {
+                            diagnostics.emit(Diagnostic::GuideCover, 0, 0, path, &[]);
                             m.put(GUIDE, path)?;
                             emit(pending, GUIDE);
                         }
@@ -590,6 +613,9 @@ impl Semantics {
                 let id = &m.meta_id;
                 if !id.is_empty() && (belongs || collection_type || position) {
                     let mut index = m.collections.iter().position(|c| c.id == *id);
+                    if belongs && index.is_none() && m.collections.len() >= 8 {
+                        diagnostics.emit(Diagnostic::CollectionIgnored, 8, 0, &[], &[]);
+                    }
                     if index.is_none() && m.collections.len() < 8 {
                         let mut candidate = Collection {
                             id: Vec::new(),

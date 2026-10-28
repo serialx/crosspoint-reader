@@ -2,6 +2,7 @@
 extern crate alloc;
 use alloc::alloc::{alloc, dealloc};
 use core::{alloc::Layout, ptr};
+use xp_core::epub::diagnostic::{Diagnostics, Error, SILENT};
 use xp_core::epub::{opf, Parser, ParserKind};
 
 #[repr(C)]
@@ -254,9 +255,9 @@ impl Sink for DriverSink {
     fn io(&self) -> Option<&cache::Io> {
         self.items.as_ref()
     }
-    fn spine(&mut self, href: &[u8]) -> xp_core::epub::Result<()> {
+    fn spine(&mut self, href: &[u8], diagnostics: &Diagnostics) -> xp_core::epub::Result<()> {
         match (unsafe { self.cache.as_mut() }, self.cache_io.as_ref()) {
-            (Some(cache), Some(io)) => cache.state.create_spine(io, href),
+            (Some(cache), Some(io)) => cache.state.create_spine(io, href, diagnostics),
             _ => Ok(()),
         }
     }
@@ -266,9 +267,14 @@ impl Sink for DriverSink {
         href: &[u8],
         anchor: &[u8],
         level: u8,
+        diagnostics: &Diagnostics,
     ) -> xp_core::epub::Result<()> {
         match (unsafe { self.cache.as_mut() }, self.cache_io.as_ref()) {
-            (Some(cache), Some(io)) => cache.state.create_toc(io, title, href, anchor, level),
+            (Some(cache), Some(io)) => {
+                cache
+                    .state
+                    .create_toc(io, title, href, anchor, level, diagnostics)
+            }
             _ => Ok(()),
         }
     }
@@ -391,7 +397,16 @@ pub unsafe extern "C" fn xp_pkg_pass_destroy(p: *mut XpPkgPass) {
 /// # Safety
 /// p is live and exclusive; input is readable for this call. No callback reentry.
 #[no_mangle]
-pub unsafe extern "C" fn xp_pkg_pass_write(p: *mut XpPkgPass, input: XpPkgSpan) -> usize {
+pub unsafe extern "C" fn xp_pkg_pass_write(
+    p: *mut XpPkgPass,
+    input: XpPkgSpan,
+    diagnostics: *const Diagnostics,
+    error: *mut Error,
+) -> usize {
+    let diagnostics = diagnostics.as_ref().unwrap_or(&SILENT);
+    let mut detail = Error::default();
+    let detail = error.as_mut().unwrap_or(&mut detail);
+    *detail = Error::default();
     if p.is_null() {
         return 0;
     }
@@ -400,21 +415,29 @@ pub unsafe extern "C" fn xp_pkg_pass_write(p: *mut XpPkgPass, input: XpPkgSpan) 
     };
     if (*p).opf {
         let p = &mut *p.cast::<OpfPass>();
-        p.driver.write(input, &mut p.sink)
+        p.driver.write(input, &mut p.sink, diagnostics, detail)
     } else {
         let p = &mut *p.cast::<SimplePass>();
-        p.driver.write(input, &mut p.sink)
+        p.driver.write(input, &mut p.sink, diagnostics, detail)
     }
 }
 /// # Safety
 /// p is live and exclusive; callbacks cannot reenter it.
 #[no_mangle]
-pub unsafe extern "C" fn xp_pkg_pass_finish(p: *mut XpPkgPass) -> u8 {
+pub unsafe extern "C" fn xp_pkg_pass_finish(
+    p: *mut XpPkgPass,
+    diagnostics: *const Diagnostics,
+    error: *mut Error,
+) -> u8 {
+    let diagnostics = diagnostics.as_ref().unwrap_or(&SILENT);
+    let mut detail = Error::default();
+    let detail = error.as_mut().unwrap_or(&mut detail);
+    *detail = Error::default();
     if p.is_null() || (*p).opf {
         return 0;
     }
     let p = &mut *p.cast::<SimplePass>();
-    u8::from(p.driver.finish(&mut p.sink))
+    u8::from(p.driver.finish(&mut p.sink, diagnostics, detail))
 }
 /// # Safety
 /// p is live. Returned storage expires on write/finish/destroy. CSS fields start at 32.
@@ -500,14 +523,16 @@ pub unsafe extern "C" fn xp_pkg_cache_control(
     p: *mut XpPkgCache,
     io: *const cache::Io,
     op: u32,
+    diagnostics: *const Diagnostics,
 ) -> i32 {
+    let diagnostics = diagnostics.as_ref().unwrap_or(&SILENT);
     let (Some(p), Some(io)) = (p.as_mut(), io.as_ref()) else {
         return -1;
     };
     let result = match op {
         0 => p.state.begin_opf(io),
         1 => p.state.end_opf(io),
-        2 => p.state.begin_toc(io),
+        2 => p.state.begin_toc(io, diagnostics),
         3 => p.state.end_toc(io),
         4 => {
             if !p.state.building {
@@ -532,7 +557,9 @@ pub unsafe extern "C" fn xp_pkg_cache_entry(
     href: XpPkgSpan,
     anchor: XpPkgSpan,
     level: u8,
+    diagnostics: *const Diagnostics,
 ) -> i32 {
+    let diagnostics = diagnostics.as_ref().unwrap_or(&SILENT);
     let (Some(p), Some(io), Some(title), Some(href), Some(anchor)) = (
         p.as_mut(),
         io.as_ref(),
@@ -543,8 +570,10 @@ pub unsafe extern "C" fn xp_pkg_cache_entry(
         return -1;
     };
     let result = match kind {
-        0 => p.state.create_spine(io, href),
-        1 => p.state.create_toc(io, title, href, anchor, level),
+        0 => p.state.create_spine(io, href, diagnostics),
+        1 => p
+            .state
+            .create_toc(io, title, href, anchor, level, diagnostics),
         _ => return -1,
     };
     result.map_or_else(|e| -(e as i32), |_| 0)
@@ -556,7 +585,9 @@ pub unsafe extern "C" fn xp_pkg_cache_build(
     p: *mut XpPkgCache,
     io: *const cache::Io,
     metadata: *const XpPkgSpan,
+    diagnostics: *const Diagnostics,
 ) -> i32 {
+    let diagnostics = diagnostics.as_ref().unwrap_or(&SILENT);
     let (Some(p), Some(io)) = (p.as_mut(), io.as_ref()) else {
         return -1;
     };
@@ -571,7 +602,7 @@ pub unsafe extern "C" fn xp_pkg_cache_build(
         *value = v;
     }
     p.state
-        .build(io, values)
+        .build(io, values, diagnostics)
         .map_or_else(|e| -(e as i32), |_| 0)
 }
 /// # Safety

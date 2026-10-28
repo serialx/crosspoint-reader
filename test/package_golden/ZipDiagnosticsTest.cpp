@@ -1,6 +1,7 @@
-#include <Logging.h>
 #include <HalStorage.h>
+#include <Logging.h>
 #include <ZipFile.h>
+
 #include <cassert>
 #include <string>
 
@@ -24,9 +25,15 @@ int main() {
     expect("ERR|ZIP|Something went wrong reading the local header");
   }
   std::vector<uint8_t> bytes(71);
-  bytes[0] = 0x50; bytes[1] = 0x4b; bytes[2] = 1; bytes[3] = 2;
+  bytes[0] = 0x50;
+  bytes[1] = 0x4b;
+  bytes[2] = 1;
+  bytes[3] = 2;
   bytes[28] = 3;
-  bytes[49] = 0x50; bytes[50] = 0x4b; bytes[51] = 5; bytes[52] = 6;
+  bytes[49] = 0x50;
+  bytes[50] = 0x4b;
+  bytes[51] = 5;
+  bytes[52] = 6;
   bytes[59] = 1;
   Storage.setFile("test.zip", bytes);
   HalFile::failReadOffset = 46;

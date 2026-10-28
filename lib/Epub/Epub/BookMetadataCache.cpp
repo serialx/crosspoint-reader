@@ -15,6 +15,7 @@
 #include <optional>
 
 #include "FsHelpers.h"
+#include "parsers/PackageDiagnostics.h"
 
 namespace {
 constexpr uint8_t BOOK_CACHE_VERSION = 10;  // v10: ignore ambiguous guide text references
@@ -58,6 +59,8 @@ struct BookMetadataCache::BuildStreams {
   std::optional<std::deque<uint32_t>> sizes;
   size_t rawSize = 0;
   bool isZip;
+  bool flushFailed = false;
+  bool sizeOpenFailed = false;
   explicit BuildStreams(BookMetadataCache& owner, const std::string& path)
       : owner(owner), path(path), isZip(!FsHelpers::hasTxtExtension(path) && !FsHelpers::hasMarkdownExtension(path)) {}
   bool beginSizes() {
@@ -68,10 +71,13 @@ struct BookMetadataCache::BuildStreams {
     }
     zip.emplace(path);
     if (!zip->open()) {
-      LOG_ERR("BMC", "Could not open EPUB for sizes");
+      sizeOpenFailed = true;
+      LOG_ERR("BMC", "Could not open EPUB zip for size calculations");
       return false;
     }
     if (owner.spineCount >= 400) {
+      LOG_DBG("BMC", "Using batch size lookup for %d spine items", owner.spineCount);
+      int matched = 0;
       std::deque<ZipFile::SizeTarget> targets;
       sizes.emplace(owner.spineCount, 0);
       spine->seek(0);
@@ -83,11 +89,17 @@ struct BookMetadataCache::BuildStreams {
         if (targets.size() < 2048 && i + 1 < owner.spineCount) continue;
         std::sort(targets.begin(), targets.end(),
                   [](const auto& a, const auto& b) { return a.hash < b.hash || (a.hash == b.hash && a.len < b.len); });
-        zip->fillUncompressedSizes(targets, *sizes);
+        matched += zip->fillUncompressedSizes(targets, *sizes);
         targets.clear();
       }
+      LOG_DBG("BMC", "Batch lookup matched %d/%d spine items", matched, owner.spineCount);
     }
     return true;
+  }
+  static void diagnostic(void* context, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d,
+                         const uint8_t* text, uint32_t size, const uint8_t* other, uint32_t otherSize) {
+    if (event == XP_PKG_DIAG_MISSING_SPINE_TITLE && !static_cast<BuildStreams*>(context)->isZip) return;
+    packageDiagnostic(nullptr, event, a, b, c, d, text, size, other, otherSize);
   }
   XpPkgIo sink() { return {this, control, read, write, seek, itemSize, nullptr}; }
   static uint32_t control(void* context, uint32_t id, uint32_t operation) {
@@ -99,7 +111,8 @@ struct BookMetadataCache::BuildStreams {
         self.toc.emplace(self.owner.tocFile, BUILD_IO_BUFFER_SIZE);
         return 1;
       case XP_PKG_END_BUILD:
-        return self.book->flush();
+        self.flushFailed = !self.book->flush();
+        return !self.flushFailed;
       case XP_PKG_BEGIN_SIZES:
         return self.beginSizes();
       case XP_PKG_END_SIZES:
@@ -133,7 +146,7 @@ struct BookMetadataCache::BuildStreams {
     if (size == 0) {
       const auto path = FsHelpers::normalisePath(std::string_view(reinterpret_cast<const char*>(href.data), href.len));
       if (!state.zip->getInflatedFileSize(path.c_str(), &size))
-        LOG_ERR("BMC", "Could not get size for %s", path.c_str());
+        LOG_ERR("BMC", "Warning: Could not get size for spine item: %s", path.c_str());
     }
     return size;
   }
@@ -205,40 +218,70 @@ bool BookMetadataCache::beginWrite() {
     LOG_ERR("BMC", "Could not allocate cache writer");
     return false;
   }
+  LOG_DBG("BMC", "Entering write mode");
   return true;
 }
 bool BookMetadataCache::beginContentOpfPass() {
+  LOG_DBG("BMC", "Beginning content opf pass");
   const auto io = sink();
-  return xp_pkg_cache_control(build, &io, XP_PKG_BEGIN_OPF) == 0;
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  const bool ok = xp_pkg_cache_control(build, &io, XP_PKG_BEGIN_OPF, &diagnostics) == 0;
+  return ok;
 }
 bool BookMetadataCache::endContentOpfPass() {
   const auto io = sink();
-  return xp_pkg_cache_control(build, &io, XP_PKG_END_OPF) == 0;
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  const bool ok = xp_pkg_cache_control(build, &io, XP_PKG_END_OPF, &diagnostics) == 0;
+  if (!ok) LOG_ERR("BMC", "Failed writing spine tmp file");
+  return ok;
 }
 bool BookMetadataCache::beginTocPass() {
+  LOG_DBG("BMC", "Beginning toc pass");
   const auto io = sink();
-  return xp_pkg_cache_control(build, &io, XP_PKG_BEGIN_TOC) == 0;
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  const bool ok = xp_pkg_cache_control(build, &io, XP_PKG_BEGIN_TOC, &diagnostics) == 0;
+  return ok;
 }
 bool BookMetadataCache::endTocPass() {
   const auto io = sink();
-  return xp_pkg_cache_control(build, &io, XP_PKG_END_TOC) == 0;
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  const bool ok = xp_pkg_cache_control(build, &io, XP_PKG_END_TOC, &diagnostics) == 0;
+  if (!ok) LOG_ERR("BMC", "Failed writing toc tmp file");
+  return ok;
 }
 bool BookMetadataCache::endWrite() {
   const auto io = sink();
-  return xp_pkg_cache_control(build, &io, XP_PKG_END_WRITE) == 0;
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  const bool ok = xp_pkg_cache_control(build, &io, XP_PKG_END_WRITE, &diagnostics) == 0;
+  if (!ok)
+    LOG_DBG("BMC", "endWrite called but not in build mode");
+  else
+    LOG_DBG("BMC", "Wrote %d spine, %d TOC entries", xp_pkg_cache_count(build, 0), xp_pkg_cache_count(build, 1));
+  return ok;
 }
 void BookMetadataCache::createSpineEntry(const std::string& href) {
+  if (!build) {
+    LOG_DBG("BMC", "createSpineEntry called but not in build mode");
+    return;
+  }
   const auto io = sink();
-  if (xp_pkg_cache_entry(build, &io, 0, {}, {reinterpret_cast<const uint8_t*>(href.data()), href.size()}, {}, 0) != 0)
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  if (xp_pkg_cache_entry(build, &io, 0, {}, {reinterpret_cast<const uint8_t*>(href.data()), href.size()}, {}, 0,
+                         &diagnostics) != 0)
     LOG_ERR("BMC", "Could not write spine entry");
 }
 bool BookMetadataCache::createTocEntry(std::string_view title, std::string_view href, std::string_view anchor,
                                        uint8_t level) {
+  if (!build) {
+    LOG_DBG("BMC", "createTocEntry called but not in build mode");
+    return false;
+  }
   const auto span = [](std::string_view value) {
     return XpPkgSpan{reinterpret_cast<const uint8_t*>(value.data()), value.size()};
   };
   const auto io = sink();
-  return xp_pkg_cache_entry(build, &io, 1, span(title), span(href), span(anchor), level) == 0;
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  return xp_pkg_cache_entry(build, &io, 1, span(title), span(href), span(anchor), level, &diagnostics) == 0;
 }
 bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMetadata& metadata) {
   spineCount = xp_pkg_cache_count(build, 0);
@@ -250,8 +293,13 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
   const XpPkgSpan fields[] = {span(metadata.title), span(metadata.author), span(metadata.language),
                               span(metadata.coverItemHref), span(metadata.textReferenceHref)};
   const auto io = buffers.sink();
-  const bool ok = xp_pkg_cache_build(build, &io, fields) == 0;
-  if (!ok) LOG_ERR("BMC", "Failed building book.bin");
+  const XpPkgDiagnostics diagnostics{&buffers, BuildStreams::diagnostic};
+  const bool ok = xp_pkg_cache_build(build, &io, fields, &diagnostics) == 0;
+  if (buffers.flushFailed)
+    LOG_ERR("BMC", "Failed writing book.bin, removing truncated file");
+  else if (!ok && !buffers.sizeOpenFailed)
+    LOG_ERR("BMC", "Failed building book.bin");
+  if (ok) LOG_DBG("BMC", "Successfully built book.bin");
   return ok;
 }
 bool BookMetadataCache::cleanupTmpFiles() const {

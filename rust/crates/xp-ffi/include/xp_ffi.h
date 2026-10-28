@@ -537,6 +537,47 @@ void xp_pkg_destroy(XpPkg* handle);
 // PTRDIFF_MAX bytes; null data is valid only at length zero. Rust never frees them.
 typedef struct XpPkgPass XpPkgPass;
 typedef struct XpPkgCache XpPkgCache;
+// Borrowed only during the call. Null options/callback means silent. Callbacks
+// must not reenter Rust or retain text. Integers c/d are reserved and zero.
+// Event arguments (a,b; text,other): NAV_BEGIN/END and GUIDE_BEGIN: none;
+// METADATA_TRUNCATED/COLLECTION_IGNORED: limit; COVER_IGNORED: item id, media type;
+// NCX_DUPLICATE/NAV_DOCUMENT/GUIDE_START/GUIDE_COVER: href;
+// MANIFEST_INDEX/INDEX_OOM/INDEX_READY: count; SPINE_CLOSED/TOC_CLOSED: none;
+// MISSING_TOC_HREF: href; MISSING_SPINE_TITLE: zero-based spine index, href.
+// All unused integers/spans are zero/empty. Text is not NUL-terminated.
+enum {
+  XP_PKG_DIAG_NAV_BEGIN = 1,
+  XP_PKG_DIAG_NAV_END,
+  XP_PKG_DIAG_METADATA_TRUNCATED,
+  XP_PKG_DIAG_COLLECTION_IGNORED,
+  XP_PKG_DIAG_COVER_IGNORED,
+  XP_PKG_DIAG_NCX_DUPLICATE,
+  XP_PKG_DIAG_NAV_DOCUMENT,
+  XP_PKG_DIAG_GUIDE_START,
+  XP_PKG_DIAG_GUIDE_COVER,
+  XP_PKG_DIAG_MANIFEST_INDEX,
+  XP_PKG_DIAG_GUIDE_BEGIN,
+  XP_PKG_DIAG_INDEX_OOM = 20,
+  XP_PKG_DIAG_INDEX_READY,
+  XP_PKG_DIAG_SPINE_CLOSED,
+  XP_PKG_DIAG_TOC_CLOSED,
+  XP_PKG_DIAG_MISSING_TOC_HREF,
+  XP_PKG_DIAG_MISSING_SPINE_TITLE
+};
+typedef struct {
+  void* context;
+  void (*diagnostic)(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t* text,
+                     uint32_t text_len, const uint8_t* other, uint32_t other_len);
+} XpPkgDiagnostics;
+// Optional write/finish result, reset on entry. code is the XML error code;
+// line is one-based, or zero when unavailable; buffer identifies input-buffer
+// allocation failure. A non-null result must be writable and not alias the
+// parser, input, or options. Non-null options must be readable through return.
+typedef struct {
+  uint32_t code;
+  uint32_t line;
+  uint8_t buffer;
+} XpPkgError;
 enum { XP_PKG_CONTAINER = 1, XP_PKG_NCX_PASS, XP_PKG_NAV_PASS, XP_PKG_ENCRYPTION, XP_PKG_OPF_PASS };
 enum { XP_PKG_ITEMS, XP_PKG_SPINE_FILE, XP_PKG_TOC_FILE, XP_PKG_BOOK_FILE };
 enum {
@@ -592,8 +633,8 @@ void xp_pkg_pass_destroy(XpPkgPass*);
 // Print-compatible accepted byte count; metadata-only OPF deliberately short-writes
 // when complete. Sized passes finalize on their last bytes. Encryption requires
 // finish; finish returns 0 on failure/already complete/OPF, otherwise 1.
-size_t xp_pkg_pass_write(XpPkgPass*, XpPkgSpan);
-uint8_t xp_pkg_pass_finish(XpPkgPass*);
+size_t xp_pkg_pass_write(XpPkgPass*, XpPkgSpan, const XpPkgDiagnostics*, XpPkgError*);
+uint8_t xp_pkg_pass_finish(XpPkgPass*, const XpPkgDiagnostics*, XpPkgError*);
 // OPF fields use XP_PKG_TITLE..XP_PKG_TEXT; CSS paths start at field 32.
 // Simple passes expose their path regardless of field. Unknown/absent values are
 // empty. Returned spans expire on write/finish/destroy; they are not NUL-terminated.
@@ -611,14 +652,14 @@ enum { XP_PKG_BEGIN_OPF, XP_PKG_END_OPF, XP_PKG_BEGIN_TOC, XP_PKG_END_TOC, XP_PK
 // and build. Destroy each document pass while its contexts/cache are still alive.
 // Cache control/entry/build return 0 on success, negative on argument/OOM/I/O/state
 // failure. The sink owner remains responsible for file cleanup after early errors.
-int32_t xp_pkg_cache_control(XpPkgCache*, const XpPkgIo*, uint32_t operation);
+int32_t xp_pkg_cache_control(XpPkgCache*, const XpPkgIo*, uint32_t operation, const XpPkgDiagnostics*);
 // kind 0 writes a spine href; kind 1 writes title/href/anchor/level for a TOC entry.
 int32_t xp_pkg_cache_entry(XpPkgCache*, const XpPkgIo*, uint32_t kind, XpPkgSpan title, XpPkgSpan href,
-                           XpPkgSpan anchor, uint8_t level);
+                           XpPkgSpan anchor, uint8_t level, const XpPkgDiagnostics*);
 // Metadata order: title, author, language, cover href, text-reference href.
 // build flushes/closes all opened build streams and removes incomplete book output
 // after record/flush failure; temporary stores remain caller-owned.
-int32_t xp_pkg_cache_build(XpPkgCache*, const XpPkgIo*, const XpPkgSpan metadata[5]);
+int32_t xp_pkg_cache_build(XpPkgCache*, const XpPkgIo*, const XpPkgSpan metadata[5], const XpPkgDiagnostics*);
 // toc == 0 selects spine count; any nonzero value selects TOC count.
 uint16_t xp_pkg_cache_count(const XpPkgCache*, uint8_t toc);
 

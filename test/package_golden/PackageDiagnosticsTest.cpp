@@ -27,7 +27,10 @@ int main(int argc, char** argv) {
   std::filesystem::create_directories(root);
   packageCaptureLogs = true;
   for (const auto kind : {XP_PKG_CONTAINER, XP_PKG_OPF_PASS, XP_PKG_NAV_PASS, XP_PKG_NCX_PASS}) {
-    const char* tag = kind == XP_PKG_CONTAINER ? "CTR" : kind == XP_PKG_OPF_PASS ? "COF" : kind == XP_PKG_NAV_PASS ? "NAV" : "TOC";
+    const char* tag = kind == XP_PKG_CONTAINER  ? "CTR"
+                      : kind == XP_PKG_OPF_PASS ? "COF"
+                      : kind == XP_PKG_NAV_PASS ? "NAV"
+                                                : "TOC";
     {
       PackageParser parser(kind, "", 4, "");
       xp_test_fail_allocation_after(0);
@@ -40,16 +43,28 @@ int main(int argc, char** argv) {
       assert(parser.setup());
       xp_test_fail_allocation_after(0);
       assert(!feed(parser, "<a/>"));
-      expect(std::string(kind == XP_PKG_OPF_PASS ? "ERR|" : "DBG|") + tag + (kind == XP_PKG_CONTAINER ? "|Couldn't allocate buffer" : "|Couldn't allocate memory for buffer"));
+      expect(std::string(kind == XP_PKG_OPF_PASS ? "ERR|" : "DBG|") + tag +
+             (kind == XP_PKG_CONTAINER ? "|Couldn't allocate buffer" : "|Couldn't allocate memory for buffer"));
     }
     xp_test_fail_allocation_after(SIZE_MAX);
     {
       PackageParser parser(kind, "", 7, "");
       assert(parser.setup());
       assert(!feed(parser, "<a></b>"));
-      expect(std::string(kind == XP_PKG_CONTAINER ? "ERR|" : "DBG|") + tag + (kind == XP_PKG_CONTAINER ? "|Parse error: mismatched tag" : "|Parse error at line 1: mismatched tag"));
+      expect(std::string(kind == XP_PKG_CONTAINER ? "ERR|" : "DBG|") + tag +
+             (kind == XP_PKG_CONTAINER ? "|Parse error: mismatched tag" : "|Parse error at line 1: mismatched tag"));
     }
     assert(xp_test_live_allocations() == 0);
+  }
+  {
+    std::string xml = "<package><metadata>";
+    for (int i = 0; i < 9; ++i)
+      xml += "<meta property='belongs-to-collection' id='c" + std::to_string(i) + "'>Collection</meta>";
+    xml += "<meta property='collection-type' refines='#other'>series</meta></metadata></package>";
+    PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), "");
+    assert(parser.setup());
+    assert(feed(parser, xml));
+    expect("DBG|COF|Ignoring collection metadata beyond 8 entries");
   }
   {
     BookMetadataCache cache((root / "absent").string());
@@ -58,8 +73,12 @@ int main(int argc, char** argv) {
     PackageParser parser(XP_PKG_OPF_PASS, "", xml.size(), (root / "absent").string(), &cache);
     assert(parser.setup());
     assert(feed(parser, xml));
-    assert(std::count(packageLogs.begin(), packageLogs.end(), "ERR|COF|Couldn't open temp items file for writing. This is probably going to be a fatal error.") == 1);
-    assert(std::count(packageLogs.begin(), packageLogs.end(), "ERR|COF|Couldn't open temp items file for reading. This is probably going to be a fatal error.") == 2);
+    assert(std::count(
+               packageLogs.begin(), packageLogs.end(),
+               "ERR|COF|Couldn't open temp items file for writing. This is probably going to be a fatal error.") == 1);
+    assert(std::count(
+               packageLogs.begin(), packageLogs.end(),
+               "ERR|COF|Couldn't open temp items file for reading. This is probably going to be a fatal error.") == 2);
     packageLogs.clear();
   }
   {

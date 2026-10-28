@@ -159,7 +159,7 @@ ctest --test-dir build/display-rust --output-on-failure
 
 `display_trace` still compares the unmodified frozen goldens. The additional
 `display_trace_x3_extended` test compares C++ and Rust directly in both buffer
-modes, with default LUTs, Direct mode disabled, and a changed LUT/length config.
+modes, with default LUTs, Direct mode disabled, a changed LUT/length config, and zero-length LUT payloads.
 It covers Direct/Overlay/Absolute grayscale, missing planes, cleanup, recovery,
 resync conditioning, async completion, and sleep/wake. `display_abi` checks
 storage validation, descriptor versions, unsupported controller IDs, default

@@ -13,7 +13,7 @@ def main():
     args = parser.parse_args()
     passed = True
     for buffers in ('single', 'dual'):
-        for variant in range(3):
+        for variant in range(4):
             expected = subprocess.check_output(
                 [str(args.bin_dir / f'x3_driver_reference_{buffers}'), str(variant)])
             actual = subprocess.check_output(
@@ -21,7 +21,7 @@ def main():
             passed &= compare(expected, actual, f'x3-{buffers}-variant-{variant}')
     if not passed:
         raise SystemExit(1)
-    print('6/6 extended X3 driver traces identical')
+    print('8/8 extended X3 driver traces identical')
 
 
 if __name__ == '__main__':

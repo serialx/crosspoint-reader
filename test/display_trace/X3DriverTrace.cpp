@@ -16,6 +16,7 @@ const Uc8253X3Config& traceX3Config() {
   static Uc8253X3Config cfg = uc8253X3DefaultConfig();
   static std::array<uint8_t, 42> modified;
   if (variant == 1) cfg.directGray = nullptr;
+  if (variant == 3) cfg.lutLen = 0;
   if (variant == 2) {
     for (unsigned i = 0; i < modified.size(); ++i) modified[i] = static_cast<uint8_t>(i * 31 + 7);
     cfg.fast.ww = modified.data();

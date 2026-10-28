@@ -88,13 +88,13 @@ impl Uc8253 {
         }
         if !custom.is_null() {
             let cfg = &*custom;
-            if cfg.lut_len == 0
-                || cfg.lut_len > 255
-                || cfg.banks.iter().flatten().any(|p| p.is_null())
+            if cfg.lut_len > 255
+                || (cfg.lut_len != 0 && cfg.banks.iter().flatten().any(|p| p.is_null()))
             {
                 return Err(INVALID);
             }
-            if !cfg.direct.is_null()
+            if cfg.lut_len != 0
+                && !cfg.direct.is_null()
                 && core::slice::from_raw_parts(cfg.direct, 5)
                     .iter()
                     .any(|p| p.is_null())
@@ -161,7 +161,11 @@ impl Uc8253 {
                 } else {
                     cfg.banks[index][source]
                 };
-                unsafe { core::slice::from_raw_parts(pointer, cfg.lut_len as usize) }
+                if cfg.lut_len == 0 {
+                    &[]
+                } else {
+                    unsafe { core::slice::from_raw_parts(pointer, cfg.lut_len as usize) }
+                }
             };
             bus.cmd_data(0x20 + i as u8, data);
         }

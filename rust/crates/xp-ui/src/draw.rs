@@ -327,6 +327,7 @@ fn stroke(target: &mut Strip<'_>, command: &Command) {
     }
 }
 
+#[inline(never)]
 pub fn geometry(target: &mut Strip<'_>, command: &Command) {
     match Kind::from_byte(command.kind) {
         Some(Kind::Clear) => target.clear_plane(),

@@ -30,7 +30,11 @@ pub fn view(
     count: u16,
     generation: u32,
 ) -> Result<ListState, Error> {
-    if style.screen.x != 0
+    if !(0..=65535).contains(&state.selected)
+        || !(0..=65535).contains(&state.top)
+        || !(0..=64).contains(&state.drawn)
+        || !(0..=65535).contains(&state.drawn_count)
+        || style.screen.x != 0
         || style.screen.y != 0
         || !(1..=8192).contains(&style.screen.w)
         || !(1..=8192).contains(&style.screen.h)
@@ -131,17 +135,17 @@ pub fn view(
             w: row_width as i16,
             h: style.row_height,
         };
-        let selected = !partial && (index == next.selected || index == state.active);
-        let background = if selected {
-            match style.selection {
-                0 => 0,
-                1 => 2,
-                _ => 1,
-            }
+        let selected = !partial && index == next.selected;
+        let active = !partial && index == state.active;
+        let inverted = (selected && style.selection == 0) || (active && style.selection != 1);
+        let background = if inverted {
+            0
+        } else if (selected || active) && style.selection == 1 {
+            2
         } else {
             1
         };
-        let foreground = u8::from(selected && style.selection == 0);
+        let foreground = u8::from(inverted);
         arena.push(Command {
             rect,
             paint: background,

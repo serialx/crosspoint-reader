@@ -82,6 +82,9 @@ void RustActivityAdapter::loop() {
     case MappedInputManager::SwipeDir::Right:
       break;
   }
+  // Do not block hardware polling on an idle tick while the panel refreshes.
+  const bool repeat = (input.held & 12) && input.held_ms > 500;
+  if (!(input.pressed | input.released) && !(input.touch_flags & 3) && !input.swipe && !repeat) return;
   XpUiEffect effect{};
   {
     RenderLock lock(*this);

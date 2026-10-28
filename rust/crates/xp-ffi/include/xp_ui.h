@@ -91,6 +91,8 @@ typedef struct {
   int16_t row_height, row_gap, inset, padding, scroll_width;
   uint8_t radius, selection, scroll_left, bold;
 } XpUiListStyle;
+// XTC view resolves font/touch minima over these theme dimensions.
+// list.row_height is the theme minimum; list.min_touch is derived.
 typedef struct {
   XpUiRect screen, safe;
   XpUiListStyle list;
@@ -116,8 +118,8 @@ typedef struct {
 #define XP_UI_XTC_FOOTER 0x80000010u
 
 // Synchronous, serialized calls. Scene text and resources remain immutable;
-// callbacks may not retain pointers, reenter UI, or mutate the scene/target.
-// Paint callbacks execute without a live Rust framebuffer loan.
+// callbacks may not retain pointers, reenter UI, or change descriptors.
+// Paint callbacks write pixels without a live Rust framebuffer loan.
 typedef struct {
   void* context;
   void (*clear)(void*);

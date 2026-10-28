@@ -1,13 +1,14 @@
 #include "XtcReaderChapterSelectionActivity.h"
 
+#include <BoardConfig.h>
 #include <I18n.h>
 #include <Memory.h>
 
-#include <algorithm>
 #include <cstring>
 
 #include "CrossPointSettings.h"
-#include "components/UiAppHelpers.h"
+#include "components/UIScale.h"
+#include "components/UITheme.h"
 #include "components/themes/BaseTheme.h"
 #include "fontIds.h"
 
@@ -68,8 +69,6 @@ void XtcReaderChapterSelectionActivity::onEnter() {
   arena->hints[1] = labels.btn2;
   arena->hints[2] = labels.btn3;
   arena->hints[3] = labels.btn4;
-  const auto target = makeUiTarget(renderer);
-  refreshSharedUiThemeTokens(target);
   const auto book = resources();
   xp_ui_list_init(&state, &book, currentPage);
   requestUpdate();
@@ -105,7 +104,6 @@ XpUiPaint XtcReaderChapterSelectionActivity::rustResources() {
 bool XtcReaderChapterSelectionActivity::buildRustScene(XpUiScene& scene) {
   if (!arena) return false;
   const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto& tokens = *sharedUiThemeCell().load(std::memory_order_acquire);
   const auto safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
   const auto scale = uiScaleSpec();
   const bool touch = BoardConfig::hasTouch();
@@ -115,21 +113,16 @@ bool XtcReaderChapterSelectionActivity::buildRustScene(XpUiScene& scene) {
   layout.safe = {static_cast<int16_t>(safe.x), static_cast<int16_t>(safe.y), static_cast<int16_t>(safe.width),
                  static_cast<int16_t>(safe.height)};
   layout.list.screen = layout.screen;
-  layout.list.min_touch = tokens.minTouchSize;
   layout.list.font = scale.bodyFontId;
-  layout.list.row_height = std::max<int>(
-      renderer.getLineHeight(scale.bodyFontId) + 2 * (touch ? tokens.listTouchRowPaddingY : tokens.listRowPaddingY),
-      tokens.listMinRowHeight);
-  if (touch)
-    layout.list.row_height = std::max({layout.list.row_height, tokens.minTouchSize, tokens.listTouchMinRowHeight});
-  layout.list.row_gap = touch ? std::max(tokens.listRowGap, tokens.listTouchRowGap) : tokens.listRowGap;
-  layout.list.inset = tokens.listInset;
-  layout.list.padding = tokens.listSidePadding;
-  layout.list.scroll_width = tokens.listScrollWidth;
-  layout.list.radius = tokens.listRowRadius;
-  layout.list.selection = static_cast<uint8_t>(tokens.listSelectionStyle);
-  layout.list.scroll_left = tokens.listScrollSide;
-  layout.list.bold = tokens.bodyText.bold;
+  layout.list.row_height = touch ? 0 : metrics.listRowHeight;
+  layout.list.row_gap = metrics.listRowGap;
+  layout.list.inset = metrics.listInset;
+  layout.list.padding = metrics.listSidePadding;
+  layout.list.scroll_width = metrics.listScrollWidth;
+  layout.list.radius = metrics.listRowRadius;
+  layout.list.selection = metrics.listSelectionStyle;
+  layout.list.scroll_left = metrics.listScrollSide;
+  layout.list.bold = metrics.listTitleBold;
   layout.title_font = UI_12_FONT_ID;
   layout.hint_font = SETTINGS.uiTheme == CrossPointSettings::CLASSIC ? UI_10_FONT_ID : SMALL_FONT_ID;
   layout.top_padding = metrics.topPadding;

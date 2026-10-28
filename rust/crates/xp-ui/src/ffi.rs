@@ -347,8 +347,9 @@ pub unsafe extern "C" fn xp_ui_list_update(
 }
 /// # Safety
 /// All descriptors are aligned and live. Buffer arrays are exclusive and
-/// disjoint from state/output/resources. Callbacks are synchronous and cannot
-/// reenter UI. On error scratch arrays may change; state/output do not change.
+/// disjoint from state, next_state, output and resources; those descriptors
+/// are also mutually disjoint. Callbacks cannot reenter UI. On error scratch
+/// arrays may change; state and output descriptors do not change.
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_xtc_view(
     state: *const crate::model::ListState,

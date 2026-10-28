@@ -53,7 +53,7 @@ pub struct Book {
 pub fn view(
     arena: &mut Arena<'_>,
     state: ListState,
-    layout: Layout,
+    mut layout: Layout,
     book: Book,
     metrics: &mut dyn Metrics,
     texts: &dyn Texts,
@@ -84,6 +84,17 @@ pub fn view(
     {
         return Err(Error::Invalid);
     }
+    let line = metrics.line_height(layout.list.font);
+    if !(1..=8192).contains(&line) {
+        return Err(Error::Invalid);
+    }
+    layout.list.min_touch = i16::try_from((line + 14).max(44)).map_err(|_| Error::Invalid)?;
+    let padding = if layout.touch != 0 { 8 } else { 4 };
+    layout.list.row_height = layout.list.row_height.max((line + 2 * padding) as i16);
+    if layout.touch != 0 {
+        layout.list.row_height = layout.list.row_height.max(layout.list.min_touch).max(56);
+        layout.list.row_gap = layout.list.row_gap.max(6);
+    }
     arena.push(Command {
         kind: Kind::Clear as u8,
         rect: layout.screen,
@@ -92,10 +103,11 @@ pub fn view(
     })?;
     let title_width = metrics.width(layout.title_font, texts.text(TITLE), 1);
     let title_height = metrics.line_height(layout.title_font);
-    let title_x = i32::from(layout.safe.x) + (i32::from(layout.safe.w) - title_width) / 2;
-    let title_y = i32::from(layout.safe.y)
-        + i32::from(layout.top_padding)
-        + (i32::from(layout.header_height) - title_height) / 2;
+    let title_x =
+        i64::from(layout.safe.x) + (i64::from(layout.safe.w) - i64::from(title_width)) / 2;
+    let title_y = i64::from(layout.safe.y)
+        + i64::from(layout.top_padding)
+        + (i64::from(layout.header_height) - i64::from(title_height)) / 2;
     text(
         arena,
         TITLE,
@@ -188,9 +200,9 @@ fn footer(
             let group_x = if i < 2 { 20 } else { 20 + group + 10 };
             let width = metrics.width(layout.hint_font, texts.text(FOOTER + i), 0);
             let x = if i % 2 == 0 {
-                i32::from(group_x + 16)
+                i64::from(group_x + 16)
             } else {
-                i32::from(group_x + group - 16) - width
+                i64::from(group_x + group - 16) - i64::from(width)
             };
             text(
                 arena,

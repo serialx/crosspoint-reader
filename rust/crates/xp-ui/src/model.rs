@@ -195,8 +195,10 @@ pub fn message_view(
 ) -> Result<(), Error> {
     let height = metrics.line_height(font);
     let width = metrics.width(font, text, style);
-    let x = i16::try_from((i32::from(screen.w) - width) / 2).map_err(|_| Error::Invalid)?;
-    let y = i16::try_from((i32::from(screen.h) - height) / 2).map_err(|_| Error::Invalid)?;
+    let x =
+        i16::try_from((i64::from(screen.w) - i64::from(width)) / 2).map_err(|_| Error::Invalid)?;
+    let y =
+        i16::try_from((i64::from(screen.h) - i64::from(height)) / 2).map_err(|_| Error::Invalid)?;
     arena.push(Command {
         kind: Kind::Clear as u8,
         rect: screen,

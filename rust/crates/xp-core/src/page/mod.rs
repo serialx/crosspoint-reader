@@ -3,7 +3,7 @@
 //! The arena retains the compact section representation and adds an element
 //! index plus ruby indexes only on annotated lines. All integer loads are byte
 //! loads: an arena can start at any address, including on RISC-V.
-use crate::section::{self, Kind};
+use crate::section::{self, Diagnostic, DiagnosticEvent as D, Kind};
 
 pub mod builder;
 pub mod probe;
@@ -65,19 +65,24 @@ fn terminated(bytes: &[u8], extra: &mut usize, out: Option<&mut [u8]>) -> Result
     Ok(at)
 }
 
-struct Reader<'a> {
+struct Reader<'a, 'd> {
     data: &'a [u8],
     pos: usize,
+    detail: &'d mut Diagnostic,
 }
-impl<'a> Reader<'a> {
+impl<'a> Reader<'a, '_> {
     fn take(&mut self, size: usize) -> Result<&'a [u8]> {
         let b = range(self.data, self.pos, size)?;
         self.pos += size;
         Ok(b)
     }
+    fn take_detailed(&mut self, size: usize, event: D, a: u32) -> Result<&'a [u8]> {
+        self.take(size)
+            .inspect_err(|_| self.detail.set(event, a, 0))
+    }
     fn record(&mut self, kind: Kind) -> Result<section::Record> {
         let b = self.take(kind.size())?;
-        section::decode(kind, b)
+        section::decode_detailed(kind, b, self.detail)
             .map(|(r, _)| r)
             .map_err(|_| Error::Invalid)
     }
@@ -99,13 +104,14 @@ pub struct Info {
 
 // The same scanner performs the sizing pass and fills indexes after capacity
 // has been checked. It never allocates or follows a pointer from the input.
-fn scan(bytes: &[u8], mut index: Option<&mut [u8]>) -> Result<Info> {
+fn scan(bytes: &[u8], mut index: Option<&mut [u8]>, detail: &mut Diagnostic) -> Result<Info> {
     if bytes.len() > u32::MAX as usize || bytes.len() > isize::MAX as usize {
         return Err(Error::Invalid);
     }
     let mut r = Reader {
         data: bytes,
         pos: 0,
+        detail,
     };
     let count = r.record(Kind::U16)?.values[0] as usize;
     let mut extra = HEADER + count * ELEMENT;
@@ -114,63 +120,74 @@ fn scan(bytes: &[u8], mut index: Option<&mut [u8]>) -> Result<Info> {
         let tag = r.record(Kind::ElementTag)?.values[0];
         let mut style = 0;
         let mut ruby_index = 0;
-        match tag {
-            1 => {
-                r.record(Kind::Position)?;
-                let h = r.record(Kind::TextHeader)?.values;
-                let n = h[0] as u16;
-                let focus = h[1] != 0;
-                let len = section::arena_size(n, focus, h[2] as u16);
-                if !section::validate_arena(n, focus, h[2] as u16, r.take(len)?) {
-                    return Err(Error::Invalid);
-                }
-                let ruby_start = r.pos;
-                let mut has_ruby = false;
-                for _ in 0..n {
-                    has_ruby |= !r.string()?.is_empty();
-                }
-                if has_ruby {
-                    ruby_index = extra;
-                    extra = extra
-                        .checked_add(usize::from(n) * 4)
-                        .ok_or(Error::Invalid)?;
-                    let mut ruby = Reader {
-                        data: bytes,
-                        pos: ruby_start,
-                    };
-                    for word in 0..usize::from(n) {
-                        let at = terminated(ruby.string()?, &mut extra, index.as_deref_mut())?;
-                        if let Some(ref mut out) = index {
-                            put(out, ruby_index + word * 4, at);
+        (|| {
+            match tag {
+                1 => {
+                    r.record(Kind::Position)?;
+                    let h = r.record(Kind::TextHeader)?.values;
+                    let n = h[0] as u16;
+                    let focus = h[1] != 0;
+                    let len = section::arena_size(n, focus, h[2] as u16);
+                    let packed = r.take_detailed(len, D::ArenaRead, len as u32)?;
+                    if !section::validate_arena_detailed(n, focus, h[2] as u16, packed, r.detail) {
+                        return Err(Error::Invalid);
+                    }
+                    let ruby_start = r.pos;
+                    let mut has_ruby = false;
+                    for _ in 0..n {
+                        has_ruby |= !r.string()?.is_empty();
+                    }
+                    if has_ruby {
+                        ruby_index = extra;
+                        extra = extra
+                            .checked_add(usize::from(n) * 4)
+                            .ok_or(Error::Invalid)?;
+                        let mut ruby = Reader {
+                            data: bytes,
+                            pos: ruby_start,
+                            detail: r.detail,
+                        };
+                        for word in 0..usize::from(n) {
+                            let at = terminated(ruby.string()?, &mut extra, index.as_deref_mut())?;
+                            if let Some(ref mut out) = index {
+                                put(out, ruby_index + word * 4, at);
+                            }
+                        }
+                    }
+                    style = r.pos;
+                    r.record(Kind::BlockStyle)?;
+                    if r.record(Kind::WordFontFlag)?.values[0] != 0 {
+                        let fonts = r.take_detailed(12 + usize::from(n), D::WordFonts, 0)?;
+                        if !section::validate_fonts_detailed(n, fonts, r.detail) {
+                            return Err(Error::Invalid);
                         }
                     }
                 }
-                style = r.pos;
-                r.record(Kind::BlockStyle)?;
-                if r.record(Kind::WordFontFlag)?.values[0] != 0
-                    && !section::validate_fonts(n, r.take(12 + usize::from(n))?)
-                {
-                    return Err(Error::Invalid);
+                2 => {
+                    r.record(Kind::Position)?;
+                    style = terminated(r.string()?, &mut extra, index.as_deref_mut())?;
+                    ruby_index = terminated(r.string()?, &mut extra, index.as_deref_mut())?;
+                    r.record(Kind::ImageSize)?;
                 }
+                3 => {
+                    r.record(Kind::Rule)?;
+                }
+                4 => {
+                    let len = r.record(Kind::DropCap)?.values[5] as usize;
+                    r.take_detailed(len, D::DropCap, 0)?;
+                }
+                5 => {
+                    r.record(Kind::Border)?;
+                }
+                _ => return Err(Error::Invalid),
             }
-            2 => {
-                r.record(Kind::Position)?;
-                style = terminated(r.string()?, &mut extra, index.as_deref_mut())?;
-                ruby_index = terminated(r.string()?, &mut extra, index.as_deref_mut())?;
-                r.record(Kind::ImageSize)?;
+            Ok(())
+        })()
+        .inspect_err(|_| {
+            if tag == 1 {
+                r.detail.element = tag;
             }
-            3 => {
-                r.record(Kind::Rule)?;
-            }
-            4 => {
-                let len = r.record(Kind::DropCap)?.values[5] as usize;
-                r.take(len)?;
-            }
-            5 => {
-                r.record(Kind::Border)?;
-            }
-            _ => return Err(Error::Invalid),
-        }
+        })?;
         if let Some(ref mut out) = index {
             let entry = HEADER + i * ELEMENT;
             put(out, entry, start);
@@ -181,14 +198,22 @@ fn scan(bytes: &[u8], mut index: Option<&mut [u8]>) -> Result<Info> {
     }
     let foot_offset = r.pos;
     let footnotes = r.record(Kind::FootnoteCount)?.values[0] as u16;
-    r.take(usize::from(footnotes) * 288)?;
+    r.take(usize::from(footnotes) * 288).inspect_err(|_| {
+        r.detail.set(
+            D::FootnoteRead,
+            (bytes.len().saturating_sub(r.pos) / 288) as u32,
+            0,
+        );
+    })?;
     let link_offset = r.pos;
     let links = r.record(Kind::LinkCount)?.values[0] as u16;
-    for _ in 0..links {
-        if r.take(256)?[0] == 0 {
+    for i in 0..links {
+        if r.take_detailed(256, D::LinkRead, u32::from(i))?[0] == 0 {
+            r.detail.set(D::LinkGeometry, u32::from(i), 0);
             return Err(Error::Invalid);
         }
-        r.record(Kind::LinkGeometry)?;
+        r.record(Kind::LinkGeometry)
+            .inspect_err(|_| r.detail.set(D::LinkGeometry, u32::from(i), 0))?;
     }
     let total = extra.checked_add(r.pos).ok_or(Error::Invalid)?;
     if total > u32::MAX as usize || total > isize::MAX as usize {
@@ -214,17 +239,35 @@ fn scan(bytes: &[u8], mut index: Option<&mut [u8]>) -> Result<Info> {
 /// Accepts one page prefix, just like Page::deserialize; consumed excludes any
 /// following page or section LUT. No input-sized scratch is needed.
 pub fn inspect(bytes: &[u8]) -> Result<Info> {
-    scan(bytes, None)
+    inspect_detailed(bytes, &mut Diagnostic::default())
+}
+
+pub fn inspect_detailed(bytes: &[u8], detail: &mut Diagnostic) -> Result<Info> {
+    scan(bytes, None, detail)
 }
 
 /// The input and destination are disjoint. On malformed input or short output,
 /// destination is unchanged. Only destination[..arena_size] is initialized.
 pub fn decode(bytes: &[u8], visible_offset: u32, destination: &mut [u8]) -> Result<Info> {
-    let info = inspect(bytes)?;
+    decode_detailed(
+        bytes,
+        visible_offset,
+        destination,
+        &mut Diagnostic::default(),
+    )
+}
+
+pub fn decode_detailed(
+    bytes: &[u8],
+    visible_offset: u32,
+    destination: &mut [u8],
+    detail: &mut Diagnostic,
+) -> Result<Info> {
+    let info = inspect_detailed(bytes, detail)?;
     if destination.len() < info.arena_size {
         return Err(Error::NeedOutput(info.arena_size));
     }
-    scan(bytes, Some(destination))?;
+    scan(bytes, Some(destination), detail)?;
     put(destination, 16, visible_offset as usize);
     put(destination, 20, usize::from(info.elements));
     let wire = u32_at(destination, 8)? as usize;
@@ -240,7 +283,23 @@ pub fn decode_in_place(
     wire_len: usize,
     visible: u32,
 ) -> Result<Info> {
-    let info = inspect(range(arena, wire_offset, wire_len)?)?;
+    decode_in_place_detailed(
+        arena,
+        wire_offset,
+        wire_len,
+        visible,
+        &mut Diagnostic::default(),
+    )
+}
+
+pub fn decode_in_place_detailed(
+    arena: &mut [u8],
+    wire_offset: usize,
+    wire_len: usize,
+    visible: u32,
+    detail: &mut Diagnostic,
+) -> Result<Info> {
+    let info = inspect_detailed(range(arena, wire_offset, wire_len)?, detail)?;
     if info.arena_size
         != wire_offset
             .checked_add(info.consumed)
@@ -249,7 +308,7 @@ pub fn decode_in_place(
         return Err(Error::Invalid);
     }
     let (index, wire) = arena.split_at_mut(wire_offset);
-    scan(&wire[..wire_len], Some(index))?;
+    scan(&wire[..wire_len], Some(index), detail)?;
     put(index, 16, visible as usize);
     put(index, 20, usize::from(info.elements));
     normalize(arena, info)
@@ -500,9 +559,11 @@ impl<'a> Element<'a> {
         if self.tag()? != 2 {
             return Err(Error::Invalid);
         }
+        let mut query_detail = Diagnostic::default();
         let mut r = Reader {
             data: self.data,
             pos: 5,
+            detail: &mut query_detail,
         };
         r.string()?;
         r.string()?;
@@ -510,11 +571,13 @@ impl<'a> Element<'a> {
         let path = Reader {
             data: self.page.arena,
             pos: self.style,
+            detail: &mut Diagnostic::default(),
         }
         .string()?;
         let src = Reader {
             data: self.page.arena,
             pos: self.ruby_index,
+            detail: &mut Diagnostic::default(),
         }
         .string()?;
         Ok((path, src, size.values[0] as i16, size.values[1] as i16))
@@ -634,6 +697,7 @@ impl<'a> Line<'a> {
         Reader {
             data: self.element.page.arena,
             pos: at,
+            detail: &mut Diagnostic::default(),
         }
         .string()
     }

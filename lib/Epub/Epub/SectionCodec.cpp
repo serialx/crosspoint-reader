@@ -28,7 +28,7 @@ bool write(HalFile& file, const XpSecRecord& record) {
   return true;
 }
 
-bool read(HalFile& file, const XpSecKind kind, XpSecRecord& record) {
+bool read(HalFile& file, const XpSecKind kind, XpSecRecord& record, uint32_t* rejectedVersion) {
   uint8_t bytes[XP_SEC_HEADER_SIZE];
   const size_t required = xp_sec_record_size(kind);
   if (required == 0 || required > sizeof(bytes) || file.read(bytes, required) != required) {
@@ -37,7 +37,11 @@ bool read(HalFile& file, const XpSecKind kind, XpSecRecord& record) {
   }
   XpSecDecoder decoder{bytes, required, 0, static_cast<uint32_t>(kind)};
   if (xp_sec_decode_next(&decoder, &record) != XP_SEC_OK) {
-    LOG_ERR("SCT", "Invalid cache record %u", static_cast<unsigned>(kind));
+    if (rejectedVersion && kind == XP_SEC_HEADER) {
+      *rejectedVersion = bytes[0];
+    } else {
+      LOG_ERR("SCT", "Invalid cache record %u", static_cast<unsigned>(kind));
+    }
     return false;
   }
   return true;

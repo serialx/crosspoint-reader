@@ -8,7 +8,7 @@ use xp_core::{
         Error,
     },
     para::{paragraph::Span as ParaSpan, paragraph_extract::Output},
-    section::{Kind, Record},
+    section::{Diagnostic, Kind, Record},
 };
 
 #[unsafe(no_mangle)]
@@ -145,7 +145,31 @@ pub unsafe extern "C" fn xp_page_arena_size(
     len: usize,
     info: *mut page::Info,
 ) -> u32 {
-    status((|| store(info, page::inspect(input(data, len)?)?))())
+    xp_page_arena_size_diagnostic(data, len, info, ptr::null_mut())
+}
+/// # Safety
+/// Same buffer and callback contract as xp_page_arena_size; diagnostic is null or
+/// aligned writable storage, disjoint from all other input and output buffers.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_arena_size_diagnostic(
+    data: *const u8,
+    len: usize,
+    info: *mut page::Info,
+    diagnostic: *mut Diagnostic,
+) -> u32 {
+    let mut detail = Diagnostic::default();
+    let result = (|| {
+        store(
+            info,
+            page::inspect_detailed(input(data, len)?, &mut detail)?,
+        )
+    })();
+    if !diagnostic.is_null() {
+        if let Err(error) = store(diagnostic, detail) {
+            return status(Err(error));
+        }
+    }
+    status(result)
 }
 /// # Safety
 /// The callback writes every requested byte or returns zero; info is writable.
@@ -156,17 +180,39 @@ pub unsafe extern "C" fn xp_page_probe(
     len: usize,
     info: *mut page::Info,
 ) -> u32 {
-    status((|| {
+    xp_page_probe_diagnostic(context, read, len, info, ptr::null_mut())
+}
+/// # Safety
+/// Same buffer and callback contract as xp_page_probe; diagnostic is null or
+/// aligned writable storage, disjoint from all other input and output buffers.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_probe_diagnostic(
+    context: *mut core::ffi::c_void,
+    read: unsafe extern "C" fn(*mut core::ffi::c_void, usize, *mut u8, usize) -> u8,
+    len: usize,
+    info: *mut page::Info,
+    diagnostic: *mut Diagnostic,
+) -> u32 {
+    let mut detail = Diagnostic::default();
+    let result = (|| {
         if !aligned(info) {
             return Err(Error::Invalid);
         }
         store(
             info,
-            page::probe::probe(len, |at, bytes| {
-                read(context, at, bytes.as_mut_ptr(), bytes.len()) != 0
-            })?,
+            page::probe::probe_detailed(
+                len,
+                |at, bytes| read(context, at, bytes.as_mut_ptr(), bytes.len()) != 0,
+                &mut detail,
+            )?,
         )
-    })())
+    })();
+    if !diagnostic.is_null() {
+        if let Err(error) = store(diagnostic, detail) {
+            return status(Err(error));
+        }
+    }
+    status(result)
 }
 /// # Safety
 /// Arena is writable and contains the input at offset/length; info is disjoint.
@@ -179,15 +225,43 @@ pub unsafe extern "C" fn xp_page_decode_in_place(
     visible: u32,
     info: *mut page::Info,
 ) -> u32 {
-    status((|| {
+    xp_page_decode_in_place_diagnostic(arena, capacity, offset, len, visible, info, ptr::null_mut())
+}
+/// # Safety
+/// Same buffer and callback contract as xp_page_decode_in_place; diagnostic is null or
+/// aligned writable storage, disjoint from all other input and output buffers.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_decode_in_place_diagnostic(
+    arena: *mut u8,
+    capacity: usize,
+    offset: usize,
+    len: usize,
+    visible: u32,
+    info: *mut page::Info,
+    diagnostic: *mut Diagnostic,
+) -> u32 {
+    let mut detail = Diagnostic::default();
+    let result = (|| {
         if !aligned(info) {
             return Err(Error::Invalid);
         }
         store(
             info,
-            page::decode_in_place(output(arena, capacity)?, offset, len, visible)?,
+            page::decode_in_place_detailed(
+                output(arena, capacity)?,
+                offset,
+                len,
+                visible,
+                &mut detail,
+            )?,
         )
-    })())
+    })();
+    if !diagnostic.is_null() {
+        if let Err(error) = store(diagnostic, detail) {
+            return status(Err(error));
+        }
+    }
+    status(result)
 }
 /// # Safety
 /// Input, writable arena and info are live, disjoint allocations; null buffers
@@ -201,12 +275,28 @@ pub unsafe extern "C" fn xp_page_decode(
     capacity: usize,
     info: *mut page::Info,
 ) -> u32 {
-    status((|| {
+    xp_page_decode_diagnostic(data, len, visible, arena, capacity, info, ptr::null_mut())
+}
+/// # Safety
+/// Same buffer and callback contract as xp_page_decode; diagnostic is null or
+/// aligned writable storage, disjoint from all other input and output buffers.
+#[no_mangle]
+pub unsafe extern "C" fn xp_page_decode_diagnostic(
+    data: *const u8,
+    len: usize,
+    visible: u32,
+    arena: *mut u8,
+    capacity: usize,
+    info: *mut page::Info,
+    diagnostic: *mut Diagnostic,
+) -> u32 {
+    let mut detail = Diagnostic::default();
+    let result = (|| {
         if !aligned(info) {
             return Err(Error::Invalid);
         }
         let data = input(data, len)?;
-        match page::decode(data, visible, output(arena, capacity)?) {
+        match page::decode_detailed(data, visible, output(arena, capacity)?, &mut detail) {
             Ok(value) => store(info, value),
             Err(error @ Error::NeedOutput(_)) => {
                 // Preserve the capacity-query contract without scanning twice on success.
@@ -215,7 +305,13 @@ pub unsafe extern "C" fn xp_page_decode(
             }
             Err(error) => Err(error),
         }
-    })())
+    })();
+    if !diagnostic.is_null() {
+        if let Err(error) = store(diagnostic, detail) {
+            return status(Err(error));
+        }
+    }
+    status(result)
 }
 /// # Safety
 /// Arena is a successful decode, unchanged; output and required are writable,

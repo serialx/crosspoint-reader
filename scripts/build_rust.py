@@ -47,6 +47,9 @@ else:
     command += ["--offline"]
 
 process_env = os.environ.copy()
+process_env["XP_I18N_BUILTIN_LANGS"] = env.GetProjectOption("custom_i18n_builtin_langs", "all")
+process_env["XP_I18N_STRIP_UNUSED"] = "1"
+process_env["PYTHON"] = env.subst("$PYTHONEXE")
 if mcu == "esp32c3":
     # Preserve offline Rust backtraces in non-flashed DWARF before filtering EH.
     flag = "-Cllvm-args=--force-dwarf-frame-section"

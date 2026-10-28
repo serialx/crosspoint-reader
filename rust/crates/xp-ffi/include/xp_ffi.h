@@ -14,6 +14,18 @@ uint32_t xp_abi_version(void);
 uint64_t xp_fnv1a64(const uint8_t* data, size_t len);
 uint32_t xp_crc32(const uint8_t* data, size_t len);
 
+// I18n: immutable, NUL-terminated pointers valid for the firmware lifetime.
+// Unknown string IDs/names return "???"; invalid/omitted languages use English
+// for strings/character sets. Selection ignores an invalid requested language.
+// No allocation, logging or retained input pointers.
+const char* xp_i18n_get(uint8_t language, uint16_t id);
+uint8_t xp_i18n_select_language(uint8_t current, uint8_t requested);
+const char* xp_i18n_language_name(uint8_t language);
+const char* xp_i18n_character_set(uint8_t language);
+// code is NULL or a readable NUL-terminated string, unchanged for the call.
+// Case-sensitive lookup; unknown codes and NULL return English (0).
+uint8_t xp_i18n_language_from_code(const char* code);
+
 // Hyphenation: borrowed inputs, caller-owned output; no allocation or retained pointers.
 // Language identifiers are 0..10, or -1 when no language matches.
 int32_t xp_hyphen_language(const uint8_t* tag, size_t len);

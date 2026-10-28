@@ -10,8 +10,6 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / "test"))
-from rust_host import rust_link_flags
 
 
 def main():
@@ -33,7 +31,13 @@ def main():
             if "xp_i18n" in (out / "I18n.cpp").read_text():
                 os.environ["XP_I18N_BUILTIN_LANGS"] = "EN,FR" if name == "en-fr" else "all"
                 os.environ["XP_I18N_STRIP_UNUSED"] = "1" if name == "stripped" else "0"
-                flags = rust_link_flags()
+                target = ROOT / "build/i18n-oracle" / name
+                subprocess.run(["cargo", "build", "--manifest-path", str(ROOT / "rust/Cargo.toml"),
+                                "--target-dir", str(target), "-p", "xp-ffi", "--release", "--locked"],
+                               check=True)
+                flags = ["-I", str(ROOT / "rust/crates/xp-ffi/include"),
+                         str(ROOT / "test/cmake/xp_ffi_host.cpp"),
+                         str(target / "release/libxp_ffi.a")]
             executable = out / "dump"
             subprocess.run(["c++", "-std=c++20", "-O2", "-I", str(out),
                             str(HERE / "dump.cpp"), str(out / "I18n.cpp"),

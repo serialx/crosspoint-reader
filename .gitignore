@@ -34,3 +34,5 @@ lib/EpdFont/scripts/output/
 sdkconfig.sticky
 sdkconfig.x4pro
 flake.*
+
+/lib/I18n/i18n_generated.rs

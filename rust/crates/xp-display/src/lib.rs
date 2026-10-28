@@ -1,6 +1,7 @@
 #![no_std]
 
 pub mod constants;
+pub mod ultrachip;
 
 /// Physical I/O only; controller commands and state remain in the panel.
 pub trait Bus {

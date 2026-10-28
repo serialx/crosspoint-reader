@@ -45,8 +45,8 @@ int main() {
   xp_display_drop(storage.data());
   for (uint32_t controller = 2; controller <= 8; ++controller) {
     config.controller = controller;
-    check(xp_display_state_size(controller) == 0);
-    check(xp_display_init(storage.data(), storage.size(), &config) == XP_DISPLAY_UNSUPPORTED);
+    if (xp_display_state_size(controller) == 0)
+      check(xp_display_init(storage.data(), storage.size(), &config) == XP_DISPLAY_UNSUPPORTED);
   }
   XpDisplayX3Config custom{};
   const uint8_t* direct[5]{};

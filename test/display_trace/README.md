@@ -109,6 +109,24 @@ line, the current scenario step, and expected/actual operations. Transfer
 chunking is part of this strict oracle; do not silently normalize different
 chunks or CS/DC sequences.
 
+The UltraChip extension compares direct driver calls, including Direct grayscale,
+sparse overlay versus image LUT selection, missing planes, invalid strips,
+allocation failures and recovery. Build a second runner directory with
+`-DDISPLAY_TRACE_RUST=ON`, then run:
+
+```sh
+python3 test/display_trace/ultrachip_compare.py \
+  --cpp-bin-dir build/display_trace --rust-bin-dir build/display_trace_rust \
+  --output /tmp/ultrachip-comparison
+```
+
+It checks all 34 UltraChip board/controller/buffer cases with successful
+allocations, all allocations failing, and PSRAM-only failures followed by the
+original fallback. A4 also fails after each of its five retained allocations.
+The JSON report records paired trace hashes and allocation calls. The staging
+script instruments only the selected SDK allocators; host STL allocations are
+outside that trace. Failures write both complete traces for comparison.
+
 For byte-level debugging, record into a separate directory with `--full`:
 
 ```sh

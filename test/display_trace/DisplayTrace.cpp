@@ -9,6 +9,7 @@
 #include "Trace.h"
 
 using freeink::FreeInkDisplay;
+int ultraChipTrace(const std::string& controller, int failAfter);
 
 static uint8_t grayscaleByte(uint32_t index, uint32_t widthBytes, uint32_t seed) {
   const uint32_t row = index / widthBytes;
@@ -60,6 +61,9 @@ int main(int argc, char** argv) {
   }
   trace::configure(argc > 3 && std::string(argv[3]) == "--full", polarity, probe);
   trace::event("display-trace-v1 controller=" + controller);
+  if (std::string(argv[2]) == "--ultrachip") {
+    return ultraChipTrace(controller, argc > 4 ? std::stoi(argv[4]) : -1);
+  }
   FreeInkDisplay display(-1, -1, -1, -1, -1, -1);
   if (controller == "uc8253" || controller == "uc8279-x3") display.setDisplayX3();
   std::vector<uint8_t> bw, lsb, msb;

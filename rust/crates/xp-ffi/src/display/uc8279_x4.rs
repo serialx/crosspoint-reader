@@ -1,7 +1,4 @@
-use super::{Action, UNSUPPORTED};
+use super::*;
 pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
-    match action {
-        Action::Size | Action::Align => 0,
-        _ => UNSUPPORTED,
-    }
+    super::uc8179::dispatch_x4(action, UC8279_X4)
 }

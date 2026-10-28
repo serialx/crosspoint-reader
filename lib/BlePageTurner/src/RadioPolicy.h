@@ -62,7 +62,7 @@ bool xp_ble_rearm(bool idleStopped, bool entered, bool requested, bool buildPain
 uint8_t xp_ble_verdict(const RadioInputs*, const Profile*);
 uint8_t xp_ble_next_note(uint8_t, const NoteInputs*);
 bool xp_ble_should_restart(uint8_t, uint8_t, bool);
-bool xp_ble_tracker_refused(uint8_t, uint8_t*, uint32_t, bool*);
+bool xp_ble_tracker_transition(uint8_t, uint8_t, uint8_t*, uint32_t*, bool*);
 }
 
 inline bool radioRearmWanted(bool idleStopped, bool entered, bool requested, bool buildPainted) {
@@ -151,31 +151,27 @@ struct Tracker {
   // shown.
   std::atomic<bool> wanted{false};
 
+ private:
+  enum class Event : uint8_t { Refused, Inconclusive, RadioUp, Restarting };
+  bool transition(const Event event, const Why why = Why::Ok) {
+    bool pending = wanted.load(std::memory_order_relaxed);
+    const bool result = xp_ble_tracker_transition(static_cast<uint8_t>(event), static_cast<uint8_t>(why),
+                                                  &fragmentedInRow, &memo.magic, &pending);
+    wanted.store(pending, std::memory_order_release);
+    return result;
+  }
+
+ public:
   // A start the heap ended: refused before the stack came up, or rolled back right after. A heap
   // in pieces counts toward the restart; a heap short in total breaks the streak (a restart
   // cannot give back bytes the book really uses) and drops a restart asked earlier. True when
   // this one asks for the restart.
-  bool refused(const Why why) {
-    bool pending = wanted.load(std::memory_order_relaxed);
-    const bool result = xp_ble_tracker_refused(static_cast<uint8_t>(why), &fragmentedInRow, memo.magic, &pending);
-    wanted.store(pending, std::memory_order_release);
-    return result;
-  }
+  bool refused(const Why why) { return transition(Event::Refused, why); }
   // The start ended for a reason other than the heap (the stack failed, the start was cancelled,
   // the card was taken): no sign of pieces, the streak starts again.
-  void inconclusive() {
-    fragmentedInRow = 0;
-    wanted.store(false, std::memory_order_release);
-  }
-  void radioUp() {
-    fragmentedInRow = 0;
-    memo.magic = 0;
-    wanted.store(false, std::memory_order_release);
-  }
-  void restarting() {
-    memo.magic = kRestartSpentMagic;
-    wanted.store(false, std::memory_order_release);
-  }
+  void inconclusive() { transition(Event::Inconclusive); }
+  void radioUp() { transition(Event::RadioUp); }
+  void restarting() { transition(Event::Restarting); }
 };
 
 }  // namespace bleturner

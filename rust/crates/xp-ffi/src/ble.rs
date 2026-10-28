@@ -577,24 +577,69 @@ pub unsafe extern "C" fn xp_ble_follow(router: *mut Router, linked: bool) {
         };
     }
 }
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub enum RestartEvent {
+    Refused,
+    Inconclusive,
+    RadioUp,
+    Restarting,
+}
+
+pub fn restart_transition(
+    event: RestartEvent,
+    why: u8,
+    count: &mut u8,
+    magic: &mut u32,
+    pending: &mut bool,
+) -> bool {
+    match event {
+        RestartEvent::Refused => {
+            if why != Why::HeapInPieces as u8 {
+                *count = 0;
+                *pending = false;
+            } else {
+                *count = count.saturating_add(1);
+            }
+            let restart = xp_ble_should_restart(why, *count, *magic == RESTART_MAGIC);
+            if restart {
+                *pending = true;
+            }
+            return restart;
+        }
+        RestartEvent::Inconclusive => {
+            *count = 0;
+            *pending = false;
+        }
+        RestartEvent::RadioUp => {
+            *count = 0;
+            *magic = 0;
+            *pending = false;
+        }
+        RestartEvent::Restarting => {
+            *magic = RESTART_MAGIC;
+            *pending = false;
+        }
+    }
+    false
+}
+
 /// # Safety
-/// count and pending must be writable, initialized, non-overlapping outputs.
+/// Outputs must be writable, initialized and non-overlapping.
 #[no_mangle]
-pub unsafe extern "C" fn xp_ble_tracker_refused(
+pub unsafe extern "C" fn xp_ble_tracker_transition(
+    event: u8,
     why: u8,
     count: *mut u8,
-    magic: u32,
+    magic: *mut u32,
     pending: *mut bool,
 ) -> bool {
-    if why != Why::HeapInPieces as u8 {
-        *count = 0;
-        *pending = false;
-    } else {
-        *count = (*count).saturating_add(1);
-    }
-    let restart = xp_ble_should_restart(why, *count, magic == RESTART_MAGIC);
-    if restart {
-        *pending = true;
-    }
-    restart
+    let event = match event {
+        0 => RestartEvent::Refused,
+        1 => RestartEvent::Inconclusive,
+        2 => RestartEvent::RadioUp,
+        3 => RestartEvent::Restarting,
+        _ => return false,
+    };
+    restart_transition(event, why, &mut *count, &mut *magic, &mut *pending)
 }

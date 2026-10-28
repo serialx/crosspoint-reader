@@ -226,23 +226,24 @@ unsafe fn emit(event: u32, a: u32, b: u32, c: u32, d: u32) {
 unsafe fn busy() -> bool {
     IN_FLIGHT.load(Acquire) || running() || stopping()
 }
-fn inconclusive() {
-    FRAGMENTED.store(0, Relaxed);
-    RESTART_WANTED.store(false, Release);
+unsafe fn restart_event(event: RestartEvent, why: Why) {
+    let mut count = FRAGMENTED.load(Relaxed);
+    let mut pending = RESTART_WANTED.load(Relaxed);
+    let memo = (svc().memo)();
+    let previous_magic = *memo;
+    let mut magic = previous_magic;
+    restart_transition(event, why as u8, &mut count, &mut magic, &mut pending);
+    FRAGMENTED.store(count, Relaxed);
+    if magic != previous_magic {
+        *memo = magic;
+    }
+    RESTART_WANTED.store(pending, Release);
+}
+unsafe fn inconclusive() {
+    restart_event(RestartEvent::Inconclusive, Why::Ok);
 }
 unsafe fn refused(why: Why) {
-    if why != Why::HeapInPieces {
-        inconclusive();
-    } else {
-        FRAGMENTED.store(FRAGMENTED.load(Relaxed).saturating_add(1), Relaxed);
-    }
-    if xp_ble_should_restart(
-        why as u8,
-        FRAGMENTED.load(Relaxed),
-        *(svc().memo)() == RESTART_MAGIC,
-    ) {
-        RESTART_WANTED.store(true, Release);
-    }
+    restart_event(RestartEvent::Refused, why);
 }
 unsafe fn heap_inputs(phase: u8, heap: Heap, storage_busy: bool) -> RadioInputs {
     RadioInputs {
@@ -328,9 +329,7 @@ unsafe fn begin_owned() -> bool {
         return false;
     }
     emit(5, after.free_bytes as u32, after.largest_block as u32, 0, 0);
-    FRAGMENTED.store(0, Relaxed);
-    *(svc().memo)() = 0;
-    RESTART_WANTED.store(false, Release);
+    restart_event(RestartEvent::RadioUp, Why::Ok);
     true
 }
 unsafe fn finish(started: bool, report: bool) {
@@ -727,8 +726,7 @@ pub unsafe extern "C" fn xp_ble_tick(scene: *const Scene) -> bool {
     {
         let heap = (svc().heap)();
         emit(14, heap.free_bytes as u32, heap.largest_block as u32, 0, 0);
-        *(svc().memo)() = RESTART_MAGIC;
-        RESTART_WANTED.store(false, Release);
+        restart_event(RestartEvent::Restarting, Why::Ok);
         (svc().restart)();
     }
     acted

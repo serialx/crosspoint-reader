@@ -13,8 +13,11 @@ bench = false
 embedded-graphics-core = { workspace = true, optional = true }
 xp-core = { path = "../xp-core" }
 
+xp-display = { path = "../xp-display", optional = true }
+
 [features]
 strip-spike = ["xp-core/strip-spike", "dep:embedded-graphics-core"]
+display-panel = ["dep:xp-display"]
 package-trace = ["xp-core/package-trace"]
 chapter-trace = ["xp-core/chapter-trace"]
 chapter-test = ["xp-core/chapter-test"]

@@ -1,5 +1,8 @@
 #![no_std]
 
+#[cfg(feature = "display-panel")]
+mod display;
+
 mod bidi;
 mod chapter;
 mod css;

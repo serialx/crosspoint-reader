@@ -143,3 +143,25 @@ quality, rail/I2C behavior, SPI electrical timing, allocation failures, and
 ESP power-management locks are not modeled. ISR callbacks run synchronously when
 the fake semaphore advances time. The oracle proves software sequences for these
 inputs; it supplies no hardware timing, power, heap or pixel-quality measurement.
+
+## Rust UC8253 adapter
+
+The Rust controller is opt-in: firmware builds use `FREEINK_RUST_PANEL=1`,
+which selects the `display-panel` feature in the existing `xp-ffi` archive.
+The SDK bus, reset, SPI transactions, and BUSY waits remain the trace boundary.
+The default build continues to select the C++ controller.
+
+```sh
+cmake -S test/display_trace -B build/display-rust -DDISPLAY_TRACE_RUST=ON
+cmake --build build/display-rust -j 6
+ctest --test-dir build/display-rust --output-on-failure
+```
+
+`display_trace` still compares the unmodified frozen goldens. The additional
+`display_trace_x3_extended` test compares C++ and Rust directly in both buffer
+modes, with default LUTs, Direct mode disabled, a changed LUT/length config, and zero-length LUT payloads.
+It covers Direct/Overlay/Absolute grayscale, missing planes, cleanup, recovery,
+resync conditioning, async completion, and sleep/wake. `display_abi` checks
+storage validation, descriptor versions, unsupported controller IDs, default
+LUT export, and concurrent cancellation-generation increments. No test in this
+suite accesses a device.

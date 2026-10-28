@@ -40,6 +40,11 @@ else:
     fail(f"unsupported MCU {mcu!r}; no Rust target is configured")
 
 command += ["build", "--locked", "--release", "-p", "xp-ffi", "--target", target]
+defines = env.ParseFlags(env.get("BUILD_FLAGS", [] )).get("CPPDEFINES", [])
+if any(d == "FREEINK_RUST_PANEL" or
+       (isinstance(d, (tuple, list)) and d[0] == "FREEINK_RUST_PANEL" and str(d[1]) != "0")
+       for d in defines):
+    command += ["--features", "display-panel"]
 if mcu == "esp32s3":
     # Building the sysroot needs registry crates, even with only local dependencies.
     command += ["-Zbuild-std=core,alloc"]

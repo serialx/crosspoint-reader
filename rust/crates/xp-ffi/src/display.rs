@@ -185,6 +185,7 @@ pub struct DisplayRequest {
 }
 
 mod paper_mono;
+mod retained;
 mod ssd1677;
 mod ssd2677;
 mod uc8179;

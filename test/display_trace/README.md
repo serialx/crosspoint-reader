@@ -183,3 +183,29 @@ resync conditioning, async completion, and sleep/wake. `display_abi` checks
 storage validation, descriptor versions, unsupported controller IDs, default
 LUT export, and concurrent cancellation-generation increments. No test in this
 suite accesses a device.
+
+## Retained SSD2677 and Paper Mono drivers
+
+Build the same sources twice to compare the C++ and Rust implementations:
+
+```sh
+cmake -S test/display_trace -B build/display-cpp
+cmake --build build/display-cpp -j 8
+cmake -S test/display_trace -B build/display-rust -DDISPLAY_TRACE_RUST=ON
+cmake --build build/display-rust -j 8
+python3 test/display_trace/retained_oracle.py --cpp-dir build/display-cpp \
+  --rust-dir build/display-rust --out /tmp/retained-driver-evidence
+ctest --test-dir build/display-rust -R display_retained_abi --output-on-failure
+```
+
+The paired retained-driver runner covers Sticky/Picco SSD2677 and Paper Mono,
+with one fresh process for normal operation and each PSRAM allocation failure
+position, plus persistent allocation failure (18 cases). It records allocation size/caps/order, bus bytes, diagnostic
+text, and committed/aborted/maintenance status. Scenarios include recovery,
+missing and partial gray planes, cancellation, stale-generation planes, valid
+and invalid windows, idle/sleep/wake, and Paper Mono's light-frame clamps. The
+normal O1 single/dual-buffer traces remain the facade parity test.
+
+`display_retained_abi` checks invalid initialization without writes or allocation,
+capabilities, versioned extra operations, and concurrent atomic abort increments.
+It does not qualify real panel waveforms or task scheduling on hardware.

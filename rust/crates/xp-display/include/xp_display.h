@@ -254,6 +254,34 @@ typedef struct {
   uint8_t psram, classic, row_reverse, mirror;
 } XpDisplayUltraChipConfig;
 
+// SSD2677 (variant 0 Picco, 1 Sticky) and PaperMono (variant 0 native,
+// 1 rotate180), config version 1. Scratch is exclusive internal RAM retained
+// until drop: 1024 bytes for SSD2677, 16384 for PaperMono. Never stack storage.
+// Platform allocations use PSRAM_ONLY and remain retained until drop.
+// PaperMono extra(version=1): 1 = one lightFrames byte, 2 = resetGray (no payload).
+enum {
+  XP_DISPLAY_SSD2677_STATE_BYTES = 128,
+  XP_DISPLAY_PAPER_MONO_STATE_BYTES = 512,
+  XP_DISPLAY_TAG_SSD2677_RESET = 90,
+  XP_DISPLAY_TAG_SSD2677_INIT = 91,
+  XP_DISPLAY_TAG_SSD2677_LATCH = 92,
+  XP_DISPLAY_TAG_SSD2677_ON = 93,
+  XP_DISPLAY_TAG_SSD2677_OFF = 94,
+  XP_DISPLAY_TAG_SSD2677_REFRESH = 95,
+  XP_DISPLAY_TAG_PAPER_RESET = 96,
+  XP_DISPLAY_TAG_PAPER_REFRESH = 97,
+  XP_DISPLAY_TAG_PAPER_IDLE = 98,
+  XP_DISPLAY_DIAG_PAPER_OTP = 99,
+  XP_DISPLAY_DIAG_PAPER_TRI = 100,
+  XP_DISPLAY_PAPER_SET_GRAY = 1,
+  XP_DISPLAY_PAPER_RESET_GRAY = 2
+};
+typedef struct {
+  uint8_t* scratch;
+  uint32_t scratch_size;
+  uint32_t serial_log;
+} XpDisplayRetainedConfig;
+
 uint32_t xp_display_abi_version(void);
 uint32_t xp_display_state_size(uint32_t controller);
 uint32_t xp_display_state_align(uint32_t controller);

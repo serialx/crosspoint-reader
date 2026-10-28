@@ -1,5 +1,8 @@
 #![no_std]
 
+#[cfg(feature = "display-api")]
+mod display;
+
 mod bidi;
 mod ble;
 #[cfg(not(target_has_atomic = "ptr"))]

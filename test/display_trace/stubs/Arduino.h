@@ -24,10 +24,21 @@ int digitalRead(int pin);
 inline int digitalPinToInterrupt(int pin) { return pin; }
 void attachInterrupt(int pin, void (*callback)(), int mode);
 void detachInterrupt(int pin);
+#include <cstdio>
+
+#include "Trace.h"
+inline bool displayTraceDiagnostics = false;
 struct FakeSerial {
   explicit operator bool() const { return false; }
   template <class... T>
-  void printf(const char*, T...) const {}
+  void printf(const char* format, T... values) const {
+    if (!displayTraceDiagnostics) return;
+    char line[512];
+    std::snprintf(line, sizeof(line), format, values...);
+    std::string text(line);
+    if (!text.empty() && text.back() == '\n') text.pop_back();
+    trace::event("diagnostic " + text);
+  }
 };
 inline FakeSerial Serial;
 using HardwareSerial = FakeSerial;

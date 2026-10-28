@@ -109,6 +109,24 @@ line, the current scenario step, and expected/actual operations. Transfer
 chunking is part of this strict oracle; do not silently normalize different
 chunks or CS/DC sequences.
 
+The UltraChip extension compares direct driver calls, including Direct grayscale,
+sparse overlay versus image LUT selection, missing planes, invalid strips,
+allocation failures and recovery. Build a second runner directory with
+`-DDISPLAY_TRACE_RUST=ON`, then run:
+
+```sh
+python3 test/display_trace/ultrachip_compare.py \
+  --cpp-bin-dir build/display_trace --rust-bin-dir build/display_trace_rust \
+  --output /tmp/ultrachip-comparison
+```
+
+It checks all 34 UltraChip board/controller/buffer cases with successful
+allocations, all allocations failing, and PSRAM-only failures followed by the
+original fallback. A4 also fails after each of its five retained allocations.
+The JSON report records paired trace hashes and allocation calls. The staging
+script instruments only the selected SDK allocators; host STL allocations are
+outside that trace. Failures write both complete traces for comparison.
+
 For byte-level debugging, record into a separate directory with `--full`:
 
 ```sh
@@ -143,3 +161,52 @@ quality, rail/I2C behavior, SPI electrical timing, allocation failures, and
 ESP power-management locks are not modeled. ISR callbacks run synchronously when
 the fake semaphore advances time. The oracle proves software sequences for these
 inputs; it supplies no hardware timing, power, heap or pixel-quality measurement.
+
+## Rust UC8253 adapter
+
+The Rust controller is opt-in: firmware builds use `FREEINK_RUST_PANEL=1`,
+which selects controller features from the SDK board flags in the existing
+`xp-ffi` archive. The host oracle uses `display-panel` to enable all controllers.
+The SDK bus, reset, SPI transactions, and BUSY waits remain the trace boundary.
+The default build continues to select the C++ controller.
+
+```sh
+cmake -S test/display_trace -B build/display-rust -DDISPLAY_TRACE_RUST=ON
+cmake --build build/display-rust -j 6
+ctest --test-dir build/display-rust --output-on-failure
+```
+
+`display_trace` still compares the unmodified frozen goldens. The additional
+`display_trace_x3_extended` test compares C++ and Rust directly in both buffer
+modes, with default LUTs, Direct mode disabled, a changed LUT/length config, and zero-length LUT payloads.
+It covers Direct/Overlay/Absolute grayscale, missing planes, cleanup, recovery,
+resync conditioning, async completion, and sleep/wake. `display_abi` checks
+storage validation, descriptor versions, unsupported controller IDs, default
+LUT export, and concurrent cancellation-generation increments. No test in this
+suite accesses a device.
+
+## Retained SSD2677 and Paper Mono drivers
+
+Build the same sources twice to compare the C++ and Rust implementations:
+
+```sh
+cmake -S test/display_trace -B build/display-cpp
+cmake --build build/display-cpp -j 8
+cmake -S test/display_trace -B build/display-rust -DDISPLAY_TRACE_RUST=ON
+cmake --build build/display-rust -j 8
+python3 test/display_trace/retained_oracle.py --cpp-dir build/display-cpp \
+  --rust-dir build/display-rust --out /tmp/retained-driver-evidence
+ctest --test-dir build/display-rust -R display_retained_abi --output-on-failure
+```
+
+The paired retained-driver runner covers Sticky/Picco SSD2677 and Paper Mono,
+with one fresh process for normal operation and each PSRAM allocation failure
+position, plus persistent allocation failure (18 cases). It records allocation size/caps/order, bus bytes, diagnostic
+text, and committed/aborted/maintenance status. Scenarios include recovery,
+missing and partial gray planes, cancellation, stale-generation planes, valid
+and invalid windows, idle/sleep/wake, and Paper Mono's light-frame clamps. The
+normal O1 single/dual-buffer traces remain the facade parity test.
+
+`display_retained_abi` checks invalid initialization without writes or allocation,
+capabilities, versioned extra operations, and concurrent atomic abort increments.
+It does not qualify real panel waveforms or task scheduling on hardware.

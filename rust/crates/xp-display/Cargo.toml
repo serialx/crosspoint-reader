@@ -1,0 +1,19 @@
+[package]
+name = "xp-display"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = ["uc8253", "ssd1677", "uc8179", "uc8279-x3", "uc8279-x4", "uc8279c-a4", "ssd2677", "paper-mono"]
+uc8253 = []
+ssd1677 = []
+uc8179 = []
+uc8279-x3 = []
+uc8279-x4 = []
+uc8279c-a4 = []
+ssd2677 = []
+paper-mono = []

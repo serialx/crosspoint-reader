@@ -10,6 +10,9 @@
 #include <sstream>
 
 namespace {
+bool traceAllocations = false;
+bool failPsramOnly = false;
+int allocationsUntilFailure = -1;
 uint64_t nowUs = 0, waitStart = 0, durationUs = 4000;
 int waitPolarity = -1, idlePolarity = 0;
 bool fullBytes = false;
@@ -41,6 +44,24 @@ void bytes(const uint8_t* data, size_t size) {
 }
 }  // namespace
 namespace trace {
+void allocationTrace(int failAfter) {
+  traceAllocations = true;
+  failPsramOnly = failAfter == -2;
+  allocationsUntilFailure = failAfter < 0 ? -1 : failAfter;
+}
+void allocationRecovery() {
+  allocationsUntilFailure = -1;
+  failPsramOnly = false;
+}
+static void* allocate(size_t bytes, const std::string& kind, bool psram = false) {
+  bool failed = allocationsUntilFailure == 0 || (psram && failPsramOnly);
+  if (allocationsUntilFailure > 0) --allocationsUntilFailure;
+  if (traceAllocations)
+    event("alloc " + kind + " bytes=" + std::to_string(bytes) + " failed=" + std::to_string(failed));
+  return failed ? nullptr : std::malloc(bytes);
+}
+void* allocateCaps(size_t bytes, int caps) { return allocate(bytes, "caps=" + std::to_string(caps), caps & 1); }
+void* allocateDefault(size_t bytes) { return allocate(bytes, "default"); }
 void event(const std::string& text) {
   if (text == lastEvent) {
     ++repetitions;

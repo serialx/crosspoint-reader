@@ -40,6 +40,13 @@ else:
     fail(f"unsupported MCU {mcu!r}; no Rust target is configured")
 
 command += ["build", "--locked", "--release", "-p", "xp-ffi", "--target", target]
+sys.path.insert(0, str(project / "scripts"))
+from rust_display_features import display_features
+
+defines = env.ParseFlags(env.get("BUILD_FLAGS", [])).get("CPPDEFINES", [])
+panel_features = display_features(defines)
+if panel_features:
+    command += ["--features", ",".join(panel_features)]
 if mcu == "esp32s3":
     # Building the sysroot needs registry crates, even with only local dependencies.
     command += ["-Zbuild-std=core,alloc"]
@@ -50,6 +57,13 @@ process_env = os.environ.copy()
 process_env["XP_I18N_BUILTIN_LANGS"] = env.GetProjectOption("custom_i18n_builtin_langs", "all")
 process_env["XP_I18N_STRIP_UNUSED"] = "1"
 process_env["PYTHON"] = env.subst("$PYTHONEXE")
+for name in ("FREEINK_UC8279X4_GRAY_SPEED", "FREEINK_UC8279X4_QUALITY_COVERAGE_PCT"):
+    value = next((str(d[1]) for d in defines
+                  if isinstance(d, (tuple, list)) and len(d) == 2 and d[0] == name), None)
+    if value is None:
+        process_env.pop(name, None)
+    else:
+        process_env[name] = value
 if mcu == "esp32c3":
     # Preserve offline Rust backtraces in non-flashed DWARF before filtering EH.
     flag = "-Cllvm-args=--force-dwarf-frame-section"

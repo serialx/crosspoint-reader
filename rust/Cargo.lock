@@ -41,11 +41,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xp-display"
+version = "0.1.0"
+
+[[package]]
 name = "xp-ffi"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics-core",
  "xp-core",
+ "xp-display",
 ]
 
 [[package]]

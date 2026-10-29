@@ -10,11 +10,11 @@ METHODS = {
         'selectNetwork', 'hasAttemptedAutoSsid', 'tryAutoConnectCredential',
         'tryNextSavedNetworkFromScan', 'handleAutoConnectFailure',
         'showNetworkListFromAutoConnect', 'attemptConnection', 'checkConnectionStatus', 'loop', 'onComplete'],
-    'CalibreConnectActivity': ['onExit', 'onWifiSelectionComplete', 'startWebServer', 'loop'],
-    'CrossPointWebServerActivity': ['onExit', 'startAccessPoint', 'startWebServer', 'loop'],
+    'CalibreConnectActivity': ['onEnter','onExit', 'onWifiSelectionComplete', 'startWebServer', 'loop'],
+    'CrossPointWebServerActivity': ['onEnter','onNetworkModeSelected','onWifiSelectionComplete','onExit', 'startAccessPoint', 'startWebServer', 'loop'],
 }
 def extract(source, cls, name):
-    match = re.search(r'^.*\b'+cls+'::'+name+r'\(', source, re.M)
+    match = re.search(r'^(?!\s*(?://|\*))[^{}\n;]*\b'+cls+'::'+name+r'\(', source, re.M)
     if not match:
         raise ValueError(f'Missing {cls}::{name}')
     start = match.start()
@@ -33,10 +33,10 @@ def helper(source, name):
         level += (source[i] == '{') - (source[i] == '}')
         i += 1
     return source[start:i]
-def generate(root=ROOT, frozen_usb=False):
+def generate(root=ROOT, frozen_usb=False, frozen_calibre=False):
     parts = []
     for cls, methods in METHODS.items():
-        source = ((HERE/'original.inc').read_text() if frozen_usb and cls == 'UsbDriveActivity'
+        source = ((HERE/'original.inc').read_text() if (frozen_usb and cls == 'UsbDriveActivity') or (frozen_calibre and cls == 'CalibreConnectActivity')
                   else (root/'src/activities/network'/f'{cls}.cpp').read_text())
         parts += [extract(source, cls, m) for m in methods]
     source = (HERE/'effects.cpp').read_text()

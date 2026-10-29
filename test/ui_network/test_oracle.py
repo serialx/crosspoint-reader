@@ -19,10 +19,15 @@ def run(source, widget=False):
 def frozen():
     return (HERE/'effects.cpp').read_text().replace('// PRODUCTION_METHODS', (HERE/'original.inc').read_text()).replace('// PRODUCTION_HELPERS', (HERE/'original_helpers.inc').read_text())
 class Oracle(unittest.TestCase):
+    def test_extract_ignores_comment_reference(self):
+        definition='void CrossPointWebServerActivity::startWebServer() { call(); }'
+        source='// See CrossPointWebServerActivity::startWebServer().\nif (value) { wrong(); }\n'+definition
+        self.assertEqual(prepare.extract(source,'CrossPointWebServerActivity','startWebServer'),definition)
+
     def test_frozen_effects(self):
         self.assertEqual(run(frozen()), (HERE/'effects.golden').read_bytes())
     def test_current_effects(self):
-        self.assertEqual(run(prepare.generate(frozen_usb=True)), (HERE/'effects.golden').read_bytes())
+        self.assertEqual(run(prepare.generate(frozen_usb=True, frozen_calibre=True)), (HERE/'effects.golden').read_bytes())
     def test_usb_order_mutation(self):
         source = frozen()
         changed = source.replace('requestUpdateAndWait();\n  if (!Storage.beginUsbDrive())', 'Storage.beginUsbDrive();\n  requestUpdateAndWait();\n  if (false)')

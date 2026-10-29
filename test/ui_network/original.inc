@@ -1042,3 +1042,178 @@ void CrossPointWebServerActivity::loop() {
     }
   }
 }
+
+void CalibreConnectActivity::onEnter() {
+  Activity::onEnter();
+
+  requestUpdate();
+  state = CalibreConnectState::WIFI_SELECTION;
+  connectedIP.clear();
+  connectedSSID.clear();
+  lastHandleClientTime = 0;
+  lastProgressReceived = 0;
+  lastProgressTotal = 0;
+  currentUploadName.clear();
+  lastCompleteName.clear();
+  lastCompleteAt = 0;
+  lastProcessedCompleteAt = 0;
+  exitRequested = false;
+
+  if (WiFi.status() != WL_CONNECTED) {
+    startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
+                           [this](const ActivityResult& result) {
+                             if (!result.isCancelled) {
+                               const auto& wifi = std::get<WifiResult>(result.data);
+                               connectedIP = wifi.ip;
+                               connectedSSID = wifi.ssid;
+                             }
+                             onWifiSelectionComplete(!result.isCancelled);
+                           });
+  } else {
+    connectedIP = WiFi.localIP().toString().c_str();
+    connectedSSID = WiFi.SSID().c_str();
+    startWebServer();
+  }
+}
+
+void CrossPointWebServerActivity::onEnter() {
+  Activity::onEnter();
+
+  LOG_DBG("WEBACT", "Free heap at onEnter: %d bytes", ESP.getFreeHeap());
+
+  // Heap-critical transition: WiFi (~45KB) plus the web server have to fit in
+  // what's left of the ~380KB parts. SD-font caches retained for the CJK UI
+  // fallback (mini glyph/kern arenas, ligature tables) are rebuildable on
+  // demand — release them up front instead of aborting in startWebServer()
+  // when the heap comes up short (observed on X3 with a Korean SD font).
+  if (auto* fcm = renderer.getFontCacheManager()) {
+    fcm->releaseSdFontCaches();
+    LOG_DBG("WEBACT", "Free heap after SD font cache release: %d bytes", ESP.getFreeHeap());
+  }
+
+  // Reset state
+  state = WebServerActivityState::MODE_SELECTION;
+  networkMode = NetworkMode::JOIN_NETWORK;
+  isApMode = false;
+  connectedIP.clear();
+  connectedSSID.clear();
+  lastHandleClientTime = 0;
+  requestUpdate();
+
+  if (startInJoinNetwork) {
+    // Came back from the heap-defrag reboot on a pristine heap: skip the mode
+    // picker and go straight into Join Network (onNetworkModeSelected won't
+    // reboot again while this flag is set).
+    onNetworkModeSelected(NetworkMode::JOIN_NETWORK);
+    return;
+  }
+
+  // Launch network mode selection subactivity
+  LOG_DBG("WEBACT", "Launching NetworkModeSelectionActivity...");
+  startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
+                         [this](const ActivityResult& result) {
+                           if (result.isCancelled) {
+                             onGoHome();
+                           } else {
+                             onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
+                           }
+                         });
+}
+void CrossPointWebServerActivity::onNetworkModeSelected(const NetworkMode mode) {
+  // Join Network brings up WiFi + the web server + TLS relays, whose working set
+  // needs a large *contiguous* block. After reading/browsing the heap is
+  // fragmented enough that tight boards (X3) abort mid-activation. Reboot once
+  // into a pristine heap and land straight back here; the flag prevents a second
+  // reboot on that return. No-op on touch boards, which fall through.
+  if (mode == NetworkMode::JOIN_NETWORK && !startInJoinNetwork) {
+    silentRestartToJoinNetwork();  // does not return on non-touch boards
+  }
+
+  const char* modeName = "Join Network";
+  if (mode == NetworkMode::CONNECT_CALIBRE) {
+    modeName = "Connect to Calibre";
+  } else if (mode == NetworkMode::CREATE_HOTSPOT) {
+    modeName = "Create Hotspot";
+#if FREEINK_CAP_USB_MSC
+  } else if (mode == NetworkMode::USB_DRIVE) {
+    modeName = "USB Drive";
+#endif
+  }
+  LOG_DBG("WEBACT", "Network mode selected: %s", modeName);
+
+#if FREEINK_CAP_USB_MSC
+  if (mode == NetworkMode::USB_DRIVE) {
+    activityManager.goToUsbDrive();
+    return;
+  }
+#endif
+
+  networkMode = mode;
+  isApMode = (mode == NetworkMode::CREATE_HOTSPOT);
+
+  if (mode == NetworkMode::CONNECT_CALIBRE) {
+    startActivityForResult(
+        std::make_unique<CalibreConnectActivity>(renderer, mappedInput), [this](const ActivityResult& result) {
+          state = WebServerActivityState::MODE_SELECTION;
+
+          startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
+                                 [this](const ActivityResult& result) {
+                                   if (result.isCancelled) {
+                                     onGoHome();
+                                   } else {
+                                     onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
+                                   }
+                                 });
+        });
+    return;
+  }
+
+  if (mode == NetworkMode::JOIN_NETWORK) {
+    // STA mode - launch WiFi selection
+    LOG_DBG("WEBACT", "Turning on WiFi (STA mode)...");
+    WiFi.mode(WIFI_STA);
+
+    state = WebServerActivityState::WIFI_SELECTION;
+    LOG_DBG("WEBACT", "Launching WifiSelectionActivity...");
+    startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
+                           [this](const ActivityResult& result) {
+                             if (!result.isCancelled) {
+                               const auto& wifi = std::get<WifiResult>(result.data);
+                               connectedIP = wifi.ip;
+                               connectedSSID = wifi.ssid;
+                             }
+                             onWifiSelectionComplete(!result.isCancelled);
+                           });
+  } else {
+    // AP mode - start access point
+    state = WebServerActivityState::AP_STARTING;
+    requestUpdate();
+    startAccessPoint();
+  }
+}
+void CrossPointWebServerActivity::onWifiSelectionComplete(const bool connected) {
+  LOG_DBG("WEBACT", "WifiSelectionActivity completed, connected=%d", connected);
+
+  if (connected) {
+    // Get connection info before exiting subactivity
+    isApMode = false;
+
+    // Start mDNS for hostname resolution
+    restartMdns(AP_HOSTNAME, "WEBACT");
+
+    // Start the web server
+    startWebServer();
+  } else {
+    // User cancelled - go back to mode selection
+    state = WebServerActivityState::MODE_SELECTION;
+
+    startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
+                           [this](const ActivityResult& result) {
+                             if (result.isCancelled) {
+                               onGoHome();
+                             } else {
+                               onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
+                             }
+                           });
+  }
+}

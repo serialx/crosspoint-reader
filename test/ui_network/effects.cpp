@@ -1,18 +1,22 @@
+#ifndef FREEINK_CAP_USB_MSC
+#define FREEINK_CAP_USB_MSC 1
+#endif
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
-#include <future>
-#include <mutex>
-#include <array>
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <future>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 static uint32_t nowMs;
@@ -35,6 +39,7 @@ void delay(uint32_t ms) {
   nowMs += ms;
 }
 void yield() { record("yield"); }
+void silentRestartToJoinNetwork() { record("restart-join"); }
 void silentRestart() { record("restart"); }
 void restartToHomeAfterStorageHandoff() { record("restart-storage"); }
 void resetTaskWatchdogIfSubscribed() { record("watchdog"); }
@@ -71,7 +76,10 @@ struct RenderLock {
     panelMutex.lock();
     record("lock");
   }
-  ~RenderLock() { record("unlock"); panelMutex.unlock(); }
+  ~RenderLock() {
+    record("unlock");
+    panelMutex.unlock();
+  }
 };
 struct FontCacheManager {
   void releaseSdFontCaches() { record("font-cache-release"); }
@@ -86,15 +94,25 @@ struct Route {
   bool routed = false;
   explicit operator bool() const { return false; }
 };
+enum class NetworkMode { JOIN_NETWORK, CONNECT_CALIBRE, CREATE_HOTSPOT, USB_DRIVE };
+struct NetworkModeResult {
+  NetworkMode mode;
+};
 struct WifiResult {
   bool connected;
   std::string ssid, ip;
 };
 struct ActivityResult {
   bool isCancelled = false;
-  WifiResult data{};
+  std::variant<WifiResult, NetworkModeResult> data{};
 };
+std::function<void(const ActivityResult&)> childResult;
 struct Activity {
+  template <class T, class F>
+  void startActivityForResult(std::unique_ptr<T>, F callback) {
+    record("child-wifi");
+    childResult = callback;
+  }
   MappedInputManager& mappedInput = input;
   GfxRenderer& renderer = ::renderer;
   struct App {
@@ -112,7 +130,8 @@ struct Activity {
   void finish() { record("finish"); }
   void onGoHome() { record("home"); }
   void setResult(ActivityResult r) {
-    record("result:" + std::to_string(r.isCancelled) + ":" + r.data.ssid + ":" + r.data.ip);
+    record("result:" + std::to_string(r.isCancelled) + ":" + std::get<WifiResult>(r.data).ssid + ":" +
+           std::get<WifiResult>(r.data).ip);
   }
   Route routeTouch(MappedInputManager&, bool = false) { return {}; }
 };
@@ -158,6 +177,7 @@ constexpr int WL_CONNECTED = 3, WL_CONNECT_FAILED = 4, WL_NO_SSID_AVAIL = 1, WIF
               WIFI_SCAN_FAILED = -2, WIFI_STA = 1, WIFI_AP = 2, WIFI_MODE_NULL = 0, WIFI_AUTH_OPEN = 0,
               WIFI_ALL_CHANNEL_SCAN = 1, WIFI_CONNECT_AP_BY_SIGNAL = 1;
 struct IPAddress {
+  std::string toString() const { return "10.10.10.7"; }
   uint8_t operator[](size_t n) const { return n == 3 ? 7 : 10; }
 };
 struct ScanRow {
@@ -187,6 +207,10 @@ struct {
   int scanComplete() {
     record("scan-complete");
     return scan;
+  }
+  std::string SSID() {
+    record("connected-ssid");
+    return "connected-network";
   }
   std::string SSID(size_t i) { return rows.at(i).ssid; }
   int RSSI(size_t i) { return rows.at(i).rssi; }
@@ -291,6 +315,8 @@ enum class WifiSelectionState {
   FORGET_PROMPT
 };
 struct WifiSelectionActivity : Activity {
+  WifiSelectionActivity() = default;
+  WifiSelectionActivity(GfxRenderer&, MappedInputManager&) {}
   WifiSelectionState state = WifiSelectionState::SCANNING;
   size_t selectedNetworkIndex = 0, realNetworkCount = 0;
   std::vector<WifiNetworkInfo> networks;
@@ -350,8 +376,8 @@ struct CrossPointWebServer {
   };
   inline static bool startOk = true;
   static Status nextStatus;
-  bool running = false;
-  int clients = 0;
+  bool running = false, callCancel = false;
+  int clients = 0, stopAfter = 0;
   std::function<bool()> exitCallback;
   CrossPointWebServer() { record("server-alloc"); }
   ~CrossPointWebServer() { record("server-delete"); }
@@ -363,6 +389,8 @@ struct CrossPointWebServer {
   void handleClient() {
     record("client");
     ++clients;
+    if (callCancel && exitCallback) record("upload-cancel:" + std::to_string(exitCallback()));
+    if (stopAfter > 0 && clients >= stopAfter) running = false;
   }
   Status getWsUploadStatus() {
     record("upload-status");
@@ -375,10 +403,21 @@ struct CrossPointWebServer {
 };
 CrossPointWebServer::Status CrossPointWebServer::nextStatus{};
 struct {
-  bool rawInputActive() { return false; }
+  bool active = false;
+  bool rawInputActive() { return active; }
 } gpio;
 enum class CalibreConnectState { WIFI_SELECTION, SERVER_STARTING, SERVER_RUNNING, ERROR };
+struct NetworkModeSelectionActivity : Activity {
+  NetworkModeSelectionActivity(GfxRenderer&, MappedInputManager&) {}
+};
+struct {
+  void goToUsbDrive() { record("usb-activity"); }
+} activityManager;
 struct CalibreConnectActivity : Activity {
+  CalibreConnectActivity() = default;
+  CalibreConnectActivity(GfxRenderer&, MappedInputManager&) {}
+  std::string connectedIP, connectedSSID;
+  void onEnter();
   CalibreConnectState state = CalibreConnectState::WIFI_SELECTION;
   std::unique_ptr<CrossPointWebServer> webServer;
   uint32_t lastHandleClientTime = 0, lastCompleteAt = 0, lastProcessedCompleteAt = 0;
@@ -406,9 +445,13 @@ struct DNSServer {
 DNSServer* dnsServer = nullptr;
 // PRODUCTION_HELPERS
 
-
 enum class WebServerActivityState { MODE_SELECTION, WIFI_SELECTION, AP_STARTING, SERVER_RUNNING, SHUTTING_DOWN };
 struct CrossPointWebServerActivity : Activity {
+  NetworkMode networkMode = NetworkMode::JOIN_NETWORK;
+  bool startInJoinNetwork = false;
+  void onEnter();
+  void onNetworkModeSelected(NetworkMode);
+  void onWifiSelectionComplete(bool);
   WebServerActivityState state = WebServerActivityState::MODE_SELECTION;
   bool isApMode = false, leaveRequested = false;
   std::unique_ptr<CrossPointWebServer> webServer;
@@ -428,6 +471,7 @@ static void start(const std::string& name) {
   input = {};
   nowMs = 100;
   WiFi = {};
+  gpio.active = false;
   Storage = {};
   WIFI_STORE = {};
   SETTINGS = {};
@@ -442,8 +486,10 @@ static void flush() {
 }
 int main() {
   start("rssi-hysteresis");
-  for (int current=-1;current<=5;++current) for(int rssi=-100;rssi<=0;++rssi)
-    record("rssi:"+std::to_string(current)+":"+std::to_string(rssi)+":"+std::to_string(barsForRssi(rssi,current)));
+  for (int current = -1; current <= 5; ++current)
+    for (int rssi = -100; rssi <= 0; ++rssi)
+      record("rssi:" + std::to_string(current) + ":" + std::to_string(rssi) + ":" +
+             std::to_string(barsForRssi(rssi, current)));
   flush();
   for (bool ok : {false, true}) {
     start("usb-entry-" + std::to_string(ok));
@@ -527,19 +573,27 @@ int main() {
     a.onExit();
     flush();
   }
-  for (int phase=0;phase<6;++phase) for (bool failed : {false,true}) {
-    start("usb-sleep-"+std::to_string(phase)+"-"+std::to_string(failed));
-    UsbDriveActivity a; a.state=static_cast<UsbDriveState>(phase);a.startFailed=failed;
-    record("prevent-sleep:"+std::to_string(a.preventAutoSleep()));flush();
-  }
+  for (int phase = 0; phase < 6; ++phase)
+    for (bool failed : {false, true}) {
+      start("usb-sleep-" + std::to_string(phase) + "-" + std::to_string(failed));
+      UsbDriveActivity a;
+      a.state = static_cast<UsbDriveState>(phase);
+      a.startFailed = failed;
+      record("prevent-sleep:" + std::to_string(a.preventAutoSleep()));
+      flush();
+    }
   {
-    start("usb-panel-busy");UsbDriveActivity a;Storage.state=UsbDriveState::WaitingForHost;
+    start("usb-panel-busy");
+    UsbDriveActivity a;
+    Storage.state = UsbDriveState::WaitingForHost;
     std::lock_guard<std::recursive_mutex> panelBusy(panelMutex);
-    for (bool press : {true,false}) {
-      input.pressed=press?1:0;input.released=press?0:1;
-      auto handled=std::async(std::launch::async,[&a]{a.loop();});
-      assert(handled.wait_for(std::chrono::seconds(2))==std::future_status::ready);
-      handled.get();record(press?"busy-press-handled":"busy-release-handled");
+    for (bool press : {true, false}) {
+      input.pressed = press ? 1 : 0;
+      input.released = press ? 0 : 1;
+      auto handled = std::async(std::launch::async, [&a] { a.loop(); });
+      assert(handled.wait_for(std::chrono::seconds(2)) == std::future_status::ready);
+      handled.get();
+      record(press ? "busy-press-handled" : "busy-release-handled");
     }
     flush();
   }
@@ -599,6 +653,25 @@ int main() {
         record("selection:" + std::to_string(a.savePromptSelection) + ":" + std::to_string(a.forgetPromptSelection));
         flush();
       }
+  for (bool connected : {false, true})
+    for (bool cancelled : {false, true}) {
+      start("calibre-enter-" + std::to_string(connected) + "-" + std::to_string(cancelled));
+      {
+        CalibreConnectActivity a;
+        WiFi.connected = connected ? WL_CONNECTED : 0;
+        a.onEnter();
+        if (!connected) {
+          ActivityResult result;
+          result.isCancelled = cancelled;
+          result.data = WifiResult{true, "child-network", "10.2.3.4"};
+          childResult(result);
+        }
+        record("connection:" + a.connectedSSID + ":" + a.connectedIP);
+        a.onExit();
+      }
+      childResult = {};
+      flush();
+    }
   for (bool ok : {false, true}) {
     start("calibre-start-" + std::to_string(ok));
     {
@@ -639,19 +712,63 @@ int main() {
       CrossPointWebServer::nextStatus.lastCompleteName = std::string(255, 'n') + ".epub";
       nowMs = 0xfffffff0u + age;
       a.loop();
-      record("completed:" + std::to_string(a.lastCompleteAt) + ":" + std::to_string(a.lastProcessedCompleteAt) + ":" + a.lastCompleteName);
+      record("completed:" + std::to_string(a.lastCompleteAt) + ":" + std::to_string(a.lastProcessedCompleteAt) + ":" +
+             a.lastCompleteName);
       a.loop();
-      record("completed-again:" + std::to_string(a.lastCompleteAt) + ":" + std::to_string(a.lastProcessedCompleteAt) + ":" + a.lastCompleteName);
+      record("completed-again:" + std::to_string(a.lastCompleteAt) + ":" + std::to_string(a.lastProcessedCompleteAt) +
+             ":" + a.lastCompleteName);
     }
     flush();
   }
+  for (int mode = -1; mode < 4; ++mode)
+    for (bool connected : {false, true}) {
+      start("web-enter-" + std::to_string(mode) + "-" + std::to_string(connected));
+      {
+        CrossPointWebServerActivity a;
+        a.connectedIP = "stale-ip";
+        a.connectedSSID = "stale-ssid";
+        a.onEnter();
+        ActivityResult result;
+        result.isCancelled = mode < 0;
+        result.data = NetworkModeResult{static_cast<NetworkMode>(std::max(mode, 0))};
+        auto callback = childResult;
+        callback(result);
+        if (mode == 0) {
+          result.isCancelled = !connected;
+          result.data = WifiResult{connected, "child-network", "10.2.3.4"};
+          callback = childResult;
+          callback(result);
+        } else if (mode == 1) {
+          callback = childResult;
+          callback(result);
+          result.isCancelled = true;
+          callback = childResult;
+          callback(result);
+        }
+        record("web-connection:" + a.connectedSSID + ":" + a.connectedIP);
+        record("web-state:" + std::to_string(static_cast<int>(a.state)) + ":" +
+               std::to_string(static_cast<int>(a.networkMode)) + ":" + std::to_string(a.isApMode));
+        a.onExit();
+      }
+      childResult = {};
+      flush();
+    }
+  start("web-enter-after-restart");
+  {
+    CrossPointWebServerActivity a;
+    a.startInJoinNetwork = true;
+    a.onEnter();
+    a.onExit();
+  }
+  childResult = {};
+  flush();
   for (bool ok : {false, true}) {
     start("web-ap-" + std::to_string(ok));
     {
       CrossPointWebServerActivity a;
       a.isApMode = true;
       WiFi.ap = ok;
-      a.startAccessPoint();
+      a.onNetworkModeSelected(NetworkMode::CREATE_HOTSPOT);
       a.onExit();
     }
     flush();
@@ -661,16 +778,55 @@ int main() {
     {
       CrossPointWebServerActivity a;
       CrossPointWebServer::startOk = ok;
-      a.startWebServer();
+      a.onWifiSelectionComplete(true);
       a.onExit();
     }
     flush();
   }
+  for (uint32_t age : {1999u, 2000u, 2001u, 300000u, 300001u})
+    for (bool recover : {false, true}) {
+      start("web-health-" + std::to_string(age) + "-" + std::to_string(recover));
+      {
+        CrossPointWebServerActivity a;
+        a.onWifiSelectionComplete(true);
+        a.webServer->stopAfter = 1;
+        nowMs = 1000000;
+        WiFi.connected = 0;
+        a.loop();
+        a.webServer->running = true;
+        a.webServer->clients = 0;
+        nowMs += age;
+        WiFi.connected = recover ? WL_CONNECTED : 0;
+        WiFi.signal = -80;
+        a.loop();
+        record("health:" + std::to_string(a.consecutiveDisconnects) + ":" + std::to_string(a.firstDisconnectAt) + ":" +
+               std::to_string(a.lastWifiBars) + ":" + std::to_string(static_cast<int>(a.state)));
+        a.onExit();
+      }
+      flush();
+    }
+  for (int edge = 0; edge < 4; ++edge)
+    for (bool debounce : {false, true}) {
+      start("web-upload-input-" + std::to_string(edge) + "-" + std::to_string(debounce));
+      {
+        CrossPointWebServerActivity a;
+        a.onWifiSelectionComplete(true);
+        a.webServer->stopAfter = 1;
+        a.webServer->callCancel = true;
+        gpio.active = debounce;
+        if (edge == 1) input.held = 1;
+        if (edge == 2) input.pressed = 1;
+        if (edge == 3) input.home = true;
+        a.loop();
+        a.onExit();
+      }
+      flush();
+    }
   for (bool leave : {false, true}) {
     start("web-loop-" + std::to_string(leave));
     {
       CrossPointWebServerActivity a;
-      a.startWebServer();
+      a.onWifiSelectionComplete(true);
       a.leaveRequested = leave;
       a.loop();
       a.onExit();

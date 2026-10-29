@@ -5,7 +5,7 @@ repo=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(repo/'test/ui_network'))
 import prepare
 root=repo/'src/activities/network'
-s=prepare.generate(frozen_usb=True)
+s=prepare.generate(frozen_usb=True, frozen_calibre=True)
 a=re.search(r'struct UsbDriveActivity\s*:\s*Activity\s*{',s).start();b=s.index('\n};',a)+3
 cls='''struct UsbDriveActivity:Activity {
  XpUiUsbState model{};

@@ -39,12 +39,18 @@ inline std::string hex(const uint8_t* data, size_t size) {
   return out;
 }
 inline std::vector<std::string> trace;
-inline unsigned long now = 1000;
+inline uint32_t now = 1000;
+inline std::string discoveryPacket;
+inline std::string serialBytes = "TEST-SERIAL";
 inline std::string failOperation;
 inline int failAfter = -1;
 inline bool cancelled = false, connected = true;
 inline bool cryptoTrace = false;
+inline bool chunkStaticBodies = false;
 inline std::function<void()> beforeResume;
+inline std::function<void()> httpDispatch;
+inline std::function<void()> beforeResponse;
+inline const String* headerScratch = nullptr;
 inline void cryptoInput(const char* name, const uint8_t* p, size_t n) {
   if (cryptoTrace) trace.push_back(std::string("crypto-input:") + name + ":" + hex(p, n));
 }
@@ -306,6 +312,8 @@ struct NetworkClient {
 };
 class WebServer {
  public:
+  static void* operator new(size_t size) noexcept { return host::fail("http-alloc") ? nullptr : ::operator new(size); }
+  static void operator delete(void* ptr) noexcept { ::operator delete(ptr); }
   explicit WebServer(uint16_t = 80) {}
   virtual ~WebServer() = default;
   String* _currentArgs = nullptr;
@@ -338,7 +346,11 @@ class WebServer {
   }
   void begin() { host::trace.emplace_back("server-begin"); }
   void stop() { host::trace.emplace_back("server-stop"); }
-  void handleClient() { host::trace.emplace_back("server-client"); }
+  void handleClient() {
+    host::trace.emplace_back("server-client");
+    auto dispatch = std::move(host::httpDispatch);
+    if (dispatch) dispatch();
+  }
   bool hasArg(const char* name) const { return args.count(name); }
   String arg(const char* name) const {
     auto it = args.find(name);
@@ -358,11 +370,21 @@ class WebServer {
     host::trace.push_back("length:" + (n == SIZE_MAX ? std::string("chunked") : std::to_string(n)));
   }
   void send(int code, const char* type, const String& body) const {
+    if (host::beforeResponse) host::beforeResponse();
     host::trace.push_back("response:" + std::to_string(code) + ":" + type + ":" + body);
   }
   void sendContent(const String& body) const { host::trace.push_back("chunk:" + body); }
   void send(int code) const { send(code, "text/html", ""); }
   void send_P(int code, const char* type, const char* data, size_t n) const {
+    if (host::beforeResponse) host::beforeResponse();
+    if (host::chunkStaticBodies || n >= 32000) {
+      host::trace.push_back("response-bytes:" + std::to_string(code) + ":" + type + ":" + std::to_string(n));
+      for (size_t offset = 0; offset < n; offset += 2048) {
+        host::trace.push_back("static-chunk:" + host::hex(reinterpret_cast<const uint8_t*>(data + offset),
+                                                          std::min(size_t(2048), n - offset)));
+      }
+      return;
+    }
     std::string hex;
     hex.reserve(n * 2);
     constexpr char digits[] = "0123456789abcdef";
@@ -375,11 +397,17 @@ class WebServer {
   }
   void sendContent(const char* body, size_t n) const { sendContent(String(body, n)); }
   void sendHeader(const char* name, const String& value, bool = false) const {
+    if (host::beforeResponse) host::beforeResponse();
     host::trace.push_back(std::string("header:") + name + ":" + value);
   }
 };
 enum WStype_t { WStype_DISCONNECTED, WStype_CONNECTED, WStype_TEXT, WStype_BIN };
 struct WebSocketsServer {
+  static void* operator new(size_t size) { return ::operator new(size); }
+  static void* operator new(size_t size, const std::nothrow_t&) noexcept {
+    return host::fail("ws-alloc") ? nullptr : ::operator new(size, std::nothrow);
+  }
+  static void operator delete(void* ptr) noexcept { ::operator delete(ptr); }
   void sendTXT(uint8_t num, const uint8_t* data, size_t len) {
     sendTXT(num, String(reinterpret_cast<const char*>(data), len));
   }
@@ -400,17 +428,24 @@ struct NetworkUDP {
     return !host::fail("udp");
   }
   void stop() { host::trace.emplace_back("udp-stop"); }
-  int parsePacket() const { return 0; }
-  int read(char*, size_t) const { return 0; }
+  int parsePacket() const { return host::discoveryPacket.size(); }
+  int read(char* out, size_t capacity) const {
+    const auto size = std::min(capacity, host::discoveryPacket.size());
+    std::memcpy(out, host::discoveryPacket.data(), size);
+    host::discoveryPacket.clear();
+    return size;
+  }
   int remoteIP() const { return 0; }
   int remotePort() const { return 0; }
-  void beginPacket(int, int) {}
-  void write(const uint8_t*, size_t) {}
-  void endPacket() {}
+  void beginPacket(int, int) { host::trace.emplace_back("udp-reply-begin"); }
+  void write(const uint8_t* bytes, size_t size) { host::trace.push_back("udp-reply:" + host::hex(bytes, size)); }
+  void endPacket() { host::trace.emplace_back("udp-reply-end"); }
 };
 
 // These helpers are supplied from the repository source by the extractor.
 namespace FsHelpers {
+// Frozen pre-port HiddenItems.h table, for original-C++ oracle replays.
+inline constexpr const char* HIDDEN_ITEMS[] = {"System Volume Information", "XTCache"};
 std::string normalisePath(std::string_view path);
 bool isSafePathComponent(std::string_view name);
 bool checkFileExtension(std::string_view name, const char* extension);

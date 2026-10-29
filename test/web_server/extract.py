@@ -25,6 +25,11 @@ def function(source, name):
 
 
 def generate(source, header):
+    # Match ESP32 unsigned-long clock arithmetic in the pre-port fetch oracle.
+    source = source.replace("const unsigned long fetchStartedAt", "const uint32_t fetchStartedAt")
+    source = source.replace("unsigned long lastBrowserHeartbeat", "uint32_t lastBrowserHeartbeat")
+    source = source.replace("const unsigned long now = millis();", "const uint32_t now = millis();")
+    source = source.replace("millis() - fetchStartedAt", "static_cast<unsigned long>(uint32_t(millis() - fetchStartedAt))")
     source = source.replace("void CrossPointWebServer::resumeTransferServices() {",
                             "void CrossPointWebServer::resumeTransferServices() {\n  if (host::beforeResume) host::beforeResume();")
     source = re.sub(r"\bJsonDocument\b", "WebJsonDocument", source)
@@ -34,9 +39,12 @@ def generate(source, header):
         'if (std::getenv("WEB_STRING_PARSE_CHECK") && b.argument.capacity() > std::string{}.capacity()) { '
         'std::cerr << "String scratch retained at parse completion: " << b.argument.capacity() << " B\\n"; std::abort(); }\n'
         'return {nullptr, 0};\n      }\n      if (!*key)')
+    source = source.replace('b.argument = b.owner.server->header(name);',
+                            'b.argument = b.owner.server->header(name); host::headerScratch = &b.argument;')
     header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
+    header = header.replace(": private XpWebLifecycle", ": public XpWebLifecycle")
     pieces = ['#include "Host.h"', '#include "Endpoints.h"', header]
     if "xp_web_files" in source:
         pieces.insert(0, '#include "xp_web.h"')
@@ -46,6 +54,14 @@ def generate(source, header):
     for include in re.findall(r'^#include "(html/[^"\n]+)"', source, re.MULTILINE):
         pieces.append('#include "src/network/' + include + '"')
     pieces.append(re.sub(r'^#include[^\n]*\n', '', source, flags=re.MULTILINE))
+    if "XpWebWsUpload wsPolicy" in source:
+        for old, field in {
+            "wsUploadSize": "total", "wsUploadReceived": "received",
+            "wsUploadStartTime": "started_at", "wsUploadInProgress": "active",
+            "wsUploadClientNum": "client", "wsLastProgressSent": "last_progress",
+            "wsLastCompleteSize": "complete_size", "wsLastCompleteAt": "completed_at",
+        }.items():
+            pieces.append(f"#define {old} wsPolicy.{field}")
     pieces.append('#include "Cases.h"')
     return "\n\n".join(pieces) + "\n"
 
@@ -79,7 +95,12 @@ def main():
                         "-I" + str(ROOT / "test/web_server"), "-I" + str(ROOT),
                         "-I" + str(args.arduinojson), "-I" + str(args.ffi_include),
                         str(generated), *link, "-o", str(args.build / "oracle")], check=True)
-        return subprocess.check_output([str(args.build / "oracle")])
+        try:
+            return subprocess.check_output([str(args.build / "oracle")])
+        except subprocess.CalledProcessError as error:
+            if text != source and error.returncode < 0:
+                return b"mutation rejected by host invariant\n"
+            raise
 
     actual = run(source)
     (args.build / "actual.jsonl").write_bytes(actual)
@@ -93,10 +114,15 @@ def main():
         failures = [b["case"] for a, b in zip(old, new) if a != b]
         raise SystemExit(f"web oracle mismatch: {failures}; expected {len(old)} cases, got {len(new)}")
     print(f"web oracle: {len(actual.splitlines())} cases match byte for byte")
+    guard = subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_TRACE_LIMIT_CHECK": "1"},
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if guard.returncode == 0 or b"transcript string limit:" not in guard.stderr:
+        raise SystemExit("transcript string-limit guard did not reject an oversized event")
+    print("transcript string-limit guard: passed")
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK"]:
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK", "WEB_STATIC_SCRATCH_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
         for stage in ["tls", "pkcs12", "resume", "fetch"]:
@@ -179,6 +205,30 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed fetch policy")
         print("mutation check: rejected changed fetch policy")
+        changed = source.replace("delay(20);", "delay(21);", 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed stop ordering delay")
+        print("mutation check: rejected changed stop delay")
+        changed = source.replace('doc["mode"] = apMode ? "AP" : "STA";',
+                                 'doc["mode"] = apMode ? "STA" : "AP";', 1)
+        if changed == source:
+            changed = source.replace('&WebStatusBridge::services, apMode);',
+                                     '&WebStatusBridge::services, !apMode);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed status mode")
+        print("mutation check: rejected changed status mode")
+        changed = source.replace('WiFi.softAPIP()', 'WiFi.localIP()')
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject swapped status IP source")
+        print("mutation check: rejected swapped status IP source")
+        changed = source.replace('HomePageHtml, sizeof(HomePageHtml), HomePageHtmlETag',
+                                 'FilesPageHtml, sizeof(FilesPageHtml), FilesPageHtmlETag', 1)
+        if changed == source:
+            changed = source.replace('WebFileBridge::page(*this, XP_WEB_PAGE_HOME);',
+                                     'WebFileBridge::page(*this, XP_WEB_PAGE_FILES);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed static resource")
+        print("mutation check: rejected changed static resource")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
         if changed == source:

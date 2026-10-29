@@ -27,7 +27,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -59,9 +58,6 @@
 #include "util/PluginLocations.h"
 #include "util/TaskWatchdog.h"
 
-static void sendStaticContent(WebServer* server, const char* data, size_t len, const char* etag,
-                              const char* contentType);
-
 namespace {
 // Arduino's WebServer retains parsed request arguments until the next request.
 // For JSON POSTs, that includes the complete "plain" body. Expose a narrowly
@@ -90,9 +86,6 @@ void releaseRequestArguments(WebServer* server) {
   static_cast<CrossPointHttpServer*>(server)->releaseRequestArguments();
 }
 
-constexpr uint16_t UDP_PORTS[] = {54982, 48123, 39001, 44044, 59678};
-constexpr uint16_t LOCAL_UDP_PORT = 8134;
-
 // Static pointer for WebSocket callback (WebSocketsServer requires C-style callback)
 CrossPointWebServer* wsInstance = nullptr;
 
@@ -100,19 +93,13 @@ CrossPointWebServer* wsInstance = nullptr;
 HalFile wsUploadFile;
 String wsUploadFileName;
 String wsUploadPath;
-size_t wsUploadSize = 0;
-size_t wsUploadReceived = 0;
-unsigned long wsUploadStartTime = 0;
-bool wsUploadInProgress = false;
+XpWebWsUpload wsPolicy{.client = 255};
 // sendTXT can synchronously report disconnection. Return it to Rust after the
 // transport call so the live policy state handles it without reentrant loans.
 bool wsSending = false;
 bool wsSendDisconnected = false;
-uint8_t wsUploadClientNum = 255;  // 255 = no active upload client
-size_t wsLastProgressSent = 0;
+
 String wsLastCompleteName;
-size_t wsLastCompleteSize = 0;
-unsigned long wsLastCompleteAt = 0;
 
 }  // namespace
 
@@ -158,8 +145,8 @@ struct WebFileBridge {
     b.argument = b.owner.server->header(name);
     return span(b.argument);
   }
-  static void sendAsset(void* ctx, XpWebText asset) {
-    self(ctx).owner.server->send_P(200, "text/html", reinterpret_cast<const char*>(asset.data), asset.len);
+  static void sendAsset(void* ctx, XpWebText asset, const char* type) {
+    self(ctx).owner.server->send_P(200, type, reinterpret_cast<const char*>(asset.data), asset.len);
   }
   static String string(const XpWebText value) { return String(reinterpret_cast<const char*>(value.data), value.len); }
   static WebFileBridge& self(void* ctx) { return *static_cast<WebFileBridge*>(ctx); }
@@ -196,6 +183,7 @@ struct WebFileBridge {
   }
   static void http(const CrossPointWebServer&, CrossPointWebServer::UploadState&, uint32_t);
   static void ws(const CrossPointWebServer&, uint8_t, uint32_t, uint8_t*, size_t);
+  static void page(const CrossPointWebServer&, XpWebPage);
   static const XpWebTransfers transfers;
   static const XpWebServices services;
 };
@@ -395,6 +383,12 @@ const XpWebServices WebFileBridge::services = {
             case XP_WEB_MOVE_FAILED:
               LOG_ERR("WEB", "Failed to move file: %.*s -> %.*s", int(a.len), x, int(b.len), y);
               break;
+            case XP_WEB_ROOT_PAGE:
+              LOG_DBG("WEB", "Served root page");
+              break;
+            case XP_WEB_JSZIP_PAGE:
+              LOG_DBG("WEB", "Served jszip.min.js");
+              break;
             case XP_WEB_OOM:
               LOG_ERR("WEB", "OOM: web file request");
               break;
@@ -402,52 +396,286 @@ const XpWebServices WebFileBridge::services = {
         },
     .memory_error = [](void*) { return tr(STR_MEMORY_ERROR); }};
 
-CrossPointWebServer::CrossPointWebServer() { xp_web_job_init(&pluginJobs); }
+struct WebLifeBridge {
+  CrossPointWebServer& owner;
+  String hostname;
+  static WebLifeBridge& self(void* ctx) { return *static_cast<WebLifeBridge*>(ctx); }
+  static const XpWebLifeServices services;
+  static void run(CrossPointWebServer& owner, XpWebLifeAction action) {
+    WebLifeBridge bridge{owner, {}};
+    xp_web_lifecycle(&bridge, &services, &owner, action, owner.wsPort);
+  }
+};
+const XpWebLifeServices WebLifeBridge::services = {
+    .operation = [](void* ctx, XpWebLifeOp op) -> uintptr_t {
+      auto& o = self(ctx).owner;
+      switch (op) {
+        case XP_WEB_LIFE_NETWORK_MODE: {
+          return WiFi.getMode();
+        }
+        case XP_WEB_LIFE_STA_CONNECTED: {
+          return WiFi.status() == WL_CONNECTED;
+        }
+        case XP_WEB_LIFE_AP_STATIONS: {
+          return WiFi.softAPgetStationNum() >= 0;
+        }
+        case XP_WEB_LIFE_HTTP_PRESENT: {
+          return bool(o.server);
+        }
+        case XP_WEB_LIFE_WS_PRESENT: {
+          return bool(o.wsServer);
+        }
+        case XP_WEB_LIFE_WS_ACTIVE: {
+          return wsPolicy.active;
+        }
+        case XP_WEB_LIFE_WS_FILE: {
+          return bool(wsUploadFile);
+        }
+        case XP_WEB_LIFE_ALLOCATE_HTTP: {
+          o.server.reset(new CrossPointHttpServer(o.port));
+          break;
+        }
+        case XP_WEB_LIFE_WIFI_AWAKE: {
+          WiFi.setSleep(false);
+          WiFi.setAutoReconnect(true);
+          break;
+        }
+        case XP_WEB_LIFE_REGISTER: {
+          o.registerRoutes();
+          break;
+        }
+        case XP_WEB_LIFE_HTTP_BEGIN: {
+          o.server->begin();
+          break;
+        }
+        case XP_WEB_LIFE_ALLOCATE_WS: {
+          o.wsServer.reset(new WebSocketsServer(o.wsPort));
+          wsInstance = &o;
+          break;
+        }
+        case XP_WEB_LIFE_RESTART_WS: {
+          o.wsServer.reset(new (std::nothrow) WebSocketsServer(o.wsPort));
+          return bool(o.wsServer);
+        }
+        case XP_WEB_LIFE_WS_BEGIN: {
+          o.wsServer->begin();
+          o.wsServer->onEvent(CrossPointWebServer::wsEventCallback);
+          break;
+        }
+        case XP_WEB_LIFE_UDP_BEGIN: {
+          return o.udp.begin(8134);
+        }
+        case XP_WEB_LIFE_UDP_STOP: {
+          o.udp.stop();
+          break;
+        }
+        case XP_WEB_LIFE_WS_CLOSE: {
+          o.wsServer->close();
+          o.wsServer.reset();
+          break;
+        }
+        case XP_WEB_LIFE_WS_DETACH: {
+          wsInstance = nullptr;
+          break;
+        }
+        case XP_WEB_LIFE_ABORT_WS: {
+          o.abortWsUpload("WEB");
+          break;
+        }
+        case XP_WEB_LIFE_DELAY20: {
+          delay(20);
+          break;
+        }
+        case XP_WEB_LIFE_DELAY10: {
+          delay(10);
+          break;
+        }
+        case XP_WEB_LIFE_HTTP_STOP: {
+          o.server->stop();
+          break;
+        }
+        case XP_WEB_LIFE_HTTP_DELETE: {
+          o.server.reset();
+          break;
+        }
+        case XP_WEB_LIFE_HTTP_PUMP: {
+          o.server->handleClient();
+          releaseRequestArguments(o.server.get());
+          break;
+        }
+        case XP_WEB_LIFE_WS_PUMP: {
+          o.wsServer->loop();
+          break;
+        }
+        case XP_WEB_LIFE_CLOCK: {
+          return millis();
+        }
+        case XP_WEB_LIFE_UDP_SIZE: {
+          return o.udp.parsePacket();
+        }
+      }
+      return 0;
+    },
+    .diagnostic =
+        [](void* ctx, XpWebLifeLog event, uint32_t value) {
+          auto& o = self(ctx).owner;
+          switch (event) {
+            case XP_WEB_LIFE_LOG_ALREADY_RUNNING: {
+              LOG_DBG("WEB", "Web server already running");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_NO_NETWORK: {
+              LOG_DBG("WEB", "Cannot start webserver - no valid network (mode=%d, status=%d)", int(value),
+                      WiFi.status());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_BEFORE_BEGIN: {
+              LOG_DBG("WEB", "[MEM] Free heap before begin: %d bytes", ESP.getFreeHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_NETWORK: {
+              LOG_DBG("WEB", "Network mode: %s", o.apMode ? "AP" : "STA");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_CREATE_HTTP: {
+              LOG_DBG("WEB", "Creating web server on port %d...", o.port);
+              break;
+            }
+            case XP_WEB_LIFE_LOG_AFTER_ALLOCATE: {
+              LOG_DBG("WEB", "[MEM] Free heap after WebServer allocation: %d bytes", ESP.getFreeHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_HTTP_OOM: {
+              LOG_ERR("WEB", "Failed to create WebServer!");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_START_WS: {
+              LOG_DBG("WEB", "Starting WebSocket server on port %d...", o.wsPort);
+              break;
+            }
+            case XP_WEB_LIFE_LOG_WS_STARTED: {
+              LOG_DBG("WEB", "WebSocket server started");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_DISCOVERY: {
+              LOG_DBG("WEB", "Discovery UDP %s on port %d", o.udpActive ? "enabled" : "failed", 8134);
+              break;
+            }
+            case XP_WEB_LIFE_LOG_STARTED: {
+              LOG_DBG("WEB", "Web server started on port %d", o.port);
+              break;
+            }
+            case XP_WEB_LIFE_LOG_ADDRESSES: {
+              const String ipAddr = o.apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+              LOG_DBG("WEB", "Access at http://%s/", ipAddr.c_str());
+              LOG_DBG("WEB", "WebSocket at ws://%s:%d/", ipAddr.c_str(), o.wsPort);
+              break;
+            }
+            case XP_WEB_LIFE_LOG_AFTER_BEGIN: {
+              LOG_DBG("WEB", "[MEM] Free heap after server.begin(): %d bytes", ESP.getFreeHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_SUSPENDED: {
+              LOG_DBG("WEB", "Transfer services suspended, heap %u, max block %u", (unsigned)ESP.getFreeHeap(),
+                      (unsigned)ESP.getMaxAllocHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_RESTART_OOM: {
+              LOG_ERR("WEB", "OOM: WebSocket server restart");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_RESUMED: {
+              LOG_DBG("WEB", "Transfer services resumed, heap %u, max block %u", (unsigned)ESP.getFreeHeap(),
+                      (unsigned)ESP.getMaxAllocHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_ALREADY_STOPPED: {
+              LOG_DBG("WEB", "stop() called but already stopped (running=%d, server=%p)", o.running, o.server.get());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_STOPPING: {
+              LOG_DBG("WEB", "STOP INITIATED - setting running=false first");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_BEFORE_STOP: {
+              LOG_DBG("WEB", "[MEM] Free heap before stop: %d bytes", ESP.getFreeHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_WS_STOPPING: {
+              LOG_DBG("WEB", "Stopping WebSocket server...");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_WS_STOPPED: {
+              LOG_DBG("WEB", "WebSocket server stopped");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_AFTER_STOP: {
+              LOG_DBG("WEB", "[MEM] Free heap after server->stop(): %d bytes", ESP.getFreeHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_DELETED: {
+              LOG_DBG("WEB", "Web server stopped and deleted");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_AFTER_DELETE: {
+              LOG_DBG("WEB", "[MEM] Free heap after delete server: %d bytes", ESP.getFreeHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_FINAL: {
+              LOG_DBG("WEB", "[MEM] Free heap final: %d bytes", ESP.getFreeHeap());
+              break;
+            }
+            case XP_WEB_LIFE_LOG_NULL_HTTP: {
+              LOG_DBG("WEB", "WARNING: handleClient called with null server!");
+              break;
+            }
+            case XP_WEB_LIFE_LOG_ACTIVE: {
+              LOG_DBG("WEB", "handleClient active, server running on port %d", o.port);
+              break;
+            }
+          }
+        },
+    .read_packet = [](void* ctx, uint8_t* bytes, size_t cap) -> int32_t {
+      return self(ctx).owner.udp.read(reinterpret_cast<char*>(bytes), cap);
+    },
+    .hostname = [](void* ctx) -> XpWebText {
+      auto& b = self(ctx);
+      b.hostname = WiFi.getHostname();
+      return WebFileBridge::span(b.hostname);
+    },
+    .reply =
+        [](void* ctx, XpWebText prefix, XpWebText host, XpWebText suffix) {
+          auto& udp = self(ctx).owner.udp;
+          String message = [&] {
+            // An invalid sum preserves the original prefix constructor allocation.
+            StringSumHelper sum(static_cast<const char*>(nullptr));
+            const auto append = [&sum](XpWebText text) {
+              if (!sum.concat(reinterpret_cast<const char*>(text.data), text.len)) {
+                static_cast<String&>(sum) = static_cast<const char*>(nullptr);
+              }
+            };
+            append(prefix);
+            append(host);
+            // Preserve StringSumHelper's separate punctuation/port failures and final copy.
+            append({suffix.data, 2});
+            append({suffix.data + 2, suffix.len - 2});
+            return String(sum);
+          }();
+          udp.beginPacket(udp.remoteIP(), udp.remotePort());
+          udp.write(reinterpret_cast<const uint8_t*>(message.c_str()), message.length());
+          udp.endPacket();
+        }};
+void CrossPointWebServer::begin() { WebLifeBridge::run(*this, XP_WEB_BEGIN); }
+void CrossPointWebServer::stop() { WebLifeBridge::run(*this, XP_WEB_STOP); }
+void CrossPointWebServer::handleClient() { WebLifeBridge::run(*this, XP_WEB_PUMP); }
+void CrossPointWebServer::suspendTransferServices() { WebLifeBridge::run(*this, XP_WEB_SUSPEND); }
+void CrossPointWebServer::resumeTransferServices() { WebLifeBridge::run(*this, XP_WEB_RESUME); }
+
+CrossPointWebServer::CrossPointWebServer() : XpWebLifecycle{} { xp_web_job_init(&pluginJobs); }
 
 CrossPointWebServer::~CrossPointWebServer() { stop(); }
 
-void CrossPointWebServer::begin() {
-  if (running) {
-    LOG_DBG("WEB", "Web server already running");
-    return;
-  }
-
-  // Check if we have a valid network connection (either STA connected or AP mode)
-  const wifi_mode_t wifiMode = WiFi.getMode();
-  const bool isStaConnected = (wifiMode & WIFI_MODE_STA) && (WiFi.status() == WL_CONNECTED);
-  const bool isInApMode = (wifiMode & WIFI_MODE_AP) && (WiFi.softAPgetStationNum() >= 0);  // AP is running
-
-  if (!isStaConnected && !isInApMode) {
-    LOG_DBG("WEB", "Cannot start webserver - no valid network (mode=%d, status=%d)", wifiMode, WiFi.status());
-    return;
-  }
-
-  // Store AP mode flag for later use (e.g., in handleStatus)
-  apMode = isInApMode;
-
-  LOG_DBG("WEB", "[MEM] Free heap before begin: %d bytes", ESP.getFreeHeap());
-  LOG_DBG("WEB", "Network mode: %s", apMode ? "AP" : "STA");
-
-  LOG_DBG("WEB", "Creating web server on port %d...", port);
-  server.reset(new CrossPointHttpServer(port));
-
-  // Disable WiFi sleep to improve responsiveness and prevent 'unreachable' errors.
-  // This is critical for reliable web server operation on ESP32.
-  WiFi.setSleep(false);
-  // Default varies by ESP32 core version. The activity's loss-recovery loop
-  // relies on driver retries during transient disconnects.
-  WiFi.setAutoReconnect(true);
-
-  // Note: WebServer class doesn't have setNoDelay() in the standard ESP32 library.
-  // We rely on disabling WiFi sleep for responsiveness.
-
-  LOG_DBG("WEB", "[MEM] Free heap after WebServer allocation: %d bytes", ESP.getFreeHeap());
-
-  if (!server) {
-    LOG_ERR("WEB", "Failed to create WebServer!");
-    return;
-  }
-
+void CrossPointWebServer::registerRoutes() {
   // Add Access-Control-Allow-* headers to every response so web-based clients
   // and PWAs on other origins can use the HTTP API. Preflight OPTIONS requests
   // are answered in handleNotFound().
@@ -459,14 +687,9 @@ void CrossPointWebServer::begin() {
   server->on("/files", HTTP_GET, [this] { handleFileList(); });
   server->on("/js/jszip.min.js", HTTP_GET, [this] { handleJszip(); });
 
-  server->on("/assets/web.css", HTTP_GET,
-             [this] { sendStaticContent(server.get(), webCss, sizeof(webCss), webCssETag, "text/css"); });
-  server->on("/assets/icons.svg", HTTP_GET,
-             [this] { sendStaticContent(server.get(), iconsSvg, sizeof(iconsSvg), iconsSvgETag, "image/svg+xml"); });
-  server->on("/assets/crosspoint-icon.svg", HTTP_GET, [this] {
-    sendStaticContent(server.get(), crosspoint_iconSvg, sizeof(crosspoint_iconSvg), crosspoint_iconSvgETag,
-                      "image/svg+xml");
-  });
+  server->on("/assets/web.css", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_CSS); });
+  server->on("/assets/icons.svg", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_ICONS); });
+  server->on("/assets/crosspoint-icon.svg", HTTP_GET, [this] { WebFileBridge::page(*this, XP_WEB_PAGE_ICON); });
 
   server->on("/api/status", HTTP_GET, [this] { handleStatus(); });
   server->on("/api/files", HTTP_GET, [this] { handleFileListData(); });
@@ -532,64 +755,7 @@ void CrossPointWebServer::begin() {
   server->collectHeaders(collectedHeaders, 7);
   server->addHandler(new WebDAVHandler());  // Note: WebDAVHandler will be deleted by WebServer when server is stopped
   LOG_DBG("WEB", "WebDAV handler initialized");
-
-  server->begin();
-
-  // Start WebSocket server for fast binary uploads
-  LOG_DBG("WEB", "Starting WebSocket server on port %d...", wsPort);
-  wsServer.reset(new WebSocketsServer(wsPort));
-  wsInstance = const_cast<CrossPointWebServer*>(this);
-  wsServer->begin();
-  wsServer->onEvent(wsEventCallback);
-  LOG_DBG("WEB", "WebSocket server started");
-
-  udpActive = udp.begin(LOCAL_UDP_PORT);
-  LOG_DBG("WEB", "Discovery UDP %s on port %d", udpActive ? "enabled" : "failed", LOCAL_UDP_PORT);
-
-  // Do not subscribe the serving task to the task watchdog. Arduino WebServer
-  // permits five-second client and ACK waits, which can consume the entire
-  // default watchdog window on a weak connection. The interrupt watchdog still
-  // catches hard CPU lockups, matching the rest of the application lifecycle.
-
-  running = true;
-
-  LOG_DBG("WEB", "Web server started on port %d", port);
-  // Show the correct IP based on network mode
-  const String ipAddr = apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
-  LOG_DBG("WEB", "Access at http://%s/", ipAddr.c_str());
-  LOG_DBG("WEB", "WebSocket at ws://%s:%d/", ipAddr.c_str(), wsPort);
-  LOG_DBG("WEB", "[MEM] Free heap after server.begin(): %d bytes", ESP.getFreeHeap());
 }
-
-void CrossPointWebServer::suspendTransferServices() {
-  // Leave the WebSocket server alone mid-upload; killing it would abort the
-  // transfer. The fetch just stalls that upload until it completes.
-  if (wsServer && !wsUploadInProgress) {
-    wsServer->close();
-    wsServer.reset();
-  }
-  if (udpActive) udp.stop();
-  LOG_DBG("WEB", "Transfer services suspended, heap %u, max block %u", (unsigned)ESP.getFreeHeap(),
-          (unsigned)ESP.getMaxAllocHeap());
-}
-
-void CrossPointWebServer::resumeTransferServices() {
-  if (!running) return;
-  if (!wsServer) {
-    auto* ws = new (std::nothrow) WebSocketsServer(wsPort);
-    if (ws) {
-      wsServer.reset(ws);
-      wsServer->begin();
-      wsServer->onEvent(wsEventCallback);
-    } else {
-      LOG_ERR("WEB", "OOM: WebSocket server restart");
-    }
-  }
-  if (udpActive) udpActive = udp.begin(LOCAL_UDP_PORT);
-  LOG_DBG("WEB", "Transfer services resumed, heap %u, max block %u", (unsigned)ESP.getFreeHeap(),
-          (unsigned)ESP.getMaxAllocHeap());
-}
-
 bool CrossPointWebServer::dropUploadIfCancelled() const {
   if (!uploadCancelCheck || !uploadCancelCheck()) return false;
   // WebServer's next read of the body then fails and it raises UPLOAD_FILE_ABORTED.
@@ -599,227 +765,147 @@ bool CrossPointWebServer::dropUploadIfCancelled() const {
 
 void CrossPointWebServer::abortWsUpload(const char*) { WebFileBridge::ws(*this, 255, 4, nullptr, 0); }
 
-void CrossPointWebServer::stop() {
-  if (!running || !server) {
-    LOG_DBG("WEB", "stop() called but already stopped (running=%d, server=%p)", running, server.get());
-    return;
-  }
-
-  LOG_DBG("WEB", "STOP INITIATED - setting running=false first");
-  running = false;  // Set this FIRST to prevent handleClient from using server
-
-  LOG_DBG("WEB", "[MEM] Free heap before stop: %d bytes", ESP.getFreeHeap());
-
-  // Close any in-progress WebSocket upload and remove partial file
-  if (wsUploadInProgress && wsUploadFile) {
-    abortWsUpload("WEB");
-  }
-
-  // Stop WebSocket server
-  if (wsServer) {
-    LOG_DBG("WEB", "Stopping WebSocket server...");
-    wsServer->close();
-    wsServer.reset();
-    wsInstance = nullptr;
-    LOG_DBG("WEB", "WebSocket server stopped");
-  }
-
-  if (udpActive) {
-    udp.stop();
-    udpActive = false;
-  }
-
-  // Brief delay to allow any in-flight handleClient() calls to complete
-  delay(20);
-
-  server->stop();
-  LOG_DBG("WEB", "[MEM] Free heap after server->stop(): %d bytes", ESP.getFreeHeap());
-
-  // Brief delay before deletion
-  delay(10);
-
-  server.reset();
-  LOG_DBG("WEB", "Web server stopped and deleted");
-  LOG_DBG("WEB", "[MEM] Free heap after delete server: %d bytes", ESP.getFreeHeap());
-
-  // Note: Static upload variables (uploadFileName, uploadPath, uploadError) are declared
-  // later in the file and will be cleared when they go out of scope or on next upload
-  LOG_DBG("WEB", "[MEM] Free heap final: %d bytes", ESP.getFreeHeap());
-}
-
-void CrossPointWebServer::handleClient() {
-  static unsigned long lastDebugPrint = 0;
-
-  // Check running flag FIRST before accessing server
-  if (!running) {
-    return;
-  }
-
-  // Double-check server pointer is valid
-  if (!server) {
-    LOG_DBG("WEB", "WARNING: handleClient called with null server!");
-    return;
-  }
-
-  // Print debug every 10 seconds to confirm handleClient is being called
-  if (millis() - lastDebugPrint > 10000) {
-    LOG_DBG("WEB", "handleClient active, server running on port %d", port);
-    lastDebugPrint = millis();
-  }
-
-  server->handleClient();
-  // WebServer otherwise keeps the last request's argument strings allocated
-  // until another request arrives. They are no longer observable once its
-  // handler returns, so release them now instead of retaining a JSON body.
-  releaseRequestArguments(server.get());
-
-  // Handle WebSocket events
-  if (wsServer) {
-    wsServer->loop();
-  }
-
-  // Respond to discovery broadcasts
-  if (udpActive) {
-    int packetSize = udp.parsePacket();
-    if (packetSize > 0) {
-      char buffer[16];
-      int len = udp.read(buffer, sizeof(buffer) - 1);
-      if (len > 0) {
-        buffer[len] = '\0';
-        if (strcmp(buffer, "hello") == 0) {
-          String hostname = WiFi.getHostname();
-          if (hostname.isEmpty()) {
-            hostname = "crosspoint";
-          }
-          String message = "crosspoint (on " + hostname + ");" + String(wsPort);
-          udp.beginPacket(udp.remoteIP(), udp.remotePort());
-          udp.write(reinterpret_cast<const uint8_t*>(message.c_str()), message.length());
-          udp.endPacket();
-        }
-      }
-    }
-  }
-}
-
 CrossPointWebServer::WsUploadStatus CrossPointWebServer::getWsUploadStatus() const {
   WsUploadStatus status;
-  status.inProgress = wsUploadInProgress;
-  status.received = wsUploadReceived;
-  status.total = wsUploadSize;
+  status.inProgress = wsPolicy.active;
+  status.received = wsPolicy.received;
+  status.total = wsPolicy.total;
   status.filename = wsUploadFileName.c_str();
   status.lastCompleteName = wsLastCompleteName.c_str();
-  status.lastCompleteSize = wsLastCompleteSize;
-  status.lastCompleteAt = wsLastCompleteAt;
+  status.lastCompleteSize = wsPolicy.complete_size;
+  status.lastCompleteAt = wsPolicy.completed_at;
   return status;
 }
 
-static void sendStaticContent(WebServer* server, const char* data, size_t len, const char* etag,
-                              const char* contentType) {
-  // Content is baked into flash at build time, so the ETag is stable for the
-  // lifetime of a firmware image. Honor If-None-Match with a 304 so browsers
-  // reuse their cache instead of re-downloading on every navigation.
-  if (server->header("If-None-Match") == etag) {
-    server->sendHeader("ETag", etag);
-    server->sendHeader("Cache-Control", "no-cache");
-    server->send(304);
-    return;
-  }
-  server->sendHeader("Content-Encoding", "gzip");
-  server->sendHeader("ETag", etag);
-  // no-cache: the browser may cache, but must revalidate (conditional GET)
-  // before reuse — this is what unlocks 304 responses.
-  server->sendHeader("Cache-Control", "no-cache");
-  server->send_P(200, contentType, data, len);
+void WebFileBridge::page(const CrossPointWebServer& owner, XpWebPage page) {
+  static const XpWebAsset assets[] = {
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(HomePageHtml), sizeof(HomePageHtml)},
+       {reinterpret_cast<const uint8_t*>(HomePageHtmlETag), strlen(HomePageHtmlETag)},
+       "text/html"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(FilesPageHtml), sizeof(FilesPageHtml)},
+       {reinterpret_cast<const uint8_t*>(FilesPageHtmlETag), strlen(FilesPageHtmlETag)},
+       "text/html"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(jszip_minJs), sizeof(jszip_minJs)},
+       {reinterpret_cast<const uint8_t*>(jszip_minJsETag), strlen(jszip_minJsETag)},
+       "application/javascript"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(webCss), sizeof(webCss)},
+       {reinterpret_cast<const uint8_t*>(webCssETag), strlen(webCssETag)},
+       "text/css"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(iconsSvg), sizeof(iconsSvg)},
+       {reinterpret_cast<const uint8_t*>(iconsSvgETag), strlen(iconsSvgETag)},
+       "image/svg+xml"},
+      {requestHeader,
+       sendAsset,
+       {reinterpret_cast<const uint8_t*>(crosspoint_iconSvg), sizeof(crosspoint_iconSvg)},
+       {reinterpret_cast<const uint8_t*>(crosspoint_iconSvgETag), strlen(crosspoint_iconSvgETag)},
+       "image/svg+xml"},
+  };
+  WebFileBridge bridge(owner);
+  xp_web_page(&bridge, &services, assets, sizeof(assets) / sizeof(assets[0]), page);
 }
-
-void CrossPointWebServer::handleRoot() const {
-  sendStaticContent(server.get(), HomePageHtml, sizeof(HomePageHtml), HomePageHtmlETag, "text/html");
-  LOG_DBG("WEB", "Served root page");
-}
-
-void CrossPointWebServer::handleJszip() const {
-  sendStaticContent(server.get(), jszip_minJs, jszip_minJsCompressedSize, jszip_minJsETag, "application/javascript");
-  LOG_DBG("WEB", "Served jszip.min.js");
-}
+void CrossPointWebServer::handleRoot() const { WebFileBridge::page(*this, XP_WEB_PAGE_HOME); }
+void CrossPointWebServer::handleJszip() const { WebFileBridge::page(*this, XP_WEB_PAGE_JSZIP); }
 
 void CrossPointWebServer::handleNotFound() const { WebFileBridge::route(*this, XP_WEB_NOT_FOUND); }
 
-void CrossPointWebServer::handleStatus() const {
-  // Get correct IP based on AP vs STA mode
-  const String ipAddr = apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
-
-  JsonDocument doc;
-  doc["version"] = CROSSPOINT_VERSION;
-  doc["firmwareFamily"] = firmwareidentity::FAMILY;
-  doc["pluginApi"] = firmwareidentity::PLUGIN_API_VERSION;
-  doc["pluginCapabilities"] = firmwareidentity::PLUGIN_CAPABILITIES;
-  doc["ip"] = ipAddr;
-  doc["mode"] = apMode ? "AP" : "STA";
-  doc["rssi"] = apMode ? 0 : WiFi.RSSI();
-  doc["freeHeap"] = ESP.getFreeHeap();
-  doc["uptime"] = millis() / 1000;
-  // ?plugin=<name> adds a stable device ID for that plugin: sha256(secret ||
-  // name). Not reversible to any hardware ID, and different per plugin.
-  String plugin = server->arg("plugin");
-  plugin.toLowerCase();  // FAT folder names ignore case
-  uint8_t secret[32];
-  if (!plugin.isEmpty() && plugin.length() <= 64 && deviceSecret(secret)) {
-    uint8_t input[32 + 64];
-    memcpy(input, secret, sizeof(secret));
-    memcpy(input + sizeof(secret), plugin.c_str(), plugin.length());
-    uint8_t hash[32];
-    if (wc_Sha256Hash(input, sizeof(secret) + plugin.length(), hash) == 0) {
-      char hex[65];
-      for (size_t i = 0; i < sizeof(hash); i++) snprintf(hex + 2 * i, 3, "%02x", hash[i]);
-      doc["deviceId"] = hex;
-    }
-  }
+struct WebStatusBridge {
+  const CrossPointWebServer& owner;
+  String argument;
+  JsonDocument paths;
+  explicit WebStatusBridge(const CrossPointWebServer& owner) : owner(owner) {}
+  static WebStatusBridge& self(void* ctx) { return *static_cast<WebStatusBridge*>(ctx); }
+  static const XpWebStatusServices services;
+};
+const XpWebStatusServices WebStatusBridge::services = {
+    .read = [](void* ctx, XpWebStatusText field, bool ap) -> XpWebText {
+      auto& b = self(ctx);
+      switch (field) {
+        case XP_WEB_STATUS_VERSION:
+          return {reinterpret_cast<const uint8_t*>(CROSSPOINT_VERSION), strlen(CROSSPOINT_VERSION)};
+        case XP_WEB_STATUS_FAMILY:
+          return {reinterpret_cast<const uint8_t*>(firmwareidentity::FAMILY), strlen(firmwareidentity::FAMILY)};
+        case XP_WEB_STATUS_CAPABILITIES:
+          return {reinterpret_cast<const uint8_t*>(firmwareidentity::PLUGIN_CAPABILITIES),
+                  strlen(firmwareidentity::PLUGIN_CAPABILITIES)};
+        case XP_WEB_STATUS_PLUGIN:
+          b.argument = b.owner.server->arg("plugin");
+          return WebFileBridge::span(b.argument);
+        case XP_WEB_STATUS_IP:
+          b.argument = ap ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+          return WebFileBridge::span(b.argument);
+        case XP_WEB_STATUS_DEVICE: {
 #if FREEINK_DEVICE_X4 || FREEINK_DEVICE_X3
-  doc["device"] = gpio.deviceIsX3() ? "X3" : "X4";
+          const char* device = gpio.deviceIsX3() ? "X3" : "X4";
 #else
-  doc["device"] = BoardConfig::ACTIVE.name;
+          const char* device = BoardConfig::ACTIVE.name;
 #endif
-
-  char snBuf[33] = {0};
-  bool valid = false;
-#if !CONFIG_IDF_TARGET_ESP32
-  // Classic ESP32's efuse table has no USER_DATA block (C3/S3 only)
-  if (esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA, snBuf, 256) == ESP_OK) {
-    valid = snBuf[0] != '\0' && snBuf[0] != (char)0xFF;
-    for (int i = 0; i < 32 && snBuf[i] != '\0'; i++) {
-      if (!std::isprint(static_cast<unsigned char>(snBuf[i]))) {
-        valid = false;
-        break;
+          return {reinterpret_cast<const uint8_t*>(device), strlen(device)};
+        }
       }
-    }
-  }
+      return {nullptr, 0};
+    },
+    .number = [](void*, XpWebStatusNumber field) -> int32_t {
+      switch (field) {
+        case XP_WEB_STATUS_API:
+          return firmwareidentity::PLUGIN_API_VERSION;
+        case XP_WEB_STATUS_RSSI:
+          return WiFi.RSSI();
+        case XP_WEB_STATUS_HEAP:
+          return ESP.getFreeHeap();
+        case XP_WEB_STATUS_TIME:
+          return millis();
+      }
+      return 0;
+    },
+    .put_text =
+        [](void* ctx, const char* key, XpWebText value, bool copy) {
+          self(ctx).paths[JsonString(key, true)] =
+              JsonString(reinterpret_cast<const char*>(value.data), value.len, !copy);
+        },
+    .put_number = [](void* ctx, const char* key, int64_t value) { self(ctx).paths[JsonString(key, true)] = value; },
+    .hash = [](void*, XpWebText plugin, uint8_t* hash) -> bool {
+      uint8_t secret[32];
+      if (!deviceSecret(secret)) return false;
+      uint8_t input[96];
+      memcpy(input, secret, sizeof(secret));
+      memcpy(input + sizeof(secret), plugin.data, plugin.len);
+      return wc_Sha256Hash(input, sizeof(secret) + plugin.len, hash) == 0;
+    },
+    .serial = [](void*, uint8_t* bytes) -> bool {
+#if !CONFIG_IDF_TARGET_ESP32
+      return esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA, bytes, 256) == ESP_OK;
+#else
+      return false;
 #endif
-
-  if (valid) {
-    doc["serial"] = snBuf;
-  } else {
-    doc["serial"] = "Not found";
-  }
-
-  String response;
-  serializeJson(doc, response);
-  server->send(200, "application/json", response);
+    },
+    .send =
+        [](void* ctx) {
+          String response;
+          serializeJson(self(ctx).paths, response);
+          self(ctx).owner.server->send(200, "application/json", response);
+        }};
+void CrossPointWebServer::handleStatus() const {
+  WebStatusBridge bridge(*this);
+  xp_web_status(&bridge, &WebStatusBridge::services, apMode);
 }
 
-void CrossPointWebServer::handleFileList() const {
-  sendStaticContent(server.get(), FilesPageHtml, sizeof(FilesPageHtml), FilesPageHtmlETag, "text/html");
-}
+void CrossPointWebServer::handleFileList() const { WebFileBridge::page(*this, XP_WEB_PAGE_FILES); }
 
 void CrossPointWebServer::handleFileListData() const { WebFileBridge::route(*this, XP_WEB_LIST); }
 
 void CrossPointWebServer::streamFileToClient(HalFile& file) const { WebFileBridge::stream(*this, file); }
 
 void CrossPointWebServer::handleDownload() const { WebFileBridge::route(*this, XP_WEB_DOWNLOAD); }
-
-// Diagnostic counters for upload performance analysis
-static unsigned long uploadStartTime = 0;
-static unsigned long totalWriteTime = 0;
-static size_t writeCount = 0;
 
 const XpWebTransfers WebFileBridge::transfers = {
     .files = &WebFileBridge::services,
@@ -962,18 +1048,9 @@ const XpWebTransfers WebFileBridge::transfers = {
         }};
 
 void WebFileBridge::http(const CrossPointWebServer& owner, CrossPointWebServer::UploadState& state, uint32_t event) {
-  static size_t lastLoggedSize = 0;
   WebFileBridge bridge(owner);
   bridge.borrowed = &state.file;
   bridge.uploadState = &state;
-  XpWebUpload policy{state.size,
-                     state.bufferPos,
-                     writeCount,
-                     lastLoggedSize,
-                     static_cast<uint32_t>(uploadStartTime),
-                     static_cast<uint32_t>(totalWriteTime),
-                     state.buffer.get(),
-                     state.success};
   XpWebText name{nullptr, 0};
   const uint8_t* bytes = nullptr;
   size_t length = 0;
@@ -983,14 +1060,7 @@ void WebFileBridge::http(const CrossPointWebServer& owner, CrossPointWebServer::
     bytes = part.buf;
     length = part.currentSize;
   }
-  xp_web_upload(&bridge, &transfers, &policy, event, name, bytes, length);
-  state.size = policy.size;
-  state.bufferPos = policy.buffer_pos;
-  state.success = policy.success;
-  writeCount = policy.writes;
-  lastLoggedSize = policy.last_logged;
-  uploadStartTime = policy.started_at;
-  totalWriteTime = policy.write_time;
+  xp_web_upload(&bridge, &transfers, &state.policy, event, name, bytes, length);
 }
 
 void WebFileBridge::ws(const CrossPointWebServer& owner, uint8_t client, uint32_t event, uint8_t* payload,
@@ -998,23 +1068,7 @@ void WebFileBridge::ws(const CrossPointWebServer& owner, uint8_t client, uint32_
   WebFileBridge bridge(owner);
   bridge.borrowed = &wsUploadFile;
   bridge.websocket = true;
-  XpWebWsUpload state{wsUploadSize,
-                      wsUploadReceived,
-                      wsLastProgressSent,
-                      wsLastCompleteSize,
-                      static_cast<uint32_t>(wsUploadStartTime),
-                      static_cast<uint32_t>(wsLastCompleteAt),
-                      wsUploadClientNum,
-                      wsUploadInProgress};
-  xp_web_ws(&bridge, &transfers, &state, client, event, payload, length);
-  wsUploadSize = state.total;
-  wsUploadReceived = state.received;
-  wsLastProgressSent = state.last_progress;
-  wsLastCompleteSize = state.complete_size;
-  wsUploadStartTime = state.started_at;
-  wsLastCompleteAt = state.completed_at;
-  wsUploadClientNum = state.client;
-  wsUploadInProgress = state.active;
+  xp_web_ws(&bridge, &transfers, &wsPolicy, client, event, payload, length);
 }
 
 // Drop a partially written upload so a truncated book never lands in the library.
@@ -1234,7 +1288,8 @@ const XpWebConfig WebConfigBridge::services = {
              sendAsset,
              {reinterpret_cast<const uint8_t*>(SettingsPageHtml), sizeof(SettingsPageHtml)},
              {reinterpret_cast<const uint8_t*>(SettingsPageHtmlETag),
-              std::char_traits<char>::length(SettingsPageHtmlETag)}},
+              std::char_traits<char>::length(SettingsPageHtmlETag)},
+             "text/html"},
     .diagnostic =
         [](void*, uint32_t event, size_t count, XpWebText text) {
           const char* value = text.len ? reinterpret_cast<const char*>(text.data) : "";
@@ -1301,18 +1356,6 @@ void CrossPointWebServer::handleDeleteWifiNetwork() { WebConfigBridge::route(*th
 // Browser-side plugins (JS on the SD card)
 // ---------------------------------------------------------------------------
 
-bool CrossPointWebServer::readJsonBody(JsonDocument& out) const {
-  if (!server->hasArg("plain")) {
-    server->send(400, "application/json", "{\"error\":\"missing body\"}");
-    return false;
-  }
-  if (deserializeJson(out, server->arg("plain")) != DeserializationError::Ok) {
-    server->send(400, "application/json", "{\"error\":\"bad json\"}");
-    return false;
-  }
-  return true;
-}
-
 void CrossPointWebServer::sendJson(const JsonDocument& doc) const {
   String out;
   if (!out.reserve(measureJson(doc))) {
@@ -1322,12 +1365,6 @@ void CrossPointWebServer::sendJson(const JsonDocument& doc) const {
   }
   serializeJson(doc, out);
   server->send(200, "application/json", out);
-}
-
-bool CrossPointWebServer::rejectIfPluginsDisabled() const {
-  if (SETTINGS.pluginsEnabled) return false;
-  server->send(403, "text/plain", "plugin system disabled");
-  return true;
 }
 
 struct WebPluginBridge : WebFileBridge {
@@ -1344,17 +1381,13 @@ struct WebPluginBridge : WebFileBridge {
     auto& s = owner.pluginFsUpload;
     bridge.pluginState = &s;
     bridge.borrowed = &s.file;
-    XpWebPluginUpload state{s.bytes, s.error, static_cast<uint16_t>(s.errorStatus), s.started};
+
     if (event != UPLOAD_FILE_WRITE) {
-      xp_web_plugin_upload(&bridge, &services, &state, event, nullptr, 0);
+      xp_web_plugin_upload(&bridge, &services, &s.policy, event, nullptr, 0);
     } else {
       const auto& part = owner.server->upload();
-      xp_web_plugin_upload(&bridge, &services, &state, event, part.buf, part.currentSize);
+      xp_web_plugin_upload(&bridge, &services, &s.policy, event, part.buf, part.currentSize);
     }
-    s.bytes = state.bytes;
-    s.error = state.error;
-    s.errorStatus = state.status;
-    s.started = state.started;
   }
   static const XpWebPlugins services;
 };
@@ -1400,7 +1433,8 @@ const XpWebPlugins WebPluginBridge::services = {
     .page = {requestHeader,
              sendAsset,
              {reinterpret_cast<const uint8_t*>(RunnerPageHtml), sizeof(RunnerPageHtml)},
-             {reinterpret_cast<const uint8_t*>(RunnerPageHtmlETag), sizeof(RunnerPageHtmlETag) - 1}},
+             {reinterpret_cast<const uint8_t*>(RunnerPageHtmlETag), std::char_traits<char>::length(RunnerPageHtmlETag)},
+             "text/html"},
     .diagnostic =
         [](void*, uint32_t event, XpWebText a, XpWebText b) {
           switch (static_cast<XpWebPluginDiagnostic>(event)) {
@@ -1862,18 +1896,13 @@ struct WebFontBridge : WebFileBridge {
     auto& s = owner.fontUpload;
     bridge.fontState = &s;
     bridge.borrowed = &s.file;
-    XpWebFontUpload state{s.bytesWritten, s.bufferPos, s.buffer.get(), s.valid, s.magicChecked, s.isVector};
+
     if (event == 4) {
-      xp_web_font_upload(&bridge, &services, &state, event, {nullptr, 0}, nullptr, 0);
+      xp_web_font_upload(&bridge, &services, &s.policy, event, {nullptr, 0}, nullptr, 0);
     } else {
       const auto& part = owner.server->upload();
-      xp_web_font_upload(&bridge, &services, &state, event, span(part.filename), part.buf, part.currentSize);
+      xp_web_font_upload(&bridge, &services, &s.policy, event, span(part.filename), part.buf, part.currentSize);
     }
-    s.bytesWritten = state.bytes;
-    s.bufferPos = state.buffer_pos;
-    s.valid = state.valid;
-    s.magicChecked = state.magic_checked;
-    s.isVector = state.vector;
   }
   static const XpWebFonts services;
 };
@@ -1936,7 +1965,8 @@ const XpWebFonts WebFontBridge::services = {
     .page = {requestHeader,
              sendAsset,
              {reinterpret_cast<const uint8_t*>(FontsPageHtml), sizeof(FontsPageHtml)},
-             {reinterpret_cast<const uint8_t*>(FontsPageHtmlETag), std::char_traits<char>::length(FontsPageHtmlETag)}},
+             {reinterpret_cast<const uint8_t*>(FontsPageHtmlETag), std::char_traits<char>::length(FontsPageHtmlETag)},
+             "text/html"},
     .diagnostic =
         [](void*, uint32_t event, XpWebText a, XpWebText b, size_t bytes, bool valid) {
           const char* x = a.len ? reinterpret_cast<const char*>(a.data) : "";

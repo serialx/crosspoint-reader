@@ -63,6 +63,11 @@ class String : public std::string {
   String(const std::string& s) : String() { assign(s); }
   template <class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
   explicit String(T n) : String(std::to_string(n)) {}
+  bool concat(const char* text, size_t length) {
+    if (!text || !reserve(size() + length)) return false;
+    append(text, length);
+    return true;
+  }
   bool isEmpty() const { return empty(); }
   bool equals(const String& s) const { return size() == s.size() && std::strcmp(c_str(), s.c_str()) == 0; }
   bool equals(const char* s) const { return s ? std::strcmp(c_str(), s) == 0 : empty() || (*this)[0] == 0; }
@@ -92,7 +97,10 @@ class String : public std::string {
     *this = substr(first, last - first);
   }
   void toLowerCase() {
-    for (auto& c : *this) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto& c : *this) {
+      if (!c) break;
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
   }
   void replace(char from, char to) { std::replace(begin(), end(), from, to); }
   int32_t toInt() const {
@@ -119,4 +127,9 @@ class String : public std::string {
 
  private:
   static int index(size_t n) { return n == npos ? -1 : static_cast<int>(n); }
+};
+
+class StringSumHelper : public String {
+ public:
+  using String::String;
 };

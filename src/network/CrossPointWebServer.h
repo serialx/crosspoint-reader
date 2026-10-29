@@ -11,7 +11,9 @@
 #include <string>
 #include <vector>
 
-class CrossPointWebServer {
+class CrossPointWebServer : private XpWebLifecycle {
+  friend struct WebLifeBridge;
+  friend struct WebStatusBridge;
   friend struct WebFileBridge;
   friend struct WebConfigBridge;
   friend struct WebFontBridge;
@@ -38,8 +40,7 @@ class CrossPointWebServer {
     HalFile file;
     String fileName;
     String path = "/";
-    size_t size = 0;
-    bool success = false;
+    mutable XpWebUpload policy{};
     String error = "";
 
     // Upload write buffer - batches small writes into larger SD card operations
@@ -47,7 +48,7 @@ class CrossPointWebServer {
     // to keep individual write times short and avoid watchdog issues
     static constexpr size_t UPLOAD_BUFFER_SIZE = 4096;  // 4KB buffer
     std::unique_ptr<uint8_t[]> buffer;
-    size_t bufferPos = 0;
+
   } upload;
 
   CrossPointWebServer();
@@ -77,12 +78,9 @@ class CrossPointWebServer {
  private:
   std::unique_ptr<WebServer> server = nullptr;
   std::unique_ptr<WebSocketsServer> wsServer = nullptr;
-  bool running = false;
-  bool apMode = false;  // true when running in AP mode, false for STA mode
   uint16_t port = 80;
   uint16_t wsPort = 81;  // WebSocket port
   NetworkUDP udp;
-  bool udpActive = false;
   std::function<bool()> uploadCancelCheck;
   bool dropUploadIfCancelled() const;
 
@@ -128,13 +126,10 @@ class CrossPointWebServer {
     HalFile file;
     std::string familyName;
     std::string filePath;
-    bool valid = false;
-    bool magicChecked = false;
-    bool isVector = false;  // .ttf/.otf upload (PSRAM boards only) vs .cpfont
-    size_t bytesWritten = 0;
+    XpWebFontUpload policy{};
     static constexpr size_t BUFFER_SIZE = 4096;
     std::unique_ptr<uint8_t[]> buffer;
-    size_t bufferPos = 0;
+
   } fontUpload;
 
   // OPDS server handlers
@@ -147,10 +142,7 @@ class CrossPointWebServer {
   void handlePostWifiNetwork();
   void handleDeleteWifiNetwork();
 
-  // Missing or malformed JSON sends a 400 response and returns false.
-  bool readJsonBody(JsonDocument& out) const;
   void sendJson(const JsonDocument& doc) const;
-  bool rejectIfPluginsDisabled() const;
   void handlePluginList() const;  // GET  /api/plugins   -> discovered plugins
   void handlePluginFile() const;  // GET  /plugin?name&file -> serve SD file
   void handleRelay();             // POST /api/relay     -> device makes an HTTP(S) call
@@ -165,10 +157,7 @@ class CrossPointWebServer {
   struct PluginFsUploadState {
     HalFile file;
     std::string path, tmp;
-    size_t bytes = 0;
-    bool started = false;
-    int errorStatus = 0;  // non-zero: HTTP status to answer with
-    const char* error = nullptr;
+    XpWebPluginUpload policy{};
   } pluginFsUpload;
 
   // Rust owns queue policy and this fixed storage for the web-session lifetime.
@@ -183,6 +172,7 @@ class CrossPointWebServer {
   // the WebSocket server and discovery UDP cannot answer anyone until it
   // finishes; their buffers are worth more as TLS headroom (4.4KB heap floor
   // measured with them resident during a large transfer).
+  void registerRoutes();
   void suspendTransferServices();
   void resumeTransferServices();
 };

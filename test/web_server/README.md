@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 1544 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 1666 ordered transcripts checked against the original C++.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -164,3 +164,86 @@ The 65,536-byte encoded-field case is rejected by the pinned ArduinoJson string
 limit; a 65,532-byte field reaches PKCS#12. The measurements use host capacity
 and SSO sizes, not the target allocator's rounding. Fetch routes are also checked
 with the Rust allocator disabled and must make zero Rust allocation attempts.
+
+The lifecycle extension was captured from the original C++ at `ffd48814` and
+also checked against slice 7 at `7722739c`. The initial lifecycle capture preserved all earlier 1,544 records; subsequent
+completeness repairs are described below. It covers repeated begin/stop/restart, STA/AP combinations, service
+suspension during HTTP/WS uploads, discovery contents and repeated replies,
+status fields, plugin normalization and hash input, serial validation, HTTP
+allocation and WS restart failures, JSON allocation failure, long upload names
+and paths, and static-resource caching. Initial WS allocation remains unchecked
+in the original; injecting its failure would crash rather than produce a
+transcript. These cases do not claim recovery from that existing failure.
+
+The clock store wraps at 32 bits. The extractor explicitly uses 32-bit arithmetic
+for the original fetch heartbeat and elapsed-time expressions, so the six
+rollover fixtures check the ESP32 behavior rather than host `unsigned long`.
+The SDK timeout remains a scripted transport result: the oracle checks its
+60-second configuration and the endpoint's polling decisions, not socket timeout
+execution. Other native-width limitations described above still apply.
+
+To prove the Rust segment-boundary and heartbeat predicates themselves are
+observed, run:
+
+```sh
+python3 test/web_server/mutate_fetch.py --build build/web-mutations \
+  --arduinojson .pio/libdeps/default/ArduinoJson/src
+```
+
+It builds isolated Rust copies with each comparison changed by one operator and
+requires a transcript mismatch. The String substitute now also stops lowercasing
+at the first NUL, matching the pinned ESP32 core.
+
+Nine static-route fixtures compare exact ETags, embedded NUL followed by matching
+or different suffixes, initial NUL, and ordinary mismatches. Their body bytes are
+recorded in bounded hexadecimal chunks so large assets cannot hide later events.
+The shared cache helper now follows Arduino C-string comparison for the earlier
+settings, fonts, and runner pages too. The complete suite was replayed against
+the unported server at `22517c67`; one existing runner transcript was corrected
+from that source because slice 4 (`0798b4e8`) accidentally used `sizeof(pointer)`
+as its ETag length. All other earlier records remain unchanged at this step.
+
+A later completeness audit found six historical transcript overflows: `pages`,
+`registered-routes`, and `life-static:/files` lost trailing events after large
+asset strings; `ws-synchronous-disconnect:DONE`, `plugins-list-extra:2`, and
+`plugins-fs-extra:3` lost large filesystem values. Those six rows were recaptured
+from the complete original server at `22517c67`, using 2,048-byte body/file
+chunks, then replayed against the candidate. Other records were preserved.
+Files smaller than 32,000 bytes retain their original `hex` field; larger files
+use an ordered `hex_chunks` array. Large static bodies use `response-bytes`
+followed by ordered `static-chunk` events. Concatenating the chunks recovers every
+byte without changing the simulated response or storage operations.
+
+The harness now aborts on events of 65,000 bytes or more, any ArduinoJson
+overflow, or a missing event/file entry. Every extractor run injects an
+oversized event to verify that guard. `WEB_TRACE_AUDIT=1` emits per-case event
+counts, maximum event length and overflow state to stderr; all 1,666 complete
+rows have equal source/recorded event counts and no overflow.
+
+
+Review fixtures also check that static ETag scratch is released before every
+response-header/send callback. They cover all nine routes with exact matches,
+NUL variants, mismatches, and 4,096-byte matching/nonmatching values. The extractor
+tracks the request scratch itself, so outgoing ETag header temporaries are not
+mistaken for retained request data.
+
+`discovery_budget.py` extracts the production discovery reply and checks frozen
+original-C++ results under a focused ESP32 Arduino 3.3.11 String model. It models
+the target SSO threshold, allocation rounding, live requested bytes, failed
+concat, invalidating StringSumHelper sums, and the final copy. Goldens come from
+`7722739c`; each row contains packet bytes, allocation requests, peak requested bytes, and
+requested bytes live at send. The 36,936
+cases cover 513 live-byte budgets and eight allocation failure positions plus
+no injected failure, ports 81/65535, empty/long hostnames, the actual 30-character
+station hostname, and a 29-character variant. This models String requests, not
+physical allocator fragmentation or socket allocations. Run it with:
+
+```sh
+python3 test/web_server/discovery_budget.py --build build/web-discovery-budget
+```
+
+Four HTTP-pump cases dispatch registered fetch/relay handlers from the transport
+callback, re-enter suspend/resume, and then pump discovery again. AP and station
+IP stubs differ (`192.0.2.2` and `192.0.2.1`); a deliberate AP-to-station source
+swap must fail. These cases and affected IP transcripts were captured from the
+original server at `22517c67`. The complete corpus now has 1,670 records.

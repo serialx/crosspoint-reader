@@ -112,16 +112,22 @@ pub struct Config {
     diagnostic: unsafe extern "C" fn(*mut c_void, u32, usize, Span),
 }
 #[repr(C)]
-pub(super) struct Asset {
+pub struct Asset {
     request_header: unsafe extern "C" fn(*mut c_void, *const c_char) -> Span,
-    send_asset: unsafe extern "C" fn(*mut c_void, Span),
+    send_asset: unsafe extern "C" fn(*mut c_void, Span, *const c_char),
     asset: Span,
     etag: Span,
+    content_type: *const c_char,
 }
 impl Request<'_> {
     pub(super) fn page(&self, page: &Asset) {
         let etag = unsafe { (page.request_header)(self.ctx, c"If-None-Match".as_ptr()) };
-        let cached = unsafe { etag.bytes() == page.etag.bytes() };
+        // Arduino String == const char* compares through the first NUL.
+        let cached = unsafe {
+            etag.bytes().split(|&byte| byte == 0).next()
+                == page.etag.bytes().split(|&byte| byte == 0).next()
+        };
+        unsafe { (self.services.argument)(self.ctx, core::ptr::null()) };
         if !cached {
             self.header(b"Content-Encoding\0", b"gzip");
         }
@@ -131,7 +137,7 @@ impl Request<'_> {
             if cached {
                 (self.services.send)(self.ctx, 304, c"text/html".as_ptr(), EMPTY);
             } else {
-                (page.send_asset)(self.ctx, page.asset);
+                (page.send_asset)(self.ctx, page.asset, page.content_type);
             }
         }
     }

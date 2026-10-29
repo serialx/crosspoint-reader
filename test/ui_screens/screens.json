@@ -2573,14 +2573,16 @@
           "activity": "XtcReader",
           "steps": [
             "press:confirm",
-            "press:confirm"
+            "press:confirm",
+            "wait-log:Rendered page"
           ]
         },
         {
           "id": "xtc-gray-next",
           "activity": "XtcReader",
           "steps": [
-            "press:right"
+            "press:right",
+            "wait-log:Rendered page"
           ]
         },
         {
@@ -2594,7 +2596,8 @@
           "id": "xtc-gray-return",
           "activity": "XtcReader",
           "steps": [
-            "press:back"
+            "press:back",
+            "wait-log:Rendered page"
           ]
         }
       ]

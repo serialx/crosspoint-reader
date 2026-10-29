@@ -11,3 +11,7 @@ if(WEB_TEST_ARDUINOJSON)
 else()
   message(STATUS "Web server oracle needs WEB_TEST_ARDUINOJSON")
 endif()
+
+add_test(NAME web_discovery_budget
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/discovery_budget.py
+    --build ${CMAKE_CURRENT_BINARY_DIR}/discovery-budget)

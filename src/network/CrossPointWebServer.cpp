@@ -646,9 +646,21 @@ const XpWebLifeServices WebLifeBridge::services = {
     .reply =
         [](void* ctx, XpWebText prefix, XpWebText host, XpWebText suffix) {
           auto& udp = self(ctx).owner.udp;
-          String message = WebFileBridge::string(prefix);
-          message += WebFileBridge::string(host);
-          message += WebFileBridge::string(suffix);
+          String message = [&] {
+            // An invalid sum preserves the original prefix constructor allocation.
+            StringSumHelper sum(static_cast<const char*>(nullptr));
+            const auto append = [&sum](XpWebText text) {
+              if (!sum.concat(reinterpret_cast<const char*>(text.data), text.len)) {
+                static_cast<String&>(sum) = static_cast<const char*>(nullptr);
+              }
+            };
+            append(prefix);
+            append(host);
+            // Preserve StringSumHelper's separate punctuation/port failures and final copy.
+            append({suffix.data, 2});
+            append({suffix.data + 2, suffix.len - 2});
+            return String(sum);
+          }();
           udp.beginPacket(udp.remoteIP(), udp.remotePort());
           udp.write(reinterpret_cast<const uint8_t*>(message.c_str()), message.length());
           udp.endPacket();

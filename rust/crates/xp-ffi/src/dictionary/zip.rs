@@ -1,7 +1,7 @@
-use super::File;
+use super::{abi::*, File};
 use core::{ffi::c_void, slice};
-const READ: u8 = 2;
-const BAD: u8 = 3;
+const READ: u8 = XP_DICTIONARY_ZIP_READ_ERROR;
+const BAD: u8 = XP_DICTIONARY_ZIP_DECOMPRESS;
 #[repr(C)]
 pub struct Info {
     data_offset: u32,
@@ -63,7 +63,7 @@ fn parse(file: &File, info: &mut Info, table: &Table) -> Result<(), u8> {
             }
             info.chunk_length = chunk;
             if !table.reserve(usize::from(count) + 1) {
-                return Err(1);
+                return Err(XP_DICTIONARY_ZIP_LOW_MEMORY);
             }
             table.push(0);
             let mut cumulative = 0;
@@ -188,7 +188,7 @@ pub unsafe extern "C" fn xp_dictzip_range(
     }
 }
 /// # Safety
-/// Buffer holds 512 initialized writable bytes. Read returns 0 on success or an ExtractError.
+/// Buffer holds XP_DICTIONARY_ZIP_OUTPUT_BYTES initialized writable bytes. Read returns 0 on success or an ExtractError.
 #[no_mangle]
 pub unsafe extern "C" fn xp_dictzip_slice(
     ctx: *mut c_void,
@@ -199,7 +199,7 @@ pub unsafe extern "C" fn xp_dictzip_slice(
     out: *const File,
 ) -> u8 {
     while discard > 0 {
-        let n = discard.min(512);
+        let n = discard.min(XP_DICTIONARY_ZIP_OUTPUT_BYTES as u32);
         let error = read(ctx, buffer, n as usize);
         if error != 0 {
             return error;
@@ -207,7 +207,7 @@ pub unsafe extern "C" fn xp_dictzip_slice(
         discard -= n;
     }
     while count > 0 {
-        let n = count.min(512);
+        let n = count.min(XP_DICTIONARY_ZIP_OUTPUT_BYTES as u32);
         let error = read(ctx, buffer, n as usize);
         if error != 0 {
             return error;
@@ -221,19 +221,21 @@ pub unsafe extern "C" fn xp_dictzip_slice(
 }
 
 /// # Safety
-/// Scalars and the 2048-byte buffer are exclusively borrowed; returned data lives until the next refill.
+/// Scalars and buffer_bytes initialized writable bytes are exclusively borrowed; buffer_bytes > 0.
+/// Returned data lives until the next refill.
 #[no_mangle]
 pub unsafe extern "C" fn xp_dictzip_refill(
     file: *const File,
     remaining: *mut u32,
     failed: *mut bool,
     buffer: *mut u8,
+    buffer_bytes: usize,
     data: *mut *const u8,
 ) -> usize {
     if *remaining == 0 {
         return 0;
     }
-    let count = (*remaining).min(2048) as usize;
+    let count = (*remaining as usize).min(buffer_bytes);
     let n = (*file).read(slice::from_raw_parts_mut(buffer, count));
     if n <= 0 {
         *failed = true;

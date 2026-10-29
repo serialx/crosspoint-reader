@@ -1,4 +1,4 @@
-use super::File;
+use super::{abi::*, File};
 use core::{ffi::c_void, slice};
 #[repr(C)]
 pub struct Definition {
@@ -36,17 +36,25 @@ impl Definition {
 pub unsafe extern "C" fn xp_dictionary_definition(io: *const Definition) -> u8 {
     let io = &*io;
     if !io.found {
-        return 1;
+        return XP_DICTIONARY_LOOKUP_NOT_FOUND;
     }
-    let size = io.size.min(65536);
+    let size = io.size.min(XP_DICTIONARY_MAX_DEFINITION_BYTES as u32);
     if size == 0 {
-        io.log(0, 0, 0, 0);
-        return 4;
+        io.log(XP_DICTIONARY_DEFINITION_EVENT_EMPTY, 0, 0, 0);
+        return XP_DICTIONARY_LOOKUP_READ_ERROR;
     }
     let original = if io.append { io.length } else { 0 };
-    if io.append && (original > 65536 || size as usize > 65536 - original) {
-        io.log(1, 65536, 0, 0);
-        return 4;
+    if io.append
+        && (original > XP_DICTIONARY_MAX_DEFINITION_BYTES
+            || size as usize > XP_DICTIONARY_MAX_DEFINITION_BYTES - original)
+    {
+        io.log(
+            XP_DICTIONARY_DEFINITION_EVENT_COMBINED_CAP,
+            XP_DICTIONARY_MAX_DEFINITION_BYTES as u32,
+            0,
+            0,
+        );
+        return XP_DICTIONARY_LOOKUP_READ_ERROR;
     }
     let required = original + size as usize;
     let allocation = if required > io.capacity {
@@ -57,55 +65,75 @@ pub unsafe extern "C" fn xp_dictionary_definition(io: *const Definition) -> u8 {
         0
     };
     if io.heap() < allocation.saturating_add(8192) {
-        io.log(2, required as u32, 0, 0);
-        return 2;
+        io.log(
+            XP_DICTIONARY_DEFINITION_EVENT_LOW_HEAP,
+            required as u32,
+            0,
+            0,
+        );
+        return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
     }
     let offset;
     if io.plain {
         offset = io.offset;
-        if !io.open(0) {
-            return 4;
+        if !io.open(XP_DICTIONARY_DATA_OPEN_PLAIN) {
+            return XP_DICTIONARY_LOOKUP_READ_ERROR;
         }
     } else {
         offset = 0;
-        if !io.open(1) {
-            return 4;
+        if !io.open(XP_DICTIONARY_DATA_OPEN_COMPRESSED) {
+            return XP_DICTIONARY_LOOKUP_READ_ERROR;
         }
         let error = (io.extract)(io.context, io.offset, size);
         if error != 0 {
-            io.log(4, u32::from(error), 0, 0);
+            io.log(
+                XP_DICTIONARY_DEFINITION_EVENT_EXTRACT,
+                u32::from(error),
+                0,
+                0,
+            );
             return match error {
-                1 => 2,
-                2 => 4,
-                _ => 3,
+                XP_DICTIONARY_ZIP_LOW_MEMORY => XP_DICTIONARY_LOOKUP_LOW_MEMORY,
+                XP_DICTIONARY_ZIP_READ_ERROR => XP_DICTIONARY_LOOKUP_READ_ERROR,
+                _ => XP_DICTIONARY_LOOKUP_DECOMPRESS,
             };
         }
         (io.close_tmp)(io.context);
-        if !io.open(2) {
-            return 4;
+        if !io.open(XP_DICTIONARY_DATA_OPEN_TEMPORARY) {
+            return XP_DICTIONARY_LOOKUP_READ_ERROR;
         }
     }
     let file = &*io.file;
     let dict_size = file.size() as u32;
     if offset > dict_size || size > dict_size - offset {
-        io.log(5, offset, size, dict_size);
-        return 4;
+        io.log(
+            XP_DICTIONARY_DEFINITION_EVENT_BOUNDS,
+            offset,
+            size,
+            dict_size,
+        );
+        return XP_DICTIONARY_LOOKUP_READ_ERROR;
     }
     if !file.seek(offset as usize) {
-        io.log(6, offset, 0, 0);
-        return 4;
+        io.log(XP_DICTIONARY_DEFINITION_EVENT_SEEK, offset, 0, 0);
+        return XP_DICTIONARY_LOOKUP_READ_ERROR;
     }
     let out = (io.resize)(io.context, required, !io.append);
     if out.is_null() {
-        return 2;
+        return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
     }
     if file.read(slice::from_raw_parts_mut(out.add(original), size as usize)) != size as i32 {
         (io.resize)(io.context, original, false);
-        return 4;
+        return XP_DICTIONARY_LOOKUP_READ_ERROR;
     }
     if io.html && io.heap() < required + 8192 {
-        io.log(7, required as u32, 0, 0);
-        return 2;
+        io.log(
+            XP_DICTIONARY_DEFINITION_EVENT_FALLBACK,
+            required as u32,
+            0,
+            0,
+        );
+        return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
     }
     0
 }

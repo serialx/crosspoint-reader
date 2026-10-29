@@ -1,4 +1,4 @@
-use super::{bytes, engine::Location};
+use super::{abi::*, bytes, engine::Location};
 use core::ffi::c_void;
 #[repr(C)]
 pub struct View {
@@ -65,7 +65,7 @@ fn escaped_size(text: &[u8]) -> usize {
 fn escape(io: &Lookup, text: &[u8]) {
     for b in text {
         io.output(
-            2,
+            XP_DICTIONARY_OUTPUT_APPEND,
             xp_core::book_io::txt::escape(*b).unwrap_or(core::slice::from_ref(b)),
         );
     }
@@ -81,29 +81,29 @@ pub unsafe extern "C" fn xp_dictionary_lookup(io: *const Lookup) -> u8 {
         .saturating_add(6 * io.string_size)
         .saturating_add(8192);
     if io.free < working || io.largest < io.word_bytes.saturating_mul(2) {
-        io.log(0, working as u32, 0);
-        return 2;
+        io.log(XP_DICTIONARY_LOOKUP_EVENT_WORKING_SET, working as u32, 0);
+        return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
     }
-    io.prepare(0);
-    if io.view(0, 0).is_empty() || !io.open {
-        return 1;
+    io.prepare(XP_DICTIONARY_PREPARE_CLEAN);
+    if io.view(XP_DICTIONARY_VIEW_CLEANED, 0).is_empty() || !io.open {
+        return XP_DICTIONARY_LOOKUP_NOT_FOUND;
     }
     if !io.entries {
-        io.log(1, 0, 0);
-        return 4;
+        io.log(XP_DICTIONARY_LOOKUP_EVENT_MISSING_ENTRIES, 0, 0);
+        return XP_DICTIONARY_LOOKUP_READ_ERROR;
     }
-    io.prepare(1);
-    if !io.prepare(2) {
-        return 4;
+    io.prepare(XP_DICTIONARY_PREPARE_CLEAR);
+    if !io.prepare(XP_DICTIONARY_PREPARE_OPEN) {
+        return XP_DICTIONARY_LOOKUP_READ_ERROR;
     }
     let mut from_syn = false;
-    let mut failed = io.probe(io.view(0, 0), false);
+    let mut failed = io.probe(io.view(XP_DICTIONARY_VIEW_CLEANED, 0), false);
     let group = io.group();
     if group.count > 0 && !group.low_memory {
         io.title(false);
     }
     if group.count == 0 && !group.low_memory && io.synonyms {
-        failed |= io.probe(io.view(0, 0), true);
+        failed |= io.probe(io.view(XP_DICTIONARY_VIEW_CLEANED, 0), true);
         let group = io.group();
         if group.count > 0 && !group.low_memory {
             from_syn = true;
@@ -112,10 +112,10 @@ pub unsafe extern "C" fn xp_dictionary_lookup(io: *const Lookup) -> u8 {
     }
     let group = io.group();
     if group.count == 0 && !group.low_memory {
-        io.prepare(3);
+        io.prepare(XP_DICTIONARY_PREPARE_STEM);
         let mut i = 0;
         loop {
-            let word = io.view(1, i);
+            let word = io.view(XP_DICTIONARY_VIEW_VARIANT, i);
             if word.is_empty() {
                 break;
             }
@@ -134,26 +134,32 @@ pub unsafe extern "C" fn xp_dictionary_lookup(io: *const Lookup) -> u8 {
     (io.close)(io.context);
     let group = io.group();
     if group.low_memory {
-        return 2;
+        return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
     }
     if group.count == 0 {
-        return if failed { 4 } else { 1 };
+        return if failed {
+            XP_DICTIONARY_LOOKUP_READ_ERROR
+        } else {
+            XP_DICTIONARY_LOOKUP_NOT_FOUND
+        };
     }
     if group.count > 1 || from_syn {
         let mut combined = 0usize;
         let mut fit = 0;
         for i in 0..group.count {
-            let size = (io.location)(io.context, i).size.min(65536) as usize;
+            let size = (io.location)(io.context, i)
+                .size
+                .min(XP_DICTIONARY_MAX_DEFINITION_BYTES as u32) as usize;
             let separator = if combined == 0 || io.html { 0 } else { 2 };
-            let head = io.view(2, i);
+            let head = io.view(XP_DICTIONARY_VIEW_HEADWORD, i);
             let label = if io.html {
                 9 + escaped_size(head)
             } else {
                 2 + head.len()
             };
-            if combined > 65536 - separator
-                || label > 65536 - combined - separator
-                || size > 65536 - combined - separator - label
+            if combined > XP_DICTIONARY_MAX_DEFINITION_BYTES - separator
+                || label > XP_DICTIONARY_MAX_DEFINITION_BYTES - combined - separator
+                || size > XP_DICTIONARY_MAX_DEFINITION_BYTES - combined - separator - label
             {
                 break;
             }
@@ -161,37 +167,49 @@ pub unsafe extern "C" fn xp_dictionary_lookup(io: *const Lookup) -> u8 {
             fit = i + 1;
         }
         if fit == 0 {
-            io.log(2, 0, 0);
+            io.log(XP_DICTIONARY_LOOKUP_EVENT_FIRST_CAP, 0, 0);
             return (io.read)(io.context, 0, false);
         }
         if fit < group.count {
-            io.log(3, fit as u32, group.count as u32);
+            io.log(
+                XP_DICTIONARY_LOOKUP_EVENT_COMBINED_CAP,
+                fit as u32,
+                group.count as u32,
+            );
         }
         if (io.heap)() < combined + 8192 {
-            io.log(4, combined as u32, 0);
-            return 2;
+            io.log(XP_DICTIONARY_LOOKUP_EVENT_LOW_HEAP, combined as u32, 0);
+            return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
         }
         // Reserve/clear is an output storage operation; no input view is retained across it.
-        (io.output)(io.context, 0, core::ptr::null(), combined);
+        (io.output)(
+            io.context,
+            XP_DICTIONARY_OUTPUT_RESERVE,
+            core::ptr::null(),
+            combined,
+        );
         for i in 0..fit {
             if i != 0 && !io.html {
-                io.output(2, b"\n\n");
+                io.output(XP_DICTIONARY_OUTPUT_APPEND, b"\n\n");
             }
             if io.html {
-                io.output(2, b"<h2>");
-                escape(io, io.view(2, i));
-                io.output(2, b"</h2>");
+                io.output(XP_DICTIONARY_OUTPUT_APPEND, b"<h2>");
+                escape(io, io.view(XP_DICTIONARY_VIEW_HEADWORD, i));
+                io.output(XP_DICTIONARY_OUTPUT_APPEND, b"</h2>");
             } else {
-                io.output(2, b"\x01");
-                io.output(2, io.view(2, i));
-                io.output(2, b"\n");
+                io.output(XP_DICTIONARY_OUTPUT_APPEND, b"\x01");
+                io.output(
+                    XP_DICTIONARY_OUTPUT_APPEND,
+                    io.view(XP_DICTIONARY_VIEW_HEADWORD, i),
+                );
+                io.output(XP_DICTIONARY_OUTPUT_APPEND, b"\n");
             }
             let error = (io.read)(io.context, i, true);
-            if error != 0 {
+            if error != XP_DICTIONARY_LOOKUP_FOUND {
                 return error;
             }
         }
-        0
+        XP_DICTIONARY_LOOKUP_FOUND
     } else {
         (io.read)(io.context, 0, false)
     }

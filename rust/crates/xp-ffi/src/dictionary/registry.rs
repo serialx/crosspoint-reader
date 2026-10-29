@@ -1,5 +1,5 @@
 extern crate alloc;
-use super::bytes;
+use super::{abi::*, bytes};
 use alloc::vec::Vec;
 use core::ffi::c_void;
 #[repr(C)]
@@ -16,7 +16,7 @@ impl Registry {
     fn open(&self, id: u8, path: &[u8]) -> bool {
         unsafe { (self.open)(self.context, id, path.as_ptr()) }
     }
-    fn next(&self, id: u8, name: &mut [u8; 128]) -> u8 {
+    fn next(&self, id: u8, name: &mut [u8; XP_DICTIONARY_REGISTRY_NAME_BYTES]) -> u8 {
         unsafe { (self.next)(self.context, id, name.as_mut_ptr()) }
     }
     fn exists(&self, path: &[u8]) -> bool {
@@ -63,25 +63,32 @@ fn path(parts: &[&[u8]]) -> Option<Vec<u8>> {
 fn text(buf: &[u8]) -> &[u8] {
     &buf[..buf.iter().position(|b| *b == 0).unwrap_or(buf.len())]
 }
-fn stem(io: &Registry, folder: &[u8], found: &mut [u8; 128]) -> bool {
-    let _directory = Directory { io, slot: 1 };
-    if !io.open(1, folder) {
+fn stem(io: &Registry, folder: &[u8], found: &mut [u8; XP_DICTIONARY_REGISTRY_NAME_BYTES]) -> bool {
+    let _directory = Directory {
+        io,
+        slot: XP_DICTIONARY_REGISTRY_SLOT_FOLDER,
+    };
+    if !io.open(XP_DICTIONARY_REGISTRY_SLOT_FOLDER, folder) {
         return false;
     }
     found[0] = 0;
-    let mut name = [0; 128];
+    let mut name = [0; XP_DICTIONARY_REGISTRY_NAME_BYTES];
     loop {
-        let kind = io.next(1, &mut name);
-        if kind == 0 {
+        let kind = io.next(XP_DICTIONARY_REGISTRY_SLOT_FOLDER, &mut name);
+        if kind == XP_DICTIONARY_REGISTRY_KIND_END {
             break;
         }
         let name = text(&name);
-        if kind == 2 || name.starts_with(b"._") || name.len() <= 4 || !name.ends_with(b".idx") {
+        if kind == XP_DICTIONARY_REGISTRY_KIND_DIRECTORY
+            || name.starts_with(b"._")
+            || name.len() <= 4
+            || !name.ends_with(b".idx")
+        {
             continue;
         }
         let name = &name[..name.len() - 4];
         if found[0] != 0 && text(found) != name {
-            io.diagnostic(0, folder);
+            io.diagnostic(XP_DICTIONARY_REGISTRY_EVENT_AMBIGUOUS, folder);
             return false;
         }
         found[..name.len()].copy_from_slice(name);
@@ -102,7 +109,7 @@ fn stem(io: &Registry, folder: &[u8], found: &mut [u8; 128]) -> bool {
     data.pop();
     data.extend_from_slice(b".dz\0");
     if !io.exists(&data) {
-        io.diagnostic(1, folder);
+        io.diagnostic(XP_DICTIONARY_REGISTRY_EVENT_MISSING_DATA, folder);
         return false;
     }
     true
@@ -129,36 +136,39 @@ pub unsafe extern "C" fn xp_dictionary_registry(
     }
     for root in ROOTS {
         if discover {
-            let _directory = Directory { io, slot: 0 };
-            if !io.open(0, root) {
-                io.diagnostic(2, root);
+            let _directory = Directory {
+                io,
+                slot: XP_DICTIONARY_REGISTRY_SLOT_ROOT,
+            };
+            if !io.open(XP_DICTIONARY_REGISTRY_SLOT_ROOT, root) {
+                io.diagnostic(XP_DICTIONARY_REGISTRY_EVENT_MISSING_ROOT, root);
                 continue;
             }
-            let mut name = [0; 128];
+            let mut name = [0; XP_DICTIONARY_REGISTRY_NAME_BYTES];
             loop {
-                let kind = io.next(0, &mut name);
-                if kind == 0 {
+                let kind = io.next(XP_DICTIONARY_REGISTRY_SLOT_ROOT, &mut name);
+                if kind == XP_DICTIONARY_REGISTRY_KIND_END {
                     break;
                 }
-                if kind != 2 || name[0] == b'.' {
+                if kind != XP_DICTIONARY_REGISTRY_KIND_DIRECTORY || name[0] == b'.' {
                     continue;
                 }
                 let name = text(&name);
                 let Some(folder) = path(&[text(root), b"/", name]) else {
                     return false;
                 };
-                let mut found = [0; 128];
+                let mut found = [0; XP_DICTIONARY_REGISTRY_NAME_BYTES];
                 if !stem(io, &folder, &mut found) {
                     continue;
                 }
                 io.emit(name, text(&found));
-                io.diagnostic(3, name);
+                io.diagnostic(XP_DICTIONARY_REGISTRY_EVENT_FOUND, name);
             }
         } else {
             let Some(folder) = path(&[text(root), b"/", folder]) else {
                 return false;
             };
-            let mut found = [0; 128];
+            let mut found = [0; XP_DICTIONARY_REGISTRY_NAME_BYTES];
             if stem(io, &folder, &mut found) {
                 io.emit(text(&folder), text(&found));
                 return true;

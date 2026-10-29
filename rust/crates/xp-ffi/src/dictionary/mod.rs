@@ -1,5 +1,6 @@
 //! Dictionary byte formats and streaming policy. Buffers and HAL handles are borrowed.
 use core::{ffi::c_void, slice};
+mod abi;
 mod html;
 mod zip;
 

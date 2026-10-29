@@ -1,3 +1,4 @@
+use super::abi::*;
 use super::bytes;
 use core::ffi::c_void;
 struct Writer {
@@ -192,13 +193,13 @@ pub extern "C" fn xp_dictionary_html_limit(
     largest: usize,
 ) -> u8 {
     if pages >= 64 {
-        1
+        XP_DICTIONARY_HTML_LIMIT_PAGES
     } else if added > 512usize.saturating_sub(elements) {
-        2
+        XP_DICTIONARY_HTML_LIMIT_ELEMENTS
     } else if free < 40960 || largest < 32768 {
-        3
+        XP_DICTIONARY_HTML_LIMIT_HEAP
     } else {
-        0
+        XP_DICTIONARY_HTML_LIMIT_OK
     }
 }
 #[no_mangle]

@@ -8,6 +8,10 @@
 
 namespace DictZip {
 namespace {
+static_assert(static_cast<uint8_t>(ExtractError::None) == XP_DICTIONARY_ZIP_OK);
+static_assert(static_cast<uint8_t>(ExtractError::LowMemory) == XP_DICTIONARY_ZIP_LOW_MEMORY);
+static_assert(static_cast<uint8_t>(ExtractError::ReadError) == XP_DICTIONARY_ZIP_READ_ERROR);
+static_assert(static_cast<uint8_t>(ExtractError::Decompress) == XP_DICTIONARY_ZIP_DECOMPRESS);
 constexpr size_t CHUNK_TABLE_HEAP_HEADROOM_BYTES = 1024;
 constexpr size_t INPUT_BUF_BYTES = 2048;
 
@@ -21,7 +25,7 @@ struct ChunkSource {
 size_t chunkReadCb(void* context, const uint8_t** data) {
   auto* src = static_cast<ChunkSource*>(context);
   const auto file = dictionaryFile(*src->file);
-  return xp_dictzip_refill(&file, &src->remaining, &src->readFailed, src->buf, data);
+  return xp_dictzip_refill(&file, &src->remaining, &src->readFailed, src->buf, sizeof(src->buf), data);
 }
 
 bool extractChunkSlice(HalFile& file, uint32_t compressedOffset, uint32_t compressedSize, uint32_t discardSize,
@@ -42,7 +46,7 @@ bool extractChunkSlice(HalFile& file, uint32_t compressedOffset, uint32_t compre
   if (!src->reader.initWithRing(window.get())) return fail(ExtractError::LowMemory);
   src->reader.setFill(&chunkReadCb, src.get());
 
-  auto buf = makeUniqueNoThrow<uint8_t[]>(512);
+  auto buf = makeUniqueNoThrow<uint8_t[]>(XP_DICTIONARY_ZIP_OUTPUT_BYTES);
   if (!buf) return fail(ExtractError::LowMemory);
 
   const auto output = dictionaryFile(outFile);

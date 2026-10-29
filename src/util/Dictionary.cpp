@@ -19,6 +19,14 @@
 #include "TxtToHtml.h"
 
 namespace {
+static_assert(static_cast<uint8_t>(Dictionary::LookupResult::Found) == XP_DICTIONARY_LOOKUP_FOUND);
+static_assert(static_cast<uint8_t>(Dictionary::LookupResult::NotFound) == XP_DICTIONARY_LOOKUP_NOT_FOUND);
+static_assert(static_cast<uint8_t>(Dictionary::LookupResult::LowMemory) == XP_DICTIONARY_LOOKUP_LOW_MEMORY);
+static_assert(static_cast<uint8_t>(Dictionary::LookupResult::Decompress) == XP_DICTIONARY_LOOKUP_DECOMPRESS);
+static_assert(static_cast<uint8_t>(Dictionary::LookupResult::ReadError) == XP_DICTIONARY_LOOKUP_READ_ERROR);
+static_assert(static_cast<uint8_t>(Dictionary::IndexResult::Ok) == XP_DICTIONARY_INDEX_OK);
+static_assert(static_cast<uint8_t>(Dictionary::IndexResult::LowMemory) == XP_DICTIONARY_INDEX_LOW_MEMORY);
+static_assert(static_cast<uint8_t>(Dictionary::IndexResult::ReadError) == XP_DICTIONARY_INDEX_READ_ERROR);
 constexpr const char* DICT_TMP_FILE = "/.crosspoint/dict.tmp";
 constexpr uint32_t DEFINITION_HEAP_HEADROOM_BYTES = 8 * 1024;
 constexpr uint32_t QIDX_MAGIC = 0x58444951;  // "QIDX" little-endian
@@ -63,6 +71,7 @@ bool DictEntryList::appendUnique(const char* headword, const DictLocation& locat
   const size_t bytes = strlen(headword) + 1;
   const XpDictionaryAppend io{&context,
                               count_,
+                              kMaxEntries,
                               count_ < kMaxEntries ? entries_[count_].headwordCapacity : 0,
                               bytes,
                               heap.freeBytes,
@@ -87,8 +96,9 @@ bool DictEntryList::appendUnique(const char* headword, const DictLocation& locat
                                 entry.location = c.location;
                               }};
   const uint8_t status = xp_dictionary_append(&io, location.offset, location.size);
-  if (status == 1) LOG_ERR("DICT", "Entry list full at %u entries", static_cast<unsigned>(count_));
-  if (status == 2) {
+  if (status == XP_DICTIONARY_APPEND_FULL)
+    LOG_ERR("DICT", "Entry list full at %u entries", static_cast<unsigned>(count_));
+  if (status == XP_DICTIONARY_APPEND_LOW_MEMORY) {
     LOG_ERR("DICT", "Low heap for %u byte headword", static_cast<unsigned>(bytes));
     lowMemory_ = true;
   }
@@ -234,9 +244,11 @@ bool Dictionary::buildSidecar(const std::string& sourcePath, const std::string& 
   const auto input = dictionaryFile(src);
   const auto output = dictionaryFile(out);
   XpDictionaryScan scan{};
-  const uint8_t status = xp_dictionary_scan(&input, &output, magic, suffixBytes, buf.get(), ctx, yieldFn, &scan);
+  const uint8_t status =
+      xp_dictionary_scan(&input, &output, magic, suffixBytes, buf.get(), CHUNK_BYTES, ctx, yieldFn, &scan);
   const bool ok = status == 0;
-  if (status == 1) LOG_ERR("DICT", "Index scan read failed at %lu", static_cast<unsigned long>(scan.position));
+  if (status == XP_DICTIONARY_SCAN_READ_ERROR)
+    LOG_ERR("DICT", "Index scan read failed at %lu", static_cast<unsigned long>(scan.position));
   if (!ok) {
     LOG_ERR("DICT", "Index build failed, removing %s", sidecarPath.c_str());
     out.close();  // close before remove of the same path

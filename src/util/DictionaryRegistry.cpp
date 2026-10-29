@@ -31,9 +31,10 @@ XpDictionaryRegistry services(Context& context) {
           [](void* ctx, uint8_t slot, uint8_t* name) -> uint8_t {
             auto& c = *static_cast<Context*>(ctx);
             c.entries[slot] = c.directories[slot].openNextFile();
-            if (!c.entries[slot]) return 0;
-            c.entries[slot].getName(reinterpret_cast<char*>(name), 128);
-            return c.entries[slot].isDirectory() ? 2 : 1;
+            if (!c.entries[slot]) return XP_DICTIONARY_REGISTRY_KIND_END;
+            c.entries[slot].getName(reinterpret_cast<char*>(name), XP_DICTIONARY_REGISTRY_NAME_BYTES);
+            return c.entries[slot].isDirectory() ? XP_DICTIONARY_REGISTRY_KIND_DIRECTORY
+                                                 : XP_DICTIONARY_REGISTRY_KIND_FILE;
           },
           [](void* ctx, uint8_t slot) {
             auto& c = *static_cast<Context*>(ctx);

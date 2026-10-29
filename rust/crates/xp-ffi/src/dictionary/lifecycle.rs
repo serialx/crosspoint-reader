@@ -1,3 +1,4 @@
+use super::abi::*;
 use core::ffi::c_void;
 #[repr(C)]
 pub struct Open {
@@ -23,32 +24,32 @@ pub unsafe extern "C" fn xp_dictionary_open(io: *const Open) -> bool {
     *io.syn = false;
     *io.html = false;
     if !(io.resolve)(io.context) {
-        (io.diagnostic)(io.context, 0, 0);
+        (io.diagnostic)(io.context, XP_DICTIONARY_OPEN_EVENT_MISSING_FOLDER, 0);
         return false;
     }
-    if !(io.exists)(io.context, 0) {
-        (io.diagnostic)(io.context, 1, 0);
+    if !(io.exists)(io.context, XP_DICTIONARY_EXISTS_INDEX) {
+        (io.diagnostic)(io.context, XP_DICTIONARY_OPEN_EVENT_MISSING_INDEX, 0);
         return false;
     }
-    *io.plain = (io.exists)(io.context, 1);
-    if !*io.plain && !(io.exists)(io.context, 2) {
-        (io.diagnostic)(io.context, 2, 0);
+    *io.plain = (io.exists)(io.context, XP_DICTIONARY_EXISTS_PLAIN);
+    if !*io.plain && !(io.exists)(io.context, XP_DICTIONARY_EXISTS_COMPRESSED) {
+        (io.diagnostic)(io.context, XP_DICTIONARY_OPEN_EVENT_MISSING_DATA, 0);
         return false;
     }
     let facts = (io.ifo)(io.context);
-    if facts & 1 != 0 {
-        (io.diagnostic)(io.context, 3, 0);
+    if facts & XP_DICTIONARY_IFO_OFFSETS64 != 0 {
+        (io.diagnostic)(io.context, XP_DICTIONARY_OPEN_EVENT_OFFSETS64, 0);
         return false;
     }
     let n = (io.length)(io.context);
-    if n > 151 {
-        (io.diagnostic)(io.context, 4, n);
+    if n > XP_DICTIONARY_PATH_BYTES - XP_DICTIONARY_LONGEST_SUFFIX_BYTES - 1 {
+        (io.diagnostic)(io.context, XP_DICTIONARY_OPEN_EVENT_PATH_LENGTH, n);
         return false;
     }
-    *io.syn = (io.exists)(io.context, 3);
-    *io.html = facts & 2 != 0;
+    *io.syn = (io.exists)(io.context, XP_DICTIONARY_EXISTS_SYNONYMS);
+    *io.html = facts & XP_DICTIONARY_IFO_HTML != 0;
     if !(io.allocate)(io.context) {
-        (io.diagnostic)(io.context, 5, 0);
+        (io.diagnostic)(io.context, XP_DICTIONARY_OPEN_EVENT_ALLOCATION, 0);
         return false;
     }
     (io.finish)(io.context);
@@ -69,7 +70,11 @@ pub struct Index {
 pub unsafe extern "C" fn xp_dictionary_index(io: *const Index, build: bool) -> u8 {
     let io = &*io;
     if !io.open {
-        return if build { 2 } else { 0 };
+        return if build {
+            XP_DICTIONARY_INDEX_READ_ERROR
+        } else {
+            XP_DICTIONARY_INDEX_OK
+        };
     }
     if (io.stale)(io.context, false) {
         if !build {
@@ -120,12 +125,12 @@ pub unsafe extern "C" fn xp_dictionary_session(io: *const SessionIo, synonyms: b
     let io = &*io;
     let state = &mut *io.state;
     if !synonyms {
-        if !io.open || !(io.open_file)(io.context, 0) {
+        if !io.open || !(io.open_file)(io.context, XP_DICTIONARY_SESSION_INDEX) {
             return false;
         }
-        state.idx_size = (io.size)(io.context, 0);
-        if (io.open_file)(io.context, 1) {
-            let h = (io.header)(io.context, 1);
+        state.idx_size = (io.size)(io.context, XP_DICTIONARY_SESSION_INDEX);
+        if (io.open_file)(io.context, XP_DICTIONARY_SESSION_SAMPLES) {
+            let h = (io.header)(io.context, XP_DICTIONARY_SESSION_SAMPLES);
             if h.valid && h.source_size == state.idx_size {
                 state.samples = h.samples;
                 state.entries = h.entries;
@@ -140,13 +145,13 @@ pub unsafe extern "C" fn xp_dictionary_session(io: *const SessionIo, synonyms: b
     if !io.syn {
         return false;
     }
-    if !(io.open_file)(io.context, 2) {
+    if !(io.open_file)(io.context, XP_DICTIONARY_SESSION_SYNONYMS) {
         state.syn_failed = true;
         return false;
     }
-    state.syn_size = (io.size)(io.context, 2);
-    if (io.open_file)(io.context, 3) {
-        let h = (io.header)(io.context, 3);
+    state.syn_size = (io.size)(io.context, XP_DICTIONARY_SESSION_SYNONYMS);
+    if (io.open_file)(io.context, XP_DICTIONARY_SESSION_SYNONYM_SAMPLES) {
+        let h = (io.header)(io.context, XP_DICTIONARY_SESSION_SYNONYM_SAMPLES);
         if h.valid && h.source_size == state.syn_size {
             state.syn_samples = h.samples;
         }
@@ -155,8 +160,8 @@ pub unsafe extern "C" fn xp_dictionary_session(io: *const SessionIo, synonyms: b
         (io.diagnostic)(io.context);
         state.syn_failed = true;
         state.syn_size = 0;
-        (io.close)(io.context, 3);
-        (io.close)(io.context, 2);
+        (io.close)(io.context, XP_DICTIONARY_SESSION_SYNONYM_SAMPLES);
+        (io.close)(io.context, XP_DICTIONARY_SESSION_SYNONYMS);
         return false;
     }
     true
@@ -165,6 +170,7 @@ pub unsafe extern "C" fn xp_dictionary_session(io: *const SessionIo, synonyms: b
 pub struct Append {
     context: *mut c_void,
     count: usize,
+    entry_capacity: usize,
     capacity: usize,
     bytes: usize,
     free: usize,
@@ -181,19 +187,19 @@ pub unsafe extern "C" fn xp_dictionary_append(io: *const Append, offset: u32, si
     for i in 0..io.count {
         let l = (io.location)(io.context, i);
         if l.offset == offset && l.size == size {
-            return 0;
+            return XP_DICTIONARY_APPEND_OK;
         }
     }
-    if io.count >= 128 {
-        return 1;
+    if io.count >= io.entry_capacity {
+        return XP_DICTIONARY_APPEND_FULL;
     }
     if io.bytes > io.capacity
         && (io.free < io.bytes.saturating_add(8192)
             || io.largest < io.bytes
             || !(io.allocate)(io.context, io.bytes))
     {
-        return 2;
+        return XP_DICTIONARY_APPEND_LOW_MEMORY;
     }
     (io.finish)(io.context);
-    0
+    XP_DICTIONARY_APPEND_OK
 }

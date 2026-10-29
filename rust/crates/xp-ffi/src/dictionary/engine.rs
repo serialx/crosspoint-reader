@@ -1,4 +1,4 @@
-use super::{bytes, File};
+use super::{abi::*, bytes, File};
 use core::{ffi::c_void, slice};
 #[repr(C)]
 pub struct Header {
@@ -113,7 +113,7 @@ pub struct Scan {
     position: u32,
 }
 /// # Safety
-/// File descriptors are live, buffer holds 4096 writable bytes, callbacks borrow their context.
+/// File descriptors are live, buffer holds buffer_bytes initialized writable bytes (buffer_bytes > 0), callbacks borrow their context.
 #[no_mangle]
 pub unsafe extern "C" fn xp_dictionary_scan(
     src: *const File,
@@ -121,6 +121,7 @@ pub unsafe extern "C" fn xp_dictionary_scan(
     magic: u32,
     suffix: u32,
     buffer: *mut u8,
+    buffer_bytes: usize,
     ctx: *mut c_void,
     yield_fn: Option<unsafe extern "C" fn(*mut c_void)>,
     result: *mut Scan,
@@ -139,17 +140,17 @@ pub unsafe extern "C" fn xp_dictionary_scan(
         ok = out.write(&0u32.to_le_bytes());
         result.samples = 1;
     }
-    let buffer = slice::from_raw_parts_mut(buffer, 4096);
+    let buffer = slice::from_raw_parts_mut(buffer, buffer_bytes);
     let mut left = 0;
     let mut since = 0u32;
     while ok && result.position < size {
         let n = src.read(buffer);
         if n <= 0 {
-            return 1;
+            return XP_DICTIONARY_SCAN_READ_ERROR;
         }
         let n = n as usize;
         if n > buffer.len() {
-            return 1;
+            return XP_DICTIONARY_SCAN_READ_ERROR;
         }
         for (i, b) in buffer[..n].iter().enumerate() {
             if !ok {
@@ -164,7 +165,7 @@ pub unsafe extern "C" fn xp_dictionary_scan(
                 if left == 0 {
                     result.entries = result.entries.wrapping_add(1);
                     let next = result.position.wrapping_add(i as u32).wrapping_add(1);
-                    if result.entries.is_multiple_of(256) && next < size {
+                    if result.entries.is_multiple_of(XP_DICTIONARY_SAMPLE_INTERVAL) && next < size {
                         ok = out.write(&next.to_le_bytes());
                         result.samples = result.samples.wrapping_add(1);
                     }
@@ -182,18 +183,22 @@ pub unsafe extern "C" fn xp_dictionary_scan(
     }
     if ok {
         let mut raw = [0; 24];
-        for (dst, value) in
-            raw.chunks_exact_mut(4)
-                .zip([magic, 2, 256, result.samples, size, result.entries])
-        {
+        for (dst, value) in raw.chunks_exact_mut(4).zip([
+            magic,
+            2,
+            XP_DICTIONARY_SAMPLE_INTERVAL,
+            result.samples,
+            size,
+            result.entries,
+        ]) {
             dst.copy_from_slice(&value.to_le_bytes());
         }
         ok = out.seek(0) && out.write(&raw);
     }
     if ok {
-        0
+        XP_DICTIONARY_SCAN_OK
     } else {
-        2
+        XP_DICTIONARY_SCAN_WRITE_ERROR
     }
 }
 #[repr(C)]
@@ -223,10 +228,10 @@ fn ordinal(
         if entries != 0 && ordinal >= entries {
             return result;
         }
-        let sample_index = (ordinal / 256).min(count - 1);
+        let sample_index = (ordinal / XP_DICTIONARY_SAMPLE_INTERVAL).min(count - 1);
         if let Some(at) = sample(qidx, sample_index) {
             start = at;
-            start_ordinal = sample_index * 256;
+            start_ordinal = sample_index * XP_DICTIONARY_SAMPLE_INTERVAL;
         }
     }
     if !idx.seek(start as usize) {
@@ -275,7 +280,7 @@ pub unsafe extern "C" fn xp_dictionary_search(
 ) -> bool {
     let s = &*search;
     let target = bytes(target, len);
-    let buf = slice::from_raw_parts_mut(s.word, 256);
+    let buf = slice::from_raw_parts_mut(s.word, XP_DICTIONARY_WORD_BYTES);
     let source = if synonyms { &*s.syn } else { &*s.idx };
     let sidecar = if synonyms { &*s.sidx } else { &*s.qidx };
     let count = if synonyms { s.syn_samples } else { s.samples };
@@ -459,5 +464,5 @@ pub unsafe extern "C" fn xp_dictionary_ifo(data: *const u8, len: usize) -> u8 {
     let html = value(b, b"sametypesequence").is_some_and(|v| {
         matches!(v.first(), Some(b'h' | b'x')) && matches!(v.get(1), None | Some(b'\r' | b'\n'))
     });
-    u8::from(offset) | (u8::from(html) * 2)
+    (u8::from(offset) * XP_DICTIONARY_IFO_OFFSETS64) | (u8::from(html) * XP_DICTIONARY_IFO_HTML)
 }

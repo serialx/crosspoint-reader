@@ -144,7 +144,7 @@ class Dictionary {
   static constexpr uint32_t MAX_DEFINITION_BYTES = 64 * 1024;
 
  private:
-  static constexpr uint32_t SAMPLE_INTERVAL = 256;
+  static constexpr uint32_t SAMPLE_INTERVAL = XP_DICTIONARY_SAMPLE_INTERVAL;
 
   // Longest "<basePath><suffix>" the lookup path builds, rounded up. basePath is
   // "/dictionaries/<folder>/<stem>" (14 fixed chars) and the longest suffix is
@@ -156,6 +156,9 @@ class Dictionary {
   // Length of the longest suffix appended to basePath (".dict.dz"); used for
   // the open()-time length check.
   static constexpr size_t LONGEST_SUFFIX_LEN = sizeof(".dict.dz") - 1;
+  static_assert(PATH_BUF_BYTES == XP_DICTIONARY_PATH_BYTES);
+  static_assert(LONGEST_SUFFIX_LEN == XP_DICTIONARY_LONGEST_SUFFIX_BYTES);
+  static_assert(MAX_DEFINITION_BYTES == XP_DICTIONARY_MAX_DEFINITION_BYTES);
 
   // Compose "<basePath><suffix>" into a caller-supplied stack buffer. The
   // lookup path runs this instead of `basePath + suffix` so path construction
@@ -230,5 +233,5 @@ class Dictionary {
 
   // Shared scan buffer: lookups are single-threaded and this avoids a
   // 256-byte array on the stack of every locate() call.
-  char wordBuf[256] = {};
+  char wordBuf[XP_DICTIONARY_WORD_BYTES] = {};
 };

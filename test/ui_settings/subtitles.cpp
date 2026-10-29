@@ -6,7 +6,7 @@ int main() {
   for (int width : {120, 240})
     for (int padding : {-1, 0, 8})
       for (int minimum : {36, 70})
-        for (int lines : {1, 2})
+        for (int lines : {1, 2, 3, 16})
           for (bool balance : {false, true})
             for (int text = 0; text < 3; ++text) {
               ui::ListItem item;

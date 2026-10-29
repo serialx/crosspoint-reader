@@ -49,6 +49,9 @@ class SettingsUiActivity : public RustActivityAdapter {
   static void setCheckboxRow(SettingsUiRow&, bool);
 
  private:
+  friend class KOReaderSettingsActivity;
+  bool uiSceneFailed() const;
+  void rustSceneFailed() override;
   XpUiSettingsKind kind;
   XpUiListState state{};
   XpUiListState next{};
@@ -70,7 +73,6 @@ class SettingsUiActivity : public RustActivityAdapter {
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
   void rustPublished() override;
-  void rustSceneFailed() override { sceneFailed = true; }
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t) const override;
   XpUiEffect updateRust(const XpUiInput&) override;

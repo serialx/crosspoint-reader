@@ -23,6 +23,8 @@ code = r'''
 #include <cstdint>
 #include <memory>
 #define LOG_ERR(...) ((void)0)
+#define LOG_DBG(...) ((void)0)
+namespace haptic_feedback { void touchAction(bool) {} }
 static_assert(XP_UI_SETTINGS_SMALL_LABELS_ON_TOUCH == 4);
 constexpr int UI_12_FONT_ID=1, UI_10_FONT_ID=0;
 static bool failGrowth=false;
@@ -83,13 +85,23 @@ public:
   bool buildRustScene(XpUiScene&);
   XpUiEffect updateRust(const XpUiInput&);
   void rustPublished();
+  void rustSceneFailed();
+  bool uiSceneFailed() const {return sceneFailed;}
+  unsigned activations=0,backs=0,requests=0;
+  void activateIndex(int){++activations;}
+  void onRowLongPress(int){++activations;}
+  void onBackButton(){++backs;}
+  void requestUpdate(){++requests;}
+  void applyRustEffect(const XpUiEffect&);
 };
 '''
 code += '\n'.join(method(signature) for signature in [
     'bool SettingsUiActivity::reserveCommands(',
     'bool SettingsUiActivity::buildRustScene(',
     'XpUiEffect SettingsUiActivity::updateRust(',
-    'void SettingsUiActivity::rustPublished('])
+    'void SettingsUiActivity::rustPublished(',
+    'void SettingsUiActivity::rustSceneFailed(',
+    'void SettingsUiActivity::applyRustEffect('])
 code += r'''
 int main() {
   SettingsUiActivity activity;
@@ -113,6 +125,28 @@ int main() {
   assert(activity.updateRust(confirm).kind==XP_UI_EFFECT_NONE);
   activity.rustPublished();
   assert(activity.updateRust(confirm).kind==XP_UI_ACTIVATE);
+  // Paint rejection uses the same production hook, before or after a publication.
+  for (bool published : {false, true}) {
+    SettingsUiActivity rejected;
+    if(published) rejected.rustPublished();
+    rejected.state.active=4;rejected.state.pending_scroll=3;rejected.state.last_repeat=999;
+    rejected.longTouch=rejected.touchActivated=true;
+    rejected.rustSceneFailed();
+    assert(rejected.state.active==-1&&rejected.state.pending_scroll==0&&rejected.state.last_repeat==0);
+    assert(!rejected.longTouch&&!rejected.touchActivated);
+    XpUiInput all{};all.pressed=all.released=all.held=0xffff&~XP_UI_BACK;
+    all.touch_flags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_RELEASED|XP_UI_TOUCH_HELD;
+    all.action=2;all.value=4;all.swipe=XP_UI_SWIPE_DOWN;
+    assert(rejected.updateRust(all).kind==XP_UI_EFFECT_NONE);
+    assert(!forwarded.pressed&&!forwarded.released&&!forwarded.held&&!forwarded.touch_flags&&!forwarded.action&&!forwarded.swipe);
+    assert(rejected.updateRust(back).kind==XP_UI_CANCEL);
+    XpUiEffect queued{};queued.kind=XP_UI_ACTIVATE;
+    rejected.applyRustEffect(queued);
+    assert(!rejected.activations&&rejected.requests==1);
+    queued.kind=XP_UI_CANCEL;rejected.applyRustEffect(queued);assert(rejected.backs==1);
+    rejected.rustPublished();
+    assert(rejected.updateRust(confirm).kind==XP_UI_ACTIVATE);
+  }
   assert(!activity.reserveCommands(129));
   assert(activity.commands&&activity.commandCapacity==64);
 }

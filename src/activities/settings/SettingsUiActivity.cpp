@@ -78,6 +78,18 @@ bool SettingsUiActivity::routingReady() const {
   ModelLock lock(*const_cast<SettingsUiActivity*>(this));
   return publication.ready;
 }
+bool SettingsUiActivity::uiSceneFailed() const {
+  ModelLock lock(*const_cast<SettingsUiActivity*>(this));
+  return sceneFailed;
+}
+void SettingsUiActivity::rustSceneFailed() {
+  sceneFailed = true;
+  state.active = -1;
+  state.pending_scroll = 0;
+  state.last_repeat = 0;
+  ++state.navigation_revision;
+  longTouch = touchActivated = false;
+}
 int SettingsUiActivity::selectedIndex() const {
   ModelLock lock(*const_cast<SettingsUiActivity*>(this));
   return state.selected;
@@ -149,6 +161,10 @@ XpUiEffect SettingsUiActivity::updateRust(const XpUiInput& source) {
 }
 
 void SettingsUiActivity::applyRustEffect(const XpUiEffect& effect) {
+  if (effect.kind != XP_UI_CANCEL && uiSceneFailed()) {
+    requestUpdate();
+    return;
+  }
   switch (effect.kind) {
     case XP_UI_CANCEL:
       onBackButton();
@@ -221,7 +237,7 @@ XpUiSettingsResources SettingsUiActivity::resources() {
 bool SettingsUiActivity::buildRustScene(XpUiScene& scene) {
   const auto failed = [this]() {
     ModelLock lock(*this);
-    sceneFailed = true;
+    rustSceneFailed();
     return false;
   };
   if ((!commands && !reserveCommands(requestedCapacity)) || listCount() < 0 || listCount() > UINT16_MAX)

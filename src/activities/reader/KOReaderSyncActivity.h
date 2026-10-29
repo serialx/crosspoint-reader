@@ -1,107 +1,50 @@
 #pragma once
 #include <Epub.h>
 
-#include <functional>
 #include <memory>
-#include <optional>
+#include <string>
 
 #include "KOReaderSyncClient.h"
+#include "KOReaderUiActivity.h"
 #include "ProgressMapper.h"
-#include "activities/Activity.h"
-#include "components/UiAppHost.h"
 
-/**
- * Activity for syncing reading progress with KOReader sync server.
- *
- * Flow:
- * 1. Connect to WiFi (if not connected)
- * 2. Calculate document hash
- * 3. Fetch remote progress
- * 4. Show comparison and options (Apply/Upload)
- * 5. Apply or upload progress
- */
-class KOReaderSyncActivity final : public Activity, private UiAppHost {
+class KOReaderSyncActivity final : public KOReaderUiActivity {
  public:
-  explicit KOReaderSyncActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& epubPath,
+  explicit KOReaderSyncActivity(GfxRenderer&, MappedInputManager&, const std::string& epubPath,
                                 CrossPointPosition localPosition, SavedProgressPosition localKoPos,
-                                std::string localChapterName, const bool pluginEventsOnly = false);
-
+                                std::string localChapterName, bool pluginEventsOnly = false);
   void onEnter() override;
   void onExit() override;
-  void loop() override;
-  void render(RenderLock&&) override;
-  bool preventAutoSleep() override { return state == CONNECTING || state == SYNCING || state == UPLOADING; }
 
  private:
 #ifdef CROSSPOINT_UI_ORACLE
   friend struct UiOracleKOReader;
   bool oracleFreeze = false;
 #endif
-  enum State {
-    WIFI_SELECTION,
-    CONNECTING,
-    SYNCING,
-    SHOWING_RESULT,
-    UPLOADING,
-    UPLOAD_COMPLETE,
-    SYNC_COMPLETE,
-    NO_REMOTE_PROGRESS,
-    SYNC_FAILED,
-    NO_CREDENTIALS
-  };
-
-  std::shared_ptr<Epub> epub;  // null until lazy-loaded after TLS in performSync()
-  std::string epubPath;
-  std::string localChapterName;
-  CrossPointPosition localPosition;
-
-  State state = WIFI_SELECTION;
-  std::string statusMessage;
-  std::string documentHash;
-
-  // Remote progress data
-  bool hasRemoteProgress = false;
-  KOReaderProgress remoteProgress;
-  CrossPointPosition remotePosition;
-
-  // Local progress as KOReader format (pre-computed before Epub was released)
+  std::shared_ptr<Epub> epub;
+  Epub* paintingEpub = nullptr;
+  std::string epubPath, localChapterName, documentHash;
+  CrossPointPosition localPosition{}, remotePosition{};
   SavedProgressPosition localProgress;
-
-  // Selection in result screen (0=Apply, 1=Upload)
-  int selectedOption = 0;
-
-  // Timed return for successful smart-sync terminal states.
-  unsigned long autoReturnAt = 0;
-  static constexpr unsigned long AUTO_RETURN_DELAY_MS = 1200;
-
-  // Tracks whether this session activated WiFi. Set in onEnter past the credentials
-  // check; checked in onExit to decide whether to silent-reboot. Can't rely on
-  // WiFi.getMode() because performUpload() calls esp_wifi_stop() on the way out,
-  // which makes WiFi.getMode() return WIFI_MODE_NULL.
-  bool wifiActivated = false;
-
-  // Reuses the KOReader WiFi connect/drain/return flow without a server: flush
-  // plugged-outbox events instead of syncing progress.
-  bool pluginEventsOnly = false;
-
-  void onWifiSelectionComplete(bool success);
+  KOReaderProgress remoteProgress{};
+  // Alternating fetch/upload scratch belongs to the synchronous service call.
+  KOReaderProgress scratch{};
+  std::string alternateHash;
+  // These strings/buffers are render-owned for the complete scene lifetime.
+  std::string remoteChapter;
+  char localChapterFallback[32]{}, remoteValue[64]{}, localValue[64]{}, deviceValue[80]{};
+  void onWifiSelectionComplete(bool);
+  void ensureEpubLoaded();
+  void releaseEpub();
   void performSync();
   void performUpload();
-  bool smartSyncEnabled() const;
-  void markAutoReturn();
-  void completeAlreadySynced();
-  void ensureEpubLoaded();
-  void saveProgressAndReturn(int spineIndex, int page);
-  void returnToReader();
-
-  // The UiAppHost app hosts the interactive states (SHOWING_RESULT compare
-  // rows and the NO_REMOTE_PROGRESS upload prompt) so they get themed
-  // rows/buttons and tap-flash; the header stays on GUI.drawHeader for the
-  // battery indicator and the purely-informational states keep their raw
-  // centered text.
-  static void resultScreen(UiScreen& screen, void* user);
-  static void onResultRow(const freeink::ui::ActionEvent& event, void* user);
-  void buildResultScreen(UiScreen& screen);
-  void chooseResultOption();
   void startUpload();
+  void returnToReader();
+  XpKoOptions options() const;
+  static uint32_t service(void*, uint32_t, uint32_t, uint32_t);
+  uint32_t service(XpKoOperation, uint32_t, uint32_t);
+  void snapshotResources() override;
+  void prepareText() override;
+  const char* resourceText(uint32_t) const override;
+  void performEffect(const XpUiEffect&) override;
 };

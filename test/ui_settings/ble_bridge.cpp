@@ -163,6 +163,7 @@ struct SettingsUiActivity : RustActivityAdapter {
   }
   bool handleCustomInput() { return false; }
   bool routingReady() const { return publication.ready; }
+  bool uiSceneFailed() const { return sceneFailed; }
   int selectedIndex() const { return state.selected; }
   void loop();
   Publication* rustPublication() override { return &publication; }

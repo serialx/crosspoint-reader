@@ -1,39 +1,21 @@
 #pragma once
+#include "activities/reader/KOReaderUiActivity.h"
 
-#include <functional>
-
-#include "activities/Activity.h"
-
-/**
- * Activity for testing KOReader credentials, or — in sign-up mode — creating a
- * new account on the sync server with the entered username/password.
- * Connects to WiFi, then authenticates or registers.
- */
-class KOReaderAuthActivity final : public Activity {
+class KOReaderAuthActivity final : public KOReaderUiActivity {
  public:
   enum class Mode { AUTHENTICATE, SIGN_UP };
-
-  explicit KOReaderAuthActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, Mode mode = Mode::AUTHENTICATE)
-      : Activity("KOReaderAuth", renderer, mappedInput), mode(mode) {}
-
+  explicit KOReaderAuthActivity(GfxRenderer& renderer, MappedInputManager& input, Mode mode = Mode::AUTHENTICATE)
+      : KOReaderUiActivity("KOReaderAuth", renderer, input, mode == Mode::SIGN_UP ? XP_KO_SIGNUP : XP_KO_AUTH) {}
   void onEnter() override;
   void onExit() override;
-  void loop() override;
-  void render(RenderLock&&) override;
-  bool preventAutoSleep() override { return state == CONNECTING || state == AUTHENTICATING; }
 
  private:
 #ifdef CROSSPOINT_UI_ORACLE
   friend struct UiOracleKOReader;
   bool oracleFreeze = false;
 #endif
-  enum State { WIFI_SELECTION, CONNECTING, AUTHENTICATING, SUCCESS, FAILED };
-
-  Mode mode = Mode::AUTHENTICATE;
-  State state = WIFI_SELECTION;
-  std::string statusMessage;
-  std::string errorMessage;
-
-  void onWifiSelectionComplete(bool success);
+  void onWifiSelectionComplete(bool);
   void performAuthentication();
+  void performEffect(const XpUiEffect&) override;
+  static uint32_t service(void*, uint32_t, uint32_t, uint32_t);
 };

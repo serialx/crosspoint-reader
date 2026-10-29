@@ -302,6 +302,9 @@ struct CatalogUiActivity {
  struct Renderer {bool paint=true;int refreshes=0;
   bool drawUiScene(XpUiScene&,const int*){return paint;}void displayBuffer(int){++refreshes;}
  } renderer;
+ bool sharedRejected=false;
+ void rejectRustScene(){sharedRejected=true;rejectScene();}
+ void publishRustScene(const XpUiScene&){sharedRejected=false;rustPublished();publication.ready=true;}
  bool build=true,sceneFailed=false,touchActivated=false,rejectedTouch=false;
  uint16_t rejectedButtons=0;std::string name="catalog";
  XpUiCatalogState ui{};XpUiCatalogHits publishedHits{},nextHits{};XpUiListState next{};int32_t consumedScroll=0;
@@ -319,7 +322,7 @@ int main(){
   a.ui.list.active=3;a.ui.list.pending_scroll=9;a.ui.list.last_repeat=500;
   a.ui.search_pending=a.ui.long_press=1;
   a.build=paint;a.renderer.paint=!paint;const auto refreshes=a.renderer.refreshes;
-  a.render(RenderLock{});assert(a.sceneFailed && !a.publication.ready);
+  a.render(RenderLock{});assert(a.sceneFailed && !a.publication.ready);assert(a.sharedRejected);
   assert(a.renderer.refreshes==refreshes && a.ui.list.active==-1 && !a.ui.list.pending_scroll);
   assert(!a.ui.list.last_repeat && !a.ui.search_pending && !a.ui.long_press);
   input.pressed=XP_UI_NAV_NEXT;input.held=XP_UI_CONFIRM;input.held_ms=1200;

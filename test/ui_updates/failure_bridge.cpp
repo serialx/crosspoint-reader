@@ -115,6 +115,7 @@ int main() {
       a.model.touch_active = 2;
       a.render({});
       assert(!a.publication.ready && a.model.scene_failed);
+      assert(a.sceneFailed);
       assert(a.model.list.active == -1 && a.model.list.pending_scroll == 0 && a.model.touch_active == 0);
       if (allocation) assert(a.commands.get() == original && a.capacity == 20);
       a.input(2, 2);

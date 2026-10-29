@@ -1,7 +1,7 @@
 # Dictionary and selection UI oracle
 
 `python3 test/dictionary_ui/oracle.py` compiles the current C++ geometry and
-compares it with `geometry.golden`, recorded at `dc21f50f` before the Rust port.
+compares it with `geometry.golden.gz`, recorded at `dc21f50f` before the Rust port.
 It also changes the word-hit slop from four pixels to three and requires a
 mismatch. Use `--source PATH` to run against an archived source tree.
 

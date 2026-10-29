@@ -1,5 +1,6 @@
 """Record the original selection geometry and dictionary viewport on the host."""
 from pathlib import Path
+import gzip
 import subprocess
 import tempfile
 
@@ -53,6 +54,6 @@ if __name__ == '__main__':
     if args.record:
         args.record.write_bytes(data)
     else:
-        assert data == (Path(__file__).parent / 'geometry.golden').read_bytes()
+        assert data == gzip.decompress((Path(__file__).parent / 'geometry.golden.gz').read_bytes())
         assert record(args.source, True) != data, 'slop mutation was not detected'
         print('Dictionary/selection geometry matches; slop mutation rejected')

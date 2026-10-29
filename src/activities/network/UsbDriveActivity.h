@@ -14,7 +14,10 @@ class UsbDriveActivity final : public RustActivityAdapter {
   void loop() override;
   void render(RenderLock&&) override;
   bool preventAutoSleep() override { return xp_ui_network_usb_prevent_sleep(&model); }
-  bool requiresExclusiveStorageLoop() const override { return true; }
+  bool requiresExclusiveStorageLoop() const override {
+    ModelLock lock(*const_cast<UsbDriveActivity*>(this));
+    return model.preparing == 0;
+  }
 
  private:
   XpUiUsbState model{}, renderingState{};

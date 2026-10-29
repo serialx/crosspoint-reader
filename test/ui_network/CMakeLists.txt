@@ -45,6 +45,8 @@ add_test(NAME ui_network_modes_pixels COMMAND NetworkModesTarget)
 
 add_test(NAME ui_network_usb_input COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_usb_input.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_network_usb_manager COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_usb_manager.py ${XP_FFI_HOST_ARCHIVE})
 
 add_test(NAME ui_network_abi COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_abi.py)
 

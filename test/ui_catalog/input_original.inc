@@ -55,4 +55,3 @@ bool OpdsBookBrowserActivity::handleCustomInput() {
   }
   return CatalogActivity::handleCustomInput();
 }
-

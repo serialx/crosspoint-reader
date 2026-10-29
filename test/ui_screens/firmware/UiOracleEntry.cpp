@@ -52,7 +52,7 @@ void openDetails(GfxRenderer& renderer, MappedInputManager& input, const UiOracl
 
 bool uiOracleOpdsEnter(OpdsBookBrowserActivity& activity) {
   if (opdsCase == UiOracleCase::Invalid) return false;
-  activity.state = CatalogActivity::State::BROWSING;
+  activity.setState(OpdsCatalogActivity::State::BROWSING);
   activity.feedTitle = "Fixture catalog";
   activity.statusMessage = "A synthetic book with a long title that wraps onto a second line";
   activity.errorMessage = "The fixture server could not return its catalog. Please try again.";
@@ -80,26 +80,27 @@ bool uiOracleOpdsEnter(OpdsBookBrowserActivity& activity) {
     case UiOracleCase::OpdsEmpty:
       break;
     case UiOracleCase::OpdsAuth:
-      activity.state = CatalogActivity::State::AUTH;
+      activity.setState(OpdsCatalogActivity::State::AUTH);
       activity.statusMessage = "Passphrase fixture";
       break;
     case UiOracleCase::OpdsError:
-      activity.state = CatalogActivity::State::ERROR;
+      activity.setState(OpdsCatalogActivity::State::ERROR);
       break;
     case UiOracleCase::OpdsLoading:
-      activity.state = CatalogActivity::State::LOADING;
+      activity.setState(OpdsCatalogActivity::State::LOADING);
       activity.statusMessage = "Loading fixture catalog";
       break;
     case UiOracleCase::OpdsDownload:
     case UiOracleCase::OpdsBytes:
-      activity.state = CatalogActivity::State::DOWNLOADING;
+      activity.setState(OpdsCatalogActivity::State::DOWNLOADING);
       activity.downloadProgress = 1572864;
       activity.downloadTotal = opdsCase == UiOracleCase::OpdsBytes ? 0 : 4194304;
       break;
     default:
       return false;
   }
-  activity.rebuildRowItems();
+  activity.ui.progress = activity.downloadProgress;
+  activity.ui.total = activity.downloadTotal;
   activity.requestUpdate();
   return true;
 }

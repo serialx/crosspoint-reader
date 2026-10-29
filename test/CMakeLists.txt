@@ -152,7 +152,6 @@ add_subdirectory(settings_store)
 add_subdirectory(library_oracle)
 
 add_subdirectory(ui_runtime)
-add_subdirectory(ui_catalog)
 add_subdirectory(reader_chrome)
 
 
@@ -176,3 +175,4 @@ set_tests_properties(TrustedTimeTimezone PROPERTIES
 
 add_subdirectory(book_io)
 add_subdirectory(ui_settings)
+add_subdirectory(ui_catalog)

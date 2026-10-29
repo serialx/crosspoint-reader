@@ -25,6 +25,19 @@ pub struct Style {
 
 /// Per-row content shares the chapter list's viewport, selection and hit rules.
 pub trait Rows {
+    fn section(&mut self, _: u16, _: bool, _: Style) -> Result<(i16, i16), Error> {
+        Ok((0, 0))
+    }
+    fn paint_section(
+        &mut self,
+        _: &mut Arena<'_>,
+        _: u16,
+        _: Rect,
+        _: Style,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
     fn action(&self) -> u32 {
         1
     }
@@ -200,12 +213,16 @@ pub fn view_rows(
         if !(1..=8192).contains(&item_height) {
             return Err(Error::Invalid);
         }
+        let (section_pad, section_height) = rows.section(index as u16, index == next.top, style)?;
+        if section_pad < 0 || section_height < section_pad || section_height > 8192 {
+            return Err(Error::Invalid);
+        }
         let row_height = i32::from(item_height);
-        let partial = y + row_height > bottom;
+        let partial = y + i32::from(section_height) + row_height > bottom;
         if partial && !rows.partial() {
             break;
         }
-        if partial && bottom - y < 18 {
+        if partial && bottom - y - i32::from(section_pad) < 18 {
             break;
         }
         if partial {
@@ -219,6 +236,21 @@ pub fn view_rows(
                 },
                 ..Command::default()
             })?;
+        }
+        if section_height > 0 {
+            rows.paint_section(
+                arena,
+                index as u16,
+                Rect {
+                    x: row_x as i16,
+                    y: (y + i32::from(section_pad)) as i16,
+                    w: row_width as i16,
+                    h: section_height - section_pad,
+                },
+                style,
+                generation,
+            )?;
+            y += i32::from(section_height);
         }
         let rect = Rect {
             x: row_x as i16,

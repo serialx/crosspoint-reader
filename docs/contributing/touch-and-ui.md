@@ -105,7 +105,7 @@ All under `freeink-sdk/libs/ui/FreeInkUI/include/components/`:
 | Media | `book-card`, `cover-grid`, `cover-carousel`, `metric-card` |
 | Text | `text-field`, `text-area` |
 
-One exception to "always go through a host": `KeyboardEntryActivity` drives the keyboard component with a raw `fui::Frame` and `TouchHoldRouter` because per-key hold repeat needs its own routing. If you think your screen needs that, raise it in the PR first.
+`KeyboardEntryActivity` uses `RustActivityAdapter`: Rust owns input, per-key holds, placement and hit testing against the published frame. The C++ resource binding uses a raw `fui::Frame` with no interactions only to paint one SDK key. See [the Rust UI guide](rust-ui.md) for that ownership boundary.
 
 ---
 

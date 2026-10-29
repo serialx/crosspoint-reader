@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.16)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  project(font_registry C CXX)
+  set(CMAKE_CXX_STANDARD 20)
+  get_filename_component(REPO_ROOT "../.." ABSOLUTE)
+  enable_testing()
+endif()
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+set(FONT_REGISTRY_SOURCE_DIR "${REPO_ROOT}/lib/EpdFont" CACHE PATH "Registry implementation for differential runs")
+add_executable(FontRegistryAllocation Allocation.cpp ${FONT_REGISTRY_SOURCE_DIR}/SdCardFontRegistry.cpp)
+target_include_directories(FontRegistryAllocation PRIVATE stubs ${FONT_REGISTRY_SOURCE_DIR}
+  ${REPO_ROOT}/lib/EpdFont ${REPO_ROOT}/lib/Memory)
+target_compile_definitions(FontRegistryAllocation PRIVATE BOARD_HAS_PSRAM)
+target_link_libraries(FontRegistryAllocation PRIVATE xp_ffi_host)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME FontRegistryAllocation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check.py
+  $<TARGET_FILE:FontRegistryAllocation>)

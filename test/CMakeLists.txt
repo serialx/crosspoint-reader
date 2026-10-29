@@ -166,3 +166,4 @@ add_subdirectory(ota_policy)
 add_subdirectory(ui_utility)
 
 add_subdirectory(book_io)
+add_subdirectory(section_io)

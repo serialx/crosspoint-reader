@@ -570,6 +570,19 @@
       "source": "src/activities/util/KeyboardLayoutSet.cpp",
       "status": "shared-implementation",
       "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/util/UtilityActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "files",
+        "image",
+        "library-actions",
+        "plugin-readme",
+        "display",
+        "qr"
+      ],
+      "reason": "Rust utility scene storage, publication and platform resource bindings; exercised through concrete dialogs."
     }
   ],
   "additional_limits": [

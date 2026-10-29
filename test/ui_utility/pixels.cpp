@@ -141,10 +141,10 @@ static void baselineLight(ui::GfxRendererTarget& target, int variant, int radius
   ui::Frame<24> frame(target, device, {}, hits);
   const auto t = theme(target, radius);
   ui::Screen<24> screen(frame, t);
-  const bool warmth=variant&1, touch=variant&2, toggle=variant&4;
+  const bool warmth = variant & 1, touch = variant & 2, toggle = variant & 4;
   const auto line = target.lineHeight(t.smallText.font);
   const int bottom = t.spaceMd + line + t.spaceMd + (line + t.spaceMd + 56 + 2 * t.spaceMd) * (warmth ? 2 : 1) +
-                     t.spaceSm + (touch ? 48+t.spaceSm+line:0) + 2 * t.spaceLg + 5 + t.spaceMd;
+                     t.spaceSm + (touch ? 48 + t.spaceSm + line : 0) + 2 * t.spaceLg + 5 + t.spaceMd;
   ui::SheetProps sheet;
   sheet.grabberMargin = t.spaceLg;
   sheet.grabberInset = t.spaceLg + t.spaceMd;
@@ -165,16 +165,25 @@ static void baselineLight(ui::GfxRendererTarget& target, int variant, int radius
     screen.spacer(t.spaceMd);
   }
   screen.spacer(t.spaceSm);
-  if(touch){
-    const auto row=screen.takeTop(48+t.spaceSm+line);
-    for(int i=0;i<4;++i){
-      const int16_t left=row.x+row.width*i/4,right=row.x+row.width*(i+1)/4;
-      const ui::Rect slot{left,row.y,static_cast<int16_t>(right-left),row.height};
-      const ui::Rect circle{static_cast<int16_t>(left+(slot.width-48)/2),row.y,48,48};
-      if(i==3)target.fill(circle,ui::Paint::solid(ui::Color::Black),24);
-      else if(i==0)target.stroke(circle,ui::Paint::solid(ui::Color::Black),2,24);
-      if(i==2)target.fill({static_cast<int16_t>(circle.x+12),static_cast<int16_t>(circle.y+37),24,3},ui::Paint::solid(ui::Color::Black));
-      if(i==0||i==3){auto text=t.smallText;text.align=ui::TextAlign::Center;target.text({slot.x,static_cast<int16_t>(row.y+48+t.spaceSm),slot.width,line},label(i==3?14:15),text);}
+  if (touch) {
+    const auto row = screen.takeTop(48 + t.spaceSm + line);
+    for (int i = 0; i < 4; ++i) {
+      const int16_t left = row.x + row.width * i / 4, right = row.x + row.width * (i + 1) / 4;
+      const ui::Rect slot{left, row.y, static_cast<int16_t>(right - left), row.height};
+      const ui::Rect circle{static_cast<int16_t>(left + (slot.width - 48) / 2), row.y, 48, 48};
+      if (i == 3)
+        target.fill(circle, ui::Paint::solid(ui::Color::Black), 24);
+      else if (i == 0)
+        target.stroke(circle, ui::Paint::solid(ui::Color::Black), 2, 24);
+      if (i == 2)
+        target.fill({static_cast<int16_t>(circle.x + 12), static_cast<int16_t>(circle.y + 37), 24, 3},
+                    ui::Paint::solid(ui::Color::Black));
+      if (i == 0 || i == 3) {
+        auto text = t.smallText;
+        text.align = ui::TextAlign::Center;
+        target.text({slot.x, static_cast<int16_t>(row.y + 48 + t.spaceSm), slot.width, line}, label(i == 3 ? 14 : 15),
+                    text);
+      }
     }
   }
 }
@@ -262,10 +271,11 @@ static void candidate(GfxRenderer& r, ui::GfxRendererTarget& target, int kind, i
   s.kind = kind;
   s.value = 60;
   s.maximum = 100;
-  s.selected = variant!=0;
+  s.selected = variant != 0;
   s.brightness = 60;
   s.warmth = 50;
-  s.switch_owns_light = !(variant&4);s.touch_mode=2;
+  s.switch_owns_light = !(variant & 4);
+  s.touch_mode = 2;
   assert(xp_ui_utility_init(&s));
   const auto t = theme(target, radius);
   const auto safe = target.deviceContext().safeRect();
@@ -296,10 +306,10 @@ static void candidate(GfxRenderer& r, ui::GfxRendererTarget& target, int kind, i
   l.popup_border = 2;
   l.popup_radius = radius;
   l.row_radius = radius;
-  l.touch = (kind == 1 && variant) || (kind==3 && (variant&2));
+  l.touch = (kind == 1 && variant) || (kind == 3 && (variant & 2));
   l.show_cover = variant;
   l.light_present = 1;
-  l.has_warmth = variant&1;
+  l.has_warmth = variant & 1;
   const XpUiMetrics metrics{
       &r,
       [](void* p, int32_t f, const uint8_t* text, uint16_t len, uint8_t style) -> int32_t {
@@ -319,18 +329,30 @@ static void candidate(GfxRenderer& r, ui::GfxRendererTarget& target, int kind, i
       }};
   XpUiCommand commands[80]{};
   XpUiInteraction hits[16]{};
-  const uint16_t capacities[]={12,20,24,44};
-  const uint16_t hitCapacities[]={3,5,2,11};
+  const uint16_t capacities[] = {10, 18, 23, 43};
+  const uint16_t hitCapacities[] = {3, 5, 2, 11};
   const XpUiBuffer buffer{commands, hits, capacities[kind], hitCapacities[kind]};
   XpUiUtilityFeedback feedback{};
   XpUiScene scene{};
-  assert(xp_ui_utility_view(&s, &l, &metrics, &texts, &buffer, &feedback, &scene));
+  const auto view = s.kind == XP_UI_UTILITY_FRONTLIGHT ? xp_ui_utility_frontlight_view : xp_ui_utility_view;
+  if (!view(&s, &l, &metrics, &texts, &buffer, &feedback, &scene)) {
+    std::fprintf(stderr, "Utility scene failed: kind=%d variant=%d radius=%d\n", kind, variant, radius);
+    std::abort();
+  }
   const XpUiPaint paint{&r, nullptr, nullptr, [](void*, uint32_t, uint32_t) -> uint8_t { return 1; },
                         [](void* p, const XpGlyphTarget*, const XpUiCommand* c, XpUiRect clip) {
                           if (c->kind == XP_UI_TEXT_HANDLE)
                             static_cast<GfxRenderer*>(p)->drawUiText(*c, clip, label(c->resource));
                         }};
   assert(r.drawUiScene(scene, &paint));
+  if (kind == XP_UI_UTILITY_FRONTLIGHT && l.touch) {
+    const auto count = scene.interaction_count;
+    for (uint16_t index = 0; index < count; ++index) {
+      s.active_action = hits[index].action;
+      s.active_value = hits[index].value;
+      assert(view(&s, &l, &metrics, &texts, &buffer, &feedback, &scene));
+    }
+  }
 }
 #endif
 int main(int argc, char** argv) {
@@ -349,7 +371,7 @@ int main(int argc, char** argv) {
   r.setFontCacheManager(&cache);
   for (int orientation = 0; orientation < 4; ++orientation)
     for (int radius : {0, 12, 18})
-      for (int variant=0;variant<8;++variant)
+      for (int variant = 0; variant < 8; ++variant)
         for (int kind : {0, 1, 2, 3}) {
           r.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
           r.setClipRect(0, 0, r.getScreenWidth(), r.getScreenHeight());

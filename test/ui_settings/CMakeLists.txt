@@ -22,3 +22,5 @@ add_test(NAME ui_settings_ble_bridge COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_ble_bridge.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ui_settings_protocol COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_protocol.py ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME ui_settings_subtitles COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_subtitles.py)

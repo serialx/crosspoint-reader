@@ -57,6 +57,7 @@ OpdsServerListActivity::OpdsServerListActivity(GfxRenderer& renderer, MappedInpu
     : CatalogUiActivity("OpdsServerList", renderer, mappedInput, XP_UI_CATALOG_SERVERS, -1, pickerMode) {}
 
 void OpdsServerListActivity::onEnter() {
+  ResourceLock resources(*this);
   CatalogUiActivity::onEnter();
   if (!hasUiStorage()) return;
 
@@ -105,6 +106,7 @@ void OpdsServerListActivity::handleSelection() {
         return;
       }
       startActivityForResult(std::move(editor), [this](const ActivityResult&) {
+        ResourceLock resources(*this);
         OPDS_STORE.loadFromFile();
         closeRouting();
       });
@@ -146,6 +148,7 @@ void OpdsServerListActivity::handleSelection() {
 
   // Settings mode: open editor for selected server, or create a new one
   auto resultHandler = [this](const ActivityResult&) {
+    ResourceLock resources(*this);
     // Reload server list when returning from editor
     OPDS_STORE.loadFromFile();
     resetSelection();
@@ -185,5 +188,5 @@ void OpdsServerListActivity::render(RenderLock&& lock) {
 
   // Header via GUI.drawHeader (already FreeInkUI-themed) for the battery
   // indicator; the rest of the screen renders through the base skeleton.
-  RustActivityAdapter::render(std::move(lock));
+  CatalogUiActivity::render(std::move(lock));
 }

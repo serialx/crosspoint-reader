@@ -54,6 +54,58 @@ class Review(unittest.TestCase):
                          .replace('// ACTIVATE_METHOD', activate)
                          .replace('// SNAPSHOT_CODE', snapshot))
 
+    def test_server_reload_cannot_publish_old_row_hits(self):
+        ui = source('src/activities/CatalogUiActivity.cpp')
+        server = source('src/activities/settings/OpdsServerListActivity.cpp')
+        adapter = source('src/activities/RustActivityAdapter.cpp')
+        fixture = (ROOT / 'test/ui_catalog/publication_fixture.inc').read_text().split('struct PluginCatalogActivity:')[0]
+        fixture = fixture.replace('struct HalDisplay {enum {FAST_REFRESH};};',
+                                  'struct HalDisplay {enum {FAST_REFRESH,HALF_REFRESH,FULL_REFRESH};};')
+        fixture = fixture.replace('struct {bool ready=false;} publication;',
+                                  'struct Publication {bool ready=false;XpUiScene scene{};} publication;\n'
+                                  'Publication* rustPublication(){return &publication;}')
+        fixture = fixture.replace('bool buildRustScene(XpUiScene&){',
+                                  'bool buildRustScene(XpUiScene& scene){scene.refresh=XP_UI_FAST;')
+        build = method(ui, '::buildCatalogScene(')
+        snapshot = build[build.index('  XpUiCatalogState snapshot{};'):build.index('  prepareRows();')]
+        fixture = fixture.replace('// SNAPSHOT_CODE', snapshot).replace('// RENDER_METHODS', '\n'.join(
+            method(ui, '::' + name + '(') for name in ['render', 'updateRust', 'rustPublished', 'closeRouting']))
+        callback = method(server, '::handleSelection(').split('  auto resultHandler = ')[1].split('\n  };', 1)[0] + '\n  };'
+        fixture += r'''
+#include <utility>
+struct ActivityResult {};
+struct {void loadFromFile(){}} OPDS_STORE;
+struct RustActivityAdapter:CatalogUiActivity {
+ void render(RenderLock&&);bool paintRustScene(const XpUiScene&);
+};
+'''
+        fixture = fixture.replace('bool drawUiScene(XpUiScene&,const int*)', 'bool drawUiScene(const XpUiScene&,const int*)')
+        fixture += method(adapter, '::render(') + '\n' + method(adapter, '::paintRustScene(')
+        fixture += r'''
+struct OpdsServerListActivity:RustActivityAdapter {
+ struct {bool processRender(Renderer&,int){return false;}} optionPopup;
+ int mappedInput=0;
+ void render(RenderLock&&);void resetSelection(){}
+ void reload(){auto resultHandler = ''' + callback + r''' resultHandler(ActivityResult{});}
+};
+''' + method(server, '::render(') + r'''
+int main(){
+ OpdsServerListActivity a;std::promise<void> painted,refreshed,started;
+ a.renderer.painted=painted.get_future().share();a.renderer.refreshed=refreshed.get_future().share();
+ auto drawing=std::async(std::launch::async,[&]{a.render(RenderLock{});});
+ a.renderer.painting.get_future().wait();
+ auto reload=std::async(std::launch::async,[&]{started.set_value();a.reload();});
+ started.get_future().wait();
+ const bool ordered=reload.wait_for(std::chrono::milliseconds(30))==std::future_status::timeout;
+ painted.set_value();a.renderer.panel.get_future().wait();
+ const bool independent=reload.wait_for(std::chrono::milliseconds(100))==std::future_status::ready;
+ if(!independent){refreshed.set_value();drawing.get();reload.get();assert(independent);}
+ reload.get();bool ready;{ModelLock lock(a);ready=a.publication.ready;}
+ refreshed.set_value();drawing.get();assert(!ready && ordered);
+}
+'''
+        self.compile_run(fixture)
+
     def test_sdk_contacts_retain_original_owner(self):
         sdk = (ROOT / 'freeink-sdk/libs/hardware/InputManager/src/InputManager.cpp').read_text()
         mapped = source('src/MappedInputManager.cpp')

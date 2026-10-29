@@ -210,6 +210,27 @@ int main(int argc,char** argv){
    input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
    assert(a.state.range_start==0 && a.selections==1);
   }
+  if(std::string(argv[1])=="clip-entry-lock"){
+   const int contact=atoi(argv[4]); // No contact, release edge, or held entry contact.
+   GfxRenderer r;MappedInputManager input;ClipSelectionActivity a("clip",r,input);a.setup();
+   a.state.ignore_touch=1;
+   if(first)paint(a);
+   input.touchFlags=contact==2?XP_UI_TOUCH_HELD:contact==1?XP_UI_TOUCH_RELEASED:0;
+   rejectWhileWaiting(a,r,buildFailure);
+   assert(a.state.ignore_touch==unsigned(contact==2));
+   assert(a.state.range_start==-1 && !a.selections && !a.activations && !a.cancellations);
+   // Publish recovery before any further input, with no idle or duplicate release.
+   a.buildOk=r.paintOk=true;paint(a);
+   if(contact==2){
+    a.loop();assert(a.state.ignore_touch && !a.selections);
+    input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();
+    assert(!a.state.ignore_touch && !a.selections && !a.activations && !a.cancellations);
+   }
+   input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
+   assert(a.state.range_start==0 && a.selections==1);
+   input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();
+   assert(a.selections==1 && !a.activations && !a.cancellations && !a.state.dragging);
+  }
   if(std::string(argv[1])=="clip-touch")for(bool contact:{false,true}){
    if(contact!=bool(atoi(argv[4])))continue;
    GfxRenderer r;MappedInputManager input;ClipSelectionActivity a("clip",r,input);a.setup();
@@ -309,10 +330,10 @@ class Activity;""")
                     str(out/'interleaving.cpp'), str(out/'RustActivityAdapter.cpp'),
                     str(ROOT/'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out/'interleaving')], check=True)
     results = []
-    for case in (sys.argv[2:] or ['remap', 'footnote', 'clip-lock', 'clip-touch', 'clip-entry', 'language', 'text']):
+    for case in (sys.argv[2:] or ['remap', 'footnote', 'clip-lock', 'clip-touch', 'clip-entry', 'clip-entry-lock', 'language', 'text']):
         for first in [0, 1]:
             for build_failure in [0, 1]:
-                for action in (range(3) if case == 'remap' else range(2) if case in ['clip-touch', 'text'] else range(1)):
+                for action in (range(3) if case in ['remap', 'clip-entry-lock'] else range(2) if case in ['clip-touch', 'text'] else range(1)):
                     label = f'{case}: published={first}, build_failure={build_failure}, action/contact={action}'
                     result = subprocess.run([str(out/'interleaving'), case, str(first), str(build_failure), str(action)], timeout=30)
                     print(label, 'exit='+str(result.returncode), flush=True)

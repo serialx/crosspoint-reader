@@ -365,6 +365,11 @@ void ClipSelectionActivity::loop() {
   RenderLock lock;
   if (rustSceneRejected()) {
     consumeRejectedInput();
+    int x = 0, y = 0;
+    if (!mappedInput.isScreenTouchHeld(x, y)) {
+      ModelLock model(*this);
+      state.ignore_touch = 0;
+    }
     return;
   }
   if (actionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;

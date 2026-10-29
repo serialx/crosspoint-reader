@@ -131,7 +131,9 @@ class HalStorage {
   }
   bool remove(const std::string& path) { return std::remove(resolvePath(path).c_str()) == 0; }
   bool rename(const char* from, const char* to) { return std::rename(from, to) == 0; }
-  bool removeDir(const char* path) { return std::filesystem::remove_all(path) != 0; }
+  bool removeDir(const char* path) {
+    return !std::getenv("BOOK_REMOVE_FAIL") && std::filesystem::remove_all(path) != 0;
+  }
   bool mkdir(const char* path) {
     return std::filesystem::create_directories(path) || std::filesystem::is_directory(path);
   }

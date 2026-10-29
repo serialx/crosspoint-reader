@@ -9,6 +9,7 @@ mod ble;
 mod ble_atomic;
 mod ble_json;
 mod ble_runtime;
+mod book;
 mod chapter;
 mod css;
 mod font;

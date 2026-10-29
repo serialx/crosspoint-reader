@@ -1,8 +1,8 @@
 # EPUB lifecycle oracle
 
 This suite builds the production Epub, package/cache, CSS and ZIP implementations
-against a traced host filesystem. The golden was captured at `0b70268b` before
-the orchestration port. It records return values, metadata, spine and TOC entries,
+against a traced host filesystem. Goldens record the original Epub implementation
+at `0b70268b`, using a historical source export for the later extensions. It records return values, metadata, spine and TOC entries,
 progress, exact logs, file operation order and every remaining cache byte.
 
 Run `cmake -S test/book_io -B build/book-io`, `cmake --build build/book-io`, then
@@ -19,8 +19,8 @@ once; cleanup and subsequent opens remain observable.
 
 Limitations: the host uses native size_t and std::hash, not the C3 ABI. Device
 cache-directory names and float behavior need firmware parity checks. Protection and image conversion use scripted leaves; TXT is inert in this suite; their own
-suites and emulator workloads remain necessary. The oracle does not measure
-allocations or emulate mutex contention. Goldens contain only public inputs.
+suites and emulator workloads remain necessary. The oracle records no-throw C++ allocation sizes and individually fails them;
+it does not intercept ordinary string allocations or emulate mutex contention. Goldens contain only public inputs.
 
 The host target uses `-ftrivial-auto-var-init=zero`: the baseline cache reader
 uses unchecked `readPod`/`readString` calls, and a failed read otherwise leaves
@@ -32,5 +32,7 @@ The extended baseline capture covers cover/thumbnail orchestration with JPG, PNG
 GIF and unsupported formats, duplicate CSS paths/content, and scripted protected
 reads (size mismatch, allocation overflow/failure, key/decrypt failure and short
 output). Converter stand-ins record configuration and emit deterministic bytes;
-existing real decoder goldens remain the pixel contract. Golden shards are each
-smaller than 1 MB and were all captured before the firmware implementation changed.
+existing real decoder goldens remain the pixel contract. The 2,493 cases include 1,296 individually failed HAL operations. Golden shards
+are each smaller than 1 MB. The final allocation and directory extensions were
+captured from exported `0b70268b` Epub source and header after implementation
+started, never from the candidate.

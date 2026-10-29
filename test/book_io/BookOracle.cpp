@@ -4,6 +4,24 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+namespace {
+size_t bookAllocationAttempts = 0;
+void* bookNothrowAllocate(size_t size, bool array) noexcept {
+  const char* limit = std::getenv("BOOK_CPP_FAIL");
+  const bool fail = limit && std::strtoull(limit, nullptr, 10) == ++bookAllocationAttempts;
+  if (!limit) ++bookAllocationAttempts;
+  printf("allocation %zu %zu %u%s\n", bookAllocationAttempts, size, array, fail ? " FAIL" : "");
+  if (fail) return nullptr;
+  try {
+    return array ? ::operator new[](size) : ::operator new(size);
+  } catch (...) {
+    return nullptr;
+  }
+}
+}  // namespace
+void* operator new(size_t size, const std::nothrow_t&) noexcept { return bookNothrowAllocate(size, false); }
+void* operator new[](size_t size, const std::nothrow_t&) noexcept { return bookNothrowAllocate(size, true); }
+
 int main(int argc, char** argv) {
   if (argc != 3) return 2;
   BookFault::failAt = std::strtoull(argv[2], nullptr, 10);
@@ -58,5 +76,12 @@ int main(int argc, char** argv) {
   }
   printf("extract-secret %u\n", epub.extractItemToFile("secret", "cache/secret.out"));
   printf("protection-error %s\n", epub.getProtectionError().c_str());
+  if (std::getenv("BOOK_CLEAR_CACHE")) {
+    printf("clear-cache %u\n", epub.clearCache());
+    printf("clear-cache-again %u\n", epub.clearCache());
+    epub.setupCacheDir();
+    printf("clear-recreated-cache %u\n", epub.clearCache());
+  }
+  printf("allocations %zu\n", bookAllocationAttempts);
   printf("steps %zu\n", BookFault::step);
 }

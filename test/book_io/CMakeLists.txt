@@ -19,13 +19,14 @@ add_executable(BookOracle BookOracle.cpp
  ${REPO_ROOT}/lib/hal/HalMemory.cpp
  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
 target_include_directories(BookOracle PRIVATE stubs
- ${REPO_ROOT}/lib/Epub
  ${REPO_ROOT}/lib/Epub ${REPO_ROOT}/lib/ZipFile
  ${REPO_ROOT}/lib/FsHelpers ${REPO_ROOT}/lib/Utf8
  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Serialization
  ${REPO_ROOT}/lib/hal ${REPO_ROOT}/lib/miniz/src
  ${REPO_ROOT}/lib/GifSupport ${REPO_ROOT}/lib/XmlParserUtils ${REPO_ROOT}/lib/expat
  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs)
+get_filename_component(BOOK_IO_SOURCE_DIR "${BOOK_IO_EPUB_SOURCE}" DIRECTORY)
+target_include_directories(BookOracle BEFORE PRIVATE "${BOOK_IO_SOURCE_DIR}")
 target_compile_options(BookOracle PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-include;algorithm;-ftrivial-auto-var-init=zero>")
 target_link_libraries(BookOracle PRIVATE xp_ffi_host)
 

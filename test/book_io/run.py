@@ -69,12 +69,19 @@ def main():
         'protected-decrypt-failure': {'BOOK_PROTECTED': '1', 'BOOK_DECRYPT_FAIL': '1'},
         'protected-key-failure': {'BOOK_KEY_ERROR': '1'},
         'codec-failure': {'BOOK_CODEC_FAIL': '1'},
+        'clear-cache': {'BOOK_CLEAR_CACHE': '1'},
+        'clear-cache-fail': {'BOOK_CLEAR_CACHE': '1', 'BOOK_REMOVE_FAIL': '1'},
     }
+    allocations = int(re.search(r'allocations (\d+)', normal['trace'])[1])
+    options.update({f'cpp-allocation-{i}': {'BOOK_CPP_FAIL': str(i)} for i in range(1, allocations + 1)})
     cases = [('synthetic', data, 0)]
     cases += [(key, data, 0) for key in options]
     cases += [(f'cover-{kind}', synthetic(kind), 0) for kind in ['jpg', 'gif', 'svg']]
     cases += [(f'css-duplicates-{count}', synthetic(duplicates=count), 0) for count in [2, 7, 32]]
     cases += [(f'fault-{i}', data, i) for i in range(1, steps + 1)]
+    gif = synthetic('gif')
+    gif_steps = int(re.search(r'steps (\d+)', run(binary, gif)['trace'])[1])
+    cases += [(f'gif-fault-{i}', gif, i) for i in range(1, gif_steps + 1)]
     cases += [(p.name, p.read_bytes(), 0) for p in sorted((ROOT / 'test/epubs').glob('*.epub'))]
     cases += [(f'truncate-{i}', data[:i], 0) for i in range(len(data) + 1)]
     if args.record:
@@ -84,7 +91,7 @@ def main():
         for offset in range(0, len(items), 128):
             with gzip.open(args.golden / f'{offset // 128:02d}.json.gz', 'wt') as file:
                 json.dump(dict(items[offset:offset + 128]), file, sort_keys=True)
-        print(f'recorded {len(actual)} cases; {steps} individually failed HAL operations')
+        print(f'recorded {len(actual)} cases; {steps + gif_steps} individually failed HAL operations')
         return
     expected = {}
     for shard in sorted(args.golden.glob('*.json.gz')):
@@ -99,7 +106,7 @@ def main():
             Path('/tmp/book-io-actual.json').write_text(json.dumps(actual, indent=2))
             Path('/tmp/book-io-expected.json').write_text(json.dumps(expected[key], indent=2))
             raise SystemExit(f'mismatch: {key}; details /tmp/book-io-{{actual,expected}}.json')
-    print(f'PASS {len(cases)} cases; {steps} individually failed HAL operations')
+    print(f'PASS {len(cases)} cases; {steps + gif_steps} individually failed HAL operations')
 
 
 if __name__ == '__main__':

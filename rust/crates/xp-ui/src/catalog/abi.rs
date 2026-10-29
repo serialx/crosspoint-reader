@@ -6,12 +6,14 @@ use super::{
 };
 use core::mem::{offset_of, size_of};
 const _: () = {
-    assert!(size_of::<State>() == 68);
+    assert!(size_of::<State>() == 84);
     assert!(offset_of!(State, mode) == 61);
     assert!(size_of::<Hits>() == 288);
     assert!(offset_of!(Hits, controls) == 140);
-    assert!(size_of::<Layout>() == 88);
+    assert!(size_of::<Layout>() == 104);
     assert!(offset_of!(Layout, search_button) == 48);
     assert!(size_of::<DataRow>() == 4 * size_of::<usize>());
     assert!(offset_of!(Services, count) == 6 * size_of::<usize>());
 };
+
+const _: () = assert!(size_of::<super::state::Window>() == 4 * size_of::<usize>());

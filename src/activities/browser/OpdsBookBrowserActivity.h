@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "OpdsServerStore.h"
-#include "activities/OpdsCatalogActivity.h"
+#include "activities/CatalogActivity.h"
 #include "network/OpdsHttpTransport.h"
 
 struct DetailsSpec;
@@ -18,7 +18,7 @@ struct DetailsSpec;
  * Activity for browsing and downloading books from an OPDS server.
  * Supports navigation through catalog hierarchy and downloading EPUBs.
  */
-class OpdsBookBrowserActivity final : public OpdsCatalogActivity {
+class OpdsBookBrowserActivity final : public CatalogActivity {
  public:
   explicit OpdsBookBrowserActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, OpdsServer server);
 

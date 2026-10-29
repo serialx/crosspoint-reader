@@ -252,3 +252,278 @@ fn failed_view_preserves_publication_and_hit_output() {
     assert_eq!(unsafe { ffi::hit(&hits, 1, 1, &mut hit) }, 0);
     assert_eq!(hit.action, 99);
 }
+
+#[test]
+fn frozen_plugin_input_and_paging() {
+    let golden = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test/ui_catalog/plugin-input.golden"
+    ));
+    for line in golden.lines() {
+        let fields: Vec<_> = line.split_whitespace().collect();
+        let n = |i: usize| fields[i].parse::<u32>().unwrap();
+        match fields[0] {
+            "window" => {
+                let mut w = Window {
+                    start: n(1) as usize,
+                    limit: n(2) as usize,
+                    ..Window::default()
+                };
+                let mut mask = 0u32;
+                for i in 0..n(3) {
+                    if w.take(i % 3 != 1) {
+                        mask |= 1 << i;
+                    }
+                }
+                assert_eq!((mask, w.more), (n(4), n(5) as u8), "{line}");
+            }
+            "static" => assert_eq!(n(4) != 0, n(1) == 0 && n(2) == 0 && n(3) == 0),
+            "input" => {
+                let mut s = State::new(PLUGINS, -1, 0);
+                s.mode = n(1) as u8;
+                s.auth_next_poll_ms = 100;
+                let flags = n(2);
+                let input = Input {
+                    released: (if flags & 1 != 0 { BACK } else { 0 })
+                        | (if flags & 2 != 0 { CONFIRM } else { 0 }),
+                    touch_flags: if flags & 4 != 0 { TOUCH_RELEASED } else { 0 },
+                    now_ms: if flags & 8 != 0 { 100 } else { 99 },
+                    ..Input::default()
+                };
+                let e = s.custom(input, false, 0).unwrap_or_default();
+                assert_eq!(
+                    (u32::from(e.kind), u32::from(s.mode)),
+                    (n(3), n(4)),
+                    "{line}"
+                );
+            }
+            _ => panic!("{line}"),
+        }
+    }
+    for text in [b"{page}".as_slice(), b"{page}{page}", b"a{page}b"] {
+        assert!(page_template(text));
+    }
+    for text in [b"".as_slice(), b"{PAGE}", b"{page", b"page}", b"{pa\0ge}"] {
+        assert!(!page_template(text));
+    }
+    for count in [0, 1, 16] {
+        for page in [1, 2, 32768, i32::MAX] {
+            for flags in [0, MORE, XML, XML | MORE] {
+                for row in 0..count + 2 {
+                    let mut s = State::new(PLUGINS, -1, 0);
+                    s.page = page;
+                    s.plugin_flags = flags;
+                    let previous = flags & XML == 0 && page > 1;
+                    let index = row - i32::from(previous);
+                    let expected_page = if index == -1 {
+                        page - 1
+                    } else if flags & XML == 0 && flags & MORE != 0 && index == count {
+                        page.wrapping_add(1)
+                    } else {
+                        page
+                    };
+                    assert_eq!(s.item(row, count), index);
+                    assert_eq!(s.page, expected_page);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn plugin_popup_auth_wrap_and_long_press() {
+    let mut s = State::new(PLUGINS, -1, 0);
+    s.mode = PLUGIN_PICKER;
+    assert_ne!(s.interest(0).pressed & CONFIRM, 0);
+    s.long_press = 1;
+    s.update(
+        Input {
+            pressed: CONFIRM,
+            ..Input::default()
+        },
+        3,
+        false,
+        0,
+    );
+    assert_eq!(s.long_press, 0);
+    s.popup = 1;
+    let e = s.update(
+        Input {
+            pressed: NAV_PREVIOUS,
+            ..Input::default()
+        },
+        3,
+        false,
+        0,
+    );
+    assert_eq!((s.popup, e.invalidate), (3, 1));
+    let e = s.update(
+        Input {
+            released: CONFIRM,
+            ..Input::default()
+        },
+        3,
+        false,
+        0,
+    );
+    assert_eq!((s.popup, e.kind, e.value), (0, HUB_OPTION, 2));
+    s.popup = 1;
+    let e = s.update(
+        Input {
+            touch_flags: TOUCH_RELEASED,
+            action: POPUP_CHROME,
+            ..Input::default()
+        },
+        3,
+        false,
+        0,
+    );
+    assert_eq!((s.popup, e.kind), (1, 0));
+    s.update(
+        Input {
+            touch_flags: TOUCH_RELEASED,
+            ..Input::default()
+        },
+        3,
+        false,
+        0,
+    );
+    assert_eq!(s.popup, 0);
+    s.ignore_back = 1;
+    assert_eq!(
+        s.update(
+            Input {
+                released: BACK,
+                ..Input::default()
+            },
+            3,
+            false,
+            0
+        )
+        .kind,
+        0
+    );
+    assert_eq!(
+        s.update(
+            Input {
+                released: BACK,
+                ..Input::default()
+            },
+            3,
+            false,
+            0
+        )
+        .kind,
+        1
+    );
+    s.select(2, false);
+    assert_eq!(
+        s.update(
+            Input {
+                held: CONFIRM,
+                held_ms: 999,
+                ..Input::default()
+            },
+            3,
+            false,
+            0
+        )
+        .kind,
+        0
+    );
+    assert_eq!(
+        s.update(
+            Input {
+                held: CONFIRM,
+                held_ms: 1000,
+                ..Input::default()
+            },
+            3,
+            false,
+            0
+        )
+        .kind,
+        UNINSTALL
+    );
+    assert_eq!(
+        s.update(
+            Input {
+                released: CONFIRM,
+                ..Input::default()
+            },
+            3,
+            false,
+            0
+        )
+        .kind,
+        0
+    );
+    s.mode = AUTH;
+    s.auth_next_poll_ms = 4;
+    for (now, expected) in [(u32::MAX - 5, 0), (3, 0), (4, POLL_AUTH), (5, POLL_AUTH)] {
+        assert_eq!(
+            s.update(
+                Input {
+                    now_ms: now,
+                    ..Input::default()
+                },
+                0,
+                false,
+                0
+            )
+            .kind,
+            expected
+        );
+    }
+    let e = s.update(
+        Input {
+            now_ms: 4,
+            released: BACK,
+            ..Input::default()
+        },
+        0,
+        false,
+        0,
+    );
+    assert_eq!((s.mode, e.kind, e.invalidate), (NO_TOKEN, REDRAW, 1));
+}
+
+#[test]
+fn plugin_long_press_uses_published_row() {
+    use super::hits::Hits;
+    use crate::scene::{HitSink, Interaction, Rect};
+    let mut hits = Hits::default();
+    hits.push(Interaction {
+        rect: Rect {
+            x: 10,
+            y: 80,
+            w: 200,
+            h: 48,
+        },
+        action: 1,
+        value: 4,
+        ..Interaction::default()
+    })
+    .unwrap();
+    let row = hits.hit(20, 90).unwrap();
+    let mut s = State::new(PLUGINS, -1, 0);
+    s.mode = PLUGIN_PICKER;
+    let effect = s.update(
+        Input {
+            action: u32::from(UNINSTALL),
+            value: row.value,
+            touch_flags: TOUCH_RELEASED,
+            touch_x: 20,
+            touch_y: 90,
+            ..Input::default()
+        },
+        8,
+        false,
+        0,
+    );
+    assert_eq!(
+        (effect.kind, effect.value, s.list.selected),
+        (UNINSTALL, 4, 4)
+    );
+    assert!(hits.hit(20, 140).is_none());
+}

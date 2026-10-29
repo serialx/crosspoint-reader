@@ -2731,7 +2731,7 @@
           "id": "plugin-browse-hold",
           "activity": "PluginCatalog",
           "steps": [
-            "hold:right:1200"
+            "press:right:1200"
           ]
         }
       ]
@@ -2760,7 +2760,7 @@
           "id": "plugin-xml-hold",
           "activity": "PluginCatalog",
           "steps": [
-            "hold:right:1200"
+            "press:right:1200"
           ]
         }
       ]
@@ -2789,7 +2789,7 @@
           "id": "plugin-lists-hold",
           "activity": "PluginCatalog",
           "steps": [
-            "hold:right:1200"
+            "press:right:1200"
           ]
         }
       ]

@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "activities/util/ConfirmationActivity.h"
-#include "components/CatalogScreens.h"
 #include "util/PluginLocations.h"
 
 namespace {
@@ -22,7 +21,8 @@ std::string pluginHubPath(const char* filename) { return std::string(PLUGIN_HUB_
 
 PluginHubInstallActivity::PluginHubInstallActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                    const bool showConfirmation)
-    : CatalogActivity("PluginHubInstall", renderer, mappedInput), showConfirmation(showConfirmation) {}
+    : CatalogActivity("PluginHubInstall", renderer, mappedInput, XP_UI_CATALOG_HUB),
+      showConfirmation(showConfirmation) {}
 
 bool PluginHubInstallActivity::isAvailable() {
   const std::string dir = PluginLocations::findPluginDirOnDisk("pluginhub");
@@ -31,13 +31,17 @@ bool PluginHubInstallActivity::isAvailable() {
 
 void PluginHubInstallActivity::onEnter() {
   CatalogActivity::onEnter();
+  if (!hasUiStorage()) return;
 #ifdef CROSSPOINT_UI_ORACLE
   if (uiOracleHubEnter(*this)) return;
 #endif
 
   if (!showConfirmation) {
-    state = State::CHECK_WIFI;
-    statusMessage = tr(STR_CHECKING_WIFI);
+    {
+      ResourceLock resources(*this);
+      setState(State::CHECK_WIFI);
+      statusMessage = tr(STR_CHECKING_WIFI);
+    }
     requestUpdate();
     checkAndConnectWifi();
     return;
@@ -57,8 +61,11 @@ void PluginHubInstallActivity::onEnter() {
       finish();
       return;
     }
-    state = State::CHECK_WIFI;
-    statusMessage = tr(STR_CHECKING_WIFI);
+    {
+      ResourceLock resources(*this);
+      setState(State::CHECK_WIFI);
+      statusMessage = tr(STR_CHECKING_WIFI);
+    }
     requestUpdate();
     checkAndConnectWifi();
   });
@@ -140,29 +147,20 @@ void PluginHubInstallActivity::downloadFinished(const bool cancelled) {
     finish();
     return;
   }
-  state = State::DONE;
+  setState(State::DONE);
   requestUpdate();
 }
 
-bool PluginHubInstallActivity::handleCustomInput() {
-  if (CatalogActivity::handleCustomInput()) return true;
-  if (state != State::DONE) return false;
-
-  int x = 0, y = 0;
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-      mappedInput.wasReleased(MappedInputManager::Button::Confirm) || mappedInput.wasScreenTapped(x, y)) {
-    finish();
-  }
-  return true;
-}
-
 void PluginHubInstallActivity::onBackButton() { finish(); }
-
-void PluginHubInstallActivity::buildScreen(UiScreen& screen) {
-  screenHeader(screen, tr(STR_INSTALL_PLUGIN_HUB));
-  if (buildStatusScreen(screen, true, true)) return;
-
-  if (state == State::DONE) {
-    catalogCenteredBlock(screen, {{tr(STR_PLUGIN_HUB_INSTALLED), true}, {tr(STR_PLUGIN_HUB_INSTALLED_HINT)}});
-  }
+void PluginHubInstallActivity::catalogEffect(const XpUiEffect& effect) {
+  if (effect.kind == XP_UI_CATALOG_COMPLETE)
+    finish();
+  else
+    CatalogActivity::catalogEffect(effect);
+}
+const char* PluginHubInstallActivity::catalogText(uint32_t handle) const {
+  if (handle == 0x8000000d) return tr(STR_PLUGIN_HUB_INSTALLED);
+  if (handle == 0x80000003 && static_cast<State>(paintState.mode) == State::DONE)
+    return tr(STR_PLUGIN_HUB_INSTALLED_HINT);
+  return CatalogActivity::catalogText(handle);
 }

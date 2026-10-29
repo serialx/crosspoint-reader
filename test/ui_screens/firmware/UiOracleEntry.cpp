@@ -55,7 +55,7 @@ void openDetails(GfxRenderer& renderer, MappedInputManager& input, const UiOracl
 
 bool uiOracleOpdsEnter(OpdsBookBrowserActivity& activity) {
   if (opdsCase == UiOracleCase::Invalid) return false;
-  activity.setState(OpdsCatalogActivity::State::BROWSING);
+  activity.setState(CatalogActivity::State::BROWSING);
   activity.feedTitle = "Fixture catalog";
   activity.statusMessage = "A synthetic book with a long title that wraps onto a second line";
   activity.errorMessage = "The fixture server could not return its catalog. Please try again.";
@@ -83,19 +83,19 @@ bool uiOracleOpdsEnter(OpdsBookBrowserActivity& activity) {
     case UiOracleCase::OpdsEmpty:
       break;
     case UiOracleCase::OpdsAuth:
-      activity.setState(OpdsCatalogActivity::State::AUTH);
+      activity.setState(CatalogActivity::State::AUTH);
       activity.statusMessage = "Passphrase fixture";
       break;
     case UiOracleCase::OpdsError:
-      activity.setState(OpdsCatalogActivity::State::ERROR);
+      activity.setState(CatalogActivity::State::ERROR);
       break;
     case UiOracleCase::OpdsLoading:
-      activity.setState(OpdsCatalogActivity::State::LOADING);
+      activity.setState(CatalogActivity::State::LOADING);
       activity.statusMessage = "Loading fixture catalog";
       break;
     case UiOracleCase::OpdsDownload:
     case UiOracleCase::OpdsBytes:
-      activity.setState(OpdsCatalogActivity::State::DOWNLOADING);
+      activity.setState(CatalogActivity::State::DOWNLOADING);
       activity.downloadProgress = 1572864;
       activity.downloadTotal = opdsCase == UiOracleCase::OpdsBytes ? 0 : 4194304;
       break;
@@ -104,13 +104,15 @@ bool uiOracleOpdsEnter(OpdsBookBrowserActivity& activity) {
   }
   activity.ui.progress = activity.downloadProgress;
   activity.ui.total = activity.downloadTotal;
+  activity.ui.progress = activity.downloadProgress;
+  activity.ui.total = activity.downloadTotal;
   activity.requestUpdate();
   return true;
 }
 
 bool uiOraclePluginEnter(PluginCatalogActivity& activity) {
   if (pluginCase == UiOracleCase::Invalid) return false;
-  activity.state = CatalogActivity::State::BROWSING;
+  activity.setState(CatalogActivity::State::BROWSING);
   activity.catalogTitle = "Fixture plugins";
   activity.statusMessage = "A synthetic plugin with a long title that wraps onto a second line";
   activity.errorMessage = "The fixture server could not return its catalog. Please try again.";
@@ -122,6 +124,7 @@ bool uiOraclePluginEnter(PluginCatalogActivity& activity) {
     case UiOracleCase::PluginXml:
       activity.manifest.browseFormat = pluginCase == UiOracleCase::PluginXml ? "xml" : "json";
       activity.manifest.searchUrl = "https://example.invalid/search";
+      if (pluginCase == UiOracleCase::PluginXml) activity.ui.plugin_flags |= XP_UI_CATALOG_XML;
       activity.items.reserve(16);
       for (int i = 0; i < 16; ++i) {
         PluginCatalogActivity::Item item;
@@ -133,11 +136,11 @@ bool uiOraclePluginEnter(PluginCatalogActivity& activity) {
         item.isDir = pluginCase == UiOracleCase::PluginXml && i % 3 == 0;
         activity.items.push_back(std::move(item));
       }
-      activity.page = 2;
-      activity.hasMore = true;
+      activity.ui.page = 2;
+      activity.ui.plugin_flags |= XP_UI_CATALOG_MORE;
       break;
     case UiOracleCase::PluginLists:
-      activity.state = CatalogActivity::State::LIST_PICKER;
+      activity.setState(CatalogActivity::State::LIST_PICKER);
       activity.manifest.browseLists.reserve(14);
       for (int i = 0; i < 14; ++i) {
         PluginCatalogActivity::Manifest::BrowseList list;
@@ -148,37 +151,39 @@ bool uiOraclePluginEnter(PluginCatalogActivity& activity) {
     case UiOracleCase::PluginEmpty:
       break;
     case UiOracleCase::PluginError:
-      activity.state = CatalogActivity::State::ERROR;
+      activity.setState(CatalogActivity::State::ERROR);
       break;
     case UiOracleCase::PluginLoading:
-      activity.state = CatalogActivity::State::LOADING;
+      activity.setState(CatalogActivity::State::LOADING);
       break;
     case UiOracleCase::PluginWifi:
-      activity.state = CatalogActivity::State::CHECK_WIFI;
+      activity.setState(CatalogActivity::State::CHECK_WIFI);
       break;
     case UiOracleCase::PluginSearch:
-      activity.state = CatalogActivity::State::SEARCH_INPUT;
+      activity.setState(CatalogActivity::State::SEARCH_INPUT);
       break;
     case UiOracleCase::PluginDownload:
-      activity.state = CatalogActivity::State::DOWNLOADING;
+      activity.setState(CatalogActivity::State::DOWNLOADING);
       activity.downloadProgress = 1572864;
       activity.downloadTotal = 4194304;
       break;
     case UiOracleCase::PluginDone:
-      activity.state = CatalogActivity::State::DONE;
+      activity.setState(CatalogActivity::State::DONE);
       break;
     case UiOracleCase::PluginNoToken:
-      activity.state = CatalogActivity::State::NO_TOKEN;
+      activity.setState(CatalogActivity::State::NO_TOKEN);
       break;
     case UiOracleCase::PluginAuth:
-      activity.state = CatalogActivity::State::AUTH;
+      activity.setState(CatalogActivity::State::AUTH);
       activity.authVerifyUrl = "https://example.invalid/activate";
       activity.authUserCode = "TEST-ABCD";
-      activity.authNextPollMs = millis() + 3600000;
+      activity.ui.auth_next_poll_ms = millis() + 3600000;
       break;
     default:
       return false;
   }
+  activity.ui.progress = activity.downloadProgress;
+  activity.ui.total = activity.downloadTotal;
   activity.requestUpdate();
   return true;
 }
@@ -189,22 +194,24 @@ bool uiOracleHubEnter(PluginHubInstallActivity& activity) {
   activity.errorMessage = "Download failed";
   switch (hubCase) {
     case UiOracleCase::HubDownload:
-      activity.state = CatalogActivity::State::DOWNLOADING;
+      activity.setState(CatalogActivity::State::DOWNLOADING);
       activity.downloadProgress = 1572864;
       activity.downloadTotal = 4194304;
       break;
     case UiOracleCase::HubDone:
-      activity.state = CatalogActivity::State::DONE;
+      activity.setState(CatalogActivity::State::DONE);
       break;
     case UiOracleCase::HubError:
-      activity.state = CatalogActivity::State::ERROR;
+      activity.setState(CatalogActivity::State::ERROR);
       break;
     case UiOracleCase::HubLoading:
-      activity.state = CatalogActivity::State::LOADING;
+      activity.setState(CatalogActivity::State::LOADING);
       break;
     default:
       return false;
   }
+  activity.ui.progress = activity.downloadProgress;
+  activity.ui.total = activity.downloadTotal;
   activity.requestUpdate();
   return true;
 }

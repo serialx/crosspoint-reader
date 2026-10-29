@@ -7,11 +7,11 @@
 #include "components/icons/headerIcons.h"
 #include "components/icons/opdsIcons.h"
 #include "components/icons/search32.h"
-static_assert(sizeof(XpUiCatalogState) == 68);
+static_assert(sizeof(XpUiCatalogState) == 84);
 static_assert(offsetof(XpUiCatalogState, mode) == 61);
 static_assert(sizeof(XpUiCatalogHits) == 288);
 static_assert(offsetof(XpUiCatalogHits, controls) == 140);
-static_assert(sizeof(XpUiCatalogLayout) == 88);
+static_assert(sizeof(XpUiCatalogLayout) == 104);
 static_assert(offsetof(XpUiCatalogLayout, search_button) == 48);
 static_assert(sizeof(XpUiCatalogRow) == 4 * sizeof(void*));
 static_assert(offsetof(XpUiCatalogResources, count) == 6 * sizeof(void*));
@@ -21,6 +21,7 @@ CatalogUiActivity::CatalogUiActivity(const char* name, GfxRenderer& renderer, Ma
     : RustActivityAdapter(name, renderer, input), target(makeUiTarget(renderer)) {
   xp_ui_catalog_init(&ui, kind, index, picker);
 }
+CatalogUiActivity::~CatalogUiActivity() { vSemaphoreDelete(resourceMutex); }
 bool CatalogUiActivity::reserveCommands(uint16_t count) {
   if (commands && count <= capacity) return true;
   if (count > 128) return false;
@@ -38,7 +39,7 @@ void CatalogUiActivity::onEnter() {
   Activity::onEnter();
   publication.ready = false;
   resetSelection();
-  if (!reserveCommands(ui.kind == XP_UI_CATALOG_BROWSER ? 48 : 32)) {
+  if (!reserveCommands(ui.kind == XP_UI_CATALOG_HUB ? 16 : ui.kind >= XP_UI_CATALOG_BROWSER ? 48 : 32)) {
     onBackButton();
     return;
   }
@@ -51,7 +52,51 @@ void CatalogUiActivity::onExit() {
   Activity::onExit();
 }
 void CatalogUiActivity::loop() {
-  if (!handleCustomInput()) RustActivityAdapter::loop();
+  if (handleCustomInput()) return;
+  int x = 0, y = 0;
+  if (ui.kind == XP_UI_CATALOG_PLUGINS && mappedInput.wasScreenLongPress(x, y)) {
+    XpUiInput input{};
+    input.touch_flags = XP_UI_TOUCH_RELEASED;
+    input.touch_x = x;
+    input.touch_y = y;
+    input.action = XP_UI_CATALOG_UNINSTALL;
+    XpUiEffect effect;
+    {
+      ModelLock lock(*this);
+      effect = updateRust(input);
+    }
+    if (effect.invalidate) requestUpdate();
+    applyRustEffect(effect);
+    return;
+  }
+  RustActivityAdapter::loop();
+}
+void CatalogUiActivity::render(RenderLock&&) {
+  XpUiScene scene{};
+  {
+    ResourceLock resources(*this);
+    if (!buildRustScene(scene)) {
+      {
+        ModelLock lock(*this);
+        publication.ready = false;
+      }
+      LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
+      return;
+    }
+    const auto paint = rustResources();
+    if (!renderer.drawUiScene(scene, &paint)) {
+      {
+        ModelLock lock(*this);
+        rejectScene();
+      }
+      LOG_ERR("RUI", "Invalid scene in %s", name.c_str());
+      return;
+    }
+    ModelLock lock(*this);
+    rustPublished();
+    publication.ready = true;
+  }
+  renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 }
 int CatalogUiActivity::selectedIndex() const {
   ModelLock lock(*const_cast<CatalogUiActivity*>(this));
@@ -69,31 +114,64 @@ void CatalogUiActivity::closeRouting() {
   ModelLock lock(*this);
   publication.ready = false;
 }
-XpUiInterest CatalogUiActivity::rustInterest(uint32_t now) const { return xp_ui_catalog_interest(&ui, now); }
+XpUiInterest CatalogUiActivity::rustInterest(uint32_t now) const {
+  auto interest = xp_ui_catalog_interest(&ui, now);
+  interest.pressed |= rejectedButtons;
+  return interest;
+}
 XpUiEffect CatalogUiActivity::updateRust(const XpUiInput& source) {
+  touchActivated = false;
   if (sceneFailed) {
+    if (source.released & XP_UI_BACK) {
+      XpUiInput back{};
+      back.released = XP_UI_BACK;
+      return xp_ui_catalog_update(&ui, &back, listCount(), hasSearch(), pageLinks());
+    }
     XpUiEffect effect{};
-    effect.kind = (source.released & XP_UI_BACK) ? XP_UI_CANCEL : XP_UI_EFFECT_NONE;
-    effect.invalidate = effect.kind == XP_UI_EFFECT_NONE;
+    effect.invalidate = true;
     return effect;
   }
   auto input = source;
-  touchActivated = false;
+  rejectedButtons &= ~input.pressed;
+  input.held &= ~rejectedButtons;
+  input.released &= ~rejectedButtons;
+  rejectedButtons &= ~source.released;
+  if (input.touch_flags & XP_UI_TOUCH_PRESSED) rejectedTouch = false;
+  if (rejectedTouch) {
+    input.touch_flags = 0;
+    input.swipe = 0;
+  }
   if (publication.ready && input.touch_flags) {
     XpUiInteraction hit{};
+    input.action = 0;
     if (xp_ui_catalog_hit(&publishedHits, input.touch_x, input.touch_y, &hit)) {
-      input.action = hit.action;
+      if (source.action == XP_UI_CATALOG_UNINSTALL) {
+        if (hit.action == 1 && !ui.popup) input.action = XP_UI_CATALOG_UNINSTALL;
+      } else {
+        input.action = hit.action;
+      }
       input.value = hit.value;
     }
+    if (source.action == XP_UI_CATALOG_UNINSTALL && !input.action) input.touch_flags = 0;
+  } else if (ui.popup || source.action == XP_UI_CATALOG_UNINSTALL) {
+    input.touch_flags = 0;
   }
+  const bool popupWasOpen = ui.popup != 0;
   const auto effect = xp_ui_catalog_update(&ui, &input, listCount(), hasSearch(), pageLinks());
   touchActivated = input.action && (input.touch_flags & XP_UI_TOUCH_RELEASED) &&
                    (effect.kind == XP_UI_ACTIVATE || effect.kind == XP_UI_CATALOG_SEARCH ||
-                    effect.kind == XP_UI_CATALOG_PAGE || effect.kind == XP_UI_CATALOG_CANCEL_TRANSFER);
+                    effect.kind == XP_UI_CATALOG_PAGE || effect.kind == XP_UI_CATALOG_CANCEL_TRANSFER ||
+                    effect.kind == XP_UI_CATALOG_UNINSTALL || effect.kind == XP_UI_CATALOG_HUB_OPTION);
+  if (popupWasOpen && !ui.popup && effect.invalidate && (input.touch_flags & XP_UI_TOUCH_RELEASED)) {
+    touchActivated = true;
+  }
   return effect;
 }
 void CatalogUiActivity::applyRustEffect(const XpUiEffect& e) {
-  if (touchActivated) haptic_feedback::touchAction(false);
+  if (touchActivated)
+    haptic_feedback::touchAction(e.kind == XP_UI_CATALOG_UNINSTALL);
+  else if (e.kind == XP_UI_CATALOG_UNINSTALL)
+    mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, 1000);
   switch (e.kind) {
     case XP_UI_CANCEL:
       onBackButton();
@@ -150,14 +228,24 @@ bool CatalogUiActivity::buildRustScene(XpUiScene& scene) {
   const bool built = buildCatalogScene(scene);
   if (!built) {
     ModelLock lock(*this);
-    sceneFailed = true;
+    rejectScene();
   }
   return built;
+}
+void CatalogUiActivity::rejectScene() {
+  publication.ready = false;
+  sceneFailed = true;
+  rejectedButtons = UINT16_MAX & ~XP_UI_BACK;
+  rejectedTouch = true;
+  ui.list.active = -1;
+  ui.list.pending_scroll = 0;
+  ui.list.last_repeat = 0;
+  ui.search_pending = 0;
+  ui.long_press = 0;
 }
 bool CatalogUiActivity::buildCatalogScene(XpUiScene& scene) {
   if (!commands && !reserveCommands(capacity)) return false;
   if (listCount() < 0 || listCount() > UINT16_MAX) return false;
-  prepareRows();
   XpUiCatalogState snapshot{};
   {
     ModelLock lock(*this);
@@ -165,6 +253,7 @@ bool CatalogUiActivity::buildCatalogScene(XpUiScene& scene) {
     paintState = snapshot;
     consumedScroll = ui.list.pending_scroll;
   }
+  prepareRows();
   const auto& m = UITheme::getInstance().getMetrics();
   const auto fonts = uiScaleSpec();
   const auto device = target.deviceContext();
@@ -189,6 +278,7 @@ bool CatalogUiActivity::buildCatalogScene(XpUiScene& scene) {
   layout.safe = {static_cast<int16_t>(safe.x), static_cast<int16_t>(safe.y), static_cast<int16_t>(safe.width),
                  static_cast<int16_t>(safe.height)};
   layout.small_font = fonts.smallFontId;
+  layout.title_font = fonts.titleFontId;
   layout.top_padding = m.topPadding;
   layout.header_height = m.headerHeight;
   layout.hints_height = m.buttonHintsHeight;
@@ -200,6 +290,12 @@ bool CatalogUiActivity::buildCatalogScene(XpUiScene& scene) {
   layout.space_md = tokens.spaceMd;
   layout.button_height = tokens.rowHeight;
   layout.control_radius = tokens.controlRadius;
+  layout.popup_padding = m.optionPopupInnerPadding;
+  layout.popup_gap = m.optionPopupItemSpacing;
+  layout.popup_side_margin = m.optionPopupDialogSideMargin;
+  layout.selection_padding = m.optionPopupSelectionVPadding;
+  layout.popup_radius = m.popupCornerRadius;
+  layout.popup_border = m.popupFrameThickness;
   layout.search_button = searchButtonRect(tokens.minTouchSize);
   layout.search = hasSearch();
   layout.pages = pageLinks();
@@ -241,7 +337,7 @@ XpUiPaint CatalogUiActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void* p, uint32_t h, uint32_t g) -> uint8_t {
             if (g != 1) return false;
-            return h == 0x80000001 || h == 0x80000002 || (h >= 0x80000010 && h <= 0x80000013) ||
+            return h == 0x80000001 || h == 0x80000002 || (h >= 0x80000010 && h <= 0x80000013) || h == 0x80000017 ||
                    static_cast<CatalogUiActivity*>(p)->text(h) != nullptr;
           },
           [](void* p, const XpGlyphTarget*, const XpUiCommand* c, XpUiRect clip) {
@@ -262,11 +358,15 @@ XpUiPaint CatalogUiActivity::rustResources() {
                                  fui::BitmapMode::Contain, fui::Paint::solid(fui::Color::Black));
               return;
             }
+            if (c->resource == 0x80000017) {
+              self.paintCatalogResource(*c);
+              return;
+            }
             self.renderer.drawUiText(*c, clip, self.text(c->resource));
           }};
 }
 void CatalogUiActivity::paintHeader(XpUiRect r) {
-  if (ui.kind != XP_UI_CATALOG_BROWSER) {
+  if (ui.kind < XP_UI_CATALOG_BROWSER) {
     GUI.drawHeader(renderer, Rect{r.x, r.y, r.w, r.h}, headerTitle());
     return;
   }
@@ -279,7 +379,7 @@ void CatalogUiActivity::paintBrowserHeader() {
   frame.target.setFont(fui::GfxRendererTarget::FONT_LABEL, SMALL_FONT_ID);
   const auto& theme = refreshSharedUiThemeTokens(frame.target);
   UiAppHost::UiScreen screen(frame.frame, theme);
-  const bool search = ui.mode == XP_UI_CATALOG_BROWSING && hasSearch();
+  const bool search = paintState.mode == XP_UI_CATALOG_BROWSING && hasSearch();
   catalogScreenHeader(screen, renderer, headerTitle(), search ? fui::bitmapFromIcon(icon_search_32) : fui::BitmapRef{},
                       search ? XP_UI_CATALOG_SEARCH : fui::NO_ACTION);
 }

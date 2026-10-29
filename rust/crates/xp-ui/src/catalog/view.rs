@@ -12,6 +12,7 @@ pub struct Layout {
     pub safe: Rect,
     pub search_button: Rect,
     pub small_font: i32,
+    pub title_font: i32,
     pub top_padding: i16,
     pub header_height: i16,
     pub hints_height: i16,
@@ -26,6 +27,13 @@ pub struct Layout {
     pub search: u8,
     pub pages: u8,
     pub control_radius: u8,
+    pub popup_padding: i16,
+    pub popup_gap: i16,
+    pub popup_side_margin: i16,
+    pub selection_padding: i16,
+    pub popup_radius: u8,
+    pub popup_border: u8,
+    pub reserved: u16,
 }
 pub const HEADER: u32 = 0x8000_0001;
 pub const FOOTER: u32 = 0x8000_0002;
@@ -141,8 +149,8 @@ impl Rows for GroupRows<'_> {
 }
 #[inline(never)]
 pub fn view(a: &mut Arena<'_>, s: State, l: Layout, mut r: Services) -> Result<ListState, Error> {
-    if s.kind > BROWSER
-        || (s.mode > ERROR && s.mode != AUTH)
+    if s.kind > HUB
+        || s.mode > AUTH
         || l.touch > 1
         || l.header_height < 0
         || l.spacing < 0
@@ -153,7 +161,7 @@ pub fn view(a: &mut Arena<'_>, s: State, l: Layout, mut r: Services) -> Result<L
     let screen = l.list.screen;
     let mut style = l.list;
     let device = style.area;
-    let settings = s.kind != BROWSER;
+    let settings = s.kind < BROWSER;
     let left = device.x.max(if settings { l.safe.x } else { 0 });
     let right = (i32::from(device.x) + i32::from(device.w)).min(if settings {
         i32::from(l.safe.x) + i32::from(l.safe.w)
@@ -182,6 +190,11 @@ pub fn view(a: &mut Arena<'_>, s: State, l: Layout, mut r: Services) -> Result<L
         w: narrow(right - i32::from(left))?,
         h: narrow((bottom - top).max(0))?,
     };
+    if s.popup != 0 {
+        resource(a, screen, FOOTER)?;
+        popup(a, s, l, &mut r)?;
+        return Ok(s.list);
+    }
     a.push(Command {
         kind: Kind::Clear as u8,
         rect: screen,
@@ -198,7 +211,7 @@ pub fn view(a: &mut Arena<'_>, s: State, l: Layout, mut r: Services) -> Result<L
         },
         HEADER,
     )?;
-    if s.kind == BROWSER && s.mode == BROWSING && l.search != 0 {
+    if s.kind >= BROWSER && s.mode == BROWSING && l.search != 0 {
         a.hit(Interaction {
             rect: l.search_button,
             action: u32::from(SEARCH),
@@ -234,7 +247,10 @@ pub fn view(a: &mut Arena<'_>, s: State, l: Layout, mut r: Services) -> Result<L
         body.y += gap;
         body.h -= gap;
     }
-    if s.kind == BROWSER && s.mode != BROWSING && s.mode != AUTH {
+    if s.kind == PLUGINS && s.mode == AUTH {
+        auth(a, l, &mut r, body)?;
+    } else if s.kind >= BROWSER && !matches!(s.mode, BROWSING | PLUGIN_PICKER | LIST_PICKER | AUTH)
+    {
         status(a, s, l, &mut r, body)?;
     } else {
         if s.kind == BROWSER && l.pages != 0 {
@@ -271,8 +287,9 @@ pub fn view(a: &mut Arena<'_>, s: State, l: Layout, mut r: Services) -> Result<L
             }
             style.row_height = narrow(height)?;
             let count = r.count;
+            let small_line = r.line(l.small_font)?;
             let services = r;
-            let content = Content::new(
+            let mut content = Content::new(
                 &mut r,
                 count,
                 l.small_font,
@@ -280,6 +297,16 @@ pub fn view(a: &mut Arena<'_>, s: State, l: Layout, mut r: Services) -> Result<L
                 if s.kind == EDITOR { 2 } else { 1 },
                 if s.kind == SERVERS { 0 } else { 8 },
             );
+            if s.kind == PLUGINS {
+                content.subtitle_lines = if s.mode == PLUGIN_PICKER {
+                    let available = i32::from(body.h) - 2 * padding - line;
+                    (available / small_line.max(1)).clamp(1, 16) as u8
+                } else if s.mode == BROWSING && s.plugin_flags & XML == 0 {
+                    3
+                } else {
+                    1
+                };
+            }
             let mut rows = GroupRows {
                 content,
                 services,
@@ -300,37 +327,30 @@ fn status(
     body: Rect,
 ) -> Result<(), Error> {
     let line = narrow(r.line(l.list.font)?)?;
-    if s.mode == ERROR {
-        let count = if l.touch != 0 { 3 } else { 2 };
-        let ids = [ERROR_TITLE, ERROR_TEXT, TAP_RETRY];
-        let width = body.w - 2 * l.side_padding;
-        let mut heights = [0i16; 3];
-        let mut total = i32::from(l.space_md) * (count - 1) as i32;
-        for (i, id) in ids.iter().enumerate().take(count) {
-            heights[i] = narrow(
-                r.height(*id, l.list.font, 0, 4, width)?
-                    .max(i32::from(line)),
-            )?;
-            total += i32::from(heights[i]);
-        }
-        let mut y = i32::from(body.y) + (i32::from(body.h) - total).max(0) / 2;
-        for (i, id) in ids.iter().enumerate().take(count) {
-            label(
-                a,
-                Rect {
-                    x: body.x + l.side_padding,
-                    y: narrow(y)?,
-                    w: width,
-                    h: heights[i],
-                },
-                *id,
-                l.list.font,
-                4,
-                0,
-            )?;
-            y += i32::from(heights[i]) + i32::from(l.space_md);
-        }
-        return Ok(());
+    if matches!(s.mode, ERROR | DONE | NO_TOKEN) {
+        let mut lines = [
+            (ERROR_TITLE, u8::from(s.kind != BROWSER)),
+            (ERROR_TEXT, 0),
+            (TAP_RETRY, 0),
+        ];
+        let count = match s.mode {
+            ERROR => {
+                if l.touch != 0 {
+                    3
+                } else {
+                    2
+                }
+            }
+            DONE => {
+                lines = [(0x8000_000d, 1), (STATUS, 0), (0, 0)];
+                2
+            }
+            _ => {
+                lines = [(0x8000_000e, 0), (0, 0), (0, 0)];
+                1
+            }
+        };
+        return centered(a, l, r, body, &lines[..count]);
     }
     if s.mode != DOWNLOADING {
         return label(
@@ -346,7 +366,8 @@ fn status(
             l.list.bold,
         );
     }
-    let progress_height = if s.total == 0 { line } else { 16 };
+    let total = if s.kind == PLUGINS { 0 } else { s.total };
+    let progress_height = if total == 0 { line } else { 16 };
     let block = 3 * line + progress_height + l.button_height + 3 * l.space_md;
     let mut y = body.y + (body.h - block).max(0) / 2;
     label(
@@ -378,7 +399,7 @@ fn status(
         w: body.w - 100,
         h: progress_height,
     };
-    if s.total == 0 {
+    if total == 0 {
         label(a, progress, BYTES, l.list.font, 1, l.list.bold)?;
     } else {
         a.push(Command {
@@ -387,7 +408,7 @@ fn status(
             width: 1,
             ..Command::default()
         })?;
-        let max = s.total as i32;
+        let max = total as i32;
         let value = (s.progress as i32).max(0).min(max.max(0));
         let width = if max > 0 {
             (i64::from(progress.w) * i64::from(value) / i64::from(max)) as i16
@@ -567,6 +588,186 @@ fn pagination(
             1,
             0,
         )?;
+    }
+    Ok(())
+}
+
+fn take(body: &mut Rect, height: i16, gap: i16) -> Rect {
+    let h = height.max(0).min(body.h);
+    let r = Rect { h, ..*body };
+    body.y += h + gap.max(0);
+    body.h = (body.h - h - gap.max(0)).max(0);
+    r
+}
+#[inline(never)]
+fn centered(
+    a: &mut Arena<'_>,
+    l: Layout,
+    r: &mut Services,
+    mut body: Rect,
+    lines: &[(u32, u8)],
+) -> Result<(), Error> {
+    let width = body.w - 2 * l.side_padding;
+    let line = r.line(l.list.font)?;
+    let mut heights = [0i16; 3];
+    let mut total = i32::from(l.space_md) * (lines.len() as i32 - 1);
+    for (i, &(h, bold)) in lines.iter().enumerate() {
+        heights[i] = narrow(r.height(h, l.list.font, bold, 4, width)?.max(line))?;
+        total += i32::from(heights[i]);
+    }
+    if i32::from(body.h) > total {
+        let gap = narrow((i32::from(body.h) - total) / 2)?;
+        take(&mut body, gap, 0);
+    }
+    for (i, &(h, bold)) in lines.iter().enumerate() {
+        let mut rect = take(
+            &mut body,
+            heights[i],
+            if i + 1 < lines.len() { l.space_md } else { 0 },
+        );
+        rect.x += l.side_padding;
+        rect.w -= 2 * l.side_padding;
+        label(a, rect, h, l.list.font, 4, bold)?;
+    }
+    Ok(())
+}
+#[inline(never)]
+fn auth(a: &mut Arena<'_>, l: Layout, r: &mut Services, mut body: Rect) -> Result<(), Error> {
+    let line = narrow(r.line(l.list.font)?)?;
+    label(
+        a,
+        take(&mut body, line, l.space_md),
+        0x8000_0014,
+        l.list.font,
+        1,
+        l.list.bold,
+    )?;
+    let title = narrow(r.line(l.title_font)?)?;
+    label(
+        a,
+        take(&mut body, title, l.space_md),
+        0x8000_0015,
+        l.title_font,
+        1,
+        1,
+    )?;
+    let band = take(&mut body, 180, l.space_md);
+    resource(
+        a,
+        Rect {
+            x: band.x + (band.w - 180) / 2,
+            w: 180,
+            h: 180,
+            ..band
+        },
+        0x8000_0017,
+    )?;
+    label(
+        a,
+        take(&mut body, line, 0),
+        0x8000_0016,
+        l.list.font,
+        1,
+        l.list.bold,
+    )
+}
+#[inline(never)]
+fn popup(a: &mut Arena<'_>, s: State, l: Layout, r: &mut Services) -> Result<(), Error> {
+    let screen = l.list.screen;
+    let width = (screen.w * 3 / 4).min(screen.w - 2 * l.popup_side_margin);
+    let inner = width - 2 * l.popup_padding;
+    let title = narrow(r.height(0x8000_0018, l.list.font, 1, 2, inner)?)?;
+    let button = narrow(r.line(l.list.font)? + 2 * i32::from(l.selection_padding))?;
+    let height = (2 * l.popup_padding + title + 2 * l.popup_gap + 3 * button + 2 * l.popup_gap)
+        .min(screen.h);
+    let card = Rect {
+        x: (screen.w - width) / 2,
+        y: (screen.h - height) / 2,
+        w: width,
+        h: height,
+    };
+    a.hit(Interaction {
+        rect: card,
+        action: POPUP_CHROME,
+        generation: 1,
+        inputs: 1,
+        ..Interaction::default()
+    })?;
+    a.push(Command {
+        rect: card,
+        paint: 1,
+        radius: l.popup_radius,
+        ..Command::default()
+    })?;
+    a.push(Command {
+        kind: Kind::Stroke as u8,
+        rect: card,
+        width: l.popup_border,
+        radius: l.popup_radius,
+        ..Command::default()
+    })?;
+    label(
+        a,
+        Rect {
+            x: card.x + l.popup_padding,
+            y: card.y + l.popup_padding,
+            w: inner,
+            h: title,
+        },
+        0x8000_0018,
+        l.list.font,
+        2,
+        1,
+    )?;
+    let y = card.y + card.h - l.popup_padding - 3 * button - 2 * l.popup_gap;
+    for i in 0..3 {
+        let selected = s.popup == i as u8 + 1;
+        let invert = l.list.selection == 0 && l.list.radius > 0;
+        let radius = if invert { l.list.radius } else { 0 };
+        let rect = Rect {
+            x: card.x + l.popup_padding,
+            y: y + i * (button + l.popup_gap),
+            w: inner,
+            h: button,
+        };
+        a.push(Command {
+            rect,
+            paint: if selected {
+                if invert {
+                    0
+                } else {
+                    2
+                }
+            } else {
+                1
+            },
+            radius,
+            ..Command::default()
+        })?;
+        text(
+            a,
+            Rect {
+                x: rect.x + 4,
+                y: rect.y + 2,
+                w: rect.w - 8,
+                h: rect.h - 4,
+            },
+            0x8000_0019 + i as u32,
+            1,
+            l.list.font,
+            u8::from(selected && invert),
+            0,
+            1,
+            1,
+        )?;
+        a.hit(Interaction {
+            rect: touch_rect(rect, screen, (narrow(r.line(l.list.font)?)? + 14).max(44)),
+            action: u32::from(HUB_OPTION),
+            value: i32::from(i),
+            generation: 1,
+            inputs: 1,
+            ..Interaction::default()
+        })?;
     }
     Ok(())
 }

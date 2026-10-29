@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "activities/CatalogActivity.h"
-#include "components/OptionPopup.h"
 #include "network/HttpDownloader.h"
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
@@ -45,6 +44,7 @@ class PluginCatalogActivity final : public CatalogActivity {
   ~PluginCatalogActivity() override;
 
   void onEnter() override;
+  void render(RenderLock&&) override;
   void onExit() override;
 
  private:
@@ -139,21 +139,13 @@ class PluginCatalogActivity final : public CatalogActivity {
   std::vector<PluginRef> installedPlugins;
   bool pluginHubAvailable = false;
   bool showPluginHubInstallRow = false;
-  bool ignoreHubInstallerBackRelease = false;
-  OptionPopup pluginHubPopup;
   bool showOpds = false;
   bool rootMode = false;
   std::string pickerReturnName;  // plugin identity to reselect after leaving a catalog
   std::vector<Item> items;
-  // Row buffer over items/browseLists plus the synthetic pager rows; rebuilt
-  // lazily on the render task whenever rowsDirty (items or state changed).
-  std::vector<freeink::ui::ListItem> rowItems;
-  bool rowsDirty = true;
+  std::string renderedTitle;
   std::string token;
   pluginhttp::Headers config;  // {cfg.KEY} values
-  int page = 1;
-  bool hasMore = false;
-  int currentList = -1;  // index into manifest.browseLists; -1 = none/default
   std::string searchQuery;
   bool searchActive = false;
   // Reuse browse TLS; release in the picker and before a single-file download.
@@ -164,16 +156,11 @@ class PluginCatalogActivity final : public CatalogActivity {
   // Device-code sign-in state
   std::string authUserCode, authVerifyUrl, authDeviceCode;
   unsigned long authIntervalMs = 5000;
-  unsigned long authNextPollMs = 0;
   unsigned long authDeadlineMs = 0;
-  // QR placement measured by buildScreen (AUTH state); drawn as a raw-renderer
-  // overlay in drawFooter() after the app has painted.
-  freeink::ui::Rect authQrRect{};
-
   void enterPluginPicker();
   void enterCatalog();
   void exitCatalog();
-  // Clear items, paging, list and search state, and the row buffer.
+  // Clear items, paging, list and search state.
   void resetBrowse();
   // JSON catalog with named lists and none picked yet.
   bool wantsListPicker() const;
@@ -199,20 +186,18 @@ class PluginCatalogActivity final : public CatalogActivity {
   int listCount() const override { return rowCount(); }
   // Row dispatch: pager rows page, picker rows pick, item rows open/download.
   void activateIndex(int index) override;
-  void onRowLongPress(int index) override;
-  bool handleButtons() override;
   void confirmUninstallPlugin(int pickerIndex);
-  void render(RenderLock&& lock) override;
-  void buildScreen(UiScreen& screen) override;
-  bool handleCustomInput() override;
   void onBackButton() override;
   void drawFooter() override;
-  void rebuildRowItems();
+  bool rowAt(int, XpUiCatalogRow&) const override;
+  void prepareRows() override;
+  const char* headerTitle() const override { return renderedTitle.c_str(); }
+  const char* catalogText(uint32_t) const override;
+  void paintCatalogResource(const XpUiCommand&) override;
+  void catalogEffect(const XpUiEffect&) override;
   // Items (and the interaction table indexing them) are about to be replaced:
-  // stop routing and mark the row buffer for rebuild.
+  // stop routing until the replacement is painted.
   void releaseRows();
-  void buildAuthScreen(UiScreen& screen);
-  void buildBrowsingScreen(UiScreen& screen);
   // Browse url/body with the selected browse list's overrides applied.
   const std::string& activeBrowseUrl() const;
   const std::string& activeBrowseBody() const;

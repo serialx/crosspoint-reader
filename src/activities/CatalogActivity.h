@@ -2,12 +2,12 @@
 
 #include <I18n.h>
 
-#include "UiListActivity.h"
+#include "CatalogUiActivity.h"
 #include "network/HttpDownloader.h"
 
 // Network catalogs share input, child screens, and transfer lifecycle. Each
 // catalog supplies its own feed/auth protocol and navigation destinations.
-class CatalogActivity : public UiListActivity {
+class CatalogActivity : public CatalogUiActivity {
  public:
   enum class State {
     CHECK_WIFI,
@@ -23,16 +23,21 @@ class CatalogActivity : public UiListActivity {
     NO_TOKEN,
     AUTH
   };
-
+  CatalogActivity(const char* name, GfxRenderer& renderer, MappedInputManager& input,
+                  XpUiCatalogKind kind = XP_UI_CATALOG_BROWSER)
+      : CatalogUiActivity(name, renderer, input, kind) {
+    if (kind != XP_UI_CATALOG_BROWSER) xp_ui_catalog_mode(&ui, XP_UI_CATALOG_LOADING);
+  }
   void onEnter() override;
   void onExit() override;
 
  protected:
-  using UiListActivity::UiListActivity;
-  static constexpr freeink::ui::ActionId ACTION_SEARCH = ACTION_USER;
-  static constexpr freeink::ui::ActionId ACTION_CANCEL = ACTION_USER + 1;
-
-  State state = State::LOADING;
+  State getState() const { return static_cast<State>(ui.mode); }
+  void setState(State value) {
+    ResourceLock resources(*this);
+    ModelLock lock(*this);
+    xp_ui_catalog_mode(&ui, static_cast<uint8_t>(value));
+  }
   std::string errorMessage, statusMessage;
   size_t downloadProgress = 0, downloadTotal = 0;
   bool cancelDownload = false;
@@ -46,15 +51,12 @@ class CatalogActivity : public UiListActivity {
   // Initial keyboard text when search opens (refining the active query).
   virtual std::string searchPrefill() const { return {}; }
 
-  bool handleCustomInput() override;
-  void navigateButtons() override;
+  void catalogEffect(const XpUiEffect&) override;
+  const char* catalogText(uint32_t) const override;
   // Only work in progress keeps the device awake: a connection, fetch,
   // transfer, sign-in poll, or child flow (Wi-Fi picker, search keyboard).
   // Settled screens (lists, pickers, errors, done, not signed in) may auto-sleep.
-  bool preventAutoSleep() override {
-    return state == State::CHECK_WIFI || state == State::WIFI_SELECTION || state == State::SEARCH_INPUT ||
-           state == State::LOADING || state == State::DOWNLOADING || state == State::AUTH;
-  }
+  bool preventAutoSleep() override { return xp_ui_catalog_awake(&ui); }
   static bool wifiConnected();
   void fail(StrId message);
   void beginLoading();
@@ -71,16 +73,10 @@ class CatalogActivity : public UiListActivity {
                                              const std::vector<HttpDownloader::Header>& headers = {},
                                              const std::string* postBody = nullptr,
                                              const char* postContentType = nullptr);
-  void screenHeader(UiScreen& screen, const char* title);
-  bool buildStatusScreen(UiScreen& screen, bool boldError = true, bool showDownloadTotal = false);
 
  private:
-  static void onSearchEvent(const freeink::ui::ActionEvent&, void* user);
-  static void onCancelEvent(const freeink::ui::ActionEvent&, void* user);
   void onDownloadProgress(size_t downloaded, size_t total);
   // Download input consumes home gestures before ActivityManager sees them.
   bool goHomeAfterCancel = false;
-  bool searchPending = false;  // NavPrevious pressed on a searchable top row
-  int lastRenderedPercent = -1;
-  unsigned long lastProgressUpdateMs = 0;
+  mutable char bytesText[24]{};
 };

@@ -686,20 +686,6 @@
         "fixture-opds-bytes",
         "fixture-opds-auth"
       ]
-    },
-    {
-      "source": "src/activities/OpdsCatalogActivity.cpp",
-      "status": "shared-implementation",
-      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
-      "groups": [
-        "fixture-opds-browse",
-        "fixture-opds-empty",
-        "fixture-opds-error",
-        "fixture-opds-loading",
-        "fixture-opds-download",
-        "fixture-opds-bytes",
-        "fixture-opds-auth"
-      ]
     }
   ],
   "additional_limits": [

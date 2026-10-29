@@ -78,10 +78,10 @@ StrId feedFailureMessage() {
 
 OpdsBookBrowserActivity::OpdsBookBrowserActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                  OpdsServer server)
-    : OpdsCatalogActivity("OpdsBookBrowser", renderer, mappedInput), server(std::move(server)) {}
+    : CatalogActivity("OpdsBookBrowser", renderer, mappedInput), server(std::move(server)) {}
 
 void OpdsBookBrowserActivity::onEnter() {
-  OpdsCatalogActivity::onEnter();
+  CatalogActivity::onEnter();
   if (!hasUiStorage()) return;
 #ifdef CROSSPOINT_UI_ORACLE
   if (uiOracleOpdsEnter(*this)) return;
@@ -113,7 +113,7 @@ void OpdsBookBrowserActivity::onExit() {
     if (Storage.exists(detailCoverPath.c_str())) Storage.remove(detailCoverPath.c_str());
     detailCoverPath.clear();
   }
-  OpdsCatalogActivity::onExit();
+  CatalogActivity::onExit();
 }
 
 void OpdsBookBrowserActivity::activateIndex(const int index) {
@@ -127,7 +127,7 @@ uint8_t OpdsBookBrowserActivity::pageLinks() const {
 }
 void OpdsBookBrowserActivity::catalogEffect(const XpUiEffect& effect) {
   if (effect.kind != XP_UI_CATALOG_PAGE) {
-    OpdsCatalogActivity::catalogEffect(effect);
+    CatalogActivity::catalogEffect(effect);
     return;
   }
   const std::string* href = nullptr;
@@ -154,7 +154,7 @@ const char* OpdsBookBrowserActivity::catalogText(uint32_t handle) const {
     snprintf(pageText, sizeof(pageText), "%d/%d", pageCurrent, pageTotal);
     return pageText;
   }
-  return OpdsCatalogActivity::catalogText(handle);
+  return CatalogActivity::catalogText(handle);
 }
 
 // Follow a pagination link. isPaginationHref() keeps the search-term header
@@ -167,7 +167,7 @@ void OpdsBookBrowserActivity::followPageLink(const std::string& href) {
 }
 
 void OpdsBookBrowserActivity::setSearchQuery(const std::string& query) {
-  RenderLock renderLock(*this);
+  ResourceLock resourceLock(*this);
   searchQuery = query;
   headerSearchTitle = query.empty() ? std::string() : "“" + query + "”";
 }
@@ -250,7 +250,7 @@ void OpdsBookBrowserActivity::fetchFeed(const std::string& path) {
     return;
   }
 
-  RenderLock renderLock(*this);
+  ResourceLock resourceLock(*this);
   searchTemplate = parser.getSearchTemplate();
   searchDescriptionUrl = parser.getSearchDescriptionUrl();
   searchTemplateBase = "";  // feed-inline template resolves against the feed URL
@@ -333,7 +333,7 @@ bool OpdsBookBrowserActivity::rowAt(int index, XpUiCatalogRow& row) const {
 }
 
 void OpdsBookBrowserActivity::releaseEntries() {
-  RenderLock renderLock(*this);
+  ResourceLock resourceLock(*this);
   // The app's interaction table holds row indices (and hit rects) for the old
   // entries; stop routing touches against it until the next render.
   closeRouting();
@@ -531,7 +531,7 @@ void OpdsBookBrowserActivity::downloadLcpBook(const OpdsEntry& book) {
 // failures (unsupported profile, network, key store) call fail() themselves.
 OpdsBookBrowserActivity::LcpUnlock OpdsBookBrowserActivity::requestLcpUnlock(const std::string& userKeyHex) {
   {
-    RenderLock renderLock(*this);
+    ResourceLock resourceLock(*this);
     statusMessage = tr(STR_LOADING);
   }
   requestUpdate(true);
@@ -606,7 +606,7 @@ void OpdsBookBrowserActivity::startLcpUnlock() {
 
 void OpdsBookBrowserActivity::promptLcpPassphrase(const bool retry) {
   {
-    RenderLock renderLock(*this);
+    ResourceLock resourceLock(*this);
     setState(State::AUTH);
     statusMessage = tr(STR_LCP_PASSPHRASE);
   }
@@ -870,7 +870,7 @@ const char* OpdsBookBrowserActivity::acquireLabel(const OpdsAvailability& av) co
 // frozen on the previous message.
 void OpdsBookBrowserActivity::onClientStatus(void* ctx, const freeink::opds::ClientPhase phase) {
   auto* self = static_cast<OpdsBookBrowserActivity*>(ctx);
-  RenderLock renderLock(*self);
+  ResourceLock resourceLock(*self);
   self->statusMessage = phase == freeink::opds::ClientPhase::SigningIn ? tr(STR_OPDS_SIGNING_IN) : tr(STR_LOADING);
   self->requestUpdate(true);
 }

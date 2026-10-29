@@ -144,6 +144,7 @@ struct Popup {
   }
 };
 struct ClipSelectionActivity {
+  bool consumeRejectedInput() { return false; }
   size_t wordCount = 0;  // extractWords() could not allocate its array.
   Popup actionPopup;
   Input mappedInput;

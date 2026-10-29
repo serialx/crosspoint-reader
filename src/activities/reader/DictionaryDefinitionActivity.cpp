@@ -603,6 +603,18 @@ void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
 }
 
 void DictionaryDefinitionActivity::loop() {
+  bool discard;
+  {
+    ModelLock lock(*this);
+    discard = discardPendingLookup;
+    discardPendingLookup = false;
+  }
+  if (discard && lookup) lookup->pendingWord.clear();
+  if (initialLayoutFailed && millis() - messageTime >= 1500) {
+    finish();
+    return;
+  }
+  if (consumeRejectedInput()) return;
   if (lookup && !lookup->pendingWord.empty() && !initialLayoutFailed) {
     navigateDefinition(false);
     return;
@@ -706,10 +718,17 @@ void DictionaryDefinitionActivity::render(RenderLock&&) {
   const auto layout = dictionaryUiDefinitionLayout(renderer);
   const XpUiBuffer buffer{commands, nullptr, 4, 0};
   XpUiScene scene{};
-  if (xp_ui_definition_view(&rendered, &layout, &buffer, &scene) != 1) return;
-  const bool complete = paintRustScene(scene);
-  if (complete && rendered.message_visible && dictionaryUiPopup(renderer, I18N.get(message), commands, 4, scene))
-    paintRustScene(scene);
+  if (xp_ui_definition_view(&rendered, &layout, &buffer, &scene) != 1) {
+    rejectRustScene();
+    return;
+  }
+  const bool complete = paintRustScene(scene, !rendered.message_visible);
+  if (complete && rendered.message_visible) {
+    if (dictionaryUiPopup(renderer, I18N.get(message), commands, 4, scene))
+      paintRustScene(scene);
+    else
+      rejectRustScene();
+  }
   framePrewarm.reset();
 }
 
@@ -753,4 +772,13 @@ XpUiPaint DictionaryDefinitionActivity::rustResources() {
                 break;
             }
           }};
+}
+
+void DictionaryDefinitionActivity::cancelRejectedInput(const XpUiInput& input) {
+  if (initialLayoutFailed || !(input.released & XP_UI_BACK)) return;
+  XpUiEffect effect{};
+  effect.kind = lookup && input.held_ms >= 1000 ? XP_UI_DEFINITION_CANCEL
+                : lookup && lookup->depth > 0   ? XP_UI_DEFINITION_BACK
+                                                : XP_UI_DEFINITION_FINISH;
+  applyNavigation(effect, 0, 0);
 }

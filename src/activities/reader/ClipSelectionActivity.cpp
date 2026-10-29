@@ -342,6 +342,7 @@ void ClipSelectionActivity::loopButtons() {
 }
 
 void ClipSelectionActivity::loop() {
+  if (consumeRejectedInput()) return;
   if (wordCount == 0 && !actionPopup.isActive()) {
     cancel();
     return;
@@ -408,6 +409,7 @@ void ClipSelectionActivity::render(RenderLock&&) {
   const XpUiBuffer buffer{commands, nullptr, 20, 0};
   XpUiScene scene{};
   if (xp_ui_selection_view(&rendered, wireWords(), wordCount, &layout, &painted, &buffer, &nextPainted, &scene) != 1) {
+    rejectRustScene();
     LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
     return;
   }

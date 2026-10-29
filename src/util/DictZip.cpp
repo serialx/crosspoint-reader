@@ -54,11 +54,11 @@ bool extractChunkSlice(HalFile& file, uint32_t compressedOffset, uint32_t compre
       src.get(),
       [](void* ctx, uint8_t* data, size_t count) -> uint8_t {
         auto* source = static_cast<ChunkSource*>(ctx);
-        if (source->reader.read(data, count)) return 0;
+        if (source->reader.read(data, count)) return XP_DICTIONARY_ZIP_OK;
         return static_cast<uint8_t>(source->readFailed ? ExtractError::ReadError : ExtractError::Decompress);
       },
       buf.get(), discardSize, extractSize, &output);
-  if (status) return fail(static_cast<ExtractError>(status));
+  if (status != XP_DICTIONARY_ZIP_OK) return fail(static_cast<ExtractError>(status));
 
   return true;
 }
@@ -118,7 +118,7 @@ bool extractEntry(const char* path, uint32_t offset, uint32_t size, HalFile& out
                          extractChunkSlice(context.file, at, compressed, discard, count, context.output, &error);
                          return static_cast<uint8_t>(error);
                        });
-  if (status) return fail(static_cast<ExtractError>(status));
+  if (status != XP_DICTIONARY_ZIP_OK) return fail(static_cast<ExtractError>(status));
   return true;
 }
 

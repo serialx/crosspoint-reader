@@ -54,8 +54,8 @@ IfoFacts readIfoFacts(const std::string& ifoPath) {
   if (n <= 0) return facts;
   buf[n] = '\0';
   const uint8_t flags = xp_dictionary_ifo(reinterpret_cast<const uint8_t*>(buf), n);
-  facts.offsets64 = flags & 1;
-  facts.htmlDefinitions = flags & 2;
+  facts.offsets64 = flags & XP_DICTIONARY_IFO_OFFSETS64;
+  facts.htmlDefinitions = flags & XP_DICTIONARY_IFO_HTML;
   return facts;
 }
 
@@ -102,7 +102,7 @@ bool DictEntryList::appendUnique(const char* headword, const DictLocation& locat
     LOG_ERR("DICT", "Low heap for %u byte headword", static_cast<unsigned>(bytes));
     lowMemory_ = true;
   }
-  return status == 0;
+  return status == XP_DICTIONARY_APPEND_OK;
 }
 
 bool Dictionary::open(const char* folderName) {
@@ -123,11 +123,15 @@ bool Dictionary::open(const char* folderName) {
       },
       [](void* ctx, uint8_t kind) {
         static constexpr const char* suffixes[] = {".idx", ".dict", ".dict.dz", ".syn"};
+        static_assert(XP_DICTIONARY_EXISTS_INDEX == 0 && XP_DICTIONARY_EXISTS_PLAIN == 1 &&
+                      XP_DICTIONARY_EXISTS_COMPRESSED == 2 && XP_DICTIONARY_EXISTS_SYNONYMS == 3);
+        static_assert(sizeof(suffixes) / sizeof(suffixes[0]) == XP_DICTIONARY_EXISTS_SYNONYMS + 1);
         return Storage.exists((static_cast<Context*>(ctx)->resolved + suffixes[kind]).c_str());
       },
       [](void* ctx) -> uint8_t {
         const auto facts = readIfoFacts(static_cast<Context*>(ctx)->resolved + ".ifo");
-        return static_cast<uint8_t>(facts.offsets64 | (facts.htmlDefinitions << 1));
+        return static_cast<uint8_t>((facts.offsets64 ? XP_DICTIONARY_IFO_OFFSETS64 : 0) |
+                                    (facts.htmlDefinitions ? XP_DICTIONARY_IFO_HTML : 0));
       },
       [](void* ctx) { return static_cast<Context*>(ctx)->resolved.size(); },
       [](void* ctx) {
@@ -246,7 +250,7 @@ bool Dictionary::buildSidecar(const std::string& sourcePath, const std::string& 
   XpDictionaryScan scan{};
   const uint8_t status =
       xp_dictionary_scan(&input, &output, magic, suffixBytes, buf.get(), CHUNK_BYTES, ctx, yieldFn, &scan);
-  const bool ok = status == 0;
+  const bool ok = status == XP_DICTIONARY_SCAN_OK;
   if (status == XP_DICTIONARY_SCAN_READ_ERROR)
     LOG_ERR("DICT", "Index scan read failed at %lu", static_cast<unsigned long>(scan.position));
   if (!ok) {
@@ -269,7 +273,9 @@ bool Dictionary::sessionOperation(LookupSession& session, bool synonyms) {
   struct Context {
     Dictionary& dictionary;
     LookupSession& session;
-    HalFile* files[4];
+    static_assert(XP_DICTIONARY_SESSION_INDEX == 0 && XP_DICTIONARY_SESSION_SAMPLES == 1 &&
+                  XP_DICTIONARY_SESSION_SYNONYMS == 2 && XP_DICTIONARY_SESSION_SYNONYM_SAMPLES == 3);
+    HalFile* files[XP_DICTIONARY_SESSION_SYNONYM_SAMPLES + 1];
   } context{*this, session, {&session.idx, &session.qidx, &session.syn, &session.sidx}};
   const XpDictionarySessionIo io{
       &context,
@@ -279,14 +285,18 @@ bool Dictionary::sessionOperation(LookupSession& session, bool synonyms) {
       [](void* ctx, uint8_t slot) {
         auto& c = *static_cast<Context*>(ctx);
         static constexpr const char* suffixes[] = {".idx", ".qidx", ".syn", ".sidx"};
+        static_assert(XP_DICTIONARY_SESSION_INDEX == 0 && XP_DICTIONARY_SESSION_SAMPLES == 1 &&
+                      XP_DICTIONARY_SESSION_SYNONYMS == 2 && XP_DICTIONARY_SESSION_SYNONYM_SAMPLES == 3);
+        static_assert(sizeof(suffixes) / sizeof(suffixes[0]) == XP_DICTIONARY_SESSION_SYNONYM_SAMPLES + 1);
+        static_assert(sizeof(c.files) / sizeof(c.files[0]) == sizeof(suffixes) / sizeof(suffixes[0]));
         char path[PATH_BUF_BYTES];
         return c.dictionary.buildPath(path, sizeof(path), suffixes[slot]) &&
                Storage.openFileForRead("DICT", path, *c.files[slot]);
       },
       [](void* ctx, uint8_t slot) -> uint32_t { return static_cast<Context*>(ctx)->files[slot]->fileSize(); },
       [](void* ctx, uint8_t slot) {
-        return readSidecarHeader(*static_cast<Context*>(ctx)->files[slot], slot == 1 ? QIDX_MAGIC : SIDX_MAGIC,
-                                 SAMPLE_INTERVAL);
+        return readSidecarHeader(*static_cast<Context*>(ctx)->files[slot],
+                                 slot == XP_DICTIONARY_SESSION_SAMPLES ? QIDX_MAGIC : SIDX_MAGIC, SAMPLE_INTERVAL);
       },
       [](void* ctx, uint8_t slot) { static_cast<Context*>(ctx)->files[slot]->close(); },
       [](void* ctx) {
@@ -424,8 +434,8 @@ bool Dictionary::readDefinition(const DictLocation& location, std::string& out, 
         }
       }};
   const uint8_t result = xp_dictionary_definition(&io);
-  if (result && outResult) *outResult = static_cast<LookupResult>(result);
-  return result == 0;
+  if (result != XP_DICTIONARY_LOOKUP_FOUND && outResult) *outResult = static_cast<LookupResult>(result);
+  return result == XP_DICTIONARY_LOOKUP_FOUND;
 }
 
 std::string Dictionary::cleanWord(const char* word) {

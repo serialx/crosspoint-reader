@@ -63,6 +63,9 @@ bool buildDictionaryHtmlPages(GfxRenderer& renderer, const std::string& definiti
           if (limitReason) return;
           const size_t pageElements = page->elementCount();
           static constexpr const char* reasons[] = {nullptr, "page count", "element count", "free heap"};
+          static_assert(XP_DICTIONARY_HTML_LIMIT_OK == 0 && XP_DICTIONARY_HTML_LIMIT_PAGES == 1 &&
+                        XP_DICTIONARY_HTML_LIMIT_ELEMENTS == 2 && XP_DICTIONARY_HTML_LIMIT_HEAP == 3);
+          static_assert(sizeof(reasons) / sizeof(reasons[0]) == XP_DICTIONARY_HTML_LIMIT_HEAP + 1);
           limitReason = reasons[xp_dictionary_html_limit(pagesOut.size(), retainedElements, pageElements,
                                                          ESP.getFreeHeap(), ESP.getMaxAllocHeap())];
           if (limitReason != nullptr) {

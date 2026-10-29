@@ -81,7 +81,7 @@ pub unsafe extern "C" fn xp_dictionary_index(io: *const Index, build: bool) -> u
             return 1;
         }
         let status = (io.build)(io.context, false);
-        if status != 0 {
+        if status != XP_DICTIONARY_INDEX_OK {
             return status;
         }
     }
@@ -89,11 +89,11 @@ pub unsafe extern "C" fn xp_dictionary_index(io: *const Index, build: bool) -> u
         if !build {
             return 1;
         }
-        if (io.build)(io.context, true) != 0 {
+        if (io.build)(io.context, true) != XP_DICTIONARY_INDEX_OK {
             (io.diagnostic)(io.context);
         }
     }
-    0
+    XP_DICTIONARY_INDEX_OK
 }
 use super::engine::Header;
 #[repr(C)]

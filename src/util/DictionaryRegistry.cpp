@@ -13,8 +13,9 @@
 namespace DictionaryRegistry {
 namespace {
 struct Context {
-  HalFile directories[2];
-  HalFile entries[2];
+  static_assert(XP_DICTIONARY_REGISTRY_SLOT_ROOT == 0 && XP_DICTIONARY_REGISTRY_SLOT_FOLDER == 1);
+  HalFile directories[XP_DICTIONARY_REGISTRY_SLOT_FOLDER + 1];
+  HalFile entries[XP_DICTIONARY_REGISTRY_SLOT_FOLDER + 1];
   std::vector<DictionaryEntry>* output = nullptr;
   std::string* resolved = nullptr;
 };

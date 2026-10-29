@@ -121,7 +121,9 @@ pub unsafe extern "C" fn xp_dictzip_parse(
     info: *mut Info,
     table: *const Table,
 ) -> u8 {
-    parse(&*file, &mut *info, &*table).err().unwrap_or(0)
+    parse(&*file, &mut *info, &*table)
+        .err()
+        .unwrap_or(XP_DICTIONARY_ZIP_OK)
 }
 type Extract = unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32) -> u8;
 /// # Safety
@@ -137,7 +139,7 @@ pub unsafe extern "C" fn xp_dictzip_range(
     extract: Extract,
 ) -> u8 {
     if size == 0 {
-        return 0;
+        return XP_DICTIONARY_ZIP_OK;
     }
     let info = &*info;
     if offset > info.total_size
@@ -173,7 +175,7 @@ pub unsafe extern "C" fn xp_dictzip_range(
             local,
             take,
         );
-        if status != 0 {
+        if status != XP_DICTIONARY_ZIP_OK {
             return status;
         }
         remaining -= take;
@@ -182,7 +184,7 @@ pub unsafe extern "C" fn xp_dictzip_range(
         }
     }
     if remaining == 0 {
-        0
+        XP_DICTIONARY_ZIP_OK
     } else {
         BAD
     }
@@ -201,7 +203,7 @@ pub unsafe extern "C" fn xp_dictzip_slice(
     while discard > 0 {
         let n = discard.min(XP_DICTIONARY_ZIP_OUTPUT_BYTES as u32);
         let error = read(ctx, buffer, n as usize);
-        if error != 0 {
+        if error != XP_DICTIONARY_ZIP_OK {
             return error;
         }
         discard -= n;
@@ -209,7 +211,7 @@ pub unsafe extern "C" fn xp_dictzip_slice(
     while count > 0 {
         let n = count.min(XP_DICTIONARY_ZIP_OUTPUT_BYTES as u32);
         let error = read(ctx, buffer, n as usize);
-        if error != 0 {
+        if error != XP_DICTIONARY_ZIP_OK {
             return error;
         }
         if !(*out).write(slice::from_raw_parts(buffer, n as usize)) {
@@ -217,7 +219,7 @@ pub unsafe extern "C" fn xp_dictzip_slice(
         }
         count -= n;
     }
-    0
+    XP_DICTIONARY_ZIP_OK
 }
 
 /// # Safety

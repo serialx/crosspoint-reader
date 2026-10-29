@@ -85,7 +85,7 @@ pub unsafe extern "C" fn xp_dictionary_definition(io: *const Definition) -> u8 {
             return XP_DICTIONARY_LOOKUP_READ_ERROR;
         }
         let error = (io.extract)(io.context, io.offset, size);
-        if error != 0 {
+        if error != XP_DICTIONARY_ZIP_OK {
             io.log(
                 XP_DICTIONARY_DEFINITION_EVENT_EXTRACT,
                 u32::from(error),
@@ -135,5 +135,5 @@ pub unsafe extern "C" fn xp_dictionary_definition(io: *const Definition) -> u8 {
         );
         return XP_DICTIONARY_LOOKUP_LOW_MEMORY;
     }
-    0
+    XP_DICTIONARY_LOOKUP_FOUND
 }

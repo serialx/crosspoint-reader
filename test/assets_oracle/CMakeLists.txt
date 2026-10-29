@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.16)
+project(assets_oracle C CXX)
+set(CMAKE_CXX_STANDARD 20)
+get_filename_component(REPO_ROOT "../.." ABSOLUTE)
+set(DECODER_SOURCE_DIR "${REPO_ROOT}/.pio/libdeps/default" CACHE PATH "Patched firmware dependencies")
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+add_executable(assets_oracle Oracle.cpp
+  ${REPO_ROOT}/lib/JpegToBmpConverter/JpegToBmpConverter.cpp
+  ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/src/util/ScreenshotUtil.cpp
+  ${REPO_ROOT}/src/util/QrUtils.cpp
+  ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp
+  ${DECODER_SOURCE_DIR}/QRCode/src/qrcode.c)
+target_compile_definitions(assets_oracle PRIVATE __LINUX__)
+target_include_directories(assets_oracle PRIVATE stubs
+  ${REPO_ROOT}/test/image_golden/stubs
+  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs
+  ${REPO_ROOT}/lib/JpegToBmpConverter ${REPO_ROOT}/lib/GfxRenderer
+  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/src/util
+  ${DECODER_SOURCE_DIR}/JPEGDEC/src ${DECODER_SOURCE_DIR}/QRCode/src)
+target_link_libraries(assets_oracle PRIVATE xp_ffi_host)
+enable_testing()
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME AssetsGoldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py $<TARGET_FILE:assets_oracle>)

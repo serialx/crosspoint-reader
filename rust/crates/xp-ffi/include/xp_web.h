@@ -392,3 +392,67 @@ void xp_web_job_route(void*, const XpWebJobServices*, XpWebJobQueue*, uint32_t);
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef enum {
+  XP_WEB_RANDOM,
+  XP_WEB_SHA1,
+  XP_WEB_SHA256,
+  XP_WEB_AES_ENCRYPT,
+  XP_WEB_AES_DECRYPT,
+  XP_WEB_RSA_PRIVATE,
+  XP_WEB_RSA_GENERATE,
+  XP_WEB_RSA_PUBLIC,
+  XP_WEB_RSA_SIGN,
+  XP_WEB_PKCS12
+} XpWebCryptoOp;
+// Synchronous request loan. JSON strings expire on release; primitives and
+// serializers consume spans during the callback and never retain them.
+typedef struct {
+  const XpWebServices* files;
+  XpWebText (*parse)(void*, XpWebText);
+  // Null means missing/non-string; non-null views end at the first NUL.
+  XpWebText (*string)(void*, const char*);
+  void (*send)(void*, uint16_t, const char*);
+  void (*release)(void*, bool arguments);
+} XpWebRpc;
+typedef struct {
+  const XpWebRpc* request;
+  void (*prepare)(void*, XpWebText url, XpWebText method, XpWebText body);
+  void (*suspend)(void*, bool);
+  int32_t (*request_tls)(void*, size_t limit);
+  size_t (*header_count)(void*);
+  XpWebHeader (*header)(void*, size_t);
+  void (*append_header)(void*, XpWebHeader);
+  void (*respond)(void*, int32_t upstream_status, const char* status_header, const char* headers_header,
+                  uint16_t status, const char* content_type);
+} XpWebRelay;
+// Four C++ owned checked byte buffers live only for this request. allocate
+// replaces a slot; clear releases all buffers, primitive results and password.
+// call returns negative primitive errors (AES -2 means output/context OOM),
+// otherwise output length or 1 for bool/void primitives. output borrows until clear.
+typedef struct {
+  const XpWebRpc* request;
+  void (*initialize)(void*);
+  int32_t (*integer)(void*, const char*, int32_t fallback);
+  uint8_t* (*allocate)(void*, uint32_t slot, size_t);
+  int32_t (*decode)(XpWebText, uint8_t*, size_t);
+  ptrdiff_t (*call)(void*, uint32_t, XpWebText, XpWebText, XpWebText, uint8_t*, size_t);
+  XpWebText (*output)(void*, uint32_t);
+  XpWebText (*last_error)(void*);
+  void (*password)(void*, XpWebText);
+  bool (*encode)(void*, const char*, XpWebText);
+  // linked requires one immutable, NUL-terminated string; otherwise copies all parts.
+  void (*error)(void*, const XpWebText*, size_t count, bool linked);
+  void (*clear)(void*);
+  bool (*overflowed)(void*);
+  void (*send_response)(void*);
+  void (*oom)(void*, const char*);
+} XpWebCrypto;
+void xp_web_relay(void*, const XpWebRelay*);
+void xp_web_crypto(void*, const XpWebCrypto*);
+#ifdef __cplusplus
+}
+#endif

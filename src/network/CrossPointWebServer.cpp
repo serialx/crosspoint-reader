@@ -30,6 +30,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <string_view>
 
 #include "ClippingStore.h"
@@ -139,6 +140,13 @@ struct WebFileBridge {
   }
   static XpWebText span(const std::string& value) {
     return {reinterpret_cast<const uint8_t*>(value.c_str()), value.size()};
+  }
+  static XpWebText jsonString(void* ctx, const char* key) {
+    const char* value = self(ctx).paths[key].as<const char*>();
+    return {reinterpret_cast<const uint8_t*>(value), value ? strlen(value) : 0};
+  }
+  static void sendJsonLiteral(void* ctx, uint16_t status, const char* json) {
+    self(ctx).owner.server->send(status, "application/json", json);
   }
   static XpWebText parseJson(void* ctx, XpWebText body) {
     const auto error = deserializeJson(self(ctx).paths, body.data, body.len);
@@ -1285,15 +1293,6 @@ void CrossPointWebServer::handleDeleteWifiNetwork() { WebConfigBridge::route(*th
 // Browser-side plugins (JS on the SD card)
 // ---------------------------------------------------------------------------
 
-namespace {
-
-// A path component is safe if it has no separators or parent refs.
-bool safeComponent(const String& s) {
-  return xp_web_component(reinterpret_cast<const uint8_t*>(s.c_str()), s.length());
-}
-
-}  // namespace
-
 bool CrossPointWebServer::readJsonBody(JsonDocument& out) const {
   if (!server->hasArg("plain")) {
     server->send(400, "application/json", "{\"error\":\"missing body\"}");
@@ -1418,252 +1417,215 @@ void CrossPointWebServer::handlePluginRunnerPage() const { WebPluginBridge::rout
 void CrossPointWebServer::handlePluginFs() { WebPluginBridge::upload(*this, 4); }
 void CrossPointWebServer::handlePluginFsUpload() { WebPluginBridge::upload(*this, server->upload().status); }
 
-// POST /api/relay {plugin, method, url, headers:{}, body}
-//   -> 200 with the upstream body raw, its status in X-Relay-Status and its
-//      headers in X-Relay-Headers ([[name, value], ...] JSON, duplicates kept)
-// Lets a plugin make an outbound HTTP(S) call the browser can't (CORS): the
-// device makes it via SecureNet. Sending the body raw avoids escaping it into
-// JSON on the device; PluginHost.relay() rebuilds {status, headers, body}.
-void CrossPointWebServer::handleRelay() {
-  if (rejectIfPluginsDisabled()) return;
-  JsonDocument req;
-  if (!readJsonBody(req)) return;
-  const String plugin = req["plugin"] | "";
-  const std::string url = req["url"] | "";
-  const std::string method = req["method"] | "GET";
-  if (!safeComponent(plugin) || url.empty()) {
-    server->send(400, "application/json", "{\"error\":\"missing plugin/url\"}");
-    return;
-  }
-  pluginhttp::Headers headers;
-  pluginhttp::readHeaders(req["headers"], headers);
-  const std::string body = req["body"] | "";
-  // All values needed below now have independent storage. Drop both copies of
-  // the inbound JSON before wolfSSL allocates its handshake working set.
-  req.clear();
-  req.shrinkToFit();
-  releaseRequestArguments(server.get());
+struct WebRpcBridge : WebFileBridge {
+  explicit WebRpcBridge(const CrossPointWebServer& owner) : WebFileBridge(owner) {}
+  static const XpWebRpc request;
+};
 
-  suspendTransferServices();
-  ScopedCleanup resumeServices{[this] { resumeTransferServices(); }};
-  LOG_DBG("WEB", "Relay TLS start: heap %u, max block %u: %s", (unsigned)ESP.getFreeHeap(),
-          (unsigned)ESP.getMaxAllocHeap(), url.c_str());
+const XpWebRpc WebRpcBridge::request = {
+    .files = &WebFileBridge::services,
+    .parse = parseJson,
+    .string = jsonString,
+    .send = sendJsonLiteral,
+    .release =
+        [](void* ctx, bool arguments) {
+          auto& b = self(ctx);
+          b.paths.clear();
+          if (arguments) {
+            b.paths.shrinkToFit();
+            b.argument = String();
+            releaseRequestArguments(b.owner.server.get());
+          }
+        },
+};
 
-  // One bounded body buffer; larger payloads use /api/fetch. This task is
-  // subscribed to the task WDT for the whole web-server session, so feed it
-  // while a slow peer keeps the request waiting.
-  static constexpr size_t RELAY_BODY_LIMIT = 32 * 1024;
-  String respBody;
-  pluginhttp::Headers respHeaders;
-  const int status =
-      pluginhttp::request(nullptr, url, method, body, headers, respBody, RELAY_BODY_LIMIT, &respHeaders, [] {
-        resetTaskWatchdogIfSubscribed();
-        return false;  // never aborts; only feeds
-      });
-  // Transport failure, a truncated body, or one over the cap / out of memory
-  // (the reason is logged by pluginhttp).
-  if (status < 0) {
-    server->send(502, "application/json", "{\"error\":\"relay failed; large bodies need /api/fetch\"}");
-    return;
-  }
+struct WebRelayBridge : WebRpcBridge {
+  explicit WebRelayBridge(CrossPointWebServer& owner) : WebRpcBridge(owner), mutableOwner(owner) {}
+  CrossPointWebServer& mutableOwner;
+  std::string url, method, body;
+  pluginhttp::Headers headers, responseHeaders;
+  String responseBody;
+  JsonDocument response;
+  static WebRelayBridge& relay(void* ctx) { return static_cast<WebRelayBridge&>(self(ctx)); }
+  static const XpWebRelay services;
+};
+const XpWebRelay WebRelayBridge::services = {
+    .request = &WebRpcBridge::request,
+    .prepare =
+        [](void* ctx, XpWebText url, XpWebText method, XpWebText body) {
+          auto& b = relay(ctx);
+          b.url.assign(reinterpret_cast<const char*>(url.data), url.len);
+          b.method.assign(reinterpret_cast<const char*>(method.data), method.len);
+          pluginhttp::readHeaders(b.paths["headers"], b.headers);
+          b.body.assign(reinterpret_cast<const char*>(body.data), body.len);
+        },
+    .suspend =
+        [](void* ctx, bool suspend) {
+          auto& b = relay(ctx);
+          if (suspend) {
+            b.mutableOwner.suspendTransferServices();
+          } else {
+            // Reclaim upstream response storage before restarting network services.
+            b.response.clear();
+            b.response.shrinkToFit();
+            b.responseBody = String();
+            pluginhttp::Headers{}.swap(b.responseHeaders);
+            b.mutableOwner.resumeTransferServices();
+          }
+        },
+    .request_tls = [](void* ctx, size_t limit) -> int32_t {
+      auto& b = relay(ctx);
+      LOG_DBG("WEB", "Relay TLS start: heap %u, max block %u: %s", (unsigned)ESP.getFreeHeap(),
+              (unsigned)ESP.getMaxAllocHeap(), b.url.c_str());
+      return pluginhttp::request(nullptr, b.url, b.method, b.body, b.headers, b.responseBody, limit, &b.responseHeaders,
+                                 [] {
+                                   resetTaskWatchdogIfSubscribed();
+                                   return false;
+                                 });
+    },
+    .header_count = [](void* ctx) -> size_t {
+      auto& b = relay(ctx);
+      b.response.to<JsonArray>();
+      return b.responseHeaders.size();
+    },
+    .header = [](void* ctx, size_t index) -> XpWebHeader {
+      const auto& h = relay(ctx).responseHeaders[index];
+      return {span(h.first), span(h.second)};
+    },
+    .append_header =
+        [](void* ctx, XpWebHeader header) {
+          JsonArray pair = relay(ctx).response.as<JsonArray>().add<JsonArray>();
+          pair.add(JsonString(reinterpret_cast<const char*>(header.name.data), header.name.len));
+          pair.add(JsonString(reinterpret_cast<const char*>(header.value.data), header.value.len));
+        },
+    .respond =
+        [](void* ctx, int32_t upstreamStatus, const char* statusHeader, const char* headersHeader, uint16_t status,
+           const char* contentType) {
+          auto& b = relay(ctx);
+          String headersJson;
+          serializeJson(b.response, headersJson);
+          b.owner.server->sendHeader(statusHeader, String(upstreamStatus));
+          b.owner.server->sendHeader(headersHeader, headersJson);
+          b.owner.server->send(status, contentType, b.responseBody);
+        },
+};
 
-  JsonDocument headersDoc;
-  JsonArray headerArray = headersDoc.to<JsonArray>();
-  for (const auto& h : respHeaders) {
-    JsonArray pair = headerArray.add<JsonArray>();
-    pair.add(h.first);
-    pair.add(h.second);
-  }
-  String headersJson;
-  serializeJson(headersDoc, headersJson);
-  server->sendHeader("X-Relay-Status", String(status));
-  server->sendHeader("X-Relay-Headers", headersJson);
-  server->send(200, "application/octet-stream", respBody);
-}
-
-namespace {}  // namespace
-
-// POST /api/crypto {op, ...base64 fields...} -> {data|public|private|key|cert, ...}
-// Generic wolfSSL primitives (hash, random, AES, RSA, PKCS#12) a plugin can use.
-// Stateless; keys are base64 in the request/reply.
-void CrossPointWebServer::handleCrypto() {
-  if (rejectIfPluginsDisabled()) return;
-  using namespace freeink::content;
-  JsonDocument req;
-  if (!readJsonBody(req)) return;
-  const std::string_view op = req["op"] | "";
-  const auto sendOom = [this](const char* operation) {
-    LOG_ERR("WEB", "OOM: crypto %s", operation);
-    server->send(503, "application/json", "{\"error\":\"out of memory\"}");
-  };
-  struct Bytes {
-    std::unique_ptr<uint8_t[]> data;
-    size_t size = 0;
-    // Never null, so an empty field is still a valid zero-length input.
-    const uint8_t* ptr() const {
-      static constexpr uint8_t EMPTY = 0;
-      return data ? data.get() : &EMPTY;
-    }
-  };
-  // Nothrow decode of a base64 field: a bundle-sized input under heap pressure
-  // must fail the op, not abort() the device (-fno-exceptions). The cap keeps
-  // a LAN client from posting a multi-megabyte value; crypto inputs (keys,
-  // certs, PKCS#12 bundles) are a few KB.
-  bool decodeOom = false;
-  auto dec = [&](const char* field) {
-    static constexpr size_t MAX_CRYPTO_FIELD = 64 * 1024;
-    Bytes out;
-    const char* v = req[field].as<const char*>();
-    const size_t encodedLen = v ? strlen(v) : 0;
-    if (encodedLen == 0 || encodedLen > MAX_CRYPTO_FIELD) return out;
-    const size_t cap = encodedLen * 3 / 4 + 3;
-    out.data = makeUniqueNoThrow<uint8_t[]>(cap);
-    if (!out.data) decodeOom = true;
-    const int32_t n = out.data ? base64Decode(v, encodedLen, out.data.get(), cap) : -1;
-    out.size = n < 0 ? 0 : static_cast<size_t>(n);
-    return out;
-  };
-
-  JsonDocument resp;
-  bool encodeFailed = false;
-  const auto setEncoded = [&](const char* name, const uint8_t* data, size_t size) {
-    const uint8_t empty = 0;
-    if (size == 0) data = &empty;
-    const String encoded = base64::encode(data, size);
-    if ((size && encoded.isEmpty()) || encoded == "-FAIL-") {
-      encodeFailed = true;
-      return;
-    }
-    resp[name] = encoded;
-  };
-  const auto setEncodedVector = [&](const char* name, const std::vector<uint8_t>& data) {
-    setEncoded(name, data.data(), data.size());
-  };
-
-  WolfsslCrypto c;
-
-  if (op == "random") {
-    static constexpr int MAX_RANDOM_BYTES = 4096;  // generous for keys/salts/tokens; blocks a runaway allocation
-    const int n = std::clamp(static_cast<int>(req["len"] | 16), 0, MAX_RANDOM_BYTES);
-    auto out = makeUniqueNoThrow<uint8_t[]>(n);
-    if (n && !out) {
-      sendOom("random output");
-      return;
-    }
-    if (n) c.randomBytes(out.get(), n);
-    const uint8_t empty = 0;
-    setEncoded("data", n ? out.get() : &empty, n);
-  } else if (op == "sha1") {
-    const Bytes d = dec("data");
-    if (decodeOom) return sendOom("input");
-    uint8_t h[20];
-    c.sha1(d.ptr(), d.size, h);
-    setEncoded("data", h, 20);
-  } else if (op == "aesenc" || op == "aesdec") {
-    const Bytes k = dec("key"), iv = dec("iv"), d = dec("data");
-    if (decodeOom) return sendOom("input");
-    if (k.size != 16 || iv.size != 16) {
-      resp["error"] = "key/iv must be 16 bytes";
-    } else if (op == "aesenc") {
-      const size_t outSize = ((d.size / 16) + 1) * 16;
-      auto out = makeUniqueNoThrow<uint8_t[]>(outSize);
-      // Pad inside the output buffer; the SDK helper allocates a second copy.
-      auto aes = makeUniqueNoThrow<Aes>();
-      if (!out || !aes) return sendOom("AES output");
-      memcpy(out.get(), d.ptr(), d.size);
-      memset(out.get() + d.size, static_cast<int>(outSize - d.size), outSize - d.size);
-      if (wc_AesSetKey(aes.get(), k.ptr(), 16, iv.ptr(), AES_ENCRYPTION) == 0 &&
-          wc_AesCbcEncrypt(aes.get(), out.get(), out.get(), outSize) == 0)
-        setEncoded("data", out.get(), outSize);
-      else
-        resp["error"] = "aesenc failed";
-    } else if (d.size % 16 != 0) {
-      resp["error"] = "data not block-aligned";
-    } else {
-      auto out = makeUniqueNoThrow<uint8_t[]>(d.size);
-      if (d.size && !out) {
-        return sendOom("AES output");
+struct WebCryptoBridge : WebRpcBridge {
+  explicit WebCryptoBridge(CrossPointWebServer& owner) : WebRpcBridge(owner) {}
+  std::optional<freeink::content::WolfsslCrypto> crypto;
+  std::unique_ptr<uint8_t[]> buffers[4];
+  std::vector<uint8_t> first, second;
+  std::string password;
+  JsonDocument response;
+  static WebCryptoBridge& crypt(void* ctx) { return static_cast<WebCryptoBridge&>(self(ctx)); }
+  static const XpWebCrypto services;
+};
+const XpWebCrypto WebCryptoBridge::services = {
+    .request = &WebRpcBridge::request,
+    .initialize = [](void* ctx) { crypt(ctx).crypto.emplace(); },
+    .integer = [](void* ctx, const char* key, int32_t fallback) -> int32_t { return self(ctx).paths[key] | fallback; },
+    .allocate = [](void* ctx, uint32_t slot, size_t n) -> uint8_t* {
+      auto& buffer = crypt(ctx).buffers[slot];
+      buffer = makeUniqueNoThrow<uint8_t[]>(n);
+      return buffer.get();
+    },
+    .decode = [](XpWebText text, uint8_t* out, size_t capacity) -> int32_t {
+      return freeink::content::base64Decode(reinterpret_cast<const char*>(text.data), text.len, out, capacity);
+    },
+    .call = [](void* ctx, uint32_t operation, XpWebText a, XpWebText b, XpWebText data, uint8_t* out,
+               size_t capacity) -> ptrdiff_t {
+      auto& bridge = crypt(ctx);
+      auto& c = *bridge.crypto;
+      switch (static_cast<XpWebCryptoOp>(operation)) {
+        case XP_WEB_RANDOM:
+          c.randomBytes(out, capacity);
+          return 1;
+        case XP_WEB_SHA1:
+          c.sha1(data.data, data.len, out);
+          return 1;
+        case XP_WEB_SHA256:
+          c.sha256(data.data, data.len, out);
+          return 1;
+        case XP_WEB_AES_ENCRYPT: {
+          auto aes = makeUniqueNoThrow<Aes>();
+          if (!out || !aes) return -2;
+          return wc_AesSetKey(aes.get(), a.data, 16, b.data, AES_ENCRYPTION) == 0 &&
+                         wc_AesCbcEncrypt(aes.get(), out, out, capacity) == 0
+                     ? 1
+                     : -1;
+        }
+        case XP_WEB_AES_DECRYPT:
+          return c.aes128CbcDecrypt(a.data, b.data, data.data, data.len, out) ? 1 : -1;
+        case XP_WEB_RSA_PRIVATE:
+          return c.rsaPrivateRaw(a.data, a.len, data.data, data.len, out, capacity);
+        case XP_WEB_RSA_GENERATE: {
+          freeink::content::RsaKeyPairDer key;
+          const bool ok = c.rsaGenerate(&key);
+          bridge.first = std::move(key.spki);
+          bridge.second = std::move(key.pkcs8);
+          return ok ? 1 : -1;
+        }
+        case XP_WEB_RSA_PUBLIC: {
+          size_t size = 0;
+          return c.rsaPublicEncrypt(a.data, a.len, data.data, data.len, out, capacity, &size)
+                     ? static_cast<ptrdiff_t>(size)
+                     : -1;
+        }
+        case XP_WEB_RSA_SIGN:
+          return c.rsaPrivateSignRaw(a.data, a.len, data.data, out) ? 1 : -1;
+        case XP_WEB_PKCS12:
+          return c.pkcs12Extract(data.data, data.len, bridge.password, &bridge.first, &bridge.second) ? 1 : -1;
       }
-      uint8_t empty = 0;
-      if (c.aes128CbcDecrypt(k.ptr(), iv.ptr(), d.ptr(), d.size, d.size ? out.get() : &empty))
-        setEncoded("data", d.size ? out.get() : &empty, d.size);
-      else
-        resp["error"] = "aesdec failed";
-    }
-  } else if (op == "sha256") {
-    const Bytes d = dec("data");
-    if (decodeOom) return sendOom("input");
-    uint8_t h[32];
-    c.sha256(d.ptr(), d.size, h);
-    setEncoded("data", h, 32);
-  } else if (op == "rsadec") {
-    // Raw private-key operation with a caller-supplied PKCS#8 key; the caller
-    // removes the padding.
-    const Bytes priv = dec("private"), d = dec("data");
-    if (decodeOom) return sendOom("input");
-    static constexpr size_t MAX_MODULUS = 512;
-    auto out = makeUniqueNoThrow<uint8_t[]>(MAX_MODULUS);
-    if (!out) return sendOom("RSA output");
-    const int32_t n = c.rsaPrivateRaw(priv.ptr(), priv.size, d.ptr(), d.size, out.get(), MAX_MODULUS);
-    if (n > 0)
-      setEncoded("data", out.get(), static_cast<size_t>(n));
-    else
-      resp["error"] = "rsadec failed";
-  } else if (op == "keygen") {
-    RsaKeyPairDer kp;
-    if (c.rsaGenerate(&kp)) {
-      setEncodedVector("public", kp.spki);
-      setEncodedVector("private", kp.pkcs8);
-    } else {
-      resp["error"] = "keygen failed: " + c.lastError;
-    }
-  } else if (op == "pubencrypt") {
-    const Bytes cert = dec("cert"), d = dec("data");
-    if (decodeOom) return sendOom("input");
-    auto out = makeUniqueNoThrow<uint8_t[]>(512);  // off the stack; RSA output up to 4096-bit
-    if (!out) {
-      return sendOom("RSA output");
-    }
-    size_t olen = 0;
-    if (c.rsaPublicEncrypt(cert.ptr(), cert.size, d.ptr(), d.size, out.get(), 512, &olen))
-      setEncoded("data", out.get(), olen);
-    else
-      resp["error"] = "pubencrypt failed: " + c.lastError + " (cert " + std::to_string(cert.size) + "B, data " +
-                      std::to_string(d.size) + "B)";
-  } else if (op == "sign") {
-    const Bytes priv = dec("private"), h = dec("hash");
-    if (decodeOom) return sendOom("input");
-    uint8_t sig[128];
-    if (h.size != 20)
-      resp["error"] = "hash must be 20 bytes";
-    else if (c.rsaPrivateSignRaw(priv.ptr(), priv.size, h.ptr(), sig))
-      setEncoded("data", sig, 128);
-    else
-      resp["error"] = "sign failed";
-  } else if (op == "pkcs12") {
-    const Bytes p12 = dec("data");
-    if (decodeOom) return sendOom("input");
-    const std::string pw = req["password"] | "";
-    // The decoded bundle no longer depends on the request document. Reclaim
-    // its large base64 string before the KDF and certificate parsing begin.
-    req.clear();
-    std::vector<uint8_t> key, cert;
-    if (p12.size == 0) {
-      resp["error"] = "pkcs12 failed: bundle missing, invalid, or out of memory";
-    } else if (c.pkcs12Extract(p12.ptr(), p12.size, pw, &key, &cert)) {
-      setEncodedVector("key", key);
-      setEncodedVector("cert", cert);
-    } else {
-      resp["error"] = "pkcs12 failed: " + c.lastError;
-    }
-  } else {
-    resp["error"] = "unknown op";
-  }
+      return -1;
+    },
+    .output = [](void* ctx, uint32_t index) -> XpWebText {
+      const auto& bytes = index == 0 ? crypt(ctx).first : crypt(ctx).second;
+      return {bytes.data(), bytes.size()};
+    },
+    .last_error = [](void* ctx) -> XpWebText { return span(crypt(ctx).crypto->lastError); },
+    .password = [](void* ctx,
+                   XpWebText text) { crypt(ctx).password.assign(reinterpret_cast<const char*>(text.data), text.len); },
+    .encode = [](void* ctx, const char* key, XpWebText bytes) -> bool {
+      const uint8_t empty = 0;
+      const String encoded = base64::encode(bytes.len ? bytes.data : &empty, bytes.len);
+      if ((bytes.len && encoded.isEmpty()) || encoded == "-FAIL-") return false;
+      crypt(ctx).response[key] = encoded;
+      return true;
+    },
+    .error =
+        [](void* ctx, const XpWebText* parts, size_t count, bool linked) {
+          auto& response = crypt(ctx).response;
+          if (linked) {
+            response["error"] = JsonString(reinterpret_cast<const char*>(parts[0].data), parts[0].len, true);
+            return;
+          }
+          size_t size = 0;
+          for (size_t i = 0; i < count; ++i) size += parts[i].len;
+          std::string text;
+          text.reserve(size);
+          for (size_t i = 0; i < count; ++i) text.append(reinterpret_cast<const char*>(parts[i].data), parts[i].len);
+          response["error"] = text;
+        },
+    .clear =
+        [](void* ctx) {
+          auto& b = crypt(ctx);
+          for (auto& buffer : b.buffers) buffer.reset();
+          std::vector<uint8_t>{}.swap(b.first);
+          std::vector<uint8_t>{}.swap(b.second);
+          std::string{}.swap(b.password);
+        },
+    .overflowed = [](void* ctx) { return crypt(ctx).response.overflowed(); },
+    .send_response = [](void* ctx) { crypt(ctx).owner.sendJson(crypt(ctx).response); },
+    .oom = [](void*, const char* operation) { LOG_ERR("WEB", "OOM: crypto %s", operation); },
+};
 
-  if (encodeFailed || resp.overflowed()) {
-    return sendOom("response");
-  }
-  sendJson(resp);
+void CrossPointWebServer::handleRelay() {
+  WebRelayBridge bridge(*this);
+  xp_web_relay(static_cast<WebFileBridge*>(&bridge), &WebRelayBridge::services);
+}
+void CrossPointWebServer::handleCrypto() {
+  WebCryptoBridge bridge(*this);
+  xp_web_crypto(static_cast<WebFileBridge*>(&bridge), &WebCryptoBridge::services);
 }
 
 // POST /api/fetch {plugin, url, dest, headers?, offset?, maxBytes?}
@@ -1888,10 +1850,7 @@ struct WebJobBridge : WebFileBridge {
 const XpWebJobServices WebJobBridge::services = {
     .files = &WebFileBridge::services,
     .parse = parseJson,
-    .string = [](void* ctx, const char* key) -> XpWebText {
-      const char* value = self(ctx).paths[key] | "";
-      return {reinterpret_cast<const uint8_t*>(value), strlen(value)};
-    },
+    .string = jsonString,
     .integer = [](void* ctx, const char* key) -> uint32_t { return self(ctx).paths[key] | 0; },
     .boolean = [](void* ctx, const char* key) -> bool { return self(ctx).paths[key] | false; },
     .json = [](void* ctx, const char* key, uint8_t* out, size_t capacity) -> size_t {
@@ -1900,8 +1859,7 @@ const XpWebJobServices WebJobBridge::services = {
       return out ? serializeJson(value, reinterpret_cast<char*>(out), capacity) : measureJson(value);
     },
     .time = WebFileBridge::transfers.time,
-    .send = [](void* ctx, uint16_t status,
-               const char* json) { self(ctx).owner.server->send(status, "application/json", json); },
+    .send = sendJsonLiteral,
     // Queued/expired/stale/completed map to the original WEB milestones.
     .diagnostic =
         [](void*, uint32_t event, uint32_t id, XpWebText plugin, XpWebText action) {

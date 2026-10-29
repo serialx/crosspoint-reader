@@ -24,7 +24,7 @@ class Golden(unittest.TestCase):
             self.assertEqual(subprocess.check_output([str(exe)]), (HERE / "input.golden").read_bytes())
     def test_mutation_is_detected(self):
         original = (HERE / "oracle.cpp").read_text()
-        changed = original.replace("p.gap=8;p.buttonHeight=40", "p.gap=9;p.buttonHeight=40")
+        changed = original.replace("p.buttonHeight = 40;", "p.buttonHeight = 41;")
         self.assertNotEqual(original, changed)
         self.assertNotEqual(record(changed), (HERE / "widgets.golden").read_bytes())
 if __name__ == "__main__":

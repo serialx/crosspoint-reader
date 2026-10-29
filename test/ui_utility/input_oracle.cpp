@@ -6,52 +6,127 @@
 #include <initializer_list>
 #include <utility>
 struct MappedInputManager {
- enum class Button {Back,Confirm,NavNext,NavPrevious,Left,Right,Up,Down};
- enum class SwipeDir {None,Up,Down,Left,Right};
- uint32_t pressed=0,released=0,held=0,heldMs=0; SwipeDir swipe=SwipeDir::None;
- bool wasPressed(Button b)const{return pressed&(1u<<unsigned(b));}
- bool wasReleased(Button b)const{return released&(1u<<unsigned(b));}
- bool isPressed(Button b)const{return held&(1u<<unsigned(b));}
- uint32_t getHeldTime()const{return heldMs;}
- SwipeDir wasSwipe()const{return swipe;}
+  enum class Button { Back, Confirm, NavNext, NavPrevious, Left, Right, Up, Down };
+  enum class SwipeDir { None, Up, Down, Left, Right };
+  uint32_t pressed = 0, released = 0, held = 0, heldMs = 0;
+  SwipeDir swipe = SwipeDir::None;
+  bool wasPressed(Button b) const { return pressed & (1u << unsigned(b)); }
+  bool wasReleased(Button b) const { return released & (1u << unsigned(b)); }
+  bool isPressed(Button b) const { return held & (1u << unsigned(b)); }
+  uint32_t getHeldTime() const { return heldMs; }
+  SwipeDir wasSwipe() const { return swipe; }
 } input;
-uint32_t nowMs=0;uint32_t millis(){return nowMs;}
+uint32_t nowMs = 0;
+uint32_t millis() { return nowMs; }
 struct ButtonNavigator {
- using Callback=std::function<void()>;using Buttons=std::initializer_list<MappedInputManager::Button>;
- static const MappedInputManager* mappedInput;uint32_t lastContinuousNavTime=0;uint16_t continuousStartMs=500,continuousIntervalMs=500;
- bool shouldNavigateContinuously()const;void onPressAndContinuous(const Buttons&,const Callback&);
- static void onPress(const Buttons&,const Callback&);void onContinuous(const Buttons&,const Callback&);
-};const MappedInputManager* ButtonNavigator::mappedInput=&input;
-struct ActivityResult {bool isCancelled=false;};struct IntervalResult {uint32_t value;};
+  using Callback = std::function<void()>;
+  using Buttons = std::initializer_list<MappedInputManager::Button>;
+  static const MappedInputManager* mappedInput;
+  uint32_t lastContinuousNavTime = 0;
+  uint16_t continuousStartMs = 500, continuousIntervalMs = 500;
+  bool shouldNavigateContinuously() const;
+  void onPressAndContinuous(const Buttons&, const Callback&);
+  static void onPress(const Buttons&, const Callback&);
+  void onContinuous(const Buttons&, const Callback&);
+};
+const MappedInputManager* ButtonNavigator::mappedInput = &input;
+struct ActivityResult {
+  bool isCancelled = false;
+};
+struct IntervalResult {
+  uint32_t value;
+};
 struct Route {
- struct Event {int16_t dragPermille=-1;int value=0;}event;
- struct Snap {bool touchHeld=false,touchReleased=false;int touchX=-1,touchY=-1;}snap;
- bool routed=false,handled=false;explicit operator bool()const{return handled;}
+  struct Event {
+    int16_t dragPermille = -1;
+    int value = 0;
+  } event;
+  struct Snap {
+    bool touchHeld = false, touchReleased = false;
+    int touchX = -1, touchY = -1;
+  } snap;
+  bool routed = false, handled = false;
+  explicit operator bool() const { return handled; }
 };
 struct Base {
- MappedInputManager& mappedInput=input;Route route;int paints=0,done=0,result=0;bool ready=false;
- Route routeTouch(MappedInputManager&,bool=false,bool=false){return route;}
- bool routingReady()const{return ready;}void requestUpdate(){++paints;}void finish(){++done;}
- void setResult(ActivityResult r){result=r.isCancelled?-1:1;}void setResult(IntervalResult r){result=int(r.value);}
- struct App {bool invalid=false;bool invalidated()const{return invalid;}}app;
+  MappedInputManager& mappedInput = input;
+  Route route;
+  int paints = 0, done = 0, result = 0;
+  bool ready = false;
+  Route routeTouch(MappedInputManager&, bool = false, bool = false) { return route; }
+  bool routingReady() const { return ready; }
+  void requestUpdate() { ++paints; }
+  void finish() { ++done; }
+  void setResult(ActivityResult r) { result = r.isCancelled ? -1 : 1; }
+  void setResult(IntervalResult r) { result = int(r.value); }
+  struct App {
+    bool invalid = false;
+    bool invalidated() const { return invalid; }
+  } app;
 };
-struct {bool edge=false;bool hasEdgeSideButtons()const{return edge;}}gpio;
-struct IntervalSelectionActivity:Base {
- int value=20,minValue=0,maxValue=100,smallStep=1,largeStep=10;ButtonNavigator buttonNavigator;bool draggingSlider=false;
- int clampedValue(int)const;void adjustValue(int);void setValue(int);void cancel();void confirm();void loop();
+struct {
+  bool edge = false;
+  bool hasEdgeSideButtons() const { return edge; }
+} gpio;
+struct IntervalSelectionActivity : Base {
+  int value = 20, minValue = 0, maxValue = 100, smallStep = 1, largeStep = 10;
+  ButtonNavigator buttonNavigator;
+  bool draggingSlider = false;
+  int clampedValue(int) const;
+  void adjustValue(int);
+  void setValue(int);
+  void cancel();
+  void confirm();
+  void loop();
 };
-constexpr int MIN_BRIGHTNESS=1,BRIGHTNESS_STEP=1;
-struct CrossPointSettings {static constexpr uint8_t TOUCH_READER_OFF=0;};
-struct {uint8_t frontlightBrightness=60,frontlightWarmth=50,frontlightOn=0,screenInverted=0,orientation=0,touchReaderControls=2;int saves=0;void saveToFile(){++saves;}}SETTINGS;
-struct {int brightness=60,warmth=50;bool on=false;int bwrites=0,wwrites=0,owrites=0;
- void setBrightness(int v){brightness=v;++bwrites;}void setWarmth(int v){warmth=v;++wwrites;}void setOn(bool v){on=v;++owrites;}}Frontlight;
-bool switchOwns=false;bool slideSwitchOwnsLight(){return switchOwns;}
-struct HalDisplay {enum RefreshMode {FULL_REFRESH};};
-struct FrontlightPanelActivity:Base {
- uint8_t brightness=60,warmth=50,touchModeRestore=2;bool lightOn=false,lightOnChanged=false,draggingSlider=false,cleanRefreshPending=false;int panelBottom=300;
- ButtonNavigator buttonNavigator;
- struct Renderer {int promoted=0;void promoteNextRefresh(HalDisplay::RefreshMode){++promoted;}}renderer;
- void persistLightSettings();void runTile(int);void adjustBrightness(int);void adjustWarmth(int);void toggleLight();void close();void loop();
+constexpr int MIN_BRIGHTNESS = 1, BRIGHTNESS_STEP = 1;
+struct CrossPointSettings {
+  static constexpr uint8_t TOUCH_READER_OFF = 0;
+};
+struct {
+  uint8_t frontlightBrightness = 60, frontlightWarmth = 50, frontlightOn = 0, screenInverted = 0, orientation = 0,
+          touchReaderControls = 2;
+  int saves = 0;
+  void saveToFile() { ++saves; }
+} SETTINGS;
+struct {
+  int brightness = 60, warmth = 50;
+  bool on = false;
+  int bwrites = 0, wwrites = 0, owrites = 0;
+  void setBrightness(int v) {
+    brightness = v;
+    ++bwrites;
+  }
+  void setWarmth(int v) {
+    warmth = v;
+    ++wwrites;
+  }
+  void setOn(bool v) {
+    on = v;
+    ++owrites;
+  }
+} Frontlight;
+bool switchOwns = false;
+bool slideSwitchOwnsLight() { return switchOwns; }
+struct HalDisplay {
+  enum RefreshMode { FULL_REFRESH };
+};
+struct FrontlightPanelActivity : Base {
+  uint8_t brightness = 60, warmth = 50, touchModeRestore = 2;
+  bool lightOn = false, lightOnChanged = false, draggingSlider = false, cleanRefreshPending = false;
+  int panelBottom = 300;
+  ButtonNavigator buttonNavigator;
+  struct Renderer {
+    int promoted = 0;
+    void promoteNextRefresh(HalDisplay::RefreshMode) { ++promoted; }
+  } renderer;
+  void persistLightSettings();
+  void runTile(int);
+  void adjustBrightness(int);
+  void adjustWarmth(int);
+  void toggleLight();
+  void close();
+  void loop();
 };
 void ButtonNavigator::onPressAndContinuous(const Buttons& buttons, const Callback& callback) {
   onPress(buttons, callback);
@@ -298,24 +373,69 @@ void FrontlightPanelActivity::loop() {
                                        [this] { adjustBrightness(BRIGHTNESS_STEP); });
 }
 
-int main(){
- for(bool edge:{false,true})for(unsigned button=0;button<8;++button){
-  IntervalSelectionActivity a;gpio.edge=edge;input={};nowMs=1000;
-  for(int phase=0;phase<6;++phase){
-   input.pressed=phase==0?1u<<button:0;input.released=phase==5?1u<<button:0;input.held=phase<5?1u<<button:0;
-   input.heldMs=phase*250;nowMs=1000+phase*250;a.loop();
-   std::printf("interval %d %u %d %d %d %d %d\n",edge,button,phase,a.value,a.paints,a.done,a.result);
+int main() {
+  for (bool edge : {false, true})
+    for (unsigned button = 0; button < 8; ++button) {
+      IntervalSelectionActivity a;
+      gpio.edge = edge;
+      input = {};
+      nowMs = 1000;
+      for (int phase = 0; phase < 6; ++phase) {
+        input.pressed = phase == 0 ? 1u << button : 0;
+        input.released = phase == 5 ? 1u << button : 0;
+        input.held = phase < 5 ? 1u << button : 0;
+        input.heldMs = phase * 250;
+        nowMs = 1000 + phase * 250;
+        a.loop();
+        std::printf("interval %d %u %d %d %d %d %d\n", edge, button, phase, a.value, a.paints, a.done, a.result);
+      }
+    }
+  for (bool own : {false, true})
+    for (int start : {1, 60, 100})
+      for (unsigned button : {0u, 1u, 4u, 5u}) {
+        FrontlightPanelActivity a;
+        a.brightness = start;
+        switchOwns = own;
+        input = {};
+        Frontlight.bwrites = 0;
+        Frontlight.owrites = 0;
+        for (int phase = 0; phase < 6; ++phase) {
+          input.pressed = phase == 0 ? 1u << button : 0;
+          input.released = phase == 5 ? 1u << button : 0;
+          input.held = phase < 5 ? 1u << button : 0;
+          input.heldMs = phase * 250;
+          nowMs = 1000 + phase * 250;
+          a.loop();
+          std::printf("light %d %d %u %d %u %d %d %d %d %d %d\n", own, start, button, phase, a.brightness, a.lightOn,
+                      a.lightOnChanged, a.paints, a.done, Frontlight.bwrites, Frontlight.owrites);
+        }
+      }
+  for (int tile = 0; tile < 4; ++tile) {
+    FrontlightPanelActivity a;
+    SETTINGS.screenInverted = 0;
+    SETTINGS.orientation = 3;
+    SETTINGS.touchReaderControls = 2;
+    SETTINGS.saves = 0;
+    for (int n = 0; n < 2; ++n) {
+      a.runTile(tile);
+      std::printf("tile %d %d %u %u %u %u %d %d %d %d %d\n", tile, n, SETTINGS.screenInverted, SETTINGS.orientation,
+                  SETTINGS.touchReaderControls, a.touchModeRestore, SETTINGS.saves, a.cleanRefreshPending,
+                  a.renderer.promoted, a.done, a.paints);
+    }
   }
- }
- for(bool own:{false,true})for(int start:{1,60,100})for(unsigned button:{0u,1u,4u,5u}){
-  FrontlightPanelActivity a;a.brightness=start;switchOwns=own;input={};Frontlight.bwrites=0;Frontlight.owrites=0;
-  for(int phase=0;phase<6;++phase){input.pressed=phase==0?1u<<button:0;input.released=phase==5?1u<<button:0;input.held=phase<5?1u<<button:0;input.heldMs=phase*250;nowMs=1000+phase*250;a.loop();
-   std::printf("light %d %d %u %d %u %d %d %d %d %d %d\n",own,start,button,phase,a.brightness,a.lightOn,a.lightOnChanged,a.paints,a.done,Frontlight.bwrites,Frontlight.owrites);
-  }
- }
- for(int tile=0;tile<4;++tile){FrontlightPanelActivity a;SETTINGS.screenInverted=0;SETTINGS.orientation=3;SETTINGS.touchReaderControls=2;SETTINGS.saves=0;
-  for(int n=0;n<2;++n){a.runTile(tile);std::printf("tile %d %d %u %u %u %u %d %d %d %d %d\n",tile,n,SETTINGS.screenInverted,SETTINGS.orientation,SETTINGS.touchReaderControls,a.touchModeRestore,SETTINGS.saves,a.cleanRefreshPending,a.renderer.promoted,a.done,a.paints);}}
- for(bool dragged:{false,true})for(int kind=0;kind<3;++kind){FrontlightPanelActivity a;input={};a.draggingSlider=dragged;a.ready=true;a.route.routed=true;
- a.route.snap.touchReleased=true;a.route.snap.touchX=20;a.route.snap.touchY=kind==0?400:20;input.swipe=kind==1?MappedInputManager::SwipeDir::Up:MappedInputManager::SwipeDir::None;
- a.loop();std::printf("dismiss %d %d %d %d %d %d\n",dragged,kind,a.done,a.draggingSlider,a.cleanRefreshPending,a.paints);}
+  for (bool dragged : {false, true})
+    for (int kind = 0; kind < 3; ++kind) {
+      FrontlightPanelActivity a;
+      input = {};
+      a.draggingSlider = dragged;
+      a.ready = true;
+      a.route.routed = true;
+      a.route.snap.touchReleased = true;
+      a.route.snap.touchX = 20;
+      a.route.snap.touchY = kind == 0 ? 400 : 20;
+      input.swipe = kind == 1 ? MappedInputManager::SwipeDir::Up : MappedInputManager::SwipeDir::None;
+      a.loop();
+      std::printf("dismiss %d %d %d %d %d %d\n", dragged, kind, a.done, a.draggingSlider, a.cleanRefreshPending,
+                  a.paints);
+    }
 }

@@ -1421,7 +1421,7 @@ const XpWebPlugins WebPluginBridge::services = {
     .page = {requestHeader,
              sendAsset,
              {reinterpret_cast<const uint8_t*>(RunnerPageHtml), sizeof(RunnerPageHtml)},
-             {reinterpret_cast<const uint8_t*>(RunnerPageHtmlETag), sizeof(RunnerPageHtmlETag) - 1},
+             {reinterpret_cast<const uint8_t*>(RunnerPageHtmlETag), std::char_traits<char>::length(RunnerPageHtmlETag)},
              "text/html"},
     .diagnostic =
         [](void*, uint32_t event, XpWebText a, XpWebText b) {

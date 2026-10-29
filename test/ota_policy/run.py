@@ -28,7 +28,7 @@ for path in (HERE/'stubs', a.source/'src/network', a.source/'rust/crates/xp-ffi/
 if a.usb:
     sources = [HERE/'usb.cpp', a.source/'src/platform/UsbSerialJtagHandoff.cpp', ROOT/'test/cmake/xp_ffi_host.cpp']
     cmd += ['-I'+str(a.source/'src/platform'), '-DARDUINO_ARCH_ESP32=1', '-DCONFIG_IDF_TARGET_ESP32S3=1', '-DFREEINK_CAP_USB_MSC=1']
-exe = a.build/'oracle' 
+exe = a.build/'oracle'
 subprocess.run(cmd+[str(s) for s in sources]+[str(a.archive), '-o', str(exe)], check=True)
 result = subprocess.check_output([str(exe)])
 for mode, count in (() if a.usb else (("install-power", 20), ("boot-power", 8))):

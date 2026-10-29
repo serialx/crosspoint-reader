@@ -1315,7 +1315,8 @@ void PluginCatalogActivity::retryBrowse() {
 // handleButtons. The catalog states route their Back through exitCatalog()
 // instead, landing back on the picker.
 void PluginCatalogActivity::onBackButton() {
-  if (getState() == State::ERROR || getState() == State::CHECK_WIFI || getState() == State::LOADING) {
+  if (getState() == State::ERROR || getState() == State::CHECK_WIFI || getState() == State::LOADING ||
+      getState() == State::NO_TOKEN) {
     exitCatalog();
     return;
   }

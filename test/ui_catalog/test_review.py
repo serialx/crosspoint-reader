@@ -1,0 +1,114 @@
+"""Production catalog callbacks, linked to the real Rust state machine.
+
+CATALOG_SOURCE_REVISION replays the C++ callbacks from a Git revision so the
+regressions can also be demonstrated against the pre-fix firmware.
+"""
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
+import unittest
+
+from test_adapter import method
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+LIBRARY = pathlib.Path(sys.argv.pop(1)) if len(sys.argv) > 1 and sys.argv[1].endswith('.a') else next(
+    (ROOT / 'build/test/xp-ffi-host-target').glob('*/release/libxp_ffi.a'))
+
+
+def source(path):
+    revision = os.environ.get('CATALOG_SOURCE_REVISION')
+    if revision:
+        return subprocess.check_output(['git', 'show', f'{revision}:{path}'], cwd=ROOT, text=True)
+    return (ROOT / path).read_text()
+
+
+class Review(unittest.TestCase):
+    def compile_run(self, code):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'fixture.cpp'
+            path.write_text(code)
+            binary = path.with_suffix('')
+            subprocess.run(['c++', '-std=c++20', '-pthread', '-fsanitize=address,undefined',
+                            '-fno-omit-frame-pointer', '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
+                            str(path), str(ROOT / 'test/cmake/xp_ffi_host.cpp'), str(LIBRARY),
+                            '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=10)
+
+    def test_unauthorized_back_follows_production_callback(self):
+        plugin = source('src/activities/plugins/PluginCatalogActivity.cpp')
+        methods = '\n'.join(method(plugin, '::' + name + '(') for name in
+                            ['fetchBrowseResponse', 'performSearch', 'onBackButton', 'exitCatalog'])
+        self.compile_run(r'''
+#include <cassert>
+#include <string>
+#include <vector>
+#include <memory>
+#include "xp_ui_catalog.h"
+constexpr auto BROWSE_TMP_PATH="browse";
+constexpr unsigned MAX_BROWSE_RESPONSE=1;
+namespace pluginhttp {
+struct RequestSpec {std::string url,method,body; std::vector<int> headers;};
+int status=200,requests=0;
+int requestToFile(void*,const std::string&,const std::string&,const std::string&,
+                  const std::vector<int>&,const char*,unsigned){++requests;return status;}
+}
+struct {void remove(const char*){}} Storage;
+struct StrId {enum {STR_PLUGIN_MANIFEST_INVALID,STR_FETCH_FEED_FAILED};};
+struct PluginCatalogActivity;
+struct ResourceLock {explicit ResourceLock(PluginCatalogActivity&) {}};
+struct ModelLock {explicit ModelLock(PluginCatalogActivity&) {}};
+struct PluginCatalogActivity {
+ enum class State {CHECK_WIFI,WIFI_SELECTION,SEARCH_INPUT,LOADING,BROWSING,DOWNLOADING,
+                  ERROR,PLUGIN_PICKER,LIST_PICKER,DONE,NO_TOKEN,AUTH};
+ XpUiCatalogState ui{};
+ struct Manifest {
+  bool xml=false; std::string xmlItem="item";
+  pluginhttp::RequestSpec browseReq{};std::vector<int> browseLists;
+  bool hasPasswordGrant(){return false;}bool isXmlList(){return xml;}
+ } manifest;
+ std::unique_ptr<int> session;
+ bool rootMode=false,searchActive=false;int starts=0,auth=0,exits=0;
+ std::string searchQuery,browseCurrentUrl;std::vector<std::string> browseHistory;
+ PluginCatalogActivity(){xp_ui_catalog_init(&ui,XP_UI_CATALOG_PLUGINS,-1,0);}
+ State getState(){return static_cast<State>(ui.mode);}
+ void setState(State s){xp_ui_catalog_mode(&ui,static_cast<uint8_t>(s));}
+ void requestUpdate(){}void loadConfig(){}bool loadToken(){return true;}
+ bool refreshCredentialToken(){++auth;return false;}
+ void fail(int){assert(false);}
+ std::string substituted(const std::string& s,void*){return s;}
+ std::vector<int> substitutedHeaders(const std::vector<int>& h,void*){return h;}
+ std::string activeBrowseUrl(){return "search";}std::string activeBrowseBody(){return {};}
+ void releaseRows(){}void resetSelection(){}
+ void beginLoading(){setState(State::LOADING);}
+ void fetchPage(int){fetchBrowseResponse();}
+ void startBrowse(){++starts;fetchPage(1);}
+ void enterPluginPicker(){++exits;setState(State::PLUGIN_PICKER);}
+ void onGoHome(){assert(false);}void finish(){assert(false);}
+ bool fetchBrowseResponse();void performSearch(const std::string&);void onBackButton();void exitCatalog();
+ void back(){XpUiInput i{};i.released=XP_UI_BACK;
+  auto e=xp_ui_catalog_update(&ui,&i,2,1,0);if(e.kind==XP_UI_CANCEL)onBackButton();}
+};
+''' + methods + r'''
+int main(){
+ for(int status:{401,403})for(bool xml:{false,true}){
+  PluginCatalogActivity a;pluginhttp::status=status;a.manifest.xml=xml;
+  if(xml){a.browseHistory={"root"};a.browseCurrentUrl="child";a.fetchBrowseResponse();}
+  else a.performSearch("query");
+  assert(a.getState()==PluginCatalogActivity::State::NO_TOKEN);
+  const int requests=pluginhttp::requests;a.back();
+  assert(a.getState()==PluginCatalogActivity::State::PLUGIN_PICKER);
+  assert(a.exits==1 && a.starts==0 && a.auth==0 && pluginhttp::requests==requests);
+ }
+ PluginCatalogActivity auth;auth.setState(PluginCatalogActivity::State::AUTH);auth.back();
+ assert(auth.getState()==PluginCatalogActivity::State::NO_TOKEN && auth.exits==0);
+ PluginCatalogActivity search;pluginhttp::status=200;search.performSearch("query");
+ search.setState(PluginCatalogActivity::State::BROWSING);search.back();
+ assert(!search.searchActive && search.searchQuery.empty() && search.starts==1 && search.exits==0);
+}
+''')
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -40,3 +40,5 @@ if header.count(anchor) != 1:
     raise SystemExit('Resolver declaration changed: review instrument.py')
 header = header.replace(anchor, ' public:\n' + anchor + '\n private:')
 (out / 'GfxRenderer.h').write_text(header)
+
+(out / "RustUiRenderer.cpp").write_text((root / "lib/GfxRenderer/RustUiRenderer.cpp").read_text())

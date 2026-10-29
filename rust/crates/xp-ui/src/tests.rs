@@ -641,21 +641,41 @@ fn invalid_overlay_keeps_frozen_parent_unpainted() {
         ..parent
     };
     let mut sink = Counter(0);
+    let mut other = Counter(0);
     assert_eq!(
-        draw::render_layers(&[&parent, &overlay], screen(), &mut sink),
+        draw::render_layers(
+            &mut [
+                draw::Layer {
+                    scene: &parent,
+                    sink: &mut sink
+                },
+                draw::Layer {
+                    scene: &overlay,
+                    sink: &mut other
+                }
+            ],
+            screen()
+        ),
         Err(Error::StaleResource)
     );
-    assert_eq!(sink.0, 0);
+    assert_eq!((sink.0, other.0), (0, 0));
     assert_eq!(
-        draw::render_layers(&[&parent, &parent], screen(), &mut sink),
+        draw::render_layers(
+            &mut [
+                draw::Layer {
+                    scene: &parent,
+                    sink: &mut sink
+                },
+                draw::Layer {
+                    scene: &parent,
+                    sink: &mut other
+                }
+            ],
+            screen()
+        ),
         Ok(())
     );
-    assert_eq!(sink.0, 2);
-    assert_eq!(
-        draw::render_layers(&[&parent; 5], screen(), &mut sink),
-        Err(Error::Capacity)
-    );
-    assert_eq!(sink.0, 2);
+    assert_eq!((sink.0, other.0), (1, 1));
 }
 
 #[test]
@@ -715,4 +735,262 @@ fn frozen_cpp_top_corner_pixels() {
             }
         }
     }
+}
+
+#[test]
+fn layers_bind_identical_handles_to_distinct_owners() {
+    struct Owner {
+        value: u8,
+        output: u8,
+        valid: bool,
+    }
+    impl Sink for Owner {
+        fn resource_valid(&mut self, h: u32, g: u32) -> bool {
+            self.valid && h == 1 && g == 1
+        }
+        fn paint(&mut self, _: &Command, _: Rect, _: &[u8]) {
+            self.output = self.value;
+        }
+    }
+    let commands = [Command {
+        kind: Kind::TextHandle as u8,
+        resource: 1,
+        generation: 1,
+        ..Command::default()
+    }];
+    let scene = Scene {
+        commands: &commands,
+        text: &[],
+        interactions: &[],
+        generation: 1,
+        refresh: Refresh::None,
+    };
+    let mut a = Owner {
+        value: 5,
+        output: 0,
+        valid: true,
+    };
+    let mut b = Owner {
+        value: 9,
+        output: 0,
+        valid: true,
+    };
+    for _ in 0..33 {
+        draw::render_layers(
+            &mut [
+                draw::Layer {
+                    scene: &scene,
+                    sink: &mut a,
+                },
+                draw::Layer {
+                    scene: &scene,
+                    sink: &mut b,
+                },
+            ],
+            screen(),
+        )
+        .unwrap();
+        assert_eq!((a.output, b.output), (5, 9));
+    }
+    a.output = 0;
+    b.output = 0;
+    b.valid = false;
+    assert_eq!(
+        draw::render_layers(
+            &mut [
+                draw::Layer {
+                    scene: &scene,
+                    sink: &mut a
+                },
+                draw::Layer {
+                    scene: &scene,
+                    sink: &mut b
+                }
+            ],
+            screen()
+        ),
+        Err(Error::StaleResource)
+    );
+    assert_eq!((a.output, b.output), (0, 0));
+}
+
+#[test]
+fn screen_owned_dispatch_interests_and_wrapping_deadlines() {
+    use crate::model::*;
+    let mut list = ListState::new(0);
+    assert!(!list.interest(0).due(&Input::default()));
+    for (time, pressed, released) in [
+        (100, NAV_NEXT, 0),
+        (150, 0, NAV_NEXT),
+        (200, NAV_NEXT, 0),
+        (250, 0, NAV_NEXT),
+    ] {
+        let frame = Input {
+            now_ms: time,
+            pressed,
+            released,
+            held: pressed,
+            ..Input::default()
+        };
+        assert!(list.interest(time).due(&frame));
+        list.update(frame, 10, true);
+    }
+    assert_eq!(list.selected, 2);
+    assert!(!list.interest(0).due(&Input {
+        held: NAV_NEXT,
+        held_ms: 500,
+        now_ms: 1000,
+        ..Input::default()
+    }));
+    let repeat = Input {
+        held: NAV_NEXT,
+        held_ms: 501,
+        now_ms: 1001,
+        ..Input::default()
+    };
+    assert!(list.interest(repeat.now_ms).due(&repeat));
+    list.update(repeat, 10, true);
+    assert!(!list.interest(1501).due(&Input {
+        now_ms: 1501,
+        ..repeat
+    }));
+    assert!(list.interest(1502).due(&Input {
+        now_ms: 1502,
+        ..repeat
+    }));
+    list.last_repeat = 0;
+    let late = Input {
+        now_ms: 0x8000_0100,
+        held_ms: 501,
+        held: NAV_NEXT,
+        ..Input::default()
+    };
+    assert!(list.interest(late.now_ms).due(&late));
+    let drag = Interest {
+        touch_flags: TOUCH_HELD,
+        swipes: 1 << SWIPE_LEFT,
+        ..Interest::default()
+    };
+    assert!(drag.due(&Input {
+        touch_flags: TOUCH_HELD,
+        ..Input::default()
+    }));
+    assert!(drag.due(&Input {
+        swipe: SWIPE_LEFT,
+        ..Input::default()
+    }));
+    assert!(!list.interest(0).due(&Input {
+        swipe: SWIPE_LEFT,
+        ..Input::default()
+    }));
+    let deadline = Interest {
+        deadline_ms: 4,
+        deadline_enabled: 1,
+        ..Interest::default()
+    };
+    assert!(!deadline.due(&Input {
+        now_ms: u32::MAX,
+        ..Input::default()
+    }));
+    assert!(deadline.due(&Input {
+        now_ms: 4,
+        ..Input::default()
+    }));
+}
+
+#[test]
+#[ignore = "host timing diagnostic; run explicitly with --release --ignored --nocapture"]
+fn dark_dither_host_cost() {
+    extern crate std;
+    use std::time::Instant;
+    let command = Command {
+        rect: Rect {
+            x: 0,
+            y: 0,
+            w: 792,
+            h: 528,
+        },
+        paint: 3,
+        ..Command::default()
+    };
+    let mut full = std::vec![255u8; 792 * 528 / 8];
+    let mut band = std::vec![255u8; 792 * 16 / 8];
+    let t = |buffer: *mut u8, origin_y, rows| GlyphTarget {
+        buffer,
+        buffer_len: (99 * rows) as u32,
+        width: 792,
+        height: 528,
+        stride: 99,
+        origin_y,
+        rows,
+        clip: Clip {
+            left: 0,
+            top: 0,
+            right: 792,
+            bottom: 528,
+        },
+        orientation: 3,
+        plane: 0,
+        absolute: 0,
+        strip: u8::from(rows != 528),
+        scanning: 0,
+    };
+    let start = Instant::now();
+    for _ in 0..10 {
+        draw::geometry(
+            &mut Strip::new(t(full.as_mut_ptr(), 0, 528), &mut full).unwrap(),
+            &command,
+        );
+    }
+    let full_us = start.elapsed().as_micros();
+    let start = Instant::now();
+    for _ in 0..10 {
+        for row in (0..528).step_by(16) {
+            draw::geometry(
+                &mut Strip::new(t(band.as_mut_ptr(), row, 16), &mut band).unwrap(),
+                &command,
+            );
+            assert_eq!(&band, &full[row as usize * 99..(row as usize + 16) * 99]);
+        }
+    }
+    std::println!("dark fill 792x528, 10 iterations: full={full_us} us strips={} us; candidate pixels 418176 vs 13799808 per scene", start.elapsed().as_micros());
+}
+
+#[test]
+fn publication_preserves_input_during_layout() {
+    use crate::model::*;
+    let mut state = ListState::new(50);
+    let mut next = state;
+    next.top = 40;
+    next.visible = 10;
+    next.drawn = 10;
+    next.drawn_count = 100;
+    state.update(
+        Input {
+            released: NAV_NEXT,
+            ..Input::default()
+        },
+        100,
+        true,
+    );
+    state.publish(&next, 0);
+    assert_eq!(state.top, 40);
+    state.scroll(10);
+    let mut next = state;
+    next.top = 50;
+    state.scroll(10);
+    state.publish(&next, 10);
+    assert_eq!((state.top, state.pending_scroll), (50, 10));
+    let next = state;
+    state.select(70);
+    state.scroll(-10);
+    state.publish(&next, 10);
+    assert_eq!((state.selected, state.pending_scroll), (70, -10));
+    let next = state;
+    state.select(80);
+    state.publish(&next, -10);
+    assert_eq!(
+        (state.selected, state.follow, state.pending_scroll),
+        (80, 1, 0)
+    );
 }

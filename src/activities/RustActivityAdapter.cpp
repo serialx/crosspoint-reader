@@ -16,17 +16,21 @@ bool RustActivityAdapter::paintRustScene(const XpUiScene& scene) {
   const auto resources = rustResources();
   if (!renderer.drawUiScene(scene, &resources)) {
     LOG_ERR("RUI", "Invalid scene in %s", name.c_str());
+    ModelLock lock(*this);
     if (auto* publication = rustPublication()) publication->ready = false;
     return false;
   }
-  rustPublished();
-  if (auto* publication = rustPublication()) {
-    publication->scene = scene;
-    publication->scene.commands = nullptr;
-    publication->scene.command_count = 0;
-    publication->scene.text = nullptr;
-    publication->scene.text_len = 0;
-    publication->ready = true;
+  {
+    ModelLock lock(*this);
+    rustPublished();
+    if (auto* publication = rustPublication()) {
+      publication->scene = scene;
+      publication->scene.commands = nullptr;
+      publication->scene.command_count = 0;
+      publication->scene.text = nullptr;
+      publication->scene.text_len = 0;
+      publication->ready = true;
+    }
   }
   switch (static_cast<XpUiRefresh>(scene.refresh)) {
     case XP_UI_NONE:
@@ -47,7 +51,10 @@ bool RustActivityAdapter::paintRustScene(const XpUiScene& scene) {
 void RustActivityAdapter::render(RenderLock&&) {
   XpUiScene scene{};
   if (!buildRustScene(scene)) {
-    if (auto* publication = rustPublication()) publication->ready = false;
+    {
+      ModelLock lock(*this);
+      if (auto* publication = rustPublication()) publication->ready = false;
+    }
     LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
     return;
   }
@@ -57,9 +64,15 @@ void RustActivityAdapter::render(RenderLock&&) {
 void RustActivityAdapter::loop() {
   XpUiInput input{};
   constexpr MappedInputManager::Button buttons[] = {
-      MappedInputManager::Button::Back, MappedInputManager::Button::Confirm, MappedInputManager::Button::NavNext,
-      MappedInputManager::Button::NavPrevious};
-  for (unsigned i = 0; i < 4; ++i) {
+      MappedInputManager::Button::Back,        MappedInputManager::Button::Confirm,
+      MappedInputManager::Button::NavNext,     MappedInputManager::Button::NavPrevious,
+      MappedInputManager::Button::Left,        MappedInputManager::Button::Right,
+      MappedInputManager::Button::Up,          MappedInputManager::Button::Down,
+      MappedInputManager::Button::Power,       MappedInputManager::Button::PageBack,
+      MappedInputManager::Button::PageForward, MappedInputManager::Button::ScreenLeft,
+      MappedInputManager::Button::ScreenRight, MappedInputManager::Button::ScreenUp,
+      MappedInputManager::Button::ScreenDown};
+  for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
     if (mappedInput.wasPressed(buttons[i])) input.pressed |= 1u << i;
     if (mappedInput.wasReleased(buttons[i])) input.released |= 1u << i;
     if (mappedInput.isPressed(buttons[i])) input.held |= 1u << i;
@@ -69,27 +82,32 @@ void RustActivityAdapter::loop() {
   const auto touch = touchSnapshotFrom(mappedInput);
   input.touch_x = touch.touchX;
   input.touch_y = touch.touchY;
-  input.touch_flags = (touch.touchPressed ? 1 : 0) | (touch.touchReleased ? 2 : 0) | (touch.touchHeld ? 4 : 0);
+  input.touch_flags = (touch.touchPressed ? XP_UI_TOUCH_PRESSED : 0) |
+                      (touch.touchReleased ? XP_UI_TOUCH_RELEASED : 0) | (touch.touchHeld ? XP_UI_TOUCH_HELD : 0);
   switch (mappedInput.wasSwipe()) {
     case MappedInputManager::SwipeDir::Up:
-      input.swipe = 1;
+      input.swipe = XP_UI_SWIPE_UP;
       break;
     case MappedInputManager::SwipeDir::Down:
-      input.swipe = -1;
+      input.swipe = XP_UI_SWIPE_DOWN;
+      break;
+    case MappedInputManager::SwipeDir::Left:
+      input.swipe = XP_UI_SWIPE_LEFT;
+      break;
+    case MappedInputManager::SwipeDir::Right:
+      input.swipe = XP_UI_SWIPE_RIGHT;
       break;
     case MappedInputManager::SwipeDir::None:
-    case MappedInputManager::SwipeDir::Left:
-    case MappedInputManager::SwipeDir::Right:
       break;
   }
-  // Do not block hardware polling on an idle tick while the panel refreshes.
-  const bool repeat = (input.held & 12) && input.held_ms > 500;
-  if (!(input.pressed | input.released) && !(input.touch_flags & 3) && !input.swipe && !repeat) return;
   XpUiEffect effect{};
   {
-    RenderLock lock(*this);
+    ModelLock lock(*this);
+    const auto interest = rustInterest(input.now_ms);
+    if (!xp_ui_input_due(&interest, &input)) return;
     const auto* publication = rustPublication();
-    if (publication && publication->ready && (input.touch_flags & 3)) {
+    if (publication && publication->ready &&
+        (input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_RELEASED | XP_UI_TOUCH_HELD))) {
       XpUiInteraction hit{};
       if (xp_ui_hit(&publication->scene, input.touch_x, input.touch_y, 1, &hit)) {
         input.action = hit.action;
@@ -98,7 +116,8 @@ void RustActivityAdapter::loop() {
     }
     effect = updateRust(input);
   }
-  if (input.action && (input.touch_flags & 2) && effect.kind == XP_UI_ACTIVATE) haptic_feedback::touchAction(false);
+  if (input.action && (input.touch_flags & XP_UI_TOUCH_RELEASED) && effect.kind == XP_UI_ACTIVATE)
+    haptic_feedback::touchAction(false);
   if (effect.invalidate) requestUpdate();
   applyRustEffect(effect);
 }

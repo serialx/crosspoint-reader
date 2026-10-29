@@ -164,6 +164,8 @@ class GfxRenderer {
   // Setup
   XpNativeProvider textProvider() const;
   bool drawUiScene(const XpUiScene& scene, const XpUiPaint* resources = nullptr) const;
+  // Shared text/resource services follow this target for the whole synchronous call.
+  bool drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const;
   void drawUiText(const XpUiCommand& command, XpUiRect clip, const char* text) const;
   void begin();  // must be called right after display.begin()
   void insertFont(int fontId, EpdFontFamily font);

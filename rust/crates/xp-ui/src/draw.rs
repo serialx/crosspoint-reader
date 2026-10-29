@@ -1,5 +1,5 @@
 //! Commands are validated before any pixel is written. Text uses the existing
-//! font service; geometry uses R1's orientation-aware packed target.
+//! font service; geometry uses the orientation-aware xp_core::strip::Strip target.
 use crate::scene::{Command, Error, Kind, Rect, Scene, MAX_SCOPES};
 use embedded_graphics_core::{
     draw_target::DrawTarget,
@@ -44,23 +44,25 @@ fn translated(rect: Rect, scope: Scope) -> Result<Rect, Error> {
 
 /// The caller serializes scene and resource lifetimes across validation/paint.
 pub fn render(scene: &Scene<'_>, screen: Rect, sink: &mut dyn Sink) -> Result<(), Error> {
-    render_layers(&[scene], screen, sink)
+    validate(scene, screen, sink)?;
+    walk(scene, screen, Some(sink))
 }
 
-/// Frozen parents and overlays are all checked before the first pixel changes.
-pub fn render_layers(
-    scenes: &[&Scene<'_>],
-    screen: Rect,
-    sink: &mut dyn Sink,
-) -> Result<(), Error> {
-    if scenes.len() > 4 {
+/// Each frozen layer retains its own borrowed resource namespace.
+pub struct Layer<'a, 's> {
+    pub scene: &'a Scene<'s>,
+    pub sink: &'a mut dyn Sink,
+}
+/// Validate every binding before any layer paints into the shared target.
+pub fn render_layers(layers: &mut [Layer<'_, '_>], screen: Rect) -> Result<(), Error> {
+    if layers.len() > 4 {
         return Err(Error::Capacity);
     }
-    for scene in scenes {
-        validate(scene, screen, sink)?;
+    for layer in layers.iter_mut() {
+        validate(layer.scene, screen, layer.sink)?;
     }
-    for scene in scenes {
-        walk(scene, screen, Some(sink))?;
+    for layer in layers.iter_mut() {
+        walk(layer.scene, screen, Some(layer.sink))?;
     }
     Ok(())
 }

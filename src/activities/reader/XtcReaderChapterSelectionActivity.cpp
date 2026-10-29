@@ -86,7 +86,7 @@ XpUiPaint XtcReaderChapterSelectionActivity::rustResources() {
             const char* value = static_cast<XtcReaderChapterSelectionActivity*>(p)->text(handle);
             return generation == 1 && value && strlen(value) < XP_UI_MAX_TEXT;
           },
-          [](void* p, const XpUiCommand* command, XpUiRect clip) {
+          [](void* p, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
             auto& self = *static_cast<XtcReaderChapterSelectionActivity*>(p);
             const char* value = self.text(command->resource);
             if (command->kind == XP_UI_HINT_TEXT) {
@@ -144,8 +144,19 @@ bool XtcReaderChapterSelectionActivity::buildRustScene(XpUiScene& scene) {
   layout.touch = touch;
   const auto book = resources();
   const auto fonts = rustMetrics();
-  const XpUiBuffer buffer{arena->commands, arena->hits, 80, 32};
-  return xp_ui_xtc_view(&state, &layout, &fonts, &book, &buffer, &arena->nextState, &scene) != 0;
+  XpUiListState snapshot{};
+  {
+    ModelLock lock(*this);
+    snapshot = state;
+    renderingScroll = snapshot.pending_scroll;
+  }
+  const XpUiBuffer buffer{arena->commands, arena->hits[buildHits], 78, 32};
+  return xp_ui_xtc_view(&snapshot, &layout, &fonts, &book, &buffer, &arena->nextState, &scene) != 0;
+}
+
+void XtcReaderChapterSelectionActivity::rustPublished() {
+  xp_ui_list_publish(&state, &arena->nextState, renderingScroll);
+  buildHits ^= 1;
 }
 
 XpUiEffect XtcReaderChapterSelectionActivity::updateRust(const XpUiInput& input) {

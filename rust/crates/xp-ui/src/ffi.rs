@@ -36,10 +36,13 @@ pub struct Metrics {
 #[repr(C)]
 pub struct Paint {
     pub context: *mut c_void,
-    pub clear: Option<unsafe extern "C" fn(*mut c_void)>,
-    pub text: Option<unsafe extern "C" fn(*mut c_void, *const Command, Rect, *const c_char)>,
+    pub clear: Option<unsafe extern "C" fn(*mut c_void, *const GlyphTarget)>,
+    pub text: Option<
+        unsafe extern "C" fn(*mut c_void, *const GlyphTarget, *const Command, Rect, *const c_char),
+    >,
     pub resource_valid: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> u8>,
-    pub resource: Option<unsafe extern "C" fn(*mut c_void, *const Command, Rect)>,
+    pub resource:
+        Option<unsafe extern "C" fn(*mut c_void, *const GlyphTarget, *const Command, Rect)>,
 }
 unsafe fn loan<'a, T>(ptr: *const T, count: usize, max: usize) -> Option<&'a [T]> {
     if count > max || (count != 0 && ptr.is_null()) {
@@ -90,20 +93,48 @@ impl Sink for Raster<'_> {
             })
     }
     fn paint(&mut self, command: &Command, clip: Rect, text: &[u8]) {
-        match Kind::from_byte(command.kind) {
+        let t = self.target;
+        let effective = Clip {
+            left: t.clip.left.max(i32::from(clip.x)),
+            top: t.clip.top.max(i32::from(clip.y)),
+            right: t.clip.right.min(i32::from(clip.x) + i32::from(clip.w)),
+            bottom: t.clip.bottom.min(i32::from(clip.y) + i32::from(clip.h)),
+        };
+        let kind = Kind::from_byte(command.kind);
+        if kind != Some(Kind::Clear)
+            && (effective.left >= effective.right || effective.top >= effective.bottom)
+        {
+            return;
+        }
+        // A nonempty intersection stays inside the i16 scene viewport.
+        let clip = Rect {
+            x: effective.left as i16,
+            y: effective.top as i16,
+            w: (effective.right - effective.left).max(0) as i16,
+            h: (effective.bottom - effective.top).max(0) as i16,
+        };
+        match kind {
             Some(Kind::Clear) if self.services.clear.is_some() => {
                 if let Some(clear) = self.services.clear {
-                    unsafe { clear(self.services.context) };
+                    unsafe { clear(self.services.context, self.target) };
                 }
             }
             Some(Kind::Text) => {
                 if let Some(paint) = self.services.text {
-                    unsafe { paint(self.services.context, command, clip, text.as_ptr().cast()) };
+                    unsafe {
+                        paint(
+                            self.services.context,
+                            self.target,
+                            command,
+                            clip,
+                            text.as_ptr().cast(),
+                        )
+                    };
                 }
             }
             Some(Kind::Bitmap | Kind::Page | Kind::TextHandle | Kind::HintText) => {
                 if let Some(paint) = self.services.resource {
-                    unsafe { paint(self.services.context, command, clip) };
+                    unsafe { paint(self.services.context, self.target, command, clip) };
                 }
             }
             _ => {
@@ -116,12 +147,7 @@ impl Sink for Raster<'_> {
                     stride: t.stride,
                     origin_y: t.origin_y,
                     rows: t.rows,
-                    clip: Clip {
-                        left: t.clip.left.max(i32::from(clip.x)),
-                        top: t.clip.top.max(i32::from(clip.y)),
-                        right: t.clip.right.min(i32::from(clip.x) + i32::from(clip.w)),
-                        bottom: t.clip.bottom.min(i32::from(clip.y) + i32::from(clip.h)),
-                    },
+                    clip: effective,
                     orientation: t.orientation,
                     plane: t.plane,
                     absolute: t.absolute,
@@ -423,18 +449,21 @@ pub unsafe extern "C" fn xp_ui_xtc_view(
     1
 }
 
+#[repr(C)]
+pub struct LayerView {
+    pub scene: *const SceneView,
+    pub paint: *const Paint,
+}
 /// # Safety
-/// Same loans as xp_ui_render, held across all layers. Up to four immutable
-/// scene descriptors share the target and resource services for this call.
+/// Same loans as xp_ui_render. Each of up to four scenes and its own services
+/// remain live and immutable across all validation and painting.
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_render_layers(
-    views: *const SceneView,
+    layers: *const LayerView,
     count: u8,
     target: *const GlyphTarget,
-    paint: *const Paint,
 ) -> u8 {
-    let (Some(target), Some(services)) = (unsafe { target.as_ref() }, unsafe { paint.as_ref() })
-    else {
+    let Some(target) = (unsafe { target.as_ref() }) else {
         return 0;
     };
     if !target.valid()
@@ -444,7 +473,7 @@ pub unsafe extern "C" fn xp_ui_render_layers(
     {
         return 0;
     }
-    let Some(views) = (unsafe { loan(views, usize::from(count), 4) }) else {
+    let Some(layers) = (unsafe { loan(layers, usize::from(count), 4) }) else {
         return 0;
     };
     let (w, h) = if target.orientation & 1 == 0 {
@@ -458,7 +487,12 @@ pub unsafe extern "C" fn xp_ui_render_layers(
         w: w as i16,
         h: h as i16,
     };
-    for view in views {
+    for layer in layers {
+        let (Some(view), Some(services)) = (unsafe { layer.scene.as_ref() }, unsafe {
+            layer.paint.as_ref()
+        }) else {
+            return 0;
+        };
         let Some(scene) = (unsafe { scene(view) }) else {
             return 0;
         };
@@ -469,8 +503,8 @@ pub unsafe extern "C" fn xp_ui_render_layers(
             return 0;
         }
     }
-    for view in views {
-        if unsafe { xp_ui_render(view, target, services) } == 0 {
+    for layer in layers {
+        if unsafe { xp_ui_render(layer.scene, target, layer.paint) } == 0 {
             return 0;
         }
     }
@@ -483,5 +517,40 @@ pub unsafe extern "C" fn xp_ui_render_layers(
 pub unsafe extern "C" fn xp_ui_damage_add(damage: *mut crate::scene::Damage, native_rect: Rect) {
     if let Some(damage) = unsafe { damage.as_mut() } {
         damage.add(native_rect);
+    }
+}
+
+/// # Safety
+/// The descriptors are live, aligned, immutable snapshots for this call.
+#[no_mangle]
+pub unsafe extern "C" fn xp_ui_input_due(
+    interest: *const crate::model::Interest,
+    input: *const crate::model::Input,
+) -> u8 {
+    match (unsafe { interest.as_ref() }, unsafe { input.as_ref() }) {
+        (Some(interest), Some(input)) => u8::from(interest.due(input)),
+        _ => 0,
+    }
+}
+/// # Safety
+/// State is a live, aligned immutable snapshot for this call.
+#[no_mangle]
+pub unsafe extern "C" fn xp_ui_list_interest(
+    state: *const crate::model::ListState,
+    now_ms: u32,
+) -> crate::model::Interest {
+    unsafe { state.as_ref() }.map_or_else(crate::model::Interest::default, |s| s.interest(now_ms))
+}
+
+/// # Safety
+/// State is exclusive; next is a disjoint immutable layout snapshot.
+#[no_mangle]
+pub unsafe extern "C" fn xp_ui_list_publish(
+    state: *mut crate::model::ListState,
+    next: *const crate::model::ListState,
+    consumed_scroll: i32,
+) {
+    if let (Some(state), Some(next)) = (unsafe { state.as_mut() }, unsafe { next.as_ref() }) {
+        state.publish(next, consumed_scroll);
     }
 }

@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define XP_UI_ABI_VERSION 1
+#define XP_UI_ABI_VERSION 2
 #define XP_UI_MAX_COMMANDS 256
 #define XP_UI_MAX_TEXT 4096
 #define XP_UI_MAX_INTERACTIONS 64
@@ -60,6 +60,26 @@ typedef struct {
   uint16_t command_count, text_len, interaction_count;
   uint8_t refresh, reserved;
 } XpUiScene;
+// Named bits cover every MappedInputManager button, including independent axes.
+typedef enum {
+  XP_UI_BACK = 1u << 0,
+  XP_UI_CONFIRM = 1u << 1,
+  XP_UI_NAV_NEXT = 1u << 2,
+  XP_UI_NAV_PREVIOUS = 1u << 3,
+  XP_UI_LEFT = 1u << 4,
+  XP_UI_RIGHT = 1u << 5,
+  XP_UI_UP = 1u << 6,
+  XP_UI_DOWN = 1u << 7,
+  XP_UI_POWER = 1u << 8,
+  XP_UI_PAGE_BACK = 1u << 9,
+  XP_UI_PAGE_FORWARD = 1u << 10,
+  XP_UI_SCREEN_LEFT = 1u << 11,
+  XP_UI_SCREEN_RIGHT = 1u << 12,
+  XP_UI_SCREEN_UP = 1u << 13,
+  XP_UI_SCREEN_DOWN = 1u << 14
+} XpUiButton;
+typedef enum { XP_UI_TOUCH_PRESSED = 1, XP_UI_TOUCH_RELEASED = 2, XP_UI_TOUCH_HELD = 4 } XpUiTouch;
+typedef enum { XP_UI_SWIPE_NONE, XP_UI_SWIPE_UP, XP_UI_SWIPE_DOWN, XP_UI_SWIPE_LEFT, XP_UI_SWIPE_RIGHT } XpUiSwipe;
 typedef struct {
   uint32_t pressed, released, held, now_ms, held_ms;
   int16_t touch_x, touch_y;
@@ -69,6 +89,13 @@ typedef struct {
   uint32_t action;
   int32_t value;
 } XpUiInput;
+// Rust screen policy; adapter only samples and consults this descriptor.
+// Swipe interests use (1u << XpUiSwipe). Deadline arithmetic wraps in u32.
+typedef struct {
+  uint32_t pressed, released, held, held_after_ms, deadline_ms;
+  uint8_t touch_flags, swipes, deadline_enabled, reserved;
+} XpUiInterest;
+uint8_t xp_ui_input_due(const XpUiInterest*, const XpUiInput*);
 typedef struct {
   int32_t value;
   uint8_t kind, invalidate, reserved[2];
@@ -78,6 +105,7 @@ typedef struct {
   int32_t active;
   uint32_t last_repeat;
   uint8_t follow, reserved[3];
+  uint32_t navigation_revision;
 } XpUiListState;
 typedef struct {
   void* context;
@@ -122,20 +150,27 @@ typedef struct {
 // Paint callbacks write pixels without a live Rust framebuffer loan.
 typedef struct {
   void* context;
-  void (*clear)(void*);
-  void (*text)(void*, const XpUiCommand*, XpUiRect clip, const char* terminated_text);
+  void (*clear)(void*, const XpGlyphTarget*);
+  void (*text)(void*, const XpGlyphTarget*, const XpUiCommand*, XpUiRect clip, const char* terminated_text);
   uint8_t (*resource_valid)(void*, uint32_t handle, uint32_t generation);
-  void (*resource)(void*, const XpUiCommand*, XpUiRect clip);
+  void (*resource)(void*, const XpGlyphTarget*, const XpUiCommand*, XpUiRect clip);
 } XpUiPaint;
 
 uint8_t xp_ui_render(const XpUiScene* scene, const XpGlyphTarget* target, const XpUiPaint* paint);
-uint8_t xp_ui_render_layers(const XpUiScene* scenes, uint8_t count, const XpGlyphTarget*, const XpUiPaint*);
+// Layers may reuse local handles; each binds its own borrowed owner/services.
+typedef struct {
+  const XpUiScene* scene;
+  const XpUiPaint* paint;
+} XpUiLayer;
+uint8_t xp_ui_render_layers(const XpUiLayer* layers, uint8_t count, const XpGlyphTarget*);
 uint8_t xp_ui_hit(const XpUiScene* scene, int16_t x, int16_t y, uint16_t inputs, XpUiInteraction* out);
 // Builds two commands borrowing the caller's terminated immutable text.
 // Returns zero on failure, before changing the output commands.
 uint8_t xp_ui_message_view(const XpUiMetrics* metrics, XpUiRect screen, int32_t font, uint8_t style,
                            const uint8_t* text, uint16_t text_len, XpUiCommand* commands, uint16_t capacity);
 
+void xp_ui_list_publish(XpUiListState*, const XpUiListState* next, int32_t consumed_scroll);
+XpUiInterest xp_ui_list_interest(const XpUiListState*, uint32_t now_ms);
 uint8_t xp_ui_list_init(XpUiListState*, const XpUiResources*, uint32_t page);
 XpUiEffect xp_ui_list_update(XpUiListState*, const XpUiInput*, uint16_t count, uint8_t present);
 uint8_t xp_ui_xtc_view(const XpUiListState*, const XpUiXtcLayout*, const XpUiMetrics*, const XpUiResources*,

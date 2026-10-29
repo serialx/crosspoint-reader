@@ -33,19 +33,46 @@ bool GfxRenderer::drawUiScene(const XpUiScene& scene, const XpUiPaint* resources
     const GfxRenderer* renderer;
     const XpUiPaint* resources;
   } context{this, resources};
+  const XpUiPaint paint{
+      &context, [](void* p, const XpGlyphTarget*) { static_cast<Context*>(p)->renderer->clearScreen(); },
+      [](void* p, const XpGlyphTarget*, const XpUiCommand* c, XpUiRect clip, const char* text) {
+        static_cast<Context*>(p)->renderer->drawUiText(*c, clip, text);
+      },
+      [](void* p, uint32_t handle, uint32_t generation) -> uint8_t {
+        const auto* r = static_cast<Context*>(p)->resources;
+        return r && r->resource && r->resource_valid && r->resource_valid(r->context, handle, generation);
+      },
+      [](void* p, const XpGlyphTarget* target, const XpUiCommand* c, XpUiRect clip) {
+        const auto* r = static_cast<Context*>(p)->resources;
+        if (r && r->resource) r->resource(r->context, target, c, clip);
+      }};
   const auto target = glyphTarget();
-  const XpUiPaint paint{&context, [](void* p) { static_cast<Context*>(p)->renderer->clearScreen(); },
-                        [](void* p, const XpUiCommand* c, XpUiRect clip, const char* text) {
-                          static_cast<Context*>(p)->renderer->drawUiText(*c, clip, text);
-                        },
-                        [](void* p, uint32_t handle, uint32_t generation) -> uint8_t {
-                          const auto* r = static_cast<Context*>(p)->resources;
-                          return r && r->resource && r->resource_valid &&
-                                 r->resource_valid(r->context, handle, generation);
-                        },
-                        [](void* p, const XpUiCommand* c, XpUiRect clip) {
-                          const auto* r = static_cast<Context*>(p)->resources;
-                          if (r && r->resource) r->resource(r->context, c, clip);
-                        }};
   return xp_ui_render(&scene, &target, &paint) != 0;
+}
+
+bool GfxRenderer::drawUiScene(const XpUiScene& scene, const XpGlyphTarget& target, const XpUiPaint* resources) const {
+  // Font and legacy resource services use the same borrowed band as geometry.
+  if (target.width != panelWidth || target.height != panelHeight || target.stride != panelWidthBytes ||
+      target.orientation != static_cast<uint8_t>(orientation) || target.plane != static_cast<uint8_t>(renderMode) ||
+      !target.buffer || target.rows <= 0 || target.originY < 0 || target.originY > panelHeight - target.rows ||
+      target.bufferLen < static_cast<uint32_t>(panelWidthBytes * target.rows))
+    return false;
+  const auto previousTarget = glyphTarget();
+  if (target.absolute != previousTarget.absolute || target.scanning != previousTarget.scanning) return false;
+  const bool previousStrip = _stripActive;
+  const auto previousClip = getClipRect();
+  const bool rebound = target.buffer != previousTarget.buffer || target.originY != previousTarget.originY ||
+                       target.rows != previousTarget.rows;
+  if (rebound) beginStripTarget(target.buffer, target.originY, target.rows);
+  setClipRect(target.clip.left, target.clip.top, std::max<int32_t>(0, target.clip.right - target.clip.left),
+              std::max<int32_t>(0, target.clip.bottom - target.clip.top));
+  const bool result = drawUiScene(scene, resources);
+  if (rebound) {
+    if (previousStrip)
+      beginStripTarget(previousTarget.buffer, previousTarget.originY, previousTarget.rows);
+    else
+      endStripTarget();
+  }
+  setClipRect(previousClip[0], previousClip[1], previousClip[2], previousClip[3]);
+  return result;
 }

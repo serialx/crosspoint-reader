@@ -25,6 +25,8 @@ def function(source, name):
 
 
 def generate(source, header):
+    source = source.replace("void CrossPointWebServer::resumeTransferServices() {",
+                            "void CrossPointWebServer::resumeTransferServices() {\n  if (host::beforeResume) host::beforeResume();")
     source = re.sub(r"\bJsonDocument\b", "WebJsonDocument", source)
     header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)

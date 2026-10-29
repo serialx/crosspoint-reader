@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 1272 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 1274 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -142,6 +142,7 @@ All earlier 905 records are preserved. New cases cover relay HTTP status mapping
 base64/field limits, random length coercion, each checked allocation position,
 primitive/encoding failures and JSON allocator failures. Dedicated assertions
 check that parsed JSON and transport argument arrays are released before TLS,
-and the PKCS#12 request document before extraction. Crypto argument traces use
+the PKCS#12 request document before extraction, and upstream response JSON before
+restarting suspended services. Crypto argument traces use
 synthetic data only. Relay transport outcomes and primitive results remain
 controlled substitutes; these cases do not exercise real TLS or cryptography.

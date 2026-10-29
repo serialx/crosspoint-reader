@@ -17,6 +17,7 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::failAfter = -1;
   host::writeLimit = SIZE_MAX;
   host::cryptoTrace = false;
+  host::beforeResume = {};
   pluginhttp::beforeRequest = {};
   freeink::content::beforePkcs12 = {};
   host::cancelled = false;
@@ -1416,6 +1417,18 @@ int main() {
       app.server->args["plain"] = std::string("{\"op\":") + op + R"(,"data":"AA=="})";
       host::cryptoTrace = true;
       app.handleCrypto();
+    });
+  }
+
+  for (int status : {-1, 200}) {
+    record(("relay-response-release:" + std::to_string(status)).c_str(), [&](auto& app) {
+      app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+      pluginhttp::responseStatus = status;
+      host::beforeResume = [] {
+        if (WebJsonAllocator::live) std::abort();
+      };
+      app.handleRelay();
+      host::beforeResume = {};
     });
   }
   return 0;

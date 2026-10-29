@@ -44,6 +44,7 @@ inline std::string failOperation;
 inline int failAfter = -1;
 inline bool cancelled = false, connected = true;
 inline bool cryptoTrace = false;
+inline std::function<void()> beforeResume;
 inline void cryptoInput(const char* name, const uint8_t* p, size_t n) {
   if (cryptoTrace) trace.push_back(std::string("crypto-input:") + name + ":" + hex(p, n));
 }

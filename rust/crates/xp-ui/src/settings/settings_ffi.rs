@@ -144,6 +144,11 @@ pub unsafe fn update(state: *mut ListState, input: *const Input, count: u16) -> 
     match (unsafe { state.as_mut() }, unsafe { input.as_ref() }) {
         (Some(s), Some(i)) => {
             if i.action == 2 {
+                if i.value < 0 || i.value >= i32::from(count) {
+                    return Effect::default();
+                }
+                s.selected = i.value;
+                s.active = -1;
                 Effect {
                     kind: 4,
                     value: i.value,

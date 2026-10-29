@@ -215,3 +215,39 @@ fn touch_uses_published_geometry_until_replacement() {
     assert!(published.hit(100, 150).is_none());
     assert_eq!(published.hit(100, 250).unwrap().value, 11);
 }
+
+#[test]
+fn long_touch_selects_without_moving_viewport() {
+    use crate::model::{Input, ListState};
+    let mut state = ListState {
+        selected: 0,
+        top: 1,
+        follow: 0,
+        active: 1,
+        ..ListState::new(0)
+    };
+    let next = state;
+    let input = Input {
+        action: 2,
+        value: 1,
+        ..Input::default()
+    };
+    let effect = unsafe { super::settings_ffi::update(&mut state, &input, 8) };
+    assert_eq!((effect.kind, effect.value), (4, 1));
+    assert_eq!(
+        (state.selected, state.active, state.top, state.follow),
+        (1, -1, 1, 0)
+    );
+    state.publish(&next, 0);
+    assert_eq!(state.selected, 1);
+    for value in [-1, 8] {
+        let input = Input {
+            action: 2,
+            value,
+            ..Input::default()
+        };
+        let effect = unsafe { super::settings_ffi::update(&mut state, &input, 8) };
+        assert_eq!(effect.kind, 0);
+        assert_eq!(state.selected, 1);
+    }
+}

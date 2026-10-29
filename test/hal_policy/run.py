@@ -10,13 +10,13 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 SOURCES = ['DeviceSecret/DeviceSecret.cpp', 'TrustedTime/TrustedTime.cpp',
-           'hal/HalClock.cpp', 'hal/HalFrontlight.cpp', 'hal/HalTiltSensor.cpp']
-CASES = {'secret': 7, 'time': 5, 'light': 3, 'tilt': 5, 'clock': 6, 'power': 4}
+           'hal/HalGPIO.cpp', 'hal/HalClock.cpp', 'hal/HalFrontlight.cpp', 'hal/HalTiltSensor.cpp']
+CASES = {'secret': 7, 'time': 5, 'light': 3, 'tilt': 5, 'clock': 6, 'power': 4, 'gpio': 8}
 
 def run(root, archive):
     with tempfile.TemporaryDirectory(prefix='hal-policy-') as tmp:
         exe = str(Path(tmp) / 'check')
-        command = ['c++', '-std=c++20', '-Wall', '-Wextra', '-Werror',
+        command = ['c++', '-std=c++20', '-DFREEINK_MCU_C3=1', '-Wall', '-Wextra', '-Werror',
                    '-I' + str(HERE / 'stubs'), '-I' + str(root / 'rust/crates/xp-ffi/include')]
         command += ['-I' + str(root / 'lib' / d) for d in ['hal', 'DeviceSecret', 'TrustedTime']]
         power = (root / 'lib/hal/HalPowerManager.cpp').read_text()

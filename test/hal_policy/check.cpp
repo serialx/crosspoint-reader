@@ -7,6 +7,8 @@
 #include <HalClock.h>
 #include <HalPowerManager.h>
 #include <BoardConfig.h>
+#include <XteinkDetect.h>
+#include <esp_sleep.h>
 #include <HalFrontlight.h>
 #include <HalTiltSensor.h>
 #include <cstring>
@@ -63,6 +65,20 @@ int main(int argc, char** argv) {
   }
   imuRead = false; ticks += 1000; sensor.update(1,0,true); sensor.update(1,0,false);
   sensor.clearPendingEvents(); sensor.deepSleep();
+ } else if (!strcmp(argv[1], "gpio")) {
+  deviceOverride = variant < 4 ? variant : 0; deviceCached = variant >= 4 ? variant-4 : 0;
+  freeink::verdict = variant % 2 ? freeink::XteinkVerdict::X3Confirmed : freeink::XteinkVerdict::X4Confirmed;
+  gpio.begin();
+  for (int reset : {ESP_RST_UNKNOWN, ESP_RST_POWERON, ESP_RST_DEEPSLEEP, ESP_RST_OTHER})
+   for (int wake : {ESP_SLEEP_WAKEUP_UNDEFINED, ESP_SLEEP_WAKEUP_GPIO, ESP_SLEEP_WAKEUP_EXT1, ESP_SLEEP_WAKEUP_TIMER})
+    for (bool usb : {false, true}) {
+     resetCause=reset; wakeCause=wake; digitalValue=usb; charging=usb;
+     printf("reason %u\n", unsigned(gpio.getWakeupReason()));
+    }
+  for (int adc : {-1,0,3999,4000,4095}) { adc1=adc; printf("raw %u\n",gpio.rawInputActive()); }
+  for (uint8_t mask : {0,4,12,8,0}) { pageMask=mask; digitalValue=mask!=0; gpio.update(); printf("edges %u %u\n",gpio.wasCapacitivePagePressed(),gpio.wasUsbStateChanged()); }
+  physical=true; printf("verify %u\n",gpio.verifyPowerButtonWakeup());
+  physical=false; printf("verify %u\n",gpio.verifyPowerButtonWakeup());
  } else if (!strcmp(argv[1], "power")) {
   wifiConnected = false; chargerOk = variant == 1; cpuFreq = variant == 2 ? 0 : 160;
   powerManager.setPowerSaving(true); powerManager.begin();

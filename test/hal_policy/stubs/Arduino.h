@@ -29,3 +29,7 @@ constexpr int INPUT = 0;
 inline void pinMode(int pin, int mode) { printf("pinMode %d %d\n", pin, mode); }
 inline int getCpuFrequencyMhz() { puts("cpu get"); return cpuFreq; }
 inline bool setCpuFrequencyMhz(int mhz) { printf("cpu set %d %u\n", mhz, cpuOk); if (cpuOk) cpuFreq = mhz; return cpuOk; }
+
+constexpr int HIGH = 1;
+inline int digitalValue = 0;
+inline int digitalRead(int p) { printf("digital %d\n", p); return digitalValue; }

@@ -1,6 +1,15 @@
 #pragma once
 
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+extern "C" void xp_test_fail_allocation_after(size_t);
+extern "C" size_t xp_test_live_allocations();
+#endif
+
 static void record(const char* name, const std::function<void(CrossPointWebServer&)>& execute) {
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+  const char* failAfter = std::getenv("WEB_FAIL_AFTER");
+  xp_test_fail_allocation_after(failAfter ? std::strtoul(failAfter, nullptr, 10) : SIZE_MAX);
+#endif
   host::trace.clear();
   host::files.clear();
   host::failOperation.clear();
@@ -37,6 +46,12 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
     app.setUploadCancelCheck([] { return host::cancelled; });
     execute(app);
   }
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+  if (xp_test_live_allocations() != 0 || wsUploadInProgress) {
+    std::cerr << "retained Rust allocation or upload owner after " << name << '\n';
+    std::abort();
+  }
+#endif
   JsonDocument output;
   output["case"] = name;
   auto settings = output["settings"].to<JsonObject>();
@@ -71,7 +86,7 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   for (const auto& [path, node] : host::files) {
     auto file = files[path].to<JsonObject>();
     file["directory"] = node->directory;
-    file["bytes"] = node->bytes;
+    file["hex"] = host::hex(reinterpret_cast<const uint8_t*>(node->bytes.data()), node->bytes.size());
   }
   serializeJson(output, std::cout);
   std::cout << '\n';

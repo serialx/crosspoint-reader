@@ -4,6 +4,7 @@
 import argparse
 import gzip
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -23,11 +24,12 @@ def function(source, name):
     return source[match.start():end + 2]
 
 
-def generate(source):
-    header = (ROOT / "src/network/CrossPointWebServer.h").read_text()
+def generate(source, header):
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
     pieces = ['#include "Host.h"', '#include "Endpoints.h"', header]
+    if "xp_web_files" in source:
+        pieces.insert(0, '#include "xp_web.h"')
     helpers = (ROOT / "lib/FsHelpers/FsHelpers.cpp").read_text()
     pieces.append("namespace FsHelpers {\n" + "\n".join(function(helpers, name) for name in
                   ["normalisePath", "isSafePathComponent", "checkFileExtension"]) + "\n}")
@@ -43,20 +45,28 @@ def main():
     parser.add_argument("--build", type=pathlib.Path, required=True)
     parser.add_argument("--arduinojson", type=pathlib.Path, required=True)
     parser.add_argument("--source", type=pathlib.Path, default=ROOT / "src/network/CrossPointWebServer.cpp")
+    parser.add_argument("--header", type=pathlib.Path, default=ROOT / "src/network/CrossPointWebServer.h")
     parser.add_argument("--record", action="store_true")
     parser.add_argument("--mutation-check", action="store_true")
     parser.add_argument("--sanitize", action="store_true")
+    parser.add_argument("--archive", type=pathlib.Path)
+    parser.add_argument("--fault-check", action="store_true")
     args = parser.parse_args()
     args.build.mkdir(parents=True, exist_ok=True)
     generated = args.build / "server.cpp"
     source = args.source.read_text()
+    header = args.header.read_text()
 
     def run(text):
-        generated.write_text(generate(text))
+        generated.write_text(generate(text, header))
         instrumentation = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"] if args.sanitize else []
+        link = [str(ROOT / "test/cmake/xp_ffi_host.cpp"), str(args.archive)] if args.archive else []
+        if args.archive:
+            instrumentation += ["-DXP_FFI_HOST_FAULT_INJECTION"]
         subprocess.run(["c++", "-std=c++20", "-funsigned-char", "-O1", "-g", *instrumentation, "-I" + str(ROOT / "test/web_server/stubs"),
                         "-I" + str(ROOT / "test/web_server"), "-I" + str(ROOT),
-                        "-I" + str(args.arduinojson), str(generated), "-o", str(args.build / "oracle")], check=True)
+                        "-I" + str(args.arduinojson), "-I" + str(ROOT / "rust/crates/xp-ffi/include"),
+                        str(generated), *link, "-o", str(args.build / "oracle")], check=True)
         return subprocess.check_output([str(args.build / "oracle")])
 
     actual = run(source)
@@ -71,11 +81,21 @@ def main():
         failures = [b["case"] for a, b in zip(old, new) if a != b]
         raise SystemExit(f"web oracle mismatch: {failures}; expected {len(old)} cases, got {len(new)}")
     print(f"web oracle: {len(actual.splitlines())} cases match byte for byte")
+    if args.fault_check:
+        if not args.archive:
+            raise SystemExit("--fault-check requires --archive")
+        for count in range(128):
+            subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_FAIL_AFTER": str(count)},
+                           stdout=subprocess.DEVNULL, check=True)
+        print("allocation failures: 128 budgets across all cases, no retained Rust allocation or WS owner")
     if args.mutation_check:
         changed = source.replace('"Missing path"', '"Missing PATH"', 1)
+        if changed == source:
+            changed = source.replace('WebFileBridge::route(*this, XP_WEB_DOWNLOAD)',
+                                     'WebFileBridge::route(*this, XP_WEB_DELETE)', 1)
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed download error")
-        generated.write_text(generate(source))
+        generated.write_text(generate(source, header))
         print("mutation check: rejected changed download response")
 
 

@@ -6,6 +6,7 @@ if(WEB_TEST_ARDUINOJSON)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract.py
       --build ${CMAKE_CURRENT_BINARY_DIR}/oracle
       --arduinojson ${WEB_TEST_ARDUINOJSON}
+      --archive ${XP_FFI_HOST_ARCHIVE}
       --mutation-check)
 else()
   message(STATUS "Web server oracle needs WEB_TEST_ARDUINOJSON")

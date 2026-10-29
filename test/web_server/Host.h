@@ -28,6 +28,16 @@ struct Converter<String> {
 }  // namespace ArduinoJson
 
 namespace host {
+inline std::string hex(const uint8_t* data, size_t size) {
+  constexpr char digits[] = "0123456789abcdef";
+  std::string out;
+  out.reserve(size * 2);
+  for (size_t i = 0; i < size; ++i) {
+    out += digits[data[i] >> 4];
+    out += digits[data[i] & 15];
+  }
+  return out;
+}
 inline std::vector<std::string> trace;
 inline unsigned long now = 1000;
 inline std::string failOperation;
@@ -254,8 +264,8 @@ struct NetworkClient {
     host::trace.emplace_back("client-stop");
   }
   bool connected() const { return host::connected; }
-  size_t write(const uint8_t*, size_t n) const {
-    host::trace.push_back("client-write:" + std::to_string(n));
+  size_t write(const uint8_t* data, size_t n) const {
+    host::trace.push_back("client-write:" + std::to_string(n) + ":" + host::hex(data, n));
     return host::fail("client-write") ? 0 : n;
   }
   void clear() { host::trace.emplace_back("client-clear"); }
@@ -329,6 +339,9 @@ class WebServer {
 };
 enum WStype_t { WStype_DISCONNECTED, WStype_CONNECTED, WStype_TEXT, WStype_BIN };
 struct WebSocketsServer {
+  void sendTXT(uint8_t num, const uint8_t* data, size_t len) {
+    sendTXT(num, String(reinterpret_cast<const char*>(data), len));
+  }
   explicit WebSocketsServer(uint16_t = 81) {}
   void begin() { host::trace.emplace_back("ws-begin"); }
   void close() { host::trace.emplace_back("ws-close"); }

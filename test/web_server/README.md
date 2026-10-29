@@ -44,8 +44,8 @@ alias resolution. ArduinoJson is the installed third-party implementation.
 Path helpers are extracted from repository source, and protected-path checks
 use the existing public header. The String substitute implements the operations
 used by these methods, including 32-bit saturating `toInt`. A targeted String
-allocation hook covers the completed font-list response; other String and JSON
-allocation failures are not simulated. The transcript allocator trace covers only checked
+allocation hook covers completed font-list, plugin-list, and plugin-upload JSON
+responses; other String allocation failures are not simulated. The transcript allocator trace covers only checked
 upload/download buffer requests, not total heap usage. `--fault-check` separately
 injects Rust allocation failures at 128 budgets for every case, checking that
 Rust allocations and the WebSocket upload owner are released after cleanup.

@@ -873,5 +873,15 @@ int main() {
     app.server->headers["If-None-Match"] = FontsPageHtmlETag;
     app.handleFontsPage();
   });
+  record("fonts-family-nul-state", [](auto& app) {
+    app.server->args["family"] = String("Test\0ignored", 12);
+    app.server->part.filename = "font.cpfont";
+    app.server->part.status = UPLOAD_FILE_START;
+    app.handleFontUploadData();
+    host::trace.push_back("font-family:" + host::hex(reinterpret_cast<const uint8_t*>(app.fontUpload.familyName.data()),
+                                                     app.fontUpload.familyName.size()));
+    app.server->part.status = UPLOAD_FILE_ABORTED;
+    app.handleFontUploadData();
+  });
   return 0;
 }

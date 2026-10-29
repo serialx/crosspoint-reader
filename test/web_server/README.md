@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 617 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 618 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -85,6 +85,6 @@ The font-route extension was recorded from the unchanged C++ handlers at
 missing file stats, deletion JSON types and embedded NUL, upload validation,
 PSRAM gating and all three vector signatures, 0/1/7/8/4095/4096/4097/8200-byte
 chunks, directory/create/write failures, partial writes, cancellation, abort,
-and page revalidation. Font discovery and FontInstaller are substituted service
+page revalidation, and embedded-NUL family state. Font discovery and FontInstaller are substituted service
 leaves; the separate font-registry suites cover their Rust-backed implementation.
 The compatibility cases intentionally preserve unchecked short magic prefixes.

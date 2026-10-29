@@ -58,6 +58,12 @@ class UpdateUiActivity : public RustActivityAdapter {
   uint16_t capacity = 0;
   int inputRowCount = 3, inputFamilyCount = 3;
   unsigned actions = 0, finishes = 0;
+  struct ResourceLock {
+    ResourceLock(UpdateUiActivity&) {}
+    ~ResourceLock() {}
+  };
+  void releaseText() {}
+  void render(RenderLock&&);
   Publication* rustPublication() override { return &publication; }
   bool reserve(uint16_t);
   bool buildRustScene(XpUiScene& scene) override {
@@ -126,6 +132,26 @@ int main() {
   before.model.popup_selected = 1;
   before.input(0, 2);
   assert(before.actions == 1);
+  UpdateUiActivity font;
+  xp_ui_updates_init(&font.model, XP_UI_UPDATE_FONTS, 0);
+  font.model.phase = 3;
+  font.model.has_groups = 1;
+  font.publication.ready = font.routesReady = true;
+  font.feedback.rows.first_row = {0, 0, 100, 20};
+  font.feedback.rows.count = font.feedback.rows.uniform = 1;
+  font.input(0, XP_UI_BACK);
+  assert(font.model.phase == 2 && !font.routesReady && !font.publication.ready);
+  XpUiInput tap{};
+  tap.touch_flags = XP_UI_TOUCH_RELEASED;
+  tap.touch_x = tap.touch_y = 5;
+  font.updateRust(tap);
+  assert(font.pending.action == XP_UI_UPDATE_NONE);
+  font.painting = font.model;
+  font.next.rows = font.feedback.rows;
+  font.rustPublished();
+  font.publication.ready = true;
+  font.updateRust(tap);
+  assert(font.pending.action == XP_UI_UPDATE_ENTER_GROUP);
   puts(
       "build growth and paint rejection preserve Back, gate activation, retain the arena, and recover before/after "
       "first paint");

@@ -14,7 +14,7 @@ EXCLUDE = {'fetchAndParseManifest', 'internString', 'computeFileCrc32', 'rebuild
 def filtered(data):
     return '\n'.join(line.rstrip() for line in data.splitlines() if not line.startswith(('paint.', 'popup', 'DBG UI ', 'DBG OTA Update progress:', 'tap.clear', 'routing.close')))+'\n'
 
-def run(source, library):
+def run(source, library, extra_cases=None, expected=None):
     headers, methods = [], []
     for name in NAMES:
         h = (source / f'{name}Activity.h').read_text()
@@ -34,10 +34,10 @@ def run(source, library):
     bodies = '\n'.join(headers+methods)
     labels = sorted(set(re.findall(r'tr\((STR_\w+)\)', bodies)))
     defines = '\n'.join(f'#define {s} "{s}"' for s in labels)+'\n#define tr(x) x\n'
-    cases = (HERE/'effects_cases.inc').read_text()
+    cases = (HERE/'effects_cases.inc').read_text() if extra_cases is None else extra_cases
     cases = re.sub(r'fui::ListNav& FontDownloadActivity::activeNav\(\).*?\n', '', cases)
     cases = cases.replace('void FontDownloadActivity::buildScreen(UiScreen&){}','void FontDownloadActivity::prepareRows(){}\nbool FontDownloadActivity::row(uint16_t,XpUiSettingsRow&)const{return false;}')
-    for old,new in [('state_','model.phase'),('state','model.phase'),('currentFileTotal_','model.file_count'),('currentFileIndex_','model.file_index'),('cancelRequested_','model.cancel_requested'),('goHomeRequested_','model.home_requested'),('fileProgress_','model.processed'),('fileTotal_','model.total'),('lastUpdaterPercentage','model.last_percent'),('lastRenderedPercent','model.last_percent'),('writtenBytes','model.processed'),('confirmPopup.selected','model.popup_selected')]:
+    for old,new in [('nav.selected','model.list.selected'),('state_','model.phase'),('state','model.phase'),('currentFileTotal_','model.file_count'),('currentFileIndex_','model.file_index'),('cancelRequested_','model.cancel_requested'),('goHomeRequested_','model.home_requested'),('fileProgress_','model.processed'),('fileTotal_','model.total'),('lastUpdaterPercentage','model.last_percent'),('lastRenderedPercent','model.last_percent'),('writtenBytes','model.processed'),('confirmPopup.selected','model.popup_selected')]:
         cases=cases.replace('a.'+old,'a.'+new).replace('c.'+old,'c.'+new)
     cases=cases.replace('a.handleCustomInput()','a.loop()').replace('int(c.state)','int(c.model.phase)')
     cases=cases.replace('OtaUpdateActivity::UPDATE_IN_PROGRESS','3').replace('OtaUpdateActivity::State(state)','state').replace('SdFirmwareUpdateActivity::State::FAILED','5').replace('SdFirmwareUpdateActivity::State::UPDATING','3')
@@ -53,7 +53,7 @@ def run(source, library):
         cpp.write_text(text)
         subprocess.run(['c++','-std=c++20','-Wall','-Wextra','-Wno-unused-parameter','-I'+str(ROOT/'rust/crates/xp-ffi/include'),str(cpp),str(ROOT/'test/cmake/xp_ffi_host.cpp'),str(library),'-o',str(exe)],check=True)
         actual=filtered(subprocess.check_output([str(exe)],text=True))
-    expected=filtered((HERE/'effects.golden').read_text())
+    expected=filtered((HERE/'effects.golden').read_text()) if expected is None else expected
     if expected!=actual:
         print(''.join(difflib.unified_diff(expected.splitlines(True),actual.splitlines(True),fromfile='original',tofile='candidate')))
         raise SystemExit(1)

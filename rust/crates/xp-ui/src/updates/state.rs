@@ -556,23 +556,21 @@ impl State {
                 .options
                 .iter()
                 .position(|r| r.contains(input.touch_x, input.touch_y));
+            let mut repaint = false;
             if input.touch_flags & TOUCH_PRESSED != 0 {
                 self.touch_active = hit.map_or(0, |v| v as u8 + 1);
                 if let Some(n) = hit {
                     if self.popup_selected != n as u8 {
                         self.popup_selected = n as u8;
-                        return Effect::repaint();
+                        repaint = true;
                     }
                 }
             }
             if input.touch_flags & TOUCH_RELEASED != 0 {
-                let active = self.touch_active;
                 self.touch_active = 0;
                 if let Some(n) = hit {
-                    if active == n as u8 + 1 {
-                        self.popup_selected = n as u8;
-                        return self.choose();
-                    }
+                    self.popup_selected = n as u8;
+                    return self.choose();
                 }
                 if !f.popup.contains(input.touch_x, input.touch_y) && input.touch_x >= 0 {
                     self.popup_active = 0;
@@ -586,7 +584,11 @@ impl State {
                     };
                 }
             }
-            return Effect::default();
+            return if repaint {
+                Effect::repaint()
+            } else {
+                Effect::default()
+            };
         }
         if input.pressed & (NAV_PREVIOUS | NAV_NEXT) != 0 {
             self.popup_selected = 1 - self.popup_selected;

@@ -107,10 +107,12 @@ class FontDownloadActivity final : public UpdateUiActivity {
 
   int listCount() const;
   int rowCount() const override { return listCount(); }
+  int paintedRowCount() const override { return static_cast<int>(rowItems_.size()); }
   int familyCount() const override { return static_cast<int>(families_.size()); }
   void prepareRows() override;
   bool row(uint16_t, XpUiSettingsRow&) const override;
   void prepareText() override;
+  void releaseText() override;
   const char* dynamicText(uint32_t) const override;
   const char* headerSubtitle() const override;
   const char* fontConfirmLabel() const override;
@@ -126,6 +128,7 @@ class FontDownloadActivity final : public UpdateUiActivity {
   bool internString(const char* text, StrRef& outRef);
   void clearManifest();
   void downloadFamily(ManifestFamily& family);
+  void setFamilyStatus(ManifestFamily&, bool installed, bool update);
   void downloadAll();
   void updateAll();
   static bool computeFileCrc32(const char* path, uint32_t& outCrc);

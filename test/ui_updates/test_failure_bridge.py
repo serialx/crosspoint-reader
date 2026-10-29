@@ -18,7 +18,7 @@ def main(library):
     adapter=(ROOT/'src/activities/RustActivityAdapter.cpp').read_text()
     family=(ROOT/'src/activities/settings/UpdateUiActivity.cpp').read_text()
     methods=[method(adapter,'RustActivityAdapter::'+name)for name in ['paintRustScene','render']]
-    methods += [method(family,'UpdateUiActivity::'+name)for name in ['reserve','rustPublished','rustSceneFailed','updateRust','applyRustEffect']]
+    methods += [method(family,'UpdateUiActivity::'+name)for name in ['render','reserve','rustPublished','rustSceneFailed','updateRust','applyRustEffect']]
     source=(HERE/'failure_bridge.cpp').read_text().replace('// METHODS','\n'.join(methods))
     with tempfile.TemporaryDirectory()as directory:
         cpp=Path(directory)/'bridge.cpp';exe=Path(directory)/'bridge';cpp.write_text(source)

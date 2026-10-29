@@ -1,5 +1,6 @@
 #pragma once
 #include <FreeInkUIGfxRenderer.h>
+#include <freertos/semphr.h>
 #include <xp_ui_updates.h>
 
 #include <memory>
@@ -9,13 +10,25 @@
 class UpdateUiActivity : public RustActivityAdapter {
  public:
   UpdateUiActivity(const char*, GfxRenderer&, MappedInputManager&, XpUiUpdateKind, bool recovery = false);
+  ~UpdateUiActivity() override;
   void onEnter() override;
   void onExit() override;
   void loop() override;
+  void render(RenderLock&&) override;
   bool preventAutoSleep() override;
   bool skipLoopDelay() override;
 
  protected:
+  // RenderLock -> resources -> ModelLock. Never held during panel refresh.
+  class ResourceLock {
+    SemaphoreHandle_t mutex;
+
+   public:
+    explicit ResourceLock(UpdateUiActivity&);
+    ~ResourceLock();
+    ResourceLock(const ResourceLock&) = delete;
+    ResourceLock& operator=(const ResourceLock&) = delete;
+  };
   XpUiUpdateState model{};
   XpUiUpdateState painting{};
   uint8_t phase() const;
@@ -25,16 +38,20 @@ class UpdateUiActivity : public RustActivityAdapter {
   void closeRouting();
   virtual void performAction(XpUiUpdateAction, int32_t) = 0;
   virtual int rowCount() const { return 0; }
+  virtual int paintedRowCount() const { return 0; }
   virtual int familyCount() const { return 0; }
   virtual void prepareRows() {}
   virtual bool row(uint16_t, XpUiSettingsRow&) const { return false; }
   virtual const char* dynamicText(uint32_t) const { return ""; }
   virtual void prepareText() {}
+  virtual void releaseText() {}
   virtual void afterHeader() const {}
   virtual const char* headerSubtitle() const { return nullptr; }
   virtual const char* fontConfirmLabel() const { return ""; }
 
  private:
+  StaticSemaphore_t resourceMutexStorage{};
+  SemaphoreHandle_t resourceMutex = xSemaphoreCreateRecursiveMutexStatic(&resourceMutexStorage);
   Publication publication;
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};

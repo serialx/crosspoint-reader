@@ -209,3 +209,106 @@ fn prepaint_activation_and_successful_republication() {
         );
     }
 }
+
+#[test]
+fn popup_release_does_not_require_delayed_press() {
+    use crate::model::{TOUCH_PRESSED, TOUCH_RELEASED};
+    use crate::scene::Rect;
+    let f = Feedback {
+        popup: Rect {
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+        },
+        options: [
+            Rect {
+                x: 10,
+                y: 10,
+                w: 80,
+                h: 20,
+            },
+            Rect {
+                x: 10,
+                y: 40,
+                w: 80,
+                h: 20,
+            },
+        ],
+        ..Feedback::default()
+    };
+    for kind in [OTA, CACHE] {
+        for option in 0..2 {
+            for flags in [TOUCH_RELEASED, TOUCH_PRESSED | TOUCH_RELEASED] {
+                let mut s = State::new(kind, 0);
+                s.phase = if kind == OTA {
+                    ota::CONFIRM
+                } else {
+                    cache::WARNING
+                };
+                s.popup_active = 1;
+                s.popup_selected = 1 - option;
+                let e = s.input(
+                    Input {
+                        touch_flags: flags,
+                        touch_x: 20,
+                        touch_y: if option == 0 { 20 } else { 50 },
+                        ..Input::default()
+                    },
+                    &f,
+                    true,
+                    0,
+                    0,
+                );
+                assert_eq!(
+                    e.action,
+                    if option == 0 {
+                        Action::Finish
+                    } else if kind == OTA {
+                        Action::Install
+                    } else {
+                        Action::Clear
+                    } as u8
+                );
+                assert_eq!(s.popup_active, 0);
+                assert_eq!(e.reserved, 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn shrinking_font_publication_clamps_only_unchanged_navigation() {
+    for navigated in [false, true] {
+        let mut state = State::new(FONTS, 0);
+        state.phase = font::FAMILIES;
+        state.list.selected = 1;
+        let snapshot = state;
+        let mut feedback = Feedback {
+            list: snapshot.list,
+            ..Feedback::default()
+        };
+        feedback.list.selected = 0;
+        if navigated {
+            state.list.navigation_revision += 1;
+            state.list.selected = 2;
+        }
+        unsafe {
+            super::ffi::publish(&mut state, &snapshot, &feedback);
+        }
+        assert_eq!(state.list.selected, if navigated { 2 } else { 0 });
+        if !navigated {
+            let e = state.input(
+                Input {
+                    released: CONFIRM,
+                    ..Input::default()
+                },
+                &feedback,
+                true,
+                1,
+                1,
+            );
+            assert_eq!((e.action, e.value), (Action::FontActivate as u8, 0));
+        }
+    }
+}

@@ -8,6 +8,9 @@ struct UpdateUiActivity:Activity {
  int groupIndex()const{return model.groups.selected;}
  void notify(XpUiUpdateEvent e,uint32_t a=0,uint32_t b=0){xp_ui_updates_notify(&model,e,a,b);}
  uint8_t serviceResult(XpUiUpdateEvent e,uint32_t a=0,uint32_t b=0){return xp_ui_updates_result(&model,e,a,b);}
+ struct ResourceLock {ResourceLock(UpdateUiActivity&){} ~ResourceLock(){}};
+ virtual int paintedRowCount()const{return 0;}
+ virtual void releaseText(){}
  bool preventAutoSleep()override{return xp_ui_updates_sleep(&model);}
  bool skipLoopDelay()override{return xp_ui_updates_delay(&model);}
  void closeRouting(){}

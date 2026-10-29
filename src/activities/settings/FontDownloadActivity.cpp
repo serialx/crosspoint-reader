@@ -110,6 +110,7 @@ void FontDownloadActivity::onWifiSelectionComplete(const bool success) {
 // --- Manifest fetching ---
 
 void FontDownloadActivity::clearManifest() {
+  ResourceLock resources(*this);
   // Swap rather than clear: clear() keeps the capacity, and this runs to hand
   // the heap back while the error screen is up. Reverse allocation order.
   std::vector<int>().swap(filteredIndices_);
@@ -213,6 +214,7 @@ bool FontDownloadActivity::fetchAndParseManifest() {
     return false;
   }
 
+  ResourceLock resources(*this);
   baseUrl_ = doc["baseUrl"] | "";
   downloadUrl_.reserve(baseUrl_.size() + 128);
 
@@ -444,6 +446,7 @@ int FontDownloadActivity::groupMemberCount(const int scriptGroupIndex) const {
 }
 
 void FontDownloadActivity::buildFilteredIndices(const int groupListIndex) {
+  ResourceLock resources(*this);
   filteredIndices_.clear();
   filteredIndices_.reserve(families_.size());
   if (groupListIndex <= 0) {
@@ -460,6 +463,7 @@ void FontDownloadActivity::buildFilteredIndices(const int groupListIndex) {
 }
 
 void FontDownloadActivity::enterGroup(const int groupListIndex) {
+  ResourceLock resources(*this);
   closeRouting();
   buildFilteredIndices(groupListIndex);
   {
@@ -571,8 +575,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
 
     if (result == HttpDownloader::ABORTED) {
       fontInstaller_.deleteFamily(str(family.name));
-      family.installed = false;
-      family.hasUpdate = false;
+      setFamilyStatus(family, false, false);
       if (serviceResult(XP_UI_UPDATE_FONT_ABORTED) == XP_UI_UPDATE_HOME) {
         onGoHome();
         return;
@@ -584,8 +587,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     if (result != HttpDownloader::OK) {
       LOG_ERR("FONT", "Download failed: %s (%d)", str(file.name), result);
       fontInstaller_.deleteFamily(str(family.name));
-      family.installed = false;
-      family.hasUpdate = false;
+      setFamilyStatus(family, false, false);
       RenderLock lock(*this);
       notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Download failed: ") + str(file.name);
@@ -596,8 +598,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     if (!computeFileCrc32(destPath, actualCrc)) {
       LOG_ERR("FONT", "Failed to open file for CRC check: %s", destPath);
       fontInstaller_.deleteFamily(str(family.name));
-      family.installed = false;
-      family.hasUpdate = false;
+      setFamilyStatus(family, false, false);
       RenderLock lock(*this);
       notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Failed to compute checksum: ") + str(file.name);
@@ -606,8 +607,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     if (actualCrc != file.crc32) {
       LOG_ERR("FONT", "CRC32 mismatch for %s: got %08x expected %08x", str(file.name), actualCrc, file.crc32);
       fontInstaller_.deleteFamily(str(family.name));
-      family.installed = false;
-      family.hasUpdate = false;
+      setFamilyStatus(family, false, false);
       RenderLock lock(*this);
       notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Checksum mismatch: ") + str(file.name);
@@ -618,8 +618,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     if (!fontInstaller_.validateCpfontFile(destPath)) {
       LOG_ERR("FONT", "Invalid .cpfont: %s", destPath);
       fontInstaller_.deleteFamily(str(family.name));
-      family.installed = false;
-      family.hasUpdate = false;
+      setFamilyStatus(family, false, false);
       RenderLock lock(*this);
       notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Invalid font file: ") + str(file.name);
@@ -629,8 +628,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
   }
 
   fontInstaller_.refreshRegistry();
-  family.installed = true;
-  family.hasUpdate = false;
+  setFamilyStatus(family, true, false);
 
   {
     rowsDirty_ = true;
@@ -670,8 +668,7 @@ void FontDownloadActivity::onDeleteConfirmationResult(const ActivityResult& resu
     errorMessage_ = "Failed to delete font";
   } else {
     fontInstaller_.refreshRegistry();
-    family.installed = false;
-    family.hasUpdate = false;
+    setFamilyStatus(family, false, false);
     // Unlike the other family_ mutations, this one stays in FAMILY_LIST (no
     // phase() transition to hang the rebuild off), so it must set the flag
     // directly.
@@ -858,3 +855,11 @@ const char* FontDownloadActivity::dynamicText(uint32_t handle) const {
       return "";
   }
 }
+
+void FontDownloadActivity::setFamilyStatus(ManifestFamily& family, bool installed, bool update) {
+  ResourceLock resources(*this);
+  family.installed = installed;
+  family.hasUpdate = update;
+  rowsDirty_ = true;
+}
+void FontDownloadActivity::releaseText() { std::string().swap(statusText); }

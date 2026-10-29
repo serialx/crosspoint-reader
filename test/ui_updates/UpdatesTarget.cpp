@@ -162,6 +162,61 @@ int main() {
             const auto& s = feedback.options[n];
             assert(r.x == s.x && r.y == s.y && r.width == s.w && r.height == s.h);
           }
+          for (int option = 0; option < 2; ++option) {
+            for (int edges = 0; edges < 3; ++edges) {
+              auto current = state;
+              current.popup_selected = 1 - option;
+              const auto r = feedback.options[option];
+              XpUiInput input{};
+              input.touch_x = r.x + 1;
+              input.touch_y = r.y + 1;
+              ui::InputSnapshot original{};
+              original.touchX = input.touch_x;
+              original.touchY = input.touch_y;
+              if (edges == 1) {
+                input.touch_flags = XP_UI_TOUCH_PRESSED;
+                original.touchPressed = true;
+                hits.route(original);
+                auto effect = xp_ui_updates_input(&current, &input, &feedback, 1, 0, 0);
+                assert(effect.action == XP_UI_UPDATE_NONE);
+                assert(current.popup_selected == option);
+                // Publish the highlight frame while the contact is still down.
+                auto snapshot = current;
+                xp_ui_updates_publish(&current, &snapshot, &feedback);
+              }
+              input.touch_flags = XP_UI_TOUCH_RELEASED | (edges == 2 ? XP_UI_TOUCH_PRESSED : 0);
+              original.touchPressed = edges == 2;
+              original.touchReleased = true;
+              const auto expectedAction = hits.route(original);
+              assert(expectedAction.action == 1 && expectedAction.value == option);
+              const auto effect = xp_ui_updates_input(&current, &input, &feedback, 1, 0, 0);
+              assert(effect.action == (option == 0 ? XP_UI_UPDATE_FINISH
+                                       : message   ? XP_UI_UPDATE_CLEAR
+                                                   : XP_UI_UPDATE_INSTALL));
+              assert(effect.reserved == 0 && !current.popup_active);
+              // Rejected/unpublished scenes cannot route even a valid release.
+              current = state;
+              assert(xp_ui_updates_input(&current, &input, &feedback, 0, 0, 0).action == XP_UI_UPDATE_NONE);
+              xp_ui_updates_notify(&current, XP_UI_UPDATE_SCENE_FAILED, 0, 0);
+              assert(xp_ui_updates_input(&current, &input, &feedback, 1, 0, 0).action == XP_UI_UPDATE_NONE);
+            }
+          }
+          for (const auto point :
+               {std::pair<int16_t, int16_t>{-1, -1}, {int16_t(area.x + 1), int16_t(area.y + 1)}, {0, 0}}) {
+            auto current = state;
+            XpUiInput input{};
+            input.touch_flags = XP_UI_TOUCH_RELEASED;
+            input.touch_x = point.first;
+            input.touch_y = point.second;
+            ui::InputSnapshot original{};
+            original.touchReleased = true;
+            original.touchX = point.first;
+            original.touchY = point.second;
+            assert(hits.route(original).action == ui::NO_ACTION);
+            const auto effect = xp_ui_updates_input(&current, &input, &feedback, 1, 0, 0);
+            assert(effect.action != XP_UI_UPDATE_INSTALL && effect.action != XP_UI_UPDATE_CLEAR);
+            if (point.first < 0) assert(current.popup_active);
+          }
           ++cases;
         }
   printf("%u update popup cases match SDK pixels and touch rectangles\n", cases);

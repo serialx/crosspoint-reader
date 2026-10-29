@@ -8,6 +8,50 @@
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
 namespace fui = freeink::ui;
+UpdateUiActivity::ResourceLock::ResourceLock(UpdateUiActivity& owner) : mutex(owner.resourceMutex) {
+  xSemaphoreTakeRecursive(mutex, portMAX_DELAY);
+}
+UpdateUiActivity::ResourceLock::~ResourceLock() { xSemaphoreGiveRecursive(mutex); }
+UpdateUiActivity::~UpdateUiActivity() { vSemaphoreDelete(resourceMutex); }
+void UpdateUiActivity::render(RenderLock&&) {
+  XpUiScene scene{};
+  bool painted = false;
+  {
+    ResourceLock resources(*this);
+    if (buildRustScene(scene)) {
+      const auto paint = rustResources();
+      painted = renderer.drawUiScene(scene, &paint);
+      if (!painted) LOG_ERR("RUI", "Invalid scene in %s", name.c_str());
+    } else {
+      LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
+    }
+    releaseText();
+    {
+      ModelLock lock(*this);
+      if (painted) {
+        rustPublished();
+        publication.ready = true;
+      } else {
+        publication.ready = false;
+        rustSceneFailed();
+      }
+    }
+  }
+  if (!painted) return;
+  switch (static_cast<XpUiRefresh>(scene.refresh)) {
+    case XP_UI_NONE:
+      break;
+    case XP_UI_FAST:
+      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+      break;
+    case XP_UI_HALF:
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      break;
+    case XP_UI_FULL:
+      renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+      break;
+  }
+}
 UpdateUiActivity::UpdateUiActivity(const char* name, GfxRenderer& renderer, MappedInputManager& input,
                                    XpUiUpdateKind kind, bool recovery)
     : RustActivityAdapter(name, renderer, input), textTarget(makeUiTarget(renderer)) {
@@ -62,18 +106,26 @@ void UpdateUiActivity::onExit() {
   Activity::onExit();
 }
 void UpdateUiActivity::loop() {
-  inputRowCount = rowCount();
-  inputFamilyCount = familyCount();
+  {
+    ResourceLock resources(*this);
+    inputRowCount = rowCount();
+    inputFamilyCount = familyCount();
+  }
   RustActivityAdapter::loop();
 }
 XpUiInterest UpdateUiActivity::rustInterest(uint32_t now) const { return xp_ui_updates_interest(&model, now); }
 XpUiEffect UpdateUiActivity::updateRust(const XpUiInput& input) {
+  const auto oldPhase = model.phase;
   const bool popupActive = model.popup_active != 0;
   const bool list = model.kind == XP_UI_UPDATE_FONTS && (model.phase == 2 || model.phase == 3);
   const auto& nav = model.phase == 2 ? model.groups : model.list;
   const int drawn = nav.drawn > 0 ? nav.drawn : 1;
   pending =
       xp_ui_updates_input(&model, &input, &feedback, publication.ready && routesReady, inputRowCount, inputFamilyCount);
+  if (oldPhase != model.phase) {
+    publication.ready = false;
+    routesReady = false;
+  }
   pendingHaptic = (input.touch_flags & XP_UI_TOUCH_RELEASED) && publication.ready && routesReady &&
                   ((popupActive && !model.popup_active) || pending.action == XP_UI_UPDATE_FONT_ACTIVATE ||
                    pending.action == XP_UI_UPDATE_ENTER_GROUP);
@@ -192,7 +244,7 @@ XpUiUpdateResources UpdateUiActivity::resources() {
         return fui::measureWrappedText(self.textTarget, value, style, width).height;
       },
       [](void* p, int32_t font) -> int32_t { return static_cast<UpdateUiActivity*>(p)->renderer.getLineHeight(font); },
-      static_cast<uint16_t>(rowCount()),
+      static_cast<uint16_t>(paintedRowCount()),
       0};
   out.context = this;
   out.text = [](void* p, uint32_t handle) -> const char* { return static_cast<UpdateUiActivity*>(p)->text(handle); };
@@ -259,7 +311,13 @@ bool UpdateUiActivity::buildRustScene(XpUiScene& scene) {
   for (;;) {
     const XpUiBuffer buffer{commands.get(), nullptr, capacity, 0};
     auto result = xp_ui_updates_view(&painting, &layout, &services, &buffer, &next, &scene);
-    if (result == 1) return true;
+    if (result == 1) {
+      if (painting.kind == XP_UI_UPDATE_FONTS && (painting.phase == 2 || painting.phase == 3)) {
+        auto& nav = painting.phase == 2 ? painting.groups : painting.list;
+        nav.selected = next.list.selected;
+      }
+      return true;
+    }
     if (result != 2 || !reserve(capacity + 16)) return false;
   }
 }
@@ -299,7 +357,7 @@ void UpdateUiActivity::hints(uint8_t kind) const {
       break;
     case 4:
       confirm = fontConfirmLabel();
-      if (rowCount()) {
+      if (paintedRowCount()) {
         up = tr(STR_DIR_UP);
         down = tr(STR_DIR_DOWN);
       }

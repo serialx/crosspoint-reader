@@ -135,7 +135,11 @@ pub unsafe fn publish(state: *mut State, snapshot: *const State, feedback: *cons
         if s.valid() && old.valid() && s.kind == old.kind && s.phase == old.phase {
             s.scene_failed = 0;
             if old.is_list() {
-                s.nav_mut().publish(&f.list, old.nav().pending_scroll);
+                let nav = s.nav_mut();
+                if nav.navigation_revision == old.nav().navigation_revision {
+                    nav.selected = f.list.selected;
+                }
+                nav.publish(&f.list, old.nav().pending_scroll);
             }
             s.last_percent = f.last_percent;
         }

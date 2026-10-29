@@ -72,7 +72,51 @@ static void links() {
   assert(decoded[2].spine == last.spine && decoded[2].page == last.page);
 }
 
+static void inputPointers() {
+  int calls = 0;
+  const XpUiReaderInputConfig config{};
+  const XpUiReaderInputServices complete{&calls,
+                                         [](void* p, uint32_t, uint8_t, uint32_t) -> uint8_t {
+                                           ++*static_cast<int*>(p);
+                                           return 0;
+                                         },
+                                         [](void* p, uint8_t) -> uint32_t {
+                                           ++*static_cast<int*>(p);
+                                           return 0;
+                                         },
+                                         [](void* p, int32_t*, int32_t*) -> uint8_t {
+                                           ++*static_cast<int*>(p);
+                                           return 0;
+                                         }};
+  const XpUiReaderTurnInput empty{};
+  const auto noServices = xp_ui_reader_buttons(nullptr, &config);
+  const auto noConfig = xp_ui_reader_buttons(&complete, nullptr);
+  assert(std::memcmp(&noServices, &empty, sizeof(empty)) == 0);
+  assert(std::memcmp(&noConfig, &empty, sizeof(empty)) == 0);
+  assert(!xp_ui_reader_menu_gesture(nullptr, 1, 90, 120));
+  assert(!xp_ui_reader_back(nullptr, 0));
+  for (int missing = 0; missing < 3; ++missing) {
+    auto services = complete;
+    if (missing == 0) services.button = nullptr;
+    if (missing == 1) services.read = nullptr;
+    if (missing == 2) services.tap = nullptr;
+    const auto buttons = xp_ui_reader_buttons(&services, &config);
+    const auto touch = xp_ui_reader_touch(&services, &config, 90, 120, 0);
+    assert(std::memcmp(&buttons, &empty, sizeof(empty)) == 0);
+    assert(std::memcmp(&touch, &empty, sizeof(empty)) == 0);
+    assert(!xp_ui_reader_menu_gesture(&services, 1, 90, 120));
+    assert(!xp_ui_reader_back(&services, 0));
+  }
+  assert(calls == 0);
+  assert(!xp_ui_reader_language_rtl(nullptr, 0));
+  assert(!xp_ui_reader_language_rtl(nullptr, 2));
+  xp_ui_reader_toolbar_nav_reset(nullptr);
+  assert(!xp_ui_reader_toolbar_page_rows(nullptr));
+  assert(!xp_ui_reader_toolbar_scroll(nullptr, 1, 10));
+}
+
 int main() {
+  inputPointers();
   progressStatuses();
   links();
   XpUiReaderSession session{};

@@ -241,3 +241,115 @@ pub unsafe extern "C" fn xp_ui_reader_links_decode(
         positions,
     )
 }
+
+use xp_ui::model::ListState;
+use xp_ui::reader::input;
+/// # Safety
+/// Reader-family input callbacks and pointers obey xp_ui_reader.h and remain valid for the call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_buttons(
+    services: *const input::Services,
+    config: *const input::Config,
+) -> input::Turn {
+    let (Some(services), Some(config)) = (services.as_ref(), config.as_ref()) else {
+        return input::Turn::default();
+    };
+    input::buttons(*services, *config)
+}
+/// # Safety
+/// Reader-family input callbacks and pointers obey xp_ui_reader.h and remain valid for the call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_touch(
+    services: *const input::Services,
+    config: *const input::Config,
+    width: i32,
+    height: i32,
+    rtl: u8,
+) -> input::Turn {
+    let (Some(services), Some(config)) = (services.as_ref(), config.as_ref()) else {
+        return input::Turn::default();
+    };
+    input::touch(*services, *config, width, height, rtl != 0)
+}
+/// # Safety
+/// Reader-family input callbacks and pointers obey xp_ui_reader.h and remain valid for the call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_menu_gesture(
+    services: *const input::Services,
+    gesture: u8,
+    width: i32,
+    height: i32,
+) -> u8 {
+    let Some(services) = services.as_ref() else {
+        return 0;
+    };
+    u8::from(input::menu(*services, gesture, width, height))
+}
+/// # Safety
+/// Reader-family input callbacks and pointers obey xp_ui_reader.h and remain valid for the call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_back(
+    services: *const input::Services,
+    short_browser: u8,
+) -> u8 {
+    let Some(services) = services.as_ref() else {
+        return 0;
+    };
+    input::back(*services, short_browser != 0)
+}
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn xp_ui_reader_gesture(gesture: u8) -> u8 {
+    input::gesture(gesture)
+}
+/// # Safety
+/// tag points to length readable bytes; null is accepted only for length zero.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_language_rtl(tag: *const u8, length: u32) -> u8 {
+    if tag.is_null() || length > isize::MAX as u32 {
+        return 0;
+    }
+    u8::from(input::language_rtl(core::slice::from_raw_parts(
+        tag,
+        length as usize,
+    )))
+}
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn xp_ui_reader_chapter_display(page: i32, total: i32) -> input::ChapterDisplay {
+    input::chapter_display(page, total)
+}
+/// # Safety
+/// Non-null state points to an exclusively borrowed valid ListState for this call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_toolbar_nav_reset(state: *mut ListState) {
+    if let Some(state) = state.as_mut() {
+        input::toolbar_reset(state)
+    }
+}
+/// # Safety
+/// Non-null state points to a readable valid ListState for this call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_toolbar_page_rows(state: *const ListState) -> i32 {
+    state.as_ref().map_or(0, input::toolbar_page_rows)
+}
+/// # Safety
+/// Non-null state points to an exclusively borrowed valid ListState for this call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_toolbar_scroll(
+    state: *mut ListState,
+    delta: i32,
+    count: i32,
+) -> u8 {
+    state
+        .as_mut()
+        .map_or(0, |s| u8::from(input::toolbar_scroll(s, delta, count)))
+}

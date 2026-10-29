@@ -35,8 +35,8 @@ TEST(ChapterPositionTest, UnknownTotalHasNoFraction) {
   EXPECT_FALSE((ChapterPosition{}).hasTotal());
 }
 
-TEST(ChapterPositionTest, EvaluatesAtCompileTime) {
-  static_assert(ChapterPosition{10, 48}.displayPage() == 11);
-  static_assert(ChapterPosition{10, 48}.hasTotal());
-  static_assert(!ChapterPosition{10, 0}.hasTotal());
+TEST(ChapterPositionTest, DisplaysCachedValuesThroughReaderAbi) {
+  EXPECT_EQ((ChapterPosition{10, 48}).displayPage(), 11);
+  EXPECT_TRUE((ChapterPosition{10, 48}).hasTotal());
+  EXPECT_FALSE((ChapterPosition{10, 0}).hasTotal());
 }

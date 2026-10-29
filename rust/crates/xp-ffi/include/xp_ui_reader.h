@@ -1,5 +1,7 @@
 #pragma once
 #include <stdint.h>
+
+#include "xp_ui.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -92,6 +94,61 @@ uint32_t xp_ui_reader_links_encode(const XpUiReaderLinkPosition* positions, uint
 uint8_t xp_ui_reader_links_decode(const uint8_t* data, uint32_t len, int32_t spine_count,
                                   XpUiReaderLinkPosition* positions);
 
+/* Addition to xp_ui_reader.h. Include xp_ui.h for its existing button masks and ListState. */
+typedef enum { XP_UI_READER_BUTTON_PRESS, XP_UI_READER_BUTTON_RELEASE, XP_UI_READER_BUTTON_LONG } XpUiReaderButtonQuery;
+typedef enum {
+  XP_UI_READER_INPUT_HAS_TOUCH,
+  XP_UI_READER_INPUT_SWIPE,
+  XP_UI_READER_INPUT_HELD_MS,
+  XP_UI_READER_INPUT_TOUCH_HELD_MS,
+  XP_UI_READER_INPUT_TILT_NEXT,
+  XP_UI_READER_INPUT_TILT_PREV,
+  XP_UI_READER_INPUT_NAV_SWAPPED,
+  XP_UI_READER_INPUT_HOME_ACTION,
+  XP_UI_READER_INPUT_BACK_GESTURE,
+  XP_UI_READER_INPUT_MENU_GESTURE,
+  XP_UI_READER_INPUT_MENU_SWIPE_UP
+} XpUiReaderInputQuery;
+/* Borrowed synchronous probes of the existing mapped frame, never hardware polling.
+ * LONG and tap probes retain their original short-circuit evaluation order: LONG
+ * suppresses a following release, and tap records a held-time override. */
+typedef struct {
+  void* context;
+  uint8_t (*button)(void*, uint32_t button_mask, uint8_t query, uint32_t threshold_ms);
+  uint32_t (*read)(void*, uint8_t query);
+  uint8_t (*tap)(void*, int32_t* x, int32_t* y);
+} XpUiReaderInputServices;
+/* Persisted setting values, with C++ static_asserts against CrossPointSettings. */
+typedef struct {
+  uint8_t long_press, short_power, tilt, touch_controls;
+  uint8_t next_gesture, prev_gesture, menu_gesture, back_short_browser;
+} XpUiReaderInputConfig;
+typedef struct {
+  uint32_t held_ms;
+  uint8_t prev, next, from_tilt, reserved;
+} XpUiReaderTurnInput;
+XpUiReaderTurnInput xp_ui_reader_buttons(const XpUiReaderInputServices*, const XpUiReaderInputConfig*);
+XpUiReaderTurnInput xp_ui_reader_touch(const XpUiReaderInputServices*, const XpUiReaderInputConfig*, int32_t width,
+                                       int32_t height, uint8_t rtl);
+uint8_t xp_ui_reader_menu_gesture(const XpUiReaderInputServices*, uint8_t menu_gesture, int32_t width, int32_t height);
+/* 0 unhandled, 1 file browser, 2 Home. C++ applies navigation after this returns. */
+uint8_t xp_ui_reader_back(const XpUiReaderInputServices*, uint8_t back_short_browser);
+/* Flags: bit 0 tap allowed, bit 1 swipe allowed. */
+uint8_t xp_ui_reader_gesture(uint8_t persisted_gesture);
+uint8_t xp_ui_reader_language_rtl(const uint8_t* tag, uint32_t length);
+
+typedef struct {
+  int32_t display_page;
+  float fraction;
+  uint8_t has_total, reserved[3];
+} XpUiReaderChapterDisplay;
+XpUiReaderChapterDisplay xp_ui_reader_chapter_display(int32_t page, int32_t total);
+/* ReaderToolbarUi replaces ListNav with the existing XpUiListState. These keep
+ * the old immediate viewport scroll/clamp and pageRows fallback exactly. */
+void xp_ui_reader_toolbar_nav_reset(XpUiListState*);
+int32_t xp_ui_reader_toolbar_page_rows(const XpUiListState*);
+uint8_t xp_ui_reader_toolbar_scroll(XpUiListState*, int32_t delta, int32_t count);
+
 #ifdef __cplusplus
 }
 #endif
@@ -139,4 +196,30 @@ static_assert(offsetof(XpUiReaderProgressIo, flush_temp) == 3 * sizeof(void*));
 static_assert(offsetof(XpUiReaderProgressIo, close_temp) == 4 * sizeof(void*));
 static_assert(offsetof(XpUiReaderProgressIo, remove_final) == 5 * sizeof(void*));
 static_assert(offsetof(XpUiReaderProgressIo, rename_temp) == 6 * sizeof(void*));
+#endif
+
+#ifdef __cplusplus
+static_assert(sizeof(XpUiReaderInputServices) == 4 * sizeof(void*));
+static_assert(alignof(XpUiReaderInputServices) == alignof(void*));
+static_assert(offsetof(XpUiReaderInputServices, context) == 0);
+static_assert(offsetof(XpUiReaderInputServices, button) == sizeof(void*));
+static_assert(offsetof(XpUiReaderInputServices, read) == 2 * sizeof(void*));
+static_assert(offsetof(XpUiReaderInputServices, tap) == 3 * sizeof(void*));
+static_assert(sizeof(XpUiReaderInputConfig) == 8 && alignof(XpUiReaderInputConfig) == 1);
+static_assert(offsetof(XpUiReaderInputConfig, long_press) == 0);
+static_assert(offsetof(XpUiReaderInputConfig, short_power) == 1);
+static_assert(offsetof(XpUiReaderInputConfig, tilt) == 2);
+static_assert(offsetof(XpUiReaderInputConfig, touch_controls) == 3);
+static_assert(offsetof(XpUiReaderInputConfig, next_gesture) == 4);
+static_assert(offsetof(XpUiReaderInputConfig, prev_gesture) == 5);
+static_assert(offsetof(XpUiReaderInputConfig, menu_gesture) == 6);
+static_assert(offsetof(XpUiReaderInputConfig, back_short_browser) == 7);
+static_assert(sizeof(XpUiReaderTurnInput) == 8 && alignof(XpUiReaderTurnInput) == 4);
+static_assert(offsetof(XpUiReaderTurnInput, held_ms) == 0);
+static_assert(offsetof(XpUiReaderTurnInput, prev) == 4 && offsetof(XpUiReaderTurnInput, next) == 5);
+static_assert(offsetof(XpUiReaderTurnInput, from_tilt) == 6 && offsetof(XpUiReaderTurnInput, reserved) == 7);
+static_assert(sizeof(XpUiReaderChapterDisplay) == 12 && alignof(XpUiReaderChapterDisplay) == 4);
+static_assert(offsetof(XpUiReaderChapterDisplay, display_page) == 0);
+static_assert(offsetof(XpUiReaderChapterDisplay, fraction) == 4);
+static_assert(offsetof(XpUiReaderChapterDisplay, has_total) == 8 && offsetof(XpUiReaderChapterDisplay, reserved) == 9);
 #endif

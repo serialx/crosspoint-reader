@@ -53,6 +53,8 @@ add_test(NAME reader_input_oracle
     $<TARGET_FILE:ReaderInputOracle> ${CMAKE_CURRENT_SOURCE_DIR}/input.golden.gz)
 
 add_executable(ReaderNavOracle nav_oracle.cpp)
+target_compile_definitions(ReaderNavOracle PRIVATE READER_NAV_RUST=1)
+target_link_libraries(ReaderNavOracle PRIVATE crosspoint_test_common)
 target_include_directories(ReaderNavOracle PRIVATE ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include)
 add_test(NAME reader_nav_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py

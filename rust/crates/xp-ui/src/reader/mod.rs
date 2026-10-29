@@ -377,6 +377,7 @@ pub struct PageMove {
     pub last_page: u8,
     pub reserved: [u8; 2],
 }
+pub mod input;
 #[path = "navigation.rs"]
 mod navigation;
 fn page_move(movement: navigation::Move) -> PageMove {

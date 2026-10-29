@@ -60,9 +60,9 @@ definition_result = block(lookup_source, "[this](const ActivityResult& result)")
 reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
 lookup_result = block(reader_source.split("startActivityForResult(std::move(lookup)", 1)[1],
                       "[this](const ActivityResult& result)")
-reader_constants = (ROOT / "src/activities/reader/ReaderUtils.h").read_text().split("namespace ReaderUtils {", 1)[1].split(
-    "constexpr unsigned long SKIP_HOLD_MS", 1
-)[0]
+reader_constants = "\n".join(re.findall(
+    r"^constexpr unsigned long (?:GO_HOME_MS|GO_BACK_OR_HOME_MS) = [^;]+;",
+    (ROOT / "src/activities/reader/ReaderUtils.h").read_text(), re.MULTILINE))
 harness = r'''
 #include <algorithm>
 #include <array>

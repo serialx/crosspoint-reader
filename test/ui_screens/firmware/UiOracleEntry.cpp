@@ -10,13 +10,16 @@
 #include "UiOracleFrontlight.h"
 #include "activities/ActivityManager.h"
 #include "activities/browser/OpdsBookBrowserActivity.h"
+#include "activities/plugins/PluginCatalogActivity.h"
 #include "activities/settings/HomeButtonSettingsActivity.h"
+#include "activities/settings/PluginHubInstallActivity.h"
 #include "activities/util/DetailsActivity.h"
 #include "activities/util/FrontlightPanelActivity.h"
 
 UiOracleFrontlight uiOracleFrontlight;
 
 namespace {
+UiOracleCase pluginCase = UiOracleCase::Invalid, hubCase = UiOracleCase::Invalid;
 UiOracleCase opdsCase = UiOracleCase::Invalid;
 constexpr char SELECTOR_PATH[] = "/.crosspoint/ui-oracle-case.txt";
 
@@ -105,6 +108,107 @@ bool uiOracleOpdsEnter(OpdsBookBrowserActivity& activity) {
   return true;
 }
 
+bool uiOraclePluginEnter(PluginCatalogActivity& activity) {
+  if (pluginCase == UiOracleCase::Invalid) return false;
+  activity.state = CatalogActivity::State::BROWSING;
+  activity.catalogTitle = "Fixture plugins";
+  activity.statusMessage = "A synthetic plugin with a long title that wraps onto a second line";
+  activity.errorMessage = "The fixture server could not return its catalog. Please try again.";
+  activity.manifest.authReq.url = "https://example.invalid/auth";
+  activity.manifest.pollReq.url = "https://example.invalid/poll";
+  activity.manifest.authType = "device_code";
+  switch (pluginCase) {
+    case UiOracleCase::PluginBrowse:
+    case UiOracleCase::PluginXml:
+      activity.manifest.browseFormat = pluginCase == UiOracleCase::PluginXml ? "xml" : "json";
+      activity.manifest.searchUrl = "https://example.invalid/search";
+      activity.items.reserve(16);
+      for (int i = 0; i < 16; ++i) {
+        PluginCatalogActivity::Item item;
+        item.title = i == 0 ? "A synthetic observatory plugin with a long title to wrap" : "The Observatory";
+        item.author =
+            "A long synthetic description of the observatory and its many shelves, tools and reading rooms. This text "
+            "tests the catalog subtitle wrapping.";
+        item.status = i % 3 == 0 ? "Update" : "Installed";
+        item.isDir = pluginCase == UiOracleCase::PluginXml && i % 3 == 0;
+        activity.items.push_back(std::move(item));
+      }
+      activity.page = 2;
+      activity.hasMore = true;
+      break;
+    case UiOracleCase::PluginLists:
+      activity.state = CatalogActivity::State::LIST_PICKER;
+      activity.manifest.browseLists.reserve(14);
+      for (int i = 0; i < 14; ++i) {
+        PluginCatalogActivity::Manifest::BrowseList list;
+        list.title = i == 0 ? "A long synthetic collection name for the observatory" : "Observatory collection";
+        activity.manifest.browseLists.push_back(std::move(list));
+      }
+      break;
+    case UiOracleCase::PluginEmpty:
+      break;
+    case UiOracleCase::PluginError:
+      activity.state = CatalogActivity::State::ERROR;
+      break;
+    case UiOracleCase::PluginLoading:
+      activity.state = CatalogActivity::State::LOADING;
+      break;
+    case UiOracleCase::PluginWifi:
+      activity.state = CatalogActivity::State::CHECK_WIFI;
+      break;
+    case UiOracleCase::PluginSearch:
+      activity.state = CatalogActivity::State::SEARCH_INPUT;
+      break;
+    case UiOracleCase::PluginDownload:
+      activity.state = CatalogActivity::State::DOWNLOADING;
+      activity.downloadProgress = 1572864;
+      activity.downloadTotal = 4194304;
+      break;
+    case UiOracleCase::PluginDone:
+      activity.state = CatalogActivity::State::DONE;
+      break;
+    case UiOracleCase::PluginNoToken:
+      activity.state = CatalogActivity::State::NO_TOKEN;
+      break;
+    case UiOracleCase::PluginAuth:
+      activity.state = CatalogActivity::State::AUTH;
+      activity.authVerifyUrl = "https://example.invalid/activate";
+      activity.authUserCode = "TEST-ABCD";
+      activity.authNextPollMs = millis() + 3600000;
+      break;
+    default:
+      return false;
+  }
+  activity.requestUpdate();
+  return true;
+}
+
+bool uiOracleHubEnter(PluginHubInstallActivity& activity) {
+  if (hubCase == UiOracleCase::Invalid) return false;
+  activity.statusMessage = "Install Plugin Hub";
+  activity.errorMessage = "Download failed";
+  switch (hubCase) {
+    case UiOracleCase::HubDownload:
+      activity.state = CatalogActivity::State::DOWNLOADING;
+      activity.downloadProgress = 1572864;
+      activity.downloadTotal = 4194304;
+      break;
+    case UiOracleCase::HubDone:
+      activity.state = CatalogActivity::State::DONE;
+      break;
+    case UiOracleCase::HubError:
+      activity.state = CatalogActivity::State::ERROR;
+      break;
+    case UiOracleCase::HubLoading:
+      activity.state = CatalogActivity::State::LOADING;
+      break;
+    default:
+      return false;
+  }
+  activity.requestUpdate();
+  return true;
+}
+
 void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
   if (!Storage.exists(SELECTOR_PATH)) return;
   HalFile file;
@@ -132,6 +236,40 @@ void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
       auto activity = makeUniqueNoThrow<OpdsBookBrowserActivity>(renderer, input, OpdsServer{});
       if (!activity) {
         LOG_ERR("ORACLE", "OOM: OPDS activity");
+        return;
+      }
+      activityManager.replaceActivity(std::move(activity));
+      return;
+    }
+    case UiOracleCase::PluginBrowse:
+    case UiOracleCase::PluginXml:
+    case UiOracleCase::PluginLists:
+    case UiOracleCase::PluginEmpty:
+    case UiOracleCase::PluginError:
+    case UiOracleCase::PluginLoading:
+    case UiOracleCase::PluginWifi:
+    case UiOracleCase::PluginSearch:
+    case UiOracleCase::PluginDownload:
+    case UiOracleCase::PluginDone:
+    case UiOracleCase::PluginNoToken:
+    case UiOracleCase::PluginAuth: {
+      pluginCase = selected;
+      auto activity = makeUniqueNoThrow<PluginCatalogActivity>(renderer, input);
+      if (!activity) {
+        LOG_ERR("ORACLE", "OOM: plugin fixture");
+        return;
+      }
+      activityManager.replaceActivity(std::move(activity));
+      return;
+    }
+    case UiOracleCase::HubDownload:
+    case UiOracleCase::HubDone:
+    case UiOracleCase::HubError:
+    case UiOracleCase::HubLoading: {
+      hubCase = selected;
+      auto activity = makeUniqueNoThrow<PluginHubInstallActivity>(renderer, input);
+      if (!activity) {
+        LOG_ERR("ORACLE", "OOM: plugin fixture");
         return;
       }
       activityManager.replaceActivity(std::move(activity));

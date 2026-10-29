@@ -16,7 +16,23 @@ enum class UiOracleCase {
   OpdsLoading,
   OpdsDownload,
   OpdsBytes,
-  OpdsAuth
+  OpdsAuth,
+  PluginBrowse,
+  PluginXml,
+  PluginLists,
+  PluginEmpty,
+  PluginError,
+  PluginLoading,
+  PluginWifi,
+  PluginSearch,
+  PluginDownload,
+  PluginDone,
+  PluginNoToken,
+  PluginAuth,
+  HubDownload,
+  HubDone,
+  HubError,
+  HubLoading,
 };
 
 constexpr size_t UI_ORACLE_SELECTOR_MAX = 31;
@@ -41,6 +57,22 @@ inline UiOracleCase uiOracleCase(const std::string_view name) {
   if (name == "opds-download") return UiOracleCase::OpdsDownload;
   if (name == "opds-bytes") return UiOracleCase::OpdsBytes;
   if (name == "opds-auth") return UiOracleCase::OpdsAuth;
+  if (name == "plugin-browse") return UiOracleCase::PluginBrowse;
+  if (name == "plugin-xml") return UiOracleCase::PluginXml;
+  if (name == "plugin-lists") return UiOracleCase::PluginLists;
+  if (name == "plugin-empty") return UiOracleCase::PluginEmpty;
+  if (name == "plugin-error") return UiOracleCase::PluginError;
+  if (name == "plugin-loading") return UiOracleCase::PluginLoading;
+  if (name == "plugin-wifi") return UiOracleCase::PluginWifi;
+  if (name == "plugin-search") return UiOracleCase::PluginSearch;
+  if (name == "plugin-download") return UiOracleCase::PluginDownload;
+  if (name == "plugin-done") return UiOracleCase::PluginDone;
+  if (name == "plugin-no-token") return UiOracleCase::PluginNoToken;
+  if (name == "plugin-auth") return UiOracleCase::PluginAuth;
+  if (name == "hub-download") return UiOracleCase::HubDownload;
+  if (name == "hub-done") return UiOracleCase::HubDone;
+  if (name == "hub-error") return UiOracleCase::HubError;
+  if (name == "hub-loading") return UiOracleCase::HubLoading;
   // Settings-family fixtures.
   if (name == "settings-home-button") return UiOracleCase::SettingsHomeButton;
   return UiOracleCase::Invalid;

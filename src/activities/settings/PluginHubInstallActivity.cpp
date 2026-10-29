@@ -31,6 +31,9 @@ bool PluginHubInstallActivity::isAvailable() {
 
 void PluginHubInstallActivity::onEnter() {
   CatalogActivity::onEnter();
+#ifdef CROSSPOINT_UI_ORACLE
+  if (uiOracleHubEnter(*this)) return;
+#endif
 
   if (!showConfirmation) {
     state = State::CHECK_WIFI;

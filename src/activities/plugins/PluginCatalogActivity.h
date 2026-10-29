@@ -35,6 +35,9 @@ std::vector<PluginRef> discoverPlugins();
 // See docs/sd-plugins.md for the device.json schema.
 class PluginCatalogActivity final : public CatalogActivity {
  public:
+#ifdef CROSSPOINT_UI_ORACLE
+  friend bool uiOraclePluginEnter(PluginCatalogActivity&);
+#endif
   // showOpds adds the OPDS row; rootMode returns Home instead of popping to Settings.
   // Out-of-line construction/destruction needs the complete SecureHttpClient type.
   explicit PluginCatalogActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool showOpds = false,

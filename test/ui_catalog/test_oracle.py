@@ -24,7 +24,35 @@ def record(mutate=False):
                         '-o', str(binary)], check=True)
         return subprocess.check_output([str(binary)])
 
+def plugin_record(mutate=False):
+    with tempfile.TemporaryDirectory() as directory:
+        source = (HERE / 'plugin_oracle.cpp').read_text()
+        source = source.replace('#include "oracle.cpp"', '#include "' + str(HERE / 'oracle.cpp') + '"')
+        original = (HERE / 'plugin_original.inc').read_text()
+        if mutate:
+            original = original.replace('qrSize = 180', 'qrSize = 181')
+        source = source.replace('#include "plugin_original.inc"', original)
+        cpp = pathlib.Path(directory) / 'plugin.cpp'
+        cpp.write_text(source)
+        binary = pathlib.Path(directory) / 'plugin'
+        subprocess.run(['c++', '-std=c++20', '-DFREEINK_UI_COMPONENT_STYLE=0',
+                        '-I' + str(SDK / 'include'), str(cpp), str(SDK / 'src/FreeInkUI.cpp'),
+                        '-o', str(binary)], check=True)
+        return subprocess.check_output([str(binary)])
+
 class Golden(unittest.TestCase):
+    def test_plugin_widgets(self):
+        self.assertEqual(plugin_record(), gzip.decompress((HERE / 'plugin.golden.gz').read_bytes()))
+
+    def test_plugin_qr_mutation(self):
+        self.assertNotEqual(plugin_record(True), gzip.decompress((HERE / 'plugin.golden.gz').read_bytes()))
+
+    def test_plugin_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            binary = pathlib.Path(directory) / 'plugin-input'
+            subprocess.run(['c++', '-std=c++20', str(HERE / 'plugin_input_oracle.cpp'), '-o', str(binary)], check=True)
+            self.assertEqual(subprocess.check_output([str(binary)]), (HERE / 'plugin-input.golden').read_bytes())
+
     def test_input_policy(self):
         with tempfile.TemporaryDirectory() as directory:
             binary = pathlib.Path(directory) / 'input'

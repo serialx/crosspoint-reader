@@ -446,6 +446,9 @@ int PluginCatalogActivity::apiRequest(const pluginhttp::RequestSpec& req, String
 
 void PluginCatalogActivity::onEnter() {
   CatalogActivity::onEnter();
+#ifdef CROSSPOINT_UI_ORACLE
+  if (uiOraclePluginEnter(*this)) return;
+#endif
   enterPluginPicker();
 }
 

@@ -4,6 +4,9 @@
 
 class PluginHubInstallActivity final : public CatalogActivity {
  public:
+#ifdef CROSSPOINT_UI_ORACLE
+  friend bool uiOracleHubEnter(PluginHubInstallActivity&);
+#endif
   explicit PluginHubInstallActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                     bool showConfirmation = true);
 

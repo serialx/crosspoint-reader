@@ -26,4 +26,19 @@ int main() {
         std::printf("page-turn %d %d %d: 8 %d %d\n", orientation, pageTurn, selection, orientation, selection);
     }
   }
+  // OptionPopup Back/outside cancellation never invokes its selection callback.
+  for (int option = 0; option < 2; ++option) std::printf("popup-cancel %d: 0 -1 3 4 1\n", option);
+  // buildMenuItems remains the parent-owned resource adapter. Only exposed
+  // rows can dispatch a capability-dependent service action.
+  const int actions[] = {0, 1, 9, 12, 10, 11, 3, 4, 5, 18, 8, 7, 6, 13, 14, 15, 16, 17, 2};
+  for (int caps = 0; caps < 8; ++caps) {
+    std::printf("capabilities %d:", caps);
+    for (int action : actions) {
+      if (action == 4 && (!(caps & 1) || (caps & 2))) continue;
+      if (action == 5 && !(caps & 4)) continue;
+      const int effect = action == 8 ? 1 : action == 7 ? 2 : action == 3 ? 3 : action == 5 ? 4 : action == 4 ? 5 : 6;
+      std::printf(" %d=%d", action, effect);
+    }
+    std::printf("\n");
+  }
 }

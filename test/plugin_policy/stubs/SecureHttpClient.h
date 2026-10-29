@@ -18,6 +18,11 @@ class SecureHttpClient {
   bool cancelled = false;
 
  public:
+#ifdef PLUGIN_TOKEN_LIFETIME
+  ~SecureHttpClient() {
+    if (oracle::responseIndex == 3) allocation_probe::beginToast();
+  }
+#endif
   using DataCallback = std::function<bool(const uint8_t*, size_t)>;
   using AbortCallback = std::function<bool()>;
   bool begin(const std::string& url) {
@@ -28,7 +33,13 @@ class SecureHttpClient {
   void setInsecure() { oracle::record("insecure"); }
   void setUserAgent(const std::string& s) { oracle::record("agent %s", s.c_str()); }
   void setBasicAuth(const std::string& u, const std::string& p) { oracle::record("basic %s %s", u.c_str(), p.c_str()); }
-  void addHeader(const std::string& k, const std::string& v) { oracle::record("header %s %s", k.c_str(), v.c_str()); }
+  void addHeader(const std::string& k, const std::string& v) {
+    oracle::record("header %s %s", k.c_str(), v.c_str());
+#ifdef PLUGIN_TOKEN_LIFETIME
+    oracle::record("header-bytes %s %zu %u", k.c_str(), v.size(),
+                   oracle::hash(reinterpret_cast<const uint8_t*>(v.data()), v.size()));
+#endif
+  }
   int GET(const DataCallback& cb, const AbortCallback& abort = nullptr) {
     return sendRequest("GET", nullptr, 0, cb, abort);
   }

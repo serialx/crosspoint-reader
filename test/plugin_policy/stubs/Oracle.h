@@ -11,6 +11,9 @@
 #include <vector>
 
 #include "AllocationFault.h"
+#ifdef PLUGIN_TOKEN_LIFETIME
+#include "AllocationProbe.h"
+#endif
 namespace oracle {
 inline std::vector<std::string> trace;
 inline std::map<std::string, std::vector<uint8_t>> files;

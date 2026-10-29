@@ -32,3 +32,13 @@ can compile a separate original source tree against the same leaves; `--record`
 updates the goldens and must only be used with the original implementation.
 The storage stub records operation ordering and injects failures at the HAL
 boundary. It does not simulate physical SD power loss or replace device testing.
+
+The token-lifetime case uses an 8,192-byte auth response and expands the refreshed
+8,173-byte token in the success toast. A host-only `operator new` probe measures
+requested C++ allocation payload from retry transport teardown through popup
+entry, excluding malloc-based ArduinoJson and real TLS/display allocations.
+Four token-sized blocks remain at popup entry (two scripted response copies,
+the adopted token, and the expanded toast); a retained mint copy fails the test.
+Use `--token-lifetime --record` against frozen baseline sources, then
+`--token-lifetime --memory-baseline <baseline build>` for byte-exact trace and
+peak/live allocation comparison. The ordinary 48/944-case goldens are unchanged.

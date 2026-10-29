@@ -36,6 +36,11 @@ int main(int argc, char** argv) {
   const std::string dir = "/plugins/demo", queue = dir + "/events.jsonl";
   std::string manifest =
       R"({"token":{"file":"token.json","path":"auth.token"},"config":{"file":"config.json"},"auth":{"type":"password","token_path":"access_token","request":{"url":"https://auth","body":"{cfg.secret}:{event.book}","headers":{"Auth":"{token}"}}},"events":{"unknown":{},"reader.exit":{"connect":true,"request":{"url":"https://send/{event.id}","headers":{"Auth":"{token}"},"body":"{event.book}|{event.percent}|{event.ts}|{cfg.secret}|{meta.id}"},"toast":"Sent {event.book}"},"sleep.enter":{"download":{"url":"https://image","dest":"/sleep.bmp"}}}})";
+#ifdef PLUGIN_TOKEN_LIFETIME
+  if (c == 48)
+    manifest =
+        R"({"token":{"file":"token.json","path":"auth.token"},"auth":{"type":"password","token_path":"access_token","request":{"url":"https://auth"}},"events":{"reader.exit":{"request":{"url":"https://send","headers":{"Auth":"{token}"}},"toast":"{token}"}}})";
+#endif
   if (c == 20) manifest = R"({"events":{"reader.exit":{}}})";
   if (c == 21) manifest = "{";
   if (c == 22)
@@ -97,7 +102,14 @@ int main(int argc, char** argv) {
   if (c == 6) file(queue, "\ninvalid\n{\"e\":\"removed\"}\n{\"e\":\"reader.exit\",\"vars\":{\"book\":\"/book.epub\"}}");
   if (c == 46) file(queue, std::string(4609, 'x'));
   printf("CONNECT %d\n", pluginevents::wantsConnectAny());
-  if (c == 7 || c == 40) {
+#ifdef PLUGIN_TOKEN_LIFETIME
+  if (c == 48) {
+    response(401);
+    response(200, "{\"access_token\":\"" + std::string(8173, 't') + "\"}");
+    response(204);
+  } else
+#endif
+      if (c == 7 || c == 40) {
     response(401);
     response(200, R"({"access_token":"fresh"})");
     response(204);
@@ -153,6 +165,10 @@ int main(int argc, char** argv) {
     printf("SAVE %d\n", pluginhttp::saveTokenToFile(dir + "/save.json", "a.b", "new"));
   }
   dump();
+#ifdef PLUGIN_TOKEN_LIFETIME
+  printf("MEM toast_peak=%zu toast_live=%zu toast_large=%zu\n", allocation_probe::peak, allocation_probe::toastLive,
+         allocation_probe::toastLarge);
+#endif
 #ifdef PLUGIN_JSON_FAULTS
   printf("MEM json_attempts=%zu peak_bytes=%zu live_bytes=%zu\n", json_fault::attempts, json_fault::peak,
          json_fault::live);

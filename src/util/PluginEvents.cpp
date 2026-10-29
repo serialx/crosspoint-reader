@@ -487,6 +487,7 @@ bool deliverLine(const DrainManifest& mf, const std::string& lineText, std::stri
             break;
           case XP_PLUGIN_DELIVERY_ACCEPT_TOKEN:
             c.token = c.minted;
+            std::string{}.swap(c.minted);
             break;
           case XP_PLUGIN_DELIVERY_TOAST:
             GUI.drawPopup(*c.renderer, c.substituted(c.handler.toast).c_str());

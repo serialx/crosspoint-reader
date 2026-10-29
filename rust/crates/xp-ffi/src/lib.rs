@@ -27,6 +27,7 @@ mod section;
 mod settings;
 mod text;
 mod textm;
+mod web_jobs;
 mod xml;
 mod xtc;
 mod zip;

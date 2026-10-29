@@ -1939,6 +1939,179 @@ uint8_t xp_library_book(const uint8_t*, size_t);
 uint8_t xp_library_build(const XpLibraryServices*, const uint8_t*, size_t, XpLibraryStats*, uint8_t, uint8_t*);
 uint8_t xp_library_dirty(const XpLibraryServices*, uint8_t*, uint8_t);
 
+// Synchronous transfer jobs. Callbacks and context must remain live and cannot reenter.
+// Buffers are borrowed for one callback. Flash scratch is exactly 4096 bytes, allocated
+// and freed by the paired C++ callbacks; no Rust allocation is retained.
+typedef struct {
+  uint8_t captured[24];
+  size_t name_len;
+  size_t magic_matched;
+  bool capturing;
+  bool mismatch;
+} XpBoardScanner;
+void xp_board_scan(XpBoardScanner* state, const uint8_t* data, size_t len, const uint8_t* tag, size_t tag_len);
+enum XpFlashOp {
+  XP_FLASH_OPEN,
+  XP_FLASH_CLOSE,
+  XP_FLASH_SIZE,
+  XP_FLASH_CHIP,
+  XP_FLASH_ALLOCATE,
+  XP_FLASH_FREE,
+  XP_FLASH_READ,
+  XP_FLASH_SHA_INIT,
+  XP_FLASH_SHA_UPDATE,
+  XP_FLASH_SHA_FINISH,
+  XP_FLASH_SHA_FREE,
+  XP_FLASH_PARTITION,
+  XP_FLASH_ERASE,
+  XP_FLASH_WRITE,
+  XP_FLASH_SWITCH,
+  XP_FLASH_PROGRESS,
+  XP_FLASH_DELAY,
+  XP_FLASH_PARTITION_SIZE
+};
+typedef struct {
+  void* ctx;
+  size_t (*operation)(void*, uint32_t op, size_t a, size_t b, uint8_t* bytes);
+  // Events 0..11: validation; 12..20: partition/open/transfer/switch. Text is
+  // a borrowed NUL-terminated board name for event 8, otherwise null.
+  void (*diagnostic)(void*, uint32_t event, size_t a, size_t b, size_t c, size_t d, const uint8_t* text);
+  const uint8_t* tag;
+  size_t tag_len;
+} XpFlashServices;
+uint32_t xp_flash_validate(const XpFlashServices* services, size_t partition_size);
+uint32_t xp_flash_run(const XpFlashServices* services, bool already_validated);
+
+bool xp_sensitive_path(const uint8_t* path, size_t len, uint8_t* scratch);
+bool xp_short_alias(const uint8_t* path, size_t len);
+bool xp_plugin_path_candidate(const uint8_t* path, size_t len);
+
+enum XpHttpMode { XP_HTTP_FETCH, XP_HTTP_CATALOG, XP_HTTP_FORM, XP_HTTP_DOWNLOAD, XP_HTTP_POST_FILE };
+typedef struct {
+  size_t bytes, total;
+  int32_t status;
+  uint32_t mode;
+  bool capture, known, aborted, stopped, complete, same_origin;
+} XpHttpState;
+enum XpHttpOp {
+  XP_HTTP_REMOVE,
+  XP_HTTP_OPEN,
+  XP_HTTP_CLOSE,
+  XP_HTTP_REPLACE,
+  XP_HTTP_WRITE,
+  XP_HTTP_PROGRESS,
+  XP_HTTP_SINK,
+  XP_HTTP_APPEND,
+  XP_HTTP_RESOLVE,
+  XP_HTTP_SAME_ORIGIN,
+  XP_HTTP_LAST_STATUS,
+  XP_HTTP_LAST_REDIRECTED,
+  XP_HTTP_GUARD_ENTER,
+  XP_HTTP_GUARD_EXIT
+};
+typedef struct {
+  void* ctx;
+  size_t (*operation)(void*, uint32_t op, size_t a, size_t b, const uint8_t* bytes);
+  int32_t (*request)(void*, XpHttpState*);
+  void (*diagnostic)(void*, uint32_t event, size_t a, size_t b);
+} XpHttpServices;
+// Mode 0 simple GET; 1 catalog GET; 2 form POST; 3 file GET; 4 file POST.
+// A request may call xp_http_chunk synchronously; all other reentry is forbidden.
+bool xp_http_redirect(int32_t status);
+// Authorization choice: 0 none, 1 basic, 2 bearer. Caller headers use same_origin.
+uint32_t xp_http_auth(bool same_origin, size_t bearer_len, size_t user_len, size_t password_len);
+uint32_t xp_http_run(const XpHttpServices* services, XpHttpState* state);
+bool xp_http_chunk(const XpHttpServices* services, XpHttpState* state, const uint8_t* data, size_t len);
+
+typedef struct {
+  bool ok, existed;
+} XpDavState;
+enum XpDavOp {
+  XP_DAV_EXISTS,
+  XP_DAV_OPEN,
+  XP_DAV_CLOSE,
+  XP_DAV_DIRECTORY,
+  XP_DAV_SIZE,
+  XP_DAV_NEXT,
+  XP_DAV_NAME,
+  XP_DAV_READ,
+  XP_DAV_WRITE,
+  XP_DAV_AVAILABLE,
+  XP_DAV_REMOVE,
+  XP_DAV_RMDIR,
+  XP_DAV_MKDIR,
+  XP_DAV_RENAME,
+  XP_DAV_OPEN_WRITE,
+  XP_DAV_REMOVE_BOOK,
+  XP_DAV_CLEAR_CACHE,
+  XP_DAV_MOVE_BOOK,
+  XP_DAV_STREAM,
+  XP_DAV_WATCHDOG,
+  XP_DAV_YIELD,
+  XP_DAV_LENGTH,
+  XP_DAV_IS_OPEN
+};
+// Paths have writable NUL-terminated storage; Rust temporarily terminates a parent
+// component during exists(). Callbacks cannot retain those pointers or reenter.
+typedef struct {
+  void* ctx;
+  size_t (*operation)(void*, uint32_t, size_t, size_t, const uint8_t*);
+  void (*response)(void*, uint32_t, const uint8_t*, const uint8_t*);
+  void (*content)(void*, uint32_t, const uint8_t*, size_t);
+  void (*header)(void*, const uint8_t*, const uint8_t*);
+  void (*diagnostic)(void*, uint32_t, size_t, size_t);
+  uint8_t* path;
+  size_t path_len;
+  uint8_t* destination;
+  size_t destination_len;
+  const uint8_t* temp;
+  uint32_t depth;
+  bool overwrite, body;
+} XpDavServices;
+bool xp_dav_handle(const XpDavServices*, const XpDavState*, uint32_t method);
+void xp_dav_raw(const XpDavServices*, XpDavState*, uint32_t event, const uint8_t*, size_t len, size_t total);
+// out capacity >= len+2. Input and output cannot overlap.
+size_t xp_dav_normalize(const uint8_t*, size_t len, uint8_t* out);
+size_t xp_dav_destination_offset(const uint8_t*, size_t len);
+// Bit 0: depth is positive; bit 1: overwrite is allowed.
+uint32_t xp_dav_headers(const uint8_t* depth, size_t depth_len, const uint8_t* overwrite, size_t overwrite_len);
+
+typedef struct {
+  uint8_t pending[16], id[64];
+  size_t len;
+} XpLcpParse;
+enum XpLcpOp {
+  XP_LCP_LOAD,
+  XP_LCP_ID_LEN,
+  XP_LCP_PRIVATE_LEN,
+  XP_LCP_EXPORT_ID,
+  XP_LCP_KEYGEN,
+  XP_LCP_APPEND_REQUEST,
+  XP_LCP_APPEND_PUBLIC,
+  XP_LCP_POST,
+  XP_LCP_SET_ID,
+  XP_LCP_SET_PRIVATE,
+  XP_LCP_SAVE,
+  XP_LCP_FORGET,
+  XP_LCP_PRIVATE,
+  XP_LCP_DECODE,
+  XP_LCP_UNWRAP
+};
+typedef struct {
+  void* ctx;
+  size_t (*operation)(void*, uint32_t, size_t, uint8_t*);
+  bool (*parse)(void*, XpLcpParse*);
+  void (*diagnostic)(void*, uint32_t);
+  bool* loaded;
+  const uint8_t* release;
+  size_t release_len;
+} XpLcpServices;
+void xp_lcp_json(XpLcpParse*, bool key, const uint8_t*, size_t len);
+bool xp_lcp_existing(const XpLcpServices*, bool* not_enrollable);
+bool xp_lcp_ensure(const XpLcpServices*, bool* not_enrollable);
+void xp_lcp_forget(const XpLcpServices*);
+bool xp_lcp_unwrap(const XpLcpServices*, uint8_t out[32]);
+
 #ifdef __cplusplus
 }
 #endif

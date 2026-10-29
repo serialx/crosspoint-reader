@@ -18,6 +18,7 @@ class String : public std::string {
   using std::string::string;
   String(const std::string& s) : std::string(s) {}
   String(size_t n) : std::string(std::to_string(n)) {}
+  char* begin() { return data(); }
   void concat(const char* p, size_t n) { append(p, n); }
   bool isEmpty() const { return empty(); }
   bool startsWith(const char* s) const { return rfind(s, 0) == 0; }

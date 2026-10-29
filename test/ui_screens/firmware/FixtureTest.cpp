@@ -17,6 +17,14 @@ int main() {
   }
   assert(uiOracleCase("settings-home-button") == UiOracleCase::SettingsHomeButton);
   assert(uiOracleCase("settings-home-button-unknown") == UiOracleCase::Invalid);
+  assert(uiOracleCase("opds-browse") == UiOracleCase::OpdsBrowse);
+  assert(uiOracleCase("opds-empty") == UiOracleCase::OpdsEmpty);
+  assert(uiOracleCase("opds-error") == UiOracleCase::OpdsError);
+  assert(uiOracleCase("opds-loading") == UiOracleCase::OpdsLoading);
+  assert(uiOracleCase("opds-download") == UiOracleCase::OpdsDownload);
+  assert(uiOracleCase("opds-bytes") == UiOracleCase::OpdsBytes);
+  assert(uiOracleCase("opds-auth") == UiOracleCase::OpdsAuth);
+  assert(uiOracleCase("opds-browse-extra") == UiOracleCase::Invalid);
   UiOracleFrontlight light;
   assert(!light.present());
   light.configure(true);

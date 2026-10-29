@@ -83,6 +83,9 @@ OpdsBookBrowserActivity::OpdsBookBrowserActivity(GfxRenderer& renderer, MappedIn
 void OpdsBookBrowserActivity::onEnter() {
   CatalogActivity::onEnter();
   app.on(ACTION_PAGE, &OpdsBookBrowserActivity::onPageEvent, this);
+#ifdef CROSSPOINT_UI_ORACLE
+  if (uiOracleOpdsEnter(*this)) return;
+#endif
 
   // Configure the OPDS client for this server, restore any persisted token, and
   // reset the per-session auth latches. Accept-Language localizes the catalog

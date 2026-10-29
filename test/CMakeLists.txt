@@ -152,6 +152,7 @@ add_subdirectory(settings_store)
 add_subdirectory(library_oracle)
 
 add_subdirectory(ui_runtime)
+add_subdirectory(ui_catalog)
 add_subdirectory(reader_chrome)
 
 

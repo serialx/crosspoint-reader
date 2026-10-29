@@ -2555,11 +2555,156 @@
       "id": "fixture-settings-home-button",
       "fixture": "entry-settings-home-button",
       "screens": [
-        {"id": "home-button", "activity": "HomeButtonSettings", "steps": ["expect-log:Entering activity: HomeButtonSettings", "wait-quiet:2"]},
-        {"id": "home-button-options", "activity": "HomeButtonSettings", "steps": ["press:confirm"]},
-        {"id": "home-button-cancel", "activity": "HomeButtonSettings", "steps": ["press:back"]},
-        {"id": "home-button-double", "activity": "HomeButtonSettings", "steps": ["press:down"]},
-        {"id": "home-button-long", "activity": "HomeButtonSettings", "steps": ["press:down"]}
+        {
+          "id": "home-button",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "expect-log:Entering activity: HomeButtonSettings",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "home-button-options",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "home-button-cancel",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "home-button-double",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        },
+        {
+          "id": "home-button-long",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-browse",
+      "fixture": "entry-opds-browse",
+      "screens": [
+        {
+          "id": "opds-fixture-browse",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "opds-search",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:left",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "opds-search-cancel",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "press:back",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-empty",
+      "fixture": "entry-opds-empty",
+      "screens": [
+        {
+          "id": "opds-fixture-empty",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-error",
+      "fixture": "entry-opds-error",
+      "screens": [
+        {
+          "id": "opds-fixture-error",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-loading",
+      "fixture": "entry-opds-loading",
+      "screens": [
+        {
+          "id": "opds-fixture-loading",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-download",
+      "fixture": "entry-opds-download",
+      "screens": [
+        {
+          "id": "opds-fixture-download",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-bytes",
+      "fixture": "entry-opds-bytes",
+      "screens": [
+        {
+          "id": "opds-fixture-bytes",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-auth",
+      "fixture": "entry-opds-auth",
+      "screens": [
+        {
+          "id": "opds-fixture-auth",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
       ]
     }
   ]

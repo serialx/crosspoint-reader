@@ -25,7 +25,16 @@
     {
       "source": "src/activities/CatalogActivity.cpp",
       "status": "shared-implementation",
-      "reason": "No separate activity entry; exercised through its concrete callers."
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
+      "groups": [
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
+      ]
     },
     {
       "source": "src/activities/UiListActivity.cpp",
@@ -70,9 +79,16 @@
       "source": "src/activities/browser/OpdsBookBrowserActivity.cpp",
       "status": "offline-gate",
       "groups": [
-        "opds-offline"
+        "opds-offline",
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
       ],
-      "reason": "OPDS requires a successful Wi-Fi connection before catalog results, details, pagination, and download/progress/error states.",
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
       "contract": "src/activities/CatalogActivity.cpp:52"
     },
     {

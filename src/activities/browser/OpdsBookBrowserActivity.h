@@ -26,6 +26,9 @@ class OpdsBookBrowserActivity final : public CatalogActivity {
   void onExit() override;
 
  private:
+#ifdef CROSSPOINT_UI_ORACLE
+  friend bool uiOracleOpdsEnter(OpdsBookBrowserActivity&);
+#endif
   // Subclass actions after the base's ACTION_SEARCH/ACTION_CANCEL.
   static constexpr freeink::ui::ActionId ACTION_PAGE = ACTION_USER + 2;
 

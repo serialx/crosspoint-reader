@@ -161,3 +161,84 @@ void xp_web_ws(void*, const XpWebTransfers*, XpWebWsUpload*, uint8_t, uint32_t, 
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Settings/credential descriptors borrow their C++ owner for one serialized
+// request. JSON strings borrow the parsed document; converted setting strings
+// borrow scratch until the next json_value call. Setters copy before mutation.
+typedef enum {
+  XP_WEB_SETTINGS_GET,
+  XP_WEB_SETTINGS_POST,
+  XP_WEB_OPDS_GET,
+  XP_WEB_OPDS_POST,
+  XP_WEB_OPDS_DELETE,
+  XP_WEB_WIFI_GET,
+  XP_WEB_WIFI_POST,
+  XP_WEB_WIFI_DELETE,
+  XP_WEB_SETTINGS_PAGE
+} XpWebConfigRoute;
+typedef enum { XP_WEB_TOGGLE, XP_WEB_ENUM, XP_WEB_VALUE, XP_WEB_STRING, XP_WEB_ACTION } XpWebSettingKind;
+typedef struct {
+  XpWebText key, name, category, text;
+  uint32_t kind, options;
+  int32_t value, min, max, step;
+  bool hidden, has_value, obfuscated, off_on;
+} XpWebSetting;
+typedef struct {
+  XpWebText text;
+  int32_t integer;
+  bool present, string, is_int, array;
+} XpWebJsonValue;
+typedef struct {
+  XpWebText name, value;
+} XpWebHeader;
+typedef struct {
+  XpWebText name, url, username, password;
+  XpWebHeader headers[2];
+} XpWebOpds;
+typedef struct {
+  XpWebText ssid, password;
+  bool has_password, last_connected;
+} XpWebWifi;
+typedef enum { XP_WEB_WIFI_SUMMARY, XP_WEB_WIFI_CREDENTIAL, XP_WEB_WIFI_SSID } XpWebWifiRead;
+typedef enum {
+  XP_WEB_CONFIG_PAGE,
+  XP_WEB_CONFIG_SETTINGS,
+  XP_WEB_CONFIG_SKIPPED,
+  XP_WEB_CONFIG_APPLIED,
+  XP_WEB_CONFIG_OPDS_LIST,
+  XP_WEB_CONFIG_OPDS_UPDATED,
+  XP_WEB_CONFIG_OPDS_ADDED,
+  XP_WEB_CONFIG_OPDS_DELETED,
+  XP_WEB_CONFIG_WIFI_LIST,
+  XP_WEB_CONFIG_WIFI_UPDATED,
+  XP_WEB_CONFIG_WIFI_ADDED,
+  XP_WEB_CONFIG_WIFI_DELETED
+} XpWebConfigDiagnostic;
+typedef struct {
+  const XpWebServices* files;
+  XpWebText (*parse)(void*, XpWebText);
+  XpWebJsonValue (*json_value)(void*, const char*, int32_t header, bool convert);
+  size_t (*count)(void*, uint32_t route);
+  void (*setting)(void*, size_t, bool read_value, XpWebSetting*);
+  XpWebText (*option)(void*, size_t, size_t);
+  // STRING setters consume the last json_value(convert=true) scratch string.
+  void (*set_setting)(void*, size_t, int32_t);
+  void (*save_settings)(void*);
+  bool (*opds)(void*, size_t, XpWebOpds*);
+  bool (*put_opds)(void*, int32_t, const XpWebOpds*);
+  void (*remove_opds)(void*, size_t);
+  bool (*wifi)(void*, size_t, uint32_t read, XpWebWifi*);
+  bool (*put_wifi)(void*, XpWebText, XpWebText);
+  bool (*remove_wifi)(void*, XpWebText);
+  XpWebText (*request_header)(void*, const char*);
+  void (*send_asset)(void*, XpWebText);
+  XpWebText asset, etag;
+  void (*diagnostic)(void*, uint32_t, size_t, XpWebText);
+} XpWebConfig;
+void xp_web_config(void*, const XpWebConfig*, uint32_t route);
+#ifdef __cplusplus
+}
+#endif

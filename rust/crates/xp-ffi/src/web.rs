@@ -1,3 +1,4 @@
+mod config;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.
 use alloc::vec::Vec;
@@ -705,6 +706,7 @@ impl<'a> Output<'a> {
                 b'\t' => self.add(b"\\t"),
                 8 => self.add(b"\\b"),
                 12 => self.add(b"\\f"),
+                0 => self.add(b"\\u0000"),
                 _ => self.add(&[b]),
             }
         }

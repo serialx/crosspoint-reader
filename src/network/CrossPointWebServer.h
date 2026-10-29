@@ -12,6 +12,7 @@
 
 class CrossPointWebServer {
   friend struct WebFileBridge;
+  friend struct WebConfigBridge;
 
  public:
   struct WsUploadStatus {

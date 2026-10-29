@@ -19,46 +19,16 @@ void CrashActivity::onEnter() {
 }
 
 void CrashActivity::loop() {
-  int x = 0;
-  int y = 0;
-  if (mappedInput.wasPressed(MappedInputManager::Button::Back) || mappedInput.wasScreenTapped(x, y)) {
-    finish();
-  }
+  XpUiInput input{};
+  if (mappedInput.wasPressed(MappedInputManager::Button::Back)) input.pressed = XP_UI_BACK;
+  int x = 0, y = 0;
+  input.action = !input.pressed && mappedInput.wasScreenTapped(x, y) ? 1 : 0;
+  if (xp_ui_crash_update(&input).kind == XP_UI_CANCEL) finish();
 }
 
 void CrashActivity::render(RenderLock&&) {
-  renderer.clearScreen();
-
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto contentWidth = pageWidth - 2 * metrics.contentSidePadding;
-  const auto x = metrics.contentSidePadding;
-  const auto lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
-
-  // Crash report is a dead end, not a pushed screen: no back button.
-  GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, tr(STR_CRASH_TITLE), nullptr,
-                 false);
-
-  int y = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
-
-  auto descLines = renderer.wrappedText(UI_10_FONT_ID, tr(STR_CRASH_DESCRIPTION), contentWidth, 10);
-  for (const auto& line : descLines) {
-    renderer.drawText(UI_10_FONT_ID, x, y, line.c_str());
-    y += lineHeight;
-  }
-
-  y += metrics.verticalSpacing * 2;
-  renderer.drawText(UI_10_FONT_ID, x, y, tr(STR_CRASH_REASON));
-  y += lineHeight + metrics.verticalSpacing;
-
-  auto panicLines = renderer.wrappedText(UI_10_FONT_ID, panicMessage.c_str(), contentWidth, 5);
-  for (const auto& line : panicLines) {
-    renderer.drawText(UI_10_FONT_ID, x, y, line.c_str());
-    y += lineHeight;
-  }
-
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-
-  renderer.displayBuffer();
+  const int width = renderer.getScreenWidth() - 2 * UITheme::getInstance().getMetrics().contentSidePadding;
+  const auto description = renderer.wrappedText(UI_10_FONT_ID, tr(STR_CRASH_DESCRIPTION), width, 10);
+  const auto panic = renderer.wrappedText(UI_10_FONT_ID, panicMessage.c_str(), width, 5);
+  paintBootView(XP_UI_BOOT_CRASH, XP_UI_FAST, ViewData{nullptr, nullptr, &description, &panic});
 }

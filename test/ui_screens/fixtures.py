@@ -95,18 +95,23 @@ def prepare(case, kind):
             epub(root / 'ZZNext.epub')
             assets.append((root / 'ZZNext.epub', '/'))
         return assets
-    if kind in ('image', 'sleep-custom'):
+    if kind in ('image', 'image-siblings', 'sleep-custom'):
         if kind == 'sleep-custom':
             bitmap(root / 'sleep.bmp')
             return [(root / 'sleep.bmp', '/')]
         bitmap(root / 'Image.bmp')
+        if kind == 'image-siblings':
+            bitmap(root / 'Second.bmp')
+            data = bytearray((root / 'Second.bmp').read_bytes())
+            data[54:] = bytes(255 - value for value in data[54:])
+            (root / 'Second.bmp').write_bytes(data)
     if kind == 'broken-book':
         (root / 'Broken.epub').write_bytes(b'not a zip')
     if kind == 'firmware':
         (root / 'Invalid.bin').write_bytes(b'not firmware')
-    if kind == 'xtc':
+    if kind in ('xtc', 'xtc-gray'):
         spec = importlib.util.spec_from_file_location('xtc_fixture', Path(__file__).resolve().parents[1] / 'xtc_diff/generate.py')
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        (root / 'Oracle.xtc').write_bytes(module.book(width=480, height=800))
+        (root / 'Oracle.xtc').write_bytes(module.book(depth=2 if kind == 'xtc-gray' else 1, width=480, height=800))
     return [(p, '/') for p in sorted(root.iterdir())]

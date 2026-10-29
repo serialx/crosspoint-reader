@@ -180,3 +180,5 @@ add_subdirectory(text_settings)
 add_test(NAME i18n_rust_ids COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/i18n_oracle/test_ids.py)
 add_subdirectory(dictionary_ui)
 add_subdirectory(home_ui)
+
+add_subdirectory(boot_ui)

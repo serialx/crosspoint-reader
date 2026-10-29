@@ -2561,6 +2561,148 @@
         {"id": "home-button-double", "activity": "HomeButtonSettings", "steps": ["press:down"]},
         {"id": "home-button-long", "activity": "HomeButtonSettings", "steps": ["press:down"]}
       ]
+    },
+    {
+      "id": "xtc-gray",
+      "fixture": "xtc-gray",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "xtc-gray-page",
+          "activity": "XtcReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm",
+            "wait-log:Rendered page"
+          ]
+        },
+        {
+          "id": "xtc-gray-next",
+          "activity": "XtcReader",
+          "steps": [
+            "press:right",
+            "wait-log:Rendered page"
+          ]
+        },
+        {
+          "id": "xtc-gray-chapters",
+          "activity": "XtcReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-gray-return",
+          "activity": "XtcReader",
+          "steps": [
+            "press:back",
+            "wait-log:Rendered page"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "image-navigation",
+      "fixture": "image-siblings",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "image-first",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "image-next",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "image-previous",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:left"
+          ]
+        },
+        {
+          "id": "image-confirmation",
+          "activity": "Confirmation",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "image-cancelled",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "image-confirmation-again",
+          "activity": "Confirmation",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "image-cancelled-again",
+          "activity": "BmpViewer",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xtc-visits",
+      "fixture": "xtc",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "xtc-visit-page",
+          "activity": "XtcReader",
+          "steps": [
+            "press:confirm",
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-visit-chapters",
+          "activity": "XtcReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-visit-return",
+          "activity": "XtcReader",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "xtc-visit-chapters-again",
+          "activity": "XtcReaderChapterSelection",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "xtc-visit-return-again",
+          "activity": "XtcReader",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
     }
   ]
 }

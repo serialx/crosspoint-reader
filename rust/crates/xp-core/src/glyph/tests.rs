@@ -27,6 +27,64 @@ fn target(buffer: &mut [u8]) -> GlyphTarget {
         scanning: 0,
     }
 }
+
+#[test]
+fn single_pixel_matches_rectangle_with_clips_and_bands() {
+    for orientation in 0..4 {
+        for (origin_y, rows) in [(0, 24), (0, 0), (5, 1), (7, 9), (24, 0)] {
+            for clip in [
+                Clip {
+                    left: -9,
+                    top: -7,
+                    right: 40,
+                    bottom: 40,
+                },
+                Clip {
+                    left: 3,
+                    top: 5,
+                    right: 19,
+                    bottom: 22,
+                },
+                Clip {
+                    left: 8,
+                    top: 6,
+                    right: 8,
+                    bottom: 10,
+                },
+            ] {
+                for state in [false, true] {
+                    let mut expected = [0x96; 160];
+                    let mut actual = expected;
+                    let mut t = target(&mut actual);
+                    t.width = 29;
+                    t.stride = 6;
+                    t.origin_y = origin_y;
+                    t.rows = rows;
+                    t.buffer_len = (rows * t.stride) as u32;
+                    t.orientation = orientation;
+                    t.clip = clip;
+                    let mut pixels = Surface::new(&t, &mut actual).unwrap();
+                    let mut rectangles = Surface::new(&t, &mut expected).unwrap();
+                    for y in -10..42 {
+                        for x in -10..42 {
+                            // Preserve gaps so touching padding or clipped pixels is visible.
+                            if (x + y) % 3 == 0 {
+                                pixels.pixel(x, y, state);
+                                rectangles.fill(x, y, 1, 1, state);
+                            }
+                        }
+                    }
+                    pixels.pixel(i32::MIN, i32::MAX, state);
+                    pixels.pixel(i32::MAX, i32::MIN, state);
+                    assert_eq!(
+                        actual, expected,
+                        "orientation={orientation} band={origin_y}/{rows}"
+                    );
+                }
+            }
+        }
+    }
+}
 fn draw() -> Draw {
     Draw {
         glyph: Glyph {

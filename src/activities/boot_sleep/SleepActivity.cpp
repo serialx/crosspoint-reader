@@ -26,8 +26,6 @@
 #include "activities/reader/ReaderUtils.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
-#include "images/Logo120.h"
-#include "images/MoonIcon.h"
 
 namespace {
 // Metalio: B/W sleep images use the full 0xF7 waveform instead of HALF (two
@@ -105,35 +103,10 @@ bool isValidPngHeader(HalFile& file) {
 }
 
 BitmapPlacement calculateBitmapPlacement(const int bitmapWidth, const int bitmapHeight, const GfxRenderer& renderer) {
-  BitmapPlacement placement;
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto pageHeight = renderer.getScreenHeight();
-
-  if (bitmapWidth > pageWidth || bitmapHeight > pageHeight) {
-    float ratio = static_cast<float>(bitmapWidth) / static_cast<float>(bitmapHeight);
-    const float screenRatio = static_cast<float>(pageWidth) / static_cast<float>(pageHeight);
-
-    if (ratio > screenRatio) {
-      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
-        placement.cropX = 1.0f - (screenRatio / ratio);
-        ratio = (1.0f - placement.cropX) * static_cast<float>(bitmapWidth) / static_cast<float>(bitmapHeight);
-      }
-      placement.x = 0;
-      placement.y = std::round((static_cast<float>(pageHeight) - static_cast<float>(pageWidth) / ratio) / 2);
-    } else {
-      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
-        placement.cropY = 1.0f - (ratio / screenRatio);
-        ratio = static_cast<float>(bitmapWidth) / ((1.0f - placement.cropY) * static_cast<float>(bitmapHeight));
-      }
-      placement.x = std::round((static_cast<float>(pageWidth) - static_cast<float>(pageHeight) * ratio) / 2);
-      placement.y = 0;
-    }
-  } else {
-    placement.x = (pageWidth - bitmapWidth) / 2;
-    placement.y = (pageHeight - bitmapHeight) / 2;
-  }
-
-  return placement;
+  const auto placement =
+      xp_ui_image_place(bitmapWidth, bitmapHeight, renderer.getScreenWidth(), renderer.getScreenHeight(),
+                        SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP);
+  return {placement.x, placement.y, placement.crop_x, placement.crop_y};
 }
 
 bool parseOverlayBmpHeader(HalFile& file, OverlayBmpInfo& info, const bool logErrors) {
@@ -548,76 +521,43 @@ void releaseSdFontCachesForDecode(const GfxRenderer& renderer) {
 
 void SleepActivity::onEnter() {
   Activity::onEnter();
-
-  const bool renderQuickResume =
-      SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::QUICK_RESUME ||
-      (fromTimeout &&
-       SETTINGS.quickResumeSleepScreen == CrossPointSettings::QUICK_RESUME_SLEEP_SCREEN::QUICK_RESUME_AFTER_TIMEOUT);
-
-  if (renderQuickResume) {
-    // Quick Resume keeps the current frame as-is, so the driver's inversion
-    // state stays too: a night-mode page sleeps in night polarity, and the
-    // moon icon inverts with it at transfer like any other draw.
-    return renderLastScreenSleepScreen();
+  sleepPlan = xp_ui_sleep_plan(
+      SETTINGS.sleepScreen, fromTimeout,
+      SETTINGS.quickResumeSleepScreen == CrossPointSettings::QUICK_RESUME_SLEEP_SCREEN::QUICK_RESUME_AFTER_TIMEOUT,
+      APP_STATE.lastSleepFromReader, display.isInverted());
+  if (sleepPlan.normalize_polarity) display.setInverted(false);
+  if (sleepPlan.invert_frame) renderer.invertScreen();
+  if (sleepPlan.route != XP_UI_SLEEP_QUICK) {
+    if (APP_STATE.lastSleepFromReader) ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
+    if (sleepPlan.preserve_frame)
+      drawSleepPopupPreservingFrame(renderer);
+    else
+      GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
+    if (APP_STATE.lastSleepFromReader) renderer.setOrientation(GfxRenderer::Orientation::Portrait);
+    if (sleepPlan.release_fonts) releaseSdFontCachesForDecode(renderer);
   }
-
-  const bool frameWasInverted = display.isInverted();
-
-  // The remaining sleep screens draw fresh content in normal polarity. This
-  // activity draws directly from onEnter (outside ActivityManager's
-  // per-render polarity resolution), so clear any inversion left over from a
-  // night-mode reader render.
-  display.setInverted(false);
-
-  const uint8_t sleepScreen = SETTINGS.sleepScreen;
-  if (sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::TRANSPARENT_CUSTOM ||
-      sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::COVER_TRANSPARENT) {
-    // Transparent mode retains the current framebuffer. Materialize any
-    // output-level inversion first so the retained content keeps its visible
-    // polarity after the display driver returns to normal.
-    if (frameWasInverted) renderer.invertScreen();
-    if (APP_STATE.lastSleepFromReader) {
-      ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
-    }
-    drawSleepPopupPreservingFrame(renderer);
-    if (APP_STATE.lastSleepFromReader) {
-      renderer.setOrientation(GfxRenderer::Orientation::Portrait);
-    }
-    releaseSdFontCachesForDecode(renderer);
-    if (sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::COVER_TRANSPARENT) {
-      return renderCoverSleepScreen();
-    }
-    return renderTransparentCustomSleepScreen();
-  }
-
-  // Show popup with reader orientation only when going to sleep from reader
-  if (APP_STATE.lastSleepFromReader) {
-    ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
-    GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
-    renderer.setOrientation(GfxRenderer::Orientation::Portrait);
-  } else {
-    GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
-  }
-
-  switch (SETTINGS.sleepScreen) {
-    case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
-      return renderBlankSleepScreen();
-    case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
-      return renderCustomSleepScreen();
-    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
-      return renderCoverSleepScreen();
-    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
-      if (APP_STATE.lastSleepFromReader) {
-        return renderCoverSleepScreen();
-      } else {
-        return renderCustomSleepScreen();
-      }
-    default:
-      return renderDefaultSleepScreen();
-  }
+  renderSleepRoute(sleepPlan.route);
 }
 
-void SleepActivity::renderCustomSleepScreen() const {
+void SleepActivity::renderSleepRoute(const uint8_t route) {
+  switch (static_cast<XpUiSleepRoute>(route)) {
+    case XP_UI_SLEEP_DEFAULT:
+      return renderDefaultSleepScreen();
+    case XP_UI_SLEEP_CUSTOM:
+      return renderCustomSleepScreen();
+    case XP_UI_SLEEP_COVER:
+      return renderCoverSleepScreen();
+    case XP_UI_SLEEP_OVERLAY:
+      return renderTransparentCustomSleepScreen();
+    case XP_UI_SLEEP_BLANK:
+      return renderBlankSleepScreen();
+    case XP_UI_SLEEP_QUICK:
+      return renderLastScreenSleepScreen();
+  }
+  LOG_ERR("RUI", "Invalid sleep route: %u", route);
+}
+
+void SleepActivity::renderCustomSleepScreen() {
   // Look for sleep.bmp on the root of the sd card to determine if we should
   // render a custom sleep screen instead of the default.
   // This takes priority over both custom sleep directories.
@@ -664,24 +604,13 @@ void SleepActivity::renderCustomSleepScreen() const {
 // firmware's only clean refresh in normal operation is the single-pass 0xD7
 // sequence, used once for the sleep image. It never runs the multi-flash GC
 // waveform (0xF7) that FULL_REFRESH selects (#2471's blinking complaint).
-void SleepActivity::renderDefaultSleepScreen() const {
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto pageHeight = renderer.getScreenHeight();
-
-  renderer.clearScreen();
-  renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
-  renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 70, tr(STR_CROSSPOINT), true, EpdFontFamily::BOLD);
-  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_SLEEPING));
-
-  // Make sleep screen dark unless light is selected in settings
-  if (SETTINGS.sleepScreen != CrossPointSettings::SLEEP_SCREEN_MODE::LIGHT) {
-    renderer.invertScreen();
-  }
-
+void SleepActivity::renderDefaultSleepScreen() {
+  if (!paintBootView(XP_UI_BOOT_SLEEP, XP_UI_NONE, ViewData{tr(STR_SLEEPING)})) return;
+  if (sleepPlan.dark_default) renderer.invertScreen();
   renderer.displayBuffer(kSleepClean);
 }
 
-void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const bool preserveBackground) const {
+void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const bool preserveBackground) {
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
   const auto placement = calculateBitmapPlacement(bitmap.getWidth(), bitmap.getHeight(), renderer);
@@ -770,7 +699,7 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const bool pre
   }
 }
 
-bool SleepActivity::renderSleepOverlayFile(HalFile& file, const char* pathForLog) const {
+bool SleepActivity::renderSleepOverlayFile(HalFile& file, const char* pathForLog) {
   const auto alphaResult = tryRenderTransparentOverlayBmp(file, renderer, pathForLog, overlayGrayCover);
   if (alphaResult == AlphaOverlayResult::Rendered) return true;
   if (alphaResult == AlphaOverlayResult::Error) return false;
@@ -789,7 +718,7 @@ bool SleepActivity::renderSleepOverlayFile(HalFile& file, const char* pathForLog
   return true;
 }
 
-bool SleepActivity::renderTransparentOverlayPng(const std::string& path) const {
+bool SleepActivity::renderTransparentOverlayPng(const std::string& path) {
   ImageDimensions dimensions;
   if (!PngToFramebufferConverter::getDimensionsStatic(path, dimensions)) return false;
 
@@ -843,7 +772,7 @@ bool SleepActivity::renderTransparentOverlayPng(const std::string& path) const {
   return true;
 }
 
-bool SleepActivity::renderSleepOverlayPath(const std::string& path) const {
+bool SleepActivity::renderSleepOverlayPath(const std::string& path) {
   if (FsHelpers::hasPngExtension(path)) {
     return Storage.exists(path.c_str()) && renderTransparentOverlayPng(path);
   }
@@ -852,7 +781,7 @@ bool SleepActivity::renderSleepOverlayPath(const std::string& path) const {
   return Storage.openFileForRead("SLP", path, file) && renderSleepOverlayFile(file, path.c_str());
 }
 
-void SleepActivity::renderTransparentCustomSleepScreen() const {
+void SleepActivity::renderTransparentCustomSleepScreen() {
   if (renderSleepOverlayPath(TRANSPARENT_SLEEP_ROOT_BMP)) return;
   if (renderSleepOverlayPath(TRANSPARENT_SLEEP_ROOT_PNG)) return;
 
@@ -871,24 +800,9 @@ void SleepActivity::renderTransparentCustomSleepScreen() const {
   renderDefaultSleepScreen();
 }
 
-void SleepActivity::renderCoverSleepScreen() const {
-  void (SleepActivity::*renderNoCoverSleepScreen)() const;
-  bool withOverlay = false;
-  switch (SETTINGS.sleepScreen) {
-    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
-      renderNoCoverSleepScreen = &SleepActivity::renderCustomSleepScreen;
-      break;
-    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_TRANSPARENT):
-      renderNoCoverSleepScreen = &SleepActivity::renderTransparentCustomSleepScreen;
-      withOverlay = true;
-      break;
-    default:
-      renderNoCoverSleepScreen = &SleepActivity::renderDefaultSleepScreen;
-      break;
-  }
-
+void SleepActivity::renderCoverSleepScreen() {
   if (APP_STATE.openEpubPath.empty()) {
-    return (this->*renderNoCoverSleepScreen)();
+    return renderSleepRoute(sleepPlan.fallback);
   }
 
   // SSD absolute images use the new thresholds; other panels retain legacy tuning.
@@ -905,12 +819,12 @@ void SleepActivity::renderCoverSleepScreen() const {
     Xtc lastXtc(APP_STATE.openEpubPath, "/.crosspoint");
     if (!lastXtc.load()) {
       LOG_ERR("SLP", "Failed to load last XTC");
-      return (this->*renderNoCoverSleepScreen)();
+      return renderSleepRoute(sleepPlan.fallback);
     }
 
     if (!lastXtc.generateCoverBmp()) {
       LOG_ERR("SLP", "Failed to generate XTC cover bmp");
-      return (this->*renderNoCoverSleepScreen)();
+      return renderSleepRoute(sleepPlan.fallback);
     }
 
     coverBmpPath = lastXtc.getCoverBmpPath();
@@ -920,17 +834,17 @@ void SleepActivity::renderCoverSleepScreen() const {
     // Skip loading css since we only need metadata here
     if (!lastEpub.load(true, true)) {
       LOG_ERR("SLP", "Failed to load last book");
-      return (this->*renderNoCoverSleepScreen)();
+      return renderSleepRoute(sleepPlan.fallback);
     }
 
     if (!lastEpub.generateCoverBmp(cropped, originalThresholds)) {
       LOG_ERR("SLP", "Failed to generate cover bmp");
-      return (this->*renderNoCoverSleepScreen)();
+      return renderSleepRoute(sleepPlan.fallback);
     }
 
     coverBmpPath = lastEpub.getCoverBmpPath(cropped, originalThresholds);
   } else {
-    return (this->*renderNoCoverSleepScreen)();
+    return renderSleepRoute(sleepPlan.fallback);
   }
 
   HalFile file;
@@ -938,30 +852,24 @@ void SleepActivity::renderCoverSleepScreen() const {
     Bitmap bitmap(file);
     if (bitmap.parseHeaders() == BmpReaderError::Ok) {
       LOG_DBG("SLP", "Rendering sleep cover: %s", coverBmpPath.c_str());
-      if (withOverlay) overlayCover = &bitmap;
+      if (sleepPlan.overlay_cover) overlayCover = &bitmap;
       renderBitmapSleepScreen(bitmap);
       overlayCover = nullptr;
       return;
     }
   }
 
-  return (this->*renderNoCoverSleepScreen)();
+  return renderSleepRoute(sleepPlan.fallback);
 }
 
-void SleepActivity::renderLastScreenSleepScreen() const {
-  const auto pageHeight = renderer.getScreenHeight();
-  renderer.drawImage(MoonIcon, 0, pageHeight - MOONICON_HEIGHT, MOONICON_WIDTH, MOONICON_HEIGHT);
-  // Only the moon differs from the displayed frame, so a differential FAST
-  // update adds it without the flashing clean pass (which sweeps the panel
-  // through the inverse — a full white flash on a night-mode page).
-  if (gpio.deviceIsX3()) {
+void SleepActivity::renderLastScreenSleepScreen() {
+  if (!paintBootView(XP_UI_BOOT_MOON, XP_UI_NONE)) return;
+  if (gpio.deviceIsX3())
     renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
-  } else {
+  else
     renderer.displayBuffer(HalDisplay::FAST_REFRESH);
-  }
 }
 
-void SleepActivity::renderBlankSleepScreen() const {
-  renderer.clearScreen();
-  renderer.displayBuffer(kSleepClean);
+void SleepActivity::renderBlankSleepScreen() {
+  if (paintBootView(XP_UI_BOOT_BLANK, XP_UI_NONE)) renderer.displayBuffer(kSleepClean);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Xtc.h>
+#include <xp_ui_boot.h>
 
 #include <memory>
 #include <string>
@@ -9,7 +10,7 @@
 
 class XtcReaderActivity final : public ReaderActivity {
   std::shared_ptr<Xtc> xtc;
-  uint32_t currentPage = 0;
+  XpUiXtcState state{};
 
   enum class StatusBarOverlayPosition { Bottom, Top };
   struct StatusBarInfo {

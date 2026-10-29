@@ -45,11 +45,11 @@ bool overlaySleepMode() {
 }  // namespace
 
 BmpViewerActivity::BmpViewerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::string path)
-    : Activity("BmpViewer", renderer, mappedInput), filePath(std::move(path)) {}
+    : BootUiActivity("BmpViewer", renderer, mappedInput), filePath(std::move(path)) {}
 
 void BmpViewerActivity::loadSiblingImages() {
   siblingImages.clear();
-  currentImageIndex = -1;
+  state.selected = -1;
 
   if (filePath.empty()) return;
 
@@ -95,7 +95,7 @@ void BmpViewerActivity::loadSiblingImages() {
 
   const auto image = std::find(siblingImages.begin(), siblingImages.end(), fileName);
   if (image != siblingImages.end()) {
-    currentImageIndex = static_cast<int>(image - siblingImages.begin());
+    state.selected = static_cast<int>(image - siblingImages.begin());
   }
 }
 
@@ -115,15 +115,9 @@ bool BmpViewerActivity::renderImage() {
   if (dimensions.width <= 0 || dimensions.height <= 0) return false;
 
   const auto config = fitImage(dimensions, renderer);
-  const bool hasPrevious = siblingImages.size() > 1 && currentImageIndex > 0;
-  const bool hasNext = siblingImages.size() > 1 && currentImageIndex != -1 &&
-                       currentImageIndex < static_cast<int>(siblingImages.size()) - 1;
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), canSetSleepCover() ? tr(STR_SET_SLEEP_COVER) : "",
-                                            hasPrevious ? "<" : "", hasNext ? ">" : "");
   const auto drawImage = [&]() {
     if (!decoder.decodeToFramebuffer(filePath, renderer, config)) return false;
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-    return true;
+    return paintBootView(XP_UI_BOOT_IMAGE_HINTS, XP_UI_NONE);
   };
 
   if (!drawImage()) return false;
@@ -166,6 +160,8 @@ void BmpViewerActivity::onEnter() {
     loadSiblingImages();
   }
 
+  state.count = siblingImages.size();
+  state.can_set_cover = canSetSleepCover();
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
   Rect popupRect = GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
@@ -173,11 +169,8 @@ void BmpViewerActivity::onEnter() {
   if (FsHelpers::hasPngExtension(filePath) || FsHelpers::hasJpgExtension(filePath)) {
     renderer.clearScreen();
     if (!renderImage()) {
-      renderer.clearScreen();
-      renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, tr(STR_FILE_OPEN_FAILED));
-      const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-      GUI.drawButtonHints(renderer, labels.btn1, "", "", "");
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      paintBootView(XP_UI_BOOT_IMAGE_ERROR, XP_UI_HALF, ViewData{nullptr, tr(STR_FILE_OPEN_FAILED)},
+                    XP_UI_BOOT_ONLY_FIRST_HINT);
     }
     return;
   }
@@ -191,47 +184,20 @@ void BmpViewerActivity::onEnter() {
 
     // 2. Parse headers to get dimensions
     if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-      int x, y;
-
-      if (bitmap.getWidth() > pageWidth || bitmap.getHeight() > pageHeight) {
-        float ratio = static_cast<float>(bitmap.getWidth()) / static_cast<float>(bitmap.getHeight());
-        const float screenRatio = static_cast<float>(pageWidth) / static_cast<float>(pageHeight);
-
-        if (ratio > screenRatio) {
-          // Wider than screen
-          x = 0;
-          y = std::round((static_cast<float>(pageHeight) - static_cast<float>(pageWidth) / ratio) / 2);
-        } else {
-          // Taller than screen
-          x = std::round((static_cast<float>(pageWidth) - static_cast<float>(pageHeight) * ratio) / 2);
-          y = 0;
-        }
-      } else {
-        // Center small images
-        x = (pageWidth - bitmap.getWidth()) / 2;
-        y = (pageHeight - bitmap.getHeight()) / 2;
-      }
-
-      // 4. Prepare Rendering
-      bool hasPrevious = (siblingImages.size() > 1 && currentImageIndex > 0);
-      bool hasNext = (siblingImages.size() > 1 && currentImageIndex != -1 &&
-                      currentImageIndex < static_cast<int>(siblingImages.size()) - 1);
-
-      const auto labels = mappedInput.mapLabels(tr(STR_BACK), canSetSleepCover() ? tr(STR_SET_SLEEP_COVER) : "",
-                                                (hasPrevious ? "<" : ""), (hasNext ? ">" : ""));
+      const auto placement = xp_ui_image_place(bitmap.getWidth(), bitmap.getHeight(), pageWidth, pageHeight, false);
+      const int x = placement.x, y = placement.y;
 
       GUI.fillPopupProgress(renderer, popupRect, 50);
 
       renderer.clearScreen();
       if (!renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, 0, 0)) {
-        renderer.clearScreen();
-        renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, tr(STR_FILE_OPEN_FAILED));
-        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+        paintBootView(XP_UI_BOOT_IMAGE_ERROR, XP_UI_HALF, ViewData{nullptr, tr(STR_FILE_OPEN_FAILED)},
+                      XP_UI_BOOT_NO_HINTS);
         return;
       }
 
       // Draw UI hints on the base layer
-      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+      paintBootView(XP_UI_BOOT_IMAGE_HINTS, XP_UI_NONE);
       if (bitmap.hasGreyscale()) {
         const bool absolute = renderer.grayscaleCapabilities(HalDisplay::GrayscaleMode::Absolute).supported();
         if (absolute && !renderer.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute)) return;
@@ -249,7 +215,7 @@ void BmpViewerActivity::onEnter() {
             planesReady = false;
             break;
           }
-          GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+          paintBootView(XP_UI_BOOT_IMAGE_HINTS, XP_UI_NONE);
           if (mode == GfxRenderer::GRAYSCALE_LSB) {
             renderer.copyGrayscaleLsbBuffers();
           } else {
@@ -264,10 +230,11 @@ void BmpViewerActivity::onEnter() {
         if (bitmap.rewindToData() != BmpReaderError::Ok ||
             !renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, 0, 0)) {
           LOG_ERR("BMP", "Failed to rewind bitmap to restore the BW framebuffer");
-          renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, tr(STR_FILE_OPEN_FAILED));
+          paintBootView(XP_UI_BOOT_IMAGE_ERROR, XP_UI_NONE, ViewData{nullptr, tr(STR_FILE_OPEN_FAILED)},
+                        XP_UI_BOOT_NO_HINTS | XP_UI_BOOT_RETAIN);
           planesReady = false;
         }
-        GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+        paintBootView(XP_UI_BOOT_IMAGE_HINTS, XP_UI_NONE);
         renderer.cleanupGrayscaleWithFrameBuffer();
         if (!planesReady) renderer.displayBuffer(HalDisplay::HALF_REFRESH);
       } else {
@@ -276,21 +243,13 @@ void BmpViewerActivity::onEnter() {
 
     } else {
       // Handle file parsing error
-      renderer.clearScreen();
-      renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, tr(STR_INVALID_BMP_FILE));
-      const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      paintBootView(XP_UI_BOOT_IMAGE_ERROR, XP_UI_HALF, ViewData{nullptr, tr(STR_INVALID_BMP_FILE)});
     }
 
     file.close();
   } else {
     // Handle file open error
-    renderer.clearScreen();
-    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2, tr(STR_FILE_OPEN_FAILED));
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    paintBootView(XP_UI_BOOT_IMAGE_ERROR, XP_UI_HALF, ViewData{nullptr, tr(STR_FILE_OPEN_FAILED)});
   }
 }
 
@@ -439,69 +398,46 @@ void BmpViewerActivity::doSetSleepCover() {
   onEnter();
 }
 
-void BmpViewerActivity::loop() {
-  // Keep CPU awake/polling so 1st click works
-  Activity::loop();
+XpUiInterest BmpViewerActivity::rustInterest(uint32_t) const { return xp_ui_boot_interest(false); }
 
-  auto openSibling = [this](const int delta) {
-    if (currentImageIndex < 0) {
-      return false;
-    }
-    const int nextIndex = currentImageIndex + delta;
-    if (siblingImages.size() <= 1 || nextIndex < 0 || nextIndex >= static_cast<int>(siblingImages.size())) {
-      return false;
-    }
-    currentImageIndex = nextIndex;
-    std::string dirPath = FsHelpers::extractFolderPath(filePath);
-    if (dirPath.back() != '/') dirPath += "/";
-    filePath = dirPath + siblingImages[currentImageIndex];
-    onEnter();
-    return true;
-  };
+XpUiEffect BmpViewerActivity::updateRust(const XpUiInput& input) { return xp_ui_image_update(&state, &input); }
 
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    activityManager.goToFileBrowser(filePath);
-    return;
-  }
-
-  const auto swipe = mappedInput.wasSwipe();
-  if (swipe == MappedInputManager::SwipeDir::Left) {
-    openSibling(1);
-    return;
-  }
-  if (swipe == MappedInputManager::SwipeDir::Right) {
-    openSibling(-1);
-    return;
-  }
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (!canSetSleepCover()) return;
-
-    auto confirmation = makeUniqueNoThrow<ConfirmationActivity>(renderer, mappedInput, tr(STR_SET_SLEEP_COVER_CONFIRM),
-                                                                filePath.substr(filePath.find_last_of('/') + 1));
-    if (!confirmation) {
-      LOG_ERR("BMP", "OOM: sleep cover confirmation (%zu bytes)", sizeof(ConfirmationActivity));
+void BmpViewerActivity::applyRustEffect(const XpUiEffect& effect) {
+  switch (static_cast<XpUiEffectKind>(effect.kind)) {
+    case XP_UI_EFFECT_NONE:
+      return;
+    case XP_UI_CANCEL:
+      activityManager.goToFileBrowser(filePath);
+      return;
+    case XP_UI_SCROLL: {
+      std::string dirPath = FsHelpers::extractFolderPath(filePath);
+      if (dirPath.back() != '/') dirPath += "/";
+      filePath = dirPath + siblingImages[effect.value];
+      onEnter();
       return;
     }
-    startActivityForResult(std::move(confirmation), [this](const ActivityResult& result) {
-      if (result.isCancelled) {
-        onEnter();
+    case XP_UI_ACTIVATE: {
+      auto confirmation = makeUniqueNoThrow<ConfirmationActivity>(
+          renderer, mappedInput, tr(STR_SET_SLEEP_COVER_CONFIRM), filePath.substr(filePath.find_last_of('/') + 1));
+      if (!confirmation) {
+        LOG_ERR("BMP", "OOM: sleep cover confirmation (%zu bytes)", sizeof(ConfirmationActivity));
         return;
       }
-      doSetSleepCover();
-    });
-    return;
+      startActivityForResult(std::move(confirmation), [this](const ActivityResult& result) {
+        if (result.isCancelled) {
+          onEnter();
+          return;
+        }
+        doSetSleepCover();
+      });
+      return;
+    }
   }
+}
 
-  if (mappedInput.wasReleased(MappedInputManager::Button::Left) ||
-      mappedInput.wasReleased(MappedInputManager::Button::Up)) {
-    openSibling(-1);
-    return;
-  }
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Right) ||
-      mappedInput.wasReleased(MappedInputManager::Button::Down)) {
-    openSibling(1);
-    return;
-  }
+void BmpViewerActivity::drawBootHints() {
+  const auto flags = xp_ui_image_hints(&state);
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), flags & 1 ? tr(STR_SET_SLEEP_COVER) : "",
+                                            flags & 2 ? "<" : "", flags & 4 ? ">" : "");
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 }

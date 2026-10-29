@@ -13,3 +13,17 @@ target_include_directories(BookKeyOracle PRIVATE stubs ${REPO_ROOT}/lib/Epub ${R
 target_link_libraries(BookKeyOracle PRIVATE xp_ffi_host)
 add_test(NAME BookKeyOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/key_oracle.py $<TARGET_FILE:BookKeyOracle>)
+
+add_test(NAME BookXtcNegativeStream COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/xtc_oracle.py $<TARGET_FILE:BookXtcOracle> --negative-stream)
+
+add_test(NAME BookXtcNegativeCopy COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/xtc_oracle.py $<TARGET_FILE:BookXtcOracle> --negative-copy)
+add_executable(BookTxtOracle TxtOracle.cpp ${REPO_ROOT}/lib/Txt/Txt.cpp ${REPO_ROOT}/lib/Txt/TxtToHtml.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+target_include_directories(BookTxtOracle PRIVATE txt-stubs stubs ${REPO_ROOT}/lib/Txt ${REPO_ROOT}/lib/Memory
+  ${REPO_ROOT}/lib/FsHelpers ${REPO_ROOT}/lib/Utf8 ${REPO_ROOT}/test/fs_helpers/stubs
+  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs)
+target_link_libraries(BookTxtOracle PRIVATE xp_ffi_host)
+add_test(NAME BookTxtOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/txt_oracle.py $<TARGET_FILE:BookTxtOracle>)

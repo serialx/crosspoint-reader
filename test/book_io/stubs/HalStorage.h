@@ -71,6 +71,7 @@ class HalFile {
   size_t position = 0;
   bool opened = false;
 };
+inline unsigned long millis() { return 0; }
 struct HalStorage {
   bool openFileForRead(const char*, const std::string& path, HalFile& file) { return file.open(path, false); }
   bool openFileForWrite(const char*, const std::string& path, HalFile& file) { return file.open(path, true); }
@@ -82,6 +83,11 @@ struct HalStorage {
   }
   bool exists(const char* path) { return booktest::step("exists", path) && booktest::files.count(path); }
   bool mkdir(const char* path) { return booktest::step("mkdir", path); }
+  bool remove(const char* path) {
+    if (!booktest::step("remove", path)) return false;
+    booktest::files.erase(path);
+    return true;
+  }
   bool removeDir(const char* path) { return booktest::step("rmdir", path); }
 };
 inline HalStorage Storage;

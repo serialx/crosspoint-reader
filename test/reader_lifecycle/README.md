@@ -24,3 +24,12 @@ sampled. Emulator input scripts and paired screen/heap/timing captures remain
 necessary for the complete reader migration. Storage leaves record ordering and
 bytes; they do not simulate FAT power-loss recovery. The display leaves record
 requested refresh policy, not controller waveforms.
+
+The render-sequence oracles compile the production `renderContents` body with
+logging platform leaves, both with and without `XP_STRIP_RENDER`. Their 5,120
+cases cover five board/controller combinations, text/image/placeholder pages,
+the strip element limit, grayscale capabilities, refresh counters, failed
+allocations and driver operations. They freeze ordered operations, cadence,
+allocation attempts and diagnostics; dimensions use an 83-row panel to exercise
+a partial final strip. They do not validate pixels or actual panel waveforms;
+paired emulator captures provide that evidence.

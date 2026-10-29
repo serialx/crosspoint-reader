@@ -10,5 +10,17 @@
     "src/activities/reader/LinkNoteTitle.h": "67bf1bf32b4c82e818666fd0e566144e95fde31cf68a6d75a6761cd6682554aa",
     "src/activities/reader/EpubReaderUtils.h": "244e6b7e7bbf127831bf941dd2a25d1f53e1e0861ffa7b6351e9268c884f975b",
     "src/activities/reader/ProgressFile.h": "c2090caceac5a10c36a4d00b8187716de8f1df0dac5519d67803eb6f910e68f2"
+  },
+  "render_oracles": {
+    "off": {
+      "cases": 5120,
+      "lines": 146378,
+      "sha256": "2341f483243a26bd719693c8e57a92ac1d5709721fc0a117bb42639e85ea2892"
+    },
+    "on": {
+      "cases": 5120,
+      "lines": 189366,
+      "sha256": "5f945723a380c99e9e19435c506917404167ef7903aa370fe2c8232bc60daf4e"
+    }
   }
 }

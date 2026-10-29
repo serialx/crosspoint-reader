@@ -141,3 +141,5 @@ pub unsafe extern "C" fn xp_test_rust_free(p: *mut u8, size: usize, align: usize
 }
 
 mod sync;
+
+mod assets;

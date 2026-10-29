@@ -36,3 +36,27 @@ target_include_directories(asset_allocations PRIVATE ${ASSET_INCLUDES} ${REPO_RO
 add_dependencies(asset_allocations xp_ffi_host_build)
 target_link_libraries(asset_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME AssetAllocationFailures COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/allocations.py $<TARGET_FILE:asset_allocations>)
+add_executable(image_block_allocations ImageBlockOracle.cpp Allocation.cpp ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp)
+target_compile_definitions(image_block_allocations PRIVATE XP_ASSET_ALLOC_CHECK)
+target_include_directories(image_block_allocations PRIVATE ${ASSET_INCLUDES} ${REPO_ROOT}/lib/Epub ${REPO_ROOT}/lib/Epub/Epub ${REPO_ROOT}/rust/crates/xp-ffi/include)
+add_dependencies(image_block_allocations xp_ffi_host_build)
+target_link_libraries(image_block_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ImageCacheAllocations COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/contracts.py $<TARGET_FILE:image_block_allocations>)
+add_executable(asset_contracts Contracts.cpp Allocation.cpp ${REPO_ROOT}/src/util/QrUtils.cpp ${DECODER_SOURCE_DIR}/QRCode/src/qrcode.c)
+target_include_directories(asset_contracts PRIVATE ${ASSET_INCLUDES} ${REPO_ROOT}/rust/crates/xp-ffi/include)
+add_dependencies(asset_contracts xp_ffi_host_build)
+target_link_libraries(asset_contracts PRIVATE ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME AssetBufferContracts COMMAND asset_contracts)
+target_compile_options(asset_contracts PRIVATE -UNDEBUG)
+set(ASSET_REFERENCE_ROOT "" CACHE PATH "Optional ba6860d8 export for resource measurements")
+if(ASSET_REFERENCE_ROOT)
+  add_executable(asset_reference_allocations Oracle.cpp Allocation.cpp
+    ${ASSET_REFERENCE_ROOT}/lib/JpegToBmpConverter/JpegToBmpConverter.cpp
+    ${ASSET_REFERENCE_ROOT}/src/util/QrUtils.cpp ${ASSET_REFERENCE_ROOT}/src/util/ScreenshotUtil.cpp
+    ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+    ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp ${DECODER_SOURCE_DIR}/QRCode/src/qrcode.c)
+  target_compile_definitions(asset_reference_allocations PRIVATE __LINUX__)
+  target_include_directories(asset_reference_allocations PRIVATE ${ASSET_INCLUDES} ${REPO_ROOT}/rust/crates/xp-ffi/include)
+  add_dependencies(asset_reference_allocations xp_ffi_host_build)
+  target_link_libraries(asset_reference_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
+endif()

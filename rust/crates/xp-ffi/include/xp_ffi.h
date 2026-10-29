@@ -2190,6 +2190,55 @@ typedef struct {
 uint32_t xp_sync_request(uint32_t, const XpSyncJson*, const XpSyncModel*, const XpSyncTransport*);
 const char* xp_sync_error_string(uint32_t);
 
+// Assets: synchronous borrowed buffers; callbacks must not reenter asset APIs.
+// Buffers are borrowed only for a callback, except the image open-cache path below.
+typedef struct {
+  int32_t width, height;
+  bool one_bit, crop, original_thresholds;
+} XpAssetJpegConfig;
+typedef bool (*XpAssetJpegBlock)(void*, int32_t, int32_t, int32_t, int32_t, int32_t, const uint8_t*);
+typedef struct {
+  void* context;
+  void (*write)(void*, const uint8_t*, size_t);
+  void (*progress)(void*);
+  void (*diagnostic)(void*, uint32_t, int32_t, int32_t, int32_t, int32_t);
+  bool (*decode)(void*, void*, XpAssetJpegBlock);
+} XpAssetJpegServices;
+bool xp_assets_jpeg_bmp(int32_t, int32_t, bool, const XpAssetJpegConfig*, const XpAssetJpegServices*);
+// Screenshot result: 0 success, 1 write/geometry failure, 2 legacy row capacity exceeded.
+uint32_t xp_assets_screenshot(const uint8_t*, size_t, uint32_t, uint32_t, void*,
+                              bool (*)(void*, const uint8_t*, size_t));
+// QR bitmap uses contiguous row-major bits, MSB first, with no row padding.
+// plan returns required capacity; bitmap allocates nothing and sets size=0 on failure
+// after validating the input/output pointers.
+size_t xp_assets_qr_plan(const uint8_t*, size_t, uint8_t*, size_t*);
+bool xp_assets_qr_bitmap(const uint8_t*, size_t, uint8_t*, size_t, uint8_t*, void*,
+                         bool (*)(void*, const uint8_t*, size_t, uint8_t, uint8_t*));
+void xp_assets_qr_draw(const uint8_t*, size_t, uint8_t, int32_t, int32_t, int32_t, int32_t, void*,
+                       void (*)(void*, int32_t, int32_t, int32_t));
+// Image calls share the existing page-render owner and must be serialized with reset.
+// The target stays exclusively writable across IO callbacks until the next target call.
+typedef struct {
+  int32_t x, y, width, height, screen_width, screen_height;
+  bool scanning, intersects;
+} XpAssetImageConfig;
+// IO: 0 open cache (NUL-terminated path), 1 read data, 2 seek len, 3 size,
+// 4 close, 5 free heap, 6 largest block, 7 extract, 8 source size (SIZE_MAX missing),
+// 9 decode (NUL-terminated cache path; 0 no decoder, 1 failure, 2 success).
+// The open-cache path remains valid through the following InvalidCache (0) or
+// CacheLoading (1) diagnostic only. Other borrowed pointers must not be retained.
+typedef struct {
+  void* context;
+  size_t (*io)(void*, uint32_t, const uint8_t*, uint8_t*, size_t);
+  void (*target)(void*, XpImageTarget*);
+  void (*diagnostic)(void*, uint32_t, int32_t, int32_t);
+} XpAssetImageCallbacks;
+void xp_assets_image_reset(bool release);
+bool xp_assets_image_failed(const uint8_t*, size_t);
+bool xp_assets_image_valid(const uint8_t*, size_t, int32_t, int32_t, const XpAssetImageCallbacks*);
+uint32_t xp_assets_image_render(const uint8_t*, size_t, const XpAssetImageConfig*, const XpAssetImageCallbacks*);
+size_t xp_assets_limited_write(size_t*, const uint8_t*, size_t, void*, size_t (*)(void*, const uint8_t*, size_t));
+
 #ifdef __cplusplus
 }
 #endif

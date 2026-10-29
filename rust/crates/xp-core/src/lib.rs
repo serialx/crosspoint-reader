@@ -78,3 +78,5 @@ mod tests {
 pub mod strip;
 
 pub mod sync;
+
+pub mod assets;

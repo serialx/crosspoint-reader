@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Print.h>
+#include <xp_ffi.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -14,9 +15,8 @@ class GifLimitedWriter final : public Print {
   GifLimitedWriter(Print& output, size_t limit) : output(output), remaining(limit) {}
   size_t write(uint8_t value) override { return write(&value, 1); }
   size_t write(const uint8_t* data, size_t size) override {
-    if (size > remaining) return 0;
-    const size_t written = output.write(data, size);
-    remaining -= written;
-    return written;
+    return xp_assets_limited_write(&remaining, data, size, &output, [](void* stream, const uint8_t* bytes, size_t len) {
+      return static_cast<Print*>(stream)->write(bytes, len);
+    });
   }
 };

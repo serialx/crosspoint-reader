@@ -283,6 +283,14 @@ const XpWebServices WebFileBridge::services = {
           return 0;
         case XP_WEB_REPLACE:
           return Storage.replaceFile(path, reinterpret_cast<const char*>(data));
+        case XP_WEB_OPEN_APPEND:
+          file = Storage.open(path, O_RDWR | O_AT_END);
+          return static_cast<bool>(file);
+        case XP_WEB_FLUSH:
+          file.flush();
+          return 0;
+        case XP_WEB_CREATE_PLUGIN:
+          return Storage.openFileForWrite("PLG", path, file);
         case XP_WEB_OPEN_READ:
           return Storage.openFileForRead("WEB", path, file);
       }
@@ -1628,215 +1636,129 @@ void CrossPointWebServer::handleCrypto() {
   xp_web_crypto(static_cast<WebFileBridge*>(&bridge), &WebCryptoBridge::services);
 }
 
-// POST /api/fetch {plugin, url, dest, headers?, offset?, maxBytes?}
-//   -> {status, bytes, complete, total?}
-// Device downloads a URL straight to SD, so a large body never passes through
-// the browser.
-void CrossPointWebServer::handleFetch() {
-  if (rejectIfPluginsDisabled()) return;
-  JsonDocument req;
-  if (!readJsonBody(req)) return;
-  const std::string url = req["url"] | "";
-  const std::string dest = req["dest"] | "";
-  const size_t requestedOffset = req["offset"] | 0;
-  size_t segmentLimit = req["maxBytes"] | 0;
-  static constexpr size_t FETCH_MAX_SEGMENT_SIZE = 4 * 1024 * 1024;
-  if (segmentLimit > FETCH_MAX_SEGMENT_SIZE) segmentLimit = FETCH_MAX_SEGMENT_SIZE;
-  if (url.empty() || !protectedpaths::isPluginPath(dest)) {
-    server->send(400, "application/json", "{\"error\":\"bad url/dest\"}");
-    return;
-  }
-
-  pluginhttp::Headers requestHeaders;
-  pluginhttp::readHeaders(req["headers"], requestHeaders);
-  req.clear();
-  req.shrinkToFit();
-  releaseRequestArguments(server.get());
-
-  // Stage in <dest>.part so an interrupted or abandoned download never sits
-  // under the real name, and an existing dest survives until the new copy is complete.
-  const std::string part = dest + ".part";
-  HalFile file;
-  if (requestedOffset == 0) {
-    // Mirror handlePluginFs(): create missing parents so a plugin's first fetch
-    // into a fresh subfolder (e.g. /.crosspoint/plugins/<name>/) doesn't fail
-    // before anything has a chance to create it.
-    const size_t lastSlash = dest.rfind('/');
-    if (lastSlash != std::string::npos && lastSlash > 0) {
-      Storage.ensureDirectoryExists(dest.substr(0, lastSlash).c_str());
-    }
-    Storage.remove(part.c_str());
-    if (!Storage.openFileForWrite("PLG", part, file)) {
-      server->send(500, "application/json", "{\"error\":\"cannot create file\"}");
-      return;
-    }
-  } else {
-    file = Storage.open(part.c_str(), O_RDWR | O_AT_END);
-    const size_t existingSize = file ? file.size() : 0;
-    if (!file || existingSize != requestedOffset) {
-      if (file) file.close();
-      char msg[96];
-      snprintf(msg, sizeof(msg), "{\"error\":\"offset mismatch\",\"bytes\":%u}", (unsigned)existingSize);
-      server->send(409, "application/json", msg);
-      return;
-    }
-  }
-
-  // Resume and Range-restart handling live in fetchResumable (ResumableFetch.h).
-  suspendTransferServices();
-  ScopedCleanup resumeServices{[this] { resumeTransferServices(); }};
-  WifiPowerSaveGuard psGuard;
-
-  size_t written = requestedOffset;
-  size_t nextHeapLog = written;
-  bool sdFull = false;
-  bool segmentBoundary = false;
-  bool rangeUnsupported = false;
-  const unsigned long fetchStartedAt = millis();
-  unsigned long lastBrowserHeartbeat = fetchStartedAt;
-  bool browserResponseStarted = false;
-
-  // A phone may discard an HTTP response that sends no bytes for several
-  // minutes even while the device is actively downloading upstream. Start a
-  // chunked JSON response only once the operation becomes long-running, then
-  // send JSON whitespace to keep that browser-facing connection active.
-  const auto keepBrowserAlive = [this, &browserResponseStarted, &lastBrowserHeartbeat]() {
-    const unsigned long now = millis();
-    if (now - lastBrowserHeartbeat < 5000) return;
-    lastBrowserHeartbeat = now;
-    if (!server->client().connected()) return;
-    if (!browserResponseStarted) {
-      server->setContentLength(CONTENT_LENGTH_UNKNOWN);
-      server->send(200, "application/json", "");
-      browserResponseStarted = true;
-    }
-    server->sendContent(" \n", 2);
-  };
-  const auto sendFetchResult = [this, &browserResponseStarted](int code, const String& payload) {
-    if (!browserResponseStarted) {
-      server->send(code, "application/json", payload);
-      return;
-    }
-    if (server->client().connected()) {
-      server->sendContent(payload);
-      server->sendContent("", 0);
-    }
-  };
-
-  freeink::FetchOptions options;
-  options.startOffset = requestedOffset;
-  freeink::FetchSink sink;
-  sink.write = [&](const uint8_t* data, size_t len) {
-    resetTaskWatchdogIfSubscribed();
-    const size_t writeLen = segmentLimit > 0 ? std::min(len, requestedOffset + segmentLimit - written) : len;
-    if (file.write(data, writeLen) != writeLen) {
-      sdFull = true;
-      return false;
-    }
-    written += writeLen;
-    // Heap trajectory during the transfer: a steady value rules RAM out of a
-    // mid-body failure; a falling one implicates it.
-    if (written >= nextHeapLog) {
-      LOG_DBG("WEB", "Fetch %u bytes, heap %u", (unsigned)written, (unsigned)ESP.getFreeHeap());
-      nextHeapLog = written + 1024 * 1024;
-    }
-    keepBrowserAlive();
-    // A bounded segment stops here; the next browser request resumes from
-    // `written` with Range.
-    if (segmentLimit > 0 && written - requestedOffset >= segmentLimit) {
-      segmentBoundary = true;
-      return false;
-    }
-    return true;
-  };
-  sink.rewind = [&] {
-    // Range ignored: the body restarts from byte 0, which only a transfer
-    // that has not yet reported progress to the browser can follow.
-    if (requestedOffset > 0) {
-      rangeUnsupported = true;
-      return false;
-    }
-    file.close();
-    written = 0;
-    return Storage.openFileForWrite("PLG", part, file);
-  };
-  const freeink::FetchResult result = freeink::fetchResumable(
-      url, options,
-      [&](freeink::SecureHttpClient& http, const bool sameOrigin) {
-        http.setUserAgent("CrossPoint");
-        // The SecureNet transport ships no CA bundle, so peer verification always
-        // fails (wolfSSL -188); skip it like HttpDownloader does. Traffic stays
-        // TLS-encrypted, just unauthenticated — matching the prior library-lending flow.
-        http.setInsecure();
-        // Some delivery servers assemble books on the fly and can stall mid-body
-        // while packaging; the default 15s no-data timeout truncates those downloads.
-        http.setTimeout(60000);
-        // The plugin's headers (typically its Authorization) stay with the
-        // starting origin; a redirect to another server gets none of them.
-        if (sameOrigin) {
-          for (const auto& header : requestHeaders) http.addHeader(header.first, header.second);
+// SDK transport, HAL handles and JSON serialization remain synchronous leaves.
+struct WebFetchBridge : WebRpcBridge {
+  explicit WebFetchBridge(CrossPointWebServer& owner) : WebRpcBridge(owner), mutableOwner(owner) {}
+  CrossPointWebServer& mutableOwner;
+  std::string url, dest, part;
+  pluginhttp::Headers headers;
+  std::optional<WifiPowerSaveGuard> powerSave;
+  String response;
+  static WebFetchBridge& fetch(void* ctx) { return static_cast<WebFetchBridge&>(self(ctx)); }
+  static const XpWebFetch services;
+};
+const XpWebFetch WebFetchBridge::services = {
+    .request = &WebRpcBridge::request,
+    .integer = [](void* ctx, const char* key) -> int32_t { return self(ctx).paths[key] | 0; },
+    .prepare =
+        [](void* ctx, const char* suffix) {
+          auto& b = fetch(ctx);
+          if (suffix) {
+            b.part = b.dest + suffix;
+            return;
+          }
+          b.url = b.paths["url"] | "";
+          b.dest = b.paths["dest"] | "";
+          pluginhttp::readHeaders(b.paths["headers"], b.headers);
+        },
+    .path = [](void* ctx, uint32_t slot) -> XpWebText {
+      const auto& b = fetch(ctx);
+      return span(slot == 0 ? b.url : slot == 1 ? b.dest : b.part);
+    },
+    .directory =
+        [](void*, XpWebText path) {
+          Storage.ensureDirectoryExists(std::string(reinterpret_cast<const char*>(path.data), path.len).c_str());
+        },
+    .suspend =
+        [](void* ctx, bool suspend) {
+          auto& b = fetch(ctx);
+          if (suspend) {
+            b.mutableOwner.suspendTransferServices();
+            b.powerSave.emplace();
+          } else {
+            b.response = static_cast<const char*>(nullptr);
+            b.powerSave.reset();
+            b.mutableOwner.resumeTransferServices();
+          }
+        },
+    .run = [](void* ctx, size_t offset, void* sinkCtx, const XpWebFetchSink* callbacks) -> XpWebFetchResult {
+      auto& b = fetch(ctx);
+      freeink::FetchOptions options;
+      options.startOffset = offset;
+      freeink::FetchSink sink;
+      sink.write = [&](const uint8_t* data, size_t len) { return callbacks->write(sinkCtx, {data, len}); };
+      sink.rewind = [&] { return callbacks->rewind(sinkCtx); };
+      const auto result = freeink::fetchResumable(
+          b.url, options,
+          [&](freeink::SecureHttpClient& http, bool sameOrigin) { callbacks->configure(sinkCtx, &http, sameOrigin); },
+          sink, [&] { return callbacks->poll(sinkCtx); });
+      return {result.status, result.total, result.complete};
+    },
+    .configure =
+        [](void* ctx, void* client, const char* agent, uint32_t timeout, bool headers) {
+          auto& http = *static_cast<freeink::SecureHttpClient*>(client);
+          http.setUserAgent(agent);
+          // Preserve the SDK transport's existing trust mode (no CA bundle).
+          http.setInsecure();
+          http.setTimeout(timeout);
+          if (headers) {
+            for (const auto& header : fetch(ctx).headers) http.addHeader(header.first, header.second);
+          }
+        },
+    .time = WebFileBridge::transfers.time,
+    .response = [](void* ctx, uint32_t kind, const char* error, int32_t status, size_t bytes, bool complete,
+                   size_t total) -> XpWebText {
+      auto& out = fetch(ctx).response;
+      switch (static_cast<XpWebFetchResponse>(kind)) {
+        case XP_WEB_FETCH_OFFSET: {
+          char msg[96];
+          snprintf(msg, sizeof(msg), "{\"error\":\"offset mismatch\",\"bytes\":%u}", (unsigned)bytes);
+          out = msg;
+          break;
         }
-      },
-      sink,
-      // The write callback only runs when bytes arrive; with the 60s no-data
-      // timeout a server stall would starve this task's WDT subscription.
-      // shouldAbort is polled in every wait loop.
-      [&] {
-        resetTaskWatchdogIfSubscribed();
-        keepBrowserAlive();
-        return false;  // never aborts; only feeds
-      });
-  if (file.isOpen()) {
-    file.flush();
-    file.close();
-  }
-  const int status = result.status;
-  const size_t totalExpected = result.total;
-  bool complete = result.complete || (segmentBoundary && totalExpected > 0 && written >= totalExpected);
+        case XP_WEB_FETCH_TRUNCATED: {
+          char msg[96];
+          snprintf(msg, sizeof(msg), "{\"error\":\"%s\",\"bytes\":%u,\"complete\":false}", error, (unsigned)bytes);
+          out = msg;
+          break;
+        }
+        case XP_WEB_FETCH_RESULT: {
+          JsonDocument response;
+          if (error) response["error"] = error;
+          response["status"] = status;
+          response["bytes"] = bytes;
+          response["complete"] = complete;
+          if (total > 0) response["total"] = total;
+          serializeJson(response, out);
+          break;
+        }
+      }
+      return span(out);
+    },
+    .send = [](void* ctx,
+               uint16_t status) { self(ctx).owner.server->send(status, "application/json", fetch(ctx).response); },
+    .diagnostic =
+        [](void* ctx, uint32_t event, size_t bytes, uint32_t elapsed, const char* text, bool connected) {
+          const auto& url = fetch(ctx).url;
+          switch (static_cast<XpWebFetchDiagnostic>(event)) {
+            case XP_WEB_FETCH_PROGRESS:
+              LOG_DBG("WEB", "Fetch %u bytes, heap %u", (unsigned)bytes, (unsigned)ESP.getFreeHeap());
+              break;
+            case XP_WEB_FETCH_FAILED:
+              LOG_ERR("WEB", "Fetch failed after %u bytes in %lu ms: %s", (unsigned)bytes, (unsigned long)elapsed,
+                      url.c_str());
+              break;
+            case XP_WEB_FETCH_DONE:
+              LOG_INF("WEB", "Fetch %s: %u bytes in %lu ms, browser %s: %s", text, (unsigned)bytes,
+                      (unsigned long)elapsed, connected ? "connected" : "disconnected", url.c_str());
+              break;
+          }
+        },
+};
 
-  const bool ok2xx = status >= 200 && status < 300;
-  // A bounded segment ended mid-body: the browser requests the next one, so
-  // the .part stays and nothing is installed yet.
-  const bool midSegment = segmentBoundary && !complete && ok2xx;
-
-  if (!complete && ok2xx && !midSegment) {
-    Storage.remove(part.c_str());
-    char msg[96];
-    const char* error = sdFull ? "sd write failed" : rangeUnsupported ? "range unsupported" : "download truncated";
-    // complete:false matters once the heartbeat has committed HTTP 200 chunked:
-    // it is the only signal fetchToSd()'s resume loop still sees on this path
-    // (it then detects zero progress and throws instead of returning success).
-    snprintf(msg, sizeof(msg), "{\"error\":\"%s\",\"bytes\":%u,\"complete\":false}", error, (unsigned)written);
-    LOG_ERR("WEB", "Fetch failed after %u bytes in %lu ms: %s", (unsigned)written, millis() - fetchStartedAt,
-            url.c_str());
-    sendFetchResult(502, msg);
-    return;
-  }
-
-  JsonDocument resp;
-  if (!ok2xx) {
-    Storage.remove(part.c_str());
-    resp["error"] = status < 0 ? "transport failure" : "http status";
-  } else if (complete && !Storage.replaceFile(part.c_str(), dest.c_str())) {
-    Storage.remove(part.c_str());
-    complete = false;
-    resp["error"] = "sd write failed";
-  } else if (complete && library::isLibraryBookFile(dest)) {
-    library::markLibraryIndexDirty();
-  }
-  resp["status"] = status;
-  resp["bytes"] = written;
-  resp["complete"] = complete;
-  if (totalExpected > 0) resp["total"] = totalExpected;
-  String out;
-  serializeJson(resp, out);
-  const bool browserConnected = server->client().connected();
-  LOG_INF("WEB", "Fetch %s: %u bytes in %lu ms, browser %s: %s",
-          midSegment ? "segment done"
-          : complete ? "complete"
-                     : "failed",
-          (unsigned)written, millis() - fetchStartedAt, browserConnected ? "connected" : "disconnected", url.c_str());
-  sendFetchResult(200, out);
+void CrossPointWebServer::handleFetch() {
+  WebFetchBridge bridge(*this);
+  xp_web_fetch(static_cast<WebFileBridge*>(&bridge), &WebFetchBridge::services);
 }
 
 struct WebJobBridge : WebFileBridge {

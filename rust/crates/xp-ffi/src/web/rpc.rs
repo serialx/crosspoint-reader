@@ -4,11 +4,11 @@ use core::ffi::{c_char, c_void, CStr};
 
 #[repr(C)]
 pub struct Rpc {
-    files: *const Services,
+    pub(super) files: *const Services,
     parse: unsafe extern "C" fn(*mut c_void, Span) -> Span,
     string: unsafe extern "C" fn(*mut c_void, *const c_char) -> Span,
     send: unsafe extern "C" fn(*mut c_void, u16, *const c_char),
-    release: unsafe extern "C" fn(*mut c_void, bool),
+    pub(super) release: unsafe extern "C" fn(*mut c_void, bool),
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -28,22 +28,22 @@ pub struct Relay {
     respond:
         unsafe extern "C" fn(*mut c_void, i32, *const c_char, *const c_char, u16, *const c_char),
 }
-struct RpcRequest<'a> {
-    r: Request<'a>,
-    s: &'a Rpc,
+pub(super) struct RpcRequest<'a> {
+    pub(super) r: Request<'a>,
+    pub(super) s: &'a Rpc,
 }
 impl RpcRequest<'_> {
-    fn begin(&self) -> bool {
+    pub(super) fn begin(&self) -> bool {
         if self.r.flags() & 32 == 0 {
             self.r.send(403, b"plugin system disabled");
             return false;
         }
         self.r.json_body(self.s.parse, self.s.send)
     }
-    fn string(&self, name: &CStr) -> &[u8] {
+    pub(super) fn string(&self, name: &CStr) -> &[u8] {
         unsafe { (self.s.string)(self.r.ctx, name.as_ptr()).bytes() }
     }
-    fn send(&self, code: u16, body: &CStr) {
+    pub(super) fn send(&self, code: u16, body: &CStr) {
         unsafe { (self.s.send)(self.r.ctx, code, body.as_ptr()) }
     }
 }

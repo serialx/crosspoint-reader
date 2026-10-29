@@ -34,7 +34,10 @@ typedef enum {
   XP_WEB_AVAILABLE,
   XP_WEB_OPEN_READ,
   XP_WEB_ENSURE_DIR,
-  XP_WEB_REPLACE  // path is source; data is a NUL-terminated target path.
+  XP_WEB_REPLACE,  // path is source; data is a NUL-terminated target path.
+  XP_WEB_OPEN_APPEND,
+  XP_WEB_FLUSH,
+  XP_WEB_CREATE_PLUGIN
 } XpWebIo;
 typedef enum { XP_WEB_CACHE, XP_WEB_REMOVE_BOOK, XP_WEB_MOVE_BOOK, XP_WEB_LIBRARY_BOOK } XpWebBook;
 typedef enum {
@@ -453,6 +456,40 @@ typedef struct {
 } XpWebCrypto;
 void xp_web_relay(void*, const XpWebRelay*);
 void xp_web_crypto(void*, const XpWebCrypto*);
+typedef enum { XP_WEB_FETCH_OFFSET, XP_WEB_FETCH_TRUNCATED, XP_WEB_FETCH_RESULT } XpWebFetchResponse;
+typedef enum { XP_WEB_FETCH_PROGRESS, XP_WEB_FETCH_FAILED, XP_WEB_FETCH_DONE } XpWebFetchDiagnostic;
+typedef struct {
+  int32_t status;
+  size_t total;
+  bool complete;
+} XpWebFetchResult;
+// Only run may invoke these callbacks; sink context and byte spans are borrowed
+// for that call. Callbacks are sequential and must not be retained or nested.
+typedef struct {
+  bool (*write)(void*, XpWebText);
+  bool (*rewind)(void*);
+  bool (*poll)(void*);
+  void (*configure)(void*, void* http, bool same_origin);
+} XpWebFetchSink;
+typedef struct {
+  const XpWebRpc* request;
+  int32_t (*integer)(void*, const char*);
+  // Null copies request values; a suffix constructs the staging path after release.
+  void (*prepare)(void*, const char* suffix);
+  // NUL-terminated URL/destination/partial paths, stable after prepare until return.
+  XpWebText (*path)(void*, uint32_t);
+  void (*directory)(void*, XpWebText);
+  void (*suspend)(void*, bool);
+  XpWebFetchResult (*run)(void*, size_t offset, void* sink_ctx, const XpWebFetchSink*);
+  void (*configure)(void*, void* http, const char* agent, uint32_t timeout, bool headers);
+  uint32_t (*time)(void*);
+  XpWebText (*response)(void*, uint32_t, const char* error, int32_t, size_t, bool, size_t);
+  // Sends the prepared response (initially empty), without another String copy.
+  void (*send)(void*, uint16_t);
+  // Nullable; text is borrowed only for the diagnostic call.
+  void (*diagnostic)(void*, uint32_t, size_t, uint32_t, const char*, bool);
+} XpWebFetch;
+void xp_web_fetch(void*, const XpWebFetch*);
 #ifdef __cplusplus
 }
 #endif

@@ -28,7 +28,6 @@ Epub::Epub(std::string filepath, const std::string& cacheDir) : filepath(std::mo
 }
 
 namespace {
-enum class DocumentOp : uint32_t { Find, Base, Size, Setup, Read, GuideLoad, GuideAssign, GuideRelease, Css };
 XpBookBorrow borrow(std::string_view text) { return {reinterpret_cast<const uint8_t*>(text.data()), text.size()}; }
 std::string_view view(XpBookBorrow text) { return {reinterpret_cast<const char*>(text.data), text.len}; }
 }  // namespace
@@ -63,20 +62,20 @@ XpBookDocumentServices Epub::documentServices(DocumentContext& context) {
           [](void* opaque, uint32_t operation, size_t chunk) -> size_t {
             auto& ctx = *static_cast<DocumentContext*>(opaque);
             auto& epub = ctx.epub;
-            switch (static_cast<DocumentOp>(operation)) {
-              case DocumentOp::Find:
+            switch (static_cast<XpBookDocumentOp>(operation)) {
+              case XP_BOOK_DOCUMENT_FIND:
                 return epub.findContentOpfFile(&ctx.opfPath, ctx.zip);
-              case DocumentOp::Base:
+              case XP_BOOK_DOCUMENT_BASE:
                 if (ctx.kind == XP_PKG_OPF_PASS)
                   epub.contentBasePath = ctx.opfPath.substr(0, ctx.opfPath.find_last_of('/') + 1);
                 else if (ctx.kind == XP_PKG_NAV_PASS)
                   ctx.navBase = epub.tocNavItem.substr(0, epub.tocNavItem.find_last_of('/') + 1);
                 return 1;
-              case DocumentOp::Size: {
+              case XP_BOOK_DOCUMENT_SIZE: {
                 const char* path = ctx.kind == XP_PKG_CONTAINER ? "META-INF/container.xml" : ctx.path().c_str();
                 return ctx.zip ? ctx.zip->getInflatedFileSize(path, &ctx.size) : epub.getItemSize(path, &ctx.size);
               }
-              case DocumentOp::Setup: {
+              case XP_BOOK_DOCUMENT_SETUP: {
                 std::string_view base, cachePath;
                 BookMetadataCache* cache = nullptr;
                 if (ctx.kind == XP_PKG_OPF_PASS) {
@@ -89,12 +88,12 @@ XpBookDocumentServices Epub::documentServices(DocumentContext& context) {
                 }
                 return ctx.parser.emplace(ctx.kind, base, ctx.size, cachePath, cache, ctx.metadataOnly).setup();
               }
-              case DocumentOp::Read: {
+              case XP_BOOK_DOCUMENT_READ: {
                 const char* path = ctx.kind == XP_PKG_CONTAINER ? "META-INF/container.xml" : ctx.path().c_str();
                 return ctx.zip ? ctx.zip->readFileToStream(path, *ctx.parser, chunk, ctx.metadataOnly)
                                : epub.readItemContentsToStream(path, *ctx.parser, chunk, ctx.metadataOnly);
               }
-              case DocumentOp::GuideLoad: {
+              case XP_BOOK_DOCUMENT_GUIDE_LOAD: {
                 size_t size;
                 uint8_t* bytes = epub.readItemContentsToBytes(ctx.parser->value(XP_PKG_GUIDE), &size, true);
                 if (!bytes) return 0;
@@ -105,14 +104,14 @@ XpBookDocumentServices Epub::documentServices(DocumentContext& context) {
                 if (slash != std::string::npos) guide.base = ctx.parser->value(XP_PKG_GUIDE).substr(0, slash + 1);
                 return 1;
               }
-              case DocumentOp::GuideAssign:
+              case XP_BOOK_DOCUMENT_GUIDE_ASSIGN:
                 ctx.metadata->coverItemHref =
                     FsHelpers::normalisePath(FsHelpers::decodeUriEscapes(ctx.guide->base + ctx.guide->image));
                 return 1;
-              case DocumentOp::GuideRelease:
+              case XP_BOOK_DOCUMENT_GUIDE_RELEASE:
                 ctx.guide.reset();
                 return 1;
-              case DocumentOp::Css: {
+              case XP_BOOK_DOCUMENT_CSS: {
                 auto css = ctx.parser->cssFiles();
                 if (!css.empty()) epub.cssFiles = std::move(css);
                 return 1;
@@ -122,7 +121,7 @@ XpBookDocumentServices Epub::documentServices(DocumentContext& context) {
           },
           [](void* opaque, uint32_t field) -> XpBookBorrow {
             auto& ctx = *static_cast<DocumentContext*>(opaque);
-            if (field == 100) return borrow(ctx.guide ? ctx.guide->html : ctx.path());
+            if (field == XP_BOOK_DOCUMENT_AUXILIARY) return borrow(ctx.guide ? ctx.guide->html : ctx.path());
             return borrow(ctx.parser->view(field));
           },
           [](void* opaque, uint32_t field, XpBookBorrow value) {
@@ -131,7 +130,7 @@ XpBookDocumentServices Epub::documentServices(DocumentContext& context) {
               *ctx.containerResult = view(value);
               return;
             }
-            if (field == 100) {
+            if (field == XP_BOOK_DOCUMENT_AUXILIARY) {
               ctx.guide->image = view(value);
               return;
             }
@@ -161,104 +160,78 @@ XpBookDocumentServices Epub::documentServices(DocumentContext& context) {
           },
           [](void* opaque, uint32_t event) {
             [[maybe_unused]] auto& ctx = *static_cast<DocumentContext*>(opaque);
-            enum class Event : uint32_t {
-              ContainerSize,
-              ContainerRead,
-              ContainerRoot,
-              FindOpf,
-              ParsingOpf,
-              OpfSize,
-              OpfSetup,
-              OpfRead,
-              MetadataParsed,
-              GuideFallback,
-              GuideFound,
-              OpfParsed,
-              NoNcx,
-              ParsingNcx,
-              NcxSize,
-              NcxSetup,
-              NcxRead,
-              NoNav,
-              ParsingNav,
-              NavSize,
-              NavSetup,
-              NavRead,
-              NcxParsed,
-              NavParsed
-            };
-            switch (static_cast<Event>(event)) {
-              case Event::ContainerSize:
+            switch (static_cast<XpBookDocumentDiagnostic>(event)) {
+              case XP_BOOK_DOCUMENT_LOG_CONTAINER_SIZE:
                 LOG_ERR("EBP", "Could not find or size META-INF/container.xml");
                 break;
-              case Event::ContainerRead:
+              case XP_BOOK_DOCUMENT_LOG_CONTAINER_READ:
                 LOG_ERR("EBP", "Could not read META-INF/container.xml");
                 break;
-              case Event::ContainerRoot:
+              case XP_BOOK_DOCUMENT_LOG_CONTAINER_ROOT:
                 LOG_ERR("EBP", "Could not find valid rootfile in container.xml");
                 break;
-              case Event::FindOpf:
+              case XP_BOOK_DOCUMENT_LOG_FIND_OPF:
                 LOG_ERR("EBP", "Could not find content.opf in zip");
                 break;
-              case Event::ParsingOpf:
+              case XP_BOOK_DOCUMENT_LOG_PARSING_OPF:
                 LOG_DBG("EBP", "Parsing content.opf: %s", ctx.opfPath.c_str());
                 break;
-              case Event::OpfSize:
+              case XP_BOOK_DOCUMENT_LOG_OPF_SIZE:
                 LOG_ERR("EBP", "Could not get size of content.opf");
                 break;
-              case Event::OpfSetup:
+              case XP_BOOK_DOCUMENT_LOG_OPF_SETUP:
                 LOG_ERR("EBP", "Could not setup content.opf parser");
                 break;
-              case Event::OpfRead:
+              case XP_BOOK_DOCUMENT_LOG_OPF_READ:
                 LOG_ERR("EBP", "Could not read content.opf");
                 break;
-              case Event::MetadataParsed:
+              case XP_BOOK_DOCUMENT_LOG_METADATA_PARSED:
                 LOG_DBG("EBP", "Successfully parsed package metadata");
                 break;
-              case Event::GuideFallback:
+              case XP_BOOK_DOCUMENT_LOG_GUIDE_FALLBACK:
                 LOG_DBG("EBP", "No cover from metadata, trying guide cover page: %s",
                         ctx.parser->value(XP_PKG_GUIDE).c_str());
                 break;
-              case Event::GuideFound:
+              case XP_BOOK_DOCUMENT_LOG_GUIDE_FOUND:
                 LOG_DBG("EBP", "Found cover image from guide: %s", ctx.metadata->coverItemHref.c_str());
                 break;
-              case Event::OpfParsed:
+              case XP_BOOK_DOCUMENT_LOG_OPF_PARSED:
                 LOG_DBG("EBP", "Successfully parsed content.opf");
                 break;
-              case Event::NoNcx:
+              case XP_BOOK_DOCUMENT_LOG_NO_NCX:
                 LOG_DBG("EBP", "No ncx file specified");
                 break;
-              case Event::ParsingNcx:
+              case XP_BOOK_DOCUMENT_LOG_PARSING_NCX:
                 LOG_DBG("EBP", "Parsing toc ncx file: %s", ctx.epub.tocNcxItem.c_str());
                 break;
-              case Event::NcxSize:
+              case XP_BOOK_DOCUMENT_LOG_NCX_SIZE:
                 LOG_ERR("EBP", "Could not get size of toc ncx file");
                 break;
-              case Event::NcxSetup:
+              case XP_BOOK_DOCUMENT_LOG_NCX_SETUP:
                 LOG_ERR("EBP", "Could not setup toc ncx parser");
                 break;
-              case Event::NcxRead:
+              case XP_BOOK_DOCUMENT_LOG_NCX_READ:
                 LOG_ERR("EBP", "Could not read toc ncx file");
                 break;
-              case Event::NoNav:
+              case XP_BOOK_DOCUMENT_LOG_NO_NAV:
                 LOG_DBG("EBP", "No nav file specified");
                 break;
-              case Event::ParsingNav:
+              case XP_BOOK_DOCUMENT_LOG_PARSING_NAV:
                 LOG_DBG("EBP", "Parsing toc nav file: %s", ctx.epub.tocNavItem.c_str());
                 break;
-              case Event::NavSize:
+              case XP_BOOK_DOCUMENT_LOG_NAV_SIZE:
                 LOG_ERR("EBP", "Could not get size of toc nav file");
                 break;
-              case Event::NavSetup:
+              case XP_BOOK_DOCUMENT_LOG_NAV_SETUP:
                 LOG_ERR("EBP", "Could not setup toc nav parser");
                 break;
-              case Event::NavRead:
+              case XP_BOOK_DOCUMENT_LOG_NAV_READ:
                 LOG_ERR("EBP", "Could not read toc nav file");
                 break;
-              case Event::NcxParsed:
+              case XP_BOOK_DOCUMENT_LOG_NCX_PARSED:
                 LOG_DBG("EBP", "Parsed TOC items");
                 break;
-              case Event::NavParsed:
+              case XP_BOOK_DOCUMENT_LOG_NAV_PARSED:
                 LOG_DBG("EBP", "Parsed TOC nav items");
                 break;
             }
@@ -311,21 +284,6 @@ void Epub::discoverCssFilesFromZip() {
 }
 
 CssParser::ParseResult Epub::parseCssFiles(const CssParser::CacheStatus status) const {
-  enum class Op : uint32_t {
-    Clear,
-    Dedup,
-    Heap,
-    Size,
-    OpenWrite,
-    Stream,
-    Close,
-    Remove,
-    OpenRead,
-    Parse,
-    DropTemp,
-    Empty,
-    Save
-  };
   struct Temp {
     std::string path;
     HalFile file;
@@ -341,11 +299,11 @@ CssParser::ParseResult Epub::parseCssFiles(const CssParser::CacheStatus status) 
         auto& ctx = *static_cast<Context*>(opaque);
         const auto& epub = ctx.epub;
         const auto& paths = epub.cssFiles;
-        switch (static_cast<Op>(operation)) {
-          case Op::Clear:
+        switch (static_cast<XpBookCssOp>(operation)) {
+          case XP_BOOK_CSS_FILE_CLEAR:
             epub.cssParser->clear();
             return 1;
-          case Op::Dedup:
+          case XP_BOOK_CSS_FILE_DEDUP:
             ctx.entries = makeUniqueNoThrow<XpBookCssEntry[]>(argument);
             if (!ctx.entries) return 0;
             for (size_t i = 0; i < paths.size(); ++i) {
@@ -365,102 +323,87 @@ CssParser::ParseResult Epub::parseCssFiles(const CssParser::CacheStatus status) 
             std::sort(ctx.entries.get(), ctx.entries.get() + paths.size(),
                       [](const auto& a, const auto& b) { return a.cssIndex < b.cssIndex; });
             return reinterpret_cast<size_t>(ctx.entries.get());
-          case Op::Heap:
+          case XP_BOOK_CSS_FILE_HEAP:
             return ESP.getFreeHeap();
-          case Op::Size: {
+          case XP_BOOK_CSS_FILE_SIZE: {
             size_t size = 0;
             return epub.getItemSize(paths[index], &size) ? size : 0;
           }
-          case Op::OpenWrite: {
+          case XP_BOOK_CSS_FILE_OPEN_WRITE: {
             auto& temp = ctx.temp.emplace();
             temp.path = epub.getCachePath() + "/.tmp.css";
             return Storage.openFileForWrite("EBP", temp.path, temp.file);
           }
-          case Op::Stream:
+          case XP_BOOK_CSS_FILE_STREAM:
             return epub.readItemContentsToStream(paths[index], ctx.temp->file, argument);
-          case Op::Close:
+          case XP_BOOK_CSS_FILE_CLOSE:
             ctx.temp->file.close();
             return 1;
-          case Op::Remove:
+          case XP_BOOK_CSS_FILE_REMOVE:
             Storage.remove(ctx.temp->path.c_str());
             return 1;
-          case Op::OpenRead:
+          case XP_BOOK_CSS_FILE_OPEN_READ:
             return Storage.openFileForRead("EBP", ctx.temp->path, ctx.temp->file);
-          case Op::Parse:
+          case XP_BOOK_CSS_FILE_PARSE:
             return static_cast<size_t>(epub.cssParser->loadFromStream(ctx.temp->file));
-          case Op::DropTemp:
+          case XP_BOOK_CSS_FILE_DROP_TEMP:
             ctx.temp.reset();
             return 1;
-          case Op::Empty:
+          case XP_BOOK_CSS_FILE_EMPTY:
             return epub.cssParser->empty();
-          case Op::Save:
+          case XP_BOOK_CSS_FILE_SAVE:
             return epub.cssParser->saveToCache(argument != 0);
         }
         return 0;
       },
       [](void* opaque, uint32_t event, [[maybe_unused]] size_t index, [[maybe_unused]] size_t value) {
         [[maybe_unused]] const auto& epub = static_cast<Context*>(opaque)->epub;
-        enum class Event : uint32_t {
-          NoFiles,
-          Count,
-          DedupOom,
-          Parsing,
-          LowHeap,
-          Oversize,
-          Create,
-          Read,
-          Open,
-          Failed,
-          EmptyPartial,
-          KeepPartial,
-          Save,
-          Loaded
-        };
-        switch (static_cast<Event>(event)) {
-          case Event::NoFiles:
+        switch (static_cast<XpBookCssDiagnostic>(event)) {
+          case XP_BOOK_CSS_LOG_NO_FILES:
             LOG_DBG("EBP", "No CSS files to parse, but CssParser created for inline styles");
             break;
-          case Event::Count:
+          case XP_BOOK_CSS_LOG_COUNT:
             LOG_DBG("EBP", "CSS files to parse: %zu", value);
             break;
-          case Event::DedupOom:
+          case XP_BOOK_CSS_LOG_DEDUP_OOM:
             LOG_ERR("EBP", "Insufficient heap for CSS deduplication; parsing every stylesheet");
             break;
-          case Event::Parsing:
+          case XP_BOOK_CSS_LOG_PARSING:
             LOG_DBG("EBP", "Parsing CSS file: %s", epub.cssFiles[index].c_str());
             break;
-          case Event::LowHeap:
+          case XP_BOOK_CSS_LOG_LOW_HEAP:
             LOG_ERR("EBP", "Insufficient heap for CSS parsing (%u bytes free, need %zu), skipping: %s",
                     static_cast<uint32_t>(value), size_t(65536), epub.cssFiles[index].c_str());
             break;
-          case Event::Oversize:
+          case XP_BOOK_CSS_LOG_OVERSIZE:
             LOG_ERR("EBP", "CSS file too large (%zu bytes > %zu max), skipping: %s", value, size_t(131072),
                     epub.cssFiles[index].c_str());
             break;
-          case Event::Create:
+          case XP_BOOK_CSS_LOG_CREATE:
             LOG_ERR("EBP", "Could not create temp CSS file");
             break;
-          case Event::Read:
+          case XP_BOOK_CSS_LOG_READ:
             LOG_ERR("EBP", "Could not read CSS file: %s", epub.cssFiles[index].c_str());
             break;
-          case Event::Open:
+          case XP_BOOK_CSS_LOG_OPEN:
             LOG_ERR("EBP", "Could not open temp CSS file for reading");
             break;
-          case Event::Failed:
+          case XP_BOOK_CSS_LOG_FAILED:
             LOG_ERR("EBP", "CSS parse failed; preserving any previous cache for a later retry");
             break;
-          case Event::EmptyPartial:
+          case XP_BOOK_CSS_LOG_EMPTY_PARTIAL:
             LOG_ERR("EBP", "CSS parsing stopped before any usable rules were loaded; cache will not be replaced");
             break;
-          case Event::KeepPartial:
+          case XP_BOOK_CSS_LOG_KEEP_PARTIAL:
             LOG_DBG("EBP", "CSS retry remained partial; preserving the previous partial cache");
             break;
-          case Event::Save:
+          case XP_BOOK_CSS_LOG_SAVE:
             LOG_ERR("EBP", "Failed to save CSS rules to cache");
             break;
-          case Event::Loaded:
+          case XP_BOOK_CSS_LOG_LOADED:
             LOG_DBG("EBP", "Loaded %zu CSS style rules from %zu files (%zu identical duplicates skipped, %s)",
-                    epub.cssParser->ruleCount(), epub.cssFiles.size(), index, value == 0 ? "complete" : "partial");
+                    epub.cssParser->ruleCount(), epub.cssFiles.size(), index,
+                    value == XP_BOOK_CSS_PARSE_COMPLETE ? "complete" : "partial");
             break;
         }
       }};
@@ -1324,14 +1267,15 @@ size_t Epub::getCumulativeSpineItemSize(const int spineIndex) const {
 BookMetadataCache::SpineEntry Epub::getSpineItem(const int spineIndex) const {
   const bool loaded = bookMetadataCache && bookMetadataCache->isLoaded();
   const auto plan = xp_book_lookup(loaded, spineIndex, loaded ? bookMetadataCache->getSpineCount() : 0, false);
-  enum class Diagnostic : uint32_t { None, Unloaded, Range };
-  switch (static_cast<Diagnostic>(plan.diagnostic)) {
-    case Diagnostic::None:
+
+  switch (static_cast<XpBookLookupDiagnostic>(plan.diagnostic)) {
+    case XP_BOOK_LOOKUP_NONE:
+    case XP_BOOK_LOOKUP_MISSING:
       break;
-    case Diagnostic::Unloaded:
+    case XP_BOOK_LOOKUP_UNLOADED:
       LOG_ERR("EBP", "getSpineItem called but cache not loaded");
       break;
-    case Diagnostic::Range:
+    case XP_BOOK_LOOKUP_RANGE:
       LOG_ERR("EBP", "getSpineItem index:%d is out of range", spineIndex);
       break;
   }
@@ -1341,14 +1285,15 @@ BookMetadataCache::SpineEntry Epub::getSpineItem(const int spineIndex) const {
 BookMetadataCache::TocEntry Epub::getTocItem(const int tocIndex) const {
   const bool loaded = bookMetadataCache && bookMetadataCache->isLoaded();
   const auto plan = xp_book_lookup(loaded, tocIndex, loaded ? bookMetadataCache->getTocCount() : 0, true);
-  enum class Diagnostic : uint32_t { None, Unloaded, Range };
-  switch (static_cast<Diagnostic>(plan.diagnostic)) {
-    case Diagnostic::None:
+
+  switch (static_cast<XpBookLookupDiagnostic>(plan.diagnostic)) {
+    case XP_BOOK_LOOKUP_NONE:
+    case XP_BOOK_LOOKUP_MISSING:
       break;
-    case Diagnostic::Unloaded:
+    case XP_BOOK_LOOKUP_UNLOADED:
       LOG_DBG("EBP", "getTocItem called but cache not loaded");
       break;
-    case Diagnostic::Range:
+    case XP_BOOK_LOOKUP_RANGE:
       LOG_DBG("EBP", "getTocItem index:%d is out of range", tocIndex);
       break;
   }
@@ -1367,22 +1312,22 @@ int Epub::getTocItemsCount() const {
 int Epub::getSpineIndexForTocIndex(const int tocIndex) const {
   const bool loaded = bookMetadataCache && bookMetadataCache->isLoaded();
   auto plan = xp_book_lookup(loaded, tocIndex, loaded ? bookMetadataCache->getTocCount() : 0, true);
-  enum class Diagnostic : uint32_t { None, Unloaded, Range, Missing };
-  switch (static_cast<Diagnostic>(plan.diagnostic)) {
-    case Diagnostic::None:
+
+  switch (static_cast<XpBookLookupDiagnostic>(plan.diagnostic)) {
+    case XP_BOOK_LOOKUP_NONE:
       break;
-    case Diagnostic::Unloaded:
+    case XP_BOOK_LOOKUP_UNLOADED:
       LOG_ERR("EBP", "getSpineIndexForTocIndex called but cache not loaded");
       break;
-    case Diagnostic::Range:
+    case XP_BOOK_LOOKUP_RANGE:
       LOG_ERR("EBP", "getSpineIndexForTocIndex: tocIndex %d out of range", tocIndex);
       break;
-    case Diagnostic::Missing:
+    case XP_BOOK_LOOKUP_MISSING:
       break;
   }
   if (plan.index < 0) return 0;
   plan = xp_book_toc_spine(bookMetadataCache->getTocEntry(plan.index).spineIndex);
-  if (static_cast<Diagnostic>(plan.diagnostic) == Diagnostic::Missing)
+  if (static_cast<XpBookLookupDiagnostic>(plan.diagnostic) == XP_BOOK_LOOKUP_MISSING)
     LOG_DBG("EBP", "Section not found for TOC index %d", tocIndex);
   return plan.index;
 }

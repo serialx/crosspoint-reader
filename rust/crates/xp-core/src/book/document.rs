@@ -1,5 +1,7 @@
 //! Package pass sequencing; C++ owns parser/file/string adapter lifetimes.
 use super::residual::Span;
+use crate::book::residual_abi::*;
+use crate::epub::opf;
 use core::ffi::c_void;
 #[repr(C)]
 pub struct Services {
@@ -7,26 +9,17 @@ pub struct Services {
     pub call: unsafe extern "C" fn(*mut c_void, u32, usize) -> usize,
     pub value: unsafe extern "C" fn(*mut c_void, u32) -> Span,
     pub assign: unsafe extern "C" fn(*mut c_void, u32, Span),
-    pub diagnostic: unsafe extern "C" fn(*mut c_void, u32),
-}
-#[repr(u32)]
-enum Op {
-    Find = 0,
-    Base = 1,
-    Size = 2,
-    Setup = 3,
-    Read = 4,
-    GuideLoad = 5,
-    GuideAssign = 6,
-    GuideRelease = 7,
-    Css = 8,
+    pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32)>,
 }
 impl Services {
-    fn call(&self, op: Op, arg: usize) -> usize {
-        unsafe { (self.call)(self.ctx, op as u32, arg) }
+    fn call(&self, op: u32, arg: usize) -> usize {
+        unsafe { (self.call)(self.ctx, op, arg) }
     }
+    #[inline(never)]
     fn log(&self, event: u32) {
-        unsafe { (self.diagnostic)(self.ctx, event) }
+        if let Some(log) = self.diagnostic {
+            unsafe { log(self.ctx, event) }
+        }
     }
     unsafe fn value(&self, field: u32) -> Span {
         (self.value)(self.ctx, field)
@@ -38,101 +31,124 @@ impl Services {
 /// # Safety
 /// Services and borrowed values remain live for the call. Callbacks do not retain spans.
 pub unsafe fn container(s: &Services) -> bool {
-    if s.call(Op::Size, 0) == 0 {
-        s.log(0);
+    if s.call(XP_BOOK_DOCUMENT_SIZE, 0) == 0 {
+        s.log(XP_BOOK_DOCUMENT_LOG_CONTAINER_SIZE);
         return false;
     }
-    if s.call(Op::Setup, 0) == 0 {
+    if s.call(XP_BOOK_DOCUMENT_SETUP, 0) == 0 {
         return false;
     }
-    if s.call(Op::Read, 512) == 0 {
-        s.log(1);
+    if s.call(XP_BOOK_DOCUMENT_READ, 512) == 0 {
+        s.log(XP_BOOK_DOCUMENT_LOG_CONTAINER_READ);
         return false;
     }
-    let value = s.value(0);
+    let value = s.value(XP_BOOK_DOCUMENT_CONTAINER_PATH);
     if value.len == 0 {
-        s.log(2);
+        s.log(XP_BOOK_DOCUMENT_LOG_CONTAINER_ROOT);
         return false;
     }
-    s.assign(0, value);
+    s.assign(XP_BOOK_DOCUMENT_CONTAINER_PATH, value);
     true
 }
 /// # Safety
 /// Same as container; guide bytes remain valid through GuideRelease.
 pub unsafe fn opf(s: &Services, metadata_only: bool) -> bool {
-    if s.call(Op::Find, 0) == 0 {
-        s.log(3);
+    if s.call(XP_BOOK_DOCUMENT_FIND, 0) == 0 {
+        s.log(XP_BOOK_DOCUMENT_LOG_FIND_OPF);
         return false;
     }
-    s.call(Op::Base, 0);
-    s.log(4);
-    if s.call(Op::Size, 0) == 0 {
-        s.log(5);
+    s.call(XP_BOOK_DOCUMENT_BASE, 0);
+    s.log(XP_BOOK_DOCUMENT_LOG_PARSING_OPF);
+    if s.call(XP_BOOK_DOCUMENT_SIZE, 0) == 0 {
+        s.log(XP_BOOK_DOCUMENT_LOG_OPF_SIZE);
         return false;
     }
-    if s.call(Op::Setup, 0) == 0 {
-        s.log(6);
+    if s.call(XP_BOOK_DOCUMENT_SETUP, 0) == 0 {
+        s.log(XP_BOOK_DOCUMENT_LOG_OPF_SETUP);
         return false;
     }
-    if s.call(Op::Read, 1024) == 0 {
-        s.log(7);
+    if s.call(XP_BOOK_DOCUMENT_READ, 1024) == 0 {
+        s.log(XP_BOOK_DOCUMENT_LOG_OPF_READ);
         return false;
     }
     // Package field numbers are the existing XpPkgField ABI.
-    for field in [0, 1, 2] {
+    for field in [opf::TITLE, opf::AUTHOR, opf::LANGUAGE] {
         s.assign(field, s.value(field));
     }
     if metadata_only {
-        s.log(8);
+        s.log(XP_BOOK_DOCUMENT_LOG_METADATA_PARSED);
         return true;
     }
-    s.assign(8, s.value(8));
-    if s.value(8).len == 0 && s.value(9).len != 0 {
-        s.log(9);
-        if s.call(Op::GuideLoad, 0) != 0 {
-            let html = s.value(100);
+    s.assign(opf::COVER, s.value(opf::COVER));
+    if s.value(opf::COVER).len == 0 && s.value(opf::GUIDE).len != 0 {
+        s.log(XP_BOOK_DOCUMENT_LOG_GUIDE_FALLBACK);
+        if s.call(XP_BOOK_DOCUMENT_GUIDE_LOAD, 0) != 0 {
+            let html = s.value(XP_BOOK_DOCUMENT_AUXILIARY);
             let image = super::residual::guide_image(html.bytes());
             if !image.is_empty() {
-                s.assign(100, Span::new(image));
-                s.call(Op::GuideAssign, 0);
-                s.log(10);
+                s.assign(XP_BOOK_DOCUMENT_AUXILIARY, Span::new(image));
+                s.call(XP_BOOK_DOCUMENT_GUIDE_ASSIGN, 0);
+                s.log(XP_BOOK_DOCUMENT_LOG_GUIDE_FOUND);
             }
-            s.call(Op::GuideRelease, 0);
+            s.call(XP_BOOK_DOCUMENT_GUIDE_RELEASE, 0);
         }
     }
-    s.assign(10, s.value(10));
-    for field in [6, 7] {
+    s.assign(opf::TEXT, s.value(opf::TEXT));
+    for field in [opf::NCX, opf::NAV] {
         let value = s.value(field);
         if value.len != 0 {
             s.assign(field, value);
         }
     }
-    s.call(Op::Css, 0);
-    s.log(11);
+    s.call(XP_BOOK_DOCUMENT_CSS, 0);
+    s.log(XP_BOOK_DOCUMENT_LOG_OPF_PARSED);
     true
 }
 /// # Safety
 /// Services own the selected NCX or nav pass for this call.
 pub unsafe fn toc(s: &Services, nav: bool) -> bool {
-    let event = if nav { 17 } else { 12 };
-    if s.value(100).len == 0 {
-        s.log(event);
+    if s.value(XP_BOOK_DOCUMENT_AUXILIARY).len == 0 {
+        s.log(if nav {
+            XP_BOOK_DOCUMENT_LOG_NO_NAV
+        } else {
+            XP_BOOK_DOCUMENT_LOG_NO_NCX
+        });
         return false;
     }
-    s.log(event + 1);
-    if s.call(Op::Size, 0) == 0 {
-        s.log(event + 2);
+    s.log(if nav {
+        XP_BOOK_DOCUMENT_LOG_PARSING_NAV
+    } else {
+        XP_BOOK_DOCUMENT_LOG_PARSING_NCX
+    });
+    if s.call(XP_BOOK_DOCUMENT_SIZE, 0) == 0 {
+        s.log(if nav {
+            XP_BOOK_DOCUMENT_LOG_NAV_SIZE
+        } else {
+            XP_BOOK_DOCUMENT_LOG_NCX_SIZE
+        });
         return false;
     }
-    s.call(Op::Base, 0);
-    if s.call(Op::Setup, 0) == 0 {
-        s.log(event + 3);
+    s.call(XP_BOOK_DOCUMENT_BASE, 0);
+    if s.call(XP_BOOK_DOCUMENT_SETUP, 0) == 0 {
+        s.log(if nav {
+            XP_BOOK_DOCUMENT_LOG_NAV_SETUP
+        } else {
+            XP_BOOK_DOCUMENT_LOG_NCX_SETUP
+        });
         return false;
     }
-    if s.call(Op::Read, 1024) == 0 {
-        s.log(event + 4);
+    if s.call(XP_BOOK_DOCUMENT_READ, 1024) == 0 {
+        s.log(if nav {
+            XP_BOOK_DOCUMENT_LOG_NAV_READ
+        } else {
+            XP_BOOK_DOCUMENT_LOG_NCX_READ
+        });
         return false;
     }
-    s.log(if nav { 23 } else { 22 });
+    s.log(if nav {
+        XP_BOOK_DOCUMENT_LOG_NAV_PARSED
+    } else {
+        XP_BOOK_DOCUMENT_LOG_NCX_PARSED
+    });
     true
 }

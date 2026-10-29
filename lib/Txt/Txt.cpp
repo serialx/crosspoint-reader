@@ -220,18 +220,17 @@ bool Txt::buildTxtCache(const std::string& filepath, const std::string& cachePat
         auto& metadata = ctx.metadata.emplace();
         xp_book_txt_metadata(&ctx, [](void* opaque, uint32_t operation, XpBookBorrow value) -> XpBookBorrow {
           auto& ctx = *static_cast<Context*>(opaque);
-          enum class Field : uint32_t { Title, Language, FindCover, Cover };
-          switch (static_cast<Field>(operation)) {
-            case Field::Title:
+          switch (static_cast<XpBookTxtMetadataOp>(operation)) {
+            case XP_BOOK_TXT_META_TITLE:
               ctx.metadata->title = utf8ComposeNfc(ctx.title);
               break;
-            case Field::Language:
+            case XP_BOOK_TXT_META_LANGUAGE:
               ctx.metadata->language.assign(reinterpret_cast<const char*>(value.data), value.len);
               break;
-            case Field::FindCover:
+            case XP_BOOK_TXT_META_FIND_COVER:
               ctx.companionCover = Txt::findCompanionCoverImage(ctx.filepath);
               return {reinterpret_cast<const uint8_t*>(ctx.companionCover.data()), ctx.companionCover.size()};
-            case Field::Cover:
+            case XP_BOOK_TXT_META_COVER:
               ctx.metadata->coverItemHref.assign(reinterpret_cast<const char*>(value.data), value.len);
               break;
           }

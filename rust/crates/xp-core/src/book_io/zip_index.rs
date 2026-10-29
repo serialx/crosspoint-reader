@@ -1,4 +1,5 @@
 //! ZIP lookup/cache sequencing over the facade's retained map and names.
+use crate::book::residual_abi::*;
 use crate::{book::residual::Span, zip::Entry};
 use core::ffi::c_void;
 #[repr(C)]
@@ -9,44 +10,30 @@ pub struct Services {
     pub name: unsafe extern "C" fn(*mut c_void, *const Entry, bool) -> Span,
     pub cache: unsafe extern "C" fn(*mut c_void, u32, *const Entry, Span) -> bool,
 }
-#[repr(u32)]
-enum Op {
-    CacheSize,
-    Open,
-    Details,
-    Central,
-    Start,
-    Clear,
-    Reserve,
-    Cursor,
-    LastValid,
-    CursorValid,
-    CursorValue,
-}
 impl Services {
-    fn call(&self, op: Op, arg: u32) -> usize {
-        unsafe { (self.control)(self.ctx, op as u32, arg) }
+    fn call(&self, op: u32, arg: u32) -> usize {
+        unsafe { (self.control)(self.ctx, op, arg) }
     }
 }
 /// # Safety
 /// Names are valid until the next callback; cache copies them before returning.
 /// The context owns the directory walker and closes only a file opened by this call.
 pub unsafe fn lookup(s: &Services, target: Span, last: Span) -> bool {
-    if s.call(Op::CacheSize, 0) != 0 {
-        return (s.cache)(s.ctx, 0, core::ptr::null(), target);
+    if s.call(XP_BOOK_ZIP_INDEX_CACHE_SIZE, 0) != 0 {
+        return (s.cache)(s.ctx, XP_BOOK_ZIP_CACHE_FIND, core::ptr::null(), target);
     }
-    if s.call(Op::LastValid, 0) != 0 && target.bytes() == last.bytes() {
-        return (s.cache)(s.ctx, 1, core::ptr::null(), target);
+    if s.call(XP_BOOK_ZIP_INDEX_LAST_VALID, 0) != 0 && target.bytes() == last.bytes() {
+        return (s.cache)(s.ctx, XP_BOOK_ZIP_CACHE_LAST, core::ptr::null(), target);
     }
-    if s.call(Op::Open, 0) == 0 || s.call(Op::Details, 0) == 0 {
+    if s.call(XP_BOOK_ZIP_INDEX_OPEN, 0) == 0 || s.call(XP_BOOK_ZIP_INDEX_DETAILS, 0) == 0 {
         return false;
     }
-    let start = if s.call(Op::CursorValid, 0) != 0 {
-        s.call(Op::CursorValue, 0)
+    let start = if s.call(XP_BOOK_ZIP_INDEX_CURSOR_VALID, 0) != 0 {
+        s.call(XP_BOOK_ZIP_INDEX_CURSOR_VALUE, 0)
     } else {
-        s.call(Op::Central, 0)
+        s.call(XP_BOOK_ZIP_INDEX_CENTRAL, 0)
     };
-    s.call(Op::Start, start as u32);
+    s.call(XP_BOOK_ZIP_INDEX_START, start as u32);
     let mut entry = Entry::default();
     while (s.next)(s.ctx, &mut entry) {
         if entry.name.length as usize != target.len || entry.name.length >= 256 {
@@ -57,8 +44,8 @@ pub unsafe fn lookup(s: &Services, target: Span, last: Span) -> bool {
             break;
         }
         if name.bytes() == target.bytes() {
-            (s.cache)(s.ctx, 2, &entry, target);
-            s.call(Op::Cursor, entry.next_offset);
+            (s.cache)(s.ctx, XP_BOOK_ZIP_CACHE_REMEMBER, &entry, target);
+            s.call(XP_BOOK_ZIP_INDEX_CURSOR, entry.next_offset);
             return true;
         }
     }
@@ -67,12 +54,15 @@ pub unsafe fn lookup(s: &Services, target: Span, last: Span) -> bool {
 /// # Safety
 /// Same as lookup. Empty/partial cache success matches the original directory scan.
 pub unsafe fn populate(s: &Services) -> bool {
-    if s.call(Op::Open, 0) == 0 || s.call(Op::Details, 0) == 0 {
+    if s.call(XP_BOOK_ZIP_INDEX_OPEN, 0) == 0 || s.call(XP_BOOK_ZIP_INDEX_DETAILS, 0) == 0 {
         return false;
     }
-    s.call(Op::Start, s.call(Op::Central, 0) as u32);
-    s.call(Op::Clear, 0);
-    s.call(Op::Reserve, 0);
+    s.call(
+        XP_BOOK_ZIP_INDEX_START,
+        s.call(XP_BOOK_ZIP_INDEX_CENTRAL, 0) as u32,
+    );
+    s.call(XP_BOOK_ZIP_INDEX_CLEAR, 0);
+    s.call(XP_BOOK_ZIP_INDEX_RESERVE, 0);
     let mut entry = Entry::default();
     while (s.next)(s.ctx, &mut entry) {
         if entry.name.length >= 256 {
@@ -82,22 +72,30 @@ pub unsafe fn populate(s: &Services) -> bool {
         if name.data.is_null() {
             break;
         }
-        (s.cache)(s.ctx, 3, &entry, name);
+        (s.cache)(s.ctx, XP_BOOK_ZIP_CACHE_INSERT, &entry, name);
     }
-    let central = s.call(Op::Central, 0) as u32;
-    s.call(Op::Cursor, central);
+    let central = s.call(XP_BOOK_ZIP_INDEX_CENTRAL, 0) as u32;
+    s.call(XP_BOOK_ZIP_INDEX_CURSOR, central);
     true
 }
 /// # Safety
 /// Same as lookup. Visit borrows each path only for its call.
 pub unsafe fn enumerate(s: &Services, paths: bool) -> bool {
-    if paths && s.call(Op::CacheSize, 0) != 0 {
-        return (s.cache)(s.ctx, 4, core::ptr::null(), Span::new(&[]));
+    if paths && s.call(XP_BOOK_ZIP_INDEX_CACHE_SIZE, 0) != 0 {
+        return (s.cache)(
+            s.ctx,
+            XP_BOOK_ZIP_CACHE_PATHS,
+            core::ptr::null(),
+            Span::new(&[]),
+        );
     }
-    if s.call(Op::Open, 0) == 0 || s.call(Op::Details, 0) == 0 {
+    if s.call(XP_BOOK_ZIP_INDEX_OPEN, 0) == 0 || s.call(XP_BOOK_ZIP_INDEX_DETAILS, 0) == 0 {
         return false;
     }
-    s.call(Op::Start, s.call(Op::Central, 0) as u32);
+    s.call(
+        XP_BOOK_ZIP_INDEX_START,
+        s.call(XP_BOOK_ZIP_INDEX_CENTRAL, 0) as u32,
+    );
     let mut entry = Entry::default();
     while (s.next)(s.ctx, &mut entry) {
         if entry.name.length >= 256 {
@@ -107,7 +105,7 @@ pub unsafe fn enumerate(s: &Services, paths: bool) -> bool {
         if name.data.is_null() {
             break;
         }
-        (s.cache)(s.ctx, 5, &entry, name);
+        (s.cache)(s.ctx, XP_BOOK_ZIP_CACHE_VISIT, &entry, name);
     }
     true
 }
@@ -162,10 +160,16 @@ pub unsafe fn batch(
     get: unsafe extern "C" fn(*mut c_void, usize) -> Target,
     set: unsafe extern "C" fn(*mut c_void, u16, u32) -> bool,
 ) -> usize {
-    if count == 0 || s.call(Op::Open, 0) == 0 || s.call(Op::Details, 0) == 0 {
+    if count == 0
+        || s.call(XP_BOOK_ZIP_INDEX_OPEN, 0) == 0
+        || s.call(XP_BOOK_ZIP_INDEX_DETAILS, 0) == 0
+    {
         return 0;
     }
-    s.call(Op::Start, s.call(Op::Central, 0) as u32);
+    s.call(
+        XP_BOOK_ZIP_INDEX_START,
+        s.call(XP_BOOK_ZIP_INDEX_CENTRAL, 0) as u32,
+    );
     let mut entry = Entry::default();
     let mut matched = 0;
     while (s.next)(s.ctx, &mut entry) {
@@ -191,7 +195,14 @@ pub struct DetailServices {
     pub allocate: unsafe extern "C" fn(*mut c_void, usize) -> *mut u8,
     pub read: unsafe extern "C" fn(*mut c_void, u32, *mut u8, usize) -> bool,
     pub save: unsafe extern "C" fn(*mut c_void, *const crate::zip::Details),
-    pub diagnostic: unsafe extern "C" fn(*mut c_void, u32),
+    pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32)>,
+}
+impl DetailServices {
+    fn log(&self, event: u32) {
+        if let Some(log) = self.diagnostic {
+            unsafe { log(self.ctx, event) }
+        }
+    }
 }
 /// # Safety
 /// Allocation is writable for the requested size; the context releases it on return.
@@ -204,23 +215,23 @@ pub unsafe fn details(s: &DetailServices, cached: bool) -> bool {
     }
     let size = (s.size)(s.ctx);
     let error = if size < 22 {
-        Some(0)
+        Some(XP_BOOK_ZIP_DETAIL_LOG_SMALL)
     } else if size > u32::MAX as usize {
-        Some(1)
+        Some(XP_BOOK_ZIP_DETAIL_LOG_SIZE)
     } else {
         None
     };
     if let Some(e) = error {
-        (s.diagnostic)(s.ctx, e);
+        s.log(e);
         return false;
     }
     let Some(request) = crate::zip::eocd_request(size as u32) else {
-        (s.diagnostic)(s.ctx, 1);
+        s.log(XP_BOOK_ZIP_DETAIL_LOG_SIZE);
         return false;
     };
     let ptr = (s.allocate)(s.ctx, request.length as usize);
     if ptr.is_null() {
-        (s.diagnostic)(s.ctx, 2);
+        s.log(XP_BOOK_ZIP_DETAIL_LOG_ALLOCATION);
         return false;
     }
     if (s.read)(s.ctx, request.offset, ptr, request.length as usize) {
@@ -231,6 +242,6 @@ pub unsafe fn details(s: &DetailServices, cached: bool) -> bool {
             return true;
         }
     }
-    (s.diagnostic)(s.ctx, 3);
+    s.log(XP_BOOK_ZIP_DETAIL_LOG_SIGNATURE);
     false
 }

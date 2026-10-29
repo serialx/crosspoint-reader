@@ -108,3 +108,18 @@ add_test(NAME BookReclaimOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/reclaim-golden.txt.gz)
 add_test(NAME BookXtcResidualOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/xtc_residual_oracle.py $<TARGET_FILE:BookXtcOracle>)
+
+add_test(NAME BookResidualAbi COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/abi.py --check-mutation)
+add_executable(BookResidualCallbacksTest ResidualCallbacksTest.cpp)
+target_link_libraries(BookResidualCallbacksTest PRIVATE xp_ffi_host GTest::gtest_main)
+gtest_discover_tests(BookResidualCallbacksTest)
+
+add_executable(BookXtcCopyOracle XtcCopyOracle.cpp
+  ${REPO_ROOT}/lib/Xtc/Xtc.cpp ${REPO_ROOT}/lib/Xtc/Xtc/XtcParser.cpp
+  ${REPO_ROOT}/lib/GfxRenderer/BitmapHelpers.cpp)
+target_include_directories(BookXtcCopyOracle PRIVATE stubs
+  ${REPO_ROOT}/test/xtc_diff/stubs ${REPO_ROOT}/lib/Xtc ${REPO_ROOT}/lib/GfxRenderer)
+target_link_libraries(BookXtcCopyOracle PRIVATE xp_ffi_host)
+add_test(NAME BookXtcCopyOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/xtc_copy_oracle.py $<TARGET_FILE:BookXtcCopyOracle>)

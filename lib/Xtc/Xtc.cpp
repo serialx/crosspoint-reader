@@ -93,7 +93,7 @@ void Xtc::setupCacheDir() const {
   xp_book_directories({reinterpret_cast<const uint8_t*>(cachePath.data()), cachePath.size()},
                       const_cast<std::string*>(&cachePath), [](void* opaque, uint32_t operation, XpBookBorrow path) {
                         const auto& root = *static_cast<const std::string*>(opaque);
-                        if (operation == 0) return Storage.exists(root.c_str());
+                        if (operation == XP_BOOK_DIRECTORY_EXISTS) return Storage.exists(root.c_str());
                         if (path.len == root.size())
                           Storage.mkdir(root.c_str());
                         else
@@ -147,20 +147,6 @@ std::string Xtc::getThumbBmpPath(int height) const {
 }
 bool Xtc::generateThumbBmp(int height) const { return generateImage(true, height); }
 bool Xtc::generateImage(bool thumb, int height) const {
-  enum class Op : uint32_t {
-    Exists,
-    Ready,
-    Pages,
-    Setup,
-    First,
-    GenerateCover,
-    OpenSource,
-    OpenTarget,
-    Copy,
-    Load,
-    OpenImage,
-    Render
-  };
   struct Context {
     const Xtc& book;
     bool thumb;
@@ -183,31 +169,31 @@ bool Xtc::generateImage(bool thumb, int height) const {
       [](void* opaque, uint32_t op) -> size_t {
         auto& ctx = *static_cast<Context*>(opaque);
         const auto& book = ctx.book;
-        switch (static_cast<Op>(op)) {
-          case Op::Exists:
+        switch (static_cast<XpBookXtcOp>(op)) {
+          case XP_BOOK_XTC_EXISTS:
             return Storage.exists(ctx.path().c_str());
-          case Op::Ready:
+          case XP_BOOK_XTC_READY:
             return book.loaded && bool(book.parser);
-          case Op::Pages:
+          case XP_BOOK_XTC_PAGES:
             return book.parser->getPageCount();
-          case Op::Setup:
+          case XP_BOOK_XTC_SETUP:
             book.setupCacheDir();
             return 1;
-          case Op::First:
+          case XP_BOOK_XTC_FIRST:
             return book.parser->getPageInfo(0, ctx.page);
-          case Op::GenerateCover:
+          case XP_BOOK_XTC_GENERATE_COVER:
             return book.generateCoverBmp();
-          case Op::OpenSource:
+          case XP_BOOK_XTC_OPEN_SOURCE:
             return Storage.openFileForRead("XTC", book.getCoverBmpPath(), ctx.copy.emplace().source);
-          case Op::OpenTarget:
+          case XP_BOOK_XTC_OPEN_TARGET:
             return Storage.openFileForWrite("XTC", book.getThumbBmpPath(ctx.height), ctx.copy->target);
-          case Op::Copy:
+          case XP_BOOK_XTC_COPY:
             return copyCoverFile(ctx.copy->source, ctx.copy->target);
-          case Op::Load:
+          case XP_BOOK_XTC_LOAD:
             return const_cast<xtc::XtcParser*>(book.parser.get())->loadPage(0, ctx.scratch.get(), ctx.bitmap);
-          case Op::OpenImage:
+          case XP_BOOK_XTC_OPEN_IMAGE:
             return Storage.openFileForWrite("XTC", ctx.path(), ctx.image);
-          case Op::Render:
+          case XP_BOOK_XTC_RENDER:
             xp_book_xtc_image(
                 ctx.scratch.get(), ctx.bitmap, ctx.page.width, ctx.page.height, ctx.depth,
                 ctx.scratch.get() + ctx.bitmap, ctx.row, ctx.thumb ? &ctx.plan : nullptr, &ctx.image,
@@ -238,59 +224,44 @@ bool Xtc::generateImage(bool thumb, int height) const {
       },
       [](void* opaque, uint32_t event, [[maybe_unused]] size_t bytes) {
         [[maybe_unused]] const auto& ctx = *static_cast<Context*>(opaque);
-        enum class Event : uint32_t {
-          CoverUnloaded,
-          ThumbUnloaded,
-          NoPages,
-          PageInfo,
-          Copied,
-          CoverOom,
-          ThumbOom,
-          CoverRead,
-          ThumbRead,
-          CoverOpen,
-          ThumbOpen,
-          CoverDone,
-          ThumbDone
-        };
-        switch (static_cast<Event>(event)) {
-          case Event::CoverUnloaded:
+        switch (static_cast<XpBookXtcDiagnostic>(event)) {
+          case XP_BOOK_XTC_LOG_COVER_UNLOADED:
             LOG_ERR("XTC", "Cannot generate cover BMP, file not loaded");
             break;
-          case Event::ThumbUnloaded:
+          case XP_BOOK_XTC_LOG_THUMB_UNLOADED:
             LOG_ERR("XTC", "Cannot generate thumb BMP, file not loaded");
             break;
-          case Event::NoPages:
+          case XP_BOOK_XTC_LOG_NO_PAGES:
             LOG_ERR("XTC", "No pages in XTC file");
             break;
-          case Event::PageInfo:
+          case XP_BOOK_XTC_LOG_PAGE_INFO:
             LOG_DBG("XTC", "Failed to get first page info");
             break;
-          case Event::Copied:
+          case XP_BOOK_XTC_LOG_COPIED:
             LOG_DBG("XTC", "Copied cover to thumb (no scaling needed)");
             break;
-          case Event::CoverOom:
+          case XP_BOOK_XTC_LOG_COVER_OOM:
             LOG_ERR("XTC", "Failed to allocate cover buffers (%lu bytes)", static_cast<unsigned long>(bytes));
             break;
-          case Event::ThumbOom:
+          case XP_BOOK_XTC_LOG_THUMB_OOM:
             LOG_ERR("XTC", "Failed to allocate thumb buffers (%lu bytes)", static_cast<unsigned long>(bytes));
             break;
-          case Event::CoverRead:
+          case XP_BOOK_XTC_LOG_COVER_READ:
             LOG_ERR("XTC", "Failed to load cover page");
             break;
-          case Event::ThumbRead:
+          case XP_BOOK_XTC_LOG_THUMB_READ:
             LOG_ERR("XTC", "Failed to load cover page for thumb");
             break;
-          case Event::CoverOpen:
+          case XP_BOOK_XTC_LOG_COVER_OPEN:
             LOG_DBG("XTC", "Failed to create cover BMP file");
             break;
-          case Event::ThumbOpen:
+          case XP_BOOK_XTC_LOG_THUMB_OPEN:
             LOG_DBG("XTC", "Failed to create thumb BMP file");
             break;
-          case Event::CoverDone:
+          case XP_BOOK_XTC_LOG_COVER_DONE:
             LOG_DBG("XTC", "Generated cover BMP: %s", ctx.book.getCoverBmpPath().c_str());
             break;
-          case Event::ThumbDone:
+          case XP_BOOK_XTC_LOG_THUMB_DONE:
             LOG_DBG("XTC", "Generated thumb BMP (%dx%d): %s", ctx.plan.width, ctx.plan.height,
                     ctx.book.getThumbBmpPath(ctx.height).c_str());
             break;

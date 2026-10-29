@@ -1,4 +1,5 @@
 //! Book facade decisions over borrowed storage and platform operations.
+use super::residual_abi::*;
 use core::ffi::c_void;
 
 /// # Safety
@@ -139,22 +140,21 @@ pub unsafe fn find_spine(
 }
 
 /// # Safety
-/// Control borrows path prefixes only for each call; operation 0 tests existence,
-/// operation 1 creates a directory. Failed mkdir results are intentionally ignored.
+/// Control borrows path prefixes only for each call. Failed mkdir results are ignored.
 pub unsafe fn directories(
     path: &[u8],
     ctx: *mut c_void,
     control: unsafe extern "C" fn(*mut c_void, u32, Span) -> bool,
 ) {
-    if control(ctx, 0, Span::new(path)) {
+    if control(ctx, XP_BOOK_DIRECTORY_EXISTS, Span::new(path)) {
         return;
     }
     for (i, &byte) in path.iter().enumerate().skip(1) {
         if byte == b'/' {
-            control(ctx, 1, Span::new(&path[..i]));
+            control(ctx, XP_BOOK_DIRECTORY_CREATE, Span::new(&path[..i]));
         }
     }
-    control(ctx, 1, Span::new(path));
+    control(ctx, XP_BOOK_DIRECTORY_CREATE, Span::new(path));
 }
 pub fn txt_title(path: &[u8]) -> &[u8] {
     let start = path
@@ -175,11 +175,11 @@ pub unsafe fn txt_metadata(
     ctx: *mut c_void,
     operation: unsafe extern "C" fn(*mut c_void, u32, Span) -> Span,
 ) {
-    operation(ctx, 0, Span::new(&[]));
-    operation(ctx, 1, Span::new(b"en"));
-    let cover = operation(ctx, 2, Span::new(&[]));
+    operation(ctx, XP_BOOK_TXT_META_TITLE, Span::new(&[]));
+    operation(ctx, XP_BOOK_TXT_META_LANGUAGE, Span::new(b"en"));
+    let cover = operation(ctx, XP_BOOK_TXT_META_FIND_COVER, Span::new(&[]));
     if cover.len != 0 {
-        operation(ctx, 3, cover);
+        operation(ctx, XP_BOOK_TXT_META_COVER, cover);
     }
 }
 
@@ -192,17 +192,17 @@ pub fn lookup(loaded: bool, index: i32, count: i32, toc: bool) -> Lookup {
     if !loaded {
         Lookup {
             index: -1,
-            diagnostic: 1,
+            diagnostic: XP_BOOK_LOOKUP_UNLOADED,
         }
     } else if index < 0 || index >= count {
         Lookup {
             index: if toc { -1 } else { 0 },
-            diagnostic: 2,
+            diagnostic: XP_BOOK_LOOKUP_RANGE,
         }
     } else {
         Lookup {
             index,
-            diagnostic: 0,
+            diagnostic: XP_BOOK_LOOKUP_NONE,
         }
     }
 }
@@ -212,16 +212,22 @@ pub fn lookup(loaded: bool, index: i32, count: i32, toc: bool) -> Lookup {
 pub unsafe fn reclaim_content(
     before: usize,
     clear: unsafe extern "C" fn(),
-    diagnostic: unsafe extern "C" fn(usize),
+    diagnostic: Option<unsafe extern "C" fn(usize)>,
 ) {
     if before < 64 * 1024 {
         clear();
-        diagnostic(before);
+        if let Some(log) = diagnostic {
+            log(before);
+        }
     }
 }
 pub fn toc_spine(index: i32) -> Lookup {
     Lookup {
         index: if index < 0 { 0 } else { index },
-        diagnostic: if index < 0 { 3 } else { 0 },
+        diagnostic: if index < 0 {
+            XP_BOOK_LOOKUP_MISSING
+        } else {
+            XP_BOOK_LOOKUP_NONE
+        },
     }
 }

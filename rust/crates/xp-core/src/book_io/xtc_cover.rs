@@ -1,5 +1,6 @@
 //! Cover transaction over caller-owned files and pixel buffers.
 use super::xtc_image::{self, Thumbnail};
+use crate::book::residual_abi::*;
 use core::ffi::c_void;
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -14,49 +15,42 @@ pub struct Services {
     pub call: unsafe extern "C" fn(*mut c_void, u32) -> usize,
     pub info: unsafe extern "C" fn(*mut c_void) -> Info,
     pub prepare: unsafe extern "C" fn(*mut c_void, usize, usize, *const Thumbnail) -> bool,
-    pub diagnostic: unsafe extern "C" fn(*mut c_void, u32, usize),
-}
-#[repr(u32)]
-enum Op {
-    Exists,
-    Ready,
-    Pages,
-    Setup,
-    First,
-    GenerateCover,
-    OpenSource,
-    OpenTarget,
-    Copy,
-    Load,
-    OpenImage,
-    Render,
+    pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, usize)>,
 }
 impl Services {
-    fn call(&self, op: Op) -> usize {
-        unsafe { (self.call)(self.ctx, op as u32) }
+    fn call(&self, op: u32) -> usize {
+        unsafe { (self.call)(self.ctx, op) }
     }
     fn log(&self, e: u32, n: usize) {
-        unsafe { (self.diagnostic)(self.ctx, e, n) }
+        if let Some(log) = self.diagnostic {
+            unsafe { log(self.ctx, e, n) }
+        }
     }
 }
 /// # Safety
 /// Callbacks own buffers/files for the call and synchronously copy the borrowed plan.
 pub unsafe fn generate(s: &Services, thumb: bool, height: i32) -> bool {
-    use Op as O;
-    if s.call(O::Exists) != 0 {
+    if s.call(XP_BOOK_XTC_EXISTS) != 0 {
         return true;
     }
-    if s.call(O::Ready) == 0 {
-        s.log(if thumb { 1 } else { 0 }, 0);
+    if s.call(XP_BOOK_XTC_READY) == 0 {
+        s.log(
+            if thumb {
+                XP_BOOK_XTC_LOG_THUMB_UNLOADED
+            } else {
+                XP_BOOK_XTC_LOG_COVER_UNLOADED
+            },
+            0,
+        );
         return false;
     }
-    if s.call(O::Pages) == 0 {
-        s.log(2, 0);
+    if s.call(XP_BOOK_XTC_PAGES) == 0 {
+        s.log(XP_BOOK_XTC_LOG_NO_PAGES, 0);
         return false;
     }
-    s.call(O::Setup);
-    if s.call(O::First) == 0 {
-        s.log(3, 0);
+    s.call(XP_BOOK_XTC_SETUP);
+    if s.call(XP_BOOK_XTC_FIRST) == 0 {
+        s.log(XP_BOOK_XTC_LOG_PAGE_INFO, 0);
         return false;
     }
     let info = (s.info)(s.ctx);
@@ -66,14 +60,17 @@ pub unsafe fn generate(s: &Services, thumb: bool, height: i32) -> bool {
         None
     };
     if plan.as_ref().is_some_and(|p| p.scale >= 1.0) {
-        if s.call(O::GenerateCover) == 0 {
+        if s.call(XP_BOOK_XTC_GENERATE_COVER) == 0 {
             return false;
         }
-        if s.call(O::OpenSource) != 0 && s.call(O::OpenTarget) != 0 && s.call(O::Copy) == 0 {
+        if s.call(XP_BOOK_XTC_OPEN_SOURCE) != 0
+            && s.call(XP_BOOK_XTC_OPEN_TARGET) != 0
+            && s.call(XP_BOOK_XTC_COPY) == 0
+        {
             return false;
         }
-        s.log(4, 0);
-        return s.call(O::Exists) != 0;
+        s.log(XP_BOOK_XTC_LOG_COPIED, 0);
+        return s.call(XP_BOOK_XTC_EXISTS) != 0;
     }
     let bitmap = crate::xtc::bitmap_size(info.width, info.height, info.depth) as usize;
     let row = if let Some(p) = &plan {
@@ -90,18 +87,46 @@ pub unsafe fn generate(s: &Services, thumb: bool, height: i32) -> bool {
         row,
         plan.as_ref().map_or(core::ptr::null(), |p| p),
     ) {
-        s.log(if thumb { 6 } else { 5 }, bitmap + row);
+        s.log(
+            if thumb {
+                XP_BOOK_XTC_LOG_THUMB_OOM
+            } else {
+                XP_BOOK_XTC_LOG_COVER_OOM
+            },
+            bitmap + row,
+        );
         return false;
     }
-    if s.call(O::Load) == 0 {
-        s.log(if thumb { 8 } else { 7 }, 0);
+    if s.call(XP_BOOK_XTC_LOAD) == 0 {
+        s.log(
+            if thumb {
+                XP_BOOK_XTC_LOG_THUMB_READ
+            } else {
+                XP_BOOK_XTC_LOG_COVER_READ
+            },
+            0,
+        );
         return false;
     }
-    if s.call(O::OpenImage) == 0 {
-        s.log(if thumb { 10 } else { 9 }, 0);
+    if s.call(XP_BOOK_XTC_OPEN_IMAGE) == 0 {
+        s.log(
+            if thumb {
+                XP_BOOK_XTC_LOG_THUMB_OPEN
+            } else {
+                XP_BOOK_XTC_LOG_COVER_OPEN
+            },
+            0,
+        );
         return false;
     }
-    s.call(O::Render);
-    s.log(if thumb { 12 } else { 11 }, 0);
+    s.call(XP_BOOK_XTC_RENDER);
+    s.log(
+        if thumb {
+            XP_BOOK_XTC_LOG_THUMB_DONE
+        } else {
+            XP_BOOK_XTC_LOG_COVER_DONE
+        },
+        0,
+    );
     true
 }

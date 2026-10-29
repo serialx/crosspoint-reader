@@ -10,20 +10,6 @@
 #include <optional>
 
 namespace {
-enum class ZipIndexOp : uint32_t {
-  CacheSize,
-  Open,
-  Details,
-  Central,
-  Start,
-  Clear,
-  Reserve,
-  Cursor,
-  LastValid,
-  CursorValid,
-  CursorValue
-};
-enum class ZipCacheOp : uint32_t { Find, Last, Remember, Insert, Paths, Visit };
 enum class DirectoryStep : int32_t { Invalid = -1, Done = 0, Entry = 1, Wrap = 2 };
 // RAII zip: opens the zip if not already open, closes on destruction only if
 // it performed the open.  Removes the wasOpen/close boilerplate from every method.
@@ -161,35 +147,34 @@ struct ZipFile::IndexContext {
       : zip(zip), target(target), output(output), visitContext(visitContext), visit(visit) {}
 };
 XpBookZipIndexServices ZipFile::indexServices(IndexContext& context) {
-  using Op = ZipIndexOp;
   return {&context,
           [](void* opaque, uint32_t operation, uint32_t argument) -> size_t {
             auto& ctx = *static_cast<IndexContext*>(opaque);
             auto& zip = ctx.zip;
-            switch (static_cast<Op>(operation)) {
-              case Op::CacheSize:
+            switch (static_cast<XpBookZipIndexOp>(operation)) {
+              case XP_BOOK_ZIP_INDEX_CACHE_SIZE:
                 return zip.fileStatSlimCache.size();
-              case Op::Open:
+              case XP_BOOK_ZIP_INDEX_OPEN:
                 return bool(ctx.opened.emplace(zip));
-              case Op::Details:
+              case XP_BOOK_ZIP_INDEX_DETAILS:
                 return zip.loadZipDetails();
-              case Op::Central:
+              case XP_BOOK_ZIP_INDEX_CENTRAL:
                 return zip.zipDetails.centralDirOffset;
-              case Op::Start:
+              case XP_BOOK_ZIP_INDEX_START:
                 xp_zip_begin(zip.zipDetails.centralDirOffset, argument, &ctx.walker);
                 return 1;
-              case Op::Clear:
-              case Op::Reserve:
+              case XP_BOOK_ZIP_INDEX_CLEAR:
+              case XP_BOOK_ZIP_INDEX_RESERVE:
                 return 0;
-              case Op::Cursor:
+              case XP_BOOK_ZIP_INDEX_CURSOR:
                 zip.lastCentralDirPos = argument;
                 zip.lastCentralDirPosValid = true;
                 return 1;
-              case Op::LastValid:
+              case XP_BOOK_ZIP_INDEX_LAST_VALID:
                 return zip.lastLookupValid;
-              case Op::CursorValid:
+              case XP_BOOK_ZIP_INDEX_CURSOR_VALID:
                 return zip.lastCentralDirPosValid;
-              case Op::CursorValue:
+              case XP_BOOK_ZIP_INDEX_CURSOR_VALUE:
                 return zip.lastCentralDirPos;
             }
             return 0;
@@ -207,29 +192,29 @@ XpBookZipIndexServices ZipFile::indexServices(IndexContext& context) {
             auto& ctx = *static_cast<IndexContext*>(opaque);
             auto& zip = ctx.zip;
             const auto path = std::string_view(reinterpret_cast<const char*>(name.data), name.len);
-            using CacheOp = ZipCacheOp;
-            switch (static_cast<CacheOp>(operation)) {
-              case CacheOp::Find: {
+
+            switch (static_cast<XpBookZipCacheOp>(operation)) {
+              case XP_BOOK_ZIP_CACHE_FIND: {
                 const auto found = zip.fileStatSlimCache.find(ctx.target);
                 if (found == zip.fileStatSlimCache.end()) return false;
                 *ctx.output = found->second;
                 return true;
               }
-              case CacheOp::Last:
+              case XP_BOOK_ZIP_CACHE_LAST:
                 *ctx.output = zip.lastLookup;
                 return true;
-              case CacheOp::Remember:
+              case XP_BOOK_ZIP_CACHE_REMEMBER:
                 *ctx.output = {entry->method, entry->compressed_size, entry->uncompressed_size, entry->local_offset};
                 zip.lastLookupName.assign(path);
                 zip.lastLookup = *ctx.output;
                 zip.lastLookupValid = true;
                 return true;
-              case CacheOp::Insert:
+              case XP_BOOK_ZIP_CACHE_INSERT:
                 return false;
-              case CacheOp::Paths:
+              case XP_BOOK_ZIP_CACHE_PATHS:
                 for (const auto& item : zip.fileStatSlimCache) ctx.visit(ctx.visitContext, item.first, 0, 0);
                 return true;
-              case CacheOp::Visit:
+              case XP_BOOK_ZIP_CACHE_VISIT:
                 ctx.visit(ctx.visitContext, path, entry->crc32, entry->compressed_size);
                 return true;
             }
@@ -242,11 +227,11 @@ bool ZipFile::loadAllFileStatSlims() {
   // Keep optional map population outside the callbacks used by streaming readers.
   services.control = [](void* opaque, uint32_t operation, uint32_t argument) -> size_t {
     auto& ctx = *static_cast<IndexContext*>(opaque);
-    switch (static_cast<ZipIndexOp>(operation)) {
-      case ZipIndexOp::Clear:
+    switch (static_cast<XpBookZipIndexOp>(operation)) {
+      case XP_BOOK_ZIP_INDEX_CLEAR:
         ctx.zip.fileStatSlimCache.clear();
         return 1;
-      case ZipIndexOp::Reserve:
+      case XP_BOOK_ZIP_INDEX_RESERVE:
         ctx.zip.fileStatSlimCache.reserve(ctx.zip.zipDetails.totalEntries);
         return 1;
       default:
@@ -255,7 +240,7 @@ bool ZipFile::loadAllFileStatSlims() {
   };
   services.cache = [](void* opaque, uint32_t operation, const XpZipEntry* entry, XpBookBorrow name) {
     auto& ctx = *static_cast<IndexContext*>(opaque);
-    if (static_cast<ZipCacheOp>(operation) != ZipCacheOp::Insert)
+    if (static_cast<XpBookZipCacheOp>(operation) != XP_BOOK_ZIP_CACHE_INSERT)
       return indexServices(ctx).cache(opaque, operation, entry, name);
     ctx.zip.fileStatSlimCache.emplace(
         ctx.name, FileStatSlim{entry->method, entry->compressed_size, entry->uncompressed_size, entry->local_offset});
@@ -266,13 +251,14 @@ bool ZipFile::loadAllFileStatSlims() {
 bool ZipFile::loadFileStatSlim(const char* filename, FileStatSlim* output) {
   IndexContext context{*this, filename, output};
   const auto services = indexServices(context);
-  return xp_book_zip_index(&services, 0, {reinterpret_cast<const uint8_t*>(filename), strlen(filename)},
+  return xp_book_zip_index(&services, XP_BOOK_ZIP_LOOKUP,
+                           {reinterpret_cast<const uint8_t*>(filename), strlen(filename)},
                            {reinterpret_cast<const uint8_t*>(lastLookupName.data()), lastLookupName.size()});
 }
 bool ZipFile::enumerate(bool paths, void* opaque, void (*visit)(void*, std::string_view, uint32_t, uint32_t)) {
   IndexContext context{*this, nullptr, nullptr, opaque, visit};
   const auto services = indexServices(context);
-  return xp_book_zip_index(&services, paths ? 2 : 3, {nullptr, 0}, {nullptr, 0});
+  return xp_book_zip_index(&services, paths ? XP_BOOK_ZIP_PATHS : XP_BOOK_ZIP_ENTRIES, {nullptr, 0}, {nullptr, 0});
 }
 
 bool ZipFile::readDirectoryEntry(XpZipWalker& walker, XpZipEntry& entry) {
@@ -360,18 +346,17 @@ bool ZipFile::loadZipDetails() {
                                                                                             value->entries, true};
                                          },
                                          [](void*, uint32_t event) {
-                                           enum class Event : uint32_t { Small, Size, Allocation, Signature };
-                                           switch (static_cast<Event>(event)) {
-                                             case Event::Small:
+                                           switch (static_cast<XpBookZipDetailDiagnostic>(event)) {
+                                             case XP_BOOK_ZIP_DETAIL_LOG_SMALL:
                                                LOG_ERR("ZIP", "File too small to be a valid zip");
                                                break;
-                                             case Event::Size:
+                                             case XP_BOOK_ZIP_DETAIL_LOG_SIZE:
                                                LOG_ERR("ZIP", "Invalid zip file size");
                                                break;
-                                             case Event::Allocation:
+                                             case XP_BOOK_ZIP_DETAIL_LOG_ALLOCATION:
                                                LOG_ERR("ZIP", "Failed to allocate memory for EOCD scan buffer");
                                                break;
-                                             case Event::Signature:
+                                             case XP_BOOK_ZIP_DETAIL_LOG_SIGNATURE:
                                                LOG_ERR("ZIP", "EOCD signature not found in zip file");
                                                break;
                                            }

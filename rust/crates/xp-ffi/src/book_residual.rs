@@ -4,6 +4,7 @@ use core::{
     slice,
 };
 use xp_core::book::residual::{self as policy, Span};
+use xp_core::book::residual_abi::*;
 #[no_mangle]
 pub unsafe extern "C" fn xp_book_bidi_should_shape(data: *const u8) -> u8 {
     policy::should_shape(data) as u8
@@ -72,10 +73,10 @@ pub unsafe extern "C" fn xp_book_document(
 ) -> u8 {
     let Some(s) = s.as_ref() else { return 0 };
     (match kind {
-        1 => xp_core::book::document::container(s),
-        2 => xp_core::book::document::toc(s, false),
-        3 => xp_core::book::document::toc(s, true),
-        5 => xp_core::book::document::opf(s, metadata != 0),
+        XP_BOOK_DOCUMENT_CONTAINER => xp_core::book::document::container(s),
+        XP_BOOK_DOCUMENT_NCX => xp_core::book::document::toc(s, false),
+        XP_BOOK_DOCUMENT_NAV => xp_core::book::document::toc(s, true),
+        XP_BOOK_DOCUMENT_OPF => xp_core::book::document::opf(s, metadata != 0),
         _ => false,
     }) as u8
 }
@@ -86,7 +87,9 @@ pub unsafe extern "C" fn xp_book_css_parse_files(
     count: usize,
     partial: u8,
 ) -> u32 {
-    let Some(s) = s.as_ref() else { return 2 };
+    let Some(s) = s.as_ref() else {
+        return XP_BOOK_CSS_PARSE_ERROR;
+    };
     xp_core::book::css::parse_files(s, count, partial != 0)
 }
 
@@ -100,9 +103,9 @@ pub unsafe extern "C" fn xp_book_zip_index(
 ) -> u8 {
     let Some(s) = s.as_ref() else { return 0 };
     (match operation {
-        0 => zip_index::lookup(s, target, last),
-        2 => zip_index::enumerate(s, true),
-        3 => zip_index::enumerate(s, false),
+        XP_BOOK_ZIP_LOOKUP => zip_index::lookup(s, target, last),
+        XP_BOOK_ZIP_PATHS => zip_index::enumerate(s, true),
+        XP_BOOK_ZIP_ENTRIES => zip_index::enumerate(s, false),
         _ => false,
     }) as u8
 }
@@ -169,13 +172,13 @@ pub unsafe extern "C" fn xp_book_txt_title(path: Span) -> Span {
 #[no_mangle]
 pub extern "C" fn xp_book_path(kind: u32) -> *const c_char {
     match kind {
-        0 => c"/html",
-        1 => c"/sections",
-        2 => c"/html/0.html",
-        3 => c"content.html",
-        4 => c"/cover.bmp",
-        5 => c"/thumb_[HEIGHT].bmp",
-        6 => c"/thumb_",
+        XP_BOOK_PATH_HTML_DIRECTORY => c"/html",
+        XP_BOOK_PATH_SECTIONS_DIRECTORY => c"/sections",
+        XP_BOOK_PATH_HTML_DOCUMENT => c"/html/0.html",
+        XP_BOOK_PATH_TEXT_HREF => c"content.html",
+        XP_BOOK_PATH_COVER => c"/cover.bmp",
+        XP_BOOK_PATH_THUMB_PATTERN => c"/thumb_[HEIGHT].bmp",
+        XP_BOOK_PATH_THUMB_PREFIX => c"/thumb_",
         _ => c"",
     }
     .as_ptr()
@@ -202,7 +205,7 @@ pub extern "C" fn xp_book_lookup(
 pub unsafe extern "C" fn xp_book_reclaim_content(
     before: usize,
     clear: unsafe extern "C" fn(),
-    diagnostic: unsafe extern "C" fn(usize),
+    diagnostic: Option<unsafe extern "C" fn(usize)>,
 ) {
     policy::reclaim_content(before, clear, diagnostic)
 }

@@ -35,5 +35,28 @@ int main(int argc, char** argv) {
   printf("skip-css %u\n", epub.load(false, true));
   if (epub.getCssParser()) epub.getCssParser()->deleteCache();
   printf("rebuild-css %u\n", epub.load(false, false));
+  printf("cover %u\n", epub.generateCoverBmp());
+  printf("cover-cropped %u\n", epub.generateCoverBmp(true, true));
+  printf("thumb %u\n", epub.generateThumbBmp(120));
+  printf("source-thumb %u\n", epub.generateThumbBmpFromSource(240));
+  printf("cover-warm %u\n", epub.generateCoverBmp());
+  for (const std::string href : {"", "secret"}) {
+    for (bool trailing : {false, true}) {
+      size_t size = 12345;
+      uint8_t* bytes = epub.readItemContentsToBytes(href, &size, trailing);
+      printf("bytes %s %u %u %zu", href.c_str(), trailing, bytes != nullptr, size);
+      if (bytes)
+        for (size_t i = 0; i < size + trailing; ++i) printf(" %02x", bytes[i]);
+      puts("");
+      free(bytes);
+    }
+    struct ShortWriter : Print {
+      size_t used = 0;
+      size_t write(uint8_t) override { return used++ < 5 ? 1 : 0; }
+    } writer;
+    printf("stream %s %u\n", href.c_str(), epub.readItemContentsToStream(href, writer, 1024, true));
+  }
+  printf("extract-secret %u\n", epub.extractItemToFile("secret", "cache/secret.out"));
+  printf("protection-error %s\n", epub.getProtectionError().c_str());
   printf("steps %zu\n", BookFault::step);
 }

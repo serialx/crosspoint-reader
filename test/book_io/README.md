@@ -18,8 +18,7 @@ warm load, skipped CSS and rebuilding a deleted CSS cache. Failure is injected
 once; cleanup and subsequent opens remain observable.
 
 Limitations: the host uses native size_t and std::hash, not the C3 ABI. Device
-cache-directory names and float behavior need firmware parity checks. Protection,
-TXT and image conversion adapters are inert leaves in this suite; their own
+cache-directory names and float behavior need firmware parity checks. Protection and image conversion use scripted leaves; TXT is inert in this suite; their own
 suites and emulator workloads remain necessary. The oracle does not measure
 allocations or emulate mutex contention. Goldens contain only public inputs.
 
@@ -28,3 +27,10 @@ uses unchecked `readPod`/`readString` calls, and a failed read otherwise leaves
 stack values undefined. This makes those captures repeatable; it does not fix
 the firmware or establish a contract for its undefined failure behavior. The
 first observed case was the version diagnostic at BookMetadataCache.cpp:322.
+
+The extended baseline capture covers cover/thumbnail orchestration with JPG, PNG,
+GIF and unsupported formats, duplicate CSS paths/content, and scripted protected
+reads (size mismatch, allocation overflow/failure, key/decrypt failure and short
+output). Converter stand-ins record configuration and emit deterministic bytes;
+existing real decoder goldens remain the pixel contract. Golden shards are each
+smaller than 1 MB and were all captured before the firmware implementation changed.

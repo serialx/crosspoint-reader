@@ -21,3 +21,7 @@ opt-level = 3
 
 [profile.release.package.xp-gif]
 opt-level = 3
+
+# Size-optimize UI construction and input routing separately from reader code.
+[profile.release.package.xp-ui]
+opt-level = "z"

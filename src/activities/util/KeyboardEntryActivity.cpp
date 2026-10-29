@@ -15,6 +15,14 @@
 #include "components/UITheme.h"
 #include "fontIds.h"
 
+KeyboardEntryActivity::KeyboardEntryActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::string title,
+                                             std::string initialText, const size_t maxLength, InputType inputType)
+    : RustActivityAdapter("KeyboardEntry", renderer, mappedInput),
+      title(std::move(title)),
+      initialText(std::move(initialText)),
+      maxLength(maxLength),
+      inputType(inputType) {}
+
 namespace fui = freeink::ui;
 static_assert(sizeof(XpUiKeyboardState) == 64 && alignof(XpUiKeyboardState) == 4);
 static_assert(offsetof(XpUiKeyboardState, row) == 32 && offsetof(XpUiKeyboardState, layout) == 40);

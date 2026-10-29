@@ -14,20 +14,15 @@
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
 
-namespace fui = freeink::ui;
-
-namespace {
-constexpr int ENTER_ACTIONS_MODE_MS = 700;
-}  // namespace
-
 EpubReaderBookmarksActivity::EpubReaderBookmarksActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                          const std::shared_ptr<Epub>& epub, const std::string& epubPath)
-    : UiListActivity("EpubReaderBookmarks", renderer, mappedInput, /*wantsTouchLongPress=*/true),
+    : ReaderChromeListActivity("EpubReaderBookmarks", renderer, mappedInput, XP_UI_READER_BOOKMARKS, 24),
       epub(epub),
       epubPath(epubPath) {}
 
 void EpubReaderBookmarksActivity::onEnter() {
-  UiListActivity::onEnter();
+  ReaderChromeListActivity::onEnter();
+  if (!resourcesReady()) return;
 
   if (!epub) {
     return;
@@ -39,7 +34,7 @@ void EpubReaderBookmarksActivity::onEnter() {
 }
 
 // Derives bookmarkSubtitles/bookmarkRowItems from `bookmarks`. Called
-// whenever `bookmarks` changes (onEnter() load, post-delete) so buildScreen()
+// whenever `bookmarks` changes (onEnter() load, post-delete) so the scene builder
 // reuses the cached rows on every repaint instead of re-composing a
 // percentage/chapter/TOC-title subtitle string per bookmark each time.
 void EpubReaderBookmarksActivity::rebuildBookmarkRowItems() {
@@ -61,11 +56,11 @@ void EpubReaderBookmarksActivity::rebuildBookmarkRowItems() {
     subtitle += tocTitle;
     bookmarkSubtitles.push_back(std::move(subtitle));
 
-    fui::ListItem item;
+    ReaderChromeRow item;
     item.label = bookmark.name.empty() ? bookmark.summary.c_str() : bookmark.name.c_str();
     item.subtitle = bookmarkSubtitles.back().c_str();
-    item.icon = listIconFor(UIIcon::Bookmark, 32);  // subtitle rows carry the larger icon
-    item.actionValue = static_cast<int16_t>(bookmarkRowItems.size());
+    item.bookmarkIcon = true;
+
     bookmarkRowItems.push_back(item);
   }
 }
@@ -74,7 +69,7 @@ void EpubReaderBookmarksActivity::openSelectedBookmark() {
   if (bookmarks.empty()) {
     return;
   }
-  const auto& bookmark = bookmarks.at(nav.selected);
+  const auto& bookmark = bookmarks.at(selectedIndex());
   ProgressChangeResult result{};
   result.xpath = bookmark.xpath;
   result.percentage = bookmark.percentage;
@@ -98,18 +93,14 @@ void EpubReaderBookmarksActivity::activateIndex(const int index) {
   // The interaction table can deliver a row index captured before a delete
   // shrank the list; the next render re-registers the rows.
   if (index < 0 || index >= listCount()) return;
-  // The tapped row leaves this screen; a lingering flash would gray an
-  // unrelated row on the next render.
-  app.clearTapFlash();
-  nav.selected = index;
+  selectIndex(index);
   openSelectedBookmark();
 }
 
 void EpubReaderBookmarksActivity::onRowLongPress(const int index) {
   if (confirmPopup.isActive()) return;
   if (index < 0 || index >= listCount()) return;
-  app.clearTapFlash();
-  nav.selected = index;
+  selectIndex(index);
   showBookmarkActions();
 }
 
@@ -125,35 +116,12 @@ bool EpubReaderBookmarksActivity::handleCustomInput() {
   return false;
 }
 
-bool EpubReaderBookmarksActivity::handleButtons() {
-  if (mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, ENTER_ACTIONS_MODE_MS)) {
-    showBookmarkActions();
-    return true;
-  }
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    ActivityResult result;
-    result.isCancelled = true;
-    setResult(std::move(result));
-    finish();
-    return true;
-  }
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    openSelectedBookmark();
-    return true;
-  }
-
-  return false;
-}
-
 void EpubReaderBookmarksActivity::startRename() {
-  if (bookmarks.empty() || nav.selected < 0 || nav.selected >= listCount()) {
+  if (bookmarks.empty() || selectedIndex() < 0 || selectedIndex() >= listCount()) {
     return;
   }
 
-  app.clearTapFlash();
-  const int renameIndex = nav.selected;
+  const int renameIndex = selectedIndex();
   auto keyboard =
       makeUniqueNoThrow<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_RENAME), bookmarks[renameIndex].name,
                                                BookmarkEntry::MAX_NAME_LENGTH, InputType::Text);
@@ -165,6 +133,7 @@ void EpubReaderBookmarksActivity::startRename() {
     if (result.isCancelled || renameIndex < 0 || renameIndex >= listCount()) {
       return;
     }
+    RenderLock lock(*this);
     std::string previousName = std::move(bookmarks[renameIndex].name);
     bookmarks[renameIndex].name = std::get<KeyboardResult>(result.data).text;
     rebuildBookmarkRowItems();
@@ -212,15 +181,16 @@ void EpubReaderBookmarksActivity::showDeleteConfirmation() {
 
 #if FREEINK_CAP_TOUCH
 void EpubReaderBookmarksActivity::swipeDelete(const int index) {
-  nav.selected = index;
+  selectIndex(index);
   showDeleteConfirmation();
 }
 #endif
 
 void EpubReaderBookmarksActivity::deleteSelectedBookmark() {
-  bookmarks.erase(bookmarks.begin() + nav.selected);
+  RenderLock lock(*this);
+  bookmarks.erase(bookmarks.begin() + selectedIndex());
   // Deleting shifts every later bookmark's index, so the cached subtitles and
-  // actionValues must be re-derived, not just trimmed — and before the SD
+  // row pointers must be re-derived, not just trimmed — and before the SD
   // save, so the render task never sees rows aliasing the erased storage.
   rebuildBookmarkRowItems();
   if (!BookmarkFile::save(epubPath, bookmarks)) {
@@ -228,8 +198,8 @@ void EpubReaderBookmarksActivity::deleteSelectedBookmark() {
   }
 
   // Move selector up if we deleted the last item
-  if (nav.selected >= static_cast<int>(bookmarks.size()) && nav.selected > 0) {
-    nav.selected--;
+  if (selectedIndex() >= static_cast<int>(bookmarks.size()) && selectedIndex() > 0) {
+    selectIndex(selectedIndex() - 1);
   }
 
   if (bookmarks.empty()) {
@@ -240,76 +210,20 @@ void EpubReaderBookmarksActivity::deleteSelectedBookmark() {
     return;
   }
 
-  nav.follow(listCount());
+  selectIndex(selectedIndex());
   requestUpdate(true);
 }
 
-void EpubReaderBookmarksActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const Rect safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  // Content: the safe area minus the title band render() paints.
-  screen.setContentMarginFromScreen(fui::Insets{
-      static_cast<int16_t>(safe.y + metrics.topPadding + metrics.headerHeight),
-      static_cast<int16_t>(renderer.getScreenWidth() - (safe.x + safe.width)),
-      static_cast<int16_t>(renderer.getScreenHeight() - (safe.y + safe.height)), static_cast<int16_t>(safe.x)});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-
-  if (bookmarks.empty()) {
-    screen.centeredText(tr(STR_NO_BOOKMARKS), screen.theme().bodyText);
-    return;
-  }
-
-  // This hint names a physical button, so omit it on touch boards.
-  if (!mappedInput.hasTouch()) {
-    const int helpLineHeight = renderer.getLineHeight(SMALL_FONT_ID);
-    const fui::Rect band = screen.takeBottom(static_cast<int16_t>(helpLineHeight + metrics.verticalSpacing));
-    GUI.drawHelpText(renderer, Rect{band.x, band.y + metrics.verticalSpacing, band.width, helpLineHeight},
-                     tr(STR_HOLD_OPEN_FOR_ACTIONS));
-  }
-
-  // bookmarkSubtitles/bookmarkRowItems are built once whenever `bookmarks`
-  // changes (see rebuildBookmarkRowItems()) and reused here on every repaint.
-  fui::ListProps props;
-  props.items = bookmarkRowItems.data();
-  props.count = static_cast<uint16_t>(bookmarkRowItems.size());
-  props.action = ACTION_ROW;
-  // Tap opens; long-press shows bookmark actions (physical buttons stay in loop()).
-  props.inputMask = fui::InputTouch | fui::InputLongPress;
-  syncListViewport(screen, props);
-#if FREEINK_CAP_TOUCH
-  configureSwipeDelete(screen, props);
-#endif
-  screen.list(props);
+const ReaderChromeRow* EpubReaderBookmarksActivity::rowAt(int index) const {
+  return index >= 0 && index < listCount() ? &bookmarkRowItems[index] : nullptr;
 }
-
-void EpubReaderBookmarksActivity::render(RenderLock&&) {
-  renderer.clearScreen();
-
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto orientation = renderer.getOrientation();
-  // Landscape orientation: reserve a horizontal gutter for button hints.
-  const bool isLandscapeCw = orientation == GfxRenderer::Orientation::LandscapeClockwise;
-  const bool isLandscapeCcw = orientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
-  // Inverted portrait: reserve vertical space for hints at the top.
-  const bool isPortraitInverted = orientation == GfxRenderer::Orientation::PortraitInverted;
-  const int hintGutterWidth = (isLandscapeCw || isLandscapeCcw) ? 40 : 0;
-  // Landscape CW places hints on the left edge; CCW keeps them on the right.
-  const int contentX = isLandscapeCw ? hintGutterWidth : 0;
-  const int contentWidth = pageWidth - hintGutterWidth;
-  const int contentY = isPortraitInverted ? 50 : 0;
-
-  // Manual centering to honor content gutters.
-  const int titleX =
-      contentX + (contentWidth - renderer.getTextWidth(UI_12_FONT_ID, tr(STR_BOOKMARKS), EpdFontFamily::BOLD)) / 2;
-  renderer.drawText(UI_12_FONT_ID, titleX, 15 + contentY, tr(STR_BOOKMARKS), true, EpdFontFamily::BOLD);
-
-  renderUi();
-
-  if (confirmPopup.processRender(renderer, mappedInput)) return;
-
-  const auto confirmLabel = bookmarks.size() > 0 ? tr(STR_SELECT) : "";
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+void EpubReaderBookmarksActivity::drawFooter() {
+  const auto labels =
+      mappedInput.mapLabels(tr(STR_BACK), bookmarks.empty() ? "" : tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-
+}
+void EpubReaderBookmarksActivity::render(RenderLock&&) {
+  if (!renderList(false)) return;
+  if (confirmPopup.processRender(renderer, mappedInput)) return;
   renderer.displayBuffer();
 }

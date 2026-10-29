@@ -23,6 +23,73 @@ pub struct Style {
     pub bold: u8,
 }
 
+/// Per-row content shares the chapter list's viewport, selection and hit rules.
+pub trait Rows {
+    fn action(&self) -> u32 {
+        1
+    }
+    fn height(&mut self, index: u16, width: i16, style: Style) -> Result<i16, Error>;
+    fn paint(
+        &mut self,
+        arena: &mut Arena<'_>,
+        index: u16,
+        rect: Rect,
+        style: Style,
+        foreground: u8,
+        generation: u32,
+    ) -> Result<(), Error>;
+    fn available(&self, _: u16) -> bool {
+        true
+    }
+    fn overlay(
+        &mut self,
+        _: &mut Arena<'_>,
+        _: u16,
+        _: Rect,
+        _: Style,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+    fn partial(&self) -> bool {
+        true
+    }
+    fn nav_managed(&self) -> bool {
+        true
+    }
+}
+struct Labels;
+impl Rows for Labels {
+    fn height(&mut self, _: u16, _: i16, style: Style) -> Result<i16, Error> {
+        Ok(style.row_height)
+    }
+    fn paint(
+        &mut self,
+        arena: &mut Arena<'_>,
+        index: u16,
+        rect: Rect,
+        style: Style,
+        foreground: u8,
+        generation: u32,
+    ) -> Result<(), Error> {
+        arena.push(Command {
+            kind: Kind::TextHandle as u8,
+            rect: Rect {
+                x: rect.x + style.padding,
+                w: rect.w - 2 * style.padding,
+                ..rect
+            },
+            resource: u32::from(index) + 1,
+            generation,
+            font: style.font,
+            paint: foreground,
+            style: style.bold,
+            max_lines: 1,
+            ..Command::default()
+        })
+    }
+}
+
 pub fn view(
     arena: &mut Arena<'_>,
     state: ListState,
@@ -30,7 +97,18 @@ pub fn view(
     count: u16,
     generation: u32,
 ) -> Result<ListState, Error> {
-    if !(0..=65535).contains(&state.selected)
+    view_rows(arena, state, style, count, generation, &mut Labels)
+}
+
+pub fn view_rows(
+    arena: &mut Arena<'_>,
+    state: ListState,
+    style: Style,
+    count: u16,
+    generation: u32,
+    rows: &mut dyn Rows,
+) -> Result<ListState, Error> {
+    if !(-1..=65535).contains(&state.selected)
         || !(0..=65535).contains(&state.top)
         || !(0..=64).contains(&state.drawn)
         || !(0..=65535).contains(&state.drawn_count)
@@ -67,7 +145,7 @@ pub fn view(
     let visible = ((height + gap) / (row_height + gap)).max(1);
     next.visible = visible;
     let count = i32::from(count);
-    next.selected = next.selected.clamp(0, (count - 1).max(0));
+    next.selected = next.selected.clamp(-1, (count - 1).max(0));
     next.top = next.top.clamp(0, (count - 1).max(0));
     if count <= 0 {
         next.selected = 0;
@@ -75,7 +153,7 @@ pub fn view(
         return Ok(next);
     }
     let trusted = state.drawn > 0 && (state.drawn_count == 0 || state.drawn_count == count);
-    if state.follow != 0 {
+    if state.follow != 0 && next.selected >= 0 {
         if next.selected < next.top {
             next.top = next.selected;
         } else if next.selected >= next.top + visible {
@@ -98,7 +176,11 @@ pub fn view(
     next.follow = 0;
     next.pending_scroll = 0;
     let overflows = count > visible || trusted && state.drawn < count;
-    let cut = (i32::from(style.scroll_width) + 2 - i32::from(style.inset)).max(0);
+    let cut = if style.scroll_width > 0 && (overflows || rows.nav_managed()) {
+        (i32::from(style.scroll_width) + 2 - i32::from(style.inset)).max(0)
+    } else {
+        0
+    };
     let row_x = i32::from(style.area.x)
         + i32::from(style.inset)
         + if style.scroll_left != 0 { cut } else { 0 };
@@ -109,11 +191,20 @@ pub fn view(
     let bottom = i32::from(style.area.y) + height;
     let mut y = i32::from(style.area.y);
     let mut drawn = 0;
+    let mut selected_drawn = false;
     for index in next.top..count {
-        if y >= bottom {
+        if y >= bottom || !rows.available(index as u16) {
             break;
         }
+        let item_height = rows.height(index as u16, row_width as i16, style)?;
+        if !(1..=8192).contains(&item_height) {
+            return Err(Error::Invalid);
+        }
+        let row_height = i32::from(item_height);
         let partial = y + row_height > bottom;
+        if partial && !rows.partial() {
+            break;
+        }
         if partial && bottom - y < 18 {
             break;
         }
@@ -133,10 +224,11 @@ pub fn view(
             x: row_x as i16,
             y: y as i16,
             w: row_width as i16,
-            h: style.row_height,
+            h: item_height,
         };
         let selected = !partial && index == next.selected;
         let active = !partial && index == state.active;
+        selected_drawn |= selected;
         let inverted = (selected && style.selection == 0) || (active && style.selection != 1);
         let background = if inverted {
             0
@@ -152,21 +244,7 @@ pub fn view(
             radius: style.radius,
             ..Command::default()
         })?;
-        arena.push(Command {
-            kind: Kind::TextHandle as u8,
-            rect: Rect {
-                x: rect.x + style.padding,
-                w: rect.w - 2 * style.padding,
-                ..rect
-            },
-            resource: index as u32 + 1,
-            generation,
-            font: style.font,
-            paint: foreground,
-            style: style.bold,
-            max_lines: 1,
-            ..Command::default()
-        })?;
+        rows.paint(arena, index as u16, rect, style, foreground, generation)?;
         if !partial {
             let mut hit = Rect {
                 x: rect.x
@@ -197,7 +275,7 @@ pub fn view(
             }
             arena.hit(Interaction {
                 rect: hit,
-                action: 1,
+                action: rows.action(),
                 value: index,
                 generation,
                 inputs: 1,
@@ -227,6 +305,9 @@ pub fn view(
                     ..Command::default()
                 })?;
             }
+        }
+        if !partial {
+            rows.overlay(arena, index as u16, rect, style, generation)?;
         }
         y += row_height + gap;
         if partial {
@@ -267,6 +348,16 @@ pub fn view(
     if drawn > 0 {
         next.drawn = drawn;
         next.drawn_count = count;
+    }
+    if state.follow != 0
+        && !selected_drawn
+        && next.selected >= next.top
+        && !(drawn == 0 && next.selected == next.top)
+    {
+        next.top = (next.selected - drawn.max(1) + 1)
+            .max(next.top + 1)
+            .min(next.selected);
+        next.follow = 1;
     }
     Ok(next)
 }

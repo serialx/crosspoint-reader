@@ -9,11 +9,6 @@
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 
-namespace {
-constexpr unsigned long WORD_REPEAT_START_MS = 500;
-constexpr unsigned long WORD_REPEAT_INTERVAL_MS = 500;
-}  // namespace
-
 void EpubReaderFootnoteSelectActivity::onEnter() {
   Activity::onEnter();
   snapshot = makeUniqueNoThrow<uint8_t[]>(SNAPSHOT_CAPACITY);
@@ -39,10 +34,10 @@ void EpubReaderFootnoteSelectActivity::buildFootnoteLinks() {
   }
 }
 
-void EpubReaderFootnoteSelectActivity::performJump() {
+void EpubReaderFootnoteSelectActivity::performJump(int index) {
   if (footnoteLinkCount == 0) return;
   ActivityResult result;
-  page->footnote(footnoteLinks[selected].footnote, footnoteScratch);
+  page->footnote(footnoteLinks[index].footnote, footnoteScratch);
   result.data = FootnoteResult{footnoteScratch.href};
   setResult(std::move(result));
   finish();
@@ -54,88 +49,78 @@ void EpubReaderFootnoteSelectActivity::drawHints() const {
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 }
 
-void EpubReaderFootnoteSelectActivity::loop() {
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    ActivityResult result;
-    result.isCancelled = true;
-    setResult(std::move(result));
-    finish();
-    return;
-  }
+XpUiEffect EpubReaderFootnoteSelectActivity::updateRust(const XpUiInput& input) {
+  return xp_ui_reader_footnote_update(&state, &input, footnoteLinkCount);
+}
 
-  RenderLock lock;
-  if ((mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
-       mappedInput.wasReleased(MappedInputManager::Button::Power)) &&
-      footnoteLinkCount != 0) {
-    performJump();
-    return;
-  }
-
-  if (footnoteLinkCount == 0) return;
-
-  const bool hasNext = selected + 1 < static_cast<int>(footnoteLinkCount);
-  const unsigned long now = millis();
-  const bool repeat =
-      mappedInput.getHeldTime() >= WORD_REPEAT_START_MS && now - lastHorizontalMoveTime >= WORD_REPEAT_INTERVAL_MS;
-  const bool moveLeft = mappedInput.wasPressed(MappedInputManager::Button::ScreenLeft) ||
-                        (repeat && mappedInput.isPressed(MappedInputManager::Button::ScreenLeft));
-  const bool moveRight = mappedInput.wasPressed(MappedInputManager::Button::ScreenRight) ||
-                         (repeat && mappedInput.isPressed(MappedInputManager::Button::ScreenRight));
-  if ((moveLeft || mappedInput.wasPressed(MappedInputManager::Button::ScreenUp)) && selected > 0) {
-    selected--;
-    if (moveLeft) lastHorizontalMoveTime = now;
-    requestUpdate();
-  } else if ((moveRight || mappedInput.wasPressed(MappedInputManager::Button::ScreenDown)) && hasNext) {
-    selected++;
-    if (moveRight) lastHorizontalMoveTime = now;
-    requestUpdate();
+void EpubReaderFootnoteSelectActivity::applyRustEffect(const XpUiEffect& effect) {
+  switch (static_cast<XpUiEffectKind>(effect.kind)) {
+    case XP_UI_CANCEL: {
+      ActivityResult result;
+      result.isCancelled = true;
+      setResult(std::move(result));
+      finish();
+      break;
+    }
+    case XP_UI_ACTIVATE: {
+      RenderLock lock;
+      performJump(effect.value);
+      break;
+    }
+    case XP_UI_EFFECT_NONE:
+    case XP_UI_SCROLL:
+      break;
   }
 }
 
 bool EpubReaderFootnoteSelectActivity::drawHighlightWithSnapshot() {
   if (footnoteLinkCount == 0) return false;
-  page->link(footnoteLinks[selected].link, linkScratch);
-
-  const int x = linkScratch.x + marginLeft;
-  const int y = linkScratch.y + marginTop;
-  int hx = x - 2;
-  int hy = y - 2;
-  int hw = linkScratch.width + 4;
-  int hh = linkScratch.height + 4;
-
-  if (hx < 0) {
-    hw += hx;
-    hx = 0;
+  page->link(footnoteLinks[renderingSelected].link, linkScratch);
+  page->footnote(footnoteLinks[renderingSelected].footnote, footnoteScratch);
+  const XpUiRect screen{0, 0, static_cast<int16_t>(renderer.getScreenWidth()),
+                        static_cast<int16_t>(renderer.getScreenHeight())};
+  const XpUiRect link{static_cast<int16_t>(linkScratch.x), static_cast<int16_t>(linkScratch.y),
+                      static_cast<int16_t>(linkScratch.width), static_cast<int16_t>(linkScratch.height)};
+  const XpUiBuffer buffer{highlightCommands, nullptr, 2, 0};
+  XpUiRect rect{};
+  XpUiScene scene{};
+  if (!xp_ui_reader_footnote_view(screen, link, marginLeft, marginTop, SETTINGS.getReaderFontId(),
+                                  footnoteScratch.number[0] ? 1 : 0, &buffer, &rect, &scene)) {
+    LOG_ERR("RUI", "Cannot build footnote highlight");
+    snapshotIdx = -1;
+    return false;
   }
-  if (hy < 0) {
-    hh += hy;
-    hy = 0;
-  }
-
-  bool saved = false;
-  if (snapshot && hw > 0 && hh > 0) {
-    saved = renderer.readFramebufferRegion(hx, hy, hw, hh, snapshot.get(), SNAPSHOT_CAPACITY) > 0;
-  }
-  snapshotX = static_cast<int16_t>(hx);
-  snapshotY = static_cast<int16_t>(hy);
-  snapshotW = static_cast<int16_t>(hw);
-  snapshotH = static_cast<int16_t>(hh);
-  snapshotIdx = saved ? selected : -1;
-
-  renderer.fillRect(hx, hy, hw, hh, true);
-  // Draw a small marker (the footnote number) at the highlight position
-  page->footnote(footnoteLinks[selected].footnote, footnoteScratch);
-  const char* number = footnoteScratch.number;
-  if (number[0]) {
-    renderer.drawText(SETTINGS.getReaderFontId(), x, y - 1, number, false);
+  const bool saved =
+      snapshot && rect.w > 0 && rect.h > 0 &&
+      renderer.readFramebufferRegion(rect.x, rect.y, rect.w, rect.h, snapshot.get(), SNAPSHOT_CAPACITY) > 0;
+  snapshotX = rect.x;
+  snapshotY = rect.y;
+  snapshotW = rect.w;
+  snapshotH = rect.h;
+  snapshotIdx = saved ? renderingSelected : -1;
+  const XpUiPaint resources{
+      this, nullptr, nullptr,
+      [](void*, uint32_t handle, uint32_t generation) -> uint8_t { return handle == 1 && generation == 1; },
+      [](void* p, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
+        auto& self = *static_cast<EpubReaderFootnoteSelectActivity*>(p);
+        self.renderer.drawUiText(*command, clip, self.footnoteScratch.number);
+      }};
+  if (!renderer.drawUiScene(scene, &resources)) {
+    LOG_ERR("RUI", "Invalid footnote highlight");
+    snapshotIdx = -1;
+    return false;
   }
   return saved;
 }
 
 void EpubReaderFootnoteSelectActivity::render(RenderLock&&) {
+  {
+    ModelLock lock(*this);
+    renderingSelected = state.selected;
+  }
   // Differential fast path: only the highlight moved and the framebuffer still
   // holds a clean page.
-  if (snapshotIdx >= 0 && footnoteLinkCount != 0 && selected != snapshotIdx) {
+  if (snapshotIdx >= 0 && footnoteLinkCount != 0 && renderingSelected != snapshotIdx) {
     renderer.writeFramebufferRegion(snapshotX, snapshotY, snapshotW, snapshotH, snapshot.get());
     if (drawHighlightWithSnapshot()) {
       drawHints();

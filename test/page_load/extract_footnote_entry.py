@@ -42,5 +42,5 @@ selector = selector.replace('#include "EpubReaderFootnoteSelectActivity.h"',
 for accessor in ('footnote', 'link'):
     selector = selector.replace('page->' + accessor + '(',
                                 '(RenderLock::requireHeld(), page)->' + accessor + '(')
-selector = re.sub(r'\bselected\b', 'checkedSelection(selected)', selector)
+selector = selector.replace('state.selected', 'checkedModelSelection(state.selected)')
 pathlib.Path(sys.argv[4]).write_text(selector)

@@ -1,28 +1,21 @@
 #pragma once
 
+#include <FreeInkUIGfxRenderer.h>
+#include <freertos/FreeRTOS.h>
+#include <xp_ui_reader_chrome.h>
+
 #include <functional>
 #include <string>
 
-#include "components/UiAppHost.h"
+#include "ReaderChromeListActivity.h"
 #include "components/lists/list.h"
 
 class GfxRenderer;
 class MappedInputManager;
 
-// FreeInkUI chrome for the toolbar reader menu (Settings -> Reader -> Reader
-// Menu Style -> Toolbar), painted over the page that is already on screen:
-//
-//  - Toolbar: a bottom sheet holding a chapter scrub row (< capsule >) and a
-//    Contents / Text / More tile row; the page above it stays untouched.
-//  - Panel: a taller bottom sheet with a title, a paged row list (name left,
-//    value right) and the same tile row as a switcher.
-//
-// EpubReaderActivity owns the state (which overlay, selection, row contents)
-// and the physical-button handling; this class owns the layout, the tap
-// targets FreeInkUI registers for it, and the translation of dispatched
-// actions back into the small event set the reader acts on. Nothing here
-// clears the screen: the page stays visible around the chrome.
-class ReaderToolbarUi : public UiAppHost {
+// Resource facade for Rust toolbar/panel scenes over the reader page.
+// The parent keeps its Model, navigation and Event API while EpubReaderActivity owns its lifecycle.
+class ReaderToolbarUi {
  public:
   enum class Event { None = 0, Dismiss = 1, Tool = 2, PrevChapter = 3, NextChapter = 4, Scrub = 5, Row = 6 };
 
@@ -68,34 +61,32 @@ class ReaderToolbarUi : public UiAppHost {
   // Route one loop-task input frame; returns the action it mapped to, if any.
   Routed route(const MappedInputManager& input);
 
-  // Panel list selection/viewport, shared with the reader's input handling.
-  // The same fui::ListNav the list-menu screens use: scrollBy() pages the
-  // viewport (measured page size, no-op detection), the top/selected fields
-  // are the live state, and buildPanel() syncs it into the list each build.
+  // Parent compatibility state; Rust resolves the measured viewport.
   freeink::ui::ListNav& nav() { return nav_; }
   // Rows one page holds, measured after the first render.
   int visibleRows() const { return nav_.pageRows(); }
 
  private:
-  static void screenFn(UiScreen& screen, void* user);
-  static void onAction(const freeink::ui::ActionEvent& event, void* user);
-  void buildToolbar(UiScreen& screen);
-  void buildPanel(UiScreen& screen);
-  void buildToolRow(UiScreen& screen, freeink::ui::LayoutAnchor anchor, int16_t sideInset);
-
+  GfxRenderer& renderer;
+  freeink::ui::GfxRendererTarget textTarget;
   Model model_;
-  Routed pending_;
+  // Retained until EpubReaderActivity delegates navigation state to Rust.
   freeink::ui::ListNav nav_;
-
-  // Row window materialised for the visible page only (a contents list runs to
-  // hundreds of entries; labels are copied here so ListItem can point at them).
   static constexpr int kMaxWindow = 16;
   std::string windowLabels_[kMaxWindow];
   std::string windowValues_[kMaxWindow];
-  freeink::ui::ListItem windowItems_[kMaxWindow];
-  // fui::ButtonProps / ListProps / HeaderProps embed a 324-byte StyleSet: keep
-  // them off the stack (AGENTS.md: locals stay under 256 bytes).
-  freeink::ui::ButtonProps stepProps_;
-  freeink::ui::ListProps listProps_;
-  freeink::ui::Rect pageIndicatorRect_{};
+  struct RowFlags {
+    bool toggle = false;
+    bool checked = false;
+  } rowFlags[kMaxWindow];
+  uint16_t windowFirst = 0, windowCount = 0;
+  char pageIndicator[16]{};
+  ReaderChromeCommands commands;
+  XpUiReaderTheme theme{};
+  XpUiReaderToolbarInput contact{-1, -1, 0, {0, 0, 0}};
+  XpUiReaderHitLayout published{};
+  portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
+  bool ready = false;
+  const char* text(uint32_t handle) const;
+  XpUiReaderRows resources();
 };

@@ -909,5 +909,138 @@ int main() {
     String::failAllocationSize = SIZE_MAX;
     app.handleFontList();
   });
+  // Plugin slice: capture these cases from dc21f50f before replacing handlers.
+  for (const char* manifest :
+       {"", "bad", "{}", "null", "[]", "{\"title\":1,\"mount\":false}", "{\"title\":\"\",\"mount\":\"\"}",
+        "{\"title\":\"a\\n\\\"b\\u0000tail\",\"mount\":\"files\"}"}) {
+    record((std::string("plugins-manifest:") + manifest).c_str(), [&](auto& app) {
+      PluginLocations::entries = {{"no-js", "/plugins/no-js", false, true},
+                                  {"test", "/plugins/test", true, true},
+                                  {"fallback", "/plugins/fallback", true, false}};
+      if (*manifest) host::add("/plugins/test/manifest.json", manifest);
+      app.handlePluginList();
+    });
+  }
+  for (int kind = 0; kind < 5; ++kind) {
+    record(("plugins-list-extra:" + std::to_string(kind)).c_str(), [&](auto& app) {
+      if (kind == 0) PluginLocations::entries.clear();
+      if (kind == 1) PluginLocations::entries = {{"q\"\n", "/plugins/q\"\n", true, false}};
+      if (kind == 2) host::add("/plugins/test/manifest.json", std::string(65537, ' '));
+      if (kind == 3) {
+        host::failOperation = "open";
+        host::failAfter = 0;
+      }
+      if (kind == 4) SETTINGS.pluginsEnabled = false;
+      app.handlePluginList();
+    });
+  }
+  for (const char* file : {"", "..", "a/b", "a\\b", "a..b", "plugin.js", "style.css", "page.html", "info.json",
+                           "image.svg", "FILE.JS", ".hidden", "other.bin"}) {
+    for (int kind = 0; kind < 3; ++kind) {
+      record((std::string("plugins-file-extra:") + file + ":" + std::to_string(kind)).c_str(), [&](auto& app) {
+        app.server->args["name"] = "test";
+        app.server->args["file"] = file;
+        if (kind != 0) host::add(std::string("/plugins/test/") + file, "bytes", kind == 2);
+        app.handlePluginFile();
+      });
+    }
+  }
+  for (const char* shape : {"empty", "plain", "json", "fields-only"}) {
+    for (bool enabled : {false, true}) {
+      record((std::string("plugins-no-upload:") + shape + ":" + std::to_string(enabled)).c_str(), [&](auto& app) {
+        SETTINGS.pluginsEnabled = enabled;
+        app.server->uploadAvailable = false;
+        if (std::string(shape) == "plain") app.server->args["plain"] = "bytes";
+        if (std::string(shape) == "json") app.server->args["plain"] = "{}";
+        if (std::string(shape) == "fields-only") app.server->args["plugin"] = "test";
+        app.handlePluginFs();
+      });
+    }
+  }
+  for (const char* plugin : {"", "test", "..", "a/b", "a\\b", "a..b"}) {
+    record((std::string("plugins-fs-name:") + plugin).c_str(), [&](auto& app) {
+      app.server->args["plugin"] = plugin;
+      app.server->args["path"] = "/plugins/test/auth.json";
+      app.server->part.status = UPLOAD_FILE_START;
+      app.handlePluginFsUpload();
+      app.server->part.status = UPLOAD_FILE_ABORTED;
+      app.handlePluginFsUpload();
+      app.handlePluginFs();
+    });
+  }
+  for (int kind = 0; kind < 10; ++kind) {
+    record(("plugins-fs-extra:" + std::to_string(kind)).c_str(), [&](auto& app) {
+      app.server->args["plugin"] = "test";
+      app.server->args["path"] = kind == 0 ? "/file" : "/plugins/test/deep/book.epub";
+      host::add(app.server->args["path"], "original");
+      if (kind == 1) {
+        host::failOperation = "create";
+        host::failAfter = 0;
+      }
+      if (kind == 2) host::writeLimit = 2;
+      app.server->part.status = UPLOAD_FILE_START;
+      app.handlePluginFsUpload();
+      const std::string data(kind == 3 ? 262144 : 4, 'x');
+      app.server->part.status = UPLOAD_FILE_WRITE;
+      app.server->part.buf = reinterpret_cast<const uint8_t*>(data.data());
+      app.server->part.currentSize = data.size();
+      app.handlePluginFsUpload();
+      if (kind == 4) app.handlePluginFsUpload();
+      if (kind == 5) SETTINGS.pluginsEnabled = false;
+      if (kind == 6) {
+        host::failOperation = "remove";
+        host::failAfter = 0;
+      }
+      app.server->part.status = kind == 6 ? UPLOAD_FILE_ABORTED : UPLOAD_FILE_END;
+      app.handlePluginFsUpload();
+      if (kind == 7) String::failAllocationSize = 21;  // {"ok":true,"bytes":4}
+      app.server->uploadAvailable = false;
+      app.handlePluginFs();
+      if (kind == 8) app.handlePluginFs();
+      if (kind == 9) {
+        app.server->uploadAvailable = true;
+        app.server->part.status = UPLOAD_FILE_START;
+        app.handlePluginFsUpload();
+        app.server->part.status = UPLOAD_FILE_ABORTED;
+        app.handlePluginFsUpload();
+        app.handlePluginFs();
+      }
+    });
+  }
+  for (const char* expiry :
+       {"-1", "0", "1", "2147483648", "9223372036854775807", "1.5", "\"12\"", "true", "null", "[]"}) {
+    for (bool fail : {false, true}) {
+      record((std::string("plugins-book-key:") + expiry + ":" + std::to_string(fail)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"path\":\"/books/new.epub\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAA==\",\"expires\":") + expiry +
+            "}";
+        if (fail) {
+          host::failOperation = "bookkey";
+          host::failAfter = 0;
+        }
+        app.handleBookKey();
+      });
+    }
+  }
+  for (const char* body : {"{\"path\":\"/.crosspoint/wifi.json\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAA==\"}",
+                           "{\"path\":\"/books/a\\u0000b\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAA==\"}",
+                           "{\"path\":12,\"key\":true}", "{\"path\":\"relative\",\"key\":\"bad\"}"}) {
+    record((std::string("plugins-book-body:") + body).c_str(), [&](auto& app) {
+      app.server->args["plain"] = body;
+      app.handleBookKey();
+    });
+  }
+  record("plugins-list-response-allocation", [](auto& app) {
+    app.handlePluginList();
+    const std::string prefix = "response:200:application/json:";
+    const auto response = std::find_if(host::trace.begin(), host::trace.end(),
+                                       [&](const auto& event) { return event.starts_with(prefix); });
+    if (response == host::trace.end()) return;
+    String::failAllocationSize = response->size() - prefix.size();
+    app.handlePluginList();
+    host::trace.push_back("string-allocation-failures:" + std::to_string(String::failedAllocations));
+    String::failAllocationSize = SIZE_MAX;
+    app.handlePluginList();
+  });
   return 0;
 }

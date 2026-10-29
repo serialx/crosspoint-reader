@@ -243,6 +243,98 @@ int main() {
     ++cases;
   }
   {
+    Pair p("https://example.test/é", InputType::Url);
+    // Populate both SDK generations before the shorter page reuses one.
+    p.publish();
+    assert(p.old.interactions.publishedCount() == 44);
+    p.old.syncSelectionToValue(-3);
+    p.current.state.row = p.old.selRow;
+    p.current.state.col = p.old.selCol;
+    p.touch(p.point(fui::QWERTY_KEY_ENTER), true, false, true);
+    assert(p.old.interactions.activeIndex() == 43);
+    MappedInputManager in;
+    in.contact = true;
+    in.pressed = in.held = 1u << unsigned(MappedInputManager::Button::Confirm);
+    p.frame(in);
+    in.pressed = in.held = 0;
+    in.released = 1u << unsigned(MappedInputManager::Button::Confirm);
+    p.frame(in);
+    assert(p.current.state.url_panel);
+    p.publish();
+    const int active = p.old.interactions.activeIndex();
+    assert(active == 43 && p.old.interactions.publishedCount() == 13);
+    // Inside the allocated 56 slots, but outside this publication's 13 keys.
+    const auto& stale = p.old.interactions.publishedData()[active];
+    assert(stale.action == 1 && stale.value == fui::QWERTY_KEY_ENTER);
+    assert(p.current.state.active_index == active && p.current.state.active_key == INT16_MIN);
+    assert(p.old.result == 0 && !p.current.finished);
+    const auto text = p.bytes();
+    const auto cursor = p.current.state.cursor;
+    in = {};
+    in.x = 527;
+    in.y = 300;
+    in.tapped = true;
+    now += 100;
+    p.input = p.current.mappedInput = in;
+    // Deliberate deviation: do not reuse equal(), which requires equal results.
+    p.old.loop();
+    p.current.loop();
+    assert(p.old.result == 1 && p.old.returned == text && p.old.text == text);
+    assert(!p.current.finished && p.current.result.empty());
+    assert(p.bytes() == text && p.current.state.cursor == cursor && p.old.cursorPos == cursor);
+    assert(p.current.state.active_key == INT16_MIN && p.current.state.active_index == -1);
+    assert(p.old.interactions.activeIndex() == -1);
+    printf(
+        "stale-slot deviation: held Enter index=43, published count=13; original accepts %zu bytes, "
+        "Rust stays open with unchanged bytes/cursor and clears contact\n",
+        text.size());
+  }
+  {
+    Pair p("pending URL", InputType::Url);
+    p.publish();
+    assert(p.old.interactions.publishedCount() == 44);
+    p.old.syncSelectionToValue(-3);
+    p.current.state.row = p.old.selRow;
+    p.current.state.col = p.old.selCol;
+    MappedInputManager in;
+    in.pressed = in.held = 1u << unsigned(MappedInputManager::Button::Confirm);
+    p.frame(in);
+    in.pressed = in.held = 0;
+    in.released = 1u << unsigned(MappedInputManager::Button::Confirm);
+    p.frame(in);
+    assert(p.current.state.url_panel && p.old.interactions.publishedCount() == 44);
+    // Press the old published URL key while the snippet render is pending.
+    const fui::Point point{303, 736};
+    p.touch(point, true, false, true);
+    assert(p.old.interactions.activeIndex() == 42);
+    p.publish();
+    assert(p.old.interactions.publishedCount() == 13 && p.old.interactions.activeIndex() == 42);
+    assert(p.old.interactions.publishedData()[42].value == -3);
+    fui::Interaction hit;
+    assert(!p.old.interactions.hitPublished(point.x, point.y, 1, hit));
+    assert(p.current.state.active_index == 42 && p.current.state.active_key == INT16_MIN);
+    const auto text = p.bytes();
+    const auto cursor = p.current.state.cursor;
+    in = {};
+    in.x = point.x;
+    in.y = point.y;
+    in.tapped = true;
+    now += 100;
+    p.input = p.current.mappedInput = in;
+    p.old.loop();
+    p.current.loop();
+    // The SDK's stale URL slot toggles back; Rust ignores the out-of-count key.
+    assert(!p.old.urlPanel && p.current.state.url_panel);
+    assert(p.old.result == 0 && !p.current.finished && p.current.result.empty());
+    assert(p.old.text == text && p.bytes() == text);
+    assert(p.old.cursorPos == cursor && p.current.state.cursor == cursor);
+    assert(p.current.state.active_key == INT16_MIN && p.current.state.active_index == -1);
+    assert(p.old.interactions.activeIndex() == -1);
+    printf(
+        "stale-slot deviation: pending-render URL press/release=(303,736), index=42, count=13; "
+        "original toggles to letters, Rust stays on snippets with unchanged bytes/cursor and clears contact\n");
+  }
+  {
     Pair p("cancel");
     MappedInputManager in;
     in.released = 1u << unsigned(MappedInputManager::Button::Back);
@@ -250,5 +342,5 @@ int main() {
     assert(p.old.result == 2 && p.current.result == "cancel");
     ++cases;
   }
-  printf("%u real-layout routed cases: bytes, cursor, parent results, fields and pending publications match\n", cases);
+  printf("%u real-layout routed cases match; 2 traces pin the stale-slot safety deviation\n", cases);
 }

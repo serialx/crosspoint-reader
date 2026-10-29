@@ -46,10 +46,25 @@ start/next wrappers and painter font choice. It checks both the pinned SDK IDs
 and deliberately permuted IDs against the real layout tables.
 
 `keyboard_routed_input` compares the original C++ with actual facade methods
-through text bytes, cursor and returned results. Its 71 real-layout cases cover
+through text bytes, cursor and returned results. Its 71 matching real-layout cases cover
 pending shift/language/URL changes, masked multi-byte and RTL field taps, and
 contacts spanning publication. It also checks the active key used for painting.
 Glyph advances are fixed host leaves; bidi is real, and native-font pixels remain
 covered by `KeyboardTarget`. The original stale-key fallback after a field tap
 and a second release without a new press is preserved explicitly; a fresh
 off-target press/release must clear it. No frozen golden is changed.
+
+Two additional cases pin one deliberate safety deviation: suppress fallback
+actions outside the published key count. The first renders URL letters into
+both SDK generations, hold Enter at index 43, toggle URL snippets with hardware
+Confirm, publish the 13-key page, then release off-target. The SDK fallback reads
+the stale Enter slot beyond the published count and accepts the text. Rust drops
+that release, keeps the keyboard open with unchanged bytes/cursor, and clears
+the active contact. This slot is inside the SDK allocation but outside the valid
+published table; the test records the old result without requiring Rust to copy it.
+The second toggles URL with hardware Confirm while letters are still published,
+presses the old URL key at (303,736), publishes snippets, then releases at the same
+point, now a gap. The SDK reads stale URL slot 42 and toggles back to letters;
+Rust clears the contact and stays on snippets. Both cases release while the
+shorter page is published. The Rust shorter-page unit test returns to the larger
+page before release, so it does not cover this fallback behavior.

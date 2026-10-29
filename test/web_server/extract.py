@@ -140,6 +140,20 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed plugin behavior")
         print("mutation check: rejected changed plugin behavior")
+        changed = source.replace('static constexpr size_t RELAY_BODY_LIMIT = 32 * 1024;',
+                                 'static constexpr size_t RELAY_BODY_LIMIT = 31 * 1024;', 1)
+        if changed == source:
+            changed = source.replace('XP_WEB_RELAY);', 'XP_WEB_CRYPTO);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed relay policy")
+        print("mutation check: rejected changed relay policy")
+        changed = source.replace('static constexpr int MAX_RANDOM_BYTES = 4096;',
+                                 'static constexpr int MAX_RANDOM_BYTES = 4095;', 1)
+        if changed == source:
+            changed = source.replace('XP_WEB_CRYPTO);', 'XP_WEB_RELAY);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed crypto policy")
+        print("mutation check: rejected changed crypto policy")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
         if changed == source:

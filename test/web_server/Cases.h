@@ -16,6 +16,9 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::failOperation.clear();
   host::failAfter = -1;
   host::writeLimit = SIZE_MAX;
+  host::cryptoTrace = false;
+  pluginhttp::beforeRequest = {};
+  freeink::content::beforePkcs12 = {};
   host::cancelled = false;
   host::connected = true;
   host::now = 1000;
@@ -30,6 +33,9 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   PluginLocations::entries = {{"test", "/plugins/test"}};
   HalMemory::psram = false;
   sdFontSystem.fonts.families = {{}};
+  pluginhttp::responseStatus = 201;
+  pluginhttp::responseSize = 8;
+  pluginhttp::timeout = false;
   freeink::fetchResult = {};
   freeink::fetchRewind = freeink::fetchCrossOrigin = false;
   freeink::fetchWait = 0;
@@ -1272,6 +1278,137 @@ int main() {
     app.handlePluginJobSubmit();
     app.server->args["id"] = "\v1";
     app.handlePluginJobStatus();
+  });
+
+  for (const char* route : {"relay", "crypto"}) {
+    for (const char* body : {"", "null", "[]", "42", "true", "{}", "{", R"({"op":null})"}) {
+      record((std::string("rc-json:") + route + ":" + body).c_str(), [&](auto& app) {
+        app.server->uploadAvailable = false;
+        app.server->args["plain"] = body;
+        if (std::string(route) == "relay")
+          app.handleRelay();
+        else
+          app.handleCrypto();
+      });
+    }
+  }
+  for (const char* field : {"plugin", "url", "method", "body", "headers"}) {
+    for (const char* value : {"null", "42", "true", "[]", "{}", R"("")", R"("a/b")", R"("a..b")", R"("a\\b")",
+                              R"("a\u0000/b")", R"("\u0000x")", R"({"X-A":null,"X-B":[1],"X-C":42})"}) {
+      record((std::string("relay-field:") + field + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string(R"({"plugin":"p","url":"https://example.test",)") + "\"" + field + "\":" + value + "}";
+        app.handleRelay();
+      });
+    }
+  }
+  for (int status : {-3, -1, 0, 200, 301, 400, 401, 404, 500, 599}) {
+    record(("relay-status:" + std::to_string(status)).c_str(), [&](auto& app) {
+      pluginhttp::responseStatus = status;
+      app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+      app.handleRelay();
+    });
+  }
+  for (size_t size : {0, 32767, 32768, 32769}) {
+    record(("relay-body-limit:" + std::to_string(size)).c_str(), [&](auto& app) {
+      pluginhttp::responseSize = size;
+      app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+      app.handleRelay();
+    });
+  }
+  record("relay-timeout", [&](auto& app) {
+    pluginhttp::timeout = true;
+    app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+    app.handleRelay();
+  });
+  for (const char* value :
+       {"null", "true", "1.5", "-1", "0", "1", "4095", "4096", "4097", "2147483648", "4294967295", R"("22")", "[]"}) {
+    record((std::string("crypto-random-coercion:") + value).c_str(), [&](auto& app) {
+      app.server->args["plain"] = std::string(R"({"op":"random","len":)") + value + "}";
+      app.handleCrypto();
+    });
+  }
+  for (const char* op : {"sha1", "sha256", "aesenc", "aesdec", "rsadec", "pubencrypt", "sign", "pkcs12", "random"}) {
+    for (const char* value :
+         {"null", "42", "true", "[]", R"("")", R"("!")", R"("AA==\u0000junk")", R"(" AA==")", R"("AAAA")"}) {
+      record((std::string("crypto-input:") + op + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"op\":\"") + op + "\",\"data\":" + value + ",\"hash\":" + value + "}";
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+  }
+  for (const char* op :
+       {"sha1", "sha256", "aesenc", "aesdec", "rsadec", "pubencrypt", "sign", "pkcs12", "keygen", "random"}) {
+    for (int budget = 0; budget < 7; ++budget) {
+      record((std::string("crypto-alloc:") + op + ":" + std::to_string(budget)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"op\":\"") + op +
+            R"(","key":"AAAAAAAAAAAAAAAAAAAAAA==","iv":"AAAAAAAAAAAAAAAAAAAAAA==","data":"AA==","private":"AA==","cert":"AA==","hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAA="})";
+        host::failOperation = "alloc";
+        host::failAfter = budget;
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+    for (const char* failure : {"encode-empty", "encode-fail", "crypto", "aes-encrypt"}) {
+      record((std::string("crypto-failure:") + op + ":" + failure).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"op\":\"") + op +
+            R"(","key":"AAAAAAAAAAAAAAAAAAAAAA==","iv":"AAAAAAAAAAAAAAAAAAAAAA==","data":"AAAAAAAAAAAAAAAAAAAAAA==","private":"AA==","cert":"AA==","hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAA="})";
+        host::failOperation = failure;
+        host::failAfter = 0;
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+  }
+  for (size_t size : {0, 15, 16, 17, 20, 31, 32, 65535, 65536, 65537}) {
+    for (const char* field : {"data", "key", "iv", "hash"}) {
+      record((std::string("crypto-field-bound:") + field + ":" + std::to_string(size)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string(R"({"op":"aesdec","key":"AAAAAAAAAAAAAAAAAAAAAA==","iv":"AAAAAAAAAAAAAAAAAAAAAA==",)") + "\"" +
+            field + "\":\"" + std::string(size, 'A') + "\"}";
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+  }
+  for (const char* route : {"relay", "crypto"}) {
+    for (int budget = 0; budget < 12; ++budget) {
+      record((std::string("rc-json-alloc:") + route + ":" + std::to_string(budget)).c_str(), [&](auto& app) {
+        app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test","op":"keygen"})";
+        WebJsonAllocator::failAfter = budget;
+        if (std::string(route) == "relay")
+          app.handleRelay();
+        else
+          app.handleCrypto();
+        WebJsonAllocator::failAfter = -1;
+      });
+    }
+  }
+
+  record("relay-release-before-tls", [](auto& app) {
+    app.server->_currentArgs = new String[1];
+    app.server->_currentArgCount = 1;
+    app.server->_postArgs = new String[1];
+    app.server->_postArgsLen = 1;
+    app.server->args["plain"] =
+        R"({"plugin":"p","url":"https://example.test","headers":{"Authorization":"synthetic"},"body":"payload"})";
+    pluginhttp::beforeRequest = [&] {
+      if (app.server->_currentArgs || app.server->_postArgs || WebJsonAllocator::live) std::abort();
+    };
+    app.handleRelay();
+    pluginhttp::beforeRequest = {};
+  });
+  record("crypto-pkcs12-release", [](auto& app) {
+    app.server->args["plain"] = R"({"op":"pkcs12","data":"AA==","password":"synthetic"})";
+    freeink::content::beforePkcs12 = [] {
+      if (WebJsonAllocator::live) std::abort();
+    };
+    app.handleCrypto();
+    freeink::content::beforePkcs12 = {};
   });
   return 0;
 }

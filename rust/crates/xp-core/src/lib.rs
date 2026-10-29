@@ -80,3 +80,5 @@ pub mod strip;
 pub mod sync;
 
 pub mod ota;
+
+pub mod assets;

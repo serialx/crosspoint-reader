@@ -28,6 +28,7 @@ int stripPhase = 0;
 #endif
 
 extern "C" size_t xp_test_allocation_attempts();
+size_t pageGoldenImageAllocations = 0;
 static uint64_t owners[12]{};
 void pageGoldenOwner(unsigned kind) { ++owners[kind]; }
 static uint64_t nativeCalls = 0, emissions = 0, scaledCalls = 0;
@@ -282,12 +283,12 @@ static bool pixels(const Page& page, GfxRenderer& renderer, FontCacheManager& ca
     renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
     for (int placeholders = 0; placeholders <= int(page.hasImages()); ++placeholders) {
       const auto draw = [&] {
-        const size_t allocations = xp_test_allocation_attempts();
+        const size_t allocations = xp_test_allocation_attempts() - pageGoldenImageAllocations;
         if (placeholders)
           page.renderWithImagePlaceholders(renderer, config.spec.fontId, config.margin, config.margin);
         else
           page.render(renderer, config.spec.fontId, config.margin, config.margin);
-        if (xp_test_allocation_attempts() != allocations) {
+        if (xp_test_allocation_attempts() - pageGoldenImageAllocations != allocations) {
           std::cerr << "Rust allocation during page rendering\n";
           std::exit(1);
         }
@@ -362,12 +363,12 @@ static bool stripPixels(const Page& page, GfxRenderer& renderer, FontCacheManage
     renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
     for (int placeholders = 0; placeholders <= int(page.hasImages()); ++placeholders) {
       const auto draw = [&] {
-        const size_t allocations = xp_test_allocation_attempts();
+        const size_t allocations = xp_test_allocation_attempts() - pageGoldenImageAllocations;
         if (placeholders)
           page.renderWithImagePlaceholders(renderer, config.spec.fontId, config.margin, config.margin);
         else
           page.render(renderer, config.spec.fontId, config.margin, config.margin);
-        if (xp_test_allocation_attempts() != allocations) {
+        if (xp_test_allocation_attempts() - pageGoldenImageAllocations != allocations) {
           std::cerr << "Rust allocation during page rendering\n";
           std::exit(1);
         }

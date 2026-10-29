@@ -754,8 +754,10 @@ alpha conversion, Bayer dithering, framebuffer writes, streaming 2-bit pixel
 cache packing, and header dimension probes. `xp-core::png` owns PNG decoding and
 BMP conversion; `xp-core::gif` exposes the local `xp-gif` decoder and BMP converter.
 Both feed rows directly into the Rust pipeline. JPEGDEC remains the C/C++ decoder.
-C++ owns HalFile input/output, renderer targets and cache I/O; ImageBlock keeps
-cache reads and render orchestration. Cache byte formats are unchanged.
+C++ owns HalFile input/output, renderer targets and cache I/O. `xp-core::assets`
+owns ImageBlock render/cache policy, JPEG-to-BMP conversion, screenshot packing,
+and QR layout. ImageBlock supplies synchronous storage/decoder callbacks and the
+existing placeholder drawing. Cache byte formats are unchanged.
 
 PNG uses synchronous `xp_png_dimensions`, `xp_png_render`, `xp_png_bmp` and
 `xp_png_sleep_header` calls. GIF uses `xp_gif_inspect`, `xp_gif_frame` and
@@ -779,9 +781,23 @@ compile-time assertions tie renderer modes and orientations to the ABI values.
 
 Rust allocates PNG/GIF decoder state, reusable rows and conversion buffers
 fallibly and releases them on success or failure. GIF keeps its 256-byte gray
-palette with decoder storage. There is no per-row allocation. JPEG needs no
-additional row buffer. No image allocation survives decoding, apart from
-ImageBlock's existing cache-read buffers. The
+palette with decoder storage. There is no per-row allocation. JPEG framebuffer
+decoding needs no additional row buffer. JPEG-to-BMP conversion
+owns an MCU buffer, output row and optional smoothing/scaling/dither buffers;
+all are released at the end of the call. ImageBlock's Rust owner retains its
+cache chunks and shared path/read window until `releaseRenderCache()`. Clearing
+render failures permits retry on the next page render without releasing that
+window. QR bitmap callers own the output storage and must supply a non-null
+pointer with the capacity returned by the plan call.
+
+JPEG conversion buffers and the page cache window/chunks retain their former
+default C++ allocation domain.
+On X4 Pro, the narrow `xp_assets_platform_*` leaves use paired malloc/realloc/free
+with DEFAULT caps (3), so the configured 4 KiB PSRAM preference applies. Rust
+chooses allocation sizes, fallible growth and release points; failed growth
+preserves the old allocation. C3 keeps its accepted internal allocation path.
+The global Rust allocator is unchanged. Event numbers and diagnostic payloads
+are documented at the asset ABI in `xp_ffi.h`. The
 [PNG compatibility checks](../../test/image_golden/PNG.md) and
 [GIF compatibility checks](../../test/gif_support/README.md) document consumer
 limits, malformed-input rejections, corrected decodes and allocation-failure tests.

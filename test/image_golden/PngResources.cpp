@@ -219,3 +219,15 @@ int main(int argc, char** argv) {
   }
   reset();
 }
+
+// The raw archive also contains asset code; keep its platform domain paired
+// with this resource probe's allocation accounting.
+extern "C" void* xp_assets_platform_alloc(size_t size, uint32_t caps) {
+  require(caps == 3);
+  return heap_caps_malloc(size, 0);
+}
+extern "C" void* xp_assets_platform_realloc(void* data, size_t size, uint32_t caps) {
+  require(caps == 3);
+  return heap_caps_realloc(data, size, 0);
+}
+extern "C" void xp_assets_platform_free(void* data) { heap_caps_free(data); }

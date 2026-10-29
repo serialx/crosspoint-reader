@@ -51,14 +51,27 @@ source = (root / 'lib/Epub/Epub/blocks/TextBlock.cpp').read_text().replace('#inc
 source = (root / 'lib/Epub/Epub/blocks/ImageBlock.cpp').read_text()
 source = source.replace('#include "../SectionCodec.h"', '#include <SectionCodec.h>')
 source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
-# Keep the original image writer for the full-frame reference.
-for width in ('pxcSlotWidth', 'cachedWidth'):
-    anchor = f'    xp_image_packed_row(&target, x, y + row, {width}, rowBuffer, bytesPerRow);'
-    if source.count(anchor) != 1:
-        raise SystemExit('Image row observer anchor changed')
-    source = source.replace(anchor, f"""#ifdef XP_STRIP_SPIKE
-    if (stripPhase == 2) xp_strip_packed_row(&target, x, y + row, {width}, rowBuffer, bytesPerRow);
-    else
+# Select the independent strip writer at the new Rust cache-owner boundary.
+anchor = '*output = imageWriteTarget(*static_cast<Context*>(raw)->renderer);'
+if source.count(anchor) != 1:
+    raise SystemExit('Image target observer anchor changed')
+source = source.replace(anchor, """
+#ifdef XP_STRIP_SPIKE
+  xp_assets_image_strip_spike(stripPhase == 2);
 #endif
-{anchor}""")
+""" + anchor + "\n")
+source = source.replace('#include "StripTrace.h"', '#include "StripTrace.h"\nextern "C" void xp_assets_image_strip_spike(bool);')
+# Image allocations existed in C++ before this port; account for that owner separately.
+# The asset oracle enforces zero allocations on repeated successful cache passes.
+render = 'void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {'
+if source.count(render) != 1:
+    raise SystemExit('Image allocation observer anchor changed')
+source = source.replace(render, render + """
+  extern size_t pageGoldenImageAllocations;
+  struct AllocationScope {
+    size_t start = xp_test_allocation_attempts();
+    ~AllocationScope() { pageGoldenImageAllocations += xp_test_allocation_attempts() - start; }
+  } allocationScope;
+""")
+source = '#include <cstddef>\nextern "C" size_t xp_test_allocation_attempts();\n' + source
 (out / 'ImageBlock.cpp').write_text(source)

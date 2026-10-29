@@ -3,21 +3,10 @@
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
 #include <Logging.h>
-#include <Memory.h>
+#include <xp_ffi.h>
 
-#include <cstdlib>
-#include <cstring>
-#include <new>
-
-#include "../SectionCodec.h"
 #include "Epub/converters/ImageDecoderFactory.h"
 #include "Epub/converters/ImagePipeline.h"
-
-// Cache file format:
-// - uint16_t width
-// - uint16_t height
-// - uint8_t pixels[...] - 2 bits per pixel, packed (4 pixels per byte), row-major order
-
 ImageBlock::ImageBlock(const std::string& imagePath, const std::string& srcPath, int16_t width, int16_t height)
     : ownedImagePath(imagePath),
       ownedSrcPath(srcPath),
@@ -35,369 +24,182 @@ void ImageBlock::setExtractor(void* ctx, ExtractFn fn) {
 }
 
 namespace {
-
-// Version 2 rebuilds pixels decoded by PNGdec's faulty zlib fast-copy path.
-constexpr char PIXEL_CACHE_EXTENSION[] = ".px2";
-
-std::string getCachePath(const std::string_view imagePath) {
-  // The filename versions decoded pixels without changing the packed format.
-  size_t dotPos = imagePath.rfind('.');
-  if (dotPos != std::string::npos) {
-    return std::string(imagePath.substr(0, dotPos)) + PIXEL_CACHE_EXTENSION;
-  }
-  return std::string(imagePath) + PIXEL_CACHE_EXTENSION;
-}
-
-bool readValidCacheHeader(HalFile& cacheFile, const int expectedWidth, const int expectedHeight, uint16_t& cachedWidth,
-                          uint16_t& cachedHeight) {
-  if (cacheFile.read(&cachedWidth, 2) != 2 || cacheFile.read(&cachedHeight, 2) != 2) {
-    return false;
-  }
-
-  const int widthDiff = abs(cachedWidth - expectedWidth);
-  const int heightDiff = abs(cachedHeight - expectedHeight);
-  if (widthDiff > 1 || heightDiff > 1) {
-    return false;
-  }
-
-  const size_t bytesPerRow = (cachedWidth + 3) / 4;
-  const size_t expectedSize = 4 + bytesPerRow * cachedHeight;
-  return cacheFile.size() >= expectedSize;
-}
-
-// Suppress repeated failures across the BW/grayscale passes of one page render.
-// Clear before the next page render so transient memory/storage failures retry.
-constexpr size_t MAX_RENDER_IMAGE_FAILURES = 16;
-uint64_t failedImageHashes[MAX_RENDER_IMAGE_FAILURES];
-size_t failedImageCount = 0;
-
-uint64_t imagePathHash(const std::string_view path) {
-  uint64_t hash = 14695981039346656037ull;
-  for (const char c : path) {
-    hash ^= static_cast<uint8_t>(c);
-    hash *= 1099511628211ull;
-  }
-  return hash;
-}
-
-bool imageFailedThisRender(const std::string_view path) {
-  const uint64_t hash = imagePathHash(path);
-  for (size_t i = 0; i < failedImageCount; i++) {
-    if (failedImageHashes[i] == hash) return true;
-  }
-  return false;
-}
-
-void rememberImageFailure(const std::string_view path) {
-  if (failedImageCount == MAX_RENDER_IMAGE_FAILURES || imageFailedThisRender(path)) return;
-  failedImageHashes[failedImageCount++] = imagePathHash(path);
-}
-
-// --- Per-page-render RAM slot for the pixel cache ----------------------------
-// The tiled grayscale flow re-renders an image page once for the BW
-// double-refresh and again for every band of both gray planes, and each pass
-// re-read the whole .pxc off SD (~100 ms for a full-page image, ~13 passes).
-// Column clipping cannot reduce the SD traffic: the row stride (~100 B) is
-// smaller than an SD sector, so every sector is touched regardless of the band
-// window. Instead the first pass loads the payload into RAM and later passes
-// render from it. Chunked allocation because a single full-image block (up to
-// 96 KB) rarely fits the fragmented mid-render heap; each chunk is heap-gated
-// and any failure falls back to the streaming path unchanged. The reader
-// releases the slot when the page render completes, so nothing stays resident
-// across page turns.
-constexpr size_t PXC_CHUNK_SHIFT = 14;  // 16 KB chunks
-constexpr size_t PXC_CHUNK_SIZE = 1u << PXC_CHUNK_SHIFT;
-constexpr size_t PXC_MAX_CHUNKS = 6;  // 96 KB: a full-screen 2bpp image
-constexpr size_t PXC_HEAP_RESERVE = 24 * 1024;
-constexpr size_t PXC_MAX_ALLOC_RESERVE = 8 * 1024;
-// Rows can straddle a chunk boundary; they are reassembled into a stack
-// buffer. (screenWidth + 3) / 4 caps at 200 B for an 800px panel.
-constexpr int PXC_MAX_BYTES_PER_ROW = 208;
-
-std::unique_ptr<uint8_t[]> pxcChunks[PXC_MAX_CHUNKS];
-uint64_t pxcSlotHash = 0;
-uint16_t pxcSlotWidth = 0;
-uint16_t pxcSlotHeight = 0;
-
-void releasePxcSlot() {
-  for (auto& chunk : pxcChunks) chunk.reset();
-  pxcSlotHash = 0;
-  pxcSlotWidth = 0;
-  pxcSlotHeight = 0;
-}
-
-const uint8_t* pxcRowPtr(size_t rowStart, int bytesPerRow, uint8_t* tempRow) {
-  const size_t chunk = rowStart >> PXC_CHUNK_SHIFT;
-  const size_t offset = rowStart & (PXC_CHUNK_SIZE - 1);
-  if (offset + bytesPerRow <= PXC_CHUNK_SIZE) {
-    return pxcChunks[chunk].get() + offset;
-  }
-  const size_t firstPart = PXC_CHUNK_SIZE - offset;
-  memcpy(tempRow, pxcChunks[chunk].get() + offset, firstPart);
-  memcpy(tempRow + firstPart, pxcChunks[chunk + 1].get(), bytesPerRow - firstPart);
-  return tempRow;
-}
-
-// cacheFile is positioned just past the header. True when the slot holds the
-// full pixel payload for this cache path afterward.
-bool loadPxcSlot(uint64_t cacheHash, HalFile& cacheFile, uint16_t cachedWidth, uint16_t cachedHeight, int bytesPerRow) {
-  releasePxcSlot();
-  if (bytesPerRow > PXC_MAX_BYTES_PER_ROW) {
-    return false;
-  }
-  size_t remaining = (size_t)bytesPerRow * cachedHeight;
-  const size_t chunkCount = (remaining + PXC_CHUNK_SIZE - 1) >> PXC_CHUNK_SHIFT;
-  if (chunkCount == 0 || chunkCount > PXC_MAX_CHUNKS) {
-    return false;
-  }
-  for (size_t i = 0; i < chunkCount; i++) {
-    const size_t want = remaining < PXC_CHUNK_SIZE ? remaining : PXC_CHUNK_SIZE;
-    if (ESP.getFreeHeap() < remaining + PXC_HEAP_RESERVE || ESP.getMaxAllocHeap() < want + PXC_MAX_ALLOC_RESERVE) {
-      releasePxcSlot();
-      return false;
+enum class ImageDiagnostic : uint32_t {
+  InvalidCache = 0,
+  CacheLoading = 1,
+  CacheLoaded = 2,
+  RowAllocation = 3,
+  CacheRead = 4,
+  CacheComplete = 5,
+  Render = 6,
+  Bounds = 7,
+  MissingFile = 8,
+  EmptyFile = 9,
+  Decode = 10,
+  MissingDecoder = 11,
+  DecodeFailed = 12,
+  DecodeComplete = 13
+};
+enum class ImageIo : uint32_t {
+  OpenCache,
+  Read,
+  Seek,
+  Size,
+  Close,
+  FreeHeap,
+  LargestBlock,
+  Extract,
+  SourceSize,
+  Decode
+};
+enum class ImageResult : uint32_t { NoPixels, Preserve, Placeholder };
+struct Context {
+  GfxRenderer* renderer;
+  std::string_view path, source;
+  int x, y, width, height;
+  void* extractContext;
+  ImageBlock::ExtractFn extract;
+  HalFile file{};
+  const char* cache = "";
+};
+size_t io(void* raw, uint32_t op, const uint8_t* path, uint8_t* bytes, size_t len) {
+  auto& self = *static_cast<Context*>(raw);
+  switch (static_cast<ImageIo>(op)) {
+    case ImageIo::OpenCache:
+      self.cache = reinterpret_cast<const char*>(path);
+      return Storage.openFileForRead("IMG", self.cache, self.file);
+    case ImageIo::Read: {
+      const int count = self.file.read(bytes, len);
+      return count > 0 ? static_cast<size_t>(count) : 0;
     }
-    pxcChunks[i] = makeUniqueNoThrow<uint8_t[]>(want);
-    if (!pxcChunks[i] || cacheFile.read(pxcChunks[i].get(), want) != static_cast<int>(want)) {
-      releasePxcSlot();
-      return false;
-    }
-    remaining -= want;
-  }
-  pxcSlotHash = cacheHash;
-  pxcSlotWidth = cachedWidth;
-  pxcSlotHeight = cachedHeight;
-  return true;
-}
-
-void renderRowsFromPxcSlot(GfxRenderer& renderer, int x, int y) {
-  const int bytesPerRow = (pxcSlotWidth + 3) / 4;
-  uint8_t tempRow[PXC_MAX_BYTES_PER_ROW];
-
-  const auto target = imageWriteTarget(renderer);
-
-  for (int row = 0; row < pxcSlotHeight; row++) {
-    const uint8_t* rowBuffer = pxcRowPtr((size_t)row * bytesPerRow, bytesPerRow, tempRow);
-    xp_image_packed_row(&target, x, y + row, pxcSlotWidth, rowBuffer, bytesPerRow);
-  }
-}
-
-bool renderFromCache(GfxRenderer& renderer, const std::string& cachePath, int x, int y, int expectedWidth,
-                     int expectedHeight) {
-  // A later pass of the same page render: the payload is already in RAM, skip
-  // the file entirely.
-  const uint64_t cacheHash = imagePathHash(cachePath);
-  if (pxcSlotHash == cacheHash && pxcSlotWidth != 0) {
-    renderRowsFromPxcSlot(renderer, x, y);
-    return true;
-  }
-
-  HalFile cacheFile;
-  if (!Storage.openFileForRead("IMG", cachePath, cacheFile)) {
-    return false;
-  }
-
-  uint16_t cachedWidth, cachedHeight;
-  if (!readValidCacheHeader(cacheFile, expectedWidth, expectedHeight, cachedWidth, cachedHeight)) {
-    LOG_ERR("IMG", "Invalid image cache: %s", cachePath.c_str());
-    return false;
-  }
-
-  LOG_DBG("IMG", "Loading from cache: %s (%dx%d)", cachePath.c_str(), cachedWidth, cachedHeight);
-
-  const int bytesPerRow = (cachedWidth + 3) / 4;  // 2 bits per pixel, 4 pixels per byte
-
-  // First pass of a page render: try to pull the payload into the RAM slot so
-  // the remaining ~12 passes skip SD entirely. Only an EMPTY slot is claimed:
-  // the slot lives until the page render completes, so a populated slot with a
-  // different hash means another image on this same page owns it. Evicting it
-  // here would make 2+ image pages reload each other from SD on every pass
-  // (all the SD traffic of streaming plus the slot alloc churn); instead later
-  // images take the streaming path below, unchanged from pre-cache behavior.
-  if (pxcSlotHash == 0 && loadPxcSlot(cacheHash, cacheFile, cachedWidth, cachedHeight, bytesPerRow)) {
-    renderRowsFromPxcSlot(renderer, x, y);
-    LOG_DBG("IMG", "Cache render complete (payload now in RAM)");
-    return true;
-  }
-
-  // Streaming fallback (slot didn't fit). A failed slot load may have consumed
-  // part of the payload; rewind to just past the header.
-  cacheFile.seek(4);
-
-  // Read several rows per SD access. A one-row-per-read loop here means
-  // cachedHeight (~728) tiny reads through the storage mutex + SdFat; batching
-  // rows into a ~4KB buffer cuts that to ~20 reads per pass without holding the
-  // whole image.
-  int rowsPerRead = 4096 / bytesPerRow;
-  if (rowsPerRead < 1) rowsPerRead = 1;
-  if (rowsPerRead > cachedHeight) rowsPerRead = cachedHeight;
-  uint8_t* readBuffer = (uint8_t*)malloc((size_t)rowsPerRead * bytesPerRow);
-  if (!readBuffer) {
-    // Fall back to a single-row buffer under memory pressure.
-    rowsPerRead = 1;
-    readBuffer = (uint8_t*)malloc(bytesPerRow);
-  }
-  if (!readBuffer) {
-    LOG_ERR("IMG", "Failed to allocate row buffer");
-    return false;
-  }
-
-  const auto target = imageWriteTarget(renderer);
-
-  int rowsInBuffer = 0;
-  int bufferRow = 0;
-  for (int row = 0; row < cachedHeight; row++) {
-    if (bufferRow >= rowsInBuffer) {
-      const int toRead = (cachedHeight - row < rowsPerRead) ? (cachedHeight - row) : rowsPerRead;
-      const size_t bytes = (size_t)toRead * bytesPerRow;
-      if (cacheFile.read(readBuffer, bytes) != static_cast<int>(bytes)) {
-        LOG_ERR("IMG", "Cache read error at row %d", row);
-        free(readBuffer);
-        return false;
+    case ImageIo::Seek:
+      return self.file.seek(len);
+    case ImageIo::Size:
+      return self.file.size();
+    case ImageIo::Close:
+      self.file.close();
+      return 0;
+    case ImageIo::FreeHeap:
+      return ESP.getFreeHeap();
+    case ImageIo::LargestBlock:
+      return ESP.getMaxAllocHeap();
+    case ImageIo::Extract:
+      if (!self.source.empty() && self.extract && !Storage.exists(self.path.data())) {
+        LOG_DBG("IMG", "Lazy-extracting %s -> %s", self.source.data(), self.path.data());
+        if (!self.extract(self.extractContext, self.source.data(), self.path.data()))
+          LOG_ERR("IMG", "Lazy extraction failed: %s", self.source.data());
       }
-      rowsInBuffer = toRead;
-      bufferRow = 0;
+      return 0;
+    case ImageIo::SourceSize: {
+      if (!Storage.openFileForRead("IMG", self.path.data(), self.file)) return SIZE_MAX;
+      const size_t size = self.file.size();
+      self.file.close();
+      return size;
     }
-
-    const uint8_t* rowBuffer = readBuffer + (size_t)bufferRow * bytesPerRow;
-    bufferRow++;
-
-    xp_image_packed_row(&target, x, y + row, cachedWidth, rowBuffer, bytesPerRow);
+    case ImageIo::Decode: {
+      const std::string imagePath(self.path);
+      auto* decoder = ImageDecoderFactory::getDecoder(imagePath);
+      if (!decoder) return 0;
+      LOG_DBG("IMG", "Using %s decoder", decoder->getFormatName());
+      RenderConfig config;
+      config.x = self.x;
+      config.y = self.y;
+      config.maxWidth = self.width;
+      config.maxHeight = self.height;
+      config.useExactDimensions = true;
+      config.cachePath = reinterpret_cast<const char*>(path);
+      return decoder->decodeToFramebuffer(imagePath, *self.renderer, config) ? 2 : 1;
+    }
   }
-
-  free(readBuffer);
-  LOG_DBG("IMG", "Cache render complete");
-  return true;
+  return 0;
 }
-
+void target(void* raw, XpImageTarget* output) { *output = imageWriteTarget(*static_cast<Context*>(raw)->renderer); }
+void diagnostic(void* raw, uint32_t event, [[maybe_unused]] int32_t a, [[maybe_unused]] int32_t b) {
+  [[maybe_unused]] auto& self = *static_cast<Context*>(raw);
+  switch (static_cast<ImageDiagnostic>(event)) {
+    case ImageDiagnostic::InvalidCache:
+      LOG_ERR("IMG", "Invalid image cache: %s", self.cache);
+      break;
+    case ImageDiagnostic::CacheLoading:
+      LOG_DBG("IMG", "Loading from cache: %s (%dx%d)", self.cache, a, b);
+      break;
+    case ImageDiagnostic::CacheLoaded:
+      LOG_DBG("IMG", "Cache render complete (payload now in RAM)");
+      break;
+    case ImageDiagnostic::RowAllocation:
+      LOG_ERR("IMG", "Failed to allocate row buffer");
+      break;
+    case ImageDiagnostic::CacheRead:
+      LOG_ERR("IMG", "Cache read error at row %d", a);
+      break;
+    case ImageDiagnostic::CacheComplete:
+      LOG_DBG("IMG", "Cache render complete");
+      break;
+    case ImageDiagnostic::Render:
+      LOG_DBG("IMG", "Rendering image at %d,%d: %s (%dx%d)", self.x, self.y, self.path.data(), self.width, self.height);
+      break;
+    case ImageDiagnostic::Bounds:
+      LOG_ERR("IMG", "Invalid render position: (%d,%d) size (%dx%d) screen (%dx%d)", self.x, self.y, self.width,
+              self.height, self.renderer->getScreenWidth(), self.renderer->getScreenHeight());
+      break;
+    case ImageDiagnostic::MissingFile:
+      LOG_ERR("IMG", "Image file not found: %s", self.path.data());
+      break;
+    case ImageDiagnostic::EmptyFile:
+      LOG_ERR("IMG", "Image file is empty: %s", self.path.data());
+      break;
+    case ImageDiagnostic::Decode:
+      LOG_DBG("IMG", "Decoding and caching: %s", self.path.data());
+      break;
+    case ImageDiagnostic::MissingDecoder:
+      LOG_ERR("IMG", "No decoder found for image: %s", self.path.data());
+      break;
+    case ImageDiagnostic::DecodeFailed:
+      LOG_ERR("IMG", "Failed to decode image: %s", self.path.data());
+      break;
+    case ImageDiagnostic::DecodeComplete:
+      LOG_DBG("IMG", "Decode successful");
+      break;
+  }
+}
 }  // namespace
-
 bool ImageBlock::hasValidCache() const {
-  const auto cachePath = getCachePath(imagePath);
-  HalFile cacheFile;
-  if (!Storage.openFileForRead("IMG", cachePath, cacheFile)) {
-    return false;
-  }
-
-  uint16_t cachedWidth, cachedHeight;
-  return readValidCacheHeader(cacheFile, width, height, cachedWidth, cachedHeight);
+  Context context{nullptr, imagePath, srcPath, 0, 0, width, height, extractCtx, extractFn};
+  const XpAssetImageCallbacks services{&context, io, target, diagnostic};
+  return xp_assets_image_valid(reinterpret_cast<const uint8_t*>(imagePath.data()), imagePath.size(), width, height,
+                               &services);
 }
-
-bool ImageBlock::needsDecode() const { return !imageFailedThisRender(imagePath) && !hasValidCache(); }
-
-void ImageBlock::clearRenderFailures() { failedImageCount = 0; }
-
-void ImageBlock::releaseRenderCache() { releasePxcSlot(); }
-
+bool ImageBlock::needsDecode() const {
+  return !xp_assets_image_failed(reinterpret_cast<const uint8_t*>(imagePath.data()), imagePath.size()) &&
+         !hasValidCache();
+}
+void ImageBlock::clearRenderFailures() { xp_assets_image_reset(false); }
+void ImageBlock::releaseRenderCache() { xp_assets_image_reset(true); }
 void ImageBlock::renderPlaceholder(GfxRenderer& renderer, const int x, const int y) const {
   renderer.fillRect(x, y, width, height, true);
-  if (width > 2 && height > 2) {
-    renderer.fillRect(x + 1, y + 1, width - 2, height - 2, false);
-  }
+  if (width > 2 && height > 2) renderer.fillRect(x + 1, y + 1, width - 2, height - 2, false);
 }
-
 void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
-  // The font-prewarm scan pass only accumulates glyphs; an image contributes
-  // none, and its raw image output bypasses the renderer's scan-mode
-  // suppression, so it would otherwise do a full (discarded) cache render every
-  // page view. Skip it here. The image still draws in the real BW/grayscale
-  // passes; on first view this just moves the one-time decode to the BW pass.
-  FontCacheManager* fcm = renderer.getFontCacheManager();
-  if (fcm && fcm->isScanning()) return;
-
-  LOG_DBG("IMG", "Rendering image at %d,%d: %s (%dx%d)", x, y, imagePath.data(), width, height);
-
-  const int screenWidth = renderer.getScreenWidth();
-  const int screenHeight = renderer.getScreenHeight();
-
-  // Bounds check render position using logical screen dimensions
-  if (x < 0 || y < 0 || x + width > screenWidth || y + height > screenHeight) {
-    LOG_ERR("IMG", "Invalid render position: (%d,%d) size (%dx%d) screen (%dx%d)", x, y, width, height, screenWidth,
-            screenHeight);
-    return;
+  auto* fonts = renderer.getFontCacheManager();
+  const XpAssetImageConfig config{x,
+                                  y,
+                                  width,
+                                  height,
+                                  renderer.getScreenWidth(),
+                                  renderer.getScreenHeight(),
+                                  fonts && fonts->isScanning(),
+                                  renderer.glyphIntersectsStrip(x, y, x + width - 1, y + height - 1)};
+  Context context{&renderer, imagePath, srcPath, x, y, width, height, extractCtx, extractFn};
+  const XpAssetImageCallbacks services{&context, io, target, diagnostic};
+  switch (static_cast<ImageResult>(xp_assets_image_render(reinterpret_cast<const uint8_t*>(imagePath.data()),
+                                                          imagePath.size(), &config, &services))) {
+    case ImageResult::Preserve:
+      renderer.preserveImagePolarity(x, y, width, height);
+      break;
+    case ImageResult::Placeholder:
+      renderPlaceholder(renderer, x, y);
+      break;
+    case ImageResult::NoPixels:
+      break;
   }
-
-  // Tiled grayscale (#2190): skip the whole image when it doesn't touch the
-  // active band. The per-pixel writer already clips off-band pixels, but without
-  // this each of the ~7 bands per plane re-ran the full cache load / pixel walk
-  // and discarded the result — the dominant cost of AA on image pages. The check
-  // is orientation-aware and returns true when no strip is active, so the BW
-  // pass and non-tiled controllers render the image exactly as before.
-  if (!renderer.glyphIntersectsStrip(x, y, x + width - 1, y + height - 1)) {
-    return;
-  }
-
-  if (imageFailedThisRender(imagePath)) {
-    renderPlaceholder(renderer, x, y);
-    return;
-  }
-
-  // Try to render from cache first
-  std::string cachePath = getCachePath(imagePath);
-  if (renderFromCache(renderer, cachePath, x, y, width, height)) {
-    renderer.preserveImagePolarity(x, y, width, height);
-    return;  // Successfully rendered from cache
-  }
-
-  // The build only header-probed the image for dimensions; pull the actual
-  // file out of the book now, on first visit to the page.
-  if (!srcPath.empty() && extractFn && !Storage.exists(imagePath.data())) {
-    LOG_DBG("IMG", "Lazy-extracting %s -> %s", srcPath.data(), imagePath.data());
-    if (!extractFn(extractCtx, srcPath.data(), imagePath.data())) {
-      LOG_ERR("IMG", "Lazy extraction failed: %s", srcPath.data());
-    }
-  }
-
-  // No cache - need to decode the image
-  // Check if image file exists
-  HalFile file;
-  if (!Storage.openFileForRead("IMG", imagePath.data(), file)) {
-    LOG_ERR("IMG", "Image file not found: %s", imagePath.data());
-    rememberImageFailure(imagePath);
-    renderPlaceholder(renderer, x, y);
-    return;
-  }
-  size_t fileSize = file.size();
-  file.close();
-
-  if (fileSize == 0) {
-    LOG_ERR("IMG", "Image file is empty: %s", imagePath.data());
-    rememberImageFailure(imagePath);
-    renderPlaceholder(renderer, x, y);
-    return;
-  }
-
-  LOG_DBG("IMG", "Decoding and caching: %s", imagePath.data());
-
-  RenderConfig config;
-  config.x = x;
-  config.y = y;
-  config.maxWidth = width;
-  config.maxHeight = height;
-  config.useGrayscale = true;
-  config.useDithering = true;
-  config.performanceMode = false;
-  config.useExactDimensions = true;  // Use pre-calculated dimensions to avoid rounding mismatches
-  config.cachePath = cachePath;      // Enable caching during decode
-
-  const std::string decodePath(imagePath);
-  ImageToFramebufferDecoder* decoder = ImageDecoderFactory::getDecoder(decodePath);
-  if (!decoder) {
-    LOG_ERR("IMG", "No decoder found for image: %s", imagePath.data());
-    rememberImageFailure(imagePath);
-    renderPlaceholder(renderer, x, y);
-    return;
-  }
-
-  LOG_DBG("IMG", "Using %s decoder", decoder->getFormatName());
-
-  bool success = decoder->decodeToFramebuffer(decodePath, renderer, config);
-  if (!success) {
-    LOG_ERR("IMG", "Failed to decode image: %s", imagePath.data());
-    rememberImageFailure(imagePath);
-    renderPlaceholder(renderer, x, y);
-    return;
-  }
-
-  renderer.preserveImagePolarity(x, y, width, height);
-  LOG_DBG("IMG", "Decode successful");
 }

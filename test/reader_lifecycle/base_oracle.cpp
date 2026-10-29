@@ -1,3 +1,5 @@
+#include <xp_ui_reader.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -7,6 +9,7 @@
 #include <cstdlib>
 #include <memory>
 #include <new>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -263,6 +266,59 @@ namespace haptic_feedback {
 static void touchAction(bool skip) { event("haptic", skip); }
 }  // namespace haptic_feedback
 struct ReaderActivity : Activity {
+  struct ModelLock {
+    explicit ModelLock(ReaderActivity&) {}
+  };
+  XpUiReaderBaseModel baseModel{};
+  XpUiReaderBaseModel* renderFrame = nullptr;
+  uint8_t runBase(uint8_t, uint8_t, uint8_t);
+  uint32_t readBaseField(uint8_t field) const {
+    switch (field) {
+      case XP_UI_READER_BASE_FIELD_REMEMBERED:
+        return bookRemembered;
+      case XP_UI_READER_BASE_FIELD_RENDERED:
+        return pageRendered.load();
+      case XP_UI_READER_BASE_FIELD_END_READY:
+        return endOfBookOptionsReady.load();
+      case XP_UI_READER_BASE_FIELD_COUNTER:
+        return pagesUntilFullRefresh;
+      case XP_UI_READER_BASE_FIELD_FORCED:
+        return forcedRefreshPending;
+    }
+    return 0;
+  }
+  void writeBaseField(uint8_t field, uint32_t value, bool) {
+    switch (field) {
+      case XP_UI_READER_BASE_FIELD_REMEMBERED:
+        bookRemembered = value;
+        break;
+      case XP_UI_READER_BASE_FIELD_RENDERED:
+        pageRendered = value;
+        break;
+      case XP_UI_READER_BASE_FIELD_END_READY:
+        endOfBookOptionsReady = value;
+        break;
+      case XP_UI_READER_BASE_FIELD_COUNTER:
+        pagesUntilFullRefresh = value;
+        break;
+      case XP_UI_READER_BASE_FIELD_FORCED:
+        forcedRefreshPending = value;
+        break;
+    }
+  }
+  ReaderSession snapshotReaderSession() const { return readerSession; }
+  void resetReaderSession() { readerSession.reset(); }
+  void completeReaderSession() {
+    readerSession.onRenderComplete(millis(), trustedtime::trustedNow(), getProgressBasisPoints());
+  }
+  // Keep the frozen resource-scope trace; separate model-publication tests verify
+  // the approved replacement of this state-only RenderLock with ModelLock.
+  void queueForcedRefresh() {
+    RenderLock lock(*this);
+    pagesUntilFullRefresh = 1;
+    forcedRefreshPending = true;
+  }
+
   GfxRenderer renderer;
   MappedInputManager mappedInput;
   std::string bookPath = "/book.epub";

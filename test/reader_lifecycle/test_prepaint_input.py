@@ -15,6 +15,8 @@ base = (ROOT / 'src/activities/reader/ReaderActivity.cpp').read_text()
 end = (ROOT / 'src/activities/reader/EndOfBookOptions.cpp').read_text()
 methods = '\n'.join([method(base, 'void ReaderActivity::render('),
                       method(base, 'bool ReaderActivity::endOfBookMenuActive('),
+                      method(base, 'uint32_t ReaderActivity::readBaseField('),
+                      method(base, 'void ReaderActivity::writeBaseField('),
                       method(end, 'EndOfBookOptions::Action EndOfBookOptions::handleMenuInput(')])
 fixture = (HERE / 'prepaint_input.cpp').read_text().replace('// PREPAINT_METHODS', methods)
 with tempfile.TemporaryDirectory() as directory:
@@ -24,7 +26,8 @@ with tempfile.TemporaryDirectory() as directory:
                     *rust_link_flags(), '-o', str(p / 'prepaint')], check=True)
     subprocess.run([str(p / 'prepaint')], check=True)
     # Moving readiness past the first paint loses physical-button ownership.
-    mutated = fixture.replace('endOfBookOptionsReady.store(true, std::memory_order_release);', '')
+    mutated = fixture.replace('xp_ui_reader_base_model_write(&baseModel, field, value);',
+                              'if (field != XP_UI_READER_BASE_FIELD_END_READY) xp_ui_reader_base_model_write(&baseModel, field, value);')
     (p / 'delayed.cpp').write_text(mutated)
     subprocess.run(['c++', '-std=c++17', '-UNDEBUG', str(p / 'delayed.cpp'),
                     *rust_link_flags(), '-o', str(p / 'delayed')], check=True)

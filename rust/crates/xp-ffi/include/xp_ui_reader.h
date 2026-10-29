@@ -5,8 +5,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/* Borrowed, synchronous calls; no allocation, retained pointers or reentry.
- * State uses the existing activity's RenderLock. No shared runtime ABI changes. */
+/* Borrowed, synchronous calls with caller-owned state and no Rust heap owner.
+ * Scalar and fixed-size POD operations are O(1), with no callbacks, allocation
+ * or I/O, and are safe under ModelLock. The caller synchronizes mutable state and supplies
+ * valid, aligned, non-overlapping buffers for every non-null pointer argument.
+ * Callback groups run on the calling activity task and may allocate, free, block
+ * or perform storage I/O. Never call a callback group under ModelLock, and never
+ * reenter an operation while that operation borrows the same mutable context.
+ * No pointer is retained. Each group specifies its null/missing-service result. */
 typedef struct {
   uint32_t anchor_ms;
   int64_t anchor_epoch, start_epoch;
@@ -30,6 +36,8 @@ uint32_t xp_ui_reader_progress_encode(int32_t spine, int32_t page, int32_t count
 uint8_t xp_ui_reader_progress_decode(const uint8_t* data, uint32_t len, XpUiReaderProgress* out);
 uint8_t xp_ui_reader_remote_allowed(uint8_t shown, uint8_t rendering, uint8_t input_over_page);
 uint8_t xp_ui_reader_build_allowed(uint8_t running, uint8_t stopping, uint8_t starting);
+/* Callback group: radio/clock/delay leaves, outside ModelLock. All slots required;
+ * null services or a missing slot returns false without invoking any callback. */
 typedef struct {
   void* context;
   uint8_t (*ready)(void*);
@@ -61,6 +69,7 @@ XpUiReaderMove xp_ui_reader_skip(int32_t spine, int32_t page, int32_t amount);
 /* The C++ shell applies the selected resource operation at its original lock point,
  * and samples millis only after a successful turn. No callback or allocation here. */
 
+/* Callback group: storage leaves, outside ModelLock; may allocate/free and block. */
 typedef struct {
   void* context;
   uint8_t (*open_temp)(void*);
@@ -80,7 +89,9 @@ typedef enum {
 /* All callbacks required; bytes/services borrowed synchronously and never retained.
  * A failed open/write returns before close: caller logs then destroys HalFile,
  * preserving the original ordering. On success, flush/close precede remove/rename.
- * written receives the attempted write count (zero when no write was attempted). */
+ * close_temp must close and release the owned file implementation before remove/rename.
+ * Null/missing services or invalid input return INVALID without resource callbacks.
+ * written is optional and receives the attempted count, zero before any write. */
 uint8_t xp_ui_reader_write_progress(const XpUiReaderProgressIo*, const uint8_t* data, uint32_t len, uint32_t* written);
 
 typedef struct {
@@ -109,7 +120,7 @@ typedef enum {
   XP_UI_READER_INPUT_MENU_GESTURE,
   XP_UI_READER_INPUT_MENU_SWIPE_UP
 } XpUiReaderInputQuery;
-/* Borrowed synchronous probes of the existing mapped frame, never hardware polling.
+/* Callback group: mapped-frame probes, outside ModelLock; no hardware polling.
  * LONG and tap probes retain their original short-circuit evaluation order: LONG
  * suppresses a following release, and tap records a held-time override. */
 typedef struct {
@@ -135,6 +146,7 @@ uint8_t xp_ui_reader_menu_gesture(const XpUiReaderInputServices*, uint8_t menu_g
 uint8_t xp_ui_reader_back(const XpUiReaderInputServices*, uint8_t back_short_browser);
 /* Flags: bit 0 tap allowed, bit 1 swipe allowed. */
 uint8_t xp_ui_reader_gesture(uint8_t persisted_gesture);
+/* Read-only byte-span scan, O(length); call outside ModelLock. Null tag returns false. */
 uint8_t xp_ui_reader_language_rtl(const uint8_t* tag, uint32_t length);
 
 typedef struct {
@@ -155,9 +167,10 @@ uint8_t xp_ui_reader_toolbar_scroll(XpUiListState*, int32_t delta, int32_t count
 // Exactly 2^32 changes during one layout can produce a false match; this wrap case is accepted.
 void xp_ui_reader_toolbar_nav_publish(XpUiListState* state, const XpUiListState* painted);
 
-/* Reader page-render sequencing. Rust issues one synchronous operation at a
- * time; the callback executes an existing renderer/storage/allocator leaf.
- * No new page renderer, task, scheduler, retained callback or allocation. */
+/* Callback group: page-render sequencing, outside ModelLock. Rust issues one
+ * synchronous operation at a time; renderer/storage/allocator leaves keep their
+ * existing allocation and locking behavior. Null/missing services do nothing.
+ * No new page renderer, task, scheduler, retained callback or Rust heap owner. */
 typedef enum {
   XP_UI_READER_RENDER_NOW,
   XP_UI_READER_RENDER_HAS_IMAGES,
@@ -254,6 +267,248 @@ typedef struct {
  * existing Rust page/strip execution through the C++ resource binding. */
 void xp_ui_reader_render_page(const XpUiReaderRenderServices*, uint8_t strip_enabled);
 
+typedef enum {
+  XP_UI_READER_REFRESH_MANUAL = 1,
+  XP_UI_READER_REFRESH_COUNTER_ONLY = 2,
+  XP_UI_READER_REFRESH_REQUEST_MASK = 3
+} XpUiReaderRefreshRequest;
+/* refresh_requests uses only the named bits; the other six bits must be zero.
+ * Counter-only requests do not imply manual refresh. Both are consumed by begin. */
+typedef struct {
+  XpUiReaderSession session;
+  int32_t pages_until_full_refresh;
+  uint8_t refresh_requests, end_ready, page_rendered, book_remembered;
+} XpUiReaderBaseModel;
+/* Persisted IDs; resource bindings assert against their C++ providers. */
+typedef enum {
+  XP_UI_READER_VALUE_HOME_FOOTNOTES = 4,
+  XP_UI_READER_VALUE_HOME_SYNC = 6,
+  XP_UI_READER_VALUE_HOME_BOOKMARK = 7,
+  XP_UI_READER_VALUE_HOME_DICTIONARY = 8,
+  XP_UI_READER_VALUE_HOME_READER_MENU = 9,
+  XP_UI_READER_VALUE_HOME_CREATE_CLIPPING = 11,
+  XP_UI_READER_VALUE_LONG_MENU_SYNC = 0,
+  XP_UI_READER_VALUE_LONG_MENU_BOOKMARK = 2,
+  XP_UI_READER_VALUE_LONG_MENU_DICTIONARY = 3,
+  XP_UI_READER_VALUE_LONG_MENU_CREATE_CLIPPING = 5,
+  XP_UI_READER_VALUE_LONG_MENU_FOOTNOTES = 6,
+  XP_UI_READER_VALUE_POWER_FOOTNOTES = 4,
+  XP_UI_READER_VALUE_POWER_CREATE_CLIPPING = 6,
+  XP_UI_READER_VALUE_LONG_BUTTON_SKIP = 1,
+  XP_UI_READER_VALUE_LONG_BUTTON_ORIENTATION = 2,
+  XP_UI_READER_VALUE_OVERLAY_NONE = 0,
+  XP_UI_READER_VALUE_OVERLAY_TOOLBAR = 1,
+  XP_UI_READER_VALUE_END_REDRAW = 1,
+  XP_UI_READER_VALUE_END_OPEN_BOOK = 2,
+  XP_UI_READER_VALUE_END_GO_HOME = 3,
+  XP_UI_READER_VALUE_END_LAST_PAGE = 4
+} XpUiReaderValue;
+typedef enum {
+  /* boolean book-open side effects already emitted. Signed values use uint32 bit representation. */
+  XP_UI_READER_BASE_FIELD_REMEMBERED = 0,
+  /* boolean completed-page publication. Signed values use uint32 bit representation. */
+  XP_UI_READER_BASE_FIELD_RENDERED = 1,
+  /* boolean child resource publication. Signed values use uint32 bit representation. */
+  XP_UI_READER_BASE_FIELD_END_READY = 2,
+  /* Signed pages remaining before HALF refresh; writing atomically queues counter-only bit 1. */
+  XP_UI_READER_BASE_FIELD_COUNTER = 3,
+  /* Boolean manual-refresh bit only; writing preserves the counter-only request bit. */
+  XP_UI_READER_BASE_FIELD_FORCED = 4
+} XpUiReaderBaseField;
+typedef enum {
+  /* returns end-of-book flag; resource read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_AT_END = 0,
+  /* returns whether the end-book resource exists; pointer read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_HAS_END = 1,
+  /* returns child menu-active flag; child model read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_END_MENU = 2,
+  /* returns path existence; may read storage and log missing path. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_EXISTS = 3,
+  /* returns persisted open-path emptiness; string read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_OPEN_PATH_EMPTY = 4,
+  /* returns whether exit event has subscribers; registry read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_SUBSCRIBER_EXIT = 5,
+  /* returns session emit eligibility; POD read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_SESSION_WORTHY = 6,
+  /* returns whether session event has subscribers; registry read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_SUBSCRIBER_SESSION = 7,
+  /* returns mapped-frame held milliseconds; no polling. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_HELD = 8,
+  /* returns persisted long-button behavior ID; settings read only. No a/b parameters. */
+  XP_UI_READER_BASE_QUERY_LONG_BUTTON = 9
+} XpUiReaderBaseQuery;
+typedef enum {
+  /* a/b ignored; return ignored; notifies existing render task. */
+  XP_UI_READER_BASE_COMMAND_UPDATE = 0,
+  /* a/b ignored; return ignored; requests existing activity finish. */
+  XP_UI_READER_BASE_COMMAND_FINISH = 1,
+  /* a/b ignored; return ignored; runs Activity entry; may log/lock. */
+  XP_UI_READER_BASE_COMMAND_BASE_ENTER = 2,
+  /* a/b ignored; return ignored; runs Activity exit; may log/lock. */
+  XP_UI_READER_BASE_COMMAND_BASE_EXIT = 3,
+  /* a/b ignored; return ignored; reads heap and logs; allocator lock possible. */
+  XP_UI_READER_BASE_COMMAND_LOG_ENTER = 4,
+  /* a/b ignored; return ignored; reads heap and logs; allocator lock possible. */
+  XP_UI_READER_BASE_COMMAND_LOG_EXIT = 5,
+  /* a/b ignored; return ignored; clears existing path content without releasing capacity. */
+  XP_UI_READER_BASE_COMMAND_CLEAR_PATH = 6,
+  /* a/b ignored; return ignored; persists app state; may allocate/log/block on storage. */
+  XP_UI_READER_BASE_COMMAND_SAVE_STATE = 7,
+  /* a/b ignored; return ignored; loads existing font resources; may allocate/log/block. */
+  XP_UI_READER_BASE_COMMAND_ENSURE_FONTS = 8,
+  /* a/b ignored; return ignored; applies existing orientation; may lock/rebuild resources. */
+  XP_UI_READER_BASE_COMMAND_ORIENTATION_INITIAL = 9,
+  /* a/b ignored; returns load success; may allocate/log/block on book storage. */
+  XP_UI_READER_BASE_COMMAND_LOAD_BOOK = 10,
+  /* a/b ignored; returns failure handled flag; may allocate/log/navigate/show popup. */
+  XP_UI_READER_BASE_COMMAND_LOAD_FAILURE = 11,
+  /* a/b ignored; return ignored; copies book path; may allocate/free. */
+  XP_UI_READER_BASE_COMMAND_REMEMBER_PATH = 12,
+  /* a/b ignored; return ignored; updates recent-book store; may allocate/log/block. */
+  XP_UI_READER_BASE_COMMAND_RECENT_ADD = 13,
+  /* a/b ignored; return ignored; invokes plugin event subscribers; may allocate/log/block. */
+  XP_UI_READER_BASE_COMMAND_EMIT_OPEN = 14,
+  /* a/b ignored; return ignored; releases optional font cache; may free and take allocator locks. */
+  XP_UI_READER_BASE_COMMAND_RELEASE_FONTS = 15,
+  /* a/b ignored; return ignored; resets Rust session POD only. */
+  XP_UI_READER_BASE_COMMAND_SESSION_RESET = 16,
+  /* a/b ignored; returns document byte length; creates scoped document ID; may allocate/log/read storage. */
+  XP_UI_READER_BASE_COMMAND_DOCUMENT = 17,
+  /* a/b ignored; return ignored; formats existing session scalars and emits event; subscribers may allocate/log/block.
+   */
+  XP_UI_READER_BASE_COMMAND_EMIT_SESSION = 18,
+  /* a/b ignored; return ignored; formats progress and emits event; subscribers may allocate/log/block. */
+  XP_UI_READER_BASE_COMMAND_EMIT_EXIT = 19,
+  /* a/b ignored; return ignored; changes renderer orientation; may invalidate resources. */
+  XP_UI_READER_BASE_COMMAND_ORIENTATION_PORTRAIT = 20,
+  /* a/b ignored; return ignored; writes app-state scalar only. */
+  XP_UI_READER_BASE_COMMAND_RESET_LOAD_COUNT = 21,
+  /* a/b ignored; return ignored; destroys end-book resource; may free and take allocator locks. */
+  XP_UI_READER_BASE_COMMAND_END_DROP = 22,
+  /* a/b ignored; return ignored; fallibly allocates end-book resource. */
+  XP_UI_READER_BASE_COMMAND_END_ALLOCATE = 23,
+  /* a/b ignored; return ignored; logs allocation failure. */
+  XP_UI_READER_BASE_COMMAND_END_OOM = 24,
+  /* a/b ignored; return ignored; loads child suggestions; may allocate/log/read storage. */
+  XP_UI_READER_BASE_COMMAND_END_LOAD = 25,
+  /* a/b ignored; return ignored; paints child scene; may allocate/log/block. */
+  XP_UI_READER_BASE_COMMAND_END_RENDER = 26,
+  /* a/b ignored; returns EndOfBookOptions Action ID; creates scoped output path and dispatches child input; may
+     allocate. */
+  XP_UI_READER_BASE_COMMAND_END_INPUT = 27,
+  /* a/b ignored; return ignored; navigates using scoped path; may allocate/log/lock/block. */
+  XP_UI_READER_BASE_COMMAND_OPEN_NEXT = 28,
+  /* a/b ignored; return ignored; runs existing Home navigation; may allocate/log/lock/block. */
+  XP_UI_READER_BASE_COMMAND_HOME = 29,
+  /* a/b ignored; return ignored; returns to last page; may release resources/lock. */
+  XP_UI_READER_BASE_COMMAND_RETURN_END = 30,
+  /* a/b ignored; returns consumed flag; runs format-specific input; may allocate/log/lock/block. */
+  XP_UI_READER_BASE_COMMAND_FORMAT_INPUT = 31,
+  /* a/b ignored; returns consumed flag; runs existing Back navigation; may allocate/log/lock/block. */
+  XP_UI_READER_BASE_COMMAND_BACK = 32,
+  /* a=forward boolean, b ignored; returns success; runs existing page-turn leaf; may free/log/lock. */
+  XP_UI_READER_BASE_COMMAND_TURN = 33,
+  /* a=signed page delta, b ignored; returns success; runs existing skip leaf; may free/log/lock. */
+  XP_UI_READER_BASE_COMMAND_SKIP = 34,
+  /* a=forward boolean, b=success boolean; return ignored; updates session POD under short model lock in production. */
+  XP_UI_READER_BASE_COMMAND_NOTE_TURN = 35,
+  /* a=skip boolean, b ignored; return ignored; requests existing haptic effect; no new task. */
+  XP_UI_READER_BASE_COMMAND_HAPTIC = 36,
+  /* a/b ignored; return ignored; clears existing framebuffer. */
+  XP_UI_READER_BASE_COMMAND_CLEAR_SCREEN = 37,
+  /* a/b ignored; return ignored; pushes existing panel refresh and may block. */
+  XP_UI_READER_BASE_COMMAND_DISPLAY = 38,
+  /* a/b ignored; return ignored; runs format-specific end-page hook; may paint/log/block. */
+  XP_UI_READER_BASE_COMMAND_END_RENDERED = 39,
+  /* a/b ignored; return ignored; release-publishes completed-page POD. */
+  XP_UI_READER_BASE_COMMAND_MARK_RENDERED = 40,
+  /* a/b ignored; return ignored; samples clocks/progress outside critical section then updates session POD. */
+  XP_UI_READER_BASE_COMMAND_SESSION_RENDER = 41,
+  /* a/b ignored; return ignored; runs existing book render leaf; may allocate/free/log/lock/block. */
+  XP_UI_READER_BASE_COMMAND_RENDER_BOOK = 42,
+  /* a/b ignored; return ignored; acquires original RenderLock; may block; starts one paired scope. */
+  XP_UI_READER_BASE_COMMAND_LOCK = 43,
+  /* a/b ignored; return ignored; releases exactly one active paired scope; never called without LOCK. */
+  XP_UI_READER_BASE_COMMAND_UNLOCK = 44,
+  /* a/b ignored; return ignored; destroys scoped menu path; may free; before caller continuation. */
+  XP_UI_READER_BASE_COMMAND_PATH_DROP = 45,
+  /* a/b ignored; return ignored; destroys scoped document ID; may free; before caller continuation. */
+  XP_UI_READER_BASE_COMMAND_DOCUMENT_DROP = 46,
+  /* a=byte index 0..31 after DOCUMENT returned 32, b ignored; returns unsigned byte; reads scoped document byte only.
+   */
+  XP_UI_READER_BASE_COMMAND_DOCUMENT_BYTE = 47,
+  /* a/b ignored; return ignored; atomically queues forced refresh in the base POD model; short ModelLock only. */
+  XP_UI_READER_BASE_COMMAND_FORCE_REFRESH = 48
+} XpUiReaderBaseCommand;
+typedef enum {
+  /* Lifecycle entry enter; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns consumed/success
+     for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_ENTER = 0,
+  /* Lifecycle entry exit; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns consumed/success
+     for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_EXIT = 1,
+  /* Lifecycle entry remember; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns
+     consumed/success for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_REMEMBER = 2,
+  /* Lifecycle entry clear_end; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns
+     consumed/success for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_CLEAR_END = 3,
+  /* Lifecycle entry menu; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns consumed/success
+     for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_MENU = 4,
+  /* Lifecycle entry end_turn; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns
+     consumed/success for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_END_TURN = 5,
+  /* Lifecycle entry loop; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns consumed/success
+     for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_LOOP = 6,
+  /* Lifecycle entry render; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns
+     consumed/success for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_RENDER = 7,
+  /* Lifecycle entry force_refresh; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns
+     consumed/success for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_FORCE_REFRESH = 8,
+  /* Lifecycle entry flush; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns consumed/success
+     for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_FLUSH = 9,
+  /* Lifecycle entry menu_active; a/b ignored except Menu(a=suppress) and EndTurn(a=previous,b=next); returns
+     consumed/success for Menu, EndTurn, ForceRefresh, MenuActive. */
+  XP_UI_READER_BASE_OPERATION_MENU_ACTIVE = 10
+} XpUiReaderBaseOperation;
+typedef struct {
+  void* context;
+  uint32_t (*read)(void*, uint8_t);
+  void (*write)(void*, uint8_t, uint32_t);
+  uint32_t (*query)(void*, uint8_t);
+  uint32_t (*command)(void*, uint8_t, int32_t, int32_t);
+  XpUiReaderTurnInput (*touch)(void*);
+  XpUiReaderTurnInput (*buttons)(void*);
+} XpUiReaderBaseServices;
+
+/* Required synchronous callbacks; context may be null only if every callback accepts it.
+ * Model read/write copy fixed POD under ModelLock; all resource callbacks run outside it.
+ * LOCK and UNLOCK pair exactly once, and no entry returns with an active resource scope.
+ * Null/missing services or an invalid operation return zero without probes or effects. */
+uint8_t xp_ui_reader_base_run(const XpUiReaderBaseServices*, uint8_t operation, uint8_t a, uint8_t b);
+/* O(1), POD-only transactions; no callbacks, allocation, logging or waiting.
+ * Null model is a no-op (read returns zero); caller holds the short ModelLock. */
+void xp_ui_reader_base_init(XpUiReaderBaseModel*, uint8_t fast, int32_t frequency);
+uint32_t xp_ui_reader_base_model_read(const XpUiReaderBaseModel*, uint8_t field);
+void xp_ui_reader_base_model_write(XpUiReaderBaseModel*, uint8_t field, uint32_t value);
+/* Additions to the approved 48-byte reader base model; no layout changes.
+ * All functions are O(1), POD-only, synchronous, with no callback, allocation,
+ * logging or waiting. Call under the existing short ModelLock. Null is a no-op.
+ * Begin/publish arguments are disjoint; C++ bindings assert that in debug builds.
+ * begin copies the published model, then consumes its pending session turn and
+ * forced-refresh request into that render-owned snapshot. publish copies the
+ * painted session/ready flags and refresh counter while preserving a turn or
+ * forced-refresh request received during painting, and the input-owned remembered
+ * flag. Only one render may be active; frame is borrowed until publish returns.
+ * Exit/sleep session flush retains the original ActivityManager RenderLock. */
+void xp_ui_reader_base_begin_render(XpUiReaderBaseModel* model, XpUiReaderBaseModel* frame);
+void xp_ui_reader_base_publish(XpUiReaderBaseModel* model, const XpUiReaderBaseModel* frame);
+void xp_ui_reader_base_force_refresh(XpUiReaderBaseModel* model);
+
 #ifdef __cplusplus
 }
 #endif
@@ -345,3 +600,129 @@ static_assert(offsetof(XpUiReaderRenderServices, context) == 0);
 static_assert(offsetof(XpUiReaderRenderServices, read) == sizeof(void*));
 static_assert(offsetof(XpUiReaderRenderServices, execute) == 2 * sizeof(void*));
 #endif
+
+#ifdef __cplusplus
+#define XP_UI_READER_BASE_ASSERT(...) static_assert((__VA_ARGS__))
+#define XP_UI_READER_BASE_ALIGNOF(T) alignof(T)
+#else
+#define XP_UI_READER_BASE_ASSERT(...) _Static_assert((__VA_ARGS__), #__VA_ARGS__)
+#define XP_UI_READER_BASE_ALIGNOF(T) _Alignof(T)
+#endif
+XP_UI_READER_BASE_ASSERT(sizeof(XpUiReaderBaseModel) == 48 && XP_UI_READER_BASE_ALIGNOF(XpUiReaderBaseModel) == 8);
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseModel, session) == 0);
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseModel, pages_until_full_refresh) == 40);
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseModel, refresh_requests) == 44);
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseModel, end_ready) == 45);
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseModel, page_rendered) == 46);
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseModel, book_remembered) == 47);
+XP_UI_READER_BASE_ASSERT(sizeof(XpUiReaderBaseServices) == 7 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_ALIGNOF(XpUiReaderBaseServices) == XP_UI_READER_BASE_ALIGNOF(void*));
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseServices, context) == 0 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseServices, read) == 1 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseServices, write) == 2 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseServices, query) == 3 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseServices, command) == 4 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseServices, touch) == 5 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(offsetof(XpUiReaderBaseServices, buttons) == 6 * sizeof(void*));
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_FIELD_REMEMBERED == 0);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_FIELD_RENDERED == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_FIELD_END_READY == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_FIELD_COUNTER == 3);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_FIELD_FORCED == 4);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_AT_END == 0);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_HAS_END == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_END_MENU == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_EXISTS == 3);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_OPEN_PATH_EMPTY == 4);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_SUBSCRIBER_EXIT == 5);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_SESSION_WORTHY == 6);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_SUBSCRIBER_SESSION == 7);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_HELD == 8);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_QUERY_LONG_BUTTON == 9);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_UPDATE == 0);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_FINISH == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_BASE_ENTER == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_BASE_EXIT == 3);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_LOG_ENTER == 4);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_LOG_EXIT == 5);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_CLEAR_PATH == 6);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_SAVE_STATE == 7);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_ENSURE_FONTS == 8);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_ORIENTATION_INITIAL == 9);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_LOAD_BOOK == 10);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_LOAD_FAILURE == 11);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_REMEMBER_PATH == 12);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_RECENT_ADD == 13);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_EMIT_OPEN == 14);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_RELEASE_FONTS == 15);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_SESSION_RESET == 16);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_DOCUMENT == 17);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_EMIT_SESSION == 18);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_EMIT_EXIT == 19);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_ORIENTATION_PORTRAIT == 20);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_RESET_LOAD_COUNT == 21);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_END_DROP == 22);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_END_ALLOCATE == 23);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_END_OOM == 24);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_END_LOAD == 25);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_END_RENDER == 26);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_END_INPUT == 27);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_OPEN_NEXT == 28);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_HOME == 29);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_RETURN_END == 30);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_FORMAT_INPUT == 31);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_BACK == 32);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_TURN == 33);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_SKIP == 34);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_NOTE_TURN == 35);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_HAPTIC == 36);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_CLEAR_SCREEN == 37);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_DISPLAY == 38);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_END_RENDERED == 39);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_MARK_RENDERED == 40);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_SESSION_RENDER == 41);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_RENDER_BOOK == 42);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_LOCK == 43);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_UNLOCK == 44);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_PATH_DROP == 45);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_DOCUMENT_DROP == 46);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_DOCUMENT_BYTE == 47);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_COMMAND_FORCE_REFRESH == 48);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_ENTER == 0);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_EXIT == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_REMEMBER == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_CLEAR_END == 3);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_MENU == 4);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_END_TURN == 5);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_LOOP == 6);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_RENDER == 7);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_FORCE_REFRESH == 8);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_FLUSH == 9);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_BASE_OPERATION_MENU_ACTIVE == 10);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_HOME_FOOTNOTES == 4);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_HOME_SYNC == 6);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_HOME_BOOKMARK == 7);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_HOME_DICTIONARY == 8);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_HOME_READER_MENU == 9);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_HOME_CREATE_CLIPPING == 11);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_LONG_MENU_SYNC == 0);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_LONG_MENU_BOOKMARK == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_LONG_MENU_DICTIONARY == 3);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_LONG_MENU_CREATE_CLIPPING == 5);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_LONG_MENU_FOOTNOTES == 6);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_POWER_FOOTNOTES == 4);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_POWER_CREATE_CLIPPING == 6);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_LONG_BUTTON_SKIP == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_LONG_BUTTON_ORIENTATION == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_OVERLAY_NONE == 0);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_OVERLAY_TOOLBAR == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_END_REDRAW == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_END_OPEN_BOOK == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_END_GO_HOME == 3);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_VALUE_END_LAST_PAGE == 4);
+
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_REFRESH_MANUAL == 1);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_REFRESH_COUNTER_ONLY == 2);
+XP_UI_READER_BASE_ASSERT(XP_UI_READER_REFRESH_REQUEST_MASK == 3);
+#undef XP_UI_READER_BASE_ASSERT
+#undef XP_UI_READER_BASE_ALIGNOF

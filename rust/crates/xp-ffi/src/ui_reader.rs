@@ -382,3 +382,85 @@ pub unsafe extern "C" fn xp_ui_reader_render_page(
         render::render(*services, strip_enabled != 0)
     }
 }
+
+use xp_ui::reader::base;
+/// # Safety
+/// Services obey the reader-family synchronous resource callback contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_base_run(
+    services: *const base::Services,
+    operation: u8,
+    a: u8,
+    b: u8,
+) -> u8 {
+    services
+        .as_ref()
+        .map_or(0, |s| base::run(*s, operation, a != 0, b != 0))
+}
+/// # Safety
+/// Non-null model is valid and exclusively borrowed for this POD-only call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_base_init(model: *mut base::Model, fast: u8, frequency: i32) {
+    if let Some(model) = model.as_mut() {
+        *model = base::Model::new(fast != 0, frequency);
+    }
+}
+/// # Safety
+/// Non-null model is valid and readable for this POD-only call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_base_model_read(model: *const base::Model, field: u8) -> u32 {
+    model.as_ref().map_or(0, |model| model.read(field))
+}
+/// # Safety
+/// Non-null model is valid and exclusively borrowed for this POD-only call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_base_model_write(
+    model: *mut base::Model,
+    field: u8,
+    value: u32,
+) {
+    if let Some(model) = model.as_mut() {
+        model.write(field, value);
+    }
+}
+/// # Safety
+/// Non-null models are valid, disjoint and exclusively borrowed for this POD-only call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_base_begin_render(
+    model: *mut base::Model,
+    frame: *mut base::Model,
+) {
+    if model.is_null() || frame.is_null() {
+        return;
+    }
+    debug_assert!((model as usize).abs_diff(frame as usize) >= core::mem::size_of::<base::Model>());
+    frame.write((*model).begin_render());
+}
+/// # Safety
+/// Non-null models are valid, disjoint and exclusively borrowed for this POD-only call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_base_publish(
+    model: *mut base::Model,
+    frame: *const base::Model,
+) {
+    if model.is_null() || frame.is_null() {
+        return;
+    }
+    debug_assert!((model as usize).abs_diff(frame as usize) >= core::mem::size_of::<base::Model>());
+    (*model).publish(&*frame);
+}
+/// # Safety
+/// Non-null model is valid and exclusively borrowed for this POD-only call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_base_force_refresh(model: *mut base::Model) {
+    if let Some(model) = model.as_mut() {
+        model.force_refresh();
+    }
+}

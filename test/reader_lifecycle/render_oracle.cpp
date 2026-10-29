@@ -231,6 +231,13 @@ struct ReaderStripPainter {
   static void paint() {}
 };
 struct EpubReaderActivity {
+  int& renderRefreshCounter() { return pagesUntilFullRefresh; }
+  bool takeForcedRefresh() {
+    const bool forced = forcedRefreshPending;
+    forcedRefreshPending = false;
+    return forced;
+  }
+
   GfxRenderer renderer;
   ReaderStripBuffers stripBuffers;
   int pagesUntilFullRefresh = 0;

@@ -416,7 +416,7 @@ bool EpubReaderActivity::buildTickHeapGate() {
   return !buildHeapPaused;
 }
 
-void EpubReaderActivity::showBuildPopup(GfxRenderer& renderer, int& pagesUntilFullRefresh) {
+void EpubReaderActivity::showBuildPopup(GfxRenderer& renderer, int32_t& pagesUntilFullRefresh) {
   if (!buildPopupPending || !renderer.hasFrameBuffer()) return;
   GUI.drawPopup(renderer, tr(STR_INDEXING));
   pagesUntilFullRefresh = 1;
@@ -1711,7 +1711,7 @@ void EpubReaderActivity::renderBook() {
       const bool needsFullBuild = pendingPercentJump;
       if (needsFullBuild) {
         GUI.drawPopup(renderer, tr(STR_INDEXING));
-        pagesUntilFullRefresh = 1;
+        renderRefreshCounter() = 1;
         const auto popupFn = [this]() {
           if (renderer.hasFrameBuffer()) GUI.drawPopup(renderer, tr(STR_INDEXING));
         };
@@ -1752,7 +1752,7 @@ void EpubReaderActivity::renderBook() {
           }
           if (showPopup) {
             GUI.drawPopup(renderer, tr(STR_INDEXING));
-            pagesUntilFullRefresh = 1;
+            renderRefreshCounter() = 1;
           }
           buildPopupPending = !showPopup;
           // Section (re)builds are the heap-hungriest path (per-word
@@ -1778,7 +1778,7 @@ void EpubReaderActivity::renderBook() {
           bool started;
           {
             GfxRenderer::FrameBufferLoan loan(renderer);
-            started = section->startBuild(renderSpec, [this] { showBuildPopup(renderer, pagesUntilFullRefresh); });
+            started = section->startBuild(renderSpec, [this] { showBuildPopup(renderer, renderRefreshCounter()); });
           }
           if (!started) {
             LOG_ERR("ERS", "Failed to start section build");
@@ -1792,7 +1792,7 @@ void EpubReaderActivity::renderBook() {
                   : offsetJump.has_value() ? !section->buildReachedVisibleTextOffset(*offsetJump)
                                            : static_cast<int>(section->pageCount) <= target)) {
             if (buildPopupPending && millis() - buildStartMs >= BUILD_POPUP_DEADLINE_MS) {
-              showBuildPopup(renderer, pagesUntilFullRefresh);
+              showBuildPopup(renderer, renderRefreshCounter());
             }
             if (!section->buildSomeMore(BUILD_PAGES_PER_CHUNK)) {
               LOG_ERR("ERS", "Failed during incremental section build");
@@ -1854,7 +1854,7 @@ void EpubReaderActivity::renderBook() {
   }
   if (section->isPartial() && section->currentPage >= static_cast<int>(section->pageCount)) {
     GUI.drawPopup(renderer, tr(STR_INDEXING));
-    pagesUntilFullRefresh = 1;
+    renderRefreshCounter() = 1;
   }
   while (section->isPartial() && section->currentPage >= static_cast<int>(section->pageCount)) {
     if (!section->isBuilding() && !section->startBuild(renderSpec)) {
@@ -2147,12 +2147,10 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
         case XP_UI_READER_RENDER_IMAGES_NEED_DECODE:
           return page.hasImagesNeedingDecode();
         case XP_UI_READER_RENDER_TAKE_FORCED: {
-          const bool forced = owner.forcedRefreshPending;
-          owner.forcedRefreshPending = false;
-          return forced;
+          return owner.takeForcedRefresh();
         }
         case XP_UI_READER_RENDER_COUNTER:
-          return owner.pagesUntilFullRefresh;
+          return owner.renderRefreshCounter();
         case XP_UI_READER_RENDER_FREQUENCY:
           return SETTINGS.getRefreshFrequency();
         case XP_UI_READER_RENDER_TEXT_AA:
@@ -2287,7 +2285,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
           renderer.preconditionGrayscale();
           break;
         case XP_UI_READER_RENDER_SET_COUNTER:
-          owner.pagesUntilFullRefresh = static_cast<int32_t>(op.value);
+          owner.renderRefreshCounter() = static_cast<int32_t>(op.value);
           break;
         case XP_UI_READER_RENDER_PREPARE_STRIPS:
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
@@ -2801,7 +2799,7 @@ void EpubReaderActivity::closeOverlayToPage() {
   overlay = Overlay::None;
   overlayPopup.dismiss();  // an option picker cannot outlive its panel
   toolbarUi.reset();       // ~1 KB of interaction table + props, only needed while open
-  if (BoardConfig::isEegoA4()) pagesUntilFullRefresh = 1;
+  if (BoardConfig::isEegoA4()) setRefreshCounter(1);
   if (!xteinkClassPanel() && overlayPageStored) {
     RenderLock lock;  // the render task shares the framebuffer
     settleOverlayRefresh();

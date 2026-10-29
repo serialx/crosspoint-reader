@@ -115,6 +115,7 @@ harness = harness.replace("int main() {", r"""
 struct RenderLock { static bool peek() { return false; } };
 struct ReaderActivity {
   std::atomic<bool> pageRendered{true};
+  bool acceptsRemoteInput() const { return pageRendered.load(std::memory_order_acquire); }
   bool menu = false;
   int pages = 0, chapters = 0;
   bool inputOverPage() const { return menu; }

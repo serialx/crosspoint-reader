@@ -1,28 +1,33 @@
 #pragma once
 
-#include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
 
 #include "EndOfBookOptions.h"
 #include "ReaderSession.h"
-#include "activities/Activity.h"
+#include "activities/RustActivityAdapter.h"
 
-class ReaderActivity : public Activity {
+class ReaderActivity : public RustActivityAdapter {
   friend class ActivityManager;  // turns pages for a Bluetooth remote (ActivityManager::remoteTurn)
 
  protected:
+  XpUiReaderBaseModel baseModel{};
   std::string bookPath;
-  int pagesUntilFullRefresh = 0;
-  bool forcedRefreshPending = false;
-
   std::unique_ptr<EndOfBookOptions> endOfBookOptions;
-  std::atomic<bool> endOfBookOptionsReady{false};
-  ReaderSession readerSession;
-  std::atomic<bool> pageRendered{false};
-  bool bookRemembered = false;
-  void markPageRendered() { pageRendered.store(true, std::memory_order_release); }
+  // Borrowed only by the render task, from render() entry through publication.
+  XpUiReaderBaseModel* renderFrame = nullptr;
+  uint8_t runBase(uint8_t operation, uint8_t a = 0, uint8_t b = 0);
+  uint32_t readBaseField(uint8_t field) const;
+  void writeBaseField(uint8_t field, uint32_t value, bool fromRender = false);
+  ReaderSession snapshotReaderSession() const;
+  void resetReaderSession();
+  void completeReaderSession();
+  void queueForcedRefresh();
+  void setRefreshCounter(int32_t value);
+  int32_t& renderRefreshCounter();
+  bool takeForcedRefresh();
+  void markPageRendered();
   void rememberBookOnceRendered();
 
   explicit ReaderActivity(const char* name, GfxRenderer& renderer, MappedInputManager& mappedInput,
@@ -84,6 +89,6 @@ class ReaderActivity : public Activity {
   void render(RenderLock&& lock) override;
 
   bool isReaderActivity() const final { return true; }
-  bool acceptsRemoteInput() const final { return pageRendered.load(std::memory_order_acquire); }
+  bool acceptsRemoteInput() const final;
   bool handleForcedRefresh() final;
 };

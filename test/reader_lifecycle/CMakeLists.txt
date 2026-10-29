@@ -86,6 +86,7 @@ add_custom_command(OUTPUT ${BASE_METHODS} ${CMAKE_CURRENT_BINARY_DIR}/base_actio
     ${REPO_ROOT}/src/activities/reader/EndOfBookOptions.h
   VERBATIM)
 add_executable(ReaderBaseOracle base_oracle.cpp ${BASE_METHODS})
+target_link_libraries(ReaderBaseOracle PRIVATE crosspoint_test_common)
 target_include_directories(ReaderBaseOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_test(NAME reader_base_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
@@ -102,3 +103,7 @@ add_test(NAME reader_toolbar_publication
 add_test(NAME reader_prepaint_input
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_prepaint_input.py)
+
+add_test(NAME reader_base_publication
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_base_publication.py)

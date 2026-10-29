@@ -7,6 +7,7 @@ from extract import definition
 repo, output = map(pathlib.Path, sys.argv[1:])
 source = (repo / "src/activities/reader/ReaderActivity.cpp").read_text()
 names = (
+    "uint8_t ReaderActivity::runBase(",
     "void ReaderActivity::rememberBookOnceRendered(",
     "void ReaderActivity::clearEndOfBookOptionsIfNeeded(",
     "bool ReaderActivity::endOfBookMenuActive(",

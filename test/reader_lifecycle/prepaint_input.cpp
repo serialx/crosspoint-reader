@@ -73,23 +73,92 @@ struct ReaderActivity {
   GfxRenderer renderer;
   MappedInputManager mappedInput;
   std::unique_ptr<EndOfBookOptions> endOfBookOptions;
-  std::atomic<bool> endOfBookOptionsReady{false};
+  struct ModelLock {
+    explicit ModelLock(ReaderActivity&) {}
+  };
+  XpUiReaderBaseModel baseModel{};
+  XpUiReaderBaseModel* renderFrame = nullptr;
+  uint32_t readBaseField(uint8_t) const;
+  void writeBaseField(uint8_t, uint32_t, bool fromRender = false);
+  uint8_t runBase(uint8_t, uint8_t, uint8_t);
   bool pageRendered = false;
   std::string bookPath = "/book.epub";
   ReaderSession readerSession;
   bool isAtEndOfBook() const { return true; }
   bool endOfBookMenuActive() const;
   void onEndOfBookRendered() {}
-  void markPageRendered() { pageRendered = true; }
+  void markPageRendered() {
+    pageRendered = true;
+    writeBaseField(XP_UI_READER_BASE_FIELD_RENDERED, 1, true);
+  }
   int getProgressBasisPoints() const { return 10000; }
   void renderBook() { assert(false); }
   void render(RenderLock&&);
 };
+uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
+  const XpUiReaderBaseServices services{
+      this,
+      [](void* p, uint8_t field) { return static_cast<ReaderActivity*>(p)->readBaseField(field); },
+      [](void* p, uint8_t field, uint32_t value) {
+        static_cast<ReaderActivity*>(p)->writeBaseField(field, value, true);
+      },
+      [](void* p, uint8_t query) -> uint32_t {
+        auto& o = *static_cast<ReaderActivity*>(p);
+        switch (query) {
+          case XP_UI_READER_BASE_QUERY_AT_END:
+            return o.isAtEndOfBook();
+          case XP_UI_READER_BASE_QUERY_HAS_END:
+            return bool(o.endOfBookOptions);
+          case XP_UI_READER_BASE_QUERY_END_MENU:
+            return o.endOfBookOptions->menuActive();
+          default:
+            assert(false);
+            return 0;
+        }
+      },
+      [](void* p, uint8_t command, int32_t, int32_t) -> uint32_t {
+        auto& o = *static_cast<ReaderActivity*>(p);
+        switch (command) {
+          case XP_UI_READER_BASE_COMMAND_CLEAR_SCREEN:
+            o.renderer.clearScreen();
+            break;
+          case XP_UI_READER_BASE_COMMAND_END_LOAD:
+            o.endOfBookOptions->loadOnce(o.bookPath);
+            break;
+          case XP_UI_READER_BASE_COMMAND_END_RENDER:
+            o.endOfBookOptions->render(o.renderer, o.mappedInput);
+            break;
+          case XP_UI_READER_BASE_COMMAND_DISPLAY:
+            o.renderer.displayBuffer();
+            break;
+          case XP_UI_READER_BASE_COMMAND_END_RENDERED:
+            o.onEndOfBookRendered();
+            break;
+          case XP_UI_READER_BASE_COMMAND_MARK_RENDERED:
+            o.markPageRendered();
+            break;
+          case XP_UI_READER_BASE_COMMAND_SESSION_RENDER:
+            break;
+          default:
+            assert(false);
+        }
+        return 0;
+      },
+      [](void*) -> XpUiReaderTurnInput {
+        assert(false);
+        return {};
+      },
+      [](void*) -> XpUiReaderTurnInput {
+        assert(false);
+        return {};
+      }};
+  return xp_ui_reader_base_run(&services, operation, a, b);
+}
 // PREPAINT_METHODS
 static ReaderActivity* active;
 static unsigned tested;
 static void beforeFirstPaint(EndOfBookOptions& end) {
-  assert(active->endOfBookOptionsReady.load() && active->endOfBookMenuActive());
+  assert(active->readBaseField(XP_UI_READER_BASE_FIELD_END_READY) && active->endOfBookMenuActive());
   assert(!end.ready && !active->pageRendered);
   struct Case {
     uint8_t button;

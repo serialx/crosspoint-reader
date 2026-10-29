@@ -4,6 +4,8 @@
 
 class ReaderSession {
  public:
+  ReaderSession() = default;
+  explicit ReaderSession(const XpUiReaderSession& snapshot) : state(snapshot) {}
   void noteTurn(bool forward, bool succeeded);
   void onRenderComplete(uint32_t monotonicMs, int64_t trustedEpoch, int progressBp);
   void reset();

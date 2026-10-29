@@ -137,7 +137,48 @@ static void renderPointers() {
   assert(calls == 0);
 }
 
+static void basePointers() {
+  uint32_t calls = 0;
+  const XpUiReaderBaseServices complete{&calls,
+                                        [](void* p, uint8_t) -> uint32_t {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return 0;
+                                        },
+                                        [](void* p, uint8_t, uint32_t) { ++*static_cast<uint32_t*>(p); },
+                                        [](void* p, uint8_t) -> uint32_t {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return 0;
+                                        },
+                                        [](void* p, uint8_t, int32_t, int32_t) -> uint32_t {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return 0;
+                                        },
+                                        [](void* p) -> XpUiReaderTurnInput {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return {};
+                                        },
+                                        [](void* p) -> XpUiReaderTurnInput {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return {};
+                                        }};
+  assert(!xp_ui_reader_base_run(nullptr, XP_UI_READER_BASE_OPERATION_ENTER, 0, 0));
+  assert(!xp_ui_reader_base_run(&complete, 255, 0, 0));
+  for (int missing = 0; missing < 6; ++missing) {
+    auto services = complete;
+    if (missing == 0) services.read = nullptr;
+    if (missing == 1) services.write = nullptr;
+    if (missing == 2) services.query = nullptr;
+    if (missing == 3) services.command = nullptr;
+    if (missing == 4) services.touch = nullptr;
+    if (missing == 5) services.buttons = nullptr;
+    for (uint8_t operation = 0; operation <= XP_UI_READER_BASE_OPERATION_MENU_ACTIVE; ++operation)
+      assert(!xp_ui_reader_base_run(&services, operation, 0, 0));
+  }
+  assert(calls == 0);
+}
+
 int main() {
+  basePointers();
   renderPointers();
   inputPointers();
   progressStatuses();

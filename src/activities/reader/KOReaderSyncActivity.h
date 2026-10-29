@@ -15,6 +15,7 @@ class KOReaderSyncActivity final : public KOReaderUiActivity {
                                 std::string localChapterName, bool pluginEventsOnly = false);
   void onEnter() override;
   void onExit() override;
+  void render(RenderLock&&) override;
 
  private:
 #ifdef CROSSPOINT_UI_ORACLE

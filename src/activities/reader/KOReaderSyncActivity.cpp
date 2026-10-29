@@ -407,3 +407,9 @@ const char* KOReaderSyncActivity::resourceText(uint32_t handle) const {
       return KOReaderUiActivity::resourceText(handle);
   }
 }
+
+void KOReaderSyncActivity::render(RenderLock&& lock) {
+  KOReaderUiActivity::render(std::move(lock));
+  // Scene text is borrowed only through the synchronous paint passes.
+  std::string().swap(remoteChapter);
+}

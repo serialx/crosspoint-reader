@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -83,7 +84,14 @@ struct Epub {
     return {longTitle ? std::string(4096, 'x') : std::string("Remote chapter")};
   }
 };
-class KOReaderSyncActivity {
+struct RenderLock {};
+class KOReaderUiActivity {
+ public:
+  virtual ~KOReaderUiActivity() = default;
+  virtual void render(RenderLock&&) { paintFrame(); }
+  virtual void paintFrame() = 0;
+};
+class KOReaderSyncActivity : public KOReaderUiActivity {
  public:
   std::mutex mutex;
   struct ModelLock {
@@ -113,6 +121,27 @@ class KOReaderSyncActivity {
   } localProgress;
   std::string remoteChapter;
   char localChapterFallback[32]{}, remoteValue[64]{}, localValue[64]{}, deviceValue[80]{};
+  bool rejectBuild = false, rejectPaint = false;
+  unsigned passes = 0;
+  void render(RenderLock&&) override;
+  void paintFrame() override {
+    {
+      ModelLock lock(*this);
+      painting = model;
+      snapshotResources();
+      assert(epub.use_count() == 1);
+    }
+    prepareText();
+    assert(remoteChapter.size() == 4096);
+    if (rejectBuild) return;
+    const char* text = remoteChapter.c_str();
+    assert(std::strlen(text) == 4096);  // Validation borrows the same title as painting.
+    if (rejectPaint) return;
+    for (int pass = 0; pass < 3; ++pass) {
+      assert(std::strlen(text) == 4096 && text[4095] == 'x');
+      ++passes;
+    }
+  }
   void releaseEpub();
   void snapshotResources();
   void prepareText();
@@ -203,13 +232,11 @@ int main() {
   }
   trace = &candidate;
   for (int frame = 0; frame < 3; ++frame) {
-    {
-      KOReaderSyncActivity::ModelLock lock(repeated);
-      repeated.painting = repeated.model;
-      repeated.snapshotResources();
-    }
-    repeated.prepareText();
-    assert(repeated.remoteChapter.size() == 4096);
+    repeated.render(RenderLock{});
+#ifndef ALLOW_RETAINED_TITLE
+    assert(candidate.live == 0 && "title retained after completed Result render");
+#endif
+    assert(repeated.passes == unsigned((frame + 1) * 3));
   }
   repeated.painting.phase = XP_KO_UPLOADING;
   repeated.prepareText();
@@ -223,4 +250,37 @@ int main() {
   assert(original.peak > 2048 && candidate.peak == original.peak);
   assert(original.live == 0 && candidate.live == 0 && original.count == candidate.count);
   for (unsigned i = 0; i < original.count; ++i) assert(original.events[i] == candidate.events[i]);
+  for (int path = 0; path < 5; ++path) {
+    AllocationTrace lifetime;
+    repeated.model.phase = XP_KO_RESULT;
+    repeated.rejectBuild = path == 3;
+    repeated.rejectPaint = path == 4;
+    trace = &lifetime;
+    repeated.render(RenderLock{});
+    assert(lifetime.live == 0 && "title retained before idle/save/return/rejection");
+    trace = nullptr;
+    struct SaveContext {
+      AllocationTrace& title;
+      bool ok, saved = false, returned = false;
+    } context{lifetime, path == 0};
+    XpKoServices services{&context, [](void* raw, uint32_t op, uint32_t, uint32_t) -> uint32_t {
+                            auto& c = *static_cast<SaveContext*>(raw);
+                            assert(c.title.live == 0);
+                            if (op == XP_KO_SAVE_PROGRESS) {
+                              c.saved = true;
+                              return c.ok;
+                            }
+                            if (op == XP_KO_RETURN_READER) c.returned = true;
+                            return 0;
+                          }};
+    if (path < 2) {
+      xp_ui_koreader_save(&services);
+      assert(context.saved && context.returned == context.ok);
+    } else if (path == 2) {
+      XpUiInput back{};
+      back.released = XP_UI_BACK;
+      assert(xp_ui_koreader_update(&repeated.model, &back).kind == XP_UI_CANCEL);
+    }
+    std::printf("post-render path=%d live=%zu peak=%zu bytes\n", path, lifetime.live, lifetime.peak);
+  }
 }

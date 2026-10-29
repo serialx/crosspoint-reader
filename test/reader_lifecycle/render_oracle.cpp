@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <memory>
 #include <new>
+#include <optional>
 #include <type_traits>
 
 static unsigned long tick;
@@ -91,13 +92,14 @@ template <class T>
   return std::make_unique<T>(size);
 }
 struct FontCache {
-  struct Scope {
-    explicit Scope(FontCache&) { std::puts("prewarm-begin"); }
-    ~Scope() { std::puts("prewarm-destroy"); }
+  struct PrewarmScope {
+    explicit PrewarmScope(FontCache&) { std::puts("prewarm-begin"); }
+    ~PrewarmScope() { std::puts("prewarm-destroy"); }
     void endScanAndPrewarm() { std::puts("prewarm-end"); }
   };
-  Scope createPrewarmScope() { return Scope(*this); }
+  PrewarmScope createPrewarmScope() { return PrewarmScope(*this); }
 } fontCache;
+using FontCacheManager = FontCache;
 struct Caps {
   HalDisplay::GrayscaleBase base = HalDisplay::GrayscaleBase::Separate;
   bool stripUploads = false, asyncBase = false, absolute = false;

@@ -38,5 +38,15 @@
     "source": "freeink-sdk/libs/ui/FreeInkUI/include/components/lists/list.h",
     "cases": 7680,
     "sha256": "246cd85cd711356e0300aa5e243b663282cc4d19f89031d79b6833c5217ced5d"
+  },
+  "full_loop": {
+    "base": "8d534a99e53f3bc98d842740de606b0396d38d56",
+    "method_sha256": "2aae5ae6b23c3a06881f36d975cace1be34140b27a9fe8e4c2378ef021fd6e95",
+    "cases": 4608,
+    "frames_per_case": 2,
+    "lines": 313332,
+    "golden_sha256": "dbeae6a6e8282c2fa3b8977b5eae6f6dcf7892ed46ddadd61de14f1a34e7eb30",
+    "mutation": "Final notePageTurn direction inverted: fails at line 6371.",
+    "limitations": "Deterministic resource leaves and uint32-range times on the host; no GPIO scheduling, resource pixel output, or full activity ownership."
   }
 }

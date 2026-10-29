@@ -133,7 +133,7 @@ struct ActivityManager {
   void goToFileBrowser(const char* p) { std::printf("browser %s\n", p); }
 } manager;
 namespace ReaderUtils {
-constexpr unsigned long SKIP_HOLD_MS = 700, GO_BACK_OR_HOME_MS = 1000;
+[[maybe_unused]] constexpr unsigned long SKIP_HOLD_MS = 700, GO_BACK_OR_HOME_MS = 1000;
 struct PageTurnResult {
   bool prev, next, fromTilt;
 };

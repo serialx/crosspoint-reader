@@ -48,3 +48,11 @@ array allocation/release order. It uses the production 80-row strip size and
 captured from the original `8d534a99` method bodies before the render port.
 The viewport oracle freezes 7,680 cases from the pinned SDK ListNav, including
 stale row counts, partial pages, empty lists, clamps and no-op scrolls.
+
+The full-loop oracle adds 4,608 two-frame scenarios from the unchanged original
+EPUB loop. It records lazy input probes and resource calls for overlays, end-book
+menus, automatic turns, queued turns, build gates, radio state and timed messages.
+A busy render lock suppresses background work but leaves input sampling active;
+the original pending-turn behavior is preserved. Inverting the final session-turn
+direction is detected. The fixture uses host clock values within the uint32 range;
+clock wrap remains covered by the session oracle rather than this host loop.

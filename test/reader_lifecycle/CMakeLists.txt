@@ -52,3 +52,14 @@ target_include_directories(ReaderNavOracle PRIVATE ${REPO_ROOT}/freeink-sdk/libs
 add_test(NAME reader_nav_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
     $<TARGET_FILE:ReaderNavOracle> ${CMAKE_CURRENT_SOURCE_DIR}/nav.golden.gz)
+
+set(LOOP_METHODS ${CMAKE_CURRENT_BINARY_DIR}/loop_methods.inc)
+add_custom_command(OUTPUT ${LOOP_METHODS}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_loop.py ${REPO_ROOT} ${LOOP_METHODS}
+  DEPENDS extract_loop.py extract.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+  VERBATIM)
+add_executable(ReaderLoopOracle loop_oracle.cpp ${LOOP_METHODS})
+target_include_directories(ReaderLoopOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
+add_test(NAME reader_loop_oracle
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
+    $<TARGET_FILE:ReaderLoopOracle> ${CMAKE_CURRENT_SOURCE_DIR}/loop.golden.gz)

@@ -23,6 +23,8 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::cancelled = false;
   host::connected = true;
   host::now = 1000;
+  host::discoveryPacket.clear();
+  host::serialBytes = "TEST-SERIAL";
   String::failAllocationSize = SIZE_MAX;
   String::failedAllocations = 0;
   WebJsonAllocator::failAfter = -1;
@@ -1597,6 +1599,167 @@ int main() {
       };
       app.handleRelay();
       host::beforeResume = {};
+    });
+  }
+  for (int mode : {0, 1, 2, 3}) {
+    for (int connected : {0, WL_CONNECTED}) {
+      for (int stations : {-1, 0, 2}) {
+        record(
+            ("life-network:" + std::to_string(mode) + ":" + std::to_string(connected) + ":" + std::to_string(stations))
+                .c_str(),
+            [&](auto& app) {
+              app.stop();
+              WiFi.mode = mode;
+              WiFi.statusValue = connected;
+              WiFi.stations = stations;
+              app.begin();
+              app.begin();
+              app.handleClient();
+              app.stop();
+              app.handleClient();
+              app.stop();
+              app.begin();
+            });
+      }
+    }
+  }
+  for (int kind = 0; kind < 7; ++kind) {
+    record(("life-transfer:" + std::to_string(kind)).c_str(), [&](auto& app) {
+      if (kind == 0) app.stop();
+      if (kind == 1) {
+        app.server->args["path"] = "/books";
+        app.server->part.filename = "transfer.epub";
+        upload(app, UPLOAD_FILE_START);
+      }
+      if (kind == 2 || kind == 3) text(app, 4, "START:transfer.epub:4:/books");
+      if (kind == 4) {
+        host::failOperation = "udp";
+        host::failAfter = 0;
+      }
+      app.udpActive = kind != 5;
+      app.suspendTransferServices();
+      app.suspendTransferServices();
+      if (kind == 3) app.stop();
+      app.resumeTransferServices();
+      app.resumeTransferServices();
+      if (kind == 1) upload(app, UPLOAD_FILE_ABORTED);
+      if (kind == 2) {
+        app.onWebSocketEvent(4, WStype_DISCONNECTED, nullptr, 0);
+        app.suspendTransferServices();
+        app.resumeTransferServices();
+      }
+    });
+  }
+  for (const std::string packet : {std::string(), std::string("hello"), std::string("hello\0suffix", 12),
+                                   std::string("Hello"), std::string("hello!"), std::string(32, 'x')}) {
+    for (const std::string hostname : {std::string(), std::string("oracle"), std::string(100, 'h')}) {
+      record(("life-discovery:" + host::hex(reinterpret_cast<const uint8_t*>(packet.data()), packet.size()) + ":" +
+              std::to_string(hostname.size()))
+                 .c_str(),
+             [&](auto& app) {
+               app.udpActive = true;
+               WiFi.hostname = hostname;
+               for (uint32_t now : {10000u, 10001u, 20001u, 20002u}) {
+                 host::now = now;
+                 host::discoveryPacket = packet;
+                 app.handleClient();
+               }
+             });
+    }
+  }
+  for (const std::string serial : {std::string(), std::string("OK"), std::string(32, 'S'), std::string("bad\nserial"),
+                                   std::string(1, char(255))}) {
+    for (bool ap : {false, true}) {
+      record(("life-status-serial:" + host::hex(reinterpret_cast<const uint8_t*>(serial.data()), serial.size()) + ":" +
+              std::to_string(ap))
+                 .c_str(),
+             [&](auto& app) {
+               app.apMode = ap;
+               host::serialBytes = serial;
+               app.handleStatus();
+             });
+    }
+  }
+  for (const std::string plugin :
+       {std::string(), std::string("TEST"), std::string(64, 'a'), std::string(65, 'a'), std::string("a\0B", 3)}) {
+    for (const char* failure : {"none", "secret", "sha256", "efuse"}) {
+      record(("life-status-plugin:" + host::hex(reinterpret_cast<const uint8_t*>(plugin.data()), plugin.size()) + ":" +
+              failure)
+                 .c_str(),
+             [&](auto& app) {
+               host::cryptoTrace = true;
+               app.server->args["plugin"] = String(plugin.data(), plugin.size());
+               host::failOperation = failure;
+               host::failAfter = 0;
+               host::now = UINT32_MAX;
+               app.handleStatus();
+             });
+    }
+  }
+  for (int after = 0; after < 4; ++after) {
+    record(("life-status-oom:" + std::to_string(after)).c_str(), [&](auto& app) {
+      WebJsonAllocator::failAfter = after;
+      app.handleStatus();
+      WebJsonAllocator::failAfter = -1;
+      app.handleStatus();
+    });
+  }
+  for (uint32_t elapsed : {4999u, 5000u, 5001u, 59999u, 60000u, 60001u}) {
+    record(("fetch-rollover:" + std::to_string(elapsed)).c_str(), [&](auto& app) {
+      app.server->args["plain"] = R"({"url":"https://test/file","dest":"/plugins/test/book.epub"})";
+      host::now = UINT32_MAX - 2000;
+      freeink::fetchScripted = true;
+      freeink::fetchSteps = {{0, elapsed}, {4}};
+      app.handleFetch();
+    });
+  }
+
+  for (size_t length : {254u, 255u, 256u, 1023u, 1024u, 1025u}) {
+    record(("life-upload-name:" + std::to_string(length)).c_str(), [&](auto& app) {
+      app.server->args["path"] = "/books";
+      app.server->part.filename = String(std::string(length, 'n').c_str());
+      upload(app, UPLOAD_FILE_START);
+      upload(app, UPLOAD_FILE_ABORTED);
+    });
+    record(("life-upload-path:" + std::to_string(length)).c_str(), [&](auto& app) {
+      const std::string path = "/" + std::string(length, 'p');
+      host::add(path, "", true);
+      app.server->args["path"] = path.c_str();
+      app.server->part.filename = "test.epub";
+      upload(app, UPLOAD_FILE_START);
+      upload(app, UPLOAD_FILE_ABORTED);
+    });
+  }
+  for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
+                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+    record((std::string("life-static:") + path).c_str(), [&](auto& app) {
+      app.running = false;
+      app.begin();
+      auto handler = app.server->routes.at(std::string("0:") + path);
+      handler();
+      const auto it = std::find_if(host::trace.rbegin(), host::trace.rend(),
+                                   [](const auto& line) { return line.starts_with("header:ETag:"); });
+      if (it == host::trace.rend()) std::abort();
+      const auto etag = it->substr(12);
+      app.server->headers["If-None-Match"] = etag.c_str();
+      handler();
+      app.server->headers["If-None-Match"] = "mismatch";
+      handler();
+    });
+  }
+  for (const char* failure : {"http-alloc", "ws-alloc", "udp"}) {
+    record((std::string("life-oom:") + failure).c_str(), [&](auto& app) {
+      app.stop();
+      host::failOperation = failure;
+      host::failAfter = 0;
+      app.begin();
+      if (app.isRunning()) {
+        app.suspendTransferServices();
+        app.resumeTransferServices();
+        app.resumeTransferServices();
+      } else {
+        app.begin();
+      }
     });
   }
   return 0;

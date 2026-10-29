@@ -39,7 +39,9 @@ inline std::string hex(const uint8_t* data, size_t size) {
   return out;
 }
 inline std::vector<std::string> trace;
-inline unsigned long now = 1000;
+inline uint32_t now = 1000;
+inline std::string discoveryPacket;
+inline std::string serialBytes = "TEST-SERIAL";
 inline std::string failOperation;
 inline int failAfter = -1;
 inline bool cancelled = false, connected = true;
@@ -306,6 +308,8 @@ struct NetworkClient {
 };
 class WebServer {
  public:
+  static void* operator new(size_t size) noexcept { return host::fail("http-alloc") ? nullptr : ::operator new(size); }
+  static void operator delete(void* ptr) noexcept { ::operator delete(ptr); }
   explicit WebServer(uint16_t = 80) {}
   virtual ~WebServer() = default;
   String* _currentArgs = nullptr;
@@ -380,6 +384,11 @@ class WebServer {
 };
 enum WStype_t { WStype_DISCONNECTED, WStype_CONNECTED, WStype_TEXT, WStype_BIN };
 struct WebSocketsServer {
+  static void* operator new(size_t size) { return ::operator new(size); }
+  static void* operator new(size_t size, const std::nothrow_t&) noexcept {
+    return host::fail("ws-alloc") ? nullptr : ::operator new(size, std::nothrow);
+  }
+  static void operator delete(void* ptr) noexcept { ::operator delete(ptr); }
   void sendTXT(uint8_t num, const uint8_t* data, size_t len) {
     sendTXT(num, String(reinterpret_cast<const char*>(data), len));
   }
@@ -400,13 +409,18 @@ struct NetworkUDP {
     return !host::fail("udp");
   }
   void stop() { host::trace.emplace_back("udp-stop"); }
-  int parsePacket() const { return 0; }
-  int read(char*, size_t) const { return 0; }
+  int parsePacket() const { return host::discoveryPacket.size(); }
+  int read(char* out, size_t capacity) const {
+    const auto size = std::min(capacity, host::discoveryPacket.size());
+    std::memcpy(out, host::discoveryPacket.data(), size);
+    host::discoveryPacket.clear();
+    return size;
+  }
   int remoteIP() const { return 0; }
   int remotePort() const { return 0; }
-  void beginPacket(int, int) {}
-  void write(const uint8_t*, size_t) {}
-  void endPacket() {}
+  void beginPacket(int, int) { host::trace.emplace_back("udp-reply-begin"); }
+  void write(const uint8_t* bytes, size_t size) { host::trace.push_back("udp-reply:" + host::hex(bytes, size)); }
+  void endPacket() { host::trace.emplace_back("udp-reply-end"); }
 };
 
 // These helpers are supplied from the repository source by the extractor.

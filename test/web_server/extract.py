@@ -25,6 +25,11 @@ def function(source, name):
 
 
 def generate(source, header):
+    # Match ESP32 unsigned-long clock arithmetic in the pre-port fetch oracle.
+    source = source.replace("const unsigned long fetchStartedAt", "const uint32_t fetchStartedAt")
+    source = source.replace("unsigned long lastBrowserHeartbeat", "uint32_t lastBrowserHeartbeat")
+    source = source.replace("const unsigned long now = millis();", "const uint32_t now = millis();")
+    source = source.replace("millis() - fetchStartedAt", "static_cast<unsigned long>(uint32_t(millis() - fetchStartedAt))")
     source = source.replace("void CrossPointWebServer::resumeTransferServices() {",
                             "void CrossPointWebServer::resumeTransferServices() {\n  if (host::beforeResume) host::beforeResume();")
     source = re.sub(r"\bJsonDocument\b", "WebJsonDocument", source)
@@ -37,6 +42,7 @@ def generate(source, header):
     header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
+    header = header.replace(": private XpWebLifecycle", ": public XpWebLifecycle")
     pieces = ['#include "Host.h"', '#include "Endpoints.h"', header]
     if "xp_web_files" in source:
         pieces.insert(0, '#include "xp_web.h"')
@@ -46,6 +52,14 @@ def generate(source, header):
     for include in re.findall(r'^#include "(html/[^"\n]+)"', source, re.MULTILINE):
         pieces.append('#include "src/network/' + include + '"')
     pieces.append(re.sub(r'^#include[^\n]*\n', '', source, flags=re.MULTILINE))
+    if "XpWebWsUpload wsPolicy" in source:
+        for old, field in {
+            "wsUploadSize": "total", "wsUploadReceived": "received",
+            "wsUploadStartTime": "started_at", "wsUploadInProgress": "active",
+            "wsUploadClientNum": "client", "wsLastProgressSent": "last_progress",
+            "wsLastCompleteSize": "complete_size", "wsLastCompleteAt": "completed_at",
+        }.items():
+            pieces.append(f"#define {old} wsPolicy.{field}")
     pieces.append('#include "Cases.h"')
     return "\n\n".join(pieces) + "\n"
 

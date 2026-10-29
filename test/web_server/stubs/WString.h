@@ -92,7 +92,10 @@ class String : public std::string {
     *this = substr(first, last - first);
   }
   void toLowerCase() {
-    for (auto& c : *this) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto& c : *this) {
+      if (!c) break;
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
   }
   void replace(char from, char to) { std::replace(begin(), end(), from, to); }
   int32_t toInt() const {

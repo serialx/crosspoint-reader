@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 1544 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 1657 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -164,3 +164,32 @@ The 65,536-byte encoded-field case is rejected by the pinned ArduinoJson string
 limit; a 65,532-byte field reaches PKCS#12. The measurements use host capacity
 and SSO sizes, not the target allocator's rounding. Fetch routes are also checked
 with the Rust allocator disabled and must make zero Rust allocation attempts.
+
+The lifecycle extension was captured from the original C++ at `ffd48814` and
+also checked against slice 7 at `7722739c`. All earlier 1,544 records are
+unchanged. It covers repeated begin/stop/restart, STA/AP combinations, service
+suspension during HTTP/WS uploads, discovery contents and repeated replies,
+status fields, plugin normalization and hash input, serial validation, HTTP
+allocation and WS restart failures, JSON allocation failure, long upload names
+and paths, and static-resource caching. Initial WS allocation remains unchecked
+in the original; injecting its failure would crash rather than produce a
+transcript. These cases do not claim recovery from that existing failure.
+
+The clock store wraps at 32 bits. The extractor explicitly uses 32-bit arithmetic
+for the original fetch heartbeat and elapsed-time expressions, so the six
+rollover fixtures check the ESP32 behavior rather than host `unsigned long`.
+The SDK timeout remains a scripted transport result: the oracle checks its
+60-second configuration and the endpoint's polling decisions, not socket timeout
+execution. Other native-width limitations described above still apply.
+
+To prove the Rust segment-boundary and heartbeat predicates themselves are
+observed, run:
+
+```sh
+python3 test/web_server/mutate_fetch.py --build build/web-mutations \
+  --arduinojson .pio/libdeps/default/ArduinoJson/src
+```
+
+It builds isolated Rust copies with each comparison changed by one operator and
+requires a transcript mismatch. The String substitute now also stops lowercasing
+at the first NUL, matching the pinned ESP32 core.

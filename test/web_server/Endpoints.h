@@ -8,14 +8,15 @@
 constexpr int O_RDONLY = 0, O_RDWR = 1, O_AT_END = 2;
 constexpr int ESP_OK = 0, ESP_EFUSE_USER_DATA = 0;
 inline int esp_efuse_read_field_blob(int, void* dst, size_t) {
-  std::memcpy(dst, "TEST-SERIAL", 12);
+  std::memcpy(dst, host::serialBytes.data(), std::min(size_t(32), host::serialBytes.size()));
   return host::fail("efuse") ? -1 : 0;
 }
 inline bool deviceSecret(uint8_t* dst) {
   std::memset(dst, 7, 32);
   return !host::fail("secret");
 }
-inline int wc_Sha256Hash(const uint8_t*, size_t, uint8_t* dst) {
+inline int wc_Sha256Hash(const uint8_t* input, size_t length, uint8_t* dst) {
+  host::cryptoInput("status-sha256", input, length);
   std::memset(dst, 8, 32);
   return host::fail("sha256") ? -1 : 0;
 }
@@ -34,14 +35,15 @@ struct IP {
   String toString() const { return "192.0.2.1"; }
 };
 struct WifiStub {
-  int mode = WIFI_MODE_STA, statusValue = WL_CONNECTED;
+  int mode = WIFI_MODE_STA, statusValue = WL_CONNECTED, stations = 0;
+  std::string hostname = "oracle";
   int getMode() const { return mode; }
   int status() const { return statusValue; }
-  int softAPgetStationNum() const { return 0; }
+  int softAPgetStationNum() const { return stations; }
   IP softAPIP() const { return {}; }
   IP localIP() const { return {}; }
   int RSSI() const { return -42; }
-  const char* getHostname() const { return "oracle"; }
+  const char* getHostname() const { return hostname.c_str(); }
   void setSleep(bool value) { host::trace.push_back("wifi-sleep:" + std::to_string(value)); }
   void setAutoReconnect(bool value) { host::trace.push_back("wifi-reconnect:" + std::to_string(value)); }
 };

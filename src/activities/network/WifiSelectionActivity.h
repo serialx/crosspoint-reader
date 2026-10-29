@@ -83,6 +83,7 @@ class WifiSelectionActivity final : public RustActivityAdapter {
   const char* text(uint32_t) const;
   XpUiWifiViewServices resources();
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   XpUiPaint rustResources() override;
   void rustPublished() override;
   void rustSceneFailed() override;

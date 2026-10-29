@@ -9,7 +9,7 @@ header='\n'.join(line for line in header.splitlines() if not line.startswith('#'
 header=header.replace('class CalibreConnectActivity final','struct CalibreConnectActivity final')
 source=(HERE/'calibre_input.cpp').read_text().replace('// PRODUCTION_CLASS',header)
 production=(ROOT/'src/activities/network/CalibreConnectActivity.cpp').read_text()
-methods=['onEnter','onExit','onWifiSelectionComplete','loop','run','render','publish','upload']
+methods=['onEnter','onExit','onWifiSelectionComplete','loop','run','render','publish','rustSceneCurrent','upload']
 source=source.replace('// PRODUCTION_METHODS','\n'.join(prepare.extract(production,'CalibreConnectActivity',m) for m in methods))
 with tempfile.TemporaryDirectory() as directory:
     out=Path(directory)

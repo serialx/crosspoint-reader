@@ -547,11 +547,8 @@ void WifiSelectionActivity::rustSceneFailed() {
 }
 void WifiSelectionActivity::rustPublished() {
   xp_ui_network_wifi_view_publish(&model, &renderingState, &next);
-  if (model.generation == renderingState.generation && model.phase == renderingState.phase &&
-      model.count == renderingState.count) {
-    hits = nextHits;
-    routingReady = true;
-  }
+  hits = nextHits;
+  routingReady = true;
 }
 const char* WifiSelectionActivity::text(uint32_t handle) const {
   if (handle > 0 && handle < XP_UI_WIFI_HEADER) {
@@ -653,6 +650,10 @@ XpUiWifiViewServices WifiSelectionActivity::resources() {
           [](void* context, uint32_t handle) -> const char* {
             return static_cast<WifiSelectionActivity*>(context)->text(handle);
           }};
+}
+bool WifiSelectionActivity::rustSceneCurrent() const {
+  return model.generation == renderingState.generation && model.phase == renderingState.phase &&
+         model.count == renderingState.count;
 }
 bool WifiSelectionActivity::buildRustScene(XpUiScene& scene) {
   {

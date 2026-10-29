@@ -130,6 +130,9 @@ XpUiSettingsResources NetworkModeSelectionActivity::resources() {
           MENU_ITEM_COUNT,
           0};
 }
+bool NetworkModeSelectionActivity::rustSceneCurrent() const {
+  return state.navigation_revision == next.navigation_revision;
+}
 bool NetworkModeSelectionActivity::buildRustScene(XpUiScene& scene) {
   XpUiListState snapshot{};
   {

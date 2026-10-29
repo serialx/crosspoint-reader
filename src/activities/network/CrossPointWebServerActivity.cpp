@@ -330,6 +330,10 @@ uint32_t CrossPointWebServerActivity::service(void* context, uint32_t operation,
   assert(false && "Unknown web operation");
   return 0;
 }
+bool CrossPointWebServerActivity::rustSceneCurrent() const {
+  return model.phase == renderingState.phase && model.mode == renderingState.mode &&
+         model.is_ap == renderingState.is_ap;
+}
 bool CrossPointWebServerActivity::buildRustScene(XpUiScene& scene) {
   {
     ModelLock lock(*this);

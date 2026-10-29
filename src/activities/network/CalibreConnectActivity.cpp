@@ -184,6 +184,7 @@ const char* CalibreConnectActivity::text(uint32_t handle) {
       return nullptr;
   }
 }
+bool CalibreConnectActivity::rustSceneCurrent() const { return model.phase == renderingState.phase; }
 bool CalibreConnectActivity::buildRustScene(XpUiScene& scene) {
   {
     ModelLock lock(*this);

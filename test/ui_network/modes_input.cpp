@@ -39,8 +39,10 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   XpUiEffect updateRust(const XpUiInput&) override;
   void applyRustEffect(const XpUiEffect&) override;
   void rustPublished() override;
+  bool rustSceneCurrent() const override;
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene& scene) override {
+    next = state;
     scene.refresh = XP_UI_FAST;
     return buildOkay;
   }

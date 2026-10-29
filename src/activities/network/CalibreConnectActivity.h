@@ -40,6 +40,7 @@ class CalibreConnectActivity final : public RustActivityAdapter {
   static const char* text(uint32_t);
   void onWifiSelectionComplete(bool connected);
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   XpUiPaint rustResources() override;
 
  public:

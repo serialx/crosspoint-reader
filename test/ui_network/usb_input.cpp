@@ -52,6 +52,7 @@ class UsbDriveActivity final : public RustActivityAdapter {
     return buildOkay;
   }
   void rustSceneFailed() override;
+  bool rustSceneCurrent() const override;
 };
 // PRODUCTION_METHODS
 int main() {

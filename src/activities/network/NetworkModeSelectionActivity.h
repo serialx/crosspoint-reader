@@ -31,6 +31,7 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   XpUiSettingsResources resources();
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
   void rustSceneFailed() override;
   XpUiPaint rustResources() override;

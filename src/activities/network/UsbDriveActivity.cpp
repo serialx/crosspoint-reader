@@ -37,7 +37,7 @@ void UsbDriveActivity::loop() {
 void UsbDriveActivity::render(RenderLock&& lock) {
   RustActivityAdapter::render(std::move(lock));
   ModelLock modelLock(*this);
-  if (renderingState.preparing && preparingFrame != PreparingFrame::Rejected)
+  if (rustSceneCurrent() && renderingState.preparing && preparingFrame != PreparingFrame::Rejected)
     preparingFrame = PreparingFrame::Displayed;
 }
 void UsbDriveActivity::run(const XpUiNetworkEvent event) {
@@ -143,6 +143,10 @@ const char* UsbDriveActivity::text(const uint32_t handle) {
     default:
       return nullptr;
   }
+}
+bool UsbDriveActivity::rustSceneCurrent() const {
+  return model.preparing == renderingState.preparing && model.phase == renderingState.phase &&
+         model.restart_requested == renderingState.restart_requested;
 }
 bool UsbDriveActivity::buildRustScene(XpUiScene& scene) {
   {

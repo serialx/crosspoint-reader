@@ -34,7 +34,10 @@ struct Base:RustActivityAdapter {
  using RustActivityAdapter::RustActivityAdapter;
  using RustActivityAdapter::rustSceneCurrent;
  struct ResourceLock {template<class T>ResourceLock(T&){} void release(){}};
- bool buildOk=true; unsigned failures=0;
+ bool buildOk=true; unsigned failures=0,activations=0;
+ XpUiInterest rustInterest(uint32_t)const override{XpUiInterest x{};x.pressed=x.released=XP_UI_CONFIRM;return x;}
+ XpUiEffect updateRust(const XpUiInput& i)override{return XpUiEffect{0,static_cast<uint8_t>((i.released&XP_UI_CONFIRM)?XP_UI_ACTIVATE:0),0,{0,0}};}
+ void applyRustEffect(const XpUiEffect& e)override{if(e.kind==XP_UI_ACTIVATE)++activations;}
  bool rejected()const{return rustSceneRejected();}
  void reject(){rejectRustScene();}
  void publish(){publishRustScene({});}
@@ -97,10 +100,17 @@ template<class T>void failure(GfxRenderer& r,MappedInputManager& i){
  }
 }
 template<class T,class Change>void stale(T& a,MappedInputManager& i,Change change){
- a.publish();assert(!a.rejected());
+ i={};a.publish();assert(!a.rejected());
  i.held=i.pressed=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();
- change();assert(!a.rustSceneCurrent());a.publish();assert(!a.rejected());
+ change(true);assert(!a.rustSceneCurrent());a.publish();assert(!a.rejected());
+ i={};i.released=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();assert(a.activations==1);
+ i={};i.held=i.pressed=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();
  a.reject();a.publish();assert(a.rejected());
+ change(false);a.publish();assert(!a.rejected());
+ i={};i.released=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();assert(a.activations==1);
+ i={};i.held=i.pressed=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();
+ i={};i.released=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();assert(a.activations==2);
+
 }
 int main(int argc,char**argv){
  assert(argc==2);GfxRenderer r;r.finishRefresh=true;MappedInputManager i;
@@ -110,12 +120,12 @@ int main(int argc,char**argv){
  if(which=="web-failure")failure<CrossPointWebServerActivity>(r,i);
  if(which=="wifi-stale"){
   for(int kind:{0,1,2}){WifiSelectionActivity a("wifi",r,i);
-   stale(a,i,[&]{if(kind==0)++a.model.phase;else if(kind==1)++a.model.generation;else ++a.model.count;});}
+   stale(a,i,[&](bool old){if(kind==0)a.model.phase=old;else if(kind==1)a.model.generation=old;else a.model.count=old;});}
  }
- if(which=="calibre-stale"){CalibreConnectActivity a("calibre",r,i);stale(a,i,[&]{++a.model.phase;});}
- if(which=="web-stale"){CrossPointWebServerActivity a("web",r,i);stale(a,i,[&]{++a.model.phase;});}
- if(which=="modes-stale"){NetworkModeSelectionActivity a("modes",r,i);stale(a,i,[&]{++a.state.navigation_revision;});}
- if(which=="usb-stale"){UsbDriveActivity a("usb",r,i);stale(a,i,[&]{++a.model.preparing;});}
+ if(which=="calibre-stale"){CalibreConnectActivity a("calibre",r,i);stale(a,i,[&](bool old){a.model.phase=old;});}
+ if(which=="web-stale"){CrossPointWebServerActivity a("web",r,i);stale(a,i,[&](bool old){a.model.phase=old;});}
+ if(which=="modes-stale"){NetworkModeSelectionActivity a("modes",r,i);stale(a,i,[&](bool old){a.state.navigation_revision=old;});}
+ if(which=="usb-stale"){UsbDriveActivity a("usb",r,i);stale(a,i,[&](bool old){a.model.preparing=old;});}
  puts(argv[1]);
 }
 '''

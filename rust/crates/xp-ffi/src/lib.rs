@@ -173,3 +173,5 @@ mod ui_catalog;
 
 mod ui_koreader;
 mod ui_updates;
+
+mod ui_network;

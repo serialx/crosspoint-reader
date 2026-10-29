@@ -1,42 +1,34 @@
 #pragma once
+#include <xp_ui_network.h>
 
-#include <HalStorage.h>
+#include "activities/RustActivityAdapter.h"
 
-#include "activities/Activity.h"
-#include "components/UiAppHost.h"
-
-class UsbDriveActivity final : public Activity, private UiAppHost {
+class UsbDriveActivity final : public RustActivityAdapter {
  public:
   UsbDriveActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : Activity("UsbDrive", renderer, mappedInput), UiAppHost(renderer) {}
-
+      : RustActivityAdapter("UsbDrive", renderer, mappedInput) {
+    model.preparing = 1;
+  }
   void onEnter() override;
   void onExit() override;
   void loop() override;
   void render(RenderLock&&) override;
-  bool preventAutoSleep() override { return state == State::Connected || (!startFailed && state == State::IoError); }
-  bool requiresExclusiveStorageLoop() const override { return true; }
+  bool preventAutoSleep() override { return xp_ui_network_usb_prevent_sleep(&model); }
+  bool requiresExclusiveStorageLoop() const override {
+    ModelLock lock(*const_cast<UsbDriveActivity*>(this));
+    // Only pre-handoff cancellation may release queued navigation without a restart.
+    return model.preparing == 0 || model.restart_requested == 0;
+  }
 
  private:
-  using State = UsbDriveState;
-
-  static constexpr unsigned long HOST_WAIT_TIMEOUT_MS = 5UL * 60UL * 1000UL;
-  static constexpr unsigned long START_FAILURE_TIMEOUT_MS = 30UL * 1000UL;
-  static constexpr unsigned long FORCED_DISCONNECT_TIMEOUT_MS = 1000UL;
-  static constexpr unsigned long HOST_SUSPEND_TIMEOUT_MS = 2000UL;
-
-  static void driveScreen(UiScreen& screen, void* user);
-  void buildDriveScreen(UiScreen& screen) const;
-  void restartToHome();
-
-  State state = State::Unsupported;
-  bool preparing = true;
-  bool startFailed = false;
-  bool restartRequested = false;
-  bool forcedDisconnectRequested = false;
-  bool hostSuspendPending = false;
-  unsigned long hostWaitStartedAt = 0;
-  unsigned long startFailureStartedAt = 0;
-  unsigned long forcedDisconnectRequestedAt = 0;
-  unsigned long hostSuspendStartedAt = 0;
+  XpUiUsbState model{}, renderingState{};
+  XpUiCommand commands[6]{};
+  enum class PreparingFrame : uint8_t { Pending, Displayed, Rejected };
+  PreparingFrame preparingFrame = PreparingFrame::Pending;
+  void rustSceneFailed() override { preparingFrame = PreparingFrame::Rejected; }
+  void run(XpUiNetworkEvent event);
+  static uint32_t service(void*, uint32_t operation, uint32_t value);
+  static const char* text(uint32_t handle);
+  bool buildRustScene(XpUiScene&) override;
+  XpUiPaint rustResources() override;
 };

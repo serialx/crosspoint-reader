@@ -7,3 +7,6 @@ pub mod state;
 #[cfg(test)]
 mod tests;
 pub mod view;
+
+#[cfg(test)]
+mod subtitle_tests;

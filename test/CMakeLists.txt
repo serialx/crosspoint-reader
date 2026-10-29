@@ -175,6 +175,7 @@ set_tests_properties(TrustedTimeTimezone PROPERTIES
 
 add_subdirectory(book_io)
 add_subdirectory(ui_settings)
+add_subdirectory(ui_network)
 add_subdirectory(section_io)
 add_subdirectory(text_settings)
 add_test(NAME i18n_rust_ids COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/i18n_oracle/test_ids.py)

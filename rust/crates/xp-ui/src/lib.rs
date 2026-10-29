@@ -32,3 +32,5 @@ pub mod catalog;
 
 pub mod koreader;
 pub mod updates;
+
+pub mod network;

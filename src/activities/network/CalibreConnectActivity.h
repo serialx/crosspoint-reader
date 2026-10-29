@@ -1,41 +1,50 @@
 #pragma once
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <xp_ui_network.h>
 
-#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "activities/Activity.h"
+#include "activities/RustActivityAdapter.h"
 #include "network/CrossPointWebServer.h"
-
-enum class CalibreConnectState { WIFI_SELECTION, SERVER_STARTING, SERVER_RUNNING, ERROR };
-
-/**
- * CalibreConnectActivity starts the file transfer server in STA mode,
- * but renders Calibre-specific instructions instead of the web transfer UI.
- */
-class CalibreConnectActivity final : public Activity {
-  CalibreConnectState state = CalibreConnectState::WIFI_SELECTION;
-
+class CalibreConnectActivity final : public RustActivityAdapter {
+  XpUiCalibreState model{}, renderingState{};
+  XpUiCommand commands[14]{};
   std::unique_ptr<CrossPointWebServer> webServer;
-  std::string connectedIP;
-  std::string connectedSSID;
-  unsigned long lastHandleClientTime = 0;
-  size_t lastProgressReceived = 0;
-  size_t lastProgressTotal = 0;
-  std::string currentUploadName;
-  std::string lastCompleteName;
-  unsigned long lastCompleteAt = 0;
-  unsigned long lastProcessedCompleteAt = 0;  // Track which server value we've already processed
-  bool exitRequested = false;
+  std::string connectedIP, connectedSSID, currentUploadName, lastCompleteName;
+  // Keep the original label lifetime through progress-bar painting.
+  std::optional<std::string> paintingUploadLabel;
+  StaticSemaphore_t resourceMutexStorage{};
+  SemaphoreHandle_t resourceMutex = xSemaphoreCreateMutexStatic(&resourceMutexStorage);
+  class ResourceLock {
+    SemaphoreHandle_t mutex;
 
-  void renderServerRunning() const;
-
+   public:
+    explicit ResourceLock(CalibreConnectActivity& self) : mutex(self.resourceMutex) {
+      xSemaphoreTake(mutex, portMAX_DELAY);
+    }
+    ~ResourceLock() { xSemaphoreGive(mutex); }
+    ResourceLock(const ResourceLock&) = delete;
+    ResourceLock& operator=(const ResourceLock&) = delete;
+  };
+  struct CallContext {
+    CalibreConnectActivity& activity;
+    std::optional<CrossPointWebServer::WsUploadStatus> upload;
+  };
+  void run(XpUiNetworkEvent, bool value = false);
+  static uint32_t service(void*, uint32_t, uint32_t);
+  static void publish(void*, const XpUiCalibreState*, uint32_t);
+  static void upload(void*, XpUiCalibreUpload*);
+  static const char* text(uint32_t);
   void onWifiSelectionComplete(bool connected);
-  void startWebServer();
+  bool buildRustScene(XpUiScene&) override;
+  XpUiPaint rustResources() override;
 
  public:
-  explicit CalibreConnectActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : Activity("CalibreConnect", renderer, mappedInput) {}
+  explicit CalibreConnectActivity(GfxRenderer& renderer, MappedInputManager& input)
+      : RustActivityAdapter("CalibreConnect", renderer, input) {}
   void onEnter() override;
   void onExit() override;
   void loop() override;

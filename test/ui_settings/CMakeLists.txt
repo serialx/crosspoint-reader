@@ -25,3 +25,4 @@ add_test(NAME ui_settings_protocol COMMAND ${Python3_EXECUTABLE}
 
 add_test(NAME ui_settings_arena_recovery COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_recovery.py)
+add_test(NAME ui_settings_subtitles COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_subtitles.py)

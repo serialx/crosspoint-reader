@@ -38,6 +38,22 @@ class Review(unittest.TestCase):
                             '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=10)
 
+    def test_popup_open_orders_publication_without_waiting_for_panel(self):
+        ui = source('src/activities/CatalogUiActivity.cpp')
+        plugin = source('src/activities/plugins/PluginCatalogActivity.cpp')
+        render = '\n'.join(method(ui, '::' + name + '(') for name in
+                           ['render', 'updateRust', 'rustPublished', 'closeRouting'])
+        activate = method(plugin, '::activateIndex(')
+        # Keep the production picker/Hub dispatch; unrelated plugin loading is
+        # outside this fixture's service boundary.
+        activate = activate[:activate.index('    const int syntheticHubRows')] + '  }\n}'
+        build = method(ui, '::buildCatalogScene(')
+        snapshot = build[build.index('  XpUiCatalogState snapshot{};'):build.index('  prepareRows();')]
+        fixture = (ROOT / 'test/ui_catalog/publication_fixture.inc').read_text()
+        self.compile_run(fixture.replace('// RENDER_METHODS', render)
+                         .replace('// ACTIVATE_METHOD', activate)
+                         .replace('// SNAPSHOT_CODE', snapshot))
+
     def test_sdk_contacts_retain_original_owner(self):
         sdk = (ROOT / 'freeink-sdk/libs/hardware/InputManager/src/InputManager.cpp').read_text()
         mapped = source('src/MappedInputManager.cpp')

@@ -1368,6 +1368,7 @@ void PluginCatalogActivity::activateIndex(const int index) {
     }
     const int pluginStart = showOpds ? 1 : 0;
     if (showPluginHubInstallRow && index == pluginStart) {
+      ResourceLock resources(*this);
       {
         ModelLock lock(*this);
         ui.popup = 1;

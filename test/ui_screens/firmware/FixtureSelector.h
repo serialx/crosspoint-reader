@@ -2,7 +2,15 @@
 
 #include <string_view>
 
-enum class UiOracleCase { Invalid, DetailsPlain, DetailsHtml, DetailsCover, FrontlightMono, FrontlightWarm };
+enum class UiOracleCase {
+  Invalid,
+  DetailsPlain,
+  DetailsHtml,
+  DetailsCover,
+  FrontlightMono,
+  FrontlightWarm,
+  SettingsHomeButton
+};
 
 constexpr size_t UI_ORACLE_SELECTOR_MAX = 31;
 
@@ -19,5 +27,7 @@ inline UiOracleCase uiOracleCase(const std::string_view name) {
   for (const auto& entry : cases) {
     if (name == entry.name) return entry.value;
   }
+  // Settings-family fixtures.
+  if (name == "settings-home-button") return UiOracleCase::SettingsHomeButton;
   return UiOracleCase::Invalid;
 }

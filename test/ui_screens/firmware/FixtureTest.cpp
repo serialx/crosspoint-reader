@@ -15,6 +15,8 @@ int main() {
                        "frontlight-warmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"sv}) {
     assert(uiOracleCase(invalid) == UiOracleCase::Invalid);
   }
+  assert(uiOracleCase("settings-home-button") == UiOracleCase::SettingsHomeButton);
+  assert(uiOracleCase("settings-home-button-unknown") == UiOracleCase::Invalid);
   UiOracleFrontlight light;
   assert(!light.present());
   light.configure(true);

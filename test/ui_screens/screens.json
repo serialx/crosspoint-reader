@@ -2550,6 +2550,17 @@
           ]
         }
       ]
+    },
+    {
+      "id": "fixture-settings-home-button",
+      "fixture": "entry-settings-home-button",
+      "screens": [
+        {"id": "home-button", "activity": "HomeButtonSettings", "steps": ["expect-log:Entering activity: HomeButtonSettings", "wait-quiet:2"]},
+        {"id": "home-button-options", "activity": "HomeButtonSettings", "steps": ["press:confirm"]},
+        {"id": "home-button-cancel", "activity": "HomeButtonSettings", "steps": ["press:back"]},
+        {"id": "home-button-double", "activity": "HomeButtonSettings", "steps": ["press:down"]},
+        {"id": "home-button-long", "activity": "HomeButtonSettings", "steps": ["press:down"]}
+      ]
     }
   ]
 }

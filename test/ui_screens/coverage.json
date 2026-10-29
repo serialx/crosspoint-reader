@@ -6,7 +6,10 @@
     {
       "source": "src/activities/RustActivityAdapter.cpp",
       "status": "shared-implementation",
-      "groups": ["sd-error", "xtc"],
+      "groups": [
+        "sd-error",
+        "xtc"
+      ],
       "reason": "Mixed C++/Rust activity boundary; exercised through the message and XTC chapter screens."
     },
     {
@@ -374,8 +377,12 @@
     },
     {
       "source": "src/activities/settings/HomeButtonSettingsActivity.cpp",
-      "status": "unsupported-profile",
-      "reason": "Neither X3 nor X4 has a Home button; settings/SettingsActivity.cpp and SettingsList.cpp gate the entry on HAL input capability."
+      "status": "captured",
+      "reason": "Test-only direct entry bypasses the parent Home-key capability gate; physical Home gestures still need hardware.",
+      "groups": [
+        "fixture-settings-home-button"
+      ],
+      "activity": "HomeButtonSettings"
     },
     {
       "source": "src/activities/settings/KOReaderAuthActivity.cpp",
@@ -590,6 +597,15 @@
         "qr"
       ],
       "reason": "Rust utility scene storage, publication and platform resource bindings; exercised through concrete dialogs."
+    },
+    {
+      "source": "src/activities/reader/ReaderChromeListActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "reader",
+        "toolbar"
+      ],
+      "reason": "Existing Rust reader-list adapter; inventory entry restored after the U2a port."
     }
   ],
   "additional_limits": [

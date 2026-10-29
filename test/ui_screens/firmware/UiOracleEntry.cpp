@@ -9,6 +9,7 @@
 #include "FixtureSelector.h"
 #include "UiOracleFrontlight.h"
 #include "activities/ActivityManager.h"
+#include "activities/settings/HomeButtonSettingsActivity.h"
 #include "activities/util/DetailsActivity.h"
 #include "activities/util/FrontlightPanelActivity.h"
 
@@ -63,6 +64,16 @@ void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
   }
   const auto selected = uiOracleCase(std::string_view(selector, size));
   switch (selected) {
+    // Settings-family fixtures bypass only the parent capability gate.
+    case UiOracleCase::SettingsHomeButton: {
+      auto activity = makeUniqueNoThrow<HomeButtonSettingsActivity>(renderer, input);
+      if (!activity) {
+        LOG_ERR("ORACLE", "OOM: Home button settings");
+        return;
+      }
+      activityManager.replaceActivity(std::move(activity));
+      return;
+    }
     case UiOracleCase::Invalid:
       LOG_ERR("ORACLE", "Rejected unknown selector");
       return;

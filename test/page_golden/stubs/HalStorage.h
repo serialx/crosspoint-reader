@@ -10,6 +10,8 @@
 namespace HalFileTest {
 inline std::string watchedReadPath;
 inline bool failWatchedReads = false;
+inline size_t failWatchedSeekOffset = SIZE_MAX;
+inline size_t failedWatchedSeeks = 0;
 inline size_t watchedReads = 0;
 inline size_t watchedReadsBeforeFailure = 0;
 inline bool allowGlyphMetadata = false;
@@ -66,7 +68,13 @@ class HalFile {
   }
   size_t write(uint8_t byte) { return write(&byte, 1); }
   bool flush() { return file_ && std::fflush(file_) == 0; }
-  bool seek(size_t pos) { return file_ && std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0; }
+  bool seek(size_t pos) {
+    if (path_ == HalFileTest::watchedReadPath && pos == HalFileTest::failWatchedSeekOffset) {
+      ++HalFileTest::failedWatchedSeeks;
+      return false;
+    }
+    return file_ && std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0;
+  }
   bool seekCur(size_t offset) { return file_ && std::fseek(file_, static_cast<long>(offset), SEEK_CUR) == 0; }
   bool close() {
     if (!file_) return false;

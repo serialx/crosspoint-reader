@@ -8,6 +8,9 @@
 #include <iostream>
 #include <vector>
 
+extern "C" void xp_test_fail_allocation_after(size_t count);
+extern "C" size_t xp_test_allocation_attempts();
+
 static void require(bool ok, const char* message) {
   if (!ok) {
     std::cerr << message << '\n';
@@ -162,6 +165,92 @@ int main(int argc, char** argv) {
   require(window[0] == 0x5a, "undersized loan was written");
   ImageBlock::setRenderReadWindow(nullptr, 0);
   std::cout << "PASS borrowed image window: used, not freed, ended, undersized fallback\n";
+  ImageBlock isolated("image.png", "", width, height);
+  ImageBlock::releaseRenderCache();
+  ImageBlock::setRenderReadWindow(window.data(), window.size());
+  renderer.clearScreen();
+  xp_test_fail_allocation_after(1);  // Only the cache path may allocate.
+  isolated.render(renderer, 0, 0);
+  require(display.pixels == imageBw, "borrowed window failed under allocation pressure");
+  require(xp_test_allocation_attempts() == 1, "borrowed window allocated streaming storage");
+  ImageBlock::setRenderReadWindow(nullptr, 0);
+  ImageBlock::releaseRenderCache();
+  renderer.clearScreen();
+  xp_test_fail_allocation_after(1);
+  isolated.render(renderer, 0, 0);
+  require(display.pixels != imageBw, "owned window allocation failure did not use placeholder");
+  require(xp_test_allocation_attempts() >= 3, "owned full-row and single-row fallback were not attempted");
+  xp_test_fail_allocation_after(SIZE_MAX);
+  ImageBlock::clearRenderFailures();
+  ImageBlock::releaseRenderCache();
+  renderer.clearScreen();
+  isolated.render(renderer, 0, 0);
+  require(display.pixels == imageBw, "owned window did not recover after allocation failure");
+  std::cout << "PASS borrowed window needs only path allocation; owned OOM fallback and recovery\n";
+  ImageBlock::releaseRenderCache();
+  ImageBlock::setRenderReadWindow(window.data(), window.size());
+  renderer.beginStripTarget(scratch.data(), 80, 80);
+  renderer.clearScreen();
+  isolated.render(renderer, 0, 0);
+  const auto validBand = scratch;
+  ImageBlock::releaseRenderCache();
+  window.fill(0x5a);
+  HalFileTest::failWatchedSeekOffset = 4 + 80 * 90;
+  HalFileTest::failedWatchedSeeks = 0;
+  renderer.clearScreen();
+  isolated.render(renderer, 0, 0);
+  require(HalFileTest::failedWatchedSeeks == 1, "row seek fault was not reached");
+  require(scratch != validBand, "failed row seek did not produce placeholder");
+  require(window[0] == 0x5a, "failed row seek read into borrowed storage");
+  HalFileTest::failWatchedSeekOffset = SIZE_MAX;
+  ImageBlock::clearRenderFailures();
+  ImageBlock::releaseRenderCache();
+  renderer.clearScreen();
+  isolated.render(renderer, 0, 0);
+  require(scratch == validBand, "row seek failure did not recover with same loan");
+  renderer.endStripTarget();
+  std::cout << "PASS failed row seek closes cache, uses placeholder, and recovers with live loan\n";
+
+  const uint16_t smallWidth = 196, smallHeight = 128;
+  std::vector<uint8_t> smallImage(4 + 49 * smallHeight, 0x6c);
+  memcpy(smallImage.data(), &smallWidth, 2);
+  memcpy(smallImage.data() + 2, &smallHeight, 2);
+  {
+    HalFile cache("a-longer-image-cache-name.px2");
+    require(cache.write(smallImage.data(), smallImage.size()) == smallImage.size(), "write second image cache");
+  }
+  ImageBlock small("a-longer-image-cache-name.png", "", smallWidth, smallHeight);
+  for (int repeat = 0; repeat < 2; ++repeat) {
+    for (int orientation = 0; orientation < 4; ++orientation) {
+      renderer.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
+      for (const auto mode : {GfxRenderer::BW, GfxRenderer::GRAYSCALE_LSB, GfxRenderer::GRAYSCALE_MSB}) {
+        renderer.setRenderMode(mode);
+        for (auto* item : {&isolated, &small}) {
+          ImageBlock::releaseRenderCache();
+          renderer.clearScreen();
+          item->render(renderer, 0, 0);
+          const auto full = display.pixels;
+          std::vector<uint8_t> bands;
+          for (uint16_t y = 0; y < display.getDisplayHeight(); y += 80) {
+            const uint16_t rows = std::min<unsigned>(80, display.getDisplayHeight() - y);
+            ImageBlock::releaseRenderCache();  // The same loan remains active.
+            renderer.beginStripTarget(scratch.data(), y, rows);
+            renderer.clearScreen();
+            item->render(renderer, 0, 0);
+            renderer.endStripTarget();
+            bands.insert(bands.end(), scratch.data(), scratch.data() + rows * display.getDisplayWidthBytes());
+          }
+          require(std::equal(bands.begin(), bands.end(), full.begin()), "mixed images changed live-loan strip pixels");
+        }
+      }
+    }
+  }
+  ImageBlock::setRenderReadWindow(nullptr, 0);
+  ImageBlock::releaseRenderCache();
+  window.fill(0x5a);
+  small.render(renderer, 0, 0);
+  require(window[0] == 0x5a, "mixed-image loan teardown reused caller storage");
+  std::cout << "PASS mixed widths/paths, repeated planes/orientations, cache release during loan and teardown\n";
   std::array<size_t, 4> streamingReads{};
   for (const auto heap : {24 * 1024, 200 * 1024}) {
     ESP.freeHeap = heap;

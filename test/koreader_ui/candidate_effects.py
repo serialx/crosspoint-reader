@@ -1,6 +1,6 @@
 """Run production C++ resource bindings against the Rust UI orchestration ABI."""
 from pathlib import Path
-import subprocess,tempfile,sys
+import subprocess,tempfile,sys,re
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
 
@@ -15,7 +15,8 @@ def record(archive,draft=None):
            for name in ['KOReaderSyncActivity.h','KOReaderSyncActivity.cpp','KOReaderAuthActivity.h','KOReaderAuthActivity.cpp','KOReaderSettingsActivity.cpp']}
     harness=(HERE/'effects.cpp').read_text()
     source='#include "xp_ui_koreader.h"\n#define override\nconstexpr int MENU_ITEMS=12;\n'+harness.split('struct KOReaderSyncActivity : Activity')[0]
-    source=source.replace('struct Activity {','struct KOReaderAuthActivity;\nstruct Activity {').replace('startActivityForResult(std::unique_ptr<T>, F f)', 'startActivityForResult(std::unique_ptr<T> child, F f)').replace('trace("wifi-select"); wifiCallback = f;', 'if constexpr (std::is_same_v<T, KOReaderAuthActivity>) trace("auth-open %u", unsigned(child->model.kind == XP_KO_SIGNUP)); trace("wifi-select"); wifiCallback = f;')
+    source=source.replace('struct Activity {','struct KOReaderAuthActivity;\nstruct Activity {').replace('startActivityForResult(std::unique_ptr<T>, F f)', 'startActivityForResult(std::unique_ptr<T> child, F f)')
+    source=re.sub(r'trace\("wifi-select"\);\s*wifiCallback = f;', 'if constexpr (std::is_same_v<T, KOReaderAuthActivity>) trace("auth-open %u", unsigned(child->model.kind == XP_KO_SIGNUP)); trace("wifi-select"); wifiCallback = f;', source)
     source+='''
 struct KOReaderUiActivity : Activity {
   struct ModelLock { explicit ModelLock(KOReaderUiActivity&) {} };
@@ -83,9 +84,9 @@ int phase(const KOReaderAuthActivity& a){return a.model.phase==XP_KO_AUTHENTICAT
     auth=paths['KOReaderAuthActivity.cpp'].read_text();source+=auth[auth.index('void KOReaderAuthActivity::onWifiSelectionComplete'):]
     source+=method(paths['KOReaderSettingsActivity.cpp'].read_text(),'void KOReaderSettingsActivity::activateIndex(')
     main=harness.split('// METHODS')[1]
-    main=main.replace('KOReaderSyncActivity activity; activity.pluginEventsOnly = value.plugin;', 'GfxRenderer r;MappedInputManager i;KOReaderSyncActivity activity(r,i,"/book.epub",CrossPointPosition{1,2,10},SavedProgressPosition{"/body/DocFragment[2]/body/p[3]",.25f},"Chapter",value.plugin);')
+    main=re.sub(r'KOReaderSyncActivity activity;\s*activity.pluginEventsOnly = value.plugin;', 'GfxRenderer r;MappedInputManager i;KOReaderSyncActivity activity(r,i,"/book.epub",CrossPointPosition{1,2,10},SavedProgressPosition{"/body/DocFragment[2]/body/p[3]",.25f},"Chapter",value.plugin);', main)
     main=main.replace('activity.state','phase(activity)').replace('activity.selectedOption','activity.model.selected').replace('activity.autoReturnAt','activity.model.auto_return_at')
-    main=main.replace('KOReaderAuthActivity activity;if(signup)activity.mode=KOReaderAuthActivity::Mode::SIGN_UP;', 'GfxRenderer r;MappedInputManager i;KOReaderAuthActivity activity(r,i,signup?KOReaderAuthActivity::Mode::SIGN_UP:KOReaderAuthActivity::Mode::AUTHENTICATE);')
+    main=re.sub(r'KOReaderAuthActivity activity;\s*if\s*\(signup\)\s*activity.mode\s*=\s*KOReaderAuthActivity::Mode::SIGN_UP;', 'GfxRenderer r;MappedInputManager i;KOReaderAuthActivity activity(r,i,signup?KOReaderAuthActivity::Mode::SIGN_UP:KOReaderAuthActivity::Mode::AUTHENTICATE);', main)
     main=main.replace('KOReaderAuthActivity auth;', 'GfxRenderer r;MappedInputManager i;KOReaderAuthActivity auth(r,i);').replace('auth.state','phase(auth)')
     guard_header=(Path(draft)/'KOReaderUiActivity.h' if draft else ROOT/'src/activities/reader/KOReaderUiActivity.h').read_text()
     start=guard_header.index('  class RunGuard {');end=guard_header.index('\n  };',start)+len('\n  };')

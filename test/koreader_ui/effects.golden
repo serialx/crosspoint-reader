@@ -71,6 +71,80 @@ exit
 wifi-disconnect 0
 delay 30
 restart-reader
+CASE manual-result-timer
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+repaint-wait
+book-close
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=0
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+power-restore
+wifi-stop
+repaint 1
+post-upload deadline 1300
+poll 1199
+poll 1200
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE manual-missing-timer
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 7 0 0 STR_FETCH_PROGRESS
+repaint-wait
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=0
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+power-restore
+wifi-stop
+repaint 1
+post-upload deadline 1300
+poll 1199
+poll 1200
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
 CASE save-failure
 enter
 orientation 0

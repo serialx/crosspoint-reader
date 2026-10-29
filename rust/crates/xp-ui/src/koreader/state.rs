@@ -79,9 +79,7 @@ impl State {
         }
     }
     pub fn mark_return(&mut self, now: u32) {
-        if self.smart != 0 || self.plugin != 0 {
-            self.auto_return_at = now.wrapping_add(1200);
-        }
+        self.auto_return_at = now.wrapping_add(1200);
     }
     pub fn interest(&self, now: u32) -> Interest {
         if self.kind != 0 {

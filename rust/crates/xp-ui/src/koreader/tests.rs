@@ -5,30 +5,43 @@ use crate::{
 };
 #[test]
 fn timer_preserves_unsigned_wrap_and_zero_sentinel() {
-    let mut s = State {
-        smart: 1,
-        phase: Phase::Uploaded as u8,
-        ..State::default()
-    };
-    s.mark_return(u32::MAX - 15);
-    assert_eq!(s.auto_return_at, 1184);
-    let i = Input {
-        now_ms: u32::MAX - 15,
-        ..Input::default()
-    };
-    assert!(s.interest(i.now_ms).due(&i));
-    assert_eq!(s.update(&i).kind, 1);
-    s.mark_return(u32::MAX - 1199);
-    assert_eq!(s.auto_return_at, 0);
-    assert_eq!(s.interest(10).deadline_enabled, 0);
-    assert_eq!(
-        s.update(&Input {
-            now_ms: 10,
+    for (smart, plugin) in [(0, 0), (1, 0), (0, 1)] {
+        let mut s = State {
+            smart,
+            plugin,
+            phase: Phase::Uploaded as u8,
+            ..State::default()
+        };
+        s.mark_return(100);
+        assert_eq!(s.auto_return_at, 1300);
+        for (now_ms, expected) in [(1299, 0), (1300, 1)] {
+            let input = Input {
+                now_ms,
+                ..Input::default()
+            };
+            assert!(s.interest(now_ms).due(&input));
+            assert_eq!(s.update(&input).kind, expected);
+        }
+        s.mark_return(u32::MAX - 15);
+        assert_eq!(s.auto_return_at, 1184);
+        let i = Input {
+            now_ms: u32::MAX - 15,
             ..Input::default()
-        })
-        .kind,
-        0
-    );
+        };
+        assert!(s.interest(i.now_ms).due(&i));
+        assert_eq!(s.update(&i).kind, 1);
+        s.mark_return(u32::MAX - 1199);
+        assert_eq!(s.auto_return_at, 0);
+        assert_eq!(s.interest(10).deadline_enabled, 0);
+        assert_eq!(
+            s.update(&Input {
+                now_ms: 10,
+                ..Input::default()
+            })
+            .kind,
+            0
+        );
+    }
 }
 #[test]
 fn press_release_and_terminal_policies() {

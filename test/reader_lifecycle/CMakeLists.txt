@@ -57,6 +57,7 @@ set(LOOP_METHODS ${CMAKE_CURRENT_BINARY_DIR}/loop_methods.inc)
 add_custom_command(OUTPUT ${LOOP_METHODS}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_loop.py ${REPO_ROOT} ${LOOP_METHODS}
   DEPENDS extract_loop.py extract.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+    ${REPO_ROOT}/src/activities/reader/ReaderUtils.h
   VERBATIM)
 add_executable(ReaderLoopOracle loop_oracle.cpp ${LOOP_METHODS})
 target_include_directories(ReaderLoopOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)

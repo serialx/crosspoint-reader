@@ -196,7 +196,6 @@ namespace haptic_feedback {
 void touchAction(bool longPress = false) { event("haptic", longPress); }
 }  // namespace haptic_feedback
 namespace ReaderUtils {
-constexpr unsigned long BOOKMARK_MESSAGE_DURATION_MS = 2000, SKIP_HOLD_MS = 700, GO_BACK_OR_HOME_MS = 1000;
 struct Touch {
   bool prev = false, next = false;
   unsigned long heldMs = 0;
@@ -462,6 +461,7 @@ int main() {
             r.lastPageTurnTime = 1900;
             break;
           case 26:
+            clockMs = edge == 0 ? 2499 : edge == 1 ? 2500 : edge == 2 ? 2501 : 2999;
             r.showBookmarkMessage = r.showDictionaryMessage = r.showFontDamagedMessage = r.showClippingMessage = true;
             break;
           case 27:
@@ -514,6 +514,7 @@ int main() {
               SETTINGS.longPressButtonBehavior = 1;
               break;
             case 26:
+              clockMs = edge == 0 ? 2499 : edge == 1 ? 2500 : edge == 2 ? 2501 : 2999;
               ReaderUtils::next = true;
               SETTINGS.longPressButtonBehavior = 2;
               break;

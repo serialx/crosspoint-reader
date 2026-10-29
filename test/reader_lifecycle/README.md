@@ -61,3 +61,7 @@ Progress lifetime cases distinguish closing a file from destroying its allocated
 HAL implementation. The original destroys the temporary file before remove and
 rename, including release of the implementation; an explicit close alone fails
 the frozen trace. The prior 6,789-line lifecycle trace remains an exact prefix.
+
+Full-loop generation 2 also extracts the production timing constants. The first
+fixture supplied a 2,000 ms message duration; the source uses 2,500 ms. The corrected
+capture includes 2,499/2,500/2,501 ms cases and was frozen before the activity port.

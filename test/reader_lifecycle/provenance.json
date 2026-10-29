@@ -44,9 +44,11 @@
     "method_sha256": "2aae5ae6b23c3a06881f36d975cace1be34140b27a9fe8e4c2378ef021fd6e95",
     "cases": 4608,
     "frames_per_case": 2,
-    "lines": 313332,
-    "golden_sha256": "dbeae6a6e8282c2fa3b8977b5eae6f6dcf7892ed46ddadd61de14f1a34e7eb30",
+    "lines": 313499,
+    "golden_sha256": "f98295b71e36b2229138df62db8d294700a74744dad165f8821e7392a978c0a8",
     "mutation": "Final notePageTurn direction inverted: fails at line 6371.",
-    "limitations": "Deterministic resource leaves and uint32-range times on the host; no GPIO scheduling, resource pixel output, or full activity ownership."
+    "limitations": "Deterministic resource leaves and uint32-range times on the host; no GPIO scheduling, resource pixel output, or full activity ownership.",
+    "generation": 2,
+    "note": "Extracts production duration constants as well as the original loop. Generation 1 fixture incorrectly supplied 2000 ms instead of the actual 2500 ms message duration; generation 2 adds exact 2499/2500/2501 ms cases before activity port."
   }
 }

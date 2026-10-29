@@ -114,7 +114,8 @@ impl Status<'_> {
     }
 }
 /// # Safety
-/// Services, context, and spans remain live for this synchronous call.
+/// Services and context remain live for this synchronous call. Read spans remain
+/// valid until the next scratch-backed read; put_text copies when requested.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn xp_web_status(ctx: *mut c_void, services: *const Services, ap: bool) {
     let Some(s) = (unsafe { services.as_ref() }) else {

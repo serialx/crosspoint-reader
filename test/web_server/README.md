@@ -166,8 +166,8 @@ and SSO sizes, not the target allocator's rounding. Fetch routes are also checke
 with the Rust allocator disabled and must make zero Rust allocation attempts.
 
 The lifecycle extension was captured from the original C++ at `ffd48814` and
-also checked against slice 7 at `7722739c`. All earlier 1,544 records are
-unchanged. It covers repeated begin/stop/restart, STA/AP combinations, service
+also checked against slice 7 at `7722739c`. The initial lifecycle capture preserved all earlier 1,544 records; subsequent
+completeness repairs are described below. It covers repeated begin/stop/restart, STA/AP combinations, service
 suspension during HTTP/WS uploads, discovery contents and repeated replies,
 status fields, plugin normalization and hash input, serial validation, HTTP
 allocation and WS restart failures, JSON allocation failure, long upload names
@@ -219,3 +219,31 @@ overflow, or a missing event/file entry. Every extractor run injects an
 oversized event to verify that guard. `WEB_TRACE_AUDIT=1` emits per-case event
 counts, maximum event length and overflow state to stderr; all 1,666 complete
 rows have equal source/recorded event counts and no overflow.
+
+
+Review fixtures also check that static ETag scratch is released before every
+response-header/send callback. They cover all nine routes with exact matches,
+NUL variants, mismatches, and 4,096-byte matching/nonmatching values. The extractor
+tracks the request scratch itself, so outgoing ETag header temporaries are not
+mistaken for retained request data.
+
+`discovery_budget.py` extracts the production discovery reply and checks frozen
+original-C++ results under a focused ESP32 Arduino 3.3.11 String model. It models
+the target SSO threshold, allocation rounding, live requested bytes, failed
+concat, invalidating StringSumHelper sums, and the final copy. Goldens come from
+`7722739c`; each row contains packet bytes, allocation requests, peak requested bytes, and
+requested bytes live at send. The 36,936
+cases cover 513 live-byte budgets and eight allocation failure positions plus
+no injected failure, ports 81/65535, empty/long hostnames, the actual 30-character
+station hostname, and a 29-character variant. This models String requests, not
+physical allocator fragmentation or socket allocations. Run it with:
+
+```sh
+python3 test/web_server/discovery_budget.py --build build/web-discovery-budget
+```
+
+Four HTTP-pump cases dispatch registered fetch/relay handlers from the transport
+callback, re-enter suspend/resume, and then pump discovery again. AP and station
+IP stubs differ (`192.0.2.2` and `192.0.2.1`); a deliberate AP-to-station source
+swap must fail. These cases and affected IP transcripts were captured from the
+original server at `22517c67`. The complete corpus now has 1,670 records.

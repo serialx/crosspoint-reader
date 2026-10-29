@@ -599,12 +599,15 @@ typedef enum {
 } XpWebStatusText;
 typedef enum { XP_WEB_STATUS_API, XP_WEB_STATUS_RSSI, XP_WEB_STATUS_HEAP, XP_WEB_STATUS_TIME } XpWebStatusNumber;
 typedef struct {
-  XpWebText (*read)(void*, XpWebStatusText, bool);
+  // IP/plugin spans may be invalidated by the next scratch-backed read.
+  XpWebText (*read)(void* ctx, XpWebStatusText field, bool ap);
   int32_t (*number)(void*, XpWebStatusNumber);
-  void (*put_text)(void*, const char*, XpWebText, bool);
+  // copy=true must copy the borrowed text before returning.
+  void (*put_text)(void* ctx, const char* key, XpWebText text, bool copy);
   void (*put_number)(void*, const char*, int64_t);
-  bool (*hash)(void*, XpWebText, uint8_t*);
-  bool (*serial)(void*, uint8_t*);
+  // Both output buffers hold exactly 32 bytes; serial need not be NUL-terminated.
+  bool (*hash)(void* ctx, XpWebText input, uint8_t* output);
+  bool (*serial)(void* ctx, uint8_t* output);
   void (*send)(void*);
 } XpWebStatusServices;
 void xp_web_status(void*, const XpWebStatusServices*, bool);

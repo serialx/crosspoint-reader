@@ -49,6 +49,7 @@ enum class BuildRelease { NotHeld, Released, Pending };
 static std::vector<Status> sequence;
 static size_t index = 0;
 static BuildRelease release = BuildRelease::NotHeld;
+static uint32_t releaseCost = 0;
 static bool heap = false;
 Status status() {
   const auto value = sequence[index < sequence.size() ? index++ : sequence.size() - 1];
@@ -57,6 +58,7 @@ Status status() {
 }
 BuildRelease beforeChapterBuild() {
   event("release-radio", static_cast<int>(release));
+  clockMs += releaseCost;
   return release;
 }
 bool holdsHeap() {
@@ -188,6 +190,19 @@ int main() {
         }
       }
     }
+  }
+  for (uint32_t start : {0u, UINT32_MAX - 125u}) {
+    event("slow-radio", start);
+    bleturner::sequence = {{true, false, false}};
+    bleturner::index = 0;
+    bleturner::release = bleturner::BuildRelease::NotHeld;
+    bleturner::releaseCost = 3000;
+    clockMs = start;
+    EpubReaderActivity a;
+    assert(!a.makeRoomForChapterBuild());
+    assert(clockMs == start + 9100u);
+    event("slow-radio-clock", clockMs);
+    bleturner::releaseCost = 0;
   }
   for (int mask = 0; mask < 128; ++mask) {
     event("buttons", mask);

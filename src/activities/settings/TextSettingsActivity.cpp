@@ -232,6 +232,15 @@ void TextSettingsActivity::activateRow(int row) {
   requestUpdate();
 }
 XpUiEffect TextSettingsActivity::updateRust(const XpUiInput& source) {
+  touchActivated = false;
+  // A failed build keeps the old pixels, but they no longer describe live state.
+  // Consume input to retry after failure; preserve input before the first build.
+  if (sceneFailed) {
+    XpUiEffect effect{};
+    effect.kind = source.released & XP_UI_BACK ? XP_UI_CANCEL : XP_UI_EFFECT_NONE;
+    effect.invalidate = effect.kind != XP_UI_CANCEL;
+    return effect;
+  }
   XpUiInput input = source;
   if (publication.ready && publishedHits.generation == static_cast<uint32_t>(state.tab) + 1 && input.touch_flags) {
     XpUiInteraction hit{};
@@ -339,7 +348,12 @@ XpUiReaderRows TextSettingsActivity::rows() {
           static_cast<uint32_t>(rendering.tab) + 1};
 }
 bool TextSettingsActivity::buildRustScene(XpUiScene& scene) {
-  if (!commands.ready()) return false;
+  const auto failed = [this] {
+    ModelLock lock(*this);
+    sceneFailed = true;
+    return false;
+  };
+  if (!commands.ready() && !commands.reserve(32)) return failed();
   {
     ModelLock lock(*this);
     rendering = state;
@@ -380,10 +394,11 @@ bool TextSettingsActivity::buildRustScene(XpUiScene& scene) {
     const auto buffer = commands.buffer();
     const auto result = xp_ui_text_view(&rendering, &layout, &resources, &buffer, &next, &scene, &nextHits);
     if (result == 1) return true;
-    if (result != 2 || !commands.grow()) return false;
+    if (result != 2 || !commands.grow()) return failed();
   }
 }
 void TextSettingsActivity::rustPublished() {
+  sceneFailed = false;
   xp_ui_text_publish(&state, &next, renderingScroll);
   publishedHits = nextHits;
 }

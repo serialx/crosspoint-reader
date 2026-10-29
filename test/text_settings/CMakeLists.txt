@@ -4,3 +4,5 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/xp_ffi_host.cmake)
 add_executable(text_settings_abi Abi.cpp)
 target_link_libraries(text_settings_abi PRIVATE xp_ffi_host)
 add_test(NAME text_settings_abi COMMAND text_settings_abi)
+
+add_test(NAME text_settings_routing COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_routing.py)

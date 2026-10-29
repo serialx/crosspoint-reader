@@ -34,4 +34,4 @@ for failure, budget in [(i, 0) for i in range(count + 2)] + [(0, peak - 1), (0, 
         for line in text[last_name:].splitlines()[1:]:
             if line.startswith('alloc '):
                 assert line.endswith('names=0'), line
-print(f'PASS: {count + 2} failure positions, 3 peak budgets; requests={count}, peak={peak} bytes')
+print(f'PASS: {count} injected failures, 2 controls, 3 peak budgets; requests={count}, peak={peak} bytes')

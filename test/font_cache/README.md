@@ -33,3 +33,12 @@ The cache and vector tests record allocator lifetimes. They do not substitute
 for device heap measurements or cover every FreeType font format. Existing
 `sdfont_pool_diff`, `sd_font_registry`, `text_golden`, `page_golden` and
 `glyph_diff` tests cover the surrounding font and rendering contracts.
+
+`FontCacheBoundaries` preserves a separate transcript captured from the C++
+implementation at `1d95ed1d`. Its 126 cases cover 511/512/513 glyphs,
+127/128/129 groups, both limits together, and contiguous/mapped groups. Each
+case records bitmap hashes, hot-cache fallback, diagnostics, allocations,
+statistics and generation values before and after release/recovery. Selected
+allocation failures cover page buffers, group temporaries and hot-cache growth.
+Configure this directory with `-DFONT_CACHE_SOURCE_DIR=/export/lib/EpdFont` to
+build the exported C++ for an independent comparison; keep the frozen archive.

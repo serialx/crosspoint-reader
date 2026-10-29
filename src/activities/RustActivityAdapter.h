@@ -38,6 +38,27 @@ class RustActivityAdapter : public Activity {
   virtual XpUiInterest rustInterest(uint32_t nowMs) const { return {}; }
   virtual XpUiEffect updateRust(const XpUiInput&) { return {}; }
   virtual void applyRustEffect(const XpUiEffect&) {}
-  bool paintRustScene(const XpUiScene& scene);
+  // Failure differs from not-yet-painted. Custom renderers must report every
+  // rejection; only a complete successful publication may clear it. Hooks run
+  // under ModelLock and may touch only scalars/fixed POD, never owning resources.
+  void rejectRustScene();
+  bool rustSceneRejected() const;
+  // Call before custom input, including native long presses and queued contacts.
+  // Consumes failed/held-over gestures, preserves the family's cancel policy,
+  // and schedules retry without waiting for the render task.
+  bool consumeRejectedInput();
+  virtual void cancelRejectedInput(const XpUiInput& input);
+  bool paintRustScene(const XpUiScene& scene, bool publish = true);
+  void publishRustScene(const XpUiScene& scene);
+  XpUiInput sampleRustInput() const;
+
+ private:
+  uint32_t suppressButtons = 0;
+  uint32_t lastHeld = 0;
+  bool sceneFailed = false;
+  bool suppressContact = false;
+  bool lastContact = false;
+
+ protected:
   XpUiMetrics rustMetrics() const;
 };

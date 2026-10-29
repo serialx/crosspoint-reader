@@ -138,6 +138,10 @@ Touch touchSnapshotFrom(const MappedInputManager& input) {
   return t;
 }
 struct RustActivityAdapter : Common {
+  bool sceneFailed = false;
+  bool consumeRejectedInput() { return false; }
+  bool rustSceneRejected() const { return false; }
+  XpUiInput sampleRustInput() const;
   virtual XpUiEffect updateRust(const XpUiInput&) = 0;
   virtual void applyRustEffect(const XpUiEffect&) = 0;
   virtual XpUiInterest rustInterest(uint32_t) const = 0;

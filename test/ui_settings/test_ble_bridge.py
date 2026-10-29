@@ -40,7 +40,9 @@ def run(archive, baseline=False, mutate=False):
         for signature in ["void SettingsUiActivity::loop()", "XpUiEffect SettingsUiActivity::updateRust(",
                           "void SettingsUiActivity::applyRustEffect(", "XpUiInterest SettingsUiActivity::rustInterest("]:
             code += method(settings, signature) + "\n"
-        code += method(source("src/activities/RustActivityAdapter.cpp"), "void RustActivityAdapter::loop()") + "\n"
+        adapter = source("src/activities/RustActivityAdapter.cpp")
+        code += method(adapter, "XpUiInput RustActivityAdapter::sampleRustInput() const") + "\n"
+        code += method(adapter, "void RustActivityAdapter::loop()") + "\n"
         ble = method(source("src/activities/settings/BleSettingsActivity.cpp"), "void BleSettingsActivity::loop()")
         code += ble.split("  if (!xp_ui_settings_ble_poll", 1)[0] + "}\n"
     if mutate:

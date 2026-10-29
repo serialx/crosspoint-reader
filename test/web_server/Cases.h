@@ -1042,5 +1042,25 @@ int main() {
     String::failAllocationSize = SIZE_MAX;
     app.handlePluginList();
   });
+  for (int kind = 0; kind < 6; ++kind) {
+    record(("plugins-nul-component:" + std::to_string(kind)).c_str(), [&](auto& app) {
+      host::add("/plugins/test/plugin.js", "asset");
+      app.server->args["name"] = kind == 0 ? String("test\0/..", 8) : kind == 1 ? String("\0bad", 4) : String("test");
+      app.server->args["file"] = kind == 2   ? String("plugin.js\0/..", 13)
+                                 : kind == 3 ? String("\0.js", 4)
+                                             : String("plugin.js");
+      if (kind < 4) {
+        app.handlePluginFile();
+        return;
+      }
+      app.server->args["plugin"] = kind == 4 ? String("test\0/..", 8) : String("\0", 1);
+      app.server->args["path"] = String("/books/new.epub\0/..", 18);
+      app.server->part.status = UPLOAD_FILE_START;
+      app.handlePluginFsUpload();
+      app.server->part.status = UPLOAD_FILE_ABORTED;
+      app.handlePluginFsUpload();
+      app.handlePluginFs();
+    });
+  }
   return 0;
 }

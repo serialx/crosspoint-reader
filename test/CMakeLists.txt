@@ -152,3 +152,5 @@ add_subdirectory(ui_runtime)
 
 
 add_subdirectory(sync_golden)
+
+add_subdirectory(keyboard_oracle)

@@ -2,9 +2,20 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
+
+namespace ziptest {
+inline bool trace = false;
+inline size_t operations = 0, fail = 0;
+inline bool step(const char* name, size_t a = 0, size_t b = 0) {
+  const bool ok = ++operations != fail;
+  if (trace) std::printf("io %s %zu %zu %d\n", name, a, b, ok);
+  return ok;
+}
+}  // namespace ziptest
 
 class Print {
  public:
@@ -28,7 +39,7 @@ class HalFile : public Print {
   int available() const { return data ? static_cast<int>(data->size() - pos) : 0; }
   bool seek(size_t offset) { return seekSet(offset); }
   bool seekSet(size_t offset) {
-    if (!data || offset > data->size()) return false;
+    if (!ziptest::step("seek", offset) || !data || offset > data->size()) return false;
     pos = offset;
     return true;
   }
@@ -38,7 +49,7 @@ class HalFile : public Print {
     return seekSet(static_cast<size_t>(target));
   }
   int read(void* dst, size_t len) {
-    if (!data || pos == failReadOffset) return -1;
+    if (!ziptest::step("read", pos, len) || !data || pos == failReadOffset) return -1;
     readOffsets.push_back(pos);
     const size_t remaining = data->size() - pos;
     const size_t count = len < remaining ? len : remaining;
@@ -49,6 +60,7 @@ class HalFile : public Print {
   size_t write(uint8_t) override { return 0; }
   size_t write(const uint8_t*, size_t) override { return 0; }
   bool close() {
+    ziptest::step("close");
     data = nullptr;
     pos = 0;
     return true;
@@ -73,6 +85,7 @@ class HalStorage {
 
   bool openFileForRead(const char*, const std::string& path, HalFile& file) {
     openCount++;
+    if (!ziptest::step("open")) return false;
     if (path != filePath) return false;
     file.data = &fileData;
     file.pos = 0;

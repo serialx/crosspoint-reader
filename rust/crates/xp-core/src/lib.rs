@@ -2,6 +2,7 @@
 
 pub mod bidi;
 pub mod book;
+pub mod book_io;
 pub mod chapter;
 pub mod css;
 pub mod epub;

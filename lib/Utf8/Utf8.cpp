@@ -5,36 +5,8 @@
 #include <cstring>
 
 uint32_t utf8NextCodepoint(const unsigned char** string) {
-  const unsigned char lead = **string;
-  if (lead < 0x80) {
-    if (lead != 0) ++*string;
-    return lead;
-  }
-  size_t expected = 1;
-  if (lead >= 0xC0 && lead < 0xF8) {
-    if (lead < 0xE0) {
-      expected = 2;
-    } else if (lead < 0xF0) {
-      expected = 3;
-    } else {
-      expected = 4;
-    }
-  }
-  size_t available = 1;
-  uint32_t decoded = lead & 0x0F;
-  // Callers may supply unterminated characters. Stop at the first invalid continuation.
-  while (available < expected) {
-    const unsigned char next = (*string)[available++];
-    if ((next & 0xC0) != 0x80) break;
-    decoded = (decoded << 6) | (next & 0x3F);
-  }
-  // Reaching 0x0800 requires two valid continuation bytes; exclude UTF-16 surrogates.
-  if (expected == 3 && decoded >= 0x0800 && (decoded < 0xD800 || decoded > 0xDFFF)) {
-    *string += 3;
-    return decoded;
-  }
   size_t consumed;
-  const auto cp = xp_utf8_next(*string, available, &consumed);
+  const auto cp = xp_book_utf8_next(*string, &consumed);
   *string += consumed;
   return cp;
 }

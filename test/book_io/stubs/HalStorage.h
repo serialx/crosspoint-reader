@@ -1,145 +1,93 @@
 #pragma once
-
-#include <Arduino.h>
-#include <Print.h>
-
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
-#include <filesystem>
+#include <cstring>
+#include <map>
 #include <string>
-
-namespace HalFileTest {
-inline bool failNextWrite = false;
-inline bool failNextClose = false;
-// Optional host fault hooks. Null hooks preserve ordinary filesystem behavior.
-inline bool (*allowOpen)(const char*, const char*) = nullptr;
-inline size_t (*readLimit)(const char*, size_t, size_t) = nullptr;
-inline size_t (*writeLimit)(const char*, size_t, size_t) = nullptr;
-}  // namespace HalFileTest
-
-constexpr int O_WRITE = 1;
-constexpr int O_CREAT = 2;
-constexpr int O_TRUNC = 4;
-
-namespace BookFault {
-inline size_t failAt = 0, step = 0;
-inline bool operation(const char* kind, const std::string& path, size_t pos = 0, size_t len = 0) {
-  ++step;
-  printf("io %zu %s %s %zu %zu%s\n", step, kind, path.c_str(), pos, len, step == failAt ? " FAIL" : "");
-  return step != failAt;
+#include <vector>
+namespace booktest {
+inline std::map<std::string, std::vector<uint8_t>> files;
+inline size_t calls = 0, fail = 0;
+inline std::string displayPath(std::string path) {
+  const auto begin = path.find("/xtc_");
+  if (begin != std::string::npos) {
+    const auto end = path.find('/', begin + 1);
+    path.replace(begin, end == std::string::npos ? path.size() - begin : end - begin, "/xtc_key");
+  }
+  return path;
 }
-}  // namespace BookFault
-class HalFile : public Print {
+inline bool step(const char* op, const std::string& path, uint64_t arg = 0) {
+  const bool failed = ++calls == fail;
+  std::printf("io %s %s %llu %d\n", op, displayPath(path).c_str(), static_cast<unsigned long long>(arg), failed);
+  return !failed;
+}
+}  // namespace booktest
+class HalFile {
  public:
-  HalFile() = default;
-  explicit HalFile(const char* path) { open(path, "wb"); }
-  ~HalFile() { close(); }
-  HalFile(const HalFile&) = delete;
-  HalFile& operator=(const HalFile&) = delete;
-
-  bool open(const char* path, const char* mode) {
-    close();
-    path_ = path;
-    if (!BookFault::operation(mode, path)) return false;
-    if (HalFileTest::allowOpen && !HalFileTest::allowOpen(path, mode)) return false;
-    file_ = std::fopen(path, mode);
-    return file_ != nullptr;
+  ~HalFile() {
+    if (opened) close();
   }
-  int available() const { return file_ ? static_cast<int>(size() - position()) : 0; }
-  size_t read(void* buffer, size_t count) {
-    if (!BookFault::operation("read", path_, position(), count)) return 0;
-    if (HalFileTest::readLimit) count = HalFileTest::readLimit(path_.c_str(), position(), count);
-    return file_ ? std::fread(buffer, 1, count, file_) : 0;
-  }
-  size_t write(const void* buffer, size_t count) {
-    if (!BookFault::operation("write", path_, position(), count)) return 0;
-    if (HalFileTest::failNextWrite) {
-      HalFileTest::failNextWrite = false;
-      return 0;
-    }
-    if (HalFileTest::writeLimit) count = HalFileTest::writeLimit(path_.c_str(), position(), count);
-    const size_t allowed = count < writeBytesLeft_ ? count : writeBytesLeft_;
-    const size_t written = file_ ? std::fwrite(buffer, 1, allowed, file_) : 0;
-    writeBytesLeft_ -= written;
-    return written;
-  }
-  size_t write(uint8_t byte) { return write(&byte, 1); }
-  bool flush() { return file_ && std::fflush(file_) == 0; }
-  bool seekSet(size_t pos) { return seek(pos); }
-  bool seek(size_t pos) {
-    if (!BookFault::operation("seek", path_, pos)) return false;
-    return file_ && std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0;
-  }
-  bool seekCur(size_t offset) {
-    if (!BookFault::operation("seekCur", path_, offset)) return false;
-    return file_ && std::fseek(file_, static_cast<long>(offset), SEEK_CUR) == 0;
-  }
-  bool close() {
-    if (!file_) return false;
-    printf("close %s\n", path_.c_str());
-    const bool ok = std::fclose(file_) == 0;
-    file_ = nullptr;
-    if (HalFileTest::failNextClose) {
-      HalFileTest::failNextClose = false;
-      return false;
-    }
-    return ok;
-  }
-  bool isOpen() const { return file_ != nullptr; }
-  explicit operator bool() const { return isOpen(); }
-  size_t position() const { return file_ ? static_cast<size_t>(std::ftell(file_)) : 0; }
-  size_t size() const {
-    if (!file_) return 0;
-    const long offset = std::ftell(file_);
-    std::fseek(file_, 0, SEEK_END);
-    const long end = std::ftell(file_);
-    std::fseek(file_, offset, SEEK_SET);
-    return end > 0 ? static_cast<size_t>(end) : 0;
-  }
-
-  size_t write(const uint8_t* buffer, size_t count) { return write(static_cast<const void*>(buffer), count); }
-  void limitWritesTo(size_t count) { writeBytesLeft_ = count; }
-
- private:
-  std::FILE* file_ = nullptr;
-  std::string path_;
-  size_t writeBytesLeft_ = SIZE_MAX;
-};
-
-class HalStorage {
- public:
-  static HalStorage& getInstance() {
-    static HalStorage instance;
-    return instance;
-  }
-  int readOpens = 0;
-  std::string dictionaryTempPath;
-  std::string resolvePath(const std::string& path) const {
-    return path == "/.crosspoint/dicthtml.tmp" && !dictionaryTempPath.empty() ? dictionaryTempPath : path;
-  }
-  HalFile open(const char* path, int) { return HalFile(resolvePath(path).c_str()); }
-  bool openFileForRead(const char*, const std::string& path, HalFile& file) {
-    readOpens++;
-    return file.open(resolvePath(path).c_str(), "rb");
-  }
-  bool openFileForWrite(const char*, const std::string& path, HalFile& file) { return file.open(path.c_str(), "wb"); }
-  bool exists(const char* path) const {
-    std::FILE* file = std::fopen(path, "rb");
-    if (!file) return false;
-    std::fclose(file);
+  bool seek64(uint64_t offset) {
+    if (!booktest::step("seek", path, offset) || !opened || offset > booktest::files[path].size()) return false;
+    position = offset;
     return true;
   }
-  bool remove(const std::string& path) { return std::remove(resolvePath(path).c_str()) == 0; }
-  bool rename(const char* from, const char* to) { return std::rename(from, to) == 0; }
-  bool removeDir(const char* path) {
-    return !std::getenv("BOOK_REMOVE_FAIL") && std::filesystem::remove_all(path) != 0;
+  bool seek(uint32_t offset) { return seek64(offset); }
+  int read(void* out, size_t size) {
+    if (!booktest::step("read", path, size) || !opened) return -1;
+    size = std::min(size, booktest::files[path].size() - position);
+    if (size) std::memcpy(out, booktest::files[path].data() + position, size);
+    position += size;
+    return static_cast<int>(size);
   }
-  bool mkdir(const char* path) {
-    return std::filesystem::create_directories(path) || std::filesystem::is_directory(path);
+  size_t write(const void* data, size_t size) {
+    if (!booktest::step("write", path, size) || !opened) return 0;
+    auto& bytes = booktest::files[path];
+    bytes.resize(std::max(bytes.size(), position + size));
+    if (size) std::memcpy(bytes.data() + position, data, size);
+    position += size;
+    return size;
   }
+  uint64_t fileSize64() const { return opened ? booktest::files[path].size() : 0; }
+  size_t size() const { return fileSize64(); }
+  bool available() const { return opened && position < booktest::files[path].size(); }
+  bool isOpen() const { return opened; }
+  explicit operator bool() const { return opened; }
+  void close() {
+    booktest::step("close", path);
+    opened = false;
+  }
+  bool open(const std::string& name, bool writing) {
+    path = name;
+    position = 0;
+    opened = booktest::step(writing ? "open-write" : "open-read", path) && (writing || booktest::files.count(path));
+    if (opened && writing) booktest::files[path].clear();
+    return opened;
+  }
+
+ private:
+  std::string path;
+  size_t position = 0;
+  bool opened = false;
 };
-
-#define Storage HalStorage::getInstance()
-
-inline uint32_t millis() { return 0; }
-inline void delay(uint32_t) {}
+inline unsigned long millis() { return 0; }
+struct HalStorage {
+  bool openFileForRead(const char*, const std::string& path, HalFile& file) { return file.open(path, false); }
+  bool openFileForWrite(const char*, const std::string& path, HalFile& file) { return file.open(path, true); }
+  bool replaceFile(const char* source, const char* target) {
+    if (!booktest::step("replace", source)) return false;
+    booktest::files[target] = booktest::files[source];
+    booktest::files.erase(source);
+    return true;
+  }
+  bool exists(const char* path) { return booktest::step("exists", path) && booktest::files.count(path); }
+  bool mkdir(const char* path) { return booktest::step("mkdir", path); }
+  bool remove(const char* path) {
+    if (!booktest::step("remove", path)) return false;
+    booktest::files.erase(path);
+    return true;
+  }
+  bool removeDir(const char* path) { return booktest::step("rmdir", path); }
+};
+inline HalStorage Storage;

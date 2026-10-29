@@ -9,8 +9,10 @@
 #include <PngToBmpConverter.h>
 #include <Serialization.h>
 #include <Utf8.h>
+#include <xp_ffi.h>
 
 #include <cstring>
+#include <optional>
 
 #include "TxtToHtml.h"
 
@@ -22,76 +24,73 @@ std::string Txt::findCompanionCoverImage(const std::string& filepath) {
   std::string folder = FsHelpers::extractFolderPath(filepath);
 
   std::string baseName = FsHelpers::getFileNameWithoutExtension(filepath);
-  const char* extensions[] = {".bmp", ".jpg", ".jpeg", ".png", ".BMP", ".JPG", ".JPEG", ".PNG"};
-
-  for (const auto& ext : extensions) {
-    std::string coverPath = folder + "/" + baseName + ext;
-    if (Storage.exists(coverPath.c_str())) return coverPath;
-  }
-
-  const char* coverNames[] = {"cover", "Cover", "COVER"};
-  for (const auto& name : coverNames) {
-    for (const auto& ext : extensions) {
-      std::string coverPath = folder + "/" + std::string(name) + ext;
-      if (Storage.exists(coverPath.c_str())) return coverPath;
-    }
-  }
-
-  return "";
+  struct Context {
+    const std::string& folder;
+    const std::string& baseName;
+    std::string found;
+  } context{folder, baseName, {}};
+  xp_book_txt_find_cover(&context, [](void* opaque, const uint8_t* name, const uint8_t* extension) {
+    auto& ctx = *static_cast<Context*>(opaque);
+    std::string path = name ? ctx.folder + "/" + std::string(reinterpret_cast<const char*>(name)) +
+                                  reinterpret_cast<const char*>(extension)
+                            : ctx.folder + "/" + ctx.baseName + reinterpret_cast<const char*>(extension);
+    if (!Storage.exists(path.c_str())) return false;
+    ctx.found = std::move(path);
+    return true;
+  });
+  return std::move(context.found);
 }
 
 bool Txt::convertCoverImageToBmp(const std::string& imagePath, const std::string& destBmpPath, int thumbHeight,
                                  bool cropped, bool originalThresholds) {
-  if (!Storage.exists(imagePath.c_str())) return false;
-
-  const bool isBmp = FsHelpers::hasBmpExtension(imagePath);
-  const bool isJpg = FsHelpers::hasJpgExtension(imagePath);
-  const bool isPng = FsHelpers::hasPngExtension(imagePath);
-  if (!isBmp && !isJpg && !isPng) return false;
-
-  HalFile src, dst;
-  if (!Storage.openFileForRead("TXT", imagePath, src) || !Storage.openFileForWrite("TXT", destBmpPath, dst)) {
-    return false;
-  }
-
-  bool success = false;
-  if (isBmp) {
-    uint8_t buf[128];
-    int n;
-    success = true;
-    while ((n = src.read(buf, sizeof(buf))) > 0) {
-      if (dst.write(buf, n) != static_cast<size_t>(n)) {
-        success = false;
-        break;
-      }
-    }
-    if (n < 0) {
-      success = false;
-    }
-  } else if (thumbHeight > 0) {
-    const int targetWidth = thumbHeight * 0.6;
-    const int targetHeight = thumbHeight;
-    if (isJpg) {
-      success = JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(src, dst, targetWidth, targetHeight);
-    } else if (isPng) {
-      success = PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(src, dst, targetWidth, targetHeight);
-    }
-  } else {
-    if (isJpg) {
-      success = JpegToBmpConverter::jpegFileToBmpStream(src, dst, cropped, originalThresholds);
-    } else if (isPng) {
-      success = PngToBmpConverter::pngFileToBmpStream(src, dst, cropped, originalThresholds);
-    }
-  }
-
-  src.close();
-  dst.close();
-
-  if (!success) {
-    Storage.remove(destBmpPath.c_str());
-  }
-
-  return success;
+  using Action = XpBookTxtConvertAction;
+  struct Context {
+    const std::string& source;
+    const std::string& destination;
+    bool cropped, thresholds;
+    HalFile src, dst;
+  } context{imagePath, destBmpPath, cropped, originalThresholds, {}, {}};
+  const XpBookTxtFileServices services{
+      &context,
+      [](void* opaque, uint32_t action, int32_t width, int32_t height) {
+        auto& ctx = *static_cast<Context*>(opaque);
+        switch (static_cast<Action>(action)) {
+          case Action::Exists:
+            return Storage.exists(ctx.source.c_str());
+          case Action::Open:
+            return Storage.openFileForRead("TXT", ctx.source, ctx.src) &&
+                   Storage.openFileForWrite("TXT", ctx.destination, ctx.dst);
+          case Action::Jpeg:
+            return JpegToBmpConverter::jpegFileToBmpStream(ctx.src, ctx.dst, ctx.cropped, ctx.thresholds);
+          case Action::Png:
+            return PngToBmpConverter::pngFileToBmpStream(ctx.src, ctx.dst, ctx.cropped, ctx.thresholds);
+          case Action::JpegThumb:
+            return JpegToBmpConverter::jpegFileTo1BitBmpStreamWithSize(ctx.src, ctx.dst, width, height);
+          case Action::PngThumb:
+            return PngToBmpConverter::pngFileTo1BitBmpStreamWithSize(ctx.src, ctx.dst, width, height);
+          case Action::Close:
+            ctx.src.close();
+            ctx.dst.close();
+            return true;
+          case Action::Remove:
+            Storage.remove(ctx.destination.c_str());
+            return true;
+        }
+        return false;
+      },
+      [](void* opaque, uint8_t* bytes, size_t size) -> int32_t {
+        return static_cast<Context*>(opaque)->src.read(bytes, size);
+      },
+      [](void* opaque, const uint8_t* bytes, size_t size) {
+        return static_cast<Context*>(opaque)->dst.write(bytes, size);
+      },
+      nullptr,
+      nullptr};
+  const auto kind = FsHelpers::hasBmpExtension(imagePath)   ? XpBookTxtImageKind::Bmp
+                    : FsHelpers::hasJpgExtension(imagePath) ? XpBookTxtImageKind::Jpeg
+                    : FsHelpers::hasPngExtension(imagePath) ? XpBookTxtImageKind::Png
+                                                            : XpBookTxtImageKind::Unsupported;
+  return xp_book_txt_convert(&services, static_cast<uint32_t>(kind), thumbHeight);
 }
 
 bool Txt::streamTxtToHtml(const std::string& filepath, Print& out) {
@@ -119,117 +118,156 @@ void Txt::invalidateCache(const std::string& cachePath) {
 }
 
 bool Txt::validateCache(const std::string& filepath, const std::string& cachePath, size_t cachedSize) {
-  bool valid = true;
-
-  // 1. If html/0.html exists, check its embedded version comment
+  using Action = XpBookTxtValidateAction;
   const std::string htmlPath = cachePath + "/html/0.html";
-  if (Storage.exists(htmlPath.c_str())) {
-    HalFile htmlFile;
-    if (Storage.openFileForRead("TXT", htmlPath, htmlFile)) {
-      char header[80] = {0};
-      const int bytesRead = htmlFile.read(header, sizeof(header) - 1);
-      if (bytesRead > 0) {
-        header[bytesRead] = '\0';
-        if (strstr(header, TxtToHtml::cacheVersionTag(filepath)) == nullptr) {
-          LOG_DBG("TXT", "HTML cache version mismatch or missing, invalidating: %s", htmlPath.c_str());
-          valid = false;
+  struct Context {
+    const std::string& filepath;
+    const std::string& cachePath;
+    const std::string& htmlPath;
+    size_t cachedSize;
+    std::optional<HalFile> file;
+  } context{filepath, cachePath, htmlPath, cachedSize, {}};
+  const XpBookTxtFileServices services{
+      &context,
+      [](void* opaque, uint32_t operation, int32_t, int32_t) {
+        auto& ctx = *static_cast<Context*>(opaque);
+        switch (static_cast<Action>(operation)) {
+          case Action::Exists:
+            return Storage.exists(ctx.htmlPath.c_str());
+          case Action::OpenHtml:
+            return Storage.openFileForRead("TXT", ctx.htmlPath, ctx.file.emplace());
+          case Action::OpenRaw:
+            return Storage.openFileForRead("TXT", ctx.filepath, ctx.file.emplace());
+          case Action::CloseHtml:
+          case Action::CloseRaw:
+            ctx.file.reset();
+            return true;
+          case Action::Invalidate:
+            Txt::invalidateCache(ctx.cachePath);
+            return true;
         }
-      } else {
-        valid = false;
-      }
-    } else {
-      valid = false;
-    }
-  }
-
-  // 2. Check if source file size changed
-  if (valid && cachedSize > 0) {
-    HalFile rawFile;
-    if (Storage.openFileForRead("TXT", filepath, rawFile)) {
-      if (rawFile.size() != cachedSize) {
-        LOG_DBG("TXT", "File size changed (%u vs cached %u), invalidating cache", static_cast<uint32_t>(rawFile.size()),
-                static_cast<uint32_t>(cachedSize));
-        valid = false;
-      }
-    } else {
-      valid = false;
-    }
-  }
-
-  if (!valid) {
-    LOG_DBG("TXT", "Cache invalid for %s, wiping html and sections", filepath.c_str());
-    invalidateCache(cachePath);
-  }
-
-  return valid;
+        return false;
+      },
+      [](void* opaque, uint8_t* bytes, size_t size) -> int32_t {
+        return static_cast<Context*>(opaque)->file->read(bytes, size);
+      },
+      nullptr,
+      [](void* opaque) { return static_cast<Context*>(opaque)->file->size(); },
+      [](void* opaque, uint32_t event, [[maybe_unused]] size_t size) {
+        [[maybe_unused]] const auto& ctx = *static_cast<Context*>(opaque);
+        switch (static_cast<XpBookTxtFileDiagnostic>(event)) {
+          case XpBookTxtFileDiagnostic::VersionMismatch:
+            LOG_DBG("TXT", "HTML cache version mismatch or missing, invalidating: %s", ctx.htmlPath.c_str());
+            break;
+          case XpBookTxtFileDiagnostic::SizeChanged:
+            LOG_DBG("TXT", "File size changed (%u vs cached %u), invalidating cache", static_cast<uint32_t>(size),
+                    static_cast<uint32_t>(ctx.cachedSize));
+            break;
+          case XpBookTxtFileDiagnostic::InvalidCache:
+            LOG_DBG("TXT", "Cache invalid for %s, wiping html and sections", ctx.filepath.c_str());
+            break;
+        }
+      }};
+  const char* tag = TxtToHtml::cacheVersionTag(filepath);
+  return xp_book_txt_validate(&services, cachedSize, reinterpret_cast<const uint8_t*>(tag), strlen(tag));
 }
 
 bool Txt::buildTxtCache(const std::string& filepath, const std::string& cachePath,
                         std::unique_ptr<BookMetadataCache>& bookMetadataCache) {
   LOG_DBG("TXT", "Building metadata cache for TXT: %s", filepath.c_str());
 
-  if (!Storage.exists(cachePath.c_str())) {
-    Storage.mkdir(cachePath.c_str());
-  } else {
-    invalidateCache(cachePath);
-  }
-
-  if (!bookMetadataCache->beginWrite()) {
-    LOG_ERR("TXT", "Could not begin writing cache");
+  using Action = XpBookTxtCacheAction;
+  struct Context {
+    const std::string& filepath;
+    const std::string& cachePath;
+    std::unique_ptr<BookMetadataCache>& cache;
+    std::string title;
+    std::optional<BookMetadataCache::BookMetadata> metadata;
+    std::string companionCover;
+  } context{filepath, cachePath, bookMetadataCache, {}, {}, {}};
+  const auto result = static_cast<Action>(xp_book_txt_build(&context, [](void* opaque, uint32_t operation) {
+    auto& ctx = *static_cast<Context*>(opaque);
+    switch (static_cast<Action>(operation)) {
+      case Action::Exists:
+        return Storage.exists(ctx.cachePath.c_str());
+      case Action::Mkdir:
+        Storage.mkdir(ctx.cachePath.c_str());
+        return true;
+      case Action::Invalidate:
+        Txt::invalidateCache(ctx.cachePath);
+        return true;
+      case Action::Begin:
+        return ctx.cache->beginWrite();
+      case Action::BeginOpf:
+        return ctx.cache->beginContentOpfPass();
+      case Action::Spine:
+        ctx.cache->createSpineEntry("content.html");
+        return true;
+      case Action::EndOpf:
+        return ctx.cache->endContentOpfPass();
+      case Action::BeginToc:
+        return ctx.cache->beginTocPass();
+      case Action::Toc:
+        ctx.title = FsHelpers::getFileNameWithoutExtension(ctx.filepath);
+        ctx.cache->createTocEntry(ctx.title, "content.html", "", 0);
+        return true;
+      case Action::EndToc:
+        return ctx.cache->endTocPass();
+      case Action::End:
+        return ctx.cache->endWrite();
+      case Action::Book: {
+        auto& metadata = ctx.metadata.emplace();
+        metadata.title = utf8ComposeNfc(ctx.title);
+        metadata.language = "en";
+        ctx.companionCover = Txt::findCompanionCoverImage(ctx.filepath);
+        if (!ctx.companionCover.empty()) metadata.coverItemHref = ctx.companionCover;
+        return ctx.cache->buildBookBin(ctx.filepath, metadata);
+      }
+      case Action::Cleanup:
+        ctx.cache->cleanupTmpFiles();
+        return true;
+      case Action::Reload:
+        ctx.cache = makeUniqueNoThrow<BookMetadataCache>(ctx.cachePath);
+        return ctx.cache && ctx.cache->load();
+      case Action::Complete:
+        return true;
+    }
     return false;
+  }));
+  switch (result) {
+    case Action::Begin:
+      LOG_ERR("TXT", "Could not begin writing cache");
+      break;
+    case Action::BeginOpf:
+      LOG_ERR("TXT", "Could not begin writing content.opf pass");
+      break;
+    case Action::EndOpf:
+      LOG_ERR("TXT", "Could not end writing content.opf pass");
+      break;
+    case Action::BeginToc:
+      LOG_ERR("TXT", "Could not begin writing toc pass");
+      break;
+    case Action::EndToc:
+      LOG_ERR("TXT", "Could not end writing toc pass");
+      break;
+    case Action::End:
+      LOG_ERR("TXT", "Could not end writing cache");
+      break;
+    case Action::Book:
+      LOG_ERR("TXT", "Could not build book.bin for TXT");
+      break;
+    case Action::Reload:
+      LOG_ERR("TXT", "Failed to reload cache after build");
+      break;
+    case Action::Exists:
+    case Action::Mkdir:
+    case Action::Invalidate:
+    case Action::Spine:
+    case Action::Toc:
+    case Action::Cleanup:
+      break;
+    case Action::Complete:
+      return true;
   }
-
-  if (!bookMetadataCache->beginContentOpfPass()) {
-    LOG_ERR("TXT", "Could not begin writing content.opf pass");
-    return false;
-  }
-
-  bookMetadataCache->createSpineEntry("content.html");
-
-  if (!bookMetadataCache->endContentOpfPass()) {
-    LOG_ERR("TXT", "Could not end writing content.opf pass");
-    return false;
-  }
-
-  if (!bookMetadataCache->beginTocPass()) {
-    LOG_ERR("TXT", "Could not begin writing toc pass");
-    return false;
-  }
-
-  std::string title = FsHelpers::getFileNameWithoutExtension(filepath);
-  bookMetadataCache->createTocEntry(title, "content.html", "", 0);
-
-  if (!bookMetadataCache->endTocPass()) {
-    LOG_ERR("TXT", "Could not end writing toc pass");
-    return false;
-  }
-
-  if (!bookMetadataCache->endWrite()) {
-    LOG_ERR("TXT", "Could not end writing cache");
-    return false;
-  }
-
-  BookMetadataCache::BookMetadata bookMetadata;
-  bookMetadata.title = utf8ComposeNfc(title);
-  bookMetadata.language = "en";
-
-  std::string companionCover = findCompanionCoverImage(filepath);
-  if (!companionCover.empty()) {
-    bookMetadata.coverItemHref = companionCover;
-  }
-
-  if (!bookMetadataCache->buildBookBin(filepath, bookMetadata)) {
-    LOG_ERR("TXT", "Could not build book.bin for TXT");
-    return false;
-  }
-
-  bookMetadataCache->cleanupTmpFiles();
-
-  bookMetadataCache = makeUniqueNoThrow<BookMetadataCache>(cachePath);
-  if (!bookMetadataCache || !bookMetadataCache->load()) {
-    LOG_ERR("TXT", "Failed to reload cache after build");
-    return false;
-  }
-
-  return true;
+  return false;
 }

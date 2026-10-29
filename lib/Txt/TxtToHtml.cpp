@@ -3,6 +3,7 @@
 #include <FsHelpers.h>
 #include <Logging.h>
 #include <Memory.h>
+#include <xp_ffi.h>
 
 #include <algorithm>
 #include <cstring>
@@ -12,11 +13,7 @@ const char* TxtToHtml::cacheVersionTag(std::string_view filename) {
 }
 
 size_t TxtToHtml::escapedHtmlSize(const std::string_view text) {
-  size_t size = 0;
-  for (const char c : text) {
-    size += c == '&' ? 5 : (c == '<' || c == '>') ? 4 : 1;
-  }
-  return size;
+  return xp_book_txt_escaped_size(reinterpret_cast<const uint8_t*>(text.data()), text.size());
 }
 
 void TxtToHtml::appendEscapedHtml(std::string& out, const std::string_view text) {
@@ -35,97 +32,30 @@ bool TxtToHtml::stream(std::string_view filename, void* readerCtx, int (*readFn)
     return false;
   }
 
-  size_t outPos = 0;
-  bool outputOk = true;
-  auto flushOut = [&]() {
-    if (outPos > 0) {
-      const size_t written = out.write(outBuf.get(), outPos);
-      outputOk = outputOk && (written == outPos);
-      outPos = 0;
-    }
-  };
+  struct StreamContext {
+    void* reader;
+    int (*read)(void*, uint8_t*, size_t);
+    Print& output;
+  } context{readerCtx, readFn, out};
+  const std::string title = FsHelpers::getFileNameWithoutExtension(filename);
+  const char* tag = cacheVersionTag(filename);
+  const int32_t status = xp_book_txt_stream(
+      reinterpret_cast<const uint8_t*>(title.data()), title.size(), reinterpret_cast<const uint8_t*>(tag), strlen(tag),
+      inBuf.get(), outBuf.get(), &context,
+      [](void* ctx, uint8_t* bytes, size_t count) -> int32_t {
+        auto& stream = *static_cast<StreamContext*>(ctx);
+        return stream.read(stream.reader, bytes, count);
+      },
+      [](void* ctx, const uint8_t* bytes, size_t count) -> size_t {
+        return static_cast<StreamContext*>(ctx)->output.write(bytes, count);
+      });
 
-  auto writeByte = [&](uint8_t b) {
-    outBuf[outPos++] = b;
-    if (outPos == OUT_BUF_SIZE) flushOut();
-  };
-
-  auto writeStr = [&](std::string_view s) {
-    for (char c : s) {
-      writeByte(static_cast<uint8_t>(c));
-    }
-  };
-
-  writeStr("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-  writeStr(cacheVersionTag(filename));
-  writeByte('\n');
-  writeStr("<!DOCTYPE html>\n<html>\n<head><title>");
-  std::string title = FsHelpers::getFileNameWithoutExtension(filename);
-  TxtToHtml::streamEscapedHtml(writeStr, title);
-  writeStr("</title></head>\n<body>\n");
-
-  bool isStart = true;
-  bool atLineStart = true;
-  size_t pendingSpaces = 0;
-  int bytesRead = 0;
-
-  while ((bytesRead = readFn(readerCtx, inBuf.get(), IN_BUF_SIZE)) > 0) {
-    int startIdx = 0;
-    if (isStart) {
-      isStart = false;
-      if (bytesRead >= 3 && inBuf[0] == 0xEF && inBuf[1] == 0xBB && inBuf[2] == 0xBF) {
-        startIdx = 3;
-      }
-    }
-
-    for (int i = startIdx; i < bytesRead; i++) {
-      uint8_t b = inBuf[i];
-      if (b == '\r') continue;
-
-      if (b == '\n') {
-        pendingSpaces = 0;
-        writeStr("<br />");
-        atLineStart = true;
-        continue;
-      }
-
-      if (b == ' ') {
-        if (atLineStart) {
-          writeStr("&#160;");
-        } else {
-          pendingSpaces++;
-        }
-        continue;
-      }
-
-      if (pendingSpaces > 0) {
-        for (size_t s = 0; s < pendingSpaces - 1; s++) {
-          writeStr("&#160;");
-        }
-        writeByte(' ');
-        pendingSpaces = 0;
-      }
-      atLineStart = false;
-
-      if (b == '&' || b == '<' || b == '>') {
-        const char special = static_cast<char>(b);
-        TxtToHtml::streamEscapedHtml(writeStr, std::string_view(&special, 1));
-      } else if (b < 0x20 && b != '\t') {
-        writeByte(' ');
-      } else {
-        writeByte(b);
-      }
-    }
-  }
-
-  if (bytesRead < 0) {
+  if (status == -1) {
     LOG_ERR("TXT", "Read error while streaming TXT/MD: %.*s", static_cast<int>(filename.size()), filename.data());
     return false;
   }
 
-  writeStr("\n</body>\n</html>\n");
-  flushOut();
-  if (!outputOk) {
+  if (status != 0) {
     LOG_ERR("TXT", "Failed to stream complete HTML (write error or disk full)");
     return false;
   }

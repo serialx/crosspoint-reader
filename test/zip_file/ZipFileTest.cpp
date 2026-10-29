@@ -548,3 +548,35 @@ TEST(ZipDirectoryIo, FailedReadsDoNotCacheAnEntry) {
     EXPECT_EQ(size, 5u);
   }
 }
+
+TEST_F(ZipFileTest, NegativeStoredReadNeverReachesTheSink) {
+  ZipBuilder builder;
+  builder.addStored("entry", "value");
+  install(builder);
+  ZipFile zip(path);
+  HalFile::failReadOffset = 30 + 5;
+  class RejectOversize : public Print {
+   public:
+    bool called = false;
+    size_t write(uint8_t) override {
+      called = true;
+      return 1;
+    }
+    size_t write(const uint8_t*, size_t) override {
+      called = true;
+      return 0;
+    }
+  } sink;
+  EXPECT_FALSE(zip.readFileToStream("entry", sink, 8, true));
+  EXPECT_FALSE(sink.called);
+}
+
+TEST_F(ZipFileTest, TrailingNulSizeOverflowDoesNotAllocateOutput) {
+  ZipBuilder builder;
+  builder.addDeflated("entry", DEFLATED_BYTES, UINT32_MAX);
+  install(builder);
+  ZipFile zip(path);
+  size_t size = 777;
+  EXPECT_EQ(zip.readFileToMemory("entry", &size, true), nullptr);
+  EXPECT_EQ(size, 777u);
+}

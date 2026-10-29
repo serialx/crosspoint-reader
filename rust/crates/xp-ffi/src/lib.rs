@@ -10,6 +10,7 @@ mod ble_atomic;
 mod ble_json;
 mod ble_runtime;
 mod book;
+mod book_io;
 mod chapter;
 mod css;
 mod font;

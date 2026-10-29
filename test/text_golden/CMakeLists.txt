@@ -11,9 +11,9 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(FONT_SDK ${REPO_ROOT}/freeink-sdk/libs/font/FreeInkFont)
 file(GLOB FT_SOURCES ${FONT_SDK}/src/freetype/*.c)
 set(INSTRUMENTED ${CMAKE_CURRENT_BINARY_DIR}/instrumented)
-add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h
+add_custom_command(OUTPUT ${INSTRUMENTED}/GfxRenderer.cpp ${INSTRUMENTED}/GfxRenderer.h ${INSTRUMENTED}/RustUiRenderer.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py ${REPO_ROOT} ${INSTRUMENTED}
-  DEPENDS instrument.py ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
+  DEPENDS instrument.py ${REPO_ROOT}/lib/GfxRenderer/RustUiRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.h
   VERBATIM)
 add_executable(TextGolden TextGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/GfxRenderer/FontCacheManager.cpp
@@ -43,3 +43,17 @@ add_test(NAME TextGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DI
   --binary $<TARGET_FILE:TextGolden> --work-dir ${CMAKE_CURRENT_BINARY_DIR}/check)
 add_test(NAME TextDrawGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/draw_run.py check
   --binary $<TARGET_FILE:TextGolden> --work-dir ${CMAKE_CURRENT_BINARY_DIR}/draw-check)
+
+# Exercise the real font/resource bridge with full-frame and 16-row targets.
+get_target_property(TEXT_GOLDEN_SOURCES TextGolden SOURCES)
+list(REMOVE_ITEM TEXT_GOLDEN_SOURCES TextGolden.cpp)
+add_executable(UiSceneTarget UiSceneTarget.cpp ${TEXT_GOLDEN_SOURCES}
+  ${INSTRUMENTED}/RustUiRenderer.cpp
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
+target_include_directories(UiSceneTarget PRIVATE $<TARGET_PROPERTY:TextGolden,INCLUDE_DIRECTORIES>
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include)
+target_compile_definitions(UiSceneTarget PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_DEFINITIONS>)
+target_compile_options(UiSceneTarget PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(UiSceneTarget PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
+target_link_libraries(UiSceneTarget PRIVATE xp_ffi_host)
+add_test(NAME UiSceneTarget COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/ui_scene_target.py $<TARGET_FILE:UiSceneTarget>)

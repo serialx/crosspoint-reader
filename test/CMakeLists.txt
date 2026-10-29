@@ -147,3 +147,5 @@ add_subdirectory(display_trace)
 add_test(NAME i18n_oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/i18n_oracle/run.py)
 add_subdirectory(settings_store)
 add_subdirectory(library_oracle)
+
+add_subdirectory(ui_runtime)

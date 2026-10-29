@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/xp-core", "crates/xp-ffi", "crates/xp-display", "crates/xp-core/src/gif/decoder"]
+members = ["crates/xp-ui", "crates/xp-core", "crates/xp-ffi", "crates/xp-display", "crates/xp-core/src/gif/decoder"]
 default-members = ["crates/xp-core"]
 resolver = "2"
 exclude = ["vendor/embedded-graphics-core-0.4.0", "vendor/az-1.2.1", "vendor/byteorder-1.5.0"]

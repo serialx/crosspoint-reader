@@ -4,6 +4,12 @@
   "scope": "Finite offline state families declared in screens.json; not an exhaustive product of settings, content, languages, and injected failures.",
   "sources": [
     {
+      "source": "src/activities/RustActivityAdapter.cpp",
+      "status": "shared-implementation",
+      "groups": ["sd-error", "xtc"],
+      "reason": "Mixed C++/Rust activity boundary; exercised through the message and XTC chapter screens."
+    },
+    {
       "source": "src/activities/Activity.cpp",
       "status": "shared-implementation",
       "reason": "No separate activity entry; exercised through its concrete callers."

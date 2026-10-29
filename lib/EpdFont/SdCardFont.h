@@ -185,7 +185,7 @@ class SdCardFont {
     static_assert(sizeof(BmpInterval16) == 6, "BmpInterval16 must remain compact");
     BmpInterval16* bmpIntervals = nullptr;
     bool intervalsAreBmp16 = false;
-    // The table may be shared with other styles and other loaded fonts; see releaseIntervals().
+    // The table may be shared with other styles and other loaded fonts; released by the Rust loader.
 
     // Ligature table (lazy-loaded on first prewarm). No kern table is resident:
     // the Rust kern builder reads the class-table blocks (~3KB per side per style
@@ -307,23 +307,18 @@ class SdCardFont {
   static inline std::atomic<bool> corruptGlyphNotice_{false};
   bool loaded_ = false;
 
+  struct LoadIo;
+  static XpSdfontLoadServices loadServices(LoadIo*);
   struct PoolIo;
   XpSdfontPool cacheView(const XpSdfontServices* services = nullptr) const;
   static XpSdfontServices cacheServices(PoolIo* io);
 
   // Per-style helpers
-  void freeStyleMiniData(PerStyle& s);
-  void freeStyleAll(PerStyle& s);
-  void freeStyleLigatures(PerStyle& s);
 
   void applyGlyphMissCallback(uint8_t styleIdx);
 
-  // Drops this style's reference to its interval table and frees the table with the last one.
-  static void releaseIntervals(PerStyle& s);
-
   // Global helpers
   void freeAll();
-  void clearOverflow();
 
   // Static callback for EpdFontData::glyphMissHandler (per-style via OverflowContext)
   static const EpdGlyph* onGlyphMiss(void* ctx, uint32_t codepoint);

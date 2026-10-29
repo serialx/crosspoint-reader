@@ -30,20 +30,13 @@ static_assert(sizeof(EpdLigaturePair) == 8, "EpdLigaturePair must be 8 bytes to 
 
 namespace {
 
-constexpr uint32_t HEADER_SIZE = 32;
-constexpr uint32_t STYLE_TOC_ENTRY_SIZE = 32;
 static_assert(CPFONT_VERSION == 4, "Rust SD font parser requires v4");
 
 // Interval tables are shared by content across every loaded SdCardFont. The styles of one file and
 // the sizes of one family almost always cover the same codepoints, and on a broad CJK font each
 // copy is tens of KB (48 KB for a 4000-interval table above the BMP). Fonts load and unload on one
 // task, as SdCardFontManager's own font maps do, so the registry takes no lock.
-struct SharedIntervals {
-  const void* table = nullptr;
-  uint32_t count = 0;
-  bool bmp16 = false;
-  uint16_t refs = 0;
-};
+using SharedIntervals = XpSdfontShared;
 constexpr size_t MAX_SHARED_INTERVALS = 16;
 SharedIntervals sharedIntervals[MAX_SHARED_INTERVALS];
 
@@ -285,84 +278,24 @@ XpSdfontPool SdCardFont::cacheView(const XpSdfontServices* services) const {
 
 SdCardFont::~SdCardFont() { freeAll(); }
 
-// --- Per-style free/cleanup ---
-
-void SdCardFont::freeStyleMiniData(PerStyle& s) {
-  auto services = cacheServices(nullptr);
-  xp_sdfont_pool_free_mini(&s, &services);
-}
-
-void SdCardFont::freeStyleLigatures(PerStyle& s) {
-  auto services = cacheServices(nullptr);
-  xp_sdfont_pool_free_ligatures(&s, &services);
-}
-
-void SdCardFont::releaseIntervals(PerStyle& s) {
-  const void* table = s.intervalsAreBmp16 ? static_cast<const void*>(s.bmpIntervals) : s.fullIntervals;
-  // A table the full registry could not take is this style's alone.
-  bool lastReference = true;
-  for (auto& entry : sharedIntervals) {
-    if (!table || entry.table != table) continue;
-    lastReference = --entry.refs == 0;
-    if (lastReference) entry = SharedIntervals{};
-    break;
-  }
-  if (lastReference) {
-    psramDeleteArray(s.fullIntervals);
-    psramDeleteArray(s.bmpIntervals);
-  }
-  s.fullIntervals = nullptr;
-  s.bmpIntervals = nullptr;
-}
-
-void SdCardFont::freeStyleAll(PerStyle& s) {
-  freeStyleMiniData(s);
-  releaseIntervals(s);
-  s.intervalsAreBmp16 = false;
-  freeStyleLigatures(s);
-  psramDeleteArray(s.kernBlockIndex);
-  s.kernBlockIndex = nullptr;
-  s.kernBlockIndexReady = false;
-}
-
-// --- Global free/cleanup ---
-
 void SdCardFont::releaseResidentCaches() {
-  ++fontTableGeneration;
-  clearOverflow();
-  clearPersistentCache();
-  for (uint8_t i = 0; i < MAX_STYLES; i++) {
-    if (!hasStyle(i)) continue;
-    freeStyleMiniData(styleData(i));  // also frees mini kern and restores the stub EpdFontData
-    freeStyleLigatures(styleData(i));
-    applyGlyphMissCallback(i);  // keep the on-demand miss path alive on the stub
-  }
+  auto services = cacheServices(nullptr);
+  auto pool = cacheView(&services);
+  xp_sdfont_clear_loaded(
+      &pool, sharedIntervals, styleCount_, false, this,
+      [](void* ctx, uint8_t style) { static_cast<SdCardFont*>(ctx)->applyGlyphMissCallback(style); },
+      [] { ++fontTableGeneration; });
 }
-
 void SdCardFont::freeAll() {
-  ++fontTableGeneration;
-  clearOverflow();
-  clearPersistentCache();
-  for (uint8_t i = 0; i < styleCount_; i++) {
-    freeStyleAll(styles_[i]);
-  }
+  auto services = cacheServices(nullptr);
+  auto pool = cacheView(&services);
+  xp_sdfont_clear_loaded(&pool, sharedIntervals, styleCount_, true, nullptr, nullptr, [] { ++fontTableGeneration; });
   styles_.reset();
   memset(styleSlots_, 0, sizeof(styleSlots_));
   styleCount_ = 0;
   contentHash_ = 0;
   loaded_ = false;
 }
-
-void SdCardFont::clearOverflow() {
-  auto services = cacheServices(nullptr);
-  auto pool = cacheView(&services);
-  xp_sdfont_pool_clear_overflow(&pool);
-}
-
-namespace {
-constexpr uint16_t KERN_CLASS_BLOCK = 64;
-uint16_t kernClassBlocks(uint16_t count) { return (count + KERN_CLASS_BLOCK - 1) / KERN_CLASS_BLOCK; }
-}  // namespace
 
 // --- Glyph miss callback ---
 
@@ -420,6 +353,73 @@ void logParseFailure(const XpSdfontParseDiagnostic& detail, uint32_t style = 0, 
 }
 }  // namespace
 
+struct SdCardFont::LoadIo {
+  SdCardFont* owner;
+  HalFile* file;
+};
+
+XpSdfontLoadServices SdCardFont::loadServices(LoadIo* io) {
+  return {io,
+          [](void* ctx, uint32_t offset, uint8_t* dest, size_t length, bool seek) -> int32_t {
+            auto& file = *static_cast<LoadIo*>(ctx)->file;
+            if (seek && !file.seekSet(offset)) return -1;
+            if (!dest && !length) return 1;
+            return file.read(dest, length) == static_cast<int>(length);
+          },
+          [](void* ctx, uint8_t count) -> void* {
+            auto& self = *static_cast<LoadIo*>(ctx)->owner;
+            self.styles_ = makeUniqueNoThrow<PerStyle[]>(count);
+            if (self.styles_) self.styleCount_ = count;
+            return self.styles_.get();
+          },
+          [](size_t bytes) { return psramNewArray<uint8_t>(bytes); },
+          [](void* ctx) { static_cast<LoadIo*>(ctx)->owner->freeAll(); },
+          [](void* ctx, uint8_t style) { static_cast<LoadIo*>(ctx)->owner->applyGlyphMissCallback(style); },
+          [](void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c) {
+            switch (static_cast<XpSdfontLoadEvent>(event)) {
+              case XpSdfontLoadEvent::HeaderRead:
+                LOG_ERR("SDCF", "Failed to read header");
+                break;
+              case XpSdfontLoadEvent::StyleAllocation:
+                LOG_ERR("SDCF", "Failed to allocate %zu bytes for style records", static_cast<size_t>(a));
+                break;
+              case XpSdfontLoadEvent::TocRead:
+                LOG_ERR("SDCF", "Failed to read style TOC entry %u", a);
+                break;
+              case XpSdfontLoadEvent::IntervalSeek:
+                LOG_ERR("SDCF", "Failed to seek to intervals for style %u", a);
+                break;
+              case XpSdfontLoadEvent::IntervalRead:
+                LOG_ERR("SDCF", "Failed to read interval %u for style %u", a, b);
+                break;
+              case XpSdfontLoadEvent::Shared:
+                LOG_DBG("SDCF", "Style %u: sharing a loaded %u-interval table (%u B not allocated)", a, b, c);
+                break;
+              case XpSdfontLoadEvent::IntervalRewind:
+                LOG_ERR("SDCF", "Failed to seek back to intervals for style %u", a);
+                break;
+              case XpSdfontLoadEvent::CompactAllocation:
+                LOG_ERR("SDCF", "Failed to allocate compact intervals for style %u", a);
+                break;
+              case XpSdfontLoadEvent::CompactRead:
+                LOG_ERR("SDCF", "Failed to read compact interval %u for style %u", a, b);
+                break;
+              case XpSdfontLoadEvent::IntervalAllocation:
+                LOG_ERR("SDCF", "Failed to allocate %u intervals for style %u", a, b);
+                break;
+              case XpSdfontLoadEvent::IntervalsRead:
+                LOG_ERR("SDCF", "Failed to read intervals for style %u", a);
+                break;
+              case XpSdfontLoadEvent::KernIndexAllocation:
+                LOG_DBG("SDCF", "No kern block index for style %u; reading whole class tables", a);
+                break;
+            }
+          },
+          [](const XpSdfontParseDiagnostic* detail, uint32_t style, uint32_t index) {
+            logParseFailure(*detail, style, index);
+          }};
+}
+
 bool SdCardFont::load(const char* path) {
   ++fontTableGeneration;
   freeAll();
@@ -438,210 +438,9 @@ bool SdCardFont::load(const char* path) {
   fileSize_ = static_cast<uint32_t>(file.fileSize());
   corruptGlyphsLogged_ = 0;
 
-  // Read and validate global header
-  uint8_t headerBuf[HEADER_SIZE];
-  if (file.read(headerBuf, HEADER_SIZE) != HEADER_SIZE) {
-    LOG_ERR("SDCF", "Failed to read header");
-    return false;
-  }
-
-  XpSdfontDirectory directory{};
-  XpSdfontParseDiagnostic diagnostic{};
-  if (!xp_sdfont_header_diagnostic(headerBuf, sizeof(headerBuf), &directory, &diagnostic)) {
-    logParseFailure(diagnostic);
-    return false;
-  }
-  const uint8_t styleCount = directory.styleCount;
-
-  styles_ = makeUniqueNoThrow<PerStyle[]>(styleCount);
-  if (!styles_) {
-    LOG_ERR("SDCF", "Failed to allocate %zu bytes for style records", styleCount * sizeof(PerStyle));
-    return false;
-  }
-  styleCount_ = styleCount;
-
-  // Read style TOC
-  for (uint8_t i = 0; i < styleCount; i++) {
-    uint8_t tocBuf[STYLE_TOC_ENTRY_SIZE];
-    if (file.read(tocBuf, STYLE_TOC_ENTRY_SIZE) != STYLE_TOC_ENTRY_SIZE) {
-      LOG_ERR("SDCF", "Failed to read style TOC entry %u", i);
-      freeAll();
-      return false;
-    }
-
-    XpSdfontStyle parsed{};
-    if (!xp_sdfont_style_diagnostic(tocBuf, sizeof(tocBuf), &directory, &parsed, &diagnostic)) {
-      logParseFailure(diagnostic, tocBuf[0]);
-      freeAll();
-      return false;
-    }
-    styleSlots_[parsed.id] = i + 1;
-    auto& s = styleData(parsed.id);
-    s.header = parsed.header;
-    s.intervalsFileOffset = parsed.offsets[0];
-    s.glyphsFileOffset = parsed.offsets[1];
-    s.kernLeftFileOffset = parsed.offsets[2];
-    s.kernRightFileOffset = parsed.offsets[3];
-    s.kernMatrixFileOffset = parsed.offsets[4];
-    s.ligatureFileOffset = parsed.offsets[5];
-    s.bitmapFileOffset = parsed.offsets[6];
-  }
-
-  contentHash_ = directory.hash;
-
-  // Load full intervals into RAM for each present style. BMP-only fonts with
-  // fewer than 65536 glyphs use a compact 6-byte interval table instead of the
-  // on-disk 12-byte table; large sparse CJK subsets otherwise keep tens of KB
-  // of always-resident heap just for lookup metadata.
-  for (uint8_t i = 0; i < MAX_STYLES; i++) {
-    if (!hasStyle(i)) continue;
-    auto& s = styleData(i);
-
-    if (!file.seekSet(s.intervalsFileOffset)) {
-      LOG_ERR("SDCF", "Failed to seek to intervals for style %u", i);
-      freeAll();
-      return false;
-    }
-
-    // Validate interval contents before any later code (findGlobalGlyphIndex,
-    // glyph reads) trusts them. A malformed file could otherwise drive
-    // out-of-range glyph indices into bogus on-disk reads.
-    XpSdfontIntervals intervalState{0, 0, s.header.glyphCount <= UINT16_MAX};
-    EpdUnicodeInterval iv{};
-
-    // A loaded table with this exact content -- another style of this file, or another size of
-    // this family -- is shared instead of copied (see SharedIntervals). That saves the PEAK too:
-    // allocating first and de-duplicating afterwards would still need both tables at once, which
-    // is what fails on a tight heap. The comparison rides along with the validation read below,
-    // so it costs no second pass and no buffer. A table stays a candidate only while it has
-    // matched every record so far.
-    uint16_t shareCandidates = 0;
-    for (size_t k = 0; k < MAX_SHARED_INTERVALS; k++) {
-      if (sharedIntervals[k].table && sharedIntervals[k].count == s.header.intervalCount) {
-        shareCandidates |= static_cast<uint16_t>(1u << k);
-      }
-    }
-    for (uint32_t j = 0; j < s.header.intervalCount; ++j) {
-      if (file.read(reinterpret_cast<uint8_t*>(&iv), sizeof(iv)) != sizeof(iv)) {
-        LOG_ERR("SDCF", "Failed to read interval %u for style %u", j, i);
-        freeAll();
-        return false;
-      }
-      if (!xp_sdfont_interval_diagnostic(reinterpret_cast<const uint8_t*>(&iv), sizeof(iv), s.header.glyphCount, j,
-                                         &intervalState, &iv, &diagnostic)) {
-        logParseFailure(diagnostic, i, j);
-        freeAll();
-        return false;
-      }
-      for (size_t k = 0; k < MAX_SHARED_INTERVALS && shareCandidates != 0; k++) {
-        if ((shareCandidates & (1u << k)) == 0) continue;
-        const auto& shared = sharedIntervals[k];
-        // Compared by value, so an above-BMP record never equals a compact one and drops out here.
-        bool same;
-        if (shared.bmp16) {
-          const auto& r = static_cast<const PerStyle::BmpInterval16*>(shared.table)[j];
-          same = r.first == iv.first && r.last == iv.last && r.offset == iv.offset;
-        } else {
-          const auto& r = static_cast<const EpdUnicodeInterval*>(shared.table)[j];
-          same = r.first == iv.first && r.last == iv.last && r.offset == iv.offset;
-        }
-        if (!same) shareCandidates &= static_cast<uint16_t>(~(1u << k));
-      }
-    }
-
-    const bool canUseBmp16 = intervalState.bmp16;
-
-    // Survived every record: share that table instead of allocating a copy.
-    bool shared = false;
-    for (size_t k = 0; k < MAX_SHARED_INTERVALS && shareCandidates != 0; k++) {
-      if ((shareCandidates & (1u << k)) == 0) continue;
-      auto& entry = sharedIntervals[k];
-      // Identical content can still be held in the other resident form when the two fonts
-      // disagree on glyph count; aliasing across forms would misread the table.
-      if (entry.bmp16 != canUseBmp16) continue;
-      // The tables are never written after loading, hence the const_cast.
-      if (entry.bmp16) {
-        s.bmpIntervals = static_cast<PerStyle::BmpInterval16*>(const_cast<void*>(entry.table));
-      } else {
-        s.fullIntervals = static_cast<EpdUnicodeInterval*>(const_cast<void*>(entry.table));
-      }
-      s.intervalsAreBmp16 = entry.bmp16;
-      entry.refs++;
-      shared = true;
-      LOG_DBG("SDCF", "Style %u: sharing a loaded %u-interval table (%u B not allocated)", i, s.header.intervalCount,
-              s.header.intervalCount * (canUseBmp16 ? 6u : static_cast<uint32_t>(sizeof(EpdUnicodeInterval))));
-      break;
-    }
-
-    // Only the allocate-and-read path below needs the records again; a shared style is done.
-    if (!shared && !file.seekSet(s.intervalsFileOffset)) {
-      LOG_ERR("SDCF", "Failed to seek back to intervals for style %u", i);
-      freeAll();
-      return false;
-    }
-
-    if (shared) {
-      // Aliased above; fall through to the stub/metadata setup without touching the table.
-    } else if (canUseBmp16) {
-      s.bmpIntervals = psramNewArray<PerStyle::BmpInterval16>(s.header.intervalCount);
-      if (!s.bmpIntervals) {
-        LOG_ERR("SDCF", "Failed to allocate compact intervals for style %u", i);
-        freeAll();
-        return false;
-      }
-      for (uint32_t j = 0; j < s.header.intervalCount; ++j) {
-        if (file.read(reinterpret_cast<uint8_t*>(&iv), sizeof(iv)) != sizeof(iv)) {
-          LOG_ERR("SDCF", "Failed to read compact interval %u for style %u", j, i);
-          freeAll();
-          return false;
-        }
-        s.bmpIntervals[j] = {static_cast<uint16_t>(iv.first), static_cast<uint16_t>(iv.last),
-                             static_cast<uint16_t>(iv.offset)};
-      }
-      s.intervalsAreBmp16 = true;
-    } else {
-      s.fullIntervals = psramNewArray<EpdUnicodeInterval>(s.header.intervalCount);
-      if (!s.fullIntervals) {
-        LOG_ERR("SDCF", "Failed to allocate %u intervals for style %u", s.header.intervalCount, i);
-        freeAll();
-        return false;
-      }
-      size_t intervalsBytes = s.header.intervalCount * sizeof(EpdUnicodeInterval);
-      if (file.read(reinterpret_cast<uint8_t*>(s.fullIntervals), intervalsBytes) != static_cast<int>(intervalsBytes)) {
-        LOG_ERR("SDCF", "Failed to read intervals for style %u", i);
-        freeAll();
-        return false;
-      }
-    }
-    if (!shared) {
-      // Offer the complete table to later loads. With the registry full it stays private.
-      for (auto& entry : sharedIntervals) {
-        if (entry.table) continue;
-        entry.table = s.intervalsAreBmp16 ? static_cast<const void*>(s.bmpIntervals) : s.fullIntervals;
-        entry.count = s.header.intervalCount;
-        entry.bmp16 = s.intervalsAreBmp16;
-        entry.refs = 1;
-        break;
-      }
-    }
-
-    if (s.header.kernLeftEntryCount > 0 && s.header.kernRightEntryCount > 0) {
-      // Optional: without it, every mini kern build reads the whole class tables.
-      s.kernBlockIndex = psramNewArray<uint16_t>(kernClassBlocks(s.header.kernLeftEntryCount) + 1 +
-                                                 kernClassBlocks(s.header.kernRightEntryCount) + 1);
-      if (!s.kernBlockIndex) LOG_DBG("SDCF", "No kern block index for style %u; reading whole class tables", i);
-    }
-
-    // Initialize stub data
-    memset(&s.stubData, 0, sizeof(s.stubData));
-    s.stubData.advanceY = s.header.advanceY;
-    s.stubData.ascender = s.header.ascender;
-    s.stubData.descender = s.header.descender;
-    s.stubData.is2Bit = s.header.is2Bit;
-
-    s.epdFont.data = &s.stubData;
-    applyGlyphMissCallback(i);
-  }
+  LoadIo io{this, &file};
+  const auto services = loadServices(&io);
+  if (!xp_sdfont_load(styleSlots_, &contentHash_, sharedIntervals, &services)) return false;
 
   loaded_ = true;
 

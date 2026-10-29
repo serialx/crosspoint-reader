@@ -96,6 +96,7 @@ add_subdirectory(gif_support)
 add_subdirectory(sd_card_font)
 add_subdirectory(sdfont_diff)
 add_subdirectory(sd_font_registry)
+add_subdirectory(font_registry)
 add_subdirectory(clipping_preview)
 add_subdirectory(glyph_bitmap)
 
@@ -152,3 +153,9 @@ add_subdirectory(ui_runtime)
 
 
 add_subdirectory(sync_golden)
+
+add_subdirectory(font_cache)
+
+add_subdirectory(font_manager)
+
+add_subdirectory(vector_font)

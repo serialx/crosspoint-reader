@@ -18,62 +18,40 @@
 // name pointer plus two bytes.
 static_assert(sizeof(SdCardFontFileInfo) == 2 * sizeof(void*), "SdCardFontFileInfo grew");
 
+XpFontFiles sdFontFileView(const std::vector<SdCardFontFileInfo>& files) {
+  return {&files, files.size(), [](const void* ctx, size_t index) -> XpFontFile {
+            const auto& file = (*static_cast<const std::vector<SdCardFontFileInfo>*>(ctx))[index];
+            return {file.name.get(), file.pointSize, file.style};
+          }};
+}
+
 // --- SdCardFontFamilyInfo helpers ---
 
 const SdCardFontFileInfo* SdCardFontFamilyInfo::findFile(uint8_t size, uint8_t style) const {
-  for (const auto& f : files) {
-    if (f.pointSize == size && f.style == style) return &f;
-  }
-  return nullptr;
+  const auto view = sdFontFileView(files);
+  const auto index = xp_font_file_nearest(&view, size, style, true);
+  return index < 0 ? nullptr : &files[index];
 }
-
-const SdCardFontFileInfo* SdCardFontFamilyInfo::findNearestSize(const uint8_t pointSize, const uint8_t style) const {
-  // The reader stores an actual point size, so an exact match is the norm and
-  // falls out of the delta search below (delta 0). The search only matters when
-  // the size was carried over from a family that ships different sizes; the
-  // caller then persists the snapped size (SdCardFontSystem::ensureLoaded).
-  const SdCardFontFileInfo* best = nullptr;
-  uint8_t bestDelta = 255;
-  for (const auto& f : files) {
-    if (f.style != style) continue;
-    const uint8_t delta = f.pointSize > pointSize ? f.pointSize - pointSize : pointSize - f.pointSize;
-    // Ties resolve to the smaller size, matching snapToNearestPointSize().
-    if (!best || delta < bestDelta || (delta == bestDelta && f.pointSize < best->pointSize)) {
-      best = &f;
-      bestDelta = delta;
-    }
-  }
-  return best;
+const SdCardFontFileInfo* SdCardFontFamilyInfo::findNearestSize(uint8_t size, uint8_t style) const {
+  const auto view = sdFontFileView(files);
+  const auto index = xp_font_file_nearest(&view, size, style, false);
+  return index < 0 ? nullptr : &files[index];
 }
 
 bool SdCardFontFamilyInfo::hasSize(uint8_t size) const {
-  for (const auto& f : files) {
-    if (f.pointSize == size) return true;
-  }
-  return false;
+  const auto view = sdFontFileView(files);
+  return xp_font_has_size(&view, size);
 }
 
 std::vector<uint8_t> SdCardFontFamilyInfo::availableSizes() const {
   std::vector<uint8_t> sizes;
-  for (const auto& f : files) {
-    bool found = false;
-    for (uint8_t s : sizes) {
-      if (s == f.pointSize) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) sizes.push_back(f.pointSize);
-  }
-  std::sort(sizes.begin(), sizes.end());
+  const auto view = sdFontFileView(files);
+  xp_font_sizes(&view, &sizes,
+                [](void* ctx, uint8_t size) { static_cast<std::vector<uint8_t>*>(ctx)->push_back(size); });
   return sizes;
 }
 
 namespace {
-// "_<size>.cpfont": the part of a canonical v4 filename after the family name.
-void cpfontTail(const uint8_t size, char* out, const size_t outSize) { snprintf(out, outSize, "_%u.cpfont", size); }
-constexpr size_t CPFONT_TAIL_SIZE = sizeof("_255.cpfont");
-
 // Heap copy of a filename for SdCardFontFileInfo::name; null when out of memory.
 std::unique_ptr<char[]> copyFileName(const char* filename) {
   const size_t bytes = strlen(filename) + 1;
@@ -95,66 +73,23 @@ bool pathFits(const SdCardFontFamilyInfo& family, const SdCardFontFileInfo& file
 }
 }  // namespace
 
-bool SdCardFontFamilyInfo::filePath(const SdCardFontFileInfo& file, char* out, const size_t outSize) const {
-  if (!root) return false;
-  int n;
-  if (!file.name) {
-    char tail[CPFONT_TAIL_SIZE];
-    cpfontTail(file.pointSize, tail, sizeof(tail));
-    n = snprintf(out, outSize, "%s/%s/%s%s", root, name.c_str(), name.c_str(), tail);
-  } else if (loose) {
-    n = snprintf(out, outSize, "%s/%s", root, file.name.get());
-  } else {
-    n = snprintf(out, outSize, "%s/%s/%s", root, name.c_str(), file.name.get());
-  }
-  return n > 0 && static_cast<size_t>(n) < outSize;
+bool SdCardFontFamilyInfo::filePath(const SdCardFontFileInfo& file, char* out, size_t outSize) const {
+  return xp_font_file_path(root, name.c_str(), file.name.get(), file.pointSize, loose, reinterpret_cast<uint8_t*>(out),
+                           outSize);
 }
-
-// --- SdCardFontRegistry ---
 
 bool SdCardFontRegistry::parseFilename(const char* filename, uint8_t& size, uint8_t& style) {
   if (!xp_sdfont_filename(reinterpret_cast<const uint8_t*>(filename), strlen(filename), &size)) return false;
   style = 0;
   return true;
 }
-
-bool SdCardFontRegistry::isCanonicalCpfontName(const char* filename, const std::string& family, const uint8_t size) {
-  if (strncmp(filename, family.c_str(), family.size()) != 0) return false;
-  char tail[CPFONT_TAIL_SIZE];
-  cpfontTail(size, tail, sizeof(tail));
-  return strcmp(filename + family.size(), tail) == 0;
+bool SdCardFontRegistry::isCanonicalCpfontName(const char* filename, const std::string& family, uint8_t size) {
+  return xp_font_canonical(filename, reinterpret_cast<const uint8_t*>(family.data()), family.size(), size);
 }
+
+// --- SdCardFontRegistry ---
 
 #if CROSSPOINT_VECTOR_FONTS
-
-bool SdCardFontRegistry::parseVectorFontName(const char* filename, size_t& baseLen) {
-  static constexpr const char* kExts[] = {".ttf", ".otf", ".ttc"};
-  const size_t nameLen = strlen(filename);
-  for (const char* ext : kExts) {
-    const size_t extLen = strlen(ext);
-    if (nameLen <= extLen) continue;
-    const char* tail = filename + nameLen - extLen;
-    if (strcasecmp(tail, ext) == 0) {
-      baseLen = nameLen - extLen;
-      return baseLen > 0 && baseLen <= 127;
-    }
-  }
-  return false;
-}
-
-uint8_t SdCardFontRegistry::parseVectorStyle(const char* baseName, size_t baseLen) {
-  // Case-insensitive token scan. "bold" (incl. semibold/demibold) → bold bit;
-  // "italic"/"oblique" → italic bit. Anything else is regular.
-  bool bold = false;
-  bool ital = false;
-  const size_t n = baseLen;
-  for (size_t i = 0; i < n; ++i) {
-    if ((n - i) >= 4 && strncasecmp(baseName + i, "bold", 4) == 0) bold = true;
-    if ((n - i) >= 6 && strncasecmp(baseName + i, "italic", 6) == 0) ital = true;
-    if ((n - i) >= 7 && strncasecmp(baseName + i, "oblique", 7) == 0) ital = true;
-  }
-  return static_cast<uint8_t>((bold ? 1 : 0) | (ital ? 2 : 0));
-}
 
 // FtFont::ReadFn over a HalFile (absolute-offset reads; count 0 is a seek probe).
 unsigned long SdCardFontRegistry::halFileRead(void* ctx, const unsigned long offset, unsigned char* buffer,
@@ -177,11 +112,7 @@ void SdCardFontRegistry::refineVectorStyles(const char* dirPath, std::vector<SdC
   // resolves to Regular + Bold, not to whichever file happened to enumerate
   // first. An unreadable face falls back to its filename-derived role
   // (Regular/Bold tokens → 400/700).
-  struct Candidate {
-    size_t index;  // into files
-    uint16_t weight;
-    bool italic;
-  };
+  using Candidate = XpFontCandidate;
   std::vector<Candidate> cands;
   cands.reserve(files.size());
   char path[SdCardFontFamilyInfo::PATH_BUFFER_SIZE];
@@ -200,60 +131,19 @@ void SdCardFontRegistry::refineVectorStyles(const char* dirPath, std::vector<SdC
     cands.push_back(c);
   }
 
-  // Nearest target weight within the upright/italic bucket; ties break to the
-  // lower weight, then the lexicographically smaller filename — never enumeration
-  // order. `exclude` keeps bold from re-picking the regular file.
-  const auto pick = [&](const bool italic, const int target, const Candidate* exclude) -> const Candidate* {
-    const Candidate* best = nullptr;
-    for (const auto& c : cands) {
-      if (c.italic != italic || &c == exclude) continue;
-      if (!best) {
-        best = &c;
-        continue;
-      }
-      const int dc = std::abs(static_cast<int>(c.weight) - target);
-      const int db = std::abs(static_cast<int>(best->weight) - target);
-      if (dc < db || (dc == db && (c.weight < best->weight ||
-                                   (c.weight == best->weight &&
-                                    strcmp(files[c.index].name.get(), files[best->index].name.get()) < 0)))) {
-        best = &c;
-      }
-    }
-    return best;
-  };
-
-  const Candidate* regular = pick(false, 400, nullptr);
-  if (!regular) {
-    // All faces italic: the italic nearest 400 anchors the family as regular
-    // (TtfEpdFont needs a regular source; it derives the rest).
-    regular = pick(true, 400, nullptr);
-    if (regular) LOG_DBG("SDREG", "No upright face in %s — promoting %s", dirPath, files[regular->index].name.get());
-    if (!regular) return;  // no usable files at all
-  }
-  // Bold must be a genuinely heavier face than the regular pick; otherwise the
-  // synthesizer derives it (a same-or-lighter file would render identically).
-  const Candidate* bold = pick(false, 700, regular);
-  if (bold && bold->weight <= regular->weight) bold = nullptr;
-  const Candidate* italic = regular->italic ? nullptr : pick(true, 400, nullptr);
-  const Candidate* boldItalic = pick(true, 700, italic ? italic : regular);
-  if (boldItalic && italic && boldItalic->weight <= italic->weight) boldItalic = nullptr;
-  if (boldItalic && !boldItalic->italic) boldItalic = nullptr;
-
+  int32_t indices[4];
+  const auto view = sdFontFileView(files);
+  const bool promoted = xp_font_select_faces(cands.data(), cands.size(), &view, indices);
+  if (indices[0] < 0) return;
+  if (promoted) LOG_DBG("SDREG", "No upright face in %s — promoting %s", dirPath, files[indices[0]].name.get());
   std::vector<SdCardFontFileInfo> selected;
   selected.reserve(4);
-  // Each candidate is picked for at most one role (the exclusions above), so
-  // its entry can be moved out of `files`. A second pick of the same index
-  // would leave a null name that filePath() reads as a canonical .cpfont.
-  const auto add = [&](const Candidate* c, const uint8_t role) {
-    if (!c) return;
-    SdCardFontFileInfo info = std::move(files[c->index]);
+  for (uint8_t role = 0; role < 4; ++role) {
+    if (indices[role] < 0) continue;
+    SdCardFontFileInfo info = std::move(files[indices[role]]);
     info.style = role;
     selected.push_back(std::move(info));
-  };
-  add(regular, 0);
-  add(bold, 1);
-  add(italic, 2);
-  add(boldItalic, 3);
+  }
   if (selected.size() < files.size()) {
     LOG_DBG("SDREG", "%s: %u of %u faces selected by weight", dirPath, static_cast<unsigned>(selected.size()),
             static_cast<unsigned>(files.size()));
@@ -263,235 +153,150 @@ void SdCardFontRegistry::refineVectorStyles(const char* dirPath, std::vector<SdC
 
 #endif  // CROSSPOINT_VECTOR_FONTS
 
-void SdCardFontRegistry::scanDirectory(const char* dirPath, SdCardFontFamilyInfo& family) {
-  HalFile dir = Storage.open(dirPath);
-  if (!dir || !dir.isDirectory()) return;
-
-  // Collect .cpfont and vector (.ttf/.otf/.ttc) candidates separately in one
-  // pass (the dir handle is forward-only), then commit whichever kind the folder
-  // holds. .cpfont wins if a folder somehow contains both, since a pre-rasterized
-  // bitmap family is the more specific artifact.
-  std::vector<SdCardFontFileInfo> cpfontFiles;
-  std::vector<SdCardFontFileInfo> vectorFiles;
-
-  char nameBuffer[128];
-  while (true) {
-    HalFile entry = dir.openNextFile();
-    if (!entry) break;
-    if (entry.isDirectory()) {
-      entry.close();
-      continue;
-    }
-
-    entry.getName(nameBuffer, sizeof(nameBuffer));
-    entry.close();
-
-    // Skip macOS resource fork files (._*) and other hidden files
-    if (nameBuffer[0] == '.' || nameBuffer[0] == '_') continue;
-
-    uint8_t size, style;
-    if (parseFilename(nameBuffer, size, style)) {
-      // .cpfont: reject duplicate (pointSize, style) — style is always 0 in v4,
-      // so two files at the same size would silently shadow each other.
-      bool duplicate = false;
-      for (const auto& existing : cpfontFiles) {
-        if (existing.pointSize == size && existing.style == style) {
-          duplicate = true;
-          break;
-        }
-      }
-      if (duplicate) {
-        LOG_ERR("SDREG", "Duplicate font %s in %s — skipping", nameBuffer, dirPath);
-        continue;
-      }
-      SdCardFontFileInfo info;
-      if (!isCanonicalCpfontName(nameBuffer, family.name, size)) {
-        info.name = copyFileName(nameBuffer);
-        if (!info.name) continue;
-      }
-      info.pointSize = size;
-      info.style = style;
-      if (!pathFits(family, info)) {
-        LOG_ERR("SDREG", "Path too long for %s in %s — skipping", nameBuffer, dirPath);
-        continue;
-      }
-      cpfontFiles.push_back(std::move(info));
-      continue;
-    }
-
-#if CROSSPOINT_VECTOR_FONTS
-    size_t baseLen = 0;
-    if (parseVectorFontName(nameBuffer, baseLen)) {
-      // Vector file in a family folder: seed the style role from the filename
-      // (e.g. Merriweather/Merriweather-Italic.ttf → italic); refineVectorStyles
-      // upgrades it from the face's own metadata and dedups by role afterwards.
-      SdCardFontFileInfo info;
-      info.name = copyFileName(nameBuffer);
-      if (!info.name) continue;
-      info.pointSize = 0;  // size-free
-      info.style = parseVectorStyle(nameBuffer, baseLen);
-      if (!pathFits(family, info)) {
-        LOG_ERR("SDREG", "Path too long for %s in %s — skipping", nameBuffer, dirPath);
-        continue;
-      }
-      vectorFiles.push_back(std::move(info));
-    }
-#endif
-  }
-
-  if (!cpfontFiles.empty()) {
-    family.vector = false;
-    family.files = std::move(cpfontFiles);
-  }
-#if CROSSPOINT_VECTOR_FONTS
-  else if (!vectorFiles.empty()) {
-    refineVectorStyles(dirPath, vectorFiles);
-    family.vector = true;
-    family.files = std::move(vectorFiles);
-  }
-#endif
-}
-
-// Scan a single root (e.g. "/.fonts") and append its families to `out`.
-// Skips families whose names already exist in `out` (de-duplicates between
-// the hidden and visible roots — first scan wins).
 void SdCardFontRegistry::scanRoot(const char* rootPath, std::vector<SdCardFontFamilyInfo>& out) {
-  HalFile root = Storage.open(rootPath);
-  if (!root) {
-    LOG_DBG("SDREG", "Fonts directory not found: %s", rootPath);
-    return;
-  }
-  if (!root.isDirectory()) {
-    LOG_ERR("SDREG", "Fonts path is not a directory: %s", rootPath);
-    return;
-  }
-
-  char nameBuffer[128];
-  while (true) {
-    HalFile entry = root.openNextFile();
-    if (!entry) break;
-    if (entry.isDirectory()) {
-      entry.getName(nameBuffer, sizeof(nameBuffer));
-      entry.close();
-
-      // Skip hidden/system directories inside the root (macOS ._*, .Trashes, etc.)
-      if (nameBuffer[0] == '.' || nameBuffer[0] == '_') continue;
-
-      // De-dup by family name across roots.
-      bool exists = false;
-      for (const auto& fam : out) {
-        if (fam.name == nameBuffer) {
-          exists = true;
-          break;
+  struct ScanIo {
+    std::vector<SdCardFontFamilyInfo>& out;
+    HalFile root, dir;
+    SdCardFontFamilyInfo family;
+    std::vector<SdCardFontFileInfo> cpfont, vector;
+  } io{out};
+  const XpFontDiscovery services{
+      &io,
+      CROSSPOINT_VECTOR_FONTS,
+      [](void* ctx, const char* path, bool root) -> int32_t {
+        auto& io = *static_cast<ScanIo*>(ctx);
+        auto& file = root ? io.root : io.dir;
+        file = Storage.open(path);
+        return !file ? 0 : file.isDirectory() ? 1 : -1;
+      },
+      [](void* ctx, bool root, uint8_t* name, bool* directory) {
+        auto& io = *static_cast<ScanIo*>(ctx);
+        HalFile entry = (root ? io.root : io.dir).openNextFile();
+        if (!entry) return false;
+        *directory = entry.isDirectory();
+        if (root || !*directory) entry.getName(reinterpret_cast<char*>(name), 128);
+        entry.close();
+        return true;
+      },
+      [](void* ctx, bool root) {
+        auto& io = *static_cast<ScanIo*>(ctx);
+        (root ? io.root : io.dir) = HalFile{};
+      },
+      [](void* ctx) { return static_cast<ScanIo*>(ctx)->out.size(); },
+      [](void* ctx, size_t i) { return static_cast<ScanIo*>(ctx)->out[i].name.c_str(); },
+      [](void* ctx, const char* root, const uint8_t* name, size_t len, bool loose) {
+        auto& family = static_cast<ScanIo*>(ctx)->family;
+        family.name.assign(reinterpret_cast<const char*>(name), len);
+        family.root = root;
+        family.loose = loose;
+        family.vector = loose;
+      },
+      [](void* ctx, bool vector) {
+        auto& io = *static_cast<ScanIo*>(ctx);
+        return sdFontFileView(vector ? io.vector : io.cpfont);
+      },
+      [](void* ctx, bool vector, const char* name, uint8_t size, uint8_t style, bool canonical) {
+        auto& io = *static_cast<ScanIo*>(ctx);
+        SdCardFontFileInfo file;
+        if (!canonical) {
+          file.name = copyFileName(name);
+          if (!file.name) return false;
         }
-      }
-      if (exists) continue;
-
-      SdCardFontFamilyInfo family;
-      family.name = nameBuffer;
-      family.root = rootPath;
-      std::string subDirPath = std::string(rootPath) + "/" + nameBuffer;
-      SdCardFontRegistry::scanDirectory(subDirPath.c_str(), family);
-
-      if (!family.files.empty()) {
-        out.push_back(std::move(family));
-        LOG_DBG("SDREG", "Found family: %s (%d files) in %s", out.back().name.c_str(),
-                static_cast<int>(out.back().files.size()), rootPath);
-      }
-    } else {
+        file.pointSize = size;
+        file.style = style;
+        if (!pathFits(io.family, file)) {
+          char dir[SdCardFontFamilyInfo::PATH_BUFFER_SIZE];
+          if (io.family.loose)
+            snprintf(dir, sizeof(dir), "%s", io.family.root);
+          else
+            snprintf(dir, sizeof(dir), "%s/%s", io.family.root, io.family.name.c_str());
+          if (io.family.loose) {
+            LOG_ERR("SDREG", "Path too long for %s in %s — skipping", name, io.family.root);
+          } else if (vector) {
+            LOG_ERR("SDREG", "Path too long for %s in %s — skipping", name, dir);
+          } else {
+            LOG_ERR("SDREG", "Path too long for %s in %s — skipping", name, dir);
+          }
+          return false;
+        }
+        (vector ? io.vector : io.cpfont).push_back(std::move(file));
+        return true;
+      },
+      [](void* ctx, bool vector, const char* dir) {
+        auto& io = *static_cast<ScanIo*>(ctx);
 #if CROSSPOINT_VECTOR_FONTS
-      // Loose TrueType/OpenType file directly under the root (e.g.
-      // /fonts/Bookerly.ttf). Rendered at any size via the FreeInkFont engine.
-      entry.getName(nameBuffer, sizeof(nameBuffer));
-      entry.close();
-      if (nameBuffer[0] == '.' || nameBuffer[0] == '_') continue;
-      size_t baseLen = 0;
-      if (!parseVectorFontName(nameBuffer, baseLen)) continue;
-
-      std::string famName(nameBuffer, baseLen);  // filename without extension
-      bool exists = false;
-      for (const auto& fam : out) {
-        if (fam.name == famName) {
-          exists = true;
-          break;
+        if (vector && dir) refineVectorStyles(dir, io.vector);
+#endif
+        io.family.vector = vector;
+        io.family.files = std::move(vector ? io.vector : io.cpfont);
+        // Release discarded candidates before the family vector can grow.
+        std::vector<SdCardFontFileInfo>().swap(vector ? io.cpfont : io.vector);
+        io.out.push_back(std::move(io.family));
+        return io.out.back().files.size();
+      },
+      [](void*, uint32_t event, const char* a, const char* b, size_t n) {
+        switch (static_cast<XpFontDiscoveryEvent>(event)) {
+          case XpFontDiscoveryEvent::MissingRoot:
+            LOG_DBG("SDREG", "Fonts directory not found: %s", a);
+            break;
+          case XpFontDiscoveryEvent::NotDirectory:
+            LOG_ERR("SDREG", "Fonts path is not a directory: %s", a);
+            break;
+          case XpFontDiscoveryEvent::Duplicate:
+            LOG_ERR("SDREG", "Duplicate font %s in %s — skipping", a, b);
+            break;
+          case XpFontDiscoveryEvent::Family:
+            LOG_DBG("SDREG", "Found family: %s (%d files) in %s", a, static_cast<int>(n), b);
+            break;
+          case XpFontDiscoveryEvent::Vector:
+            LOG_DBG("SDREG", "Found vector font: %s in %s", a, b);
+            break;
         }
-      }
-      if (exists) continue;
-
-      SdCardFontFamilyInfo family;
-      family.name = famName;
-      family.root = rootPath;
-      family.vector = true;
-      family.loose = true;
-      SdCardFontFileInfo info;
-      info.name = copyFileName(nameBuffer);
-      if (!info.name) continue;
-      info.pointSize = 0;  // size-free
-      info.style = 0;
-      if (!pathFits(family, info)) {
-        LOG_ERR("SDREG", "Path too long for %s in %s — skipping", nameBuffer, rootPath);
-        continue;
-      }
-      family.files.push_back(std::move(info));
-      out.push_back(std::move(family));
-      LOG_DBG("SDREG", "Found vector font: %s in %s", famName.c_str(), rootPath);
-#endif  // CROSSPOINT_VECTOR_FONTS — loose .ttf/.otf files are ignored without the engine
-    }
-  }
+      },
+      [](void* ctx) {
+        auto& io = *static_cast<ScanIo*>(ctx);
+        io.family = {};
+        std::vector<SdCardFontFileInfo>().swap(io.vector);
+        std::vector<SdCardFontFileInfo>().swap(io.cpfont);
+      }};
+  xp_font_scan_root(&services, rootPath);
 }
 
 bool SdCardFontRegistry::discover() {
-  families_.clear();
-
-  // Hidden root is scanned first so it wins on name collisions, matching the
-  // sleep-folder pattern (/.sleep preferred over /sleep).
-  scanRoot(FONTS_DIR_HIDDEN, families_);
-  scanRoot(FONTS_DIR_VISIBLE, families_);
-
-  // Sort families alphabetically
-  std::sort(families_.begin(), families_.end(),
-            [](const SdCardFontFamilyInfo& a, const SdCardFontFamilyInfo& b) { return a.name < b.name; });
-
-  // Cap at MAX_SD_FAMILIES
-  if (static_cast<int>(families_.size()) > MAX_SD_FAMILIES) {
-    families_.resize(MAX_SD_FAMILIES);
-  }
-  shrinkToFit(families_);  // the list is read-only until the next scan
-
-  LOG_DBG("SDREG", "Discovery complete: %d families", static_cast<int>(families_.size()));
-  return !families_.empty();
+  const XpFontRegistry io{
+      this,
+      [](void* ctx) { static_cast<SdCardFontRegistry*>(ctx)->families_.clear(); },
+      [](void* ctx, const char* root) { scanRoot(root, static_cast<SdCardFontRegistry*>(ctx)->families_); },
+      [](void* ctx) {
+        auto& families = static_cast<SdCardFontRegistry*>(ctx)->families_;
+        std::sort(families.begin(), families.end(), [](const auto& a, const auto& b) { return a.name < b.name; });
+        return families.size();
+      },
+      [](void* ctx, size_t n) { static_cast<SdCardFontRegistry*>(ctx)->families_.resize(n); },
+      [](void* ctx) {
+        auto& families = static_cast<SdCardFontRegistry*>(ctx)->families_;
+        shrinkToFit(families);
+        LOG_DBG("SDREG", "Discovery complete: %d families", static_cast<int>(families.size()));
+        return families.size();
+      }};
+  return xp_font_discover(&io, FONTS_DIR_HIDDEN, FONTS_DIR_VISIBLE, MAX_SD_FAMILIES);
 }
 
 const char* SdCardFontRegistry::findFamilyRoot(const char* familyName) {
-  if (!familyName || !*familyName) return nullptr;
-  char path[160];
-  snprintf(path, sizeof(path), "%s/%s", FONTS_DIR_HIDDEN, familyName);
-  if (Storage.exists(path)) return FONTS_DIR_HIDDEN;
-  snprintf(path, sizeof(path), "%s/%s", FONTS_DIR_VISIBLE, familyName);
-  if (Storage.exists(path)) return FONTS_DIR_VISIBLE;
-  return nullptr;
+  return xp_font_root(
+      familyName, FONTS_DIR_HIDDEN, FONTS_DIR_VISIBLE, [](const char* path) { return Storage.exists(path); }, false);
 }
-
 const char* SdCardFontRegistry::defaultWriteRoot() {
-  // If exactly one of the roots already exists, keep using it. Otherwise
-  // (neither exists, or both exist) prefer the hidden root for new installs.
-  bool hiddenExists = Storage.exists(FONTS_DIR_HIDDEN);
-  bool visibleExists = Storage.exists(FONTS_DIR_VISIBLE);
-  if (hiddenExists) return FONTS_DIR_HIDDEN;
-  if (visibleExists) return FONTS_DIR_VISIBLE;
-  return FONTS_DIR_HIDDEN;
+  return xp_font_root(
+      nullptr, FONTS_DIR_HIDDEN, FONTS_DIR_VISIBLE, [](const char* path) { return Storage.exists(path); }, true);
 }
-
 const SdCardFontFamilyInfo* SdCardFontRegistry::findFamily(const std::string& name) const {
-  for (const auto& f : families_) {
-    if (f.name == name) return &f;
-  }
-  return nullptr;
+  const auto i = getFamilyIndex(name);
+  return i < 0 ? nullptr : &families_[i];
 }
-
 int SdCardFontRegistry::getFamilyIndex(const std::string& name) const {
-  for (int i = 0; i < static_cast<int>(families_.size()); i++) {
-    if (families_[i].name == name) return i;
-  }
-  return -1;
+  return xp_font_find_family(
+      this, families_.size(),
+      [](const void* ctx, size_t i) { return static_cast<const SdCardFontRegistry*>(ctx)->families_[i].name.c_str(); },
+      reinterpret_cast<const uint8_t*>(name.data()), name.size());
 }

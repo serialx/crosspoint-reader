@@ -19,12 +19,12 @@ void referenceGlyph(const GfxRenderer&, const EpdFontFamily&, uint32_t, const Ep
 static bool exhaustive = std::getenv("GLYPH_DIFF_QUICK") == nullptr;
 static uint64_t rasterCases = 0, bitmapCases = 0, cullCases = 0, glyphs = 0;
 static_assert(sizeof(XpRasterGlyph) == sizeof(EpdGlyph));
-static_assert(sizeof(XpGlyphPageEntry) == sizeof(FontDecompressor::PageGlyphEntry));
-static_assert(sizeof(XpGlyphPageSlot) == sizeof(FontDecompressor::PageSlot));
-static_assert(offsetof(XpGlyphPageSlot, count) == offsetof(FontDecompressor::PageSlot, glyphCount));
-static_assert(offsetof(XpGlyphPageSlot, entries) == offsetof(FontDecompressor::PageSlot, glyphs));
-static_assert(offsetof(XpGlyphPageSlot, font) == offsetof(FontDecompressor::PageSlot, fontData));
-static_assert(offsetof(XpGlyphPageEntry, bufferOffset) == offsetof(FontDecompressor::PageGlyphEntry, bufferOffset));
+static_assert(sizeof(XpGlyphPageEntry) == sizeof(XpFontCacheEntry));
+static_assert(sizeof(XpGlyphPageSlot) == sizeof(XpFontCacheSlot));
+static_assert(offsetof(XpGlyphPageSlot, count) == offsetof(XpFontCacheSlot, glyphCount));
+static_assert(offsetof(XpGlyphPageSlot, entries) == offsetof(XpFontCacheSlot, glyphs));
+static_assert(offsetof(XpGlyphPageSlot, font) == offsetof(XpFontCacheSlot, fontData));
+static_assert(offsetof(XpGlyphPageEntry, bufferOffset) == offsetof(XpFontCacheEntry, bufferOffset));
 
 static void require(bool value, const char* message) {
   if (!value) {
@@ -71,8 +71,8 @@ static XpGlyphSource source(const EpdFontData* f, FontDecompressor& dc, std::ato
           f,
           glyphCount(f),
           f->groups ? 0 : bitmapLength(f),
-          reinterpret_cast<const XpGlyphPageSlot*>(dc.pageSlots),
-          dc.pageSlotCount,
+          reinterpret_cast<const XpGlyphPageSlot*>(static_cast<const XpFontCacheSlot*>(dc.pageSlotView())),
+          dc.pageSlotViewCount(),
           sd ? &sd->overflow_[0].glyph : nullptr,
           sd ? uint32_t(sizeof(sd->overflow_[0])) : 0,
           sd ? sd->overflowCount_ : 0};
@@ -84,8 +84,8 @@ static void checkBitmap(GfxRenderer& r, FontDecompressor& dc, const EpdFontData*
   const bool overflow = sd && sd->isOverflowGlyph(g);
   bool resident = !f->groups || !f->groupCount;
   if (!resident)
-    for (uint8_t i = 0; i < dc.pageSlotCount; ++i) {
-      const auto& slot = dc.pageSlots[i];
+    for (uint8_t i = 0; i < dc.pageSlotViewCount(); ++i) {
+      const auto& slot = static_cast<const XpFontCacheSlot*>(dc.pageSlotView())[i];
       if (slot.fontData != f || slot.glyphCount == 0) continue;
       for (uint16_t j = 0; j < slot.glyphCount; ++j)
         if (slot.glyphs[j].glyphIndex == uint32_t(g - f->glyph) && slot.glyphs[j].bufferOffset != UINT32_MAX)

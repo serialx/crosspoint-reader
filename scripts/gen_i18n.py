@@ -521,6 +521,9 @@ def generate_rust(
     lines = [AUTO_GENERATED_COMMENT, "",
              f"pub const LANGUAGE_COUNT: u8 = {len(languages)};",
              f"pub const STRING_COUNT: usize = {len(string_keys)};", ""]
+    lines += ["pub mod ids {"] + [
+        f"    pub const {key}: u16 = {i};" for i, key in enumerate(string_keys)
+    ] + ["}", ""]
     for symbol, values in [
         ("LANGUAGE_CODES", languages),
         ("LANGUAGE_NAMES", language_names),

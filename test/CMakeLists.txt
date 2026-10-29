@@ -170,3 +170,4 @@ add_subdirectory(keyboard_oracle)
 add_subdirectory(plugin_policy)
 
 add_subdirectory(text_settings)
+add_test(NAME i18n_rust_ids COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/i18n_oracle/test_ids.py)

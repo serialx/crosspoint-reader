@@ -130,7 +130,10 @@ impl State {
         if input.touch_flags & model::TOUCH_RELEASED != 0 {
             if input.action == 2 && (0..4).contains(&input.value) {
                 if self.tab == input.value as u8 {
-                    return Effect::default();
+                    return Effect {
+                        invalidate: 1,
+                        ..Effect::default()
+                    };
                 }
                 self.tab = input.value as u8;
                 self.tabs[usize::from(self.tab)].select(0);

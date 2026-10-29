@@ -152,3 +152,5 @@ mod ota;
 
 mod assets;
 mod plugin;
+
+mod ui_settings;

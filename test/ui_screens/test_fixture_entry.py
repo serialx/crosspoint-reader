@@ -18,7 +18,7 @@ class FixtureEntryTests(unittest.TestCase):
 
     def test_entry_assets_and_rejected_inputs(self):
         for name, expected in [('details-plain', b'details-plain'), ('details-cover', b'details-cover'),
-                               ('unknown', b'unknown'), ('oversized', b'x' * 32)]:
+                               ('settings-home-button', b'settings-home-button'), ('unknown', b'unknown'), ('oversized', b'x' * 32)]:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
                 assets = prepare(Path(temporary), 'entry-' + name)
                 self.assertEqual(assets[0][0].read_bytes(), expected)

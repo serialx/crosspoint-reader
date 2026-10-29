@@ -20,3 +20,5 @@ pub mod keyboard_view;
 pub mod reader_chrome;
 pub mod reader_chrome_ffi;
 pub mod utility;
+
+pub mod settings;

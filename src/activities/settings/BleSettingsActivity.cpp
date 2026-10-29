@@ -15,21 +15,15 @@
 namespace fui = freeink::ui;
 
 namespace {
-enum class MenuAction : int16_t { Enable, Scan, Paired, Mapping };
-constexpr bleturner::Action MAP_ACTIONS[] = {bleturner::Action::NextPage,    bleturner::Action::PrevPage,
-                                             bleturner::Action::NextChapter, bleturner::Action::PrevChapter,
-                                             bleturner::Action::Confirm,     bleturner::Action::Back,
-                                             bleturner::Action::ReaderMenu,  bleturner::Action::SaveQuote};
 constexpr StrId MAP_LABELS[] = {StrId::STR_NEXT_PAGE,       StrId::STR_PREV_PAGE,    StrId::STR_BT_NEXT_CHAPTER,
                                 StrId::STR_BT_PREV_CHAPTER, StrId::STR_CONFIRM,      StrId::STR_BACK,
                                 StrId::STR_READER_MENU,     StrId::STR_SAVE_CLIPPING};
-static_assert(std::size(MAP_ACTIONS) == std::size(MAP_LABELS));
-constexpr uint32_t SCAN_MS = 15000;
-constexpr unsigned long CLEAR_HOLD_MS = 700;
+
 }  // namespace
 
 void BleSettingsActivity::onEnter() {
-  UiListActivity::onEnter();
+  SettingsUiActivity::onEnter();
+  if (!hasUiStorage()) return;
   // A saved opt-in brings the radio up here, so scanning and pairing work at once.
   if (SETTINGS.ble.enabled) bleturner::switchOn();
   refresh();
@@ -37,61 +31,49 @@ void BleSettingsActivity::onEnter() {
 }
 
 void BleSettingsActivity::loop() {
-  // Holding Confirm on an action clears it (touch: a long press on the row, onRowLongPress).
-  if (view == View::Mapping && mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, CLEAR_HOLD_MS)) {
-    clearMapping(nav.selected);
+  if (state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING &&
+      mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, 700)) {
+    clearMapping(selectedIndex());
   }
-  UiListActivity::loop();
-  if (millis() - lastPollMs < 250) return;
-  lastPollMs = millis();
+  SettingsUiActivity::loop();
+  if (!xp_ui_settings_ble_poll(&state, millis())) return;
   // A remote being paired that links becomes the chosen one: save it.
   if (SETTINGS.ble.enabled && bleturner::service()) SETTINGS.saveToFile();
-  if (learnAction != bleturner::Action::None) stepLearning();
-  if (signature() == shownSignature) return;  // an e-ink repaint only when something changed
+  if (state.action != 0) stepLearning();
+  if (signature() == state.shown_signature) return;  // an e-ink repaint only when something changed
   refresh();
   requestUpdate();
 }
 
 const char* BleSettingsActivity::headerTitle() const {
-  switch (view) {
-    case View::Menu:
-      return tr(STR_BT_PAGE_TURNER);
-    case View::Scan:
-      return tr(STR_BT_SCAN);
-    case View::Paired:
-      return tr(STR_BT_PAIRED_REMOTES);
-    case View::Mapping:
-      return tr(STR_BT_MAP_BUTTONS);
-  }
-  return tr(STR_BT_PAGE_TURNER);
+  static constexpr StrId titles[] = {StrId::STR_BT_PAGE_TURNER, StrId::STR_BT_SCAN, StrId::STR_BT_PAIRED_REMOTES,
+                                     StrId::STR_BT_MAP_BUTTONS};
+  return I18N.get(titles[state.view < 4 ? state.view : 0]);
 }
-
-void BleSettingsActivity::showView(const View target) {
+void BleSettingsActivity::showView(uint8_t target) {
   {
     RenderLock lock(*this);
-    view = target;
-    learnAction = bleturner::Action::None;
-    learnNote = nullptr;
-    nav.reset();
+    xp_ui_settings_ble_show(&state, target);
+    resetSelection();
   }
   refresh();
   requestUpdate();
 }
-
 void BleSettingsActivity::onBackButton() {
-  if (learnAction != bleturner::Action::None) {
-    learnAction = bleturner::Action::None;
-    learnNote = nullptr;
-    refresh();
-    requestUpdate();
-    return;
-  }
-  if (view == View::Menu) {
+  const auto effect = xp_ui_settings_ble_back(&state);
+  if (effect == 2) {
     finish();
     return;
   }
-  if (view == View::Scan) bleturner::scan(0);
-  showView(View::Menu);
+  if (effect == 4) bleturner::scan(0);
+  if (effect >= 3) resetSelection();
+  refresh();
+  requestUpdate();
+}
+const char* BleSettingsActivity::learningNote() const {
+  static constexpr StrId notes[] = {StrId::STR_BT_CONNECT_REMOTE, StrId::STR_BT_NO_KEY, StrId::STR_BT_KEYS_NOT_SAVED,
+                                    StrId::STR_BT_MAPPING_SAVED, StrId::STR_BT_MAPPING_CLEARED};
+  return state.note > 0 && state.note <= std::size(notes) ? I18N.get(notes[state.note - 1]) : nullptr;
 }
 
 uint32_t BleSettingsActivity::signature() const {
@@ -103,23 +85,33 @@ uint32_t BleSettingsActivity::signature() const {
 
 void BleSettingsActivity::refresh() {
   RenderLock lock(*this);
-  shownSignature = signature();
+  state.shown_signature = signature();
   const auto st = bleturner::status();
   char failure[48];
-  if (!SETTINGS.ble.enabled || st.stopping) {
-    status = tr(STR_STATE_OFF);
-  } else if (bleturner::takeConnectFailure(failure, sizeof(failure))) {
-    status = failure;
-  } else if (!st.running) {
-    status = tr(STR_BT_START_FAILED);
-  } else if (st.connected) {
-    status = bleturner::linked().name;
-  } else if (st.connecting) {
-    status = tr(STR_CONNECTING);
-  } else if (st.scanning) {
-    status = tr(STR_SCANNING);
-  } else {
-    status = tr(STR_STATE_ON);
+  const uint8_t flags = static_cast<uint8_t>(state.shown_signature);
+  const bool failed = SETTINGS.ble.enabled && !st.stopping && bleturner::takeConnectFailure(failure, sizeof(failure));
+  switch (xp_ui_settings_ble_status(flags, failed)) {
+    case 0:
+      status = tr(STR_STATE_OFF);
+      break;
+    case 1:
+      status = failure;
+      break;
+    case 2:
+      status = tr(STR_BT_START_FAILED);
+      break;
+    case 3:
+      status = bleturner::linked().name;
+      break;
+    case 4:
+      status = tr(STR_CONNECTING);
+      break;
+    case 5:
+      status = tr(STR_SCANNING);
+      break;
+    default:
+      status = tr(STR_STATE_ON);
+      break;
   }
 
   // Labels first: the rows point into them.
@@ -133,115 +125,98 @@ void BleSettingsActivity::refresh() {
   }
 
   rows.clear();
-  const auto add = [this](const char* label, const int16_t code, const bool enabled = true) -> fui::ListItem& {
-    fui::ListItem row;
-    row.label = label;
-    row.actionValue = code;
-    row.enabled = enabled;
-    rows.push_back(row);
-    return rows.back();
-  };
-  switch (view) {
-    case View::Menu: {
-      auto& enable = add(tr(STR_BT_PAGE_TURNER), static_cast<int16_t>(MenuAction::Enable));
-      enable.subtitle = status.c_str();
-      enable.toggle = true;
-      enable.toggleChecked = SETTINGS.ble.enabled != 0;
-      add(tr(STR_BT_SCAN), static_cast<int16_t>(MenuAction::Scan), st.running);
-      add(tr(STR_BT_PAIRED_REMOTES), static_cast<int16_t>(MenuAction::Paired), st.running);
-      auto& mapping = add(tr(STR_BT_MAP_BUTTONS), static_cast<int16_t>(MenuAction::Mapping), st.connected);
-      if (!st.connected) mapping.subtitle = tr(STR_BT_CONNECT_REMOTE);
-      break;
+  static constexpr StrId fixed[] = {StrId::STR_BT_PAGE_TURNER, StrId::STR_BT_SCAN,      StrId::STR_BT_PAIRED_REMOTES,
+                                    StrId::STR_BT_MAP_BUTTONS, StrId::STR_BT_STOP_SCAN, StrId::STR_SCANNING,
+                                    StrId::STR_BT_NO_DEVICES,  StrId::STR_BT_NO_REMOTES};
+  const auto peer = bleturner::linked();
+  const auto* table = state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING
+                          ? bleturner::tableFor(SETTINGS.ble.remotes, SETTINGS.ble.remoteCount, peer.addr, peer.name)
+                          : nullptr;
+  XpUiSettingsBleRow spec{};
+  for (uint16_t i = 0; xp_ui_settings_ble_row(&state, flags, found, bonds, i, &spec); ++i) {
+    SettingsUiRow row;
+    row.actionValue = spec.code;
+    row.enabled = spec.enabled;
+    row.toggle = spec.toggle;
+    row.toggleChecked = spec.checked;
+    if (spec.label < 8)
+      row.label = I18N.get(fixed[spec.label]);
+    else if (spec.label < 16)
+      row.label = I18N.get(MAP_LABELS[spec.label - 8]);
+    else
+      row.label = labels[spec.label - 16].c_str();
+    switch (spec.subtitle) {
+      case 1:
+        row.subtitle = status.c_str();
+        break;
+      case 2:
+        row.subtitle = tr(STR_BT_CONNECT_REMOTE);
+        break;
+      case 3:
+        row.subtitle = tr(STR_BT_PRESS_REMOTE);
+        break;
+      case 4:
+        row.subtitle = learningNote();
+        break;
     }
-    case View::Scan:
-      add(st.scanning ? tr(STR_BT_STOP_SCAN) : tr(STR_BT_SCAN), -1, st.running);
-      for (uint8_t i = 0; i < found; ++i) add(labels[i].c_str(), i);
-      if (found == 0) add(st.scanning ? tr(STR_SCANNING) : tr(STR_BT_NO_DEVICES), -1, false);
-      break;
-    case View::Paired:
-      for (uint8_t i = 0; i < bonds; ++i) {
-        auto& row = add(labels[found + i].c_str(), i);
-        row.value = tr(STR_FORGET_BUTTON);
-      }
-      if (bonds == 0) add(tr(STR_BT_NO_REMOTES), -1, false);
-      break;
-    case View::Mapping: {
-      const auto peer = bleturner::linked();
-      const auto* table = bleturner::tableFor(SETTINGS.ble.remotes, SETTINGS.ble.remoteCount, peer.addr, peer.name);
-      for (uint8_t i = 0; i < std::size(MAP_ACTIONS); ++i) {
-        auto& row = add(I18N.get(MAP_LABELS[i]), i, st.connected && learnAction == bleturner::Action::None);
-        bleturner::Binding binding;
-        if (table && bleturner::find(*table, MAP_ACTIONS[i], binding)) {
-          bleturner::formatCode(mappingValues[i], sizeof(mappingValues[i]), binding);
-          if (binding & bleturner::kHoldBit) {
-            const size_t used = strlen(mappingValues[i]);
-            snprintf(mappingValues[i] + used, sizeof(mappingValues[i]) - used, " %s", tr(STR_BT_HOLD));
-          }
-          row.value = mappingValues[i];
-        } else {
-          row.value = tr(STR_NOT_SET);
+    if (spec.value == 1)
+      row.value = tr(STR_FORGET_BUTTON);
+    else if (spec.value == 2) {
+      bleturner::Binding binding;
+      if (table && bleturner::find(*table, static_cast<bleturner::Action>(xp_ui_settings_ble_action(i)), binding)) {
+        bleturner::formatCode(mappingValues[i], sizeof(mappingValues[i]), binding);
+        if (binding & bleturner::kHoldBit) {
+          const size_t used = strlen(mappingValues[i]);
+          snprintf(mappingValues[i] + used, sizeof(mappingValues[i]) - used, " %s", tr(STR_BT_HOLD));
         }
-        if (!st.connected)
-          row.subtitle = tr(STR_BT_CONNECT_REMOTE);
-        else if (MAP_ACTIONS[i] == learnAction)
-          row.subtitle = tr(STR_BT_PRESS_REMOTE);
-        else if (i == 0)
-          row.subtitle = learnNote;
-      }
-      break;
+        row.value = mappingValues[i];
+      } else
+        row.value = tr(STR_NOT_SET);
     }
+    rows.push_back(row);
   }
-  if (nav.selected >= static_cast<int>(rows.size())) nav.selected = static_cast<int>(rows.size()) - 1;
+  if (selectedIndex() >= static_cast<int>(rows.size())) selectIndex(static_cast<int>(rows.size()) - 1);
 }
 
 void BleSettingsActivity::activateIndex(const int index) {
   if (index < 0 || index >= static_cast<int>(rows.size()) || !rows[index].enabled) return;
-  nav.selected = index;
-  app.clearTapFlash();
-  const int16_t code = rows[index].actionValue;
-  switch (view) {
-    case View::Menu:
-      switch (static_cast<MenuAction>(code)) {
-        case MenuAction::Enable:
-          SETTINGS.ble.enabled = SETTINGS.ble.enabled ? 0 : 1;
-          if (SETTINGS.ble.enabled)
-            bleturner::switchOn();
-          else
-            bleturner::switchOff();
-          SETTINGS.saveToFile();
-          break;
-        case MenuAction::Scan:
-          bleturner::scan(SCAN_MS);
-          showView(View::Scan);
-          return;
-        case MenuAction::Paired:
-          showView(View::Paired);
-          return;
-        case MenuAction::Mapping:
-          showView(View::Mapping);
-          return;
-      }
+  selectIndex(index);
+  const auto effect =
+      xp_ui_settings_ble_activate(&state, rows[index].actionValue, SETTINGS.ble.enabled, bleturner::status().scanning);
+  switch (effect.kind) {
+    case XP_UI_SETTINGS_BLE_EFFECT_TOGGLE:
+      SETTINGS.ble.enabled = effect.value;
+      if (SETTINGS.ble.enabled)
+        bleturner::switchOn();
+      else
+        bleturner::switchOff();
+      SETTINGS.saveToFile();
       break;
-    case View::Scan:
-      if (code < 0) {
-        bleturner::scan(bleturner::status().scanning ? 0 : SCAN_MS);
-      } else {
-        const auto peer = bleturner::found(static_cast<uint8_t>(code));
-        const std::string addr = peer.addr;
-        const std::string name = peer.name;
-        bleturner::scan(0);
-        bleturner::pair(addr.c_str(), name.c_str());
-        showView(View::Menu);
+    case XP_UI_SETTINGS_BLE_EFFECT_SCAN:
+      bleturner::scan(effect.value);
+      if (state.view == XP_UI_SETTINGS_BLE_VIEW_MENU) {
+        showView(XP_UI_SETTINGS_BLE_VIEW_SCAN);
         return;
       }
       break;
-    case View::Paired: {
-      const std::string addr = bleturner::bond(static_cast<uint8_t>(code)).addr;
+    case XP_UI_SETTINGS_BLE_EFFECT_SHOW:
+      showView(effect.value);
+      return;
+    case XP_UI_SETTINGS_BLE_EFFECT_PAIR: {
+      const auto peer = bleturner::found(effect.value);
+      const std::string addr = peer.addr, name = peer.name;
+      bleturner::scan(0);
+      bleturner::pair(addr.c_str(), name.c_str());
+      showView(XP_UI_SETTINGS_BLE_VIEW_MENU);
+      return;
+    }
+    case XP_UI_SETTINGS_BLE_EFFECT_FORGET: {
+      const std::string addr = bleturner::bond(effect.value).addr;
       if (bleturner::forget(addr.c_str())) SETTINGS.saveToFile();
       break;
     }
-    case View::Mapping:
-      startLearning(code);
+    case XP_UI_SETTINGS_BLE_EFFECT_LEARN:
+      startLearning(effect.value);
       break;
   }
   refresh();
@@ -249,89 +224,62 @@ void BleSettingsActivity::activateIndex(const int index) {
 }
 
 void BleSettingsActivity::startLearning(const int index) {
-  if (index < 0 || index >= static_cast<int>(std::size(MAP_ACTIONS)) || !bleturner::status().connected) return;
+  if (index < 0 || index >= static_cast<int>(std::size(MAP_LABELS)) || !bleturner::status().connected) return;
   bleturner::Event ev;
   while (bleturner::pollEvent(ev)) {
-  }  // presses from before the row was chosen are not the answer
-  learnAction = MAP_ACTIONS[index];
+  }
+  xp_ui_settings_ble_begin(&state, index, true, millis());
   const auto peer = bleturner::linked();
   strncpy(learnAddr, peer.addr, sizeof(learnAddr) - 1);
-  learnCode = 0;
-  learnSinceMs = millis();
-  learnNote = nullptr;
 }
-
 void BleSettingsActivity::stepLearning() {
   const auto peer = bleturner::linked();
   if (!bleturner::status().connected || strcmp(peer.addr, learnAddr) != 0) {
-    learnAction = bleturner::Action::None;
-    learnNote = tr(STR_BT_CONNECT_REMOTE);
+    xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_DISCONNECTED, 0, 0, millis());
     refresh();
     requestUpdate();
     return;
   }
-  const auto action = learnAction;
+  const auto action = state.action;
   bleturner::Event ev;
-  while (learnAction == action && bleturner::pollEvent(ev)) {
-    if (ev.pressed) {
-      learnCode = ev.code;
-      learnPressMs = ev.atMs;
-      learnSinceMs = millis();
-    } else if (learnCode != 0 && ev.code == learnCode) {
-      if (ev.wasRest) {
-        learnCode = 0;  // the remote idling on a non-zero byte, not a button
-      } else {
-        // A button held past the reader's hold threshold is mapped as a hold, apart from its tap.
-        keepLearned(ev.atMs - learnPressMs >= bleturner::kHoldMs);
-      }
-    }
+  while (state.action == action && bleturner::pollEvent(ev)) {
+    const auto result = xp_ui_settings_ble_step(&state,
+                                                ev.pressed   ? XP_UI_SETTINGS_BLE_EVENT_PRESS
+                                                : ev.wasRest ? XP_UI_SETTINGS_BLE_EVENT_REST
+                                                             : XP_UI_SETTINGS_BLE_EVENT_RELEASE,
+                                                ev.code, ev.atMs, millis());
+    if (result == 1 || result == 2) keepLearned(result == 2);
   }
-  if (learnAction == action) {
-    // Allow the full learning window for a hold before falling back to a no-release tap.
-    if (learnCode != 0 && millis() - learnSinceMs >= bleturner::kWaitMs) {
-      keepLearned(false);
-    } else if (learnCode == 0 && millis() - learnSinceMs >= bleturner::kWaitMs) {
-      learnAction = bleturner::Action::None;
-      learnNote = tr(STR_BT_NO_KEY);
-    }
+  if (state.action == action) {
+    const auto result = xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_TICK, 0, 0, millis());
+    if (result == 1) keepLearned(false);
   }
-  if (learnAction != action) {
+  if (state.action != action) {
     refresh();
     requestUpdate();
   }
 }
 
 void BleSettingsActivity::keepLearned(const bool hold) {
-  // Preserve the remote's other bindings when changing the selected action.
   const auto peer = bleturner::linked();
   if (!bleturner::status().connected || strcmp(peer.addr, learnAddr) != 0) {
-    learnAction = bleturner::Action::None;
-    learnNote = tr(STR_BT_CONNECT_REMOTE);
+    xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_DISCONNECTED, 0, 0, millis());
     return;
   }
-  bleturner::RemoteTable* table =
-      bleturner::editableTable(SETTINGS.ble.remotes, SETTINGS.ble.remoteCount, peer.addr, peer.name);
-  if (table == nullptr || !bleturner::learn(*table, learnAction, learnCode, hold)) {
-    learnAction = bleturner::Action::None;
-    learnNote = tr(STR_BT_KEYS_NOT_SAVED);
+  auto* table = bleturner::editableTable(SETTINGS.ble.remotes, SETTINGS.ble.remoteCount, peer.addr, peer.name);
+  if (table == nullptr || !bleturner::learn(*table, static_cast<bleturner::Action>(state.action), state.code, hold)) {
+    xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_SAVE_FAILED, 0, 0, millis());
     return;
   }
   SETTINGS.saveToFile();
-  learnCode = 0;
-  learnSinceMs = millis();
-  learnAction = bleturner::Action::None;
-  learnNote = tr(STR_BT_MAPPING_SAVED);
+  xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_SAVED, 0, 0, millis());
 }
-
 void BleSettingsActivity::onRowLongPress(const int index) {
-  if (view == View::Mapping) clearMapping(index);
+  if (state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING) clearMapping(index);
 }
-
 void BleSettingsActivity::clearMapping(const int index) {
-  if (index < 0 || index >= static_cast<int>(std::size(MAP_ACTIONS)) || learnAction != bleturner::Action::None) return;
-  const auto action = MAP_ACTIONS[index];
-  // The linked remote's slot for this action goes; a built-in default is copied out first, so it
-  // does not come back. The page rows also drop the usage code learned before per-remote tables.
+  const auto action = static_cast<bleturner::Action>(xp_ui_settings_ble_clear(&state, index));
+  if (action == bleturner::Action::None) return;
   if (bleturner::status().connected) {
     const auto peer = bleturner::linked();
     auto* table = bleturner::editableTable(SETTINGS.ble.remotes, SETTINGS.ble.remoteCount, peer.addr, peer.name);
@@ -340,27 +288,7 @@ void BleSettingsActivity::clearMapping(const int index) {
   if (action == bleturner::Action::NextPage) SETTINGS.ble.nextKeyUsage = bleturner::kUsageNone;
   if (action == bleturner::Action::PrevPage) SETTINGS.ble.prevKeyUsage = bleturner::kUsageNone;
   SETTINGS.saveToFile();
-  learnNote = tr(STR_BT_MAPPING_CLEARED);
   refresh();
   requestUpdate();
 }
-
-void BleSettingsActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(metrics.topPadding + metrics.headerHeight), 0,
-                                                static_cast<int16_t>(metrics.buttonHintsHeight), 0});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-
-  fui::ListProps props;
-  props.rowProvider = [](void* ctx, const uint16_t index, fui::ListItem& item) {
-    item = static_cast<BleSettingsActivity*>(ctx)->rows[index];
-    // UiListActivity dispatches row indices; keep Bluetooth action codes in rows.
-    item.actionValue = static_cast<int16_t>(index);
-  };
-  props.rowProviderCtx = this;
-  props.count = static_cast<uint16_t>(rows.size());
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch | fui::InputLongPress;  // physical buttons stay in loop()
-  syncListViewport(screen, props);
-  screen.list(props);
-}
+void BleSettingsActivity::prepareRows() {}

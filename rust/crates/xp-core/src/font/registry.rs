@@ -12,18 +12,32 @@ pub struct File {
     pub size: u8,
     pub style: u8,
 }
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Files {
+    pub ctx: *const c_void,
+    pub count: usize,
+    pub get: unsafe extern "C" fn(*const c_void, usize) -> File,
+}
+impl Files {
+    /// # Safety
+    /// index is below count; the callback returns a live borrowed filename.
+    pub unsafe fn at(&self, index: usize) -> File {
+        (self.get)(self.ctx, index)
+    }
+}
 unsafe fn string<'a>(s: *const c_char) -> &'a [u8] {
     CStr::from_ptr(s).to_bytes()
 }
 
 /// # Safety
-/// files loans `count` ABI-compatible file records for the duration of this call.
-pub unsafe fn nearest(files: *const File, count: usize, size: u8, style: u8, exact: bool) -> i32 {
+/// The indexed view and its borrowed filenames stay valid throughout this call.
+pub unsafe fn nearest(files: &Files, size: u8, style: u8, exact: bool) -> i32 {
     let mut best = -1;
     let mut delta = 255;
     let mut best_size = 0;
-    for i in 0..count {
-        let f = &*files.add(i);
+    for i in 0..files.count {
+        let f = files.at(i);
         if f.style != style {
             continue;
         }
@@ -148,7 +162,7 @@ pub struct Candidate {
 pub unsafe fn select_faces(
     candidates: *const Candidate,
     count: usize,
-    files: *const File,
+    files: &Files,
     selected: *mut i32,
 ) -> bool {
     let pick = |italic: bool, target: u16, exclude: i32| {
@@ -168,8 +182,8 @@ pub unsafe fn select_faces(
                     || (dc == db
                         && (c.weight < b.weight
                             || (c.weight == b.weight
-                                && string((*files.add(c.index)).name)
-                                    < string((*files.add(b.index)).name))))
+                                && string(files.at(c.index).name)
+                                    < string(files.at(b.index).name))))
             };
             if replace {
                 best = i as i32;
@@ -220,7 +234,7 @@ pub struct Discovery {
     pub families: unsafe extern "C" fn(*mut c_void) -> usize,
     pub family_name: unsafe extern "C" fn(*mut c_void, usize) -> *const c_char,
     pub begin_family: unsafe extern "C" fn(*mut c_void, *const c_char, *const u8, usize, bool),
-    pub files: unsafe extern "C" fn(*mut c_void, bool, *mut usize) -> *const File,
+    pub files: unsafe extern "C" fn(*mut c_void, bool) -> Files,
     pub add_file: unsafe extern "C" fn(*mut c_void, bool, *const c_char, u8, u8, bool) -> bool,
     pub commit_family: unsafe extern "C" fn(*mut c_void, bool, *const c_char) -> usize,
     pub diagnostic: unsafe extern "C" fn(*mut c_void, u32, *const c_char, *const c_char, usize),
@@ -263,9 +277,8 @@ unsafe fn scan_directory(
             continue;
         };
         if !vector {
-            let mut count = 0;
-            let files = (io.files)(io.ctx, false, &mut count);
-            if nearest(files, count, size, style, true) >= 0 {
+            let files = (io.files)(io.ctx, false);
+            if nearest(&files, size, style, true) >= 0 {
                 (io.diagnostic)(io.ctx, 3, name.as_ptr().cast(), dir, 0);
                 continue;
             }
@@ -277,10 +290,8 @@ unsafe fn scan_directory(
         }
     }
     (io.close)(io.ctx, false);
-    let mut cp_count = 0;
-    (io.files)(io.ctx, false, &mut cp_count);
-    let mut vec_count = 0;
-    (io.files)(io.ctx, true, &mut vec_count);
+    let cp_count = (io.files)(io.ctx, false).count;
+    let vec_count = (io.files)(io.ctx, true).count;
     if cp_count == 0 && vec_count == 0 {
         return;
     }
@@ -349,16 +360,11 @@ pub unsafe fn scan_root(io: &Discovery, root: *const c_char) {
 }
 
 /// # Safety
-/// Same file-array loan contract as nearest; emit only appends an output size.
-pub unsafe fn sizes(
-    files: *const File,
-    count: usize,
-    ctx: *mut c_void,
-    emit: unsafe extern "C" fn(*mut c_void, u8),
-) {
+/// Same indexed-view loan contract as nearest; emit only appends an output size.
+pub unsafe fn sizes(files: &Files, ctx: *mut c_void, emit: unsafe extern "C" fn(*mut c_void, u8)) {
     let mut seen = [false; 256];
-    for i in 0..count {
-        seen[usize::from((*files.add(i)).size)] = true;
+    for i in 0..files.count {
+        seen[usize::from(files.at(i).size)] = true;
     }
     for (size, &present) in seen.iter().enumerate() {
         if present {
@@ -415,9 +421,9 @@ pub unsafe fn root(
 }
 
 /// # Safety
-/// Same file-array loan contract as nearest.
-pub unsafe fn has_size(files: *const File, count: usize, size: u8) -> bool {
-    (0..count).any(|i| (*files.add(i)).size == size)
+/// Same indexed-view loan contract as nearest.
+pub unsafe fn has_size(files: &Files, size: u8) -> bool {
+    (0..files.count).any(|i| files.at(i).size == size)
 }
 
 #[repr(C)]

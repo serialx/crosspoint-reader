@@ -16,30 +16,37 @@
 
 // One file entry per installed size is resident from boot; keep it to the
 // name pointer plus two bytes.
-static_assert(sizeof(SdCardFontFileInfo) == sizeof(XpFontFile));
-static_assert(offsetof(SdCardFontFileInfo, pointSize) == offsetof(XpFontFile, size));
-static_assert(offsetof(SdCardFontFileInfo, style) == offsetof(XpFontFile, style));
+static_assert(sizeof(SdCardFontFileInfo) == 2 * sizeof(void*), "SdCardFontFileInfo grew");
+
+XpFontFiles sdFontFileView(const std::vector<SdCardFontFileInfo>& files) {
+  return {&files, files.size(), [](const void* ctx, size_t index) -> XpFontFile {
+            const auto& file = (*static_cast<const std::vector<SdCardFontFileInfo>*>(ctx))[index];
+            return {file.name.get(), file.pointSize, file.style};
+          }};
+}
 
 // --- SdCardFontFamilyInfo helpers ---
 
 const SdCardFontFileInfo* SdCardFontFamilyInfo::findFile(uint8_t size, uint8_t style) const {
-  const auto index =
-      xp_font_file_nearest(reinterpret_cast<const XpFontFile*>(files.data()), files.size(), size, style, true);
+  const auto view = sdFontFileView(files);
+  const auto index = xp_font_file_nearest(&view, size, style, true);
   return index < 0 ? nullptr : &files[index];
 }
 const SdCardFontFileInfo* SdCardFontFamilyInfo::findNearestSize(uint8_t size, uint8_t style) const {
-  const auto index =
-      xp_font_file_nearest(reinterpret_cast<const XpFontFile*>(files.data()), files.size(), size, style, false);
+  const auto view = sdFontFileView(files);
+  const auto index = xp_font_file_nearest(&view, size, style, false);
   return index < 0 ? nullptr : &files[index];
 }
 
 bool SdCardFontFamilyInfo::hasSize(uint8_t size) const {
-  return xp_font_has_size(reinterpret_cast<const XpFontFile*>(files.data()), files.size(), size);
+  const auto view = sdFontFileView(files);
+  return xp_font_has_size(&view, size);
 }
 
 std::vector<uint8_t> SdCardFontFamilyInfo::availableSizes() const {
   std::vector<uint8_t> sizes;
-  xp_font_sizes(reinterpret_cast<const XpFontFile*>(files.data()), files.size(), &sizes,
+  const auto view = sdFontFileView(files);
+  xp_font_sizes(&view, &sizes,
                 [](void* ctx, uint8_t size) { static_cast<std::vector<uint8_t>*>(ctx)->push_back(size); });
   return sizes;
 }
@@ -125,8 +132,8 @@ void SdCardFontRegistry::refineVectorStyles(const char* dirPath, std::vector<SdC
   }
 
   int32_t indices[4];
-  const bool promoted =
-      xp_font_select_faces(cands.data(), cands.size(), reinterpret_cast<const XpFontFile*>(files.data()), indices);
+  const auto view = sdFontFileView(files);
+  const bool promoted = xp_font_select_faces(cands.data(), cands.size(), &view, indices);
   if (indices[0] < 0) return;
   if (promoted) LOG_DBG("SDREG", "No upright face in %s — promoting %s", dirPath, files[indices[0]].name.get());
   std::vector<SdCardFontFileInfo> selected;
@@ -184,11 +191,9 @@ void SdCardFontRegistry::scanRoot(const char* rootPath, std::vector<SdCardFontFa
         family.loose = loose;
         family.vector = loose;
       },
-      [](void* ctx, bool vector, size_t* count) {
+      [](void* ctx, bool vector) {
         auto& io = *static_cast<ScanIo*>(ctx);
-        const auto& files = vector ? io.vector : io.cpfont;
-        *count = files.size();
-        return reinterpret_cast<const XpFontFile*>(files.data());
+        return sdFontFileView(vector ? io.vector : io.cpfont);
       },
       [](void* ctx, bool vector, const char* name, uint8_t size, uint8_t style, bool canonical) {
         auto& io = *static_cast<ScanIo*>(ctx);
@@ -224,6 +229,8 @@ void SdCardFontRegistry::scanRoot(const char* rootPath, std::vector<SdCardFontFa
 #endif
         io.family.vector = vector;
         io.family.files = std::move(vector ? io.vector : io.cpfont);
+        // Release discarded candidates before the family vector can grow.
+        std::vector<SdCardFontFileInfo>().swap(vector ? io.cpfont : io.vector);
         io.out.push_back(std::move(io.family));
         return io.out.back().files.size();
       },

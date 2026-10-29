@@ -317,8 +317,6 @@ class SdCardFont {
 
   void applyGlyphMissCallback(uint8_t styleIdx);
 
-  // Drops this style's reference to its interval table and frees the table with the last one.
-
   // Global helpers
   void freeAll();
 

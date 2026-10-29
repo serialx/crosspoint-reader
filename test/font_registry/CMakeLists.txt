@@ -15,3 +15,7 @@ target_link_libraries(FontRegistryAllocation PRIVATE xp_ffi_host)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME FontRegistryAllocation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check.py
   $<TARGET_FILE:FontRegistryAllocation>)
+add_executable(FontRegistryAbi Abi.cpp)
+target_link_libraries(FontRegistryAbi PRIVATE xp_ffi_host)
+target_compile_options(FontRegistryAbi PRIVATE -UNDEBUG)
+add_test(NAME FontRegistryAbi COMMAND FontRegistryAbi)

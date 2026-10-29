@@ -235,16 +235,15 @@ pub extern "C" fn xp_font_style(style: u8, bold: bool, italic: bool, bold_italic
         _ => 0,
     }
 }
-use xp_core::font::registry::{self, Candidate, Discovery, File};
+use xp_core::font::registry::{self, Candidate, Discovery, Files};
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_file_nearest(
-    files: *const File,
-    count: usize,
+    files: *const Files,
     size: u8,
     style: u8,
     exact: bool,
 ) -> i32 {
-    registry::nearest(files, count, size, style, exact)
+    registry::nearest(&*files, size, style, exact)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_file_path(
@@ -262,10 +261,10 @@ pub unsafe extern "C" fn xp_font_file_path(
 pub unsafe extern "C" fn xp_font_select_faces(
     candidates: *const Candidate,
     count: usize,
-    files: *const File,
+    files: *const Files,
     selected: *mut i32,
 ) -> bool {
-    registry::select_faces(candidates, count, files, selected)
+    registry::select_faces(candidates, count, &*files, selected)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_scan_root(io: *const Discovery, root: *const core::ffi::c_char) {
@@ -273,12 +272,11 @@ pub unsafe extern "C" fn xp_font_scan_root(io: *const Discovery, root: *const co
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_sizes(
-    files: *const File,
-    count: usize,
+    files: *const Files,
     ctx: *mut c_void,
     emit: unsafe extern "C" fn(*mut c_void, u8),
 ) {
-    registry::sizes(files, count, ctx, emit);
+    registry::sizes(&*files, ctx, emit);
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_find_family(
@@ -302,8 +300,8 @@ pub unsafe extern "C" fn xp_font_root(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_font_has_size(files: *const File, count: usize, size: u8) -> bool {
-    registry::has_size(files, count, size)
+pub unsafe extern "C" fn xp_font_has_size(files: *const Files, size: u8) -> bool {
+    registry::has_size(&*files, size)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_font_discover(

@@ -21,6 +21,10 @@ struct SdCardFontFileInfo {
                       // the filename). A loose vector file is always role 0.
 };
 
+struct XpFontFiles;
+// The view borrows this vector and its filenames until the next mutation.
+XpFontFiles sdFontFileView(const std::vector<SdCardFontFileInfo>& files);
+
 struct SdCardFontFamilyInfo {
   // Buffer size for filePath(), matching the installer's own path buffers.
   // Discovery drops files whose path would not fit, so every registered file

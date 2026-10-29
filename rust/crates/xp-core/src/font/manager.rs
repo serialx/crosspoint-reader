@@ -1,5 +1,5 @@
 //! SD font registration and ownership policy over the renderer's existing maps.
-use super::registry::{self, File};
+use super::registry::{self, File, Files};
 use core::ffi::{c_char, c_void, CStr};
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -20,8 +20,7 @@ pub struct Family {
     pub name: *const c_char,
     pub name_len: usize,
     pub root: *const c_char,
-    pub files: *const File,
-    pub count: usize,
+    pub files: Files,
     pub loose: bool,
 }
 #[repr(C)]
@@ -174,7 +173,7 @@ pub unsafe fn load(io: &Services, family: &Family, size: u8, id: i32, mode: Mode
     if mode == Mode::Replace && (io.view)(io.ctx).name_len != 0 {
         unload(io, None);
     }
-    let index = registry::nearest(family.files, family.count, size, 0, mode != Mode::Replace);
+    let index = registry::nearest(&family.files, size, 0, mode != Mode::Replace);
     if index < 0 {
         if mode == Mode::Replace {
             (io.diagnostic)(io.ctx, 6, family.name, 0, 0, 0);
@@ -187,8 +186,13 @@ pub unsafe fn load(io: &Services, family: &Family, size: u8, id: i32, mode: Mode
             return loaded;
         }
     }
-    let file = &*family.files.add(index as usize);
-    let loaded = load_file(io, family, file, if mode == Mode::Replace { 0 } else { id });
+    let file = family.files.at(index as usize);
+    let loaded = load_file(
+        io,
+        family,
+        &file,
+        if mode == Mode::Replace { 0 } else { id },
+    );
     if mode == Mode::Replace && loaded != 0 {
         (io.family)(io.ctx, family.name, family.name_len, file.size);
     }

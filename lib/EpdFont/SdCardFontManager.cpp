@@ -85,9 +85,7 @@ XpFontManagerServices SdCardFontManager::services(Call* call) {
 }
 namespace {
 XpFontFamilyFiles view(const SdCardFontFamilyInfo& family) {
-  return {family.name.c_str(), family.name.size(),
-          family.root,         reinterpret_cast<const XpFontFile*>(family.files.data()),
-          family.files.size(), family.loose};
+  return {family.name.c_str(), family.name.size(), family.root, sdFontFileView(family.files), family.loose};
 }
 }  // namespace
 SdCardFontManager::~SdCardFontManager() {

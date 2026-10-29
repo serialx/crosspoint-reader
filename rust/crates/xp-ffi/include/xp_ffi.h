@@ -1980,15 +1980,22 @@ typedef struct {
   const char* name;
   uint8_t size, style;
 } XpFontFile;
+// get returns a plain record for index < count. The owner and borrowed filenames
+// must remain live and unchanged throughout the synchronous operation.
+typedef struct XpFontFiles {
+  const void* ctx;
+  size_t count;
+  XpFontFile (*get)(const void*, size_t index);
+} XpFontFiles;
 typedef struct {
   size_t index;
   uint16_t weight;
   bool italic;
 } XpFontCandidate;
-int32_t xp_font_file_nearest(const XpFontFile*, size_t count, uint8_t size, uint8_t style, bool exact);
+int32_t xp_font_file_nearest(const XpFontFiles*, uint8_t size, uint8_t style, bool exact);
 bool xp_font_file_path(const char* root, const char* family, const char* file, uint8_t size, bool loose, uint8_t* out,
                        size_t capacity);
-bool xp_font_select_faces(const XpFontCandidate*, size_t, const XpFontFile*, int32_t* selected);
+bool xp_font_select_faces(const XpFontCandidate*, size_t, const XpFontFiles*, int32_t* selected);
 typedef struct {
   void* ctx;
   bool vectors;
@@ -1998,19 +2005,19 @@ typedef struct {
   size_t (*families)(void*);
   const char* (*familyName)(void*, size_t);
   void (*beginFamily)(void*, const char* root, const uint8_t* name, size_t length, bool loose);
-  const XpFontFile* (*files)(void*, bool vector, size_t* count);
+  XpFontFiles (*files)(void*, bool vector);
   bool (*addFile)(void*, bool vector, const char* name, uint8_t size, uint8_t style, bool canonical);
   size_t (*commitFamily)(void*, bool vector, const char* directory);
   void (*diagnostic)(void*, uint32_t, const char*, const char*, size_t);
   void (*endFamily)(void*);
 } XpFontDiscovery;
 void xp_font_scan_root(const XpFontDiscovery*, const char* root);
-void xp_font_sizes(const XpFontFile*, size_t, void*, void (*emit)(void*, uint8_t));
+void xp_font_sizes(const XpFontFiles*, void*, void (*emit)(void*, uint8_t));
 int32_t xp_font_find_family(const void*, size_t, const char* (*get)(const void*, size_t), const uint8_t*, size_t);
 const char* xp_font_root(const char* family, const char* hidden, const char* visible, bool (*exists)(const char*),
                          bool write);
 
-bool xp_font_has_size(const XpFontFile*, size_t, uint8_t);
+bool xp_font_has_size(const XpFontFiles*, uint8_t);
 typedef struct {
   void* ctx;
   void (*clear)(void*);
@@ -2131,8 +2138,7 @@ typedef struct {
   const char* name;
   size_t nameLen;
   const char* root;
-  const XpFontFile* files;
-  size_t count;
+  XpFontFiles files;
   bool loose;
 } XpFontFamilyFiles;
 typedef struct {

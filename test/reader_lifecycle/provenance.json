@@ -83,6 +83,10 @@
     "capture_command": "python3 test/reader_lifecycle/test_overlay_input.py --freeze-original",
     "negative": "Changing left-tool rotation from +2 to +1 changes the frozen transition trace.",
     "coverage": "Toolbar/Contents/Text/More; routed events, buttons, paired hold-release, swipes, row bounds, popup still-active/dismissed, font-picker result, TOC jump and scroll/panel cursor behavior; every resource-lock path returns at depth zero.; TOC item ownership/destruction relative to navigation and update.",
-    "limits": "Resource leaves are deterministic; actual SDK/Rust viewport behavior is covered separately by nav.golden.gz and reader_toolbar_publication."
+    "limits": "Resource leaves are deterministic; actual SDK/Rust viewport behavior is covered separately by nav.golden.gz and reader_toolbar_publication.",
+    "generation": 2,
+    "note": "Extracts the original MappedInputManager::SwipeDir declaration as well as method bodies; actual IDs are None=0, Left=1, Right=2, Up=3, Down=4.",
+    "swipe_provider_sha256": "2b11d91fe75bb03fc5503264342e1ffbf1ad73bb7d0d7394dfc3bc37208fe5d0",
+    "golden_sha256": "4c5782110b74a8300186c9b82e7e1edd55ae0728ab9fbd4b75ad0f87f1c1b652"
   }
 }

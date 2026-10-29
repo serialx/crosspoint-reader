@@ -1,6 +1,7 @@
 """Compare the production toolbar parent against input traces frozen from 8d534a99."""
 from pathlib import Path
 import gzip
+import re
 import subprocess
 import sys
 import tempfile
@@ -12,7 +13,11 @@ freeze = '--freeze-original' in sys.argv
 source = (subprocess.check_output(['git', 'show', '8d534a99:src/activities/reader/EpubReaderActivity.cpp'], cwd=ROOT, text=True)
           if freeze else (ROOT / 'src/activities/reader/EpubReaderActivity.cpp').read_text())
 nav = (ROOT / 'src/util/ButtonNavigator.cpp').read_text()
+input_header = (subprocess.check_output(['git', 'show', '8d534a99:src/MappedInputManager.h'], cwd=ROOT, text=True)
+                if freeze else (ROOT / 'src/MappedInputManager.h').read_text())
+swipe = re.search(r'enum class SwipeDir \{[^}]+\};', input_header)[0]
 fixture = (HERE / 'overlay_oracle.cpp').read_text().replace('// OVERLAY_METHODS', definition(source, 'void EpubReaderActivity::handleOverlayInput()'))
+fixture = fixture.replace('// SWIPE_ENUM', swipe)
 fixture = fixture.replace('// NAV_METHODS', '\n'.join(definition(nav, 'int ButtonNavigator::' + name) for name in ['nextIndex(', 'previousIndex(']))
 with tempfile.TemporaryDirectory() as directory:
     p = Path(directory)

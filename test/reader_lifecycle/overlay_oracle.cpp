@@ -23,7 +23,7 @@ struct RenderLock {
 };
 struct MappedInputManager {
   enum class Button { Back, Left, Right, Confirm, Up, Down };
-  enum class SwipeDir { None, Up, Down, Left, Right };
+  // SWIPE_ENUM
   unsigned released = 0, pressed = 0, held = 0;
   SwipeDir swipe = SwipeDir::None;
   bool wasReleased(Button b) {

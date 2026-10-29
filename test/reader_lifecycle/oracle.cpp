@@ -162,6 +162,7 @@ struct EpubReaderActivity {
   bool skipLoopDelay();
   void saveLinkStack() const;
   void loadLinkStack();
+  void restoreSavedPosition();
   void loadProgress();
   void turnInput();
   bool handleEndOfBookPageTurn(bool, bool) { return endInput; }
@@ -319,6 +320,31 @@ static void persistence() {
     b.loadLinkStack();
     std::printf("links %d %d %d\n", depth, b.footnoteDepth, Storage.exists("/cache/links.bin"));
     for (const auto& p : b.savedPositions) std::printf("position %d %d\n", p.spineIndex, p.pageNumber);
+  }
+  for (int size = 0; size <= 14; ++size) {
+    for (int depth = 0; depth <= 4; ++depth) {
+      for (int invalidSpine = 0; invalidSpine < 2; ++invalidSpine) {
+        storageTrace = {};
+        auto& bytes = storageTrace.files["/cache/links.bin"];
+        bytes.assign(size, 0);
+        if (size) bytes[0] = depth;
+        if (size > 5) bytes[5] = invalidSpine ? 3 : 1;
+        EpubReaderActivity a;
+        for (auto& p : a.savedPositions) p = {17, 19};
+        a.loadLinkStack();
+        std::printf("links-invalid %d %d %d %d %d\n", size, depth, invalidSpine, a.footnoteDepth,
+                    Storage.exists("/cache/links.bin"));
+        for (const auto& p : a.savedPositions) std::printf("position %d %d\n", p.spineIndex, p.pageNumber);
+        a.restoreSavedPosition();
+        std::printf("links-back %d %d %d\n", a.footnoteDepth, a.currentSpineIndex, a.nextPageNumber);
+      }
+    }
+  }
+  for (int len : {0, 4, 6, 10}) {
+    storageTrace = {};
+    const uint8_t bytes[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::printf("atomic-length %d\n", len);
+    std::printf("atomic-result %d\n", ProgressFile::writeAtomic("/cache", bytes, len));
   }
 }
 

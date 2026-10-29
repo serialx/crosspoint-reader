@@ -26,6 +26,7 @@ def generate(repo, output):
         "bool EpubReaderActivity::skipLoopDelay(",
         "void EpubReaderActivity::saveLinkStack(",
         "void EpubReaderActivity::loadLinkStack(",
+        "void EpubReaderActivity::restoreSavedPosition(",
     )]
     load = definition(reader, 'if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f))')
     methods.append("void EpubReaderActivity::loadProgress() { HalFile f; " + load + " }")

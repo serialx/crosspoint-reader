@@ -35,6 +35,8 @@ typedef struct {
   int32_t (*line)(void*, int32_t);
   uint16_t count, reserved;
 } XpUiSettingsResources;
+// Layout flag bit 2 preserves KOReader's small labels on touch panels.
+enum { XP_UI_SETTINGS_SMALL_LABELS_ON_TOUCH = 4 };
 typedef struct {
   XpUiListStyle list;
   XpUiRect safe;

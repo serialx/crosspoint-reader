@@ -36,6 +36,7 @@ class SettingsUiActivity : public RustActivityAdapter {
   virtual void drawFooter();
   virtual void drawPreview() {}
   virtual uint8_t screenFlags() const { return 0; }
+  virtual bool smallLabelsOnTouch() const { return false; }
   virtual const char* specialText(uint32_t) const { return nullptr; }
   virtual bool handleCustomInput() { return false; }
   virtual void onRowLongPress(int) {}
@@ -56,6 +57,8 @@ class SettingsUiActivity : public RustActivityAdapter {
   Publication publication;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t commandCapacity = 0;
+  uint16_t requestedCapacity = 0;
+  bool sceneFailed = false;
   int32_t renderingScroll = 0;
   bool longTouch = false;
   bool touchActivated = false;

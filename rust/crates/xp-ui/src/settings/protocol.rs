@@ -1,4 +1,6 @@
 // Private settings ABI identities, mirrored by xp_ui_settings.h.
+pub const SMALL_LABELS_ON_TOUCH: u8 = 4;
+const _: () = assert!(SMALL_LABELS_ON_TOUCH == 4);
 pub const ROOT: u8 = 0;
 pub const SECTION: u8 = 1;
 pub const ABOUT: u8 = 2;

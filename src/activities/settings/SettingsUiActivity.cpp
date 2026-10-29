@@ -18,6 +18,7 @@ SettingsUiActivity::SettingsUiActivity(const char* name, GfxRenderer& renderer, 
 bool SettingsUiActivity::reserveCommands(uint16_t count) {
   if (count <= commandCapacity) return true;
   if (count > 128) return false;
+  requestedCapacity = count;
   commands.reset();
   commandCapacity = 0;
   commands = makeUniqueNoThrow<XpUiCommand[]>(count);
@@ -32,6 +33,7 @@ bool SettingsUiActivity::reserveCommands(uint16_t count) {
 void SettingsUiActivity::onEnter() {
   Activity::onEnter();
   publication.ready = false;
+  sceneFailed = false;
   xp_ui_settings_list_init(&state, 0);
   // Small fixed menus reserve their row/chrome budget; measured overflow grows below.
   uint16_t initialCommands = 48;
@@ -68,7 +70,7 @@ void SettingsUiActivity::onEnter() {
 void SettingsUiActivity::onExit() {
   publication.ready = false;
   commands.reset();
-  commandCapacity = 0;
+  commandCapacity = requestedCapacity = 0;
   Activity::onExit();
 }
 
@@ -117,6 +119,17 @@ XpUiInterest SettingsUiActivity::rustInterest(uint32_t now) const {
 XpUiEffect SettingsUiActivity::updateRust(const XpUiInput& source) {
   XpUiInput input = source;
   touchActivated = false;
+  if (sceneFailed) {
+    input.pressed &= XP_UI_BACK;
+    input.released &= XP_UI_BACK;
+    input.held = 0;
+    input.action = 0;
+    input.touch_flags = 0;
+    input.swipe = 0;
+    auto effect = xp_ui_settings_list_update(&state, &input, listCount());
+    effect.invalidate = 1;
+    return effect;
+  }
   if (publication.ready && input.touch_flags) {
     XpUiInteraction hit{};
     if (xp_ui_settings_hit(&publishedHits, input.touch_x, input.touch_y, &hit)) {
@@ -206,7 +219,13 @@ XpUiSettingsResources SettingsUiActivity::resources() {
 }
 
 bool SettingsUiActivity::buildRustScene(XpUiScene& scene) {
-  if (!commands || listCount() < 0 || listCount() > UINT16_MAX) return false;
+  const auto failed = [this]() {
+    ModelLock lock(*this);
+    sceneFailed = true;
+    return false;
+  };
+  if ((!commands && !reserveCommands(requestedCapacity)) || listCount() < 0 || listCount() > UINT16_MAX)
+    return failed();
   prepareRows();
   XpUiListState snapshot{};
   {
@@ -247,7 +266,7 @@ bool SettingsUiActivity::buildRustScene(XpUiScene& scene) {
   layout.tab_height = m.tabBarHeight;
   layout.preview_height = UITheme::getInstance().getStatusBarHeight();
   layout.side_padding = m.contentSidePadding;
-  layout.flags = screenFlags();
+  layout.flags = screenFlags() | (smallLabelsOnTouch() ? XP_UI_SETTINGS_SMALL_LABELS_ON_TOUCH : 0);
   layout.kind = kind;
   layout.touch = mappedInput.hasTouch();
   const auto services = resources();
@@ -255,10 +274,11 @@ bool SettingsUiActivity::buildRustScene(XpUiScene& scene) {
     const XpUiBuffer buffer{commands.get(), nullptr, commandCapacity, 0};
     const auto result = xp_ui_settings_view(&snapshot, &layout, &services, &buffer, &next, &scene, &nextHits);
     if (result == 1) return true;
-    if (result != 2 || !reserveCommands(commandCapacity + 16)) return false;
+    if (result != 2 || !reserveCommands(commandCapacity + 16)) return failed();
   }
 }
 void SettingsUiActivity::rustPublished() {
+  sceneFailed = false;
   xp_ui_settings_list_publish(&state, &next, renderingScroll);
   publishedHits = nextHits;
 }

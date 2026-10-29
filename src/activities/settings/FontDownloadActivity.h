@@ -1,12 +1,15 @@
 #pragma once
 
+#include <FreeInkApp.h>
+
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "FontInstaller.h"
 #include "SdCardFont.h"
-#include "activities/UiListActivity.h"
+#include "UpdateUiActivity.h"
 
 // JSON schema version of the fonts.json manifest. The canonical version for
 // the build tooling lives in lib/EpdFont/scripts/cpfont_version.py. This
@@ -26,21 +29,12 @@
       FONTS_MANIFEST_VERSION) "-b" FONT_MANIFEST_URL_STRINGIFY(CPFONT_VERSION) "/fonts.json"
 #endif
 
-class FontDownloadActivity final : public UiListActivity {
+class FontDownloadActivity final : public UpdateUiActivity {
  public:
   explicit FontDownloadActivity(GfxRenderer& renderer, MappedInputManager& mappedInput);
 
   void onEnter() override;
   void onExit() override;
-  void render(RenderLock&&) override;
-  bool preventAutoSleep() override {
-    return state_ == LOADING_MANIFEST || state_ == DOWNLOADING ||
-           // The download is synchronous and blocks the main loop until it
-           // completes, so activityManager.preventAutoSleep() is never polled
-           // during downloading.
-           state_ == COMPLETE || state_ == ERROR;
-  }
-  bool skipLoopDelay() override { return true; }
 
  private:
   enum State {
@@ -76,7 +70,6 @@ class FontDownloadActivity final : public UiListActivity {
 
   static constexpr size_t MAX_SCRIPT_GROUPS = 32;
 
-  State state_ = WIFI_SELECTION;
   FontInstaller fontInstaller_;
 
   // Manifest data
@@ -98,39 +91,34 @@ class FontDownloadActivity final : public UiListActivity {
   std::vector<StrRef> scriptGroupLabels_;
   // One 4-byte index per manifest family, allocated once and reused for every group.
   std::vector<int> filteredIndices_;
-  freeink::ui::ListNav groupNav_;
 
-  // Download progress
-  size_t currentFileIndex_ = 0;
-  size_t currentFileTotal_ = 0;
-  size_t fileProgress_ = 0;
-  size_t fileTotal_ = 0;
-  int downloadingFamilyIndex_ = 0;
   std::string errorMessage_;
-  bool cancelRequested_ = false;
-  // Set when the cancel came from the home gesture (consumed by the download
-  // callback's own input pump); exit to home after the abort unwinds.
-  bool goHomeRequested_ = false;
-
+  bool transferCancel = false;
+  std::string statusText;
+  uint8_t cachedPhase = 255;
   // Shared cache for group and family rows. It is rebuilt only when the visible
   // list changes, never for cursor movement or tap flash repaints.
   std::vector<std::string> rowLabels_;
   std::vector<freeink::ui::ListItem> rowItems_;
-  bool rowsDirty_ = true;
+  std::atomic<bool> rowsDirty_{true};
   void rebuildRowItems();
   void rebuildGroupRowItems();
   void rebuildFamilyRowItems();
 
-  int listCount() const override;
-  void buildScreen(UiScreen& screen) override;
-  void activateIndex(int index) override;
-  freeink::ui::ListNav& activeNav() override;
-  void onBackButton() override;
-  // Non-list states (loading, downloading, complete, error) consume the loop
-  // pass here; the group and family lists use the base list protocol.
-  bool handleCustomInput() override;
-
-  void activateSelected();
+  int listCount() const;
+  int rowCount() const override { return listCount(); }
+  int paintedRowCount() const override { return static_cast<int>(rowItems_.size()); }
+  int familyCount() const override { return static_cast<int>(families_.size()); }
+  void prepareRows() override;
+  bool row(uint16_t, XpUiSettingsRow&) const override;
+  void prepareText() override;
+  void releaseText() override;
+  const char* dynamicText(uint32_t) const override;
+  const char* headerSubtitle() const override;
+  const char* fontConfirmLabel() const override;
+  void performAction(XpUiUpdateAction, int32_t) override;
+  void activateIndex(int index);
+  void activateFamilyRow(int index);
 
   void onWifiSelectionComplete(bool success);
   bool fetchAndParseManifest();
@@ -140,6 +128,7 @@ class FontDownloadActivity final : public UiListActivity {
   bool internString(const char* text, StrRef& outRef);
   void clearManifest();
   void downloadFamily(ManifestFamily& family);
+  void setFamilyStatus(ManifestFamily&, bool installed, bool update);
   void downloadAll();
   void updateAll();
   static bool computeFileCrc32(const char* path, uint32_t& outCrc);
@@ -148,8 +137,7 @@ class FontDownloadActivity final : public UiListActivity {
   int specialRowCount() const;
   bool isDownloadAllRow(int index) const;
   bool isUpdateAllRow(int index) const;
-  bool isSelectedFamilyDeletable() const;
-  void promptDeleteSelectedFamily();
+  void promptDeleteFamily(int index);
   void onDeleteConfirmationResult(const ActivityResult& result);
   int familyIndexFromList(int listIndex) const;
   int listItemCount() const;

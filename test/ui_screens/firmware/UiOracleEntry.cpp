@@ -18,6 +18,9 @@
 #include "activities/util/FrontlightPanelActivity.h"
 
 UiOracleFrontlight uiOracleFrontlight;
+#ifdef CROSSPOINT_UPDATE_UI_ORACLE
+bool uiUpdateOracleEnter(GfxRenderer&, MappedInputManager&, std::string_view);
+#endif
 
 namespace {
 UiOracleCase pluginCase = UiOracleCase::Invalid, hubCase = UiOracleCase::Invalid;
@@ -231,6 +234,9 @@ void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
     LOG_ERR("ORACLE", "Failed to read selector");
     return;
   }
+#ifdef CROSSPOINT_UPDATE_UI_ORACLE
+  if (uiUpdateOracleEnter(renderer, input, std::string_view(selector, size))) return;
+#endif
   const auto selected = uiOracleCase(std::string_view(selector, size));
   switch (selected) {
     case UiOracleCase::OpdsBrowse:

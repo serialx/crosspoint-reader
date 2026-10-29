@@ -31,3 +31,4 @@ pub mod boot;
 pub mod catalog;
 
 pub mod koreader;
+pub mod updates;

@@ -172,3 +172,4 @@ mod book_residual;
 mod ui_catalog;
 
 mod ui_koreader;
+mod ui_updates;

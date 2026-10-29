@@ -57,7 +57,10 @@ def prepare(case, kind):
                    'unknown', 'oversized', 'settings-home-button', 'opds-browse', 'opds-empty',
                    'opds-error', 'opds-loading', 'opds-download', 'opds-bytes', 'opds-auth', 'plugin-browse', 'plugin-xml', 'plugin-lists', 'plugin-empty', 'plugin-error', 'plugin-loading', 'plugin-wifi', 'plugin-search', 'plugin-download', 'plugin-done', 'plugin-no-token', 'plugin-auth', 'hub-download', 'hub-done', 'hub-error', 'hub-loading',
                    'kosync-hash', 'kosync-fetch', 'kosync-clippings', 'kosync-uploading', 'kosync-uploaded', 'kosync-synced', 'kosync-missing', 'kosync-credentials', 'kosync-failed', 'kosync-result', 'koauth-busy', 'koauth-success', 'koauth-failed', 'koauth-signup-busy', 'koauth-signup-success', 'koauth-signup-failed'}
-        if name not in allowed:
+        update_cases = {f'upd-{family}-{phase}' for family, phases in
+                        [('ota', range(1, 7)), ('sd', range(6)), ('cache', range(4)), ('font', range(1, 7))]
+                        for phase in phases}
+        if name not in allowed | update_cases:
             raise ValueError(f'Unknown activity fixture: {kind}')
         selector = root / 'ui-oracle-case.txt'
         selector.write_text('x' * 32 if name == 'oversized' else name)

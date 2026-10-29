@@ -5,6 +5,7 @@ Run: python3 test/test_recursive_dictionary.py (requires a C++20 compiler).
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 from rust_host import rust_link_flags
 
@@ -50,11 +51,23 @@ plain_scratch = block(viewer, "struct DictionaryDefinitionActivity::PlainSelecti
 constants = viewer.split("namespace {", 1)[1].split("}  // namespace", 1)[0]
 # The harness copies every constant but only some methods; clang's -Wall flags the unused ones.
 constants = re.sub(r"^constexpr ", "[[maybe_unused]] constexpr ", constants, flags=re.MULTILINE)
-viewer_loop = block(viewer, "void DictionaryDefinitionActivity::loop()")
-back_handler = viewer_loop.split("  int sx = 0;", 1)[1].split(
-    "  if (lookup && mappedInput.wasReleased(MappedInputManager::Button::Confirm))", 1
-)[0]
-back_handler = "  int sx = 0;" + back_handler
+navigation = block(viewer, "void DictionaryDefinitionActivity::applyNavigation")
+loop = block(viewer, "void DictionaryDefinitionActivity::loop()")
+input_prefix = loop[loop.index("  int x = 0, y = 0;"):loop.index("  XpUiEffect effect;")]
+if '--mutate-input-order' in sys.argv:
+    input_prefix = input_prefix.replace('  auto input = dictionaryUiInput(mappedInput);\n', '')
+    input_prefix = input_prefix.replace('  input.touch_x', '  auto input = dictionaryUiInput(mappedInput);\n  input.touch_x', 1)
+back_handler = input_prefix + r'''
+  XpUiDefinitionState state{};
+  state.lookup = lookup != nullptr;
+  state.history_depth = lookup ? lookup->depth : 0;
+  state.page = content.currentPage;
+  state.pages = content.totalPages;
+  const auto effect = xp_ui_definition_update(&state, &input, tap, longPress,
+      headerLongPress, 528, SETTINGS.touchReaderControls);
+  applyNavigation(effect, x, y);
+'''
+methods += "\n" + navigation
 lookup_source = (ROOT / "src/activities/reader/DictionaryWordSelectActivity.cpp").read_text()
 definition_result = block(lookup_source, "[this](const ActivityResult& result)")
 reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
@@ -63,6 +76,7 @@ lookup_result = block(reader_source.split("startActivityForResult(std::move(look
 reader_constants = (ROOT / "src/activities/reader/ReaderUtils.h").read_text().split("namespace ReaderUtils {", 1)[1].split(
     "constexpr unsigned long SKIP_HOLD_MS", 1
 )[0]
+reader_constants = re.sub(r'^constexpr ', '[[maybe_unused]] constexpr ', reader_constants, flags=re.MULTILINE)
 harness = r'''
 #include <algorithm>
 #include <array>
@@ -76,6 +90,7 @@ harness = r'''
 #include <string>
 #include <vector>
 #include <BidiUtils.h>
+#include <xp_ui_dictionary.h>
 #include <Utf8.h>
 #include <Memory.h>
 #include "activities/ActivityResult.h"
@@ -170,10 +185,16 @@ struct MappedInputManager {
   bool released = false;
   unsigned long heldMs = 0;
   bool longPress = false;
+  bool tap = false;
   bool contactSuppressed = false;
   int touchX = 0, touchY = 0;
   bool wasReleased(Button) const { return released; }
   unsigned long getHeldTime() const { return heldMs; }
+  bool wasScreenTapped(int& x, int& y) {
+    if (!tap || contactSuppressed) return false;
+    x = touchX; y = touchY; heldMs = 100;
+    return true;
+  }
   bool wasScreenLongPress(int& x, int& y) {
     if (!longPress) return false;
     longPress = false;
@@ -183,6 +204,12 @@ struct MappedInputManager {
     return true;
   }
 };
+XpUiInput dictionaryUiInput(const MappedInputManager& input) {
+  XpUiInput frame{};
+  frame.released = input.wasReleased(MappedInputManager::Button::Back) ? XP_UI_BACK : 0;
+  frame.held_ms = input.getHeldTime();
+  return frame;
+}
 ''' + location + r'''
 struct Dictionary {
   enum class LookupResult { Found, NotFound, LowMemory, ReadError, Decompress };
@@ -237,6 +264,7 @@ struct DictionaryDefinitionActivity {
   StrId message{};
   unsigned long messageTime = 0;
   bool messageVisible = false;
+  bool initialLayoutFailed = false;
   bool finished = false;
   bool selectionOpened = false;
   ActivityResult result;
@@ -248,6 +276,7 @@ struct DictionaryDefinitionActivity {
   void finish() { finished = true; }
   void setResult(ActivityResult&& next) { result = std::move(next); }
   void openDictionaryWordSelect() { selectionOpened = true; }
+  void applyNavigation(const XpUiEffect&, int x, int y);
   void handleBack() { ''' + back_handler + r''' }
   void onDefinitionResult(const ActivityResult& child) { (''' + definition_result + r''')(child); }
   void onLookupResult(const ActivityResult& child) { (''' + lookup_result + r''')(child); }
@@ -448,6 +477,14 @@ int main() {
   root.mappedInput.heldMs = 1000;
   root.handleBack();
   assert(root.finished && root.result.isCancelled);
+  // Tap classification changes the native held-time override; Back uses its prior value.
+  DictionaryDefinitionActivity simultaneous;
+  simultaneous.lookup = std::make_unique<DictionaryDefinitionActivity::LookupState>(dictionary);
+  simultaneous.mappedInput.released = true;
+  simultaneous.mappedInput.heldMs = 1000;
+  simultaneous.mappedInput.tap = true;
+  simultaneous.handleBack();
+  assert(simultaneous.finished && simultaneous.result.isCancelled);
   // Header long-press exits independently of text-selection settings; body long-press still selects.
   HeaderBackTapTarget::set(4, 4, 32, 32);
   for (const bool controlsEnabled : {false, true}) {

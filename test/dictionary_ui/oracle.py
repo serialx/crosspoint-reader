@@ -47,13 +47,16 @@ def record(root=ROOT, mutation=False):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type=Path, default=ROOT)
+    parser.add_argument('--source', type=Path)
     parser.add_argument('--record', type=Path)
     args = parser.parse_args()
-    data = record(args.source)
+    data = record(args.source) if args.source else subprocess.check_output([
+        'cargo', 'run', '--quiet', '--manifest-path', str(ROOT / 'rust/Cargo.toml'),
+        '-p', 'xp-ui', '--example', 'dictionary_geometry'])
     if args.record:
         args.record.write_bytes(data)
     else:
         assert data == gzip.decompress((Path(__file__).parent / 'geometry.golden.gz').read_bytes())
-        assert record(args.source, True) != data, 'slop mutation was not detected'
-        print('Dictionary/selection geometry matches; slop mutation rejected')
+        if args.source:
+            assert record(args.source, True) != data, 'slop mutation was not detected'
+        print('Dictionary/selection geometry matches frozen C++')

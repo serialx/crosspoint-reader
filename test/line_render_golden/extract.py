@@ -13,7 +13,7 @@ parts += [between(dictionary, 'int DictionaryDefinitionActivity::measureSpan(',
                   'bool DictionaryDefinitionActivity::reserveLines(')]
 parts += [between(dictionary, 'bool DictionaryDefinitionActivity::buildPlainSelectionPages()',
                   'void DictionaryDefinitionActivity::startSelection(')]
-word = between(header, '  struct WordBox {', '  static constexpr size_t MAX_SELECTABLE_WORDS')
+word = between(header, '  using WordBox =', '  static constexpr size_t MAX_SELECTABLE_WORDS')
 parts += ['struct ClipSelectionActivity {\n' + word + '''
   enum class Mode { Clip, DefinitionLookup };
   static constexpr size_t MAX_SELECTABLE_WORDS = 240;
@@ -28,15 +28,29 @@ parts += ['struct ClipSelectionActivity {\n' + word + '''
   size_t pageCount() const { return pages.size(); }
   const Page& pageAt(size_t i) const { return *pages[i]; }
   bool extractWords();
-  void prewarmWord(int) const;
-  void ditherGapBetween(const WordBox&, const WordBox&, int, int) const;
-  void drawWordHighlight(int, int, int, int, int) const;
+  void drawSelection(int first, int last);
 };
 ''']
-for first, last in [
-    ('bool ClipSelectionActivity::extractWords()', 'int ClipSelectionActivity::closestInRow('),
-    ('void ClipSelectionActivity::prewarmWord(', 'void ClipSelectionActivity::clearGapBetween('),
-    ('void ClipSelectionActivity::drawWordHighlight(', 'bool ClipSelectionActivity::renderIncremental()'),
-]:
-    parts += [between(clip, first, last)]
+parts += [between(clip, 'bool ClipSelectionActivity::extractWords()', 'bool ClipSelectionActivity::buildSelectedText(')]
+start = clip.index('[](void* context, const XpGlyphTarget*, const XpUiSelectionWord* word')
+end = clip.index('}};', start) + 1
+callback = clip[start:end]
+parts += ['void ClipSelectionActivity::drawSelection(int first, int last) {\n' + r'''
+  struct Context { ClipSelectionActivity* self; bool incremental; } context{this, true};
+  const XpUiSelectionFonts fonts{&context, ''' + callback + r'''};
+  XpUiSelectionState state{};
+  xp_ui_selection_init(&state, 0, words.get(), wordCount, 32767, first, last);
+  state.page = currentPageOffset;
+  XpUiSelectionLayout layout{};
+  layout.screen = layout.safe = {0, 0, 32767, 32767};
+  layout.touch = 1;
+  XpUiSelectionPainted old{};
+  const auto clip = renderer.getClipRect();
+  const XpGlyphTarget target{renderer.getWriteTarget(), HalDisplay::BUFFER_SIZE,
+      HalDisplay::DISPLAY_WIDTH, HalDisplay::DISPLAY_HEIGHT, HalDisplay::DISPLAY_WIDTH_BYTES,
+      0, HalDisplay::DISPLAY_HEIGHT, {clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]},
+      static_cast<uint8_t>(renderer.getOrientation()), static_cast<uint8_t>(renderer.getRenderMode()), 0, 0, 0};
+  if (!xp_ui_selection_paint(&state, words.get(), wordCount, &layout, &old, &target, &fonts, 0)) abort();
+}
+''']
 output.write_text('\n'.join(parts))

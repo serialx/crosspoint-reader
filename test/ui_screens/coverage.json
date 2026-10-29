@@ -190,6 +190,16 @@
       "activity": "DictionaryDefinition"
     },
     {
+      "source": "src/activities/reader/DictionaryUiBindings.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "clip",
+        "dictionary",
+        "plugin-readme"
+      ],
+      "reason": "Native input, font metrics and translated popup resources for the Rust dictionary screen family."
+    },
+    {
       "source": "src/activities/reader/DictionaryWordSelectActivity.cpp",
       "status": "transient-route",
       "groups": [

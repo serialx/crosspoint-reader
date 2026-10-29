@@ -8,6 +8,7 @@
 #include <Logging.h>
 #include <Memory.h>
 #include <Utf8.h>
+#include <xp_ui_dictionary.h>
 
 #include <chrono>
 #ifdef __APPLE__
@@ -53,8 +54,8 @@ static void geometry(const ClipSelectionActivity& clip) {
     const auto& w = clip.words[i];
     std::cout << "word\t" << w.x << ',' << w.y << ',' << w.width << ',' << w.height << ',' << w.row << ','
               << int(w.pageOffset) << ',' << w.pageWordIndex << ',' << w.fontId << ',' << w.startOffset << ','
-              << w.endOffset << ',' << w.paragraphStart << ',' << w.isRtl << ',' << w.discretionaryHyphen << '\t'
-              << hex(w.text) << '\n';
+              << w.endOffset << ',' << int(w.paragraphStart) << ',' << int(w.isRtl) << ',' << int(w.discretionaryHyphen)
+              << '\t' << hex(w.text) << '\n';
   }
 }
 struct RenderCost {
@@ -202,8 +203,7 @@ int main(int argc, char** argv) {
             renderer.clearScreen(plane == 0 ? 0xff : 0);
             clip.currentPageOffset = p;
             clip.pageAt(p).render(renderer, SETTINGS.font, 12, 12);
-            if (highlight)
-              for (size_t w = 0; w < clip.wordCount; ++w) clip.drawWordHighlight(w, 0, clip.wordCount - 1, 0, 0);
+            if (highlight) clip.drawSelection(0, clip.wordCount - 1);
             frame("dictionary/" + std::to_string(fixture) + "/" + std::to_string(p) + "/" +
                       std::to_string(orientation) + "/" + std::to_string(plane) + "/" + std::to_string(highlight),
                   display);
@@ -246,7 +246,7 @@ int main(int argc, char** argv) {
         renderer.setRenderMode(static_cast<GfxRenderer::RenderMode>(plane));
         renderer.clearScreen(plane == 0 ? 0xff : 0);
         clip.pageAt(0).render(renderer, SETTINGS.font, 12, 12);
-        for (size_t i = 1; i < clip.wordCount; ++i) clip.drawWordHighlight(i, 1, clip.wordCount - 1, 0, 0);
+        clip.drawSelection(1, clip.wordCount - 1);
         frame("book-clip/" + std::to_string(fixture) + "/" + std::to_string(orientation) + "/" + std::to_string(plane),
               display);
       }

@@ -24,10 +24,14 @@ def record(root=ROOT):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type=Path, default=ROOT)
+    parser.add_argument('--source', type=Path)
     parser.add_argument('--record', action='store_true')
     args = parser.parse_args()
-    data = record(args.source)
+    command = ['cargo', 'run', '--quiet', '--manifest-path', str(ROOT / 'rust/Cargo.toml'),
+               '-p', 'xp-ui', '--example', 'dictionary_paint']
+    data = record(args.source) if args.source else subprocess.check_output(command)
+    if not args.source:
+        assert data == subprocess.check_output(command + ['--', '16']), 'full/strip mismatch'
     golden = HERE / 'paint.golden.gz'
     if args.record:
         golden.write_bytes(gzip.compress(data, mtime=0))

@@ -139,6 +139,7 @@ struct FontInstaller {
     return host::fail("font-delete") ? Error::FAIL : Error::OK;
   }
 };
+inline bool extendedSettings = false;
 inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry*, const std::vector<DictionaryEntry>*) {
   std::vector<SettingInfo> out;
   SettingInfo s;
@@ -170,6 +171,47 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry*, const
   s.key = "hidden";
   s.webHidden = true;
   out.push_back(s);
+  if (extendedSettings) {
+    s = {};
+    s.key = "getter-enum";
+    s.type = SettingType::ENUM;
+    s.labels = {StrId::NAME, StrId::CATEGORY};
+    s.valueGetter = [] { return SETTINGS.enumeration; };
+    s.valueSetter = [](uint8_t value) { SETTINGS.enumeration = value; };
+    out.push_back(s);
+    s = {};
+    s.key = "getter-string";
+    s.type = SettingType::STRING;
+    s.stringGetter = [] { return std::string(SETTINGS.text); };
+    s.stringSetter = [](const std::string& value) {
+      snprintf(SETTINGS.text, sizeof(SETTINGS.text), "%s", value.c_str());
+    };
+    out.push_back(s);
+    s.key = "getter-secret";
+    s.obfuscated = true;
+    out.push_back(s);
+    s = {};
+    s.type = SettingType::TOGGLE;
+    s.key = "no-pointer";
+    out.push_back(s);
+    s.type = SettingType::VALUE;
+    s.key = "negative-range";
+    s.valueRange = {-4, 4, 2};
+    out.push_back(s);
+    s.type = SettingType::STRING;
+    s.key = "no-string";
+    out.push_back(s);
+    s.type = SettingType::ACTION;
+    s.key = "action";
+    out.push_back(s);
+    s.key = nullptr;
+    out.push_back(s);
+    s = {};
+    s.type = SettingType::ENUM;
+    s.key = "oversized";
+    s.enumStringValues = {std::string(600, 'x')};
+    out.push_back(s);
+  }
   return out;
 }
 struct OpdsServer {

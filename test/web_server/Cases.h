@@ -19,6 +19,7 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::connected = true;
   host::now = 1000;
   SETTINGS = {};
+  extendedSettings = false;
   WiFi = {};
   WIFI_STORE.credentials = {{"Original", "secret"}};
   OPDS_STORE.servers = {{"Original", "https://example.test", "user", "secret", {{{"Auth", "token"}, {"", ""}}}}};
@@ -374,6 +375,104 @@ int main() {
     app.server->args["plain"] = "{\"ssid\":\"new\"}";
     app.handlePostWifiNetwork();
   });
+  for (const auto* point : {"READY", "PROGRESS:", "DONE"}) {
+    record((std::string("ws-synchronous-disconnect:") + point).c_str(), [&](auto& app) {
+      bool disconnected = false;
+      app.wsServer->onSend = [&](uint8_t client, const String& message) {
+        if (!disconnected && message.startsWith(point)) {
+          disconnected = true;
+          app.onWebSocketEvent(client, WStype_DISCONNECTED, nullptr, 0);
+        }
+      };
+      text(app, 1, "START:new.epub:131072:/books");
+      std::vector<uint8_t> data(65536, 'x');
+      app.onWebSocketEvent(1, WStype_BIN, data.data(), data.size());
+      app.onWebSocketEvent(1, WStype_BIN, data.data(), data.size());
+      text(app, 2, "START:retry.epub:0:/books");
+    });
+  }
+  record("settings-extra-descriptors", [](auto& app) {
+    extendedSettings = true;
+    app.handleGetSettings();
+    app.server->args["plain"] =
+        "{\"getter-enum\":1,\"getter-string\":\"changed\",\"getter-secret\":\"\",\"no-pointer\":1,\"negative-range\":-"
+        "3,\"no-string\":\"ignored\",\"action\":1}";
+    app.handlePostSettings();
+    app.handleGetSettings();
+  });
+  // Coercion and secret-preservation cases recorded from the C++ handlers.
+  for (const auto* value : {"null", "true", "false", "0", "-1", "2147483648", "1.5", "\"\"", "\"1\"", "[]", "{}"}) {
+    for (const auto* family : {"settings", "opds", "wifi"}) {
+      record((std::string("config-types:") + family + ":" + value).c_str(), [&](auto& app) {
+        std::string body;
+        if (std::string(family) == "settings") {
+          body = std::string("{\"toggle\":") + value + ",\"enum\":" + value + ",\"choices\":" + value +
+                 ",\"value\":" + value + ",\"text\":" + value + ",\"password\":" + value + "}";
+          app.server->args["plain"] = body;
+          app.handlePostSettings();
+          app.handleGetSettings();
+        } else {
+          body = std::string("{\"index\":0,\"ssid\":\"Original\",\"password\":") + value +
+                 ",\"headers\":[{\"name\":\"Auth\",\"value\":" + value + "}]}";
+          app.server->args["plain"] = body;
+          if (std::string(family) == "opds") {
+            app.handlePostOpdsServer();
+            app.handleGetOpdsServers();
+          } else {
+            app.handlePostWifiNetwork();
+            app.handleGetWifiNetworks();
+          }
+        }
+      });
+    }
+    for (const auto* family : {"opds", "wifi", "opds-delete", "wifi-delete"}) {
+      record((std::string("config-index:") + family + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] = std::string("{\"ssid\":\"Original\",\"index\":") + value + "}";
+        if (std::string(family) == "opds")
+          app.handlePostOpdsServer();
+        else if (std::string(family) == "wifi")
+          app.handlePostWifiNetwork();
+        else if (std::string(family) == "opds-delete")
+          app.handleDeleteOpdsServer();
+        else
+          app.handleDeleteWifiNetwork();
+      });
+    }
+  }
+  for (const auto* headers : {"null", "{}", "[]", "[null,1]", "[{\"name\":\"\",\"value\":\"token\"}]",
+                              "[{\"name\":\"A\"},{\"name\":\"B\"},{\"name\":\"C\"}]"}) {
+    for (bool update : {false, true})
+      record((std::string("opds-headers:") + headers + (update ? ":update" : ":add")).c_str(), [&](auto& app) {
+        app.server->args["plain"] = std::string(update ? "{\"index\":0,\"headers\":" : "{\"headers\":") + headers + "}";
+        app.handlePostOpdsServer();
+        app.handleGetOpdsServers();
+      });
+  }
+  for (const auto* failure : {"opds-add", "wifi-add", "wifi-remove"}) {
+    record((std::string("config-failure:") + failure).c_str(), [&](auto& app) {
+      host::failOperation = failure;
+      host::failAfter = 0;
+      app.server->args["plain"] = "{\"index\":0,\"ssid\":\"Renamed\"}";
+      if (std::string(failure) == "opds-add") {
+        app.server->args["plain"] = "{}";
+        app.handlePostOpdsServer();
+      } else {
+        app.handlePostWifiNetwork();
+        app.handleDeleteWifiNetwork();
+      }
+    });
+  }
+  for (bool wifi : {false, true})
+    record(wifi ? "wifi-skip-first" : "opds-skip-first", [&](auto& app) {
+      if (wifi) {
+        WIFI_STORE.credentials = {{std::string(400, 'x'), "secret"}, {"short", ""}};
+        app.handleGetWifiNetworks();
+      } else {
+        OPDS_STORE.servers[0].name = std::string(600, 'x');
+        OPDS_STORE.servers.push_back({});
+        app.handleGetOpdsServers();
+      }
+    });
   for (const auto* operation : {"random", "sha1", "sha256", "aesenc", "aesdec", "rsadec", "keygen", "pubencrypt",
                                 "sign", "pkcs12", "unknown"}) {
     for (const auto* failure : {"", "crypto", "alloc"}) {

@@ -50,6 +50,7 @@ def main():
     parser.add_argument("--mutation-check", action="store_true")
     parser.add_argument("--sanitize", action="store_true")
     parser.add_argument("--archive", type=pathlib.Path)
+    parser.add_argument("--ffi-include", type=pathlib.Path, default=ROOT / "rust/crates/xp-ffi/include")
     parser.add_argument("--fault-check", action="store_true")
     args = parser.parse_args()
     args.build.mkdir(parents=True, exist_ok=True)
@@ -65,7 +66,7 @@ def main():
             instrumentation += ["-DXP_FFI_HOST_FAULT_INJECTION"]
         subprocess.run(["c++", "-std=c++20", "-funsigned-char", "-O1", "-g", *instrumentation, "-I" + str(ROOT / "test/web_server/stubs"),
                         "-I" + str(ROOT / "test/web_server"), "-I" + str(ROOT),
-                        "-I" + str(args.arduinojson), "-I" + str(ROOT / "rust/crates/xp-ffi/include"),
+                        "-I" + str(args.arduinojson), "-I" + str(args.ffi_include),
                         str(generated), *link, "-o", str(args.build / "oracle")], check=True)
         return subprocess.check_output([str(args.build / "oracle")])
 
@@ -95,8 +96,19 @@ def main():
                                      'WebFileBridge::route(*this, XP_WEB_DELETE)', 1)
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed download error")
-        generated.write_text(generate(source, header))
         print("mutation check: rejected changed download response")
+        changed = source.replace('"Missing JSON body"', '"Missing JSON BODY"', 1)
+        if "xp_web_config" in source:
+            changed = source.replace('XP_WEB_SETTINGS_POST);', 'XP_WEB_SETTINGS_GET);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed settings response")
+        print("mutation check: rejected changed settings response")
+        signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
+        changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject ignored synchronous disconnect")
+        generated.write_text(generate(source, header))
+        print("mutation check: rejected ignored synchronous disconnect")
 
 
 if __name__ == "__main__":

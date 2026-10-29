@@ -347,7 +347,11 @@ struct WebSocketsServer {
   void close() { host::trace.emplace_back("ws-close"); }
   void loop() { host::trace.emplace_back("ws-loop"); }
   void onEvent(void (*)(uint8_t, WStype_t, uint8_t*, size_t)) {}
-  void sendTXT(uint8_t num, const String& text) { host::trace.push_back("ws:" + std::to_string(num) + ":" + text); }
+  std::function<void(uint8_t, const String&)> onSend;
+  void sendTXT(uint8_t num, const String& text) {
+    host::trace.push_back("ws:" + std::to_string(num) + ":" + text);
+    if (onSend) onSend(num, text);
+  }
 };
 struct NetworkUDP {
   bool begin(uint16_t port) {

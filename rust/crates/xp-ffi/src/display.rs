@@ -516,3 +516,84 @@ pub unsafe extern "C" fn xp_display_x3_default_config(
     value.direct = direct;
     config.write(value);
 }
+
+#[cfg(feature = "reader-strips")]
+#[repr(C)]
+pub struct DisplaySource {
+    pub struct_size: u32,
+    pub ctx: *mut c_void,
+    pub scratch: *mut u8,
+    pub capacity: u32,
+    pub rows: u16,
+    pub width: u16,
+    pub paint: Option<unsafe extern "C" fn(*mut c_void, *mut u8, u16, u16) -> u32>,
+}
+#[cfg(feature = "reader-strips")]
+impl xp_display::frame::Source for DisplaySource {
+    fn rows(&self) -> u16 {
+        self.rows
+    }
+    fn paint(&mut self, y: u16, rows: u16) -> Result<&[u8], u32> {
+        let n = usize::from(self.width / 8) * usize::from(rows);
+        if n > self.capacity as usize {
+            return Err(INVALID);
+        }
+        let callback = self.paint.ok_or(INVALID)?;
+        let status = unsafe { callback(self.ctx, self.scratch, y, rows) };
+        if status != 0 {
+            return Err(status);
+        }
+        Ok(unsafe { core::slice::from_raw_parts(self.scratch, n) })
+    }
+}
+/// # Safety
+/// Same initialized storage/bus contract as xp_display_execute. Source owns exclusive
+/// scratch and a frozen scene through this call. Paint may use disjoint raster state,
+/// but must not reenter this display controller, retain scratch or unwind.
+#[cfg(feature = "reader-strips")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_display_execute_source(
+    storage: *mut c_void,
+    bus: *const DisplayBus,
+    request: *const DisplayRequest,
+    source: *mut DisplaySource,
+    result: *mut u32,
+) -> u32 {
+    if !result.is_null() {
+        *result = 0;
+    }
+    if storage.is_null() || bus.is_null() || request.is_null() || source.is_null() {
+        return INVALID;
+    }
+    let request = &*request;
+    let source = &mut *source;
+    if request.struct_size as usize != size_of::<DisplayRequest>()
+        || !(&*bus).valid()
+        || source.struct_size as usize != size_of::<DisplaySource>()
+        || source.scratch.is_null()
+        || source.paint.is_none()
+        || source.rows == 0
+        || source.width == 0
+        || !source.width.is_multiple_of(8)
+        || u32::from(source.width / 8) * u32::from(source.rows) > source.capacity
+    {
+        return INVALID;
+    }
+    let mut bus = &*bus;
+    let status = match (*storage.cast::<Header>()).controller {
+        #[cfg(feature = "display-uc8253")]
+        UC8253_X3 => uc8253::execute_source(storage, &mut bus, request, source),
+        #[cfg(feature = "display-ssd1677")]
+        SSD1677 => ssd1677::execute_source(storage, &mut bus, request, source),
+        _ => Err(UNSUPPORTED),
+    };
+    match status {
+        Ok(value) => {
+            if !result.is_null() {
+                *result = value;
+            }
+            OK
+        }
+        Err(status) => status,
+    }
+}

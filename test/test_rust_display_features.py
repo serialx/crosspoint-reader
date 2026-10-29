@@ -47,6 +47,12 @@ class DisplayFeaturesTest(unittest.TestCase):
         for board in ("M5", "MURPHY", "LILYGO", "PAPERS3", "M5PAPER"):
             self.assertEqual(self.select("FREEINK_DEVICE_" + board), [])
 
+    def test_strip_flag_requires_rust_panel(self):
+        with self.assertRaises(ValueError):
+            self.features(["XP_STRIP_RENDER", "FREEINK_DEVICE_X3"])
+        self.assertIn("reader-strips", self.select("FREEINK_DEVICE_X3", extra=["XP_STRIP_RENDER"]))
+        self.assertNotIn("reader-strips", self.select("FREEINK_DEVICE_X3", extra=[("XP_STRIP_RENDER", 0)]))
+
     def test_c3(self):
         self.assertEqual(self.select("FREEINK_DEVICE_X3", "FREEINK_DEVICE_X4"), [
             "display-ssd1677", "display-uc8179", "display-uc8253",

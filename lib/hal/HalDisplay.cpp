@@ -161,3 +161,7 @@ uint16_t HalDisplay::getDisplayHeight() const { return einkDisplay.getDisplayHei
 uint16_t HalDisplay::getDisplayWidthBytes() const { return einkDisplay.getDisplayWidthBytes(); }
 
 uint32_t HalDisplay::getBufferSize() const { return einkDisplay.getBufferSize(); }
+
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+bool HalDisplay::setFrameSource(XpDisplaySource* source) { return einkDisplay.setFrameSource(source); }
+#endif

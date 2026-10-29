@@ -17,7 +17,10 @@ DRIVERS = {
 def display_features(defines, compiler, header):
     values = {item[0]: str(item[1]) if len(item) > 1 else "1"
               for item in (d if isinstance(d, (tuple, list)) else (d,) for d in defines)}
+    strips = values.get("XP_STRIP_RENDER", "0") != "0"
     if values.get("FREEINK_RUST_PANEL", "0") == "0":
+        if strips:
+            raise ValueError("XP_STRIP_RENDER requires FREEINK_RUST_PANEL")
         return []
     source = []
     for macro, feature in DRIVERS.items():
@@ -30,4 +33,4 @@ def display_features(defines, compiler, header):
     command += ["-D" + key + "=" + value for key, value in values.items()]
     result = subprocess.run(command, input="\n".join(source) + "\n", text=True,
                             capture_output=True, check=True)
-    return sorted(result.stdout.split())
+    return sorted(result.stdout.split()) + (["reader-strips"] if strips else [])

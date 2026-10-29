@@ -104,7 +104,7 @@ def parse_records(path, strips=False):
     if current is not None or pages.keys() != expected:
         raise ValueError('Missing or extra pages')
     for page in pages.values():
-        if len(page['pixels']) not in ((216, 432) if strips else (96, 192)) or len(page['calls']) != len(page['pixels']):
+        if len(page['pixels']) not in ((264, 528) if strips else (96, 192)) or len(page['calls']) != len(page['pixels']):
             raise ValueError('Incomplete render matrix')
         if 'raw_sha256' not in page or 'wire_sha256' not in page:
             raise ValueError('Missing page bytes')

@@ -38,8 +38,12 @@ source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
 anchor = '  const auto status = xp_page_render_traced('
 source = source.replace(anchor, """  const auto status =
 #ifdef XP_STRIP_SPIKE
+#ifdef XP_STRIP_PLAN
+      stripPhase ? pageGoldenPlan(arena, size, &provider, &services, &paint, fontId, x, y, renderMode) :
+#else
       stripPhase ? xp_page_strip_render(arena, size, &provider, &services, &paint, fontId, x, y, renderMode,
           stripBounds.data(), stripBounds.size(), &stripStats, stripPhase == 1) :
+#endif
 #endif
       xp_page_render_traced(""")
 (out / 'GfxRenderer.cpp').write_text(source)

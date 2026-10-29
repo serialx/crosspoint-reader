@@ -571,7 +571,7 @@ void GfxRenderer::drawPage(const uint8_t* arena, const size_t size, const int fo
         return glyphMiss(&static_cast<PageContext*>(raw)->glyph, cp, glyph, draw, source);
       }};
   const auto renderMode = static_cast<uint8_t>(mode);
-  const auto status = xp_page_render(arena, size, &provider, &services, &paint, fontId, x, y, renderMode);
+  const auto status = renderPage(arena, size, &provider, &services, &paint, fontId, x, y, renderMode);
   if (status) LOG_ERR("GFX", "Invalid page render (%u)", static_cast<unsigned>(status));
 }
 
@@ -1341,7 +1341,7 @@ bool GfxRenderer::drawBitmap1Bit(const Bitmap& bitmap, const int x, const int y,
 }
 
 void GfxRenderer::preserveImagePolarity(const int x, const int y, const int width, const int height) const {
-  if (renderMode != BW || !display.isInverted() || _stripActive || !frameBuffer || width <= 0 || height <= 0) {
+  if (renderMode != BW || !display.isInverted() || skipImageStrip() || !frameBuffer || width <= 0 || height <= 0) {
     return;
   }
 
@@ -1357,12 +1357,12 @@ void GfxRenderer::preserveImagePolarity(const int x, const int y, const int widt
 
   int left = std::max(0, std::min(ax, bx));
   int right = std::min(static_cast<int>(panelWidth) - 1, std::max(ax, bx));
-  int top = std::max(0, std::min(ay, by));
-  int bottom = std::min(static_cast<int>(panelHeight) - 1, std::max(ay, by));
+  int top = std::max(imageOrigin(), std::min(ay, by));
+  int bottom = std::min(imageEnd() - 1, std::max(ay, by));
   if (left > right || top > bottom) return;
 
   for (int row = top; row <= bottom; row++) {
-    uint8_t* rowData = frameBuffer + static_cast<uint32_t>(row) * panelWidthBytes;
+    uint8_t* rowData = imageBuffer() + static_cast<uint32_t>(row - imageOrigin()) * panelWidthBytes;
     int col = left;
     while (col <= right && (col & 7) != 0) {
       rowData[col >> 3] ^= static_cast<uint8_t>(0x80U >> (col & 7));
@@ -2150,3 +2150,32 @@ XpNativeProvider GfxRenderer::textProvider() const {
             }
           }};
 }
+
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+void GfxRenderer::usePagePlan(XpPagePlan* plan, XpPageRowBounds* bounds, size_t count, bool prepare) const {
+  pagePlan = plan;
+  pageBounds = bounds;
+  pageBoundsCount = count;
+  preparePagePlan = prepare;
+}
+
+void GfxRenderer::copyStatusToStrip(int top, const bool sourceInverted) const {
+  if (!_stripActive) return;
+  top = std::max(top, 0);
+  int ax, ay, bx, by;
+  rotateCoordinates(orientation, 0, top, &ax, &ay, panelWidth, panelHeight);
+  rotateCoordinates(orientation, getScreenWidth() - 1, getScreenHeight() - 1, &bx, &by, panelWidth, panelHeight);
+  const int left = std::min(ax, bx), right = std::max(ax, bx);
+  const int first = std::max(_stripY0, std::min(ay, by));
+  const int last = std::min(_stripY0 + _stripRows - 1, std::max(ay, by));
+  for (int row = first; row <= last; ++row) {
+    auto* out = _stripBuf + (row - _stripY0) * panelWidthBytes;
+    const auto* in = frameBuffer + row * panelWidthBytes;
+    for (int col = left; col <= right; ++col) {
+      const uint8_t mask = 0x80 >> (col & 7);
+      const uint8_t value = sourceInverted ? ~in[col / 8] : in[col / 8];
+      out[col / 8] &= value | ~mask;
+    }
+  }
+}
+#endif

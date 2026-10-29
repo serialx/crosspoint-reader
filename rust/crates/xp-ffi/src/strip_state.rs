@@ -1,4 +1,4 @@
-//! Host spike state: caller-provided bounds, invalidated whenever page/font geometry changes.
+//! Caller-owned strip state: caller-provided bounds, invalidated whenever page/font geometry changes.
 use xp_core::{
     glyph::{Clip, GlyphTarget},
     page::Element,

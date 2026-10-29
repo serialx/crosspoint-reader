@@ -2754,6 +2754,27 @@ bool xp_lcp_unwrap(const XpLcpServices*, uint8_t out[32]);
 // data borrows len readable bytes; null is allowed only for zero length.
 bool xp_system_item_name(const uint8_t* data, size_t len);
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+void xp_strip_packed_row(const XpImageTarget* target, int32_t x, int32_t y, int32_t width, const uint8_t* row,
+                         size_t len);
+// Commands borrow page bytes; invalidate on page/font/origin/orientation change.
+// Storage must be pointer-aligned; bounds needs one entry per page element.
+// Prepare clears valid on failure. Replay requires valid and unchanged storage/bounds.
+typedef struct {
+  int32_t start, end;
+} XpPageRowBounds;
+typedef struct {
+  void* storage;
+  size_t capacity_bytes;
+  size_t count;
+  uint8_t valid;
+} XpPagePlan;
+uint32_t xp_page_plan_render(const uint8_t* arena, size_t size, const XpNativeProvider* provider,
+                             const XpPageRenderServices* services, XpGlyphPaint* paint, int32_t font, int32_t x,
+                             int32_t y, uint8_t mode, XpPageRowBounds* bounds, size_t count, XpPagePlan* plan,
+                             uint8_t prepare);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -20,7 +20,15 @@
 #include "ReaderToolbarUi.h"
 #include "components/OptionPopup.h"
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+#include "ReaderStripBuffers.h"
+#endif
+
 class EpubReaderActivity final : public ReaderActivity {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  ReaderStripBuffers stripBuffers;
+#endif
+
   std::shared_ptr<Epub> epub;
   std::unique_ptr<Section> section = nullptr;
   int currentSpineIndex = 0;

@@ -26,6 +26,7 @@ enum {
   XP_DISPLAY_UNSUPPORTED = 2,
   XP_DISPLAY_FLAG_TURN_OFF = 1,
   XP_DISPLAY_FLAG_FACTORY = 2,
+  XP_DISPLAY_FLAG_RESTORE_WINDOW = 4,
   XP_DISPLAY_RESULT_ASYNC = 1,
   XP_DISPLAY_RESULT_ABORTED = 2,
   XP_DISPLAY_RESULT_COMMITTED = 4,
@@ -311,6 +312,20 @@ void xp_display_drop(void* storage);
 uint32_t xp_display_capabilities(const void* storage, uint32_t gray_mode);
 // result may be null. Other pointers must be valid; bus is needed for I/O ops.
 uint32_t xp_display_execute(void* storage, const XpDisplayBus* bus, const XpDisplayRequest* request, uint32_t* result);
+// Synchronous frozen scene; paint may rasterize through disjoint Rust APIs.
+// Scratch remains exclusive until return. A nonzero paint status aborts upload.
+typedef struct {
+  uint32_t struct_size;
+  void* ctx;
+  uint8_t* scratch;
+  uint32_t capacity;
+  uint16_t rows;
+  uint16_t width;
+  uint32_t (*paint)(void*, uint8_t*, uint16_t y, uint16_t rows);
+} XpDisplaySource;
+uint32_t xp_display_execute_source(void* storage, const XpDisplayBus* bus, const XpDisplayRequest* request,
+                                   XpDisplaySource* source, uint32_t* result);
+
 #ifdef __cplusplus
 }
 #endif

@@ -2,10 +2,11 @@ use super::*;
 use constants::*;
 
 #[derive(Default)]
-struct QuietBus(u32);
+struct QuietBus(u32, u32);
 impl Bus for QuietBus {
-    fn cmd(&mut self, _: u8) {
+    fn cmd(&mut self, command: u8) {
         self.0 += 1;
+        self.1 += u32::from(command == 0x12 || command == 0x20);
     }
     fn data8(&mut self, _: u8) {
         self.0 += 1;
@@ -133,4 +134,69 @@ fn invalid_modes_do_not_start_a_waveform() {
         );
     }
     assert_eq!(bus.0, 0);
+}
+
+struct FailingSource {
+    calls: usize,
+    fail: usize,
+    short: bool,
+}
+impl frame::Source for FailingSource {
+    fn rows(&self) -> u16 {
+        1
+    }
+    fn paint(&mut self, _: u16, _: u16) -> Result<&[u8], u32> {
+        self.calls += 1;
+        if self.calls == self.fail {
+            return Err(INVALID);
+        }
+        Ok(if self.short { &[0x12] } else { &[0x12, 0x34] })
+    }
+}
+#[test]
+fn failed_source_never_activates_partial_x3_ram() {
+    for (fail, short) in [(1, false), (3, false), (8, false), (99, true)] {
+        let mut panel = unsafe { Uc8253::new(16, 8, core::ptr::null()).unwrap() };
+        let mut bus = QuietBus::default();
+        let mut source = FailingSource {
+            calls: 0,
+            fail,
+            short,
+        };
+        let result = panel.execute_source(
+            &mut bus,
+            Request {
+                operation: OP_DISPLAY,
+                data: Some(&[0; 16]),
+                ..Request::default()
+            },
+            Some(&mut source),
+        );
+        assert_eq!(result, Err(INVALID));
+        assert_eq!(bus.1, 0);
+    }
+}
+#[cfg(feature = "ssd1677")]
+#[test]
+fn failed_source_never_activates_partial_x4_ram() {
+    for (fail, short) in [(1, false), (3, false), (8, false), (99, true)] {
+        let mut panel = ssd1677::Ssd1677::new(16, 8, 0, 0).unwrap();
+        let mut bus = QuietBus::default();
+        let mut source = FailingSource {
+            calls: 0,
+            fail,
+            short,
+        };
+        let mut frame = frame::Frame::streamed(&mut source).unwrap();
+        let result = panel.display_frame(
+            &mut bus,
+            &mut frame,
+            None,
+            ssd1677::Refresh::Full,
+            false,
+            false,
+        );
+        assert_eq!(result, Err(INVALID));
+        assert_eq!(bus.1, 0);
+    }
 }

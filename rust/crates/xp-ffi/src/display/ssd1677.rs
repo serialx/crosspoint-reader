@@ -184,6 +184,9 @@ unsafe fn execute(
             let count = usize::from(r.height) * usize::from(panel.width / 8);
             if let Some(rows) = optional(r.data, r.data_len, count)? {
                 panel.gray_strip(bus, r.mode == 1, rows, r.y, r.height);
+                if r.flags & FLAG_RESTORE_WINDOW != 0 {
+                    panel.restore_full_window(bus);
+                }
             }
         }
         OP_GRAY_DISPLAY | OP_GRAY_CALIBRATE => {
@@ -279,4 +282,50 @@ pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
         }
         Action::Extra { .. } => UNSUPPORTED,
     }
+}
+
+#[cfg(feature = "reader-strips")]
+pub(super) unsafe fn execute_source(
+    storage: *mut c_void,
+    bus: &mut &DisplayBus,
+    r: &DisplayRequest,
+    source: &mut DisplaySource,
+) -> Result<u32, u32> {
+    let panel = &mut (*storage.cast::<State>()).panel;
+    if r.data_len as usize != panel.frame_size() || source.width != panel.width {
+        return Err(INVALID);
+    }
+    let mut frame = xp_display::frame::Frame::streamed(source)?;
+    let mut result = RESULT_COMMITTED;
+    match r.operation {
+        OP_GRAY_BEGIN => {
+            if r.mode != 0 {
+                return Err(UNSUPPORTED);
+            }
+            panel.begin_overlay_frame(
+                bus,
+                &mut frame,
+                refresh(r.arg).ok_or(INVALID)?,
+                r.flags & FLAG_TURN_OFF != 0,
+            )?;
+        }
+        OP_DISPLAY | OP_DISPLAY_START | OP_GRAY_BASE => {
+            let deferred = r.operation == OP_DISPLAY_START;
+            panel.display_frame(
+                bus,
+                &mut frame,
+                None,
+                refresh(r.mode).ok_or(INVALID)?,
+                r.flags & FLAG_TURN_OFF != 0,
+                deferred,
+            )?;
+            if deferred {
+                result |= RESULT_ASYNC;
+            }
+        }
+        OP_DISPLAY_FINISH => panel.finish_frame(bus, &mut frame)?,
+        OP_GRAY_CLEANUP => panel.cleanup_frame(bus, &mut frame)?,
+        _ => return Err(UNSUPPORTED),
+    }
+    Ok(result)
 }

@@ -7,6 +7,9 @@ class HalDisplay {
  public:
   using Controller = BoardConfig::DisplayController;
   Controller getController() const;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  bool setFrameSource(XpDisplaySource* source);
+#endif
 
   using GrayscaleMode = freeink::GrayscaleMode;
   using GrayscaleCapabilities = freeink::GrayscaleCapabilities;

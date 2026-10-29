@@ -1,6 +1,7 @@
 #![no_std]
 
 pub mod constants;
+pub mod frame;
 #[cfg(feature = "ssd1677")]
 pub mod ssd1677;
 #[cfg(feature = "ssd1677")]

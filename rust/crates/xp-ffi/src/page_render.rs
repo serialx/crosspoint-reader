@@ -1,4 +1,7 @@
 //! Synchronous page draw: one font cache and one bitmap-source loan per pass.
+#[cfg(feature = "reader-strips")]
+#[path = "page_plan.rs"]
+mod page_plan;
 #[cfg(feature = "strip-spike")]
 #[path = "strip_state.rs"]
 mod strip_state;
@@ -42,6 +45,8 @@ struct Renderer<'a> {
     scan_font: i32,
     scan_style: u8,
     observer: Option<Observer>,
+    #[cfg(feature = "reader-strips")]
+    plan: Option<&'a mut page_plan::Plan>,
     #[cfg(feature = "strip-spike")]
     strip: Option<strip_state::State<'a>>,
 }
@@ -130,6 +135,8 @@ impl Canvas for Renderer<'_> {
         textm::codepoint_metrics(&mut self.engine.face(font), cp, style).map(|(_, top)| top)
     }
     fn text(&mut self, t: Text<'_>) {
+        #[cfg(feature = "reader-strips")]
+        self.record_command(page_plan::Command::text(t));
         if t.bytes.is_empty() || t.bytes[0] == 0 {
             return;
         }
@@ -175,6 +182,10 @@ impl Canvas for Renderer<'_> {
                                 let target = &(*self.paint).target;
                                 if placement.glyph.is_null() {
                                     s.unbounded(target);
+                                    #[cfg(feature = "reader-strips")]
+                                    if let Some(plan) = self.plan.as_mut() {
+                                        plan.unbounded(target.height);
+                                    }
                                 } else {
                                     let g = *placement.glyph;
                                     let n = i32::from(placement.scale_num);
@@ -182,15 +193,17 @@ impl Canvas for Renderer<'_> {
                                     let left = t.x + placement.x + i32::from(g.left) * n / d;
                                     let top =
                                         t.y + baseline + placement.y - i32::from(g.top) * n / d;
-                                    s.add(
-                                        target,
-                                        xp_core::glyph::Clip {
-                                            left,
-                                            top,
-                                            right: left + (i32::from(g.width) * n + d - 1) / d,
-                                            bottom: top + (i32::from(g.height) * n + d - 1) / d,
-                                        },
-                                    );
+                                    let rect = xp_core::glyph::Clip {
+                                        left,
+                                        top,
+                                        right: left + (i32::from(g.width) * n + d - 1) / d,
+                                        bottom: top + (i32::from(g.height) * n + d - 1) / d,
+                                    };
+                                    s.add(target, rect);
+                                    #[cfg(feature = "reader-strips")]
+                                    if let Some(plan) = self.plan.as_mut() {
+                                        plan.add(target, rect);
+                                    }
                                 }
                                 return;
                             }
@@ -220,6 +233,8 @@ impl Canvas for Renderer<'_> {
         self.flush_scan();
     }
     fn rect(&mut self, x: i32, y: i32, w: i32, h: i32, shade: bool) {
+        #[cfg(feature = "reader-strips")]
+        self.record_command(page_plan::Command::rect(x, y, w, h, shade));
         #[cfg(feature = "strip-spike")]
         if let Some(s) = self.strip.as_mut() {
             if s.prepare {
@@ -273,6 +288,8 @@ impl Canvas for Renderer<'_> {
         }
     }
     fn scaled(&mut self, font: i32, text: &[u8], style: u8, scale: i32, mut x: i32, y: i32) {
+        #[cfg(feature = "reader-strips")]
+        self.record_command(page_plan::Command::scaled(font, text, style, scale, x, y));
         #[cfg(feature = "strip-spike")]
         if let Some(s) = self.strip.as_mut() {
             if s.prepare {
@@ -311,6 +328,8 @@ impl Canvas for Renderer<'_> {
         }
     }
     fn image(&mut self, i: u16, x: i32, y: i32, placeholder: bool) {
+        #[cfg(feature = "reader-strips")]
+        self.record_command(page_plan::Command::image(i, x, y, placeholder));
         self.flush_scan();
         #[cfg(feature = "strip-spike")]
         if self.strip.as_ref().is_some_and(|s| s.prepare) {
@@ -359,6 +378,8 @@ unsafe fn render(
         scan_font: 0,
         scan_style: 0,
         observer,
+        #[cfg(feature = "reader-strips")]
+        plan: None,
         #[cfg(feature = "strip-spike")]
         strip,
     };

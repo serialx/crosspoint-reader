@@ -24,6 +24,7 @@
 #include <esp_efuse_table.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#include <xp_web.h>
 
 #include <algorithm>
 #include <array>
@@ -103,41 +104,15 @@ size_t wsUploadSize = 0;
 size_t wsUploadReceived = 0;
 unsigned long wsUploadStartTime = 0;
 bool wsUploadInProgress = false;
+// sendTXT can synchronously report disconnection. Return it to Rust after the
+// transport call so the live policy state handles it without reentrant loans.
+bool wsSending = false;
+bool wsSendDisconnected = false;
 uint8_t wsUploadClientNum = 255;  // 255 = no active upload client
 size_t wsLastProgressSent = 0;
 String wsLastCompleteName;
 size_t wsLastCompleteSize = 0;
 unsigned long wsLastCompleteAt = 0;
-
-String normalizeWebPath(const String& inputPath) {
-  if (inputPath.isEmpty() || inputPath == "/") {
-    return "/";
-  }
-  std::string normalized = FsHelpers::normalisePath(inputPath.c_str());
-  String result = normalized.c_str();
-  if (result.isEmpty()) {
-    return "/";
-  }
-  if (!result.startsWith("/")) {
-    result = "/" + result;
-  }
-  if (result.length() > 1 && result.endsWith("/")) {
-    result = result.substring(0, result.length() - 1);
-  }
-  return result;
-}
-
-bool isProtectedItemName(const String& name) {
-  if (name.startsWith(".")) {
-    return true;
-  }
-  for (const auto* item : FsHelpers::HIDDEN_ITEMS) {
-    if (name.equals(item)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 }  // namespace
 
@@ -145,6 +120,234 @@ bool isProtectedItemName(const String& name) {
 // - HomePageHtml (from html/HomePage.html)
 // - FilesPageHeaderHtml (from html/FilesPageHeader.html)
 // - FilesPageFooterHtml (from html/FilesPageFooter.html)
+struct WebFileBridge {
+  const CrossPointWebServer& owner;
+  explicit WebFileBridge(const CrossPointWebServer& owner) : owner(owner) {}
+  static_assert(CrossPointWebServer::UploadState::UPLOAD_BUFFER_SIZE == XP_WEB_BUFFER_CAPACITY);
+  HalFile files[3];
+  HalFile* borrowed = nullptr;
+  CrossPointWebServer::UploadState* uploadState = nullptr;
+  bool websocket = false;
+  String argument;
+  JsonDocument paths;
+  NetworkClient client;
+  std::unique_ptr<uint8_t[]> streamBuffer;
+
+  static XpWebText span(const String& value) {
+    return {reinterpret_cast<const uint8_t*>(value.c_str()), value.length()};
+  }
+  static String string(const XpWebText value) { return String(reinterpret_cast<const char*>(value.data), value.len); }
+  static WebFileBridge& self(void* ctx) { return *static_cast<WebFileBridge*>(ctx); }
+  static void route(const CrossPointWebServer& owner, XpWebRoute route) {
+    WebFileBridge bridge{owner};
+    xp_web_files(&bridge, &services, route);
+  }
+  String& text(uint32_t field) {
+    switch (static_cast<XpWebStoredText>(field)) {
+      case XP_WEB_UPLOAD_NAME:
+        return uploadState->fileName;
+      case XP_WEB_UPLOAD_PATH:
+        return uploadState->path;
+      case XP_WEB_UPLOAD_ERROR:
+        return uploadState->error;
+      case XP_WEB_WS_NAME:
+        return wsUploadFileName;
+      case XP_WEB_WS_PATH:
+        return wsUploadPath;
+      case XP_WEB_WS_COMPLETE_NAME:
+        return wsLastCompleteName;
+    }
+    return argument;
+  }
+  static void stream(const CrossPointWebServer& owner, HalFile& file) {
+    WebFileBridge bridge(owner);
+    bridge.borrowed = &file;
+    xp_web_stream(&bridge, &services);
+  }
+  static void http(const CrossPointWebServer&, CrossPointWebServer::UploadState&, uint32_t);
+  static void ws(const CrossPointWebServer&, uint8_t, uint32_t, uint8_t*, size_t);
+  static const XpWebTransfers transfers;
+  static const XpWebServices services;
+};
+
+const XpWebServices WebFileBridge::services = {
+    .argument = [](void* ctx, const char* key) -> XpWebText {
+      auto& b = self(ctx);
+      if (!key) {
+        b.argument = String();
+        return {nullptr, 0};
+      }
+      if (!*key)
+        b.argument = b.owner.server->uri();
+      else if (b.owner.server->hasArg(key))
+        b.argument = b.owner.server->arg(key);
+      else
+        return {nullptr, 0};
+      return span(b.argument);
+    },
+    .send = [](void* ctx, uint16_t code, const char* type,
+               XpWebText body) { self(ctx).owner.server->send(code, type, string(body)); },
+    .header =
+        [](void* ctx, const char* name, XpWebText value) {
+          self(ctx).owner.server->sendHeader(name, string(value), strcmp(name, "Location") == 0);
+        },
+    .chunk =
+        [](void* ctx, XpWebText value) {
+          self(ctx).owner.server->sendContent(reinterpret_cast<const char*>(value.data), value.len);
+        },
+    .length = [](void* ctx, size_t size) { self(ctx).owner.server->setContentLength(size); },
+    .io = [](void* ctx, uint32_t operation, uint32_t slot, const char* path, uint8_t* data, size_t length) -> size_t {
+      auto& b = self(ctx);
+      if (slot >= 3) return 0;
+      auto& file = slot == 0 && b.borrowed ? *b.borrowed : b.files[slot];
+      switch (static_cast<XpWebIo>(operation)) {
+        case XP_WEB_EXISTS:
+          return Storage.exists(path);
+        case XP_WEB_OPEN:
+          file = Storage.open(path);
+          return static_cast<bool>(file);
+        case XP_WEB_CLOSE:
+          file.close();
+          return 0;
+        case XP_WEB_IS_OPEN:
+          return static_cast<bool>(file);
+        case XP_WEB_IS_DIR:
+          return file.isDirectory();
+        case XP_WEB_SIZE:
+          return file.size();
+        case XP_WEB_NEXT:
+          b.files[2] = file.openNextFile();
+          return static_cast<bool>(b.files[2]);
+        case XP_WEB_NAME:
+          return file.getName(reinterpret_cast<char*>(data), length);
+        case XP_WEB_READ:
+          return static_cast<size_t>(file.read(data, length));
+        case XP_WEB_WRITE:
+          return file.write(data, length);
+        case XP_WEB_MKDIR:
+          return Storage.mkdir(path);
+        case XP_WEB_REMOVE:
+          return Storage.remove(path);
+        case XP_WEB_RMDIR:
+          return Storage.rmdir(path);
+        case XP_WEB_CLIENT_WRITE:
+          return b.client.write(data, length);
+        case XP_WEB_CLIENT_CLEAR:
+          b.client.clear();
+          return 0;
+        case XP_WEB_CREATE:
+          return Storage.openFileForWrite(b.websocket ? "WS" : "WEB", path, file);
+        case XP_WEB_AVAILABLE:
+          return file.available();
+      }
+      return 0;
+    },
+    .sensitive = [](void*, const char* path) { return protectedpaths::isSensitivePath(path); },
+    .book =
+        [](void*, uint32_t operation, const char* path, const char* target) {
+          switch (static_cast<XpWebBook>(operation)) {
+            case XP_WEB_CACHE:
+              clearBookCache(path);
+              return true;
+            case XP_WEB_REMOVE_BOOK:
+              return removeBookFile(path);
+            case XP_WEB_MOVE_BOOK:
+              return ClippingStore::moveBook(path, target);
+            case XP_WEB_LIBRARY_BOOK:
+              if (library::isLibraryBookFile(path)) library::markLibraryIndexDirty();
+              return true;
+          }
+          return false;
+        },
+    .buffer = [](void* ctx, bool allocate) -> uint8_t* {
+      auto& b = self(ctx);
+      auto& buffer = b.uploadState ? b.uploadState->buffer : b.streamBuffer;
+      if (allocate && !b.uploadState) b.client = b.owner.server->client();
+      if (allocate)
+        buffer = makeUniqueNoThrow<uint8_t[]>(XP_WEB_BUFFER_CAPACITY);
+      else
+        buffer.reset();
+      return buffer.get();
+    },
+    .watchdog = [](void*) { resetTaskWatchdogIfSubscribed(); },
+    .yield = [](void*) { yield(); },
+    .flags = [](void* ctx) -> uint32_t {
+      const auto& b = self(ctx);
+      return (b.owner.apMode ? 1u : 0u) | (b.owner.server && b.owner.server->method() == HTTP_OPTIONS ? 2u : 0u) |
+             (SETTINGS.showHiddenFiles ? 4u : 0u) | (b.owner.running && b.owner.server ? 8u : 0u) |
+             (b.owner.server && b.owner.server->client().connected() ? 16u : 0u);
+    },
+    .paths = [](void* ctx, bool multiple) -> ptrdiff_t {
+      auto& b = self(ctx);
+      if (multiple) {
+        if (deserializeJson(b.paths, b.owner.server->arg("paths"))) return -1;
+      } else
+        b.paths.add(b.owner.server->arg("path"));
+      const auto paths = b.paths.as<JsonArray>();
+      return paths.isNull() || paths.size() == 0 ? -2 : static_cast<ptrdiff_t>(paths.size());
+    },
+    .path = [](void* ctx, size_t index) -> XpWebText {
+      auto& b = self(ctx);
+      b.argument = b.paths[index].as<String>();
+      return span(b.argument);
+    },
+    .diagnostic =
+        [](void*, uint32_t event, XpWebText a, XpWebText b) {
+          const char* x = reinterpret_cast<const char*>(a.data);
+          const char* y = reinterpret_cast<const char*>(b.data);
+          switch (static_cast<XpWebDiagnostic>(event)) {
+            case XP_WEB_LIST_OPEN:
+              LOG_DBG("WEB", "Failed to open directory: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_LIST_NOT_DIR:
+              LOG_DBG("WEB", "Not a directory: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_LIST_SCAN:
+              LOG_DBG("WEB", "Scanning files in: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_LIST_SKIP:
+              LOG_DBG("WEB", "Skipping file entry with oversized JSON for name: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_LIST_DONE:
+              LOG_DBG("WEB", "Served file listing page for path: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_STREAM_OOM:
+              LOG_ERR("WEB", "OOM: %u byte stream buffer", 4096u);
+              break;
+            case XP_WEB_FOLDER_UNSAFE:
+              LOG_DBG("WEB", "Rejected unsafe folder name: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FOLDER_PROTECTED:
+              LOG_DBG("WEB", "Rejected protected folder name: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FOLDER_CREATE:
+              LOG_DBG("WEB", "Creating folder: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FOLDER_DONE:
+              LOG_DBG("WEB", "Folder created successfully: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FOLDER_FAILED:
+              LOG_DBG("WEB", "Failed to create folder: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_RENAME_DONE:
+              LOG_DBG("WEB", "Renamed file: %.*s -> %.*s", int(a.len), x, int(b.len), y);
+              break;
+            case XP_WEB_RENAME_FAILED:
+              LOG_ERR("WEB", "Failed to rename file: %.*s -> %.*s", int(a.len), x, int(b.len), y);
+              break;
+            case XP_WEB_MOVE_DONE:
+              LOG_DBG("WEB", "Moved file: %.*s -> %.*s", int(a.len), x, int(b.len), y);
+              break;
+            case XP_WEB_MOVE_FAILED:
+              LOG_ERR("WEB", "Failed to move file: %.*s -> %.*s", int(a.len), x, int(b.len), y);
+              break;
+            case XP_WEB_OOM:
+              LOG_ERR("WEB", "OOM: web file request");
+              break;
+          }
+        },
+    .memory_error = [](void*) { return tr(STR_MEMORY_ERROR); }};
+
 CrossPointWebServer::CrossPointWebServer() {}
 
 CrossPointWebServer::~CrossPointWebServer() { stop(); }
@@ -340,21 +543,7 @@ bool CrossPointWebServer::dropUploadIfCancelled() const {
   return true;
 }
 
-void CrossPointWebServer::abortWsUpload(const char* tag) {
-  // Explicit close() required: file-scope global persists beyond function scope
-  wsUploadFile.close();
-  String filePath = wsUploadPath;
-  if (!filePath.endsWith("/")) filePath += "/";
-  filePath += wsUploadFileName;
-  if (Storage.remove(filePath.c_str())) {
-    LOG_DBG(tag, "Deleted incomplete upload: %s", filePath.c_str());
-  } else {
-    LOG_DBG(tag, "Failed to delete incomplete upload: %s", filePath.c_str());
-  }
-  wsUploadInProgress = false;
-  wsUploadClientNum = 255;
-  wsLastProgressSent = 0;
-}
+void CrossPointWebServer::abortWsUpload(const char*) { WebFileBridge::ws(*this, 255, 4, nullptr, 0); }
 
 void CrossPointWebServer::stop() {
   if (!running || !server) {
@@ -499,27 +688,7 @@ void CrossPointWebServer::handleJszip() const {
   LOG_DBG("WEB", "Served jszip.min.js");
 }
 
-void CrossPointWebServer::handleNotFound() const {
-  // CORS preflight: routes are registered per-method, so OPTIONS requests land
-  // here. The Access-Control-Allow-* headers are added by enableCORS().
-  if (server->method() == HTTP_OPTIONS) {
-    server->send(204, "text/plain", "");
-    return;
-  }
-
-  // in AP mode, redirect unmatched browser/captive-portal requests to "/" so the OS auto-opens the browser
-  // API requests (/api/*) still return 404 so XHR errors surface correctly
-  // see https://en.wikipedia.org/wiki/Captive_portal#Detection
-  if (apMode && !server->uri().startsWith("/api/")) {
-    server->sendHeader("Location", "/", true);
-    server->send(302, "text/plain", "");
-    return;
-  }
-
-  String message = "404 Not Found\n\n";
-  message += "URI: " + server->uri() + "\n";
-  server->send(404, "text/plain", message);
-}
+void CrossPointWebServer::handleNotFound() const { WebFileBridge::route(*this, XP_WEB_NOT_FOUND); }
 
 void CrossPointWebServer::handleStatus() const {
   // Get correct IP based on AP vs STA mode
@@ -583,1257 +752,489 @@ void CrossPointWebServer::handleStatus() const {
   server->send(200, "application/json", response);
 }
 
-void CrossPointWebServer::scanFiles(const char* path, const std::function<void(FileInfo)>& callback) const {
-  HalFile root = Storage.open(path);
-  if (!root) {
-    LOG_DBG("WEB", "Failed to open directory: %s", path);
-    return;
-  }
-
-  if (!root.isDirectory()) {
-    LOG_DBG("WEB", "Not a directory: %s", path);
-    root.close();
-    return;
-  }
-
-  LOG_DBG("WEB", "Scanning files in: %s", path);
-
-  HalFile file = root.openNextFile();
-  char name[500];
-  while (file) {
-    file.getName(name, sizeof(name));
-    auto fileName = String(name);
-
-    // Skip hidden items (starting with ".")
-    bool shouldHide = !SETTINGS.showHiddenFiles && fileName.startsWith(".");
-
-    // Check against explicitly hidden items list
-    if (!shouldHide) {
-      for (const auto* item : FsHelpers::HIDDEN_ITEMS) {
-        if (fileName.equals(item)) {
-          shouldHide = true;
-          break;
-        }
-      }
-    }
-
-    if (!shouldHide) {
-      FileInfo info;
-      info.name = fileName;
-      info.isDirectory = file.isDirectory();
-
-      if (info.isDirectory) {
-        info.size = 0;
-        info.isEpub = false;
-      } else {
-        info.size = file.size();
-        info.isEpub = isEpubFile(info.name);
-      }
-
-      callback(info);
-    }
-
-    file.close();
-    yield();                          // Yield to allow WiFi and other tasks to process during long scans
-    resetTaskWatchdogIfSubscribed();  // Reset watchdog to prevent timeout on large directories
-    file = root.openNextFile();
-  }
-  root.close();
-}
-
-bool CrossPointWebServer::isEpubFile(const String& filename) const { return FsHelpers::hasEpubExtension(filename); }
-
 void CrossPointWebServer::handleFileList() const {
   sendStaticContent(server.get(), FilesPageHtml, sizeof(FilesPageHtml), FilesPageHtmlETag, "text/html");
 }
 
-void CrossPointWebServer::handleFileListData() const {
-  // Get current path from query string (default to root)
-  String currentPath = "/";
-  if (server->hasArg("path")) {
-    currentPath = normalizeWebPath(server->arg("path"));
-  }
+void CrossPointWebServer::handleFileListData() const { WebFileBridge::route(*this, XP_WEB_LIST); }
 
-  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server->send(200, "application/json", "");
-  server->sendContent("[");
-  char output[512];
-  constexpr size_t outputSize = sizeof(output);
-  bool seenFirst = false;
-  JsonDocument doc;
+void CrossPointWebServer::streamFileToClient(HalFile& file) const { WebFileBridge::stream(*this, file); }
 
-  scanFiles(currentPath.c_str(), [this, &output, &doc, seenFirst](const FileInfo& info) mutable {
-    doc.clear();
-    doc["name"] = info.name;
-    doc["size"] = info.size;
-    doc["isDirectory"] = info.isDirectory;
-    doc["isEpub"] = info.isEpub;
-
-    const size_t written = serializeJson(doc, output, outputSize);
-    if (written >= outputSize) {
-      // JSON output truncated; skip this entry to avoid sending malformed JSON
-      LOG_DBG("WEB", "Skipping file entry with oversized JSON for name: %s", info.name.c_str());
-      return;
-    }
-
-    if (seenFirst) {
-      server->sendContent(",");
-    } else {
-      seenFirst = true;
-    }
-    server->sendContent(output);
-  });
-  server->sendContent("]");
-  // End of streamed response, empty chunk to signal client
-  server->sendContent("");
-  LOG_DBG("WEB", "Served file listing page for path: %s", currentPath.c_str());
-}
-
-void CrossPointWebServer::streamFileToClient(HalFile& file) const {
-  NetworkClient client = server->client();
-  static constexpr size_t CHUNK_SIZE = 4096;
-  // Off the stack: the web-server task also runs TLS and SD from this stack.
-  auto buffer = makeUniqueNoThrow<uint8_t[]>(CHUNK_SIZE);
-  if (!buffer) {
-    LOG_ERR("WEB", "OOM: %u byte stream buffer", (unsigned)CHUNK_SIZE);
-    return;
-  }
-
-  bool ok = true;
-  while (ok && file.available()) {
-    const int result = file.read(buffer.get(), CHUNK_SIZE);
-    if (result <= 0) break;
-    const size_t bytesRead = static_cast<size_t>(result);
-    size_t totalWritten = 0;
-    while (totalWritten < bytesRead) {
-      resetTaskWatchdogIfSubscribed();
-      const size_t wrote = client.write(buffer.get() + totalWritten, bytesRead - totalWritten);
-      if (wrote == 0) {
-        ok = false;
-        break;
-      }
-      totalWritten += wrote;
-    }
-  }
-  client.clear();
-}
-
-void CrossPointWebServer::handleDownload() const {
-  if (!server->hasArg("path")) {
-    server->send(400, "text/plain", "Missing path");
-    return;
-  }
-
-  String itemPath = normalizeWebPath(server->arg("path"));
-  if (itemPath.isEmpty() || itemPath == "/") {
-    server->send(400, "text/plain", "Invalid path");
-    return;
-  }
-
-  const String itemName = itemPath.substring(itemPath.lastIndexOf('/') + 1);
-  if (itemName.startsWith(".") || protectedpaths::isSensitivePath(itemPath.c_str())) {
-    server->send(403, "text/plain", "Cannot access system files");
-    return;
-  }
-  for (const auto* item : FsHelpers::HIDDEN_ITEMS) {
-    if (itemName.equals(item)) {
-      server->send(403, "text/plain", "Cannot access protected items");
-      return;
-    }
-  }
-
-  if (!Storage.exists(itemPath.c_str())) {
-    server->send(404, "text/plain", "Item not found");
-    return;
-  }
-
-  HalFile file = Storage.open(itemPath.c_str());
-  if (!file) {
-    server->send(500, "text/plain", "Failed to open file");
-    return;
-  }
-  if (file.isDirectory()) {
-    file.close();
-    server->send(400, "text/plain", "Path is a directory");
-    return;
-  }
-
-  String contentType = "application/octet-stream";
-  if (isEpubFile(itemPath)) {
-    contentType = "application/epub+zip";
-  }
-
-  char nameBuf[128] = {0};
-  String filename = "download";
-  if (file.getName(nameBuf, sizeof(nameBuf))) {
-    filename = nameBuf;
-  }
-
-  server->setContentLength(file.size());
-  server->sendHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-  server->send(200, contentType.c_str(), "");
-  streamFileToClient(file);
-  file.close();
-}
+void CrossPointWebServer::handleDownload() const { WebFileBridge::route(*this, XP_WEB_DOWNLOAD); }
 
 // Diagnostic counters for upload performance analysis
 static unsigned long uploadStartTime = 0;
 static unsigned long totalWriteTime = 0;
 static size_t writeCount = 0;
 
-static bool flushUploadBuffer(CrossPointWebServer::UploadState& state) {
-  if (state.bufferPos > 0 && state.file) {
-    resetTaskWatchdogIfSubscribed();  // Reset watchdog before potentially slow SD write
-    const unsigned long writeStart = millis();
-    const size_t written = state.file.write(state.buffer.get(), state.bufferPos);
-    totalWriteTime += millis() - writeStart;
-    writeCount++;
-    resetTaskWatchdogIfSubscribed();  // Reset watchdog after SD write
+const XpWebTransfers WebFileBridge::transfers = {
+    .files = &WebFileBridge::services,
+    .get = [](void* ctx, uint32_t field) -> XpWebText { return span(self(ctx).text(field)); },
+    .set = [](void* ctx, uint32_t field, XpWebText value) { self(ctx).text(field) = string(value); },
+    .joined_path = [](void* ctx, bool ws) -> XpWebText {
+      auto& b = self(ctx);
+      const auto& parent = ws ? wsUploadPath : b.uploadState->path;
+      const auto& name = ws ? wsUploadFileName : b.uploadState->fileName;
+      if (!b.argument.reserve(parent.length() + name.length() + 2)) return {nullptr, 0};
+      b.argument = parent;
+      if (!b.argument.endsWith("/")) b.argument += "/";
+      b.argument += name;
+      return span(b.argument);
+    },
+    .time = [](void*) -> uint32_t { return millis(); },
+    .cancel = [](void* ctx) { return self(ctx).owner.dropUploadIfCancelled(); },
+    .diagnostic =
+        [](void*, uint32_t event, XpWebText x, XpWebText y, size_t a, size_t b, size_t c) {
+          const char* first = x.data ? reinterpret_cast<const char*>(x.data) : "";
+          const char* second = reinterpret_cast<const char*>(y.data);
+          const float kbps = b > 0 ? (a / 1024.0) / (b / 1000.0) : 0;
+          switch (static_cast<XpWebTransferDiagnostic>(event)) {
+            case XP_WEB_UPLOAD_STOPPED:
+              LOG_DBG("WEB", "[UPLOAD] ERROR: handleUpload called but server not running!");
+              break;
+            case XP_WEB_UPLOAD_UNSAFE:
+              LOG_DBG("WEB", "[UPLOAD] Rejected unsafe filename: %.*s", int(x.len), first);
+              break;
+            case XP_WEB_UPLOAD_START:
+              LOG_DBG("WEB", "[UPLOAD] START: %.*s to path: %.*s", int(x.len), first, int(y.len), second);
+              break;
+            case XP_WEB_UPLOAD_HEAP:
+              LOG_DBG("WEB", "[UPLOAD] Free heap: %d bytes", ESP.getFreeHeap());
+              break;
+            case XP_WEB_UPLOAD_COLLISION:
+              LOG_DBG("WEB", "[UPLOAD] Collision: %.*s", int(x.len), first);
+              break;
+            case XP_WEB_UPLOAD_OOM:
+              LOG_ERR("WEB", "OOM: upload buffer");
+              break;
+            case XP_WEB_UPLOAD_CREATE_FAILED:
+              LOG_DBG("WEB", "[UPLOAD] FAILED to create file: %.*s", int(x.len), first);
+              break;
+            case XP_WEB_UPLOAD_CREATED:
+              LOG_DBG("WEB", "[UPLOAD] File created successfully: %.*s", int(x.len), first);
+              break;
+            case XP_WEB_UPLOAD_FLUSH_FAILED:
+              LOG_DBG("WEB", "[UPLOAD] Buffer flush failed: expected %d, wrote %d", a, b);
+              break;
+            case XP_WEB_UPLOAD_PROGRESS:
+              LOG_DBG("WEB", "[UPLOAD] %d bytes (%.1f KB), %.1f KB/s, %d writes", a, a / 1024.0, kbps, c);
+              break;
+            case XP_WEB_UPLOAD_COMPLETE:
+              LOG_DBG("WEB", "[UPLOAD] Complete: %.*s (%d bytes in %lu ms, avg %.1f KB/s)", int(x.len), first, a,
+                      static_cast<unsigned long>(b), kbps);
+              break;
+            case XP_WEB_UPLOAD_DIAGNOSTICS: {
+              const float percent = c > 0 ? b * 100.0 / c : 0;
+              LOG_DBG("WEB", "[UPLOAD] Diagnostics: %d writes, total write time: %lu ms (%.1f%%)", a,
+                      static_cast<unsigned long>(b), percent);
+              break;
+            }
+            case XP_WEB_UPLOAD_ABORTED:
+              LOG_DBG("WEB", "Upload aborted");
+              break;
+            case XP_WEB_WS_DISCONNECT:
+              LOG_DBG("WS", "Client %u disconnected", unsigned(a));
+              break;
+            case XP_WEB_WS_CONNECT:
+              LOG_DBG("WS", "Client %u connected", unsigned(a));
+              break;
+            case XP_WEB_WS_TEXT:
+              LOG_DBG("WS", "Text from client %u: %.*s", unsigned(a), int(x.len), first);
+              break;
+            case XP_WEB_WS_UNSAFE:
+              LOG_DBG("WS", "START rejected: invalid filename '%.*s'", int(x.len), first);
+              break;
+            case XP_WEB_WS_BAD_SIZE:
+              LOG_DBG("WS", "START rejected: invalid size token '%.*s'", int(x.len), first);
+              break;
+            case XP_WEB_WS_COLLISION:
+              LOG_DBG("WS", "Upload collision: %.*s", int(x.len), first);
+              break;
+            case XP_WEB_WS_START:
+              LOG_DBG("WS", "Starting upload: %.*s (%d bytes) to %.*s", int(x.len), first, a, int(y.len), second);
+              break;
+            case XP_WEB_WS_EMPTY:
+              LOG_DBG("WS", "Zero-byte upload complete: %.*s", int(x.len), first);
+              break;
+            case XP_WEB_WS_COMPLETE:
+              LOG_DBG("WS", "Upload complete: %.*s (%d bytes in %lu ms, %.1f KB/s)", int(x.len), first, a,
+                      static_cast<unsigned long>(b), kbps);
+              break;
+            case XP_WEB_WS_REMOVED:
+              LOG_DBG(y.len == 3 ? "WEB" : "WS", "Deleted incomplete upload: %.*s", int(x.len), first);
+              break;
+            case XP_WEB_WS_REMOVE_FAILED:
+              LOG_DBG(y.len == 3 ? "WEB" : "WS", "Failed to delete incomplete upload: %.*s", int(x.len), first);
+              break;
+          }
+        },
+    .ws_send =
+        [](void* ctx, uint8_t client, XpWebText value) {
+          wsSending = true;
+          wsSendDisconnected = false;
+          self(ctx).owner.wsServer->sendTXT(client, value.len ? value.data : reinterpret_cast<const uint8_t*>(""),
+                                            value.len);
+          wsSending = false;
+          return wsSendDisconnected;
+        },
+    .ws_memory_error =
+        [](void* ctx, uint8_t client) {
+          auto& b = self(ctx);
+          const char* message = tr(STR_MEMORY_ERROR);
+          if (!b.argument.reserve(strlen(message) + 6)) {
+            return transfers.ws_send(ctx, client, {reinterpret_cast<const uint8_t*>("ERROR:"), 6});
+          }
+          b.argument = "ERROR:";
+          b.argument += message;
+          return transfers.ws_send(ctx, client, span(b.argument));
+        }};
 
-    if (written != state.bufferPos) {
-      LOG_DBG("WEB", "[UPLOAD] Buffer flush failed: expected %d, wrote %d", state.bufferPos, written);
-      state.bufferPos = 0;
-      return false;
-    }
-    state.bufferPos = 0;
+void WebFileBridge::http(const CrossPointWebServer& owner, CrossPointWebServer::UploadState& state, uint32_t event) {
+  static size_t lastLoggedSize = 0;
+  WebFileBridge bridge(owner);
+  bridge.borrowed = &state.file;
+  bridge.uploadState = &state;
+  XpWebUpload policy{state.size,
+                     state.bufferPos,
+                     writeCount,
+                     lastLoggedSize,
+                     static_cast<uint32_t>(uploadStartTime),
+                     static_cast<uint32_t>(totalWriteTime),
+                     state.buffer.get(),
+                     state.success};
+  XpWebText name{nullptr, 0};
+  const uint8_t* bytes = nullptr;
+  size_t length = 0;
+  if (event != 4 && owner.running && owner.server) {
+    const auto& part = owner.server->upload();
+    name = span(part.filename);
+    bytes = part.buf;
+    length = part.currentSize;
   }
-  return true;
+  xp_web_upload(&bridge, &transfers, &policy, event, name, bytes, length);
+  state.size = policy.size;
+  state.bufferPos = policy.buffer_pos;
+  state.success = policy.success;
+  writeCount = policy.writes;
+  lastLoggedSize = policy.last_logged;
+  uploadStartTime = policy.started_at;
+  totalWriteTime = policy.write_time;
+}
+
+void WebFileBridge::ws(const CrossPointWebServer& owner, uint8_t client, uint32_t event, uint8_t* payload,
+                       size_t length) {
+  WebFileBridge bridge(owner);
+  bridge.borrowed = &wsUploadFile;
+  bridge.websocket = true;
+  XpWebWsUpload state{wsUploadSize,
+                      wsUploadReceived,
+                      wsLastProgressSent,
+                      wsLastCompleteSize,
+                      static_cast<uint32_t>(wsUploadStartTime),
+                      static_cast<uint32_t>(wsLastCompleteAt),
+                      wsUploadClientNum,
+                      wsUploadInProgress};
+  xp_web_ws(&bridge, &transfers, &state, client, event, payload, length);
+  wsUploadSize = state.total;
+  wsUploadReceived = state.received;
+  wsLastProgressSent = state.last_progress;
+  wsLastCompleteSize = state.complete_size;
+  wsUploadStartTime = state.started_at;
+  wsLastCompleteAt = state.completed_at;
+  wsUploadClientNum = state.client;
+  wsUploadInProgress = state.active;
 }
 
 // Drop a partially written upload so a truncated book never lands in the library.
 // The file is new: uploads refuse to overwrite an existing name.
-static void removeUploadedFile(const CrossPointWebServer::UploadState& state) {
-  String filePath = state.path;
-  if (!filePath.endsWith("/")) filePath += "/";
-  filePath += state.fileName;
-  Storage.remove(filePath.c_str());
-}
 
 void CrossPointWebServer::handleUpload(UploadState& state) const {
-  static size_t lastLoggedSize = 0;
-
-  // Reset watchdog at start of every upload callback - HTTP parsing can be slow
-  resetTaskWatchdogIfSubscribed();
-
-  // Safety check: ensure server is still valid
-  if (!running || !server) {
-    LOG_DBG("WEB", "[UPLOAD] ERROR: handleUpload called but server not running!");
-    return;
-  }
-
-  const HTTPUpload& upload = server->upload();
-
-  if (upload.status == UPLOAD_FILE_START) {
-    // Reset watchdog - this is the critical 1% crash point
-    resetTaskWatchdogIfSubscribed();
-
-    state.fileName = upload.filename;
-    state.size = 0;
-    state.success = false;
-    state.error = "";
-    uploadStartTime = millis();
-    lastLoggedSize = 0;
-    state.bufferPos = 0;
-    totalWriteTime = 0;
-    writeCount = 0;
-    state.buffer.reset();
-
-    if (!FsHelpers::isSafePathComponent(state.fileName)) {
-      state.error = "Invalid file name";
-      LOG_DBG("WEB", "[UPLOAD] Rejected unsafe filename: %s", state.fileName.c_str());
-      return;
-    }
-
-    // Get upload path from query parameter (defaults to root if not specified)
-    // Note: We use query parameter instead of form data because multipart form
-    // fields aren't available until after file upload completes
-    if (server->hasArg("path")) {
-      state.path = normalizeWebPath(server->arg("path"));
-    } else {
-      state.path = "/";
-    }
-
-    LOG_DBG("WEB", "[UPLOAD] START: %s to path: %s", state.fileName.c_str(), state.path.c_str());
-    LOG_DBG("WEB", "[UPLOAD] Free heap: %d bytes", ESP.getFreeHeap());
-
-    String filePath = state.path;
-    if (!filePath.endsWith("/")) filePath += "/";
-    filePath += state.fileName;
-    if (protectedpaths::isSensitivePath(filePath.c_str())) {
-      state.error = "Cannot write protected items";
-      return;
-    }
-
-    // Check if file already exists - SD operations can be slow
-    resetTaskWatchdogIfSubscribed();
-    if (Storage.exists(filePath.c_str())) {
-      state.error = "File already exists: " + state.fileName;
-      LOG_DBG("WEB", "[UPLOAD] Collision: %s", filePath.c_str());
-      return;
-    }
-
-    // The buffer spans upload callbacks; keep it off the task stack and release it at the end.
-    state.buffer = makeUniqueNoThrow<uint8_t[]>(UploadState::UPLOAD_BUFFER_SIZE);
-    if (!state.buffer) {
-      state.error = tr(STR_MEMORY_ERROR);
-      LOG_ERR("WEB", "OOM: upload buffer");
-      return;
-    }
-
-    // Open file for writing - this can be slow due to FAT cluster allocation
-    resetTaskWatchdogIfSubscribed();
-    if (!Storage.openFileForWrite("WEB", filePath, state.file)) {
-      state.error = "Failed to create file on SD card";
-      LOG_DBG("WEB", "[UPLOAD] FAILED to create file: %s", filePath.c_str());
-      state.buffer.reset();
-      return;
-    }
-    resetTaskWatchdogIfSubscribed();
-
-    LOG_DBG("WEB", "[UPLOAD] File created successfully: %s", filePath.c_str());
-  } else if (upload.status == UPLOAD_FILE_WRITE) {
-    if (dropUploadIfCancelled()) return;
-    if (state.file && state.error.isEmpty()) {
-      // Buffer incoming data and flush when buffer is full
-      // This reduces SD card write operations and improves throughput
-      const uint8_t* data = upload.buf;
-      size_t remaining = upload.currentSize;
-
-      while (remaining > 0) {
-        const size_t space = UploadState::UPLOAD_BUFFER_SIZE - state.bufferPos;
-        const size_t toCopy = (remaining < space) ? remaining : space;
-
-        memcpy(state.buffer.get() + state.bufferPos, data, toCopy);
-        state.bufferPos += toCopy;
-        data += toCopy;
-        remaining -= toCopy;
-
-        // Flush buffer when full
-        if (state.bufferPos >= UploadState::UPLOAD_BUFFER_SIZE) {
-          if (!flushUploadBuffer(state)) {
-            state.error = "Failed to write to SD card - disk may be full";
-            state.file.close();
-            state.buffer.reset();
-            removeUploadedFile(state);
-            return;
-          }
-        }
-      }
-
-      state.size += upload.currentSize;
-
-      // Log progress every 100KB
-      if (state.size - lastLoggedSize >= 102400) {
-        const unsigned long elapsed = millis() - uploadStartTime;
-        const float kbps = (elapsed > 0) ? (state.size / 1024.0) / (elapsed / 1000.0) : 0;
-        LOG_DBG("WEB", "[UPLOAD] %d bytes (%.1f KB), %.1f KB/s, %d writes", state.size, state.size / 1024.0, kbps,
-                writeCount);
-        lastLoggedSize = state.size;
-      }
-    }
-  } else if (upload.status == UPLOAD_FILE_END) {
-    if (!server->client().connected()) return;
-    if (state.file) {
-      // Flush any remaining buffered data
-      if (!flushUploadBuffer(state)) {
-        state.error = "Failed to write final data to SD card";
-      }
-      state.file.close();
-      if (!state.error.isEmpty()) removeUploadedFile(state);
-
-      if (state.error.isEmpty()) {
-        state.success = true;
-        const unsigned long elapsed = millis() - uploadStartTime;
-        const float avgKbps = (elapsed > 0) ? (state.size / 1024.0) / (elapsed / 1000.0) : 0;
-        const float writePercent = (elapsed > 0) ? (totalWriteTime * 100.0 / elapsed) : 0;
-        LOG_DBG("WEB", "[UPLOAD] Complete: %s (%d bytes in %lu ms, avg %.1f KB/s)", state.fileName.c_str(), state.size,
-                elapsed, avgKbps);
-        LOG_DBG("WEB", "[UPLOAD] Diagnostics: %d writes, total write time: %lu ms (%.1f%%)", writeCount, totalWriteTime,
-                writePercent);
-
-        // Clear epub cache after uploading the file
-        String filePath = state.path;
-        if (!filePath.endsWith("/")) filePath += "/";
-        filePath += state.fileName;
-        clearBookCache(filePath.c_str());
-        if (library::isLibraryBookFile(filePath.c_str())) library::markLibraryIndexDirty();
-      }
-    }
-    state.buffer.reset();
-  } else if (upload.status == UPLOAD_FILE_ABORTED) {
-    state.bufferPos = 0;  // Discard buffered data
-    state.buffer.reset();
-    if (state.file) {
-      state.file.close();
-      removeUploadedFile(state);
-    }
-    state.error = "Upload aborted";
-    LOG_DBG("WEB", "Upload aborted");
-  }
+  const uint32_t event = running && server ? static_cast<uint32_t>(server->upload().status) : 0;
+  WebFileBridge::http(*this, state, event);
 }
 
-void CrossPointWebServer::handleUploadPost(UploadState& state) const {
-  if (state.success) {
-    server->send(200, "text/plain", "File uploaded successfully: " + state.fileName);
-  } else {
-    const String error = state.error.isEmpty() ? "Unknown error during upload" : state.error;
-    server->send(400, "text/plain", error);
-  }
-}
+void CrossPointWebServer::handleUploadPost(UploadState& state) const { WebFileBridge::http(*this, state, 4); }
 
-void CrossPointWebServer::handleCreateFolder() const {
-  // Get folder name from form data
-  if (!server->hasArg("name")) {
-    server->send(400, "text/plain", "Missing folder name");
-    return;
-  }
+void CrossPointWebServer::handleCreateFolder() const { WebFileBridge::route(*this, XP_WEB_MKDIR_ROUTE); }
 
-  const String folderName = server->arg("name");
+void CrossPointWebServer::handleRename() const { WebFileBridge::route(*this, XP_WEB_RENAME); }
 
-  // Validate folder name
-  if (folderName.isEmpty()) {
-    server->send(400, "text/plain", "Folder name cannot be empty");
-    return;
-  }
-  if (!FsHelpers::isSafePathComponent(folderName)) {
-    LOG_DBG("WEB", "Rejected unsafe folder name: %s", folderName.c_str());
-    server->send(400, "text/plain", "Invalid folder name");
-    return;
-  }
-  if (isProtectedItemName(folderName)) {
-    LOG_DBG("WEB", "Rejected protected folder name: %s", folderName.c_str());
-    server->send(403, "text/plain", "Cannot create protected item");
-    return;
-  }
+void CrossPointWebServer::handleMove() const { WebFileBridge::route(*this, XP_WEB_MOVE); }
 
-  // Get parent path
-  String parentPath = "/";
-  if (server->hasArg("path")) {
-    parentPath = normalizeWebPath(server->arg("path"));
-  }
+void CrossPointWebServer::handleDelete() const { WebFileBridge::route(*this, XP_WEB_DELETE); }
 
-  // Build full folder path
-  String folderPath = parentPath;
-  if (!folderPath.endsWith("/")) folderPath += "/";
-  folderPath += folderName;
-
-  LOG_DBG("WEB", "Creating folder: %s", folderPath.c_str());
-
-  // Check if already exists
-  if (Storage.exists(folderPath.c_str())) {
-    server->send(400, "text/plain", "Folder already exists");
-    return;
-  }
-
-  // Create the folder
-  if (Storage.mkdir(folderPath.c_str())) {
-    LOG_DBG("WEB", "Folder created successfully: %s", folderPath.c_str());
-    server->send(200, "text/plain", "Folder created: " + folderName);
-  } else {
-    LOG_DBG("WEB", "Failed to create folder: %s", folderPath.c_str());
-    server->send(500, "text/plain", "Failed to create folder");
-  }
-}
-
-void CrossPointWebServer::handleRename() const {
-  if (!server->hasArg("path") || !server->hasArg("name")) {
-    server->send(400, "text/plain", "Missing path or new name");
-    return;
-  }
-
-  String itemPath = normalizeWebPath(server->arg("path"));
-  String newName = server->arg("name");
-  newName.trim();
-
-  if (itemPath.isEmpty() || itemPath == "/") {
-    server->send(400, "text/plain", "Invalid path");
-    return;
-  }
-  if (newName.isEmpty()) {
-    server->send(400, "text/plain", "New name cannot be empty");
-    return;
-  }
-  if (newName.indexOf('/') >= 0 || newName.indexOf('\\') >= 0) {
-    server->send(400, "text/plain", "Invalid file name");
-    return;
-  }
-  if (isProtectedItemName(newName)) {
-    server->send(403, "text/plain", "Cannot rename to protected name");
-    return;
-  }
-
-  const String itemName = itemPath.substring(itemPath.lastIndexOf('/') + 1);
-  if (isProtectedItemName(itemName)) {
-    server->send(403, "text/plain", "Cannot rename protected item");
-    return;
-  }
-  if (newName == itemName) {
-    server->send(200, "text/plain", "Name unchanged");
-    return;
-  }
-
-  if (!Storage.exists(itemPath.c_str())) {
-    server->send(404, "text/plain", "Item not found");
-    return;
-  }
-
-  HalFile file = Storage.open(itemPath.c_str());
-  if (!file) {
-    server->send(500, "text/plain", "Failed to open file");
-    return;
-  }
-  if (file.isDirectory()) {
-    file.close();
-    server->send(400, "text/plain", "Only files can be renamed");
-    return;
-  }
-
-  String parentPath = itemPath.substring(0, itemPath.lastIndexOf('/'));
-  if (parentPath.isEmpty()) {
-    parentPath = "/";
-  }
-  String newPath = parentPath;
-  if (!newPath.endsWith("/")) {
-    newPath += "/";
-  }
-  newPath += newName;
-  if (protectedpaths::isSensitivePath(itemPath.c_str()) || protectedpaths::isSensitivePath(newPath.c_str())) {
-    file.close();
-    server->send(403, "text/plain", "Cannot move protected item");
-    return;
-  }
-
-  if (Storage.exists(newPath.c_str())) {
-    file.close();
-    server->send(409, "text/plain", "Target already exists");
-    return;
-  }
-
-  clearBookCache(itemPath.c_str());
-  file.close();
-  const bool success = ClippingStore::moveBook(itemPath.c_str(), newPath.c_str());
-
-  if (success) {
-    LOG_DBG("WEB", "Renamed file: %s -> %s", itemPath.c_str(), newPath.c_str());
-    server->send(200, "text/plain", "Renamed successfully");
-  } else {
-    LOG_ERR("WEB", "Failed to rename file: %s -> %s", itemPath.c_str(), newPath.c_str());
-    server->send(500, "text/plain", "Failed to rename file");
-  }
-}
-
-void CrossPointWebServer::handleMove() const {
-  if (!server->hasArg("path") || !server->hasArg("dest")) {
-    server->send(400, "text/plain", "Missing path or destination");
-    return;
-  }
-
-  String itemPath = normalizeWebPath(server->arg("path"));
-  String destPath = normalizeWebPath(server->arg("dest"));
-
-  if (itemPath.isEmpty() || itemPath == "/") {
-    server->send(400, "text/plain", "Invalid path");
-    return;
-  }
-  if (destPath.isEmpty()) {
-    server->send(400, "text/plain", "Invalid destination");
-    return;
-  }
-
-  const String itemName = itemPath.substring(itemPath.lastIndexOf('/') + 1);
-  if (isProtectedItemName(itemName)) {
-    server->send(403, "text/plain", "Cannot move protected item");
-    return;
-  }
-  if (destPath != "/") {
-    const String destName = destPath.substring(destPath.lastIndexOf('/') + 1);
-    if (isProtectedItemName(destName)) {
-      server->send(403, "text/plain", "Cannot move into protected folder");
-      return;
-    }
-  }
-
-  if (!Storage.exists(itemPath.c_str())) {
-    server->send(404, "text/plain", "Item not found");
-    return;
-  }
-
-  HalFile file = Storage.open(itemPath.c_str());
-  if (!file) {
-    server->send(500, "text/plain", "Failed to open file");
-    return;
-  }
-  if (file.isDirectory()) {
-    file.close();
-    server->send(400, "text/plain", "Only files can be moved");
-    return;
-  }
-
-  if (!Storage.exists(destPath.c_str())) {
-    file.close();
-    server->send(404, "text/plain", "Destination not found");
-    return;
-  }
-  HalFile destDir = Storage.open(destPath.c_str());
-  if (!destDir || !destDir.isDirectory()) {
-    if (destDir) {
-      destDir.close();
-    }
-    file.close();
-    server->send(400, "text/plain", "Destination is not a folder");
-    return;
-  }
-  destDir.close();
-
-  String newPath = destPath;
-  if (!newPath.endsWith("/")) {
-    newPath += "/";
-  }
-  newPath += itemName;
-  if (protectedpaths::isSensitivePath(itemPath.c_str()) || protectedpaths::isSensitivePath(newPath.c_str())) {
-    file.close();
-    server->send(403, "text/plain", "Cannot move protected item");
-    return;
-  }
-
-  if (newPath == itemPath) {
-    file.close();
-    server->send(200, "text/plain", "Already in destination");
-    return;
-  }
-  if (Storage.exists(newPath.c_str())) {
-    file.close();
-    server->send(409, "text/plain", "Target already exists");
-    return;
-  }
-
-  clearBookCache(itemPath.c_str());
-  file.close();
-  const bool success = ClippingStore::moveBook(itemPath.c_str(), newPath.c_str());
-
-  if (success) {
-    LOG_DBG("WEB", "Moved file: %s -> %s", itemPath.c_str(), newPath.c_str());
-    server->send(200, "text/plain", "Moved successfully");
-  } else {
-    LOG_ERR("WEB", "Failed to move file: %s -> %s", itemPath.c_str(), newPath.c_str());
-    server->send(500, "text/plain", "Failed to move file");
-  }
-}
-
-void CrossPointWebServer::handleDelete() const {
-  // To ensure backwards compatibility, plain `path` is mapped
-  // to a single element JSON array.
-  bool hasPathArg = server->hasArg("path");
-  bool hasPathsArg = server->hasArg("paths");
-  // Check 'paths' or `path` argument is provided
-  if (!(hasPathArg || hasPathsArg)) {
-    server->send(400, "text/plain", "Missing `path` or `paths` argument");
-    return;
-  }
-  if (hasPathArg && hasPathsArg) {
-    server->send(400, "text/plain", "Provide either 'path' or 'paths', not both");
-    return;
-  }
-
-  // Parse paths
-  String pathsArg;
-  JsonDocument doc;
-  DeserializationError error = DeserializationError(DeserializationError::Code::Ok);
-  if (hasPathsArg) {
-    pathsArg = server->arg("paths");
-    error = deserializeJson(doc, pathsArg);
-  } else {
-    pathsArg = server->arg("path");
-    doc.add(pathsArg);
-  }
-  if (error) {
-    server->send(400, "text/plain", "Invalid paths format");
-    return;
-  }
-
-  auto paths = doc.as<JsonArray>();
-  if (paths.isNull() || paths.size() == 0) {
-    server->send(400, "text/plain", "No paths provided");
-    return;
-  }
-
-  // Iterate over paths and delete each item
-  bool allSuccess = true;
-  String failedItems;
-
-  for (const auto& p : paths) {
-    auto itemPath = normalizeWebPath(p.as<String>());
-
-    // Validate path
-    if (itemPath.isEmpty() || itemPath == "/") {
-      failedItems += itemPath + " (cannot delete root); ";
-      allSuccess = false;
-      continue;
-    }
-
-    // Security check: prevent deletion of protected items
-    const String itemName = itemPath.substring(itemPath.lastIndexOf('/') + 1);
-
-    // Credential stores are protected. Hidden (dot-named) items can be deleted.
-    if (protectedpaths::isSensitivePath(itemPath.c_str())) {
-      failedItems += itemPath + " (protected file); ";
-      allSuccess = false;
-      continue;
-    }
-
-    // Check against explicitly protected items
-    bool isProtected = false;
-    for (const auto* item : FsHelpers::HIDDEN_ITEMS) {
-      if (itemName.equals(item)) {
-        isProtected = true;
-        break;
-      }
-    }
-    if (isProtected) {
-      failedItems += itemPath + " (protected file); ";
-      allSuccess = false;
-      continue;
-    }
-
-    // Check if item exists
-    if (!Storage.exists(itemPath.c_str())) {
-      failedItems += itemPath + " (not found); ";
-      allSuccess = false;
-      continue;
-    }
-
-    // Decide whether it's a directory or file by opening it
-    bool success = false;
-    HalFile f = Storage.open(itemPath.c_str());
-    if (f && f.isDirectory()) {
-      // For folders, ensure empty before removing
-      HalFile entry = f.openNextFile();
-      if (entry) {
-        entry.close();
-        f.close();
-        failedItems += itemPath + " (folder not empty); ";
-        allSuccess = false;
-        continue;
-      }
-      f.close();
-      success = Storage.rmdir(itemPath.c_str());
-    } else {
-      // It's a file (or couldn't open as dir) — remove file
-      if (f) f.close();
-      success = removeBookFile(itemPath.c_str());
-    }
-
-    if (!success) {
-      failedItems += itemPath + " (deletion failed); ";
-      allSuccess = false;
-    }
-  }
-
-  if (allSuccess) {
-    server->send(200, "text/plain", "All items deleted successfully");
-  } else {
-    server->send(500, "text/plain", "Failed to delete some items: " + failedItems);
-  }
-}
-
-void CrossPointWebServer::handleSettingsPage() const {
-  sendStaticContent(server.get(), SettingsPageHtml, sizeof(SettingsPageHtml), SettingsPageHtmlETag, "text/html");
-  LOG_DBG("WEB", "Served settings page");
-}
-
-void CrossPointWebServer::handleGetSettings() const {
-  // Pass the SD font registry so the fontFamily setting's enumStringValues
-  // includes SD-resident families — otherwise the web API only exposes the
-  // three built-in fonts.
+struct WebConfigBridge : WebFileBridge {
+  explicit WebConfigBridge(const CrossPointWebServer& owner) : WebFileBridge(owner) {}
   std::vector<DictionaryEntry> dictionaries;
-  DictionaryRegistry::discover(dictionaries);
-  const auto& settings = getSettingsList(&sdFontSystem.registry(), &dictionaries);
+  std::vector<SettingInfo> settings;
+  std::vector<WifiCredentialSummary> networks;
+  std::optional<WifiCredential> credential;
+  std::optional<std::string> ssid;
+  std::string scratch;
+  static WebConfigBridge& config(void* ctx) { return static_cast<WebConfigBridge&>(self(ctx)); }
+  static XpWebText view(const std::string& value) {
+    return {reinterpret_cast<const uint8_t*>(value.data()), value.size()};
+  }
+  static XpWebText view(const char* value) {
+    return {reinterpret_cast<const uint8_t*>(value), value ? strlen(value) : 0};
+  }
+  static std::string copy(XpWebText value) {
+    return std::string(value.len ? reinterpret_cast<const char*>(value.data) : "", value.len);
+  }
+  static void route(const CrossPointWebServer& owner, XpWebConfigRoute route) {
+    WebConfigBridge bridge(owner);
+    xp_web_config(static_cast<WebFileBridge*>(&bridge), &services, route);
+  }
+  static const XpWebConfig services;
+};
 
-  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server->send(200, "application/json", "");
-  server->sendContent("[");
-
-  char output[512];
-  constexpr size_t outputSize = sizeof(output);
-  bool seenFirst = false;
-  JsonDocument doc;
-
-  for (const auto& s : settings) {
-    if (!s.key || s.webHidden) continue;  // Skip ACTION-only entries
-
-    doc.clear();
-    doc["key"] = s.key;
-    doc["name"] = I18N.get(s.nameId);
-    doc["category"] = I18N.get(s.category);
-
-    switch (s.type) {
-      case SettingType::TOGGLE: {
-        doc["type"] = "toggle";
-        if (s.valuePtr) {
-          doc["value"] = static_cast<int>(SETTINGS.*(s.valuePtr));
-        }
-        break;
+const XpWebConfig WebConfigBridge::services = {
+    .files = &WebFileBridge::services,
+    .parse = [](void* ctx, XpWebText body) -> XpWebText {
+      const auto error = deserializeJson(self(ctx).paths, body.data, body.len);
+      return error ? view(error.c_str()) : XpWebText{nullptr, 0};
+    },
+    .json_value = [](void* ctx, const char* key, int32_t header, bool convert) -> XpWebJsonValue {
+      auto& b = config(ctx);
+      const JsonVariantConst value =
+          header < 0 ? b.paths[key].as<JsonVariantConst>() : b.paths["headers"][header][key].as<JsonVariantConst>();
+      const bool present =
+          header < 0 ? b.paths[key].is<JsonVariant>() : b.paths["headers"][header][key].is<JsonVariant>();
+      XpWebText text{nullptr, 0};
+      if (convert && present) {
+        b.scratch = value.as<std::string>();
+        text = view(b.scratch);
+      } else if (value.is<const char*>()) {
+        const JsonString string = value.as<JsonString>();
+        text = {reinterpret_cast<const uint8_t*>(string.c_str()), string.size()};
       }
-      case SettingType::ENUM: {
-        const auto labels = s.enumLabels();
-        const bool toggle = s.enumStringValues.empty() && labels.size() == 2 && labels[0] == StrId::STR_STATE_OFF &&
-                            labels[1] == StrId::STR_STATE_ON;
-        doc["type"] = toggle ? "toggle" : "enum";
-        if (s.valuePtr) {
-          doc["value"] = static_cast<int>(SETTINGS.*(s.valuePtr));
-        } else if (s.valueGetter) {
-          doc["value"] = static_cast<int>(s.valueGetter());
-        }
-        if (toggle) break;
-        JsonArray options = doc["options"].to<JsonArray>();
-        if (!s.enumStringValues.empty()) {
-          for (const auto& opt : s.enumStringValues) {
-            options.add(opt);
+      return {text, value.as<int>(), present, value.is<const char*>(), value.is<int>(), value.is<JsonArrayConst>()};
+    },
+    .count = [](void* ctx, uint32_t route) -> size_t {
+      auto& b = config(ctx);
+      switch (static_cast<XpWebConfigRoute>(route)) {
+        case XP_WEB_SETTINGS_GET:
+        case XP_WEB_SETTINGS_POST:
+          DictionaryRegistry::discover(b.dictionaries);
+          b.settings = getSettingsList(&sdFontSystem.registry(), &b.dictionaries);
+          return b.settings.size();
+        case XP_WEB_OPDS_GET:
+        case XP_WEB_OPDS_POST:
+        case XP_WEB_OPDS_DELETE:
+          return OPDS_STORE.getCount();
+        case XP_WEB_WIFI_GET:
+          b.networks = WIFI_STORE.getCredentialSummaries();
+          return b.networks.size();
+        case XP_WEB_WIFI_POST:
+        case XP_WEB_WIFI_DELETE:
+        case XP_WEB_SETTINGS_PAGE:
+          return 0;
+      }
+      return 0;
+    },
+    .setting =
+        [](void* ctx, size_t index, bool readValue, XpWebSetting* out) {
+          auto& b = config(ctx);
+          const auto& s = b.settings[index];
+          *out = {};
+          out->key = view(s.key);
+          out->hidden = s.webHidden;
+          out->name = view(I18N.get(s.nameId));
+          out->category = view(I18N.get(s.category));
+          out->obfuscated = s.obfuscated;
+          switch (s.type) {
+            case SettingType::TOGGLE:
+              out->kind = XP_WEB_TOGGLE;
+              break;
+            case SettingType::ENUM:
+              out->kind = XP_WEB_ENUM;
+              break;
+            case SettingType::VALUE:
+              out->kind = XP_WEB_VALUE;
+              break;
+            case SettingType::STRING:
+              out->kind = XP_WEB_STRING;
+              break;
+            default:
+              out->kind = XP_WEB_ACTION;
+              break;
           }
-        } else {
-          for (const auto& opt : s.enumLabels()) {
-            options.add(I18N.get(opt));
+          if (s.type == SettingType::ENUM) {
+            const auto labels = s.enumLabels();
+            out->options = s.enumStringValues.empty() ? labels.size() : s.enumStringValues.size();
+            out->off_on = s.enumStringValues.empty() && labels.size() == 2 && labels[0] == StrId::STR_STATE_OFF &&
+                          labels[1] == StrId::STR_STATE_ON;
           }
-        }
-        break;
-      }
-      case SettingType::VALUE: {
-        doc["type"] = "value";
-        if (s.valuePtr) {
-          doc["value"] = static_cast<int>(SETTINGS.*(s.valuePtr));
-        }
-        doc["min"] = s.valueRange.min;
-        doc["max"] = s.valueRange.max;
-        doc["step"] = s.valueRange.step;
-        break;
-      }
-      case SettingType::STRING: {
-        doc["type"] = "string";
-        if (s.obfuscated) {
-          // Device-bound credentials may contain invalid text after an SD card move.
-          doc["value"] = nullptr;
-          doc["hasPassword"] =
-              s.stringGetter
-                  ? !s.stringGetter().empty()
-                  : s.stringMaxLen > 0 && *(reinterpret_cast<const char*>(&SETTINGS) + s.stringOffset) != '\0';
-        } else if (s.stringGetter) {
-          doc["value"] = s.stringGetter();
-        } else if (s.stringMaxLen > 0) {
-          doc["value"] = reinterpret_cast<const char*>(&SETTINGS) + s.stringOffset;
-        }
-        break;
-      }
-      default:
-        continue;
-    }
-
-    const size_t written = serializeJson(doc, output, outputSize);
-    if (written >= outputSize) {
-      LOG_DBG("WEB", "Skipping oversized setting JSON for: %s", s.key);
-      continue;
-    }
-
-    if (seenFirst) {
-      server->sendContent(",");
-    } else {
-      seenFirst = true;
-    }
-    server->sendContent(output);
-    yield();                          // Yield to allow WiFi and other tasks to process during a slow send
-    resetTaskWatchdogIfSubscribed();  // Reset watchdog: each sendContent() is a blocking network write
-  }
-
-  server->sendContent("]");
-  server->sendContent("");
-  LOG_DBG("WEB", "Served settings API");
-}
-
-void CrossPointWebServer::handlePostSettings() {
-  if (!server->hasArg("plain")) {
-    server->send(400, "text/plain", "Missing JSON body");
-    return;
-  }
-
-  const String body = server->arg("plain");
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
-    return;
-  }
-
-  std::vector<DictionaryEntry> dictionaries;
-  DictionaryRegistry::discover(dictionaries);
-  const auto& settings = getSettingsList(&sdFontSystem.registry(), &dictionaries);
-  int applied = 0;
-
-  for (const auto& s : settings) {
-    if (!s.key || s.webHidden) continue;
-    if (!doc[s.key].is<JsonVariant>()) continue;
-
-    switch (s.type) {
-      case SettingType::TOGGLE: {
-        const int val = doc[s.key].as<int>() ? 1 : 0;
-        if (s.valuePtr) {
-          SETTINGS.*(s.valuePtr) = val;
-        }
-        applied++;
-        break;
-      }
-      case SettingType::ENUM: {
-        const int val = doc[s.key].as<int>();
-        const int maxVal = s.enumStringValues.empty() ? static_cast<int>(s.enumLabels().size())
-                                                      : static_cast<int>(s.enumStringValues.size());
-        if (val >= 0 && val < maxVal) {
-          if (s.valuePtr) {
-            SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
-          } else if (s.valueSetter) {
-            s.valueSetter(static_cast<uint8_t>(val));
+          out->min = s.valueRange.min;
+          out->max = s.valueRange.max;
+          out->step = s.valueRange.step;
+          if (!readValue) return;
+          if (s.type == SettingType::STRING) {
+            if (s.stringGetter) {
+              b.scratch = s.stringGetter();
+              out->text = view(b.scratch);
+              out->has_value = true;
+            } else if (s.stringMaxLen > 0) {
+              out->text = view(reinterpret_cast<const char*>(&SETTINGS) + s.stringOffset);
+              out->has_value = true;
+            }
+          } else if (s.valuePtr) {
+            out->value = SETTINGS.*(s.valuePtr);
+            out->has_value = true;
+          } else if (s.type == SettingType::ENUM && s.valueGetter) {
+            out->value = s.valueGetter();
+            out->has_value = true;
           }
-          applied++;
-        }
-        break;
-      }
-      case SettingType::VALUE: {
-        const int val = doc[s.key].as<int>();
-        if (val >= s.valueRange.min && val <= s.valueRange.max) {
-          if (s.valuePtr) {
-            SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
+        },
+    .option =
+        [](void* ctx, size_t index, size_t option) {
+          const auto& s = config(ctx).settings[index];
+          return s.enumStringValues.empty() ? view(I18N.get(s.enumLabels()[option])) : view(s.enumStringValues[option]);
+        },
+    .set_setting =
+        [](void* ctx, size_t index, int32_t value) {
+          const auto& b = config(ctx);
+          const auto& s = b.settings[index];
+          if (s.type == SettingType::STRING) {
+            if (s.stringSetter)
+              s.stringSetter(b.scratch);
+            else if (s.stringMaxLen > 0) {
+              char* ptr = reinterpret_cast<char*>(&SETTINGS) + s.stringOffset;
+              strncpy(ptr, b.scratch.c_str(), s.stringMaxLen - 1);
+              ptr[s.stringMaxLen - 1] = '\0';
+            }
+          } else if (s.valuePtr)
+            SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(value);
+          else if (s.type == SettingType::ENUM && s.valueSetter)
+            s.valueSetter(static_cast<uint8_t>(value));
+        },
+    .save_settings = [](void*) { SETTINGS.saveToFile(); },
+    .opds =
+        [](void*, size_t index, XpWebOpds* out) {
+          const auto* s = OPDS_STORE.getServer(index);
+          if (!s) return false;
+          *out = {view(s->name), view(s->url), view(s->username), view(s->password), {}};
+          for (size_t i = 0; i < OpdsServer::MAX_CUSTOM_HEADERS; ++i)
+            out->headers[i] = {view(s->customHeaders[i].name), view(s->customHeaders[i].value)};
+          return true;
+        },
+    .put_opds =
+        [](void*, int32_t index, const XpWebOpds* value) {
+          OpdsServer s;
+          s.name = copy(value->name);
+          s.url = copy(value->url);
+          s.username = copy(value->username);
+          s.password = copy(value->password);
+          for (size_t i = 0; i < OpdsServer::MAX_CUSTOM_HEADERS; ++i) {
+            s.customHeaders[i].name = copy(value->headers[i].name);
+            s.customHeaders[i].value = copy(value->headers[i].value);
           }
-          applied++;
-        }
-        break;
-      }
-      case SettingType::STRING: {
-        const std::string val = doc[s.key].as<std::string>();
-        if (s.stringSetter) {
-          s.stringSetter(val);
-        } else if (s.stringMaxLen > 0) {
-          char* ptr = reinterpret_cast<char*>(&SETTINGS) + s.stringOffset;
-          strncpy(ptr, val.c_str(), s.stringMaxLen - 1);
-          ptr[s.stringMaxLen - 1] = '\0';
-        }
-        applied++;
-        break;
-      }
-      default:
-        break;
-    }
-  }
+          if (index < 0) return OPDS_STORE.addServer(s);
+          OPDS_STORE.updateServer(static_cast<size_t>(index), s);
+          return true;
+        },
+    .remove_opds = [](void*, size_t index) { OPDS_STORE.removeServer(index); },
+    .wifi =
+        [](void* ctx, size_t index, uint32_t read, XpWebWifi* out) {
+          auto& b = config(ctx);
+          *out = {};
+          switch (static_cast<XpWebWifiRead>(read)) {
+            case XP_WEB_WIFI_SUMMARY: {
+              const auto& s = b.networks[index];
+              *out = {view(s.ssid), {}, s.hasPassword, s.isLastConnected};
+              return true;
+            }
+            case XP_WEB_WIFI_CREDENTIAL:
+              b.credential = WIFI_STORE.getCredentialAt(index);
+              if (!b.credential) return false;
+              out->ssid = view(b.credential->ssid);
+              out->password = view(b.credential->password);
+              return true;
+            case XP_WEB_WIFI_SSID:
+              b.ssid = WIFI_STORE.getSsidAt(index);
+              if (!b.ssid) return false;
+              out->ssid = view(*b.ssid);
+              return true;
+          }
+          return false;
+        },
+    .put_wifi = [](void*, XpWebText ssid,
+                   XpWebText password) { return WIFI_STORE.addCredential(copy(ssid), copy(password)); },
+    .remove_wifi = [](void*, XpWebText ssid) { return WIFI_STORE.removeCredential(copy(ssid)); },
+    .request_header =
+        [](void* ctx, const char* name) {
+          auto& b = self(ctx);
+          b.argument = b.owner.server->header(name);
+          return span(b.argument);
+        },
+    .send_asset =
+        [](void* ctx, XpWebText asset) {
+          self(ctx).owner.server->send_P(200, "text/html", reinterpret_cast<const char*>(asset.data), asset.len);
+        },
+    .asset = {reinterpret_cast<const uint8_t*>(SettingsPageHtml), sizeof(SettingsPageHtml)},
+    .etag = {reinterpret_cast<const uint8_t*>(SettingsPageHtmlETag),
+             std::char_traits<char>::length(SettingsPageHtmlETag)},
+    .diagnostic =
+        [](void*, uint32_t event, size_t count, XpWebText text) {
+          const char* value = text.len ? reinterpret_cast<const char*>(text.data) : "";
+          switch (static_cast<XpWebConfigDiagnostic>(event)) {
+            case XP_WEB_CONFIG_PAGE:
+              LOG_DBG("WEB", "Served settings page");
+              break;
+            case XP_WEB_CONFIG_SETTINGS:
+              LOG_DBG("WEB", "Served settings API");
+              break;
+            case XP_WEB_CONFIG_SKIPPED:
+              LOG_DBG("WEB", "Skipping oversized setting JSON for: %.*s", int(text.len), value);
+              break;
+            case XP_WEB_CONFIG_APPLIED:
+              LOG_DBG("WEB", "Applied %d setting(s)", int(count));
+              break;
+            case XP_WEB_CONFIG_OPDS_LIST:
+              LOG_DBG("WEB", "Served OPDS servers API (%zu servers)", count);
+              break;
+            case XP_WEB_CONFIG_OPDS_UPDATED:
+              LOG_DBG("WEB", "Updated OPDS server at index %d", int(count));
+              break;
+            case XP_WEB_CONFIG_OPDS_ADDED:
+              LOG_DBG("WEB", "Added new OPDS server: %.*s", int(text.len), value);
+              break;
+            case XP_WEB_CONFIG_OPDS_DELETED:
+              LOG_DBG("WEB", "Deleted OPDS server at index %d", int(count));
+              break;
+            case XP_WEB_CONFIG_WIFI_LIST:
+              LOG_DBG("WEB", "Served Wi-Fi credentials API (%zu network(s))", count);
+              break;
+            case XP_WEB_CONFIG_WIFI_UPDATED:
+              LOG_DBG("WEB", "Updated Wi-Fi network at index %d (SSID: %.*s)", int(count), int(text.len), value);
+              break;
+            case XP_WEB_CONFIG_WIFI_ADDED:
+              LOG_DBG("WEB", "Added Wi-Fi network: %.*s", int(text.len), value);
+              break;
+            case XP_WEB_CONFIG_WIFI_DELETED:
+              LOG_DBG("WEB", "Deleted Wi-Fi network at index %d (SSID: %.*s)", int(count), int(text.len), value);
+              break;
+          }
+        }};
+static_assert(OpdsServer::MAX_CUSTOM_HEADERS == 2);
 
-  SETTINGS.saveToFile();
+void CrossPointWebServer::handleSettingsPage() const { WebConfigBridge::route(*this, XP_WEB_SETTINGS_PAGE); }
 
-  LOG_DBG("WEB", "Applied %d setting(s)", applied);
-  server->send(200, "text/plain", String("Applied ") + String(applied) + " setting(s)");
-}
+void CrossPointWebServer::handleGetSettings() const { WebConfigBridge::route(*this, XP_WEB_SETTINGS_GET); }
 
-// ---- OPDS Server API ----
+void CrossPointWebServer::handlePostSettings() { WebConfigBridge::route(*this, XP_WEB_SETTINGS_POST); }
 
-void CrossPointWebServer::handleGetOpdsServers() const {
-  const auto& servers = OPDS_STORE.getServers();
+void CrossPointWebServer::handleGetOpdsServers() const { WebConfigBridge::route(*this, XP_WEB_OPDS_GET); }
 
-  // Stream JSON array incrementally to avoid allocating the full response in memory
-  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server->send(200, "application/json", "");
-  server->sendContent("[");
+void CrossPointWebServer::handlePostOpdsServer() { WebConfigBridge::route(*this, XP_WEB_OPDS_POST); }
 
-  char output[512];
-  constexpr size_t outputSize = sizeof(output);
-  JsonDocument doc;
+void CrossPointWebServer::handleDeleteOpdsServer() { WebConfigBridge::route(*this, XP_WEB_OPDS_DELETE); }
 
-  for (size_t i = 0; i < servers.size(); i++) {
-    doc.clear();
-    doc["index"] = i;
-    doc["name"] = servers[i].name;
-    doc["url"] = servers[i].url;
-    doc["username"] = servers[i].username;
-    // Never expose passwords over the API — only indicate whether one is set
-    doc["hasPassword"] = !servers[i].password.empty();
-    // Header values may hold secrets (e.g. an auth proxy token) — same treatment as passwords
-    JsonArray headersArr = doc["headers"].to<JsonArray>();
-    for (const auto& header : servers[i].customHeaders) {
-      JsonObject h = headersArr.add<JsonObject>();
-      h["name"] = header.name;
-      h["hasValue"] = !header.value.empty();
-    }
+void CrossPointWebServer::handleGetWifiNetworks() const { WebConfigBridge::route(*this, XP_WEB_WIFI_GET); }
 
-    const size_t written = serializeJson(doc, output, outputSize);
-    if (written >= outputSize) continue;
+void CrossPointWebServer::handlePostWifiNetwork() { WebConfigBridge::route(*this, XP_WEB_WIFI_POST); }
 
-    if (i > 0) server->sendContent(",");
-    server->sendContent(output);
-    yield();                          // Yield to allow WiFi and other tasks to process during a slow send
-    resetTaskWatchdogIfSubscribed();  // Reset watchdog: each sendContent() is a blocking network write
-  }
-
-  server->sendContent("]");
-  server->sendContent("");
-  LOG_DBG("WEB", "Served OPDS servers API (%zu servers)", servers.size());
-}
-
-void CrossPointWebServer::handlePostOpdsServer() {
-  if (!server->hasArg("plain")) {
-    server->send(400, "text/plain", "Missing JSON body");
-    return;
-  }
-
-  const String body = server->arg("plain");
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
-    return;
-  }
-
-  OpdsServer opdsServer;
-  opdsServer.name = doc["name"] | std::string("");
-  opdsServer.url = doc["url"] | std::string("");
-  opdsServer.username = doc["username"] | std::string("");
-
-  // The password field is optional in the JSON payload. When absent (vs. present but empty),
-  // we preserve the existing password — the web UI omits it when the user hasn't changed it.
-  bool hasPasswordField = doc["password"].is<const char*>() || doc["password"].is<std::string>();
-  std::string password = doc["password"] | std::string("");
-
-  // Custom headers: the "headers" array is optional and, when present, is expected to have
-  // one entry per slot. Each entry's "value" key is optional the same way "password" is above
-  // — absent means preserve that slot's existing value on update.
-  bool hasHeadersField = doc["headers"].is<JsonArrayConst>();
-  std::array<std::string, OpdsServer::MAX_CUSTOM_HEADERS> headerNames;
-  std::array<bool, OpdsServer::MAX_CUSTOM_HEADERS> headerValueProvided{};
-  std::array<std::string, OpdsServer::MAX_CUSTOM_HEADERS> headerValues;
-  if (hasHeadersField) {
-    size_t i = 0;
-    for (JsonObjectConst h : doc["headers"].as<JsonArrayConst>()) {
-      if (i >= OpdsServer::MAX_CUSTOM_HEADERS) break;
-      headerNames[i] = h["name"] | std::string("");
-      headerValueProvided[i] = h["value"].is<const char*>() || h["value"].is<std::string>();
-      headerValues[i] = h["value"] | std::string("");
-      i++;
-    }
-  }
-
-  if (doc["index"].is<int>()) {
-    int idx = doc["index"].as<int>();
-    if (idx < 0 || idx >= static_cast<int>(OPDS_STORE.getCount())) {
-      server->send(400, "text/plain", "Invalid server index");
-      return;
-    }
-    const auto* existing = OPDS_STORE.getServer(static_cast<size_t>(idx));
-    // Preserve existing password if not explicitly provided
-    if (!hasPasswordField && existing) password = existing->password;
-    opdsServer.password = password;
-
-    for (size_t i = 0; i < OpdsServer::MAX_CUSTOM_HEADERS; i++) {
-      if (hasHeadersField) {
-        opdsServer.customHeaders[i].name = headerNames[i];
-        if (headerNames[i].empty()) {
-          // An empty name clears the slot outright — never leave a stale value
-          // paired with no name, even if the payload omitted "value".
-          opdsServer.customHeaders[i].value.clear();
-        } else {
-          opdsServer.customHeaders[i].value =
-              headerValueProvided[i] ? headerValues[i] : (existing ? existing->customHeaders[i].value : std::string());
-        }
-      } else if (existing) {
-        opdsServer.customHeaders[i] = existing->customHeaders[i];
-      }
-    }
-
-    OPDS_STORE.updateServer(static_cast<size_t>(idx), opdsServer);
-    LOG_DBG("WEB", "Updated OPDS server at index %d", idx);
-  } else {
-    opdsServer.password = password;
-
-    if (hasHeadersField) {
-      for (size_t i = 0; i < OpdsServer::MAX_CUSTOM_HEADERS; i++) {
-        opdsServer.customHeaders[i].name = headerNames[i];
-        opdsServer.customHeaders[i].value = headerValues[i];
-      }
-    }
-
-    if (!OPDS_STORE.addServer(opdsServer)) {
-      server->send(400, "text/plain", "Cannot add server (limit reached)");
-      return;
-    }
-    LOG_DBG("WEB", "Added new OPDS server: %s", opdsServer.name.c_str());
-  }
-
-  server->send(200, "text/plain", "OK");
-}
-
-// Uses POST (not HTTP DELETE) because ESP32 WebServer doesn't support DELETE with body.
-void CrossPointWebServer::handleDeleteOpdsServer() {
-  if (!server->hasArg("plain")) {
-    server->send(400, "text/plain", "Missing JSON body");
-    return;
-  }
-
-  const String body = server->arg("plain");
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
-    return;
-  }
-
-  if (!doc["index"].is<int>()) {
-    server->send(400, "text/plain", "Missing index");
-    return;
-  }
-
-  int idx = doc["index"].as<int>();
-  if (idx < 0 || idx >= static_cast<int>(OPDS_STORE.getCount())) {
-    server->send(400, "text/plain", "Invalid server index");
-    return;
-  }
-
-  OPDS_STORE.removeServer(static_cast<size_t>(idx));
-  LOG_DBG("WEB", "Deleted OPDS server at index %d", idx);
-  server->send(200, "text/plain", "OK");
-}
-
-// ---- Wi-Fi Credentials API ----
-
-void CrossPointWebServer::handleGetWifiNetworks() const {
-  const auto credentials = WIFI_STORE.getCredentialSummaries();
-
-  // Stream JSON array incrementally to avoid allocating the full response in memory
-  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server->send(200, "application/json", "");
-  server->sendContent("[");
-
-  char output[320];
-  constexpr size_t outputSize = sizeof(output);
-  JsonDocument doc;
-
-  for (size_t i = 0; i < credentials.size(); i++) {
-    doc.clear();
-    doc["index"] = i;
-    doc["ssid"] = credentials[i].ssid;
-    // Never expose Wi-Fi passwords over the API — only indicate whether one is set
-    doc["hasPassword"] = credentials[i].hasPassword;
-    doc["isLastConnected"] = credentials[i].isLastConnected;
-
-    const size_t written = serializeJson(doc, output, outputSize);
-    if (written >= outputSize) continue;
-
-    if (i > 0) server->sendContent(",");
-    server->sendContent(output);
-    yield();                          // Yield to allow WiFi and other tasks to process during a slow send
-    resetTaskWatchdogIfSubscribed();  // Reset watchdog: each sendContent() is a blocking network write
-  }
-
-  server->sendContent("]");
-  server->sendContent("");
-  LOG_DBG("WEB", "Served Wi-Fi credentials API (%zu network(s))", credentials.size());
-}
-
-void CrossPointWebServer::handlePostWifiNetwork() {
-  if (!server->hasArg("plain")) {
-    server->send(400, "text/plain", "Missing JSON body");
-    return;
-  }
-
-  const String body = server->arg("plain");
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
-    return;
-  }
-
-  std::string ssid = doc["ssid"] | std::string("");
-  if (ssid.empty()) {
-    server->send(400, "text/plain", "SSID is required");
-    return;
-  }
-
-  // The password field is optional in the JSON payload. When absent (vs. present but empty),
-  // preserve the existing password for updates. Empty passwords are valid for open networks.
-  bool hasPasswordField = doc["password"].is<const char*>() || doc["password"].is<std::string>();
-  std::string password = doc["password"] | std::string("");
-
-  if (doc["index"].is<int>()) {
-    int idx = doc["index"].as<int>();
-    if (idx < 0) {
-      server->send(400, "text/plain", "Invalid network index");
-      return;
-    }
-    const auto credential = WIFI_STORE.getCredentialAt(static_cast<size_t>(idx));
-    if (!credential) {
-      server->send(400, "text/plain", "Invalid network index");
-      return;
-    }
-
-    const std::string oldSsid = credential->ssid;
-    if (!hasPasswordField) {
-      password = credential->password;
-    }
-
-    bool ok = true;
-    if (oldSsid != ssid) {
-      ok = WIFI_STORE.removeCredential(oldSsid) && WIFI_STORE.addCredential(ssid, password);
-    } else {
-      ok = WIFI_STORE.addCredential(ssid, password);
-    }
-
-    if (!ok) {
-      server->send(400, "text/plain", "Failed to update Wi-Fi network");
-      return;
-    }
-
-    LOG_DBG("WEB", "Updated Wi-Fi network at index %d (SSID: %s)", idx, ssid.c_str());
-  } else {
-    if (!WIFI_STORE.addCredential(ssid, password)) {
-      server->send(400, "text/plain", "Cannot add network (limit reached)");
-      return;
-    }
-    LOG_DBG("WEB", "Added Wi-Fi network: %s", ssid.c_str());
-  }
-
-  server->send(200, "text/plain", "OK");
-}
-
-// Uses POST (not HTTP DELETE) because ESP32 WebServer doesn't support DELETE with body.
-void CrossPointWebServer::handleDeleteWifiNetwork() {
-  if (!server->hasArg("plain")) {
-    server->send(400, "text/plain", "Missing JSON body");
-    return;
-  }
-
-  const String body = server->arg("plain");
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
-    return;
-  }
-
-  if (!doc["index"].is<int>()) {
-    server->send(400, "text/plain", "Missing index");
-    return;
-  }
-
-  int idx = doc["index"].as<int>();
-  if (idx < 0) {
-    server->send(400, "text/plain", "Invalid network index");
-    return;
-  }
-  const auto ssid = WIFI_STORE.getSsidAt(static_cast<size_t>(idx));
-  if (!ssid) {
-    server->send(400, "text/plain", "Invalid network index");
-    return;
-  }
-
-  if (!WIFI_STORE.removeCredential(*ssid)) {
-    server->send(400, "text/plain", "Failed to delete Wi-Fi network");
-    return;
-  }
-
-  LOG_DBG("WEB", "Deleted Wi-Fi network at index %d (SSID: %s)", idx, ssid->c_str());
-  server->send(200, "text/plain", "OK");
-}
+void CrossPointWebServer::handleDeleteWifiNetwork() { WebConfigBridge::route(*this, XP_WEB_WIFI_DELETE); }
 
 // ---------------------------------------------------------------------------
 // Browser-side plugins (JS on the SD card)
@@ -2666,177 +2067,21 @@ void CrossPointWebServer::wsEventCallback(uint8_t num, WStype_t type, uint8_t* p
 void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
-      LOG_DBG("WS", "Client %u disconnected", num);
-      // Only clean up if this is the client that owns the active upload.
-      // A new client may have already started a fresh upload before this
-      // DISCONNECTED event fires (race condition on quick cancel + retry).
-      if (num == wsUploadClientNum && wsUploadInProgress && wsUploadFile) {
-        abortWsUpload("WS");
+      if (wsSending) {
+        wsSendDisconnected = true;
+        break;
       }
+      WebFileBridge::ws(*this, num, 0, payload, length);
       break;
-
-    case WStype_CONNECTED: {
-      LOG_DBG("WS", "Client %u connected", num);
+    case WStype_CONNECTED:
+      WebFileBridge::ws(*this, num, 1, payload, length);
       break;
-    }
-
-    case WStype_TEXT: {
-      // Parse control messages
-      String msg = String((char*)payload);
-      LOG_DBG("WS", "Text from client %u: %s", num, msg.c_str());
-
-      if (msg.startsWith("START:")) {
-        // Reject any START while an upload is already active to prevent
-        // leaking the open wsUploadFile handle (owning client re-START included)
-        if (wsUploadInProgress) {
-          wsServer->sendTXT(num, "ERROR:Upload already in progress");
-          break;
-        }
-
-        // Parse: START:<filename>:<size>:<path>
-        int firstColon = msg.indexOf(':', 6);
-        int secondColon = msg.indexOf(':', firstColon + 1);
-
-        if (firstColon > 0 && secondColon > 0) {
-          wsUploadFileName = msg.substring(6, firstColon);
-          if (!FsHelpers::isSafePathComponent(wsUploadFileName)) {
-            LOG_DBG("WS", "START rejected: invalid filename '%s'", wsUploadFileName.c_str());
-            wsServer->sendTXT(num, "ERROR:Invalid file name");
-            return;
-          }
-          String sizeToken = msg.substring(firstColon + 1, secondColon);
-          bool sizeValid = sizeToken.length() > 0;
-          int digitStart = (sizeValid && sizeToken[0] == '+') ? 1 : 0;
-          if (digitStart > 0 && sizeToken.length() < 2) sizeValid = false;
-          for (int i = digitStart; i < (int)sizeToken.length() && sizeValid; i++) {
-            if (!isdigit((unsigned char)sizeToken[i])) sizeValid = false;
-          }
-          if (!sizeValid) {
-            LOG_DBG("WS", "START rejected: invalid size token '%s'", sizeToken.c_str());
-            wsServer->sendTXT(num, "ERROR:Invalid START format");
-            return;
-          }
-          wsUploadSize = sizeToken.toInt();
-          wsUploadPath = normalizeWebPath(msg.substring(secondColon + 1));
-          wsUploadReceived = 0;
-          wsLastProgressSent = 0;
-          wsUploadStartTime = millis();
-
-          String filePath = wsUploadPath;
-          if (!filePath.endsWith("/")) filePath += "/";
-          filePath += wsUploadFileName;
-          if (protectedpaths::isSensitivePath(filePath.c_str())) {
-            wsServer->sendTXT(num, "ERROR:Cannot write protected items");
-            return;
-          }
-
-          resetTaskWatchdogIfSubscribed();
-          if (Storage.exists(filePath.c_str())) {
-            LOG_DBG("WS", "Upload collision: %s", filePath.c_str());
-            wsServer->sendTXT(num, "ERROR:File already exists: " + wsUploadFileName);
-            return;
-          }
-
-          LOG_DBG("WS", "Starting upload: %s (%d bytes) to %s", wsUploadFileName.c_str(), wsUploadSize,
-                  filePath.c_str());
-
-          // Open file for writing
-          resetTaskWatchdogIfSubscribed();
-          if (!Storage.openFileForWrite("WS", filePath, wsUploadFile)) {
-            wsServer->sendTXT(num, "ERROR:Failed to create file");
-            wsUploadInProgress = false;
-            wsUploadClientNum = 255;
-            return;
-          }
-          resetTaskWatchdogIfSubscribed();
-
-          // Zero-byte upload: complete immediately without waiting for BIN frames
-          if (wsUploadSize == 0) {
-            // Explicit close() required: file-scope global persists beyond function scope
-            wsUploadFile.close();
-            wsLastCompleteName = wsUploadFileName;
-            wsLastCompleteSize = 0;
-            wsLastCompleteAt = millis();
-            LOG_DBG("WS", "Zero-byte upload complete: %s", filePath.c_str());
-            clearBookCache(filePath.c_str());
-            if (library::isLibraryBookFile(filePath.c_str())) library::markLibraryIndexDirty();
-            wsServer->sendTXT(num, "DONE");
-            wsLastProgressSent = 0;
-            break;
-          }
-
-          wsUploadClientNum = num;
-          wsUploadInProgress = true;
-          wsServer->sendTXT(num, "READY");
-        } else {
-          wsServer->sendTXT(num, "ERROR:Invalid START format");
-        }
-      }
+    case WStype_TEXT:
+      WebFileBridge::ws(*this, num, 2, payload, length);
       break;
-    }
-
-    case WStype_BIN: {
-      if (!wsUploadInProgress || !wsUploadFile || num != wsUploadClientNum) {
-        wsServer->sendTXT(num, "ERROR:No upload in progress");
-        return;
-      }
-
-      // Write binary data directly to file
-      size_t remaining = wsUploadSize - wsUploadReceived;
-      if (length > remaining) {
-        abortWsUpload("WS");
-        wsServer->sendTXT(num, "ERROR:Upload overflow");
-        return;
-      }
-      resetTaskWatchdogIfSubscribed();
-      size_t written = wsUploadFile.write(payload, length);
-      resetTaskWatchdogIfSubscribed();
-
-      if (written != length) {
-        abortWsUpload("WS");
-        wsServer->sendTXT(num, "ERROR:Write failed - disk full?");
-        return;
-      }
-
-      wsUploadReceived += written;
-
-      // Send progress update (every 64KB or at end)
-      if (wsUploadReceived - wsLastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
-        String progress = "PROGRESS:" + String(wsUploadReceived) + ":" + String(wsUploadSize);
-        wsServer->sendTXT(num, progress);
-        wsLastProgressSent = wsUploadReceived;
-      }
-
-      // Check if upload complete
-      if (wsUploadReceived >= wsUploadSize) {
-        // Explicit close() required: file-scope global persists beyond function scope
-        wsUploadFile.close();
-        wsUploadInProgress = false;
-        wsUploadClientNum = 255;
-
-        wsLastCompleteName = wsUploadFileName;
-        wsLastCompleteSize = wsUploadSize;
-        wsLastCompleteAt = millis();
-
-        unsigned long elapsed = millis() - wsUploadStartTime;
-        float kbps = (elapsed > 0) ? (wsUploadSize / 1024.0) / (elapsed / 1000.0) : 0;
-
-        LOG_DBG("WS", "Upload complete: %s (%d bytes in %lu ms, %.1f KB/s)", wsUploadFileName.c_str(), wsUploadSize,
-                elapsed, kbps);
-
-        // Clear epub cache after uploading the file
-        String filePath = wsUploadPath;
-        if (!filePath.endsWith("/")) filePath += "/";
-        filePath += wsUploadFileName;
-        clearBookCache(filePath.c_str());
-        if (library::isLibraryBookFile(filePath.c_str())) library::markLibraryIndexDirty();
-
-        wsServer->sendTXT(num, "DONE");
-        wsLastProgressSent = 0;
-      }
+    case WStype_BIN:
+      WebFileBridge::ws(*this, num, 3, payload, length);
       break;
-    }
-
     default:
       break;
   }

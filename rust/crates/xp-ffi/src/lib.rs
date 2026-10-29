@@ -31,6 +31,7 @@ mod settings;
 mod system_items;
 mod text;
 mod textm;
+mod web;
 mod web_jobs;
 mod xml;
 mod xtc;

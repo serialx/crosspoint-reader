@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Compile unchanged server methods against deterministic host transport/storage leaves."""
+
+import argparse
+import gzip
+import json
+import os
+import pathlib
+import re
+import subprocess
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+def function(source, name):
+    pattern = r"^[^\n;{}]*\b" + re.escape(name) + r"\([^{}]*?\{"
+    match = re.search(pattern, source, re.MULTILINE)
+    if not match:
+        raise ValueError(f"function not found: {name}")
+    # Every selected definition ends at column zero; nested blocks are indented.
+    line_end = source.find("\n", match.end())
+    if "}" in source[match.end():line_end]:
+        return source[match.start():line_end]
+    end = source.find("\n}", match.end())
+    return source[match.start():end + 2]
+
+
+def generate(source, header):
+    header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
+    header = header.replace(" private:", " public:")
+    pieces = ['#include "Host.h"', '#include "Endpoints.h"', header]
+    if "xp_web_files" in source:
+        pieces.insert(0, '#include "xp_web.h"')
+    helpers = (ROOT / "lib/FsHelpers/FsHelpers.cpp").read_text()
+    pieces.append("namespace FsHelpers {\n" + "\n".join(function(helpers, name) for name in
+                  ["normalisePath", "isSafePathComponent", "checkFileExtension"]) + "\n}")
+    for include in re.findall(r'^#include "(html/[^"\n]+)"', source, re.MULTILINE):
+        pieces.append('#include "src/network/' + include + '"')
+    pieces.append(re.sub(r'^#include[^\n]*\n', '', source, flags=re.MULTILINE))
+    pieces.append('#include "Cases.h"')
+    return "\n\n".join(pieces) + "\n"
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--build", type=pathlib.Path, required=True)
+    parser.add_argument("--arduinojson", type=pathlib.Path, required=True)
+    parser.add_argument("--source", type=pathlib.Path, default=ROOT / "src/network/CrossPointWebServer.cpp")
+    parser.add_argument("--header", type=pathlib.Path, default=ROOT / "src/network/CrossPointWebServer.h")
+    parser.add_argument("--record", action="store_true")
+    parser.add_argument("--mutation-check", action="store_true")
+    parser.add_argument("--sanitize", action="store_true")
+    parser.add_argument("--archive", type=pathlib.Path)
+    parser.add_argument("--ffi-include", type=pathlib.Path, default=ROOT / "rust/crates/xp-ffi/include")
+    parser.add_argument("--fault-check", action="store_true")
+    parser.add_argument("--review-check", action="store_true")
+    args = parser.parse_args()
+    args.build.mkdir(parents=True, exist_ok=True)
+    generated = args.build / "server.cpp"
+    source = args.source.read_text()
+    header = args.header.read_text()
+
+    def run(text):
+        generated.write_text(generate(text, header))
+        instrumentation = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"] if args.sanitize else []
+        link = [str(ROOT / "test/cmake/xp_ffi_host.cpp"), str(args.archive)] if args.archive else []
+        if args.archive:
+            instrumentation += ["-DXP_FFI_HOST_FAULT_INJECTION"]
+        subprocess.run(["c++", "-std=c++20", "-funsigned-char", "-O1", "-g", *instrumentation, "-I" + str(ROOT / "test/web_server/stubs"),
+                        "-I" + str(ROOT / "test/web_server"), "-I" + str(ROOT),
+                        "-I" + str(args.arduinojson), "-I" + str(args.ffi_include),
+                        str(generated), *link, "-o", str(args.build / "oracle")], check=True)
+        return subprocess.check_output([str(args.build / "oracle")])
+
+    actual = run(source)
+    (args.build / "actual.jsonl").write_bytes(actual)
+    golden = ROOT / "test/web_server/golden.jsonl.gz"
+    if args.record:
+        golden.write_bytes(gzip.compress(actual, mtime=0))
+    expected = gzip.decompress(golden.read_bytes())
+    if actual != expected:
+        old = [json.loads(line) for line in expected.splitlines()]
+        new = [json.loads(line) for line in actual.splitlines()]
+        failures = [b["case"] for a, b in zip(old, new) if a != b]
+        raise SystemExit(f"web oracle mismatch: {failures}; expected {len(old)} cases, got {len(new)}")
+    print(f"web oracle: {len(actual.splitlines())} cases match byte for byte")
+    if args.review_check:
+        if not args.archive:
+            raise SystemExit("--review-check requires --archive")
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK"]:
+            subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
+                           stdout=subprocess.DEVNULL, check=True)
+        print("review checks: completion consistency and translated allocation errors passed")
+    if args.fault_check:
+        if not args.archive:
+            raise SystemExit("--fault-check requires --archive")
+        for count in range(128):
+            subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_FAIL_AFTER": str(count)},
+                           stdout=subprocess.DEVNULL, check=True)
+        print("allocation failures: 128 budgets across all cases, no retained Rust allocation or WS owner")
+    if args.mutation_check:
+        changed = source.replace('"Missing path"', '"Missing PATH"', 1)
+        if changed == source:
+            changed = source.replace('WebFileBridge::route(*this, XP_WEB_DOWNLOAD)',
+                                     'WebFileBridge::route(*this, XP_WEB_DELETE)', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed download error")
+        print("mutation check: rejected changed download response")
+        changed = source.replace('"Missing JSON body"', '"Missing JSON BODY"', 1)
+        if "xp_web_config" in source:
+            changed = source.replace('XP_WEB_SETTINGS_POST);', 'XP_WEB_SETTINGS_GET);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed settings response")
+        print("mutation check: rejected changed settings response")
+        signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
+        changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
+        if changed == source:
+            raise SystemExit("mutation check did not find disconnect entry point")
+        try:
+            accepted = run(changed) == expected
+        except subprocess.CalledProcessError as error:
+            if error.cmd != [str(args.build / "oracle")]:
+                raise
+            accepted = False  # A failed ownership invariant also rejects this mutation.
+        if accepted:
+            raise SystemExit("mutation check did not reject ignored synchronous disconnect")
+        generated.write_text(generate(source, header))
+        print("mutation check: rejected ignored synchronous disconnect")
+
+
+if __name__ == "__main__":
+    main()

@@ -10,15 +10,10 @@
 #include <string>
 #include <vector>
 
-// Structure to hold file information
-struct FileInfo {
-  String name;
-  size_t size;
-  bool isEpub;
-  bool isDirectory;
-};
-
 class CrossPointWebServer {
+  friend struct WebFileBridge;
+  friend struct WebConfigBridge;
+
  public:
   struct WsUploadStatus {
     bool inProgress = false;
@@ -87,11 +82,6 @@ class CrossPointWebServer {
   void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length);
   static void wsEventCallback(uint8_t num, WStype_t type, uint8_t* payload, size_t length);
   void abortWsUpload(const char* tag);
-
-  // File scanning
-  void scanFiles(const char* path, const std::function<void(FileInfo)>& callback) const;
-  String formatFileSize(size_t bytes) const;
-  bool isEpubFile(const String& filename) const;
 
   // Request handlers
   void handleRoot() const;

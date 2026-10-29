@@ -1,13 +1,23 @@
+#include <xp_ffi.h>
+#if __has_include(<xp_ui_reader.h>)
+#include <xp_ui_reader.h>
+#endif
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
+#include <new>
 #include <type_traits>
 
 static unsigned long tick;
-unsigned long millis() { return ++tick; }
-#define LOG_ERR(tag, fmt, ...) std::printf("ERR " tag " " fmt "\n", ##__VA_ARGS__)
-#define LOG_DBG(tag, fmt, ...) std::printf("DBG " tag " " fmt "\n", ##__VA_ARGS__)
+unsigned long millis() {
+  std::printf("now %lu\n", tick + 1);
+  return ++tick;
+}
+#define LOG_ERR(tag, fmt, ...) std::printf("ERR " tag " " fmt "\n" __VA_OPT__(, ) __VA_ARGS__)
+#define LOG_DBG(tag, fmt, ...) std::printf("DBG " tag " " fmt "\n" __VA_OPT__(, ) __VA_ARGS__)
 namespace HalDisplay {
 enum Mode { HALF_REFRESH, FAST_REFRESH };
 enum class GrayscaleMode { Absolute, Overlay };
@@ -29,39 +39,79 @@ struct {
 struct {
   bool textAntiAliasing;
   int getReaderFontId() const { return 12; }
-  int getRefreshFrequency() const { return 3; }
+  int getRefreshFrequency() const {
+    std::puts("frequency");
+    return 3;
+  }
 } SETTINGS;
 struct {
   size_t free, block;
-  size_t getFreeHeap() const { return free; }
-  size_t getMaxAllocHeap() const { return block; }
+  size_t getFreeHeap() const {
+    std::printf("heap-free %zu\n", free);
+    return free;
+  }
+  size_t getMaxAllocHeap() const {
+    std::printf("heap-block %zu\n", block);
+    return block;
+  }
 } ESP;
 static int allocIndex, failedAlloc;
+struct ArrayRecord {
+  void* pointer;
+  unsigned id;
+};
+static ArrayRecord arrays[16]{};
+static unsigned arraySequence;
+void* operator new[](size_t size) {
+  void* pointer = std::malloc(size);
+  if (!pointer) throw std::bad_alloc();
+  for (auto& entry : arrays)
+    if (!entry.pointer) {
+      entry = {pointer, ++arraySequence};
+      std::printf("array-new %u %zu\n", entry.id, size);
+      return pointer;
+    }
+  std::abort();
+}
+void operator delete[](void* pointer) noexcept {
+  if (!pointer) return;
+  for (auto& entry : arrays)
+    if (entry.pointer == pointer) {
+      std::printf("array-free %u\n", entry.id);
+      entry.pointer = nullptr;
+      std::free(pointer);
+      return;
+    }
+  std::abort();
+}
 template <class T>
-std::unique_ptr<T> makeUniqueNoThrow(size_t size) {
+[[gnu::noinline]] std::unique_ptr<T> makeUniqueNoThrow(size_t size) {
   std::printf("alloc %zu %d\n", size, allocIndex);
   if (++allocIndex == failedAlloc) return nullptr;
   return std::make_unique<T>(size);
 }
 struct FontCache {
   struct Scope {
+    explicit Scope(FontCache&) { std::puts("prewarm-begin"); }
+    ~Scope() { std::puts("prewarm-destroy"); }
     void endScanAndPrewarm() { std::puts("prewarm-end"); }
   };
-  Scope createPrewarmScope() {
-    std::puts("prewarm-begin");
-    return {};
-  }
+  Scope createPrewarmScope() { return Scope(*this); }
 } fontCache;
 struct Caps {
   HalDisplay::GrayscaleBase base = HalDisplay::GrayscaleBase::Separate;
   bool stripUploads = false, asyncBase = false, absolute = false;
   bool supported() const { return absolute; }
 };
-struct XpPageRowBounds {};
+#if !defined(XP_STRIP_RENDER) || !XP_STRIP_RENDER
+struct XpPageRowBounds {
+  int32_t start, end;
+};
 struct XpPagePlan {
   void* commands;
   uint32_t capacity, length, valid;
 };
+#endif
 struct XpDisplaySource {
   uint32_t size;
   void* context;
@@ -76,7 +126,10 @@ struct GfxRenderer {
   bool baseOk = true, storeOk = true, planOk = true;
   XpPagePlan* plan = nullptr;
   FontCache* getFontCacheManager() { return &fontCache; }
-  Caps grayscaleCapabilities(HalDisplay::GrayscaleMode = HalDisplay::GrayscaleMode::Overlay) const { return caps; }
+  Caps grayscaleCapabilities(HalDisplay::GrayscaleMode mode = HalDisplay::GrayscaleMode::Overlay) const {
+    std::printf("caps %d\n", int(mode));
+    return caps;
+  }
   void displayBuffer(HalDisplay::Mode mode = HalDisplay::HALF_REFRESH) const { std::printf("display %d\n", mode); }
   void displayBufferAsync(HalDisplay::Mode mode) const { std::printf("async %d\n", mode); }
   void displayGrayscaleBase(HalDisplay::Mode mode) const { std::printf("base %d\n", mode); }
@@ -140,11 +193,11 @@ struct ImageBlock {
   static void setRenderReadWindow(uint8_t* p, size_t size) { std::printf("image-window %d %zu\n", p != nullptr, size); }
 };
 struct ReaderStripBuffers {
-  static constexpr int MAX_ELEMENTS = 512, COMMAND_BYTES = 16384, SCRATCH_BYTES = 8000, ROWS = 40;
+  static constexpr int MAX_ELEMENTS = 512, COMMAND_BYTES = 16384, SCRATCH_BYTES = 8000, ROWS = 80;
   std::unique_ptr<uint8_t[]> scratch, commands, imageWindow;
   std::unique_ptr<XpPageRowBounds[]> bounds;
-  bool prepareOk = true;
-  bool prepare(int width, bool images) {
+  bool prepareOk = true, loanActive = false;
+  [[gnu::noinline]] bool prepare(int width, bool images) {
     std::printf("prepare %d %d %d\n", width, images, prepareOk);
     if (!prepareOk) return false;
     scratch = std::make_unique<uint8_t[]>(SCRATCH_BYTES);
@@ -153,8 +206,18 @@ struct ReaderStripBuffers {
     if (images) imageWindow = std::make_unique<uint8_t[]>(4096);
     return true;
   }
-  void setSourceLoanActive(bool active) { std::printf("loan %d\n", active); }
-  void releaseIdle() { std::puts("strips-release"); }
+  void setSourceLoanActive(bool active) {
+    std::printf("loan %d\n", active);
+    loanActive = active;
+  }
+  void releaseIdle() {
+    std::puts("strips-release");
+    if (loanActive) return;
+    scratch.reset();
+    commands.reset();
+    bounds.reset();
+    imageWindow.reset();
+  }
 };
 struct ReaderStripPainter {
   GfxRenderer& renderer;
@@ -182,6 +245,7 @@ int main() {
         for (int remaining : {0, 2})
           for (int failure = 0; failure < 8; ++failure) {
             tick = 0;
+            arraySequence = 0;
             allocIndex = 0;
             failedAlloc = failure <= 2 ? failure : 0;
             BoardConfig::a4 = board == 4;

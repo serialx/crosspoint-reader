@@ -24,6 +24,7 @@ add_custom_command(OUTPUT ${RENDER_METHODS}
   VERBATIM)
 foreach(mode off on)
   add_executable(ReaderRenderOracle_${mode} render_oracle.cpp ${RENDER_METHODS})
+  target_link_libraries(ReaderRenderOracle_${mode} PRIVATE crosspoint_test_common)
   target_include_directories(ReaderRenderOracle_${mode} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
   target_compile_options(ReaderRenderOracle_${mode} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
   if(mode STREQUAL "on")
@@ -45,3 +46,9 @@ target_link_libraries(ReaderInputOracle PRIVATE crosspoint_test_common)
 add_test(NAME reader_input_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
     $<TARGET_FILE:ReaderInputOracle> ${CMAKE_CURRENT_SOURCE_DIR}/input.golden.gz)
+
+add_executable(ReaderNavOracle nav_oracle.cpp)
+target_include_directories(ReaderNavOracle PRIVATE ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include)
+add_test(NAME reader_nav_oracle
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
+    $<TARGET_FILE:ReaderNavOracle> ${CMAKE_CURRENT_SOURCE_DIR}/nav.golden.gz)

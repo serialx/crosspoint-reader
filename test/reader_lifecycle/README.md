@@ -41,3 +41,10 @@ combinations, all persisted short-power values, long-press boundaries, tilt,
 swapped navigation, touch zones, RTL, swipe/menu gestures, Back and exact float
 bits for chapter fractions. Renderer dimension reads are pure fixture values
 and are not logged. No GPIO polling or real input scheduling is simulated.
+
+Render generation 2 additionally records heap/capability probes, timestamps and
+array allocation/release order. It uses the production 80-row strip size and
+8-byte row bounds; generation 1 used smaller synthetic equivalents. Both were
+captured from the original `8d534a99` method bodies before the render port.
+The viewport oracle freezes 7,680 cases from the pinned SDK ListNav, including
+stale row counts, partial pages, empty lists, clamps and no-op scrolls.

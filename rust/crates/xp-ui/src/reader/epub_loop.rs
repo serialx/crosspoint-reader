@@ -1,5 +1,6 @@
 //! Reader loop decisions. Resource callbacks execute outside the model critical section.
 use super::input::Turn;
+use super::services::Core;
 use super::values;
 use core::ffi::c_void;
 #[repr(u8)]
@@ -136,11 +137,8 @@ pub struct Services {
     pub point: Option<unsafe extern "C" fn(*mut c_void, u8, *mut i32, *mut i32) -> u8>,
 }
 struct Engine {
-    context: *mut c_void,
-    model_read: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    model_write: unsafe extern "C" fn(*mut c_void, u8, u32),
+    core: Core,
     query: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    command: unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32,
     touch: unsafe extern "C" fn(*mut c_void) -> Turn,
     buttons: unsafe extern "C" fn(*mut c_void) -> Turn,
     point: unsafe extern "C" fn(*mut c_void, u8, *mut i32, *mut i32) -> u8,
@@ -148,11 +146,13 @@ struct Engine {
 impl Engine {
     fn new(s: Services) -> Option<Self> {
         Some(Self {
-            context: s.context,
-            model_read: s.model_read?,
-            model_write: s.model_write?,
+            core: Core {
+                context: s.context,
+                read: s.model_read?,
+                write: s.model_write?,
+                command: s.command?,
+            },
             query: s.query?,
-            command: s.command?,
             touch: s.touch?,
             buttons: s.buttons?,
             point: s.point?,
@@ -160,26 +160,27 @@ impl Engine {
     }
 
     fn f(&self, field: Field) -> u32 {
-        unsafe { (self.model_read)(self.context, field as u8) }
+        self.core.read(field as u8)
     }
     fn set(&self, field: Field, value: u32) {
-        unsafe { (self.model_write)(self.context, field as u8, value) }
+        self.core.write(field as u8, value);
     }
     fn q(&self, query: Query) -> u32 {
-        unsafe { (self.query)(self.context, query as u8) }
+        unsafe { (self.query)(self.core.context, query as u8) }
     }
     fn c(&self, command: Command, a: i32, b: i32) -> u32 {
-        unsafe { (self.command)(self.context, command as u8, a, b) }
+        self.core.command(command as u8, a, b)
     }
     fn op(&self, command: Command) -> u32 {
-        self.c(command, 0, 0)
+        self.core.op(command as u8)
     }
     fn update(&self) {
         self.op(Command::Update);
     }
     fn point(&self, point: Point) -> Option<(i32, i32)> {
         let (mut x, mut y) = (0, 0);
-        (unsafe { (self.point)(self.context, point as u8, &mut x, &mut y) } != 0).then_some((x, y))
+        (unsafe { (self.point)(self.core.context, point as u8, &mut x, &mut y) } != 0)
+            .then_some((x, y))
     }
     fn expired(&self, shown: Field, started: Field) {
         if self.f(shown) != 0 && self.q(Query::Now).wrapping_sub(self.f(started)) >= 2500 {
@@ -275,7 +276,7 @@ impl Engine {
             F::PendingReadMove,
             u32::from(at_end && self.q(Q::MoveFinished) != 0 && self.q(Q::InReadFolder) == 0),
         );
-        let touch = unsafe { (self.touch)(self.context) };
+        let touch = unsafe { (self.touch)(self.core.context) };
         self.expired(F::ShowBookmark, F::BookmarkTime);
         self.expired(F::ShowDictionary, F::DictionaryTime);
         self.expired(F::ShowFont, F::FontTime);
@@ -475,7 +476,7 @@ impl Engine {
             self.update();
             return;
         }
-        let buttons = unsafe { (self.buttons)(self.context) };
+        let buttons = unsafe { (self.buttons)(self.core.context) };
         let prev = buttons.prev != 0 || touch.prev != 0;
         let next = buttons.next != 0 || touch.next != 0;
         let touched = touch.prev != 0 || touch.next != 0;

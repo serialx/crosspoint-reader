@@ -1,4 +1,5 @@
 //! Chapter, progress and link navigation with synchronous borrowed resources.
+use super::services::{Core, Guard};
 use core::ffi::c_void;
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -93,48 +94,37 @@ pub struct Services {
     pub href_len: u32,
 }
 struct Engine {
-    context: *mut c_void,
-    read: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    write: unsafe extern "C" fn(*mut c_void, u8, u32),
+    core: Core,
     query: unsafe extern "C" fn(*mut c_void, u8, u32) -> u32,
-    command: unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32,
-}
-struct Guard<'a>(&'a Engine);
-impl Drop for Guard<'_> {
-    fn drop(&mut self) {
-        self.0.op(Command::Unlock);
-    }
 }
 impl Engine {
     fn f(&self, field: Field) -> u32 {
         self.read_id(field as u8)
     }
     fn read_id(&self, field: u8) -> u32 {
-        unsafe { (self.read)(self.context, field) }
+        self.core.read(field)
     }
     fn set(&self, field: Field, value: u32) {
         self.write_id(field as u8, value);
     }
     fn write_id(&self, field: u8, value: u32) {
-        unsafe {
-            (self.write)(self.context, field, value);
-        }
+        self.core.write(field, value);
     }
     fn q(&self, query: Query) -> u32 {
         self.qa(query, 0)
     }
     fn qa(&self, query: Query, a: u32) -> u32 {
-        unsafe { (self.query)(self.context, query as u8, a) }
+        unsafe { (self.query)(self.core.context, query as u8, a) }
     }
     fn c(&self, command: Command, a: i32, b: i32) -> u32 {
-        unsafe { (self.command)(self.context, command as u8, a, b) }
+        self.core.command(command as u8, a, b)
     }
     fn op(&self, command: Command) -> u32 {
-        self.c(command, 0, 0)
+        self.core.op(command as u8)
     }
     fn lock(&self) -> Guard<'_> {
         self.op(Command::Lock);
-        Guard(self)
+        self.core.guard(Command::Unlock as u8)
     }
     fn clear(&self) {
         self.set(Field::CachedCount, 0);
@@ -410,11 +400,13 @@ pub unsafe fn run(s: *const Services, operation: u8, a: i32, b: i32) -> u32 {
         return 0;
     };
     let e = Engine {
-        context: s.context,
-        read,
-        write,
+        core: Core {
+            context: s.context,
+            read,
+            write,
+            command,
+        },
         query,
-        command,
     };
     match operation {
         x if x == Operation::Percent as u8 => e.percent(a),

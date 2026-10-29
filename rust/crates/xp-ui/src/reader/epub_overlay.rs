@@ -1,4 +1,5 @@
 //! Reader toolbar parent policy, backed by synchronous resource callbacks.
+use super::services::{Core, Guard};
 use crate::model::{BACK, CONFIRM, DOWN, LEFT, RIGHT, UP};
 use core::ffi::c_void;
 #[repr(u8)]
@@ -133,24 +134,13 @@ pub struct Services {
     pub command: Option<unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32>,
 }
 struct Engine {
-    context: *mut c_void,
-    read: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    write: unsafe extern "C" fn(*mut c_void, u8, u32),
+    core: Core,
     query: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    command: unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32,
 }
 pub const TEXT_ROWS: i32 = 5;
 pub const HOLD_MS: u32 = 1500;
 pub const HOLD_ROWS: i32 = 10;
-struct ResourceGuard<'a> {
-    engine: &'a Engine,
-    release: Command,
-}
-impl Drop for ResourceGuard<'_> {
-    fn drop(&mut self) {
-        self.engine.op(self.release);
-    }
-}
+
 const SWIPE_UP: u32 = Swipe::Up as u32;
 const SWIPE_DOWN: u32 = Swipe::Down as u32;
 const NONE: u32 = Mode::None as u32;
@@ -228,44 +218,37 @@ impl Engine {
     }
     fn new(s: Services) -> Option<Self> {
         Some(Self {
-            context: s.context,
-            read: s.read?,
-            write: s.write?,
+            core: Core {
+                context: s.context,
+                read: s.read?,
+                write: s.write?,
+                command: s.command?,
+            },
             query: s.query?,
-            command: s.command?,
         })
     }
-    fn f(&self, f: Field) -> u32 {
-        unsafe { (self.read)(self.context, f as u8) }
+    fn f(&self, field: Field) -> u32 {
+        self.core.read(field as u8)
     }
-    fn set(&self, f: Field, v: u32) {
-        unsafe { (self.write)(self.context, f as u8, v) }
+    fn set(&self, field: Field, value: u32) {
+        self.core.write(field as u8, value);
     }
     fn q(&self, q: Query) -> u32 {
-        unsafe { (self.query)(self.context, q as u8) }
+        unsafe { (self.query)(self.core.context, q as u8) }
     }
-    fn c(&self, c: Command, a: i32, b: i32) -> u32 {
-        unsafe { (self.command)(self.context, c as u8, a, b) }
+    fn c(&self, command: Command, a: i32, b: i32) -> u32 {
+        self.core.command(command as u8, a, b)
     }
-    fn op(&self, c: Command) -> u32 {
-        self.c(c, 0, 0)
+    fn op(&self, command: Command) -> u32 {
+        self.core.op(command as u8)
     }
-    fn lock(&self) -> ResourceGuard<'_> {
+    fn lock(&self) -> Guard<'_> {
         self.op(Command::Lock);
-        ResourceGuard {
-            engine: self,
-            release: Command::Unlock,
-        }
+        self.core.guard(Command::Unlock as u8)
     }
-    fn toc(&self, index: i32) -> (ResourceGuard<'_>, i32) {
+    fn toc(&self, index: i32) -> (Guard<'_>, i32) {
         let spine = self.c(Command::TocItem, index, 0) as i32;
-        (
-            ResourceGuard {
-                engine: self,
-                release: Command::TocDrop,
-            },
-            spine,
-        )
+        (self.core.guard(Command::TocDrop as u8), spine)
     }
     fn button(&self, bit: u32, released: bool) -> bool {
         if released {

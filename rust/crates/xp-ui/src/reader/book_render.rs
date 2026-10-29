@@ -1,4 +1,5 @@
 //! Chapter build and page-restore sequencing over borrowed native resources.
+use super::services::{Core, Guard};
 use core::ffi::c_void;
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -170,45 +171,29 @@ pub struct Services {
     pub command: Option<unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32>,
 }
 struct Engine {
-    context: *mut c_void,
-    read: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    write: unsafe extern "C" fn(*mut c_void, u8, u32),
+    core: Core,
     query: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    command: unsafe extern "C" fn(*mut c_void, u8, i32, i32) -> u32,
 }
-struct Guard<'a> {
-    engine: &'a Engine,
-    release: Command,
-}
-impl Drop for Guard<'_> {
-    fn drop(&mut self) {
-        self.engine.op(self.release);
-    }
-}
+
 impl Engine {
-    fn f(&self, f: Field) -> u32 {
-        unsafe { (self.read)(self.context, f as u8) }
+    fn f(&self, field: Field) -> u32 {
+        self.core.read(field as u8)
     }
-    fn set(&self, f: Field, v: u32) {
-        unsafe {
-            (self.write)(self.context, f as u8, v);
-        }
+    fn set(&self, field: Field, value: u32) {
+        self.core.write(field as u8, value);
     }
     fn q(&self, q: Query) -> u32 {
-        unsafe { (self.query)(self.context, q as u8) }
+        unsafe { (self.query)(self.core.context, q as u8) }
     }
-    fn c(&self, c: Command, a: i32, b: i32) -> u32 {
-        unsafe { (self.command)(self.context, c as u8, a, b) }
+    fn c(&self, command: Command, a: i32, b: i32) -> u32 {
+        self.core.command(command as u8, a, b)
     }
-    fn op(&self, c: Command) -> u32 {
-        self.c(c, 0, 0)
+    fn op(&self, command: Command) -> u32 {
+        self.core.op(command as u8)
     }
     fn resource(&self, acquire: Command, release: Command) -> Guard<'_> {
         self.op(acquire);
-        Guard {
-            engine: self,
-            release,
-        }
+        self.core.guard(release as u8)
     }
     fn sync_error(&self) {
         if self.f(Field::SyncError) != 0 {
@@ -631,11 +616,13 @@ pub unsafe fn run(s: *const Services) {
         return;
     };
     Engine {
-        context: s.context,
-        read,
-        write,
+        core: Core {
+            context: s.context,
+            read,
+            write,
+            command,
+        },
         query,
-        command,
     }
     .run();
 }

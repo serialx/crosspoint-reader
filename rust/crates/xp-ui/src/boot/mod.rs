@@ -259,8 +259,8 @@ pub fn xtc_pixels(
         {
             if x >= logical_w || y >= logical_h {
                 outside(x, y, black);
-            } else {
-                surface.fill(x, y, 1, 1, black);
+            } else if target.scanning == 0 {
+                surface.pixel(x, y, black);
             }
         }
     };

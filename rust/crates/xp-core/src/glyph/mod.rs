@@ -277,7 +277,9 @@ impl<'a> Surface<'a> {
             row += step_y;
         }
     }
-    fn pixel(&mut self, x: i32, y: i32, state: bool) {
+    /// Write one solid pixel through the validated target's clip, rotation and band.
+    #[inline]
+    pub fn pixel(&mut self, x: i32, y: i32, state: bool) {
         let t = self.target;
         if x < t.clip.left || x >= t.clip.right || y < t.clip.top || y >= t.clip.bottom {
             return;

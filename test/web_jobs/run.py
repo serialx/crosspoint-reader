@@ -14,8 +14,7 @@ p.add_argument('--archive', type=pathlib.Path)
 p.add_argument('--record', action='store_true')
 p.add_argument('--dav', action='store_true')
 p.add_argument('--dav-allocation', action='store_true')
-p.add_argument('--system-items', action='store_true')
-p.add_argument('--system-items-header', type=pathlib.Path)
+p.add_argument('--system-policy', action='store_true')
 p.add_argument('--lcp', action='store_true')
 p.add_argument('--no-enroll-key', action='store_true')
 a = p.parse_args()
@@ -26,16 +25,14 @@ sdk = ROOT / 'freeink-sdk/libs/network/SecureNet/include/ResumableFetch.h'
 sources = [HERE / 'oracle.cpp'] + [a.source / 'src/network' / (s + '.cpp') for s in ('FirmwareBoardTag', 'FirmwareFlasher', 'HttpDownloader')]
 if a.dav or a.dav_allocation:
     sources = [HERE / ('dav_allocation.cpp' if a.dav_allocation else 'dav.cpp'), a.source / 'src/network/WebDAVHandler.cpp']
-if a.system_items:
-    sources = [HERE / 'system_items.cpp', a.source / 'src/network/WebDAVHandler.cpp']
+if a.system_policy:
+    sources = [HERE / 'system_item_policy.cpp', a.source / 'src/network/WebDAVHandler.cpp']
 if a.lcp:
     sources = [HERE/'lcp.cpp', a.source/'src/network/LcpDevice.cpp', ROOT/'freeink-sdk/libs/network/JsonSax/src/StreamingJsonParser.cpp']
 cmd = ['c++', '-std=c++20', '-O2', '-DCROSSPOINT_VERSION="oracle"', '-I'+str(HERE/'stubs'), '-I'+str(a.build), '-I'+str(a.source/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include')]
 cmd.append('-I' + str(ROOT / 'lib/FsHelpers'))
 if a.dav_allocation:
     cmd.append('-DORACLE_FALLIBLE_STRING')
-if a.system_items_header:
-    cmd.append('-DSYSTEM_ITEMS_HEADER="' + str(a.system_items_header.resolve()) + '"')
 if a.lcp:
     cmd += ['-I'+str(ROOT/'.pio/libdeps/default/ArduinoJson/src'), '-I'+str(ROOT/'freeink-sdk/libs/network/JsonSax/include')]
     if not a.no_enroll_key:
@@ -49,7 +46,7 @@ exe = a.build/'oracle'
 subprocess.run(cmd+['-o', str(exe)], check=True)
 result = subprocess.check_output([str(exe)]) if not a.lcp else b''.join(b'CASE '+str(i).encode()+b'\n'+subprocess.check_output([str(exe),str(i)]) for i in range(18))
 (a.build/'actual.txt').write_bytes(result)
-if a.dav_allocation or a.system_items:
+if a.dav_allocation or a.system_policy:
     print(result.decode(), end='')
     raise SystemExit(0)
 golden = HERE/('lcp-disabled-golden.txt.gz' if a.no_enroll_key else 'lcp-golden.txt.gz' if a.lcp else 'dav-golden.txt.gz' if a.dav else 'golden.txt.gz')

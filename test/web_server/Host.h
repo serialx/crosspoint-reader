@@ -14,7 +14,6 @@
 #include <regex>
 #include <vector>
 
-#include "lib/FsHelpers/HiddenItems.h"
 #include "src/network/ProtectedPaths.h"
 #include "stubs/WString.h"
 

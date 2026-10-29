@@ -9,7 +9,6 @@
 #include <HalGPIO.h>
 #include <HalMemory.h>
 #include <HalStorage.h>
-#include <HiddenItems.h>
 #include <I18n.h>
 #include <LibraryBuilder.h>
 #include <Logging.h>

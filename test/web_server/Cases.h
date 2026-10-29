@@ -151,6 +151,33 @@ int main() {
       });
     return 0;
   }
+  if (std::getenv("WEB_SYSTEM_NAME_CHECK")) {
+    for (bool showHidden : {false, true})
+      record("system-name-listing", [&](auto& app) {
+        SETTINGS.showHiddenFiles = showHidden;
+        const std::pair<const char*, bool> names[] = {
+            {"XTCache", true},  {"System Volume Information", true},   {"XTCacheArchive", false},
+            {"xtcache", false}, {"System Volume Information ", false}, {".hidden", false},
+            {"ordinary", false}};
+        for (const auto& [name, system] : names) host::add("/" + std::string(name), "", true);
+        app.handleFileListData();
+        std::string body;
+        for (const auto& event : host::trace)
+          if (event.starts_with("chunk:")) body += event.substr(6);
+        JsonDocument listing;
+        if (deserializeJson(listing, body)) std::abort();
+        for (const auto& [name, system] : names) {
+          bool found = false;
+          for (JsonObject item : listing.as<JsonArray>())
+            if (std::string(item["name"].as<const char*>()) == name) found = true;
+          if (found != !(system || (!showHidden && name[0] == '.'))) {
+            std::cerr << "incorrect system-name listing: " << name << '\n';
+            std::abort();
+          }
+        }
+      });
+    return 0;
+  }
   if (std::getenv("WEB_COMPLETION_CHECK")) {
     for (bool previous : {false, true})
       record("completion-allocation-failure", [&](auto& app) {

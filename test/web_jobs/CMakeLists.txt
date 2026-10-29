@@ -12,5 +12,5 @@ add_test(NAME web_lcp_disabled_oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURR
 
 add_test(NAME web_dav_allocation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
   --build ${CMAKE_CURRENT_BINARY_DIR}/dav-allocation --archive ${XP_FFI_HOST_ARCHIVE} --dav-allocation)
-add_test(NAME web_system_items COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
-  --build ${CMAKE_CURRENT_BINARY_DIR}/system-items --archive ${XP_FFI_HOST_ARCHIVE} --system-items)
+add_test(NAME shared_system_item_policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py
+  --build ${CMAKE_CURRENT_BINARY_DIR}/system-policy --archive ${XP_FFI_HOST_ARCHIVE} --system-policy)

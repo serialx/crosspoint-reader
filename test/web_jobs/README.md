@@ -8,13 +8,13 @@ they never contact a server, open a device, or write a flash partition.
 
 CMake registers four frozen oracle tests: `web_jobs_oracle`, `web_dav_oracle`,
 `web_lcp_oracle`, and `web_lcp_disabled_oracle`, plus `web_dav_allocation`
-and `web_system_items`. Build the shared host archive
+and `shared_system_item_policy`. Build the shared host archive
 before running them:
 
 ```sh
 cmake -S test -B build/test
 cmake --build build/test -j 6
-ctest --test-dir build/test -R '^web_' --output-on-failure
+ctest --test-dir build/test -R '^(web_|shared_system_item_policy$)' --output-on-failure
 ```
 
 The main oracle has 836 cases: firmware validation and simulated writes,
@@ -51,11 +51,11 @@ WString implementation. An armed global C++ allocation gate detects infallible
 path allocations; scripted storage and diagnostic trace bookkeeping are outside
 the gate. It does not simulate heap pressure inside the SDK or filesystem.
 
-`web_system_items` compares the production C++ hidden-name table with the Rust
-name predicate, DAV GET protection, and library path filtering. Dotfile policy
-remains with each caller, including the library's allowance for `.`. Passing
-`--system-items-header PATH` to `run.py --system-items` permits a temporary table
-mutation to check that an independent policy change is detected.
+`shared_system_item_policy` checks explicit system names and near misses against
+the shared Rust name predicate, DAV GET protection, and library path filtering.
+Dotfile policy remains with each caller, including the library's allowance for
+`.`. The web-server oracle separately checks listing with hidden files enabled
+and disabled against the same expected names.
 
 For a differential check, export the original `src/network` outside the source
 tree and pass `--source` to `run.py`; include `--archive` for a Rust candidate.

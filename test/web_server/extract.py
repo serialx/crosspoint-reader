@@ -86,10 +86,10 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK"]:
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
-        print("review checks: completion consistency and translated allocation errors passed")
+        print("review checks: completion consistency, translated allocation errors and system-name listing passed")
     if args.fault_check:
         if not args.archive:
             raise SystemExit("--fault-check requires --archive")

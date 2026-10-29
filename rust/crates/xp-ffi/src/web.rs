@@ -1,6 +1,7 @@
 mod config;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.
+use crate::system_items::hidden_name as hidden;
 use alloc::vec::Vec;
 use core::ffi::{c_char, c_void};
 
@@ -645,9 +646,6 @@ impl Request<'_> {
         self.send(404, body.bytes());
         Ok(())
     }
-}
-fn hidden(name: &[u8]) -> bool {
-    name == b"System Volume Information" || name == b"XTCache"
 }
 fn protected(name: &[u8]) -> bool {
     name.starts_with(b".") || hidden(name)

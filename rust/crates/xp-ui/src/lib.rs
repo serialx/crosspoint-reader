@@ -18,3 +18,5 @@ pub mod xtc;
 pub mod utility;
 pub mod reader_chrome;
 pub mod reader_chrome_ffi;
+pub mod keyboard;
+pub mod keyboard_view;

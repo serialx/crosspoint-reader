@@ -57,7 +57,6 @@ class SettingsUiActivity : public RustActivityAdapter {
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t commandCapacity = 0;
   int32_t renderingScroll = 0;
-  bool longPress = false;
   bool longTouch = false;
   bool touchActivated = false;
   int touchX = -1, touchY = -1;

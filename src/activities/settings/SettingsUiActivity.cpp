@@ -100,14 +100,13 @@ void SettingsUiActivity::setCheckboxRow(SettingsUiRow& row, bool checked) {
 
 void SettingsUiActivity::loop() {
   if (handleCustomInput()) return;
-  longPress = kind == XP_UI_SETTINGS_BLE && mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, 700);
   longTouch = kind == XP_UI_SETTINGS_BLE && routingReady() && mappedInput.wasScreenLongPress(touchX, touchY);
   RustActivityAdapter::loop();
 }
 
 XpUiInterest SettingsUiActivity::rustInterest(uint32_t now) const {
   auto interest = xp_ui_settings_list_interest(&state, now);
-  if (longPress || longTouch) {
+  if (longTouch) {
     interest.held = 0;
     interest.deadline_enabled = 1;
     interest.deadline_ms = now;
@@ -125,15 +124,11 @@ XpUiEffect SettingsUiActivity::updateRust(const XpUiInput& source) {
       input.value = hit.value;
     }
   }
-  if (longPress || longTouch) {
-    int selected = state.selected;
-    if (longTouch) {
-      XpUiInteraction hit{};
-      if (!publication.ready || !xp_ui_settings_hit(&publishedHits, touchX, touchY, &hit)) return {};
-      selected = hit.value;
-    }
+  if (longTouch) {
+    XpUiInteraction hit{};
+    if (!publication.ready || !xp_ui_settings_hit(&publishedHits, touchX, touchY, &hit)) return {};
     input.action = 2;
-    input.value = selected;
+    input.value = hit.value;
   }
   const auto effect = xp_ui_settings_list_update(&state, &input, listCount());
   touchActivated = input.action && (input.touch_flags & XP_UI_TOUCH_RELEASED) && effect.kind == XP_UI_ACTIVATE;

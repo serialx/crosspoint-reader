@@ -443,6 +443,21 @@ static void turnLockTiming() {
   traceClock = false;
 }
 
+static void progressFileLifetime() {
+  for (int failure = 0; failure < 4; ++failure) {
+    storageTrace = {};
+    storageTrace.trackLifetime = true;
+    storageTrace.openOk = failure != 1;
+    storageTrace.writeLimit = failure == 2 ? 2 : 100;
+    storageTrace.renameOk = failure != 3;
+    const uint8_t bytes[] = {1, 2, 3, 4, 5, 6};
+    std::printf("progress-lifetime %d\n", failure);
+    const bool result = ProgressFile::writeAtomic("/cache", bytes, sizeof(bytes));
+    std::printf("progress-done %d %d\n", result, storageTrace.liveFiles);
+  }
+  storageTrace.trackLifetime = false;
+}
+
 int main() {
   sessions();
   turns();
@@ -452,4 +467,5 @@ int main() {
   chrome();
   corruptPersistence();
   turnLockTiming();
+  progressFileLifetime();
 }

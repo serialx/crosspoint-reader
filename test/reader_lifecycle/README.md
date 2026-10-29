@@ -56,3 +56,8 @@ A busy render lock suppresses background work but leaves input sampling active;
 the original pending-turn behavior is preserved. Inverting the final session-turn
 direction is detected. The fixture uses host clock values within the uint32 range;
 clock wrap remains covered by the session oracle rather than this host loop.
+
+Progress lifetime cases distinguish closing a file from destroying its allocated
+HAL implementation. The original destroys the temporary file before remove and
+rename, including release of the implementation; an explicit close alone fails
+the frozen trace. The prior 6,789-line lifecycle trace remains an exact prefix.

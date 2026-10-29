@@ -11,13 +11,21 @@ struct StorageTrace {
   bool openOk = true;
   bool renameOk = true;
   size_t writeLimit = 100;
+  bool trackLifetime = false;
+  int liveFiles = 0;
 };
 inline StorageTrace storageTrace;
 
 struct HalFile {
   std::string path;
+  bool tracked = false;
   ~HalFile() {
+    close();
+    if (tracked) std::printf("file-release %d\n", --storageTrace.liveFiles);
+  }
+  void close() {
     if (!path.empty()) std::printf("close %s\n", path.c_str());
+    path.clear();
   }
   size_t write(const uint8_t* bytes, size_t len) {
     const size_t written = std::min(len, storageTrace.writeLimit);
@@ -41,6 +49,8 @@ struct StorageStub {
     std::printf("open-write %s %d\n", path.c_str(), storageTrace.openOk);
     if (!storageTrace.openOk) return false;
     f.path = path;
+    f.tracked = storageTrace.trackLifetime;
+    if (f.tracked) std::printf("file-allocate %d\n", ++storageTrace.liveFiles);
     return true;
   }
   bool openFileForRead(const char*, const std::string& path, HalFile& f) {
@@ -48,12 +58,15 @@ struct StorageStub {
     std::printf("open-read %s %d\n", path.c_str(), ok);
     if (!ok) return false;
     f.path = path;
+    f.tracked = storageTrace.trackLifetime;
+    if (f.tracked) std::printf("file-allocate %d\n", ++storageTrace.liveFiles);
     return true;
   }
   bool filesContains(const std::string& path) const { return storageTrace.files.count(path) != 0; }
   bool exists(const char* path) const { return filesContains(path); }
   bool remove(const char* path) {
     std::printf("remove %s\n", path);
+    if (storageTrace.trackLifetime) std::printf("live-files %d\n", storageTrace.liveFiles);
     return storageTrace.files.erase(path) != 0;
   }
   bool rename(const char* from, const char* to) {

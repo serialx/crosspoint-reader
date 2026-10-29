@@ -1,35 +1,52 @@
 #pragma once
-#include <functional>
+#include <xp_ui_home.h>
+
+#include <array>
 #include <vector>
 
 #include "./FileBrowserActivity.h"
 #include "RecentBooksStore.h"
-#include "activities/Activity.h"
+#include "activities/RustActivityAdapter.h"
+#include "activities/reader/ReaderChromeListActivity.h"
 #include "components/CoverGridHomeUi.h"
-#include "util/ButtonNavigator.h"
 
 struct Rect;
 
-class HomeActivity final : public Activity {
+class HomeActivity final : public RustActivityAdapter {
   std::unique_ptr<CoverGridHomeUi> coverGridUi;
-  ButtonNavigator buttonNavigator;
-  int selectorIndex = 0;
-  bool recentsLoading = false;
-  bool recentsLoaded = false;
-  bool firstRenderDone = false;
-  bool hasOpdsServers = false;
-  bool hasPlugins = false;
-  // The home "library" slot (index 2) shows Plugins when any plugin is
-  // installed, otherwise OPDS. The index converters gate on its presence.
-  bool hasLibrarySlot() const { return hasPlugins || hasOpdsServers; }
-  bool hasContinueReading = false;
+  XpUiHomeState state{};
+  Publication publication;
+  XpUiHomeTouch publishedTouch{};
+  XpUiHomeGridGeometry publishedGrid{};
+  struct Frame {
+    XpUiHomeState snapshot{};
+    XpUiHomeLayout layout{};
+    XpUiHomePrepared covers{};
+    XpUiHomeTouch touch{};
+    XpUiHomeGridGeometry grid{};
+    XpUiRect restoreRect{};
+    ReaderChromeCommands commands;
+    struct TitleWrap {
+      int32_t font = 0;
+      int16_t width = 0;
+      uint8_t count = 0;
+      uint8_t style = 0;
+    };
+    std::array<TitleWrap, 3> titleWraps{};
+    std::array<uint8_t, 3> titleLineCounts{};
+    std::vector<std::string> titleLines;
+    uint8_t titleBook = 255;
+    std::string authorLine;
+    std::array<std::string, 6> menuLines;
+    std::array<uint8_t, 6> menuKeys{};
+    uint8_t menuCount = 0;
+  } frame;
+  bool touchActivated = false;
   bool coverRendered = false;      // Track if cover has been rendered once
   bool coverBufferStored = false;  // Track if cover buffer is stored
   uint8_t* coverBuffer = nullptr;  // HomeActivity's own buffer for cover image
   size_t coverBufferSize = 0;      // Bytes allocated to coverBuffer
-  // Logical rect last passed to drawRecentBookCover. The cover snapshot only
-  // needs to cover this region, not the entire framebuffer, so we cache the
-  // tile instead of all 48 KB. Set in render() before the call.
+  // Region owned by the cover snapshot; prepared before scene construction.
   int coverRectX = 0;
   int coverRectY = 0;
   int coverRectW = 0;
@@ -38,31 +55,6 @@ class HomeActivity final : public Activity {
   const HomeMenuItem initialMenuItem;
   const bool cleanInitialRefresh;
 
-  // Convert HomeMenuItem to menu index (used in onEnter)
-  static int menuItemToIndex(HomeMenuItem item, bool hasOpdsUrl) {
-    int i = 0;
-    if (item == HomeMenuItem::FILE_BROWSER) return i;
-    ++i;
-    if (item == HomeMenuItem::LIBRARY) return i;
-    ++i;
-    if (item == HomeMenuItem::OPDS_BROWSER) return hasOpdsUrl ? i : 0;
-    if (hasOpdsUrl) ++i;
-    if (item == HomeMenuItem::FILE_TRANSFER) return i;
-    ++i;
-    if (item == HomeMenuItem::SETTINGS_MENU) return i;
-    return 0;
-  }
-
-  // Convert menu index to HomeMenuItem (used in loop)
-  static HomeMenuItem indexToMenuItem(int idx, bool hasOpdsUrl) {
-    int i = 0;
-    if (idx == i++) return HomeMenuItem::FILE_BROWSER;
-    if (idx == i++) return HomeMenuItem::LIBRARY;
-    if (hasOpdsUrl && idx == i++) return HomeMenuItem::OPDS_BROWSER;
-    if (idx == i++) return HomeMenuItem::FILE_TRANSFER;
-    if (idx == i) return HomeMenuItem::SETTINGS_MENU;
-    return HomeMenuItem::NONE;
-  }
   void onRecentBookSelected(const std::string& path);
   void onFileBrowserOpen();
   void onLibraryOpen();
@@ -71,10 +63,21 @@ class HomeActivity final : public Activity {
   void onOpdsBrowserOpen();
   void onPluginsOpen();
 
-  int getMenuItemCount() const;
-  bool storeCoverBuffer();    // Store frame buffer for cover image
-  bool restoreCoverBuffer();  // Restore frame buffer from stored cover
-  void freeCoverBuffer();     // Free the stored cover buffer
+  Publication* rustPublication() override { return &publication; }
+  XpUiInterest rustInterest(uint32_t now) const override;
+  XpUiEffect updateRust(const XpUiInput&) override;
+  void applyRustEffect(const XpUiEffect&) override;
+  bool buildRustScene(XpUiScene&) override;
+  void rustPublished() override;
+  XpUiPaint rustResources() override;
+  XpUiHomeTexts textServices();
+  const char* text(uint32_t handle);
+  void prepareTitle(uint8_t book);
+  void sampleLayout();
+  void prepareCovers();
+  bool allocateCoverBuffer();
+  bool storeCoverBuffer();  // Store frame buffer for cover image
+  void freeCoverBuffer();   // Free the stored cover buffer
   void loadRecentBooks(int maxBooks);
   void loadRecentCovers(int coverHeight);
   void fillCoverGridFromLibrary();
@@ -84,12 +87,11 @@ class HomeActivity final : public Activity {
  public:
   explicit HomeActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                         HomeMenuItem initialMenuItemValue = HomeMenuItem::NONE, bool cleanInitialRefresh = false)
-      : Activity("Home", renderer, mappedInput),
+      : RustActivityAdapter("Home", renderer, mappedInput),
         initialMenuItem(initialMenuItemValue),
         cleanInitialRefresh(cleanInitialRefresh) {}
   void onEnter() override;
   void onExit() override;
-  void loop() override;
   void render(RenderLock&&) override;
   bool isHomeActivity() const override { return true; }
 };

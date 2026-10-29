@@ -16,6 +16,7 @@ pub mod list;
 pub mod xtc;
 
 pub mod dictionary;
+pub mod home;
 pub mod keyboard;
 pub mod keyboard_view;
 pub mod reader_chrome;

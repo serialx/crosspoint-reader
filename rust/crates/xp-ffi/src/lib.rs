@@ -47,6 +47,7 @@ mod xtc;
 mod zip;
 
 pub use xp_ui::ffi;
+mod ui_home;
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_void;

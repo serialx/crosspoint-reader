@@ -1,13 +1,16 @@
 #pragma once
 
+#include <xp_ui_home.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "activities/UiListActivity.h"
+#include "activities/RustActivityAdapter.h"
+#include "activities/reader/ReaderChromeListActivity.h"
 #include "components/OptionPopup.h"
 
-class FileBrowserActivity final : public UiListActivity {
+class FileBrowserActivity final : public RustActivityAdapter {
  public:
   // Books = standard reader browser; PickFirmware = filter to .bin only and return path via ActivityResult.
   enum class Mode { Books, PickFirmware };
@@ -29,18 +32,11 @@ class FileBrowserActivity final : public UiListActivity {
   std::unique_ptr<char[]> fileNameBuffer;
   OptionPopup optionPopup;
 
-  // Pull-based rows: the SDK list resolves each drawn row on demand through
-  // provideRow() (fui::ListProps::rowProvider), so the only per-file
-  // residency is `files` itself — no full-length rowNames/rowExtensions/
-  // rowItems arrays (a 1000-file folder used to pin ~100KB of vectors plus a
-  // heap copy of every display name, which aborted under -fno-exceptions
-  // when the contiguous blocks no longer fit). The label/value strings for
-  // the row being laid out live in these scratch buffers; the provider
-  // contract only needs them valid until the next provideRow() call.
+  // Rust requests rows on demand. Only `files` scales with the directory;
+  // label/value scratch buffers remain valid until the next row request.
   static constexpr size_t ROW_NAME_BUF_SIZE = 512;  // NAME_BUFFER_SIZE + "[]" + terminator slack
   char rowNameBuf[ROW_NAME_BUF_SIZE]{};
   char rowExtBuf[16]{};
-  static void provideRow(void* ctx, uint16_t index, freeink::ui::ListItem& item);
 
   // CJK fallback glyphs are prewarmed for a bounded window of rows around the
   // viewport (one SD pass per list page, like the reader TOC) instead of the
@@ -49,23 +45,31 @@ class FileBrowserActivity final : public UiListActivity {
   int prewarmedStart = -1;
   void prewarmRowGlyphs(int start);
 
-  int listCount() const override { return static_cast<int>(files.size()); }
-  void buildScreen(UiScreen& screen) override;
-  void activateIndex(int index) override;
-  void onRowLongPress(int index) override;
-#if FREEINK_CAP_TOUCH
-  bool canSwipeDelete(int index) const override { return mode == Mode::Books && index >= 0 && index < listCount(); }
-  void swipeDelete(int index) override;
-#endif
-  // Long-press BACK goes to root; short Back goes up a directory (home/cancel at
-  // root), and Confirm activates on release while a hold opens file actions.
-  bool handleCustomInput() override;
-  bool handleButtons() override;
-  // Header shows the current folder name (battery indicator via GUI.drawHeader);
-  // footer labels depend on path depth and picker mode.
-  void drawChrome() override;
-  void drawFooter() override;
+  int listCount() const { return static_cast<int>(files.size()); }
   void activateSelected();
+  XpUiFileState state{};
+  Publication publication;
+  XpUiHomeListHits publishedHits{};
+  struct Frame {
+    ReaderChromeCommands commands;
+    XpUiFileState snapshot{};
+    XpUiFileFeedback next{};
+    XpUiHomeListHits hits{};
+  } frame;
+  bool nativeLongPress = false, nativeLongTouch = false;
+  int nativeTouchX = 0, nativeTouchY = 0;
+  uint8_t touchFeedback = 0;
+  Publication* rustPublication() override { return &publication; }
+  XpUiInterest rustInterest(uint32_t now) const override;
+  XpUiEffect updateRust(const XpUiInput&) override;
+  void applyRustEffect(const XpUiEffect&) override;
+  bool buildRustScene(XpUiScene&) override;
+  void rustPublished() override;
+  XpUiPaint rustResources() override;
+  XpUiHomeRows rows();
+  XpUiFileFacts facts(int selected) const;
+  const char* text(uint32_t handle);
+  void loaded(uint8_t reason, int selected = 0);
 
   // Data loading
   void loadFiles();
@@ -76,5 +80,6 @@ class FileBrowserActivity final : public UiListActivity {
                                Mode mode = Mode::Books);
   void onEnter() override;
   void onExit() override;
+  void loop() override;
   void render(RenderLock&& lock) override;
 };

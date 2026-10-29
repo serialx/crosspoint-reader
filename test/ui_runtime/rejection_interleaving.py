@@ -210,6 +210,41 @@ int main(int argc,char** argv){
    input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
    assert(a.state.range_start==0 && a.selections==1);
   }
+  if(std::string(argv[1])=="clip-touch")for(bool contact:{false,true}){
+   if(contact!=bool(atoi(argv[4])))continue;
+   GfxRenderer r;MappedInputManager input;ClipSelectionActivity a("clip",r,input);a.setup();
+   if(first)paint(a);
+   // An inherited contact is ignored on entry until its release.
+   a.state.ignore_touch=1;
+   input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
+   assert(a.state.range_start==-1 && !a.selections);
+   input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();
+   assert(!a.state.ignore_touch && a.state.range_start==-1);
+   // Track the old contact without selecting: this is the entry gesture.
+   if(contact){a.state.ignore_touch=1;input.touchFlags=XP_UI_TOUCH_HELD;a.loop();}
+   else {input={};a.loop();}
+   a.buildOk=!buildFailure;r.paintOk=buildFailure;paint(a);
+   a.buildOk=r.paintOk=true;paint(a);
+   if(contact){input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();assert(!a.selections);}
+   // No idle frame is allowed between recovery/old release and the fresh press.
+   input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
+   assert(a.state.range_start==0 && a.selections==1);
+   input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();
+   assert(a.selections==1 && !a.cancellations && !a.activations && !a.state.dragging);
+  }
+  if(std::string(argv[1])=="clip-entry"){
+   GfxRenderer r;MappedInputManager input;ClipSelectionActivity a("clip",r,input);a.setup();
+   a.state.ignore_touch=1; // onEnter owns this flag before the first input sample.
+   if(first)paint(a);
+   a.buildOk=!buildFailure;r.paintOk=buildFailure;paint(a);
+   a.buildOk=r.paintOk=true;paint(a);
+   input.touchFlags=XP_UI_TOUCH_HELD;a.loop();
+   assert(a.state.range_start==-1 && !a.selections);
+   input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();
+   assert(a.state.range_start==-1 && !a.selections);
+   input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
+   assert(a.state.range_start==0 && a.selections==1);
+  }
   if(std::string(argv[1])=="language"){
    GfxRenderer r;MappedInputManager input;LanguageSelectActivity a("language",r,input);
    if(first)paint(a);
@@ -274,10 +309,10 @@ class Activity;""")
                     str(out/'interleaving.cpp'), str(out/'RustActivityAdapter.cpp'),
                     str(ROOT/'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out/'interleaving')], check=True)
     results = []
-    for case in (sys.argv[2:] or ['remap', 'footnote', 'clip-lock', 'language', 'text']):
+    for case in (sys.argv[2:] or ['remap', 'footnote', 'clip-lock', 'clip-touch', 'clip-entry', 'language', 'text']):
         for first in [0, 1]:
             for build_failure in [0, 1]:
-                for action in (range(3) if case == 'remap' else range(2) if case == 'text' else range(1)):
+                for action in (range(3) if case == 'remap' else range(2) if case in ['clip-touch', 'text'] else range(1)):
                     label = f'{case}: published={first}, build_failure={build_failure}, action/contact={action}'
                     result = subprocess.run([str(out/'interleaving'), case, str(first), str(build_failure), str(action)], timeout=30)
                     print(label, 'exit='+str(result.returncode), flush=True)

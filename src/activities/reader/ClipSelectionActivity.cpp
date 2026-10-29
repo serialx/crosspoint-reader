@@ -346,7 +346,14 @@ void ClipSelectionActivity::loopButtons() {
 }
 
 void ClipSelectionActivity::loop() {
-  if (consumeRejectedInput()) return;
+  if (consumeRejectedInput()) {
+    int x = 0, y = 0;
+    if (!mappedInput.isScreenTouchHeld(x, y)) {
+      ModelLock lock(*this);
+      state.ignore_touch = 0;
+    }
+    return;
+  }
   if (wordCount == 0 && !actionPopup.isActive()) {
     cancel();
     return;

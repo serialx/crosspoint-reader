@@ -30,3 +30,5 @@ add_test(NAME ui_runtime_rejection_commands COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/rejection_commands.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ui_runtime_rejection_interleaving COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/rejection_interleaving.py ${XP_FFI_HOST_ARCHIVE} remap footnote clip-lock language text)
+add_test(NAME ui_runtime_rejection_touch_recovery COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_interleaving.py ${XP_FFI_HOST_ARCHIVE} clip-touch clip-entry)

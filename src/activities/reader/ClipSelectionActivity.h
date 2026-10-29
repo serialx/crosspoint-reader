@@ -82,7 +82,6 @@ class ClipSelectionActivity final : public RustActivityAdapter {
   XpUiPaint rustResources() override;
   void rustSceneFailed() override {
     state.pending_count = state.dragging = state.repeating = state.moved = 0;
-    state.ignore_touch = 1;
     state.last_repeat = state.dwell_since = 0;
     state.dwell_index = -1;
     painted.valid = 0;

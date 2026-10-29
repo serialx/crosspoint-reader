@@ -34,8 +34,11 @@ def generate(repo, output):
                    for method in methods]
     if "bool EpubReaderActivity::applyPageMove(" in reader:
         methods.append(definition(reader, "bool EpubReaderActivity::applyPageMove("))
-    load = definition(reader, 'if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f))')
-    methods.append("void EpubReaderActivity::loadProgress() { HalFile f; " + load + " }")
+    if "bool EpubReaderActivity::runBookLifetime(" in reader:
+        methods.append((repo / "test/reader_lifecycle/load_progress_rust.inc").read_text())
+    else:
+        load = definition(reader, 'if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f))')
+        methods.append("void EpubReaderActivity::loadProgress() { HalFile f; " + load + " }")
     loop = definition(reader, "void EpubReaderActivity::loop()")
     if "xp_ui_reader_loop_run" in loop:
         methods.append((repo / "test/reader_lifecycle/turn_input_rust.inc").read_text())

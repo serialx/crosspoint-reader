@@ -236,98 +236,9 @@ bool buttonContactClosed() { return gpio.rawInputActive(); }
 
 }  // namespace
 
-EpubReaderActivity::~EpubReaderActivity() {
-  ImageBlock::setExtractor(nullptr, nullptr);
-  // ActivityManager destroys activities with its RenderLock already held;
-  // taking another here self-deadlocks (renderingMutex is non-recursive).
-  settleOverlayRefresh();
-  discardOverlayPage();  // free the overlay's page snapshot if one is held
-  // A radio still stopped for this book's build may start again in the next one.
-  if (radioReleasedForBuild.load()) bleturner::afterPaint();
+EpubReaderActivity::~EpubReaderActivity() { runBookLifetime(XP_UI_READER_LIFETIME_OPERATION_TEARDOWN); }
 
-  if (footnoteDepth > 0 && epub) saveLinkStack();
-
-  section.reset();
-  CLIPPINGS.unload();
-  if (pendingReadFolderMove && epub) {
-    const std::string srcPath = epub->getPath();
-    const std::string oldCachePath = epub->getCachePath();
-    const std::string dstPath = buildReadFolderDestination(srcPath);
-    epub.reset();
-    moveFinishedBookToReadFolder(srcPath, dstPath, oldCachePath);
-  } else {
-    epub.reset();
-  }
-}
-
-bool EpubReaderActivity::loadBook() {
-  auto loadedEpub = makeUniqueNoThrow<Epub>(bookPath, "/.crosspoint");
-  if (!loadedEpub) {
-    LOG_ERR("ERS", "Failed to allocate EPUB object");
-    return false;
-  }
-
-  const bool uncached = !Storage.exists((loadedEpub->getCachePath() + "/book.bin").c_str());
-  if (uncached) {
-    disableFastInitialRefresh();
-    GUI.drawPopup(renderer, tr(STR_INDEXING));
-  }
-
-  bool loaded;
-  {
-    std::optional<GfxRenderer::FrameBufferLoan> loan;
-    if (uncached) loan.emplace(renderer);
-    loaded = loadedEpub->load(true, SETTINGS.embeddedStyle == 0);
-  }
-  if (!loaded) {
-    // Surfaced by handleLoadFailure() as a dialog; loadedEpub dies with this
-    // scope, so carry the reason out in a member.
-    loadProtectionError = loadedEpub->getProtectionError();
-    LOG_ERR("ERS", "Failed to load EPUB%s%s", loadProtectionError.empty() ? "" : ": ", loadProtectionError.c_str());
-    return false;
-  }
-  epub = std::move(loadedEpub);
-
-  ImageBlock::clearRenderFailures();
-  ImageBlock::setExtractor(epub.get(), [](void* ctx, const char* src, const char* dest) {
-    return static_cast<Epub*>(ctx)->extractItemToFile(src, dest);
-  });
-
-  epub->setupCacheDir();
-
-  HalFile f;
-  if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f)) {
-    uint8_t data[10];
-    int dataSize = f.read(data, sizeof(data));
-    XpUiReaderProgress progress{};
-    const uint8_t loaded = xp_ui_reader_progress_decode(data, static_cast<uint32_t>(dataSize), &progress);
-    if (loaded != 0) {
-      currentSpineIndex = progress.spine;
-      nextPageNumber = progress.page;
-      if (loaded == 2) LOG_DBG("ERS", "Ignoring stale last-page sentinel from progress cache");
-      cachedSpineIndex = currentSpineIndex;
-      LOG_DBG("ERS", "Loaded cache: %d, %d", currentSpineIndex, nextPageNumber);
-      if (progress.has_count) cachedChapterTotalPageCount = progress.count;
-      if (progress.has_offset) cachedVisibleTextOffset = progress.offset;
-    }
-  }
-
-  if (currentSpineIndex == 0) {
-    int textSpineIndex = epub->getSpineIndexForTextReference();
-    if (textSpineIndex != 0) {
-      currentSpineIndex = textSpineIndex;
-      cachedVisibleTextOffset.reset();
-      LOG_DBG("ERS", "Opened for first time, navigating to text reference at index %d", textSpineIndex);
-    }
-  }
-
-  loadLinkStack();
-  loadCachedBookmarks();
-  if (!CLIPPINGS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub")) {
-    LOG_ERR("CLIP", "Failed to load clippings for %s", epub->getPath().c_str());
-  }
-  return true;
-}
+bool EpubReaderActivity::loadBook() { return runBookLifetime(XP_UI_READER_LIFETIME_OPERATION_LOAD); }
 
 ChapterPosition EpubReaderActivity::chapterPosition() const {
   if (section) return {section->currentPage, section->estimatedTotalPages()};
@@ -4130,4 +4041,272 @@ std::string EpubReaderActivity::readerViewValue(uint8_t operation, int32_t row) 
       }};
   xp_ui_reader_view_value(&services, operation, row);
   return std::move(context.value);
+}
+
+bool EpubReaderActivity::runBookLifetime(uint8_t operation) {
+  struct MovePaths {
+    std::string source, cache, destination;
+  };
+  struct Context {
+    EpubReaderActivity& o;
+    std::unique_ptr<Epub> loaded;
+    std::optional<GfxRenderer::FrameBufferLoan> loan;
+    std::optional<HalFile> file;
+    uint8_t progress[10]{};
+    std::optional<MovePaths> paths;
+    uint32_t read(uint8_t field) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderLifetimeField>(field)) {
+        case XP_UI_READER_LIFETIME_FIELD_SPINE:
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        case XP_UI_READER_LIFETIME_FIELD_NEXT_PAGE:
+          return static_cast<uint32_t>(o.nextPageNumber);
+        case XP_UI_READER_LIFETIME_FIELD_CACHED_SPINE:
+          return static_cast<uint32_t>(o.cachedSpineIndex);
+        case XP_UI_READER_LIFETIME_FIELD_CACHED_COUNT:
+          return static_cast<uint32_t>(o.cachedChapterTotalPageCount);
+        case XP_UI_READER_LIFETIME_FIELD_HAS_CACHED_OFFSET:
+          return static_cast<uint32_t>(o.cachedVisibleTextOffset.has_value());
+        case XP_UI_READER_LIFETIME_FIELD_CACHED_OFFSET:
+          return static_cast<uint32_t>(o.cachedVisibleTextOffset.value_or(0));
+        case XP_UI_READER_LIFETIME_FIELD_RADIO_RELEASED:
+          return static_cast<uint32_t>(o.radioReleasedForBuild.load());
+        case XP_UI_READER_LIFETIME_FIELD_FOOTNOTE_DEPTH:
+          return static_cast<uint32_t>(o.footnoteDepth);
+        case XP_UI_READER_LIFETIME_FIELD_PENDING_READ_MOVE:
+          return static_cast<uint32_t>(o.pendingReadFolderMove);
+      }
+      return 0;
+    }
+    void write(uint8_t field, uint32_t value) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderLifetimeField>(field)) {
+        case XP_UI_READER_LIFETIME_FIELD_SPINE: {
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_NEXT_PAGE: {
+          o.nextPageNumber = static_cast<decltype(o.nextPageNumber)>(value);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_CACHED_SPINE: {
+          o.cachedSpineIndex = static_cast<decltype(o.cachedSpineIndex)>(value);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_CACHED_COUNT: {
+          o.cachedChapterTotalPageCount = static_cast<decltype(o.cachedChapterTotalPageCount)>(value);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_HAS_CACHED_OFFSET: {
+          assert(!value);
+          o.cachedVisibleTextOffset.reset();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_CACHED_OFFSET: {
+          o.cachedVisibleTextOffset = value;
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_RADIO_RELEASED: {
+          o.radioReleasedForBuild = value != 0;
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_FOOTNOTE_DEPTH: {
+          o.footnoteDepth = static_cast<decltype(o.footnoteDepth)>(value);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_FIELD_PENDING_READ_MOVE: {
+          o.pendingReadFolderMove = static_cast<decltype(o.pendingReadFolderMove)>(value);
+          break;
+        }
+      }
+    }
+    uint32_t query(uint8_t query, uint32_t argument) {
+      switch (static_cast<XpUiReaderLifetimeQuery>(query)) {
+        case XP_UI_READER_LIFETIME_QUERY_CACHE_PRESENT: {
+          return Storage.exists((loaded->getCachePath() + "/book.bin").c_str());
+        }
+        case XP_UI_READER_LIFETIME_QUERY_EMBEDDED_STYLE: {
+          return SETTINGS.embeddedStyle;
+        }
+        case XP_UI_READER_LIFETIME_QUERY_PROGRESS_BYTE: {
+          assert(argument < sizeof(progress));
+          return progress[argument];
+        }
+        case XP_UI_READER_LIFETIME_QUERY_TEXT_REFERENCE: {
+          return o.epub->getSpineIndexForTextReference();
+        }
+        case XP_UI_READER_LIFETIME_QUERY_HAS_BOOK: {
+          return bool(o.epub);
+        }
+      }
+      return 0;
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t) {
+      switch (static_cast<XpUiReaderLifetimeCommand>(command)) {
+        case XP_UI_READER_LIFETIME_COMMAND_NEW_LOADED: {
+          assert(!loaded);
+          loaded = makeUniqueNoThrow<Epub>(o.bookPath, "/.crosspoint");
+          return bool(loaded);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_DROP_LOADED: {
+          loaded.reset();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOG_ALLOCATION_FAILED: {
+          LOG_ERR("ERS", "Failed to allocate EPUB object");
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_DISABLE_FAST: {
+          o.disableFastInitialRefresh();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_POPUP_INDEX: {
+          GUI.drawPopup(o.renderer, tr(STR_INDEXING));
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOAN_BEGIN: {
+          assert(!loan);
+          loan.emplace(o.renderer);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOAN_DROP: {
+          loan.reset();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOAD: {
+          return loaded->load(true, a != 0);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_PROTECTION_ERROR: {
+          o.loadProtectionError = loaded->getProtectionError();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOG_LOAD_FAILED: {
+          LOG_ERR("ERS", "Failed to load EPUB%s%s", o.loadProtectionError.empty() ? "" : ": ",
+                  o.loadProtectionError.c_str());
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_MOVE_LOADED: {
+          o.epub = std::move(loaded);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_CLEAR_IMAGE_FAILURES: {
+          ImageBlock::clearRenderFailures();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_INSTALL_EXTRACTOR: {
+          ImageBlock::setExtractor(o.epub.get(), [](void* ctx, const char* src, const char* dest) {
+            return static_cast<Epub*>(ctx)->extractItemToFile(src, dest);
+          });
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_SETUP_CACHE: {
+          o.epub->setupCacheDir();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_OPEN_PROGRESS: {
+          assert(!file);
+          file.emplace();
+          return Storage.openFileForRead("ERS", o.epub->getCachePath() + "/progress.bin", *file);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_DROP_FILE: {
+          file.reset();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_READ_PROGRESS: {
+          assert(file);
+          return file->read(progress, sizeof(progress));
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOG_SENTINEL: {
+          LOG_DBG("ERS", "Ignoring stale last-page sentinel from progress cache");
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOG_PROGRESS: {
+          LOG_DBG("ERS", "Loaded cache: %d, %d", o.currentSpineIndex, o.nextPageNumber);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOG_TEXT_REFERENCE: {
+          LOG_DBG("ERS", "Opened for first time, navigating to text reference at index %d", a);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOAD_LINKS: {
+          o.loadLinkStack();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOAD_BOOKMARKS: {
+          o.loadCachedBookmarks();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOAD_CLIPPINGS: {
+          return CLIPPINGS.loadForBook(o.epub->getPath(), o.epub->getTitle(), o.epub->getAuthor(), "epub");
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_LOG_CLIPPINGS_FAILED: {
+          LOG_ERR("CLIP", "Failed to load clippings for %s", o.epub->getPath().c_str());
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_REMOVE_EXTRACTOR: {
+          ImageBlock::setExtractor(nullptr, nullptr);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_SETTLE_OVERLAY: {
+          o.settleOverlayRefresh();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_DISCARD_OVERLAY: {
+          o.discardOverlayPage();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_RADIO_AFTER: {
+          bleturner::afterPaint();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_SAVE_LINKS: {
+          o.saveLinkStack();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_DROP_SECTION: {
+          o.section.reset();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_UNLOAD_CLIPPINGS: {
+          CLIPPINGS.unload();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_PREPARE_MOVE: {
+          assert(!paths);
+          paths.emplace();
+          paths->source = o.epub->getPath();
+          paths->cache = o.epub->getCachePath();
+          paths->destination = buildReadFolderDestination(paths->source);
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_DROP_MOVE_PATHS: {
+          paths.reset();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_DROP_BOOK: {
+          o.epub.reset();
+          break;
+        }
+        case XP_UI_READER_LIFETIME_COMMAND_MOVE_BOOK: {
+          assert(paths);
+          moveFinishedBookToReadFolder(paths->source, paths->destination, paths->cache);
+          break;
+        }
+      }
+      return 0;
+    }
+  } context{*this, {}, {}, {}, {}, {}};
+  const XpUiReaderLifetimeServices services{
+      &context, [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
+      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
+      [](void* p, uint8_t q, uint32_t a) { return static_cast<Context*>(p)->query(q, a); },
+      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
+  const bool result = xp_ui_reader_book_lifetime(&services, operation);
+  assert(!context.loaded && !context.loan && !context.file && !context.paths);
+  return result;
 }

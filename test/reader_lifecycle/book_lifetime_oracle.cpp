@@ -10,7 +10,11 @@
 #include <optional>
 #include <string>
 #include <vector>
+#ifdef LIFETIME_RELEASE_LOG
+#define LOG_DBG(tag, fmt, ...) ((void)0)
+#else
 #define LOG_DBG(tag, fmt, ...) std::printf(tag " " fmt "\n", ##__VA_ARGS__)
+#endif
 #define LOG_ERR(tag, fmt, ...) std::printf(tag " " fmt "\n", ##__VA_ARGS__)
 static void event(const char* name, int a = 0, int b = 0) { std::printf("%s %d %d\n", name, a, b); }
 struct Config {
@@ -128,6 +132,9 @@ struct Section {
   ~Section() { event("section-drop"); }
 };
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {}
+  };
   std::string bookPath = "/book.epub", loadProtectionError;
   std::shared_ptr<Epub> epub;
   std::unique_ptr<Section> section;
@@ -143,6 +150,7 @@ struct EpubReaderActivity {
   void loadLinkStack() { event("load-links"); }
   void loadCachedBookmarks() { event("load-bookmarks"); }
   void disableFastInitialRefresh() { event("disable-fast"); }
+  bool runBookLifetime(uint8_t operation);
   bool loadBook();
   ~EpubReaderActivity();
   void dump(bool loaded) const {

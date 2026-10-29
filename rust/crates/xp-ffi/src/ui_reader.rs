@@ -549,3 +549,14 @@ pub unsafe extern "C" fn xp_ui_reader_view_value(
 pub extern "C" fn xp_ui_reader_toolbar_style(style: u8) -> u8 {
     reader::view_values::toolbar(style)
 }
+
+/// # Safety
+/// Services obey the synchronous EPUB lifetime resource contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_book_lifetime(
+    services: *const reader::book_lifetime::Services,
+    operation: u8,
+) -> u8 {
+    reader::book_lifetime::run(services, operation)
+}

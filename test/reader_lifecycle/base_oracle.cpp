@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
@@ -10,6 +11,7 @@
 #include <tuple>
 #include <utility>
 static unsigned eventId;
+static unsigned lockDepth = 0;
 static void event(const char* name, int a = 0, int b = 0) { std::printf("%u %s %d %d\n", eventId++, name, a, b); }
 struct Allocation {
   void* pointer;
@@ -69,10 +71,18 @@ static int64_t trustedNow() {
 struct RenderLock {
   template <typename T>
   explicit RenderLock(T&) {
+    ++lockDepth;
     event("lock");
   }
-  RenderLock() { event("lock"); }
-  ~RenderLock() { event("unlock"); }
+  RenderLock() {
+    ++lockDepth;
+    event("lock");
+  }
+  ~RenderLock() {
+    assert(lockDepth);
+    --lockDepth;
+    event("unlock");
+  }
 };
 struct FontCache {
   void releaseSdFontCaches() { event("font-release"); }
@@ -378,13 +388,17 @@ int main() {
       a.mappedInput.held = action % 3 == 0 ? 699 : 700;
       a.onEnter();
       a.loop();
+      assert(lockDepth == 0);
       a.render(RenderLock{});
+      assert(lockDepth == 0);
       a.loop();
+      assert(lockDepth == 0);
       a.handleEndOfBookMenu(true);
       a.handleEndOfBookPageTurn(action & 1, action & 2);
       a.handleForcedRefresh();
       if (action & 1) a.flushReaderSession();
       a.onExit();
+      assert(lockDepth == 0);
       event("state", a.pagesUntilFullRefresh, a.forcedRefreshPending);
       event("publication", a.pageRendered.load(), a.endOfBookOptionsReady.load());
       event("remembered", a.bookRemembered);

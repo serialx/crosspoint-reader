@@ -90,3 +90,7 @@ target_include_directories(ReaderBaseOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_test(NAME reader_base_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
     $<TARGET_FILE:ReaderBaseOracle> ${CMAKE_CURRENT_SOURCE_DIR}/base.golden.gz)
+
+foreach(target ReaderLoopOracle ReaderLoopOracleRelease ReaderBaseOracle)
+  target_compile_options(${target} PRIVATE -UNDEBUG)
+endforeach()

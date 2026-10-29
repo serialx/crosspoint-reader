@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
@@ -11,6 +12,7 @@
 static uint32_t clockMs = 2000;
 static bool lockAvailable = true, busy = false;
 static unsigned logIndex = 0;
+static unsigned lockDepth = 0, lockInstances = 0;
 static void event(const char* name, int a = 0, int b = 0) { std::printf("%u %s %d %d\n", logIndex++, name, a, b); }
 static unsigned long millis() {
   event("millis", clockMs);
@@ -105,9 +107,25 @@ struct MappedInputManager {
 struct RenderLock {
   enum class Mode { Try };
   bool owns;
-  RenderLock() : owns(true) { event("lock"); }
-  explicit RenderLock(Mode) : owns(lockAvailable) { event("try", owns); }
-  ~RenderLock() { event("unlock", owns); }
+  RenderLock() : owns(true) {
+    ++lockDepth;
+    ++lockInstances;
+    event("lock");
+  }
+  explicit RenderLock(Mode) : owns(lockAvailable) {
+    ++lockInstances;
+    if (owns) ++lockDepth;
+    event("try", owns);
+  }
+  ~RenderLock() {
+    assert(lockInstances);
+    --lockInstances;
+    if (owns) {
+      assert(lockDepth);
+      --lockDepth;
+    }
+    event("unlock", owns);
+  }
   bool ownsLock() const { return owns; }
   static bool peek() {
     event("peek", busy);
@@ -572,9 +590,11 @@ int main() {
           }
         std::printf("case %u %u %u\n", phase, action, edge);
         r.loop();
+        assert(lockDepth == 0 && lockInstances == 0);
         state(r);
         clockMs += 201;
         r.loop();
+        assert(lockDepth == 0 && lockInstances == 0);
         state(r);
       }
 }

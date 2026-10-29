@@ -87,3 +87,7 @@ Shared lifecycle generation 3 records requested allocation and release sizes,
 including nested menu paths and document IDs. Delaying the document release
 until the outer onExit returns fails at line 64. Both helpers must release their
 transient strings at the original boundary, before their caller continues.
+
+Both lifecycle fixtures assert that every completed loop/render/lifecycle run
+returns with zero render-lock depth; the full-loop fixture also tracks failed
+try-lock scopes. These assertions stay enabled in both logging configurations.

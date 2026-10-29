@@ -6,3 +6,5 @@ pub mod usb;
 pub mod usb_view;
 pub mod web;
 pub mod web_view;
+
+mod view;

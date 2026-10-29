@@ -1,3 +1,4 @@
+use super::view::resource;
 use super::{
     usb_view::{FOOTER, HEADER},
     web::{Phase, State},
@@ -29,16 +30,6 @@ pub const URL_QR: u32 = 1307;
 pub const PRIMARY_URL: u32 = 1308;
 pub const ALTERNATE_URL: u32 = 1309;
 pub const THICK_LINE: u32 = 1310;
-fn resource(a: &mut Arena<'_>, handle: u32, rect: Rect) -> Result<(), Error> {
-    a.push(Command {
-        kind: Kind::Bitmap as u8,
-        rect,
-        resource: handle,
-        generation: 1,
-        ..Command::default()
-    })?;
-    Ok(())
-}
 fn text(
     a: &mut Arena<'_>,
     l: &Layout,

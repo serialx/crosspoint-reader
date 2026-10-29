@@ -1,3 +1,4 @@
+use super::view::resource;
 use super::{
     calibre::{Phase, State},
     usb_view::{FOOTER, HEADER},
@@ -33,16 +34,6 @@ pub const INSTRUCTION4: u32 = 1208;
 pub const STATUS: u32 = 1209;
 pub const RECEIVING: u32 = 1210;
 pub const COMPLETED: u32 = 1211;
-fn resource(a: &mut Arena<'_>, handle: u32, rect: Rect) -> Result<(), Error> {
-    a.push(Command {
-        kind: Kind::Bitmap as u8,
-        rect,
-        resource: handle,
-        generation: 1,
-        ..Command::default()
-    })?;
-    Ok(())
-}
 fn text(
     a: &mut Arena<'_>,
     l: &Layout,

@@ -11,6 +11,7 @@
 #include <cassert>
 
 #include "MappedInputManager.h"
+#include "NetworkUiBinding.h"
 #include "SilentRestart.h"
 #include "WifiSelectionActivity.h"
 #include "activities/network/CalibreConnectActivity.h"
@@ -378,42 +379,40 @@ XpUiPaint CrossPointWebServerActivity::rustResources() {
           },
           [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
             auto& self = *static_cast<CrossPointWebServerActivity*>(context);
-            const auto& r = command->rect;
-            const char* label = nullptr;
+            using networkui::Kind;
+            networkui::Resource resource{Kind::Text};
             switch (command->resource) {
               case XP_UI_NETWORK_HEADER:
-                GUI.drawHeader(self.renderer, Rect{r.x, r.y, r.w, r.h},
-                               self.renderingState.is_ap ? tr(STR_HOTSPOT_MODE) : tr(STR_FILE_TRANSFER), nullptr);
-                return;
+                resource = {Kind::Header, {self.renderingState.is_ap ? tr(STR_HOTSPOT_MODE) : tr(STR_FILE_TRANSFER)}};
+                break;
               case XP_UI_NETWORK_FOOTER: {
                 self.alternateUrl.reset();
                 self.primaryUrl.reset();
                 self.wifiConfig.reset();
-                const auto labels = self.mappedInput.mapLabels(tr(STR_EXIT), "", "", "");
-                GUI.drawButtonHints(self.renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-                return;
+                resource = {Kind::Footer, {tr(STR_EXIT), "", "", ""}};
+                break;
               }
               case XP_UI_WEB_SUBHEADER:
-                GUI.drawSubHeader(self.renderer, Rect{r.x, r.y, r.w, r.h}, self.connectedSSID.c_str());
-                return;
+                resource = {Kind::Subheader, {self.connectedSSID.c_str()}};
+                break;
               case XP_UI_WEB_STARTING_TEXT:
-                label = tr(STR_STARTING_HOTSPOT);
+                resource.labels[0] = tr(STR_STARTING_HOTSPOT);
                 break;
               case XP_UI_WEB_CONNECT_HINT:
-                label = tr(STR_CONNECT_WIFI_HINT);
+                resource.labels[0] = tr(STR_CONNECT_WIFI_HINT);
                 break;
               case XP_UI_WEB_WIFI_QR:
                 self.wifiConfig.emplace(std::string("WIFI:T:nopass;S:") + self.connectedSSID + ";;");
-                QrUtils::drawQrCode(self.renderer, Rect{r.x, r.y, r.w, r.h}, *self.wifiConfig);
-                return;
+                resource = {Kind::Qr, {}, &*self.wifiConfig};
+                break;
               case XP_UI_WEB_SSID_TEXT:
-                label = self.connectedSSID.c_str();
+                resource.labels[0] = self.connectedSSID.c_str();
                 break;
               case XP_UI_WEB_OPEN_HINT:
-                label = tr(STR_OPEN_URL_HINT);
+                resource.labels[0] = tr(STR_OPEN_URL_HINT);
                 break;
               case XP_UI_WEB_SCAN_HINT:
-                label = tr(STR_SCAN_QR_HINT);
+                resource.labels[0] = tr(STR_SCAN_QR_HINT);
                 break;
               case XP_UI_WEB_URL_QR:
                 if (self.renderingState.is_ap) {
@@ -421,26 +420,22 @@ XpUiPaint CrossPointWebServerActivity::rustResources() {
                   self.alternateUrl.emplace(tr(STR_OR_HTTP_PREFIX) + self.connectedIP + "/");
                 } else
                   self.primaryUrl.emplace("http://" + self.connectedIP + "/");
-                QrUtils::drawQrCode(self.renderer, Rect{r.x, r.y, r.w, r.h}, *self.primaryUrl);
-                return;
+                resource = {Kind::Qr, {}, &*self.primaryUrl};
+                break;
               case XP_UI_WEB_PRIMARY_URL:
-                label = self.primaryUrl->c_str();
+                resource.labels[0] = self.primaryUrl->c_str();
                 break;
               case XP_UI_WEB_ALTERNATE_URL:
                 if (!self.renderingState.is_ap)
                   self.alternateUrl.emplace(std::string(tr(STR_OR_HTTP_PREFIX)) + AP_HOSTNAME + ".local/");
-                label = self.alternateUrl->c_str();
+                resource.labels[0] = self.alternateUrl->c_str();
                 break;
               case XP_UI_WEB_THICK_LINE:
-                self.renderer.drawLine(r.x, r.y, r.x + r.w, r.y + r.h, command->width, command->paint != 1);
-                return;
+                resource.kind = Kind::Line;
+                break;
               default:
                 return;
             }
-            if (command->align == 1)
-              self.renderer.drawCenteredText(command->font, r.y, label, command->paint != 1,
-                                             static_cast<EpdFontFamily::Style>(command->style));
-            else
-              self.renderer.drawUiText(*command, clip, label);
+            networkui::paint(self.renderer, self.mappedInput, *command, clip, resource);
           }};
 }

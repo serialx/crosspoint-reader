@@ -41,7 +41,7 @@ std::string rectText(Rect r) {
          std::to_string(r.height);
 }
 struct {
-  void drawHeader(GfxRenderer&, Rect r, const char* s) {
+  void drawHeader(GfxRenderer&, Rect r, const char* s, const char* = nullptr) {
     allocations::Pause pause;
     chrome.push_back("header:" + rectText(r) + ":" + s);
   }
@@ -92,6 +92,7 @@ struct CalibreConnectActivity {
   bool buildRustScene(XpUiScene&);
   XpUiPaint rustResources();
 };
+// SHARED_BINDING
 // ORIGINAL_RENDER
 // PRODUCTION_METHODS
 int main() {

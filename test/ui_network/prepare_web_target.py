@@ -11,3 +11,8 @@ methods = '\n'.join(prepare.extract(production, 'CrossPointWebServerActivity', n
 qr = re.sub(r'^#include[^\n]*\n', '', (ROOT / 'src/util/QrUtils.cpp').read_text(), flags=re.M)
 source = source.replace('// ORIGINAL_RENDER', original).replace('// PRODUCTION_METHODS', methods).replace('// QR_LEAF', qr)
 Path(sys.argv[1]).write_text(source)
+
+header = re.sub(r'^#(?:include|pragma)[^\n]*\n', '', (ROOT/'src/activities/network/NetworkUiBinding.h').read_text(), flags=re.M)
+binding = re.sub(r'^#include[^\n]*\n', '', (ROOT/'src/activities/network/NetworkUiBinding.cpp').read_text(), flags=re.M)
+source = source.replace("// SHARED_BINDING", header+"\n"+binding)
+Path(sys.argv[1]).write_text(source)

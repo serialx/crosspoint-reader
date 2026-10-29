@@ -1,4 +1,5 @@
 use super::usb::{Phase, State};
+use super::view::resource;
 use crate::scene::{Arena, Command, Error, Kind, Rect};
 use core::ffi::c_void;
 pub const HEADER: u32 = 1000;
@@ -27,15 +28,6 @@ pub struct Layout {
 pub struct TextServices {
     pub context: *mut c_void,
     pub height: Option<unsafe extern "C" fn(*mut c_void, u32, i32, i16, u8, u8) -> i16>,
-}
-fn resource(arena: &mut Arena<'_>, handle: u32, rect: Rect) -> Result<(), Error> {
-    arena.push(Command {
-        kind: Kind::Bitmap as u8,
-        rect,
-        resource: handle,
-        generation: 1,
-        ..Command::default()
-    })
 }
 fn text(
     arena: &mut Arena<'_>,

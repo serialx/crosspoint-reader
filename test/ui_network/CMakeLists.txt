@@ -56,7 +56,8 @@ add_custom_command(OUTPUT ${CALIBRE_TARGET}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_calibre_target.py ${CALIBRE_TARGET}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/CalibreTarget.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/prepare_calibre_target.py ${CMAKE_CURRENT_SOURCE_DIR}/calibre_render_original.inc
-    ${REPO_ROOT}/src/activities/network/CalibreConnectActivity.cpp)
+    ${REPO_ROOT}/src/activities/network/CalibreConnectActivity.cpp
+    ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
 add_executable(NetworkCalibreTarget ${CALIBRE_TARGET} ${NETWORK_RENDER_SOURCES})
 target_include_directories(NetworkCalibreTarget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
 target_compile_definitions(NetworkCalibreTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
@@ -75,7 +76,8 @@ add_custom_command(OUTPUT ${WEB_TARGET}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_web_target.py ${WEB_TARGET}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WebTarget.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/prepare_web_target.py ${CMAKE_CURRENT_SOURCE_DIR}/web_render_original.inc
-    ${REPO_ROOT}/src/util/QrUtils.cpp ${REPO_ROOT}/src/activities/network/CrossPointWebServerActivity.cpp)
+    ${REPO_ROOT}/src/util/QrUtils.cpp ${REPO_ROOT}/src/activities/network/CrossPointWebServerActivity.cpp
+    ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
 add_executable(NetworkWebTarget ${WEB_TARGET} ${NETWORK_RENDER_SOURCES}
   ${REPO_ROOT}/.pio/libdeps/default/QRCode/src/qrcode.c)
 target_include_directories(NetworkWebTarget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}

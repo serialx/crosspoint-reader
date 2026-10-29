@@ -110,6 +110,7 @@ struct CrossPointWebServerActivity {
   bool buildRustScene(XpUiScene&);
   XpUiPaint rustResources();
 };
+// SHARED_BINDING
 // ORIGINAL_RENDER
 // PRODUCTION_METHODS
 int main() {

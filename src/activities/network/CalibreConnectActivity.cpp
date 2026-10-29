@@ -7,6 +7,7 @@
 #include <WiFi.h>
 
 #include "MappedInputManager.h"
+#include "NetworkUiBinding.h"
 #include "SilentRestart.h"
 #include "WifiSelectionActivity.h"
 #include "components/UITheme.h"
@@ -227,52 +228,56 @@ void CalibreConnectActivity::render(RenderLock&&) {
   if (painted) renderer.displayBuffer();
 }
 XpUiPaint CalibreConnectActivity::rustResources() {
-  return {this, nullptr, nullptr,
-          [](void*, uint32_t handle, uint32_t generation) -> uint8_t {
-            return generation == 1 && (handle == XP_UI_NETWORK_HEADER || handle == XP_UI_NETWORK_FOOTER ||
-                                       (handle >= XP_UI_CALIBRE_SUBHEADER && handle <= XP_UI_CALIBRE_COMPLETED_TEXT));
-          },
-          [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
-            auto& self = *static_cast<CalibreConnectActivity*>(context);
-            const auto& r = command->rect;
-            switch (command->resource) {
-              case XP_UI_NETWORK_HEADER:
-                GUI.drawHeader(self.renderer, Rect{r.x, r.y, r.w, r.h}, tr(STR_CALIBRE_WIRELESS));
-                break;
-              case XP_UI_NETWORK_FOOTER: {
-                const auto labels = self.mappedInput.mapLabels(tr(STR_EXIT), "", "", "");
-                GUI.drawButtonHints(self.renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-                break;
-              }
-              case XP_UI_CALIBRE_SUBHEADER:
-                GUI.drawSubHeader(self.renderer, Rect{r.x, r.y, r.w, r.h}, self.connectedSSID.c_str(),
-                                  (std::string(tr(STR_IP_ADDRESS_PREFIX)) + self.connectedIP).c_str());
-                break;
-              case XP_UI_CALIBRE_PROGRESS:
-                GUI.drawProgressBar(self.renderer, Rect{r.x, r.y, r.w, r.h}, self.renderingState.received,
-                                    self.renderingState.total);
-                self.paintingUploadLabel.reset();
-                break;
-              case XP_UI_CALIBRE_RECEIVING_TEXT: {
-                self.paintingUploadLabel.emplace(tr(STR_CALIBRE_RECEIVING));
-                auto& label = *self.paintingUploadLabel;
-                if (!self.currentUploadName.empty()) {
-                  label += ": " + self.currentUploadName;
-                  label =
-                      self.renderer.truncatedText(SMALL_FONT_ID, label.c_str(), r.w - r.x * 2, EpdFontFamily::REGULAR);
-                }
-                self.renderer.drawUiText(*command, clip, label.c_str());
-                break;
-              }
-              case XP_UI_CALIBRE_COMPLETED_TEXT: {
-                std::string msg = std::string(tr(STR_CALIBRE_RECEIVED)) + self.lastCompleteName;
-                msg = self.renderer.truncatedText(SMALL_FONT_ID, msg.c_str(), r.w - r.x * 2, EpdFontFamily::REGULAR);
-                self.renderer.drawUiText(*command, clip, msg.c_str());
-                break;
-              }
-              default:
-                self.renderer.drawUiText(*command, clip, text(command->resource));
-                break;
+  return {
+      this, nullptr, nullptr,
+      [](void*, uint32_t handle, uint32_t generation) -> uint8_t {
+        return generation == 1 && (handle == XP_UI_NETWORK_HEADER || handle == XP_UI_NETWORK_FOOTER ||
+                                   (handle >= XP_UI_CALIBRE_SUBHEADER && handle <= XP_UI_CALIBRE_COMPLETED_TEXT));
+      },
+      [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
+        auto& self = *static_cast<CalibreConnectActivity*>(context);
+        const auto& r = command->rect;
+        using networkui::Kind;
+        networkui::Resource resource{Kind::Text};
+        switch (command->resource) {
+          case XP_UI_NETWORK_HEADER:
+            resource = {Kind::Header, {tr(STR_CALIBRE_WIRELESS)}};
+            break;
+          case XP_UI_NETWORK_FOOTER: {
+            resource = {Kind::Footer, {tr(STR_EXIT), "", "", ""}};
+            break;
+          }
+          case XP_UI_CALIBRE_SUBHEADER: {
+            const auto label = std::string(tr(STR_IP_ADDRESS_PREFIX)) + self.connectedIP;
+            networkui::paint(self.renderer, self.mappedInput, *command, clip,
+                             {Kind::Subheader, {self.connectedSSID.c_str(), label.c_str()}});
+            return;
+          }
+          case XP_UI_CALIBRE_PROGRESS:
+            networkui::paint(self.renderer, self.mappedInput, *command, clip,
+                             {Kind::Progress, {}, nullptr, self.renderingState.received, self.renderingState.total});
+            self.paintingUploadLabel.reset();
+            return;
+          case XP_UI_CALIBRE_RECEIVING_TEXT: {
+            self.paintingUploadLabel.emplace(tr(STR_CALIBRE_RECEIVING));
+            auto& label = *self.paintingUploadLabel;
+            if (!self.currentUploadName.empty()) {
+              label += ": " + self.currentUploadName;
+              label = self.renderer.truncatedText(SMALL_FONT_ID, label.c_str(), r.w - r.x * 2, EpdFontFamily::REGULAR);
             }
-          }};
+            resource.labels[0] = label.c_str();
+            break;
+          }
+          case XP_UI_CALIBRE_COMPLETED_TEXT: {
+            std::string msg = std::string(tr(STR_CALIBRE_RECEIVED)) + self.lastCompleteName;
+            msg = self.renderer.truncatedText(SMALL_FONT_ID, msg.c_str(), r.w - r.x * 2, EpdFontFamily::REGULAR);
+            networkui::paint(self.renderer, self.mappedInput, *command, clip, {Kind::Text, {msg.c_str()}});
+            return;
+          }
+          default:
+            resource.labels[0] = text(command->resource);
+            break;
+        }
+        networkui::paint(self.renderer, self.mappedInput, *command, clip, resource);
+      }};
 }

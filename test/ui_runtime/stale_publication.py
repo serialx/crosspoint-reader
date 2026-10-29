@@ -20,7 +20,7 @@ families = {
                       ['state.navigation_revision=1;next.navigation_revision=0;']),
  'KOReaderUiActivity': ('reader', '''XpKoState model{},painting{};uint8_t nextHits=0;bool sceneFailed=false;''',
                       ['model.phase=1;painting.phase=0;']),
- 'UpdateUiActivity': ('settings', '''XpUiUpdateState model{},painting{};XpUiUpdateFeedback feedback{},next{};bool routesReady=false;''',
+ 'UpdateUiActivity': ('settings', '''XpUiUpdateState model{},painting{};XpUiUpdateFeedback feedback{},next{};''',
                     ['model.phase=1;painting.phase=0;', 'model.popup_active=1;painting.popup_active=0;']),
  'CatalogUiActivity': ('', '''XpUiCatalogState ui{},paintState{};XpUiListState next{};XpUiCatalogHits publishedHits{},nextHits{};int consumedScroll=0;bool sceneFailed=false;''',
                      ['ui.mode=1;paintState.mode=0;', 'ui.popup=1;paintState.popup=0;']),
@@ -68,7 +68,7 @@ code+='int main(int argc,char**argv){GfxRenderer r;MappedInputManager i;\n'
 for name,(_,_,cases) in families.items():
     for index,setup in enumerate(cases):
         setup=";".join("a."+part for part in setup.split(";") if part)+";"
-        assertion="!a.publication.ready || !a.routesReady" if name=="UpdateUiActivity" else "!a.publication.ready"
+        assertion="!a.publication.ready"
         code+=f'''if(argc<2||std::string(argv[1])=="{name}"){{ {name} a("stale",r,i);{setup}
  i={{}};i.pressed=i.held=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();
  a.complete();assert({assertion});assert(a.failures==0);

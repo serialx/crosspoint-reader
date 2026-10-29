@@ -57,7 +57,6 @@ class UpdateUiActivity : public RustActivityAdapter {
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};
   bool pendingHaptic = false;
-  bool routesReady = false;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t capacity = 0;
   int inputRowCount = 0;

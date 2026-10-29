@@ -59,7 +59,7 @@ class UpdateUiActivity : public RustActivityAdapter {
   XpUiUpdateState model{}, painting{};
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};
-  bool pendingHaptic = false, routesReady = false;
+  bool pendingHaptic = false;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t capacity = 0;
   int inputRowCount = 3, inputFamilyCount = 3;
@@ -147,11 +147,11 @@ int main() {
   xp_ui_updates_init(&font.model, XP_UI_UPDATE_FONTS, 0);
   font.model.phase = 3;
   font.model.has_groups = 1;
-  font.publication.ready = font.routesReady = true;
+  font.publication.ready = true;
   font.feedback.rows.first_row = {0, 0, 100, 20};
   font.feedback.rows.count = font.feedback.rows.uniform = 1;
   font.input(0, XP_UI_BACK);
-  assert(font.model.phase == 2 && !font.routesReady && !font.publication.ready);
+  assert(font.model.phase == 2 && !font.publication.ready);
   XpUiInput tap{};
   tap.touch_flags = XP_UI_TOUCH_RELEASED;
   tap.touch_x = tap.touch_y = 5;

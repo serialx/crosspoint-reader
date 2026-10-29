@@ -83,7 +83,7 @@ struct UpdateUiActivity {
   XpUiUpdateState model{}, painting{};
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};
-  bool pendingHaptic = false, routesReady = true;
+  bool pendingHaptic = false;
   int inputRowCount = 5, inputFamilyCount = 4;
   virtual ~UpdateUiActivity() = default;
   virtual void prepareRows() = 0;
@@ -130,7 +130,6 @@ struct UpdateUiActivity {
   void closeRouting() {
     ModelLock lock(*this);
     publication.ready = false;
-    routesReady = false;
   }
   void notify(XpUiUpdateEvent e) {
     ModelLock lock(*this);

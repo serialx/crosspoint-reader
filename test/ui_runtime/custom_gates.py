@@ -41,7 +41,7 @@ struct UpdateUiActivity:RustActivityAdapter {
  using RustActivityAdapter::RustActivityAdapter;
  struct ResourceLock{ResourceLock(UpdateUiActivity&){}};
  Publication publication;XpUiUpdateState model{},painting{};XpUiUpdateFeedback feedback{},next{};
- XpUiUpdateEffect pending{};bool pendingHaptic=false,routesReady=false,buildOk=true;
+ XpUiUpdateEffect pending{};bool pendingHaptic=false,buildOk=true;
  int inputRowCount=3,inputFamilyCount=3;unsigned activations=0,backs=0,failures=0;
  Publication* rustPublication()override{return &publication;}
  bool buildRustScene(XpUiScene& s)override{painting=model;s={};next={};

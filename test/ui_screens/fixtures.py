@@ -54,12 +54,16 @@ def prepare(case, kind):
     if kind.startswith('entry-'):
         name = kind.removeprefix('entry-')
         allowed = {'details-plain', 'details-html', 'details-cover', 'frontlight-mono', 'frontlight-warm',
-                   'unknown', 'oversized', 'settings-home-button'}
+                   'unknown', 'oversized', 'settings-home-button',
+                   'kosync-hash', 'kosync-fetch', 'kosync-clippings', 'kosync-uploading', 'kosync-uploaded', 'kosync-synced', 'kosync-missing', 'kosync-credentials', 'kosync-failed', 'kosync-result', 'koauth-busy', 'koauth-success', 'koauth-failed', 'koauth-signup-busy', 'koauth-signup-success', 'koauth-signup-failed'}
         if name not in allowed:
             raise ValueError(f'Unknown activity fixture: {kind}')
         selector = root / 'ui-oracle-case.txt'
         selector.write_text('x' * 32 if name == 'oversized' else name)
         assets = [(selector, '/.crosspoint')]
+        if name.startswith('kosync-'):
+            epub(root / 'Oracle.epub')
+            assets.append((root / 'Oracle.epub', '/'))
         if name == 'details-cover':
             cover_png(root / 'OracleCover.png')
             assets.append((root / 'OracleCover.png', '/'))

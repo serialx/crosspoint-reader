@@ -55,6 +55,12 @@ void KOReaderAuthActivity::performAuthentication() {
 
 void KOReaderAuthActivity::onEnter() {
   Activity::onEnter();
+#ifdef CROSSPOINT_UI_ORACLE
+  if (oracleFreeze) {
+    requestUpdate();
+    return;
+  }
+#endif
 
   // Check if already connected
   if (WiFi.status() == WL_CONNECTED) {

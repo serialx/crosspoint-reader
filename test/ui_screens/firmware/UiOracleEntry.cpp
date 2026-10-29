@@ -8,6 +8,7 @@
 
 #include "FixtureSelector.h"
 #include "UiOracleFrontlight.h"
+#include "UiOracleKOReader.h"
 #include "activities/ActivityManager.h"
 #include "activities/settings/HomeButtonSettingsActivity.h"
 #include "activities/util/DetailsActivity.h"
@@ -64,6 +65,10 @@ void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
   }
   const auto selected = uiOracleCase(std::string_view(selector, size));
   switch (selected) {
+    case UiOracleCase::KOReaderSync:
+    case UiOracleCase::KOReaderAuth:
+      UiOracleKOReader::enter(renderer, input, std::string_view(selector, size));
+      return;
     // Settings-family fixtures bypass only the parent capability gate.
     case UiOracleCase::SettingsHomeButton: {
       auto activity = makeUniqueNoThrow<HomeButtonSettingsActivity>(renderer, input);

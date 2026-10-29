@@ -33,6 +33,10 @@ class KOReaderSyncActivity final : public Activity, private UiAppHost {
   bool preventAutoSleep() override { return state == CONNECTING || state == SYNCING || state == UPLOADING; }
 
  private:
+#ifdef CROSSPOINT_UI_ORACLE
+  friend struct UiOracleKOReader;
+  bool oracleFreeze = false;
+#endif
   enum State {
     WIFI_SELECTION,
     CONNECTING,

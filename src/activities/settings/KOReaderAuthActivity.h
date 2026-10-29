@@ -23,6 +23,10 @@ class KOReaderAuthActivity final : public Activity {
   bool preventAutoSleep() override { return state == CONNECTING || state == AUTHENTICATING; }
 
  private:
+#ifdef CROSSPOINT_UI_ORACLE
+  friend struct UiOracleKOReader;
+  bool oracleFreeze = false;
+#endif
   enum State { WIFI_SELECTION, CONNECTING, AUTHENTICATING, SUCCESS, FAILED };
 
   Mode mode = Mode::AUTHENTICATE;

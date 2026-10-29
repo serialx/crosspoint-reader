@@ -447,6 +447,12 @@ void KOReaderSyncActivity::performUpload() {
 void KOReaderSyncActivity::onEnter() {
   Activity::onEnter();
   ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
+#ifdef CROSSPOINT_UI_ORACLE
+  if (oracleFreeze) {
+    requestUpdate();
+    return;
+  }
+#endif
 
   resetUi();
   app.on(ACTION_ROW, &KOReaderSyncActivity::onResultRow, this);

@@ -2555,11 +2555,257 @@
       "id": "fixture-settings-home-button",
       "fixture": "entry-settings-home-button",
       "screens": [
-        {"id": "home-button", "activity": "HomeButtonSettings", "steps": ["expect-log:Entering activity: HomeButtonSettings", "wait-quiet:2"]},
-        {"id": "home-button-options", "activity": "HomeButtonSettings", "steps": ["press:confirm"]},
-        {"id": "home-button-cancel", "activity": "HomeButtonSettings", "steps": ["press:back"]},
-        {"id": "home-button-double", "activity": "HomeButtonSettings", "steps": ["press:down"]},
-        {"id": "home-button-long", "activity": "HomeButtonSettings", "steps": ["press:down"]}
+        {
+          "id": "home-button",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "expect-log:Entering activity: HomeButtonSettings",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "home-button-options",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "home-button-cancel",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "home-button-double",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        },
+        {
+          "id": "home-button-long",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-hash",
+      "fixture": "entry-kosync-hash",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-hash",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-fetch",
+      "fixture": "entry-kosync-fetch",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-fetch",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-clippings",
+      "fixture": "entry-kosync-clippings",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-clippings",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-uploading",
+      "fixture": "entry-kosync-uploading",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-uploading",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-uploaded",
+      "fixture": "entry-kosync-uploaded",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-uploaded",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-synced",
+      "fixture": "entry-kosync-synced",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-synced",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-missing",
+      "fixture": "entry-kosync-missing",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-missing",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-credentials",
+      "fixture": "entry-kosync-credentials",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-credentials",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-failed",
+      "fixture": "entry-kosync-failed",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-failed",
+          "activity": "KOReaderSync",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-kosync-result",
+      "fixture": "entry-kosync-result",
+      "rotates": true,
+      "settings": {},
+      "screens": [
+        {
+          "id": "kosync-result",
+          "activity": "KOReaderSync",
+          "steps": []
+        },
+        {
+          "id": "kosync-result-local",
+          "activity": "KOReaderSync",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-busy",
+      "fixture": "entry-koauth-busy",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-busy",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-success",
+      "fixture": "entry-koauth-success",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-success",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-failed",
+      "fixture": "entry-koauth-failed",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-failed",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-signup-busy",
+      "fixture": "entry-koauth-signup-busy",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-signup-busy",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-signup-success",
+      "fixture": "entry-koauth-signup-success",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-signup-success",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-koauth-signup-failed",
+      "fixture": "entry-koauth-signup-failed",
+      "rotates": false,
+      "settings": {},
+      "screens": [
+        {
+          "id": "koauth-signup-failed",
+          "activity": "KOReaderAuth",
+          "steps": []
+        }
       ]
     }
   ]

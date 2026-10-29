@@ -1,0 +1,1800 @@
+CASE manual-remote
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+save 2 3 0 1 77
+reader /book.epub
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE manual-local
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+repaint-wait
+book-close
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=0
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+power-restore
+wifi-stop
+repaint 1
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE save-failure
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+save 2 3 0 1 77
+repaint 1
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE no-credentials
+enter
+orientation 0
+repaint 0
+state 9 0 0 
+reader /book.epub
+exit
+CASE wifi-cancel
+enter
+orientation 0
+DBG KOSync Launching WifiSelectionActivity...
+wifi-select
+DBG KOSync WiFi connection failed, exiting
+reader /book.epub
+state 0 0 0 
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE wifi-select
+enter
+orientation 0
+DBG KOSync Launching WifiSelectionActivity...
+wifi-select
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE hash-failure
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+repaint 1
+power-restore
+state 8 0 0 STR_HASH_FAILED
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE clippings
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+loan
+clippings /book.epub primary
+unloan
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE clippings-failure
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+loan
+clippings /book.epub primary
+unloan
+repaint 1
+power-restore
+state 8 0 0 STR_CLIPPING_SYNC_FAILED
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=1 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 8 0 0 NO_CREDENTIALS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=2 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 8 0 0 NETWORK_ERROR
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=3 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 8 0 0 AUTH_FAILED
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=4 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 8 0 0 SERVER_ERROR
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=5 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 8 0 0 JSON_ERROR
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 7 0 0 STR_FETCH_PROGRESS
+repaint-wait
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=0
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+power-restore
+wifi-stop
+repaint 1
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=7 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 8 0 0 LOW_MEMORY
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE fetch-result
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=8 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 8 0 0 USER_EXISTS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE book-failure
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+ERR KOSync Failed to load epub for progress mapping
+book-close
+repaint 1
+power-restore
+state 8 0 0 
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE smart
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=6 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=0 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+repaint-wait
+book-close
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=0
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+power-restore
+wifi-stop
+repaint 1
+power-restore
+state 5 0 1300 STR_UPLOAD_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE smart
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=6 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=1 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+repaint 1
+power-restore
+state 6 0 1300 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE smart
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=6 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=2 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+save 2 3 0 1 77
+reader /book.epub
+power-restore
+state 2 0 0 STR_FETCH_PROGRESS
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE smart
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=6 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=3 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+DBG KOSync Smart sync comparison unknown; opening manual selection
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE smart-missing
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=6 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Smart sync: no remote progress found for known document hashes; uploading local 0.250000
+repaint-wait
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=0
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+power-restore
+wifi-stop
+repaint 1
+power-restore
+state 5 0 1300 STR_UPLOAD_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE alternate-only
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=0 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=3 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+DBG KOSync Smart sync comparison unknown; opening manual selection
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE both-primary
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=0 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+select-record
+DBG KOSync Kept primary remote record after mapped-position comparison
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=3 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+DBG KOSync Smart sync comparison unknown; opening manual selection
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE both-alternate
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+get alternate
+DBG KOSync Alternate remote (binary): result=0 http=200 doc=alternate local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+select-record
+DBG KOSync Selected alternate remote record after mapped-position comparison
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=3 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+DBG KOSync Smart sync comparison unknown; opening manual selection
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE same-hash
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=3 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+DBG KOSync Smart sync comparison unknown; opening manual selection
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE alt-hash-failure
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=0 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+hash-binary
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+loan
+map /body/DocFragment[3]/body/p[4] 0.750000 1 10
+unloan
+compare
+DBG KOSync Smart decision: doc=primary result=3 local=0.250000 remote=0.750000 remoteXpath=/body/DocFragment[3]/body/p[4] mapped=2/3
+DBG KOSync Smart sync comparison unknown; opening manual selection
+repaint 1
+power-restore
+state 3 0 0 STR_FETCH_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+book-close
+CASE plugin-only
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+plugin-drain
+repaint 1
+state 6 0 1300 STR_SYNC_PROGRESS
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE metadata
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 7 0 0 STR_FETCH_PROGRESS
+repaint-wait
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+metadata
+read /book.epub.meta.json 2048
+book-close
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=1
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+meta book.epub Title Author {}
+power-restore
+wifi-stop
+repaint 1
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE metadata-book-failure
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 7 0 0 STR_FETCH_PROGRESS
+repaint-wait
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+ERR KOSync Failed to load epub for progress mapping
+book-close
+ERR KOSync Epub unavailable for metadata; sending filename only
+read /book.epub.meta.json 2048
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=1
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+meta book.epub   {}
+power-restore
+wifi-stop
+repaint 1
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE standard-server
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 7 0 0 STR_FETCH_PROGRESS
+repaint-wait
+DBG KOSync Loading epub for progress mapping (heap: 123456)
+book-open /book.epub /.crosspoint
+cache-dir
+book-load 0 1
+DBG KOSync Epub loaded (heap: 123456)
+metadata
+read /book.epub.meta.json 2048
+book-close
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=0 metadata=1
+meta book.epub Title Author {}
+power-restore
+wifi-stop
+repaint 1
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE upload-failure
+enter
+orientation 0
+DBG KOSync Already connected to WiFi
+DBG KOSync WiFi connected, starting sync
+wifi-sleep 0
+DBG KOSync WiFi sleep disabled for sync
+repaint 1
+power-guard
+hash-filename
+DBG KOSync Document hash (filename): primary
+repaint-wait
+get primary
+DBG KOSync Primary remote (filename): result=6 http=200 doc=primary local=0.250000 remote=0.750000 xpath=/body/DocFragment[3]/body/p[4]
+repaint 1
+power-restore
+state 7 0 0 STR_FETCH_PROGRESS
+repaint-wait
+power-guard
+put primary /body/DocFragment[2]/body/p[3] 0.250000 rich=1 metadata=0
+rich 250000 1 2 10 0 0 /body/DocFragment[2]/body/p[3]
+power-restore
+wifi-stop
+repaint 0
+reader /book.epub
+exit
+wifi-disconnect 0
+delay 30
+restart-reader
+CASE auth 0 0
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 3 STR_AUTH_SUCCESS 
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 1
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING NO_CREDENTIALS
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 2
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING NETWORK_ERROR
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 3
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING AUTH_FAILED
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 4
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING SERVER_ERROR
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 5
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING JSON_ERROR
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 6
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING NOT_FOUND
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 7
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING LOW_MEMORY
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 0 8
+enter
+repaint 0
+power-guard
+authenticate
+repaint 0
+power-restore
+state 4 STR_AUTHENTICATING STR_USERNAME_TAKEN
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 0
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 3 STR_ACCOUNT_CREATED 
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 1
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT NO_CREDENTIALS
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 2
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT NETWORK_ERROR
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 3
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT AUTH_FAILED
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 4
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT SERVER_ERROR
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 5
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT JSON_ERROR
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 6
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT NOT_FOUND
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 7
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT LOW_MEMORY
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE auth 1 8
+enter
+repaint 0
+power-guard
+register
+repaint 0
+power-restore
+state 4 STR_CREATING_ACCOUNT STR_USERNAME_TAKEN
+finish
+exit
+wifi-disconnect 0
+delay 30
+restart
+CASE settings 0 0 []
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+credentials [] [secret]
+credentials-save
+CASE settings 0 0 [https://]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+credentials [https://] [secret]
+credentials-save
+CASE settings 0 0 [http://]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+credentials [http://] [secret]
+credentials-save
+CASE settings 0 0 [new-value]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+credentials [new-value] [secret]
+credentials-save
+CASE settings 0 0 [X-Test: secret]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+credentials [X-Test: secret] [secret]
+credentials-save
+CASE settings 0 1 []
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+CASE settings 0 1 [https://]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+CASE settings 0 1 [http://]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+CASE settings 0 1 [new-value]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+CASE settings 0 1 [X-Test: secret]
+clear-flash
+keyboard STR_KOREADER_USERNAME [user] 64 0
+wifi-select
+CASE settings 1 0 []
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+credentials [user] []
+credentials-save
+CASE settings 1 0 [https://]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+credentials [user] [https://]
+credentials-save
+CASE settings 1 0 [http://]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+credentials [user] [http://]
+credentials-save
+CASE settings 1 0 [new-value]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+credentials [user] [new-value]
+credentials-save
+CASE settings 1 0 [X-Test: secret]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+credentials [user] [X-Test: secret]
+credentials-save
+CASE settings 1 1 []
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+CASE settings 1 1 [https://]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+CASE settings 1 1 [http://]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+CASE settings 1 1 [new-value]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+CASE settings 1 1 [X-Test: secret]
+clear-flash
+keyboard STR_KOREADER_PASSWORD [secret] 64 1
+wifi-select
+CASE settings 2 0 []
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+server-url []
+credentials-save
+CASE settings 2 0 [https://]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+server-url []
+credentials-save
+CASE settings 2 0 [http://]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+server-url []
+credentials-save
+CASE settings 2 0 [new-value]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+server-url [new-value]
+credentials-save
+CASE settings 2 0 [X-Test: secret]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+server-url [X-Test: secret]
+credentials-save
+CASE settings 2 1 []
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+CASE settings 2 1 [https://]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+CASE settings 2 1 [http://]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+CASE settings 2 1 [new-value]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+CASE settings 2 1 [X-Test: secret]
+clear-flash
+keyboard STR_SYNC_SERVER_URL [https://] 128 2
+wifi-select
+CASE settings 3 0 []
+clear-flash
+popup 3 0
+repaint 0
+server-type 1
+credentials-save
+CASE settings 3 0 [https://]
+clear-flash
+popup 3 0
+repaint 0
+server-type 1
+credentials-save
+CASE settings 3 0 [http://]
+clear-flash
+popup 3 0
+repaint 0
+server-type 1
+credentials-save
+CASE settings 3 0 [new-value]
+clear-flash
+popup 3 0
+repaint 0
+server-type 1
+credentials-save
+CASE settings 3 0 [X-Test: secret]
+clear-flash
+popup 3 0
+repaint 0
+server-type 1
+credentials-save
+CASE settings 3 1 []
+clear-flash
+popup 3 0
+repaint 0
+CASE settings 3 1 [https://]
+clear-flash
+popup 3 0
+repaint 0
+CASE settings 3 1 [http://]
+clear-flash
+popup 3 0
+repaint 0
+CASE settings 3 1 [new-value]
+clear-flash
+popup 3 0
+repaint 0
+CASE settings 3 1 [X-Test: secret]
+clear-flash
+popup 3 0
+repaint 0
+CASE settings 4 0 []
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [] 160 0
+wifi-select
+header 0 [] []
+credentials-save
+CASE settings 4 0 [https://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [] 160 0
+wifi-select
+header 0 [https] [//]
+credentials-save
+CASE settings 4 0 [http://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [https: //] 160 0
+wifi-select
+header 0 [http] [//]
+credentials-save
+CASE settings 4 0 [new-value]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [http: //] 160 0
+wifi-select
+header 0 [new-value] []
+credentials-save
+CASE settings 4 0 [X-Test: secret]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [new-value: ] 160 0
+wifi-select
+header 0 [X-Test] [ secret]
+credentials-save
+CASE settings 4 1 []
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 4 1 [https://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 4 1 [http://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 4 1 [new-value]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 4 1 [X-Test: secret]
+clear-flash
+keyboard STR_CUSTOM_HEADER_1 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 5 0 []
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [] 160 0
+wifi-select
+header 1 [] []
+credentials-save
+CASE settings 5 0 [https://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [] 160 0
+wifi-select
+header 1 [https] [//]
+credentials-save
+CASE settings 5 0 [http://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [https: //] 160 0
+wifi-select
+header 1 [http] [//]
+credentials-save
+CASE settings 5 0 [new-value]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [http: //] 160 0
+wifi-select
+header 1 [new-value] []
+credentials-save
+CASE settings 5 0 [X-Test: secret]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [new-value: ] 160 0
+wifi-select
+header 1 [X-Test] [ secret]
+credentials-save
+CASE settings 5 1 []
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 5 1 [https://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 5 1 [http://]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 5 1 [new-value]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 5 1 [X-Test: secret]
+clear-flash
+keyboard STR_CUSTOM_HEADER_2 [X-Test:  secret] 160 0
+wifi-select
+CASE settings 6 0 []
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 0 [https://]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 0 [http://]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 0 [new-value]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 0 [X-Test: secret]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 1 []
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 1 [https://]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 1 [http://]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 1 [new-value]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 6 1 [X-Test: secret]
+clear-flash
+matching 1
+credentials-save
+repaint 0
+CASE settings 7 0 []
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 0 [https://]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 0 [http://]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 0 [new-value]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 0 [X-Test: secret]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 1 []
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 1 [https://]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 1 [http://]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 1 [new-value]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 7 1 [X-Test: secret]
+clear-flash
+send-metadata 1
+credentials-save
+repaint 0
+CASE settings 8 0 []
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 0 [https://]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 0 [http://]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 0 [new-value]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 0 [X-Test: secret]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 1 []
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 1 [https://]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 1 [http://]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 1 [new-value]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 8 1 [X-Test: secret]
+clear-flash
+behavior 1
+credentials-save
+repaint 0
+CASE settings 9 0 []
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 0 [https://]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 0 [http://]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 0 [new-value]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 0 [X-Test: secret]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 1 []
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 1 [https://]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 1 [http://]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 1 [new-value]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 9 1 [X-Test: secret]
+clear-flash
+send-clippings 1
+credentials-save
+repaint 0
+CASE settings 10 0 []
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 0 [https://]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 0 [http://]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 0 [new-value]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 0 [X-Test: secret]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 1 []
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 1 [https://]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 1 [http://]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 1 [new-value]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 10 1 [X-Test: secret]
+clear-flash
+auth-open 1
+wifi-select
+CASE settings 11 0 []
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 0 [https://]
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 0 [http://]
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 0 [new-value]
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 0 [X-Test: secret]
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 1 []
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 1 [https://]
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 1 [http://]
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 1 [new-value]
+clear-flash
+auth-open 0
+wifi-select
+CASE settings 11 1 [X-Test: secret]
+clear-flash
+auth-open 0
+wifi-select
+CASE disabled 10
+clear-flash
+CASE disabled 11
+clear-flash
+CASE auth-cancel
+enter
+wifi-select
+repaint 0
+state 4 STR_WIFI_CONN_FAILED
+finish
+exit

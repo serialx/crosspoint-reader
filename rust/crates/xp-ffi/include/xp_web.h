@@ -31,7 +31,8 @@ typedef enum {
   XP_WEB_CLIENT_WRITE,
   XP_WEB_CLIENT_CLEAR,
   XP_WEB_CREATE,
-  XP_WEB_AVAILABLE
+  XP_WEB_AVAILABLE,
+  XP_WEB_OPEN_READ
 } XpWebIo;
 typedef enum { XP_WEB_CACHE, XP_WEB_REMOVE_BOOK, XP_WEB_MOVE_BOOK, XP_WEB_LIBRARY_BOOK } XpWebBook;
 typedef enum {
@@ -110,7 +111,9 @@ typedef enum {
   XP_WEB_UPLOAD_ERROR,
   XP_WEB_WS_NAME,
   XP_WEB_WS_PATH,
-  XP_WEB_WS_COMPLETE_NAME
+  XP_WEB_WS_COMPLETE_NAME,
+  XP_WEB_FONT_FAMILY,
+  XP_WEB_FONT_PATH
 } XpWebStoredText;
 typedef enum {
   XP_WEB_UPLOAD_STOPPED,
@@ -218,6 +221,11 @@ typedef enum {
   XP_WEB_CONFIG_WIFI_DELETED
 } XpWebConfigDiagnostic;
 typedef struct {
+  XpWebText (*request_header)(void*, const char*);
+  void (*send_asset)(void*, XpWebText);
+  XpWebText asset, etag;
+} XpWebAsset;
+typedef struct {
   const XpWebServices* files;
   XpWebText (*parse)(void*, XpWebText);
   XpWebJsonValue (*json_value)(void*, const char*, int32_t header, bool convert);
@@ -233,12 +241,70 @@ typedef struct {
   bool (*wifi)(void*, size_t, uint32_t read, XpWebWifi*);
   bool (*put_wifi)(void*, XpWebText, XpWebText);
   bool (*remove_wifi)(void*, XpWebText);
-  XpWebText (*request_header)(void*, const char*);
-  void (*send_asset)(void*, XpWebText);
-  XpWebText asset, etag;
+  XpWebAsset page;
   void (*diagnostic)(void*, uint32_t, size_t, XpWebText);
 } XpWebConfig;
 void xp_web_config(void*, const XpWebConfig*, uint32_t route);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Registry views and paths are borrowed until the next family/file callback.
+// The path is NUL-terminated. Upload buffers and stored strings keep their
+// existing C++ owner; scalar state is copied back after the serialized call.
+typedef struct {
+  XpWebText name, sizes;
+  size_t files;
+} XpWebFontFamily;
+typedef struct {
+  size_t bytes, buffer_pos;
+  uint8_t* buffer;
+  bool valid, magic_checked, vector;
+} XpWebFontUpload;
+typedef enum { XP_WEB_FONT_LIST, XP_WEB_FONT_DELETE, XP_WEB_FONT_PAGE } XpWebFontRoute;
+typedef enum { XP_WEB_FONT_REFRESH, XP_WEB_FONT_MAX, XP_WEB_FONT_PSRAM, XP_WEB_FONT_DIRTY } XpWebFontRegistryOp;
+typedef enum {
+  XP_WEB_FONT_VALID_FAMILY,
+  XP_WEB_FONT_VALID_CPFONT,
+  XP_WEB_FONT_VALID_VECTOR,
+  XP_WEB_FONT_ENSURE_DIR,
+  XP_WEB_FONT_BUILD_PATH,
+  XP_WEB_FONT_REMOVE_FAMILY
+} XpWebFontInstallOp;
+typedef enum {
+  XP_WEB_FONT_SERVED,
+  XP_WEB_FONT_BAD_FAMILY,
+  XP_WEB_FONT_BAD_NAME,
+  XP_WEB_FONT_DIR_FAILED,
+  XP_WEB_FONT_OOM,
+  XP_WEB_FONT_OPEN_FAILED,
+  XP_WEB_FONT_STARTED,
+  XP_WEB_FONT_BAD_MAGIC,
+  XP_WEB_FONT_WRITE_FAILED,
+  XP_WEB_FONT_ENDED,
+  XP_WEB_FONT_ABORTED,
+  XP_WEB_FONT_COMPLETE,
+  XP_WEB_FONT_DELETED,
+  XP_WEB_FONT_DELETE_FAILED,
+  XP_WEB_FONT_JSON_OOM
+} XpWebFontDiagnostic;
+typedef struct {
+  const XpWebTransfers* transfers;
+  XpWebText (*parse)(void*, XpWebText);
+  XpWebText (*json_string)(void*, const char*);
+  size_t (*registry)(void*, uint32_t);
+  void (*family)(void*, size_t, XpWebFontFamily*);
+  XpWebText (*file)(void*, size_t, size_t);
+  bool (*install)(void*, uint32_t, const char*, const char*, uint8_t*, size_t);
+  XpWebAsset page;
+  void (*diagnostic)(void*, uint32_t, XpWebText, XpWebText, size_t, bool);
+} XpWebFonts;
+void xp_web_fonts(void*, const XpWebFonts*, uint32_t route);
+// Upload status matches xp_web_upload: start=0, write=1, end=2, aborted=3, response=4.
+void xp_web_font_upload(void*, const XpWebFonts*, XpWebFontUpload*, uint32_t, XpWebText, const uint8_t*, size_t);
 #ifdef __cplusplus
 }
 #endif

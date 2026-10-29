@@ -5,6 +5,12 @@
 #include <DeviceSecret.h>
 #include <TrustedTime.h>
 #include <HalClock.h>
+#include <HalSystem.h>
+#include <HalHaptics.h>
+#include <HalStorage.h>
+#include <SDCardManager.h>
+#include <UsbMassStorage.h>
+#include <esp_heap_caps.h>
 #include <HalDisplay.h>
 #include <HalPowerManager.h>
 #include <BoardConfig.h>
@@ -14,6 +20,11 @@
 #include <HalTiltSensor.h>
 #include <cstring>
 #include <initializer_list>
+extern char panicMessage[256];
+extern HalSystem::StackFrame panicStack[32];
+extern volatile uint32_t panicCaptureMarker;
+extern "C" void __real_panic_abort(const char*) {}
+extern "C" void __real_panic_print_backtrace(const void*,int) {}
 int main(int argc, char** argv) {
  if (argc != 3) return 2;
  const int variant = atoi(argv[2]);
@@ -66,6 +77,29 @@ int main(int argc, char** argv) {
   }
   imuRead = false; ticks += 1000; sensor.update(1,0,true); sensor.update(1,0,false);
   sensor.clearPendingEvents(); sensor.deepSleep();
+ } else if (!strcmp(argv[1], "haptics")) {
+  motorBegin=variant==0;
+  for (bool enabled : {false,true}) for (bool pressed : {false,true}) for (uint8_t intensity : {0,1,2,255}) {
+   HalHaptics::feedback(enabled,pressed,intensity);HalHaptics::longPress(enabled,intensity);
+  }
+ } else if (!strcmp(argv[1], "system")) {
+  strcpy(panicMessage,"panic fixture");panicStack[0].sp=0x12345678;
+  for(unsigned i=0;i<8;++i) panicStack[0].spp[i]=i;
+  resetCause=variant==0?ESP_RST_POWERON:variant==1?ESP_RST_PANIC:variant==2?ESP_RST_CPU_LOCKUP:ESP_RST_TASK_WDT;
+  panicCaptureMarker=variant==3?0:0x50414e49u;
+  fileOk=variant!=4;writeLength=variant==5?3:-2;
+  HalSystem::begin();printf("panic %u\n",HalSystem::isRebootFromPanic());
+  puts(HalSystem::getPanicInfo(true).c_str());HalSystem::checkPanic();
+  printf("marker %u\n",panicCaptureMarker);HalSystem::clearPanic();
+ } else if (!strcmp(argv[1], "storage")) {
+  fileOk=variant!=1;directory=variant==2;fileLength=variant==3?0:40;
+  largestBlock=variant==5?551:552;readLength=variant==6?39:variant==7?-1:-2;
+  std::string result="old";
+  printf("string result %u\n",Storage.readFileToString("TEST","/book",variant==4?39:40,result));
+  printf("bytes %zu ",result.size());for(auto b:result) printf("%02x",uint8_t(b));puts("");
+  { HalFile file; Storage.openFileForRead("TEST","/old",file); Storage.openFileForRead("TEST","/new",file); }
+  detachOk=variant!=8;usbBegin=variant!=9;mountOk=false;
+  printf("usb result %u\n",Storage.beginUsbDrive());
  } else if (!strcmp(argv[1], "display")) {
   deviceOverride = variant % 2 + 1; gpio.begin();
   for (int reset : {ESP_RST_UNKNOWN, ESP_RST_POWERON, ESP_RST_DEEPSLEEP, ESP_RST_OTHER}) {

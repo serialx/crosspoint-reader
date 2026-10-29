@@ -33,3 +33,4 @@ inline bool setCpuFrequencyMhz(int mhz) { printf("cpu set %d %u\n", mhz, cpuOk);
 constexpr int HIGH = 1;
 inline int digitalValue = 0;
 inline int digitalRead(int p) { printf("digital %d\n", p); return digitalValue; }
+#include <esp_sleep.h>

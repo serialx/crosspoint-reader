@@ -2961,6 +2961,155 @@ typedef struct {
 bool xp_book_txt_validate(const XpBookTxtFileServices*, size_t cached, const uint8_t* tag, size_t len);
 bool xp_book_txt_convert(const XpBookTxtFileServices*, uint32_t kind, int32_t height);
 
+// Dictionary callbacks borrow all handles and buffers for the call; no pointer is retained.
+typedef struct {
+  void* context;
+  int32_t (*read)(void*, uint8_t*, size_t);
+  size_t (*write)(void*, const uint8_t*, size_t);
+  bool (*seek)(void*, size_t);
+  size_t (*tell)(void*);
+  size_t (*size)(void*);
+} XpDictionaryFile;
+bool xp_dictionary_html(const uint8_t*, size_t, void*, size_t (*)(void*, const uint8_t*, size_t));
+uint8_t xp_dictionary_html_limit(size_t pages, size_t elements, size_t added, size_t free, size_t largest);
+bool xp_dictionary_html_ready(size_t free, size_t largest);
+typedef struct {
+  uint32_t dataOffset, totalSize;
+  uint16_t chunkLength;
+  bool valid;
+} XpDictZipInfo;
+typedef struct {
+  void* context;
+  bool (*reserve)(void*, size_t);
+  void (*push)(void*, uint32_t);
+} XpDictZipTable;
+uint8_t xp_dictzip_parse(const XpDictionaryFile*, XpDictZipInfo*, const XpDictZipTable*);
+uint8_t xp_dictzip_range(const XpDictZipInfo*, const uint32_t*, size_t, uint32_t, uint32_t, void*,
+                         uint8_t (*)(void*, uint32_t, uint32_t, uint32_t, uint32_t));
+size_t xp_dictzip_refill(const XpDictionaryFile*, uint32_t*, bool*, uint8_t*, const uint8_t**);
+uint8_t xp_dictzip_slice(void*, uint8_t (*)(void*, uint8_t*, size_t), uint8_t*, uint32_t, uint32_t,
+                         const XpDictionaryFile*);
+typedef struct {
+  uint32_t sampleCount, sourceFileSize, entryCount;
+  bool valid;
+} XpDictionaryHeader;
+void xp_dictionary_header(const XpDictionaryFile*, uint32_t, uint32_t, XpDictionaryHeader*);
+typedef struct {
+  uint32_t sampleCount, entryCount, position;
+} XpDictionaryScan;
+uint8_t xp_dictionary_scan(const XpDictionaryFile*, const XpDictionaryFile*, uint32_t, uint32_t, uint8_t*, void*,
+                           void (*)(void*), XpDictionaryScan*);
+typedef struct {
+  uint32_t offset, size;
+  bool found, readError;
+} XpDictionaryLocation;
+typedef struct {
+  const XpDictionaryFile *idx, *qidx, *syn, *sidx;
+  uint32_t idxSize, sampleCount, entryCount, synSize, synSampleCount;
+  uint8_t* word;
+  void* context;
+  bool (*append)(void*, const uint8_t*, XpDictionaryLocation);
+  void (*seekError)(void*, bool, uint32_t);
+} XpDictionarySearch;
+bool xp_dictionary_search(const XpDictionarySearch*, const uint8_t*, size_t, bool);
+void xp_dictionary_clean_bounds(const uint8_t*, size_t, size_t*, size_t*);
+void xp_dictionary_lower(uint8_t*, size_t);
+void xp_dictionary_stems(const uint8_t*, size_t, void*, void (*)(void*, size_t, uint8_t));
+uint8_t xp_dictionary_ifo(const uint8_t*, size_t);
+typedef struct {
+  void* context;
+  bool (*open)(void*, uint8_t, const uint8_t*);
+  uint8_t (*next)(void*, uint8_t, uint8_t*);
+  void (*close)(void*, uint8_t);
+  bool (*exists)(void*, const uint8_t*);
+  void (*emit)(void*, const uint8_t*, size_t, const uint8_t*, size_t);
+  void (*diagnostic)(void*, uint8_t, const uint8_t*);
+} XpDictionaryRegistry;
+bool xp_dictionary_registry(const XpDictionaryRegistry*, const uint8_t*, size_t, bool);
+typedef struct {
+  void* context;
+  const XpDictionaryFile* file;
+  uint32_t offset, size;
+  bool found, plain, html, append;
+  size_t length, capacity;
+  size_t (*heap)();
+  bool (*open)(void*, uint8_t);
+  uint8_t (*extract)(void*, uint32_t, uint32_t);
+  void (*closeTmp)(void*);
+  uint8_t* (*resize)(void*, size_t, bool);
+  void (*diagnostic)(void*, uint8_t, uint32_t, uint32_t, uint32_t);
+} XpDictionaryDefinition;
+uint8_t xp_dictionary_definition(const XpDictionaryDefinition*);
+typedef struct {
+  const uint8_t* data;
+  size_t length;
+} XpDictionaryView;
+typedef struct {
+  size_t count;
+  bool lowMemory;
+} XpDictionaryGroup;
+typedef struct {
+  void* context;
+  size_t wordBytes, stringSize, freeBytes, largestBlock;
+  bool open, entries, synonyms, html;
+  bool (*prepare)(void*, uint8_t);
+  XpDictionaryView (*view)(void*, uint8_t, size_t);
+  XpDictionaryGroup (*group)(void*);
+  bool (*probe)(void*, const uint8_t*, size_t, bool);
+  void (*close)(void*);
+  void (*title)(void*, bool);
+  XpDictionaryLocation (*location)(void*, size_t);
+  uint8_t (*read)(void*, size_t, bool);
+  void (*output)(void*, uint8_t, const uint8_t*, size_t);
+  size_t (*heap)();
+  void (*diagnostic)(void*, uint8_t, uint32_t, uint32_t);
+} XpDictionaryLookup;
+uint8_t xp_dictionary_lookup(const XpDictionaryLookup*);
+typedef struct {
+  void* context;
+  bool *plain, *syn, *html;
+  void (*reset)(void*);
+  bool (*resolve)(void*);
+  bool (*exists)(void*, uint8_t);
+  uint8_t (*ifo)(void*);
+  size_t (*length)(void*);
+  bool (*allocate)(void*);
+  void (*finish)(void*);
+  void (*diagnostic)(void*, uint8_t, size_t);
+} XpDictionaryOpen;
+bool xp_dictionary_open(const XpDictionaryOpen*);
+typedef struct {
+  void* context;
+  bool open, syn;
+  bool (*stale)(void*, bool);
+  uint8_t (*build)(void*, bool);
+  void (*diagnostic)(void*);
+} XpDictionaryIndex;
+uint8_t xp_dictionary_index(const XpDictionaryIndex*, bool);
+typedef struct {
+  uint32_t idxSize, sampleCount, entryCount, synSize, synSampleCount;
+  bool synOpened, synFailed;
+} XpDictionarySessionState;
+typedef struct {
+  void* context;
+  XpDictionarySessionState* state;
+  bool open, syn;
+  bool (*openFile)(void*, uint8_t);
+  uint32_t (*size)(void*, uint8_t);
+  XpDictionaryHeader (*header)(void*, uint8_t);
+  void (*close)(void*, uint8_t);
+  void (*diagnostic)(void*);
+} XpDictionarySessionIo;
+bool xp_dictionary_session(const XpDictionarySessionIo*, bool);
+typedef struct {
+  void* context;
+  size_t count, capacity, bytes, freeBytes, largestBlock;
+  XpDictionaryLocation (*location)(void*, size_t);
+  bool (*allocate)(void*, size_t);
+  void (*finish)(void*);
+} XpDictionaryAppend;
+uint8_t xp_dictionary_append(const XpDictionaryAppend*, uint32_t, uint32_t);
+
 #ifdef __cplusplus
 }
 #endif

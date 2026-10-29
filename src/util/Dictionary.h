@@ -1,6 +1,7 @@
 #pragma once
 
 #include <HalStorage.h>
+#include <xp_ffi.h>
 
 #include <cstdint>
 #include <memory>
@@ -175,17 +176,12 @@ class Dictionary {
     HalFile qidx;
     HalFile syn;
     HalFile sidx;
-    uint32_t idxSize = 0;
-    uint32_t sampleCount = 0;  // 0 when the sidecar is absent, stale or empty
-    uint32_t entryCount = 0;   // .idx entries the sidecar was built over; 0 = unknown
-    uint32_t synSize = 0;
-    uint32_t synSampleCount = 0;
-    bool synOpened = false;  // openSynonyms() has run (success or failure)
-    // A .syn exists but couldn't be searched (open failure, or no usable .sidx),
-    // so a miss is an unfinished search rather than a verdict. Distinct from
-    // "this dictionary has no .syn", which is a legitimate miss.
-    bool synFailed = false;
+    XpDictionarySessionState state{};
   };
+
+  bool sessionOperation(LookupSession& session, bool synonyms);
+  bool locateEntries(LookupSession& session, const char* target, DictEntryList& out, bool synonyms);
+  uint8_t indexOperation(bool build, void (*yieldFn)(void*), void* ctx);
 
   // Open .idx (required) and .qidx (optional — locate() falls back to a full
   // scan without it). False when the dictionary is closed or .idx won't open.
@@ -198,23 +194,11 @@ class Dictionary {
   // scanned linearly).
   bool openSynonyms(LookupSession& session);
 
-  // Bisect a sampled-offset sidecar (.qidx over .idx, .sidx over .syn) to the
-  // byte offset of the last sampled entry whose word is strictly below target,
-  // so the caller scans from there and sees every entry sharing the word — a
-  // headword can be listed several times, and that run may start before the
-  // last sample that is <= target. Returns 0 — scan source from the start —
-  // when sampleCount is 0 or a sample is unreadable. Clobbers wordBuf.
-  uint32_t bisectSamples(HalFile& sidecar, HalFile& source, uint32_t sampleCount, const char* target);
-
   // Every .idx entry whose headword matches target exactly. The .idx is
   // sorted, so the entries of one headword are adjacent and one scan collects
   // them all. *readError is set when the scan was cut short by an IO failure,
   // which is a read failure rather than a miss.
   void locateAll(LookupSession& session, const char* target, DictEntryList& out, bool* readError);
-
-  // Resolve an ordinal (the N-th .idx entry, 0-based) to its .dict location via
-  // the .qidx samples. Leaves the resolved headword in wordBuf.
-  DictLocation locateByOrdinal(LookupSession& session, uint32_t ordinal);
 
   // Scan every .syn/.sidx record for target, following each ordinal through
   // locateByOrdinal(). Every resolved entry is returned in dictionary order; a
@@ -234,11 +218,6 @@ class Dictionary {
   static bool sidecarIsStale(const std::string& sourcePath, const std::string& sidecarPath, uint32_t magic);
 
   static void stemVariants(const std::string& word, std::vector<std::string>& out);
-
-  // Read a null-terminated word from an open file into buf (max bufSize-1
-  // chars). Returns the number of characters read (excluding null), or -1 on
-  // EOF/error. Over-long words are truncated but the stream stays in sync.
-  static int readWordInto(HalFile& file, char* buf, size_t bufSize);
 
   std::string basePath;  // "/dictionaries/<folder>/<stem>", empty when not open
   bool hasPlainDict = false;

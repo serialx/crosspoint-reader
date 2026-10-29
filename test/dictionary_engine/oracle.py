@@ -26,12 +26,14 @@ def main():
     # Expose the production normalizer, excluding parser/layout dependencies.
     html = html[html.index('namespace {'):html.index('bool buildDictionaryHtmlPages(')]
     unit = '#include <HalStorage.h>\n#include <algorithm>\n#include <cctype>\n#include <cstring>\n#include <xp_ffi.h>\n' + html
+    if (source / 'src/util/DictionaryIo.h').exists():
+        unit = '#include \"DictionaryIo.h\"\n' + unit
     unit += '\nbool normalize(const std::string& html, HalFile& file) { return writeNormalizedXhtml(html, file); }\n'
     normalizer = args.build / 'Normalize.cpp'
     normalizer.write_text(unit)
     binary = args.build / 'probe'
     command = [os.environ.get('CXX', 'c++'), '-std=c++20', '-O2', '-I', str(HERE / 'stubs'),
-               '-I', str(source / 'src/util'), '-I', str(ROOT / 'lib/Utf8'), '-I', str(ROOT / 'lib/InflateReader'),
+               '-I', str(source / 'src/util'), '-I', str(source / 'rust/crates/xp-ffi/include'), '-I', str(ROOT / 'lib/Utf8'), '-I', str(ROOT / 'lib/InflateReader'),
                str(HERE / 'Probe.cpp'), str(normalizer),
                *[str(source / f'src/util/{name}.cpp') for name in ('Dictionary', 'DictionaryRegistry', 'DictZip')],
                str(ROOT / 'lib/Epub/Epub/CjkBreaks.cpp'), str(ROOT / 'lib/Utf8/Utf8.cpp'),
@@ -50,6 +52,8 @@ def main():
     if args.check_mutation:
         original = normalizer.read_text()
         changed = original.replace('<html><body>', '<html><div>', 1)
+        if changed == original:
+            changed = original.replace('html.data()), html.size()', 'html.data()), 0', 1)
         assert changed != original
         normalizer.write_text(changed)
         subprocess.run(command, check=True)

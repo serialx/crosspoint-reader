@@ -13,63 +13,25 @@
 
 #include "../../lib/Epub/Epub/CjkBreaks.h"
 #include "DictZip.h"
+#include "DictionaryIo.h"
 #include "DictionaryRegistry.h"
 #include "StringUtils.h"
 #include "TxtToHtml.h"
 
 namespace {
-
-// Shared temp file for entries lazily extracted from .dict.dz.
 constexpr const char* DICT_TMP_FILE = "/.crosspoint/dict.tmp";
-
-// Slack required above a definition buffer before we commit to reading it, so a
-// request that would only just fit is refused rather than left to abort mid-read.
 constexpr uint32_t DEFINITION_HEAP_HEADROOM_BYTES = 8 * 1024;
-
-// Sampled-offset sidecar header, shared by the .qidx (over .idx) and .sidx
-// (over .syn) sidecars: magic, version, sample interval, sample count, the
-// source file size the sidecar was built from (staleness check), and the total
-// entry count (bounds-checks the ordinal lookups a .syn hit resolves through).
 constexpr uint32_t QIDX_MAGIC = 0x58444951;  // "QIDX" little-endian
 constexpr uint32_t SIDX_MAGIC = 0x58444953;  // "SIDX" little-endian
-constexpr uint32_t SIDECAR_VERSION = 2;      // bumped from 1: added entryCount
-constexpr size_t SIDECAR_HEADER_BYTES = 6 * sizeof(uint32_t);
 
-struct SidecarHeader {
-  uint32_t sampleCount = 0;
-  uint32_t sourceFileSize = 0;
-  uint32_t entryCount = 0;
-  bool valid = false;
-};
+using SidecarHeader = XpDictionaryHeader;
 
 SidecarHeader readSidecarHeader(HalFile& file, uint32_t magic, uint32_t sampleInterval) {
-  SidecarHeader header;
-  uint32_t raw[6];
-  if (!file.seekSet(0) || file.read(raw, sizeof(raw)) != static_cast<int>(sizeof(raw))) return header;
-  if (raw[0] != magic || raw[1] != SIDECAR_VERSION || raw[2] != sampleInterval) return header;
-  header.sampleCount = raw[3];
-  header.sourceFileSize = raw[4];
-  header.entryCount = raw[5];
-  header.valid = true;
-  return header;
+  SidecarHeader result{};
+  const auto io = dictionaryFile(file);
+  xp_dictionary_header(&io, magic, sampleInterval, &result);
+  return result;
 }
-
-bool readSampleOffset(HalFile& file, uint32_t sampleIndex, uint32_t* out) {
-  if (!file.seekSet(SIDECAR_HEADER_BYTES + static_cast<size_t>(sampleIndex) * sizeof(uint32_t))) return false;
-  return file.read(out, sizeof(*out)) == static_cast<int>(sizeof(*out));
-}
-
-uint32_t readBe32(const uint8_t* p) {
-  return (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16) |
-         (static_cast<uint32_t>(p[2]) << 8) | static_cast<uint32_t>(p[3]);
-}
-
-// Word characters for cleaning: ASCII alphanumerics plus any UTF-8
-// continuation/lead byte, so accented words keep their edges.
-bool isWordByte(unsigned char c) { return c >= 0x80 || std::isalnum(c) != 0; }
-
-// Facts read from the .ifo at open time. Only the first 2KB is scanned — .ifo
-// headers are tiny and both keys always appear early when present.
 struct IfoFacts {
   bool offsets64 = false;        // idxoffsetbits=64 (unsupported)
   bool htmlDefinitions = false;  // sametypesequence=h or x (HTML or XDXF)
@@ -83,97 +45,115 @@ IfoFacts readIfoFacts(const std::string& ifoPath) {
   const int n = ifo.read(buf, sizeof(buf) - 1);
   if (n <= 0) return facts;
   buf[n] = '\0';
-  const char* line = strstr(buf, "idxoffsetbits");
-  const char* eq = line ? strchr(line, '=') : nullptr;
-  facts.offsets64 = eq && strtol(eq + 1, nullptr, 10) == 64;
-  line = strstr(buf, "sametypesequence");
-  eq = line ? strchr(line, '=') : nullptr;
-  if (eq) {
-    // HTML and XDXF share the styled renderer; multi-type entries stay plain text.
-    facts.htmlDefinitions = (eq[1] == 'h' || eq[1] == 'x') && (eq[2] == '\0' || eq[2] == '\r' || eq[2] == '\n');
-  }
+  const uint8_t flags = xp_dictionary_ifo(reinterpret_cast<const uint8_t*>(buf), n);
+  facts.offsets64 = flags & 1;
+  facts.htmlDefinitions = flags & 2;
   return facts;
 }
 
 }  // namespace
 
 bool DictEntryList::appendUnique(const char* headword, const DictLocation& location) {
-  // Same .dict range = the same definition. A shared headword with a different
-  // range is a different definition and is kept.
-  const bool duplicate = std::any_of(entries_, entries_ + count_, [&location](const DictEntry& existing) {
-    return existing.location.offset == location.offset && existing.location.size == location.size;
-  });
-  if (duplicate) return true;
-  if (count_ >= kMaxEntries) {
-    LOG_ERR("DICT", "Entry list full at %u entries", static_cast<unsigned>(count_));
-    return false;
-  }
-  auto& entry = entries_[count_];
+  struct Context {
+    DictEntryList& list;
+    const char* headword;
+    const DictLocation& location;
+  } context{*this, headword, location};
+  const auto heap = HalMemory::getDefaultHeap();
   const size_t bytes = strlen(headword) + 1;
-  if (bytes > entry.headwordCapacity) {
-    const auto heap = HalMemory::getDefaultHeap();
-    auto buffer = heap.freeBytes >= bytes + DEFINITION_HEAP_HEADROOM_BYTES && heap.largestBlockBytes >= bytes
-                      ? makeUniqueNoThrow<char[]>(bytes)
-                      : nullptr;
-    if (!buffer) {
-      LOG_ERR("DICT", "Low heap for %u byte headword", static_cast<unsigned>(bytes));
-      lowMemory_ = true;
-      return false;
-    }
-    entry.headword = std::move(buffer);
-    entry.headwordCapacity = bytes;
+  const XpDictionaryAppend io{&context,
+                              count_,
+                              count_ < kMaxEntries ? entries_[count_].headwordCapacity : 0,
+                              bytes,
+                              heap.freeBytes,
+                              heap.largestBlockBytes,
+                              [](void* ctx, size_t index) -> XpDictionaryLocation {
+                                const auto& l = static_cast<Context*>(ctx)->list.entries_[index].location;
+                                return {l.offset, l.size, l.found, l.readError};
+                              },
+                              [](void* ctx, size_t bytes) {
+                                auto& list = static_cast<Context*>(ctx)->list;
+                                auto buffer = makeUniqueNoThrow<char[]>(bytes);
+                                if (!buffer) return false;
+                                auto& entry = list.entries_[list.count_];
+                                entry.headword = std::move(buffer);
+                                entry.headwordCapacity = bytes;
+                                return true;
+                              },
+                              [](void* ctx) {
+                                auto& c = *static_cast<Context*>(ctx);
+                                auto& entry = c.list.entries_[c.list.count_++];
+                                memcpy(entry.headword.get(), c.headword, strlen(c.headword) + 1);
+                                entry.location = c.location;
+                              }};
+  const uint8_t status = xp_dictionary_append(&io, location.offset, location.size);
+  if (status == 1) LOG_ERR("DICT", "Entry list full at %u entries", static_cast<unsigned>(count_));
+  if (status == 2) {
+    LOG_ERR("DICT", "Low heap for %u byte headword", static_cast<unsigned>(bytes));
+    lowMemory_ = true;
   }
-  memcpy(entry.headword.get(), headword, bytes);
-  entry.location = location;
-  count_++;
-  return true;
+  return status == 0;
 }
 
 bool Dictionary::open(const char* folderName) {
-  basePath.clear();
-  hasSyn = false;
-  htmlDefinitions = false;
-  std::string resolved;
-  if (!DictionaryRegistry::resolveBasePath(folderName, resolved)) {
-    LOG_ERR("DICT", "No dictionary found in folder '%s'", folderName ? folderName : "");
-    return false;
-  }
-
-  if (!Storage.exists((resolved + ".idx").c_str())) {
-    LOG_ERR("DICT", "%s.idx missing (compressed .idx.gz is not supported)", resolved.c_str());
-    return false;
-  }
-  hasPlainDict = Storage.exists((resolved + ".dict").c_str());
-  if (!hasPlainDict && !Storage.exists((resolved + ".dict.dz").c_str())) {
-    LOG_ERR("DICT", "%s has no .dict or .dict.dz", resolved.c_str());
-    return false;
-  }
-  const IfoFacts ifo = readIfoFacts(resolved + ".ifo");
-  if (ifo.offsets64) {
-    LOG_ERR("DICT", "%s uses 64-bit index offsets (unsupported)", resolved.c_str());
-    return false;
-  }
-  // Checked once here so buildPath() can never fail on the lookup path.
-  if (resolved.size() + LONGEST_SUFFIX_LEN + 1 > PATH_BUF_BYTES) {
-    LOG_ERR("DICT", "Dictionary path too long (%u chars, max %u)", static_cast<unsigned>(resolved.size()),
-            static_cast<unsigned>(PATH_BUF_BYTES - LONGEST_SUFFIX_LEN - 1));
-    return false;
-  }
-  hasSyn = Storage.exists((resolved + ".syn").c_str());
-  htmlDefinitions = ifo.htmlDefinitions;
-
-  // The entry list holds every definition a word maps to. It is allocated once
-  // here and reused by every lookup, so a lookup never grows a container on the
-  // heap. A failure is reported instead of aborting: the lookup would abort
-  // later on the same starved heap.
-  entryList = makeUniqueNoThrow<DictEntryList>();
-  if (!entryList) {
-    LOG_ERR("DICT", "Out of memory for the %u byte entry list", static_cast<unsigned>(sizeof(DictEntryList)));
-    return false;
-  }
-
-  basePath = std::move(resolved);
-  return true;
+  struct Context {
+    Dictionary& dictionary;
+    const char* folder;
+    std::string resolved;
+  } context{*this, folderName, {}};
+  const XpDictionaryOpen io{
+      &context,
+      &hasPlainDict,
+      &hasSyn,
+      &htmlDefinitions,
+      [](void* ctx) { static_cast<Context*>(ctx)->dictionary.basePath.clear(); },
+      [](void* ctx) {
+        auto& c = *static_cast<Context*>(ctx);
+        return DictionaryRegistry::resolveBasePath(c.folder, c.resolved);
+      },
+      [](void* ctx, uint8_t kind) {
+        static constexpr const char* suffixes[] = {".idx", ".dict", ".dict.dz", ".syn"};
+        return Storage.exists((static_cast<Context*>(ctx)->resolved + suffixes[kind]).c_str());
+      },
+      [](void* ctx) -> uint8_t {
+        const auto facts = readIfoFacts(static_cast<Context*>(ctx)->resolved + ".ifo");
+        return static_cast<uint8_t>(facts.offsets64 | (facts.htmlDefinitions << 1));
+      },
+      [](void* ctx) { return static_cast<Context*>(ctx)->resolved.size(); },
+      [](void* ctx) {
+        auto& c = *static_cast<Context*>(ctx);
+        c.dictionary.entryList = makeUniqueNoThrow<DictEntryList>();
+        return c.dictionary.entryList != nullptr;
+      },
+      [](void* ctx) {
+        auto& c = *static_cast<Context*>(ctx);
+        c.dictionary.basePath = std::move(c.resolved);
+      },
+      [](void* ctx, uint8_t event, size_t n) {
+        const auto& c = *static_cast<Context*>(ctx);
+        switch (static_cast<DictionaryOpenEvent>(event)) {
+          case DictionaryOpenEvent::MissingFolder:
+            LOG_ERR("DICT", "No dictionary found in folder '%s'", c.folder ? c.folder : "");
+            break;
+          case DictionaryOpenEvent::MissingIndex:
+            LOG_ERR("DICT", "%s.idx missing (compressed .idx.gz is not supported)", c.resolved.c_str());
+            break;
+          case DictionaryOpenEvent::MissingData:
+            LOG_ERR("DICT", "%s has no .dict or .dict.dz", c.resolved.c_str());
+            break;
+          case DictionaryOpenEvent::Offsets64:
+            LOG_ERR("DICT", "%s uses 64-bit index offsets (unsupported)", c.resolved.c_str());
+            break;
+          case DictionaryOpenEvent::PathLength:
+            LOG_ERR("DICT", "Dictionary path too long (%u chars, max %u)", static_cast<unsigned>(n),
+                    static_cast<unsigned>(PATH_BUF_BYTES - LONGEST_SUFFIX_LEN - 1));
+            break;
+          case DictionaryOpenEvent::Allocation:
+            LOG_ERR("DICT", "Out of memory for the %u byte entry list", static_cast<unsigned>(sizeof(DictEntryList)));
+            break;
+        }
+      }};
+  return xp_dictionary_open(&io);
 }
 
 bool Dictionary::buildPath(char* buf, size_t bufSize, const char* suffix) const {
@@ -184,14 +164,6 @@ bool Dictionary::buildPath(char* buf, size_t bufSize, const char* suffix) const 
   }
   return true;
 }
-
-// A sidecar is stale when it is missing, unreadable, the wrong version, or built
-// from a different source size. Missing source returns false (not stale): the
-// dictionary is unusable without its .idx, and a vanished .syn degrades to no
-// synonyms — neither is fixable by re-indexing here. This is the same rule
-// openSession() applies to .qidx (a successful build always writes at least
-// entry 0, so sampleCount == 0 means absent, stale or corrupt), expressed over a
-// path so it can cover the .syn/.sidx pair too.
 bool Dictionary::sidecarIsStale(const std::string& sourcePath, const std::string& sidecarPath, uint32_t magic) {
   HalFile src;
   if (!Storage.openFileForRead("DICT", sourcePath, src)) return false;
@@ -203,39 +175,41 @@ bool Dictionary::sidecarIsStale(const std::string& sourcePath, const std::string
   return !header.valid || header.sourceFileSize != srcSize;
 }
 
-bool Dictionary::needsIndex() {
-  if (!isOpen()) return false;
-  if (sidecarIsStale(basePath + ".idx", basePath + ".qidx", QIDX_MAGIC)) return true;
-  return hasSyn && sidecarIsStale(basePath + ".syn", basePath + ".sidx", SIDX_MAGIC);
-}
+bool Dictionary::needsIndex() { return indexOperation(false, nullptr, nullptr) != 0; }
 
 bool Dictionary::buildIndex(void (*yieldFn)(void*), void* ctx, IndexResult* outResult) {
-  const auto fail = [outResult](IndexResult r) {
-    if (outResult) *outResult = r;
-    return false;
-  };
-  if (outResult) *outResult = IndexResult::Ok;
-  if (!isOpen()) return fail(IndexResult::ReadError);
+  const auto result = static_cast<IndexResult>(indexOperation(true, yieldFn, ctx));
+  if (outResult) *outResult = result;
+  return result == IndexResult::Ok;
+}
 
-  // The .idx sidecar is mandatory — lookups binary-search it. Rebuild only when
-  // stale so a .syn-only change doesn't force a needless rescan of the (much
-  // larger) .idx, and vice versa.
-  if (sidecarIsStale(basePath + ".idx", basePath + ".qidx", QIDX_MAGIC) &&
-      !buildSidecar(basePath + ".idx", basePath + ".qidx", QIDX_MAGIC, 8, yieldFn, ctx, outResult)) {
-    return false;
-  }
-
-  // The synonym sidecar is best-effort: a failure here (e.g. transient OOM)
-  // leaves synonym lookups disabled but the dictionary otherwise usable, so it
-  // does not fail the build or overwrite *outResult. hasSyn is left alone — it
-  // means "a .syn file exists", so needsIndex() keeps reporting the sidecar
-  // stale and a later build retries. openSynonyms() is what declines the
-  // synonym path while the sidecar is unusable.
-  if (hasSyn && sidecarIsStale(basePath + ".syn", basePath + ".sidx", SIDX_MAGIC) &&
-      !buildSidecar(basePath + ".syn", basePath + ".sidx", SIDX_MAGIC, 4, yieldFn, ctx, nullptr)) {
-    LOG_ERR("DICT", "Synonym index build failed; synonyms disabled for %s", basePath.c_str());
-  }
-  return true;
+uint8_t Dictionary::indexOperation(bool build, void (*yieldFn)(void*), void* ctx) {
+  struct Context {
+    Dictionary& dictionary;
+    void (*yieldFn)(void*);
+    void* yieldCtx;
+  } context{*this, yieldFn, ctx};
+  const XpDictionaryIndex io{&context,
+                             isOpen(),
+                             hasSyn,
+                             [](void* ctx, bool syn) {
+                               const auto& base = static_cast<Context*>(ctx)->dictionary.basePath;
+                               return sidecarIsStale(base + (syn ? ".syn" : ".idx"), base + (syn ? ".sidx" : ".qidx"),
+                                                     syn ? SIDX_MAGIC : QIDX_MAGIC);
+                             },
+                             [](void* ctx, bool syn) -> uint8_t {
+                               const auto& c = *static_cast<Context*>(ctx);
+                               const auto& base = c.dictionary.basePath;
+                               IndexResult result = IndexResult::Ok;
+                               buildSidecar(base + (syn ? ".syn" : ".idx"), base + (syn ? ".sidx" : ".qidx"),
+                                            syn ? SIDX_MAGIC : QIDX_MAGIC, syn ? 4 : 8, c.yieldFn, c.yieldCtx, &result);
+                               return static_cast<uint8_t>(result);
+                             },
+                             [](void* ctx) {
+                               LOG_ERR("DICT", "Synonym index build failed; synonyms disabled for %s",
+                                       static_cast<Context*>(ctx)->dictionary.basePath.c_str());
+                             }};
+  return xp_dictionary_index(&io, build);
 }
 
 bool Dictionary::buildSidecar(const std::string& sourcePath, const std::string& sidecarPath, uint32_t magic,
@@ -247,7 +221,6 @@ bool Dictionary::buildSidecar(const std::string& sourcePath, const std::string& 
 
   HalFile src;
   if (!Storage.openFileForRead("DICT", sourcePath, src)) return fail(IndexResult::ReadError);
-  const uint32_t srcSize = static_cast<uint32_t>(src.fileSize());
 
   constexpr size_t CHUNK_BYTES = 4096;
   auto buf = makeUniqueNoThrow<uint8_t[]>(CHUNK_BYTES);
@@ -255,60 +228,15 @@ bool Dictionary::buildSidecar(const std::string& sourcePath, const std::string& 
     LOG_ERR("DICT", "OOM: %u byte index scan buffer", CHUNK_BYTES);
     return fail(IndexResult::LowMemory);
   }
-
-  // Stream each sample offset straight to the sidecar instead of accumulating
-  // them in RAM: a large source would otherwise cost tens of KB of vector heap,
-  // and vector growth aborts on OOM under -fno-exceptions. The header slot is
-  // zero-filled until the scan succeeds, so an interrupted build leaves a file
-  // readSidecarHeader rejects (magic mismatch) and needsIndex() triggers a rebuild.
   HalFile out;
   if (!Storage.openFileForWrite("DICT", sidecarPath, out)) return fail(IndexResult::ReadError);
-  const auto writeU32 = [&out](uint32_t v) { return out.write(&v, sizeof(v)) == static_cast<int>(sizeof(v)); };
-  const uint32_t placeholder[6] = {};
-  bool ok = out.write(placeholder, sizeof(placeholder)) == sizeof(placeholder);
-  uint32_t sampleCount = 0;
-  if (ok) {
-    ok = writeU32(0);  // entry 0 always starts at byte 0
-    sampleCount = 1;
-  }
-
   const unsigned long startMs = millis();
-  uint32_t entryCount = 0;
-  uint32_t pos = 0;
-  uint32_t suffixLeft = 0;  // 0 while scanning a word, else suffix bytes remaining
-  uint32_t sinceYield = 0;
-  while (ok && pos < srcSize) {
-    const int n = src.read(buf.get(), CHUNK_BYTES);
-    if (n <= 0) {
-      LOG_ERR("DICT", "Index scan read failed at %lu", static_cast<unsigned long>(pos));
-      ok = false;
-      break;
-    }
-    for (int i = 0; ok && i < n; i++) {
-      if (suffixLeft == 0) {
-        if (buf[i] == 0) suffixLeft = suffixBytes;
-      } else if (--suffixLeft == 0) {
-        entryCount++;
-        const uint32_t nextEntryStart = pos + i + 1;
-        if (entryCount % SAMPLE_INTERVAL == 0 && nextEntryStart < srcSize) {
-          ok = writeU32(nextEntryStart);
-          sampleCount++;
-        }
-      }
-    }
-    pos += n;
-    sinceYield += n;
-    if (yieldFn && sinceYield >= 64 * 1024) {
-      sinceYield = 0;
-      yieldFn(ctx);
-    }
-  }
-
-  if (ok) {
-    // Backpatch the now-valid header over the placeholder.
-    const uint32_t header[6] = {magic, SIDECAR_VERSION, SAMPLE_INTERVAL, sampleCount, srcSize, entryCount};
-    ok = out.seekSet(0) && out.write(header, sizeof(header)) == sizeof(header);
-  }
+  const auto input = dictionaryFile(src);
+  const auto output = dictionaryFile(out);
+  XpDictionaryScan scan{};
+  const uint8_t status = xp_dictionary_scan(&input, &output, magic, suffixBytes, buf.get(), ctx, yieldFn, &scan);
+  const bool ok = status == 0;
+  if (status == 1) LOG_ERR("DICT", "Index scan read failed at %lu", static_cast<unsigned long>(scan.position));
   if (!ok) {
     LOG_ERR("DICT", "Index build failed, removing %s", sidecarPath.c_str());
     out.close();  // close before remove of the same path
@@ -316,584 +244,322 @@ bool Dictionary::buildSidecar(const std::string& sourcePath, const std::string& 
     return fail(IndexResult::ReadError);
   }
 
-  LOG_INF("DICT", "Indexed %lu entries (%lu samples) from %s in %lu ms", static_cast<unsigned long>(entryCount),
-          static_cast<unsigned long>(sampleCount), sourcePath.c_str(), millis() - startMs);
+  LOG_INF("DICT", "Indexed %lu entries (%lu samples) from %s in %lu ms", static_cast<unsigned long>(scan.entryCount),
+          static_cast<unsigned long>(scan.sampleCount), sourcePath.c_str(), millis() - startMs);
   return true;
 }
 
-int Dictionary::readWordInto(HalFile& file, char* buf, size_t bufSize) {
-  size_t i = 0;
-  while (i < bufSize - 1) {
-    const int ch = file.read();
-    if (ch < 0) return -1;  // EOF or I/O error
-    if (ch == 0) {
-      buf[i] = '\0';
-      return static_cast<int>(i);
-    }
-    buf[i++] = static_cast<char>(ch);
-  }
-  // Word too long for buffer — consume remaining bytes to stay in sync
-  buf[bufSize - 1] = '\0';
-  int ch;
-  do {
-    ch = file.read();
-  } while (ch > 0);
-  return static_cast<int>(bufSize - 1);
+bool Dictionary::openSession(LookupSession& session) { return sessionOperation(session, false); }
+
+bool Dictionary::openSynonyms(LookupSession& session) { return sessionOperation(session, true); }
+
+bool Dictionary::sessionOperation(LookupSession& session, bool synonyms) {
+  struct Context {
+    Dictionary& dictionary;
+    LookupSession& session;
+    HalFile* files[4];
+  } context{*this, session, {&session.idx, &session.qidx, &session.syn, &session.sidx}};
+  const XpDictionarySessionIo io{
+      &context,
+      &session.state,
+      isOpen(),
+      hasSyn,
+      [](void* ctx, uint8_t slot) {
+        auto& c = *static_cast<Context*>(ctx);
+        static constexpr const char* suffixes[] = {".idx", ".qidx", ".syn", ".sidx"};
+        char path[PATH_BUF_BYTES];
+        return c.dictionary.buildPath(path, sizeof(path), suffixes[slot]) &&
+               Storage.openFileForRead("DICT", path, *c.files[slot]);
+      },
+      [](void* ctx, uint8_t slot) -> uint32_t { return static_cast<Context*>(ctx)->files[slot]->fileSize(); },
+      [](void* ctx, uint8_t slot) {
+        return readSidecarHeader(*static_cast<Context*>(ctx)->files[slot], slot == 1 ? QIDX_MAGIC : SIDX_MAGIC,
+                                 SAMPLE_INTERVAL);
+      },
+      [](void* ctx, uint8_t slot) { static_cast<Context*>(ctx)->files[slot]->close(); },
+      [](void* ctx) {
+        LOG_ERR("DICT", "Synonym index unusable for %s; synonyms skipped",
+                static_cast<Context*>(ctx)->dictionary.basePath.c_str());
+      }};
+  return xp_dictionary_session(&io, synonyms);
 }
-
-bool Dictionary::openSession(LookupSession& session) {
-  if (!isOpen()) return false;
-
-  // One buffer reused for both paths — no transient heap on the lookup path.
-  char path[PATH_BUF_BYTES];
-  if (!buildPath(path, sizeof(path), ".idx")) return false;
-  if (!Storage.openFileForRead("DICT", path, session.idx)) return false;
-  session.idxSize = static_cast<uint32_t>(session.idx.fileSize());
-
-  // The sidecar is optional and its header only has to be validated once per
-  // lookup; without a usable one locate() scans from byte 0.
-  if (!buildPath(path, sizeof(path), ".qidx")) return true;
-  if (Storage.openFileForRead("DICT", path, session.qidx)) {
-    const SidecarHeader header = readSidecarHeader(session.qidx, QIDX_MAGIC, SAMPLE_INTERVAL);
-    if (header.valid && header.sourceFileSize == session.idxSize) {
-      session.sampleCount = header.sampleCount;
-      session.entryCount = header.entryCount;
-    }
-  }
-  return true;
-}
-
-bool Dictionary::openSynonyms(LookupSession& session) {
-  if (session.synOpened) return session.synSize > 0;
-  session.synOpened = true;
-  if (!hasSyn) return false;
-
-  char path[PATH_BUF_BYTES];
-  if (!buildPath(path, sizeof(path), ".syn") || !Storage.openFileForRead("DICT", path, session.syn)) {
-    // A .syn exists but won't open: the synonym probe never reached a verdict, so
-    // flag it the way openSession() flags an unopenable .idx rather than let
-    // lookup() report a genuine miss for a word the .syn does carry.
-    session.synFailed = true;
-    return false;
-  }
-  session.synSize = static_cast<uint32_t>(session.syn.fileSize());
-
-  if (buildPath(path, sizeof(path), ".sidx") && Storage.openFileForRead("DICT", path, session.sidx)) {
-    const SidecarHeader header = readSidecarHeader(session.sidx, SIDX_MAGIC, SAMPLE_INTERVAL);
-    if (header.valid && header.sourceFileSize == session.synSize) session.synSampleCount = header.sampleCount;
-  }
-
-  // Unlike .qidx, whose absence only costs locate() a bounded-cost scan of an
-  // already-open file, an unusable .sidx would make every miss read the whole
-  // .syn a byte at a time under the storage mutex. Decline the synonym path
-  // instead and release both handles; needsIndex() still reports .sidx stale, so
-  // the next index pass rebuilds it.
-  if (session.synSampleCount == 0) {
-    LOG_ERR("DICT", "Synonym index unusable for %s; synonyms skipped", basePath.c_str());
-    session.synFailed = true;
-    session.synSize = 0;
-    session.sidx.close();
-    session.syn.close();
-    return false;
-  }
-  return true;
-}
-
-// Shared by locateAll() (.qidx over .idx) and locateSynonyms() (.sidx over .syn):
-// both sidecars have the same layout and both sources are sorted word-first, so
-// the descent is identical and only the file pair differs. The descent lands on
-// the last sample strictly below the target, so a run of entries sharing the
-// word starts after it and the caller's scan sees all of them.
-uint32_t Dictionary::bisectSamples(HalFile& sidecar, HalFile& source, uint32_t sampleCount, const char* target) {
-  uint32_t startByte = 0;
-  if (sampleCount == 0) return startByte;  // no usable sidecar: scan from the start
-
-  uint32_t lo = 0;
-  uint32_t hi = sampleCount - 1;
-  while (lo < hi) {
-    const uint32_t mid = (lo + hi + 1) / 2;
-    uint32_t offset = 0;
-    if (!readSampleOffset(sidecar, mid, &offset) || !source.seekSet(offset) ||
-        readWordInto(source, wordBuf, sizeof(wordBuf)) < 0) {
-      lo = 0;  // unreadable sample: abandon the descent and scan from the start
-      break;
-    }
-    // Strictly less than the target: a headword can be listed several times
-    // (one entry per part of speech) and that run of equal words may start
-    // before the last sample that is <= the target. Landing on a sample whose
-    // word equals the target would start the scan inside the run and miss its
-    // earlier entries, so the descent stops at the last sample below it.
-    if (StringUtils::asciiCaseCmp(wordBuf, target) < 0) {
-      lo = mid;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  readSampleOffset(sidecar, lo, &startByte);
-  return startByte;
-}
-
-// Both files stay open across the stem-variant probes; every read below seeks
-// absolutely first, so a shared handle carries no position state between calls.
 void Dictionary::locateAll(LookupSession& session, const char* target, DictEntryList& out, bool* readError) {
-  if (readError) *readError = false;
-
-  // Bisect the sampled offsets to the last sample whose headword is below the
-  // target, so the scan starts before the run of entries sharing the headword.
-  const uint32_t startByte = bisectSamples(session.qidx, session.idx, session.sampleCount, target);
-
-  // Linear scan of at most SAMPLE_INTERVAL entries: headword NUL, BE32 offset,
-  // BE32 size. The index is sorted, so the entries of one headword are
-  // adjacent: keep taking them while the headword still matches, and stop at
-  // the first headword > target.
-  if (!session.idx.seekSet(startByte)) {
-    LOG_ERR("DICT", "Index seek to %lu failed", static_cast<unsigned long>(startByte));
-    if (readError) *readError = true;
-    return;
-  }
-  while (static_cast<uint32_t>(session.idx.position()) < session.idxSize) {
-    // Not flagged as readError: readWordInto returns -1 for EOF and IO error
-    // alike, so a short tail can't be told from a truncated .idx. Treat it as
-    // the end of the index rather than risk reporting a read failure for what
-    // is really a miss.
-    if (readWordInto(session.idx, wordBuf, sizeof(wordBuf)) < 0) break;
-    uint8_t suffix[8];
-    if (session.idx.read(suffix, 8) != 8) break;
-
-    const int cmp = StringUtils::asciiCaseCmp(wordBuf, target);
-    if (cmp == 0) {
-      DictLocation location;
-      location.offset = readBe32(suffix);
-      location.size = readBe32(suffix + 4);
-      location.found = true;
-      if (!out.appendUnique(wordBuf, location)) {
-        break;
-      }
-      continue;
-    }
-    if (cmp > 0) break;
-  }
+  const bool failed = locateEntries(session, target, out, false);
+  if (readError) *readError = failed;
 }
 
-DictLocation Dictionary::locateByOrdinal(LookupSession& session, uint32_t ordinal) {
-  DictLocation result;
-
-  // The .qidx samples are taken at fixed entry-count boundaries (every
-  // SAMPLE_INTERVAL entries), so sample (ordinal / SAMPLE_INTERVAL) lands on
-  // entry (ordinal / SAMPLE_INTERVAL) * SAMPLE_INTERVAL; scan forward the
-  // remainder. Without a usable sidecar, count entries from byte 0.
-  uint32_t startByte = 0;
-  uint32_t startOrdinal = 0;
-  if (session.sampleCount > 0) {
-    if (session.entryCount != 0 && ordinal >= session.entryCount) return result;  // out of range
-    uint32_t sampleIndex = ordinal / SAMPLE_INTERVAL;
-    if (sampleIndex >= session.sampleCount) sampleIndex = session.sampleCount - 1;
-    if (readSampleOffset(session.qidx, sampleIndex, &startByte)) {
-      startOrdinal = sampleIndex * SAMPLE_INTERVAL;
-    } else {
-      startByte = 0;
-    }
-  }
-
-  // Each entry is headword NUL + BE32 offset + BE32 size. Skip to the target,
-  // guarding against EOF for a malformed .syn ordinal past the last entry.
-  if (!session.idx.seekSet(startByte)) {
-    LOG_ERR("DICT", "Index seek to %lu failed", static_cast<unsigned long>(startByte));
-    result.readError = true;
-    return result;
-  }
-  uint8_t suffix[8];
-  for (uint32_t e = startOrdinal; e < ordinal; e++) {
-    if (readWordInto(session.idx, wordBuf, sizeof(wordBuf)) < 0 || session.idx.read(suffix, 8) != 8) return result;
-    if (static_cast<uint32_t>(session.idx.position()) >= session.idxSize) return result;  // ordinal past last entry
-  }
-  if (static_cast<uint32_t>(session.idx.position()) >= session.idxSize) return result;
-  if (readWordInto(session.idx, wordBuf, sizeof(wordBuf)) < 0 || session.idx.read(suffix, 8) != 8) return result;
-  result.offset = readBe32(suffix);
-  result.size = readBe32(suffix + 4);
-  result.found = true;
-  return result;
+bool Dictionary::locateEntries(LookupSession& session, const char* target, DictEntryList& out, bool synonyms) {
+  const auto idx = dictionaryFile(session.idx);
+  const auto qidx = dictionaryFile(session.qidx);
+  const auto syn = dictionaryFile(session.syn);
+  const auto sidx = dictionaryFile(session.sidx);
+  const XpDictionarySearch search{&idx,
+                                  &qidx,
+                                  &syn,
+                                  &sidx,
+                                  session.state.idxSize,
+                                  session.state.sampleCount,
+                                  session.state.entryCount,
+                                  session.state.synSize,
+                                  session.state.synSampleCount,
+                                  reinterpret_cast<uint8_t*>(wordBuf),
+                                  &out,
+                                  [](void* ctx, const uint8_t* word, XpDictionaryLocation location) {
+                                    return static_cast<DictEntryList*>(ctx)->appendUnique(
+                                        reinterpret_cast<const char*>(word),
+                                        {location.offset, location.size, location.found, location.readError});
+                                  },
+                                  [](void*, bool synonym, uint32_t at) {
+                                    if (synonym) {
+                                      LOG_ERR("DICT", "Synonym seek to %lu failed", static_cast<unsigned long>(at));
+                                    } else {
+                                      LOG_ERR("DICT", "Index seek to %lu failed", static_cast<unsigned long>(at));
+                                    }
+                                  }};
+  return xp_dictionary_search(&search, reinterpret_cast<const uint8_t*>(target), strlen(target), synonyms);
 }
 
 bool Dictionary::locateSynonyms(LookupSession& session, const char* target, DictEntryList& out, bool* readError) {
   if (readError) *readError = false;
   if (!openSynonyms(session)) {
-    if (readError) *readError = session.synFailed;
+    if (readError) *readError = session.state.synFailed;
     return false;
   }
-
-  // Bisect the sampled offsets to the last synonym below target, same descent
-  // locateAll() runs over .qidx/.idx.
-  const uint32_t startByte = bisectSamples(session.sidx, session.syn, session.synSampleCount, target);
-
-  // Linear scan of at most SAMPLE_INTERVAL entries: synonym NUL, BE32 ordinal.
-  // Sorted, so stop at the first synonym > target. Reading the ordinal before
-  // calling locateByOrdinal() (which reuses wordBuf) avoids any aliasing.
-  if (!session.syn.seekSet(startByte)) {
-    LOG_ERR("DICT", "Synonym seek to %lu failed", static_cast<unsigned long>(startByte));
-    if (readError) *readError = true;
-    return false;
-  }
-  while (static_cast<uint32_t>(session.syn.position()) < session.synSize) {
-    if (readWordInto(session.syn, wordBuf, sizeof(wordBuf)) < 0) break;
-    uint8_t ordBytes[4];
-    if (session.syn.read(ordBytes, 4) != 4) break;
-
-    const int cmp = StringUtils::asciiCaseCmp(wordBuf, target);
-    if (cmp == 0) {
-      const DictLocation location = locateByOrdinal(session, readBe32(ordBytes));
-      if (location.readError && readError) *readError = true;
-      if (location.found) {
-        if (!out.appendUnique(wordBuf, location)) {
-          break;
-        }
-      }
-      continue;
-    }
-    if (cmp > 0) break;
-  }
+  const bool failed = locateEntries(session, target, out, true);
+  if (readError) *readError = failed;
   return !out.empty();
 }
 
 bool Dictionary::readDefinition(const DictLocation& location, std::string& out, LookupResult* outResult, bool append) {
-  const auto fail = [outResult](LookupResult r) {
-    if (outResult) *outResult = r;
-    return false;
-  };
-  if (!location.found) return fail(LookupResult::NotFound);
-  const uint32_t size = std::min(location.size, MAX_DEFINITION_BYTES);
-  if (size == 0) {
-    LOG_ERR("DICT", "Zero-length definition entry");
-    return fail(LookupResult::ReadError);
-  }
-  const size_t originalSize = append ? out.size() : 0;
-  if (append && (originalSize > MAX_DEFINITION_BYTES || size > MAX_DEFINITION_BYTES - originalSize)) {
-    LOG_ERR("DICT", "Combined definition exceeds %lu bytes", static_cast<unsigned long>(MAX_DEFINITION_BYTES));
-    return fail(LookupResult::ReadError);
-  }
-
-  // Refuse before touching the heap or the SD: std::string growth aborts on OOM
-  // (-fno-exceptions), and the extraction below transiently holds a chunk buffer
-  // plus a 32KB inflate window we'd rather not commit to a doomed lookup.
-  const size_t requiredBytes = (append ? originalSize : 0) + size;
-  // String growth may double capacity; a reserved append needs no new buffer.
-  const size_t allocationBytes = requiredBytes > out.capacity() ? std::max(requiredBytes, 2 * out.capacity()) + 1 : 0;
-  if (ESP.getMaxAllocHeap() < allocationBytes + DEFINITION_HEAP_HEADROOM_BYTES) {
-    LOG_ERR("DICT", "Low heap for %lu byte definition", static_cast<unsigned long>(requiredBytes));
-    return fail(LookupResult::LowMemory);
-  }
-
-  char pathBuf[PATH_BUF_BYTES];
-  const char* path = pathBuf;
-  uint32_t offset = 0;
-  if (hasPlainDict) {
-    if (!buildPath(pathBuf, sizeof(pathBuf), ".dict")) return fail(LookupResult::ReadError);
-    offset = location.offset;
-  } else {
-    if (!buildPath(pathBuf, sizeof(pathBuf), ".dict.dz")) return fail(LookupResult::ReadError);
-    HalFile tmp = Storage.open(DICT_TMP_FILE, O_WRITE | O_CREAT | O_TRUNC);
-    if (!tmp) {
-      LOG_ERR("DICT", "Failed to open %s", DICT_TMP_FILE);
-      return fail(LookupResult::ReadError);
-    }
-    DictZip::ExtractError xerr = DictZip::ExtractError::None;
-    if (!DictZip::extractEntry(pathBuf, location.offset, size, tmp, &xerr)) {
-      // Map the specific extraction cause to the lookup result: allocation
-      // failure (heap fragmentation) vs corrupt/truncated .dz vs an IO error.
-      LOG_ERR("DICT", "dictzip extraction failed for %s (error %d)", basePath.c_str(), static_cast<int>(xerr));
-      switch (xerr) {
-        case DictZip::ExtractError::LowMemory:
-          return fail(LookupResult::LowMemory);
-        case DictZip::ExtractError::ReadError:
-          return fail(LookupResult::ReadError);
-        case DictZip::ExtractError::Decompress:
-        default:
-          return fail(LookupResult::Decompress);
-      }
-    }
-    tmp.close();  // close before reopening the same path for read
-    path = DICT_TMP_FILE;
-  }
-
-  HalFile dict;
-  if (!Storage.openFileForRead("DICT", path, dict)) return fail(LookupResult::ReadError);
-  const uint32_t dictSize = static_cast<uint32_t>(dict.fileSize());
-  if (offset > dictSize || size > dictSize - offset) {
-    LOG_ERR("DICT", "Definition out of bounds (%lu+%lu > %lu)", static_cast<unsigned long>(offset),
-            static_cast<unsigned long>(size), static_cast<unsigned long>(dictSize));
-    return fail(LookupResult::ReadError);
-  }
-
-  if (!dict.seekSet(offset)) {
-    LOG_ERR("DICT", "Seek to %lu failed", static_cast<unsigned long>(offset));
-    return fail(LookupResult::ReadError);
-  }
-  if (append) {
-    out.resize(originalSize + size);
-  } else {
-    out.assign(size, '\0');
-  }
-  // The bounds check above guarantees the bytes exist, so a short read is an IO
-  // failure — surface it instead of returning a silently truncated definition.
-  if (dict.read(&out[append ? originalSize : 0], size) != static_cast<int>(size)) {
-    out.resize(append ? originalSize : 0);
-    return fail(LookupResult::ReadError);
-  }
-  // Keep room for the viewer's plain-text fallback while retaining the input.
-  if (htmlDefinitions && ESP.getMaxAllocHeap() < out.size() + DEFINITION_HEAP_HEADROOM_BYTES) {
-    LOG_ERR("DICT", "Low heap for %lu byte definition fallback", static_cast<unsigned long>(out.size()));
-    return fail(LookupResult::LowMemory);
-  }
-  return true;
+  struct Context {
+    Dictionary& dictionary;
+    std::string& out;
+    HalFile data, tmp;
+    char path[PATH_BUF_BYTES]{};
+  } context{*this, out, {}, {}, {}};
+  const auto file = dictionaryFile(context.data);
+  const XpDictionaryDefinition io{
+      &context,
+      &file,
+      location.offset,
+      location.size,
+      location.found,
+      hasPlainDict,
+      htmlDefinitions,
+      append,
+      out.size(),
+      out.capacity(),
+      []() -> size_t { return ESP.getMaxAllocHeap(); },
+      [](void* ctx, uint8_t kind) {
+        auto& c = *static_cast<Context*>(ctx);
+        if (static_cast<DictionaryDataOpen>(kind) == DictionaryDataOpen::Temporary)
+          return Storage.openFileForRead("DICT", DICT_TMP_FILE, c.data);
+        if (!c.dictionary.buildPath(
+                c.path, sizeof(c.path),
+                static_cast<DictionaryDataOpen>(kind) == DictionaryDataOpen::Plain ? ".dict" : ".dict.dz"))
+          return false;
+        if (static_cast<DictionaryDataOpen>(kind) == DictionaryDataOpen::Plain)
+          return Storage.openFileForRead("DICT", c.path, c.data);
+        c.tmp = Storage.open(DICT_TMP_FILE, O_WRITE | O_CREAT | O_TRUNC);
+        if (!c.tmp) {
+          LOG_ERR("DICT", "Failed to open %s", DICT_TMP_FILE);
+          return false;
+        }
+        return true;
+      },
+      [](void* ctx, uint32_t offset, uint32_t size) -> uint8_t {
+        auto& c = *static_cast<Context*>(ctx);
+        DictZip::ExtractError error = DictZip::ExtractError::None;
+        DictZip::extractEntry(c.path, offset, size, c.tmp, &error);
+        return static_cast<uint8_t>(error);
+      },
+      [](void* ctx) { static_cast<Context*>(ctx)->tmp = HalFile{}; },
+      [](void* ctx, size_t size, bool assign) -> uint8_t* {
+        auto& out = static_cast<Context*>(ctx)->out;
+        if (assign)
+          out.assign(size, '\0');
+        else
+          out.resize(size);
+        return reinterpret_cast<uint8_t*>(out.data());
+      },
+      [](void* ctx, uint8_t event, uint32_t a, uint32_t b, uint32_t c) {
+        switch (static_cast<DictionaryDefinitionEvent>(event)) {
+          case DictionaryDefinitionEvent::Empty:
+            LOG_ERR("DICT", "Zero-length definition entry");
+            break;
+          case DictionaryDefinitionEvent::CombinedCap:
+            LOG_ERR("DICT", "Combined definition exceeds %lu bytes", static_cast<unsigned long>(a));
+            break;
+          case DictionaryDefinitionEvent::LowHeap:
+            LOG_ERR("DICT", "Low heap for %lu byte definition", static_cast<unsigned long>(a));
+            break;
+          case DictionaryDefinitionEvent::Temporary:
+            break;
+          case DictionaryDefinitionEvent::Extract:
+            LOG_ERR("DICT", "dictzip extraction failed for %s (error %d)",
+                    static_cast<Context*>(ctx)->dictionary.basePath.c_str(), static_cast<int>(a));
+            break;
+          case DictionaryDefinitionEvent::Bounds:
+            LOG_ERR("DICT", "Definition out of bounds (%lu+%lu > %lu)", static_cast<unsigned long>(a),
+                    static_cast<unsigned long>(b), static_cast<unsigned long>(c));
+            break;
+          case DictionaryDefinitionEvent::Seek:
+            LOG_ERR("DICT", "Seek to %lu failed", static_cast<unsigned long>(a));
+            break;
+          case DictionaryDefinitionEvent::Fallback:
+            LOG_ERR("DICT", "Low heap for %lu byte definition fallback", static_cast<unsigned long>(a));
+            break;
+        }
+      }};
+  const uint8_t result = xp_dictionary_definition(&io);
+  if (result && outResult) *outResult = static_cast<LookupResult>(result);
+  return result == 0;
 }
 
 std::string Dictionary::cleanWord(const char* word) {
   if (!word) return "";
-  const auto* b = reinterpret_cast<const unsigned char*>(word);
-  size_t start = 0;
-  size_t end = strlen(word);
-  // Curly quotes and dashes (General Punctuation U+2000-U+206F = E2 80/81 xx)
-  // are all >= 0x80, so isWordByte keeps them; strip those 3-byte codepoints
-  // from the edges too, or EPUB text like garage.” never matches a headword.
-  while (start < end) {
-    if (!isWordByte(b[start]))
-      start++;
-    else if (end - start >= 3 && b[start] == 0xE2 && (b[start + 1] == 0x80 || b[start + 1] == 0x81))
-      start += 3;
-    else {
-      const unsigned char* p = b + start;
-      const uint32_t cp = utf8NextCodepoint(&p);
-
-      if (CjkBreaks::isNoBreakAfterCjkPunctuation(cp)) {
-        start += static_cast<size_t>(p - (b + start));
-      } else {
-        break;
-      }
-    }
-  }
-  while (end > start) {
-    if (!isWordByte(b[end - 1]))
-      end--;
-    else if (end - start >= 3 && b[end - 3] == 0xE2 && (b[end - 2] == 0x80 || b[end - 2] == 0x81))
-      end -= 3;
-    else {
-      size_t lastCharStart = end - 1;
-      while (lastCharStart > start && (b[lastCharStart] & 0xC0) == 0x80) {
-        lastCharStart--;
-      }
-      const unsigned char* p = b + lastCharStart;
-      const uint32_t cp = utf8NextCodepoint(&p);
-      if (CjkBreaks::isNoBreakBeforeCjkPunctuation(cp)) {
-        end = lastCharStart;
-      } else {
-        break;
-      }
-    }
-  }
-  if (start >= end) return "";
-
+  size_t start = 0, end = 0;
+  xp_dictionary_clean_bounds(reinterpret_cast<const uint8_t*>(word), strlen(word), &start, &end);
   std::string result(word + start, end - start);
-  std::transform(result.begin(), result.end(), result.begin(),
-                 [](unsigned char c) { return c >= 0x80 ? c : static_cast<unsigned char>(std::tolower(c)); });
+  xp_dictionary_lower(reinterpret_cast<uint8_t*>(result.data()), result.size());
   return result;
 }
 
 void Dictionary::stemVariants(const std::string& word, std::vector<std::string>& out) {
   out.clear();
   out.reserve(6);
-  const size_t n = word.size();
-  const auto add = [&out](std::string v) {
-    if (std::find(out.begin(), out.end(), v) == out.end()) out.push_back(std::move(v));
-  };
-  // endsWith requires a non-empty remainder so variants never come out empty.
-  const auto endsWith = [&word, n](const char* suffix) {
-    const size_t len = strlen(suffix);
-    return n > len && word.compare(n - len, len, suffix) == 0;
-  };
-
-  if (endsWith("'s")) add(word.substr(0, n - 2));
-  if (endsWith("\xE2\x80\x99s")) add(word.substr(0, n - 4));  // U+2019 apostrophe
-  if (endsWith("ies")) add(word.substr(0, n - 3) + "y");      // stories -> story
-  if (endsWith("es")) add(word.substr(0, n - 2));             // boxes -> box
-  if (endsWith("s")) add(word.substr(0, n - 1));              // dogs -> dog
-  if (endsWith("ed")) {
-    add(word.substr(0, n - 2));                                            // walked -> walk
-    add(word.substr(0, n - 1));                                            // loved -> love
-    if (n >= 4 && word[n - 3] == word[n - 4]) add(word.substr(0, n - 3));  // stopped -> stop
-  }
-  if (endsWith("ing")) {
-    add(word.substr(0, n - 3));                                            // walking -> walk
-    add(word.substr(0, n - 3) + "e");                                      // making -> make
-    if (n >= 5 && word[n - 4] == word[n - 5]) add(word.substr(0, n - 4));  // running -> run
-  }
+  struct Context {
+    const std::string& word;
+    std::vector<std::string>& out;
+  } context{word, out};
+  xp_dictionary_stems(reinterpret_cast<const uint8_t*>(word.data()), word.size(), &context,
+                      [](void* ctx, size_t length, uint8_t suffix) {
+                        auto& context = *static_cast<Context*>(ctx);
+                        auto variant = context.word.substr(0, length);
+                        if (suffix) variant.push_back(static_cast<char>(suffix));
+                        if (std::find(context.out.begin(), context.out.end(), variant) == context.out.end())
+                          context.out.push_back(std::move(variant));
+                      });
 }
 
 bool Dictionary::lookup(const char* word, std::string& definitionOut, std::string& matchedHeadwordOut,
                         LookupResult* outResult) {
-  const auto setResult = [outResult](LookupResult r) {
-    if (outResult) *outResult = r;
-  };
-  setResult(LookupResult::NotFound);
-  // cleanWord plus three stem variants can retain five input-sized buffers,
-  // including growth of a concatenated variant. Keep the viewer intact on OOM.
-  const size_t wordBytes = word ? strlen(word) + 1 : 1;
-  const size_t workingBytes = 5 * wordBytes + 6 * sizeof(std::string) + DEFINITION_HEAP_HEADROOM_BYTES;
-  const auto heap = HalMemory::getDefaultHeap();
-  if (heap.freeBytes < workingBytes || heap.largestBlockBytes < 2 * wordBytes) {
-    LOG_ERR("DICT", "Low heap for lookup (%u byte working set)", static_cast<unsigned>(workingBytes));
-    setResult(LookupResult::LowMemory);
-    return false;
-  }
-  const std::string cleaned = cleanWord(word);
-  if (cleaned.empty() || !isOpen()) return false;
-  if (!entryList) {
-    LOG_ERR("DICT", "No entry list for the open dictionary");
-    setResult(LookupResult::ReadError);
-    return false;
-  }
-
-  // One set of open handles for the exact-match probe, the synonym probe and
-  // every stem variant, scoped so .idx/.qidx (and .syn/.sidx) close before
-  // readDefinition() opens the data file.
-  //
-  // The probe collects every entry the word maps to: the .idx can list one
-  // headword several times (one entry per part of speech) and a .syn can point
-  // at several headwords. All of them are shown, one label per entry.
-  DictEntryList& group = *entryList;
-  group.clear();
-  bool groupFromSynonyms = false;
-  bool searchFailed = false;
-  {
+  struct Context {
+    Dictionary& dictionary;
+    const char* word;
+    std::string& definition;
+    std::string& matched;
+    std::string cleaned;
+    std::vector<std::string> variants;
     LookupSession session;
-    // Couldn't open .idx: the search never reached a verdict, so this is a read
-    // failure, not a miss.
-    if (!openSession(session)) {
-      setResult(LookupResult::ReadError);
-      return false;
-    }
-
-    bool idxReadError = false;
-    locateAll(session, cleaned.c_str(), group, &idxReadError);
-    searchFailed = idxReadError;
-    if (!group.empty() && !group.lowMemory()) matchedHeadwordOut = group.front().headword.get();
-
-    // Dictionary-authored synonyms (alternate spellings, irregular forms) take
-    // precedence over the English-only stemmer, and are language-agnostic.
-    if (group.empty() && !group.lowMemory() && hasSyn) {
-      bool synonymReadError = false;
-      locateSynonyms(session, cleaned.c_str(), group, &synonymReadError);
-      searchFailed = searchFailed || synonymReadError;
-      // A synonym maps to other headwords, so the title bar shows the word the
-      // reader looked up; the headword of each entry labels its definition.
-      if (!group.empty() && !group.lowMemory()) {
-        groupFromSynonyms = true;
-        matchedHeadwordOut = cleaned;
-      }
-    }
-
-    if (group.empty() && !group.lowMemory()) {
-      std::vector<std::string> variants;
-      stemVariants(cleaned, variants);
-      for (const auto& variant : variants) {
-        bool variantReadError = false;
-        locateAll(session, variant.c_str(), group, &variantReadError);
-        searchFailed = searchFailed || variantReadError;
-        if (group.lowMemory()) break;
-        if (!group.empty()) {
-          matchedHeadwordOut = group.front().headword.get();
-          break;
+  } context{*this, word, definitionOut, matchedHeadwordOut, {}, {}, {}};
+  const auto heap = HalMemory::getDefaultHeap();
+  const XpDictionaryLookup io{
+      &context,
+      word ? strlen(word) + 1 : 1,
+      sizeof(std::string),
+      heap.freeBytes,
+      heap.largestBlockBytes,
+      isOpen(),
+      entryList != nullptr,
+      hasSyn,
+      htmlDefinitions,
+      [](void* ctx, uint8_t kind) {
+        auto& c = *static_cast<Context*>(ctx);
+        switch (static_cast<DictionaryPrepare>(kind)) {
+          case DictionaryPrepare::Clean:
+            c.cleaned = cleanWord(c.word);
+            return true;
+          case DictionaryPrepare::Clear:
+            c.dictionary.entryList->clear();
+            return true;
+          case DictionaryPrepare::Open:
+            return c.dictionary.openSession(c.session);
+          case DictionaryPrepare::Stem:
+            stemVariants(c.cleaned, c.variants);
+            return true;
         }
-      }
-    }
-  }
-  if (group.lowMemory()) {
-    setResult(LookupResult::LowMemory);
-    return false;
-  }
-  if (group.empty()) {
-    // A search that never reached a verdict (couldn't open or seek .idx) is a
-    // read failure, not a miss — reporting "Not found" is the bug this PR exists
-    // for. Otherwise the word is genuinely not in the dictionary.
-    if (searchFailed) setResult(LookupResult::ReadError);
-    return false;
-  }
-
-  // Found in the index — propagate the precise failure reason from readDefinition
-  // (decompression / low memory / read error) so the caller can name it.
-  //
-  // One entry is shown on its own, with the headword in the title bar. Several
-  // entries (a headword listed once per part of speech, or a .syn pointing at
-  // several headwords) are combined into one text, each labelled with its
-  // headword so the boundaries are visible.
-  if (group.size() > 1 || groupFromSynonyms) {
-    // The markup the merge below appends. The budget is derived from these,
-    // so the two cannot drift apart and the reserve is never short.
-    constexpr char kHtmlLabelOpen[] = "<h2>";
-    constexpr char kHtmlLabelClose[] = "</h2>";
-    constexpr char kPlainSeparator[] = "\n\n";
-
-    // Budget the combined text. An entry that does not fit is dropped and the
-    // rest are still shown: a word with many definitions opens on what fits
-    // rather than failing the lookup. The first entry always fits on its own,
-    // so at least one definition is shown.
-    size_t combinedSize = 0;
-    size_t fitCount = 0;
-    for (size_t i = 0; i < group.size(); i++) {
-      const size_t definitionSize = std::min<uint32_t>(group.at(i).location.size, MAX_DEFINITION_BYTES);
-      // The HTML path needs no separator: the heading is a block of its own.
-      const size_t separatorSize = combinedSize == 0 || htmlDefinitions ? 0 : sizeof(kPlainSeparator) - 1;
-      const size_t labelSize =
-          htmlDefinitions ? sizeof(kHtmlLabelOpen) - 1 + TxtToHtml::escapedHtmlSize(group.at(i).headword.get()) +
-                                sizeof(kHtmlLabelClose) - 1
-                          : sizeof(DICTIONARY_PLAIN_HEADWORD_MARKER) + strlen(group.at(i).headword.get()) + 1;
-      if (combinedSize > MAX_DEFINITION_BYTES - separatorSize ||
-          labelSize > MAX_DEFINITION_BYTES - combinedSize - separatorSize ||
-          definitionSize > MAX_DEFINITION_BYTES - combinedSize - separatorSize - labelSize) {
-        break;
-      }
-      combinedSize += separatorSize + labelSize + definitionSize;
-      fitCount = i + 1;
-    }
-    if (fitCount == 0) {
-      LOG_INF("DICT", "First definition fills the cap; omitting labels and later entries");
-      const bool found = readDefinition(group.front().location, definitionOut, outResult);
-      if (found) setResult(LookupResult::Found);
-      return found;
-    }
-    if (fitCount < group.size()) {
-      LOG_INF("DICT", "Combined definitions stop at the %lu byte cap: %u of %u entries shown",
-              static_cast<unsigned long>(MAX_DEFINITION_BYTES), static_cast<unsigned>(fitCount),
-              static_cast<unsigned>(group.size()));
-    }
-    if (ESP.getMaxAllocHeap() < combinedSize + DEFINITION_HEAP_HEADROOM_BYTES) {
-      LOG_ERR("DICT", "Low heap for combined %lu byte definition", static_cast<unsigned long>(combinedSize));
-      setResult(LookupResult::LowMemory);
-      return false;
-    }
-    definitionOut.clear();
-    definitionOut.reserve(combinedSize);
-    for (size_t i = 0; i < fitCount; i++) {
-      if (i != 0 && !htmlDefinitions) {
-        definitionOut += kPlainSeparator;
-      }
-      if (htmlDefinitions) {
-        definitionOut += kHtmlLabelOpen;
-        TxtToHtml::appendEscapedHtml(definitionOut, group.at(i).headword.get());
-        definitionOut += kHtmlLabelClose;
-      } else {
-        definitionOut.push_back(DICTIONARY_PLAIN_HEADWORD_MARKER);
-        definitionOut += group.at(i).headword.get();
-        definitionOut.push_back('\n');
-      }
-      if (!readDefinition(group.at(i).location, definitionOut, outResult, true)) return false;
-    }
-    setResult(LookupResult::Found);
-    return true;
-  }
-
-  if (readDefinition(group.front().location, definitionOut, outResult)) {
-    setResult(LookupResult::Found);
-    return true;
-  }
-  return false;
+        return false;
+      },
+      [](void* ctx, uint8_t kind, size_t index) -> XpDictionaryView {
+        auto& c = *static_cast<Context*>(ctx);
+        if (static_cast<DictionaryView>(kind) == DictionaryView::Headword) {
+          const char* head = c.dictionary.entryList->at(index).headword.get();
+          return {reinterpret_cast<const uint8_t*>(head), strlen(head)};
+        }
+        if (static_cast<DictionaryView>(kind) == DictionaryView::Variant && index >= c.variants.size())
+          return {nullptr, 0};
+        const auto& text = static_cast<DictionaryView>(kind) == DictionaryView::Cleaned ? c.cleaned : c.variants[index];
+        return {reinterpret_cast<const uint8_t*>(text.data()), text.size()};
+      },
+      [](void* ctx) -> XpDictionaryGroup {
+        const auto& group = *static_cast<Context*>(ctx)->dictionary.entryList;
+        return {group.size(), group.lowMemory()};
+      },
+      [](void* ctx, const uint8_t* text, size_t, bool synonym) {
+        auto& c = *static_cast<Context*>(ctx);
+        bool readError = false;
+        if (synonym)
+          c.dictionary.locateSynonyms(c.session, reinterpret_cast<const char*>(text), *c.dictionary.entryList,
+                                      &readError);
+        else
+          c.dictionary.locateAll(c.session, reinterpret_cast<const char*>(text), *c.dictionary.entryList, &readError);
+        return readError;
+      },
+      [](void* ctx) {
+        auto& c = *static_cast<Context*>(ctx);
+        std::vector<std::string>{}.swap(c.variants);
+        c.session.sidx = HalFile{};
+        c.session.syn = HalFile{};
+        c.session.qidx = HalFile{};
+        c.session.idx = HalFile{};
+      },
+      [](void* ctx, bool synonym) {
+        auto& c = *static_cast<Context*>(ctx);
+        const char* title = synonym ? c.cleaned.c_str() : c.dictionary.entryList->front().headword.get();
+        c.matched = title;
+      },
+      [](void* ctx, size_t index) -> XpDictionaryLocation {
+        const auto& location = static_cast<Context*>(ctx)->dictionary.entryList->at(index).location;
+        return {location.offset, location.size, location.found, location.readError};
+      },
+      [](void* ctx, size_t index, bool append) -> uint8_t {
+        auto& c = *static_cast<Context*>(ctx);
+        LookupResult result = LookupResult::Found;
+        c.dictionary.readDefinition(c.dictionary.entryList->at(index).location, c.definition, &result, append);
+        return static_cast<uint8_t>(result);
+      },
+      [](void* ctx, uint8_t operation, const uint8_t* data, size_t size) {
+        auto& out = static_cast<Context*>(ctx)->definition;
+        if (static_cast<DictionaryOutput>(operation) == DictionaryOutput::Reserve) {
+          out.clear();
+          out.reserve(size);
+        } else
+          out.append(reinterpret_cast<const char*>(data), size);
+      },
+      []() -> size_t { return ESP.getMaxAllocHeap(); },
+      [](void*, uint8_t event, uint32_t a, uint32_t b) {
+        switch (static_cast<DictionaryLookupEvent>(event)) {
+          case DictionaryLookupEvent::WorkingSet:
+            LOG_ERR("DICT", "Low heap for lookup (%u byte working set)", static_cast<unsigned>(a));
+            break;
+          case DictionaryLookupEvent::MissingEntries:
+            LOG_ERR("DICT", "No entry list for the open dictionary");
+            break;
+          case DictionaryLookupEvent::FirstCap:
+            LOG_INF("DICT", "First definition fills the cap; omitting labels and later entries");
+            break;
+          case DictionaryLookupEvent::CombinedCap:
+            LOG_INF("DICT", "Combined definitions stop at the %lu byte cap: %u of %u entries shown",
+                    static_cast<unsigned long>(MAX_DEFINITION_BYTES), static_cast<unsigned>(a),
+                    static_cast<unsigned>(b));
+            break;
+          case DictionaryLookupEvent::LowHeap:
+            LOG_ERR("DICT", "Low heap for combined %lu byte definition", static_cast<unsigned long>(a));
+            break;
+        }
+      }};
+  const auto result = static_cast<LookupResult>(xp_dictionary_lookup(&io));
+  if (outResult) *outResult = result;
+  return result == LookupResult::Found;
 }

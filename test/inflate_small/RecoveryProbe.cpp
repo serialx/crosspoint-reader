@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <DictZip.h>
+#include <DictionaryIo.h>
 #include <FontDecompressor.h>
 #include <Logging.h>
 

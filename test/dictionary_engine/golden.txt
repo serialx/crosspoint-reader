@@ -1043,6 +1043,241 @@ ERR DICT Low heap for 6 byte headword
 lookup apple 0 2
 matched 3 1a0fad1921d080766f6c64
 definition 3 1a0fad1921d080766f6c64
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 0
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 1
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 2
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 3
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 4
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 5
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 6
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 7
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 8
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 9
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 10
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 11
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 12
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 13
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 14
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 15
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 16
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 17
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 18
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 19
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 20
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 21
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 22
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 23
+needs 1
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 24
+needs 0
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 25
+needs 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 26
+needs 0
+ERR DICT Index seek to 16897 failed
+lookup apple 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 27
+needs 0
+ERR DICT Index seek to 16897 failed
+lookup apple 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+sidecar-truncate 28
+needs 0
+ERR DICT Index seek to 16897 failed
+lookup apple 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
 INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
 INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
 index 1 0

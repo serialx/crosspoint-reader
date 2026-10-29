@@ -13,6 +13,7 @@ mod book;
 mod book_io;
 mod chapter;
 mod css;
+mod dictionary;
 mod font;
 mod gif;
 mod glyph;

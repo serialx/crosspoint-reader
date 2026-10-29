@@ -491,10 +491,11 @@ lookup_harness = r'''
 #include <string_view>
 #include <vector>
 #include <CjkBreaks.h>
+#include <xp_ffi.h>
 #include <Utf8.h>
-#define LOG_ERR(...) ((void)0)
-#define LOG_INF(...) ((void)0)
-constexpr size_t DEFINITION_HEAP_HEADROOM_BYTES = 8192;
+template<typename... Args> void ignoreLog(Args&&...) {}
+#define LOG_ERR(...) ignoreLog(__VA_ARGS__)
+#define LOG_INF(...) ignoreLog(__VA_ARGS__)
 struct HalMemory {
   struct Heap { size_t freeBytes, largestBlockBytes; };
   static inline Heap heap{65536, 65536};
@@ -513,7 +514,8 @@ struct TxtToHtml {
 class Dictionary {
  public:
   enum class LookupResult { Found, NotFound, LowMemory, Decompress, ReadError };
-  struct LookupSession {};
+  struct HalFile {};
+  struct LookupSession { HalFile idx, qidx, syn, sidx; };
   static constexpr uint32_t MAX_DEFINITION_BYTES = 64 * 1024;
   bool hasSyn = false;
   bool htmlDefinitions = false;
@@ -534,7 +536,7 @@ class Dictionary {
   static void stemVariants(const std::string&, std::vector<std::string>&);
   bool lookup(const char*, std::string&, std::string&, LookupResult*);
 };
-''' + lookup_methods + r'''
+''' + (ROOT / 'src/util/DictionaryIo.h').read_text().split('// Internal callback discriminants;', 1)[1].split('\n', 1)[1] + lookup_methods + r'''
 int main() {
   assert(Dictionary::cleanWord("「言葉」") == "言葉");
   assert(Dictionary::cleanWord("『《言葉》』") == "言葉");

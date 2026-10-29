@@ -332,6 +332,15 @@
       "contract": "src/activities/reader/KOReaderSyncActivity.cpp:474"
     },
     {
+      "source": "src/activities/reader/KOReaderUiActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "fixture-kosync-result",
+        "fixture-kosync-missing"
+      ],
+      "reason": "Shared KOReader scene binding, exercised by the canned sync result and missing-progress fixtures."
+    },
+    {
       "source": "src/activities/reader/QrDisplayActivity.cpp",
       "status": "captured",
       "groups": [

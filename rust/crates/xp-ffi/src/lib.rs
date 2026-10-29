@@ -14,6 +14,7 @@ mod css;
 mod font;
 mod gif;
 mod glyph;
+mod hal;
 mod hyphen;
 mod i18n;
 mod image;

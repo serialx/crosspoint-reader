@@ -4,6 +4,7 @@
 #include <Logging.h>
 #include <SDCardManager.h>
 #include <esp_heap_caps.h>
+#include <xp_hal.h>
 #if FREEINK_CAP_USB_MSC
 #include <UsbMassStorage.h>
 #endif
@@ -53,20 +54,26 @@ void HalStorage::prepareForDeepSleep() {
 bool HalStorage::beginUsbDrive() {
 #if FREEINK_CAP_USB_MSC
   StorageLock lock;
-  auto* const blockDevice = SDCard.detachFilesystemForRawAccess();
-  if (!blockDevice) {
-    LOG_ERR("USB", "USB Drive requires a mounted SD filesystem");
-    return false;
-  }
-
-  if (!usbMassStorage.begin(blockDevice)) {
-    LOG_ERR("USB", "USB Drive MSC initialization failed");
-    if (!SDCard.begin()) {
-      LOG_ERR("USB", "Unable to remount SD card after USB Drive startup failure");
-    }
-    return false;
-  }
-  return true;
+  const XpHalUsbServices services{
+      nullptr, [](void*) { return reinterpret_cast<XpHalBlockDevice*>(SDCard.detachFilesystemForRawAccess()); },
+      [](void*, XpHalBlockDevice* device) {
+        return usbMassStorage.begin(reinterpret_cast<decltype(SDCard.detachFilesystemForRawAccess())>(device));
+      },
+      [](void*) { return SDCard.begin(); },
+      [](void*, uint32_t event, uint32_t, uint32_t, uint32_t, uint32_t) {
+        switch (event) {
+          case 0:
+            LOG_ERR("USB", "USB Drive requires a mounted SD filesystem");
+            break;
+          case 1:
+            LOG_ERR("USB", "USB Drive MSC initialization failed");
+            break;
+          case 2:
+            LOG_ERR("USB", "Unable to remount SD card after USB Drive startup failure");
+            break;
+        }
+      }};
+  return xp_hal_usb_begin(&services);
 #else
   return false;
 #endif
@@ -141,19 +148,35 @@ size_t HalStorage::readFileToBuffer(const char* path, char* buffer, size_t buffe
 // StorageLock of its own.
 bool HalStorage::readFileToString(const char* moduleName, const std::string& path, size_t cap, std::string& out) {
   out.clear();
-  HalFile file;
-  if (!openFileForRead(moduleName, path, file)) return false;
-  if (file.isDirectory()) return false;
-  const size_t size = file.fileSize();
-  if (size == 0 || size > cap) return false;
-  // string growth is a bare allocation under -fno-exceptions; probe first so
-  // a large file on a fragmented heap fails soft instead of abort()ing.
-  if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < size + 512) {
-    LOG_ERR(moduleName, "readFileToString OOM: %u bytes for %s", static_cast<unsigned>(size), path.c_str());
-    return false;
+  struct Context {
+    const char* module;
+    const std::string& path;
+    std::string& out;
+    HalFile file;
+    size_t size = 0;
+  } ctx{moduleName, path, out, {}, 0};
+  const XpHalReadServices services{&ctx,
+                                   [](void* raw) {
+                                     auto& c = *static_cast<Context*>(raw);
+                                     return Storage.openFileForRead(c.module, c.path, c.file);
+                                   },
+                                   [](void* raw) { return static_cast<Context*>(raw)->file.isDirectory(); },
+                                   [](void* raw) {
+                                     auto& c = *static_cast<Context*>(raw);
+                                     c.size = c.file.fileSize();
+                                     return c.size;
+                                   },
+                                   [](void*) { return heap_caps_get_largest_free_block(MALLOC_CAP_8BIT); },
+                                   [](void* raw, size_t size) -> int32_t {
+                                     auto& c = *static_cast<Context*>(raw);
+                                     c.out.resize(size);
+                                     return c.file.read(c.out.data(), size);
+                                   }};
+  const auto result = xp_hal_read_string(&services, cap);
+  if (result == 2) {
+    LOG_ERR(moduleName, "readFileToString OOM: %u bytes for %s", static_cast<unsigned>(ctx.size), path.c_str());
   }
-  out.resize(size);
-  return file.read(out.data(), size) == static_cast<int>(size);
+  return result == 1;
 }
 
 bool HalStorage::writeFile(const char* path, const String& content) {

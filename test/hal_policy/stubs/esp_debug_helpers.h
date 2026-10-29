@@ -1,2 +1,4 @@
 #pragma once
-struct RvExcFrame { unsigned sp; };
+struct RvExcFrame {
+  unsigned sp;
+};

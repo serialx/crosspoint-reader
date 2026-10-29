@@ -164,3 +164,7 @@ add_subdirectory(vector_font)
 add_subdirectory(web_jobs)
 add_subdirectory(ota_policy)
 add_subdirectory(ui_utility)
+
+add_subdirectory(hal_policy)
+set_tests_properties(TrustedTimeTimezone PROPERTIES
+  ENVIRONMENT "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}")

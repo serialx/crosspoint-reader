@@ -2,28 +2,21 @@
 
 #include <Arduino.h>
 #include <Rtc.h>
+#include <xp_hal.h>
 
 class HalClock;
 extern HalClock halClock;  // Singleton
 
 class HalClock {
-  bool _available = false;
   mutable Rtc _sdkRtc;
-  // The RTC keeps UTC; local time comes from newlib's localtime_r under the
-  // POSIX TZ rule set via setTimezone(), so zones with DST are correct
-  // year-round. Cached as a UTC epoch to keep the RTC bus quiet.
-  mutable time_t _cachedUtc = 0;
-  mutable bool _hasCachedTime = false;
-  mutable unsigned long _lastPollMs = 0;
-
-  static constexpr unsigned long CLOCK_POLL_MS = 10000;  // 10 seconds
+  mutable XpHalClock state{};
 
  public:
   // Call after BoardConfig has selected the active device.
   void begin();
 
   // True if an RTC is present on this device
-  bool isAvailable() const { return _available; }
+  bool isAvailable() const { return state.available; }
 
   // Set the POSIX TZ rule (e.g. "CET-1CEST,M3.5.0,M10.5.0/3") applied to every
   // read. nullptr/empty falls back to UTC. Drops the read cache so the change

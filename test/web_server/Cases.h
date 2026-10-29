@@ -1410,5 +1410,13 @@ int main() {
     app.handleCrypto();
     freeink::content::beforePkcs12 = {};
   });
+
+  for (const char* op : {R"("sha1\u0000suffix")", R"("aesdec\u0000suffix")", R"("\u0000sha1")", "null", "42", "[]"}) {
+    record((std::string("crypto-op-coercion:") + op).c_str(), [&](auto& app) {
+      app.server->args["plain"] = std::string("{\"op\":") + op + R"(,"data":"AA=="})";
+      host::cryptoTrace = true;
+      app.handleCrypto();
+    });
+  }
   return 0;
 }

@@ -100,6 +100,10 @@ def main():
             return [row for line in data.splitlines() if (row := json.loads(line))["case"].startswith("job")]
         if jobs(zero) != jobs(expected):
             raise SystemExit("job transcripts changed with Rust allocator disabled")
+        def rpc(data):
+            return [row for line in data.splitlines() if (row := json.loads(line))["case"].startswith(("crypto", "relay", "rc-json"))]
+        if rpc(zero) != rpc(expected):
+            raise SystemExit("relay/crypto transcripts changed with Rust allocator disabled")
         for count in range(1, 128):
             subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_FAIL_AFTER": str(count)},
                            stdout=subprocess.DEVNULL, check=True)
@@ -143,14 +147,14 @@ def main():
         changed = source.replace('static constexpr size_t RELAY_BODY_LIMIT = 32 * 1024;',
                                  'static constexpr size_t RELAY_BODY_LIMIT = 31 * 1024;', 1)
         if changed == source:
-            changed = source.replace('XP_WEB_RELAY);', 'XP_WEB_CRYPTO);', 1)
+            changed = source.replace('WebRelayBridge bridge(*this);', 'return; WebRelayBridge bridge(*this);', 1)
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed relay policy")
         print("mutation check: rejected changed relay policy")
         changed = source.replace('static constexpr int MAX_RANDOM_BYTES = 4096;',
                                  'static constexpr int MAX_RANDOM_BYTES = 4095;', 1)
         if changed == source:
-            changed = source.replace('XP_WEB_CRYPTO);', 'XP_WEB_RELAY);', 1)
+            changed = source.replace('WebCryptoBridge bridge(*this);', 'return; WebCryptoBridge bridge(*this);', 1)
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed crypto policy")
         print("mutation check: rejected changed crypto policy")

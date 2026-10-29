@@ -331,6 +331,10 @@ void ClipSelectionActivity::loopButtons() {
   if (!queued) LOG_ERR("CLIP", "Selection button queue full");
   RenderLock lock(RenderLock::Mode::Try);
   if (!lock.ownsLock()) return;
+  if (rustSceneRejected()) {
+    consumeRejectedInput();
+    return;
+  }
   for (;;) {
     uint8_t buttons;
     {
@@ -352,6 +356,10 @@ void ClipSelectionActivity::loop() {
     return;
   }
   RenderLock lock;
+  if (rustSceneRejected()) {
+    consumeRejectedInput();
+    return;
+  }
   if (actionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;
   XpUiSelectionInput input{};
   input.input = dictionaryUiInput(mappedInput);

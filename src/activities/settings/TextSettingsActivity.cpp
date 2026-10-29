@@ -169,8 +169,12 @@ void TextSettingsActivity::render(RenderLock&& lock) {
   if (optionPopup_.processRender(renderer, mappedInput)) return;
   RustActivityAdapter::render(std::move(lock));
 }
-void TextSettingsActivity::applyFamily(int index) {
+bool TextSettingsActivity::applyFamily(int index) {
   RenderLock lock;
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return false;
+  }
   const auto& font = fonts_[index];
   if (font.isBuiltin) {
     SETTINGS.fontFamily = font.settingIndex;
@@ -186,13 +190,19 @@ void TextSettingsActivity::applyFamily(int index) {
   state.size = size;
   state.size_count = sizes_.size();
   state.tabs[1].selected = size + 1;
+  return true;
 }
-void TextSettingsActivity::applySize(int index) {
+bool TextSettingsActivity::applySize(int index) {
   RenderLock lock;
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return false;
+  }
   SETTINGS.fontPointSize = sizes_[index].pointSize;
   sdFontSystem.ensureLoaded(renderer);
   ModelLock model(*this);
   state.size = index;
+  return true;
 }
 void TextSettingsActivity::activateRow(int row) {
   const auto current = sampleValues();
@@ -203,10 +213,10 @@ void TextSettingsActivity::activateRow(int row) {
   }
   switch (edit.kind) {
     case XP_UI_TEXT_FAMILY:
-      applyFamily(edit.value);
+      if (!applyFamily(edit.value)) return;
       break;
     case XP_UI_TEXT_SIZE:
-      applySize(edit.value);
+      if (!applySize(edit.value)) return;
       break;
     case XP_UI_TEXT_SAVE:
       SETTINGS.*FIELDS[edit.field] = edit.value;

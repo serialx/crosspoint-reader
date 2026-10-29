@@ -9,10 +9,11 @@ from input_oracle import method
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+SOURCE = Path(os.environ.get('XP_REJECTION_SOURCE_ROOT', ROOT))
 
 
 def extracted(path, signatures):
-    source = (ROOT / path).read_text()
+    source = (SOURCE / path).read_text()
     return '\n'.join(method(source, signature) for signature in signatures)
 
 

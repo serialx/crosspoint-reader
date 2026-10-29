@@ -256,6 +256,10 @@ void KeyboardEntryActivity::applyRustEffect(const XpUiEffect& navigation) {
   XpUiEffect effect{};
   {
     TextLock textLock(*this);
+    if (navigation.kind != XP_UI_CANCEL && rustSceneRejected()) {
+      requestUpdate();
+      return;
+    }
     if (navigation.kind == XP_UI_CANCEL) {
       pending = {};
       effect = navigation;

@@ -64,6 +64,10 @@ void EpubReaderFootnoteSelectActivity::applyRustEffect(const XpUiEffect& effect)
     }
     case XP_UI_ACTIVATE: {
       RenderLock lock;
+      if (rustSceneRejected()) {
+        requestUpdate();
+        return;
+      }
       performJump(effect.value);
       break;
     }

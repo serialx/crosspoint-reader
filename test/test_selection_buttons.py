@@ -53,6 +53,8 @@ XpUiInput dictionaryUiInput(const MappedInputManager& input) {
 }
 """ + helpers + r"""
 struct ClipSelectionActivity {
+  bool rustSceneRejected() const { return false; }
+  bool consumeRejectedInput() { return false; }
   MappedInputManager mappedInput;
   int selected = 5, confirmed = -1;
   bool handleButtons(uint8_t buttons) {
@@ -126,8 +128,10 @@ popup_harness = r"""
 #include <functional>
 #include <vector>
 struct RenderLock { ~RenderLock() {} };
+struct ModelLock { template<typename T> explicit ModelLock(T&) {} };
 struct Input { bool touch = false, back = false, confirm = false, outsideTap = false;
   bool hasTouch() const { return touch; }
+  bool isScreenTouchHeld(int&, int&) const { return false; }
 };
 struct Popup {
   static constexpr int MAX_OPTIONS = 16;
@@ -145,6 +149,8 @@ struct Popup {
 };
 struct ClipSelectionActivity {
   bool consumeRejectedInput() { return false; }
+  bool rustSceneRejected() const { return false; }
+  struct { int ignore_touch=0; } state;
   size_t wordCount = 0;  // extractWords() could not allocate its array.
   Popup actionPopup;
   Input mappedInput;

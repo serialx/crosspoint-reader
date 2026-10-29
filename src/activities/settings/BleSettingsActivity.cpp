@@ -54,6 +54,10 @@ const char* BleSettingsActivity::headerTitle() const {
 void BleSettingsActivity::showView(uint8_t target) {
   {
     RenderLock lock(*this);
+    if (rustSceneRejected()) {
+      requestUpdate();
+      return;
+    }
     xp_ui_settings_ble_show(&state, target);
     resetSelection();
   }

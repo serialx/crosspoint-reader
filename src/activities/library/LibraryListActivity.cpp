@@ -435,6 +435,10 @@ int LibraryListActivity::groupForBook(int entry) const {
 
 bool LibraryListActivity::collapseGroups(int entry) {
   ResourceLock lock(*this);
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return false;
+  }
   if (!groupable() || !buildGroupStarts()) return false;
   event(XP_UI_LIBRARY_COLLAPSED, groupForBook(entry));
   requestUpdate();
@@ -443,6 +447,10 @@ bool LibraryListActivity::collapseGroups(int entry) {
 
 void LibraryListActivity::expandGroup(int entry) {
   ResourceLock lock(*this);
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return;
+  }
   if (!state.collapsed || entry < 0 || entry >= groupCount) return;
   event(XP_UI_LIBRARY_EXPANDED, groupStarts[entry]);
   requestUpdate();
@@ -679,6 +687,10 @@ void LibraryListActivity::applyRustEffect(const XpUiEffect& effect) {
     }
     case XP_UI_LIBRARY_SORT: {
       ResourceLock lock(*this);
+      if (rustSceneRejected()) {
+        requestUpdate();
+        return;
+      }
       event(XP_UI_LIBRARY_SORT_BEGIN, effect.value);
       applyFilter();
       event(XP_UI_LIBRARY_SORT_FINISH, effect.value);

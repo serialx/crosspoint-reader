@@ -28,3 +28,5 @@ add_test(NAME ui_runtime_rejection_keyboard COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/rejection_keyboard.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ui_runtime_rejection_commands COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/rejection_commands.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_runtime_rejection_interleaving COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_interleaving.py ${XP_FFI_HOST_ARCHIVE} remap footnote clip-lock language text)

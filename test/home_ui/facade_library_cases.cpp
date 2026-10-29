@@ -1,4 +1,31 @@
 int main() {
+  // Reject while an action is waiting for construction's resource lock.
+  for (int action : {0, 1, 2}) {
+    LibraryListActivity owner;
+    owner.state.collapsed = action == 1;
+    const auto before = owner.state;
+    watchedMutex = owner.resourceMutex;
+    waitingForResource = false;
+    std::unique_lock held(*owner.resourceMutex);
+    auto input = std::async(std::launch::async, [&] {
+      if (action == 0) owner.collapseGroups(2);
+      if (action == 1) owner.expandGroup(0);
+      if (action == 2) owner.applyRustEffect(XpUiEffect{1, XP_UI_LIBRARY_SORT, 0, {0, 0}});
+    });
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (!waitingForResource && std::chrono::steady_clock::now() < deadline) std::this_thread::yield();
+    assert(waitingForResource);
+    owner.sceneFailed = true;
+    held.unlock();
+    input.get();
+    watchedMutex = nullptr;
+    assert(std::memcmp(&before, &owner.state, sizeof(before)) == 0);
+    owner.sceneFailed = false;
+    if (action == 0) assert(owner.collapseGroups(2));
+    if (action == 1) owner.expandGroup(0);
+    if (action == 2) owner.applyRustEffect(XpUiEffect{1, XP_UI_LIBRARY_SORT, 0, {0, 0}});
+    assert(std::memcmp(&before, &owner.state, sizeof(before)) != 0);
+  }
   // Mutate every formerly RenderLock-serialized path while rendering is paused
   // first at resource validation/painting, then inside synchronous refresh.
   for (bool painting : {false, true}) {

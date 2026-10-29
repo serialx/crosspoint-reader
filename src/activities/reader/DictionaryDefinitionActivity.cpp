@@ -396,11 +396,21 @@ bool DictionaryDefinitionActivity::restoreCurrentDefinition(const bool styled) {
 void DictionaryDefinitionActivity::navigateDefinition(const bool back) {
   {
     RenderLock lock;
+    if (!back && rustSceneRejected()) {
+      lookup->pendingWord.clear();
+      requestUpdate();
+      return;
+    }
     showMessage(StrId::STR_DICT_LOOKING_UP);
   }
   requestUpdateAndWait();
 
   RenderLock lock;
+  if (!back && rustSceneRejected()) {
+    lookup->pendingWord.clear();
+    requestUpdate();
+    return;
+  }
   messageVisible = false;
   const bool styled = !content.pages.empty();
   // Keep only navigation metadata while inflating and laying out another entry.
@@ -553,6 +563,10 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
 
 void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
   RenderLock lock;
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return;
+  }
   if (!content.selection.valid || x >= 0) {
     content.selectionPage = content.currentPage;
     content.selection.valid = false;

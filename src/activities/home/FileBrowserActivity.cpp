@@ -580,6 +580,10 @@ void FileBrowserActivity::applyRustEffect(const XpUiEffect& effect) {
     case XP_UI_FILE_DIRECTORY:
     case XP_UI_FILE_OPEN: {
       RenderLock lock(*this);
+      if (rustSceneRejected()) {
+        requestUpdate();
+        return;
+      }
       if (basepath.back() != '/') basepath += "/";
       const std::string entry = files[effect.value];
       if (effect.kind == XP_UI_FILE_DIRECTORY) {

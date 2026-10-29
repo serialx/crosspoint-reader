@@ -267,6 +267,8 @@ struct DictionaryDefinitionActivity {
   bool initialLayoutFailed = false;
   bool finished = false;
   bool selectionOpened = false;
+  bool rejected = false;
+  bool rustSceneRejected() const { return rejected; }
   ActivityResult result;
   std::unique_ptr<ClipSelectionActivity> child;
   ActivityResultHandler callback;
@@ -308,6 +310,15 @@ int main() {
   view.content.currentPage = 1;
   view.content.selectionPage = 0;
   view.content.selection = {0, 1, 2, 0, true};
+  // Rejection after a resource wait must not replace the definition or open selection.
+  view.rejected = true;
+  view.lookup->pendingWord = "alias";
+  view.navigateDefinition(false);
+  assert(view.lookup->pendingWord.empty() && view.lookup->depth == 0);
+  assert(view.content.text == dictionary.entries.at(10));
+  view.startSelection();
+  assert(!view.child && view.content.selection.valid);
+  view.rejected = false;
   // On C3 the inflate window must fit before another definition is allocated.
   dictionary.canRead = [&] {
     return view.content.text.empty() && view.content.text.capacity() == std::string{}.capacity() &&

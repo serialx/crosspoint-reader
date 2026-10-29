@@ -47,8 +47,8 @@ class TextSettingsActivity final : public RustActivityAdapter {
   bool touchActivated = false;
   void rustSceneFailed() override { touchActivated = false; }
   int rebuildSizeList();
-  void applyFamily(int index);
-  void applySize(int index);
+  bool applyFamily(int index);
+  bool applySize(int index);
   void activateRow(int index);
   const char* text(uint32_t handle) const;
   XpUiReaderRows rows();

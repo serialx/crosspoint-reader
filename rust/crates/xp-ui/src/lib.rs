@@ -14,3 +14,6 @@ pub mod ffi;
 pub mod list;
 
 pub mod xtc;
+
+pub mod reader_chrome;
+pub mod reader_chrome_ffi;

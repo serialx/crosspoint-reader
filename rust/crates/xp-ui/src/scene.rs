@@ -120,12 +120,17 @@ pub struct Scene<'a> {
     pub generation: u32,
 }
 
+pub trait HitSink {
+    fn push(&mut self, interaction: Interaction) -> Result<(), Error>;
+}
+
 /// A builder owns all mutable arena loans until finish. Overflow poisons the
 /// entire frame, including its interaction table.
 pub struct Arena<'a> {
     commands: &'a mut [Command],
     text: &'a mut [u8],
     hits: &'a mut [Interaction],
+    hit_sink: Option<&'a mut dyn HitSink>,
     used: usize,
     text_used: usize,
     hit_used: usize,
@@ -147,11 +152,20 @@ impl<'a> Arena<'a> {
             commands,
             text,
             hits,
+            hit_sink: None,
             used: 0,
             text_used: 0,
             hit_used: 0,
             error: None,
         })
+    }
+    pub fn with_hit_sink(
+        commands: &'a mut [Command],
+        sink: &'a mut dyn HitSink,
+    ) -> Result<Self, Error> {
+        let mut arena = Self::new(commands, &mut [], &mut [])?;
+        arena.hit_sink = Some(sink);
+        Ok(arena)
     }
     fn fail<T>(&mut self, error: Error) -> Result<T, Error> {
         self.error = Some(error);
@@ -190,6 +204,12 @@ impl<'a> Arena<'a> {
     pub fn hit(&mut self, interaction: Interaction) -> Result<(), Error> {
         if let Some(error) = self.error {
             return Err(error);
+        }
+        if let Some(sink) = &mut self.hit_sink {
+            return match sink.push(interaction) {
+                Ok(()) => Ok(()),
+                Err(error) => self.fail(error),
+            };
         }
         let Some(slot) = self.hits.get_mut(self.hit_used) else {
             return self.fail(Error::Capacity);

@@ -1,6 +1,11 @@
 #pragma once
 
 #include <Arduino.h>
+#ifdef XP_FOOTNOTE_SELECT_TEST
+#include <xp_ui.h>
+
+#include <vector>
+#endif
 #include <FontCacheManager.h>
 
 #include <algorithm>
@@ -18,6 +23,13 @@ class GfxRenderer : public ChapterTestRenderer {
   int highlightX = 0, highlightY = 0;
   std::string highlightNumber;
   void clearScreen() {}
+  void drawUiText(const XpUiCommand&, XpUiRect, const char* text) { highlightNumber = text; }
+  bool drawUiScene(const XpUiScene& scene, const XpUiPaint* paint) {
+    std::vector<uint8_t> bytes(48000, 0xff);
+    XpGlyphTarget target{
+        bytes.data(), static_cast<uint32_t>(bytes.size()), 480, 800, 60, 0, 800, {0, 0, 480, 800}, 3, 0, 0, 0, 0};
+    return xp_ui_render(&scene, &target, paint);
+  }
   void displayBuffer(int) {}
   size_t readFramebufferRegion(int x, int y, int, int, uint8_t*, size_t) {
     highlightX = x;

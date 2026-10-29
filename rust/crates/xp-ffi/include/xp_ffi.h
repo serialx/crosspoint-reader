@@ -1939,6 +1939,257 @@ uint8_t xp_library_book(const uint8_t*, size_t);
 uint8_t xp_library_build(const XpLibraryServices*, const uint8_t*, size_t, XpLibraryStats*, uint8_t, uint8_t*);
 uint8_t xp_library_dirty(const XpLibraryServices*, uint8_t*, uint8_t);
 
+typedef enum {
+  XP_SYNC_QUERY_BOOK_SIZE = 0,
+  XP_SYNC_QUERY_SPINE_COUNT = 1,
+  XP_SYNC_QUERY_SPINE_FOR_SIZE = 2,
+  XP_SYNC_QUERY_CUMULATIVE_SIZE = 3,
+  XP_SYNC_QUERY_CACHED_PAGES = 4,
+  XP_SYNC_QUERY_PAGE_FOR_OFFSET = 5,
+  XP_SYNC_QUERY_PAGE_FOR_PARAGRAPH = 6,
+  XP_SYNC_QUERY_PAGE_FOR_LIST = 7,
+  XP_SYNC_QUERY_PAGE_FOR_ANCHOR = 8,
+  XP_SYNC_QUERY_ITEM_SIZE = 9
+} XpSyncQuery;
+typedef enum {
+  XP_SYNC_READ_CSTRING = 0,
+  XP_SYNC_READ_STRING = 1,
+  XP_SYNC_READ_U8 = 2,
+  XP_SYNC_READ_U8_DEFAULT = 3,
+  XP_SYNC_READ_BOOL = 4,
+  XP_SYNC_READ_F32 = 5,
+  XP_SYNC_READ_I64 = 6,
+  XP_SYNC_READ_U32 = 7,
+  XP_SYNC_READ_U16 = 8,
+  XP_SYNC_READ_NULL = 9,
+  XP_SYNC_READ_OBJECT = 10,
+  XP_SYNC_READ_RAW = 11
+} XpSyncJsonRead;
+typedef enum {
+  XP_SYNC_VALUE_STRING = 0,
+  XP_SYNC_VALUE_U8 = 1,
+  XP_SYNC_VALUE_BOOL = 2,
+  XP_SYNC_VALUE_F32 = 3,
+  XP_SYNC_VALUE_I64 = 4,
+  XP_SYNC_VALUE_U32 = 5,
+  XP_SYNC_VALUE_U16 = 6,
+  XP_SYNC_VALUE_SECRET = 7,
+  XP_SYNC_VALUE_RAW = 8
+} XpSyncValueKind;
+typedef enum {
+  XP_SYNC_STORE_USERNAME = 0,
+  XP_SYNC_STORE_PASSWORD = 1,
+  XP_SYNC_STORE_SERVER_URL = 2,
+  XP_SYNC_STORE_SERVER_TYPE = 3,
+  XP_SYNC_STORE_MATCH_METHOD = 4,
+  XP_SYNC_STORE_SEND_METADATA = 5,
+  XP_SYNC_STORE_SYNC_CLIPPINGS = 6,
+  XP_SYNC_STORE_BEHAVIOR = 7,
+  XP_SYNC_STORE_HEADER0_NAME = 8,
+  XP_SYNC_STORE_HEADER0_VALUE = 9,
+  XP_SYNC_STORE_HEADER1_NAME = 10,
+  XP_SYNC_STORE_HEADER1_VALUE = 11,
+  XP_SYNC_STORE_EXTRACTED_PASSWORD = 12,
+  XP_SYNC_STORE_BASE_URL = 13
+} XpSyncStoreField;
+typedef enum {
+  XP_SYNC_HTTP_STATUS = 0,
+  XP_SYNC_HTTP_URL_RESET = 1,
+  XP_SYNC_HTTP_URL_APPEND = 2,
+  XP_SYNC_HTTP_HEAP = 3,
+  XP_SYNC_HTTP_INSECURE = 4,
+  XP_SYNC_HTTP_BEGIN = 5,
+  XP_SYNC_HTTP_HEADER = 6,
+  XP_SYNC_HTTP_GET = 7,
+  XP_SYNC_HTTP_POST = 8,
+  XP_SYNC_HTTP_PUT = 9,
+  XP_SYNC_HTTP_END = 10,
+  XP_SYNC_HTTP_JSON_RESET = 11,
+  XP_SYNC_HTTP_PARSE_RESPONSE = 12,
+  XP_SYNC_HTTP_PARSE_EXTRA = 13,
+  XP_SYNC_HTTP_SERIALIZE = 14,
+  XP_SYNC_HTTP_RELEASE_EXTRA = 15
+} XpSyncTransportOp;
+typedef enum {
+  XP_SYNC_METHOD_AUTH = 0,
+  XP_SYNC_METHOD_CREATE = 1,
+  XP_SYNC_METHOD_GET = 2,
+  XP_SYNC_METHOD_UPDATE = 3
+} XpSyncMethod;
+typedef enum {
+  XP_SYNC_HTTP_DIAG_NO_CREDENTIALS = 0,
+  XP_SYNC_HTTP_DIAG_AUTH = 1,
+  XP_SYNC_HTTP_DIAG_CREATE = 2,
+  XP_SYNC_HTTP_DIAG_GET = 3,
+  XP_SYNC_HTTP_DIAG_UPDATE = 4,
+  XP_SYNC_HTTP_DIAG_LOW_HEAP = 5,
+  XP_SYNC_HTTP_DIAG_BAD_URL = 6,
+  XP_SYNC_HTTP_DIAG_AUTH_RESPONSE = 7,
+  XP_SYNC_HTTP_DIAG_CREATE_RESPONSE = 8,
+  XP_SYNC_HTTP_DIAG_GET_RESPONSE = 9,
+  XP_SYNC_HTTP_DIAG_UNUSED = 10,
+  XP_SYNC_HTTP_DIAG_JSON_ERROR = 11,
+  XP_SYNC_HTTP_DIAG_RICH_POSITION = 12,
+  XP_SYNC_HTTP_DIAG_PROGRESS = 13,
+  XP_SYNC_HTTP_DIAG_REQUEST_BODY = 14,
+  XP_SYNC_HTTP_DIAG_UPDATE_RESPONSE = 15
+} XpSyncHttpDiagnostic;
+typedef enum {
+  XP_SYNC_MAP_DIAG_UNUSED = 0,
+  XP_SYNC_MAP_DIAG_ANCESTRY = 1,
+  XP_SYNC_MAP_DIAG_BODY_TEXT = 2,
+  XP_SYNC_MAP_DIAG_PARAGRAPH = 3,
+  XP_SYNC_MAP_DIAG_CHAPTER_START = 4,
+  XP_SYNC_MAP_DIAG_CONTENT_OFFSET = 5,
+  XP_SYNC_MAP_DIAG_NO_OFFSET_LUT = 6,
+  XP_SYNC_MAP_DIAG_PERCENTAGE = 7,
+  XP_SYNC_MAP_DIAG_LIST_PAGE = 8,
+  XP_SYNC_MAP_DIAG_NO_LIST_PAGE = 9,
+  XP_SYNC_MAP_DIAG_ANCHOR_PAGE = 10,
+  XP_SYNC_MAP_DIAG_NO_ANCHOR_PAGE = 11,
+  XP_SYNC_MAP_DIAG_PARAGRAPH_PAGE = 12,
+  XP_SYNC_MAP_DIAG_NO_PARAGRAPH_PAGE = 13,
+  XP_SYNC_MAP_DIAG_RICH_OUT_OF_RANGE = 14,
+  XP_SYNC_MAP_DIAG_RICH_NO_CACHE = 15,
+  XP_SYNC_MAP_DIAG_RICH_EXACT = 16,
+  XP_SYNC_MAP_DIAG_RICH_PARAGRAPH = 17,
+  XP_SYNC_MAP_DIAG_RICH_SCALED = 18
+} XpSyncMapDiagnostic;
+typedef enum {
+  XP_SYNC_STORE_DIAG_UNUSED = 0,
+  XP_SYNC_STORE_DIAG_PIN_LEGACY = 1,
+  XP_SYNC_STORE_DIAG_BAD_SERVER_TYPE = 2,
+  XP_SYNC_STORE_DIAG_BAD_MATCH_METHOD = 3,
+  XP_SYNC_STORE_DIAG_BAD_BEHAVIOR = 4
+} XpSyncStoreDiagnostic;
+typedef enum {
+  XP_SYNC_PROTOCOL_USERNAME = 0,
+  XP_SYNC_PROTOCOL_PASSWORD = 1,
+  XP_SYNC_PROTOCOL_MD5 = 2,
+  XP_SYNC_PROTOCOL_BASIC = 3,
+  XP_SYNC_PROTOCOL_HEADER0_NAME = 4,
+  XP_SYNC_PROTOCOL_HEADER0_VALUE = 5,
+  XP_SYNC_PROTOCOL_HEADER1_NAME = 6,
+  XP_SYNC_PROTOCOL_HEADER1_VALUE = 7,
+  XP_SYNC_PROTOCOL_SERVER_TYPE = 8,
+  XP_SYNC_PROTOCOL_DOCUMENT = 100,
+  XP_SYNC_PROTOCOL_PROGRESS = 101,
+  XP_SYNC_PROTOCOL_PERCENTAGE = 102,
+  XP_SYNC_PROTOCOL_DEVICE = 103,
+  XP_SYNC_PROTOCOL_DEVICE_ID = 104,
+  XP_SYNC_PROTOCOL_TIMESTAMP = 105,
+  XP_SYNC_PROTOCOL_HAS_METADATA = 110,
+  XP_SYNC_PROTOCOL_FILENAME = 111,
+  XP_SYNC_PROTOCOL_TITLE = 112,
+  XP_SYNC_PROTOCOL_AUTHORS = 113,
+  XP_SYNC_PROTOCOL_EXTRA_JSON = 114,
+  XP_SYNC_PROTOCOL_ISBN = 115,
+  XP_SYNC_PROTOCOL_ASIN = 116,
+  XP_SYNC_PROTOCOL_SERIES = 117,
+  XP_SYNC_PROTOCOL_SERIES_INDEX = 118,
+  XP_SYNC_PROTOCOL_HAS_POSITION = 120,
+  XP_SYNC_PROTOCOL_PCT_Q = 121,
+  XP_SYNC_PROTOCOL_SPINE = 122,
+  XP_SYNC_PROTOCOL_PAGE = 123,
+  XP_SYNC_PROTOCOL_PAGES = 124,
+  XP_SYNC_PROTOCOL_PARAGRAPH = 125,
+  XP_SYNC_PROTOCOL_XPATH = 126
+} XpSyncProtocolField;
+// All spans and service contexts are borrowed for the synchronous call only.
+// Services must not retain spans. Diagnostic callbacks must not reenter Rust.
+typedef struct {
+  const uint8_t* data;
+  size_t len;
+} XpSyncSpan;
+typedef struct {
+  int32_t spine, page, pages;
+  uint32_t offset;
+  uint8_t has_offset;
+  uint16_t paragraph;
+  uint8_t has_paragraph;
+  uint16_t li;
+  uint8_t has_li;
+  uint8_t anchor[64];
+  uint8_t resolved, mapped;
+} XpSyncPosition;
+typedef struct {
+  uint32_t pct;
+  uint16_t spine, page, pages, paragraph;
+  uint8_t has_paragraph;
+} XpSyncRich;
+typedef struct XpSyncReverse XpSyncReverse;
+typedef struct XpSyncXPath XpSyncXPath;
+typedef struct {
+  uint32_t id;
+  int32_t a, b, c, d;
+  float ratio;
+  size_t target, total;
+  XpSyncSpan text;
+} XpSyncMapEvent;
+// Query ids: book size, spine count, spine for size, cumulative size, cached pages,
+// offset page, paragraph page, list page, anchor page, item size. Missing values return -1.
+typedef struct {
+  void* ctx;
+  int64_t (*query)(void*, uint32_t, int32_t, size_t, XpSyncSpan);
+  uint8_t (*stream)(void*, int32_t, XpSyncReverse*);
+  void (*diagnose)(void*, const XpSyncPosition*, const XpSyncMapEvent*);
+} XpSyncMapServices;
+typedef struct {
+  XpSyncMapServices services;
+  float (*progress)(void*, int32_t, float);
+  uint8_t (*xpath)(void*, int32_t, uint32_t, uint32_t, float);
+  void (*append)(void*, XpSyncSpan);
+} XpSyncSaveServices;
+XpSyncSpan xp_sync_filename(XpSyncSpan);
+size_t xp_sync_samples(void*, size_t, size_t (*)(void*, size_t, size_t));
+uint8_t xp_sync_compare(const XpSyncPosition*, float, const XpSyncPosition*, float);
+void xp_sync_map(const XpSyncMapServices*, XpSyncSpan, float, int32_t, int32_t, int32_t, XpSyncPosition*);
+uint8_t xp_sync_rich(const XpSyncMapServices*, const XpSyncRich*, XpSyncSpan, uint8_t, XpSyncPosition*);
+float xp_sync_save(const XpSyncSaveServices*, const XpSyncPosition*);
+// Only the stream callback may feed its borrowed reverse handle.
+void xp_sync_reverse_feed(XpSyncReverse*, XpSyncSpan, int32_t (*)(const uint8_t*, size_t));
+// XPath modes: paragraph, exclusive visible offset, inclusive progress offset, count.
+int32_t xp_sync_xpath_create(uint32_t, int32_t, size_t, XpSyncXPath**);
+uint32_t xp_sync_xpath_feed(XpSyncXPath*, XpSyncSpan, uint8_t);
+XpSyncSpan xp_sync_xpath_output(const XpSyncXPath*);
+size_t xp_sync_xpath_count(const XpSyncXPath*);
+void xp_sync_xpath_destroy(XpSyncXPath*);
+size_t xp_sync_xpath_target(size_t, float);
+// JSON conversion/serialization leaves. kind is string/u8/bool/f32/i64/u32/u16/secret/raw.
+// Secret writes use the existing device-key obfuscation; raw copies a JSON scalar.
+typedef struct {
+  uint32_t kind;
+  int64_t number;
+  double real;
+  XpSyncSpan text;
+  uint8_t valid;
+} XpSyncValue;
+typedef struct {
+  void* ctx;
+  XpSyncValue (*get)(void*, uint32_t, const char*, uint32_t);
+  void (*set)(void*, uint32_t, const char*, XpSyncValue);
+  void (*select)(void*, uint32_t, const char*, size_t, uint32_t, uint32_t);
+  size_t (*count)(void*, uint32_t);
+  const char* (*key)(void*, uint32_t, size_t);
+} XpSyncJson;
+typedef struct {
+  void* ctx;
+  XpSyncValue (*get)(void*, uint32_t);
+  void (*set)(void*, uint32_t, XpSyncValue);
+} XpSyncModel;
+XpSyncSpan xp_sync_base_url(XpSyncSpan, uint8_t*);
+uint8_t xp_sync_server_type(uint8_t);
+uint8_t xp_sync_behavior(uint8_t);
+void xp_sync_store_save(const XpSyncJson*, const XpSyncModel*);
+uint8_t xp_sync_store_load(const XpSyncJson*, const XpSyncModel*, uint8_t, void (*)(void*, uint32_t, uint32_t));
+typedef struct {
+  void* ctx;
+  XpSyncValue (*call)(void*, uint32_t, XpSyncSpan, XpSyncValue);
+  void (*diagnostic)(void*, uint32_t, int32_t);
+} XpSyncTransport;
+uint32_t xp_sync_request(uint32_t, const XpSyncJson*, const XpSyncModel*, const XpSyncTransport*);
+const char* xp_sync_error_string(uint32_t);
+
 #ifdef __cplusplus
 }
 #endif

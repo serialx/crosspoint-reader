@@ -139,3 +139,5 @@ pub unsafe extern "C" fn xp_test_rust_realloc(
 pub unsafe extern "C" fn xp_test_rust_free(p: *mut u8, size: usize, align: usize) {
     ALLOCATOR.dealloc(p, Layout::from_size_align(size, align).unwrap());
 }
+
+mod sync;

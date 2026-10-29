@@ -65,8 +65,9 @@ Top-level activity groups:
 ## Reader and content pipeline
 
 Reader orchestration starts in `src/activities/reader/ReaderActivity.h` and dispatches to format-specific readers.
-EPUB processing is implemented in `lib/Epub/`. Its XML consumers and KOReader
-XPath resolver use the streaming Rust core through `xp_xml_*`. The pinned SDK's
+EPUB processing is implemented in `lib/Epub/`. Its XML consumers use the
+streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
+Rust owns the parser and XPath state and consumes XML events directly. The pinned SDK's
 OPDS, OpenSearch and XML catalog consumers retain their interfaces through the
 small Expat API adapter in `lib/expat`; the firmware does not link Expat's C
 parser. The original parser lives in `test/vendor/expat` as a host oracle.

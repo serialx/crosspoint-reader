@@ -447,7 +447,8 @@ The chapter driver consumes `xp_xml_*` events directly in
 1,024-byte steps, passes original byte positions to table prescan, and honors
 cancellation after the active handler returns. It restores `&name;` for the
 existing HTML entity lookup in text only, reusing a checked read buffer.
-KOReader XPath resolution uses a local pull loop so it can stop dispatch
+KOReader XPath resolution uses `xp_sync_xpath_*`. Its Rust state consumes XML
+events directly in a local pull loop so it can stop dispatch
 immediately at a match and retain comment, PI and CDATA text-node boundaries.
 A match first delivered during finalization still returns empty, as the old
 driver rejected the aborted final parse. SDK OPDS, OpenSearch and XML catalog
@@ -503,13 +504,15 @@ These details matter because a whitespace-only callback cannot supply an anchor.
 They do not establish parity for every possible Expat callback fragmentation or
 its parsing-status flags.
 
-The XPath drivers retain one Rust handle per scan, released on normal completion,
-parse failure or an early match. Their existing C++ path and sibling containers
-are unchanged. The added XML retry state consists of a byte count and a boolean;
-no event queue or extra text buffer is allocated. Rust allocation failure returns
-an empty XPath, and the host resolver test injects failures at successive Rust
-allocation sites to verify cleanup. Existing C++ string/vector allocation behavior
-is not covered by that injection test.
+The C++ Print adapter retains one `XpSyncXPath` handle per forward scan and
+releases it on normal completion, parse failure or an early match. Rust owns
+the XML parser, path and sibling containers, visible-text counters and result.
+Parser and XPath state share one checked allocation; growing containers use
+fallible reservations. The XML retry state consists of a byte count and a
+boolean; no event queue is allocated. Rust allocation failure returns an empty
+XPath, and the host resolver test injects failures at successive Rust allocation
+sites to verify cleanup. The C++ facade still constructs the returned strings;
+their allocation behavior is not covered by that injection test.
 
 ## SDK XML compatibility
 

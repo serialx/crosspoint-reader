@@ -4,116 +4,136 @@
 #include <MD5Builder.h>
 #include <ObfuscationUtils.h>
 
+#include "SyncBridge.h"
+#include "SyncJson.h"
 namespace {
-// Default sync server URL. crosspoint-sync speaks the full KOSync protocol, so
-// pointing at any other kosync server (e.g. https://sync.koreader.rocks:443)
-// still works via the custom server URL setting.
-constexpr char DEFAULT_SERVER_URL[] = "https://sync.crosspointreader.com";
-
-// Default before config version 2. Configs saved without a version stamp and an
-// empty serverUrl were implicitly syncing here — they get pinned on upgrade.
-constexpr char LEGACY_DEFAULT_SERVER_URL[] = "https://sync.koreader.rocks:443";
-
-// Bumped when a change to defaults would alter behavior for existing configs.
-constexpr uint8_t CONFIG_VERSION = 3;
-}  // namespace
-
-void KOReaderCredentialStore::toJson(JsonDocument& doc) const {
-  doc["cfgVersion"] = CONFIG_VERSION;
-  doc["username"] = getUsername();
-  doc["password_obf"] = obfuscation::obfuscateToBase64(getPassword());
-  doc["serverUrl"] = getServerUrl();
-  doc["serverType"] = static_cast<uint8_t>(getServerType());
-  doc["matchMethod"] = static_cast<uint8_t>(getMatchMethod());
-  doc["sendMetadata"] = getSendMetadata();
-  doc["syncClippings"] = getSyncClippings();
-  doc["syncBehavior"] = static_cast<uint8_t>(getSyncBehavior());
-  JsonArray headers = doc["headers"].to<JsonArray>();
-  for (const auto& header : customHeaders) {
-    JsonObject headerObj = headers.add<JsonObject>();
-    headerObj["name"] = header.name;
-    headerObj["value_obf"] = obfuscation::obfuscateToBase64(header.value);
+struct Context {
+  KOReaderCredentialStore* store;
+  std::string password;
+  std::string base;
+};
+XpSyncValue text(const std::string& s) { return {0, 0, 0, syncSpan(s), 1}; }
+XpSyncValue number(uint32_t kind, int64_t n) { return {kind, n, 0, {nullptr, 0}, 1}; }
+XpSyncValue get(void* raw, uint32_t field) {
+  auto& c = *static_cast<Context*>(raw);
+  const auto& s = *c.store;
+  switch (static_cast<XpSyncStoreField>(field)) {
+    case XP_SYNC_STORE_USERNAME:
+      return text(s.getUsername());
+    case XP_SYNC_STORE_PASSWORD:
+      return text(s.getPassword());
+    case XP_SYNC_STORE_SERVER_URL:
+      return text(s.getServerUrl());
+    case XP_SYNC_STORE_SERVER_TYPE:
+      return number(1, static_cast<uint8_t>(s.getServerType()));
+    case XP_SYNC_STORE_MATCH_METHOD:
+      return number(1, static_cast<uint8_t>(s.getMatchMethod()));
+    case XP_SYNC_STORE_SEND_METADATA:
+      return number(2, s.getSendMetadata());
+    case XP_SYNC_STORE_SYNC_CLIPPINGS:
+      return number(2, s.getSyncClippings());
+    case XP_SYNC_STORE_BEHAVIOR:
+      return number(1, static_cast<uint8_t>(s.getSyncBehavior()));
+    case XP_SYNC_STORE_HEADER0_NAME:
+    case XP_SYNC_STORE_HEADER1_NAME:
+      return text(s.getCustomHeaders()[(field - 8) / 2].name);
+    case XP_SYNC_STORE_HEADER0_VALUE:
+    case XP_SYNC_STORE_HEADER1_VALUE:
+      return text(s.getCustomHeaders()[(field - 9) / 2].value);
+    case XP_SYNC_STORE_EXTRACTED_PASSWORD:
+      return text(c.password);
+    case XP_SYNC_STORE_BASE_URL:
+      c.base = s.getBaseUrl();
+      return text(c.base);
+    default:
+      return number(0, 0);
   }
 }
-
+void diagnostic(void*, uint32_t event, uint32_t value) {
+  switch (static_cast<XpSyncStoreDiagnostic>(event)) {
+    case XP_SYNC_STORE_DIAG_UNUSED:
+      break;
+    case XP_SYNC_STORE_DIAG_PIN_LEGACY:
+      LOG_DBG("KRS", "Pre-v2 config used the old default server; pinning %s", "https://sync.koreader.rocks:443");
+      break;
+    case XP_SYNC_STORE_DIAG_BAD_SERVER_TYPE:
+      LOG_DBG("KRS", "Invalid serverType %u in JSON, resetting to KOSYNC", value);
+      break;
+    case XP_SYNC_STORE_DIAG_BAD_MATCH_METHOD:
+      LOG_DBG("KRS", "Invalid matchMethod %u in JSON, resetting to FILENAME", value);
+      break;
+    case XP_SYNC_STORE_DIAG_BAD_BEHAVIOR:
+      LOG_DBG("KRS", "Invalid syncBehavior %u in JSON, resetting to ASK_EVERY_TIME", value);
+      break;
+  }
+}
+}  // namespace
+void KOReaderCredentialStore::toJson(JsonDocument& doc) const {
+  Context context{const_cast<KOReaderCredentialStore*>(this), {}, {}};
+  SyncJson json;
+  json.output[0] = doc.as<JsonVariant>();
+  json.input[0] = json.output[0];
+  const auto api = json.api();
+  const XpSyncModel model{&context, get, [](void*, uint32_t, XpSyncValue) {}};
+  xp_sync_store_save(&api, &model);
+}
 bool KOReaderCredentialStore::fromJson(JsonVariantConst doc) {
-  std::string user = doc["username"] | "";
-
-  bool needsResave = false;
-  std::string pass = extractPassword(doc, needsResave);
-
-  setCredentials(user, pass);
-  setServerUrl(doc["serverUrl"] | "");
-
-  // The default server changed in config v2 (sync.koreader.rocks -> crosspoint-sync).
-  // A pre-v2 config with credentials and no explicit URL was actively syncing
-  // against the old default — pin that URL so the upgrade doesn't switch servers
-  // out from under the user. Fresh setups get the new default.
-  const uint8_t cfgVersion = doc["cfgVersion"] | (uint8_t)1;
-  if (cfgVersion < 2) {
-    if (getServerUrl().empty() && hasCredentials()) {
-      LOG_DBG("KRS", "Pre-v2 config used the old default server; pinning %s", LEGACY_DEFAULT_SERVER_URL);
-      setServerUrl(LEGACY_DEFAULT_SERVER_URL);
-    }
-    needsResave = true;
-  }
-
-  // v3 replaces hostname-based enhanced-progress detection with an explicit
-  // protocol profile. Preserve previous behavior on upgrade: only the built-in
-  // CrossPoint URL was enhanced, while every custom URL was strict KOSync.
-  const JsonVariantConst serverTypeValue = doc["serverType"];
-  if (cfgVersion < CONFIG_VERSION || serverTypeValue.isNull()) {
-    setServerType(getBaseUrl() == DEFAULT_SERVER_URL ? KOReaderServerType::CROSSPOINT : KOReaderServerType::KOSYNC);
-    needsResave = true;
-  } else {
-    const uint8_t type = serverTypeValue.as<uint8_t>();
-    if (type <= static_cast<uint8_t>(KOReaderServerType::OTHER)) {
-      setServerType(static_cast<KOReaderServerType>(type));
-    } else {
-      LOG_DBG("KRS", "Invalid serverType %u in JSON, resetting to KOSYNC", type);
-      setServerType(KOReaderServerType::KOSYNC);
-      needsResave = true;
-    }
-  }
-
-  uint8_t method = doc["matchMethod"] | (uint8_t)0;
-  if (method <= static_cast<uint8_t>(DocumentMatchMethod::BINARY)) {
-    setMatchMethod(static_cast<DocumentMatchMethod>(method));
-  } else {
-    LOG_DBG("KRS", "Invalid matchMethod %u in JSON, resetting to FILENAME", method);
-    setMatchMethod(DocumentMatchMethod::FILENAME);
-  }
-  setSendMetadata(doc["sendMetadata"] | false);
-  setSyncClippings(doc["syncClippings"] | false);
-
-  size_t headerIndex = 0;
-  for (JsonObjectConst headerObj : doc["headers"].as<JsonArrayConst>()) {
-    if (headerIndex >= MAX_CUSTOM_HEADERS) break;
-    customHeaders[headerIndex].name = headerObj["name"] | "";
-    customHeaders[headerIndex].value = obfuscation::deobfuscateFromBase64(headerObj["value_obf"] | "");
-    headerIndex++;
-  }
-
-  const JsonVariantConst behaviorValue = doc["syncBehavior"];
-  const bool missingBehavior = behaviorValue.isNull();
-  uint8_t behavior = behaviorValue | static_cast<uint8_t>(KOReaderSyncBehavior::ASK_EVERY_TIME);
-  if (behavior <= static_cast<uint8_t>(KOReaderSyncBehavior::SMART)) {
-    setSyncBehavior(static_cast<KOReaderSyncBehavior>(behavior));
-    needsResave = needsResave || missingBehavior;
-  } else {
-    LOG_DBG("KRS", "Invalid syncBehavior %u in JSON, resetting to ASK_EVERY_TIME", behavior);
-    setSyncBehavior(KOReaderSyncBehavior::ASK_EVERY_TIME);
-    needsResave = true;
-  }
-
-  if (needsResave) {
+  bool resave = false;
+  Context context{this, extractPassword(doc, resave), {}};
+  SyncJson json;
+  json.input[0] = doc;
+  const auto api = json.api();
+  const XpSyncModel model{
+      &context, get, [](void* raw, uint32_t field, XpSyncValue v) {
+        auto& c = *static_cast<Context*>(raw);
+        auto& s = *c.store;
+        const auto string = [&]() { return std::string(reinterpret_cast<const char*>(v.text.data), v.text.len); };
+        switch (static_cast<XpSyncStoreField>(field)) {
+          case XP_SYNC_STORE_USERNAME:
+            s.username.assign(reinterpret_cast<const char*>(v.text.data), v.text.len);
+            break;
+          case XP_SYNC_STORE_PASSWORD:
+            s.password.assign(reinterpret_cast<const char*>(v.text.data), v.text.len);
+            LOG_DBG("KRS", "Set credentials for user: %s", s.username.c_str());
+            break;
+          case XP_SYNC_STORE_SERVER_URL:
+            s.setServerUrl(string());
+            break;
+          case XP_SYNC_STORE_SERVER_TYPE:
+            s.setServerType(static_cast<KOReaderServerType>(v.number));
+            break;
+          case XP_SYNC_STORE_MATCH_METHOD:
+            s.setMatchMethod(static_cast<DocumentMatchMethod>(v.number));
+            break;
+          case XP_SYNC_STORE_SEND_METADATA:
+            s.setSendMetadata(v.number != 0);
+            break;
+          case XP_SYNC_STORE_SYNC_CLIPPINGS:
+            s.setSyncClippings(v.number != 0);
+            break;
+          case XP_SYNC_STORE_BEHAVIOR:
+            s.setSyncBehavior(static_cast<KOReaderSyncBehavior>(v.number));
+            break;
+          case XP_SYNC_STORE_HEADER0_NAME:
+          case XP_SYNC_STORE_HEADER1_NAME:
+            s.customHeaders[(field - 8) / 2].name.assign(reinterpret_cast<const char*>(v.text.data), v.text.len);
+            break;
+          case XP_SYNC_STORE_HEADER0_VALUE:
+          case XP_SYNC_STORE_HEADER1_VALUE:
+            s.customHeaders[(field - 9) / 2].value =
+                obfuscation::deobfuscateFromBase64(reinterpret_cast<const char*>(v.text.data));
+            break;
+          case XP_SYNC_STORE_EXTRACTED_PASSWORD:
+          case XP_SYNC_STORE_BASE_URL:
+            break;
+        }
+      }};
+  if (xp_sync_store_load(&api, &model, resave, diagnostic)) {
     LOG_DBG("KRS", "Resaving KOReader credentials to update format");
     requestResave();
   }
-
   return true;
 }
-
 void KOReaderCredentialStore::setCredentials(const std::string& user, const std::string& pass) {
   username = user;
   password = pass;
@@ -149,28 +169,15 @@ void KOReaderCredentialStore::setServerUrl(const std::string& url) {
 }
 
 std::string KOReaderCredentialStore::getBaseUrl() const {
-  std::string url;
-  if (serverUrl.empty()) {
-    url = DEFAULT_SERVER_URL;
-  } else if (serverUrl.find("://") == std::string::npos) {
-    // Normalize URL: add http:// if no protocol specified (local servers typically don't have SSL)
-    url = "http://" + serverUrl;
-  } else {
-    url = serverUrl;
-  }
-
-  // Strip trailing slashes to avoid double-slash in API paths
-  while (!url.empty() && url.back() == '/') {
-    url.pop_back();
-  }
-
-  return url;
+  uint8_t prefix = 0;
+  const auto span = xp_sync_base_url(syncSpan(serverUrl), &prefix);
+  std::string result = prefix ? "http://" : "";
+  result.append(reinterpret_cast<const char*>(span.data), span.len);
+  return result;
 }
 
 void KOReaderCredentialStore::setServerType(KOReaderServerType type) {
-  if (static_cast<uint8_t>(type) > static_cast<uint8_t>(KOReaderServerType::OTHER)) {
-    type = KOReaderServerType::KOSYNC;
-  }
+  type = static_cast<KOReaderServerType>(xp_sync_server_type(static_cast<uint8_t>(type)));
   serverType = type;
   LOG_DBG("KRS", "Set server type: %u", static_cast<unsigned>(type));
 }
@@ -186,9 +193,7 @@ void KOReaderCredentialStore::setSendMetadata(bool enabled) {
 }
 
 void KOReaderCredentialStore::setSyncBehavior(KOReaderSyncBehavior behavior) {
-  if (static_cast<uint8_t>(behavior) > static_cast<uint8_t>(KOReaderSyncBehavior::SMART)) {
-    behavior = KOReaderSyncBehavior::ASK_EVERY_TIME;
-  }
+  behavior = static_cast<KOReaderSyncBehavior>(xp_sync_behavior(static_cast<uint8_t>(behavior)));
   syncBehavior = behavior;
   LOG_DBG("KRS", "Set sync behavior: %s", behavior == KOReaderSyncBehavior::SMART ? "Smart" : "Ask");
 }

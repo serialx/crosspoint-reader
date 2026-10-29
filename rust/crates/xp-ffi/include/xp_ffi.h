@@ -2967,6 +2967,279 @@ typedef struct {
 bool xp_book_txt_validate(const XpBookTxtFileServices*, size_t cached, const uint8_t* tag, size_t len);
 bool xp_book_txt_convert(const XpBookTxtFileServices*, uint32_t kind, int32_t height);
 
+// Fixed dictionary ABI values; checked against dictionary/abi.rs by the host conformance test.
+enum {
+  XP_DICTIONARY_SAMPLE_INTERVAL = 256,
+  XP_DICTIONARY_WORD_BYTES = 256,
+  XP_DICTIONARY_ZIP_OUTPUT_BYTES = 512,
+  XP_DICTIONARY_REGISTRY_NAME_BYTES = 128,
+  XP_DICTIONARY_PATH_BYTES = 160,
+  XP_DICTIONARY_LONGEST_SUFFIX_BYTES = 8,
+  XP_DICTIONARY_MAX_DEFINITION_BYTES = 65536,
+  XP_DICTIONARY_LOOKUP_FOUND = 0,
+  XP_DICTIONARY_LOOKUP_NOT_FOUND = 1,
+  XP_DICTIONARY_LOOKUP_LOW_MEMORY = 2,
+  XP_DICTIONARY_LOOKUP_DECOMPRESS = 3,
+  XP_DICTIONARY_LOOKUP_READ_ERROR = 4,
+  XP_DICTIONARY_INDEX_OK = 0,
+  XP_DICTIONARY_INDEX_LOW_MEMORY = 1,
+  XP_DICTIONARY_INDEX_READ_ERROR = 2,
+  XP_DICTIONARY_ZIP_OK = 0,
+  XP_DICTIONARY_ZIP_LOW_MEMORY = 1,
+  XP_DICTIONARY_ZIP_READ_ERROR = 2,
+  XP_DICTIONARY_ZIP_DECOMPRESS = 3,
+  XP_DICTIONARY_SCAN_OK = 0,
+  XP_DICTIONARY_SCAN_READ_ERROR = 1,
+  XP_DICTIONARY_SCAN_WRITE_ERROR = 2,
+  XP_DICTIONARY_APPEND_OK = 0,
+  XP_DICTIONARY_APPEND_FULL = 1,
+  XP_DICTIONARY_APPEND_LOW_MEMORY = 2,
+  XP_DICTIONARY_PREPARE_CLEAN = 0,
+  XP_DICTIONARY_PREPARE_CLEAR = 1,
+  XP_DICTIONARY_PREPARE_OPEN = 2,
+  XP_DICTIONARY_PREPARE_STEM = 3,
+  XP_DICTIONARY_VIEW_CLEANED = 0,
+  XP_DICTIONARY_VIEW_VARIANT = 1,
+  XP_DICTIONARY_VIEW_HEADWORD = 2,
+  XP_DICTIONARY_OUTPUT_RESERVE = 0,
+  XP_DICTIONARY_OUTPUT_APPEND = 2,
+  XP_DICTIONARY_DATA_OPEN_PLAIN = 0,
+  XP_DICTIONARY_DATA_OPEN_COMPRESSED = 1,
+  XP_DICTIONARY_DATA_OPEN_TEMPORARY = 2,
+  XP_DICTIONARY_DEFINITION_EVENT_EMPTY = 0,
+  XP_DICTIONARY_DEFINITION_EVENT_COMBINED_CAP = 1,
+  XP_DICTIONARY_DEFINITION_EVENT_LOW_HEAP = 2,
+  XP_DICTIONARY_DEFINITION_EVENT_TEMPORARY = 3,
+  XP_DICTIONARY_DEFINITION_EVENT_EXTRACT = 4,
+  XP_DICTIONARY_DEFINITION_EVENT_BOUNDS = 5,
+  XP_DICTIONARY_DEFINITION_EVENT_SEEK = 6,
+  XP_DICTIONARY_DEFINITION_EVENT_FALLBACK = 7,
+  XP_DICTIONARY_OPEN_EVENT_MISSING_FOLDER = 0,
+  XP_DICTIONARY_OPEN_EVENT_MISSING_INDEX = 1,
+  XP_DICTIONARY_OPEN_EVENT_MISSING_DATA = 2,
+  XP_DICTIONARY_OPEN_EVENT_OFFSETS64 = 3,
+  XP_DICTIONARY_OPEN_EVENT_PATH_LENGTH = 4,
+  XP_DICTIONARY_OPEN_EVENT_ALLOCATION = 5,
+  XP_DICTIONARY_LOOKUP_EVENT_WORKING_SET = 0,
+  XP_DICTIONARY_LOOKUP_EVENT_MISSING_ENTRIES = 1,
+  XP_DICTIONARY_LOOKUP_EVENT_FIRST_CAP = 2,
+  XP_DICTIONARY_LOOKUP_EVENT_COMBINED_CAP = 3,
+  XP_DICTIONARY_LOOKUP_EVENT_LOW_HEAP = 4,
+  XP_DICTIONARY_REGISTRY_EVENT_AMBIGUOUS = 0,
+  XP_DICTIONARY_REGISTRY_EVENT_MISSING_DATA = 1,
+  XP_DICTIONARY_REGISTRY_EVENT_MISSING_ROOT = 2,
+  XP_DICTIONARY_REGISTRY_EVENT_FOUND = 3,
+  XP_DICTIONARY_EXISTS_INDEX = 0,
+  XP_DICTIONARY_EXISTS_PLAIN = 1,
+  XP_DICTIONARY_EXISTS_COMPRESSED = 2,
+  XP_DICTIONARY_EXISTS_SYNONYMS = 3,
+  XP_DICTIONARY_SESSION_INDEX = 0,
+  XP_DICTIONARY_SESSION_SAMPLES = 1,
+  XP_DICTIONARY_SESSION_SYNONYMS = 2,
+  XP_DICTIONARY_SESSION_SYNONYM_SAMPLES = 3,
+  XP_DICTIONARY_REGISTRY_SLOT_ROOT = 0,
+  XP_DICTIONARY_REGISTRY_SLOT_FOLDER = 1,
+  XP_DICTIONARY_REGISTRY_KIND_END = 0,
+  XP_DICTIONARY_REGISTRY_KIND_FILE = 1,
+  XP_DICTIONARY_REGISTRY_KIND_DIRECTORY = 2,
+  XP_DICTIONARY_IFO_OFFSETS64 = 1,
+  XP_DICTIONARY_IFO_HTML = 2,
+  XP_DICTIONARY_HTML_LIMIT_OK = 0,
+  XP_DICTIONARY_HTML_LIMIT_PAGES = 1,
+  XP_DICTIONARY_HTML_LIMIT_ELEMENTS = 2,
+  XP_DICTIONARY_HTML_LIMIT_HEAP = 3,
+};
+
+// Dictionary callbacks are synchronous and must not retain borrowed pointers.
+// Diagnostic callbacks must not reenter Rust; service callbacks may call other dictionary operations.
+// All descriptors, contexts and non-optional callbacks must remain live for the call.
+// File read/write callbacks access at most the requested byte count and return at most that count.
+// Only scan's yield callback may be null. Inputs with a byte length need not be NUL-terminated.
+typedef struct {
+  void* context;
+  int32_t (*read)(void*, uint8_t*, size_t);
+  size_t (*write)(void*, const uint8_t*, size_t);
+  bool (*seek)(void*, size_t);
+  size_t (*tell)(void*);
+  size_t (*size)(void*);
+} XpDictionaryFile;
+// HTML writes borrowed byte slices; limit returns XP_DICTIONARY_HTML_LIMIT_*.
+bool xp_dictionary_html(const uint8_t*, size_t, void*, size_t (*)(void*, const uint8_t*, size_t));
+uint8_t xp_dictionary_html_limit(size_t pages, size_t elements, size_t added, size_t free, size_t largest);
+bool xp_dictionary_html_ready(size_t free, size_t largest);
+typedef struct {
+  uint32_t dataOffset, totalSize;
+  uint16_t chunkLength;
+  bool valid;
+} XpDictZipInfo;
+typedef struct {
+  void* context;
+  bool (*reserve)(void*, size_t);
+  void (*push)(void*, uint32_t);
+} XpDictZipTable;
+// Dictzip operations return XP_DICTIONARY_ZIP_*. Range offsets contain count initialized entries.
+uint8_t xp_dictzip_parse(const XpDictionaryFile*, XpDictZipInfo*, const XpDictZipTable*);
+uint8_t xp_dictzip_range(const XpDictZipInfo*, const uint32_t*, size_t, uint32_t, uint32_t, void*,
+                         uint8_t (*)(void*, uint32_t, uint32_t, uint32_t, uint32_t));
+// bufferBytes > 0; buffer holds that many initialized writable bytes. Scalars are exclusive.
+// On success *data borrows buffer until the next refill; at EOF/error it is unchanged.
+size_t xp_dictzip_refill(const XpDictionaryFile*, uint32_t*, bool*, uint8_t*, size_t bufferBytes, const uint8_t**);
+// Scratch holds XP_DICTIONARY_ZIP_OUTPUT_BYTES initialized writable bytes.
+uint8_t xp_dictzip_slice(void*, uint8_t (*)(void*, uint8_t*, size_t), uint8_t*, uint32_t, uint32_t,
+                         const XpDictionaryFile*);
+typedef struct {
+  uint32_t sampleCount, sourceFileSize, entryCount;
+  bool valid;
+} XpDictionaryHeader;
+void xp_dictionary_header(const XpDictionaryFile*, uint32_t, uint32_t, XpDictionaryHeader*);
+typedef struct {
+  uint32_t sampleCount, entryCount, position;
+} XpDictionaryScan;
+// Scratch holds bufferBytes initialized writable bytes, bufferBytes > 0. Returns XP_DICTIONARY_SCAN_*.
+// Sidecars always use XP_DICTIONARY_SAMPLE_INTERVAL; suffix is 8 for .idx or 4 for .syn.
+uint8_t xp_dictionary_scan(const XpDictionaryFile*, const XpDictionaryFile*, uint32_t, uint32_t, uint8_t*,
+                           size_t bufferBytes, void*, void (*)(void*), XpDictionaryScan*);
+typedef struct {
+  uint32_t offset, size;
+  bool found, readError;
+} XpDictionaryLocation;
+typedef struct {
+  const XpDictionaryFile *idx, *qidx, *syn, *sidx;
+  uint32_t idxSize, sampleCount, entryCount, synSize, synSampleCount;
+  // Exclusive initialized scratch of XP_DICTIONARY_WORD_BYTES bytes.
+  uint8_t* word;
+  void* context;
+  // Headword is NUL-terminated, borrowed only until append returns.
+  bool (*append)(void*, const uint8_t*, XpDictionaryLocation);
+  void (*seekError)(void*, bool, uint32_t);
+} XpDictionarySearch;
+bool xp_dictionary_search(const XpDictionarySearch*, const uint8_t*, size_t, bool);
+void xp_dictionary_clean_bounds(const uint8_t*, size_t, size_t*, size_t*);
+void xp_dictionary_lower(uint8_t*, size_t);
+void xp_dictionary_stems(const uint8_t*, size_t, void*, void (*)(void*, size_t, uint8_t));
+// Returns the XP_DICTIONARY_IFO_* bit flags.
+uint8_t xp_dictionary_ifo(const uint8_t*, size_t);
+// Registry slots use XP_DICTIONARY_REGISTRY_SLOT_*; open/exists paths are NUL-terminated.
+// next writes a terminated name within XP_DICTIONARY_REGISTRY_NAME_BYTES and returns REGISTRY_KIND_*.
+// emit receives length-delimited views (no NUL guarantee). diagnostic text is NUL-terminated:
+// AMBIGUOUS/MISSING_DATA: folder path; MISSING_ROOT: root path; FOUND: directory name.
+typedef struct {
+  void* context;
+  bool (*open)(void*, uint8_t, const uint8_t*);
+  uint8_t (*next)(void*, uint8_t, uint8_t*);
+  void (*close)(void*, uint8_t);
+  bool (*exists)(void*, const uint8_t*);
+  void (*emit)(void*, const uint8_t*, size_t, const uint8_t*, size_t);
+  void (*diagnostic)(void*, uint8_t, const uint8_t*);
+} XpDictionaryRegistry;
+bool xp_dictionary_registry(const XpDictionaryRegistry*, const uint8_t*, size_t, bool);
+// Definition open uses XP_DICTIONARY_DATA_OPEN_*; extract returns XP_DICTIONARY_ZIP_*.
+// resize returns exclusive initialized storage of the requested length, or null on failure.
+// Diagnostic XP_DICTIONARY_DEFINITION_EVENT_* payloads (unused fields are zero):
+// EMPTY: none; COMBINED_CAP: a=cap; LOW_HEAP/FALLBACK: a=required bytes;
+// TEMPORARY: reserved; EXTRACT: a=ZIP status; BOUNDS: a=offset,b=size,c=file bytes; SEEK: a=offset.
+typedef struct {
+  void* context;
+  const XpDictionaryFile* file;
+  uint32_t offset, size;
+  bool found, plain, html, append;
+  size_t length, capacity;
+  size_t (*heap)();
+  bool (*open)(void*, uint8_t);
+  uint8_t (*extract)(void*, uint32_t, uint32_t);
+  void (*closeTmp)(void*);
+  uint8_t* (*resize)(void*, size_t, bool);
+  void (*diagnostic)(void*, uint8_t, uint32_t, uint32_t, uint32_t);
+} XpDictionaryDefinition;
+// Returns XP_DICTIONARY_LOOKUP_*.
+uint8_t xp_dictionary_definition(const XpDictionaryDefinition*);
+// Views borrow length readable bytes until the owning callback next mutates them.
+// CLEANED/VARIANT additionally have data[length] == 0 for the C++ probe adapter.
+// Empty views may be {nullptr, 0}; HEADWORD needs no terminator beyond length.
+typedef struct {
+  const uint8_t* data;
+  size_t length;
+} XpDictionaryView;
+typedef struct {
+  size_t count;
+  bool lowMemory;
+} XpDictionaryGroup;
+// prepare uses PREPARE_* (CLEAN word, CLEAR entries, OPEN session, STEM variants).
+// view uses VIEW_*; probe borrows the unchanged CLEANED/VARIANT view including its terminator.
+// close releases session and variant views. read returns LOOKUP_*.
+// output uses OUTPUT_*: RESERVE clears/reserves length (data=null); APPEND borrows length bytes.
+// Diagnostic LOOKUP_EVENT_* payloads: WORKING_SET/LOW_HEAP a=bytes; MISSING_ENTRIES/FIRST_CAP none;
+// COMBINED_CAP a=shown entries,b=total entries. Unused payload fields are zero.
+typedef struct {
+  void* context;
+  size_t wordBytes, stringSize, freeBytes, largestBlock;
+  bool open, entries, synonyms, html;
+  bool (*prepare)(void*, uint8_t);
+  XpDictionaryView (*view)(void*, uint8_t, size_t);
+  XpDictionaryGroup (*group)(void*);
+  bool (*probe)(void*, const uint8_t*, size_t, bool);
+  void (*close)(void*);
+  void (*title)(void*, bool);
+  XpDictionaryLocation (*location)(void*, size_t);
+  uint8_t (*read)(void*, size_t, bool);
+  void (*output)(void*, uint8_t, const uint8_t*, size_t);
+  size_t (*heap)();
+  void (*diagnostic)(void*, uint8_t, uint32_t, uint32_t);
+} XpDictionaryLookup;
+// Returns XP_DICTIONARY_LOOKUP_*.
+uint8_t xp_dictionary_lookup(const XpDictionaryLookup*);
+// exists uses EXISTS_*; ifo returns IFO_* flags. Scalar pointers address distinct writable fields.
+// Diagnostic OPEN_EVENT_*: PATH_LENGTH n=base path bytes; all others n=0 (context supplies paths).
+typedef struct {
+  void* context;
+  bool *plain, *syn, *html;
+  void (*reset)(void*);
+  bool (*resolve)(void*);
+  bool (*exists)(void*, uint8_t);
+  uint8_t (*ifo)(void*);
+  size_t (*length)(void*);
+  bool (*allocate)(void*);
+  void (*finish)(void*);
+  void (*diagnostic)(void*, uint8_t, size_t);
+} XpDictionaryOpen;
+bool xp_dictionary_open(const XpDictionaryOpen*);
+typedef struct {
+  void* context;
+  bool open, syn;
+  bool (*stale)(void*, bool);
+  uint8_t (*build)(void*, bool);
+  void (*diagnostic)(void*);
+} XpDictionaryIndex;
+// Build mode returns INDEX_*; query mode returns 1 iff an open dictionary needs indexing.
+uint8_t xp_dictionary_index(const XpDictionaryIndex*, bool);
+typedef struct {
+  uint32_t idxSize, sampleCount, entryCount, synSize, synSampleCount;
+  bool synOpened, synFailed;
+} XpDictionarySessionState;
+typedef struct {
+  void* context;
+  XpDictionarySessionState* state;
+  bool open, syn;
+  // File slots use XP_DICTIONARY_SESSION_*.
+  bool (*openFile)(void*, uint8_t);
+  uint32_t (*size)(void*, uint8_t);
+  XpDictionaryHeader (*header)(void*, uint8_t);
+  void (*close)(void*, uint8_t);
+  void (*diagnostic)(void*);
+} XpDictionarySessionIo;
+bool xp_dictionary_session(const XpDictionarySessionIo*, bool);
+typedef struct {
+  void* context;
+  // count <= entryCapacity; location accepts [0,count), finish inserts at count.
+  // capacity is the current slot's headword capacity (zero when full); bytes includes its NUL.
+  size_t count, entryCapacity, capacity, bytes, freeBytes, largestBlock;
+  XpDictionaryLocation (*location)(void*, size_t);
+  bool (*allocate)(void*, size_t);
+  void (*finish)(void*);
+} XpDictionaryAppend;
+// Returns XP_DICTIONARY_APPEND_*. Full lists still accept duplicates without inserting.
+uint8_t xp_dictionary_append(const XpDictionaryAppend*, uint32_t, uint32_t);
+
 #ifdef __cplusplus
 }
 #endif

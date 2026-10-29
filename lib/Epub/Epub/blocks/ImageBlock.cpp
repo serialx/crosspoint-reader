@@ -173,13 +173,30 @@ bool loadPxcSlot(uint64_t cacheHash, HalFile& cacheFile, uint16_t cachedWidth, u
   return true;
 }
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+// Native bands clip logical rows only in landscape; portrait retains the full row range.
+std::pair<int, int> visibleCacheRows(GfxRenderer& renderer, int x, int y, int width, int height) {
+  int first = 0, end = height;
+  if (renderer.getWriteRows() < renderer.getDisplayHeight()) {
+    while (first < end && !renderer.glyphIntersectsStrip(x, y + first, x + width - 1, y + first)) ++first;
+    while (end > first && !renderer.glyphIntersectsStrip(x, y + end - 1, x + width - 1, y + end - 1)) --end;
+  }
+  return {first, end};
+}
+#endif
+
 void renderRowsFromPxcSlot(GfxRenderer& renderer, int x, int y) {
   const int bytesPerRow = (pxcSlotWidth + 3) / 4;
   uint8_t tempRow[PXC_MAX_BYTES_PER_ROW];
 
   const auto target = imageWriteTarget(renderer);
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  const auto [firstRow, endRow] = visibleCacheRows(renderer, x, y, pxcSlotWidth, pxcSlotHeight);
+  for (int row = firstRow; row < endRow; row++) {
+#else
   for (int row = 0; row < pxcSlotHeight; row++) {
+#endif
     const uint8_t* rowBuffer = pxcRowPtr((size_t)row * bytesPerRow, bytesPerRow, tempRow);
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
     if (target.rows < target.height) {
@@ -263,9 +280,22 @@ bool renderFromCache(GfxRenderer& renderer, const std::string& cachePath, int x,
 
   int rowsInBuffer = 0;
   int bufferRow = 0;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  const auto [firstRow, endRow] = visibleCacheRows(renderer, x, y, cachedWidth, cachedHeight);
+  if (!cacheFile.seek(4 + static_cast<size_t>(firstRow) * bytesPerRow)) {
+    if (!borrowed) free(readBuffer);
+    return false;
+  }
+  for (int row = firstRow; row < endRow; row++) {
+#else
   for (int row = 0; row < cachedHeight; row++) {
+#endif
     if (bufferRow >= rowsInBuffer) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      const int toRead = (endRow - row < rowsPerRead) ? (endRow - row) : rowsPerRead;
+#else
       const int toRead = (cachedHeight - row < rowsPerRead) ? (cachedHeight - row) : rowsPerRead;
+#endif
       const size_t bytes = (size_t)toRead * bytesPerRow;
       if (cacheFile.read(readBuffer, bytes) != static_cast<int>(bytes)) {
         LOG_ERR("IMG", "Cache read error at row %d", row);

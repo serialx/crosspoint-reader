@@ -33,6 +33,16 @@ class Probe final : public RustActivityAdapter {
   }
 };
 
+class FailureProbe final : public RustActivityAdapter {
+ public:
+  bool rejectBuild = true;
+  unsigned failures = 0, published = 0;
+  FailureProbe(GfxRenderer& r, MappedInputManager& i) : RustActivityAdapter("failure", r, i) {}
+  bool buildRustScene(XpUiScene&) override { return !rejectBuild; }
+  void rustSceneFailed() override { ++failures; }
+  void rustPublished() override { ++published; }
+};
+
 int main() {
   GfxRenderer renderer;
   MappedInputManager input;
@@ -111,4 +121,14 @@ int main() {
   testNow = 2000;
   probe.loop();
   assert(probe.count == before + 1);
+  FailureProbe failure(renderer, input);
+  failure.render(RenderLock{});
+  assert(failure.failures == 1 && failure.published == 0);
+  failure.rejectBuild = false;
+  renderer.validScene = false;
+  failure.render(RenderLock{});
+  assert(failure.failures == 2 && failure.published == 0);
+  renderer.validScene = true;
+  failure.render(RenderLock{});
+  assert(failure.failures == 2 && failure.published == 1);
 }

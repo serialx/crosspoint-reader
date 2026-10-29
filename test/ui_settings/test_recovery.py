@@ -23,9 +23,7 @@ code = r'''
 #include <cstdint>
 #include <memory>
 #define LOG_ERR(...) ((void)0)
-#ifndef XP_UI_SETTINGS_SMALL_LABELS_ON_TOUCH
-#define XP_UI_SETTINGS_SMALL_LABELS_ON_TOUCH 4
-#endif
+static_assert(XP_UI_SETTINGS_SMALL_LABELS_ON_TOUCH == 4);
 constexpr int UI_12_FONT_ID=1, UI_10_FONT_ID=0;
 static bool failGrowth=false;
 static unsigned growthCalls=0;

@@ -160,3 +160,4 @@ add_subdirectory(font_manager)
 
 add_subdirectory(vector_font)
 add_subdirectory(web_jobs)
+add_subdirectory(ota_policy)

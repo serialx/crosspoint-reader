@@ -9,12 +9,6 @@ enum SubscriptionDiagnostic {
     Added,
 }
 #[repr(u32)]
-enum AppendDiagnostic {
-    Open,
-    Cap,
-    Short,
-}
-#[repr(u32)]
 enum DrainDiagnostic {
     Rewrite,
     Finished,
@@ -449,41 +443,52 @@ pub unsafe extern "C" fn xp_plugin_wants_connect(
     false
 }
 #[repr(C)]
-pub struct Append {
+pub struct Ops {
     ctx: *mut c_void,
-    open: unsafe extern "C" fn(*mut c_void) -> bool,
-    close: unsafe extern "C" fn(*mut c_void),
-    remove: unsafe extern "C" fn(*mut c_void),
-    size: unsafe extern "C" fn(*mut c_void) -> u64,
-    write: unsafe extern "C" fn(*mut c_void) -> usize,
-    truncate: unsafe extern "C" fn(*mut c_void, u64),
-    flush: unsafe extern "C" fn(*mut c_void),
-    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32)>,
+    call: unsafe extern "C" fn(*mut c_void, u32, u64) -> u64,
+}
+impl Ops {
+    unsafe fn simple(&self, op: u32) -> u64 {
+        (self.call)(self.ctx, op, 0)
+    }
+}
+#[repr(u32)]
+enum AppendOp {
+    Open,
+    Close,
+    Remove,
+    Size,
+    Write,
+    Truncate,
+    Flush,
+    OpenError,
+    Cap,
+    Short,
 }
 /// # Safety
-/// Callbacks operate on one outbox and a serialized line for the call.
+/// The operation callback borrows one outbox and serialized line synchronously.
 #[no_mangle]
-pub unsafe extern "C" fn xp_plugin_append(ops: *const Append, line_size: usize) {
+pub unsafe extern "C" fn xp_plugin_append(ops: *const Ops, line_size: usize) {
     let s = &*ops;
-    if !(s.open)(s.ctx) {
-        s.diagnostic(AppendDiagnostic::Open as u32);
+    if s.simple(AppendOp::Open as u32) == 0 {
+        s.simple(AppendOp::OpenError as u32);
         return;
     }
-    // The cap used the HAL's 32-bit fileSize; rollback uses fileSize64.
-    if (s.size)(s.ctx) as u32 > 4096 {
-        (s.close)(s.ctx);
-        (s.remove)(s.ctx);
-        if !(s.open)(s.ctx) {
+    // The original cap used fileSize; rollback uses the full 64-bit offset.
+    if s.simple(AppendOp::Size as u32) as u32 > 4096 {
+        s.simple(AppendOp::Close as u32);
+        s.simple(AppendOp::Remove as u32);
+        if s.simple(AppendOp::Open as u32) == 0 {
             return;
         }
-        s.diagnostic(AppendDiagnostic::Cap as u32);
+        s.simple(AppendOp::Cap as u32);
     }
-    let before = (s.size)(s.ctx);
-    if (s.write)(s.ctx) != line_size {
-        s.diagnostic(AppendDiagnostic::Short as u32);
-        (s.truncate)(s.ctx, before);
+    let before = s.simple(AppendOp::Size as u32);
+    if s.simple(AppendOp::Write as u32) != line_size as u64 {
+        s.simple(AppendOp::Short as u32);
+        (s.call)(s.ctx, AppendOp::Truncate as u32, before);
     }
-    (s.flush)(s.ctx);
+    s.simple(AppendOp::Flush as u32);
 }
 #[repr(C)]
 pub struct Drain {
@@ -520,99 +525,94 @@ pub unsafe extern "C" fn xp_plugin_drain_lines(raw: Span, budget: *mut usize, op
     }
     s.diagnostic(DrainDiagnostic::Finished as u32, stalled);
 }
-#[repr(C)]
-pub struct Install {
-    ctx: *mut c_void,
-    exists: unsafe extern "C" fn(*mut c_void) -> bool,
-    remove_backup: unsafe extern "C" fn(*mut c_void),
-    backup: unsafe extern "C" fn(*mut c_void) -> bool,
-    install: unsafe extern "C" fn(*mut c_void) -> bool,
-    restore: unsafe extern "C" fn(*mut c_void) -> bool,
-    remove_temp: unsafe extern "C" fn(*mut c_void),
-    committed: unsafe extern "C" fn(*mut c_void),
-    restore_failed: unsafe extern "C" fn(*mut c_void),
+#[repr(u32)]
+enum InstallOp {
+    Exists,
+    RemoveBackup,
+    Backup,
+    Rename,
+    Restore,
+    RemoveTemp,
+    Commit,
+    RestoreError,
 }
 /// # Safety
-/// Callbacks borrow one download transaction synchronously.
+/// The callback borrows one download transaction synchronously.
 #[no_mangle]
-pub unsafe extern "C" fn xp_plugin_install_download(status: i32, ops: *const Install) -> i32 {
+pub unsafe extern "C" fn xp_plugin_install_download(status: i32, ops: *const Ops) -> i32 {
     let s = &*ops;
     if !(200..300).contains(&status) {
-        (s.remove_temp)(s.ctx);
+        s.simple(InstallOp::RemoveTemp as u32);
         return status;
     }
-    (s.remove_backup)(s.ctx);
-    let had = (s.exists)(s.ctx);
-    if had && !(s.backup)(s.ctx) {
-        (s.remove_temp)(s.ctx);
+    s.simple(InstallOp::RemoveBackup as u32);
+    let had = s.simple(InstallOp::Exists as u32) != 0;
+    if had && s.simple(InstallOp::Backup as u32) == 0 {
+        s.simple(InstallOp::RemoveTemp as u32);
         return -1;
     }
-    if !(s.install)(s.ctx) {
-        (s.remove_temp)(s.ctx);
-        if had && !(s.restore)(s.ctx) {
-            (s.restore_failed)(s.ctx);
+    if s.simple(InstallOp::Rename as u32) == 0 {
+        s.simple(InstallOp::RemoveTemp as u32);
+        if had && s.simple(InstallOp::Restore as u32) == 0 {
+            s.simple(InstallOp::RestoreError as u32);
         }
         return -1;
     }
-    (s.remove_backup)(s.ctx);
-    (s.committed)(s.ctx);
+    s.simple(InstallOp::RemoveBackup as u32);
+    s.simple(InstallOp::Commit as u32);
     status
 }
-#[repr(C)]
-pub struct Delivery {
-    ctx: *mut c_void,
-    run: unsafe extern "C" fn(*mut c_void) -> i32,
-    mint: unsafe extern "C" fn(*mut c_void) -> bool,
-    save: unsafe extern "C" fn(*mut c_void),
-    accept_token: unsafe extern "C" fn(*mut c_void),
-    toast: unsafe extern "C" fn(*mut c_void),
+#[repr(u32)]
+enum DeliveryOp {
+    Prepare,
+    Allowed,
+    Download,
+    Response,
+    Release,
+    Rejected,
+    Mint,
+    Save,
+    AcceptToken,
+    Toast,
+}
+unsafe fn run_delivery(s: &Ops, download: bool) -> i32 {
+    s.simple(DeliveryOp::Prepare as u32);
+    let status = if download {
+        if s.simple(DeliveryOp::Allowed as u32) == 0 {
+            s.simple(DeliveryOp::Rejected as u32);
+            200 // Retrying cannot repair an unsafe manifest destination.
+        } else {
+            s.simple(DeliveryOp::Download as u32) as i32
+        }
+    } else {
+        s.simple(DeliveryOp::Response as u32) as i32
+    };
+    s.simple(DeliveryOp::Release as u32);
+    status
 }
 /// # Safety
-/// Callbacks borrow one delivery and its mutable token synchronously.
+/// The callback borrows one delivery, its mutable token and temporary request fields.
 #[no_mangle]
 pub unsafe extern "C" fn xp_plugin_deliver(
     password: bool,
+    download: bool,
     show_toast: bool,
-    ops: *const Delivery,
+    ops: *const Ops,
 ) -> bool {
     let s = &*ops;
-    let mut status = (s.run)(s.ctx);
-    if matches!(status, 401 | 403) && password && (s.mint)(s.ctx) {
-        (s.save)(s.ctx);
-        (s.accept_token)(s.ctx);
-        status = (s.run)(s.ctx);
+    let mut status = run_delivery(s, download);
+    if matches!(status, 401 | 403) && password && s.simple(DeliveryOp::Mint as u32) != 0 {
+        s.simple(DeliveryOp::Save as u32);
+        s.simple(DeliveryOp::AcceptToken as u32);
+        status = run_delivery(s, download);
     }
     if !(200..300).contains(&status) {
         return false;
     }
     if show_toast {
-        (s.toast)(s.ctx);
+        s.simple(DeliveryOp::Toast as u32);
     }
     true
-}
-
-#[repr(C)]
-pub struct Run {
-    ctx: *mut c_void,
-    allowed: unsafe extern "C" fn(*mut c_void) -> bool,
-    download: unsafe extern "C" fn(*mut c_void) -> i32,
-    response: unsafe extern "C" fn(*mut c_void) -> i32,
-    rejected: unsafe extern "C" fn(*mut c_void),
-}
-/// # Safety
-/// Callbacks borrow one prepared request and destination synchronously.
-#[no_mangle]
-pub unsafe extern "C" fn xp_plugin_run(download: bool, ops: *const Run) -> i32 {
-    let s = &*ops;
-    if !download {
-        return (s.response)(s.ctx);
-    }
-    if !(s.allowed)(s.ctx) {
-        (s.rejected)(s.ctx);
-        // An unsafe manifest destination cannot be repaired by retrying.
-        return 200;
-    }
-    (s.download)(s.ctx)
 }
 
 #[repr(C)]
@@ -822,68 +822,46 @@ pub unsafe extern "C" fn xp_plugin_find(ops: *const Find, enabled: bool, quarant
     }
     (s.clear)(s.ctx);
 }
-#[repr(C)]
-pub struct Token {
-    ctx: *mut c_void,
-    allowed: unsafe extern "C" fn(*mut c_void) -> bool,
-    read_parse: Option<unsafe extern "C" fn(*mut c_void) -> bool>,
-    extract: Option<unsafe extern "C" fn(*mut c_void) -> bool>,
-    segment: Option<unsafe extern "C" fn(*mut c_void, Span, bool)>,
-    serialize: Option<unsafe extern "C" fn(*mut c_void) -> usize>,
-    open: Option<unsafe extern "C" fn(*mut c_void) -> bool>,
-    write: Option<unsafe extern "C" fn(*mut c_void) -> usize>,
-    flush: Option<unsafe extern "C" fn(*mut c_void)>,
-    close: Option<unsafe extern "C" fn(*mut c_void)>,
-    remove: Option<unsafe extern "C" fn(*mut c_void)>,
-    short_write: Option<unsafe extern "C" fn(*mut c_void, usize, usize)>,
+#[repr(u32)]
+enum TokenOp {
+    Allowed,
+    Read,
+    Extract,
+    Serialize,
+    Open,
+    Write,
+    Flush,
+    Close,
+    Remove,
+    Short,
 }
 /// # Safety
-/// Callbacks borrow the token path, JSON document and output for this call.
+/// The callback borrows the token path, document and output synchronously.
 #[no_mangle]
-pub unsafe extern "C" fn xp_plugin_load_token(empty: bool, ops: *const Token) -> bool {
+pub unsafe extern "C" fn xp_plugin_load_token(empty: bool, ops: *const Ops) -> bool {
     let s = &*ops;
-    if empty {
-        return true;
-    }
-    let (Some(read), Some(extract)) = (s.read_parse, s.extract) else {
-        return false;
-    };
-    (s.allowed)(s.ctx) && read(s.ctx) && extract(s.ctx)
+    empty
+        || (s.simple(TokenOp::Allowed as u32) != 0
+            && s.simple(TokenOp::Read as u32) != 0
+            && s.simple(TokenOp::Extract as u32) != 0)
 }
 /// # Safety
-/// Callbacks borrow the token path, JSON document and value for this call.
+/// The operations and segment callback borrow the token document and serialized bytes.
 #[no_mangle]
-pub unsafe extern "C" fn xp_plugin_save_token(empty: bool, path: Span, ops: *const Token) -> bool {
+pub unsafe extern "C" fn xp_plugin_save_token(
+    empty: bool,
+    path: Span,
+    ops: *const Ops,
+    segment: unsafe extern "C" fn(*mut c_void, Span, bool),
+) -> bool {
     let s = &*ops;
-    let (
-        Some(segment),
-        Some(serialize),
-        Some(open),
-        Some(write),
-        Some(flush),
-        Some(close),
-        Some(remove),
-        Some(short_write),
-    ) = (
-        s.segment,
-        s.serialize,
-        s.open,
-        s.write,
-        s.flush,
-        s.close,
-        s.remove,
-        s.short_write,
-    )
-    else {
-        return false;
-    };
-    if empty || !(s.allowed)(s.ctx) {
+    if empty || s.simple(TokenOp::Allowed as u32) == 0 {
         return false;
     }
     let mut parts = path
         .bytes()
         .split(|&b| b == b'.')
-        .filter(|s| !s.is_empty())
+        .filter(|p| !p.is_empty())
         .peekable();
     if parts.peek().is_none() {
         return false;
@@ -891,16 +869,16 @@ pub unsafe extern "C" fn xp_plugin_save_token(empty: bool, path: Span, ops: *con
     while let Some(part) = parts.next() {
         segment(s.ctx, Span::new(part), parts.peek().is_none());
     }
-    let size = serialize(s.ctx);
-    if !open(s.ctx) {
+    let size = s.simple(TokenOp::Serialize as u32);
+    if s.simple(TokenOp::Open as u32) == 0 {
         return false;
     }
-    let written = write(s.ctx);
-    flush(s.ctx);
+    let written = s.simple(TokenOp::Write as u32);
+    s.simple(TokenOp::Flush as u32);
     if written != size {
-        short_write(s.ctx, written, size);
-        close(s.ctx);
-        remove(s.ctx);
+        (s.call)(s.ctx, TokenOp::Short as u32, written);
+        s.simple(TokenOp::Close as u32);
+        s.simple(TokenOp::Remove as u32);
         return false;
     }
     true
@@ -1184,14 +1162,6 @@ impl Subscriptions {
     unsafe fn diagnostic(&self, event: u32, index: usize, value: usize) {
         if let Some(callback) = self.diagnostic {
             callback(self.ctx, event, index, value);
-        }
-    }
-}
-
-impl Append {
-    unsafe fn diagnostic(&self, event: u32) {
-        if let Some(callback) = self.diagnostic {
-            callback(self.ctx, event);
         }
     }
 }

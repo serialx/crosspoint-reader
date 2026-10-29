@@ -152,19 +152,21 @@ bool loadTokenFromFile(const std::string& file, const std::string& path, std::st
     std::string raw;
     JsonDocument doc;
   } context{file, path, out, {}, JsonDocument{}};
-  XpPluginTokenOps ops{};
-  ops.ctx = &context;
-  ops.allowed = [](void* p) { return allowedFile(static_cast<Context*>(p)->file); };
-  ops.read_parse = [](void* p) {
-    auto& c = *static_cast<Context*>(p);
-    return Storage.readFileToString("PHTP", c.file, MAX_TOKEN_FILE_SIZE, c.raw) &&
-           deserializeJson(c.doc, c.raw) == DeserializationError::Ok;
-  };
-  ops.extract = [](void* p) {
-    auto& c = *static_cast<Context*>(p);
-    c.out = variantToString(resolvePath(c.doc.as<JsonVariantConst>(), c.path));
-    return !c.out.empty();
-  };
+  const XpPluginOps ops{&context, [](void* p, uint32_t operation, uint64_t) -> uint64_t {
+                          auto& c = *static_cast<Context*>(p);
+                          switch (static_cast<XpPluginTokenOp>(operation)) {
+                            case XP_PLUGIN_TOKEN_ALLOWED:
+                              return allowedFile(c.file);
+                            case XP_PLUGIN_TOKEN_READ:
+                              return Storage.readFileToString("PHTP", c.file, MAX_TOKEN_FILE_SIZE, c.raw) &&
+                                     deserializeJson(c.doc, c.raw) == DeserializationError::Ok;
+                            case XP_PLUGIN_TOKEN_EXTRACT:
+                              c.out = variantToString(resolvePath(c.doc.as<JsonVariantConst>(), c.path));
+                              return !c.out.empty();
+                            default:
+                              return 0;
+                          }
+                        }};
   return xp_plugin_load_token(file.empty(), &ops);
 }
 
@@ -178,40 +180,44 @@ bool saveTokenToFile(const std::string& file, const std::string& path, const std
     HalFile handle;
   } context{file, value, JsonDocument{}, {}, {}, {}};
   context.node = context.doc.to<JsonObject>();
-  XpPluginTokenOps ops{};
-  ops.ctx = &context;
-  ops.allowed = [](void* p) { return allowedFile(static_cast<Context*>(p)->file); };
-  ops.segment = [](void* p, XpPluginSpan key, bool last) {
+  const XpPluginOps ops{&context, [](void* p, uint32_t operation, uint64_t argument) -> uint64_t {
+                          auto& c = *static_cast<Context*>(p);
+                          switch (static_cast<XpPluginTokenOp>(operation)) {
+                            case XP_PLUGIN_TOKEN_ALLOWED:
+                              return allowedFile(c.file);
+                            case XP_PLUGIN_TOKEN_SERIALIZE:
+                              serializeJson(c.doc, c.out);
+                              return c.out.size();
+                            case XP_PLUGIN_TOKEN_OPEN:
+                              return Storage.openFileForWrite("PHTP", c.file, c.handle);
+                            case XP_PLUGIN_TOKEN_WRITE:
+                              return c.handle.write(c.out.data(), c.out.size());
+                            case XP_PLUGIN_TOKEN_FLUSH:
+                              c.handle.flush();
+                              break;
+                            case XP_PLUGIN_TOKEN_CLOSE:
+                              if (c.handle.isOpen()) c.handle.close();
+                              break;
+                            case XP_PLUGIN_TOKEN_REMOVE:
+                              Storage.remove(c.file.c_str());
+                              break;
+                            case XP_PLUGIN_TOKEN_SHORT:
+                              LOG_ERR("PHTP", "short token write (%u of %u)", static_cast<unsigned>(argument),
+                                      static_cast<unsigned>(c.out.size()));
+                              break;
+                            default:
+                              break;
+                          }
+                          return 0;
+                        }};
+  return xp_plugin_save_token(file.empty(), span(path), &ops, [](void* p, XpPluginSpan key, bool last) {
     auto& c = *static_cast<Context*>(p);
     const std::string name(reinterpret_cast<const char*>(key.data), key.len);
     if (last)
       c.node[name] = c.value;
     else
       c.node = c.node[name].to<JsonObject>();
-  };
-  ops.serialize = [](void* p) {
-    auto& c = *static_cast<Context*>(p);
-    serializeJson(c.doc, c.out);
-    return c.out.size();
-  };
-  ops.open = [](void* p) {
-    auto& c = *static_cast<Context*>(p);
-    return Storage.openFileForWrite("PHTP", c.file, c.handle);
-  };
-  ops.write = [](void* p) {
-    auto& c = *static_cast<Context*>(p);
-    return c.handle.write(c.out.data(), c.out.size());
-  };
-  ops.flush = [](void* p) { static_cast<Context*>(p)->handle.flush(); };
-  ops.close = [](void* p) {
-    auto& f = static_cast<Context*>(p)->handle;
-    if (f.isOpen()) f.close();
-  };
-  ops.remove = [](void* p) { Storage.remove(static_cast<Context*>(p)->file.c_str()); };
-  ops.short_write = [](void*, size_t written, size_t expected) {
-    LOG_ERR("PHTP", "short token write (%u of %u)", static_cast<unsigned>(written), static_cast<unsigned>(expected));
-  };
-  return xp_plugin_save_token(file.empty(), span(path), &ops);
+  });
 }
 
 void loadConfigFile(const std::string& file, Headers& out) {

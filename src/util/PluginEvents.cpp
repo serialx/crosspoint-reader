@@ -144,38 +144,40 @@ void appendEvent(const Subscriber& sub, const std::string& line, size_t lineSize
     const std::string& line;
     HalFile file;
   } context{sub, path, line, {}};
-  static const XpPluginAppendOps opsCallbacks{
-      nullptr,
-      [](void* p) {
-        auto& c = *static_cast<AppendContext*>(p);
-        c.file = Storage.open(c.path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
-        return c.file && c.file.isOpen();
-      },
-      [](void* p) { static_cast<AppendContext*>(p)->file.close(); },
-      [](void* p) { Storage.remove(static_cast<AppendContext*>(p)->path.c_str()); },
-      [](void* p) { return static_cast<AppendContext*>(p)->file.fileSize64(); },
-      [](void* p) {
-        auto& c = *static_cast<AppendContext*>(p);
-        return c.file.write(reinterpret_cast<const uint8_t*>(c.line.data()), c.line.size());
-      },
-      [](void* p, uint64_t n) { static_cast<AppendContext*>(p)->file.truncate(n); },
-      [](void* p) { static_cast<AppendContext*>(p)->file.flush(); },
-      [](void* p, uint32_t event) {
-        const auto& sub = static_cast<AppendContext*>(p)->sub;
-        switch (static_cast<XpPluginAppendDiagnostic>(event)) {
-          case XP_PLUGIN_APPEND_OPEN:
-            LOG_ERR("PEVT", "%s: outbox open failed", sub.name);
-            break;
-          case XP_PLUGIN_APPEND_CAP:
-            LOG_DBG("PEVT", "%s: outbox over cap, dropped", sub.name);
-            break;
-          case XP_PLUGIN_APPEND_SHORT:
-            LOG_ERR("PEVT", "%s: short outbox append; event dropped", sub.name);
-            break;
-        }
-      }};
-  auto ops = opsCallbacks;
-  ops.ctx = &context;
+  const XpPluginOps ops{&context, [](void* p, uint32_t operation, uint64_t argument) -> uint64_t {
+                          auto& c = *static_cast<AppendContext*>(p);
+                          switch (static_cast<XpPluginAppendOp>(operation)) {
+                            case XP_PLUGIN_FILE_OPEN:
+                              c.file = Storage.open(c.path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
+                              return c.file && c.file.isOpen();
+                            case XP_PLUGIN_FILE_CLOSE:
+                              c.file.close();
+                              break;
+                            case XP_PLUGIN_FILE_REMOVE:
+                              Storage.remove(c.path.c_str());
+                              break;
+                            case XP_PLUGIN_FILE_SIZE:
+                              return c.file.fileSize64();
+                            case XP_PLUGIN_FILE_WRITE:
+                              return c.file.write(reinterpret_cast<const uint8_t*>(c.line.data()), c.line.size());
+                            case XP_PLUGIN_FILE_TRUNCATE:
+                              c.file.truncate(argument);
+                              break;
+                            case XP_PLUGIN_FILE_FLUSH:
+                              c.file.flush();
+                              break;
+                            case XP_PLUGIN_FILE_OPEN_ERROR:
+                              LOG_ERR("PEVT", "%s: outbox open failed", c.sub.name);
+                              break;
+                            case XP_PLUGIN_FILE_CAP:
+                              LOG_DBG("PEVT", "%s: outbox over cap, dropped", c.sub.name);
+                              break;
+                            case XP_PLUGIN_FILE_SHORT:
+                              LOG_ERR("PEVT", "%s: short outbox append; event dropped", c.sub.name);
+                              break;
+                          }
+                          return 0;
+                        }};
   xp_plugin_append(&ops, lineSize);
 }
 }  // namespace
@@ -272,29 +274,12 @@ bool loadDrainManifest(const Subscriber& sub, DrainManifest& out) {
       [](void* p, uint32_t field, XpPluginSpan value) {
         auto& c = *static_cast<Context*>(p);
         const auto* text = reinterpret_cast<const char*>(value.data);
-        switch (static_cast<XpPluginManifestField>(field)) {
-          case XP_PLUGIN_TOKEN_FILE:
-            c.out.tokenFile = pluginhttp::inPluginDir(c.sub.dir, value.len ? text : "");
-            break;
-          case XP_PLUGIN_TOKEN_PATH:
-            c.out.tokenPath.assign(text, value.len);
-            break;
-          case XP_PLUGIN_CONFIG_FILE:
-            c.out.configFile = pluginhttp::inPluginDir(c.sub.dir, value.len ? text : "");
-            break;
-          case XP_PLUGIN_AUTH_TYPE:
-            c.out.authType.assign(text, value.len);
-            break;
-          case XP_PLUGIN_AUTH_TOKEN_PATH:
-            c.out.authTokenPath.assign(text, value.len);
-            break;
-          case XP_PLUGIN_TOAST:
-            c.handler.toast.assign(text, value.len);
-            break;
-          case XP_PLUGIN_DEST:
-            c.handler.dest.assign(text, value.len);
-            break;
-        }
+        std::string* fields[] = {&c.out.tokenFile,     &c.out.tokenPath, &c.out.configFile, &c.out.authType,
+                                 &c.out.authTokenPath, &c.handler.toast, &c.handler.dest};
+        if (field == XP_PLUGIN_TOKEN_FILE || field == XP_PLUGIN_CONFIG_FILE)
+          *fields[field] = pluginhttp::inPluginDir(c.sub.dir, value.len ? text : "");
+        else
+          fields[field]->assign(text, value.len);
       },
       [](void* p, uint32_t field, uint32_t slot, const char* method) {
         auto& c = *static_cast<Context*>(p);
@@ -409,127 +394,107 @@ bool deliverLine(const DrainManifest& mf, const std::string& lineText, std::stri
     for (auto& kv : meta) kv.first = "{meta." + kv.first + "}";
   }
 
-  const auto run = [&](const std::string& tok) {
-    pluginhttp::Headers headers;
-    headers.reserve(handler->req.headers.size());
-    for (const auto& h : handler->req.headers) {
-      headers.emplace_back(h.first, drainSubstituted(h.second, tok, config, meta, vars, ts, id));
-    }
-    std::string dest;
-    const auto allowed = [&]() {
-      dest = drainSubstituted(handler->dest, tok, config, meta, vars, ts, id);
-      return protectedpaths::isPluginPath(dest);
-    };
-    const auto download = [&]() {
-      // Generous for images (a 4-bit 800x480 BMP is ~192KB), still bounded.
-      constexpr size_t MAX_EVENT_DOWNLOAD = 1024 * 1024;
-      // Stream to a sibling temp and swap it in only on a clean 2xx, so a
-      // 404/500 error body can never replace an existing dest (e.g. /sleep.bmp).
-      const std::string tmp = dest + ".part";
-      const int st = pluginhttp::requestToFile(
-          nullptr, drainSubstituted(handler->req.url, tok, config, meta, vars, ts, id), handler->req.method,
-          drainSubstituted(handler->req.body, tok, config, meta, vars, ts, id), headers, tmp.c_str(),
-          MAX_EVENT_DOWNLOAD);
-      struct InstallContext {
-        const std::string& dest;
-        const std::string& tmp;
-        std::string bak;
-      } context{dest, tmp, {}};
-      static const XpPluginInstallOps opsCallbacks{
-          nullptr,
-          [](void* p) { return Storage.exists(static_cast<InstallContext*>(p)->dest.c_str()); },
-          [](void* p) {
-            auto& c = *static_cast<InstallContext*>(p);
-            if (c.bak.empty()) c.bak = c.dest + ".bak";
-            Storage.remove(c.bak.c_str());
-          },
-          [](void* p) {
-            auto& c = *static_cast<InstallContext*>(p);
-            return Storage.rename(c.dest.c_str(), c.bak.c_str());
-          },
-          [](void* p) {
-            auto& c = *static_cast<InstallContext*>(p);
-            return Storage.rename(c.tmp.c_str(), c.dest.c_str());
-          },
-          [](void* p) {
-            auto& c = *static_cast<InstallContext*>(p);
-            return Storage.rename(c.bak.c_str(), c.dest.c_str());
-          },
-          [](void* p) { Storage.remove(static_cast<InstallContext*>(p)->tmp.c_str()); },
-          [](void* p) {
-            const auto& dest = static_cast<InstallContext*>(p)->dest;
-            if (library::isLibraryBookFile(dest)) library::markLibraryIndexDirty();
-          },
-          [](void* p) { LOG_ERR("PEVT", "restore of %s failed", static_cast<InstallContext*>(p)->dest.c_str()); }};
-      auto ops = opsCallbacks;
-      ops.ctx = &context;
-      return xp_plugin_install_download(st, &ops);
-    };
-    const auto response = [&]() {
-      String body;
-      return pluginhttp::request(
-          nullptr, drainSubstituted(handler->req.url, tok, config, meta, vars, ts, id), handler->req.method,
-          drainSubstituted(handler->req.body, tok, config, meta, vars, ts, id), headers, body, MAX_EVENT_RESPONSE);
-    };
-    struct RunContext {
-      const decltype(allowed)& allowedFn;
-      const decltype(download)& downloadFn;
-      const decltype(response)& responseFn;
-      const std::string& dest;
-    } context{allowed, download, response, dest};
-    static const XpPluginRunOps opsCallbacks{
-        nullptr, [](void* p) { return static_cast<RunContext*>(p)->allowedFn(); },
-        [](void* p) -> int32_t { return static_cast<RunContext*>(p)->downloadFn(); },
-        [](void* p) -> int32_t { return static_cast<RunContext*>(p)->responseFn(); },
-        [](void* p) {
-          LOG_ERR("PEVT", "unsafe download dest rejected: %s", static_cast<RunContext*>(p)->dest.c_str());
-        }};
-    auto ops = opsCallbacks;
-    ops.ctx = &context;
-    return xp_plugin_run(handler->isDownload(), &ops);
-  };
-
-  std::string minted;
-  const auto mint = [&]() {
-    pluginhttp::Headers authHeaders;
-    authHeaders.reserve(mf.authReq.headers.size());
-    for (const auto& h : mf.authReq.headers) {
-      authHeaders.emplace_back(h.first, drainSubstituted(h.second, token, config, meta, vars, ts, id));
-    }
-    return pluginhttp::mintPasswordToken(
-        nullptr, drainSubstituted(mf.authReq.url, token, config, meta, vars, ts, id), mf.authReq.method,
-        drainSubstituted(mf.authReq.body, token, config, meta, vars, ts, id), authHeaders, mf.authTokenPath, minted);
-  };
-  const auto toast = [&]() {
-    GUI.drawPopup(*renderer, drainSubstituted(handler->toast, token, config, meta, vars, ts, id).c_str());
-  };
   struct DeliveryContext {
-    const decltype(run)& runFn;
-    const decltype(mint)& mintFn;
-    const decltype(toast)& toastFn;
-    const DrainManifest& manifest;
+    const DrainManifest& mf;
+    const DrainManifest::Handler& handler;
     std::string& token;
-    std::string& minted;
-  } context{run, mint, toast, mf, token, minted};
-  static const XpPluginDeliveryOps opsCallbacks{nullptr,
-                                                [](void* p) -> int32_t {
-                                                  auto& c = *static_cast<DeliveryContext*>(p);
-                                                  return c.runFn(c.token);
-                                                },
-                                                [](void* p) { return static_cast<DeliveryContext*>(p)->mintFn(); },
-                                                [](void* p) {
-                                                  auto& c = *static_cast<DeliveryContext*>(p);
-                                                  pluginhttp::saveTokenToFile(c.manifest.tokenFile,
-                                                                              c.manifest.tokenPath, c.minted);
-                                                },
-                                                [](void* p) {
-                                                  auto& c = *static_cast<DeliveryContext*>(p);
-                                                  c.token = c.minted;
-                                                },
-                                                [](void* p) { static_cast<DeliveryContext*>(p)->toastFn(); }};
-  auto ops = opsCallbacks;
-  ops.ctx = &context;
-  return xp_plugin_deliver(mf.hasPasswordGrant(), renderer && !handler->toast.empty(), &ops);
+    const pluginhttp::Headers& config;
+    const pluginhttp::Headers& meta;
+    JsonVariantConst vars;
+    long long ts;
+    const char* id;
+    GfxRenderer* renderer;
+    pluginhttp::Headers headers;
+    std::string dest, minted;
+    std::string substituted(const std::string& text) const {
+      return drainSubstituted(text, token, config, meta, vars, ts, id);
+    }
+    void prepare(const pluginhttp::RequestSpec& req, pluginhttp::Headers& out) const {
+      out.reserve(req.headers.size());
+      for (const auto& h : req.headers) out.emplace_back(h.first, substituted(h.second));
+    }
+  } context{mf, *handler, token, config, meta, vars, ts, id, renderer, {}, {}, {}};
+  const XpPluginOps ops{
+      &context, [](void* p, uint32_t operation, uint64_t) -> uint64_t {
+        auto& c = *static_cast<DeliveryContext*>(p);
+        switch (static_cast<XpPluginDeliveryOp>(operation)) {
+          case XP_PLUGIN_DELIVERY_PREPARE:
+            c.prepare(c.handler.req, c.headers);
+            break;
+          case XP_PLUGIN_DELIVERY_ALLOWED:
+            c.dest = c.substituted(c.handler.dest);
+            return protectedpaths::isPluginPath(c.dest);
+          case XP_PLUGIN_DELIVERY_DOWNLOAD: {
+            const std::string tmp = c.dest + ".part";
+            const int status =
+                pluginhttp::requestToFile(nullptr, c.substituted(c.handler.req.url), c.handler.req.method,
+                                          c.substituted(c.handler.req.body), c.headers, tmp.c_str(), 1024 * 1024);
+            struct InstallContext {
+              const std::string& dest;
+              const std::string& tmp;
+              std::string bak;
+            } install{c.dest, tmp, {}};
+            const XpPluginOps fileOps{&install, [](void* p, uint32_t operation, uint64_t) -> uint64_t {
+                                        auto& c = *static_cast<InstallContext*>(p);
+                                        switch (static_cast<XpPluginInstallOp>(operation)) {
+                                          case XP_PLUGIN_INSTALL_EXISTS:
+                                            return Storage.exists(c.dest.c_str());
+                                          case XP_PLUGIN_INSTALL_REMOVE_BACKUP:
+                                            if (c.bak.empty()) c.bak = c.dest + ".bak";
+                                            Storage.remove(c.bak.c_str());
+                                            break;
+                                          case XP_PLUGIN_INSTALL_BACKUP:
+                                            return Storage.rename(c.dest.c_str(), c.bak.c_str());
+                                          case XP_PLUGIN_INSTALL_RENAME:
+                                            return Storage.rename(c.tmp.c_str(), c.dest.c_str());
+                                          case XP_PLUGIN_INSTALL_RESTORE:
+                                            return Storage.rename(c.bak.c_str(), c.dest.c_str());
+                                          case XP_PLUGIN_INSTALL_REMOVE_TEMP:
+                                            Storage.remove(c.tmp.c_str());
+                                            break;
+                                          case XP_PLUGIN_INSTALL_COMMIT:
+                                            if (library::isLibraryBookFile(c.dest)) library::markLibraryIndexDirty();
+                                            break;
+                                          case XP_PLUGIN_INSTALL_RESTORE_ERROR:
+                                            LOG_ERR("PEVT", "restore of %s failed", c.dest.c_str());
+                                            break;
+                                        }
+                                        return 0;
+                                      }};
+            return xp_plugin_install_download(status, &fileOps);
+          }
+          case XP_PLUGIN_DELIVERY_RESPONSE: {
+            String body;
+            return pluginhttp::request(nullptr, c.substituted(c.handler.req.url), c.handler.req.method,
+                                       c.substituted(c.handler.req.body), c.headers, body, MAX_EVENT_RESPONSE);
+          }
+          case XP_PLUGIN_DELIVERY_RELEASE:
+            pluginhttp::Headers{}.swap(c.headers);
+            std::string{}.swap(c.dest);
+            break;
+          case XP_PLUGIN_DELIVERY_REJECTED:
+            LOG_ERR("PEVT", "unsafe download dest rejected: %s", c.dest.c_str());
+            break;
+          case XP_PLUGIN_DELIVERY_MINT: {
+            pluginhttp::Headers authHeaders;
+            c.prepare(c.mf.authReq, authHeaders);
+            return pluginhttp::mintPasswordToken(nullptr, c.substituted(c.mf.authReq.url), c.mf.authReq.method,
+                                                 c.substituted(c.mf.authReq.body), authHeaders, c.mf.authTokenPath,
+                                                 c.minted);
+          }
+          case XP_PLUGIN_DELIVERY_SAVE:
+            pluginhttp::saveTokenToFile(c.mf.tokenFile, c.mf.tokenPath, c.minted);
+            break;
+          case XP_PLUGIN_DELIVERY_ACCEPT_TOKEN:
+            c.token = c.minted;
+            break;
+          case XP_PLUGIN_DELIVERY_TOAST:
+            GUI.drawPopup(*c.renderer, c.substituted(c.handler.toast).c_str());
+            break;
+        }
+        return 0;
+      }};
+  return xp_plugin_deliver(mf.hasPasswordGrant(), handler->isDownload(), renderer && !handler->toast.empty(), &ops);
 }
 
 }  // namespace

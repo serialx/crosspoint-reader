@@ -11,7 +11,6 @@ typedef enum {
   XP_PLUGIN_SUB_UNKNOWN,
   XP_PLUGIN_SUB_ADDED
 } XpPluginSubscriptionDiagnostic;
-typedef enum { XP_PLUGIN_APPEND_OPEN, XP_PLUGIN_APPEND_CAP, XP_PLUGIN_APPEND_SHORT } XpPluginAppendDiagnostic;
 typedef enum { XP_PLUGIN_DRAIN_REWRITE, XP_PLUGIN_DRAIN_FINISHED } XpPluginDrainDiagnostic;
 typedef enum { XP_PLUGIN_VALUE_EMPTY, XP_PLUGIN_VALUE_STRING, XP_PLUGIN_VALUE_INTEGER } XpPluginValueKind;
 typedef enum {
@@ -81,16 +80,21 @@ typedef struct {
 bool xp_plugin_wants_connect(const XpPluginSubscriber table[8], const XpPluginConnectOps*);
 typedef struct {
   void* ctx;
-  bool (*open)(void*);
-  void (*close)(void*);
-  void (*remove)(void*);
-  uint64_t (*size)(void*);
-  size_t (*write)(void*);
-  void (*truncate)(void*, uint64_t);
-  void (*flush)(void*);
-  void (*diagnostic)(void*, uint32_t);
-} XpPluginAppendOps;
-void xp_plugin_append(const XpPluginAppendOps*, size_t line_size);
+  uint64_t (*call)(void*, uint32_t operation, uint64_t argument);
+} XpPluginOps;
+typedef enum {
+  XP_PLUGIN_FILE_OPEN,
+  XP_PLUGIN_FILE_CLOSE,
+  XP_PLUGIN_FILE_REMOVE,
+  XP_PLUGIN_FILE_SIZE,
+  XP_PLUGIN_FILE_WRITE,
+  XP_PLUGIN_FILE_TRUNCATE,
+  XP_PLUGIN_FILE_FLUSH,
+  XP_PLUGIN_FILE_OPEN_ERROR,
+  XP_PLUGIN_FILE_CAP,
+  XP_PLUGIN_FILE_SHORT
+} XpPluginAppendOp;
+void xp_plugin_append(const XpPluginOps*, size_t line_size);
 typedef struct {
   void* ctx;
   bool (*deliver)(void*, XpPluginSpan);
@@ -99,35 +103,30 @@ typedef struct {
   void (*diagnostic)(void*, uint32_t, bool);
 } XpPluginDrainOps;
 void xp_plugin_drain_lines(XpPluginSpan, size_t* budget, const XpPluginDrainOps*);
-typedef struct {
-  void* ctx;
-  bool (*exists)(void*);
-  void (*remove_backup)(void*);
-  bool (*backup)(void*);
-  bool (*install)(void*);
-  bool (*restore)(void*);
-  void (*remove_temp)(void*);
-  void (*committed)(void*);
-  void (*restore_failed)(void*);
-} XpPluginInstallOps;
-int32_t xp_plugin_install_download(int32_t status, const XpPluginInstallOps*);
-typedef struct {
-  void* ctx;
-  int32_t (*run)(void*);
-  bool (*mint)(void*);
-  void (*save)(void*);
-  void (*accept_token)(void*);
-  void (*toast)(void*);
-} XpPluginDeliveryOps;
-bool xp_plugin_deliver(bool password_grant, bool show_toast, const XpPluginDeliveryOps*);
-typedef struct {
-  void* ctx;
-  bool (*allowed)(void*);
-  int32_t (*download)(void*);
-  int32_t (*response)(void*);
-  void (*rejected)(void*);
-} XpPluginRunOps;
-int32_t xp_plugin_run(bool download, const XpPluginRunOps*);
+typedef enum {
+  XP_PLUGIN_INSTALL_EXISTS,
+  XP_PLUGIN_INSTALL_REMOVE_BACKUP,
+  XP_PLUGIN_INSTALL_BACKUP,
+  XP_PLUGIN_INSTALL_RENAME,
+  XP_PLUGIN_INSTALL_RESTORE,
+  XP_PLUGIN_INSTALL_REMOVE_TEMP,
+  XP_PLUGIN_INSTALL_COMMIT,
+  XP_PLUGIN_INSTALL_RESTORE_ERROR
+} XpPluginInstallOp;
+int32_t xp_plugin_install_download(int32_t status, const XpPluginOps*);
+typedef enum {
+  XP_PLUGIN_DELIVERY_PREPARE,
+  XP_PLUGIN_DELIVERY_ALLOWED,
+  XP_PLUGIN_DELIVERY_DOWNLOAD,
+  XP_PLUGIN_DELIVERY_RESPONSE,
+  XP_PLUGIN_DELIVERY_RELEASE,
+  XP_PLUGIN_DELIVERY_REJECTED,
+  XP_PLUGIN_DELIVERY_MINT,
+  XP_PLUGIN_DELIVERY_SAVE,
+  XP_PLUGIN_DELIVERY_ACCEPT_TOKEN,
+  XP_PLUGIN_DELIVERY_TOAST
+} XpPluginDeliveryOp;
+bool xp_plugin_deliver(bool password_grant, bool download, bool show_toast, const XpPluginOps*);
 typedef struct {
   void (*select)(void*, uint32_t from, uint32_t to, XpPluginSpan key, size_t index);
   XpPluginSpan (*text)(void*, uint32_t slot);
@@ -173,22 +172,21 @@ typedef struct {
   void (*clear)(void*);
 } XpPluginFindOps;
 void xp_plugin_find(const XpPluginFindOps*, bool enabled, bool quarantine);
-typedef struct {
-  void* ctx;
-  bool (*allowed)(void*);
-  bool (*read_parse)(void*);
-  bool (*extract)(void*);
-  void (*segment)(void*, XpPluginSpan, bool last);
-  size_t (*serialize)(void*);
-  bool (*open)(void*);
-  size_t (*write)(void*);
-  void (*flush)(void*);
-  void (*close)(void*);
-  void (*remove)(void*);
-  void (*short_write)(void*, size_t written, size_t expected);
-} XpPluginTokenOps;
-bool xp_plugin_load_token(bool empty_file, const XpPluginTokenOps*);
-bool xp_plugin_save_token(bool empty_file, XpPluginSpan path, const XpPluginTokenOps*);
+typedef enum {
+  XP_PLUGIN_TOKEN_ALLOWED,
+  XP_PLUGIN_TOKEN_READ,
+  XP_PLUGIN_TOKEN_EXTRACT,
+  XP_PLUGIN_TOKEN_SERIALIZE,
+  XP_PLUGIN_TOKEN_OPEN,
+  XP_PLUGIN_TOKEN_WRITE,
+  XP_PLUGIN_TOKEN_FLUSH,
+  XP_PLUGIN_TOKEN_CLOSE,
+  XP_PLUGIN_TOKEN_REMOVE,
+  XP_PLUGIN_TOKEN_SHORT
+} XpPluginTokenOp;
+bool xp_plugin_load_token(bool empty_file, const XpPluginOps*);
+bool xp_plugin_save_token(bool empty_file, XpPluginSpan path, const XpPluginOps*,
+                          void (*segment)(void*, XpPluginSpan, bool last));
 typedef struct {
   void* ctx;
   void (*text)(void*, uint32_t field, XpPluginSpan value);

@@ -46,7 +46,17 @@ fn text(
     align: u8,
     lines: u8,
 ) -> Result<(), Error> {
-    crate::settings::view::text(a, rect, handle, 1, font, 0, bold, align, lines)
+    a.push(Command {
+        kind: Kind::TextHandle as u8,
+        resource: handle,
+        rect,
+        font,
+        style: bold,
+        align,
+        max_lines: lines,
+        generation: 1,
+        ..Command::default()
+    })
 }
 struct Actions {
     icons: bool,

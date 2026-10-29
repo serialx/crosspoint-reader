@@ -135,15 +135,16 @@ static void baselineDetails(ui::GfxRendererTarget& target, bool cover, int radiu
   p.actionHeight = t.rowHeight;
   ui::publicationPage(frame, screen.body(), p);
 }
-static void baselineLight(ui::GfxRendererTarget& target, bool warmth, int radius) {
+static void baselineLight(ui::GfxRendererTarget& target, int variant, int radius) {
   const auto device = target.deviceContext();
   ui::InteractionBuffer<24> hits;
   ui::Frame<24> frame(target, device, {}, hits);
   const auto t = theme(target, radius);
   ui::Screen<24> screen(frame, t);
+  const bool warmth=variant&1, touch=variant&2, toggle=variant&4;
   const auto line = target.lineHeight(t.smallText.font);
   const int bottom = t.spaceMd + line + t.spaceMd + (line + t.spaceMd + 56 + 2 * t.spaceMd) * (warmth ? 2 : 1) +
-                     t.spaceSm + 2 * t.spaceLg + 5 + t.spaceMd;
+                     t.spaceSm + (touch ? 48+t.spaceSm+line:0) + 2 * t.spaceLg + 5 + t.spaceMd;
   ui::SheetProps sheet;
   sheet.grabberMargin = t.spaceLg;
   sheet.grabberInset = t.spaceLg + t.spaceMd;
@@ -159,10 +160,23 @@ static void baselineLight(ui::GfxRendererTarget& target, bool warmth, int radius
     p.sliderAction = row ? 2 : 1;
     p.decrement = row ? 5 : 4;
     p.increment = row ? 5 : 4;
+    p.toggleAction = !row && toggle ? 6 : ui::NO_ACTION;
     screen.sliderRow(p, 56);
     screen.spacer(t.spaceMd);
   }
   screen.spacer(t.spaceSm);
+  if(touch){
+    const auto row=screen.takeTop(48+t.spaceSm+line);
+    for(int i=0;i<4;++i){
+      const int16_t left=row.x+row.width*i/4,right=row.x+row.width*(i+1)/4;
+      const ui::Rect slot{left,row.y,static_cast<int16_t>(right-left),row.height};
+      const ui::Rect circle{static_cast<int16_t>(left+(slot.width-48)/2),row.y,48,48};
+      if(i==3)target.fill(circle,ui::Paint::solid(ui::Color::Black),24);
+      else if(i==0)target.stroke(circle,ui::Paint::solid(ui::Color::Black),2,24);
+      if(i==2)target.fill({static_cast<int16_t>(circle.x+12),static_cast<int16_t>(circle.y+37),24,3},ui::Paint::solid(ui::Color::Black));
+      if(i==0||i==3){auto text=t.smallText;text.align=ui::TextAlign::Center;target.text({slot.x,static_cast<int16_t>(row.y+48+t.spaceSm),slot.width,line},label(i==3?14:15),text);}
+    }
+  }
 }
 static void baselinePopup(ui::GfxRendererTarget& target, bool interval, bool touch, int radius) {
   const auto device = target.deviceContext();
@@ -243,15 +257,15 @@ static void baselinePopup(ui::GfxRendererTarget& target, bool interval, bool tou
       capsule);
 }
 #ifdef UI_UTILITY_CANDIDATE
-static void candidate(GfxRenderer& r, ui::GfxRendererTarget& target, int kind, bool variant, int radius) {
+static void candidate(GfxRenderer& r, ui::GfxRendererTarget& target, int kind, int variant, int radius) {
   XpUiUtilityState s{};
   s.kind = kind;
   s.value = 60;
   s.maximum = 100;
-  s.selected = variant;
+  s.selected = variant!=0;
   s.brightness = 60;
   s.warmth = 50;
-  s.switch_owns_light = 1;
+  s.switch_owns_light = !(variant&4);s.touch_mode=2;
   assert(xp_ui_utility_init(&s));
   const auto t = theme(target, radius);
   const auto safe = target.deviceContext().safeRect();
@@ -282,10 +296,10 @@ static void candidate(GfxRenderer& r, ui::GfxRendererTarget& target, int kind, b
   l.popup_border = 2;
   l.popup_radius = radius;
   l.row_radius = radius;
-  l.touch = kind == 1 && variant;
+  l.touch = (kind == 1 && variant) || (kind==3 && (variant&2));
   l.show_cover = variant;
   l.light_present = 1;
-  l.has_warmth = variant;
+  l.has_warmth = variant&1;
   const XpUiMetrics metrics{
       &r,
       [](void* p, int32_t f, const uint8_t* text, uint16_t len, uint8_t style) -> int32_t {
@@ -305,7 +319,9 @@ static void candidate(GfxRenderer& r, ui::GfxRendererTarget& target, int kind, b
       }};
   XpUiCommand commands[80]{};
   XpUiInteraction hits[16]{};
-  const XpUiBuffer buffer{commands, hits, 80, 16};
+  const uint16_t capacities[]={12,20,24,44};
+  const uint16_t hitCapacities[]={3,5,2,11};
+  const XpUiBuffer buffer{commands, hits, capacities[kind], hitCapacities[kind]};
   XpUiUtilityFeedback feedback{};
   XpUiScene scene{};
   assert(xp_ui_utility_view(&s, &l, &metrics, &texts, &buffer, &feedback, &scene));
@@ -333,7 +349,7 @@ int main(int argc, char** argv) {
   r.setFontCacheManager(&cache);
   for (int orientation = 0; orientation < 4; ++orientation)
     for (int radius : {0, 12, 18})
-      for (bool variant : {false, true})
+      for (int variant=0;variant<8;++variant)
         for (int kind : {0, 1, 2, 3}) {
           r.setOrientation(static_cast<GfxRenderer::Orientation>(orientation));
           r.setClipRect(0, 0, r.getScreenWidth(), r.getScreenHeight());

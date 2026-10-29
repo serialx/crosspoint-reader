@@ -110,12 +110,7 @@ pub enum Action {
     None = 0,
     Finish = 1,
     Picker = 2,
-    Confirm = 3,
-    Check = 4,
     Install = 5,
-    Validate = 6,
-    Flash = 7,
-    ManifestFetch = 8,
     FontRetry = 9,
     FontActivate = 10,
     EnterGroup = 11,
@@ -129,7 +124,7 @@ pub struct Effect {
     pub action: u8,
     pub repaint: u8,
     pub immediate: u8,
-    pub wait: u8,
+    pub reserved: u8,
     pub value: i32,
 }
 impl Effect {
@@ -143,13 +138,6 @@ impl Effect {
         Self {
             repaint: 1,
             ..Self::default()
-        }
-    }
-    fn wait(action: Action) -> Self {
-        Self {
-            repaint: 1,
-            wait: 1,
-            ..Self::action(action)
         }
     }
 }
@@ -268,45 +256,41 @@ impl State {
             0
         }
     }
-    pub fn service(&mut self, event: Event, a: u32, b: u32) -> Effect {
+    pub fn service(&mut self, event: Event, a: u32, b: u32) -> u8 {
         match event {
             Event::SceneFailed => {
                 self.scene_failed();
-                Effect::default()
+                Action::None as u8
             }
             Event::WifiResult => {
                 if a == 0 {
-                    return Effect::action(Action::Finish);
+                    return Action::Finish as u8;
                 }
                 self.phase = if self.kind == OTA {
                     ota::CHECKING
                 } else {
                     font::MANIFEST
                 };
-                Effect::wait(if self.kind == Kind::Ota as u8 {
-                    Action::Check
-                } else {
-                    Action::ManifestFetch
-                })
+                Action::None as u8
             }
             Event::OtaChecked => {
                 if a == 1 || a == 0 && b == 0 {
                     self.phase = ota::NO_UPDATE;
-                    return Effect::default();
+                    return Action::None as u8;
                 }
                 if a != 0 {
                     self.phase = ota::FAILED;
-                    return Effect::default();
+                    return Action::None as u8;
                 }
                 self.phase = ota::CONFIRM;
                 self.popup_active = 1;
                 self.popup_selected = 1;
                 self.touch_active = 0;
-                Effect::repaint()
+                Action::None as u8
             }
             Event::InstallBegin => {
                 self.phase = ota::PROGRESS;
-                Effect::wait(Action::Install)
+                Action::None as u8
             }
             Event::Installed => {
                 self.phase = if a == 0 {
@@ -320,59 +304,52 @@ impl State {
                 } else {
                     ota::FAILED
                 };
-                if a == 0 {
-                    Effect::wait(Action::None)
-                } else {
-                    Effect::repaint()
-                }
+                Action::None as u8
             }
             Event::Shutdown => {
                 self.phase = ota::SHUTDOWN;
-                Effect::default()
+                Action::None as u8
             }
             Event::Picked => {
                 if a != 0 {
-                    return Effect::action(if self.recovery != 0 {
-                        Action::Picker
+                    return if self.recovery != 0 {
+                        Action::Picker as u8
                     } else {
-                        Action::Finish
-                    });
+                        Action::Finish as u8
+                    };
                 }
                 if b == 0 {
-                    return Effect::action(Action::Finish);
+                    return Action::Finish as u8;
                 }
                 self.phase = sd::VALIDATING;
-                Effect::wait(Action::Validate)
+                Action::None as u8
             }
             Event::Validated => {
                 if a == 0 {
                     self.phase = sd::FAILED;
-                    Effect::repaint()
+                    Action::None as u8
                 } else {
                     self.phase = sd::CONFIRM;
-                    Effect::action(Action::Confirm)
+                    Action::None as u8
                 }
             }
             Event::Confirmed => {
                 if a != 0 {
-                    return Effect::action(if self.recovery != 0 {
-                        Action::Picker
+                    return if self.recovery != 0 {
+                        Action::Picker as u8
                     } else {
-                        Action::Finish
-                    });
+                        Action::Finish as u8
+                    };
                 }
                 self.phase = sd::PROGRESS;
                 self.processed = 0;
                 self.last_percent = 101;
-                Effect::wait(Action::Flash)
+                Action::None as u8
             }
             Event::Progress => {
                 self.processed = a;
                 self.total = b;
-                Effect {
-                    immediate: 1,
-                    ..Effect::repaint()
-                }
+                Action::None as u8
             }
             Event::Manifest => {
                 self.has_groups = u8::from(b != 0);
@@ -385,12 +362,12 @@ impl State {
                     self.list = ListState::new(0);
                     font::FAMILIES
                 };
-                Effect::default()
+                Action::None as u8
             }
             Event::Group => {
                 self.list = ListState::new(0);
                 self.phase = font::FAMILIES;
-                Effect::default()
+                Action::None as u8
             }
             Event::FontBegin => {
                 self.phase = font::PROGRESS;
@@ -399,31 +376,31 @@ impl State {
                 self.total = 0;
                 self.cancel_requested = 0;
                 self.home_requested = 0;
-                Effect::wait(Action::None)
+                Action::None as u8
             }
             Event::FontFile => {
                 self.processed = 0;
                 self.total = a;
-                Effect::default()
+                Action::None as u8
             }
             Event::FontFileDone => {
                 self.file_index = self.file_index.wrapping_add(1);
-                Effect::default()
+                Action::None as u8
             }
             Event::FontDone => {
                 self.phase = font::COMPLETE;
-                Effect::default()
+                Action::None as u8
             }
             Event::FontError => {
                 self.phase = font::FAILED;
-                Effect::default()
+                Action::None as u8
             }
             Event::FontAborted => {
                 if self.home_requested != 0 {
-                    return Effect::action(Action::Home);
+                    return Action::Home as u8;
                 }
                 self.phase = font::FAMILIES;
-                Effect::default()
+                Action::None as u8
             }
             Event::TransferInput => {
                 if a != 0 || b != 0 {
@@ -432,20 +409,17 @@ impl State {
                 if b != 0 {
                     self.home_requested = 1;
                 }
-                Effect {
-                    immediate: 1,
-                    ..Effect::repaint()
-                }
+                Action::None as u8
             }
             Event::FontBatch => {
                 self.file_index = 0;
                 self.file_count = a;
                 self.cancel_requested = 0;
-                Effect::default()
+                Action::None as u8
             }
             Event::CacheBegin => {
                 self.phase = cache::CLEARING;
-                Effect::wait(Action::Clear)
+                Action::None as u8
             }
             Event::CacheResult => {
                 self.phase = if a == 0 {
@@ -453,7 +427,7 @@ impl State {
                 } else {
                     cache::COMPLETE
                 };
-                Effect::repaint()
+                Action::None as u8
             }
         }
     }

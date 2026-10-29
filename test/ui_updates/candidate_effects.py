@@ -41,7 +41,7 @@ def run(source, library):
         cases=cases.replace('a.'+old,'a.'+new).replace('c.'+old,'c.'+new)
     cases=cases.replace('a.handleCustomInput()','a.loop()').replace('int(c.state)','int(c.model.phase)')
     cases=cases.replace('OtaUpdateActivity::UPDATE_IN_PROGRESS','3').replace('OtaUpdateActivity::State(state)','state').replace('SdFirmwareUpdateActivity::State::FAILED','5').replace('SdFirmwareUpdateActivity::State::UPDATING','3')
-    cases=cases.replace('a.updater.processed=n;','a.updater.processed=n;a.event(XP_UI_UPDATE_PROGRESS,n,a.updater.total);').replace('a.model.processed=n;','a.event(XP_UI_UPDATE_PROGRESS,n,a.firmwareSize);')
+    cases=cases.replace('a.updater.processed=n;','a.updater.processed=n;a.notify(XP_UI_UPDATE_PROGRESS,n,a.updater.total);').replace('a.model.processed=n;','a.notify(XP_UI_UPDATE_PROGRESS,n,a.firmwareSize);')
     cases=cases.replace('a.model.phase=OtaUpdateActivity::State(state)','a.model.phase=state')
     cases=cases.replace('a.model.phase_=','a.model.phase=').replace('a.model.phase_','a.model.phase')
     # Fixed-width file index matches the original size_t diagnostic on both hosts.

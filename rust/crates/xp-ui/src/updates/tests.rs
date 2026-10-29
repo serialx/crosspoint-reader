@@ -7,8 +7,7 @@ fn progress_covers_partition_and_fonts() {
         let e = s.service(Event::Progress, total, total);
         assert_eq!(s.total, total);
         assert_eq!(s.processed, total);
-        assert_eq!(e.immediate, 1);
-        assert_eq!(e.wait, 0);
+        assert_eq!(e, Action::None as u8);
     }
 }
 #[test]
@@ -17,7 +16,7 @@ fn recovery_cancel_and_failure_input() {
         let mut s = State::new(1, recovery);
         let e = s.service(Event::Picked, 1, 0);
         assert_eq!(
-            e.action,
+            e,
             if recovery != 0 {
                 Action::Picker
             } else {
@@ -52,10 +51,7 @@ fn transfer_cancel_is_sticky() {
     s.service(Event::TransferInput, 0, 1);
     s.service(Event::TransferInput, 0, 0);
     assert_eq!((s.cancel_requested, s.home_requested), (1, 1));
-    assert_eq!(
-        s.service(Event::FontAborted, 0, 0).action,
-        Action::Home as u8
-    );
+    assert_eq!(s.service(Event::FontAborted, 0, 0), Action::Home as u8);
 }
 #[test]
 fn font_error_back_precedes_retry() {

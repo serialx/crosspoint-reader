@@ -21,9 +21,13 @@ int UpdateUiActivity::selectedIndex() const {
   ModelLock lock(*const_cast<UpdateUiActivity*>(this));
   return model.list.selected;
 }
-XpUiUpdateEffect UpdateUiActivity::event(XpUiUpdateEvent event, uint32_t a, uint32_t b) {
+void UpdateUiActivity::notify(XpUiUpdateEvent event, uint32_t a, uint32_t b) {
   ModelLock lock(*this);
-  return xp_ui_updates_service(&model, event, a, b);
+  xp_ui_updates_notify(&model, event, a, b);
+}
+uint8_t UpdateUiActivity::serviceResult(XpUiUpdateEvent event, uint32_t a, uint32_t b) {
+  ModelLock lock(*this);
+  return xp_ui_updates_result(&model, event, a, b);
 }
 void UpdateUiActivity::closeRouting() {
   ModelLock lock(*this);
@@ -260,7 +264,7 @@ bool UpdateUiActivity::buildRustScene(XpUiScene& scene) {
   }
 }
 void UpdateUiActivity::rustSceneFailed() {
-  xp_ui_updates_service(&model, XP_UI_UPDATE_SCENE_FAILED, 0, 0);
+  xp_ui_updates_notify(&model, XP_UI_UPDATE_SCENE_FAILED, 0, 0);
   pending = {};
   pendingHaptic = false;
   routesReady = false;

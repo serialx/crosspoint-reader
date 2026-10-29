@@ -17,7 +17,7 @@ void ClearCacheActivity::onEnter() {
 void ClearCacheActivity::beginClear() {
   LOG_DBG("CLEAR_CACHE", "User confirmed, starting cache clear");
   {
-    event(XP_UI_UPDATE_CACHE_BEGIN);
+    notify(XP_UI_UPDATE_CACHE_BEGIN);
   }
   requestUpdateAndWait();
   clearCache();
@@ -30,7 +30,7 @@ void ClearCacheActivity::clearCache() {
   if (!root || !root.isDirectory()) {
     LOG_DBG("CLEAR_CACHE", "Failed to open cache directory");
     if (root) root.close();
-    event(XP_UI_UPDATE_CACHE_RESULT, 0);
+    notify(XP_UI_UPDATE_CACHE_RESULT, 0);
     requestUpdate();
     return;
   }
@@ -65,7 +65,7 @@ void ClearCacheActivity::clearCache() {
 
   LOG_DBG("CLEAR_CACHE", "Cache cleared: %d removed, %d failed", clearedCount, failedCount);
 
-  event(XP_UI_UPDATE_CACHE_RESULT, 1);
+  notify(XP_UI_UPDATE_CACHE_RESULT, 1);
   requestUpdate();
 }
 void ClearCacheActivity::performAction(XpUiUpdateAction action, int32_t) {

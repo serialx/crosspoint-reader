@@ -41,12 +41,7 @@ typedef enum {
   XP_UI_UPDATE_NONE = 0,            // value: 0.
   XP_UI_UPDATE_FINISH = 1,          // value: 0.
   XP_UI_UPDATE_PICKER = 2,          // value: 0.
-  XP_UI_UPDATE_CONFIRM = 3,         // value: 0.
-  XP_UI_UPDATE_CHECK = 4,           // value: 0.
   XP_UI_UPDATE_INSTALL = 5,         // value: 0.
-  XP_UI_UPDATE_VALIDATE = 6,        // value: 0.
-  XP_UI_UPDATE_FLASH = 7,           // value: 0.
-  XP_UI_UPDATE_MANIFEST_FETCH = 8,  // value: 0.
   XP_UI_UPDATE_FONT_RETRY = 9,      // value: zero-based catalog family index.
   XP_UI_UPDATE_FONT_ACTIVATE = 10,  // value: zero-based visible family-list row.
   XP_UI_UPDATE_ENTER_GROUP = 11,    // value: zero-based visible group-list row.
@@ -65,8 +60,7 @@ typedef struct {
 typedef struct {
   uint8_t action;
   // repaint: 0 none, 1 after action, 2 before action. immediate: notify render task.
-  // wait: finish the requested paint before starting the service action.
-  uint8_t repaint, immediate, wait;
+  uint8_t repaint, immediate, reserved;
   // Zero except FontRetry/FontActivate/EnterGroup: zero-based family/row/group index.
   int32_t value;
 } XpUiUpdateEffect;
@@ -89,7 +83,11 @@ typedef struct {
   uint8_t rendered, reserved[3];
 } XpUiUpdateFeedback;
 void xp_ui_updates_init(XpUiUpdateState* state, uint8_t kind, uint8_t recovery);
-XpUiUpdateEffect xp_ui_updates_service(XpUiUpdateState* state, uint8_t event, uint32_t a, uint32_t b);
+// Notifications change UI state only; C++ owns synchronous service and repaint ordering.
+void xp_ui_updates_notify(XpUiUpdateState* state, uint8_t event, uint32_t a, uint32_t b);
+// Results: WifiResult -> None/Finish; Picked -> None/Finish/Picker;
+// Confirmed -> None/Finish/Picker; FontAborted -> None/Home (XpUiUpdateAction).
+uint8_t xp_ui_updates_result(XpUiUpdateState* state, uint8_t event, uint32_t a, uint32_t b);
 XpUiInterest xp_ui_updates_interest(const XpUiUpdateState* state, uint32_t now_ms);
 XpUiUpdateEffect xp_ui_updates_input(XpUiUpdateState* state, const XpUiInput* input, const XpUiUpdateFeedback* feedback,
                                      uint8_t published, int32_t row_count, int32_t family_count);
@@ -138,7 +136,7 @@ XP_UPDATE_ASSERT(XP_UPDATE_ALIGN(XpUiUpdateEffect) == 4, "XpUiUpdateEffect align
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateEffect, action) == 0, "XpUiUpdateEffect.action");
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateEffect, repaint) == 1, "XpUiUpdateEffect.repaint");
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateEffect, immediate) == 2, "XpUiUpdateEffect.immediate");
-XP_UPDATE_ASSERT(offsetof(XpUiUpdateEffect, wait) == 3, "XpUiUpdateEffect.wait");
+XP_UPDATE_ASSERT(offsetof(XpUiUpdateEffect, reserved) == 3, "XpUiUpdateEffect.reserved");
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateEffect, value) == 4, "XpUiUpdateEffect.value");
 XP_UPDATE_ASSERT(sizeof(XpUiUpdateLayout) == 96, "XpUiUpdateLayout size");
 XP_UPDATE_ASSERT(XP_UPDATE_ALIGN(XpUiUpdateLayout) == 4, "XpUiUpdateLayout alignment");

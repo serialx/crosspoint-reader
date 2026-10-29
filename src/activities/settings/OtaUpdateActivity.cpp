@@ -14,30 +14,30 @@
 void OtaUpdateActivity::onWifiSelectionComplete(bool success) {
   if (!success) {
     LOG_ERR("OTA", "WiFi connection failed, exiting");
-    const auto effect = event(XP_UI_UPDATE_WIFI_RESULT, 0);
-    performAction(static_cast<XpUiUpdateAction>(effect.action), effect.value);
+    const auto action = serviceResult(XP_UI_UPDATE_WIFI_RESULT, 0);
+    performAction(static_cast<XpUiUpdateAction>(action), 0);
     return;
   }
   LOG_DBG("OTA", "WiFi connected, checking for update");
-  event(XP_UI_UPDATE_WIFI_RESULT, 1);
+  notify(XP_UI_UPDATE_WIFI_RESULT, 1);
   requestUpdateAndWait();
   const auto res = updater.checkForUpdate();
   if (res == OtaUpdater::NO_UPDATE) {
     LOG_DBG("OTA", "No firmware asset for this board in latest release");
-    event(XP_UI_UPDATE_OTA_CHECKED, res, 0);
+    notify(XP_UI_UPDATE_OTA_CHECKED, res, 0);
     return;
   }
   if (res != OtaUpdater::OK) {
     LOG_DBG("OTA", "Update check failed: %d", res);
-    event(XP_UI_UPDATE_OTA_CHECKED, res, 0);
+    notify(XP_UI_UPDATE_OTA_CHECKED, res, 0);
     return;
   }
   if (!updater.isUpdateNewer()) {
     LOG_DBG("OTA", "No new update available");
-    event(XP_UI_UPDATE_OTA_CHECKED, res, 0);
+    notify(XP_UI_UPDATE_OTA_CHECKED, res, 0);
     return;
   }
-  event(XP_UI_UPDATE_OTA_CHECKED, res, 1);
+  notify(XP_UI_UPDATE_OTA_CHECKED, res, 1);
   requestUpdate();
 }
 void OtaUpdateActivity::onEnter() {
@@ -65,27 +65,27 @@ void OtaUpdateActivity::onExit() {
 }
 void OtaUpdateActivity::runUpdateInstall() {
   LOG_DBG("OTA", "New update available, starting download...");
-  event(XP_UI_UPDATE_INSTALL_BEGIN);
-  event(XP_UI_UPDATE_PROGRESS, updater.getProcessedSize(), updater.getTotalSize());
+  notify(XP_UI_UPDATE_INSTALL_BEGIN);
+  notify(XP_UI_UPDATE_PROGRESS, updater.getProcessedSize(), updater.getTotalSize());
   requestUpdateAndWait();
   const auto res = updater.installUpdate(
       [](void* p) {
         auto& self = *static_cast<OtaUpdateActivity*>(p);
-        self.event(XP_UI_UPDATE_PROGRESS, self.updater.getProcessedSize(), self.updater.getTotalSize());
+        self.notify(XP_UI_UPDATE_PROGRESS, self.updater.getProcessedSize(), self.updater.getTotalSize());
         self.requestUpdate(true);
       },
       this);
   if (res != OtaUpdater::OK) {
     LOG_DBG("OTA", "Update failed: %d", res);
     failedDetail = res == OtaUpdater::WRONG_DEVICE_ERROR ? tr(STR_FIRMWARE_WRONG_DEVICE) : nullptr;
-    event(XP_UI_UPDATE_INSTALLED, res);
+    notify(XP_UI_UPDATE_INSTALLED, res);
     requestUpdate();
     return;
   }
-  event(XP_UI_UPDATE_INSTALLED, 0);
+  notify(XP_UI_UPDATE_INSTALLED, 0);
   requestUpdateAndWait();
   delay(3000);
-  event(XP_UI_UPDATE_SHUTDOWN);
+  notify(XP_UI_UPDATE_SHUTDOWN);
 }
 void OtaUpdateActivity::performAction(XpUiUpdateAction action, int32_t) {
   switch (action) {

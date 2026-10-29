@@ -20,7 +20,8 @@ class UpdateUiActivity : public RustActivityAdapter {
   XpUiUpdateState painting{};
   uint8_t phase() const;
   int selectedIndex() const;
-  XpUiUpdateEffect event(XpUiUpdateEvent, uint32_t a = 0, uint32_t b = 0);
+  void notify(XpUiUpdateEvent, uint32_t a = 0, uint32_t b = 0);
+  uint8_t serviceResult(XpUiUpdateEvent, uint32_t a = 0, uint32_t b = 0);
   void closeRouting();
   virtual void performAction(XpUiUpdateAction, int32_t) = 0;
   virtual int rowCount() const { return 0; }

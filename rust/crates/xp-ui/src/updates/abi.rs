@@ -30,7 +30,8 @@ fn wire_layout() {
     assert_eq!(offset_of!(Effect, action), 0);
     assert_eq!(offset_of!(Effect, repaint), 1);
     assert_eq!(offset_of!(Effect, immediate), 2);
-    assert_eq!(offset_of!(Effect, wait), 3);
+    assert_eq!(offset_of!(Effect, reserved), 3);
+    assert_eq!(Effect::default().reserved, 0);
     assert_eq!(offset_of!(Effect, value), 4);
     assert_eq!(size_of::<Layout>(), 96);
     assert_eq!(align_of::<Layout>(), 4);
@@ -93,12 +94,7 @@ fn wire_values() {
         ("XP_UI_UPDATE_NONE", Action::None as u8),
         ("XP_UI_UPDATE_FINISH", Action::Finish as u8),
         ("XP_UI_UPDATE_PICKER", Action::Picker as u8),
-        ("XP_UI_UPDATE_CONFIRM", Action::Confirm as u8),
-        ("XP_UI_UPDATE_CHECK", Action::Check as u8),
         ("XP_UI_UPDATE_INSTALL", Action::Install as u8),
-        ("XP_UI_UPDATE_VALIDATE", Action::Validate as u8),
-        ("XP_UI_UPDATE_FLASH", Action::Flash as u8),
-        ("XP_UI_UPDATE_MANIFEST_FETCH", Action::ManifestFetch as u8),
         ("XP_UI_UPDATE_FONT_RETRY", Action::FontRetry as u8),
         ("XP_UI_UPDATE_FONT_ACTIVATE", Action::FontActivate as u8),
         ("XP_UI_UPDATE_ENTER_GROUP", Action::EnterGroup as u8),

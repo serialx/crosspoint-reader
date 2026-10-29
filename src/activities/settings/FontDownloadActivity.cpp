@@ -74,13 +74,13 @@ void FontDownloadActivity::onExit() {
 
 void FontDownloadActivity::onWifiSelectionComplete(const bool success) {
   if (!success) {
-    const auto effect = event(XP_UI_UPDATE_WIFI_RESULT, 0);
-    performAction(static_cast<XpUiUpdateAction>(effect.action), effect.value);
+    const auto action = serviceResult(XP_UI_UPDATE_WIFI_RESULT, 0);
+    performAction(static_cast<XpUiUpdateAction>(action), 0);
     return;
   }
 
   {
-    event(XP_UI_UPDATE_WIFI_RESULT, 1);
+    notify(XP_UI_UPDATE_WIFI_RESULT, 1);
   }
   requestUpdateAndWait();
 
@@ -90,7 +90,7 @@ void FontDownloadActivity::onWifiSelectionComplete(const bool success) {
     // half-built family table.
     clearManifest();
     {
-      event(XP_UI_UPDATE_FONT_ERROR);
+      notify(XP_UI_UPDATE_FONT_ERROR);
     }
     return;
   }
@@ -100,9 +100,9 @@ void FontDownloadActivity::onWifiSelectionComplete(const bool success) {
   {
     rowsDirty_ = true;  // families_ just loaded
     if (hasGroupScreen()) {
-      event(XP_UI_UPDATE_MANIFEST, 1, 1);
+      notify(XP_UI_UPDATE_MANIFEST, 1, 1);
     } else {
-      event(XP_UI_UPDATE_MANIFEST, 1, 0);
+      notify(XP_UI_UPDATE_MANIFEST, 1, 0);
     }
   }
 }
@@ -365,7 +365,7 @@ void FontDownloadActivity::downloadAll() {
 
   {
     rowsDirty_ = true;
-    event(XP_UI_UPDATE_FONT_DONE);
+    notify(XP_UI_UPDATE_FONT_DONE);
   }
 }
 
@@ -379,7 +379,7 @@ void FontDownloadActivity::updateAll() {
 
   {
     rowsDirty_ = true;
-    event(XP_UI_UPDATE_FONT_DONE);
+    notify(XP_UI_UPDATE_FONT_DONE);
   }
 }
 
@@ -463,7 +463,7 @@ void FontDownloadActivity::enterGroup(const int groupListIndex) {
   closeRouting();
   buildFilteredIndices(groupListIndex);
   {
-    event(XP_UI_UPDATE_GROUP);
+    notify(XP_UI_UPDATE_GROUP);
     rowsDirty_ = true;
   }
 }
@@ -504,7 +504,7 @@ bool FontDownloadActivity::computeFileCrc32(const char* path, uint32_t& outCrc) 
 
 void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
   {
-    event(XP_UI_UPDATE_FONT_BEGIN, static_cast<uint32_t>(&family - families_.data()));
+    notify(XP_UI_UPDATE_FONT_BEGIN, static_cast<uint32_t>(&family - families_.data()));
     transferCancel = false;
   }
   requestUpdateAndWait();
@@ -523,14 +523,14 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
       ESP.getMaxAllocHeap() < HttpDownloader::MIN_TLS_MAX_ALLOC) {
     LOG_ERR("FONT", "Low heap for download (%u free, %u max block)", ESP.getFreeHeap(), ESP.getMaxAllocHeap());
     RenderLock lock(*this);
-    event(XP_UI_UPDATE_FONT_ERROR);
+    notify(XP_UI_UPDATE_FONT_ERROR);
     errorMessage_ = tr(STR_MEMORY_ERROR);
     return;
   }
 
   if (!fontInstaller_.ensureFamilyDir(str(family.name))) {
     RenderLock lock(*this);
-    event(XP_UI_UPDATE_FONT_ERROR);
+    notify(XP_UI_UPDATE_FONT_ERROR);
     errorMessage_ = "Failed to create font directory";
     return;
   }
@@ -539,7 +539,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     const ManifestFile& file = files_[family.fileStart + i];
 
     {
-      event(XP_UI_UPDATE_FONT_FILE, file.size);
+      notify(XP_UI_UPDATE_FONT_FILE, file.size);
     }
     requestUpdateAndWait();
 
@@ -551,12 +551,12 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
     auto result = HttpDownloader::downloadToFile(
         downloadUrl_, destPath,
         [this](size_t downloaded, size_t total) {
-          event(XP_UI_UPDATE_PROGRESS, downloaded, total);
+          notify(XP_UI_UPDATE_PROGRESS, downloaded, total);
           mappedInput.update(true);
           const bool back = mappedInput.isPressed(MappedInputManager::Button::Back) ||
                             mappedInput.wasPressed(MappedInputManager::Button::Back);
           const bool home = mappedInput.wasHomeGesture();
-          event(XP_UI_UPDATE_TRANSFER_INPUT, back, home);
+          notify(XP_UI_UPDATE_TRANSFER_INPUT, back, home);
           {
             ModelLock lock(*this);
             transferCancel = model.cancel_requested != 0;
@@ -573,7 +573,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
       fontInstaller_.deleteFamily(str(family.name));
       family.installed = false;
       family.hasUpdate = false;
-      if (event(XP_UI_UPDATE_FONT_ABORTED).action == XP_UI_UPDATE_HOME) {
+      if (serviceResult(XP_UI_UPDATE_FONT_ABORTED) == XP_UI_UPDATE_HOME) {
         onGoHome();
         return;
       }
@@ -587,7 +587,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
       family.installed = false;
       family.hasUpdate = false;
       RenderLock lock(*this);
-      event(XP_UI_UPDATE_FONT_ERROR);
+      notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Download failed: ") + str(file.name);
       return;
     }
@@ -599,7 +599,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
       family.installed = false;
       family.hasUpdate = false;
       RenderLock lock(*this);
-      event(XP_UI_UPDATE_FONT_ERROR);
+      notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Failed to compute checksum: ") + str(file.name);
       return;
     }
@@ -609,7 +609,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
       family.installed = false;
       family.hasUpdate = false;
       RenderLock lock(*this);
-      event(XP_UI_UPDATE_FONT_ERROR);
+      notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Checksum mismatch: ") + str(file.name);
       return;
     }
@@ -621,11 +621,11 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
       family.installed = false;
       family.hasUpdate = false;
       RenderLock lock(*this);
-      event(XP_UI_UPDATE_FONT_ERROR);
+      notify(XP_UI_UPDATE_FONT_ERROR);
       errorMessage_ = std::string("Invalid font file: ") + str(file.name);
       return;
     }
-    event(XP_UI_UPDATE_FONT_FILE_DONE);
+    notify(XP_UI_UPDATE_FONT_FILE_DONE);
   }
 
   fontInstaller_.refreshRegistry();
@@ -634,7 +634,7 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
 
   {
     rowsDirty_ = true;
-    event(XP_UI_UPDATE_FONT_DONE);
+    notify(XP_UI_UPDATE_FONT_DONE);
   }
 }
 
@@ -666,7 +666,7 @@ void FontDownloadActivity::onDeleteConfirmationResult(const ActivityResult& resu
 
   if (fontInstaller_.deleteFamily(str(family.name)) != FontInstaller::Error::OK) {
     RenderLock lock(*this);
-    event(XP_UI_UPDATE_FONT_ERROR);
+    notify(XP_UI_UPDATE_FONT_ERROR);
     errorMessage_ = "Failed to delete font";
   } else {
     fontInstaller_.refreshRegistry();
@@ -688,14 +688,14 @@ void FontDownloadActivity::activateSelected() {
     for (const int familyIndex : filteredIndices_) {
       if (!families_[familyIndex].installed) count += families_[familyIndex].fileCount;
     }
-    event(XP_UI_UPDATE_FONT_BATCH, count);
+    notify(XP_UI_UPDATE_FONT_BATCH, count);
     downloadAll();
   } else if (isUpdateAllRow(selectedIndex())) {
     uint32_t count = 0;
     for (const int familyIndex : filteredIndices_) {
       if (families_[familyIndex].hasUpdate) count += families_[familyIndex].fileCount;
     }
-    event(XP_UI_UPDATE_FONT_BATCH, count);
+    notify(XP_UI_UPDATE_FONT_BATCH, count);
     updateAll();
   } else {
     // The special rows disappear when a download starts, so a stale selection
@@ -704,7 +704,7 @@ void FontDownloadActivity::activateSelected() {
     if (familyIndex < 0 || familyIndex >= static_cast<int>(families_.size())) return;
     auto& family = families_[familyIndex];
     if (!family.installed || family.hasUpdate) {
-      event(XP_UI_UPDATE_FONT_BATCH, family.fileCount);
+      notify(XP_UI_UPDATE_FONT_BATCH, family.fileCount);
       downloadFamily(family);
     } else {
       promptDeleteSelectedFamily();

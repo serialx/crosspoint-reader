@@ -20,10 +20,10 @@ pub unsafe fn init(state: *mut State, kind: u8, recovery: u8) {
 }
 /// # Safety
 /// State is aligned, exclusively writable, and live for this call.
-pub unsafe fn service(state: *mut State, event: u8, a: u32, b: u32) -> Effect {
+pub unsafe fn service(state: *mut State, event: u8, a: u32, b: u32) -> u8 {
     match (unsafe { state.as_mut() }, Event::from_byte(event)) {
         (Some(s), Some(e)) if s.valid() => s.service(e, a, b),
-        _ => Effect::default(),
+        _ => 0,
     }
 }
 /// # Safety

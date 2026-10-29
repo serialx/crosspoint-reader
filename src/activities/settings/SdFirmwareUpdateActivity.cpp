@@ -31,28 +31,28 @@ void SdFirmwareUpdateActivity::launchPicker() {
 
 void SdFirmwareUpdateActivity::onPickerResult(const ActivityResult& result) {
   if (result.isCancelled) {
-    const auto effect = event(XP_UI_UPDATE_PICKED, 1, 0);
-    performAction(static_cast<XpUiUpdateAction>(effect.action), effect.value);
+    const auto action = serviceResult(XP_UI_UPDATE_PICKED, 1, 0);
+    performAction(static_cast<XpUiUpdateAction>(action), 0);
     return;
   }
 
   const auto* path = std::get_if<FilePathResult>(&result.data);
   if (!path) {
     LOG_ERR("FW", "Picker returned no path");
-    const auto effect = event(XP_UI_UPDATE_PICKED, 0, 0);
-    performAction(static_cast<XpUiUpdateAction>(effect.action), effect.value);
+    const auto action = serviceResult(XP_UI_UPDATE_PICKED, 0, 0);
+    performAction(static_cast<XpUiUpdateAction>(action), 0);
     return;
   }
   firmwarePath = path->path;
   LOG_DBG("FW", "Selected: %s", firmwarePath.c_str());
 
   {
-    event(XP_UI_UPDATE_PICKED, 0, 1);
+    notify(XP_UI_UPDATE_PICKED, 0, 1);
   }
   requestUpdateAndWait();
 
   if (!validateFirmware()) {
-    event(XP_UI_UPDATE_VALIDATED, 0);
+    notify(XP_UI_UPDATE_VALIDATED, 0);
     requestUpdate();
     return;
   }
@@ -110,7 +110,7 @@ bool SdFirmwareUpdateActivity::validateFirmware() {
 
 void SdFirmwareUpdateActivity::promptConfirmation() {
   {
-    event(XP_UI_UPDATE_VALIDATED, 1);
+    notify(XP_UI_UPDATE_VALIDATED, 1);
   }
   // Show "Update firmware?" with the file path as the body line.
   std::string heading = tr(STR_FIRMWARE_UPDATE_PROMPT);
@@ -125,14 +125,14 @@ void SdFirmwareUpdateActivity::promptConfirmation() {
 
 void SdFirmwareUpdateActivity::onConfirmationResult(const ActivityResult& result) {
   if (result.isCancelled) {
-    const auto effect = event(XP_UI_UPDATE_CONFIRMED, 1);
-    performAction(static_cast<XpUiUpdateAction>(effect.action), effect.value);
+    const auto action = serviceResult(XP_UI_UPDATE_CONFIRMED, 1);
+    performAction(static_cast<XpUiUpdateAction>(action), 0);
     return;
   }
 
   {
-    event(XP_UI_UPDATE_CONFIRMED, 0);
-    event(XP_UI_UPDATE_PROGRESS, 0, firmwareSize);
+    notify(XP_UI_UPDATE_CONFIRMED, 0);
+    notify(XP_UI_UPDATE_PROGRESS, 0, firmwareSize);
   }
   requestUpdateAndWait();
   performUpdate();
@@ -143,7 +143,7 @@ void SdFirmwareUpdateActivity::performUpdate() {
 
   auto progressCb = +[](size_t written, size_t total, void* ctx) {
     auto* self = static_cast<SdFirmwareUpdateActivity*>(ctx);
-    self->event(XP_UI_UPDATE_PROGRESS, written, total);
+    self->notify(XP_UI_UPDATE_PROGRESS, written, total);
     // immediate=true: wake the render task directly. We're in a tight sync
     // loop so the main loop won't drain the requestedUpdate flag for us.
     self->requestUpdate(true);
@@ -162,14 +162,14 @@ void SdFirmwareUpdateActivity::performUpdate() {
     errorMessage = result == firmware_flash::Result::BAD_CHIP || result == firmware_flash::Result::WRONG_BOARD
                        ? tr(STR_FIRMWARE_WRONG_DEVICE)
                        : tr(STR_FIRMWARE_WRITE_FAILED);
-    event(XP_UI_UPDATE_INSTALLED, 1);
+    notify(XP_UI_UPDATE_INSTALLED, 1);
     requestUpdate();
     return;
   }
 
   LOG_INF("FW", "SD firmware update complete, restarting");
   {
-    event(XP_UI_UPDATE_INSTALLED, 0);
+    notify(XP_UI_UPDATE_INSTALLED, 0);
   }
   requestUpdateAndWait();
   delay(1500);

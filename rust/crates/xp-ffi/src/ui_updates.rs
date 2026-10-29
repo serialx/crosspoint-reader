@@ -17,7 +17,7 @@ macro_rules! export {
  };
 }
 export!(xp_ui_updates_init(state:*mut State,kind:u8,recovery:u8)->()=init);
-export!(xp_ui_updates_service(state:*mut State,event:u8,a:u32,b:u32)->Effect=service);
+export!(xp_ui_updates_result(state:*mut State,event:u8,a:u32,b:u32)->u8=service);
 export!(xp_ui_updates_interest(state:*const State,now_ms:u32)->Interest=interest);
 export!(xp_ui_updates_input(state:*mut State,input:*const Input,feedback:*const Feedback,published:u8,row_count:i32,family_count:i32)->Effect=input);
 export!(xp_ui_updates_sleep(state:*const State)->u8=sleep);
@@ -25,3 +25,13 @@ export!(xp_ui_updates_delay(state:*const State)->u8=delay);
 export!(xp_ui_updates_percent(state:*const State)->u32=percent);
 export!(xp_ui_updates_view(state:*const State,layout:*const Layout,resources:*const Services,buffer:*const Buffer,feedback:*mut Feedback,scene:*mut SceneView)->u8=build);
 export!(xp_ui_updates_publish(state:*mut State,snapshot:*const State,feedback:*const Feedback)->()=publish);
+
+/// # Safety
+/// State is aligned, valid, and exclusively writable for the call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_updates_notify(state: *mut State, event: u8, a: u32, b: u32) {
+    unsafe {
+        ffi::service(state, event, a, b);
+    }
+}

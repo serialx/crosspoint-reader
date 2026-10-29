@@ -283,7 +283,7 @@ pub struct ItemSizeServices {
 /// # Safety
 /// Services borrow cache/ZIP storage and href for this call only.
 #[no_mangle]
-pub unsafe extern "C" fn xp_book_item_size(
+pub unsafe extern "C" fn xp_book_cache_item_size(
     services: *const ItemSizeServices,
     index: u16,
     zip: u8,

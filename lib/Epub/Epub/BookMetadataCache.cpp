@@ -60,155 +60,155 @@ struct BookMetadataCache::ReadContext {
   static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
     auto& c = *static_cast<ReadContext*>(raw);
     const auto& self = c.owner;
-    switch (static_cast<XpBookMetadataOperation>(operation)) {
-      case XP_BOOK_META_RESET_WRITER: {
+    switch (static_cast<XpBookCacheOperation>(operation)) {
+      case XP_BOOK_CACHE_RESET_WRITER: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         xp_pkg_cache_destroy(mutableSelf.build);
         mutableSelf.build = nullptr;
         break;
       }
-      case XP_BOOK_META_OPEN: {
+      case XP_BOOK_CACHE_OPEN: {
         return Storage.openFileForRead("BMC", self.cachePath + bookBinFile,
                                        const_cast<BookMetadataCache&>(self).bookFile);
       }
-      case XP_BOOK_META_READ_VERSION: {
+      case XP_BOOK_CACHE_READ_VERSION: {
         uint8_t version;
         serialization::readPod(const_cast<BookMetadataCache&>(self).bookFile, version);
         return version;
       }
-      case XP_BOOK_META_CLOSE: {
+      case XP_BOOK_CACHE_CLOSE: {
         const_cast<BookMetadataCache&>(self).bookFile.close();
         break;
       }
-      case XP_BOOK_META_READ_LUT: {
+      case XP_BOOK_CACHE_READ_LUT: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         serialization::readPod(mutableSelf.bookFile, mutableSelf.lutOffset);
         break;
       }
-      case XP_BOOK_META_READ_SPINE_COUNT: {
+      case XP_BOOK_CACHE_READ_SPINE_COUNT: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         serialization::readPod(mutableSelf.bookFile, mutableSelf.spineCount);
         break;
       }
-      case XP_BOOK_META_READ_TOC_COUNT: {
+      case XP_BOOK_CACHE_READ_TOC_COUNT: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         serialization::readPod(mutableSelf.bookFile, mutableSelf.tocCount);
         break;
       }
-      case XP_BOOK_META_READ_METADATA: {
+      case XP_BOOK_CACHE_READ_METADATA: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         auto& m = mutableSelf.coreMetadata;
         std::string* fields[] = {&m.title, &m.author, &m.language, &m.coverItemHref, &m.textReferenceHref};
         serialization::readString(mutableSelf.bookFile, *fields[argument]);
         break;
       }
-      case XP_BOOK_META_RESET_WINDOW: {
+      case XP_BOOK_CACHE_RESET_WINDOW: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         mutableSelf.windowStarts.clear();
         mutableSelf.bookSize = 0;
         mutableSelf.windowFirst = -1;
         break;
       }
-      case XP_BOOK_META_RESERVE_WINDOW: {
+      case XP_BOOK_CACHE_RESERVE_WINDOW: {
         const_cast<BookMetadataCache&>(self).windowStarts.reserve(argument);
         break;
       }
-      case XP_BOOK_META_SEEK_ENTRIES: {
+      case XP_BOOK_CACHE_SEEK_ENTRIES: {
         const_cast<BookMetadataCache&>(self).bookFile.seek(self.lutOffset + argument);
         break;
       }
-      case XP_BOOK_META_READ_CUMULATIVE: {
+      case XP_BOOK_CACHE_READ_CUMULATIVE: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         mutableSelf.bookSize = self.readSpineEntry(mutableSelf.bookFile).cumulativeSize;
         break;
       }
-      case XP_BOOK_META_ADD_WINDOW_START: {
+      case XP_BOOK_CACHE_ADD_WINDOW_START: {
         const_cast<BookMetadataCache&>(self).windowStarts.push_back(self.bookSize);
         break;
       }
-      case XP_BOOK_META_SET_LOADED: {
+      case XP_BOOK_CACHE_SET_LOADED: {
         const_cast<BookMetadataCache&>(self).loaded = argument;
         break;
       }
-      case XP_BOOK_META_SPINE_COUNT: {
+      case XP_BOOK_CACHE_SPINE_COUNT: {
         return self.spineCount;
       }
-      case XP_BOOK_META_TOC_COUNT: {
+      case XP_BOOK_CACHE_TOC_COUNT: {
         return self.tocCount;
       }
-      case XP_BOOK_META_BOOK_SIZE: {
+      case XP_BOOK_CACHE_BOOK_SIZE: {
         return self.bookSize;
       }
-      case XP_BOOK_META_LOADED: {
+      case XP_BOOK_CACHE_LOADED: {
         return self.loaded;
       }
-      case XP_BOOK_META_WINDOW_FIRST: {
+      case XP_BOOK_CACHE_WINDOW_FIRST: {
         return self.windowFirst;
       }
-      case XP_BOOK_META_SET_WINDOW_FIRST: {
+      case XP_BOOK_CACHE_SET_WINDOW_FIRST: {
         self.windowFirst = static_cast<int32_t>(argument);
         break;
       }
-      case XP_BOOK_META_WINDOW_START: {
+      case XP_BOOK_CACHE_WINDOW_START: {
         return self.windowStarts[argument];
       }
-      case XP_BOOK_META_WINDOW_VALUE: {
+      case XP_BOOK_CACHE_WINDOW_VALUE: {
         return self.window[argument];
       }
-      case XP_BOOK_META_WINDOW_COUNT: {
+      case XP_BOOK_CACHE_WINDOW_COUNT: {
         return self.windowStarts.size();
       }
-      case XP_BOOK_META_LOCK: {
+      case XP_BOOK_CACHE_LOCK: {
         c.lock.emplace(sizeWindowLock);
         break;
       }
-      case XP_BOOK_META_FILL_OPEN: {
+      case XP_BOOK_CACHE_FILL_OPEN: {
         c.input.emplace();
         return Storage.openFileForRead("BMC", self.cachePath + bookBinFile, *c.input);
       }
-      case XP_BOOK_META_FILL_SEEK_LUT: {
+      case XP_BOOK_CACHE_FILL_SEEK_LUT: {
         return c.input->seek(self.lutOffset + sizeof(uint32_t) * argument);
       }
-      case XP_BOOK_META_FILL_READ_POSITION: {
+      case XP_BOOK_CACHE_FILL_READ_POSITION: {
         return c.input->read(&c.position, sizeof(c.position)) == sizeof(c.position);
       }
-      case XP_BOOK_META_FILL_SEEK_POSITION: {
+      case XP_BOOK_CACHE_FILL_SEEK_POSITION: {
         return c.input->seek(c.position);
       }
-      case XP_BOOK_META_FILL_READ_HREF: {
+      case XP_BOOK_CACHE_FILL_READ_HREF: {
         c.hrefLength = 0;
         return c.input->read(&c.hrefLength, sizeof(c.hrefLength)) == sizeof(c.hrefLength);
       }
-      case XP_BOOK_META_FILL_SKIP_HREF: {
+      case XP_BOOK_CACHE_FILL_SKIP_HREF: {
         return c.input->seek(c.input->position() + c.hrefLength);
       }
-      case XP_BOOK_META_FILL_READ_WINDOW: {
+      case XP_BOOK_CACHE_FILL_READ_WINDOW: {
         return c.input->read(&self.window[argument], sizeof(uint32_t)) == sizeof(uint32_t);
       }
-      case XP_BOOK_META_FILL_SKIP_TOC: {
+      case XP_BOOK_CACHE_FILL_SKIP_TOC: {
         return c.input->seek(c.input->position() + sizeof(int16_t));
       }
-      case XP_BOOK_META_PREPARE_TEMPORARY:
+      case XP_BOOK_CACHE_PREPARE_TEMPORARY:
         c.temporary = self.cachePath + (argument == 0 ? tmpSpineBinFile : tmpTocBinFile);
         break;
-      case XP_BOOK_META_TEMPORARY_EXISTS:
+      case XP_BOOK_CACHE_TEMPORARY_EXISTS:
         return Storage.exists(c.temporary.c_str());
-      case XP_BOOK_META_TEMPORARY_REMOVE:
+      case XP_BOOK_CACHE_TEMPORARY_REMOVE:
         return Storage.remove(c.temporary.c_str());
-      case XP_BOOK_META_DROP_TEMPORARY:
+      case XP_BOOK_CACHE_DROP_TEMPORARY:
         std::string{}.swap(c.temporary);
         break;
-      case XP_BOOK_META_ENTRY_SEEK:
+      case XP_BOOK_CACHE_ENTRY_SEEK:
         const_cast<BookMetadataCache&>(self).bookFile.seek(self.lutOffset + argument);
         break;
-      case XP_BOOK_META_ENTRY_POSITION: {
+      case XP_BOOK_CACHE_ENTRY_POSITION: {
         auto& file = const_cast<BookMetadataCache&>(self).bookFile;
         uint32_t position;
         serialization::readPod(file, position);
         file.seek(position);
         break;
       }
-      case XP_BOOK_META_FILL_DROP: {
+      case XP_BOOK_CACHE_FILL_DROP: {
         c.input.reset();
         break;
       }
@@ -393,7 +393,7 @@ struct BookMetadataCache::BuildStreams {
           }
           return 0;
         }};
-    return xp_book_item_size(&services, index, state.isZip);
+    return xp_book_cache_item_size(&services, index, state.isZip);
   }
 };
 

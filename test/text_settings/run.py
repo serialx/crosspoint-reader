@@ -15,7 +15,7 @@ def record(source):
         cpp.write_text(source)
         subprocess.run([
             "c++", "-std=c++17", "-DFREEINK_DEVICE_X3=1", "-DFREEINK_DEVICE_X4=1",
-            "-DFREEINK_CAP_TOUCH=1", "-I", str(ROOT / "src"),
+            "-DFREEINK_CAP_TOUCH=1", "-I", str(ROOT / "src"), "-I", str(HERE),
             "-I", str(ROOT / "freeink-sdk/libs/hardware/XteinkDetect/test/host/stubs"),
             "-I", str(ROOT / "freeink-sdk/libs/hardware/BoardConfig/include"), "-I",
             str(ROOT / "freeink-sdk/libs/ui/FreeInkUI/include"),
@@ -47,3 +47,5 @@ if __name__ == "__main__":
         mutant.write_text(changed)
         subprocess.run(["c++", "-std=c++17", str(mutant), "-o", str(binary)], check=True)
         assert subprocess.check_output([str(binary)]) != (HERE / "navigation.golden").read_bytes()
+
+    print(record((HERE / "Compare.cpp").read_text()).decode(), end="")

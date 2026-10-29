@@ -1,0 +1,78 @@
+use super::*;
+const _: () = {
+    assert!(core::mem::size_of::<State>() == 180);
+    assert!(core::mem::align_of::<State>() == 4);
+    assert!(core::mem::offset_of!(State, tabs) == 0);
+    assert!(core::mem::offset_of!(State, last_repeat) == 160);
+    assert!(core::mem::offset_of!(State, font_count) == 164);
+    assert!(core::mem::offset_of!(State, size_count) == 166);
+    assert!(core::mem::offset_of!(State, family) == 168);
+    assert!(core::mem::offset_of!(State, size) == 172);
+    assert!(core::mem::offset_of!(State, tab) == 176);
+    assert!(core::mem::offset_of!(State, started_on_tabs) == 177);
+    assert!(core::mem::offset_of!(State, language) == 178);
+    assert!(core::mem::offset_of!(State, reserved) == 179);
+    assert!(core::mem::size_of::<view::Layout>() == 92);
+    assert!(core::mem::align_of::<view::Layout>() == 4);
+    assert!(core::mem::offset_of!(view::Layout, theme) == 0);
+    assert!(core::mem::offset_of!(view::Layout, bezel) == 72);
+    assert!(core::mem::offset_of!(view::Layout, preview_percent) == 80);
+    assert!(core::mem::offset_of!(view::Layout, preview_padding) == 82);
+    assert!(core::mem::offset_of!(view::Layout, side_padding) == 84);
+    assert!(core::mem::offset_of!(view::Layout, tab_spacing) == 86);
+    assert!(core::mem::offset_of!(view::Layout, underline) == 88);
+    assert!(core::mem::offset_of!(view::Layout, full_slot) == 90);
+    assert!(core::mem::offset_of!(view::Layout, reserved) == 91);
+    assert!(core::mem::size_of::<Values>() == 11);
+    assert!(core::mem::align_of::<Values>() == 1);
+    assert!(core::mem::offset_of!(Values, fields) == 0);
+    assert!(core::mem::size_of::<Edit>() == 8);
+    assert!(core::mem::align_of::<Edit>() == 4);
+    assert!(core::mem::offset_of!(Edit, value) == 0);
+    assert!(core::mem::offset_of!(Edit, kind) == 4);
+    assert!(core::mem::offset_of!(Edit, field) == 5);
+    assert!(core::mem::offset_of!(Edit, count) == 6);
+    assert!(core::mem::offset_of!(Edit, selected) == 7);
+    assert!(core::mem::size_of::<preview::Key>() == 32);
+    assert!(core::mem::align_of::<preview::Key>() == 4);
+    assert!(core::mem::offset_of!(preview::Key, font_id) == 0);
+    assert!(core::mem::offset_of!(preview::Key, point_size) == 4);
+    assert!(core::mem::offset_of!(preview::Key, margin) == 8);
+    assert!(core::mem::offset_of!(preview::Key, width) == 12);
+    assert!(core::mem::offset_of!(preview::Key, height) == 16);
+    assert!(core::mem::offset_of!(preview::Key, compression) == 20);
+    assert!(core::mem::offset_of!(preview::Key, alignment) == 24);
+    assert!(core::mem::offset_of!(preview::Key, paragraph_gap) == 25);
+    assert!(core::mem::offset_of!(preview::Key, indent) == 26);
+    assert!(core::mem::offset_of!(preview::Key, tracking) == 27);
+    assert!(core::mem::offset_of!(preview::Key, word_spacing) == 28);
+    assert!(core::mem::offset_of!(preview::Key, focus) == 29);
+    assert!(core::mem::offset_of!(preview::Key, hyphenation) == 30);
+    assert!(core::mem::offset_of!(preview::Key, reserved) == 31);
+    assert!(core::mem::size_of::<preview::Geometry>() == 28);
+    assert!(core::mem::align_of::<preview::Geometry>() == 4);
+    assert!(core::mem::offset_of!(preview::Geometry, caption) == 0);
+    assert!(core::mem::offset_of!(preview::Geometry, text) == 8);
+    assert!(core::mem::offset_of!(preview::Geometry, advance) == 16);
+    assert!(core::mem::offset_of!(preview::Geometry, gap) == 20);
+    assert!(core::mem::offset_of!(preview::Geometry, caption_visible) == 24);
+    assert!(core::mem::offset_of!(preview::Geometry, text_visible) == 25);
+    assert!(core::mem::offset_of!(preview::Geometry, reserved) == 26);
+    assert!(Field::Line as u8 == 0);
+    assert!(Field::Word as u8 == 1);
+    assert!(Field::Character as u8 == 2);
+    assert!(Field::ParagraphGap as u8 == 3);
+    assert!(Field::Indent as u8 == 4);
+    assert!(Field::Alignment as u8 == 5);
+    assert!(Field::Margin as u8 == 6);
+    assert!(Field::Focus as u8 == 7);
+    assert!(Field::Hyphenation as u8 == 8);
+    assert!(Field::Embedded as u8 == 9);
+    assert!(Field::Antialiasing as u8 == 10);
+    assert!(
+        FAMILY > crate::model::EffectKind::Scroll as u8
+            && SIZE == FAMILY + 1
+            && SAVE == SIZE + 1
+            && OPTIONS == SAVE + 1
+    );
+};

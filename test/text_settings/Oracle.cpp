@@ -1,12 +1,13 @@
 // Frozen from dc21f50f TextSettings/UiTabListActivity geometry.
 
-#include <FreeInkApp.h>
 #include <BoardConfig.h>
 #include <EpdFont.h>
+#include <FreeInkApp.h>
 #include <builtinFonts/ubuntu_10_regular.h>
 #include <builtinFonts/ubuntu_12_regular.h>
 #include <components/themes/lyra/LyraTheme.h>
 #include <components/themes/roundedraff/RoundedRaffTheme.h>
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -16,7 +17,7 @@
 namespace fui = freeink::ui;
 using UiScreen = fui::Screen<32>;
 struct GfxRenderer {
-enum Orientation {
+  enum Orientation {
     Portrait,                  // 480x800 logical coordinates (current default)
     LandscapeClockwise,        // 800x480 logical coordinates, rotated 180° (swap top/bottom)
     PortraitInverted,          // 480x800 logical coordinates, inverted
@@ -45,7 +46,10 @@ enum Orientation {
 };
 struct UITheme {
   ThemeMetrics metrics;
-  static UITheme& getInstance() { static UITheme instance; return instance; }
+  static UITheme& getInstance() {
+    static UITheme instance;
+    return instance;
+  }
   const ThemeMetrics& getMetrics() const { return metrics; }
   Rect getContentArea(const GfxRenderer&);
   Rect getScreenSafeArea(const GfxRenderer&, bool, bool);
@@ -58,7 +62,7 @@ constexpr const char* STR_TEXT_SETTINGS = "Text Settings";
 constexpr const char* STR_PREVIEW = "Preview";
 constexpr int UI_10_FONT_ID = 0, TOUCH_TAB_BAR_HEIGHT = 50, ACTION_TAB = 1, ACTION_ROW = 2;
 namespace textsettings {
-  struct PreviewLayout {};
+struct PreviewLayout {};
 void renderPreview(GfxRenderer& renderer, PreviewLayout& layout, int previewPadding, int labelGap, Rect bounds,
                    const char* caption) {
   renderer.preview = bounds;
@@ -74,12 +78,14 @@ void renderPreview(GfxRenderer& renderer, PreviewLayout& layout, int previewPadd
 
   const int labelY = top + height - previewPadding - labelH;
   renderer.drawText(UI_10_FONT_ID, left, labelY, caption);
-
 }
 
-}
+}  // namespace textsettings
 struct UiTabListActivity {
-  struct { bool touch = false; bool hasTouch() const { return touch; } } mappedInput;
+  struct {
+    bool touch = false;
+    bool hasTouch() const { return touch; }
+  } mappedInput;
   int tabPillMaxPad = 0, selected = 0;
   int tabCount() const { return 4; }
   const char* tabLabel(int index) const {
@@ -98,7 +104,9 @@ struct TextSettingsActivity : UiTabListActivity {
   GfxRenderer renderer;
   ThemeMetrics metrics_;
   int afterHeader = 0, previewHeight = 0;
-  struct Entry { std::string name; };
+  struct Entry {
+    std::string name;
+  };
   std::vector<Entry> fonts_{{"Bitter"}}, sizes_{{"12 pt"}};
   int currentFamilyIndex_ = 0, currentSizeIndex_ = 0;
   textsettings::PreviewLayout previewLayout_;
@@ -107,68 +115,64 @@ struct TextSettingsActivity : UiTabListActivity {
   fui::ListNav& activeNav() { return nav; }
   int listCount() const { return rowItems_.size(); }
   void syncListViewport(UiScreen&, fui::ListProps&, int);
-  void syncTabListViewport(UiScreen& screen, fui::ListProps& props) {
-    syncListViewport(screen, props, 1);
-  }
+  void syncTabListViewport(UiScreen& screen, fui::ListProps& props) { syncListViewport(screen, props, 1); }
   void enterGeometry() {
     metrics_ = UITheme::getInstance().getMetrics();
-  const Rect safeArea = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  const int safeBottom = safeArea.y + safeArea.height;
-  afterHeader = safeArea.y + metrics_.topPadding + metrics_.headerHeight + metrics_.verticalSpacing;
-  const int usableHeight = safeBottom - afterHeader - metrics_.verticalSpacing;
-  previewHeight = usableHeight * metrics_.previewHeightPercent / 100;
-
+    const Rect safeArea = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
+    const int safeBottom = safeArea.y + safeArea.height;
+    afterHeader = safeArea.y + metrics_.topPadding + metrics_.headerHeight + metrics_.verticalSpacing;
+    const int usableHeight = safeBottom - afterHeader - metrics_.verticalSpacing;
+    previewHeight = usableHeight * metrics_.previewHeightPercent / 100;
   }
   void buildScreen(UiScreen& screen) {
-  const Rect safeArea = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  const int tabTop = afterHeader + previewHeight;
-  const int rightInset = renderer.getScreenWidth() - (safeArea.x + safeArea.width);
-  const int bottomInset = renderer.getScreenHeight() - (safeArea.y + safeArea.height);
-  screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(tabTop), static_cast<int16_t>(rightInset),
-                                                static_cast<int16_t>(bottomInset), static_cast<int16_t>(safeArea.x)});
+    const Rect safeArea = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
+    const int tabTop = afterHeader + previewHeight;
+    const int rightInset = renderer.getScreenWidth() - (safeArea.x + safeArea.width);
+    const int bottomInset = renderer.getScreenHeight() - (safeArea.y + safeArea.height);
+    screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(tabTop), static_cast<int16_t>(rightInset),
+                                                  static_cast<int16_t>(bottomInset), static_cast<int16_t>(safeArea.x)});
 
-  buildTabBar(screen);
-
+    buildTabBar(screen);
   }
-  void buildRows(UiScreen& screen) {  fui::ListProps props;
-  props.items = rowItems_.data();
-  props.count = static_cast<uint16_t>(rowItems_.size());
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
-  props.valueInset = 8;               // air between the value and the row edge
-  // Titles match the value's font size (smallText) so both sides of a row
-  // read as one unit; labels that still don't fit wrap onto a second line.
-  // maxLines=2 also marks the style explicitly set (see SettingsActivity).
-  props.labelText = screen.theme().smallText;
-  props.labelText.maxLines = 2;
-  syncTabListViewport(screen, props);
-  screen.list(props);
-}
+  void buildRows(UiScreen& screen) {
+    fui::ListProps props;
+    props.items = rowItems_.data();
+    props.count = static_cast<uint16_t>(rowItems_.size());
+    props.action = ACTION_ROW;
+    props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
+    props.valueInset = 8;               // air between the value and the row edge
+    // Titles match the value's font size (smallText) so both sides of a row
+    // read as one unit; labels that still don't fit wrap onto a second line.
+    // maxLines=2 also marks the style explicitly set (see SettingsActivity).
+    props.labelText = screen.theme().smallText;
+    props.labelText.maxLines = 2;
+    syncTabListViewport(screen, props);
+    screen.list(props);
+  }
 
   void drawChrome() {
-  GUI.drawHeader(renderer, UITheme::getInstance().getHeaderRect(renderer, true, false), tr(STR_TEXT_SETTINGS));
+    GUI.drawHeader(renderer, UITheme::getInstance().getHeaderRect(renderer, true, false), tr(STR_TEXT_SETTINGS));
 
-  const char* familyName = (currentFamilyIndex_ >= 0 && currentFamilyIndex_ < static_cast<int>(fonts_.size()))
-                               ? fonts_[currentFamilyIndex_].name.c_str()
+    const char* familyName = (currentFamilyIndex_ >= 0 && currentFamilyIndex_ < static_cast<int>(fonts_.size()))
+                                 ? fonts_[currentFamilyIndex_].name.c_str()
+                                 : "";
+    const char* sizeName = (currentSizeIndex_ >= 0 && currentSizeIndex_ < static_cast<int>(sizes_.size()))
+                               ? sizes_[currentSizeIndex_].name.c_str()
                                : "";
-  const char* sizeName = (currentSizeIndex_ >= 0 && currentSizeIndex_ < static_cast<int>(sizes_.size()))
-                             ? sizes_[currentSizeIndex_].name.c_str()
-                             : "";
-  char labelBuf[128];
-  snprintf(labelBuf, sizeof(labelBuf), "%s \"%s, %s\"", tr(STR_PREVIEW), familyName, sizeName);
-  const Rect safeArea = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  const Rect previewBounds{safeArea.x, afterHeader, safeArea.width, previewHeight};
-  const auto [savedX, savedY, savedWidth, savedHeight] = renderer.getClipRect();
-  const int clipLeft = std::max(previewBounds.x, savedX);
-  const int clipTop = std::max(previewBounds.y, savedY);
-  const int clipRight = std::min(previewBounds.x + previewBounds.width, savedX + savedWidth);
-  const int clipBottom = std::min(previewBounds.y + previewBounds.height, savedY + savedHeight);
-  renderer.setClipRect(clipLeft, clipTop, std::max(0, clipRight - clipLeft), std::max(0, clipBottom - clipTop));
-  textsettings::renderPreview(renderer, previewLayout_, metrics_.previewPadding, metrics_.verticalSpacing,
-                              previewBounds, labelBuf);
-  renderer.setClipRect(savedX, savedY, savedWidth, savedHeight);
-}
-
+    char labelBuf[128];
+    snprintf(labelBuf, sizeof(labelBuf), "%s \"%s, %s\"", tr(STR_PREVIEW), familyName, sizeName);
+    const Rect safeArea = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
+    const Rect previewBounds{safeArea.x, afterHeader, safeArea.width, previewHeight};
+    const auto [savedX, savedY, savedWidth, savedHeight] = renderer.getClipRect();
+    const int clipLeft = std::max(previewBounds.x, savedX);
+    const int clipTop = std::max(previewBounds.y, savedY);
+    const int clipRight = std::min(previewBounds.x + previewBounds.width, savedX + savedWidth);
+    const int clipBottom = std::min(previewBounds.y + previewBounds.height, savedY + savedHeight);
+    renderer.setClipRect(clipLeft, clipTop, std::max(0, clipRight - clipLeft), std::max(0, clipBottom - clipTop));
+    textsettings::renderPreview(renderer, previewLayout_, metrics_.previewPadding, metrics_.verticalSpacing,
+                                previewBounds, labelBuf);
+    renderer.setClipRect(savedX, savedY, savedWidth, savedHeight);
+  }
 };
 void TextSettingsActivity::syncListViewport(UiScreen& screen, fui::ListProps& props, const int selectionOffset) {
   props.toggleCheckbox = true;
@@ -406,20 +410,36 @@ void UiTabListActivity::buildTabBar(UiScreen& screen) {
 }
 
 namespace freeink::ui {
-struct GfxRendererTarget : DrawTarget { static constexpr FontId FONT_BODY = 1; };
-}
+struct GfxRendererTarget : DrawTarget {
+  static constexpr FontId FONT_BODY = 1;
+};
+}  // namespace freeink::ui
 struct Target : fui::GfxRendererTarget {
   uint64_t hash = 1469598103934665603ULL;
-  void number(int64_t n) { for (int i = 0; i < 8; ++i) { hash ^= (uint64_t(n) >> (i * 8)) & 255; hash *= 1099511628211ULL; } }
-  void rect(fui::Rect r) { number(r.x); number(r.y); number(r.width); number(r.height); }
+  void number(int64_t n) {
+    for (int i = 0; i < 8; ++i) {
+      hash ^= (uint64_t(n) >> (i * 8)) & 255;
+      hash *= 1099511628211ULL;
+    }
+  }
+  void rect(fui::Rect r) {
+    number(r.x);
+    number(r.y);
+    number(r.width);
+    number(r.height);
+  }
   void record() { std::printf("%016llx\n", static_cast<unsigned long long>(hash)); }
 
   std::vector<fui::Rect> textRects, fills;
   std::vector<std::string> textStrings;
+  std::vector<bool> textBold;
   fui::Rect clip{0, 0, 32767, 32767};
   bool clippedText = false;
   fui::Rect clipRect() const override { return clip; }
-  bool setClipRect(fui::Rect rect) override { clip = rect; return true; }
+  bool setClipRect(fui::Rect rect) override {
+    clip = rect;
+    return true;
+  }
   fui::Size measureText(fui::FontId font, const char* text, fui::TextStyle) const override {
     EpdFont epdFont(font == 0 ? &ubuntu_10_regular : &ubuntu_12_regular);
     int width, height;
@@ -429,19 +449,34 @@ struct Target : fui::GfxRendererTarget {
   int16_t lineHeight(fui::FontId font) const override {
     return font == 0 ? ubuntu_10_regular.advanceY : ubuntu_12_regular.advanceY;
   }
-  void fill(fui::Rect r, fui::Paint, uint8_t radius, uint8_t corners) override { number(1); rect(r); number(radius); number(corners); fills.push_back(r); }
-  void stroke(fui::Rect r, fui::Paint, uint8_t width, uint8_t radius, uint8_t corners) override { number(2); rect(r); number(width); number(radius); number(corners); }
+  void fill(fui::Rect r, fui::Paint, uint8_t radius, uint8_t corners) override {
+    number(1);
+    rect(r);
+    number(radius);
+    number(corners);
+    fills.push_back(r);
+  }
+  void stroke(fui::Rect r, fui::Paint, uint8_t width, uint8_t radius, uint8_t corners) override {
+    number(2);
+    rect(r);
+    number(width);
+    number(radius);
+    number(corners);
+  }
   void line(fui::Point, fui::Point, uint8_t, fui::Paint) override {}
   void triangle(fui::Point, fui::Point, fui::Point, fui::Paint) override {}
-  void text(fui::Rect rect, const char* text, fui::TextStyle) override {
-    number(3); this->rect(rect); for (const char* p = text; *p; ++p) number(static_cast<unsigned char>(*p)); number(0);
+  void text(fui::Rect rect, const char* text, fui::TextStyle style) override {
+    number(3);
+    this->rect(rect);
+    for (const char* p = text; *p; ++p) number(static_cast<unsigned char>(*p));
+    number(0);
     textStrings.emplace_back(text);
+    textBold.push_back(style.bold);
     if (rect.y < clip.y || rect.bottom() > clip.bottom()) clippedText = true;
     const int16_t left = std::max(rect.x, clip.x);
     const int16_t top = std::max(rect.y, clip.y);
-    textRects.push_back({left, top,
-                        static_cast<int16_t>(std::max(0, std::min(rect.right(), clip.right()) - left)),
-                        static_cast<int16_t>(std::max(0, std::min(rect.bottom(), clip.bottom()) - top))});
+    textRects.push_back({left, top, static_cast<int16_t>(std::max(0, std::min(rect.right(), clip.right()) - left)),
+                         static_cast<int16_t>(std::max(0, std::min(rect.bottom(), clip.bottom()) - top))});
   }
   void bitmap(fui::Rect, fui::BitmapRef, fui::BitmapMode, fui::Paint, fui::Rotation) override {}
 };
@@ -482,8 +517,8 @@ inline freeink::ui::ThemeTokens uiThemeTokens(const freeink::ui::GfxRendererTarg
   return tokens;
 }
 
-void checkLayout(const BoardConfig::BoardProfile& profile, GfxRenderer::Orientation orientation,
-                 ThemeMetrics metrics, TextSettingsActivity::Tab tab) {
+void checkLayout(const BoardConfig::BoardProfile& profile, GfxRenderer::Orientation orientation, ThemeMetrics metrics,
+                 TextSettingsActivity::Tab tab) {
   BoardConfig::ACTIVE = profile;
   const bool touch = BoardConfig::hasTouch();
   if (touch) metrics.buttonHintsHeight = 0;
@@ -498,8 +533,8 @@ void checkLayout(const BoardConfig::BoardProfile& profile, GfxRenderer::Orientat
   const int height = activity.renderer.getScreenHeight();
   int top, right, bottom, left;
   activity.renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
-  const fui::Insets bezel{static_cast<int16_t>(top), static_cast<int16_t>(right),
-                           static_cast<int16_t>(bottom), static_cast<int16_t>(left)};
+  const fui::Insets bezel{static_cast<int16_t>(top), static_cast<int16_t>(right), static_cast<int16_t>(bottom),
+                          static_cast<int16_t>(left)};
   const Rect safe = UITheme::getInstance().getScreenSafeArea(activity.renderer, true, false);
   activity.enterGeometry();
   activity.drawChrome();
@@ -528,8 +563,8 @@ void checkLayout(const BoardConfig::BoardProfile& profile, GfxRenderer::Orientat
     assert(activity.renderer.captionText == "Preview \"Bitter, 12 pt\"");
     assert(caption.x == preview.x + metrics.previewPadding);
     assert(caption.x + caption.width <= preview.x + preview.width - metrics.previewPadding);
-    assert(caption.y == preview.y + preview.height - metrics.previewPadding -
-                            activity.renderer.getTextHeight(UI_10_FONT_ID));
+    assert(caption.y ==
+           preview.y + preview.height - metrics.previewPadding - activity.renderer.getTextHeight(UI_10_FONT_ID));
     assert(caption.y + caption.height <= preview.y + preview.height);
     assert(activity.renderer.preview.x == preview.x && activity.renderer.preview.y == preview.y);
     assert(activity.renderer.preview.width == preview.width && activity.renderer.preview.height == preview.height);
@@ -559,7 +594,10 @@ void checkLayout(const BoardConfig::BoardProfile& profile, GfxRenderer::Orientat
 
     // A scrolling settings list keeps values and the scroll track out of the hints.
     activity.rowItems_.assign(20, fui::ListItem{});
-    for (auto& row : activity.rowItems_) { row.label = "Font"; row.value = "Selected"; }
+    for (auto& row : activity.rowItems_) {
+      row.label = "Font";
+      row.value = "Selected";
+    }
     activity.nav.reset(1);
     target.textRects.clear();
     target.fills.clear();
@@ -587,8 +625,8 @@ void checkStyleRowsFit(const BoardConfig::BoardProfile& profile, GfxRenderer::Or
   activity.renderer.panelHeight = profile.displayHeight;
   activity.renderer.orientation = orientation;
   activity.enterGeometry();
-  const char* labels[] = {"Focus Reading", "Hyphenation (no preview)",
-                                        "Embedded Style (no preview)", "Text Anti-Aliasing (no preview)"};
+  const char* labels[] = {"Focus Reading", "Hyphenation (no preview)", "Embedded Style (no preview)",
+                          "Text Anti-Aliasing (no preview)"};
   for (const char* label : labels) {
     fui::ListItem row;
     row.label = label;
@@ -602,8 +640,8 @@ void checkStyleRowsFit(const BoardConfig::BoardProfile& profile, GfxRenderer::Or
   device.height = activity.renderer.getScreenHeight();
   int top, right, bottom, left;
   activity.renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
-  device.safeArea = fui::Insets{static_cast<int16_t>(top), static_cast<int16_t>(right),
-                                static_cast<int16_t>(bottom), static_cast<int16_t>(left)};
+  device.safeArea = fui::Insets{static_cast<int16_t>(top), static_cast<int16_t>(right), static_cast<int16_t>(bottom),
+                                static_cast<int16_t>(left)};
   fui::InputSnapshot input;
   fui::InteractionBuffer<32> interactions;
   fui::Frame<32> frame(target, device, input, interactions);
@@ -621,8 +659,8 @@ void checkStyleRowsFit(const BoardConfig::BoardProfile& profile, GfxRenderer::Or
       target.clippedText = false;
       activity.buildRows(screen);
       if (activity.nav.drawnRows != 4) {
-        std::fprintf(stderr, "%s orientation %d: list height %d, full rows %d\n",
-                     profile.name, static_cast<int>(orientation), screen.contentRect().height, activity.nav.drawnRows);
+        std::fprintf(stderr, "%s orientation %d: list height %d, full rows %d\n", profile.name,
+                     static_cast<int>(orientation), screen.contentRect().height, activity.nav.drawnRows);
       }
       assert(activity.nav.top == 0);
       assert(activity.nav.drawnRows == 4);
@@ -651,7 +689,10 @@ void checkSharedPartialRows() {
   theme.listMinRowHeight = 40;
   TextSettingsActivity activity;
   activity.rowItems_.assign(10, fui::ListItem{});
-  for (auto& row : activity.rowItems_) { row.label = "Paragraph Indentation"; row.value = "2"; }
+  for (auto& row : activity.rowItems_) {
+    row.label = "Paragraph Indentation";
+    row.value = "2";
+  }
   // Text Settings uses the shared next-row preview policy, including pixel clipping.
   for (int remainder : {4, 14, 18, 20, 24, 36}) {
     for (int selected : {1, 4}) {
@@ -677,20 +718,21 @@ void checkSharedPartialRows() {
 }
 int main() {
   using Tab = TextSettingsActivity::Tab;
-  for (const auto& profile : {BoardConfig::XTEINK_X3, BoardConfig::XTEINK_X3_UC8279,
-                              BoardConfig::XTEINK_X4, BoardConfig::XTEINK_X4_CLASSIC})
-    for (auto orientation : {GfxRenderer::Portrait, GfxRenderer::PortraitInverted,
-                             GfxRenderer::LandscapeClockwise, GfxRenderer::LandscapeCounterClockwise})
+  for (const auto& profile :
+       {BoardConfig::XTEINK_X3, BoardConfig::XTEINK_X3_UC8279, BoardConfig::XTEINK_X4, BoardConfig::XTEINK_X4_CLASSIC})
+    for (auto orientation : {GfxRenderer::Portrait, GfxRenderer::PortraitInverted, GfxRenderer::LandscapeClockwise,
+                             GfxRenderer::LandscapeCounterClockwise})
       for (const auto& metrics : {LyraMetrics::values, RoundedRaffMetrics::values})
         checkStyleRowsFit(profile, orientation, metrics);
-  for (const auto& profile : {BoardConfig::XTEINK_X3, BoardConfig::XTEINK_X3_UC8279, BoardConfig::XTEINK_X4,
-                              BoardConfig::XTEINK_X4_PRO, BoardConfig::XTEINK_X4_CLASSIC, BoardConfig::STICKY,
-                              BoardConfig::PAPER_MONO, BoardConfig::METALIO_EINK4, BoardConfig::EEGO_A4,
-                              BoardConfig::PICCO})
-    for (auto orientation : {GfxRenderer::Portrait, GfxRenderer::PortraitInverted,
-                             GfxRenderer::LandscapeClockwise, GfxRenderer::LandscapeCounterClockwise})
+  for (const auto& profile :
+       {BoardConfig::XTEINK_X3, BoardConfig::XTEINK_X3_UC8279, BoardConfig::XTEINK_X4, BoardConfig::XTEINK_X4_PRO,
+        BoardConfig::XTEINK_X4_CLASSIC, BoardConfig::STICKY, BoardConfig::PAPER_MONO, BoardConfig::METALIO_EINK4,
+        BoardConfig::EEGO_A4, BoardConfig::PICCO})
+    for (auto orientation : {GfxRenderer::Portrait, GfxRenderer::PortraitInverted, GfxRenderer::LandscapeClockwise,
+                             GfxRenderer::LandscapeCounterClockwise})
       for (const auto& metrics : {LyraMetrics::values, RoundedRaffMetrics::values})
         for (Tab tab : {Tab::Family, Tab::Size, Tab::Layout, Tab::Style})
           checkLayout(profile, orientation, metrics, tab);
   checkSharedPartialRows();
+  return 0;
 }

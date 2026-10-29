@@ -1,46 +1,17 @@
 #pragma once
+#include <xp_ui_text_settings.h>
 
-#include <cstdint>
 #include <memory>
-#include <vector>
 
 #include "components/themes/BaseTheme.h"
-
 class GfxRenderer;
 class Page;
-
 namespace textsettings {
-
-// Settings + geometry that determine the laid-out lines; used to invalidate the cache.
-struct PreviewKey {
-  int fontId = -1;
-  int fontPointSize = -1;
-  int screenMargin = -1;
-  int textWidth = -1;
-  int textHeight = -1;
-  float lineCompression = -1.0f;
-  uint8_t alignment = 0xFF;
-  bool extraParagraphSpacing = false;
-  uint8_t paragraphIndentSpaces = 2;
-  int8_t characterSpacing = 0;
-  uint8_t wordSpacingPercent = 100;
-  bool focusReading = false;
-  bool hyphenation = false;
-  bool operator==(const PreviewKey&) const = default;
-};
-
-// Cached engine preview lines + the key that produced them
 struct PreviewLayout {
   PreviewLayout();
   ~PreviewLayout();
-
   std::unique_ptr<Page> page;
-  PreviewKey key;
+  XpUiTextPreviewKey key{};
 };
-
-// Draws the sample-text pane via the reader engine, reusing layout across redraws.
-// The caption is borrowed for this draw; only the sample layout is cached.
-void renderPreview(GfxRenderer& renderer, PreviewLayout& layout, int previewPadding, int labelGap, Rect bounds,
-                   const char* caption);
-
+void renderPreview(GfxRenderer&, PreviewLayout&, int previewPadding, int labelGap, Rect bounds, const char* caption);
 }  // namespace textsettings

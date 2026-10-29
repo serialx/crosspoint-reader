@@ -2180,14 +2180,13 @@ TEST(ParagraphIndentation, ReducesOnlyFirstLineAvailableWidth) {
 }
 
 TEST(ParagraphIndentation, PreviewKeyTracksOffAndWidths) {
-  textsettings::PreviewKey off;
-  EXPECT_EQ(off.paragraphIndentSpaces, 2);
-  off.paragraphIndentSpaces = 0;
+  XpUiTextPreviewKey off{};
+  off.indent = 0;
   auto on = off;
-  on.paragraphIndentSpaces = 5;
-  EXPECT_NE(off, on);
-  on.paragraphIndentSpaces = 2;
-  EXPECT_NE(off, on);
+  on.indent = 5;
+  EXPECT_FALSE(xp_ui_text_preview_same(&off, &on));
+  on.indent = 2;
+  EXPECT_FALSE(xp_ui_text_preview_same(&off, &on));
 }
 
 TEST(ParagraphIndentation, MigratesLegacySettingsAndClampsWidths) {

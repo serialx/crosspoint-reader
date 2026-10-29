@@ -73,10 +73,12 @@ class UtilityActivity : public RustActivityAdapter {
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
   void rustPublished() override;
+  void rustSceneFailed() override;
+  void cancelRejectedInput(const XpUiInput&) override;
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t now) const override { return xp_ui_utility_interest(&state, now); }
   XpUiEffect updateRust(const XpUiInput&) override;
-  void applyRustEffect(const XpUiEffect&) override { applyUtilityEffect(pendingEffect); }
+  void applyRustEffect(const XpUiEffect&) override;
 
  public:
   void onEnter() override;

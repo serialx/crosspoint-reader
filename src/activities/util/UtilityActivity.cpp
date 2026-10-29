@@ -217,3 +217,30 @@ void UtilityActivity::applyUtilityEffect(const XpUiUtilityEffect& effect) {
       break;
   }
 }
+
+void UtilityActivity::rustSceneFailed() {
+  pendingEffect = {};
+  state.active_action = 0;
+  state.contact_held = state.dragging = state.flash_pending = 0;
+  state.last_drag_x = -1;
+  state.last_repeat = 0;
+}
+void UtilityActivity::cancelRejectedInput(const XpUiInput& input) {
+  const bool qr = state.kind == XP_UI_UTILITY_QR;
+  if (!(input.released & (XP_UI_BACK | (qr ? XP_UI_CONFIRM : 0))) &&
+      !(qr && (input.touch_flags & XP_UI_TOUCH_RELEASED)))
+    return;
+  XpUiUtilityEffect effect{};
+  effect.navigation.kind = XP_UI_CANCEL;
+  applyUtilityEffect(effect);
+}
+
+void UtilityActivity::applyRustEffect(const XpUiEffect&) {
+  XpUiUtilityEffect effect{};
+  {
+    ModelLock lock(*this);
+    effect = pendingEffect;
+    pendingEffect = {};
+  }
+  applyUtilityEffect(effect);
+}

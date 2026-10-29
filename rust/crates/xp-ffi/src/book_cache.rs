@@ -1,4 +1,5 @@
 //! Metadata cache reads and cumulative-size windows over borrowed owners.
+use crate::book_limits::METADATA_WINDOW;
 use core::ffi::c_void;
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -73,7 +74,7 @@ fn fill(s: &Services, first: u32) -> bool {
         && s.get(FillReadPosition) != 0
         && s.get(FillSeekPosition) != 0;
     let mut i = 0;
-    while ok && i < 32 && first + i < s.get(SpineCount) {
+    while ok && i < METADATA_WINDOW && first + i < s.get(SpineCount) {
         ok = s.get(FillReadHref) != 0
             && s.get(FillSkipHref) != 0
             && s.call(FillReadWindow, i) != 0
@@ -111,11 +112,11 @@ pub unsafe extern "C" fn xp_book_metadata_load(services: *const Services) -> u8 
         s.call(ReadMetadata, i);
     }
     s.get(ResetWindow);
-    s.call(ReserveWindow, s.get(SpineCount).div_ceil(32));
+    s.call(ReserveWindow, s.get(SpineCount).div_ceil(METADATA_WINDOW));
     s.call(SeekEntries, (s.get(SpineCount) + s.get(TocCount)) * 4);
     let mut i = 0;
     while i < s.get(SpineCount) {
-        if i % 32 == 0 {
+        if i % METADATA_WINDOW == 0 {
             s.get(AddWindowStart);
         }
         s.get(ReadCumulative);
@@ -140,13 +141,13 @@ pub unsafe extern "C" fn xp_book_metadata_cumulative(services: *const Services, 
     if index == s.get(SpineCount) - 1 {
         return s.get(BookSize);
     }
-    let first = index / 32 * 32;
-    if index - first == 31 {
-        return s.call(WindowStart, index / 32 + 1);
+    let first = index / METADATA_WINDOW * METADATA_WINDOW;
+    if index - first == METADATA_WINDOW - 1 {
+        return s.call(WindowStart, index / METADATA_WINDOW + 1);
     }
     s.get(Lock);
     if s.get(WindowFirst) != first && !fill(&s, first) {
-        return s.call(WindowStart, index / 32);
+        return s.call(WindowStart, index / METADATA_WINDOW);
     }
     s.call(WindowValue, index - first)
 }
@@ -173,8 +174,8 @@ pub unsafe extern "C" fn xp_book_metadata_spine(services: *const Services, size:
             count = step;
         }
     }
-    let first = (low - 1) * 32;
-    let last = s.get(SpineCount).min(first + 32) - 1;
+    let first = (low - 1) * METADATA_WINDOW;
+    let last = s.get(SpineCount).min(first + METADATA_WINDOW) - 1;
     s.get(Lock);
     if s.get(WindowFirst) != first && !fill(&s, first) {
         return last as i32;

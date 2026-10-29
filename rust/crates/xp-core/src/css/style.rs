@@ -1,5 +1,5 @@
 //! The v19 wire layout is also the compact resident style representation.
-pub const WIRE_BYTES: usize = 88;
+use super::WIRE_BYTES;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Style(pub [u8; WIRE_BYTES]);
 

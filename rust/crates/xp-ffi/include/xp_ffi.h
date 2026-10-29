@@ -48,8 +48,7 @@ int32_t xp_hyphen_breaks(int32_t language, const uint8_t* word, size_t len, uint
                          size_t capacity, size_t* needed);
 
 // CSS v19. Handles are exclusively owned; no concurrent calls or retained input pointers.
-#define XP_CSS_WIRE_BYTES 88
-#define XP_CSS_CACHE_BUFFER_BYTES 347
+#include "xp_book_limits.h"
 typedef struct XpCss XpCss;
 // Events 1..3: requested index entries / selector bytes / style count on OOM.
 // 4: selector length, limit. 5..6: stored rule count on limit/OOM (after 1..3).

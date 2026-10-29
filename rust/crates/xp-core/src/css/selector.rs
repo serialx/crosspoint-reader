@@ -226,7 +226,7 @@ impl<'a> Key<'a> {
     }
 }
 pub fn canonical(selector: &[u8]) -> Option<Key<'_>> {
-    if selector.len() > 256 {
+    if selector.len() > super::MAX_SELECTOR_BYTES {
         return None;
     }
     let mut s = selector;

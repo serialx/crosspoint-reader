@@ -61,7 +61,7 @@ int32_t readCssCache(XpCss* handle, const uint8_t* data, size_t len, bool end) {
   if (detail.event != 0) cssDiagnostic(nullptr, detail.event, detail.a, detail.b, 0, 0);
   return status;
 }
-constexpr size_t READ_BUFFER_SIZE = 512;
+constexpr size_t READ_BUFFER_SIZE = XP_CSS_READ_BUFFER_BYTES;
 constexpr std::array STYLE_LENGTH_FIELDS = {
     &CssStyle::textIndent,   &CssStyle::marginTop,   &CssStyle::marginBottom,  &CssStyle::marginLeft,
     &CssStyle::marginRight,  &CssStyle::paddingTop,  &CssStyle::paddingBottom, &CssStyle::paddingLeft,
@@ -182,6 +182,8 @@ bool decodeStyleWire(const uint8_t (&in)[STYLE_WIRE_BYTES], CssStyle& style) {
 }
 
 static_assert(STYLE_WIRE_BYTES == XP_CSS_WIRE_BYTES);
+static_assert(XP_CSS_MAX_CACHE_KEY_BYTES == XP_CSS_MAX_SELECTOR_BYTES + 1);
+static_assert(XP_CSS_CACHE_BUFFER_BYTES == sizeof(uint16_t) + XP_CSS_MAX_CACHE_KEY_BYTES + STYLE_WIRE_BYTES);
 static_assert(sizeof(CssAncestor) == sizeof(XpCssAncestor));
 static_assert(alignof(CssAncestor) == alignof(XpCssAncestor));
 static_assert(offsetof(CssAncestor, tagHash) == offsetof(XpCssAncestor, tag_hash));

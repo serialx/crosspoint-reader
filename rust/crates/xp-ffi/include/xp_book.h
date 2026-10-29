@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "xp_book_limits.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

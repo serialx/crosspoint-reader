@@ -1,5 +1,9 @@
 //! CSS file transactions and streaming policy; codec and owner stay borrowed.
 use core::ffi::c_void;
+use xp_core::css::{
+    CACHE_BUFFER_BYTES, CACHE_VERSION, MAX_CACHE_KEY_BYTES, MAX_RULES, READ_BUFFER_BYTES,
+    SELECTOR_CAP, WIRE_BYTES,
+};
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Services {
@@ -114,7 +118,7 @@ fn inspect(s: &Services) -> Option<bool> {
     if s.get(OpenFinal) == 0 {
         return None;
     }
-    if s.word(1)? != 19 {
+    if s.word(1)? != u32::from(CACHE_VERSION) {
         return None;
     }
     let flags = s.word(1)?;
@@ -122,7 +126,7 @@ fn inspect(s: &Services) -> Option<bool> {
         return None;
     }
     let count = s.word(2)?;
-    if count > 1500 {
+    if count > MAX_RULES as u32 {
         return None;
     }
     if flags == 0 {
@@ -131,12 +135,12 @@ fn inspect(s: &Services) -> Option<bool> {
     let mut bytes = 0;
     for _ in 0..count {
         let length = s.word(2)?;
-        if length == 0 || length > 257 {
+        if length == 0 || length > MAX_CACHE_KEY_BYTES as u32 {
             return None;
         }
         bytes += length;
-        let skip = length + 88;
-        if bytes > 32 * 1024 || s.get(Available) < skip || s.call(Skip, skip) == 0 {
+        let skip = length + WIRE_BYTES as u32;
+        if bytes > SELECTOR_CAP as u32 || s.get(Available) < skip || s.call(Skip, skip) == 0 {
             return None;
         }
     }
@@ -159,7 +163,7 @@ fn save(s: &Services, complete: bool) -> bool {
     if s.get(OpenTemporary) == 0 {
         return false;
     }
-    if s.call(AllocateBuffer, 347) == 0 {
+    if s.call(AllocateBuffer, CACHE_BUFFER_BYTES as u32) == 0 {
         s.log(Event::OutputOom, 0);
         cleanup(s);
         return false;
@@ -193,7 +197,10 @@ fn save(s: &Services, complete: bool) -> bool {
         }
         s.get(DropOrder);
     } else {
-        ok = s.call(WriteWord, 19 | ((!complete as u32) << 8)) != 0;
+        ok = s.call(
+            WriteWord,
+            u32::from(CACHE_VERSION) | ((!complete as u32) << 8),
+        ) != 0;
     }
     if !ok || s.get(Close) == 0 {
         s.log(Event::WriteFailed, 0);
@@ -236,7 +243,7 @@ fn load(s: &Services) -> u32 {
         return 2;
     }
     s.get(Clear);
-    if s.word(1) != Some(19) {
+    if s.word(1) != Some(u32::from(CACHE_VERSION)) {
         s.log(Event::Version, s.get(Word));
         s.get(Close);
         s.get(RemoveFinal);
@@ -245,7 +252,7 @@ fn load(s: &Services) -> u32 {
     if s.get(Ensure) == 0 {
         return 1;
     }
-    if s.call(AllocateBuffer, 512) == 0 {
+    if s.call(AllocateBuffer, READ_BUFFER_BYTES as u32) == 0 {
         s.log(Event::InputOom, 0);
         s.get(Clear);
         return 1;
@@ -290,7 +297,7 @@ fn stream(s: &Services) -> u32 {
     if s.get(Ensure) == 0 {
         return 1;
     }
-    if s.call(AllocateBuffer, 512) == 0 {
+    if s.call(AllocateBuffer, READ_BUFFER_BYTES as u32) == 0 {
         s.log(Event::SourceOom, 0);
         return 1;
     }

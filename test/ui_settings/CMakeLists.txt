@@ -17,3 +17,6 @@ target_compile_options(SettingsTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,CO
 target_link_options(SettingsTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
 target_link_libraries(SettingsTarget PRIVATE xp_ffi_host)
 add_test(NAME ui_settings_pixels COMMAND SettingsTarget)
+
+add_test(NAME ui_settings_protocol COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_protocol.py ${XP_FFI_HOST_ARCHIVE})

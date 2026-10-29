@@ -1,3 +1,4 @@
+use super::protocol::*;
 use crate::model::Effect;
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -40,11 +41,11 @@ impl State {
             self.action = 0;
             self.note = 0;
             1
-        } else if self.view == 0 {
+        } else if self.view == BLE_VIEW_MENU {
             2
         } else {
-            let stop = self.view == 1;
-            self.show(0);
+            let stop = self.view == BLE_VIEW_SCAN;
+            self.show(BLE_VIEW_MENU);
             if stop {
                 4
             } else {
@@ -69,26 +70,26 @@ impl State {
             return 0;
         }
         match kind {
-            0 => {
+            BLE_EVENT_DISCONNECTED => {
                 self.action = 0;
                 self.note = 1;
                 3
             }
-            1 => {
+            BLE_EVENT_PRESS => {
                 self.code = code;
                 self.press_ms = at;
                 self.since_ms = now;
                 0
             }
-            2 | 3 if self.code != 0 && self.code == code => {
-                if kind == 3 {
+            BLE_EVENT_RELEASE | BLE_EVENT_REST if self.code != 0 && self.code == code => {
+                if kind == BLE_EVENT_REST {
                     self.code = 0;
                     0
                 } else {
                     1 + u8::from(at.wrapping_sub(self.press_ms) >= 700)
                 }
             }
-            4 if now.wrapping_sub(self.since_ms) >= 15000 => {
+            BLE_EVENT_TICK if now.wrapping_sub(self.since_ms) >= 15000 => {
                 if self.code != 0 {
                     1
                 } else {
@@ -97,10 +98,10 @@ impl State {
                     3
                 }
             }
-            5 | 6 => {
+            BLE_EVENT_SAVE_FAILED | BLE_EVENT_SAVED => {
                 self.action = 0;
-                self.note = if kind == 5 { 3 } else { 4 };
-                if kind == 6 {
+                self.note = if kind == BLE_EVENT_SAVE_FAILED { 3 } else { 4 };
+                if kind == BLE_EVENT_SAVED {
                     self.code = 0;
                     self.since_ms = now;
                 }
@@ -122,13 +123,13 @@ impl State {
     pub fn activate(&self, code: i16, enabled: bool, scanning: bool) -> Effect {
         // kind: toggle, scan, show, pair, forget, learn; value carries the argument.
         let (kind, value) = match (self.view, code) {
-            (0, 0) => (10, i32::from(!enabled)),
-            (0, 1) => (11, 15000),
-            (0, 2 | 3) => (12, i32::from(code)),
-            (1, c) if c < 0 => (11, if scanning { 0 } else { 15000 }),
-            (1, c) => (13, i32::from(c)),
-            (2, c) => (14, i32::from(c)),
-            (3, c) => (15, i32::from(c)),
+            (BLE_VIEW_MENU, 0) => (BLE_EFFECT_TOGGLE, i32::from(!enabled)),
+            (BLE_VIEW_MENU, 1) => (BLE_EFFECT_SCAN, 15000),
+            (BLE_VIEW_MENU, 2 | 3) => (BLE_EFFECT_SHOW, i32::from(code)),
+            (BLE_VIEW_SCAN, c) if c < 0 => (BLE_EFFECT_SCAN, if scanning { 0 } else { 15000 }),
+            (BLE_VIEW_SCAN, c) => (BLE_EFFECT_PAIR, i32::from(c)),
+            (BLE_VIEW_PAIRED, c) => (BLE_EFFECT_FORGET, i32::from(c)),
+            (BLE_VIEW_MAPPING, c) => (BLE_EFFECT_LEARN, i32::from(c)),
             _ => (0, 0),
         };
         Effect {
@@ -174,7 +175,7 @@ pub fn row(s: &State, flags: u8, found: u8, bonds: u8, index: u16) -> Option<Row
     let connected = flags & 4 != 0;
     let (found, bonds) = if running { (found, bonds) } else { (0, 0) };
     let r = match s.view {
-        0 if index < 4 => Row {
+        BLE_VIEW_MENU if index < 4 => Row {
             code: index as i16,
             label: index as u8,
             subtitle: if index == 0 {
@@ -189,36 +190,36 @@ pub fn row(s: &State, flags: u8, found: u8, bonds: u8, index: u16) -> Option<Row
             checked: u8::from(flags & 32 != 0),
             ..Row::default()
         },
-        1 if index == 0 => Row {
+        BLE_VIEW_SCAN if index == 0 => Row {
             code: -1,
             label: if scanning { 4 } else { 1 },
             enabled: u8::from(running),
             ..Row::default()
         },
-        1 if found == 0 && index == 1 => Row {
+        BLE_VIEW_SCAN if found == 0 && index == 1 => Row {
             code: -1,
             label: if scanning { 5 } else { 6 },
             ..Row::default()
         },
-        1 if index <= u16::from(found) => Row {
+        BLE_VIEW_SCAN if index <= u16::from(found) => Row {
             code: (index - 1) as i16,
             label: 16 + (index - 1) as u8,
             enabled: 1,
             ..Row::default()
         },
-        2 if bonds == 0 && index == 0 => Row {
+        BLE_VIEW_PAIRED if bonds == 0 && index == 0 => Row {
             code: -1,
             label: 7,
             ..Row::default()
         },
-        2 if index < u16::from(bonds) => Row {
+        BLE_VIEW_PAIRED if index < u16::from(bonds) => Row {
             code: index as i16,
             label: 16 + found + index as u8,
             value: 1,
             enabled: 1,
             ..Row::default()
         },
-        3 if index < 8 => Row {
+        BLE_VIEW_MAPPING if index < 8 => Row {
             code: index as i16,
             label: 8 + index as u8,
             value: 2,
@@ -270,7 +271,7 @@ mod tests {
             }
             let action = s.action;
             if v[5] == 0 || v[6] == 0 {
-                s.step(0, 0, 0, v[1]);
+                s.step(BLE_EVENT_DISCONNECTED, 0, 0, v[1]);
                 updates += 1;
             } else {
                 let mut result = if v[4] != 0 {

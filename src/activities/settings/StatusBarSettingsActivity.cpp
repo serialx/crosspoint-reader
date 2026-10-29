@@ -29,6 +29,14 @@ enum MenuItem {
   ITEM_CLOCK,  // RTC boards only
   ITEM_COUNT
 };
+static_assert(static_cast<int>(ITEM_CHAPTER_PAGE_COUNT) == XP_UI_SETTINGS_STATUS_CHAPTER_PAGE_COUNT);
+static_assert(static_cast<int>(ITEM_BOOK_PROGRESS_PERCENTAGE) == XP_UI_SETTINGS_STATUS_BOOK_PROGRESS_PERCENTAGE);
+static_assert(static_cast<int>(ITEM_PROGRESS_BAR) == XP_UI_SETTINGS_STATUS_PROGRESS_BAR);
+static_assert(static_cast<int>(ITEM_PROGRESS_BAR_THICKNESS) == XP_UI_SETTINGS_STATUS_PROGRESS_BAR_THICKNESS);
+static_assert(static_cast<int>(ITEM_TITLE) == XP_UI_SETTINGS_STATUS_TITLE);
+static_assert(static_cast<int>(ITEM_BATTERY) == XP_UI_SETTINGS_STATUS_BATTERY);
+static_assert(static_cast<int>(ITEM_XTC_STATUS_BAR) == XP_UI_SETTINGS_STATUS_XTC_STATUS_BAR);
+static_assert(static_cast<int>(ITEM_CLOCK) == XP_UI_SETTINGS_STATUS_CLOCK);
 
 constexpr int BASE_MENU_ITEMS = ITEM_CLOCK;  // Items shown on every device
 constexpr int FULL_MENU_ITEMS = ITEM_COUNT;  // Items shown when RTC is available

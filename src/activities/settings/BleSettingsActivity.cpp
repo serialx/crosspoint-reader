@@ -125,7 +125,7 @@ void BleSettingsActivity::refresh() {
                                     StrId::STR_BT_MAP_BUTTONS, StrId::STR_BT_STOP_SCAN, StrId::STR_SCANNING,
                                     StrId::STR_BT_NO_DEVICES,  StrId::STR_BT_NO_REMOTES};
   const auto peer = bleturner::linked();
-  const auto* table = state.view == 3
+  const auto* table = state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING
                           ? bleturner::tableFor(SETTINGS.ble.remotes, SETTINGS.ble.remoteCount, peer.addr, peer.name)
                           : nullptr;
   XpUiSettingsBleRow spec{};
@@ -180,7 +180,7 @@ void BleSettingsActivity::activateIndex(const int index) {
   const auto effect =
       xp_ui_settings_ble_activate(&state, rows[index].actionValue, SETTINGS.ble.enabled, bleturner::status().scanning);
   switch (effect.kind) {
-    case 10:
+    case XP_UI_SETTINGS_BLE_EFFECT_TOGGLE:
       SETTINGS.ble.enabled = effect.value;
       if (SETTINGS.ble.enabled)
         bleturner::switchOn();
@@ -188,30 +188,30 @@ void BleSettingsActivity::activateIndex(const int index) {
         bleturner::switchOff();
       SETTINGS.saveToFile();
       break;
-    case 11:
+    case XP_UI_SETTINGS_BLE_EFFECT_SCAN:
       bleturner::scan(effect.value);
-      if (state.view == 0) {
-        showView(1);
+      if (state.view == XP_UI_SETTINGS_BLE_VIEW_MENU) {
+        showView(XP_UI_SETTINGS_BLE_VIEW_SCAN);
         return;
       }
       break;
-    case 12:
+    case XP_UI_SETTINGS_BLE_EFFECT_SHOW:
       showView(effect.value);
       return;
-    case 13: {
+    case XP_UI_SETTINGS_BLE_EFFECT_PAIR: {
       const auto peer = bleturner::found(effect.value);
       const std::string addr = peer.addr, name = peer.name;
       bleturner::scan(0);
       bleturner::pair(addr.c_str(), name.c_str());
-      showView(0);
+      showView(XP_UI_SETTINGS_BLE_VIEW_MENU);
       return;
     }
-    case 14: {
+    case XP_UI_SETTINGS_BLE_EFFECT_FORGET: {
       const std::string addr = bleturner::bond(effect.value).addr;
       if (bleturner::forget(addr.c_str())) SETTINGS.saveToFile();
       break;
     }
-    case 15:
+    case XP_UI_SETTINGS_BLE_EFFECT_LEARN:
       startLearning(effect.value);
       break;
   }
@@ -231,7 +231,7 @@ void BleSettingsActivity::startLearning(const int index) {
 void BleSettingsActivity::stepLearning() {
   const auto peer = bleturner::linked();
   if (!bleturner::status().connected || strcmp(peer.addr, learnAddr) != 0) {
-    xp_ui_settings_ble_step(&state, 0, 0, 0, millis());
+    xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_DISCONNECTED, 0, 0, millis());
     refresh();
     requestUpdate();
     return;
@@ -240,14 +240,14 @@ void BleSettingsActivity::stepLearning() {
   bleturner::Event ev;
   while (state.action == action && bleturner::pollEvent(ev)) {
     const auto result = xp_ui_settings_ble_step(&state,
-                                                ev.pressed   ? 1
-                                                : ev.wasRest ? 3
-                                                             : 2,
+                                                ev.pressed   ? XP_UI_SETTINGS_BLE_EVENT_PRESS
+                                                : ev.wasRest ? XP_UI_SETTINGS_BLE_EVENT_REST
+                                                             : XP_UI_SETTINGS_BLE_EVENT_RELEASE,
                                                 ev.code, ev.atMs, millis());
     if (result == 1 || result == 2) keepLearned(result == 2);
   }
   if (state.action == action) {
-    const auto result = xp_ui_settings_ble_step(&state, 4, 0, 0, millis());
+    const auto result = xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_TICK, 0, 0, millis());
     if (result == 1) keepLearned(false);
   }
   if (state.action != action) {
@@ -259,19 +259,19 @@ void BleSettingsActivity::stepLearning() {
 void BleSettingsActivity::keepLearned(const bool hold) {
   const auto peer = bleturner::linked();
   if (!bleturner::status().connected || strcmp(peer.addr, learnAddr) != 0) {
-    xp_ui_settings_ble_step(&state, 0, 0, 0, millis());
+    xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_DISCONNECTED, 0, 0, millis());
     return;
   }
   auto* table = bleturner::editableTable(SETTINGS.ble.remotes, SETTINGS.ble.remoteCount, peer.addr, peer.name);
   if (table == nullptr || !bleturner::learn(*table, static_cast<bleturner::Action>(state.action), state.code, hold)) {
-    xp_ui_settings_ble_step(&state, 5, 0, 0, millis());
+    xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_SAVE_FAILED, 0, 0, millis());
     return;
   }
   SETTINGS.saveToFile();
-  xp_ui_settings_ble_step(&state, 6, 0, 0, millis());
+  xp_ui_settings_ble_step(&state, XP_UI_SETTINGS_BLE_EVENT_SAVED, 0, 0, millis());
 }
 void BleSettingsActivity::onRowLongPress(const int index) {
-  if (state.view == 3) clearMapping(index);
+  if (state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING) clearMapping(index);
 }
 void BleSettingsActivity::clearMapping(const int index) {
   const auto action = static_cast<bleturner::Action>(xp_ui_settings_ble_clear(&state, index));

@@ -44,6 +44,31 @@
 namespace fui = freeink::ui;
 
 namespace {
+static_assert(static_cast<uint8_t>(SettingAction::None) == XP_UI_SETTINGS_ACTION_NONE);
+static_assert(static_cast<uint8_t>(SettingAction::RemapFrontButtons) == XP_UI_SETTINGS_ACTION_REMAP_FRONT_BUTTONS);
+static_assert(static_cast<uint8_t>(SettingAction::CustomiseStatusBar) == XP_UI_SETTINGS_ACTION_CUSTOMISE_STATUS_BAR);
+static_assert(static_cast<uint8_t>(SettingAction::ClockSettings) == XP_UI_SETTINGS_ACTION_CLOCK_SETTINGS);
+static_assert(static_cast<uint8_t>(SettingAction::KOReaderSync) == XP_UI_SETTINGS_ACTION_KOREADER_SYNC);
+static_assert(static_cast<uint8_t>(SettingAction::OPDSBrowser) == XP_UI_SETTINGS_ACTION_OPDS_BROWSER);
+static_assert(static_cast<uint8_t>(SettingAction::Network) == XP_UI_SETTINGS_ACTION_NETWORK);
+static_assert(static_cast<uint8_t>(SettingAction::Bluetooth) == XP_UI_SETTINGS_ACTION_BLUETOOTH);
+static_assert(static_cast<uint8_t>(SettingAction::ClearCache) == XP_UI_SETTINGS_ACTION_CLEAR_CACHE);
+static_assert(static_cast<uint8_t>(SettingAction::CheckForUpdates) == XP_UI_SETTINGS_ACTION_CHECK_FOR_UPDATES);
+static_assert(static_cast<uint8_t>(SettingAction::SdFirmwareUpdate) == XP_UI_SETTINGS_ACTION_SD_FIRMWARE_UPDATE);
+static_assert(static_cast<uint8_t>(SettingAction::Language) == XP_UI_SETTINGS_ACTION_LANGUAGE);
+static_assert(static_cast<uint8_t>(SettingAction::DownloadFonts) == XP_UI_SETTINGS_ACTION_DOWNLOAD_FONTS);
+static_assert(static_cast<uint8_t>(SettingAction::TextSettings) == XP_UI_SETTINGS_ACTION_TEXT_SETTINGS);
+static_assert(static_cast<uint8_t>(SettingAction::Plugins) == XP_UI_SETTINGS_ACTION_PLUGINS);
+static_assert(static_cast<uint8_t>(SettingAction::KeyboardLayouts) == XP_UI_SETTINGS_ACTION_KEYBOARD_LAYOUTS);
+static_assert(static_cast<uint8_t>(SettingAction::HomeButton) == XP_UI_SETTINGS_ACTION_HOME_BUTTON);
+static_assert(static_cast<uint8_t>(SettingAction::About) == XP_UI_SETTINGS_ACTION_ABOUT);
+static_assert(static_cast<uint8_t>(SettingsSection::General) == XP_UI_SETTINGS_SECTION_GENERAL);
+static_assert(static_cast<uint8_t>(SettingsSection::Display) == XP_UI_SETTINGS_SECTION_DISPLAY);
+static_assert(static_cast<uint8_t>(SettingsSection::Reader) == XP_UI_SETTINGS_SECTION_READER);
+static_assert(static_cast<uint8_t>(SettingsSection::Controls) == XP_UI_SETTINGS_SECTION_CONTROLS);
+static_assert(static_cast<uint8_t>(SettingsSection::Library) == XP_UI_SETTINGS_SECTION_LIBRARY);
+static_assert(static_cast<uint8_t>(SettingsSection::Network) == XP_UI_SETTINGS_SECTION_NETWORK);
+static_assert(static_cast<uint8_t>(SettingsSection::End) == XP_UI_SETTINGS_SECTION_COUNT);
 uint8_t categoryIdentity(const SettingInfo& setting) {
   if (setting.category == StrId::STR_CAT_SYSTEM) return 0;
   if (setting.category == StrId::STR_CAT_DISPLAY) return 1;
@@ -119,8 +144,8 @@ void SettingsActivity::rebuildSettings() {
   const uint8_t caps = capabilities();
   for (uint8_t i = 0;; ++i) {
     const auto action = xp_ui_settings_extra(static_cast<uint8_t>(section), caps, i);
-    if (action == 0) break;
-    if (action == 255) {
+    if (action == XP_UI_SETTINGS_ACTION_NONE) break;
+    if (action == XP_UI_SETTINGS_SHARED_ROWS) {
       for (auto& setting : all) {
         if (sectionFor(setting) == section && showOnDevice(setting)) settings.push_back(std::move(setting));
       }

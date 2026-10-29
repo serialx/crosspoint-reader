@@ -25,6 +25,11 @@ enum MenuItem {
   ITEM_SHOW_ON_HOME,
   ITEM_SYNC,
 };
+static_assert(static_cast<int>(ITEM_TIMEZONE) == XP_UI_SETTINGS_CLOCK_TIMEZONE);
+static_assert(static_cast<int>(ITEM_DST) == XP_UI_SETTINGS_CLOCK_DST);
+static_assert(static_cast<int>(ITEM_FORMAT) == XP_UI_SETTINGS_CLOCK_FORMAT);
+static_assert(static_cast<int>(ITEM_SHOW_ON_HOME) == XP_UI_SETTINGS_CLOCK_SHOW_ON_HOME);
+static_assert(static_cast<int>(ITEM_SYNC) == XP_UI_SETTINGS_CLOCK_SYNC);
 
 const StrId menuNames[ClockSettingsActivity::ITEM_COUNT] = {
     StrId::STR_TIMEZONE,        StrId::STR_CLOCK_DST,      StrId::STR_CLOCK_FORMAT,

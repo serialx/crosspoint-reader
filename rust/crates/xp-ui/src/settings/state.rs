@@ -1,3 +1,4 @@
+use super::protocol::*;
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct QuickResume {
@@ -198,18 +199,28 @@ impl Remap {
     }
 }
 
-pub const SAVE_VALUE: u8 = 6;
-pub const POPUP: u8 = 7;
-pub const OPEN: u8 = 8;
+pub use super::protocol::{OPEN, POPUP, SAVE_VALUE};
 pub fn menu_edit(kind: u8, index: i32, value: u8) -> crate::model::Effect {
     use crate::model::Effect;
-    let (operation, next) = match (kind, index) {
-        (5, 0 | 4) => (OPEN, index as u8),
-        (5, 1) => (SAVE_VALUE, ((u16::from(value) + 1) % 3) as u8),
-        (5, 2 | 3) => (SAVE_VALUE, value.wrapping_add(1) % 2),
-        (10, 0 | 1 | 5) => (SAVE_VALUE, value.wrapping_add(1) % 2),
-        (10, 7) => (SAVE_VALUE, ((u16::from(value) + 1) % 3) as u8),
-        (10, 2 | 3 | 4 | 6) => (POPUP, value),
+    let Ok(item) = u8::try_from(index) else {
+        return Effect::default();
+    };
+    let (operation, next) = match (kind, item) {
+        (CLOCK, CLOCK_TIMEZONE | CLOCK_SYNC) => (OPEN, index as u8),
+        (CLOCK, CLOCK_DST) => (SAVE_VALUE, ((u16::from(value) + 1) % 3) as u8),
+        (CLOCK, CLOCK_FORMAT | CLOCK_SHOW_ON_HOME) => (SAVE_VALUE, value.wrapping_add(1) % 2),
+        (
+            STATUS_BAR,
+            STATUS_CHAPTER_PAGE_COUNT | STATUS_BOOK_PROGRESS_PERCENTAGE | STATUS_BATTERY,
+        ) => (SAVE_VALUE, value.wrapping_add(1) % 2),
+        (STATUS_BAR, STATUS_CLOCK) => (SAVE_VALUE, ((u16::from(value) + 1) % 3) as u8),
+        (
+            STATUS_BAR,
+            STATUS_PROGRESS_BAR
+            | STATUS_PROGRESS_BAR_THICKNESS
+            | STATUS_TITLE
+            | STATUS_XTC_STATUS_BAR,
+        ) => (POPUP, value),
         _ => (0, 0),
     };
     Effect {
@@ -223,9 +234,9 @@ pub fn status_value(index: u8, value: u8) -> u8 {
         return value;
     }
     match index {
-        2 | 4 => 2,
-        3 => 1,
-        6 | 7 => 0,
+        STATUS_PROGRESS_BAR | STATUS_TITLE => 2,
+        STATUS_PROGRESS_BAR_THICKNESS => 1,
+        STATUS_XTC_STATUS_BAR | STATUS_CLOCK => 0,
         _ => value,
     }
 }
@@ -233,19 +244,19 @@ pub fn status_value(index: u8, value: u8) -> u8 {
 // Categories use the settings schema's system/display/reader/controls identities.
 pub fn section(category: u8, field: u8) -> u8 {
     match field {
-        1 => 4,
-        2 => 1,
+        1 => SECTION_LIBRARY,
+        2 => SECTION_DISPLAY,
         _ => match category {
-            0 => 0,
-            1 => 1,
-            2 => 2,
-            3 => 3,
-            _ => 6,
+            0 => SECTION_GENERAL,
+            1 => SECTION_DISPLAY,
+            2 => SECTION_READER,
+            3 => SECTION_CONTROLS,
+            _ => SECTION_COUNT,
         },
     }
 }
 pub fn visible(category: u8, field: u8, text_setting: u8, caps: u8, footnotes: u8) -> bool {
-    section(category, field) != 6
+    section(category, field) != SECTION_COUNT
         && field != 5
         && !(field == 3 && caps & 1 != 0)
         && !(category == 2 && text_setting != 0)
@@ -254,34 +265,82 @@ pub fn visible(category: u8, field: u8, text_setting: u8, caps: u8, footnotes: u
 // 255 marks the shared settings rows; zero terminates each section's actions.
 pub fn extra(section: u8, caps: u8, index: u8) -> u8 {
     let general = [
-        11,
-        15,
-        255,
-        if caps & 2 != 0 { 3 } else { 0 },
-        if caps & 4 == 0 { 9 } else { 0 },
-        if caps & 4 == 0 { 10 } else { 0 },
-        17,
+        ACTION_LANGUAGE,
+        ACTION_KEYBOARD_LAYOUTS,
+        SHARED_ROWS,
+        if caps & 2 != 0 {
+            ACTION_CLOCK_SETTINGS
+        } else {
+            ACTION_NONE
+        },
+        if caps & 4 == 0 {
+            ACTION_CHECK_FOR_UPDATES
+        } else {
+            ACTION_NONE
+        },
+        if caps & 4 == 0 {
+            ACTION_SD_FIRMWARE_UPDATE
+        } else {
+            ACTION_NONE
+        },
+        ACTION_ABOUT,
     ];
-    let display = [255, 0, 0, 0, 0, 0, 0];
-    let reader = [13, 12, 255, 2, 8, 0, 0];
+    let display = [
+        SHARED_ROWS,
+        ACTION_NONE,
+        ACTION_NONE,
+        ACTION_NONE,
+        ACTION_NONE,
+        ACTION_NONE,
+        ACTION_NONE,
+    ];
+    let reader = [
+        ACTION_TEXT_SETTINGS,
+        ACTION_DOWNLOAD_FONTS,
+        SHARED_ROWS,
+        ACTION_CUSTOMISE_STATUS_BAR,
+        ACTION_CLEAR_CACHE,
+        ACTION_NONE,
+        ACTION_NONE,
+    ];
     let controls = [
-        if caps & 8 != 0 { 16 } else { 0 },
-        if caps & 16 == 0 { 1 } else { 0 },
-        255,
-        0,
-        0,
-        0,
-        0,
+        if caps & 8 != 0 {
+            ACTION_HOME_BUTTON
+        } else {
+            ACTION_NONE
+        },
+        if caps & 16 == 0 {
+            ACTION_REMAP_FRONT_BUTTONS
+        } else {
+            ACTION_NONE
+        },
+        SHARED_ROWS,
+        ACTION_NONE,
+        ACTION_NONE,
+        ACTION_NONE,
+        ACTION_NONE,
     ];
     let library = display;
-    let network = [255, 6, if caps & 32 != 0 { 7 } else { 0 }, 4, 5, 14, 0];
+    let network = [
+        SHARED_ROWS,
+        ACTION_NETWORK,
+        if caps & 32 != 0 {
+            ACTION_BLUETOOTH
+        } else {
+            ACTION_NONE
+        },
+        ACTION_KOREADER_SYNC,
+        ACTION_OPDS_BROWSER,
+        ACTION_PLUGINS,
+        ACTION_NONE,
+    ];
     let actions = match section {
-        0 => general,
-        1 => display,
-        2 => reader,
-        3 => controls,
-        4 => library,
-        5 => network,
+        SECTION_GENERAL => general,
+        SECTION_DISPLAY => display,
+        SECTION_READER => reader,
+        SECTION_CONTROLS => controls,
+        SECTION_LIBRARY => library,
+        SECTION_NETWORK => network,
         _ => return 0,
     };
     actions

@@ -1,3 +1,4 @@
+use super::protocol;
 use crate::{
     list::{self, Style},
     model::ListState,
@@ -372,10 +373,15 @@ pub fn view(
     resources: &mut dyn Resources,
     count: u16,
 ) -> Result<(ListState, u32), Error> {
-    if l.kind > 11 || l.touch > 1 || l.header_height < 0 || l.spacing < 0 || l.hints_height < 0 {
+    if l.kind > protocol::TIMEZONE
+        || l.touch > 1
+        || l.header_height < 0
+        || l.spacing < 0
+        || l.hints_height < 0
+    {
         return Err(Error::Invalid);
     }
-    if l.kind == 6 {
+    if l.kind == protocol::SYNC {
         return sync_view(arena, state, l, resources);
     }
     let mut style = l.list;
@@ -390,23 +396,23 @@ pub fn view(
     let mut inset = 8;
     let mut padding = if l.touch != 0 { 8 } else { 4 };
     let body_font = style.font;
-    if l.kind == 0 || l.kind == 3 || l.kind == 8 {
+    if l.kind == protocol::ROOT || l.kind == protocol::BLE || l.kind == protocol::LAYOUTS {
         lines = 1;
         inset = 0;
-    } else if l.kind == 2 || l.kind == 11 {
+    } else if l.kind == protocol::ABOUT || l.kind == protocol::TIMEZONE {
         // An unmodified smallText style inherits bodyText in the SDK.
         lines = 1;
-    } else if l.kind != 1 || l.touch == 0 {
+    } else if l.kind != protocol::SECTION || l.touch == 0 {
         style.font = l.small_font;
         style.bold = 0;
     }
-    if l.kind == 8 {
+    if l.kind == protocol::LAYOUTS {
         style.font = body_font;
     }
-    if l.kind == 7 {
+    if l.kind == protocol::HOME_BUTTON {
         inset = 0;
     }
-    if l.kind == 9 {
+    if l.kind == protocol::LANGUAGE {
         top += i32::from(l.safe.y);
         left = left.max(i32::from(l.safe.x));
         right = right.min(i32::from(l.safe.x) + i32::from(l.safe.w));
@@ -414,7 +420,7 @@ pub fn view(
             .min(i32::from(device_safe.y) + i32::from(device_safe.h));
         inset = 0;
     }
-    if l.kind == 4 {
+    if l.kind == protocol::REMAP {
         top = i32::from(l.safe.y)
             + i32::from(l.top_padding)
             + i32::from(l.header_height)
@@ -426,7 +432,7 @@ pub fn view(
         style.scroll_width = 0;
         inset = 0;
     }
-    if l.kind == 10 {
+    if l.kind == protocol::STATUS_BAR {
         bottom -= i32::from(l.preview_height) + 40 + i32::from(l.spacing);
     }
     top = top.max(i32::from(device_safe.y)) + i32::from(l.spacing);
@@ -444,7 +450,7 @@ pub fn view(
         row_height = row_height.max(i32::from(style.min_touch)).max(56);
         style.row_gap = style.row_gap.max(6);
     }
-    if l.kind == 0 {
+    if l.kind == protocol::ROOT {
         row_height = (body_line + resources.line(l.small_font)?).max(32) + 2 * padding;
         padding = -1;
     }
@@ -475,7 +481,7 @@ pub fn view(
         lines,
         inset,
     );
-    if l.kind == 4 {
+    if l.kind == protocol::REMAP {
         content.managed = false;
         arena.push(Command {
             kind: Kind::Page as u8,
@@ -492,7 +498,7 @@ pub fn view(
     }
     let next = list::view_rows(arena, state, style, count, 1, &mut content)?;
     let disabled = content.disabled;
-    if l.kind == 4 {
+    if l.kind == protocol::REMAP {
         let offset = l.top_padding + l.header_height + l.tab_height + l.spacing;
         if l.flags & 1 != 0 {
             arena.push(Command {
@@ -531,7 +537,7 @@ pub fn view(
         generation: 1,
         ..Command::default()
     })?;
-    if l.kind == 10 {
+    if l.kind == protocol::STATUS_BAR {
         arena.push(Command {
             kind: Kind::Page as u8,
             rect: screen,

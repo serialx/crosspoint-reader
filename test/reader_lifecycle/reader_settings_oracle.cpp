@@ -179,6 +179,8 @@ int main() {
           if (a.overlayPopup.callback) {
             event("retained-result", result);
             auto callback = std::move(a.overlayPopup.callback);
+            a.overlayPopup = Popup{};
+            event("dismiss-popup");
             callback(result);
           }
           assert(lockDepth == 0);

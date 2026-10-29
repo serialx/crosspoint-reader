@@ -66,36 +66,23 @@ const int verticalPreviewTextPadding = 40;
 }  // namespace
 
 StatusBarSettingsActivity::StatusBarSettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-    : UiListActivity("StatusBarSettings", renderer, mappedInput) {}
+    : SettingsUiActivity("StatusBarSettings", renderer, mappedInput, XP_UI_SETTINGS_STATUS_BAR) {}
 
 void StatusBarSettingsActivity::onEnter() {
-  UiListActivity::onEnter();
+  SettingsUiActivity::onEnter();
+  if (!hasUiStorage()) return;
 
   visibleItemCount = halClock.isAvailable() ? FULL_MENU_ITEMS : BASE_MENU_ITEMS;
 
-  // Clamp statusBarProgressBar and statusBarTitle in case of corrupt/migrated data
-  if (SETTINGS.statusBarProgressBar >= PROGRESS_BAR_ITEMS) {
-    SETTINGS.statusBarProgressBar = CrossPointSettings::STATUS_BAR_PROGRESS_BAR::HIDE_PROGRESS;
-  }
-
-  if (SETTINGS.statusBarProgressBarThickness >= PROGRESS_BAR_THICKNESS_ITEMS) {
-    SETTINGS.statusBarProgressBarThickness = CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS::PROGRESS_BAR_NORMAL;
-  }
-
-  if (SETTINGS.statusBarTitle >= TITLE_ITEMS) {
-    SETTINGS.statusBarTitle = CrossPointSettings::STATUS_BAR_TITLE::HIDE_TITLE;
-  }
-
-  if (SETTINGS.xtcStatusBarMode >= XTC_STATUS_BAR_ITEMS) {
-    SETTINGS.xtcStatusBarMode = CrossPointSettings::XTC_STATUS_BAR_MODE::XTC_STATUS_BAR_HIDE;
-  }
-
-  if (SETTINGS.statusBarClock >= STATUS_BAR_CLOCK_ITEMS) {
-    SETTINGS.statusBarClock = CrossPointSettings::STATUS_BAR_CLOCK_MODE::STATUS_BAR_CLOCK_HIDE;
-  }
+  SETTINGS.statusBarProgressBar = xp_ui_settings_status_value(ITEM_PROGRESS_BAR, SETTINGS.statusBarProgressBar);
+  SETTINGS.statusBarProgressBarThickness =
+      xp_ui_settings_status_value(ITEM_PROGRESS_BAR_THICKNESS, SETTINGS.statusBarProgressBarThickness);
+  SETTINGS.statusBarTitle = xp_ui_settings_status_value(ITEM_TITLE, SETTINGS.statusBarTitle);
+  SETTINGS.xtcStatusBarMode = xp_ui_settings_status_value(ITEM_XTC_STATUS_BAR, SETTINGS.xtcStatusBarMode);
+  SETTINGS.statusBarClock = xp_ui_settings_status_value(ITEM_CLOCK, SETTINGS.statusBarClock);
 
   // Labels never change (unlike the values, which track live SETTINGS
-  // state), so they're set once here rather than every buildScreen() call.
+  // state), so they're set once here rather than every prepareRows() call.
   for (int i = 0; i < visibleItemCount; i++) {
     rowItems_[i].label = I18N.get(menuNames[i]);
     rowItems_[i].actionValue = static_cast<int16_t>(i);
@@ -108,21 +95,25 @@ bool StatusBarSettingsActivity::handleCustomInput() {
 
 void StatusBarSettingsActivity::activateIndex(const int index) {
   if (optionPopup.isActive()) return;
-  nav.selected = index;
+  selectIndex(index);
   // Activation opens a popup/sub-activity or repaints a new value; a lingering
   // flash would gray an unrelated row.
-  app.clearTapFlash();
+
   handleSelection();
   requestUpdate();
 }
 
 void StatusBarSettingsActivity::handleSelection() {
-  switch (nav.selected) {
+  switch (selectedIndex()) {
     case ITEM_CHAPTER_PAGE_COUNT:
-      SETTINGS.statusBarChapterPageCount = (SETTINGS.statusBarChapterPageCount + 1) % 2;
+      SETTINGS.statusBarChapterPageCount =
+          xp_ui_settings_menu_edit(XP_UI_SETTINGS_STATUS_BAR, selectedIndex(), SETTINGS.statusBarChapterPageCount)
+              .value;
       break;
     case ITEM_BOOK_PROGRESS_PERCENTAGE:
-      SETTINGS.statusBarBookProgressPercentage = (SETTINGS.statusBarBookProgressPercentage + 1) % 2;
+      SETTINGS.statusBarBookProgressPercentage =
+          xp_ui_settings_menu_edit(XP_UI_SETTINGS_STATUS_BAR, selectedIndex(), SETTINGS.statusBarBookProgressPercentage)
+              .value;
       break;
     case ITEM_PROGRESS_BAR:
       optionPopup.show(StrId::STR_PROGRESS_BAR, progressBarNames, PROGRESS_BAR_ITEMS, SETTINGS.statusBarProgressBar,
@@ -145,7 +136,8 @@ void StatusBarSettingsActivity::handleSelection() {
       });
       return;
     case ITEM_BATTERY:
-      SETTINGS.statusBarBattery = (SETTINGS.statusBarBattery + 1) % 2;
+      SETTINGS.statusBarBattery =
+          xp_ui_settings_menu_edit(XP_UI_SETTINGS_STATUS_BAR, selectedIndex(), SETTINGS.statusBarBattery).value;
       break;
     case ITEM_XTC_STATUS_BAR:
       optionPopup.show(StrId::STR_XTC_STATUS_BAR, xtcStatusBarNames, XTC_STATUS_BAR_ITEMS, SETTINGS.xtcStatusBarMode,
@@ -155,7 +147,8 @@ void StatusBarSettingsActivity::handleSelection() {
                        });
       return;
     case ITEM_CLOCK:
-      SETTINGS.statusBarClock = (SETTINGS.statusBarClock + 1) % STATUS_BAR_CLOCK_ITEMS;
+      SETTINGS.statusBarClock =
+          xp_ui_settings_menu_edit(XP_UI_SETTINGS_STATUS_BAR, selectedIndex(), SETTINGS.statusBarClock).value;
       break;
     default:
       return;
@@ -180,60 +173,26 @@ std::string StatusBarSettingsActivity::rowValueText(const int index) {
   }
 }
 
-void StatusBarSettingsActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  // Reserve the bottom band for the live status-bar preview footer (label +
-  // bar) so the list never runs underneath it, plus the button-hints row below.
-  // The preview is pinned directly above the hints (see render()), so the band
-  // is just the bar + its label, not a floating gap.
-  const int statusBarHeight = UITheme::getInstance().getStatusBarHeight();
-  const auto previewFooter =
-      static_cast<int16_t>(statusBarHeight + verticalPreviewTextPadding + metrics.verticalSpacing);
-  screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(metrics.topPadding + metrics.headerHeight), 0,
-                                                static_cast<int16_t>(metrics.buttonHintsHeight + previewFooter), 0});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-
-  // rowItems_'s labels/actionValue were set once in onEnter(); only the live
-  // value text needs refreshing here, by assigning into the existing
-  // rowValues_ strings (no array growth) rather than building a new
-  // items/values vector on every render.
+void StatusBarSettingsActivity::prepareRows() {
   for (int i = 0; i < visibleItemCount; i++) {
     rowValues_[i] = rowValueText(i);
     rowItems_[i].value = rowValues_[i].empty() ? nullptr : rowValues_[i].c_str();
   }
-  GUI.setCheckboxRow(rowItems_[ITEM_CHAPTER_PAGE_COUNT], SETTINGS.statusBarChapterPageCount);
-  GUI.setCheckboxRow(rowItems_[ITEM_BOOK_PROGRESS_PERCENTAGE], SETTINGS.statusBarBookProgressPercentage);
-  GUI.setCheckboxRow(rowItems_[ITEM_BATTERY], SETTINGS.statusBarBattery);
-
-  fui::ListProps props;
-  props.items = rowItems_;
-  props.count = static_cast<uint16_t>(visibleItemCount);
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
-  props.valueInset = 8;               // air between the value and the row edge
-  props.labelText = screen.theme().smallText;
-  props.labelText.maxLines = 2;  // also the explicitly-set marker, see SettingsActivity
-  syncListViewport(screen, props);
-  screen.list(props);
+  setCheckboxRow(rowItems_[ITEM_CHAPTER_PAGE_COUNT], SETTINGS.statusBarChapterPageCount);
+  setCheckboxRow(rowItems_[ITEM_BOOK_PROGRESS_PERCENTAGE], SETTINGS.statusBarBookProgressPercentage);
+  setCheckboxRow(rowItems_[ITEM_BATTERY], SETTINGS.statusBarBattery);
 }
 
-void StatusBarSettingsActivity::render(RenderLock&&) {
+void StatusBarSettingsActivity::render(RenderLock&& lock) {
   if (optionPopup.processRender(renderer, mappedInput)) return;
-
-  renderer.clearScreen();
-
-  auto metrics = UITheme::getInstance().getMetrics();
-  const auto pageWidth = renderer.getScreenWidth();
-
-  // Header via GUI.drawHeader (already FreeInkUI-themed) for the battery
-  // indicator; the list renders through the app; the preview stays raw.
-  GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, tr(STR_CUSTOMISE_STATUS_BAR));
-
-  renderUi();
-
+  SettingsUiActivity::render(std::move(lock));
+}
+void StatusBarSettingsActivity::drawFooter() {
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_TOGGLE), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-
+}
+void StatusBarSettingsActivity::drawPreview() {
+  const auto& metrics = UITheme::getInstance().getMetrics();
   std::string title;
   if (SETTINGS.statusBarTitle == CrossPointSettings::STATUS_BAR_TITLE::BOOK_TITLE) {
     title = tr(STR_EXAMPLE_BOOK);
@@ -248,6 +207,4 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
                             renderer.getScreenHeight() - UITheme::getInstance().getStatusBarHeight() -
                                 metrics.buttonHintsHeight - verticalPreviewTextPadding,
                             tr(STR_PREVIEW));
-
-  renderer.displayBuffer();
 }

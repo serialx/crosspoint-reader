@@ -148,3 +148,5 @@ mod sync;
 mod ota;
 
 mod assets;
+
+mod ui_settings;

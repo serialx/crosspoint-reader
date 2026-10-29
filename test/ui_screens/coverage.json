@@ -606,6 +606,40 @@
         "toolbar"
       ],
       "reason": "Existing Rust reader-list adapter; inventory entry restored after the U2a port."
+    },
+    {
+      "source": "src/activities/settings/SettingsUiActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "bluetooth",
+        "clock",
+        "controls",
+        "display",
+        "fixture-settings-home-button",
+        "general",
+        "koreader",
+        "library-settings",
+        "reader-settings",
+        "status-cache"
+      ],
+      "reason": "Shared settings-family Rust scene binding and ABI layout checks."
+    },
+    {
+      "source": "src/activities/settings/SettingsUiAbi.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "bluetooth",
+        "clock",
+        "controls",
+        "display",
+        "fixture-settings-home-button",
+        "general",
+        "koreader",
+        "library-settings",
+        "reader-settings",
+        "status-cache"
+      ],
+      "reason": "Shared settings-family Rust scene binding and ABI layout checks."
     }
   ],
   "additional_limits": [

@@ -9,7 +9,10 @@ sdk, out, stubs = map(pathlib.Path, sys.argv[1:])
 source = sdk / "libs/display/FreeInkDisplay"
 shutil.copytree(source / "src", out / "src", dirs_exist_ok=True, copy_function=shutil.copy)
 shutil.copytree(source / "include", out / "include", dirs_exist_ok=True, copy_function=shutil.copy)
-shutil.copy(sdk / "libs/hardware/BoardConfig/include/BoardConfig.h", out / "BoardConfig.h")
+for header in ("BoardConfig.h", "PanelDrivers.h"):
+    source_header = sdk / "libs/hardware/BoardConfig/include" / header
+    if source_header.exists():
+        shutil.copy(source_header, out / header)
 # This header is quoted by BoardConfig; place the host rail hook beside it.
 shutil.copy(stubs / "MetalioEInk4Board.h", out / "MetalioEInk4Board.h")
 # Track the retained UltraChip planes without interposing host STL allocations.

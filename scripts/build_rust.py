@@ -44,7 +44,14 @@ sys.path.insert(0, str(project / "scripts"))
 from rust_display_features import display_features
 
 defines = env.ParseFlags(env.get("BUILD_FLAGS", [])).get("CPPDEFINES", [])
-panel_features = display_features(defines)
+toolchain_package = "toolchain-riscv32-esp" if mcu == "esp32c3" else "toolchain-xtensa-esp-elf"
+compiler_name = "riscv32-esp-elf-g++" if mcu == "esp32c3" else "xtensa-esp32s3-elf-g++"
+compiler = Path(env.PioPlatform().get_package_dir(toolchain_package)) / "bin" / compiler_name
+try:
+    panel_features = display_features(
+        defines, compiler, project / "freeink-sdk/libs/hardware/BoardConfig/include/PanelDrivers.h")
+except (OSError, subprocess.CalledProcessError) as error:
+    fail(f"cannot preprocess SDK panel selection: {error}\n{getattr(error, 'stderr', '')}")
 if panel_features:
     command += ["--features", ",".join(panel_features)]
 if mcu == "esp32s3":

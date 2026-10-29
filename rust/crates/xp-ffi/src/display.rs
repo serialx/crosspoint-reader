@@ -33,7 +33,7 @@ pub struct DisplayBus {
 }
 
 impl DisplayBus {
-    fn valid(&self) -> bool {
+    fn valid(&self, controller: u32) -> bool {
         self.abi_version == ABI_VERSION
             && self.struct_size as usize == size_of::<Self>()
             && self.cmd.is_some()
@@ -49,7 +49,7 @@ impl DisplayBus {
             && self.reset_level.is_some()
             && self.busy_level.is_some()
             && self.busy_wait.is_some()
-            && self.refresh_wait.is_some()
+            && (controller == UC8279C_A4 || self.refresh_wait.is_some())
             && self.delay_ms.is_some()
             && self.delay_us.is_some()
             && self.clock_ms.is_some()
@@ -458,12 +458,13 @@ pub unsafe extern "C" fn xp_display_execute(
         return INVALID;
     }
     let request = &*request;
-    if request.struct_size as usize != size_of::<DisplayRequest>() || !(&*bus).valid() {
+    let controller = (*storage.cast::<Header>()).controller;
+    if request.struct_size as usize != size_of::<DisplayRequest>() || !(&*bus).valid(controller) {
         return INVALID;
     }
     let mut bus = &*bus;
     dispatch(
-        (*storage.cast::<Header>()).controller,
+        controller,
         Action::Execute {
             storage,
             bus: &mut bus,

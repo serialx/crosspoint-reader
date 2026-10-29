@@ -1,26 +1,33 @@
-"""Select Rust panel policy for the controllers enabled by SDK board flags."""
+"""Derive Rust features from the SDK's platform-independent panel selection."""
 
-CONTROLLERS = {
-    "FREEINK_DEVICE_X3": ("uc8253", "uc8279-x3"),
-    "FREEINK_DEVICE_X4": ("ssd1677", "uc8179", "uc8279-x4"),
-    "FREEINK_DEVICE_X4PRO": ("ssd1677", "uc8179", "uc8279-x4"),
-    "FREEINK_DEVICE_X4CLASSIC": ("ssd1677", "uc8179", "uc8279-x4"),
-    "FREEINK_DEVICE_STICKY": ("ssd1677", "ssd2677"),
-    "FREEINK_DEVICE_PICCO": ("ssd1677", "ssd2677"),
-    "FREEINK_DEVICE_METALIO_EINK4": ("ssd1677",),
-    "FREEINK_DEVICE_PAPERMONO": ("paper-mono",),
-    "FREEINK_DEVICE_EEGO_A4": ("uc8279c-a4",),
+import subprocess
+
+DRIVERS = {
+    "FREEINK_DRIVER_UC8253_X3": "uc8253",
+    "FREEINK_DRIVER_UC8279": "uc8279-x3",
+    "FREEINK_DRIVER_SSD1677": "ssd1677",
+    "FREEINK_DRIVER_UC8179": "uc8179",
+    "FREEINK_DRIVER_UC8279_X4": "uc8279-x4",
+    "FREEINK_DRIVER_SSD2677": "ssd2677",
+    "FREEINK_DRIVER_PAPER_MONO": "paper-mono",
+    "FREEINK_DRIVER_UC8279C": "uc8279c-a4",
 }
 
 
-def display_features(defines):
+def display_features(defines, compiler, header):
     values = {item[0]: str(item[1]) if len(item) > 1 else "1"
               for item in (d if isinstance(d, (tuple, list)) else (d,) for d in defines)}
     if values.get("FREEINK_RUST_PANEL", "0") == "0":
         return []
-    selected = {controller for board, controllers in CONTROLLERS.items()
-                if values.get(board, "0") != "0" for controller in controllers}
-    # These SDK configurations deliberately retain the C++ SSD1677 driver.
-    if "FREEINK_SSD1677_CONFIG" in values or "SSD1677_PROBE_DEBUG" in values:
-        selected.discard("ssd1677")
-    return ["display-" + controller for controller in sorted(selected)]
+    source = []
+    for macro, feature in DRIVERS.items():
+        condition = macro
+        # These configurations deliberately retain the SDK's C++ SSD1677 driver.
+        if feature == "ssd1677":
+            condition += " && !defined(FREEINK_SSD1677_CONFIG) && !defined(SSD1677_PROBE_DEBUG)"
+        source += ["#if " + condition, "display-" + feature, "#endif"]
+    command = [str(compiler), "-E", "-P", "-x", "c++", "-include", str(header), "-"]
+    command += ["-D" + key + "=" + value for key, value in values.items()]
+    result = subprocess.run(command, input="\n".join(source) + "\n", text=True,
+                            capture_output=True, check=True)
+    return sorted(result.stdout.split())

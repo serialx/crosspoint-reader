@@ -22,7 +22,9 @@ class String : public std::string {
   template <class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
   explicit String(T n) : std::string(std::to_string(n)) {}
   bool isEmpty() const { return empty(); }
-  bool equals(const String& s) const { return *this == s; }
+  bool equals(const String& s) const { return size() == s.size() && std::strcmp(c_str(), s.c_str()) == 0; }
+  bool equals(const char* s) const { return s ? std::strcmp(c_str(), s) == 0 : empty() || (*this)[0] == 0; }
+  friend bool operator==(const String& s, const char* text) { return s.equals(text); }
   bool startsWith(const String& s) const { return starts_with(s); }
   bool endsWith(const String& s) const { return ends_with(s); }
   int indexOf(char c, size_t from = 0) const {

@@ -67,6 +67,26 @@ inline void add(const std::string& path, const std::string& bytes = "", bool dir
 }
 }  // namespace host
 
+// Inject the real ArduinoJson allocator without changing its parser/coercion behavior.
+class WebJsonAllocator : public ArduinoJson::Allocator {
+ public:
+  inline static int failAfter = -1;
+  static bool fail() {
+    if (failAfter < 0) return false;
+    if (failAfter == 0) return true;
+    --failAfter;
+    return false;
+  }
+  void* allocate(size_t size) override { return fail() ? nullptr : std::malloc(size); }
+  void* reallocate(void* ptr, size_t size) override { return std::realloc(ptr, size); }
+  void deallocate(void* ptr) override { std::free(ptr); }
+};
+inline WebJsonAllocator webJsonAllocator;
+class WebJsonDocument : public ArduinoJson::JsonDocument {
+ public:
+  WebJsonDocument() : ArduinoJson::JsonDocument(&webJsonAllocator) {}
+};
+
 #define LOG_DBG(tag, ...) host::log("DBG", tag, __VA_ARGS__)
 #define LOG_INF(tag, ...) host::log("INF", tag, __VA_ARGS__)
 #define LOG_ERR(tag, ...) host::log("ERR", tag, __VA_ARGS__)

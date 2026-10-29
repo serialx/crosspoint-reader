@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 730 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 892 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -45,7 +45,9 @@ Path helpers are extracted from repository source, and protected-path checks
 use the existing public header. The String substitute implements the operations
 used by these methods, including 32-bit saturating `toInt`. A targeted String
 allocation hook covers completed font-list, plugin-list, and plugin-upload JSON
-responses; other String allocation failures are not simulated. The transcript allocator trace covers only checked
+responses; other String allocation failures are not simulated. A real ArduinoJson
+allocator substitute injects allocate failures for job submit/complete, while
+reallocate is passed through. The transcript allocator trace covers only checked
 upload/download buffer requests, not total heap usage. `--fault-check` separately
 injects Rust allocation failures at 128 budgets for every case, checking that
 Rust allocations and the WebSocket upload owner are released after cleanup.
@@ -110,3 +112,16 @@ Six additional plugin fixtures cover embedded NUL in names, filenames and upload
 paths. The String substitute's indexOf uses strchr/strstr, matching the pinned
 Arduino implementation: emptiness uses the stored length while searches stop at
 NUL. Expectations come from dc21f50f C++; all prior 724 transcripts are unchanged.
+
+The job extension was recorded from unchanged C++ at `0798b4e8`. It preserves
+all previous 730 records and adds 162 cases: exact lease boundaries, completion
+before/after expiry scans, repeated claims/completions, oldest-finished recycling,
+clock wrap, stop/start versus a fresh server, enabled gates, missing bodies,
+no-file requests, JSON coercion and size/name limits, NUL strings, status parsing,
+and JSON allocate failures with retries. The String substitute compares C strings
+through `strcmp`, matching the pinned Arduino implementation (embedded NUL ends
+the comparison). A deliberate `>` to `>=` lease mutation must fail.
+
+Failed ArduinoJson shrink-reallocation is not swept: the original C++ crashes
+inside the pinned third-party StringPool on that injected failure. The diagnostic
+is retained in the slice evidence; this port does not change that dependency.

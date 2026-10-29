@@ -25,6 +25,8 @@ def function(source, name):
 
 
 def generate(source, header):
+    source = re.sub(r"\bJsonDocument\b", "WebJsonDocument", source)
+    header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
     pieces = ['#include "Host.h"', '#include "Endpoints.h"', header]
@@ -120,6 +122,13 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed fonts behavior")
         print("mutation check: rejected changed fonts behavior")
+        changed = source.replace('now - job.updatedAt > PLUGIN_JOB_LEASE_MS',
+                                 'now - job.updatedAt >= PLUGIN_JOB_LEASE_MS', 1)
+        if changed == source:
+            changed = source.replace('XP_WEB_JOB_CLAIM);', 'XP_WEB_JOB_STATUS);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed job lease policy")
+        print("mutation check: rejected changed job lease policy")
         changed = source.replace('"bad plugin path"', '"BAD plugin path"', 1)
         if changed == source:
             changed = source.replace('XP_WEB_PLUGIN_FILE);', 'XP_WEB_PLUGIN_LIST);', 1)

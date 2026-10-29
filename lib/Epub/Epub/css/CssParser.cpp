@@ -2,6 +2,7 @@
 
 #include <Logging.h>
 #include <Memory.h>
+#include <xp_book.h>
 #include <xp_ffi.h>
 
 #include <array>
@@ -60,10 +61,7 @@ int32_t readCssCache(XpCss* handle, const uint8_t* data, size_t len, bool end) {
   if (detail.event != 0) cssDiagnostic(nullptr, detail.event, detail.a, detail.b, 0, 0);
   return status;
 }
-constexpr size_t MAX_RULES = 1500;
-constexpr size_t SELECTOR_POOL_CAP = 32 * 1024;
-constexpr size_t MAX_STORED_KEY_LENGTH = 257;
-constexpr size_t READ_BUFFER_SIZE = 512;
+constexpr size_t READ_BUFFER_SIZE = XP_CSS_READ_BUFFER_BYTES;
 constexpr std::array STYLE_LENGTH_FIELDS = {
     &CssStyle::textIndent,   &CssStyle::marginTop,   &CssStyle::marginBottom,  &CssStyle::marginLeft,
     &CssStyle::marginRight,  &CssStyle::paddingTop,  &CssStyle::paddingBottom, &CssStyle::paddingLeft,
@@ -184,6 +182,8 @@ bool decodeStyleWire(const uint8_t (&in)[STYLE_WIRE_BYTES], CssStyle& style) {
 }
 
 static_assert(STYLE_WIRE_BYTES == XP_CSS_WIRE_BYTES);
+static_assert(XP_CSS_MAX_CACHE_KEY_BYTES == XP_CSS_MAX_SELECTOR_BYTES + 1);
+static_assert(XP_CSS_CACHE_BUFFER_BYTES == sizeof(uint16_t) + XP_CSS_MAX_CACHE_KEY_BYTES + STYLE_WIRE_BYTES);
 static_assert(sizeof(CssAncestor) == sizeof(XpCssAncestor));
 static_assert(alignof(CssAncestor) == alignof(XpCssAncestor));
 static_assert(offsetof(CssAncestor, tagHash) == offsetof(XpCssAncestor, tag_hash));
@@ -208,35 +208,6 @@ void CssParser::clear() {
 
 size_t CssParser::ruleCount() const { return handle ? xp_css_rule_count(handle) : 0; }
 bool CssParser::hasFirstLetterRules() const { return handle && xp_css_has_first_letter(handle); }
-
-CssParser::ParseResult CssParser::loadFromStream(HalFile& source) {
-  if (!source) {
-    LOG_ERR("CSS", "Cannot read from invalid file");
-    return ParseResult::Error;
-  }
-  if (!ensureHandle()) return ParseResult::Partial;
-  auto buffer = makeUniqueNoThrow<uint8_t[]>(READ_BUFFER_SIZE);
-  if (!buffer) {
-    LOG_ERR("CSS", "OOM: CSS input (%zu bytes)", READ_BUFFER_SIZE);
-    return ParseResult::Partial;
-  }
-  bool partial = false;
-  size_t totalRead = 0;
-  while (source.available()) {
-    const int count = source.read(buffer.get(), READ_BUFFER_SIZE);
-    if (count <= 0) break;
-    totalRead += static_cast<size_t>(count);
-    partial |=
-        xp_css_feed_with_diagnostics(handle, buffer.get(), static_cast<size_t>(count), false, &CSS_DIAGNOSTICS) != 0;
-  }
-  const auto result =
-      static_cast<ParseResult>(xp_css_feed_with_diagnostics(handle, nullptr, 0, true, &CSS_DIAGNOSTICS));
-  LOG_DBG("CSS", "Parsed %zu rules from %zu bytes", ruleCount(), totalRead);
-  if (partial || result == ParseResult::Partial) {
-    return ParseResult::Partial;
-  }
-  return result;
-}
 
 CssAncestor CssParser::makeAncestor(std::string_view tag, std::string_view classes, std::string_view id) {
   XpCssAncestor wire{};
@@ -271,218 +242,236 @@ CssStyle CssParser::parseInlineStyle(std::string_view value) {
 constexpr char rulesCache[] = "/css_rules.cache";
 constexpr char rulesCacheTmp[] = "/css_rules.cache.tmp";
 constexpr char rulesCacheBackup[] = "/css_rules.cache.bak";
-constexpr uint8_t CSS_CACHE_FLAG_PARTIAL = 1 << 0;
-constexpr uint8_t CSS_CACHE_KNOWN_FLAGS = CSS_CACHE_FLAG_PARTIAL;
+
+struct CssParser::IoContext {
+  CssParser& owner;
+  HalFile owned;
+  HalFile& file;
+  std::string finalPath, temporaryPath, backupPath;
+  std::unique_ptr<uint8_t[]> buffer;
+  std::unique_ptr<uint16_t[]> order;
+  uint32_t word = 0;
+  size_t capacity = 0, count = 0;
+  explicit IoContext(CssParser& owner) : owner(owner), file(owned) {}
+  IoContext(CssParser& owner, HalFile& source) : owner(owner), file(source) {}
+  const std::string& path(const unsigned index, std::string& scratch) const {
+    const std::string* paths[] = {&finalPath, &temporaryPath, &backupPath};
+    const char* suffixes[] = {rulesCache, rulesCacheTmp, rulesCacheBackup};
+    if (!paths[index]->empty()) return *paths[index];
+    scratch = owner.cachePath + suffixes[index];
+    return scratch;
+  }
+  static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
+    auto& c = *static_cast<IoContext*>(raw);
+    auto& self = c.owner;
+    std::string pathScratch, otherScratch;
+    switch (static_cast<XpBookCssOperation>(operation)) {
+      case XP_BOOK_CSS_IO_EMPTY_PATH: {
+        return self.cachePath.empty();
+      }
+      case XP_BOOK_CSS_IO_PREPARE_PATHS: {
+        if (argument & 1) c.finalPath = self.cachePath + rulesCache;
+        if (argument & 2) c.temporaryPath = self.cachePath + rulesCacheTmp;
+        if (argument & 4) c.backupPath = self.cachePath + rulesCacheBackup;
+        break;
+      }
+      case XP_BOOK_CSS_IO_EXISTS_FINAL: {
+        return Storage.exists(c.path(0, pathScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_EXISTS_BACKUP: {
+        return Storage.exists(c.path(2, pathScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_RENAME_BACKUP_FINAL: {
+        return Storage.rename(c.path(2, pathScratch).c_str(), c.path(0, otherScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_REMOVE_FINAL: {
+        return Storage.remove(c.path(0, pathScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_REMOVE_TEMPORARY: {
+        return Storage.remove(c.path(1, pathScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_REMOVE_BACKUP: {
+        return Storage.remove(c.path(2, pathScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_RENAME_FINAL_BACKUP: {
+        return Storage.rename(c.path(0, pathScratch).c_str(), c.path(2, otherScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_RENAME_TEMPORARY_FINAL: {
+        return Storage.rename(c.path(1, pathScratch).c_str(), c.path(0, otherScratch).c_str());
+      }
+      case XP_BOOK_CSS_IO_OPEN_FINAL: {
+        return Storage.openFileForRead("CSS", c.path(0, pathScratch), c.file);
+      }
+      case XP_BOOK_CSS_IO_OPEN_TEMPORARY: {
+        return Storage.openFileForWrite("CSS", c.path(1, pathScratch), c.file);
+      }
+      case XP_BOOK_CSS_IO_CLOSE: {
+        return c.file.close();
+      }
+      case XP_BOOK_CSS_IO_READ_WORD: {
+        c.word = 0;
+        return c.file.read(&c.word, argument);
+      }
+      case XP_BOOK_CSS_IO_WORD: {
+        return c.word;
+      }
+      case XP_BOOK_CSS_IO_AVAILABLE: {
+        return c.file.available();
+      }
+      case XP_BOOK_CSS_IO_SKIP: {
+        return c.file.seekCur(argument);
+      }
+      case XP_BOOK_CSS_IO_ENSURE: {
+        return self.ensureHandle();
+      }
+      case XP_BOOK_CSS_IO_CLEAR: {
+        self.clear();
+        break;
+      }
+      case XP_BOOK_CSS_IO_ALLOCATE_BUFFER: {
+        c.buffer = makeUniqueNoThrow<uint8_t[]>(argument);
+        c.capacity = argument;
+        return bool(c.buffer);
+      }
+      case XP_BOOK_CSS_IO_READ_BUFFER: {
+        const int count = c.file.read(c.buffer.get(), c.capacity);
+        c.count = count > 0 ? count : 0;
+        return count;
+      }
+      case XP_BOOK_CSS_IO_FIRST_BYTE: {
+        return c.buffer[0];
+      }
+      case XP_BOOK_CSS_IO_READ_CACHE_VERSION: {
+        return readCssCache(self.handle, reinterpret_cast<const uint8_t*>(&c.word), 1, false);
+      }
+      case XP_BOOK_CSS_IO_READ_CACHE_BUFFER: {
+        return readCssCache(self.handle, c.buffer.get(), c.count, false);
+      }
+      case XP_BOOK_CSS_IO_READ_CACHE_END: {
+        return readCssCache(self.handle, nullptr, 0, true);
+      }
+      case XP_BOOK_CSS_IO_RULE_COUNT: {
+        return self.ruleCount();
+      }
+      case XP_BOOK_CSS_IO_HAS_HANDLE: {
+        return self.handle != nullptr;
+      }
+      case XP_BOOK_CSS_IO_ALLOCATE_ORDER: {
+        c.order = makeUniqueNoThrow<uint16_t[]>(argument);
+        return bool(c.order);
+      }
+      case XP_BOOK_CSS_IO_PREPARE_ORDER: {
+        return xp_css_cache_write_begin(self.handle, argument, c.order.get(), self.ruleCount());
+      }
+      case XP_BOOK_CSS_IO_WRITE_NEXT: {
+        c.count = 0;
+        return xp_css_cache_write(self.handle, c.order.get(), self.ruleCount(), c.buffer.get(), c.capacity, &c.count);
+      }
+      case XP_BOOK_CSS_IO_WRITTEN: {
+        return c.count;
+      }
+      case XP_BOOK_CSS_IO_WRITE_BUFFER: {
+        return c.file.write(c.buffer.get(), c.count) == c.count;
+      }
+      case XP_BOOK_CSS_IO_WRITE_WORD: {
+        return c.file.write(&argument, sizeof(argument)) == sizeof(argument);
+      }
+      case XP_BOOK_CSS_IO_DROP_ORDER: {
+        c.order.reset();
+        break;
+      }
+      case XP_BOOK_CSS_IO_SOURCE_VALID: {
+        return bool(c.file);
+      }
+      case XP_BOOK_CSS_IO_FEED_BUFFER: {
+        return xp_css_feed_with_diagnostics(self.handle, c.buffer.get(), c.count, false, &CSS_DIAGNOSTICS);
+      }
+      case XP_BOOK_CSS_IO_FEED_END: {
+        return xp_css_feed_with_diagnostics(self.handle, nullptr, 0, true, &CSS_DIAGNOSTICS);
+      }
+      case XP_BOOK_CSS_IO_RESTORE: {
+        return self.restoreCacheBackupIfNeeded();
+      }
+    }
+    return 0;
+  }
+  static void diagnostic(void* raw, uint32_t event, uint32_t argument) {
+    auto& c = *static_cast<IoContext*>(raw);
+    switch (static_cast<XpBookCssEvent>(event)) {
+      case XP_BOOK_CSS_IO_EVENT_RESTORE_FAILED:
+        LOG_ERR("CSS", "Failed to restore CSS cache backup");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_RESTORED:
+        LOG_DBG("CSS", "Restored CSS cache backup after interrupted replacement");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_OUTPUT_OOM:
+        LOG_ERR("CSS", "OOM: cache output (%u bytes)", XP_CSS_CACHE_BUFFER_BYTES);
+        break;
+      case XP_BOOK_CSS_IO_EVENT_ORDER_OOM:
+        LOG_ERR("CSS", "OOM sorting CSS cache rules");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_ORDER_FAILED:
+        LOG_ERR("CSS", "Could not prepare cache source order");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_WRITE_FAILED:
+        LOG_ERR("CSS", "Failed to write temporary CSS cache");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_BACKUP_FAILED:
+        LOG_ERR("CSS", "Failed to back up existing CSS cache");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_PROMOTE_FAILED:
+        LOG_ERR("CSS", "Failed to promote temporary CSS cache");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_ROLLBACK_FAILED:
+        LOG_ERR("CSS", "Failed to restore previous CSS cache");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_SAVED_COMPLETE:
+        LOG_DBG("CSS", "Saved %u rules to %s cache", argument, "complete");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_SAVED_PARTIAL:
+        LOG_DBG("CSS", "Saved %u rules to %s cache", argument, "partial");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_VERSION:
+        LOG_DBG("CSS", "Cache version mismatch (got %u, expected %u), removing stale cache for rebuild", argument,
+                CSS_CACHE_VERSION);
+        break;
+      case XP_BOOK_CSS_IO_EVENT_INPUT_OOM:
+        LOG_ERR("CSS", "OOM: cache input (%zu bytes)", READ_BUFFER_SIZE);
+        break;
+      case XP_BOOK_CSS_IO_EVENT_LOADED_COMPLETE:
+        LOG_DBG("CSS", "Loaded %u rules from %s cache", argument, "complete");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_LOADED_PARTIAL:
+        LOG_DBG("CSS", "Loaded %u rules from %s cache", argument, "partial");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_INVALID_SOURCE:
+        LOG_ERR("CSS", "Cannot read from invalid file");
+        break;
+      case XP_BOOK_CSS_IO_EVENT_SOURCE_OOM:
+        LOG_ERR("CSS", "OOM: CSS input (%zu bytes)", READ_BUFFER_SIZE);
+        break;
+      case XP_BOOK_CSS_IO_EVENT_PARSED:
+        LOG_DBG("CSS", "Parsed %zu rules from %zu bytes", c.owner.ruleCount(), static_cast<size_t>(argument));
+        break;
+    }
+  }
+  XpBookServices services() { return {this, operation, nullptr, diagnostic}; }
+};
 
 bool CssParser::hasCache() const { return Storage.exists((cachePath + rulesCache).c_str()); }
 
-bool CssParser::restoreCacheBackupIfNeeded() const {
-  if (cachePath.empty()) {
-    return false;
-  }
-
-  const std::string finalPath = cachePath + rulesCache;
-  if (Storage.exists(finalPath.c_str())) {
-    return true;
-  }
-
-  const std::string backupPath = cachePath + rulesCacheBackup;
-  if (!Storage.exists(backupPath.c_str())) {
-    return false;
-  }
-
-  if (!Storage.rename(backupPath.c_str(), finalPath.c_str())) {
-    LOG_ERR("CSS", "Failed to restore CSS cache backup");
-    return false;
-  }
-
-  LOG_DBG("CSS", "Restored CSS cache backup after interrupted replacement");
-  return true;
+uint32_t CssParser::cacheOperation(const uint32_t action, const bool complete) const {
+  IoContext context{const_cast<CssParser&>(*this)};
+  const auto io = context.services();
+  return xp_book_css(&io, action, complete);
 }
-
-void CssParser::deleteCache() const {
-  if (hasCache()) Storage.remove((cachePath + rulesCache).c_str());
-  Storage.remove((cachePath + rulesCacheTmp).c_str());
-  Storage.remove((cachePath + rulesCacheBackup).c_str());
-}
-
-CssParser::CacheStatus CssParser::inspectCache() const {
-  if (cachePath.empty() || (!hasCache() && !restoreCacheBackupIfNeeded())) {
-    return CacheStatus::Missing;
-  }
-
-  HalFile file;
-  if (!Storage.openFileForRead("CSS", cachePath + rulesCache, file)) {
-    return CacheStatus::Invalid;
-  }
-
-  uint8_t version = 0;
-  uint8_t flags = 0;
-  uint16_t ruleCount = 0;
-  if (file.read(&version, sizeof(version)) != sizeof(version) || version != CSS_CACHE_VERSION ||
-      file.read(&flags, sizeof(flags)) != sizeof(flags) || (flags & ~CSS_CACHE_KNOWN_FLAGS) != 0 ||
-      file.read(&ruleCount, sizeof(ruleCount)) != sizeof(ruleCount) || ruleCount > MAX_RULES) {
-    return CacheStatus::Invalid;
-  }
-
-  const bool partial = (flags & CSS_CACHE_FLAG_PARTIAL) != 0;
-  if (!partial) {
-    // Complete caches are fully validated while hydrating, avoiding a second
-    // payload scan on every EPUB open.
-    return CacheStatus::Complete;
-  }
-
-  const auto skipBytes = [&file](const size_t byteCount) {
-    return static_cast<size_t>(file.available()) >= byteCount && file.seekCur(byteCount);
-  };
-  size_t selectorBytes = 0;
-  for (uint16_t i = 0; i < ruleCount; ++i) {
-    uint16_t selectorLen = 0;
-    if (file.read(&selectorLen, sizeof(selectorLen)) != sizeof(selectorLen) || selectorLen == 0 ||
-        selectorLen > MAX_STORED_KEY_LENGTH) {
-      return CacheStatus::Invalid;
-    }
-    selectorBytes += selectorLen;
-    if (selectorBytes > SELECTOR_POOL_CAP || !skipBytes(static_cast<size_t>(selectorLen) + STYLE_WIRE_BYTES)) {
-      return CacheStatus::Invalid;
-    }
-  }
-
-  if (file.available() != 0) {
-    return CacheStatus::Invalid;
-  }
-
-  return CacheStatus::Partial;
-}
-
-bool CssParser::saveToCache(const bool complete) const {
-  if (cachePath.empty()) {
-    return false;
-  }
-
-  const std::string finalPath = cachePath + rulesCache;
-  const std::string tmpPath = cachePath + rulesCacheTmp;
-  const std::string backupPath = cachePath + rulesCacheBackup;
-
-  Storage.remove(tmpPath.c_str());
-
-  HalFile file;
-  if (!Storage.openFileForWrite("CSS", tmpPath, file)) {
-    return false;
-  }
-
-  auto buffer = makeUniqueNoThrow<uint8_t[]>(XP_CSS_CACHE_BUFFER_BYTES);
-  if (!buffer) {
-    LOG_ERR("CSS", "OOM: cache output (%u bytes)", XP_CSS_CACHE_BUFFER_BYTES);
-    file.close();
-    Storage.remove(tmpPath.c_str());
-    return false;
-  }
-  bool writeOk = true;
-  const auto ruleCount = static_cast<uint16_t>(this->ruleCount());
-  if (handle) {
-    auto order = makeUniqueNoThrow<uint16_t[]>(ruleCount);
-    if (!order || xp_css_cache_write_begin(handle, complete, order.get(), ruleCount) != 0) {
-      if (!order) {
-        LOG_ERR("CSS", "OOM sorting CSS cache rules");
-      } else {
-        LOG_ERR("CSS", "Could not prepare cache source order");
-      }
-      file.close();
-      Storage.remove(tmpPath.c_str());
-      return false;
-    }
-    while (writeOk) {
-      size_t written = 0;
-      if (xp_css_cache_write(handle, order.get(), ruleCount, buffer.get(), XP_CSS_CACHE_BUFFER_BYTES, &written) != 0) {
-        writeOk = false;
-        break;
-      }
-      if (written == 0) break;
-      writeOk = file.write(buffer.get(), written) == written;
-    }
-  } else {
-    const uint8_t header[] = {CSS_CACHE_VERSION, static_cast<uint8_t>(complete ? 0 : CSS_CACHE_FLAG_PARTIAL), 0, 0};
-    writeOk = file.write(header, sizeof(header)) == sizeof(header);
-  }
-
-  if (!writeOk || !file.close()) {
-    LOG_ERR("CSS", "Failed to write temporary CSS cache");
-    file.close();
-    Storage.remove(tmpPath.c_str());
-    return false;
-  }
-
-  const bool hadExistingCache = Storage.exists(finalPath.c_str());
-  if (hadExistingCache) {
-    Storage.remove(backupPath.c_str());
-    if (!Storage.rename(finalPath.c_str(), backupPath.c_str())) {
-      LOG_ERR("CSS", "Failed to back up existing CSS cache");
-      Storage.remove(tmpPath.c_str());
-      return false;
-    }
-  }
-
-  if (!Storage.rename(tmpPath.c_str(), finalPath.c_str())) {
-    LOG_ERR("CSS", "Failed to promote temporary CSS cache");
-    Storage.remove(tmpPath.c_str());
-    if (Storage.exists(backupPath.c_str()) && !Storage.rename(backupPath.c_str(), finalPath.c_str())) {
-      LOG_ERR("CSS", "Failed to restore previous CSS cache");
-    }
-    return false;
-  }
-
-  Storage.remove(backupPath.c_str());
-
-  LOG_DBG("CSS", "Saved %u rules to %s cache", ruleCount, complete ? "complete" : "partial");
-  return true;
-}
-
-CssParser::CacheLoadResult CssParser::loadFromCache() {
-  if (cachePath.empty()) return CacheLoadResult::Invalid;
-  HalFile file;
-  if (!Storage.openFileForRead("CSS", cachePath + rulesCache, file)) {
-    if (!restoreCacheBackupIfNeeded() || !Storage.openFileForRead("CSS", cachePath + rulesCache, file)) {
-      return CacheLoadResult::Invalid;
-    }
-  }
-  clear();
-  uint8_t version = 0;
-  if (file.read(&version, 1) != 1 || version != CSS_CACHE_VERSION) {
-    LOG_DBG("CSS", "Cache version mismatch (got %u, expected %u), removing stale cache for rebuild", version,
-            CSS_CACHE_VERSION);
-    file.close();
-    Storage.remove((cachePath + rulesCache).c_str());
-    return CacheLoadResult::Invalid;
-  }
-  if (!ensureHandle()) return CacheLoadResult::LowMemory;
-  auto buffer = makeUniqueNoThrow<uint8_t[]>(READ_BUFFER_SIZE);
-  if (!buffer) {
-    LOG_ERR("CSS", "OOM: cache input (%zu bytes)", READ_BUFFER_SIZE);
-    clear();
-    return CacheLoadResult::LowMemory;
-  }
-  uint8_t flags = 0;
-  bool firstChunk = true;
-  int32_t status = readCssCache(handle, &version, 1, false);
-  while (status == 0 && file.available()) {
-    const int count = file.read(buffer.get(), READ_BUFFER_SIZE);
-    if (count <= 0) {
-      status = 2;
-      break;
-    }
-    if (firstChunk) {
-      flags = buffer[0];
-      firstChunk = false;
-    }
-    status = readCssCache(handle, buffer.get(), static_cast<size_t>(count), false);
-  }
-  if (status == 0) status = readCssCache(handle, nullptr, 0, true);
-  if (status != 0) {
-    clear();
-    return status == 1 ? CacheLoadResult::LowMemory : CacheLoadResult::Invalid;
-  }
-  LOG_DBG("CSS", "Loaded %u rules from %s cache", static_cast<unsigned>(ruleCount()),
-          (flags & CSS_CACHE_FLAG_PARTIAL) ? "partial" : "complete");
-  return CacheLoadResult::Complete;
+bool CssParser::restoreCacheBackupIfNeeded() const { return cacheOperation(0); }
+void CssParser::deleteCache() const { cacheOperation(1); }
+CssParser::CacheStatus CssParser::inspectCache() const { return static_cast<CacheStatus>(cacheOperation(2)); }
+bool CssParser::saveToCache(const bool complete) const { return cacheOperation(3, complete); }
+CssParser::CacheLoadResult CssParser::loadFromCache() { return static_cast<CacheLoadResult>(cacheOperation(4)); }
+CssParser::ParseResult CssParser::loadFromStream(HalFile& source) {
+  IoContext context{*this, source};
+  const auto io = context.services();
+  return static_cast<ParseResult>(xp_book_css(&io, 5, false));
 }

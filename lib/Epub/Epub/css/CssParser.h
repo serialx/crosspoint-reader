@@ -1,6 +1,7 @@
 #pragma once
 
 #include <HalStorage.h>
+#include <xp_book_limits.h>
 
 #include <string>
 #include <string_view>
@@ -60,7 +61,7 @@ class CssParser {
   };
 
   // Bump when CSS cache format or rules change; section caches are invalidated when this changes
-  static constexpr uint8_t CSS_CACHE_VERSION = 19;
+  static constexpr uint8_t CSS_CACHE_VERSION = XP_CSS_CACHE_VERSION;
 
   explicit CssParser(std::string cachePath) : cachePath(std::move(cachePath)) {}
   ~CssParser();
@@ -149,6 +150,8 @@ class CssParser {
   CacheLoadResult loadFromCache();
 
  private:
+  struct IoContext;
+  uint32_t cacheOperation(uint32_t action, bool complete = false) const;
   XpCss* handle = nullptr;
   std::string cachePath;
 

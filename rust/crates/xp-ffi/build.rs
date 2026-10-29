@@ -1,7 +1,7 @@
 //! Expand the C++ X-macro contract into Rust constants at build time.
 use std::{env, fmt::Write, fs, path::PathBuf};
 
-fn main() {
+fn generate_plugin_contract() {
     let source = "include/xp_plugin_contract.def";
     println!("cargo:rerun-if-changed={source}");
     let input = fs::read_to_string(source).expect("read plugin contract");
@@ -57,4 +57,52 @@ fn main() {
     output.push_str("const _: () = assert!(JSON_SLOTS == 4);\n");
     let out = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo OUT_DIR"));
     fs::write(out.join("plugin_contract.rs"), output).expect("write plugin contract");
+}
+
+#[path = "src/book_limits.rs"]
+mod book;
+#[path = "../xp-core/src/css/limits.rs"]
+mod css;
+
+fn check_book_constants() {
+    let header = "include/xp_book_limits.h";
+    let mut output = String::from(
+        "// Generated from Rust constants by xp-ffi/build.rs; do not edit.\n\
+         // Regenerate from rust/crates/xp-ffi:\n\
+         // rustc build.rs -o /tmp/xp-book-limits && /tmp/xp-book-limits --write-header\n\
+         #pragma once\n",
+    );
+    for (name, value) in [
+        ("XP_BOOK_METADATA_WINDOW", book::METADATA_WINDOW as usize),
+        ("XP_CSS_READ_BUFFER_BYTES", css::READ_BUFFER_BYTES),
+        ("XP_CSS_CACHE_VERSION", css::CACHE_VERSION as usize),
+        ("XP_CSS_WIRE_BYTES", css::WIRE_BYTES),
+        ("XP_CSS_MAX_RULES", css::MAX_RULES),
+        ("XP_CSS_SELECTOR_CAP", css::SELECTOR_CAP),
+        ("XP_CSS_MAX_SELECTOR_BYTES", css::MAX_SELECTOR_BYTES),
+        ("XP_CSS_MAX_CACHE_KEY_BYTES", css::MAX_CACHE_KEY_BYTES),
+        ("XP_CSS_CACHE_BUFFER_BYTES", css::CACHE_BUFFER_BYTES),
+    ] {
+        output.push_str(&format!("#define {name} {value}\n"));
+    }
+    if std::env::args().any(|arg| arg == "--write-header") {
+        std::fs::write(header, output).expect("write book ABI constants");
+    } else {
+        assert_eq!(
+            std::fs::read_to_string(header).expect("read book ABI constants"),
+            output,
+            "Regenerate include/xp_book_limits.h with the command in its header",
+        );
+    }
+    for path in [header, "src/book_limits.rs", "../xp-core/src/css/limits.rs"] {
+        println!("cargo:rerun-if-changed={path}");
+    }
+}
+
+fn main() {
+    check_book_constants();
+    if std::env::args().any(|arg| arg == "--write-header") {
+        return;
+    }
+    generate_plugin_contract();
 }

@@ -273,7 +273,12 @@ unsafe impl ImageServices for ImageCallbacks {
         target
     }
     fn extract(&mut self) {
-        self.scalar(7, 0);
+        if self.scalar(10, 0) != 0 && self.scalar(11, 0) != 0 && self.scalar(12, 0) == 0 {
+            self.diagnostic(14, 0, 0);
+            if self.scalar(7, 0) == 0 {
+                self.diagnostic(15, 0, 0);
+            }
+        }
     }
     fn source_size(&mut self) -> Option<usize> {
         let size = self.scalar(8, 0);

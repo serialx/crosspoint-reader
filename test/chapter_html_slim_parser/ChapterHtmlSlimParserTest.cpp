@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "../legacy_book_policy.h"
 #include "src/ReaderFontSizes.h"
 #include "src/activities/settings/TextSettingsPreview.h"
 #include "src/clippings/ClippingText.h"
@@ -726,7 +727,7 @@ TEST_F(ChapterHtmlSlimParserTest, BlockFontScaleInheritsAndUsesHeadingDefaults) 
   EXPECT_FLOAT_EQ(ChapterTestAccess::paragraph(parser).getBlockStyle().fontScale, 1.2f);
 
   BlockStyle plain;
-  const BlockStyle inherited = heading.getCombinedBlockStyle(plain, BlockStyle::CombineAxis::Horizontal);
+  const BlockStyle inherited = legacy_book_policy::combineHorizontal(heading, plain);
   EXPECT_FLOAT_EQ(inherited.fontScale, 1.5f);
 }
 

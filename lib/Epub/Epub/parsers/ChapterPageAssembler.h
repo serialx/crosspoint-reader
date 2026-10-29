@@ -71,6 +71,7 @@ class ChapterPageAssembler {
   bool finishAssembly() { return xp_chapter_finish(chapter_) != 0; }
   virtual void measureTableAtCurrentPosition() = 0;
   virtual uint8_t* entityBuffer(uint32_t length) = 0;
+  struct ProbeContext;
   uint8_t probeImage(XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width, uint16_t& height);
   uint8_t completeBytes(XpChapterSpan bytes, XpChapterPosition position);
   explicit ChapterPageAssembler(

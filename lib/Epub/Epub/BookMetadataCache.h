@@ -2,6 +2,7 @@
 
 #include <BufferedFile.h>
 #include <HalStorage.h>
+#include <xp_book.h>
 #include <xp_ffi.h>
 
 #include <algorithm>
@@ -55,6 +56,7 @@ class BookMetadataCache {
   bool loaded;
   XpPkgCache* build = nullptr;
   struct BuildStreams;
+  struct ReadContext;
   HalFile& fileFor(uint32_t file);
   static uint32_t control(void*, uint32_t, uint32_t);
   static size_t read(void*, uint32_t, uint8_t*, size_t);
@@ -73,12 +75,12 @@ class BookMetadataCache {
   std::unique_ptr<serialization::BufferedFileWriter> passOut;
 
   // Cumulative spine sizes stay in book.bin; RAM holds every SIZE_WINDOW-th one and one window.
-  static constexpr int SIZE_WINDOW = 32;
+  static constexpr int SIZE_WINDOW = XP_BOOK_METADATA_WINDOW;
   std::vector<uint32_t> windowStarts;  // total before item w * SIZE_WINDOW
   uint32_t bookSize = 0;
   mutable int windowFirst = -1;
   mutable uint32_t window[SIZE_WINDOW] = {};
-  bool fillWindow(int first) const;  // caller holds sizeWindowLock
+  static_assert(sizeof(window) / sizeof(window[0]) == XP_BOOK_METADATA_WINDOW);
 
   SpineEntry readSpineEntry(HalFile& file) const;
   TocEntry readTocEntry(HalFile& file) const;

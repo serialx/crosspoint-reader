@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "../legacy_book_policy.h"
 #include "CssParser.h"
 
 namespace {
@@ -607,22 +608,22 @@ TEST_F(CssParserTest, ParsesBordersAndBackgroundShade) {
   CssParser reader(cachePath());
   ASSERT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
   const CssStyle all = reader.resolveStyle("div", "all");
-  EXPECT_TRUE(all.borderTop.visible() && all.borderRight.visible() && all.borderBottom.visible() &&
-              all.borderLeft.visible());
+  EXPECT_TRUE(legacy_book_policy::visible(all.borderTop) && legacy_book_policy::visible(all.borderRight) &&
+              legacy_book_policy::visible(all.borderBottom) && legacy_book_policy::visible(all.borderLeft));
   EXPECT_EQ(all.borderLeft.width, 1);
   EXPECT_EQ(all.borderLeft.style, CssBorderStyle::Solid);
 
   const CssStyle top = reader.resolveStyle("div", "top");
   EXPECT_EQ(top.borderTop.width, 3);
   EXPECT_EQ(top.borderTop.style, CssBorderStyle::Double);
-  EXPECT_FALSE(top.borderBottom.visible());
+  EXPECT_FALSE(legacy_book_policy::visible(top.borderBottom));
 
   const CssStyle edges = reader.resolveStyle("div", "edges");
-  EXPECT_TRUE(edges.borderTop.visible());
-  EXPECT_TRUE(edges.borderBottom.visible());
-  EXPECT_FALSE(edges.borderLeft.visible());
+  EXPECT_TRUE(legacy_book_policy::visible(edges.borderTop));
+  EXPECT_TRUE(legacy_book_policy::visible(edges.borderBottom));
+  EXPECT_FALSE(legacy_book_policy::visible(edges.borderLeft));
 
-  EXPECT_FALSE(reader.resolveStyle("div", "nostyle").hasVisibleBorder());
+  EXPECT_FALSE(legacy_book_policy::hasVisibleBorder(reader.resolveStyle("div", "nostyle")));
   const CssStyle dashed = reader.resolveStyle("div", "long");
   EXPECT_EQ(dashed.borderLeft.width, 4);
   EXPECT_EQ(dashed.borderLeft.style, CssBorderStyle::Dashed);
@@ -700,7 +701,7 @@ TEST_F(CssParserTest, PreservedWhitespaceSurvivesCacheAndNormalOverridesIt) {
   auto style = reader.resolveStyle("p", "mono");
   ASSERT_TRUE(style.defined.whiteSpace);
   EXPECT_TRUE(style.preserveWhitespace);
-  style.applyOver(reader.resolveStyle("span", "normal"));
+  legacy_book_policy::applyOver(style, reader.resolveStyle("span", "normal"));
   EXPECT_FALSE(style.preserveWhitespace);
 }
 
@@ -710,7 +711,7 @@ TEST_F(CssParserTest, WhiteSpacePreservationValuesAndUnsupportedOverrides) {
     auto style = CssParser::parseInlineStyle(declaration);
     EXPECT_TRUE(style.defined.whiteSpace) << value;
     EXPECT_TRUE(style.preserveWhitespace) << value;
-    style.applyOver(CssParser::parseInlineStyle("white-space: normal"));
+    legacy_book_policy::applyOver(style, CssParser::parseInlineStyle("white-space: normal"));
     EXPECT_TRUE(style.defined.whiteSpace);
     EXPECT_FALSE(style.preserveWhitespace);
   }
@@ -719,7 +720,7 @@ TEST_F(CssParserTest, WhiteSpacePreservationValuesAndUnsupportedOverrides) {
   auto style = CssParser::parseInlineStyle("white-space: pre; white-space: nowrap");
   EXPECT_TRUE(style.defined.whiteSpace);
   EXPECT_TRUE(style.preserveWhitespace);
-  style.applyOver(unsupported);
+  legacy_book_policy::applyOver(style, unsupported);
   EXPECT_TRUE(style.preserveWhitespace);
 }
 
@@ -736,21 +737,21 @@ TEST_F(CssParserTest, BorderComponentsCascadeIndependentlyAndSurviveCache) {
   ASSERT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
   for (const CssParser* parser : {&writer, &reader}) {
     const auto wide = parser->resolveStyle("p", "wide");
-    EXPECT_TRUE(wide.hasVisibleBorder());
+    EXPECT_TRUE(legacy_book_policy::hasVisibleBorder(wide));
     EXPECT_EQ(wide.borderTop.width, 2);
     EXPECT_EQ(wide.borderTop.style, CssBorderStyle::Solid);
     const auto solid = parser->resolveStyle("div", "solid");
-    EXPECT_TRUE(solid.hasVisibleBorder());
+    EXPECT_TRUE(legacy_book_policy::hasVisibleBorder(solid));
     EXPECT_EQ(solid.borderLeft.width, 3);
     const auto top = parser->resolveStyle("p", "top");
     EXPECT_EQ(top.borderTop.width, 4);
     EXPECT_EQ(top.borderTop.style, CssBorderStyle::Solid);
     EXPECT_EQ(top.borderLeft.width, 1);
     EXPECT_EQ(top.borderLeft.style, CssBorderStyle::Dashed);
-    EXPECT_FALSE(parser->resolveStyle("p", "none").hasVisibleBorder());
+    EXPECT_FALSE(legacy_book_policy::hasVisibleBorder(parser->resolveStyle("p", "none")));
   }
   const auto inlineStyle = CssParser::parseInlineStyle("border-style: solid; border-width: 2px");
-  EXPECT_TRUE(inlineStyle.hasVisibleBorder());
+  EXPECT_TRUE(legacy_book_policy::hasVisibleBorder(inlineStyle));
   EXPECT_EQ(inlineStyle.borderTop.width, 2);
 }
 

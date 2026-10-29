@@ -1,15 +1,15 @@
 //! Bounded CSS parser and v19 cache, with no storage or renderer dependencies.
 extern crate alloc;
+mod limits;
 mod selector;
 mod style;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
+pub use limits::*;
 pub use selector::{ancestor, Ancestor};
 use selector::{Key, CONTEXT, FIRST_LETTER};
-pub use style::{inline, Style, WIRE_BYTES};
+pub use style::{inline, Style};
 use style::{tokens, trim, whitespace};
-const MAX_RULES: usize = 1500;
-const SELECTOR_CAP: usize = 32768;
 const MAX_STYLES: usize = 256;
 
 #[derive(Clone, Copy)]
@@ -223,8 +223,8 @@ impl Store {
             .map(trim)
             .filter(|s| !s.is_empty())
         {
-            if s.len() > 256 {
-                diagnostics.emit(Diagnostic::SelectorLong, s.len(), 256);
+            if s.len() > MAX_SELECTOR_BYTES {
+                diagnostics.emit(Diagnostic::SelectorLong, s.len(), MAX_SELECTOR_BYTES);
             }
             let Some(key) = selector::canonical(s) else {
                 continue;
@@ -452,7 +452,7 @@ impl Store {
         wire: &[u8],
         diagnostics: &Diagnostics,
     ) -> Result<(), Error> {
-        if key.is_empty() || key.len() > 257 || wire.len() != WIRE_BYTES {
+        if key.is_empty() || key.len() > MAX_CACHE_KEY_BYTES || wire.len() != WIRE_BYTES {
             return Err(Error::Invalid);
         }
         let mut style = Style::default();

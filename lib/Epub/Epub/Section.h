@@ -13,6 +13,7 @@ class Page;
 class GfxRenderer;
 class ChapterHtmlSlimParser;
 class CssParser;
+struct XpBookBuildRecords;
 
 class Section {
   std::shared_ptr<Epub> epub;
@@ -37,6 +38,11 @@ class Section {
   // and the in-RAM page-offset table. The table is a deque so it grows in small chunks: a vector
   // doubling past 1024 pages needs 24 KB contiguous, and a failed allocation aborts. The deque
   // (like the parser's anchor list) takes one ~0.5 KB node as soon as the build starts.
+  XpBookBuildRecords buildRecords() const;
+  struct PolicyContext;
+  struct CommitContext;
+  struct StartContext;
+  struct TocContext;
   struct BuildContext {
     std::unique_ptr<ChapterHtmlSlimParser> parser;
     std::deque<PageLutEntry> lut;
@@ -172,7 +178,5 @@ class Section {
   // re-pagination needs: the old page index no longer names the same content.
   // False with no build running -- there is nothing left to wait for, so the on-disk
   // cache answers directly.
-  bool buildReachedVisibleTextOffset(uint32_t offset) const {
-    return build_ && !build_->lut.empty() && offset <= build_->lut.back().visibleTextOffset;
-  }
+  bool buildReachedVisibleTextOffset(uint32_t offset) const;
 };

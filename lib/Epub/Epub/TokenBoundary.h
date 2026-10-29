@@ -9,16 +9,6 @@
 // breakable attachment after visible hyphens/dashes.
 namespace TokenBoundary {
 
-// A continuation normally forbids a line break. noSpaceBefore marks the fourth state where the
-// text stays attached when unbroken but the line breaker may still stop at the boundary.
-constexpr bool allowsBreak(const bool continues, const bool noSpaceBefore) { return !continues || noSpaceBefore; }
-
-// Ordinary word gaps and CJK zero-width gaps participate in justification. Attached text does
-// not, except for a literal space token with a continuation, including one after a hyphen or ellipsis.
-constexpr bool isJustifiableGap(const bool continues, const bool isStretchableSpace) {
-  return !continues || isStretchableSpace;
-}
-
 // Soft hyphens become visible only when their conditional break is taken. U+2011 exists to forbid
 // a break. Every other character classified by isExplicitHyphen is a visible break opportunity.
 inline bool allowsBreakAfterExplicitHyphen(const uint32_t cp) { return xp_text_break_after_hyphen(cp); }

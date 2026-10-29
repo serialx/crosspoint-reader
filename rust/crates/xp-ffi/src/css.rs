@@ -2,7 +2,10 @@
 extern crate alloc;
 use alloc::{alloc::alloc, boxed::Box, vec::Vec};
 use core::{alloc::Layout, ptr};
-use xp_core::css::{self, Diagnostic, Diagnostics, Error, Store, Stream, WIRE_BYTES};
+use xp_core::css::{
+    self, Diagnostic, Diagnostics, Error, Store, Stream, CACHE_BUFFER_BYTES, CACHE_VERSION,
+    MAX_CACHE_KEY_BYTES, WIRE_BYTES,
+};
 
 pub struct Css {
     pub(crate) store: Store,
@@ -240,7 +243,7 @@ pub unsafe extern "C" fn xp_css_cache_write_begin(
 }
 /// # Safety
 /// Handle is live/exclusive; out has cap writable bytes; written points to usize.
-/// Outputs must not overlap each other, order, or the handle. cap >= 347.
+/// Outputs must not overlap each other, order, or the handle. cap >= CACHE_BUFFER_BYTES.
 /// order has count readable u16s from write_begin, unchanged. Zero written means done.
 #[no_mangle]
 pub unsafe extern "C" fn xp_css_cache_write(
@@ -253,12 +256,12 @@ pub unsafe extern "C" fn xp_css_cache_write(
 ) -> i32 {
     let h = &mut *handle;
     *written = 0;
-    if cap < 347 || count != h.store.rule_count() {
+    if cap < CACHE_BUFFER_BYTES || count != h.store.rule_count() {
         return 2;
     }
     let out = core::slice::from_raw_parts_mut(out, cap);
     if h.write_header {
-        out[0] = 19;
+        out[0] = CACHE_VERSION;
         out[1] = u8::from(!h.complete);
         out[2..4].copy_from_slice(&(h.store.rule_count() as u16).to_le_bytes());
         *written = 4;
@@ -292,7 +295,7 @@ impl CacheReader {
             self.bytes.push(b);
             if !self.header {
                 if self.bytes.len() == 4 {
-                    if self.bytes[0] != 19 || self.bytes[1] > 1 {
+                    if self.bytes[0] != CACHE_VERSION || self.bytes[1] > 1 {
                         if self.bytes[1] > 1 {
                             diagnostics.emit(Diagnostic::CacheFlags, usize::from(self.bytes[1]), 0);
                         }
@@ -309,7 +312,7 @@ impl CacheReader {
                 continue;
             }
             let len = usize::from(u16::from_le_bytes([self.bytes[0], self.bytes[1]]));
-            if len == 0 || len > 257 {
+            if len == 0 || len > MAX_CACHE_KEY_BYTES {
                 diagnostics.emit(Diagnostic::CacheSelectorLength, len, 0);
                 return Err(Error::Invalid);
             }
@@ -382,7 +385,7 @@ pub unsafe extern "C" fn xp_css_cache_read_with_diagnostic(
             diagnostics.emit(Diagnostic::CacheScratchOom, 1, 0);
             return 1;
         };
-        if c.bytes.try_reserve_exact(347).is_err() {
+        if c.bytes.try_reserve_exact(CACHE_BUFFER_BYTES).is_err() {
             diagnostics.emit(Diagnostic::CacheScratchOom, 1, 0);
             return 1;
         }

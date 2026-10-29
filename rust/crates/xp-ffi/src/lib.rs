@@ -28,6 +28,12 @@ mod para;
 mod pkg;
 mod png;
 
+mod book_cache;
+mod book_css;
+mod book_limits;
+mod book_parser;
+mod book_policy;
+mod book_section;
 mod sdfont;
 mod section;
 mod settings;

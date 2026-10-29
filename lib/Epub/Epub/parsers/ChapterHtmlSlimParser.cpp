@@ -2,6 +2,7 @@
 
 #include <Logging.h>
 #include <Memory.h>
+#include <xp_book.h>
 
 #include "../../../expat/expat.h"
 
@@ -18,135 +19,139 @@ namespace {
 }
 }  // namespace
 
-constexpr size_t MIN_SIZE_FOR_POPUP = 10 * 1024;
-constexpr size_t PARSE_BUFFER_SIZE = 1024;
-
+struct ChapterHtmlSlimParser::PolicyContext {
+  ChapterHtmlSlimParser& parser;
+  size_t read = 0;
+  uint64_t result = 0;
+  static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
+    auto& c = *static_cast<PolicyContext*>(raw);
+    auto& self = c.parser;
+    switch (static_cast<XpBookParseOperation>(operation)) {
+      case XP_BOOK_PARSE_ENSURE: {
+        return self.ensureSemantics();
+      }
+      case XP_BOOK_PARSE_BEGIN_ASSEMBLY: {
+        self.beginAssembly();
+        break;
+      }
+      case XP_BOOK_PARSE_OOM: {
+        return self.semanticOom();
+      }
+      case XP_BOOK_PARSE_ALLOCATE_BUFFER: {
+        self.parseBuffer_ = makeUniqueNoThrow<uint8_t[]>(argument);
+        return bool(self.parseBuffer_);
+      }
+      case XP_BOOK_PARSE_SET_CAPACITY: {
+        self.parseBufferCapacity_ = argument;
+        break;
+      }
+      case XP_BOOK_PARSE_OPEN: {
+        return Storage.openFileForRead("EHP", self.filepath, self.parseFile_);
+      }
+      case XP_BOOK_PARSE_HAS_POPUP: {
+        return bool(self.popupFn);
+      }
+      case XP_BOOK_PARSE_SIZE: {
+        return self.parseFile_.size();
+      }
+      case XP_BOOK_PARSE_POPUP: {
+        self.popupFn();
+        break;
+      }
+      case XP_BOOK_PARSE_START_CLOCK: {
+        self.parseStartTime_ = millis();
+        break;
+      }
+      case XP_BOOK_PARSE_STOPPED: {
+        return self.stopRequested;
+      }
+      case XP_BOOK_PARSE_READ: {
+        c.read = self.parseFile_.read(self.parseBuffer_.get(), argument);
+        return c.read;
+      }
+      case XP_BOOK_PARSE_AVAILABLE: {
+        return self.parseFile_.available();
+      }
+      case XP_BOOK_PARSE_FEED: {
+        c.result =
+            xp_chapter_feed_diagnostic(self.chapter_, self.parseBuffer_.get(), static_cast<uint32_t>(c.read), argument);
+        return static_cast<uint8_t>(c.result);
+      }
+      case XP_BOOK_PARSE_FEED_ERROR: {
+        return static_cast<uint32_t>(c.result) >> 8;
+      }
+      case XP_BOOK_PARSE_DESTROY: {
+        xp_chapter_destroy(self.chapter_);
+        self.chapter_ = nullptr;
+        break;
+      }
+      case XP_BOOK_PARSE_RELEASE_BUFFER: {
+        self.parseBuffer_.reset();
+        break;
+      }
+      case XP_BOOK_PARSE_IS_OPEN: {
+        return self.parseFile_.isOpen();
+      }
+      case XP_BOOK_PARSE_CLOSE: {
+        self.parseFile_.close();
+        break;
+      }
+      case XP_BOOK_PARSE_HAS_CHAPTER: {
+        return self.chapter_ != nullptr;
+      }
+      case XP_BOOK_PARSE_FINISH_ASSEMBLY: {
+        return self.finishAssembly();
+      }
+    }
+    return 0;
+  }
+  static void diagnostic(void* raw, uint32_t event, uint32_t) {
+    auto& c = *static_cast<PolicyContext*>(raw);
+    switch (static_cast<XpBookParseEvent>(event)) {
+      case XP_BOOK_PARSE_EVENT_PARSER_OOM:
+        LOG_ERR("EHP", "Couldn't allocate memory for parser");
+        break;
+      case XP_BOOK_PARSE_EVENT_BUFFER_OOM:
+        LOG_ERR("EHP", "Couldn't allocate memory for buffer");
+        break;
+      case XP_BOOK_PARSE_EVENT_LAYOUT_OOM:
+        LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
+        break;
+      case XP_BOOK_PARSE_EVENT_LAYOUT_AFTER_FEED:
+        LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
+        break;
+      case XP_BOOK_PARSE_EVENT_LAYOUT_BEFORE_FINISH:
+        LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
+        break;
+      case XP_BOOK_PARSE_EVENT_LAYOUT_AFTER_FINISH:
+        LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
+        break;
+      case XP_BOOK_PARSE_EVENT_READ_ERROR:
+        LOG_ERR("EHP", "File read error");
+        break;
+      case XP_BOOK_PARSE_EVENT_PARSE_ERROR:
+        logParseError(c.result);
+        break;
+      case XP_BOOK_PARSE_EVENT_TIME:
+        LOG_DBG("EHP", "Time to parse and build pages: %lu ms", millis() - c.parser.parseStartTime_);
+        break;
+    }
+  }
+};
+uint32_t ChapterHtmlSlimParser::parseOperation(const uint32_t action) {
+  PolicyContext context{*this};
+  const XpBookServices io{&context, PolicyContext::operation, nullptr, PolicyContext::diagnostic};
+  return xp_book_parse(&io, action);
+}
 ChapterHtmlSlimParser::~ChapterHtmlSlimParser() { abortParse(); }
-
-bool ChapterHtmlSlimParser::beginParse() {
-  if (!ensureSemantics()) {
-    LOG_ERR("EHP", "Couldn't allocate memory for parser");
-    return false;
-  }
-  beginAssembly();
-  if (semanticOom()) {
-    abortParse();
-    return false;
-  }
-  // Reuse one read buffer across parse steps; keep it off the render task stack.
-  parseBuffer_ = makeUniqueNoThrow<uint8_t[]>(PARSE_BUFFER_SIZE);
-  if (!parseBuffer_) {
-    LOG_ERR("EHP", "Couldn't allocate memory for buffer");
-    abortParse();
-    return false;
-  }
-  parseBufferCapacity_ = PARSE_BUFFER_SIZE;
-
-  if (!Storage.openFileForRead("EHP", filepath, parseFile_)) {
-    abortParse();
-    return false;
-  }
-
-  // Get file size to decide whether to show indexing popup.
-  if (popupFn && parseFile_.size() >= MIN_SIZE_FOR_POPUP) {
-    popupFn();
-  }
-
-  parseStartTime_ = millis();
-  return true;
-}
-
+bool ChapterHtmlSlimParser::beginParse() { return parseOperation(0); }
 ChapterHtmlSlimParser::ParseStatus ChapterHtmlSlimParser::parseStep() {
-  if (stopRequested) return ParseStatus::Error;
-  // Layout OOM latched during the previous buffer's callbacks: fail the build
-  // instead of emitting pages with silently missing text.
-  if (semanticOom()) {
-    LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
-    return ParseStatus::Error;
-  }
-
-  const size_t len = parseFile_.read(parseBuffer_.get(), PARSE_BUFFER_SIZE);
-  if (len == 0 && parseFile_.available() > 0) {
-    LOG_ERR("EHP", "File read error");
-    return ParseStatus::Error;
-  }
-  const bool done = parseFile_.available() == 0;
-  const auto result = xp_chapter_feed_diagnostic(chapter_, parseBuffer_.get(), static_cast<uint32_t>(len), done);
-  const auto status = static_cast<uint8_t>(result);
-  if (static_cast<uint32_t>(result) >> 8) {
-    logParseError(result);
-  } else if (status == 2 && semanticOom()) {
-    LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
-  }
-  switch (status) {
-    case 0:
-      return ParseStatus::More;
-    case 1:
-      return ParseStatus::Done;
-    default:
-      return ParseStatus::Error;
-  }
+  return static_cast<ParseStatus>(parseOperation(1));
 }
-
-void ChapterHtmlSlimParser::abortParse() {
-  if (chapter_) {
-    xp_chapter_destroy(chapter_);
-    chapter_ = nullptr;
-  }
-  parseBuffer_.reset();
-  parseBufferCapacity_ = 0;
-  // Only close the file if it was successfully opened in beginParse()
-  if (parseFile_.isOpen()) {
-    parseFile_.close();
-  }
-}
-
-void ChapterHtmlSlimParser::requestStop() {
-  if (stopRequested) return;
-  stopRequested = true;
-  // The active sink returns this latch after completePageFn unwinds.
-}
-
-bool ChapterHtmlSlimParser::finishParse() {
-  if (stopRequested) return false;
-  // Same check as parseStep(): drops in the final buffer would otherwise slip
-  // through because Done is returned before the next step's check runs.
-  if (semanticOom()) {
-    LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
-    return false;
-  }
-
-  if (chapter_) {
-    LOG_DBG("EHP", "Time to parse and build pages: %lu ms", millis() - parseStartTime_);
-  }
-  parseBuffer_.reset();
-  parseBufferCapacity_ = 0;
-  parseFile_.close();
-  const bool success = finishAssembly();
-  if (!stopRequested && semanticOom()) {
-    LOG_ERR("EHP", "Text layout dropped content (OOM); failing section build");
-  }
-  xp_chapter_destroy(chapter_);
-  chapter_ = nullptr;
-  return success;
-}
-
-bool ChapterHtmlSlimParser::parseAndBuildPages() {
-  if (!beginParse()) {
-    return false;
-  }
-  for (;;) {
-    const ParseStatus status = parseStep();
-    if (status == ParseStatus::Error) {
-      abortParse();
-      return false;
-    }
-    if (status == ParseStatus::Done) {
-      break;
-    }
-  }
-  return finishParse();
-}
+void ChapterHtmlSlimParser::abortParse() { parseOperation(2); }
+bool ChapterHtmlSlimParser::finishParse() { return parseOperation(3); }
+bool ChapterHtmlSlimParser::parseAndBuildPages() { return parseOperation(4); }
+void ChapterHtmlSlimParser::requestStop() { stopRequested = true; }
 
 bool ChapterHtmlSlimParser::measureTableColumns(HalFile& file, TableColumnMeasure& out) const {
   return xp_chapter_measure_table(

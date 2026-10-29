@@ -150,6 +150,7 @@ add_subdirectory(settings_store)
 add_subdirectory(library_oracle)
 
 add_subdirectory(ui_runtime)
+add_subdirectory(reader_chrome)
 
 
 add_subdirectory(sync_golden)

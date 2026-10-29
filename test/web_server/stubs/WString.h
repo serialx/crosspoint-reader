@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <type_traits>
@@ -24,8 +25,16 @@ class String : public std::string {
   bool equals(const String& s) const { return *this == s; }
   bool startsWith(const String& s) const { return starts_with(s); }
   bool endsWith(const String& s) const { return ends_with(s); }
-  int indexOf(char c, size_t from = 0) const { return index(find(c, from)); }
-  int indexOf(const char* s, size_t from = 0) const { return index(find(s, from)); }
+  int indexOf(char c, size_t from = 0) const {
+    if (from >= size()) return -1;
+    const char* found = std::strchr(c_str() + from, c);
+    return found ? static_cast<int>(found - c_str()) : -1;
+  }
+  int indexOf(const char* s, size_t from = 0) const {
+    if (from >= size()) return -1;
+    const char* found = std::strstr(c_str() + from, s);
+    return found ? static_cast<int>(found - c_str()) : -1;
+  }
   int lastIndexOf(char c) const { return index(rfind(c)); }
   String substring(size_t first, size_t last = npos) const {
     if (first > last) std::swap(first, last);

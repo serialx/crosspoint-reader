@@ -1,5 +1,6 @@
 mod config;
 mod fonts;
+mod plugins;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.
 use crate::system_items::hidden_name as hidden;
@@ -115,6 +116,30 @@ impl Text {
         Self::new(s.get(first..last).unwrap_or(&[]))
     }
 }
+impl Text {
+    fn number(&mut self, n: usize) -> Result<()> {
+        let mut bytes = [0; 24];
+        let mut out = Output::new(&mut bytes);
+        out.number(n);
+        self.append(out.bytes())
+    }
+    fn quoted(&mut self, bytes: &[u8]) -> Result<()> {
+        self.append(b"\"")?;
+        // Reuse the shared escaping rules with a bounded scratch loan.
+        for part in bytes.chunks(16) {
+            let mut scratch = [0; 98];
+            let mut out = Output::new(&mut scratch);
+            out.quoted(part);
+            let encoded = out.bytes();
+            self.append(
+                encoded
+                    .get(1..encoded.len().saturating_sub(1))
+                    .unwrap_or(&[]),
+            )?;
+        }
+        self.append(b"\"")
+    }
+}
 #[repr(u32)]
 #[derive(Clone, Copy)]
 enum Io {
@@ -136,6 +161,8 @@ enum Io {
     Create,
     Available,
     OpenRead,
+    EnsureDir,
+    Replace,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -782,6 +809,8 @@ enum Field {
     WsCompleteName,
     FontFamily,
     FontPath,
+    PluginPath,
+    PluginTmp,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]

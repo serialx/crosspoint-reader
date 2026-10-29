@@ -120,6 +120,12 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed fonts behavior")
         print("mutation check: rejected changed fonts behavior")
+        changed = source.replace('"bad plugin path"', '"BAD plugin path"', 1)
+        if changed == source:
+            changed = source.replace('XP_WEB_PLUGIN_FILE);', 'XP_WEB_PLUGIN_LIST);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed plugin behavior")
+        print("mutation check: rejected changed plugin behavior")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
         if changed == source:

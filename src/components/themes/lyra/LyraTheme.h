@@ -84,6 +84,7 @@ constexpr ThemeMetrics values = {.batteryWidth = 16,
 
 class LyraTheme : public BaseTheme {
  public:
+  uint8_t homeThemeKind() const override { return 1; }
   // Component drawing methods
   void fillBatteryIcon(const GfxRenderer& renderer, Rect rect, uint16_t percentage) const override;
   void drawSubHeader(const GfxRenderer& renderer, Rect rect, const char* label,
@@ -91,12 +92,6 @@ class LyraTheme : public BaseTheme {
   void drawButtonHints(GfxRenderer& renderer, const char* btn1, const char* btn2, const char* btn3,
                        const char* btn4) const override;
   void drawSideButtonHints(const GfxRenderer& renderer, const char* topBtn, const char* bottomBtn) const override;
-  void drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
-                      const std::function<std::string(int index)>& buttonLabel,
-                      const std::function<UIIcon(int index)>& rowIcon) const override;
-  void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                           const int selectorIndex, bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
-                           std::function<bool()> storeCoverBuffer) const override;
-  void drawEmptyRecents(const GfxRenderer& renderer, const Rect rect) const;
+
   bool showsFileIcons() const override { return true; }
 };

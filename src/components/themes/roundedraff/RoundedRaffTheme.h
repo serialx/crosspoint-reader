@@ -33,7 +33,7 @@ constexpr ThemeMetrics values = {.batteryWidth = 15,
                                  // A centered clock needs no left title reserve, so RoundedRaff
                                  // can show one after all.
                                  .headerShowsClock = true,
-                                 .menuRowHeight = 42,  // not authoritative: getMenuRowHeight() derives the drawn height
+                                 .menuRowHeight = 42,  // Home derives the drawn height from its title font
                                  .menuSpacing = 6,
                                  .tabSpacing = 10,
                                  .tabBarHeight = 50,
@@ -91,15 +91,10 @@ constexpr ThemeMetrics values = {.batteryWidth = 15,
 
 class RoundedRaffTheme : public BaseTheme {
  public:
+  uint8_t homeThemeKind() const override { return 3; }
   void drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle = nullptr,
                   bool backButton = true) const override;
-  void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                           int selectorIndex, bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
-                           std::function<bool()> storeCoverBuffer) const override;
-  int getMenuRowHeight(const GfxRenderer& renderer) const override;
-  void drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
-                      const std::function<std::string(int index)>& buttonLabel,
-                      const std::function<UIIcon(int index)>& rowIcon) const override;
+
   void drawTextField(const GfxRenderer& renderer, Rect rect, int textWidth, bool cursorMode = false,
                      int contentStartX = 0, int contentWidth = 0) const override;
   void drawButtonHints(GfxRenderer& renderer, const char* btn1, const char* btn2, const char* btn3,

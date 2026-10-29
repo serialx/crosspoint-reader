@@ -166,7 +166,7 @@ std::unique_ptr<T> makeUniqueNoThrow(Args&&... args) {
   return std::make_unique<T>(std::forward<Args>(args)...);
 }
 struct EndOfBookOptions {
-  enum class Action { OpenBook, GoHome, LastPage, Redraw, None };
+#include "base_action.inc"
   bool menu = true;
   Action action = Action::None;
   explicit EndOfBookOptions(GfxRenderer&) { event("end-create"); }

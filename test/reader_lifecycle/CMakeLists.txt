@@ -80,9 +80,10 @@ add_test(NAME reader_loop_oracle_release
     $<TARGET_FILE:ReaderLoopOracleRelease> ${CMAKE_CURRENT_SOURCE_DIR}/loop-release.golden.gz)
 
 set(BASE_METHODS ${CMAKE_CURRENT_BINARY_DIR}/base_methods.inc)
-add_custom_command(OUTPUT ${BASE_METHODS}
+add_custom_command(OUTPUT ${BASE_METHODS} ${CMAKE_CURRENT_BINARY_DIR}/base_action.inc
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_base.py ${REPO_ROOT} ${BASE_METHODS}
   DEPENDS extract_base.py extract.py ${REPO_ROOT}/src/activities/reader/ReaderActivity.cpp
+    ${REPO_ROOT}/src/activities/reader/EndOfBookOptions.h
   VERBATIM)
 add_executable(ReaderBaseOracle base_oracle.cpp ${BASE_METHODS})
 target_include_directories(ReaderBaseOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

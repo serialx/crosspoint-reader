@@ -1,6 +1,7 @@
 """Extract the shared production reader lifecycle against deterministic leaves."""
 import pathlib
 import sys
+import re
 from extract import definition
 
 repo, output = map(pathlib.Path, sys.argv[1:])
@@ -19,3 +20,7 @@ names = (
     "void ReaderActivity::flushReaderSession(",
 )
 output.write_text("\n".join(definition(source, name) for name in names))
+
+header = (repo / "src/activities/reader/EndOfBookOptions.h").read_text()
+action = re.search(r"enum class Action \{[^}]+\};", header).group(0)
+output.with_name("base_action.inc").write_text(action + "\n")

@@ -122,7 +122,11 @@ pub struct Asset {
 impl Request<'_> {
     pub(super) fn page(&self, page: &Asset) {
         let etag = unsafe { (page.request_header)(self.ctx, c"If-None-Match".as_ptr()) };
-        let cached = unsafe { etag.bytes() == page.etag.bytes() };
+        // Arduino String == const char* compares through the first NUL.
+        let cached = unsafe {
+            etag.bytes().split(|&byte| byte == 0).next()
+                == page.etag.bytes().split(|&byte| byte == 0).next()
+        };
         if !cached {
             self.header(b"Content-Encoding\0", b"gzip");
         }

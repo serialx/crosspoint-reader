@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 1657 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 1666 ordered transcripts checked against the original C++.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -193,3 +193,12 @@ python3 test/web_server/mutate_fetch.py --build build/web-mutations \
 It builds isolated Rust copies with each comparison changed by one operator and
 requires a transcript mismatch. The String substitute now also stops lowercasing
 at the first NUL, matching the pinned ESP32 core.
+
+Nine static-route fixtures compare exact ETags, embedded NUL followed by matching
+or different suffixes, initial NUL, and ordinary mismatches. Their body bytes are
+recorded in bounded hexadecimal chunks so large assets cannot hide later events.
+The shared cache helper now follows Arduino C-string comparison for the earlier
+settings, fonts, and runner pages too. The complete suite was replayed against
+the unported server at `22517c67`; one existing runner transcript was corrected
+from that source because slice 4 (`0798b4e8`) accidentally used `sizeof(pointer)`
+as its ETag length. All other earlier records remain unchanged at this step.

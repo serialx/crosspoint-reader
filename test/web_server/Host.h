@@ -46,6 +46,7 @@ inline std::string failOperation;
 inline int failAfter = -1;
 inline bool cancelled = false, connected = true;
 inline bool cryptoTrace = false;
+inline bool chunkStaticBodies = false;
 inline std::function<void()> beforeResume;
 inline void cryptoInput(const char* name, const uint8_t* p, size_t n) {
   if (cryptoTrace) trace.push_back(std::string("crypto-input:") + name + ":" + hex(p, n));
@@ -367,6 +368,14 @@ class WebServer {
   void sendContent(const String& body) const { host::trace.push_back("chunk:" + body); }
   void send(int code) const { send(code, "text/html", ""); }
   void send_P(int code, const char* type, const char* data, size_t n) const {
+    if (host::chunkStaticBodies) {
+      host::trace.push_back("response-bytes:" + std::to_string(code) + ":" + type + ":" + std::to_string(n));
+      for (size_t offset = 0; offset < n; offset += 2048) {
+        host::trace.push_back("static-chunk:" + host::hex(reinterpret_cast<const uint8_t*>(data + offset),
+                                                          std::min(size_t(2048), n - offset)));
+      }
+      return;
+    }
     std::string hex;
     hex.reserve(n * 2);
     constexpr char digits[] = "0123456789abcdef";
@@ -425,6 +434,8 @@ struct NetworkUDP {
 
 // These helpers are supplied from the repository source by the extractor.
 namespace FsHelpers {
+// Frozen pre-port HiddenItems.h table, for original-C++ oracle replays.
+inline constexpr const char* HIDDEN_ITEMS[] = {"System Volume Information", "XTCache"};
 std::string normalisePath(std::string_view path);
 bool isSafePathComponent(std::string_view name);
 bool checkFileExtension(std::string_view name, const char* extension);

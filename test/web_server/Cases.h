@@ -17,6 +17,7 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::failAfter = -1;
   host::writeLimit = SIZE_MAX;
   host::cryptoTrace = false;
+  host::chunkStaticBodies = false;
   host::beforeResume = {};
   pluginhttp::beforeRequest = {};
   freeink::content::beforePkcs12 = {};
@@ -131,6 +132,28 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
     auto file = files[path].to<JsonObject>();
     file["directory"] = node->directory;
     file["hex"] = host::hex(reinterpret_cast<const uint8_t*>(node->bytes.data()), node->bytes.size());
+  }
+  if (std::getenv("WEB_TRACE_AUDIT")) {
+    JsonDocument audit;
+    audit["case"] = name;
+    audit["source_events"] = host::trace.size();
+    audit["recorded_events"] = events.size();
+    audit["overflowed"] = output.overflowed();
+    audit["files_present"] = output["files"].is<JsonObject>();
+    size_t largest = 0;
+    auto oversized = audit["oversized_events"].to<JsonArray>();
+    for (size_t i = 0; i < host::trace.size(); ++i) {
+      largest = std::max(largest, host::trace[i].size());
+      if (host::trace[i].size() >= 65000) {
+        auto event = oversized.add<JsonObject>();
+        event["index"] = i;
+        event["bytes"] = host::trace[i].size();
+        event["prefix"] = host::trace[i].substr(0, 48);
+      }
+    }
+    audit["largest_event_bytes"] = largest;
+    serializeJson(audit, std::cerr);
+    std::cerr << '\n';
   }
   serializeJson(output, std::cout);
   std::cout << '\n';
@@ -1759,6 +1782,25 @@ int main() {
         app.resumeTransferServices();
       } else {
         app.begin();
+      }
+    });
+  }
+  for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
+                           "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+    record((std::string("life-static-cstring:") + path).c_str(), [&](auto& app) {
+      host::chunkStaticBodies = true;
+      app.running = false;
+      app.begin();
+      auto handler = app.server->routes.at(std::string("0:") + path);
+      handler();
+      const auto it = std::find_if(host::trace.rbegin(), host::trace.rend(),
+                                   [](const auto& line) { return line.starts_with("header:ETag:"); });
+      if (it == host::trace.rend()) std::abort();
+      const auto etag = it->substr(12);
+      for (const auto& value : {etag, etag + std::string("\0suffix", 7), std::string("\0", 1) + etag,
+                                etag + std::string("\0different", 10), std::string("mismatch")}) {
+        app.server->headers["If-None-Match"] = String(value.data(), value.size());
+        handler();
       }
     });
   }

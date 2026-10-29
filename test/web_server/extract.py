@@ -193,6 +193,26 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed fetch policy")
         print("mutation check: rejected changed fetch policy")
+        changed = source.replace("delay(20);", "delay(21);", 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed stop ordering delay")
+        print("mutation check: rejected changed stop delay")
+        changed = source.replace('doc["mode"] = apMode ? "AP" : "STA";',
+                                 'doc["mode"] = apMode ? "STA" : "AP";', 1)
+        if changed == source:
+            changed = source.replace('&WebStatusBridge::services, apMode);',
+                                     '&WebStatusBridge::services, !apMode);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed status mode")
+        print("mutation check: rejected changed status mode")
+        changed = source.replace('HomePageHtml, sizeof(HomePageHtml), HomePageHtmlETag',
+                                 'FilesPageHtml, sizeof(FilesPageHtml), FilesPageHtmlETag', 1)
+        if changed == source:
+            changed = source.replace('WebFileBridge::page(*this, XP_WEB_PAGE_HOME);',
+                                     'WebFileBridge::page(*this, XP_WEB_PAGE_FILES);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed static resource")
+        print("mutation check: rejected changed static resource")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
         if changed == source:

@@ -2064,6 +2064,7 @@ typedef struct {
   size_t path_len;
   uint8_t* destination;
   size_t destination_len;
+  // NUL-terminated upload path, or null if unavailable; cleanup still closes the file.
   const uint8_t* temp;
   uint32_t depth;
   bool overwrite, body;
@@ -2111,6 +2112,10 @@ bool xp_lcp_existing(const XpLcpServices*, bool* not_enrollable);
 bool xp_lcp_ensure(const XpLcpServices*, bool* not_enrollable);
 void xp_lcp_forget(const XpLcpServices*);
 bool xp_lcp_unwrap(const XpLcpServices*, uint8_t out[32]);
+
+// System item name only; callers own dotfile and path-component policy.
+// data borrows len readable bytes; null is allowed only for zero length.
+bool xp_system_item_name(const uint8_t* data, size_t len);
 
 #ifdef __cplusplus
 }

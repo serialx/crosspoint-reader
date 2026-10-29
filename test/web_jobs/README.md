@@ -6,8 +6,9 @@ bytes, diagnostic messages, callback order, file effects, progress updates and
 firmware scratch allocations. The test executables use scripted platform leaves;
 they never contact a server, open a device, or write a flash partition.
 
-CMake registers four tests: `web_jobs_oracle`, `web_dav_oracle`,
-`web_lcp_oracle`, and `web_lcp_disabled_oracle`. Build the shared host archive
+CMake registers four frozen oracle tests: `web_jobs_oracle`, `web_dav_oracle`,
+`web_lcp_oracle`, and `web_lcp_disabled_oracle`, plus `web_dav_allocation`
+and `web_system_items`. Build the shared host archive
 before running them:
 
 ```sh
@@ -34,6 +35,27 @@ wire parsing, WiFi power transitions or real OTA writes. The simulated slow
 response records elapsed transport time; it does not sleep on the host.
 Firmware allocation traces cover the existing 4,096-byte scratch buffer and its
 failure/release paths, not every STL/platform allocation.
+
+`web_dav_allocation` starts a PUT with a 206-byte path and long request headers,
+then injects allocation failure during RAW_END after a short write, during successful RAW_END, and
+during RAW_ABORTED. The failed-write end must allocate nothing, close the
+upload handle, and retain the original failure response and file cleanup.
+The other two cases must close the handle and report failure without an
+infallible allocation. Run the same cases against the original export with
+`run.py --source ORIGINAL --build OUTPUT --dav-allocation`.
+
+This test models the ESP32 WString copy/concatenation operations used by these
+paths: 14 inline bytes, capacity rounded to 16 bytes, and allocation failure
+that invalidates a copy or leaves concatenation unchanged. It is not a complete
+WString implementation. An armed global C++ allocation gate detects infallible
+path allocations; scripted storage and diagnostic trace bookkeeping are outside
+the gate. It does not simulate heap pressure inside the SDK or filesystem.
+
+`web_system_items` compares the production C++ hidden-name table with the Rust
+name predicate, DAV GET protection, and library path filtering. Dotfile policy
+remains with each caller, including the library's allowance for `.`. Passing
+`--system-items-header PATH` to `run.py --system-items` permits a temporary table
+mutation to check that an independent policy change is detected.
 
 For a differential check, export the original `src/network` outside the source
 tree and pass `--source` to `run.py`; include `--archive` for a Rust candidate.

@@ -1,6 +1,7 @@
 #include "WebDAVHandler.h"
 
 #include <Logging.h>
+#include <Memory.h>
 
 #include "ClippingStore.h"
 #include "util/BookCacheUtils.h"
@@ -50,12 +51,22 @@ std::string requestPath(const String& uri, bool destination) {
                                  reinterpret_cast<uint8_t*>(result.data())));
   return result;
 }
+std::unique_ptr<char[]> temporaryPath(const char* path, size_t length) {
+  auto result = makeUniqueNoThrow<char[]>(length + sizeof(".davtmp"));
+  if (!result) {
+    LOG_ERR("DAV", "Failed to allocate %u bytes for upload path", (unsigned)(length + sizeof(".davtmp")));
+    return {};
+  }
+  memcpy(result.get(), path, length);
+  memcpy(result.get() + length, ".davtmp", sizeof(".davtmp"));
+  return result;
+}
 struct Context {
   WebServer& server;
   char* path;
   size_t pathLength;
   std::string destination;
-  std::string temp;
+  std::unique_ptr<char[]> temp;
   HalFile root;
   HalFile entry;
   HalFile& upload;
@@ -204,9 +215,9 @@ void diagnostic(void* opaque, uint32_t event, size_t a, size_t b) {
       break;
   }
 }
-XpDavServices services(Context& c) {
-  const String overwrite = c.server.header("Overwrite");
-  const String depth = c.server.header("Depth");
+XpDavServices services(Context& c, bool requestHeaders) {
+  const String overwrite = requestHeaders ? c.server.header("Overwrite") : String{};
+  const String depth = requestHeaders ? c.server.header("Depth") : String{};
   const uint32_t flags = xp_dav_headers(reinterpret_cast<const uint8_t*>(depth.c_str()), depth.length(),
                                         reinterpret_cast<const uint8_t*>(overwrite.c_str()), overwrite.length());
   return {&c,
@@ -219,7 +230,7 @@ XpDavServices services(Context& c) {
           c.pathLength,
           reinterpret_cast<uint8_t*>(c.destination.data()),
           c.destination.size(),
-          reinterpret_cast<const uint8_t*>(c.temp.c_str()),
+          reinterpret_cast<const uint8_t*>(c.temp.get()),
           flags & 1u,
           (flags & 2u) != 0,
           c.server.clientContentLength() > 0};
@@ -234,12 +245,12 @@ bool WebDAVHandler::handle(WebServer& server, HTTPMethod method, const String&) 
             path.data(),
             path.size(),
             id == 7 || id == 8 ? requestPath(server.header("Destination"), true) : std::string{},
-            id == 4 ? path + ".davtmp" : std::string{},
+            id == 4 && !putState.ok ? temporaryPath(path.c_str(), path.size()) : nullptr,
             {},
             {},
             putFile,
             {}};
-  const auto api = services(c);
+  const auto api = services(c, true);
   return xp_dav_handle(&api, &putState, id);
 }
 void WebDAVHandler::raw(WebServer& server, const String&, HTTPRaw& raw) {
@@ -262,10 +273,9 @@ void WebDAVHandler::raw(WebServer& server, const String&, HTTPRaw& raw) {
       return;
   }
   Context c{server, putPath.begin(), putPath.length(), {}, {}, {}, {}, putFile, {}};
-  if (event != 1) {
-    c.temp = putPath.c_str();
-    c.temp += ".davtmp";
+  if (event == 0 || event == 3 || (event == 2 && putState.ok)) {
+    c.temp = temporaryPath(putPath.c_str(), putPath.length());
   }
-  const auto api = services(c);
+  const auto api = services(c, false);
   xp_dav_raw(&api, &putState, event, raw.buf, raw.currentSize, raw.totalSize);
 }

@@ -103,7 +103,7 @@ impl Services {
 }
 fn hidden(path: &[u8]) -> bool {
     path.split(|&b| b == b'/')
-        .any(|s| s.starts_with(b".") || s == b"System Volume Information" || s == b"XTCache")
+        .any(|s| s.starts_with(b".") || crate::system_items::hidden_name(s))
 }
 fn mime(path: &[u8]) -> &'static [u8] {
     let ext = path
@@ -482,7 +482,9 @@ pub unsafe extern "C" fn xp_dav_handle(
             if hidden(s.path()) {
                 s.text(403, b"Forbidden\0");
             } else if !(*state).ok {
-                s.path_op(Op::Remove, s.temp);
+                if !s.temp.is_null() {
+                    s.path_op(Op::Remove, s.temp);
+                }
                 s.text(500, b"Write failed - incomplete upload or disk full\0");
             } else {
                 s.path_op(Op::ClearCache, s.path);
@@ -520,6 +522,11 @@ pub unsafe extern "C" fn xp_dav_raw(
     let s = &*s;
     match event {
         0 => {
+            if s.temp.is_null() {
+                s.file(Op::Close, 2);
+                (*state).ok = false;
+                return;
+            }
             if hidden(s.path()) || !s.parent_exists(s.path, s.path_len) {
                 (*state).ok = false;
                 return;
@@ -548,6 +555,7 @@ pub unsafe extern "C" fn xp_dav_raw(
         }
         2 => {
             s.file(Op::Close, 2);
+            (*state).ok &= !s.temp.is_null();
             if (*state).ok {
                 if (*state).existed {
                     s.path_op(Op::Remove, s.path);
@@ -566,7 +574,9 @@ pub unsafe extern "C" fn xp_dav_raw(
         }
         3 => {
             s.file(Op::Close, 2);
-            s.path_op(Op::Remove, s.temp);
+            if !s.temp.is_null() {
+                s.path_op(Op::Remove, s.temp);
+            }
             (*state).ok = false;
         }
         _ => {}

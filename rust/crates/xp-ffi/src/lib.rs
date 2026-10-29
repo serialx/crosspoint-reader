@@ -25,6 +25,7 @@ mod png;
 mod sdfont;
 mod section;
 mod settings;
+mod system_items;
 mod text;
 mod textm;
 mod web_jobs;

@@ -9,6 +9,8 @@
 #include <set>
 #include <string>
 #include <vector>
+
+#include "AllocationFault.h"
 namespace oracle {
 inline std::vector<std::string> trace;
 inline std::map<std::string, std::vector<uint8_t>> files;
@@ -21,6 +23,7 @@ inline unsigned hash(const uint8_t* p, size_t n) {
   return h;
 }
 inline void record(const char* fmt, ...) {
+  allocation_fault::PlatformScope allocationScope;
   char b[1024];
   va_list a;
   va_start(a, fmt);

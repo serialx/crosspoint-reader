@@ -68,6 +68,7 @@ class HalFile {
     return f;
   }
   bool open(const char* p, bool write) {
+    allocation_fault::PlatformScope allocationScope;
     path = p;
     pos = 0;
     opened = oracle::fault != "open" && (write || oracle::files.count(p) || oracle::dirs.count(p));
@@ -102,6 +103,7 @@ struct StorageType {
   bool openFileForRead(const char*, const char* p, HalFile& f) { return f.open(p, false); }
   bool openFileForWrite(const char*, const char* p, HalFile& f) { return f.open(p, true); }
   bool remove(const char* p) {
+    allocation_fault::PlatformScope allocationScope;
     oracle::record("remove %s", p);
     return oracle::files.erase(p);
   }

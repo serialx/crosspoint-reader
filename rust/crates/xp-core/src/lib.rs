@@ -1,6 +1,7 @@
 #![no_std]
 
 pub mod bidi;
+pub mod book;
 pub mod chapter;
 pub mod css;
 pub mod epub;

@@ -172,3 +172,5 @@ add_subdirectory(plugin_policy)
 add_subdirectory(hal_policy)
 set_tests_properties(TrustedTimeTimezone PROPERTIES
   ENVIRONMENT "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}")
+
+add_subdirectory(book_io)

@@ -13,6 +13,8 @@
 #include "Epub/css/CssParser.h"
 
 class ZipFile;
+struct XpBookIoServices;
+struct XpBookMetadataServices;
 
 class Epub {
  public:
@@ -46,10 +48,16 @@ class Epub {
   // User-presentable reason the encrypted-entry accessor could not be opened.
   std::string protectionError;
 
+  bool loadMetadataFromSource(std::string& title, std::string& author);
+  XpBookMetadataServices cacheServices() const;
+  struct ItemContext;
+  static XpBookIoServices itemServices(ItemContext& context);
+  struct CoverContext;
+  bool generateBmp(CoverContext& context) const;
+
   bool findContentOpfFile(std::string* contentOpfFile, ZipFile* sharedZip = nullptr) const;
   bool parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, bool writeSpineEntries = true,
                        bool metadataOnly = false, ZipFile* sharedZip = nullptr);
-  bool generateThumbBmpForCover(int height, const std::string& coverImageHref) const;
   bool openProtection();
   bool parseTocNcxFile() const;
   bool parseTocNavFile() const;

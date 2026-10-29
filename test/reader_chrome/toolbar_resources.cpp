@@ -53,6 +53,13 @@ int main() {
     old.model_.panel = now.model_.panel = true;
     old.model_.denseRows = now.model_.denseRows = true;
     old.model_.selectedIndex = now.model_.selectedIndex = 0;
+    old.model_.rowCheckbox = now.model_.rowCheckbox = [](void*, int index, ui::ListItem& item) {
+      if (index % 3 != 0) {
+        item.value = nullptr;
+        item.toggle = true;
+        item.toggleChecked = index % 3 == 2;
+      }
+    };
     old.model_.rowText = [&](int) {
       ++oldCalls;
       return std::string(1024, 'A');
@@ -119,6 +126,14 @@ int main() {
         newPayload += now.windowLabels_[i].size();
       }
       assert(oldPayload == newPayload && newPayload == 1024u * newCalls);
+      for (int i = 0; i < newCalls; ++i) {
+        XpUiReaderRow row{};
+        const int index = now.windowFirst + i;
+        assert(rows.row(rows.context, index, &row));
+        ui::ListItem expected;
+        old.model_.rowCheckbox(old.model_.rowCheckboxContext, index, expected);
+        assert(row.toggle == expected.toggle && row.checked == expected.toggleChecked);
+      }
       std::printf("resources %dx%d repaint %d: old/new callbacks %d/%d allocations %u/%u label bytes %zu/%zu\n", width,
                   height, repaint, oldCalls, newCalls, oldAllocations, allocations, oldPayload, newPayload);
       state = next;

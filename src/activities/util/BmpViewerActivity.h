@@ -13,6 +13,9 @@ class BmpViewerActivity final : public BootUiActivity {
   void onEnter() override;
   void onExit() override;
   void loop() override { RustActivityAdapter::loop(); }
+  void render(RenderLock&&) override {
+    if (rustSceneRejected()) paintImageView();
+  }
   XpUiInterest rustInterest(uint32_t) const override;
   XpUiEffect updateRust(const XpUiInput&) override;
   void applyRustEffect(const XpUiEffect&) override;
@@ -23,6 +26,7 @@ class BmpViewerActivity final : public BootUiActivity {
   void doSetSleepCover();
   bool canSetSleepCover() const;
   bool renderImage();
+  void paintImageView();
   bool saveJpegSleepCover();
 
   std::string filePath;

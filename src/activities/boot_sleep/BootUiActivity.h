@@ -10,6 +10,20 @@ class BootUiActivity : public RustActivityAdapter {
 
  protected:
   using RustActivityAdapter::RustActivityAdapter;
+  // Image/gray views publish together; a later successful hint cannot hide failure.
+  class ViewPublication {
+    BootUiActivity& owner;
+
+   public:
+    explicit ViewPublication(BootUiActivity& owner) : owner(owner) {
+      owner.deferPublication = true;
+      owner.viewsValid = true;
+    }
+    ~ViewPublication() {
+      owner.deferPublication = false;
+      if (owner.viewsValid) owner.publishRustScene(XpUiScene{});
+    }
+  };
   struct ViewData {
     const char* subtitle = nullptr;
     const char* error = nullptr;
@@ -27,5 +41,6 @@ class BootUiActivity : public RustActivityAdapter {
   bool paintBootViewInto(XpUiBootView view, XpUiRefresh refresh, const ViewData& data, uint16_t flags,
                          const XpUiBuffer& buffer);
   const ViewData* activeView = nullptr;
+  bool deferPublication = false, viewsValid = true;
   const char* resourceText(uint32_t handle) const;
 };

@@ -162,6 +162,11 @@ void BmpViewerActivity::onEnter() {
 
   state.count = siblingImages.size();
   state.can_set_cover = canSetSleepCover();
+  paintImageView();
+}
+
+void BmpViewerActivity::paintImageView() {
+  ViewPublication publication(*this);
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
   Rect popupRect = GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));

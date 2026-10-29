@@ -1,9 +1,12 @@
+#include <xp_ui_reader.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -279,6 +282,9 @@ struct Popup {
   }
 };
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {}
+  };
   enum class Overlay { None, Toolbar, Contents, Text, More };
   Popup loadFailurePopup;
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();

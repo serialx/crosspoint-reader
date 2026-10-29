@@ -106,6 +106,26 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
       }
       return 0;
     }
+    // Keep event formatting buffers off the page-render call chain.
+    __attribute__((noinline)) void emitSession() {
+      char startTime[24], endTime[24], duration[16], startProgress[8], endProgress[8];
+      snprintf(startTime, sizeof(startTime), "%lld", static_cast<long long>(session.startTime()));
+      snprintf(endTime, sizeof(endTime), "%lld", static_cast<long long>(session.endTime()));
+      snprintf(duration, sizeof(duration), "%lu", static_cast<unsigned long>(session.durationSeconds()));
+      snprintf(startProgress, sizeof(startProgress), "%u", session.startProgressBp());
+      snprintf(endProgress, sizeof(endProgress), "%u", session.endProgressBp());
+      const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()},     {"document", document->c_str()},
+                                        {"start_time", startTime},        {"end_time", endTime},
+                                        {"duration_seconds", duration},   {"start_progress_bp", startProgress},
+                                        {"end_progress_bp", endProgress}, {"progress_scale", "10000"}};
+      pluginevents::emit(pluginevents::Event::ReaderSession, vars, 8);
+    }
+    __attribute__((noinline)) void emitExit() {
+      char percent[8];
+      snprintf(percent, sizeof(percent), "%d", o.getScreenshotInfo().progressPercent);
+      const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()}, {"percent", percent}};
+      pluginevents::emit(pluginevents::Event::ReaderExit, vars, 2);
+    }
     uint32_t command(uint8_t cmd, int32_t a, int32_t b) {
       switch (static_cast<XpUiReaderBaseCommand>(cmd)) {
         case XP_UI_READER_BASE_COMMAND_FORCE_REFRESH:
@@ -169,25 +189,12 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           document.emplace(KOReaderDocumentId::calculate(o.bookPath));
           return document->size();
           break;
-        case XP_UI_READER_BASE_COMMAND_EMIT_SESSION: {
-          char startTime[24], endTime[24], duration[16], startProgress[8], endProgress[8];
-          snprintf(startTime, sizeof(startTime), "%lld", static_cast<long long>(session.startTime()));
-          snprintf(endTime, sizeof(endTime), "%lld", static_cast<long long>(session.endTime()));
-          snprintf(duration, sizeof(duration), "%lu", static_cast<unsigned long>(session.durationSeconds()));
-          snprintf(startProgress, sizeof(startProgress), "%u", session.startProgressBp());
-          snprintf(endProgress, sizeof(endProgress), "%u", session.endProgressBp());
-          const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()},     {"document", document->c_str()},
-                                            {"start_time", startTime},        {"end_time", endTime},
-                                            {"duration_seconds", duration},   {"start_progress_bp", startProgress},
-                                            {"end_progress_bp", endProgress}, {"progress_scale", "10000"}};
-          pluginevents::emit(pluginevents::Event::ReaderSession, vars, 8);
-        } break;
-        case XP_UI_READER_BASE_COMMAND_EMIT_EXIT: {
-          char percent[8];
-          snprintf(percent, sizeof(percent), "%d", o.getScreenshotInfo().progressPercent);
-          const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()}, {"percent", percent}};
-          pluginevents::emit(pluginevents::Event::ReaderExit, vars, 2);
-        } break;
+        case XP_UI_READER_BASE_COMMAND_EMIT_SESSION:
+          emitSession();
+          break;
+        case XP_UI_READER_BASE_COMMAND_EMIT_EXIT:
+          emitExit();
+          break;
         case XP_UI_READER_BASE_COMMAND_ORIENTATION_PORTRAIT:
           o.renderer.setOrientation(GfxRenderer::Orientation::Portrait);
           break;

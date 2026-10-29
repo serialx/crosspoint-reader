@@ -33,8 +33,11 @@ def generate(repo, output):
     load = definition(reader, 'if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f))')
     methods.append("void EpubReaderActivity::loadProgress() { HalFile f; " + load + " }")
     loop = definition(reader, "void EpubReaderActivity::loop()")
-    suffix = loop[loop.index("  constexpr unsigned long kMinManualTurnGapMs"):]
-    methods.append("void EpubReaderActivity::turnInput() { const auto touch = touchInput;\n" + suffix)
+    if "xp_ui_reader_loop_run" in loop:
+        methods.append((repo / "test/reader_lifecycle/turn_input_rust.inc").read_text())
+    else:
+        suffix = loop[loop.index("  constexpr unsigned long kMinManualTurnGapMs"):]
+        methods.append("void EpubReaderActivity::turnInput() { const auto touch = touchInput;\n" + suffix)
     methods.append("namespace ReaderUtils {\n" + "\n".join(
         definition(utils, signature) for signature in (
             "inline bool gestureAllowsSwipe(", "inline bool gestureAllowsTap(",

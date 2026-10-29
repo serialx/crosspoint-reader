@@ -177,7 +177,82 @@ static void basePointers() {
   assert(calls == 0);
 }
 
+static void loopPointers() {
+  uint32_t calls = 0;
+  const XpUiReaderLoopServices complete{&calls,
+                                        [](void* p, uint8_t) -> uint32_t {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return 0;
+                                        },
+                                        [](void* p, uint8_t, uint32_t) { ++*static_cast<uint32_t*>(p); },
+                                        [](void* p, uint8_t) -> uint32_t {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return 0;
+                                        },
+                                        [](void* p, uint8_t, int32_t, int32_t) -> uint32_t {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return 0;
+                                        },
+                                        [](void* p) -> XpUiReaderTurnInput {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return {};
+                                        },
+                                        [](void* p) -> XpUiReaderTurnInput {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return {};
+                                        },
+                                        [](void* p, uint8_t, int32_t*, int32_t*) -> uint8_t {
+                                          ++*static_cast<uint32_t*>(p);
+                                          return 0;
+                                        }};
+  xp_ui_reader_loop_run(nullptr);
+  for (int missing = 0; missing < 7; ++missing) {
+    auto services = complete;
+    if (missing == 0) services.model_read = nullptr;
+    if (missing == 1) services.model_write = nullptr;
+    if (missing == 2) services.query = nullptr;
+    if (missing == 3) services.command = nullptr;
+    if (missing == 4) services.touch = nullptr;
+    if (missing == 5) services.buttons = nullptr;
+    if (missing == 6) services.point = nullptr;
+    xp_ui_reader_loop_run(&services);
+  }
+  assert(calls == 0);
+}
+
+static void overlayPointers() {
+  uint32_t calls = 0;
+  const XpUiReaderOverlayServices complete{&calls,
+                                           [](void* p, uint8_t) -> uint32_t {
+                                             ++*static_cast<uint32_t*>(p);
+                                             return 0;
+                                           },
+                                           [](void* p, uint8_t, uint32_t) { ++*static_cast<uint32_t*>(p); },
+                                           [](void* p, uint8_t) -> uint32_t {
+                                             ++*static_cast<uint32_t*>(p);
+                                             return 0;
+                                           },
+                                           [](void* p, uint8_t, int32_t, int32_t) -> uint32_t {
+                                             ++*static_cast<uint32_t*>(p);
+                                             return 0;
+                                           }};
+  xp_ui_reader_overlay_run(nullptr, 0);
+  xp_ui_reader_overlay_run(&complete, 255);
+  for (int missing = 0; missing < 4; ++missing) {
+    auto services = complete;
+    if (missing == 0) services.read = nullptr;
+    if (missing == 1) services.write = nullptr;
+    if (missing == 2) services.query = nullptr;
+    if (missing == 3) services.command = nullptr;
+    for (uint8_t operation = 0; operation <= XP_UI_READER_OVERLAY_OPERATION_PICKER_RESULT; ++operation)
+      xp_ui_reader_overlay_run(&services, operation);
+  }
+  assert(calls == 0);
+}
+
 int main() {
+  overlayPointers();
+  loopPointers();
   basePointers();
   renderPointers();
   inputPointers();

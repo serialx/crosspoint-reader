@@ -436,4 +436,6 @@ const _: () = {
 pub mod render;
 
 pub mod base;
+pub mod epub_loop;
+pub mod epub_overlay;
 pub mod values;

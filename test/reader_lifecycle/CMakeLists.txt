@@ -2,7 +2,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(READER_METHODS ${CMAKE_CURRENT_BINARY_DIR}/reader_methods.inc)
 add_custom_command(OUTPUT ${READER_METHODS}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract.py ${REPO_ROOT} ${READER_METHODS}
-  DEPENDS extract.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+  DEPENDS extract.py turn_input_rust.inc ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
     ${REPO_ROOT}/src/activities/reader/ReaderUtils.h
   VERBATIM)
 add_executable(ReaderLifecycleOracle oracle.cpp ${READER_METHODS}
@@ -67,12 +67,14 @@ add_custom_command(OUTPUT ${LOOP_METHODS}
     ${REPO_ROOT}/src/activities/reader/ReaderUtils.h
   VERBATIM)
 add_executable(ReaderLoopOracle loop_oracle.cpp ${LOOP_METHODS})
+target_link_libraries(ReaderLoopOracle PRIVATE crosspoint_test_common)
 target_include_directories(ReaderLoopOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
 add_test(NAME reader_loop_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
     $<TARGET_FILE:ReaderLoopOracle> ${CMAKE_CURRENT_SOURCE_DIR}/loop.golden.gz)
 
 add_executable(ReaderLoopOracleRelease loop_oracle.cpp ${LOOP_METHODS})
+target_link_libraries(ReaderLoopOracleRelease PRIVATE crosspoint_test_common)
 target_compile_definitions(ReaderLoopOracleRelease PRIVATE LOOP_LOG_LEVEL=1)
 target_include_directories(ReaderLoopOracleRelease PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
 add_test(NAME reader_loop_oracle_release
@@ -113,7 +115,8 @@ add_test(NAME reader_close_overlay
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_close_overlay.py)
 
 add_test(NAME reader_overlay_input
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_overlay_input.py)
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_overlay_input.py)
 
 add_test(NAME reader_build_popup_lifetime
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_build_popup_lifetime.py)

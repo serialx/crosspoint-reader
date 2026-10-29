@@ -119,6 +119,7 @@ impl Engine {
     fn op(&self, op: Op) -> u32 {
         unsafe { (self.execute)(self.context, &op) }
     }
+    #[inline(never)]
     fn command(&self, kind: Kind, value: u32) -> u32 {
         self.op(Op {
             kind: kind as u8,
@@ -129,6 +130,7 @@ impl Engine {
     fn simple(&self, kind: Kind) -> u32 {
         self.command(kind, 0)
     }
+    #[inline(never)]
     fn display(&self, kind: Kind, mode: Refresh) -> u32 {
         self.op(Op {
             kind: kind as u8,
@@ -136,6 +138,7 @@ impl Engine {
             ..Op::default()
         })
     }
+    #[inline(never)]
     fn mode(&self, mode: u8) {
         self.op(Op {
             kind: Kind::Mode as u8,

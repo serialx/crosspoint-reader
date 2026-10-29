@@ -11,9 +11,45 @@ def method(name):
     return source[start:end]
 
 entry = method('openFootnoteSelect')
-tap_start = source.index('  // Link taps take priority')
-tap_end = source.index('  const bool touchMenu', tap_start)
-tap = source[tap_start:tap_end]
+tap_start = source.index('        case XP_UI_READER_LOOP_COMMAND_MATCH_LINK:')
+tap_end = source.index('        case XP_UI_READER_LOOP_COMMAND_BACK_NAVIGATION:', tap_start)
+tap_commands = source[tap_start:tap_end]
+point_start = source.index('        int a = 0, b = 0;', source.index('[](void* p, uint8_t q, int32_t* x'))
+point_end = source.index('      }};', point_start)
+tap_point = source[point_start:point_end]
+tap = """
+  struct Context {
+    EpubReaderActivity& o;
+    std::string href;
+    uint32_t command(uint8_t cmd, int32_t a, int32_t b) {
+      switch (cmd) {
+""" + tap_commands + """
+        case XP_UI_READER_LOOP_COMMAND_BACK_NAVIGATION: return 1;
+        default: return 0;
+      }
+      return 0;
+    }
+  } context{*this, {}};
+  const XpUiReaderLoopServices services{
+    &context,
+    [](void*, uint8_t) -> uint32_t { return 0; },
+    [](void*, uint8_t, uint32_t) {},
+    [](void*, uint8_t query) -> uint32_t {
+      return query == XP_UI_READER_LOOP_QUERY_HAS_EPUB ||
+             query == XP_UI_READER_LOOP_QUERY_TOUCH_CONTROLS ||
+             query == XP_UI_READER_LOOP_QUERY_HAS_TOUCH;
+    },
+    [](void* p, uint8_t c, int32_t a, int32_t b) {
+      return static_cast<Context*>(p)->command(c, a, b);
+    },
+    [](void*) -> XpUiReaderTurnInput { return {}; },
+    [](void*) -> XpUiReaderTurnInput { return {}; },
+    [](void* p, uint8_t q, int32_t* x, int32_t* y) -> uint8_t {
+      auto& o = static_cast<Context*>(p)->o;
+""" + tap_point + """
+    }};
+  xp_ui_reader_loop_run(&services);
+"""
 menus = []
 for name in ('openReaderMenu', 'buildMoreActions'):
     body = method(name)
@@ -28,6 +64,7 @@ assert source.count('currentPageMetadata.') == sum(
 
 pathlib.Path(sys.argv[2]).write_text(
     '#include "FootnoteReader.h"\n'
+    '#include <xp_ui_reader.h>\n'
     '#include "activities/reader/EpubReaderFootnoteSelectActivity.h"\n'
     '#include "activities/reader/EpubReaderUtils.h"\n'
     '#include "CrossPointSettings.h"\n'

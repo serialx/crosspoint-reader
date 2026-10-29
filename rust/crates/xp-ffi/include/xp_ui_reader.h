@@ -509,6 +509,425 @@ void xp_ui_reader_base_begin_render(XpUiReaderBaseModel* model, XpUiReaderBaseMo
 void xp_ui_reader_base_publish(XpUiReaderBaseModel* model, const XpUiReaderBaseModel* frame);
 void xp_ui_reader_base_force_refresh(XpUiReaderBaseModel* model);
 
+typedef enum {
+  /* boolean radio released for chapter build. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_RADIO_RELEASED = 0,
+  /* orientation ID 0..3. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_APPLIED_ORIENTATION = 1,
+  /* wrapping uint32 render-completion millis; zero is unset. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_LAST_RENDERED = 2,
+  /* signed zero-based prewarmed spine, -1 unset. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_IDLE_SPINE = 3,
+  /* signed zero-based prewarmed page, -1 unset. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_IDLE_PAGE = 4,
+  /* signed zero-based current spine. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_SPINE = 5,
+  /* uint16 viewport width in pixels. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_BUILD_WIDTH = 6,
+  /* uint16 viewport height in pixels. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_BUILD_HEIGHT = 7,
+  /* boolean deferred extension failed. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_PARTIAL_FAILED = 8,
+  /* boolean book removed from recents. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_RECENTS_REMOVED = 9,
+  /* boolean pending finished-book move. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_PENDING_READ_MOVE = 10,
+  /* boolean bookmark message visible. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_SHOW_BOOKMARK = 11,
+  /* wrapping uint32 bookmark-message start millis. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_BOOKMARK_TIME = 12,
+  /* boolean dictionary message visible. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_SHOW_DICTIONARY = 13,
+  /* wrapping uint32 dictionary-message start millis. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_DICTIONARY_TIME = 14,
+  /* boolean damaged-font message visible. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_SHOW_FONT = 15,
+  /* wrapping uint32 damaged-font message start millis. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_FONT_TIME = 16,
+  /* overlay ID: 0 none, 1 toolbar, 2 contents, 3 text, 4 more. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_OVERLAY = 17,
+  /* wrapping uint32 last-turn millis. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_LAST_TURN = 18,
+  /* boolean automatic turns active. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_AUTO_ACTIVE = 19,
+  /* signed int8 queued direction: -1 previous, 0 none, 1 next. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_PENDING_TURN = 20,
+  /* boolean queued turn originated from touch. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_PENDING_TOUCH = 21,
+  /* uint32 automatic-turn interval milliseconds; wrapping clock differences. Signed values use uint32 bit
+     representation. */
+  XP_UI_READER_LOOP_FIELD_TURN_DURATION = 22,
+  /* boolean clipping message visible. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_SHOW_CLIP = 23,
+  /* wrapping uint32 clipping-message start millis. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_CLIP_TIME = 24,
+  /* signed saved-position depth, 0..3. Signed values use uint32 bit representation. */
+  XP_UI_READER_LOOP_FIELD_FOOTNOTE_DEPTH = 25
+} XpUiReaderLoopField;
+typedef enum {
+  /* returns load-failure popup active flag; child model read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_LOAD_POPUP = 0,
+  /* returns EPUB resource presence; pointer read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_HAS_EPUB = 1,
+  /* returns section resource presence; pointer read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_HAS_SECTION = 2,
+  /* returns section build-running flag; resource read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_BUILDING = 3,
+  /* returns framebuffer availability; resource read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_FRAMEBUFFER = 4,
+  /* returns wrapping uint32 millis; clock read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_NOW = 5,
+  /* returns free heap bytes; allocator query may take its internal lock. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_FREE_HEAP = 6,
+  /* returns largest allocation bytes; allocator query may take its internal lock. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_MAX_BLOCK = 7,
+  /* returns signed zero-based current page bits; resource read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_PAGE = 8,
+  /* returns available page count; resource read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_PAGE_COUNT = 9,
+  /* returns partial-cache flag; resource read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_PARTIAL = 10,
+  /* returns radio heap ownership flag; service read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_RADIO_HEAP = 11,
+  /* returns spine item count; resource read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_SPINE_COUNT = 12,
+  /* returns remove-read-books setting; read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_REMOVE_RECENTS = 13,
+  /* returns move-finished-books setting; read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_MOVE_FINISHED = 14,
+  /* returns whether book path is in read folder; may allocate temporary path text. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_IN_READ_FOLDER = 15,
+  /* returns persisted orientation ID; read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_ORIENTATION = 16,
+  /* returns toolbar-style setting; read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_TOOLBAR_MENU = 17,
+  /* returns touch controls enabled setting; read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_TOUCH_CONTROLS = 18,
+  /* returns cached Home action ID; no hardware polling. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_HOME_ACTION = 19,
+  /* returns touch-menu gesture result; mapped-frame probes may consume tap state. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_TOUCH_MENU = 20,
+  /* returns Confirm release edge; mapped-frame read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_CONFIRM_RELEASE = 21,
+  /* returns Back release edge; mapped-frame read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_BACK_RELEASE = 22,
+  /* returns render-lock busy flag; nonblocking peek. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_BUSY = 23,
+  /* returns end-book menu-active flag; child model read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_END_MENU_ACTIVE = 24,
+  /* returns long-Confirm threshold milliseconds, zero disabled; settings read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_CONFIRM_THRESHOLD = 25,
+  /* returns persisted long-Confirm action ID; settings read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_LONG_MENU_FUNCTION = 26,
+  /* returns touch-input capability; read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_HAS_TOUCH = 27,
+  /* returns mapped-frame held milliseconds; no polling. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_HELD = 28,
+  /* returns persisted short-Power action ID; settings read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_SHORT_POWER = 29,
+  /* returns Power release edge; mapped-frame read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_POWER_RELEASE = 30,
+  /* returns Down release edge; mapped-frame read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_DOWN_RELEASE = 31,
+  /* returns persisted long-button behavior ID; settings read only. No a/b parameters. */
+  XP_UI_READER_LOOP_QUERY_LONG_BUTTON_BEHAVIOR = 32
+} XpUiReaderLoopQuery;
+typedef enum {
+  /* a/b ignored; return ignored; dispatches load popup; may allocate/log/navigate/paint. */
+  XP_UI_READER_LOOP_COMMAND_POPUP_INPUT = 0,
+  /* a/b ignored; return ignored; requests existing activity finish. */
+  XP_UI_READER_LOOP_COMMAND_FINISH = 1,
+  /* a/b ignored; return ignored; runs remembered-book effects; may allocate/log/block. */
+  XP_UI_READER_LOOP_COMMAND_REMEMBER = 2,
+  /* a/b ignored; returns acquired flag, but opens a scope even on failure; nonblocking original RenderLock acquisition;
+     paired UNLOCK required even if false. */
+  XP_UI_READER_LOOP_COMMAND_TRY_LOCK = 3,
+  /* a/b ignored; return ignored; destroys exactly one TRY_LOCK scope; debug assertion rejects unmatched release. */
+  XP_UI_READER_LOOP_COMMAND_UNLOCK = 4,
+  /* a/b ignored; return ignored; notifies existing radio service after paint; may log/schedule. */
+  XP_UI_READER_LOOP_COMMAND_RADIO_AFTER = 5,
+  /* a/b ignored; returns repaint-needed flag; returns whether link-note repaint is needed; POD update only. */
+  XP_UI_READER_LOOP_COMMAND_REPAINT_LINK_NOTE = 6,
+  /* a/b ignored; return ignored; notifies existing render task. */
+  XP_UI_READER_LOOP_COMMAND_UPDATE = 7,
+  /* a=orientation ID 0..3, b ignored; return ignored; applies orientation; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_ORIENTATION = 8,
+  /* a=zero-based page index, b ignored; returns page presence; loads scoped page resource; may allocate/log/read
+     storage. */
+  XP_UI_READER_LOOP_COMMAND_LOAD_PAGE = 9,
+  /* a/b ignored; returns font-cache presence; borrows cache pointer until PREWARM_DROP; no ownership transfer. */
+  XP_UI_READER_LOOP_COMMAND_FONT_CACHE = 10,
+  /* a/b ignored; return ignored; constructs scoped prewarm guard; cache may allocate. */
+  XP_UI_READER_LOOP_COMMAND_PREWARM_BEGIN = 11,
+  /* a/b ignored; return ignored; renders page to prewarm; may allocate/read storage. */
+  XP_UI_READER_LOOP_COMMAND_PREWARM_PAGE = 12,
+  /* a/b ignored; return ignored; finishes prewarm scan; may allocate/read storage. */
+  XP_UI_READER_LOOP_COMMAND_PREWARM_SCAN_END = 13,
+  /* a=page index, b=wrapping start-millis bits; return ignored; logs timing; clock argument evaluated only when debug
+     log is enabled. */
+  XP_UI_READER_LOOP_COMMAND_PREWARM_LOG = 14,
+  /* a/b ignored; return ignored; destroys scoped prewarm guard before PAGE_DROP. */
+  XP_UI_READER_LOOP_COMMAND_PREWARM_DROP = 15,
+  /* a/b ignored; return ignored; destroys scoped page; may free; before UNLOCK. */
+  XP_UI_READER_LOOP_COMMAND_PAGE_DROP = 16,
+  /* a/b ignored; returns build started flag; uses viewport POD and original section; may allocate/free/log/read
+     storage. */
+  XP_UI_READER_LOOP_COMMAND_START_BUILD = 17,
+  /* a/b ignored; return ignored; logs deferred-build failure. */
+  XP_UI_READER_LOOP_COMMAND_BUILD_FAILED_LOG = 18,
+  /* a/b ignored; return ignored; logs current page/count after successful start. */
+  XP_UI_READER_LOOP_COMMAND_BUILD_STARTED_LOG = 19,
+  /* a/b ignored; return ignored; clears stale end-book resource; may free/lock. */
+  XP_UI_READER_LOOP_COMMAND_CLEAR_END = 20,
+  /* a/b ignored; returns removed flag; updates recent store; may allocate/log/read storage. */
+  XP_UI_READER_LOOP_COMMAND_REMOVE_RECENT = 21,
+  /* a/b ignored; return ignored; updates recent store; may allocate/log/read storage. */
+  XP_UI_READER_LOOP_COMMAND_ADD_RECENT = 22,
+  /* a/b ignored; return ignored; dispatches existing overlay input; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_OVERLAY_INPUT = 23,
+  /* a/b ignored; return ignored; releases page snapshot; may free. */
+  XP_UI_READER_LOOP_COMMAND_DISCARD_OVERLAY = 24,
+  /* a/b=logical x/y pixels, -1/-1 means no initial point; return ignored; opens selection child; may
+     allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_CLIP = 25,
+  /* a=forward boolean, b ignored; returns success; runs existing turn leaf; may free/log/lock. */
+  XP_UI_READER_LOOP_COMMAND_TURN = 26,
+  /* a=forward boolean, b=success boolean; return ignored; updates session POD under short model lock in production. */
+  XP_UI_READER_LOOP_COMMAND_NOTE_TURN = 27,
+  /* a=skip boolean, b ignored; return ignored; requests existing haptic effect; no new task. */
+  XP_UI_READER_LOOP_COMMAND_HAPTIC = 28,
+  /* a/b ignored; returns consumed flag; dispatches child end-book input; may allocate/navigate. */
+  XP_UI_READER_LOOP_COMMAND_END_MENU = 29,
+  /* a=threshold milliseconds, b ignored; returns LONG edge; consumes mapped LONG and suppresses its release; no
+     polling. */
+  XP_UI_READER_LOOP_COMMAND_CONFIRM_LONG = 30,
+  /* a/b ignored; return ignored; updates bookmark store; may allocate/log/lock/read storage. */
+  XP_UI_READER_LOOP_COMMAND_BOOKMARK = 31,
+  /* a/b ignored; returns sync launched flag; opens sync workflow; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_SYNC = 32,
+  /* a/b ignored; return ignored; opens dictionary child; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_DICTIONARY = 33,
+  /* a/b ignored; return ignored; restores saved position; may free/log/lock/read storage. */
+  XP_UI_READER_LOOP_COMMAND_RESTORE_POSITION = 34,
+  /* a/b ignored; return ignored; opens footnote child; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_FOOTNOTES = 35,
+  /* a=overlay ID 0..4, b ignored; return ignored; opens existing overlay; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_OPEN_OVERLAY = 36,
+  /* a/b ignored; return ignored; opens existing menu; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_OPEN_MENU = 37,
+  /* a/b=logical x/y pixels; returns match flag and stores scoped href; copies href under original resource RenderLock;
+     may allocate/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_MATCH_LINK = 38,
+  /* a/b ignored; return ignored; uses scoped href; may allocate/free/log/lock/read storage. */
+  XP_UI_READER_LOOP_COMMAND_NAVIGATE_LINK = 39,
+  /* a/b ignored; returns consumed flag; runs existing Back path; may allocate/free/log/lock/block. */
+  XP_UI_READER_LOOP_COMMAND_BACK_NAVIGATION = 40,
+  /* a/b ignored; return ignored; runs one existing bounded build tick; may allocate/free/log/try-lock/read storage. */
+  XP_UI_READER_LOOP_COMMAND_BUILD_TICK = 41,
+  /* a=previous boolean, b=next boolean; returns consumed flag; handles end-book page edge; may navigate/allocate. */
+  XP_UI_READER_LOOP_COMMAND_END_TURN = 42,
+  /* a=signed chapter delta, b ignored; returns success; runs existing chapter skip; may free/log/lock. */
+  XP_UI_READER_LOOP_COMMAND_SKIP = 43
+} XpUiReaderLoopCommand;
+typedef enum {
+  /* Mapped long point probe; writes logical x/y pixels and returns presence; may consume mapped-frame gesture, no
+     polling. */
+  XP_UI_READER_LOOP_POINT_LONG = 0,
+  /* Mapped tap point probe; writes logical x/y pixels and returns presence; may consume mapped-frame gesture, no
+     polling. */
+  XP_UI_READER_LOOP_POINT_TAP = 1
+} XpUiReaderLoopPoint;
+typedef struct {
+  void* context;
+  uint32_t (*model_read)(void*, uint8_t);
+  void (*model_write)(void*, uint8_t, uint32_t);
+  uint32_t (*query)(void*, uint8_t);
+  uint32_t (*command)(void*, uint8_t, int32_t, int32_t);
+  XpUiReaderTurnInput (*touch)(void*);
+  XpUiReaderTurnInput (*buttons)(void*);
+  uint8_t (*point)(void*, uint8_t, int32_t*, int32_t*);
+} XpUiReaderLoopServices;
+/* All seven callbacks are required and synchronous; context may be null only
+ * if every callback accepts it. Model access copies scalars under ModelLock.
+ * Resource callbacks run outside the critical section. TRY_LOCK opens one scope
+ * even on failure; exactly one UNLOCK closes it before any return. Null or
+ * incomplete services produce no probes/effects; callbacks retain no arguments. */
+void xp_ui_reader_loop_run(const XpUiReaderLoopServices*);
+
+/* Stable event IDs; checked against the C++ provider. */
+typedef enum {
+  XP_UI_READER_OVERLAY_EVENT_NONE = 0,
+  XP_UI_READER_OVERLAY_EVENT_DISMISS = 1,
+  XP_UI_READER_OVERLAY_EVENT_TOOL = 2,
+  XP_UI_READER_OVERLAY_EVENT_PREV_CHAPTER = 3,
+  XP_UI_READER_OVERLAY_EVENT_NEXT_CHAPTER = 4,
+  XP_UI_READER_OVERLAY_EVENT_SCRUB = 5,
+  XP_UI_READER_OVERLAY_EVENT_ROW = 6,
+} XpUiReaderOverlayEvent;
+/* Stable swipe IDs; checked against the C++ provider. */
+typedef enum {
+  XP_UI_READER_OVERLAY_SWIPE_NONE = 0,
+  XP_UI_READER_OVERLAY_SWIPE_LEFT = 1,
+  XP_UI_READER_OVERLAY_SWIPE_RIGHT = 2,
+  XP_UI_READER_OVERLAY_SWIPE_UP = 3,
+  XP_UI_READER_OVERLAY_SWIPE_DOWN = 4,
+} XpUiReaderOverlaySwipe;
+/* Stable mode IDs; checked against the C++ provider. */
+typedef enum {
+  XP_UI_READER_OVERLAY_MODE_NONE = 0,
+  XP_UI_READER_OVERLAY_MODE_TOOLBAR = 1,
+  XP_UI_READER_OVERLAY_MODE_CONTENTS = 2,
+  XP_UI_READER_OVERLAY_MODE_TEXT = 3,
+  XP_UI_READER_OVERLAY_MODE_MORE = 4,
+} XpUiReaderOverlayMode;
+/* Signed fields use uint32 bits; read/write is POD-only. */
+typedef enum {
+  /* overlay ID 0 none, 1 toolbar, 2 contents, 3 text, 4 more. */
+  XP_UI_READER_OVERLAY_FIELD_OVERLAY = 0,
+  /* signed zero-based spine index. */
+  XP_UI_READER_OVERLAY_FIELD_SPINE = 1,
+  /* signed zero-based pending page index. */
+  XP_UI_READER_OVERLAY_FIELD_NEXT_PAGE = 2,
+  /* signed tool index 0..2. */
+  XP_UI_READER_OVERLAY_FIELD_FOCUS = 3,
+  /* signed selected panel row; negative is unselected. */
+  XP_UI_READER_OVERLAY_FIELD_INDEX = 4,
+  /* boolean panel cursor shown. */
+  XP_UI_READER_OVERLAY_FIELD_CURSOR = 5,
+  /* boolean hold jump already consumed. */
+  XP_UI_READER_OVERLAY_FIELD_HOLD = 6,
+  /* boolean clean-page framebuffer snapshot exists. */
+  XP_UI_READER_OVERLAY_FIELD_STORED = 7,
+} XpUiReaderOverlayField;
+typedef enum {
+  /* Returns toolbar owner presence; resource-pointer read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_HAS_TOOLBAR = 0,
+  /* Returns modal picker active flag; child model read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_POPUP_ACTIVE = 1,
+  /* Returns positive EPUB spine count; resource read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_SPINE_COUNT = 2,
+  /* Returns TOC row count; resource read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_TOC_COUNT = 3,
+  /* Returns More row count; vector size read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_MORE_COUNT = 4,
+  /* Returns published visible row count; short POD critical section only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_ROWS = 5,
+  /* Returns cached route consumed flag; POD read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_ROUTED = 6,
+  /* Returns cached signed route row/tool value; POD read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_VALUE = 7,
+  /* Returns cached signed scrub position in permille; POD read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_PERMILLE = 8,
+  /* Returns cached signed logical route x in pixels; POD read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_X = 9,
+  /* Returns cached signed logical route y in pixels; POD read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_Y = 10,
+  /* Returns oriented screen width in pixels; renderer read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_WIDTH = 11,
+  /* Returns oriented screen height in pixels; renderer read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_HEIGHT = 12,
+  /* Returns focus-reading enabled setting; scalar read only. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_FOCUS_READING = 13,
+  /* Returns cached XP_UI button bits currently pressed; pure read. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_PRESSED = 14,
+  /* Returns cached XP_UI button release bits; pure read. No arguments. */
+  XP_UI_READER_OVERLAY_QUERY_RELEASED = 15,
+} XpUiReaderOverlayQuery;
+typedef enum {
+  /* a/b ignored; return ignored; dispatches existing picker, possibly synchronously calling PopupChanged; may
+     allocate/navigate/paint. */
+  XP_UI_READER_OVERLAY_COMMAND_POPUP_INPUT = 0,
+  /* a/b ignored; return ignored; acquires the original resource RenderLock; may wait; opens one paired scope. */
+  XP_UI_READER_OVERLAY_COMMAND_LOCK = 1,
+  /* a/b ignored; return ignored; destroys exactly one active paired lock scope. */
+  XP_UI_READER_OVERLAY_COMMAND_UNLOCK = 2,
+  /* a/b ignored; return ignored; waits for existing deferred overlay refresh. */
+  XP_UI_READER_OVERLAY_COMMAND_SETTLE = 3,
+  /* a/b ignored; return ignored; paints existing popup; may allocate/lock/block. */
+  XP_UI_READER_OVERLAY_COMMAND_PAINT_POPUP = 4,
+  /* a/b ignored; return ignored; restores the existing B/W snapshot without panel-baseline resync. */
+  XP_UI_READER_OVERLAY_COMMAND_RESTORE = 5,
+  /* a/b ignored; returns stored flag; stores the existing B/W snapshot; may allocate. */
+  XP_UI_READER_OVERLAY_COMMAND_STORE = 6,
+  /* a/b ignored; return ignored; paints existing toolbar/panel; may allocate/log/block. */
+  XP_UI_READER_OVERLAY_COMMAND_RENDER = 7,
+  /* a/b ignored; return ignored; requests existing overlay refresh; may block. */
+  XP_UI_READER_OVERLAY_COMMAND_PUSH = 8,
+  /* a/b ignored; return ignored; notifies the existing render task. */
+  XP_UI_READER_OVERLAY_COMMAND_UPDATE = 9,
+  /* a/b ignored; return ignored; closes existing overlay; may free/lock/block. */
+  XP_UI_READER_OVERLAY_COMMAND_CLOSE = 10,
+  /* a=overlay ID, b ignored; return ignored; opens existing overlay; may allocate/free/lock/block. */
+  XP_UI_READER_OVERLAY_COMMAND_OPEN = 11,
+  /* a/b ignored; return ignored; clears deferred position scalars. */
+  XP_UI_READER_OVERLAY_COMMAND_CLEAR_DEFERRED = 12,
+  /* a/b ignored; return ignored; destroys existing section; may free/log. */
+  XP_UI_READER_OVERLAY_COMMAND_DROP_SECTION = 13,
+  /* a/b ignored; returns toolbar Event ID and caches its POD payload; routes the mapped frame against published chrome
+     geometry; may consume contact state. */
+  XP_UI_READER_OVERLAY_COMMAND_ROUTE = 14,
+  /* a/b ignored; return ignored; dismisses existing picker; may release resources. */
+  XP_UI_READER_OVERLAY_COMMAND_DISMISS_POPUP = 15,
+  /* a/b ignored; return ignored; discards page snapshot; may free. */
+  XP_UI_READER_OVERLAY_COMMAND_DISCARD = 16,
+  /* a/b ignored; return ignored; allocates existing text-settings child with owner-only result callback; may navigate;
+     callback invokes PickerResult. */
+  XP_UI_READER_OVERLAY_COMMAND_START_PICKER = 17,
+  /* a/b ignored; return ignored; applies existing reader text settings; may allocate/free/log/lock/storage. */
+  XP_UI_READER_OVERLAY_COMMAND_APPLY_TEXT = 18,
+  /* a/b ignored; return ignored; resets existing toolbar input; short POD critical section only. */
+  XP_UI_READER_OVERLAY_COMMAND_TOOLBAR_BEGIN = 19,
+  /* a=boolean setting, b ignored; return ignored; writes setting scalar only. */
+  XP_UI_READER_OVERLAY_COMMAND_SET_FOCUS_READING = 20,
+  /* a/b ignored; return ignored; applies and persists existing text setting; may allocate/free/log/lock/storage. */
+  XP_UI_READER_OVERLAY_COMMAND_APPLY_LIVE = 21,
+  /* a=row index, b ignored; return ignored; opens existing setting picker; may allocate/lock/paint. */
+  XP_UI_READER_OVERLAY_COMMAND_TEXT_POPUP = 22,
+  /* a=row index, b ignored; return ignored; runs existing row action; may allocate/free/log/lock/storage/navigate. */
+  XP_UI_READER_OVERLAY_COMMAND_MORE = 23,
+  /* a=TOC row index, b ignored; returns signed target spine bits; creates scoped TOC entry; may allocate/read storage;
+     retained until TocDrop. */
+  XP_UI_READER_OVERLAY_COMMAND_TOC_ITEM = 24,
+  /* a/b ignored; return ignored; copies scoped TOC anchor into pending path under original resource lock; may
+     allocate/free. */
+  XP_UI_READER_OVERLAY_COMMAND_TOC_ANCHOR = 25,
+  /* a/b ignored; return ignored; destroys scoped TOC entry after navigation update; may free. */
+  XP_UI_READER_OVERLAY_COMMAND_TOC_DROP = 26,
+  /* a=signed row delta, b=row count; returns moved flag; moves existing viewport; short POD critical section only. */
+  XP_UI_READER_OVERLAY_COMMAND_SCROLL = 27,
+  /* a/b ignored; returns mapped SwipeDir ID; consumes original mapped swipe at the original lazy position. */
+  XP_UI_READER_OVERLAY_COMMAND_TAKE_SWIPE = 28,
+  /* a=XP_UI pressed mask, b=XP_UI released mask; samples only requested bits; return ignored; runs original lazy probes
+     in requested order and may update touch-held bookkeeping; no hardware polling. */
+  XP_UI_READER_OVERLAY_COMMAND_SAMPLE_BUTTONS = 29,
+  /* a/b ignored; returns mapped hold duration in milliseconds; reads original held-time provider and may clear expired
+     touch-held bookkeeping; no hardware polling. */
+  XP_UI_READER_OVERLAY_COMMAND_TAKE_HELD_MS = 30,
+} XpUiReaderOverlayCommand;
+typedef enum {
+  /* Handle one mapped toolbar/panel input frame. Operation dispatch returns no value. */
+  XP_UI_READER_OVERLAY_OPERATION_INPUT = 0,
+  /* Existing picker redraw callback, synchronous or owner-bound. Operation dispatch returns no value. */
+  XP_UI_READER_OVERLAY_OPERATION_POPUP_CHANGED = 1,
+  /* Existing text-settings child result callback, owner-bound. Operation dispatch returns no value. */
+  XP_UI_READER_OVERLAY_OPERATION_PICKER_RESULT = 2,
+} XpUiReaderOverlayOperation;
+enum { XP_UI_READER_OVERLAY_TEXT_ROWS = 5, XP_UI_READER_OVERLAY_HOLD_MS = 1500, XP_UI_READER_OVERLAY_HOLD_ROWS = 10 };
+typedef struct {
+  void* context;
+  uint32_t (*read)(void*, uint8_t);
+  void (*write)(void*, uint8_t, uint32_t);
+  uint32_t (*query)(void*, uint8_t);
+  uint32_t (*command)(void*, uint8_t, int32_t, int32_t);
+} XpUiReaderOverlayServices;
+/* All callbacks required and synchronous; null/incomplete services or invalid
+ * operation have no effects. Context may be null only if every callback accepts it.
+ * Scalar read/write use short ModelLock; resource callbacks run outside it.
+ * Rust guards pair LOCK/UNLOCK and TOC_ITEM/TOC_DROP, including early returns. Callbacks retain no context
+ * or arguments; owner-bound child callbacks create a fresh service context.
+ * TOC_ITEM owns its entry until TOC_DROP after the update request. */
+void xp_ui_reader_overlay_run(const XpUiReaderOverlayServices*, uint8_t operation);
+
 #ifdef __cplusplus
 }
 #endif
@@ -726,3 +1145,224 @@ XP_UI_READER_BASE_ASSERT(XP_UI_READER_REFRESH_COUNTER_ONLY == 2);
 XP_UI_READER_BASE_ASSERT(XP_UI_READER_REFRESH_REQUEST_MASK == 3);
 #undef XP_UI_READER_BASE_ASSERT
 #undef XP_UI_READER_BASE_ALIGNOF
+
+#ifdef __cplusplus
+#define XP_UI_READER_LOOP_ASSERT(...) static_assert((__VA_ARGS__))
+#define XP_UI_READER_LOOP_ALIGNOF(T) alignof(T)
+#else
+#define XP_UI_READER_LOOP_ASSERT(...) _Static_assert((__VA_ARGS__), #__VA_ARGS__)
+#define XP_UI_READER_LOOP_ALIGNOF(T) _Alignof(T)
+#endif
+XP_UI_READER_LOOP_ASSERT(sizeof(XpUiReaderLoopServices) == 8 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_ALIGNOF(XpUiReaderLoopServices) == XP_UI_READER_LOOP_ALIGNOF(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, context) == 0 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, model_read) == 1 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, model_write) == 2 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, query) == 3 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, command) == 4 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, touch) == 5 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, buttons) == 6 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(offsetof(XpUiReaderLoopServices, point) == 7 * sizeof(void*));
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_RADIO_RELEASED == 0);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_APPLIED_ORIENTATION == 1);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_LAST_RENDERED == 2);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_IDLE_SPINE == 3);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_IDLE_PAGE == 4);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_SPINE == 5);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_BUILD_WIDTH == 6);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_BUILD_HEIGHT == 7);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_PARTIAL_FAILED == 8);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_RECENTS_REMOVED == 9);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_PENDING_READ_MOVE == 10);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_SHOW_BOOKMARK == 11);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_BOOKMARK_TIME == 12);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_SHOW_DICTIONARY == 13);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_DICTIONARY_TIME == 14);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_SHOW_FONT == 15);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_FONT_TIME == 16);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_OVERLAY == 17);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_LAST_TURN == 18);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_AUTO_ACTIVE == 19);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_PENDING_TURN == 20);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_PENDING_TOUCH == 21);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_TURN_DURATION == 22);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_SHOW_CLIP == 23);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_CLIP_TIME == 24);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_FIELD_FOOTNOTE_DEPTH == 25);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_LOAD_POPUP == 0);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_HAS_EPUB == 1);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_HAS_SECTION == 2);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_BUILDING == 3);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_FRAMEBUFFER == 4);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_NOW == 5);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_FREE_HEAP == 6);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_MAX_BLOCK == 7);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_PAGE == 8);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_PAGE_COUNT == 9);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_PARTIAL == 10);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_RADIO_HEAP == 11);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_SPINE_COUNT == 12);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_REMOVE_RECENTS == 13);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_MOVE_FINISHED == 14);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_IN_READ_FOLDER == 15);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_ORIENTATION == 16);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_TOOLBAR_MENU == 17);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_TOUCH_CONTROLS == 18);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_HOME_ACTION == 19);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_TOUCH_MENU == 20);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_CONFIRM_RELEASE == 21);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_BACK_RELEASE == 22);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_BUSY == 23);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_END_MENU_ACTIVE == 24);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_CONFIRM_THRESHOLD == 25);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_LONG_MENU_FUNCTION == 26);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_HAS_TOUCH == 27);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_HELD == 28);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_SHORT_POWER == 29);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_POWER_RELEASE == 30);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_DOWN_RELEASE == 31);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_QUERY_LONG_BUTTON_BEHAVIOR == 32);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_POPUP_INPUT == 0);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_FINISH == 1);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_REMEMBER == 2);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_TRY_LOCK == 3);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_UNLOCK == 4);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_RADIO_AFTER == 5);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_REPAINT_LINK_NOTE == 6);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_UPDATE == 7);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_ORIENTATION == 8);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_LOAD_PAGE == 9);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_FONT_CACHE == 10);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_PREWARM_BEGIN == 11);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_PREWARM_PAGE == 12);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_PREWARM_SCAN_END == 13);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_PREWARM_LOG == 14);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_PREWARM_DROP == 15);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_PAGE_DROP == 16);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_START_BUILD == 17);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_BUILD_FAILED_LOG == 18);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_BUILD_STARTED_LOG == 19);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_CLEAR_END == 20);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_REMOVE_RECENT == 21);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_ADD_RECENT == 22);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_OVERLAY_INPUT == 23);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_DISCARD_OVERLAY == 24);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_CLIP == 25);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_TURN == 26);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_NOTE_TURN == 27);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_HAPTIC == 28);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_END_MENU == 29);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_CONFIRM_LONG == 30);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_BOOKMARK == 31);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_SYNC == 32);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_DICTIONARY == 33);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_RESTORE_POSITION == 34);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_FOOTNOTES == 35);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_OPEN_OVERLAY == 36);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_OPEN_MENU == 37);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_MATCH_LINK == 38);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_NAVIGATE_LINK == 39);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_BACK_NAVIGATION == 40);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_BUILD_TICK == 41);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_END_TURN == 42);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_COMMAND_SKIP == 43);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_POINT_LONG == 0);
+XP_UI_READER_LOOP_ASSERT(XP_UI_READER_LOOP_POINT_TAP == 1);
+#undef XP_UI_READER_LOOP_ASSERT
+#undef XP_UI_READER_LOOP_ALIGNOF
+
+#ifdef __cplusplus
+#define XP_UI_READER_OVERLAY_ASSERT(...) static_assert((__VA_ARGS__))
+#define XP_UI_READER_OVERLAY_ALIGNOF(T) alignof(T)
+#else
+#define XP_UI_READER_OVERLAY_ASSERT(...) _Static_assert((__VA_ARGS__), #__VA_ARGS__)
+#define XP_UI_READER_OVERLAY_ALIGNOF(T) _Alignof(T)
+#endif
+XP_UI_READER_OVERLAY_ASSERT(sizeof(XpUiReaderOverlayServices) == 5 * sizeof(void*));
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_ALIGNOF(XpUiReaderOverlayServices) ==
+                            XP_UI_READER_OVERLAY_ALIGNOF(void*));
+XP_UI_READER_OVERLAY_ASSERT(offsetof(XpUiReaderOverlayServices, context) == 0 * sizeof(void*));
+XP_UI_READER_OVERLAY_ASSERT(offsetof(XpUiReaderOverlayServices, read) == 1 * sizeof(void*));
+XP_UI_READER_OVERLAY_ASSERT(offsetof(XpUiReaderOverlayServices, write) == 2 * sizeof(void*));
+XP_UI_READER_OVERLAY_ASSERT(offsetof(XpUiReaderOverlayServices, query) == 3 * sizeof(void*));
+XP_UI_READER_OVERLAY_ASSERT(offsetof(XpUiReaderOverlayServices, command) == 4 * sizeof(void*));
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_EVENT_NONE == 0);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_EVENT_DISMISS == 1);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_EVENT_TOOL == 2);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_EVENT_PREV_CHAPTER == 3);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_EVENT_NEXT_CHAPTER == 4);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_EVENT_SCRUB == 5);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_EVENT_ROW == 6);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_SWIPE_NONE == 0);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_SWIPE_LEFT == 1);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_SWIPE_RIGHT == 2);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_SWIPE_UP == 3);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_SWIPE_DOWN == 4);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_MODE_NONE == 0);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_MODE_TOOLBAR == 1);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_MODE_CONTENTS == 2);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_MODE_TEXT == 3);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_MODE_MORE == 4);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_OVERLAY == 0);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_SPINE == 1);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_NEXT_PAGE == 2);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_FOCUS == 3);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_INDEX == 4);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_CURSOR == 5);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_HOLD == 6);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_FIELD_STORED == 7);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_HAS_TOOLBAR == 0);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_POPUP_ACTIVE == 1);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_SPINE_COUNT == 2);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_TOC_COUNT == 3);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_MORE_COUNT == 4);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_ROWS == 5);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_ROUTED == 6);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_VALUE == 7);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_PERMILLE == 8);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_X == 9);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_Y == 10);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_WIDTH == 11);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_HEIGHT == 12);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_FOCUS_READING == 13);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_PRESSED == 14);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_RELEASED == 15);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_POPUP_INPUT == 0);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_LOCK == 1);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_UNLOCK == 2);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_SETTLE == 3);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_PAINT_POPUP == 4);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_RESTORE == 5);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_STORE == 6);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_RENDER == 7);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_PUSH == 8);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_UPDATE == 9);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_CLOSE == 10);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_OPEN == 11);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_CLEAR_DEFERRED == 12);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_DROP_SECTION == 13);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_ROUTE == 14);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_DISMISS_POPUP == 15);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_DISCARD == 16);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_START_PICKER == 17);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_APPLY_TEXT == 18);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_TOOLBAR_BEGIN == 19);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_SET_FOCUS_READING == 20);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_APPLY_LIVE == 21);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_TEXT_POPUP == 22);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_MORE == 23);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_TOC_ITEM == 24);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_TOC_ANCHOR == 25);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_TOC_DROP == 26);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_SCROLL == 27);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_TAKE_SWIPE == 28);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_SAMPLE_BUTTONS == 29);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_TAKE_HELD_MS == 30);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_INPUT == 0);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_POPUP_CHANGED == 1);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_PICKER_RESULT == 2);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_TEXT_ROWS == 5);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_HOLD_MS == 1500);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_HOLD_ROWS == 10);
+#undef XP_UI_READER_OVERLAY_ASSERT
+#undef XP_UI_READER_OVERLAY_ALIGNOF

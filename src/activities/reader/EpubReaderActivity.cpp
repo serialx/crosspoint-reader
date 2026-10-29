@@ -26,6 +26,8 @@
 #include <functional>
 #include <iterator>
 #include <limits>
+#include <optional>
+#include <type_traits>
 
 #include "../../util/BookmarkFile.h"
 #include "BookmarkEntry.h"
@@ -63,6 +65,22 @@
 #include "util/BookmarkUtil.h"
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
+
+static_assert(static_cast<uint32_t>(HomeButtonAction::Footnotes) == XP_UI_READER_VALUE_HOME_FOOTNOTES);
+static_assert(static_cast<uint32_t>(HomeButtonAction::Sync) == XP_UI_READER_VALUE_HOME_SYNC);
+static_assert(static_cast<uint32_t>(HomeButtonAction::Bookmark) == XP_UI_READER_VALUE_HOME_BOOKMARK);
+static_assert(static_cast<uint32_t>(HomeButtonAction::Dictionary) == XP_UI_READER_VALUE_HOME_DICTIONARY);
+static_assert(static_cast<uint32_t>(HomeButtonAction::ReaderMenu) == XP_UI_READER_VALUE_HOME_READER_MENU);
+static_assert(static_cast<uint32_t>(HomeButtonAction::CreateClipping) == XP_UI_READER_VALUE_HOME_CREATE_CLIPPING);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_KOSYNC) == XP_UI_READER_VALUE_LONG_MENU_SYNC);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_BOOKMARK) == XP_UI_READER_VALUE_LONG_MENU_BOOKMARK);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_DICTIONARY) == XP_UI_READER_VALUE_LONG_MENU_DICTIONARY);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_CREATE_CLIPPING) ==
+              XP_UI_READER_VALUE_LONG_MENU_CREATE_CLIPPING);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_FOOTNOTES) == XP_UI_READER_VALUE_LONG_MENU_FOOTNOTES);
+static_assert(static_cast<uint32_t>(CrossPointSettings::SHORT_PWRBTN::FOOTNOTES) == XP_UI_READER_VALUE_POWER_FOOTNOTES);
+static_assert(static_cast<uint32_t>(CrossPointSettings::SHORT_PWRBTN::CREATE_CLIPPING) ==
+              XP_UI_READER_VALUE_POWER_CREATE_CLIPPING);
 
 namespace {
 // The X4 Pro and X4 Classic carry the X4's panel but sit outside isXteinkDevice()
@@ -666,412 +684,407 @@ void EpubReaderActivity::openClippings() {
 }
 
 void EpubReaderActivity::loop() {
-  if (loadFailurePopup.isActive()) {
-    loadFailurePopup.handleInput(mappedInput, [this] { requestUpdate(); });
-    return;
-  }
-  if (!epub) {
-    finish();
-    return;
-  }
-
-  rememberBookOnceRendered();
-
-  // The radio stopped for a chapter build: once the render task has let go of the lock, that page
-  // is on screen; once the build tick below has finished the chapter, no parser is left alive and
-  // the radio may start again.
-  if (radioReleasedForBuild.load()) {
-    RenderLock lock(RenderLock::Mode::Try);
-    if (lock.ownsLock() && !(section && section->isBuilding())) {
-      radioReleasedForBuild = false;
-      bleturner::afterPaint();
+  static_assert(static_cast<uint32_t>(Overlay::None) == XP_UI_READER_VALUE_OVERLAY_NONE);
+  static_assert(static_cast<uint32_t>(Overlay::Toolbar) == XP_UI_READER_VALUE_OVERLAY_TOOLBAR);
+  using Cache = std::remove_pointer_t<decltype(renderer.getFontCacheManager())>;
+  struct Context {
+    EpubReaderActivity& o;
+    std::optional<RenderLock> lock{};
+    std::unique_ptr<Page> page{};
+    Cache* cache = nullptr;
+    std::optional<decltype(std::declval<Cache&>().createPrewarmScope())> prewarm{};
+    std::string href{};
+    uint32_t readModel(uint8_t field) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderLoopField>(field)) {
+        case XP_UI_READER_LOOP_FIELD_RADIO_RELEASED:
+          return static_cast<uint32_t>(o.radioReleasedForBuild.load());
+        case XP_UI_READER_LOOP_FIELD_APPLIED_ORIENTATION:
+          return static_cast<uint32_t>(o.appliedOrientation);
+        case XP_UI_READER_LOOP_FIELD_LAST_RENDERED:
+          return static_cast<uint32_t>(o.lastRenderCompleteMs);
+        case XP_UI_READER_LOOP_FIELD_IDLE_SPINE:
+          return static_cast<uint32_t>(o.idlePrewarmSpine);
+        case XP_UI_READER_LOOP_FIELD_IDLE_PAGE:
+          return static_cast<uint32_t>(o.idlePrewarmPage);
+        case XP_UI_READER_LOOP_FIELD_SPINE:
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        case XP_UI_READER_LOOP_FIELD_BUILD_WIDTH:
+          return static_cast<uint32_t>(o.buildViewportWidth);
+        case XP_UI_READER_LOOP_FIELD_BUILD_HEIGHT:
+          return static_cast<uint32_t>(o.buildViewportHeight);
+        case XP_UI_READER_LOOP_FIELD_PARTIAL_FAILED:
+          return static_cast<uint32_t>(o.partialRebuildStartFailed);
+        case XP_UI_READER_LOOP_FIELD_RECENTS_REMOVED:
+          return static_cast<uint32_t>(o.recentsEntryRemoved);
+        case XP_UI_READER_LOOP_FIELD_PENDING_READ_MOVE:
+          return static_cast<uint32_t>(o.pendingReadFolderMove);
+        case XP_UI_READER_LOOP_FIELD_SHOW_BOOKMARK:
+          return static_cast<uint32_t>(o.showBookmarkMessage);
+        case XP_UI_READER_LOOP_FIELD_BOOKMARK_TIME:
+          return static_cast<uint32_t>(o.bookmarkMessageTime);
+        case XP_UI_READER_LOOP_FIELD_SHOW_DICTIONARY:
+          return static_cast<uint32_t>(o.showDictionaryMessage);
+        case XP_UI_READER_LOOP_FIELD_DICTIONARY_TIME:
+          return static_cast<uint32_t>(o.dictionaryMessageTime);
+        case XP_UI_READER_LOOP_FIELD_SHOW_FONT:
+          return static_cast<uint32_t>(o.showFontDamagedMessage);
+        case XP_UI_READER_LOOP_FIELD_FONT_TIME:
+          return static_cast<uint32_t>(o.fontDamagedMessageTime);
+        case XP_UI_READER_LOOP_FIELD_OVERLAY:
+          return static_cast<uint32_t>(o.overlay);
+        case XP_UI_READER_LOOP_FIELD_LAST_TURN:
+          return static_cast<uint32_t>(o.lastPageTurnTime);
+        case XP_UI_READER_LOOP_FIELD_AUTO_ACTIVE:
+          return static_cast<uint32_t>(o.automaticPageTurnActive);
+        case XP_UI_READER_LOOP_FIELD_PENDING_TURN:
+          return static_cast<uint32_t>(o.pendingManualTurn);
+        case XP_UI_READER_LOOP_FIELD_PENDING_TOUCH:
+          return static_cast<uint32_t>(o.pendingManualTurnTouch);
+        case XP_UI_READER_LOOP_FIELD_TURN_DURATION:
+          return static_cast<uint32_t>(o.pageTurnDuration);
+        case XP_UI_READER_LOOP_FIELD_SHOW_CLIP:
+          return static_cast<uint32_t>(o.showClippingMessage);
+        case XP_UI_READER_LOOP_FIELD_CLIP_TIME:
+          return static_cast<uint32_t>(o.clippingMessageTime);
+        case XP_UI_READER_LOOP_FIELD_FOOTNOTE_DEPTH:
+          return static_cast<uint32_t>(o.footnoteDepth);
+      }
+      return 0;
     }
-  }
-
-  // The remote linked, or failed to, after the status bar showed its note: paint the page again.
-  {
-    RenderLock lock(RenderLock::Mode::Try);
-    if (lock.ownsLock() && linkNoteTitle.repaint(bleturner::linkNote())) requestUpdate();
-  }
-
-  // Someone else turned the screen while this reader was stacked (the control
-  // center's orientation tile). Reflow before the next render, or the page
-  // would be drawn with a layout built for the previous frame size.
-  if (appliedOrientation != SETTINGS.orientation) {
-    applyOrientation(SETTINGS.orientation);
-    requestUpdate();
-    return;
-  }
-
-  constexpr unsigned long IDLE_PREWARM_DEBOUNCE_MS = 400;
-  {
-    RenderLock lock(RenderLock::Mode::Try);
-    if (lock.ownsLock() && section && !section->isBuilding() && renderer.hasFrameBuffer() &&
-        lastRenderCompleteMs != 0 && millis() - lastRenderCompleteMs > IDLE_PREWARM_DEBOUNCE_MS &&
-        ESP.getFreeHeap() > RENDER_MIN_FREE_HEAP && ESP.getMaxAllocHeap() > BACKGROUND_BUILD_MIN_MAX_ALLOC &&
-        (idlePrewarmSpine != currentSpineIndex || idlePrewarmPage != section->currentPage)) {
-      idlePrewarmSpine = currentSpineIndex;
-      idlePrewarmPage = section->currentPage;
-      const int nextPage = section->currentPage + 1;
-      if (nextPage < static_cast<int>(section->pageCount)) {
-        if (const auto p = section->loadPage(nextPage)) {
-          if (auto* fcm = renderer.getFontCacheManager()) {
-            const auto t0 = millis();
-            auto scope = fcm->createPrewarmScope();
-            p->render(renderer, SETTINGS.getReaderFontId(), 0, 0);
-            scope.endScanAndPrewarm();
-            LOG_DBG("ERS", "Idle prewarm: page %d in %lums", nextPage, millis() - t0);
-          }
-        }
+    void writeModel(uint8_t field, uint32_t value) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderLoopField>(field)) {
+        case XP_UI_READER_LOOP_FIELD_RADIO_RELEASED:
+          o.radioReleasedForBuild = value != 0;
+          break;
+        case XP_UI_READER_LOOP_FIELD_APPLIED_ORIENTATION:
+          o.appliedOrientation = static_cast<decltype(o.appliedOrientation)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_LAST_RENDERED:
+          o.lastRenderCompleteMs = static_cast<decltype(o.lastRenderCompleteMs)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_IDLE_SPINE:
+          o.idlePrewarmSpine = static_cast<decltype(o.idlePrewarmSpine)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_IDLE_PAGE:
+          o.idlePrewarmPage = static_cast<decltype(o.idlePrewarmPage)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_SPINE:
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_BUILD_WIDTH:
+          o.buildViewportWidth = static_cast<decltype(o.buildViewportWidth)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_BUILD_HEIGHT:
+          o.buildViewportHeight = static_cast<decltype(o.buildViewportHeight)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_PARTIAL_FAILED:
+          o.partialRebuildStartFailed = static_cast<decltype(o.partialRebuildStartFailed)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_RECENTS_REMOVED:
+          o.recentsEntryRemoved = static_cast<decltype(o.recentsEntryRemoved)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_PENDING_READ_MOVE:
+          o.pendingReadFolderMove = static_cast<decltype(o.pendingReadFolderMove)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_SHOW_BOOKMARK:
+          o.showBookmarkMessage = static_cast<decltype(o.showBookmarkMessage)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_BOOKMARK_TIME:
+          o.bookmarkMessageTime = static_cast<decltype(o.bookmarkMessageTime)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_SHOW_DICTIONARY:
+          o.showDictionaryMessage = static_cast<decltype(o.showDictionaryMessage)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_DICTIONARY_TIME:
+          o.dictionaryMessageTime = static_cast<decltype(o.dictionaryMessageTime)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_SHOW_FONT:
+          o.showFontDamagedMessage = static_cast<decltype(o.showFontDamagedMessage)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_FONT_TIME:
+          o.fontDamagedMessageTime = static_cast<decltype(o.fontDamagedMessageTime)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_OVERLAY:
+          o.overlay = static_cast<decltype(o.overlay)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_LAST_TURN:
+          o.lastPageTurnTime = static_cast<decltype(o.lastPageTurnTime)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_AUTO_ACTIVE:
+          o.automaticPageTurnActive = static_cast<decltype(o.automaticPageTurnActive)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_PENDING_TURN:
+          o.pendingManualTurn = static_cast<decltype(o.pendingManualTurn)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_PENDING_TOUCH:
+          o.pendingManualTurnTouch = static_cast<decltype(o.pendingManualTurnTouch)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_TURN_DURATION:
+          o.pageTurnDuration = static_cast<decltype(o.pageTurnDuration)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_SHOW_CLIP:
+          o.showClippingMessage = static_cast<decltype(o.showClippingMessage)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_CLIP_TIME:
+          o.clippingMessageTime = static_cast<decltype(o.clippingMessageTime)>(value);
+          break;
+        case XP_UI_READER_LOOP_FIELD_FOOTNOTE_DEPTH:
+          o.footnoteDepth = static_cast<decltype(o.footnoteDepth)>(value);
+          break;
       }
     }
-  }
-
-  {
-    RenderLock lock(RenderLock::Mode::Try);
-    // Never next to the radio: once the reader reaches the watermark, the build starts in
-    // renderBook(), which stops the radio first.
-    if (lock.ownsLock() && section && !section->isBuilding() && section->isPartial() && buildViewportWidth > 0 &&
-        !partialRebuildStartFailed && !bleturner::holdsHeap() &&
-        section->currentPage + PARTIAL_REBUILD_START_MARGIN >= static_cast<int>(section->pageCount)) {
+    uint32_t query(uint8_t query) {
+      switch (static_cast<XpUiReaderLoopQuery>(query)) {
+        case XP_UI_READER_LOOP_QUERY_LOAD_POPUP:
+          return o.loadFailurePopup.isActive();
+        case XP_UI_READER_LOOP_QUERY_HAS_EPUB:
+          return bool(o.epub);
+        case XP_UI_READER_LOOP_QUERY_HAS_SECTION:
+          return bool(o.section);
+        case XP_UI_READER_LOOP_QUERY_BUILDING:
+          return o.section->isBuilding();
+        case XP_UI_READER_LOOP_QUERY_FRAMEBUFFER:
+          return o.renderer.hasFrameBuffer();
+        case XP_UI_READER_LOOP_QUERY_NOW:
+          return millis();
+        case XP_UI_READER_LOOP_QUERY_FREE_HEAP:
+          return ESP.getFreeHeap();
+        case XP_UI_READER_LOOP_QUERY_MAX_BLOCK:
+          return ESP.getMaxAllocHeap();
+        case XP_UI_READER_LOOP_QUERY_PAGE:
+          return o.section->currentPage;
+        case XP_UI_READER_LOOP_QUERY_PAGE_COUNT:
+          return o.section->pageCount;
+        case XP_UI_READER_LOOP_QUERY_PARTIAL:
+          return o.section->isPartial();
+        case XP_UI_READER_LOOP_QUERY_RADIO_HEAP:
+          return bleturner::holdsHeap();
+        case XP_UI_READER_LOOP_QUERY_SPINE_COUNT:
+          return o.epub->getSpineItemsCount();
+        case XP_UI_READER_LOOP_QUERY_REMOVE_RECENTS:
+          return SETTINGS.removeReadBooksFromRecents;
+        case XP_UI_READER_LOOP_QUERY_MOVE_FINISHED:
+          return SETTINGS.moveFinishedToReadFolder;
+        case XP_UI_READER_LOOP_QUERY_IN_READ_FOLDER:
+          return isInReadFolder(o.epub->getPath());
+        case XP_UI_READER_LOOP_QUERY_ORIENTATION:
+          return SETTINGS.orientation;
+        case XP_UI_READER_LOOP_QUERY_TOOLBAR_MENU:
+          return o.usesToolbarMenu();
+        case XP_UI_READER_LOOP_QUERY_TOUCH_CONTROLS:
+          return SETTINGS.touchReaderControls;
+        case XP_UI_READER_LOOP_QUERY_HOME_ACTION:
+          return static_cast<uint32_t>(o.mappedInput.homeButtonAction());
+        case XP_UI_READER_LOOP_QUERY_TOUCH_MENU:
+          return ReaderUtils::isTouchMenuGesture(o.renderer, o.mappedInput);
+        case XP_UI_READER_LOOP_QUERY_CONFIRM_RELEASE:
+          return o.mappedInput.wasReleased(MappedInputManager::Button::Confirm);
+        case XP_UI_READER_LOOP_QUERY_BACK_RELEASE:
+          return o.mappedInput.wasReleased(MappedInputManager::Button::Back);
+        case XP_UI_READER_LOOP_QUERY_BUSY:
+          return RenderLock::peek();
+        case XP_UI_READER_LOOP_QUERY_END_MENU_ACTIVE:
+          return o.endOfBookMenuActive();
+        case XP_UI_READER_LOOP_QUERY_CONFIRM_THRESHOLD:
+          return o.confirmLongPressThreshold();
+        case XP_UI_READER_LOOP_QUERY_LONG_MENU_FUNCTION:
+          return SETTINGS.longPressMenuFunction;
+        case XP_UI_READER_LOOP_QUERY_HAS_TOUCH:
+          return o.mappedInput.hasTouch();
+        case XP_UI_READER_LOOP_QUERY_HELD:
+          return o.mappedInput.getHeldTime();
+        case XP_UI_READER_LOOP_QUERY_SHORT_POWER:
+          return SETTINGS.shortPwrBtn;
+        case XP_UI_READER_LOOP_QUERY_POWER_RELEASE:
+          return o.mappedInput.wasReleased(MappedInputManager::Button::Power);
+        case XP_UI_READER_LOOP_QUERY_DOWN_RELEASE:
+          return o.mappedInput.wasReleased(MappedInputManager::Button::Down);
+        case XP_UI_READER_LOOP_QUERY_LONG_BUTTON_BEHAVIOR:
+          return SETTINGS.longPressButtonBehavior;
+      }
+      return 0;
+    }
+    uint32_t command(uint8_t cmd, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderLoopCommand>(cmd)) {
+        case XP_UI_READER_LOOP_COMMAND_POPUP_INPUT:
+          o.loadFailurePopup.handleInput(o.mappedInput, [owner = &o] { owner->requestUpdate(); });
+          break;
+        case XP_UI_READER_LOOP_COMMAND_FINISH:
+          o.finish();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_REMEMBER:
+          o.rememberBookOnceRendered();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_TRY_LOCK:
+          assert(!lock);
+          lock.emplace(RenderLock::Mode::Try);
+          return lock->ownsLock();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_UNLOCK:
+          assert(lock);
+          lock.reset();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_RADIO_AFTER:
+          bleturner::afterPaint();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_REPAINT_LINK_NOTE:
+          return o.linkNoteTitle.repaint(bleturner::linkNote());
+          break;
+        case XP_UI_READER_LOOP_COMMAND_UPDATE:
+          o.requestUpdate();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_ORIENTATION:
+          o.applyOrientation(a);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_LOAD_PAGE:
+          page = o.section->loadPage(a);
+          return bool(page);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_FONT_CACHE:
+          cache = o.renderer.getFontCacheManager();
+          return cache != nullptr;
+          break;
+        case XP_UI_READER_LOOP_COMMAND_PREWARM_BEGIN:
+          prewarm.emplace(cache->createPrewarmScope());
+          break;
+        case XP_UI_READER_LOOP_COMMAND_PREWARM_PAGE:
+          page->render(o.renderer, SETTINGS.getReaderFontId(), 0, 0);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_PREWARM_SCAN_END:
+          prewarm->endScanAndPrewarm();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_PREWARM_LOG:
+          LOG_DBG("ERS", "Idle prewarm: page %d in %lums", static_cast<int>(a),
+                  millis() - static_cast<unsigned long>(b));
+          break;
+        case XP_UI_READER_LOOP_COMMAND_PREWARM_DROP:
+          prewarm.reset();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_PAGE_DROP:
+          page.reset();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_START_BUILD:
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-      stripBuffers.releaseIdle();
+          o.stripBuffers.releaseIdle();
 #endif
-      const ReaderRenderSpec buildSpec = SETTINGS.readerRenderSpec(buildViewportWidth, buildViewportHeight);
-      if (!section->startBuild(buildSpec)) {
-        partialRebuildStartFailed = true;
-        LOG_ERR("ERS", "Failed to start deferred partial extension build");
-      } else {
-        LOG_DBG("ERS", "Reader near partial watermark (%d/%d), resuming extension build", section->currentPage,
-                section->pageCount);
+          return o.section->startBuild(SETTINGS.readerRenderSpec(o.buildViewportWidth, o.buildViewportHeight));
+          break;
+        case XP_UI_READER_LOOP_COMMAND_BUILD_FAILED_LOG:
+          LOG_ERR("ERS", "Failed to start deferred partial extension build");
+          break;
+        case XP_UI_READER_LOOP_COMMAND_BUILD_STARTED_LOG:
+          LOG_DBG("ERS", "Reader near partial watermark (%d/%d), resuming extension build", o.section->currentPage,
+                  o.section->pageCount);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_CLEAR_END:
+          o.clearEndOfBookOptionsIfNeeded();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_REMOVE_RECENT:
+          return RECENT_BOOKS.removeByPath(o.epub->getPath());
+          break;
+        case XP_UI_READER_LOOP_COMMAND_ADD_RECENT:
+          RECENT_BOOKS.addBook(o.epub->getPath(), o.epub->getTitle(), o.epub->getAuthor(), o.epub->getThumbBmpPath());
+          break;
+        case XP_UI_READER_LOOP_COMMAND_OVERLAY_INPUT:
+          o.handleOverlayInput();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_DISCARD_OVERLAY:
+          o.discardOverlayPage();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_CLIP:
+          o.startClipSelection(a, b);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_TURN:
+          return o.pageTurn(a != 0);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_NOTE_TURN:
+          o.notePageTurn(a != 0, b != 0);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_HAPTIC:
+          haptic_feedback::touchAction(a != 0);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_END_MENU:
+          return o.handleEndOfBookMenu();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_CONFIRM_LONG:
+          return o.mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, a);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_BOOKMARK:
+          o.addBookmark();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_SYNC:
+          return o.launchKOReaderSync();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_DICTIONARY:
+          o.openDictionaryWordSelect();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_RESTORE_POSITION:
+          o.restoreSavedPosition();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_FOOTNOTES:
+          o.openFootnoteSelect(false);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_OPEN_OVERLAY:
+          o.openOverlay(static_cast<Overlay>(a));
+          break;
+        case XP_UI_READER_LOOP_COMMAND_OPEN_MENU:
+          o.openReaderMenu();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_MATCH_LINK: {
+          RenderLock held;
+          const auto* link = EpubReaderUtils::linkAtPoint(o.currentPageMetadata.links(), a, b,
+                                                          o.currentPageLinkMarginLeft, o.currentPageLinkMarginTop);
+          if (link) href = link->href;
+          return link != nullptr;
+        } break;
+        case XP_UI_READER_LOOP_COMMAND_NAVIGATE_LINK:
+          o.navigateToHref(href, true);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_BACK_NAVIGATION:
+          return o.handleBackNavigation();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_BUILD_TICK:
+          o.backgroundBuildTick();
+          break;
+        case XP_UI_READER_LOOP_COMMAND_END_TURN:
+          return o.handleEndOfBookPageTurn(a != 0, b != 0);
+          break;
+        case XP_UI_READER_LOOP_COMMAND_SKIP:
+          return o.skipPages(a);
+          break;
       }
+      return 0;
     }
-  }
-
-  const bool atEndOfBook = currentSpineIndex > 0 && currentSpineIndex >= epub->getSpineItemsCount();
-  clearEndOfBookOptionsIfNeeded();
-
-  if (SETTINGS.removeReadBooksFromRecents) {
-    if (atEndOfBook && !recentsEntryRemoved) {
-      recentsEntryRemoved = RECENT_BOOKS.removeByPath(epub->getPath());
-    } else if (!atEndOfBook && recentsEntryRemoved) {
-      RECENT_BOOKS.addBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), epub->getThumbBmpPath());
-      recentsEntryRemoved = false;
-    }
-  }
-
-  if (atEndOfBook) {
-    pendingReadFolderMove = SETTINGS.moveFinishedToReadFolder && !isInReadFolder(epub->getPath());
-  } else {
-    pendingReadFolderMove = false;
-  }
-
-  const auto touch =
-      ReaderUtils::detectTouchPageTurn(renderer, mappedInput, ReaderUtils::isRtlBookLanguage(epub->getLanguage()));
-
-  if (showBookmarkMessage && (millis() - bookmarkMessageTime) >= ReaderUtils::BOOKMARK_MESSAGE_DURATION_MS) {
-    showBookmarkMessage = false;
-    requestUpdate();
-  }
-
-  if (showDictionaryMessage && (millis() - dictionaryMessageTime) >= ReaderUtils::BOOKMARK_MESSAGE_DURATION_MS) {
-    showDictionaryMessage = false;
-    requestUpdate();
-  }
-
-  if (showFontDamagedMessage && (millis() - fontDamagedMessageTime) >= ReaderUtils::BOOKMARK_MESSAGE_DURATION_MS) {
-    showFontDamagedMessage = false;
-    requestUpdate();
-  }
-
-  // The toolbar reader menu owns all input while shown, ahead of the automatic page turn
-  // below: the More panel's rate popup switches automatic turning on and leaves the panel
-  // open, so the timer must neither flip the page under it nor eat the panel's next
-  // Confirm/Back release.
-  if (overlay != Overlay::None) {
-    if (usesToolbarMenu()) {
-      // Hold the interval at zero elapsed so closing the panel starts a fresh one.
-      lastPageTurnTime = millis();
-      handleOverlayInput();
-      return;
-    }
-    // The style was switched off while an overlay was up (Settings reached via
-    // the More panel); fall back to the clean page.
-    overlay = Overlay::None;
-    discardOverlayPage();
-    requestUpdate();
-    return;
-  }
-
-  int selectionX = 0;
-  int selectionY = 0;
-  if (!atEndOfBook && SETTINGS.touchReaderControls && mappedInput.wasScreenLongPress(selectionX, selectionY)) {
-    automaticPageTurnActive = false;
-    pendingManualTurn = 0;
-    startClipSelection(selectionX, selectionY);
-    return;
-  }
-
-  switch (mappedInput.homeButtonAction()) {
-    case HomeButtonAction::ReaderMenu:
-    case HomeButtonAction::Bookmark:
-    case HomeButtonAction::Sync:
-    case HomeButtonAction::Dictionary:
-    case HomeButtonAction::Footnotes:
-    case HomeButtonAction::CreateClipping:
-      automaticPageTurnActive = false;
-      break;
-    default:
-      break;
-  }
-
-  if (automaticPageTurnActive) {
-    const bool touchStopsAutoTurn = ReaderUtils::isTouchMenuGesture(renderer, mappedInput);
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
-        mappedInput.wasReleased(MappedInputManager::Button::Back) || touchStopsAutoTurn) {
-      automaticPageTurnActive = false;
-      if (touchStopsAutoTurn) haptic_feedback::touchAction();
-      requestUpdate();
-      return;
-    }
-
-    if (!section) {
-      requestUpdate();
-      return;
-    }
-
-    if (RenderLock::peek()) {
-      lastPageTurnTime = millis();
-      return;
-    }
-
-    if ((millis() - lastPageTurnTime) >= pageTurnDuration) {
-      const bool succeeded = pageTurn(true);
-      notePageTurn(true, succeeded);
-      requestUpdate();
-      return;
-    }
-  }
-
-  if (showClippingMessage && (millis() - clippingMessageTime) >= ReaderUtils::BOOKMARK_MESSAGE_DURATION_MS) {
-    showClippingMessage = false;
-    requestUpdate();
-  }
-
-  // While the end-of-book suggestion menu is up it owns Confirm/Back/navigation, so it
-  // gets this tick's input first and the long-press shortcuts below stay inert behind it
-  // -- a hold there must not drop a bookmark onto the suggestion screen or paint the
-  // dictionary word picker over it. Anything the menu does not handle (long-press Back to
-  // the file browser, say) still falls through to the regular handlers.
-  if (handleEndOfBookMenu()) {
-    return;
-  }
-  const bool endOfBookMenuOpen = endOfBookMenuActive();
-
-  const unsigned long confirmHoldMs = confirmLongPressThreshold();
-  // wasLongPressed() suppresses the release that follows it, so leave it unpolled while
-  // the end-of-book menu owns Confirm -- otherwise the menu never sees that release.
-  const bool confirmLongPressed = !endOfBookMenuOpen && confirmHoldMs != 0 &&
-                                  mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, confirmHoldMs);
-  const bool confirmReleased = mappedInput.wasReleased(MappedInputManager::Button::Confirm);
-  if (confirmLongPressed) {
-    switch (SETTINGS.longPressMenuFunction) {
-      case CrossPointSettings::LP_MENU_BOOKMARK:
-        addBookmark();
-        showBookmarkMessage = true;
-        bookmarkMessageTime = millis();
-        requestUpdate();
-        break;
-      case CrossPointSettings::LP_MENU_KOSYNC:
-        if (launchKOReaderSync()) {
-          return;
-        }
-        break;
-      case CrossPointSettings::LP_MENU_DICTIONARY:
-        openDictionaryWordSelect();
-        return;
-      case CrossPointSettings::LP_MENU_CREATE_CLIPPING:
-        startClipSelection();
-        return;
-      case CrossPointSettings::LP_MENU_FOOTNOTES:
-        if (footnoteDepth > 0) {
-          restoreSavedPosition();
-        } else {
-          openFootnoteSelect(false);
-        }
-        return;
-      case CrossPointSettings::LP_MENU_READER_MENU:
-      case CrossPointSettings::LP_MENU_DISABLED:
-      default:
-        break;
-    }
-  }
-
-  if (!endOfBookMenuOpen) {
-    switch (mappedInput.homeButtonAction()) {
-      case HomeButtonAction::Bookmark:
-        if (!showBookmarkMessage) {
-          addBookmark();
-          showBookmarkMessage = true;
-          bookmarkMessageTime = millis();
-          requestUpdate();
-        }
-        return;
-      case HomeButtonAction::Sync:
-        launchKOReaderSync();
-        return;
-      case HomeButtonAction::Dictionary:
-        if (!showDictionaryMessage) openDictionaryWordSelect();
-        return;
-      case HomeButtonAction::CreateClipping:
-        startClipSelection();
-        return;
-      case HomeButtonAction::ReaderMenu:
-        if (usesToolbarMenu() && section)
-          openOverlay(Overlay::Toolbar);
-        else
-          openReaderMenu();
-        return;
-      default:
-        break;
-    }
-  }
-
-  // Link taps take priority over the reader-menu and page-turn zones.
-  if (!atEndOfBook && SETTINGS.touchReaderControls && mappedInput.hasTouch()) {
-    int touchX = 0;
-    int touchY = 0;
-    if (mappedInput.wasScreenTapped(touchX, touchY)) {
-      std::string href;
-      bool matched;
-      {
-        RenderLock lock;
-        const auto* link = EpubReaderUtils::linkAtPoint(currentPageMetadata.links(), touchX, touchY,
-                                                        currentPageLinkMarginLeft, currentPageLinkMarginTop);
-        matched = link != nullptr;
-        if (matched) href = link->href;
-      }
-      if (matched) {
-        navigateToHref(href, true);
-        haptic_feedback::touchAction();
-        return;
-      }
-    }
-  }
-
-  const bool touchMenu = ReaderUtils::isTouchMenuGesture(renderer, mappedInput);
-  if (confirmReleased || touchMenu) {
-    if (touchMenu) haptic_feedback::touchAction();
-    // Toolbar style: the page is on screen and in the framebuffer, so paint the
-    // toolbar over it (one refresh) instead of pushing a full-screen menu.
-    if (usesToolbarMenu() && section) {
-      pendingManualTurn = 0;
-      openOverlay(Overlay::Toolbar);
-    } else {
-      openReaderMenu();
-    }
-    return;  // no build step before the menu shows
-  }
-
-  if (footnoteDepth > 0 && mappedInput.wasReleased(MappedInputManager::Button::Back) &&
-      mappedInput.getHeldTime() < ReaderUtils::GO_BACK_OR_HOME_MS) {
-    restoreSavedPosition();
-    return;
-  }
-
-  if (handleBackNavigation()) {
-    return;
-  }
-
-  if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::CREATE_CLIPPING &&
-      mappedInput.wasReleased(MappedInputManager::Button::Power) &&
-      !mappedInput.wasReleased(MappedInputManager::Button::Down)) {
-    startClipSelection();
-    return;
-  }
-
-  if ((!endOfBookMenuOpen && mappedInput.homeButtonAction() == HomeButtonAction::Footnotes) ||
-      (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::FOOTNOTES &&
-       mappedInput.wasReleased(MappedInputManager::Button::Power) &&
-       !mappedInput.wasReleased(MappedInputManager::Button::Down))) {
-    if (footnoteDepth > 0) {
-      restoreSavedPosition();
-    } else {
-      openFootnoteSelect(false);
-    }
-    return;
-  }
-
-  constexpr unsigned long kMinManualTurnGapMs = 200;
-  const bool turnGuardActive = RenderLock::peek() || (millis() - lastPageTurnTime) < kMinManualTurnGapMs;
-  if (pendingManualTurn != 0 && !turnGuardActive) {
-    if (!section) {
-      pendingManualTurn = 0;
-      return;
-    }
-    const bool forward = pendingManualTurn > 0;
-    pendingManualTurn = 0;
-    const bool succeeded = pageTurn(forward);
-    notePageTurn(forward, succeeded);
-    if (succeeded && pendingManualTurnTouch) haptic_feedback::touchAction();
-    pendingManualTurnTouch = false;
-    requestUpdate();
-    return;
-  }
-
-  auto [prevTriggered, nextTriggered, fromTilt] = ReaderUtils::detectPageTurn(mappedInput);
-  prevTriggered = prevTriggered || touch.prev;
-  nextTriggered = nextTriggered || touch.next;
-  if (!prevTriggered && !nextTriggered) {
-    // Nothing to act on in this frame: build more of the chapter.
-    backgroundBuildTick();
-    return;
-  }
-
-  if (handleEndOfBookPageTurn(prevTriggered, nextTriggered)) {
-    return;
-  }
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Power) &&
-      mappedInput.wasReleased(MappedInputManager::Button::Down)) {
-    return;
-  }
-
-  const unsigned long heldMs = (touch.prev || touch.next) ? touch.heldMs : mappedInput.getHeldTime();
-  const bool longPress = !fromTilt && heldMs >= ReaderUtils::SKIP_HOLD_MS;
-  if (longPress && SETTINGS.longPressButtonBehavior == SETTINGS.CHAPTER_SKIP) {
-    const bool succeeded = skipPages(nextTriggered ? 1 : -1);
-    notePageTurn(false, succeeded);
-    if (succeeded && (touch.prev || touch.next)) haptic_feedback::touchAction(true);
-    requestUpdate();
-    return;
-  }
-
-  if (longPress && SETTINGS.longPressButtonBehavior == SETTINGS.ORIENTATION_CHANGE) {
-    const uint8_t newOrientation =
-        nextTriggered ? (SETTINGS.orientation - 1 + SETTINGS.ORIENTATION_COUNT) % SETTINGS.ORIENTATION_COUNT
-                      : (SETTINGS.orientation + 1) % SETTINGS.ORIENTATION_COUNT;
-    applyOrientation(newOrientation);
-    if (touch.prev || touch.next) haptic_feedback::touchAction(true);
-    requestUpdate();
-    return;
-  }
-
-  if (!section) {
-    requestUpdate();
-    return;
-  }
-
-  if (turnGuardActive) {
-    pendingManualTurn = prevTriggered ? -1 : 1;
-    pendingManualTurnTouch = touch.prev || touch.next;
-    return;
-  }
-
-  const bool succeeded = pageTurn(!prevTriggered);
-  notePageTurn(!prevTriggered, succeeded);
-  if (succeeded && (touch.prev || touch.next)) haptic_feedback::touchAction();
-  requestUpdate();
+  } context{*this};
+  const XpUiReaderLoopServices services{
+      &context,
+      [](void* p, uint8_t f) { return static_cast<Context*>(p)->readModel(f); },
+      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->writeModel(f, v); },
+      [](void* p, uint8_t q) { return static_cast<Context*>(p)->query(q); },
+      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); },
+      [](void* p) -> XpUiReaderTurnInput {
+        auto& o = static_cast<Context*>(p)->o;
+        auto t = ReaderUtils::detectTouchPageTurn(o.renderer, o.mappedInput,
+                                                  ReaderUtils::isRtlBookLanguage(o.epub->getLanguage()));
+        return {static_cast<uint32_t>(t.heldMs), t.prev, t.next, 0, 0};
+      },
+      [](void* p) -> XpUiReaderTurnInput {
+        auto& o = static_cast<Context*>(p)->o;
+        auto [prev, next, tilt] = ReaderUtils::detectPageTurn(o.mappedInput);
+        return {0, prev, next, tilt, 0};
+      },
+      [](void* p, uint8_t q, int32_t* x, int32_t* y) -> uint8_t {
+        auto& o = static_cast<Context*>(p)->o;
+        int a = 0, b = 0;
+        bool ok = q == XP_UI_READER_LOOP_POINT_LONG ? o.mappedInput.wasScreenLongPress(a, b)
+                                                    : o.mappedInput.wasScreenTapped(a, b);
+        *x = a;
+        *y = b;
+        return ok;
+      }};
+  xp_ui_reader_loop_run(&services);
 }
 
 void EpubReaderActivity::jumpToPercent(int percent) {
@@ -2891,288 +2904,251 @@ void EpubReaderActivity::renderOverlay() {
   toolbarUi->render();
 }
 
-void EpubReaderActivity::handleOverlayInput() {
-  if (!toolbarUi) return;
-
-  // A modal option picker over the panel owns all input while open.
-  if (overlayPopup.isActive()) {
-    overlayPopup.handleInput(mappedInput, [this] {
-      if (overlayPopup.isActive()) {
-        paintOverlayPopup();  // highlight moved
-        return;
+void EpubReaderActivity::handleOverlayInput() { runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_INPUT); }
+void EpubReaderActivity::runOverlayPolicy(uint8_t operation) {
+  struct Context {
+    EpubReaderActivity& o;
+    std::optional<RenderLock> lock{};
+    std::optional<decltype(std::declval<Epub&>().getTocItem(0))> item{};
+    ReaderToolbarUi::Routed routed{};
+    uint32_t pressed = 0, released = 0;
+    uint32_t read(uint8_t field) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderOverlayField>(field)) {
+        case XP_UI_READER_OVERLAY_FIELD_OVERLAY:
+          return static_cast<uint32_t>(o.overlay);
+        case XP_UI_READER_OVERLAY_FIELD_SPINE:
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        case XP_UI_READER_OVERLAY_FIELD_NEXT_PAGE:
+          return static_cast<uint32_t>(o.nextPageNumber);
+        case XP_UI_READER_OVERLAY_FIELD_FOCUS:
+          return static_cast<uint32_t>(o.focusedTool);
+        case XP_UI_READER_OVERLAY_FIELD_INDEX:
+          return static_cast<uint32_t>(o.panelIndex);
+        case XP_UI_READER_OVERLAY_FIELD_CURSOR:
+          return static_cast<uint32_t>(o.panelCursorShown);
+        case XP_UI_READER_OVERLAY_FIELD_HOLD:
+          return static_cast<uint32_t>(o.panelHoldJumped);
+        case XP_UI_READER_OVERLAY_FIELD_STORED:
+          return static_cast<uint32_t>(o.overlayPageStored);
       }
-      // Dismissed or selected: erase the dialog -- clean page back, then the
-      // panel over it (the dialog can overhang the sheet onto the page).
-      RenderLock lock;
-      settleOverlayRefresh();
-      if (overlayPageStored) {
-        renderer.restoreBwBuffer(/*resyncPanelBaseline=*/false);
-        overlayPageStored = renderer.storeBwBuffer();
-        renderOverlay();
-        pushOverlayRefresh();
-      } else {
-        requestUpdate();
+      return 0;
+    }
+    void write(uint8_t field, uint32_t value) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderOverlayField>(field)) {
+        case XP_UI_READER_OVERLAY_FIELD_OVERLAY:
+          o.overlay = static_cast<decltype(o.overlay)>(value);
+          break;
+        case XP_UI_READER_OVERLAY_FIELD_SPINE:
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          break;
+        case XP_UI_READER_OVERLAY_FIELD_NEXT_PAGE:
+          o.nextPageNumber = static_cast<decltype(o.nextPageNumber)>(value);
+          break;
+        case XP_UI_READER_OVERLAY_FIELD_FOCUS:
+          o.focusedTool = static_cast<decltype(o.focusedTool)>(value);
+          break;
+        case XP_UI_READER_OVERLAY_FIELD_INDEX:
+          o.panelIndex = static_cast<decltype(o.panelIndex)>(value);
+          break;
+        case XP_UI_READER_OVERLAY_FIELD_CURSOR:
+          o.panelCursorShown = static_cast<decltype(o.panelCursorShown)>(value);
+          break;
+        case XP_UI_READER_OVERLAY_FIELD_HOLD:
+          o.panelHoldJumped = static_cast<decltype(o.panelHoldJumped)>(value);
+          break;
+        case XP_UI_READER_OVERLAY_FIELD_STORED:
+          o.overlayPageStored = static_cast<decltype(o.overlayPageStored)>(value);
+          break;
       }
-    });
-    return;
-  }
-  const auto fastRedraw = [this] {
-    RenderLock lock;  // the render task shares the framebuffer
-    settleOverlayRefresh();
-    renderOverlay();
-    pushOverlayRefresh();
-  };
+    }
+    uint32_t query(uint8_t query) {
+      switch (static_cast<XpUiReaderOverlayQuery>(query)) {
+        case XP_UI_READER_OVERLAY_QUERY_HAS_TOOLBAR:
+          return bool(o.toolbarUi);
+        case XP_UI_READER_OVERLAY_QUERY_POPUP_ACTIVE:
+          return o.overlayPopup.isActive();
+        case XP_UI_READER_OVERLAY_QUERY_SPINE_COUNT:
+          return o.epub->getSpineItemsCount();
+        case XP_UI_READER_OVERLAY_QUERY_TOC_COUNT:
+          return o.epub->getTocItemsCount();
+        case XP_UI_READER_OVERLAY_QUERY_MORE_COUNT:
+          return o.moreItems.size();
+        case XP_UI_READER_OVERLAY_QUERY_ROWS:
+          return o.toolbarUi->visibleRows();
+        case XP_UI_READER_OVERLAY_QUERY_ROUTED:
+          return routed.routed;
+        case XP_UI_READER_OVERLAY_QUERY_VALUE:
+          return routed.value;
+        case XP_UI_READER_OVERLAY_QUERY_PERMILLE:
+          return routed.permille;
+        case XP_UI_READER_OVERLAY_QUERY_X:
+          return routed.x;
+        case XP_UI_READER_OVERLAY_QUERY_Y:
+          return routed.y;
+        case XP_UI_READER_OVERLAY_QUERY_WIDTH:
+          return o.renderer.getScreenWidth();
+        case XP_UI_READER_OVERLAY_QUERY_HEIGHT:
+          return o.renderer.getScreenHeight();
+        case XP_UI_READER_OVERLAY_QUERY_FOCUS_READING:
+          return SETTINGS.focusReadingEnabled;
+        case XP_UI_READER_OVERLAY_QUERY_PRESSED:
+          return pressed;
+        case XP_UI_READER_OVERLAY_QUERY_RELEASED:
+          return released;
+      }
+      return 0;
+    }
+    uint32_t command(uint8_t cmd, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderOverlayCommand>(cmd)) {
+        case XP_UI_READER_OVERLAY_COMMAND_TAKE_SWIPE:
+          return static_cast<uint32_t>(o.mappedInput.wasSwipe());
+        case XP_UI_READER_OVERLAY_COMMAND_TAKE_HELD_MS:
+          return o.mappedInput.getHeldTime();
+        case XP_UI_READER_OVERLAY_COMMAND_SAMPLE_BUTTONS: {
+          const auto sample = [&](uint32_t bit, MappedInputManager::Button button) {
+            if (static_cast<uint32_t>(a) & bit) {
+              pressed &= ~bit;
+              if (o.mappedInput.isPressed(button)) pressed |= bit;
+            }
+            if (static_cast<uint32_t>(b) & bit) {
+              released &= ~bit;
+              if (o.mappedInput.wasReleased(button)) released |= bit;
+            }
+          };
+          sample(XP_UI_BACK, MappedInputManager::Button::Back);
+          sample(XP_UI_LEFT, MappedInputManager::Button::Left);
+          sample(XP_UI_RIGHT, MappedInputManager::Button::Right);
+          sample(XP_UI_CONFIRM, MappedInputManager::Button::Confirm);
+          sample(XP_UI_UP, MappedInputManager::Button::Up);
+          sample(XP_UI_DOWN, MappedInputManager::Button::Down);
 
-  // Jump to another spine item (chapter scrub). The overlay stays up and is
-  // re-drawn over the new page by renderBook().
-  const auto gotoSpine = [this](int target) {
-    const int spineCount = epub->getSpineItemsCount();
-    target = std::clamp(target, 0, spineCount - 1);
-    if (target != currentSpineIndex) {
-      RenderLock lock;
-      clearDeferredReposition();
-      nextPageNumber = 0;
-      currentSpineIndex = target;
-      section.reset();
-    }
-    requestUpdate();
-  };
-  const auto toolOverlay = [](int tool) {
-    return tool == 0 ? Overlay::Contents : (tool == 1 ? Overlay::Text : Overlay::More);
-  };
-
-  // Touch first: FreeInkUI routes the frame against the tap targets the last
-  // render registered and hands back the action it mapped to.
-  const auto routed = toolbarUi->route(mappedInput);
-
-  // --- Toolbar ---
-  if (overlay == Overlay::Toolbar) {
-    switch (routed.event) {
-      case ReaderToolbarUi::Event::Dismiss:
-        closeOverlayToPage();
-        return;
-      case ReaderToolbarUi::Event::Tool:
-        focusedTool = routed.value;
-        openOverlay(toolOverlay(focusedTool));
-        return;
-      case ReaderToolbarUi::Event::PrevChapter:
-        gotoSpine(currentSpineIndex - 1);
-        return;
-      case ReaderToolbarUi::Event::NextChapter:
-        gotoSpine(currentSpineIndex + 1);
-        return;
-      case ReaderToolbarUi::Event::Scrub:
-        gotoSpine(static_cast<int>((static_cast<float>(routed.permille) / 1000.0f) *
-                                       static_cast<float>(epub->getSpineItemsCount() - 1) +
-                                   0.5f));
-        return;
-      default:
-        break;
-    }
-    if (routed.routed) return;  // a touch frame the chrome consumed (or dead space)
-
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      closeOverlayToPage();
-      return;
-    }
-    if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
-      focusedTool = (focusedTool + 2) % 3;
-      panelCursorShown = true;
-      fastRedraw();
-      return;
-    }
-    if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
-      focusedTool = (focusedTool + 1) % 3;
-      panelCursorShown = true;
-      fastRedraw();
-      return;
-    }
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-      openOverlay(toolOverlay(focusedTool));
-      return;
-    }
-    const bool prev = mappedInput.wasReleased(MappedInputManager::Button::Up);
-    const bool next = mappedInput.wasReleased(MappedInputManager::Button::Down);
-    if (prev || next) {
-      gotoSpine(currentSpineIndex + (next ? 1 : -1));
-    }
-    return;
-  }
-
-  // --- Panels (Contents / Text / More) ---
-  const int count = overlay == Overlay::Contents ? epub->getTocItemsCount()
-                    : overlay == Overlay::Text   ? kTextRowCount
-                                                 : static_cast<int>(moreItems.size());
-  const int pageRows = std::max(1, toolbarUi->visibleRows());
-
-  // Activate the highlighted row: change a value / jump to a chapter / run an
-  // action. Shared by the Confirm button and a row tap.
-  const auto activateRow = [this, count, &fastRedraw] {
-    if (panelIndex < 0 || panelIndex >= count) return;
-    if (overlay == Overlay::Text) {
-      if (panelIndex == 0) {
-        // Full font picker (built-in + SD fonts, live preview) -- the same
-        // screen Settings uses; a popup cannot scroll a long font list.
-        overlay = Overlay::None;
-        overlayPopup.dismiss();
-        discardOverlayPage();
-        {
-          RenderLock lock;  // the picker paints the framebuffer next
-          settleOverlayRefresh();
+          break;
         }
-        startActivityForResult(std::make_unique<TextSettingsActivity>(renderer, mappedInput, &sdFontSystem.registry(),
-                                                                      TextSettingsActivity::Tab::Family),
-                               [this](const ActivityResult&) {
-                                 applyReaderTextSettings();
-                                 overlay = Overlay::Text;  // back to the Text panel
-                                 panelIndex = 0;
-                                 if (toolbarUi) toolbarUi->begin();  // the picker drew its own FUI screen
-                                 requestUpdate();                    // re-render page + Text panel
-                               });
-      } else if (panelIndex == 4) {
-        // Focus Reading is a genuine on/off: a tap toggles and applies live.
-        SETTINGS.focusReadingEnabled = SETTINGS.focusReadingEnabled ? 0 : 1;
-        applyTextSettingLive();
-      } else {
-        // Enum rows open the Settings-style option picker.
-        showTextRowPopup(panelIndex);
+        case XP_UI_READER_OVERLAY_COMMAND_POPUP_INPUT:
+          o.overlayPopup.handleInput(
+              o.mappedInput, [owner = &o] { owner->runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_POPUP_CHANGED); });
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_LOCK:
+          assert(!lock);
+          lock.emplace();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_UNLOCK:
+          assert(lock);
+          lock.reset();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_SETTLE:
+          o.settleOverlayRefresh();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_PAINT_POPUP:
+          o.paintOverlayPopup();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_RESTORE:
+          o.renderer.restoreBwBuffer(false);
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_STORE:
+          return o.renderer.storeBwBuffer();
+        case XP_UI_READER_OVERLAY_COMMAND_RENDER:
+          o.renderOverlay();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_PUSH:
+          o.pushOverlayRefresh();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_UPDATE:
+          o.requestUpdate();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_CLOSE:
+          o.closeOverlayToPage();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_OPEN:
+          o.openOverlay(static_cast<Overlay>(a));
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_CLEAR_DEFERRED:
+          o.clearDeferredReposition();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_DROP_SECTION:
+          o.section.reset();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_ROUTE:
+          routed = o.toolbarUi->route(o.mappedInput);
+          return static_cast<uint32_t>(routed.event);
+        case XP_UI_READER_OVERLAY_COMMAND_DISMISS_POPUP:
+          o.overlayPopup.dismiss();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_DISCARD:
+          o.discardOverlayPage();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_START_PICKER:
+          o.startActivityForResult(
+              std::make_unique<TextSettingsActivity>(o.renderer, o.mappedInput, &sdFontSystem.registry(),
+                                                     TextSettingsActivity::Tab::Family),
+              [owner = &o](const ActivityResult&) {
+                owner->runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_PICKER_RESULT);
+              });
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_APPLY_TEXT:
+          o.applyReaderTextSettings();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_TOOLBAR_BEGIN:
+          o.toolbarUi->begin();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_SET_FOCUS_READING:
+          SETTINGS.focusReadingEnabled = a;
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_APPLY_LIVE:
+          o.applyTextSettingLive();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_TEXT_POPUP:
+          o.showTextRowPopup(a);
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_MORE:
+          o.activateMoreRow(a);
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_TOC_ITEM:
+          item.emplace(o.epub->getTocItem(a));
+          return item->spineIndex;
+        case XP_UI_READER_OVERLAY_COMMAND_TOC_ANCHOR:
+          o.pendingAnchor = item->anchor;
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_TOC_DROP:
+          item.reset();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_SCROLL:
+          return o.toolbarUi->scrollNavigation(a, b);
       }
-    } else if (overlay == Overlay::Contents) {
-      const auto item = epub->getTocItem(panelIndex);
-      if (item.spineIndex != -1) {
-        RenderLock lock;
-        clearDeferredReposition();
-        currentSpineIndex = item.spineIndex;
-        pendingAnchor = item.anchor;
-        nextPageNumber = 0;
-        section.reset();
-      }
-      overlay = Overlay::None;
-      discardOverlayPage();
-      requestUpdate();
-    } else if (overlay == Overlay::More) {
-      activateMoreRow(panelIndex);
+      return 0;
     }
-  };
+  } context{*this};
+  static_assert(static_cast<int>(Overlay::None) == XP_UI_READER_OVERLAY_MODE_NONE);
+  static_assert(static_cast<int>(Overlay::Toolbar) == XP_UI_READER_OVERLAY_MODE_TOOLBAR);
+  static_assert(static_cast<int>(Overlay::Contents) == XP_UI_READER_OVERLAY_MODE_CONTENTS);
+  static_assert(static_cast<int>(Overlay::Text) == XP_UI_READER_OVERLAY_MODE_TEXT);
+  static_assert(static_cast<int>(Overlay::More) == XP_UI_READER_OVERLAY_MODE_MORE);
+  static_assert(static_cast<int>(ReaderToolbarUi::Event::None) == XP_UI_READER_OVERLAY_EVENT_NONE);
+  static_assert(static_cast<int>(ReaderToolbarUi::Event::Dismiss) == XP_UI_READER_OVERLAY_EVENT_DISMISS);
+  static_assert(static_cast<int>(ReaderToolbarUi::Event::Tool) == XP_UI_READER_OVERLAY_EVENT_TOOL);
+  static_assert(static_cast<int>(ReaderToolbarUi::Event::PrevChapter) == XP_UI_READER_OVERLAY_EVENT_PREV_CHAPTER);
+  static_assert(static_cast<int>(ReaderToolbarUi::Event::NextChapter) == XP_UI_READER_OVERLAY_EVENT_NEXT_CHAPTER);
+  static_assert(static_cast<int>(ReaderToolbarUi::Event::Scrub) == XP_UI_READER_OVERLAY_EVENT_SCRUB);
+  static_assert(static_cast<int>(ReaderToolbarUi::Event::Row) == XP_UI_READER_OVERLAY_EVENT_ROW);
+  static_assert(static_cast<int>(MappedInputManager::SwipeDir::None) == XP_UI_READER_OVERLAY_SWIPE_NONE);
+  static_assert(static_cast<int>(MappedInputManager::SwipeDir::Left) == XP_UI_READER_OVERLAY_SWIPE_LEFT);
+  static_assert(static_cast<int>(MappedInputManager::SwipeDir::Right) == XP_UI_READER_OVERLAY_SWIPE_RIGHT);
+  static_assert(static_cast<int>(MappedInputManager::SwipeDir::Up) == XP_UI_READER_OVERLAY_SWIPE_UP);
+  static_assert(static_cast<int>(MappedInputManager::SwipeDir::Down) == XP_UI_READER_OVERLAY_SWIPE_DOWN);
+  static_assert(kTextRowCount == XP_UI_READER_OVERLAY_TEXT_ROWS);
+  static_assert(PANEL_HOLD_MS == XP_UI_READER_OVERLAY_HOLD_MS);
+  static_assert(PANEL_HOLD_STEP == XP_UI_READER_OVERLAY_HOLD_ROWS);
 
-  // Steps up to the toolbar -- the Back button and a tap on the page above
-  // the sheet.
-  const auto dismissPanel = [this, &fastRedraw] {
-    overlay = Overlay::Toolbar;
-    // Restore the snapshotted page under the toolbar instead of re-rendering
-    // it (2+ refreshes -> one FAST). Re-store right away so another panel
-    // round-trip can restore again.
-    if (overlayPageStored) {
-      {
-        RenderLock lock;  // the render task shares the framebuffer
-        settleOverlayRefresh();
-        // No baseline resync: the glass shows the panel, and erasing it needs
-        // the differential to keep diffing against the last pushed frame.
-        renderer.restoreBwBuffer(/*resyncPanelBaseline=*/false);
-        overlayPageStored = renderer.storeBwBuffer();
-      }
-      fastRedraw();  // takes its own RenderLock
-      return;
-    }
-    requestUpdate();
-  };
-
-  // Pages the list by one screen of rows through the nav (measured page size,
-  // no-op at the ends). A shown cursor rides along so the buttons continue
-  // from what is visible; on touch boards only the viewport moves.
-  const auto pageList = [this, count, pageRows, &fastRedraw](int direction) {
-    if (count <= 0) return;
-    const bool moved = toolbarUi->scrollNavigation(direction * pageRows, count);
-    if (panelCursorShown) {
-      panelIndex = std::clamp(panelIndex + direction * pageRows, 0, count - 1);
-      fastRedraw();
-      return;
-    }
-    if (moved) fastRedraw();
-  };
-
-  switch (routed.event) {
-    case ReaderToolbarUi::Event::Dismiss:
-      dismissPanel();
-      return;
-    case ReaderToolbarUi::Event::Tool: {
-      // Sheet-bottom tool switcher: hop straight to another panel.
-      const Overlay target = toolOverlay(routed.value);
-      if (target != overlay) {
-        focusedTool = routed.value;
-        openOverlay(target);
-      }
-      return;
-    }
-    case ReaderToolbarUi::Event::Row:
-      // A tap on the right-edge strip pages the sheet instead (upper half =
-      // previous page, lower half = next): swipes are unreliable on etched
-      // glass, and a long contents list needs a fast way through.
-      if (routed.x >= renderer.getScreenWidth() - 44) {
-        pageList(routed.y >= renderer.getScreenHeight() - (renderer.getScreenHeight() * 62) / 200 ? 1 : -1);
-        return;
-      }
-      panelIndex = routed.value;
-      panelCursorShown = false;
-      activateRow();
-      return;
-    default:
-      break;
-  }
-  // Swipe up/down pages the list. Checked before the routed-frame return:
-  // FUI routes every touch frame over the sheet, so a swipe's frames count as
-  // routed (without dispatching -- too much travel for a tap) and the gesture
-  // would otherwise never be seen.
-  const auto swipe = mappedInput.wasSwipe();
-  if (swipe == MappedInputManager::SwipeDir::Up || swipe == MappedInputManager::SwipeDir::Down) {
-    pageList(swipe == MappedInputManager::SwipeDir::Up ? 1 : -1);
-    return;
-  }
-  if (routed.routed) return;  // consumed by the chrome (title band, dead space)
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    dismissPanel();
-    return;
-  }
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    activateRow();
-    return;
-  }
-
-  // Up/Down (side) and Left/Right (front) move the cursor: a tap steps one
-  // row, holding past PANEL_HOLD_MS jumps PANEL_HOLD_STEP rows in one go, which
-  // is how you cross a hundreds-of-chapters contents list without a press per
-  // row. The jump fires once on the hold and swallows the release that ends it,
-  // so it never doubles up with the tap step.
-  if (count > 0) {
-    const bool up = mappedInput.isPressed(MappedInputManager::Button::Up) ||
-                    mappedInput.isPressed(MappedInputManager::Button::Left);
-    const bool down = mappedInput.isPressed(MappedInputManager::Button::Down) ||
-                      mappedInput.isPressed(MappedInputManager::Button::Right);
-    if (!panelHoldJumped && (up || down) && mappedInput.getHeldTime() >= PANEL_HOLD_MS) {
-      const int step = down ? PANEL_HOLD_STEP : -PANEL_HOLD_STEP;
-      panelIndex = std::clamp(panelIndex + step, 0, count - 1);
-      panelHoldJumped = true;
-      panelCursorShown = true;
-      fastRedraw();
-      return;
-    }
-
-    const bool releasedUp = mappedInput.wasReleased(MappedInputManager::Button::Up) ||
-                            mappedInput.wasReleased(MappedInputManager::Button::Left);
-    const bool releasedDown = mappedInput.wasReleased(MappedInputManager::Button::Down) ||
-                              mappedInput.wasReleased(MappedInputManager::Button::Right);
-    if (releasedUp || releasedDown) {
-      if (!panelHoldJumped) {
-        panelIndex = releasedUp ? ButtonNavigator::previousIndex(panelIndex, count)
-                                : ButtonNavigator::nextIndex(panelIndex, count);
-        panelCursorShown = true;
-        fastRedraw();
-      }
-      panelHoldJumped = false;
-    }
-  }
+  const XpUiReaderOverlayServices services{
+      &context, [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
+      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
+      [](void* p, uint8_t q) { return static_cast<Context*>(p)->query(q); },
+      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
+  xp_ui_reader_overlay_run(&services, operation);
+  assert(!context.lock);
+  assert(!context.item);
 }
 
 // First paint of the option picker over the panel (and highlight repaints).

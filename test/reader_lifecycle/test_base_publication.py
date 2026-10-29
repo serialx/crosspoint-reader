@@ -31,16 +31,20 @@ with tempfile.TemporaryDirectory() as directory:
 void (*begin)(XpUiReaderBaseModel*, XpUiReaderBaseModel*) = xp_ui_reader_base_begin_render;
 void (*publish)(XpUiReaderBaseModel*, const XpUiReaderBaseModel*) = xp_ui_reader_base_publish;
 void (*force)(XpUiReaderBaseModel*) = xp_ui_reader_base_force_refresh;
+void (*overlay)(const XpUiReaderOverlayServices*, uint8_t) = xp_ui_reader_overlay_run;
 ''')
     subprocess.run(['cc', '-std=c11', '-Werror', '-fsyntax-only', str(p / 'abi.c'), '-I' + str(ROOT / 'rust/crates/xp-ffi/include')], check=True)
     header = (ROOT / 'rust/crates/xp-ffi/include/xp_ui_reader.h').read_text()
-    rust = (ROOT / 'rust/crates/xp-ui/src/reader/base.rs').read_text()
-    for kind in ['Field', 'Query', 'Command', 'Operation']:
-        body = re.search(r'pub enum ' + kind + r' \{(.*?)\n\}', rust, re.S)[1]
-        for name, value in re.findall(r'(\w+) = (\d+)', body):
-            suffix = re.sub(r'(?<!^)(?=[A-Z])', '_', name).upper()
-            key = 'XP_UI_READER_BASE_' + kind.upper() + '_' + suffix
-            assert re.search(r'\b' + key + r' = ' + value + r'\b', header), key
+    for module, family, kinds in [('base', 'BASE', ['Field', 'Query', 'Command', 'Operation']),
+                                   ('epub_loop', 'LOOP', ['Field', 'Query', 'Command', 'Point']),
+                                   ('epub_overlay', 'OVERLAY', ['Event', 'Swipe', 'Mode', 'Field', 'Query', 'Command', 'Operation'])]:
+        rust = (ROOT / f'rust/crates/xp-ui/src/reader/{module}.rs').read_text()
+        for kind in kinds:
+            body = re.search(r'pub enum ' + kind + r' \{(.*?)\n\}', rust, re.S)[1]
+            for name, value in re.findall(r'(\w+) = (\d+)', body):
+                suffix = re.sub(r'(?<!^)(?=[A-Z])', '_', name).upper()
+                key = 'XP_UI_READER_' + family + '_' + kind.upper() + '_' + suffix
+                assert re.search(r'\b' + key + r' = ' + value + r'\b', header), key
     drift = fixture.replace('xp_ui_reader_base_publish', 'xp_ui_reader_base_publish_drift')
     cpp.write_text(drift)
     failed = subprocess.run(['c++', '-std=c++17', '-fsyntax-only', str(cpp), '-I' + str(ROOT / 'rust/crates/xp-ffi/include')], capture_output=True, text=True)

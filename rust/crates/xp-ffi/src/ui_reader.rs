@@ -464,3 +464,24 @@ pub unsafe extern "C" fn xp_ui_reader_base_force_refresh(model: *mut base::Model
         model.force_refresh();
     }
 }
+
+/// # Safety
+/// Non-null services and their context obey the synchronous loop callback contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_loop_run(services: *const reader::epub_loop::Services) {
+    if let Some(services) = services.as_ref() {
+        reader::epub_loop::run(*services);
+    }
+}
+
+/// # Safety
+/// Services obey the synchronous toolbar-parent callback contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_overlay_run(
+    services: *const reader::epub_overlay::Services,
+    operation: u8,
+) {
+    reader::epub_overlay::run(services, operation);
+}

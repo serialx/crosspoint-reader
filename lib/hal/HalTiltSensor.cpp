@@ -4,6 +4,12 @@
 
 #include <cstring>
 
+// Rust tilt policy interprets the existing settings values directly.
+static_assert(CrossPointTiltPageTurn::TILT_OFF == 0 && CrossPointTiltPageTurn::TILT_NORMAL == 1 &&
+              CrossPointTiltPageTurn::TILT_INVERTED == 2);
+static_assert(CrossPointOrientation::PORTRAIT == 0 && CrossPointOrientation::LANDSCAPE_CW == 1 &&
+              CrossPointOrientation::INVERTED == 2 && CrossPointOrientation::LANDSCAPE_CCW == 3);
+
 HalTiltSensor halTiltSensor;
 
 XpHalTiltServices HalTiltSensor::services() {

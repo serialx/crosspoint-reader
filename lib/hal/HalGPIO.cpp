@@ -7,6 +7,11 @@
 #include <XteinkDetect.h>
 #include <esp_sleep.h>
 
+// Rust detection policy uses the SDK verdict as its numeric ABI.
+static_assert(static_cast<uint8_t>(freeink::XteinkVerdict::X4Confirmed) == 0 &&
+              static_cast<uint8_t>(freeink::XteinkVerdict::X3Confirmed) == 1 &&
+              static_cast<uint8_t>(freeink::XteinkVerdict::Inconclusive) == 2);
+
 // Global HalGPIO instance
 HalGPIO gpio;
 

@@ -1,6 +1,13 @@
 #include <HalDisplay.h>
 #include <HalGPIO.h>
 
+// Rust display policy interprets these SDK and HAL values directly.
+static_assert(EInkDisplay::FULL_REFRESH == 0 && EInkDisplay::HALF_REFRESH == 1 && EInkDisplay::FAST_REFRESH == 2);
+static_assert(static_cast<uint32_t>(HalGPIO::WakeupReason::PowerButton) == 0 &&
+              static_cast<uint32_t>(HalGPIO::WakeupReason::AfterFlash) == 1 &&
+              static_cast<uint32_t>(HalGPIO::WakeupReason::AfterUSBPower) == 2 &&
+              static_cast<uint32_t>(HalGPIO::WakeupReason::Other) == 3);
+
 // Global HalDisplay instance
 HalDisplay display;
 

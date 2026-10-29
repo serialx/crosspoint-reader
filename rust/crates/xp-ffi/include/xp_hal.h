@@ -70,6 +70,7 @@ typedef struct {
 void xp_hal_tilt_begin(XpHalTilt*, const XpHalTiltServices*);
 bool xp_hal_tilt_wake(XpHalTilt*, const XpHalTiltServices*);
 bool xp_hal_tilt_sleep(XpHalTilt*, const XpHalTiltServices*);
+// Mode: 0 = off, 1 = normal, 2 = inverted. Orientation: portrait, CW, inverted, CCW (0..3).
 void xp_hal_tilt_update(XpHalTilt*, const XpHalTiltServices*, uint8_t mode, uint8_t orientation, bool in_reader);
 bool xp_hal_tilt_take(XpHalTilt*, uint8_t event);
 void xp_hal_tilt_clear(XpHalTilt*);
@@ -123,6 +124,7 @@ typedef struct {
   void* ctx;
   uint8_t (*read)(bool cached);
   void (*write)(uint8_t value);
+  // SDK verdict: 0 = X4 confirmed, 1 = X3 confirmed, 2 = inconclusive.
   uint8_t (*probe)(uint8_t* first, uint8_t* second);
   XpHalDiagnostic diagnostic;
 } XpHalDetectServices;
@@ -134,6 +136,7 @@ typedef struct {
 } XpHalInput;
 void xp_hal_input_update(XpHalInput*, uint8_t buttons, bool usb);
 bool xp_hal_input_adc(int32_t first, int32_t second);
+// Wake reason: 0 = power button, 1 = after flash, 2 = USB power, 3 = other.
 uint32_t xp_hal_wake_reason(bool deep_reset, bool button_wake, bool undefined_wake, bool power_reset,
                             bool unknown_reset, bool usb, bool cold_button);
 typedef struct {
@@ -160,6 +163,7 @@ typedef enum {
 } XpHalDisplayOp;
 typedef uint32_t (*XpHalDisplayCall)(void*, XpHalDisplayOp, uint32_t, bool, uint32_t);
 void xp_hal_display_begin(void*, XpHalDisplayCall, bool x3, bool seamless);
+// SDK refresh: 0 = full, 1 = half, 2 = fast. Gray mode passes through unchanged.
 bool xp_hal_display_refresh(void*, XpHalDisplayCall, bool x3, XpHalDisplayOp, uint32_t refresh, bool off,
                             uint32_t gray_mode);
 

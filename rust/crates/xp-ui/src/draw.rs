@@ -378,7 +378,15 @@ pub fn geometry(target: &mut Strip<'_>, command: &Command) {
             let sy = if y < y1 { 1 } else { -1 };
             let mut error = dx + dy;
             loop {
-                band(target, x, y, 1, 1, command.paint);
+                // Legacy wide lines repeat the same path at successive y offsets.
+                band(
+                    target,
+                    x,
+                    y,
+                    1,
+                    i32::from(command.width.max(1)),
+                    command.paint,
+                );
                 if x == x1 && y == y1 {
                     break;
                 }

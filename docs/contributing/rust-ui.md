@@ -61,7 +61,9 @@ Paint values are black, white, light dither and dark dither (0 through 3).
 Rounded-corner masks use top-left 1, top-right 2, bottom-left 4, bottom-right 8;
 zero means all four. Omitted rounded stroke corners follow the existing
 GfxRenderer behavior, including omitted edge segments. Line commands store an
-endpoint delta in `rect.w/h`; stroke width applies to rectangle strokes.
+endpoint delta in `rect.w/h`. Line width repeats the path at successive y offsets,
+matching the native renderer; zero retains the one-pixel default. Rectangle
+strokes use their own inward stroke width.
 
 Text uses the existing font IDs, metrics, bidi, fallback and glyph services.
 `max_lines == 0` paints at the recorded glyph origin; positive values use the

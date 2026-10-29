@@ -994,3 +994,35 @@ fn publication_preserves_input_during_layout() {
         (80, 1, 0)
     );
 }
+
+#[test]
+fn frozen_cpp_wide_line_pixels() {
+    let golden = include_bytes!("../../../../test/ui_runtime/wide-lines.golden");
+    let mut offset = 0;
+    for orientation in 0..4 {
+        for width in [0, 1, 2, 3] {
+            for paint in 0..2 {
+                for (w, h) in [(15, 0), (0, 18), (15, 21), (-15, 21), (15, -21), (-15, -21)] {
+                    let command = Command {
+                        kind: Kind::Line as u8,
+                        rect: Rect { x: 8, y: 9, w, h },
+                        width,
+                        paint,
+                        ..Command::default()
+                    };
+                    for rows in [1, 3, 24] {
+                        let mut pixels = [if paint == 0 { 255 } else { 0 }; 96];
+                        for y in (0..24).step_by(rows) {
+                            let bytes = &mut pixels[y * 4..(y + rows) * 4];
+                            let t = target(bytes, orientation, y as i32, rows as i32);
+                            draw::geometry(&mut Strip::new(t, bytes).unwrap(), &command);
+                        }
+                        assert_eq!(&pixels, &golden[offset..offset + 96],
+                            "orientation={orientation} width={width} paint={paint} delta=({w},{h}) rows={rows}");
+                    }
+                    offset += 96;
+                }
+            }
+        }
+    }
+}

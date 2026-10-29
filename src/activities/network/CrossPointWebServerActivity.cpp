@@ -382,7 +382,7 @@ XpUiPaint CrossPointWebServerActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void*, uint32_t handle, uint32_t generation) -> uint8_t {
             return generation == 1 && (handle == XP_UI_NETWORK_HEADER || handle == XP_UI_NETWORK_FOOTER ||
-                                       (handle >= XP_UI_WEB_SUBHEADER && handle <= XP_UI_WEB_THICK_LINE));
+                                       (handle >= XP_UI_WEB_SUBHEADER && handle <= XP_UI_WEB_ALTERNATE_URL));
           },
           [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
             auto& self = *static_cast<CrossPointWebServerActivity*>(context);
@@ -436,9 +436,6 @@ XpUiPaint CrossPointWebServerActivity::rustResources() {
                 if (!self.renderingState.is_ap)
                   self.alternateUrl.emplace(std::string(tr(STR_OR_HTTP_PREFIX)) + AP_HOSTNAME + ".local/");
                 resource.labels[0] = self.alternateUrl->c_str();
-                break;
-              case XP_UI_WEB_THICK_LINE:
-                resource.kind = Kind::Line;
                 break;
               default:
                 return;

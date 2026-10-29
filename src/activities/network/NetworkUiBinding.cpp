@@ -69,8 +69,5 @@ void networkui::paint(GfxRenderer& renderer, MappedInputManager& input, const Xp
     case Kind::Qr:
       QrUtils::drawQrCode(renderer, bounds, *resource.qr);
       break;
-    case Kind::Line:
-      renderer.drawLine(r.x, r.y, r.x + r.w, r.y + r.h, command.width, command.paint != 1);
-      break;
   }
 }

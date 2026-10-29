@@ -67,3 +67,26 @@ add_test(NAME ui_network_calibre_pixels COMMAND NetworkCalibreTarget)
 
 add_test(NAME ui_network_calibre_input COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_calibre_input.py ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME ui_network_web_effects COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_web_effects.py ${XP_FFI_HOST_ARCHIVE})
+set(WEB_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WebTarget.cpp)
+add_custom_command(OUTPUT ${WEB_TARGET}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_web_target.py ${WEB_TARGET}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WebTarget.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_web_target.py ${CMAKE_CURRENT_SOURCE_DIR}/web_render_original.inc
+    ${REPO_ROOT}/src/util/QrUtils.cpp ${REPO_ROOT}/src/activities/network/CrossPointWebServerActivity.cpp)
+add_executable(NetworkWebTarget ${WEB_TARGET} ${NETWORK_RENDER_SOURCES}
+  ${REPO_ROOT}/.pio/libdeps/default/QRCode/src/qrcode.c)
+target_include_directories(NetworkWebTarget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/.pio/libdeps/default/QRCode/src
+  ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(NetworkWebTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
+target_compile_options(NetworkWebTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(NetworkWebTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
+target_link_libraries(NetworkWebTarget PRIVATE xp_ffi_host)
+add_test(NAME ui_network_web_pixels COMMAND NetworkWebTarget)
+
+add_test(NAME ui_network_web_input COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_web_input.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_network_web_policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_web_policy.py)

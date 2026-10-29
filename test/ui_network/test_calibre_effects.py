@@ -3,7 +3,7 @@ import re,sys,subprocess,tempfile
 repo=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(repo/'test/ui_network'))
 import prepare
-s=prepare.generate(frozen_usb=True, frozen_calibre=True)
+s=prepare.generate(frozen_usb=True, frozen_calibre=True, frozen_web=True)
 a=re.search(r'struct CalibreConnectActivity\s*:\s*Activity\s*{',s).start();b=s.index('\n};',a)+3
 cls='''struct CalibreConnectActivity:Activity {
  CalibreConnectActivity()=default;

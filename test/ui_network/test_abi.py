@@ -21,7 +21,9 @@ with tempfile.TemporaryDirectory() as directory:
             (header.replace('XP_UI_USB_PREPARING_STATUS = 11', 'XP_UI_USB_PREPARING_STATUS = 42'), False),
             (header.replace('host_suspend_pending, reserved[2]', 'host_suspend_pending, reserved[6]'), False),
             (header.replace('XP_UI_CALIBRE_SERVER_BEGIN = 10', 'XP_UI_CALIBRE_SERVER_BEGIN = 42'), False),
-            (header.replace('banner_width;', 'banner_width[3];'), False)]:
+            (header.replace('banner_width;', 'banner_width[3];'), False),
+            (header.replace('XP_UI_WEB_SERVER_BEGIN = 27', 'XP_UI_WEB_SERVER_BEGIN = 42'), False),
+            (header.replace('wifi_connected, reserved[3]', 'wifi_connected, reserved[7]'), False)]:
         (out/'xp_ui_network.h').write_text(source)
         compile_checked(cpp, okay)
     usb = (ROOT/'rust/crates/xp-ui/src/network/usb.rs').read_text()
@@ -43,4 +45,14 @@ with tempfile.TemporaryDirectory() as directory:
     rust = ['rustc', '--edition=2021', '--crate-type=lib', str(out/'abi.rs'), '-o', str(out/'abi.rlib')]
     for source, okay in [(calibre, True), (calibre.replace('ServerBegin = 10', 'ServerBegin = 42'), False)]:
         (out/'calibre.rs').write_text(source)
+        compile_checked(rust, okay)
+
+with tempfile.TemporaryDirectory() as directory:
+    out = Path(directory)
+    web = (ROOT/'rust/crates/xp-ui/src/network/web.rs').read_text()
+    (out/'abi.rs').write_text('#![allow(dead_code)]\nmod model {pub struct Input {pub pressed:u32,pub held:u32} pub const BACK:u32=1;}\nmod web;\n')
+    rust = ['rustc', '--edition=2021', '--crate-type=lib', str(out/'abi.rs'), '-o', str(out/'abi.rlib')]
+    for source, okay in [(web, True), (web.replace('ServerBegin = 27', 'ServerBegin = 42'), False),
+                         (web.replace('pub start_in_join: u8', 'pub start_in_join: u32'), False)]:
+        (out/'web.rs').write_text(source)
         compile_checked(rust, okay)

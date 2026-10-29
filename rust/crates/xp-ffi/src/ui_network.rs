@@ -84,3 +84,40 @@ pub unsafe extern "C" fn xp_ui_network_calibre_view(
 ) -> u8 {
     unsafe { ffi::calibre_view(state, layout, now, buffer, out) }
 }
+
+use xp_ui::network::{web, web_view};
+/// # Safety
+/// Descriptors aligned, live and disjoint; callbacks do not reenter run.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_network_web_run(
+    state: *mut web::State,
+    services: *const web::Services,
+    event: u8,
+    value: u8,
+) {
+    unsafe { ffi::web_run(state, services, event, value) }
+}
+/// # Safety
+/// Descriptors aligned, live and disjoint; latch exclusively borrowed.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_network_web_cancel(
+    latch: *mut u8,
+    input: *const Input,
+    home: u8,
+) -> u8 {
+    unsafe { ffi::web_cancel(latch, input, home) }
+}
+/// # Safety
+/// Descriptors aligned, live and disjoint; commands exclusively borrowed.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_network_web_view(
+    state: *const web::State,
+    layout: *const web_view::Layout,
+    buffer: *const Buffer,
+    out: *mut SceneView,
+) -> u8 {
+    unsafe { ffi::web_view(state, layout, buffer, out) }
+}

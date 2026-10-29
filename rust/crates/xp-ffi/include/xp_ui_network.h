@@ -186,6 +186,113 @@ enum {
 uint8_t xp_ui_network_calibre_view(const XpUiCalibreState*, const XpUiCalibreLayout*, uint32_t now_ms,
                                    const XpUiBuffer*, XpUiScene*);
 
+// Web policy owns phases, navigation, connection health and pumping cadence.
+// run/cancel execute outside ModelLock; publish copies only the 20 B scalar
+// state under ModelLock. All descriptor/input pointers are non-null, aligned,
+// live and disjoint. Callbacks must not reenter run; cancel borrows its own byte.
+typedef struct {
+  uint32_t last_handle, first_disconnect;
+  int32_t disconnects, bars;
+  uint8_t phase, mode, is_ap, start_in_join;
+} XpUiWebState;
+typedef enum {
+  XP_UI_WEB_MODES = 0,
+  XP_UI_WEB_WIFI = 1,
+  XP_UI_WEB_AP_STARTING = 2,
+  XP_UI_WEB_RUNNING = 3,
+  XP_UI_WEB_STOPPING = 4
+} XpUiWebPhase;
+typedef enum {
+  XP_UI_WEB_NOW = 0,              // value ignored; returns millis().
+  XP_UI_WEB_PAINT = 1,            // value ignored; schedules repaint; return ignored.
+  XP_UI_WEB_ENTER_RESOURCES = 2,  // value ignored; logs heap and releases SD font caches; return ignored.
+  XP_UI_WEB_EXIT_LOG_START = 3,   // value ignored; logs initial heap; return ignored.
+  XP_UI_WEB_EXIT_LOG_END = 4,     // value ignored; logs final heap; return ignored.
+  XP_UI_WEB_DNS_STOP = 5,         // value ignored; stops/deletes captive DNS; return ignored.
+  XP_UI_WEB_MDNS_END = 6,         // value ignored; stops mDNS; return ignored.
+  XP_UI_WEB_PLUGINS_REFRESH = 7,  // value ignored; reloads subscriptions; return ignored.
+  XP_UI_WEB_WIFI_PRESENT = 8,     // value ignored; returns WiFi mode is not NULL.
+  XP_UI_WEB_WIFI_DISCONNECT = 9,  // value ignored; disconnects STA without erasing credentials; return ignored.
+  XP_UI_WEB_AP_DISCONNECT = 10,   // value ignored; stops AP; return ignored.
+  XP_UI_WEB_DELAY = 11,           // value is milliseconds; return ignored.
+  XP_UI_WEB_RESTART = 12,         // value ignored; silent restart may not return; value ignored.
+  XP_UI_WEB_RESTART_JOIN =
+      13,                   // value ignored; requests heap-defrag restart into Join and may not return; return ignored.
+  XP_UI_WEB_LOG_MODE = 14,  // value is selected mode; logs its label; return ignored.
+  XP_UI_WEB_HOME = 15,      // value ignored; navigates home; return ignored.
+  XP_UI_WEB_SELECT_MODES = 16,    // value 1 logs initial launch, 0 is child return; starts mode child; return ignored.
+  XP_UI_WEB_SELECT_CALIBRE = 17,  // value ignored; starts Calibre child; return ignored.
+  XP_UI_WEB_WIFI_STA = 18,        // value ignored; logs and sets STA mode; return ignored.
+  XP_UI_WEB_SELECT_WIFI = 19,     // value ignored; logs and starts WiFi child; return ignored.
+  XP_UI_WEB_AP_START_LOG = 20,    // value ignored; logs AP setup and heap; return ignored.
+  XP_UI_WEB_WIFI_AP = 21,         // value ignored; sets AP mode; return ignored.
+  XP_UI_WEB_AP_BEGIN = 22,        // value ignored; starts configured AP; returns success.
+  XP_UI_WEB_AP_DETAILS = 23,      // value ignored; copies AP IP/SSID and logs them; return ignored.
+  XP_UI_WEB_MDNS_RESTART = 24,    // value ignored; restarts/logs mDNS; return ignored.
+  XP_UI_WEB_DNS_START = 25,       // value ignored; replaces/configures captive DNS; return ignored.
+  XP_UI_WEB_AP_READY_LOG = 26,    // value ignored; logs post-AP heap; return ignored.
+  XP_UI_WEB_SERVER_BEGIN = 27,    // value ignored; releases caches, allocates/binds/starts server; return ignored.
+  XP_UI_WEB_SERVER_RUNNING = 28,  // value ignored; returns server exists and is running.
+  XP_UI_WEB_SERVER_DELETE = 29,   // value ignored; deletes server; return ignored.
+  XP_UI_WEB_SERVER_READY_LOG = 30,  // value ignored; logs success; return ignored.
+  XP_UI_WEB_SERVER_ERROR_LOG = 31,  // value ignored; logs failure; return ignored.
+  XP_UI_WEB_WIFI_RSSI = 32,         // value ignored; returns RSSI bits as signed int32.
+  XP_UI_WEB_PLUGIN_DRAIN = 33,      // value ignored; drains bounded plugin events; return ignored.
+  XP_UI_WEB_DNS_NEXT = 34,          // value ignored; processes DNS if present; return ignored.
+  XP_UI_WEB_WIFI_STATUS = 35,    // value ignored; returns connected boolean and retains native status for diagnostics.
+  XP_UI_WEB_INPUT_UPDATE = 36,   // value ignored; pumps mapped input; return ignored.
+  XP_UI_WEB_EXIT_INPUT = 37,     // value ignored; returns Back-release or Home edge.
+  XP_UI_WEB_WATCHDOG = 38,       // value ignored; resets subscribed watchdog; return ignored.
+  XP_UI_WEB_YIELD = 39,          // value ignored; yields task; return ignored.
+  XP_UI_WEB_HANDLE_CLIENT = 40,  // value ignored; handles one client iteration; return ignored.
+  XP_UI_WEB_READ_CANCEL = 41,    // value ignored; returns independent upload cancellation latch.
+  XP_UI_WEB_LOG_GAP = 42,        // value is client gap milliseconds; return ignored.
+  XP_UI_WEB_LOG_WIFI_LOST =
+      43,  // value is lost-link milliseconds; logs retained status and published count; return ignored.
+  XP_UI_WEB_LOG_ABANDON = 44,      // value ignored; logs five-minute abandonment; return ignored.
+  XP_UI_WEB_LOG_RECOVERED = 45,    // value is recovery milliseconds; logs published failed-check count; return ignored.
+  XP_UI_WEB_LOG_WEAK = 46,         // value is RSSI bits as signed int32; return ignored.
+  XP_UI_WEB_USB_ACTIVITY = 47,     // value ignored; opens USB activity when supported; return ignored.
+  XP_UI_WEB_LOG_WIFI_RESULT = 48,  // value is connected boolean; return ignored.
+  XP_UI_WEB_USB_SUPPORTED = 49,    // value ignored; returns compile-time USB MSC capability.
+  XP_UI_WEB_AP_ERROR_LOG = 50,     // value ignored; logs AP start failure; return ignored.
+  XP_UI_WEB_CLEAR_CONNECTION = 51  // value ignored; clears owned IP/SSID on enter; return ignored.
+} XpUiWebCall;
+typedef struct {
+  void* context;
+  uint32_t (*call)(void*, uint32_t operation, uint32_t value);
+  void (*publish)(void*, const XpUiWebState*);
+} XpUiWebServices;
+// Enter/Exit/Tick retain shared event numbers 0/1/2. Input(3) carries a mode
+// (0..3 or 255 for cancel); ChildResult(4) carries WiFi success; event 5 returns
+// from the Calibre child. The last-WiFi-check timestamp retains static lifetime.
+void xp_ui_network_web_run(XpUiWebState*, const XpUiWebServices*, uint8_t event, uint8_t value);
+// This separate byte belongs to Rust cancellation policy. The transport may
+// update it during handleClient without aliasing the run's borrowed model.
+uint8_t xp_ui_network_web_cancel(uint8_t* latch, const XpUiInput*, uint8_t home);
+typedef struct {
+  XpUiRect screen;
+  int32_t font, small_font;
+  int16_t top_padding, header_height, tab_height, spacing, side_padding, line_height;
+  uint8_t wifi_connected, reserved[3];
+} XpUiWebLayout;
+enum {
+  XP_UI_WEB_SUBHEADER = 1300,
+  XP_UI_WEB_STARTING_TEXT = 1301,
+  XP_UI_WEB_CONNECT_HINT = 1302,
+  XP_UI_WEB_WIFI_QR = 1303,
+  XP_UI_WEB_SSID_TEXT = 1304,
+  XP_UI_WEB_OPEN_HINT = 1305,
+  XP_UI_WEB_SCAN_HINT = 1306,
+  XP_UI_WEB_URL_QR = 1307,
+  XP_UI_WEB_PRIMARY_URL = 1308,
+  XP_UI_WEB_ALTERNATE_URL = 1309,
+  XP_UI_WEB_THICK_LINE = 1310  // Native line primitive; Rust provides endpoints and width.
+};
+// Raw text commands carry alignment; the facade binds native centered-text
+// measurement/drawing and QR painting, keeping formatted-string lifetimes.
+uint8_t xp_ui_network_web_view(const XpUiWebState*, const XpUiWebLayout*, const XpUiBuffer*, XpUiScene*);
+
 #ifdef __cplusplus
 }
 #endif

@@ -27,7 +27,7 @@ class Oracle(unittest.TestCase):
     def test_frozen_effects(self):
         self.assertEqual(run(frozen()), (HERE/'effects.golden').read_bytes())
     def test_current_effects(self):
-        self.assertEqual(run(prepare.generate(frozen_usb=True, frozen_calibre=True)), (HERE/'effects.golden').read_bytes())
+        self.assertEqual(run(prepare.generate(frozen_usb=True, frozen_calibre=True, frozen_web=True)), (HERE/'effects.golden').read_bytes())
     def test_usb_order_mutation(self):
         source = frozen()
         changed = source.replace('requestUpdateAndWait();\n  if (!Storage.beginUsbDrive())', 'Storage.beginUsbDrive();\n  requestUpdateAndWait();\n  if (false)')

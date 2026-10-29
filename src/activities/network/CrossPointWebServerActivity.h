@@ -1,75 +1,49 @@
 #pragma once
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <xp_ui_network.h>
 
-#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "NetworkModeSelectionActivity.h"
-#include "activities/Activity.h"
+#include "activities/RustActivityAdapter.h"
 #include "network/CrossPointWebServer.h"
-
-// Web server activity states
-enum class WebServerActivityState {
-  MODE_SELECTION,  // Choosing between Join Network and Create Hotspot
-  WIFI_SELECTION,  // WiFi selection subactivity is active (for Join Network mode)
-  AP_STARTING,     // Starting Access Point mode
-  SERVER_RUNNING,  // Web server is running and handling requests
-  SHUTTING_DOWN    // Shutting down server and WiFi
-};
-
-/**
- * CrossPointWebServerActivity is the entry point for file transfer functionality.
- * It:
- * - First presents a choice between "Join a Network" (STA), "Connect to Calibre", and "Create Hotspot" (AP)
- * - For STA mode: Launches WifiSelectionActivity to connect to an existing network
- * - For AP mode: Creates an Access Point that clients can connect to
- * - Starts the CrossPointWebServer when connected
- * - Handles client requests in its loop() function
- * - Cleans up the server and shuts down WiFi on exit
- */
-class CrossPointWebServerActivity final : public Activity {
-  WebServerActivityState state = WebServerActivityState::MODE_SELECTION;
-
-  // Network mode
-  NetworkMode networkMode = NetworkMode::JOIN_NETWORK;
-  bool isApMode = false;
-  // Set when re-entered after the heap-defrag reboot: skip mode selection, go
-  // straight to Join Network, and don't reboot again.
-  bool startInJoinNetwork = false;
-
-  // Web server - owned by this activity
+class CrossPointWebServerActivity final : public RustActivityAdapter {
+  XpUiWebState model{}, renderingState{};
+  XpUiCommand commands[16]{};
   std::unique_ptr<CrossPointWebServer> webServer;
+  std::string connectedIP, connectedSSID;
+  std::optional<std::string> wifiConfig, primaryUrl, alternateUrl;
+  uint8_t cancelLatch = 0;
+  bool runningPolicy = false;
+  StaticSemaphore_t resourceMutexStorage{};
+  SemaphoreHandle_t resourceMutex = xSemaphoreCreateMutexStatic(&resourceMutexStorage);
+  class ResourceLock {
+    SemaphoreHandle_t mutex;
 
-  // Server status
-  std::string connectedIP;
-  std::string connectedSSID;  // For STA mode: network name, For AP mode: AP name
-
-  // Performance monitoring
-  unsigned long lastHandleClientTime = 0;
-
-  // Set when Back or Home is seen while an upload holds handleClient().
-  bool leaveRequested = false;
-
-  // Sustained WiFi-loss tracking; abandon only after WIFI_ABANDON_MS.
-  int consecutiveDisconnects = 0;
-  unsigned long firstDisconnectAt = 0;
-  static constexpr unsigned long WIFI_ABANDON_MS = 5UL * 60UL * 1000UL;
-
-  // Cached signal-strength bracket (0..4) for the WiFi indicator.
-  int lastWifiBars = 0;
-
-  void renderServerRunning() const;
-  void renderWifiIndicator(int subHeaderTop) const;
-
-  void onNetworkModeSelected(NetworkMode mode);
-  void onWifiSelectionComplete(bool connected);
-  void startAccessPoint();
-  void startWebServer();
+   public:
+    explicit ResourceLock(CrossPointWebServerActivity& self) : mutex(self.resourceMutex) {
+      xSemaphoreTake(mutex, portMAX_DELAY);
+    }
+    ~ResourceLock() { xSemaphoreGive(mutex); }
+    ResourceLock(const ResourceLock&) = delete;
+    ResourceLock& operator=(const ResourceLock&) = delete;
+  };
+  struct CallContext;
+  void run(uint8_t event, uint8_t value = 0);
+  static uint32_t service(void*, uint32_t, uint32_t);
+  void onNetworkModeSelected(NetworkMode);
+  void onWifiSelectionComplete(bool);
+  bool buildRustScene(XpUiScene&) override;
+  XpUiPaint rustResources() override;
 
  public:
-  explicit CrossPointWebServerActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                       bool startInJoinNetwork = false)
-      : Activity("CrossPointWebServer", renderer, mappedInput), startInJoinNetwork(startInJoinNetwork) {}
+  explicit CrossPointWebServerActivity(GfxRenderer& r, MappedInputManager& i, bool startInJoinNetwork = false)
+      : RustActivityAdapter("CrossPointWebServer", r, i) {
+    model.start_in_join = startInJoinNetwork;
+  }
   void onEnter() override;
   void onExit() override;
   void loop() override;

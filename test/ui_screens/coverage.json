@@ -305,7 +305,9 @@
       "source": "src/activities/reader/XtcReaderActivity.cpp",
       "status": "captured",
       "groups": [
-        "xtc"
+        "xtc",
+        "xtc-gray",
+        "xtc-visits"
       ],
       "activity": "XtcReader"
     },
@@ -514,7 +516,8 @@
       "source": "src/activities/util/BmpViewerActivity.cpp",
       "status": "captured",
       "groups": [
-        "image"
+        "image",
+        "image-navigation"
       ],
       "activity": "BmpViewer"
     },

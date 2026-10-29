@@ -148,3 +148,4 @@ mod sync;
 mod ota;
 
 mod assets;
+mod plugin;

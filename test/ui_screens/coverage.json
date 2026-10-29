@@ -175,6 +175,16 @@
       "activity": "NetworkModeSelection"
     },
     {
+      "source": "src/activities/network/NetworkUiBinding.cpp",
+      "status": "shared-implementation",
+      "reason": "Native header, footer and text painting for Rust network scenes.",
+      "groups": [
+        "calibre",
+        "hotspot",
+        "wifi"
+      ]
+    },
+    {
       "source": "src/activities/network/UsbDriveActivity.cpp",
       "status": "unsupported-profile",
       "reason": "X3/X4 ESP32-C3 profiles compile FREEINK_CAP_USB_MSC=0; network/NetworkModeSelectionActivity.cpp:17."

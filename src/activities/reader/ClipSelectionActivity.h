@@ -80,6 +80,19 @@ class ClipSelectionActivity final : public RustActivityAdapter {
   XpUiSelectionLayout sampleLayout() const;
   void applySelection(const XpUiSelectionUpdate&);
   XpUiPaint rustResources() override;
+  void rustSceneFailed() override {
+    state.pending_count = state.dragging = state.repeating = state.moved = 0;
+    state.last_repeat = state.dwell_since = 0;
+    state.dwell_index = -1;
+    painted.valid = 0;
+  }
+  void cancelRejectedInput(const XpUiInput& input) override {
+    if (!(input.released & XP_UI_BACK)) return;
+    if (actionPopup.isActive())
+      actionPopup.handleButtons(false, false, false, true, [this] { requestUpdate(); });
+    else
+      cancel();
+  }
   // Keep the cache through overlays, footer and refresh, then release it for this frame.
   std::optional<FontCacheManager::PrewarmScope> framePrewarm;
 };

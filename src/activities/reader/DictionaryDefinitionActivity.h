@@ -117,6 +117,12 @@ class DictionaryDefinitionActivity final : public RustActivityAdapter {
   XpUiDefinitionState rendered{};
   XpUiCommand commands[4]{};
   XpUiPaint rustResources() override;
+  void cancelRejectedInput(const XpUiInput&) override;
+  bool discardPendingLookup = false;
+  void rustSceneFailed() override {
+    discardPendingLookup = true;
+    state.last_repeat = 0;
+  }
   // Keep the cache through overlays, footer and refresh, then release it for this frame.
   std::optional<FontCacheManager::PrewarmScope> framePrewarm;
 };

@@ -331,6 +331,10 @@ void ClipSelectionActivity::loopButtons() {
   if (!queued) LOG_ERR("CLIP", "Selection button queue full");
   RenderLock lock(RenderLock::Mode::Try);
   if (!lock.ownsLock()) return;
+  if (rustSceneRejected()) {
+    consumeRejectedInput();
+    return;
+  }
   for (;;) {
     uint8_t buttons;
     {
@@ -342,6 +346,14 @@ void ClipSelectionActivity::loopButtons() {
 }
 
 void ClipSelectionActivity::loop() {
+  if (consumeRejectedInput()) {
+    int x = 0, y = 0;
+    if (!mappedInput.isScreenTouchHeld(x, y)) {
+      ModelLock lock(*this);
+      state.ignore_touch = 0;
+    }
+    return;
+  }
   if (wordCount == 0 && !actionPopup.isActive()) {
     cancel();
     return;
@@ -351,6 +363,15 @@ void ClipSelectionActivity::loop() {
     return;
   }
   RenderLock lock;
+  if (rustSceneRejected()) {
+    consumeRejectedInput();
+    int x = 0, y = 0;
+    if (!mappedInput.isScreenTouchHeld(x, y)) {
+      ModelLock model(*this);
+      state.ignore_touch = 0;
+    }
+    return;
+  }
   if (actionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;
   XpUiSelectionInput input{};
   input.input = dictionaryUiInput(mappedInput);
@@ -408,6 +429,7 @@ void ClipSelectionActivity::render(RenderLock&&) {
   const XpUiBuffer buffer{commands, nullptr, 20, 0};
   XpUiScene scene{};
   if (xp_ui_selection_view(&rendered, wireWords(), wordCount, &layout, &painted, &buffer, &nextPainted, &scene) != 1) {
+    rejectRustScene();
     LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
     return;
   }

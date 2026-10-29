@@ -7,6 +7,10 @@
 // This harness retains real Rust models while stubbing only platform sampling.
 class RustActivityAdapter : public Activity {
  protected:
+  bool failed = false;
+  void rejectRustScene() { failed = true; }
+  void publishRustScene(const XpUiScene&) { failed = false; }
+  bool rustSceneRejected() const { return failed; }
   class ModelLock {
     inline static bool held = false;
 
@@ -29,6 +33,12 @@ class RustActivityAdapter : public Activity {
  public:
   using Activity::Activity;
   void loop() override {
+    if (failed) {
+      if (mappedInput.wasReleased(MappedInputManager::Button::Back))
+        applyRustEffect(XpUiEffect{0, XP_UI_CANCEL, 0, {0, 0}});
+      requestUpdate();
+      return;
+    }
     XpUiInput input{};
     const MappedInputManager::Button buttons[] = {
         MappedInputManager::Button::Back,        MappedInputManager::Button::Confirm,

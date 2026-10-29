@@ -37,6 +37,9 @@ pathlib.Path(sys.argv[2]).write_text(
     'bool EpubReaderActivity::testMoreAvailability() {\n' + menus[1] + '\nreturn hasFootnotes;\n}\n')
 
 selector = pathlib.Path(sys.argv[3]).read_text()
+selector = ('#include <xp_ui_reader_chrome.h>\n'
+            '#define xp_ui_reader_footnote_view(...) (!renderer.failFootnoteBuild && xp_ui_reader_footnote_view(__VA_ARGS__))\n'
+            + selector)
 selector = selector.replace('#include "EpubReaderFootnoteSelectActivity.h"',
                             '#include "activities/reader/EpubReaderFootnoteSelectActivity.h"')
 for accessor in ('footnote', 'link'):

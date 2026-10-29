@@ -146,9 +146,13 @@ bool BootUiActivity::paintBootViewInto(const XpUiBootView view, const XpUiRefres
         const char* text = self.resourceText(h);
         return text ? self.renderer.getTextWidth(f, text, static_cast<EpdFontFamily::Style>(s)) : -1;
       }};
-  const bool result = xp_ui_boot_view(&layout, &metrics, &buffer, &scene) && paintRustScene(scene);
+  const bool result = xp_ui_boot_view(&layout, &metrics, &buffer, &scene) && paintRustScene(scene, !deferPublication);
   activeView = nullptr;
-  if (!result) LOG_ERR("RUI", "Cannot build boot/image scene");
+  if (!result) {
+    viewsValid = false;
+    rejectRustScene();
+    LOG_ERR("RUI", "Cannot build boot/image scene");
+  }
   return result;
 }
 

@@ -9,9 +9,15 @@ class List final : public RustActivityAdapter {
   XpUiListState state{0, 0, 3, 3, 10, 0, -1, 0, 1, {}};
   std::vector<XpUiInput> inputs;
   List(GfxRenderer& renderer, MappedInputManager& input) : RustActivityAdapter("test", renderer, input) {}
+  bool buildOk = true;
+  unsigned activations = 0, cancellations = 0;
+  void applyRustEffect(const XpUiEffect& effect) override {
+    activations += effect.kind == XP_UI_ACTIVATE;
+    cancellations += effect.kind == XP_UI_CANCEL;
+  }
   bool buildRustScene(XpUiScene& scene) override {
     scene.refresh = XP_UI_FAST;
-    return true;
+    return buildOk;
   }
   XpUiInterest rustInterest(uint32_t nowMs) const override { return xp_ui_list_interest(&state, nowMs); }
   XpUiEffect updateRust(const XpUiInput& input) override {
@@ -42,8 +48,65 @@ class FailureProbe final : public RustActivityAdapter {
   void rustSceneFailed() override { ++failures; }
   void rustPublished() override { ++published; }
 };
+static void rejectionRecovery() {
+  for (bool published : {false, true}) {
+    for (bool buildFailure : {false, true}) {
+      GfxRenderer renderer;
+      renderer.finishRefresh = true;
+      MappedInputManager input;
+      List list(renderer, input);
+      const auto paint = [&] {
+        RenderLock lock;
+        list.render(std::move(lock));
+      };
+      // Initial input retains its original behavior, even before any paint.
+      input.released = 1u << unsigned(MappedInputManager::Button::Confirm);
+      list.loop();
+      assert(list.activations == 1);
+      input = {};
+      if (published) paint();
+      list.buildOk = !buildFailure;
+      renderer.paintOk = buildFailure;
+      paint();
+      const auto selected = list.state.selected;
+      input.pressed = input.held = 1u << unsigned(MappedInputManager::Button::NavNext);
+      list.loop();
+      input.pressed = 0;
+      input.held = 1u << unsigned(MappedInputManager::Button::Confirm);
+      input.heldTime = 800;
+      list.loop();
+      input.released = input.held;
+      input.held = 0;
+      list.loop();
+      input = {};
+      input.touchFlags = XP_UI_TOUCH_RELEASED;
+      list.loop();
+      assert(list.activations == 1 && list.state.selected == selected);
+      input = {};
+      input.released = 1u << unsigned(MappedInputManager::Button::Back);
+      list.loop();
+      assert(list.cancellations == 1);
+      // A held gesture crossing recovery must consume its release, too.
+      input = {};
+      input.pressed = input.held = 1u << unsigned(MappedInputManager::Button::Confirm);
+      list.loop();
+      list.buildOk = renderer.paintOk = true;
+      paint();
+      input.pressed = input.held = 0;
+      input.released = 1u << unsigned(MappedInputManager::Button::Confirm);
+      list.loop();
+      assert(list.activations == 1);
+      input = {};
+      list.loop();
+      input.released = 1u << unsigned(MappedInputManager::Button::Confirm);
+      list.loop();
+      assert(list.activations == 2);
+    }
+  }
+}
 
 int main() {
+  rejectionRecovery();
   GfxRenderer renderer;
   MappedInputManager input;
   List list(renderer, input);
@@ -125,10 +188,10 @@ int main() {
   failure.render(RenderLock{});
   assert(failure.failures == 1 && failure.published == 0);
   failure.rejectBuild = false;
-  renderer.validScene = false;
+  renderer.paintOk = false;
   failure.render(RenderLock{});
   assert(failure.failures == 2 && failure.published == 0);
-  renderer.validScene = true;
+  renderer.paintOk = true;
   failure.render(RenderLock{});
   assert(failure.failures == 2 && failure.published == 1);
 }

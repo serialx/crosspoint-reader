@@ -40,14 +40,34 @@ EndOfBookOptions::Action EndOfBookOptions::handleMenuInput(const MappedInputMana
                                                 MappedInputManager::Button::NavPrevious};
   for (unsigned i = 0; i < 4; ++i) {
     if (input.wasPressed(buttons[i])) frame.pressed |= 1u << i;
+    if (input.isPressed(buttons[i])) frame.held |= 1u << i;
     if (input.wasReleased(buttons[i])) frame.released |= 1u << i;
   }
   frame.held_ms = input.getHeldTime();
   const auto touch = touchSnapshotFrom(input);
   frame.touch_flags = (touch.touchPressed ? XP_UI_TOUCH_PRESSED : 0) | (touch.touchReleased ? XP_UI_TOUCH_RELEASED : 0);
+  if (touch.touchHeld) frame.touch_flags |= XP_UI_TOUCH_HELD;
   frame.touch_x = touch.touchX;
   frame.touch_y = touch.touchY;
   taskENTER_CRITICAL(&mutex);
+  const bool failed = sceneFailed;
+  const bool heldOver =
+      (suppressed & (frame.held | frame.released | frame.pressed)) != 0 || (suppressedContact && frame.touch_flags);
+  if (failed) {
+    suppressed |= frame.held;
+    suppressedContact |= (frame.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
+  }
+  suppressed &= frame.held;
+  lastHeld = frame.held;
+  lastContact = (frame.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
+  if (!lastContact) suppressedContact = false;
+  if (failed || heldOver) {
+    taskEXIT_CRITICAL(&mutex);
+    if ((frame.released & XP_UI_BACK) && frame.held_ms < 1000) return Action::LastPage;
+    // Redraw consumes activation while retaining the parent's long-Back route.
+    if (frame.released & XP_UI_BACK) return Action::None;
+    return Action::Redraw;
+  }
   if (ready && frame.touch_flags) {
     XpUiInteraction hit{};
     if (xp_ui_reader_hit(&published, frame.touch_x, frame.touch_y, &hit)) {
@@ -119,6 +139,9 @@ void EndOfBookOptions::render(GfxRenderer& renderer, const MappedInputManager& i
       XP_UI_READER_VIEW_OK) {
     taskENTER_CRITICAL(&mutex);
     ready = false;
+    sceneFailed = true;
+    suppressed |= lastHeld;
+    suppressedContact |= lastContact;
     taskEXIT_CRITICAL(&mutex);
     return;
   }
@@ -140,6 +163,11 @@ void EndOfBookOptions::render(GfxRenderer& renderer, const MappedInputManager& i
   const bool valid = renderer.drawUiScene(scene, &paint);
   taskENTER_CRITICAL(&mutex);
   ready = valid;
+  sceneFailed = !valid;
+  if (!valid) {
+    suppressed |= lastHeld;
+    suppressedContact |= lastContact;
+  }
   if (valid) {
     xp_ui_reader_list_publish(&state, &next, 0);
     published = nextHits;

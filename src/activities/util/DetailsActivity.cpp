@@ -42,6 +42,10 @@ void DetailsActivity::layoutDescription() {
   pages.resize(1);
 }
 void DetailsActivity::loop() {
+  if (rustSceneRejected() && mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    consumeRejectedInput();
+    return;
+  }
   bool layout;
   {
     ModelLock lock(*this);
@@ -62,10 +66,7 @@ void DetailsActivity::loop() {
 void DetailsActivity::render(RenderLock&&) {
   XpUiScene scene{};
   if (!buildRustScene(scene)) {
-    {
-      ModelLock lock(*this);
-      publication.ready = false;
-    }
+    rejectRustScene();
     LOG_ERR("RUI", "Cannot build details scene");
     return;
   }

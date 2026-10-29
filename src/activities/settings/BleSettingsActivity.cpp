@@ -31,11 +31,12 @@ void BleSettingsActivity::onEnter() {
 }
 
 void BleSettingsActivity::loop() {
-  if (state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING &&
+  const bool blocked = consumeRejectedInput();
+  if (!blocked && state.view == XP_UI_SETTINGS_BLE_VIEW_MAPPING &&
       mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, 700)) {
     clearMapping(selectedIndex());
   }
-  SettingsUiActivity::loop();
+  if (!blocked) SettingsUiActivity::loop();
   if (!xp_ui_settings_ble_poll(&state, millis())) return;
   // A remote being paired that links becomes the chosen one: save it.
   if (SETTINGS.ble.enabled && bleturner::service()) SETTINGS.saveToFile();
@@ -53,6 +54,10 @@ const char* BleSettingsActivity::headerTitle() const {
 void BleSettingsActivity::showView(uint8_t target) {
   {
     RenderLock lock(*this);
+    if (rustSceneRejected()) {
+      requestUpdate();
+      return;
+    }
     xp_ui_settings_ble_show(&state, target);
     resetSelection();
   }

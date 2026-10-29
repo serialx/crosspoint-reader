@@ -53,6 +53,10 @@ void LanguageSelectActivity::activateIndex(const int index) {
 
   {
     RenderLock lock(*this);
+    if (rustSceneRejected()) {
+      requestUpdate();
+      return;
+    }
     I18N.setLanguage(static_cast<Language>(langIndex));
   }
 

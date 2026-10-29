@@ -90,6 +90,7 @@ void DictionaryWordSelectActivity::performLookup() {
 }
 
 void DictionaryWordSelectActivity::loop() {
+  if (rustSceneRejected()) requestUpdate();
   if (state.pending) {
     state.pending = 0;
     performLookup();
@@ -103,10 +104,17 @@ void DictionaryWordSelectActivity::render(RenderLock&&) {
   XpUiScene scene{};
   const XpUiRect screen{0, 0, static_cast<int16_t>(renderer.getScreenWidth()),
                         static_cast<int16_t>(renderer.getScreenHeight())};
-  if (xp_ui_lookup_view(&state, screen, &buffer, &scene) != 1) return;
-  const bool complete = paintRustScene(scene);
-  if (complete && state.popup && dictionaryUiPopup(renderer, I18N.get(popupMsg), commands, 3, scene))
-    paintRustScene(scene);
+  if (xp_ui_lookup_view(&state, screen, &buffer, &scene) != 1) {
+    rejectRustScene();
+    return;
+  }
+  const bool complete = paintRustScene(scene, !state.popup);
+  if (complete && state.popup) {
+    if (dictionaryUiPopup(renderer, I18N.get(popupMsg), commands, 3, scene))
+      paintRustScene(scene);
+    else
+      rejectRustScene();
+  }
   framePrewarm.reset();
 }
 

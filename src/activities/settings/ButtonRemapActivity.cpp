@@ -10,12 +10,17 @@ void ButtonRemapActivity::onEnter() {
   if (!hasUiStorage()) return;
 }
 void ButtonRemapActivity::loop() {
+  if (consumeRejectedInput()) return;
   XpUiInput input{};
   input.now_ms = millis();
   if (mappedInput.wasPressed(MappedInputManager::Button::Up)) input.pressed |= XP_UI_UP;
   if (mappedInput.wasPressed(MappedInputManager::Button::Down)) input.pressed |= XP_UI_DOWN;
   // Raw assignment remains serialized with painting, as on the original screen.
   RenderLock lock(*this);
+  if (rustSceneRejected()) {
+    consumeRejectedInput();
+    return;
+  }
   const auto effect = xp_ui_settings_remap_update(&remap, &input, mappedInput.getPressedFrontButton());
   switch (effect.kind) {
     case 4:

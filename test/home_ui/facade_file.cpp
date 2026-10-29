@@ -46,6 +46,7 @@ class RustActivityAdapter {
   virtual XpUiEffect updateRust(const XpUiInput&) = 0;
   virtual XpUiInterest rustInterest(uint32_t) const = 0;
   virtual void applyRustEffect(const XpUiEffect&) = 0;
+  bool consumeRejectedInput() { return false; }
   void loop() {
     XpUiInput i{};
     i.pressed = mappedInput.pressed;

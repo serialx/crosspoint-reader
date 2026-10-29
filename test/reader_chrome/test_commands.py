@@ -50,6 +50,8 @@ int main() {
     assert(!commands.grow() && !commands.ready() && !live && errors == 2);
     assert(commands.buffer().command_capacity == 0);
     fail = false;
+    assert(commands.recover());
+    assert(commands.ready() && commands.buffer().command_capacity == 64);
     assert(commands.reserve(128));
     const int before = allocations;
     assert(!commands.grow() && !commands.reserve(129) && allocations == before);

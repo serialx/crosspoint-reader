@@ -37,7 +37,42 @@ static void clearMetadataAfterUnlock() {
   RenderLock::requireUnlocked();
   metadataToClear->clear();
 }
+static void rejectionRecovery() {
+  for (bool first : {false, true})
+    for (bool buildFailure : {false, true}) {
+      GfxRenderer renderer;
+      MappedInputManager input;
+      EpubReaderFootnoteSelectActivity selector(renderer, input, page(2), 0, 0);
+      Activity& activity = selector;
+      activity.onEnter();
+      if (first) activity.render({});
+      renderer.failFootnoteBuild = buildFailure;
+      renderer.paintOk = buildFailure;
+      activity.render({});
+      for (auto button : {MappedInputManager::Button::Confirm, MappedInputManager::Button::Power}) {
+        input.released = button;
+        activity.loop();
+        require(!activity.finished, "rejected highlight must block activation");
+      }
+      renderer.failFootnoteBuild = false;
+      renderer.paintOk = true;
+      renderer.snapshotOk = false;
+      activity.render({});
+      input.released = MappedInputManager::Button::Confirm;
+      activity.loop();
+      require(activity.finished, "successful highlight without a snapshot must publish");
+      EpubReaderFootnoteSelectActivity back(renderer, input, page(2), 0, 0);
+      Activity& cancel = back;
+      cancel.onEnter();
+      renderer.paintOk = false;
+      cancel.render({});
+      input.released = MappedInputManager::Button::Back;
+      cancel.loop();
+      require(cancel.finished && cancel.result.isCancelled, "rejected highlight keeps Back");
+    }
+}
 int main() {
+  rejectionRecovery();
   GfxRenderer renderer;
   MappedInputManager input;
   EpubReaderFootnoteSelectActivity selector(renderer, input, page(2), 5, 7);

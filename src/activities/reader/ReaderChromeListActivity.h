@@ -22,12 +22,13 @@ class ReaderChromeCommands {
  public:
   bool reserve(uint16_t count);
   bool grow();
+  bool recover() { return capacity && reserve(capacity); }
   void reset() {
     commands.reset();
     capacity = 0;
   }
   bool ready() const { return commands != nullptr; }
-  XpUiBuffer buffer() const { return {commands.get(), nullptr, capacity, 0}; }
+  XpUiBuffer buffer() const { return {commands.get(), nullptr, static_cast<uint16_t>(commands ? capacity : 0), 0}; }
 
  private:
   std::unique_ptr<XpUiCommand[]> commands;
@@ -92,6 +93,7 @@ class ReaderChromeListActivity : public RustActivityAdapter {
   XpUiReaderRows rows();
   Publication* rustPublication() override { return &publication; }
   void rustPublished() override;
+  void rustSceneFailed() override;
   XpUiInterest rustInterest(uint32_t now) const override;
   XpUiEffect updateRust(const XpUiInput& input) override;
   void applyRustEffect(const XpUiEffect& effect) override;

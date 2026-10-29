@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <cstring>
 #include <functional>
 #include <future>
 #include <memory>
@@ -16,7 +17,12 @@ using StaticSemaphore_t = std::mutex;
 using SemaphoreHandle_t = std::mutex*;
 constexpr int portMAX_DELAY = -1;
 SemaphoreHandle_t xSemaphoreCreateMutexStatic(StaticSemaphore_t* p) { return p; }
-void xSemaphoreTake(SemaphoreHandle_t p, int) { p->lock(); }
+SemaphoreHandle_t watchedMutex = nullptr;
+std::atomic<bool> waitingForResource{false};
+void xSemaphoreTake(SemaphoreHandle_t p, int) {
+  if (p == watchedMutex) waitingForResource = true;
+  p->lock();
+}
 void xSemaphoreGive(SemaphoreHandle_t p) { p->unlock(); }
 constexpr int SMALL_FONT_ID = 1;
 #define LOG_DBG(...) ((void)0)
@@ -120,6 +126,8 @@ class LibraryListActivity {
     explicit RenderLock(LibraryListActivity&) : lock(renderMutex) {}
   };
   std::mutex modelMutex;
+  std::atomic<bool> sceneFailed{false};
+  bool rustSceneRejected() const { return sceneFailed; }
   XpUiLibraryState state{};
   bool resourcesChanged = true;
   XpUiHomeListHits publishedHits{};

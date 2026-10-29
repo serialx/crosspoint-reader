@@ -67,6 +67,12 @@ class HomeActivity final : public RustActivityAdapter {
   XpUiInterest rustInterest(uint32_t now) const override;
   XpUiEffect updateRust(const XpUiInput&) override;
   void applyRustEffect(const XpUiEffect&) override;
+  // Home Back opens the continuing book, so it is activation rather than cancellation.
+  void cancelRejectedInput(const XpUiInput&) override {}
+  void rustSceneFailed() override {
+    touchActivated = false;
+    state.last_repeat = 0;
+  }
   bool buildRustScene(XpUiScene&) override;
   void rustPublished() override;
   XpUiPaint rustResources() override;

@@ -1,5 +1,7 @@
 #pragma once
 #include <Memory.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <xp_ui_keyboard.h>
 
 #include <cstdint>
@@ -16,6 +18,7 @@ class KeyboardEntryActivity : public RustActivityAdapter {
   explicit KeyboardEntryActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                  std::string title = "Enter Text", std::string initialText = "",
                                  const size_t maxLength = 0, InputType inputType = InputType::Text);
+  ~KeyboardEntryActivity() override { vSemaphoreDelete(textMutex); }
   void onEnter() override;
   void onExit() override;
   void loop() override;
@@ -41,7 +44,23 @@ class KeyboardEntryActivity : public RustActivityAdapter {
   size_t maxLength;
   InputType inputType;
   std::unique_ptr<Arena> arena;
+  // Loop owns edits; render borrows only while copying, never during paint.
+  StaticSemaphore_t textMutexStorage{};
+  SemaphoreHandle_t textMutex = xSemaphoreCreateMutexStatic(&textMutexStorage);
+  class TextLock {
+    SemaphoreHandle_t mutex;
+
+   public:
+    explicit TextLock(KeyboardEntryActivity& owner) : mutex(owner.textMutex) { xSemaphoreTake(mutex, portMAX_DELAY); }
+    ~TextLock() { xSemaphoreGive(mutex); }
+    TextLock(const TextLock&) = delete;
+    TextLock& operator=(const TextLock&) = delete;
+  };
   Bytes text;
+  XpUiInterest inputInterest{};
+  XpUiKeyboardState previousPublished{};
+  bool publicationPending = false, resetInput = false;
+  void reconcileInput();
   XpUiKeyboardState state{}, beforeInput{};
   XpUiKeyboardViewLayout layout{};
   XpUiKeyboardEffect pending{};
@@ -57,8 +76,9 @@ class KeyboardEntryActivity : public RustActivityAdapter {
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
   void rustPublished() override;
+  void rustSceneFailed() override { resetInput = true; }
   XpUiPaint rustResources() override;
-  XpUiInterest rustInterest(uint32_t) const override { return xp_ui_keyboard_interest(&state); }
+  XpUiInterest rustInterest(uint32_t) const override { return inputInterest; }
   XpUiEffect updateRust(const XpUiInput&) override;
   void applyRustEffect(const XpUiEffect&) override;
   void paintKey(const XpUiCommand&);

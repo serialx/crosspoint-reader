@@ -12,27 +12,14 @@ XpUiMetrics RustActivityAdapter::rustMetrics() const {
       [](void* context, int32_t font) -> int32_t { return static_cast<GfxRenderer*>(context)->getLineHeight(font); }};
 }
 
-bool RustActivityAdapter::paintRustScene(const XpUiScene& scene) {
+bool RustActivityAdapter::paintRustScene(const XpUiScene& scene, bool publish) {
   const auto resources = rustResources();
   if (!renderer.drawUiScene(scene, &resources)) {
     LOG_ERR("RUI", "Invalid scene in %s", name.c_str());
-    ModelLock lock(*this);
-    if (auto* publication = rustPublication()) publication->ready = false;
-    rustSceneFailed();
+    rejectRustScene();
     return false;
   }
-  {
-    ModelLock lock(*this);
-    rustPublished();
-    if (auto* publication = rustPublication()) {
-      publication->scene = scene;
-      publication->scene.commands = nullptr;
-      publication->scene.command_count = 0;
-      publication->scene.text = nullptr;
-      publication->scene.text_len = 0;
-      publication->ready = true;
-    }
-  }
+  if (publish) publishRustScene(scene);
   switch (static_cast<XpUiRefresh>(scene.refresh)) {
     case XP_UI_NONE:
       break;
@@ -52,18 +39,14 @@ bool RustActivityAdapter::paintRustScene(const XpUiScene& scene) {
 void RustActivityAdapter::render(RenderLock&&) {
   XpUiScene scene{};
   if (!buildRustScene(scene)) {
-    {
-      ModelLock lock(*this);
-      if (auto* publication = rustPublication()) publication->ready = false;
-      rustSceneFailed();
-    }
+    rejectRustScene();
     LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
     return;
   }
   paintRustScene(scene);
 }
 
-void RustActivityAdapter::loop() {
+XpUiInput RustActivityAdapter::sampleRustInput() const {
   XpUiInput input{};
   constexpr MappedInputManager::Button buttons[] = {
       MappedInputManager::Button::Back,        MappedInputManager::Button::Confirm,
@@ -102,9 +85,16 @@ void RustActivityAdapter::loop() {
     case MappedInputManager::SwipeDir::None:
       break;
   }
+  return input;
+}
+
+void RustActivityAdapter::loop() {
+  if (consumeRejectedInput()) return;
+  auto input = sampleRustInput();
   XpUiEffect effect{};
   {
     ModelLock lock(*this);
+    if (sceneFailed) return;
     const auto interest = rustInterest(input.now_ms);
     if (!xp_ui_input_due(&interest, &input)) return;
     const auto* publication = rustPublication();
@@ -118,8 +108,70 @@ void RustActivityAdapter::loop() {
     }
     effect = updateRust(input);
   }
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return;
+  }
   if (input.action && (input.touch_flags & XP_UI_TOUCH_RELEASED) && effect.kind == XP_UI_ACTIVATE)
     haptic_feedback::touchAction(false);
   if (effect.invalidate) requestUpdate();
   applyRustEffect(effect);
+}
+
+void RustActivityAdapter::publishRustScene(const XpUiScene& scene) {
+  {
+    ModelLock lock(*this);
+    sceneFailed = false;
+    rustPublished();
+    if (auto* publication = rustPublication()) {
+      publication->scene = scene;
+      publication->scene.commands = nullptr;
+      publication->scene.command_count = 0;
+      publication->scene.text = nullptr;
+      publication->scene.text_len = 0;
+      publication->ready = true;
+    }
+  }
+}
+
+void RustActivityAdapter::rejectRustScene() {
+  ModelLock lock(*this);
+  sceneFailed = true;
+  suppressButtons |= lastHeld;
+  suppressContact |= lastContact;
+  if (auto* publication = rustPublication()) publication->ready = false;
+  rustSceneFailed();
+}
+
+bool RustActivityAdapter::rustSceneRejected() const {
+  ModelLock lock(*const_cast<RustActivityAdapter*>(this));
+  return sceneFailed;
+}
+
+bool RustActivityAdapter::consumeRejectedInput() {
+  const auto input = sampleRustInput();
+  bool failed, consume;
+  {
+    ModelLock lock(*this);
+    failed = sceneFailed;
+    consume = failed || (suppressButtons & (input.pressed | input.released | input.held)) ||
+              (suppressContact && (input.touch_flags || input.swipe));
+    if (failed) {
+      suppressButtons |= input.held;
+      suppressContact |= (input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
+    }
+    suppressButtons &= input.held;
+    if (!(input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD))) suppressContact = false;
+    lastHeld = input.held;
+    lastContact = (input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
+  }
+  if (failed) {
+    requestUpdate();
+    cancelRejectedInput(input);
+  }
+  return consume;
+}
+
+void RustActivityAdapter::cancelRejectedInput(const XpUiInput& input) {
+  if (input.released & XP_UI_BACK) applyRustEffect(XpUiEffect{0, XP_UI_CANCEL, 0, {0, 0}});
 }

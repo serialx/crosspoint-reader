@@ -28,6 +28,8 @@ struct ActivityResult {
 };
 struct RustActivityAdapter {
   unsigned baseLoops = 0;
+  bool consumeRejectedInput() { return false; }
+  bool rustSceneRejected() { return false; }
   void loop() { ++baseLoops; }
 };
 class KeyboardEntryActivity : public RustActivityAdapter {
@@ -44,6 +46,13 @@ class KeyboardEntryActivity : public RustActivityAdapter {
     }
     ~ModelLock() { locked = false; }
   };
+  struct TextLock {
+    explicit TextLock(KeyboardEntryActivity&) { assert(!locked); }
+  };
+  XpUiInterest inputInterest{};
+  XpUiKeyboardState previousPublished{};
+  bool publicationPending = false, resetInput = false;
+  void reconcileInput();
 #include "keyboard-arena.inc"
   std::unique_ptr<Arena> arena;
   struct Publication {
@@ -93,6 +102,7 @@ class KeyboardEntryActivity : public RustActivityAdapter {
   XpUiEffect updateRust(const XpUiInput&);
   void applyRustEffect(const XpUiEffect&);
   void step(const XpUiInput& input) {
+    reconcileInput();
     XpUiEffect effect;
     {
       ModelLock guard(*this);
@@ -101,8 +111,37 @@ class KeyboardEntryActivity : public RustActivityAdapter {
     applyRustEffect(effect);
   }
 };
+static XpUiKeyboardEffect checkedUpdate(XpUiKeyboardState* state, uint8_t* text, uint32_t capacity,
+                                        const XpUiKeyboardLayouts* tables, const XpUiInput* input, uint32_t cursor) {
+  assert(!locked && "variable-length edit inside ModelLock");
+  return xp_ui_keyboard_update(state, text, capacity, tables, input, cursor);
+}
+static void* checkedCopy(void* out, const void* in, size_t bytes) {
+  assert(!locked && "variable-length copy inside ModelLock");
+  return memcpy(out, in, bytes);
+}
+#define xp_ui_keyboard_update checkedUpdate
+#define memcpy checkedCopy
 #include "keyboard-allocation.inc"
+#undef memcpy
+#undef xp_ui_keyboard_update
 int main() {
+  for (uint32_t length : {32u, 1024u, 4096u}) {
+    KeyboardEntryActivity longText;
+    assert(longText.text.grow(length + 16, 0));
+    memset(longText.text.data.get(), 'a', length);
+    longText.text.data[length] = 0;
+    xp_ui_keyboard_init(&longText.state, length, 0, 0, 1, 0);
+    longText.state.cursor = 0;
+    XpUiInput press{}, release{};
+    press.pressed = XP_UI_CONFIRM;
+    release.released = XP_UI_CONFIRM;
+    longText.step(press);
+    longText.step(release);
+    assert(longText.state.length == length + 2 && longText.state.max_length == 0);
+    assert(longText.text.data[0] == 0xc3 && longText.text.data[1] == 0xa9);
+    assert(longText.text.data[length + 1] == 'a' && longText.text.data[length + 2] == 0);
+  }
   KeyboardEntryActivity activity;
   assert(activity.text.grow(2, 0));
   memcpy(activity.text.data.get(), "a", 2);

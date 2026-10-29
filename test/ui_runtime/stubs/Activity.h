@@ -47,6 +47,10 @@ class MappedInputManager {
   enum class SwipeDir { None, Left, Right, Up, Down };
   uint32_t pressed = 0, released = 0, held = 0, heldTime = 0;
   uint8_t touchFlags = 0;
+  int rawPressed = -1;
+  bool longConfirm = false;
+  int getPressedFrontButton() const { return rawPressed; }
+  bool wasLongPressed(Button, uint32_t) const { return longConfirm; }
   SwipeDir swipe = SwipeDir::None;
   bool wasPressed(Button b) const { return pressed & (1u << static_cast<unsigned>(b)); }
   bool wasReleased(Button b) const { return released & (1u << static_cast<unsigned>(b)); }
@@ -62,8 +66,8 @@ class GfxRenderer {
  public:
   XpNativeProvider textProvider() const { return {}; }
   int getLineHeight(int32_t) const { return 20; }
-  bool validScene = true;
-  bool drawUiScene(const XpUiScene&, const XpUiPaint*) const { return validScene; }
+  bool paintOk = true;
+  bool drawUiScene(const XpUiScene&, const XpUiPaint*) const { return paintOk; }
   std::atomic<bool> refreshing{false}, finishRefresh{false};
   void displayBuffer(HalDisplay::RefreshMode) {
     refreshing = true;

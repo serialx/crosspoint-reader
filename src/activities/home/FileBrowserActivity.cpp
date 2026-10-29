@@ -469,14 +469,21 @@ void FileBrowserActivity::loaded(uint8_t reason, int selected) {
 
 void FileBrowserActivity::loop() {
   if (optionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;
+  if (consumeRejectedInput()) return;
   mappedInput.wasSwipe(&nativeTouchX, &nativeTouchY);
-  nativeLongPress = mode == Mode::Books && mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, GO_HOME_MS);
+  const bool longPress =
+      mode == Mode::Books && mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, GO_HOME_MS);
   bool ready;
   {
     ModelLock lock(*this);
     ready = publication.ready;
   }
-  nativeLongTouch = ready && mappedInput.wasScreenLongPress(nativeTouchX, nativeTouchY);
+  const bool longTouch = ready && mappedInput.wasScreenLongPress(nativeTouchX, nativeTouchY);
+  {
+    ModelLock lock(*this);
+    nativeLongPress = longPress;
+    nativeLongTouch = longTouch;
+  }
   RustActivityAdapter::loop();
 }
 
@@ -511,10 +518,15 @@ XpUiEffect FileBrowserActivity::updateRust(const XpUiInput& source) {
 }
 
 void FileBrowserActivity::applyRustEffect(const XpUiEffect& effect) {
-  if (touchFeedback) {
-    haptic_feedback::touchAction(nativeLongTouch);
+  bool longTouch;
+  uint8_t feedback;
+  {
+    ModelLock lock(*this);
+    longTouch = nativeLongTouch;
+    feedback = touchFeedback;
     touchFeedback = 0;
   }
+  if (feedback) haptic_feedback::touchAction(longTouch);
   switch (effect.kind) {
     case XP_UI_SCROLL:
       LOG_DBG("LIST", "%s swipe delta=%d count=%d", name.c_str(), effect.value, listCount());
@@ -568,6 +580,10 @@ void FileBrowserActivity::applyRustEffect(const XpUiEffect& effect) {
     case XP_UI_FILE_DIRECTORY:
     case XP_UI_FILE_OPEN: {
       RenderLock lock(*this);
+      if (rustSceneRejected()) {
+        requestUpdate();
+        return;
+      }
       if (basepath.back() != '/') basepath += "/";
       const std::string entry = files[effect.value];
       if (effect.kind == XP_UI_FILE_DIRECTORY) {
@@ -733,4 +749,26 @@ XpUiPaint FileBrowserActivity::rustResources() {
         } else
           self.renderer.drawUiText(*command, clip, self.text(h));
       }};
+}
+
+void FileBrowserActivity::rustSceneFailed() {
+  nativeLongPress = nativeLongTouch = false;
+  touchFeedback = 0;
+  state.list.last_repeat = 0;
+}
+
+void FileBrowserActivity::cancelRejectedInput(const XpUiInput& input) {
+  if (!(input.released & XP_UI_BACK)) return;
+  XpUiInput back{};
+  back.released = XP_UI_BACK;
+  back.held_ms = input.held_ms;
+  XpUiEffect effect{};
+  {
+    ModelLock lock(*this);
+    auto f = facts(state.list.selected);
+    f.long_confirm = f.long_touch = 0;
+    effect = xp_ui_file_update(&state, &back, &f).effect;
+  }
+  if (effect.invalidate) requestUpdate();
+  applyRustEffect(effect);
 }

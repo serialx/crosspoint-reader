@@ -17,3 +17,18 @@ target_include_directories(ui_runtime_adapter PRIVATE ${ADAPTER_COPY} stubs)
 target_link_libraries(ui_runtime_adapter PRIVATE xp_ffi_host)
 target_compile_options(ui_runtime_adapter PRIVATE -UNDEBUG)
 add_test(NAME ui_runtime_adapter COMMAND ui_runtime_adapter)
+
+add_test(NAME ui_runtime_rejection_families COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_families.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_runtime_rejection_bypasses COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_bypasses.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_runtime_rejection_composites COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_composites.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_runtime_rejection_keyboard COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_keyboard.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_runtime_rejection_commands COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_commands.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_runtime_rejection_interleaving COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_interleaving.py ${XP_FFI_HOST_ARCHIVE} remap footnote clip-lock language text)
+add_test(NAME ui_runtime_rejection_touch_recovery COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/rejection_interleaving.py ${XP_FFI_HOST_ARCHIVE} clip-touch clip-entry clip-entry-lock)

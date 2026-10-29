@@ -92,6 +92,8 @@ struct Pair {
     assert(current.arena->snapshot.active_key == paintedActive);
     current.rustPublished();
     current.publication.ready = true;
+    // Publication transfers fixed geometry; the loop owns live keyboard state.
+    current.reconcileInput();
   }
   fui::Point point(int16_t value) const {
     for (size_t i = 0; i < old.interactions.publishedCount(); ++i) {

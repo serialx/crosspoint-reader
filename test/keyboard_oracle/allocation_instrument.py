@@ -4,7 +4,7 @@ import sys
 root, out = map(pathlib.Path, sys.argv[1:])
 s = (root / 'src/activities/util/KeyboardEntryActivity.cpp').read_text()
 parts = []
-for signature in ['bool KeyboardEntryActivity::Bytes::grow(', 'XpUiEffect KeyboardEntryActivity::updateRust(', 'void KeyboardEntryActivity::applyRustEffect(', 'bool KeyboardEntryActivity::buildRustScene(', 'void KeyboardEntryActivity::rustPublished(', 'void KeyboardEntryActivity::loop(']:
+for signature in ['bool KeyboardEntryActivity::Bytes::grow(', 'XpUiEffect KeyboardEntryActivity::updateRust(', 'void KeyboardEntryActivity::applyRustEffect(', 'bool KeyboardEntryActivity::buildRustScene(', 'void KeyboardEntryActivity::rustPublished(', 'void KeyboardEntryActivity::loop(', 'void KeyboardEntryActivity::reconcileInput(']:
     start = s.index(signature)
     end = s.index('{', start) + 1
     depth = 1

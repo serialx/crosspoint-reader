@@ -33,6 +33,13 @@ class ReaderWidgets(unittest.TestCase):
             self.assertEqual(subprocess.check_output([str(binary)]),
                              gzip.decompress((HERE / "footnote-input.golden.gz").read_bytes()))
 
+    def test_menu_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            binary = pathlib.Path(directory) / "menu"
+            subprocess.run(["c++", "-std=c++20", str(HERE / "menu_input.cpp"), "-o", str(binary)], check=True)
+            self.assertEqual(subprocess.check_output([str(binary)]),
+                             gzip.decompress((HERE / "menu-input.golden.gz").read_bytes()))
+
     def test_end_input(self):
         with tempfile.TemporaryDirectory() as directory:
             binary = pathlib.Path(directory) / "end"

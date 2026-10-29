@@ -38,7 +38,8 @@ void WifiSelectionActivity::onExit() {
   retireRows();
 }
 bool WifiSelectionActivity::CallContext::inputCurrent() {
-  if (!inputAction) return true;
+  // A committed action must finish its model publication and lifecycle effects.
+  if (!inputAction || committed) return true;
   if (activity.rustSceneRejected()) inputRejected = true;
   ModelLock lock(activity);
   inputRejected |= activity.model.list.navigation_revision != navigationRevision;
@@ -66,6 +67,11 @@ void WifiSelectionActivity::publish(void* ctx, XpUiWifiState* next) {
   bool leaving = false;
   {
     ModelLock lock(self);
+    if (!call.committed && call.inputAction &&
+        (rejected || self.model.list.navigation_revision != call.navigationRevision)) {
+      call.inputRejected = true;
+      return;
+    }
     leaving = self.model.phase == XP_UI_WIFI_PHASE_LIST && next->phase != XP_UI_WIFI_PHASE_LIST;
     if (rejected || self.model.list.navigation_revision != call.navigationRevision) {
       next->list.active = -1;
@@ -74,6 +80,7 @@ void WifiSelectionActivity::publish(void* ctx, XpUiWifiState* next) {
       next->list.navigation_revision = self.model.list.navigation_revision + 1;
     }
     xp_ui_network_wifi_publish(&self.model, next);
+    call.committed = true;
     call.navigationRevision = self.model.list.navigation_revision;
   }
   if (leaving) self.retireRows();
@@ -170,6 +177,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       const auto& cred = *call.credential;
       LOG_DBG("WIFI", "Attempting saved network: %s", cred.ssid.c_str());
       self.autoAttemptedSsids.push_back(cred.ssid);
+      call.committed = true;
       self.selectedSSID = cred.ssid;
       self.enteredPassword = cred.password;
       break;
@@ -189,6 +197,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       break;
     case XP_UI_WIFI_CALL_DISCONNECT:
       WiFi.disconnect();
+      call.committed = true;
       break;
     case XP_UI_WIFI_CALL_DELAY:
       delay(value);
@@ -203,6 +212,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       if (!call.inputCurrent()) return 0;
       self.networks.clear();
       self.networks.reserve(value);
+      call.committed = true;
       break;
     }
     case XP_UI_WIFI_CALL_SCAN_READ:
@@ -292,6 +302,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       self.selectedSSID = self.networks[value].ssid;
+      call.committed = true;
       self.enteredPassword.clear();
       break;
     }
@@ -305,6 +316,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       self.enteredPassword = call.credential->password;
+      call.committed = true;
       break;
     }
     case XP_UI_WIFI_CALL_PASSWORD_PRESENT: {
@@ -326,6 +338,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       self.selectedSSID.clear();
+      call.committed = true;
       self.enteredPassword.clear();
       break;
     }
@@ -336,6 +349,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       self.connectedIP.clear();
+      call.committed = true;
       self.connectionError.clear();
       break;
     }
@@ -380,6 +394,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
         ResourceLock lock(self);
         if (!call.inputCurrent()) return 0;
         self.connectedIP = ipStr;
+        call.committed = true;
       }
 
 #if defined(ENABLE_SERIAL_LOG) && LOG_LEVEL >= 2
@@ -425,6 +440,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       self.connectionError = value == 2 ? tr(STR_ERROR_CONNECTION_TIMEOUT) : tr(STR_ERROR_GENERAL_FAILURE);
+      call.committed = true;
       if (value == 1) self.connectionError = tr(STR_ERROR_NETWORK_NOT_FOUND);
       break;
     }
@@ -449,6 +465,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       WIFI_STORE.addCredential(self.selectedSSID, self.enteredPassword);
+      call.committed = true;
       break;
     }
     case XP_UI_WIFI_CALL_FORGET: {
@@ -457,6 +474,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       WIFI_STORE.removeCredential(self.selectedSSID);
+      call.committed = true;
       auto n = std::find_if(self.networks.begin(), self.networks.end(),
                             [&self](const WifiNetworkInfo& n) { return n.ssid == self.selectedSSID; });
       if (n != self.networks.end()) n->hasSavedPassword = false;
@@ -469,6 +487,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
       ResourceLock lock(self);
       if (!call.inputCurrent()) return 0;
       self.selectedSSID = self.networks[value].ssid;
+      call.committed = true;
       break;
     }
   }

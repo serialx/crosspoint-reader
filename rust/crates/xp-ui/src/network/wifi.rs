@@ -727,8 +727,9 @@ impl State {
     }
     fn scan(&mut self, c: &mut Services, automatic: bool) {
         self.begin_scan(automatic);
-        c.call(Call::ClearScan, 0);
+        // Leave List before releasing its rows to concurrent rendering.
         self.paint(c);
+        c.call(Call::ClearScan, 0);
         c.call(Call::WifiSta, 0);
         c.call(Call::Disconnect, 0);
         c.call(Call::Delay, 100);

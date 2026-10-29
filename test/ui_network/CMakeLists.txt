@@ -167,3 +167,24 @@ add_test(NAME ui_network_shared_gate COMMAND ${Python3_EXECUTABLE}
   wifi-failure calibre-failure web-failure wifi-stale calibre-stale web-stale modes-stale usb-stale)
 add_test(NAME ui_network_wait_gate COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_wait_gate.py ${XP_FFI_HOST_ARCHIVE})
+
+set(WIFI_PARTIAL_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiPartialTarget.cpp)
+add_custom_command(OUTPUT ${WIFI_PARTIAL_TARGET}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_partial_target.py ${WIFI_PARTIAL_TARGET}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_partial_target.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_partial_main.inc
+    ${WIFI_FACADE_TARGET} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_extra.py ${CMAKE_CURRENT_SOURCE_DIR}/effects.cpp)
+add_executable(NetworkWifiPartialTarget ${WIFI_PARTIAL_TARGET} ${NETWORK_RENDER_SOURCES})
+target_include_directories(NetworkWifiPartialTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(NetworkWifiPartialTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,COMPILE_DEFINITIONS>)
+target_compile_options(NetworkWifiPartialTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,COMPILE_OPTIONS>)
+target_link_options(NetworkWifiPartialTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,LINK_OPTIONS>)
+target_link_libraries(NetworkWifiPartialTarget PRIVATE xp_ffi_host)
+foreach(WIFI_BOUNDARY scan password hidden connect save forget)
+  foreach(WIFI_REJECTION 0 1 2)
+    if(WIFI_REJECTION EQUAL 2 AND (WIFI_BOUNDARY STREQUAL "password" OR WIFI_BOUNDARY STREQUAL "hidden"))
+      continue() # The parent has no drawable scene while its keyboard child is active.
+    endif()
+    add_test(NAME ui_network_wifi_partial_${WIFI_BOUNDARY}_${WIFI_REJECTION}
+      COMMAND NetworkWifiPartialTarget ${WIFI_BOUNDARY} ${WIFI_REJECTION})
+  endforeach()
+endforeach()

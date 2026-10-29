@@ -22,6 +22,10 @@ class BootUiActivity : public RustActivityAdapter {
   virtual void drawBootHints();
 
  private:
+  template <uint16_t Capacity>
+  bool paintBootViewWithCapacity(XpUiBootView view, XpUiRefresh refresh, const ViewData& data, uint16_t flags);
+  bool paintBootViewInto(XpUiBootView view, XpUiRefresh refresh, const ViewData& data, uint16_t flags,
+                         const XpUiBuffer& buffer);
   const ViewData* activeView = nullptr;
   const char* resourceText(uint32_t handle) const;
 };

@@ -86,8 +86,41 @@ XpUiPaint BootUiActivity::rustResources() {
             self.renderer.setClipRect(previous[0], previous[1], previous[2], previous[3]);
           }};
 }
+template <uint16_t Capacity>
+__attribute__((noinline)) bool BootUiActivity::paintBootViewWithCapacity(const XpUiBootView view,
+                                                                         const XpUiRefresh refresh,
+                                                                         const ViewData& data, const uint16_t flags) {
+  // Keep the crash arena off the stack of entry-only image and sleep views.
+  XpUiCommand commands[Capacity]{};
+  const XpUiBuffer buffer{commands, nullptr, Capacity, 0};
+  return paintBootViewInto(view, refresh, data, flags, buffer);
+}
+
 bool BootUiActivity::paintBootView(const XpUiBootView view, const XpUiRefresh refresh, const ViewData& data,
                                    const uint16_t flags) {
+  switch (view) {
+    case XP_UI_BOOT_SPLASH:
+      return paintBootViewWithCapacity<5>(view, refresh, data, flags);
+    case XP_UI_BOOT_SLEEP:
+      return paintBootViewWithCapacity<4>(view, refresh, data, flags);
+    case XP_UI_BOOT_BLANK:
+    case XP_UI_BOOT_MOON:
+    case XP_UI_BOOT_IMAGE_HINTS:
+    case XP_UI_BOOT_XTC_PAGE:
+      return paintBootViewWithCapacity<1>(view, refresh, data, flags);
+    case XP_UI_BOOT_CRASH:
+      // Clear/header + 10 description lines + reason + 5 panic lines + hints.
+      return paintBootViewWithCapacity<19>(view, refresh, data, flags);
+    case XP_UI_BOOT_IMAGE_ERROR:
+      return paintBootViewWithCapacity<3>(view, refresh, data, flags);
+    case XP_UI_BOOT_PAGE_ERROR:
+      return paintBootViewWithCapacity<2>(view, refresh, data, flags);
+  }
+  return paintBootViewWithCapacity<1>(view, refresh, data, flags);
+}
+
+bool BootUiActivity::paintBootViewInto(const XpUiBootView view, const XpUiRefresh refresh, const ViewData& data,
+                                       const uint16_t flags, const XpUiBuffer& buffer) {
   const auto& m = UITheme::getInstance().getMetrics();
   XpUiBootLayout layout{};
   layout.screen = {0, 0, static_cast<int16_t>(renderer.getScreenWidth()),
@@ -105,9 +138,6 @@ bool BootUiActivity::paintBootView(const XpUiBootView view, const XpUiRefresh re
   layout.refresh = refresh;
   layout.description_lines = data.description ? data.description->size() : 0;
   layout.panic_lines = data.panic ? data.panic->size() : 0;
-  // The largest crash view is clear/header + 10/5 wrapped lines + reason/hints.
-  XpUiCommand commands[19]{};
-  const XpUiBuffer buffer{commands, nullptr, 19, 0};
   XpUiScene scene{};
   activeView = &data;
   const XpUiBootMetrics metrics{

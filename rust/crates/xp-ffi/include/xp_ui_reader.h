@@ -1366,6 +1366,102 @@ typedef struct {
 } XpUiReaderBookServices;
 void xp_ui_reader_book_render(const XpUiReaderBookServices* services);
 
+/* Status and row values use synchronous borrowed native resources. STATUS runs
+ * under the caller's RenderLock; other operations preserve their original
+ * caller context. No callback retains service or Status pointers. query never
+ * changes reader state, acquires a lock, or paints. Scalar/settings queries
+ * return u32 representations; PAGE/TOC_INDEX preserve signed i32 bits. PROGRESS
+ * takes an IEEE f32 fraction as bits and returns IEEE f32 book progress bits.
+ * TOC_INDEX/PROGRESS require a book; page/count/build queries require Section.
+ * Label queries return existing StrId values, with index argument bounded by
+ * text=5, spacing=4, alignment=5, orientation=4 or MORE_COUNT as applicable.
+ * Commands return zero except TAKE_LINK_NOTE (a=shows-title bool, result note
+ * 0=None,1=Connecting,2=Failed,3=Connected,4=LowMemory), which updates the existing
+ * native note tracker. SAMPLE_SPEC copies the status spec for TITLE_MODE.
+ * LABEL takes a StrId; CHAPTER and CHAPTER_COPY take a signed TOC index.
+ * CHAPTER moves the native TOC title; CHAPTER_COPY preserves the status path
+ * copy while its temporary TOC item is alive. AUTOMATIC, POINT_SIZE
+ * and NUMBER take the selected number. Other command arguments are ignored.
+ * String commands materialize the selected value using existing native strings,
+ * translation resources and formatting, and may allocate or access book storage.
+ * They never paint or take ModelLock. paint consumes the prepared native string
+ * and borrowed Status immediately through the existing status renderer.
+ * Active automatic page turn requires a nonzero u32 period; a zero period is
+ * invalid: status painting is skipped and the call returns normally. Auto-option
+ * indices are nonnegative. Unknown
+ * operations or null/incomplete services have no effects. Invalid row indices
+ * produce the original empty string. Services begin with an empty result string.
+ */
+typedef enum {
+  XP_UI_READER_VALUE_OPERATION_STATUS = 0,
+  XP_UI_READER_VALUE_OPERATION_CHAPTER = 1,
+  XP_UI_READER_VALUE_OPERATION_TEXT_NAME = 2,
+  XP_UI_READER_VALUE_OPERATION_TEXT_VALUE = 3,
+  XP_UI_READER_VALUE_OPERATION_MORE_NAME = 4,
+  XP_UI_READER_VALUE_OPERATION_MORE_VALUE = 5,
+} XpUiReaderValueOperation;
+typedef enum {
+  XP_UI_READER_VALUE_QUERY_HAS_SECTION = 0,
+  XP_UI_READER_VALUE_QUERY_PAGE = 1,
+  XP_UI_READER_VALUE_QUERY_ESTIMATED_COUNT = 2,
+  XP_UI_READER_VALUE_QUERY_HAS_BOOK = 3,
+  XP_UI_READER_VALUE_QUERY_PROGRESS = 4,
+  XP_UI_READER_VALUE_QUERY_TITLE_MODE = 5,
+  XP_UI_READER_VALUE_QUERY_AUTOMATIC = 6,
+  XP_UI_READER_VALUE_QUERY_TURN_DURATION = 7,
+  XP_UI_READER_VALUE_QUERY_STATUS_HEIGHT = 8,
+  XP_UI_READER_VALUE_QUERY_PROGRESS_HEIGHT = 9,
+  XP_UI_READER_VALUE_QUERY_STATUS_MARGIN = 10,
+  XP_UI_READER_VALUE_QUERY_TOC_INDEX = 11,
+  XP_UI_READER_VALUE_QUERY_BOOKMARKED = 12,
+  XP_UI_READER_VALUE_QUERY_BUILDING = 13,
+  XP_UI_READER_VALUE_QUERY_HAS_SD_FONT = 14,
+  XP_UI_READER_VALUE_QUERY_POINT_SIZE = 15,
+  XP_UI_READER_VALUE_QUERY_SPACING = 16,
+  XP_UI_READER_VALUE_QUERY_ALIGNMENT = 17,
+  XP_UI_READER_VALUE_QUERY_SPACING_LABEL = 18,
+  XP_UI_READER_VALUE_QUERY_ALIGNMENT_LABEL = 19,
+  XP_UI_READER_VALUE_QUERY_MORE_COUNT = 20,
+  XP_UI_READER_VALUE_QUERY_MORE_ACTION = 21,
+  XP_UI_READER_VALUE_QUERY_MORE_LABEL = 22,
+  XP_UI_READER_VALUE_QUERY_ORIENTATION = 23,
+  XP_UI_READER_VALUE_QUERY_ORIENTATION_LABEL = 24,
+  XP_UI_READER_VALUE_QUERY_AUTO_OPTION = 25,
+  XP_UI_READER_VALUE_QUERY_TEXT_NAME = 26,
+} XpUiReaderValueQuery;
+typedef enum {
+  XP_UI_READER_VALUE_COMMAND_LABEL = 0,
+  XP_UI_READER_VALUE_COMMAND_UNNAMED = 1,
+  XP_UI_READER_VALUE_COMMAND_CHAPTER = 2,
+  XP_UI_READER_VALUE_COMMAND_SAMPLE_SPEC = 3,
+  XP_UI_READER_VALUE_COMMAND_TAKE_LINK_NOTE = 4,
+  XP_UI_READER_VALUE_COMMAND_CONNECTED = 5,
+  XP_UI_READER_VALUE_COMMAND_LOW_MEMORY = 6,
+  XP_UI_READER_VALUE_COMMAND_CONNECTING = 7,
+  XP_UI_READER_VALUE_COMMAND_FAILED = 8,
+  XP_UI_READER_VALUE_COMMAND_AUTOMATIC = 9,
+  XP_UI_READER_VALUE_COMMAND_BOOK = 10,
+  XP_UI_READER_VALUE_COMMAND_SD_FONT = 11,
+  XP_UI_READER_VALUE_COMMAND_NOTO_SANS = 12,
+  XP_UI_READER_VALUE_COMMAND_POINT_SIZE = 13,
+  XP_UI_READER_VALUE_COMMAND_OFF = 14,
+  XP_UI_READER_VALUE_COMMAND_NUMBER = 15,
+  XP_UI_READER_VALUE_COMMAND_CHAPTER_COPY = 16,
+} XpUiReaderValueCommand;
+typedef struct {
+  float book_progress, page_count;
+  int32_t page, y_offset;
+  uint8_t bookmarked, building, reserved[2];
+} XpUiReaderStatusValue;
+typedef struct {
+  void* context;
+  uint32_t (*query)(void* context, uint8_t query, uint32_t argument);
+  uint32_t (*command)(void* context, uint8_t command, uint32_t argument);
+  void (*paint)(void* context, const XpUiReaderStatusValue* status);
+} XpUiReaderValueServices;
+void xp_ui_reader_view_value(const XpUiReaderValueServices* services, uint8_t operation, int32_t row);
+uint8_t xp_ui_reader_toolbar_style(uint8_t style);
+
 #ifdef __cplusplus
 }
 #endif
@@ -2125,3 +2221,77 @@ XP_UI_READER_BOOK_ASSERT(XP_UI_READER_BOOK_COMMAND_DRAW_LOAD_ERROR == 77);
 XP_UI_READER_BOOK_ASSERT(XP_UI_READER_BOOK_COMMAND_SAMPLE_FONT_CACHE == 78);
 XP_UI_READER_BOOK_ASSERT(XP_UI_READER_BOOK_COMMAND_TAKE_FONT_NOTICE == 79);
 #undef XP_UI_READER_BOOK_ASSERT
+
+#if defined(__cplusplus)
+#define XP_UI_READER_VALUE_ASSERT(x) static_assert(x, #x)
+static_assert(alignof(XpUiReaderValueServices) == alignof(void*), "value services alignment");
+static_assert(alignof(XpUiReaderStatusValue) == 4, "status value alignment");
+#else
+#define XP_UI_READER_VALUE_ASSERT(x) _Static_assert(x, #x)
+_Static_assert(_Alignof(XpUiReaderValueServices) == _Alignof(void*), "value services alignment");
+_Static_assert(_Alignof(XpUiReaderStatusValue) == 4, "status value alignment");
+#endif
+XP_UI_READER_VALUE_ASSERT(sizeof(XpUiReaderValueServices) == 4 * sizeof(void*));
+XP_UI_READER_VALUE_ASSERT(sizeof(XpUiReaderStatusValue) == 20);
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderValueServices, context) == 0 * sizeof(void*));
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderValueServices, query) == 1 * sizeof(void*));
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderValueServices, command) == 2 * sizeof(void*));
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderValueServices, paint) == 3 * sizeof(void*));
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderStatusValue, book_progress) == 0);
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderStatusValue, page_count) == 4);
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderStatusValue, page) == 8);
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderStatusValue, y_offset) == 12);
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderStatusValue, bookmarked) == 16);
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderStatusValue, building) == 17);
+XP_UI_READER_VALUE_ASSERT(offsetof(XpUiReaderStatusValue, reserved) == 18);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_OPERATION_STATUS == 0);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_OPERATION_CHAPTER == 1);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_OPERATION_TEXT_NAME == 2);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_OPERATION_TEXT_VALUE == 3);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_OPERATION_MORE_NAME == 4);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_OPERATION_MORE_VALUE == 5);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_HAS_SECTION == 0);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_PAGE == 1);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_ESTIMATED_COUNT == 2);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_HAS_BOOK == 3);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_PROGRESS == 4);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_TITLE_MODE == 5);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_AUTOMATIC == 6);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_TURN_DURATION == 7);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_STATUS_HEIGHT == 8);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_PROGRESS_HEIGHT == 9);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_STATUS_MARGIN == 10);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_TOC_INDEX == 11);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_BOOKMARKED == 12);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_BUILDING == 13);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_HAS_SD_FONT == 14);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_POINT_SIZE == 15);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_SPACING == 16);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_ALIGNMENT == 17);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_SPACING_LABEL == 18);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_ALIGNMENT_LABEL == 19);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_MORE_COUNT == 20);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_MORE_ACTION == 21);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_MORE_LABEL == 22);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_ORIENTATION == 23);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_ORIENTATION_LABEL == 24);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_AUTO_OPTION == 25);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_QUERY_TEXT_NAME == 26);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_LABEL == 0);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_UNNAMED == 1);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_CHAPTER == 2);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_SAMPLE_SPEC == 3);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_TAKE_LINK_NOTE == 4);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_CONNECTED == 5);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_LOW_MEMORY == 6);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_CONNECTING == 7);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_FAILED == 8);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_AUTOMATIC == 9);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_BOOK == 10);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_SD_FONT == 11);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_NOTO_SANS == 12);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_POINT_SIZE == 13);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_OFF == 14);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_NUMBER == 15);
+XP_UI_READER_VALUE_ASSERT(XP_UI_READER_VALUE_COMMAND_CHAPTER_COPY == 16);
+#undef XP_UI_READER_VALUE_ASSERT

@@ -18,6 +18,8 @@ signatures = ['void EpubReaderActivity::renderStatusBar(', 'bool EpubReaderActiv
               'std::string EpubReaderActivity::textRowValue(', 'std::string EpubReaderActivity::moreRowName(',
               'std::string EpubReaderActivity::moreRowValue(']
 methods = '\n'.join(definition(source, signature) for signature in signatures)
+if not freeze:
+    methods += '\n' + definition(source, 'std::string EpubReaderActivity::readerViewValue(')
 fixture = (HERE/'view_values_oracle.cpp').read_text().replace('// VALUE_METHODS', methods)
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
@@ -32,9 +34,9 @@ with tempfile.TemporaryDirectory() as directory:
         golden.write_bytes(gzip.compress(actual, mtime=0))
     else:
         assert actual == gzip.decompress(golden.read_bytes())
-        for before, after in [('section->currentPage + 1', 'section->currentPage'),
-                              ('note == bleturner::LinkNote::LowMemory', 'false'),
-                              ('SETTINGS.fontPointSize) + " pt"', 'SETTINGS.fontPointSize) + " px"')]:
+        for before, after in [('return o.section->currentPage;', 'return o.section->currentPage + 1;'),
+                              ('value = tr(STR_BT_LOW_MEMORY);', 'value = tr(STR_BT_FAILED);'),
+                              ('std::to_string(argument) + " pt"', 'std::to_string(argument) + " px"')]:
             wrong = fixture.replace(before, after)
             assert wrong != fixture and run(wrong) != actual
     print(f'view values: {len(actual.splitlines())} frozen lines across 960 status/title and 14 row-setting cases')

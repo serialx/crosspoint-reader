@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -178,6 +179,7 @@ struct EpubReaderActivity {
   unsigned long pageTurnDuration = 10000;
   std::vector<EpubReaderMenuActivity::MenuItem> moreItems;
   void renderStatusBar() const;
+  std::string readerViewValue(uint8_t operation, int32_t row = 0) const;
   bool usesToolbarMenu() const;
   std::string currentChapterTitle() const;
   std::string textRowName(int row) const;

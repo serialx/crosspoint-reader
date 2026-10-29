@@ -532,3 +532,20 @@ pub unsafe extern "C" fn xp_ui_reader_navigation(
 pub unsafe extern "C" fn xp_ui_reader_book_render(services: *const reader::book_render::Services) {
     reader::book_render::run(services);
 }
+
+/// # Safety
+/// Services obey the synchronous status/row string and paint contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_view_value(
+    services: *const reader::view_values::Services,
+    operation: u8,
+    row: i32,
+) {
+    reader::view_values::run(services, operation, row);
+}
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn xp_ui_reader_toolbar_style(style: u8) -> u8 {
+    reader::view_values::toolbar(style)
+}

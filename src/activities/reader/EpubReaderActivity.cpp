@@ -2820,48 +2820,7 @@ void EpubReaderActivity::drawClippingHighlights(const Page& page, const int font
           static_cast<unsigned>(chapterClippings), static_cast<unsigned>(highlightedWords), millis() - started);
 }
 
-void EpubReaderActivity::renderStatusBar() const {
-  const int currentPage = section ? section->currentPage + 1 : 1;
-  const float pageCount = section ? section->estimatedTotalPages() : 1;
-  const float sectionChapterProg = (pageCount > 0) ? (static_cast<float>(currentPage) / pageCount) : 0;
-  const float bookProgress = epub ? (epub->calculateProgress(currentSpineIndex, sectionChapterProg) * 100) : 0;
-
-  std::string title;
-  int textYOffset = 0;
-  const auto sb = SETTINGS.statusBarSpec();
-
-  const auto note = linkNoteTitle.draw(sb.showsTitle(), bleturner::linkNote());
-  if (note == bleturner::LinkNote::Connected) {
-    const auto peer = bleturner::linked();
-    char connected[64];
-    snprintf(connected, sizeof(connected), tr(STR_BT_CONNECTED_TO), peer.name[0] != '\0' ? peer.name : peer.addr);
-    title = connected;
-  } else if (note == bleturner::LinkNote::LowMemory) {
-    title = tr(STR_BT_LOW_MEMORY);
-  } else if (note != bleturner::LinkNote::None) {
-    title = note == bleturner::LinkNote::Connecting ? tr(STR_BT_CONNECTING) : tr(STR_BT_FAILED);
-  } else if (automaticPageTurnActive) {
-    title = tr(STR_AUTO_TURN_ENABLED) + std::to_string(60 * 1000 / pageTurnDuration);
-    const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
-    if (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight()) {
-      textYOffset += UITheme::getInstance().getMetrics().statusBarVerticalMargin;
-    }
-  } else if (sb.titleMode == CrossPointSettings::STATUS_BAR_TITLE::CHAPTER_TITLE) {
-    title = tr(STR_UNNAMED);
-    if (epub) {
-      const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
-      if (tocIndex != -1) {
-        const auto tocItem = epub->getTocItem(tocIndex);
-        title = tocItem.title;
-      }
-    }
-  } else if (sb.titleMode == CrossPointSettings::STATUS_BAR_TITLE::BOOK_TITLE) {
-    title = epub ? epub->getTitle() : "";
-  }
-
-  GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, true, currentPageBookmarked,
-                    section ? section->isBuilding() : false);
-}
+void EpubReaderActivity::renderStatusBar() const { readerViewValue(XP_UI_READER_VALUE_OPERATION_STATUS); }
 
 // ---------------------------------------------------------------------------
 // Toolbar reader menu
@@ -2879,39 +2838,20 @@ static_assert(std::size(kAlignIds) == CrossPointSettings::PARAGRAPH_ALIGNMENT_CO
 }  // namespace
 
 bool EpubReaderActivity::usesToolbarMenu() const {
-  // Both board classes drive the same chrome: touch through the FreeInkUI tap
-  // targets, buttons through the focused-tool pill and the panel cursor.
-  return SETTINGS.readerMenuStyle == CrossPointSettings::READER_MENU_TOOLBAR;
+  static_assert(CrossPointSettings::READER_MENU_TOOLBAR == 1);
+  return xp_ui_reader_toolbar_style(SETTINGS.readerMenuStyle);
 }
 
 std::string EpubReaderActivity::currentChapterTitle() const {
-  if (!epub) return "";
-  const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
-  if (tocIndex != -1) {
-    return epub->getTocItem(tocIndex).title;
-  }
-  return tr(STR_UNNAMED);
+  return readerViewValue(XP_UI_READER_VALUE_OPERATION_CHAPTER);
 }
 
 std::string EpubReaderActivity::textRowName(int row) const {
-  return row >= 0 && row < kTextRowCount ? I18N.get(kTextRowNames[row]) : "";
+  return readerViewValue(XP_UI_READER_VALUE_OPERATION_TEXT_NAME, row);
 }
 
 std::string EpubReaderActivity::textRowValue(int row) const {
-  static constexpr StrId kFamily[] = {StrId::STR_NOTO_SANS};
-  switch (row) {
-    case 0:
-      if (SETTINGS.sdFontFamilyName[0] != '\0') return SETTINGS.sdFontFamilyName;
-      return I18N.get(kFamily[SETTINGS.fontFamily % CrossPointSettings::FONT_FAMILY_COUNT]);
-    case 1:
-      return std::to_string(SETTINGS.fontPointSize) + " pt";
-    case 2:
-      return I18N.get(kSpacingIds[SETTINGS.lineSpacing % CrossPointSettings::LINE_COMPRESSION_COUNT]);
-    case 3:
-      return I18N.get(kAlignIds[SETTINGS.paragraphAlignment % CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT]);
-    default:
-      return "";
-  }
+  return readerViewValue(XP_UI_READER_VALUE_OPERATION_TEXT_VALUE, row);
 }
 
 // Live apply: persist, re-paginate, and let renderBook() redraw the page with
@@ -3450,25 +3390,11 @@ void EpubReaderActivity::buildMoreActions() {
 }
 
 std::string EpubReaderActivity::moreRowName(int row) const {
-  return row >= 0 && row < static_cast<int>(moreItems.size()) ? I18N.get(moreItems[row].labelId) : "";
+  return readerViewValue(XP_UI_READER_VALUE_OPERATION_MORE_NAME, row);
 }
 
 std::string EpubReaderActivity::moreRowValue(int row) const {
-  using MA = EpubReaderMenuActivity::MenuAction;
-  static constexpr StrId kOrient[] = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_ORIENTATION_INVERTED,
-                                      StrId::STR_LANDSCAPE_CCW};
-  static_assert(std::size(kOrient) == CrossPointSettings::ORIENTATION_COUNT, "orientation labels");
-  if (row < 0 || row >= static_cast<int>(moreItems.size())) return "";
-  switch (moreItems[row].action) {
-    case MA::ROTATE_SCREEN:
-      return I18N.get(kOrient[SETTINGS.orientation % CrossPointSettings::ORIENTATION_COUNT]);
-    case MA::AUTO_PAGE_TURN:
-      return (autoTurnOption == 0 || autoTurnOption >= static_cast<int>(std::size(PAGE_TURN_RATES)))
-                 ? std::string(tr(STR_STATE_OFF))
-                 : std::to_string(PAGE_TURN_RATES[autoTurnOption]);
-    default:
-      return "";
-  }
+  return readerViewValue(XP_UI_READER_VALUE_OPERATION_MORE_VALUE, row);
 }
 
 void EpubReaderActivity::activateMoreRow(int row) {
@@ -4006,4 +3932,202 @@ bool EpubReaderActivity::runNavigationPolicy(uint8_t operation, int32_t a, int32
   const bool result = xp_ui_reader_navigation(&services, operation, a, b);
   assert(!context.lock);
   return result;
+}
+
+std::string EpubReaderActivity::readerViewValue(uint8_t operation, int32_t row) const {
+  static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::AUTO_PAGE_TURN) == 7);
+  static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::ROTATE_SCREEN) == 8);
+  static_assert(CrossPointSettings::FONT_FAMILY_COUNT == 1);
+  struct Context {
+    const EpubReaderActivity& o;
+    std::string value;
+    decltype(SETTINGS.statusBarSpec()) spec{};
+    uint32_t query(uint8_t query, uint32_t argument) {
+      switch (static_cast<XpUiReaderValueQuery>(query)) {
+        case XP_UI_READER_VALUE_QUERY_HAS_SECTION: {
+          return bool(o.section);
+        }
+        case XP_UI_READER_VALUE_QUERY_PAGE: {
+          return o.section->currentPage;
+        }
+        case XP_UI_READER_VALUE_QUERY_ESTIMATED_COUNT: {
+          return o.section->estimatedTotalPages();
+        }
+        case XP_UI_READER_VALUE_QUERY_HAS_BOOK: {
+          return bool(o.epub);
+        }
+        case XP_UI_READER_VALUE_QUERY_PROGRESS: {
+          float fraction;
+          memcpy(&fraction, &argument, sizeof(fraction));
+          const float progress = o.epub->calculateProgress(o.currentSpineIndex, fraction);
+          uint32_t bits;
+          memcpy(&bits, &progress, sizeof(bits));
+          return bits;
+        }
+        case XP_UI_READER_VALUE_QUERY_TITLE_MODE: {
+          return spec.titleMode;
+        }
+        case XP_UI_READER_VALUE_QUERY_AUTOMATIC: {
+          return o.automaticPageTurnActive;
+        }
+        case XP_UI_READER_VALUE_QUERY_TURN_DURATION: {
+          return o.pageTurnDuration;
+        }
+        case XP_UI_READER_VALUE_QUERY_STATUS_HEIGHT: {
+          return UITheme::getInstance().getStatusBarHeight();
+        }
+        case XP_UI_READER_VALUE_QUERY_PROGRESS_HEIGHT: {
+          return UITheme::getInstance().getProgressBarHeight();
+        }
+        case XP_UI_READER_VALUE_QUERY_STATUS_MARGIN: {
+          return UITheme::getInstance().getMetrics().statusBarVerticalMargin;
+        }
+        case XP_UI_READER_VALUE_QUERY_TOC_INDEX: {
+          return o.epub->getTocIndexForSpineIndex(o.currentSpineIndex);
+        }
+        case XP_UI_READER_VALUE_QUERY_BOOKMARKED: {
+          return o.currentPageBookmarked;
+        }
+        case XP_UI_READER_VALUE_QUERY_BUILDING: {
+          return o.section->isBuilding();
+        }
+        case XP_UI_READER_VALUE_QUERY_HAS_SD_FONT: {
+          return SETTINGS.sdFontFamilyName[0] != '\0';
+        }
+        case XP_UI_READER_VALUE_QUERY_POINT_SIZE: {
+          return SETTINGS.fontPointSize;
+        }
+        case XP_UI_READER_VALUE_QUERY_SPACING: {
+          return SETTINGS.lineSpacing;
+        }
+        case XP_UI_READER_VALUE_QUERY_ALIGNMENT: {
+          return SETTINGS.paragraphAlignment;
+        }
+        case XP_UI_READER_VALUE_QUERY_SPACING_LABEL: {
+          assert(argument < std::size(kSpacingIds));
+          return static_cast<uint32_t>(kSpacingIds[argument]);
+        }
+        case XP_UI_READER_VALUE_QUERY_ALIGNMENT_LABEL: {
+          assert(argument < std::size(kAlignIds));
+          return static_cast<uint32_t>(kAlignIds[argument]);
+        }
+        case XP_UI_READER_VALUE_QUERY_MORE_COUNT: {
+          return o.moreItems.size();
+        }
+        case XP_UI_READER_VALUE_QUERY_MORE_ACTION: {
+          assert(argument < o.moreItems.size());
+          return static_cast<uint32_t>(o.moreItems[argument].action);
+        }
+        case XP_UI_READER_VALUE_QUERY_MORE_LABEL: {
+          assert(argument < o.moreItems.size());
+          return static_cast<uint32_t>(o.moreItems[argument].labelId);
+        }
+        case XP_UI_READER_VALUE_QUERY_ORIENTATION: {
+          return SETTINGS.orientation;
+        }
+        case XP_UI_READER_VALUE_QUERY_ORIENTATION_LABEL: {
+          static constexpr StrId labels[] = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW,
+                                             StrId::STR_ORIENTATION_INVERTED, StrId::STR_LANDSCAPE_CCW};
+          static_assert(std::size(labels) == CrossPointSettings::ORIENTATION_COUNT);
+          assert(argument < std::size(labels));
+          return static_cast<uint32_t>(labels[argument]);
+        }
+        case XP_UI_READER_VALUE_QUERY_AUTO_OPTION: {
+          return o.autoTurnOption;
+        }
+        case XP_UI_READER_VALUE_QUERY_TEXT_NAME: {
+          assert(argument < std::size(kTextRowNames));
+          return static_cast<uint32_t>(kTextRowNames[argument]);
+        }
+      }
+      return 0;
+    }
+    uint32_t command(uint8_t command, uint32_t argument) {
+      switch (static_cast<XpUiReaderValueCommand>(command)) {
+        case XP_UI_READER_VALUE_COMMAND_LABEL: {
+          value = I18N.get(static_cast<StrId>(argument));
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_UNNAMED: {
+          value = tr(STR_UNNAMED);
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_CHAPTER_COPY: {
+          const auto item = o.epub->getTocItem(static_cast<int32_t>(argument));
+          value = item.title;
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_CHAPTER: {
+          value = o.epub->getTocItem(static_cast<int32_t>(argument)).title;
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_SAMPLE_SPEC: {
+          spec = SETTINGS.statusBarSpec();
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_TAKE_LINK_NOTE: {
+          return static_cast<uint32_t>(o.linkNoteTitle.draw(argument != 0, bleturner::linkNote()));
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_CONNECTED: {
+          const auto peer = bleturner::linked();
+          char connected[64];
+          snprintf(connected, sizeof(connected), tr(STR_BT_CONNECTED_TO), peer.name[0] != '\0' ? peer.name : peer.addr);
+          value = connected;
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_LOW_MEMORY: {
+          value = tr(STR_BT_LOW_MEMORY);
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_CONNECTING: {
+          value = tr(STR_BT_CONNECTING);
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_FAILED: {
+          value = tr(STR_BT_FAILED);
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_AUTOMATIC: {
+          value = tr(STR_AUTO_TURN_ENABLED) + std::to_string(argument);
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_BOOK: {
+          value = o.epub->getTitle();
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_SD_FONT: {
+          value = SETTINGS.sdFontFamilyName;
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_NOTO_SANS: {
+          value = I18N.get(StrId::STR_NOTO_SANS);
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_POINT_SIZE: {
+          value = std::to_string(argument) + " pt";
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_OFF: {
+          value = tr(STR_STATE_OFF);
+          break;
+        }
+        case XP_UI_READER_VALUE_COMMAND_NUMBER: {
+          value = std::to_string(argument);
+          break;
+        }
+      }
+      return 0;
+    }
+  } context{*this, {}, {}};
+  const XpUiReaderValueServices services{
+      &context, [](void* p, uint8_t q, uint32_t a) { return static_cast<Context*>(p)->query(q, a); },
+      [](void* p, uint8_t c, uint32_t a) { return static_cast<Context*>(p)->command(c, a); },
+      [](void* p, const XpUiReaderStatusValue* v) {
+        auto& c = *static_cast<Context*>(p);
+        GUI.drawStatusBar(c.o.renderer, v->book_progress, v->page, v->page_count, c.value, 0, v->y_offset, true,
+                          v->bookmarked, v->building);
+      }};
+  xp_ui_reader_view_value(&services, operation, row);
+  return std::move(context.value);
 }

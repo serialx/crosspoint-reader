@@ -8,8 +8,7 @@
 // Derived facades own Rust state and any bounded scene arena for their visit.
 class RustActivityAdapter : public Activity {
  public:
-  RustActivityAdapter(const char* name, GfxRenderer& renderer, MappedInputManager& input)
-      : Activity(name, renderer, input) {}
+  RustActivityAdapter(const char* name, GfxRenderer& renderer, MappedInputManager& input);
   void loop() override;
   void render(RenderLock&&) override;
 
@@ -24,8 +23,8 @@ class RustActivityAdapter : public Activity {
     portMUX_TYPE& mutex;
 
    public:
-    explicit ModelLock(RustActivityAdapter& owner) : mutex(owner.modelMutex) { taskENTER_CRITICAL(&mutex); }
-    ~ModelLock() { taskEXIT_CRITICAL(&mutex); }
+    explicit ModelLock(RustActivityAdapter& owner);
+    ~ModelLock();
     ModelLock(const ModelLock&) = delete;
     ModelLock& operator=(const ModelLock&) = delete;
   };

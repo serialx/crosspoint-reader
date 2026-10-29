@@ -2,6 +2,15 @@
 
 #include "components/UiAppHelpers.h"
 
+RustActivityAdapter::RustActivityAdapter(const char* name, GfxRenderer& renderer, MappedInputManager& input)
+    : Activity(name, renderer, input) {}
+
+RustActivityAdapter::ModelLock::ModelLock(RustActivityAdapter& owner) : mutex(owner.modelMutex) {
+  taskENTER_CRITICAL(&mutex);
+}
+
+RustActivityAdapter::ModelLock::~ModelLock() { taskEXIT_CRITICAL(&mutex); }
+
 XpUiMetrics RustActivityAdapter::rustMetrics() const {
   return {
       &renderer,

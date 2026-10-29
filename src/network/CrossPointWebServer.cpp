@@ -127,6 +127,7 @@ struct WebFileBridge {
   HalFile* borrowed = nullptr;
   CrossPointWebServer::UploadState* uploadState = nullptr;
   CrossPointWebServer::FontUploadState* fontState = nullptr;
+  CrossPointWebServer::PluginFsUploadState* pluginState = nullptr;
   bool websocket = false;
   String argument;
   JsonDocument paths;
@@ -174,6 +175,8 @@ struct WebFileBridge {
         return wsLastCompleteName;
       case XP_WEB_FONT_FAMILY:
       case XP_WEB_FONT_PATH:
+      case XP_WEB_PLUGIN_PATH:
+      case XP_WEB_PLUGIN_TMP:
         break;
     }
     return argument;
@@ -264,9 +267,14 @@ const XpWebServices WebFileBridge::services = {
           b.client.clear();
           return 0;
         case XP_WEB_CREATE:
-          return Storage.openFileForWrite(b.websocket ? "WS" : "WEB", path, file);
+          return Storage.openFileForWrite(b.pluginState ? "PLG" : b.websocket ? "WS" : "WEB", path, file);
         case XP_WEB_AVAILABLE:
           return file.available();
+        case XP_WEB_ENSURE_DIR:
+          Storage.ensureDirectoryExists(path);
+          return 0;
+        case XP_WEB_REPLACE:
+          return Storage.replaceFile(path, reinterpret_cast<const char*>(data));
         case XP_WEB_OPEN_READ:
           return Storage.openFileForRead("WEB", path, file);
       }
@@ -305,7 +313,7 @@ const XpWebServices WebFileBridge::services = {
       const auto& b = self(ctx);
       return (b.owner.apMode ? 1u : 0u) | (b.owner.server && b.owner.server->method() == HTTP_OPTIONS ? 2u : 0u) |
              (SETTINGS.showHiddenFiles ? 4u : 0u) | (b.owner.running && b.owner.server ? 8u : 0u) |
-             (b.owner.server && b.owner.server->client().connected() ? 16u : 0u);
+             (b.owner.server && b.owner.server->client().connected() ? 16u : 0u) | (SETTINGS.pluginsEnabled ? 32u : 0u);
     },
     .paths = [](void* ctx, bool multiple) -> ptrdiff_t {
       auto& b = self(ctx);
@@ -803,6 +811,8 @@ const XpWebTransfers WebFileBridge::transfers = {
       auto& b = self(ctx);
       if (field == XP_WEB_FONT_FAMILY) return span(b.fontState->familyName);
       if (field == XP_WEB_FONT_PATH) return span(b.fontState->filePath);
+      if (field == XP_WEB_PLUGIN_PATH) return span(b.pluginState->path);
+      if (field == XP_WEB_PLUGIN_TMP) return span(b.pluginState->tmp);
       return span(b.text(field));
     },
     .set =
@@ -810,6 +820,9 @@ const XpWebTransfers WebFileBridge::transfers = {
           auto& b = self(ctx);
           if (field == XP_WEB_FONT_FAMILY || field == XP_WEB_FONT_PATH) {
             auto& target = field == XP_WEB_FONT_FAMILY ? b.fontState->familyName : b.fontState->filePath;
+            target.assign(value.len ? reinterpret_cast<const char*>(value.data) : "", value.len);
+          } else if (field == XP_WEB_PLUGIN_PATH || field == XP_WEB_PLUGIN_TMP) {
+            auto& target = field == XP_WEB_PLUGIN_PATH ? b.pluginState->path : b.pluginState->tmp;
             target.assign(value.len ? reinterpret_cast<const char*>(value.data) : "", value.len);
           } else
             b.text(field) = string(value);
@@ -1279,15 +1292,6 @@ bool safeComponent(const String& s) {
   return !s.isEmpty() && s.indexOf('/') < 0 && s.indexOf('\\') < 0 && s.indexOf("..") < 0;
 }
 
-const char* pluginContentType(const String& file) {
-  if (file.endsWith(".js")) return "application/javascript";
-  if (file.endsWith(".css")) return "text/css";
-  if (file.endsWith(".html")) return "text/html";
-  if (file.endsWith(".json")) return "application/json";
-  if (file.endsWith(".svg")) return "image/svg+xml";
-  return "application/octet-stream";
-}
-
 }  // namespace
 
 bool CrossPointWebServer::readJsonBody(JsonDocument& out) const {
@@ -1319,57 +1323,100 @@ bool CrossPointWebServer::rejectIfPluginsDisabled() const {
   return true;
 }
 
-// GET /api/plugins -> [{ "name", "title", "mount" }, ...]. Only plugins with a
-// plugin.js are listed (the page loads it); optional manifest.json supplies the
-// title and mount point.
-void CrossPointWebServer::handlePluginList() const {
-  JsonDocument doc;
-  JsonArray arr = doc.to<JsonArray>();
-
-  for (const auto& e : PluginLocations::scanPlugins()) {
-    if (!e.hasPluginJs) continue;
-    JsonObject obj = arr.add<JsonObject>();
-    obj["name"] = e.name;
-    obj["dir"] = e.dir;         // the plugin keeps its own files here
-    obj["title"] = e.name;      // overridden by manifest below
-    obj["mount"] = "settings";  // default mount point
-    std::string manifest;
-    if (e.hasManifest && Storage.readFileToString("WEB", e.dir + "/manifest.json", 64 * 1024, manifest)) {
-      JsonDocument m;
-      if (deserializeJson(m, manifest) == DeserializationError::Ok) {
-        if (m["title"].is<const char*>()) obj["title"] = m["title"];
-        if (m["mount"].is<const char*>()) obj["mount"] = m["mount"];
-      }
+struct WebPluginBridge : WebFileBridge {
+  explicit WebPluginBridge(const CrossPointWebServer& owner) : WebFileBridge(owner) {}
+  std::vector<PluginLocations::Entry> entries;
+  std::string scratch;
+  static WebPluginBridge& plugins(void* ctx) { return static_cast<WebPluginBridge&>(self(ctx)); }
+  static void route(const CrossPointWebServer& owner, XpWebPluginRoute route) {
+    WebPluginBridge bridge(owner);
+    xp_web_plugins(static_cast<WebFileBridge*>(&bridge), &services, route);
+  }
+  static void upload(CrossPointWebServer& owner, uint32_t event) {
+    WebFileBridge bridge(owner);
+    auto& s = owner.pluginFsUpload;
+    bridge.pluginState = &s;
+    bridge.borrowed = &s.file;
+    XpWebPluginUpload state{s.bytes, s.error, static_cast<uint16_t>(s.errorStatus), s.started};
+    if (event != UPLOAD_FILE_WRITE) {
+      xp_web_plugin_upload(&bridge, &services, &state, event, nullptr, 0);
+    } else {
+      const auto& part = owner.server->upload();
+      xp_web_plugin_upload(&bridge, &services, &state, event, part.buf, part.currentSize);
     }
+    s.bytes = state.bytes;
+    s.error = state.error;
+    s.errorStatus = state.status;
+    s.started = state.started;
   }
+  static const XpWebPlugins services;
+};
 
-  sendJson(doc);
-}
+const XpWebPlugins WebPluginBridge::services = {
+    .transfers = &WebFileBridge::transfers,
+    .parse = parseJson,
+    .json_string = [](void* ctx, const char* key) -> XpWebText {
+      const JsonString value = self(ctx).paths[key].as<JsonString>();
+      return {reinterpret_cast<const uint8_t*>(value.c_str()), value.size()};
+    },
+    .expires = [](void* ctx) -> int64_t { return self(ctx).paths["expires"] | static_cast<int64_t>(0); },
+    .scan = [](void* ctx) -> size_t {
+      auto& b = plugins(ctx);
+      b.entries = PluginLocations::scanPlugins();
+      return b.entries.size();
+    },
+    .entry =
+        [](void* ctx, size_t index, XpWebPluginEntry* out) {
+          const auto& entry = plugins(ctx).entries[index];
+          *out = {span(entry.name), span(entry.dir), entry.hasPluginJs, entry.hasManifest};
+        },
+    .find = [](void* ctx, const char* name) -> XpWebText {
+      auto& b = plugins(ctx);
+      b.scratch = PluginLocations::findPluginDir(name);
+      return span(b.scratch);
+    },
+    .read = [](void* ctx, const char* path) -> XpWebText {
+      auto& b = plugins(ctx);
+      if (!path) {
+        std::string{}.swap(b.scratch);
+        b.paths.clear();
+        return {nullptr, 0};
+      }
+      if (!Storage.readFileToString("WEB", path, 64 * 1024, b.scratch)) return {nullptr, 0};
+      return span(b.scratch);
+    },
+    .decode = [](XpWebText text, uint8_t* out, size_t capacity) -> int32_t {
+      return freeink::content::base64Decode(reinterpret_cast<const char*>(text.data), text.len, out, capacity);
+    },
+    .store = [](const char* path, const uint8_t* key, size_t len,
+                int64_t expires) { return bookkey::write(path, key, len, expires); },
+    .page = {requestHeader,
+             sendAsset,
+             {reinterpret_cast<const uint8_t*>(RunnerPageHtml), sizeof(RunnerPageHtml)},
+             {reinterpret_cast<const uint8_t*>(RunnerPageHtmlETag), sizeof(RunnerPageHtmlETag) - 1}},
+    .diagnostic =
+        [](void*, uint32_t event, XpWebText a, XpWebText b) {
+          switch (static_cast<XpWebPluginDiagnostic>(event)) {
+            case XP_WEB_PLUGIN_REJECTED:
+              LOG_ERR("WEB", "Rejected plugin file write: plugin='%.*s' path='%.*s'", int(a.len),
+                      reinterpret_cast<const char*>(a.data), int(b.len), reinterpret_cast<const char*>(b.data));
+              break;
+            case XP_WEB_PLUGIN_SERVED:
+              LOG_DBG("WEB", "Served plugin runner page");
+              break;
+            case XP_WEB_PLUGIN_JSON_OOM:
+              LOG_ERR("WEB", "OOM: JSON response");
+              break;
+          }
+        },
+};
 
-// GET /plugin?name=<plugin>&file=<file> -> serve /.crosspoint/plugins/<plugin>/<file>
-void CrossPointWebServer::handlePluginFile() const {
-  const String name = server->arg("name");
-  const String file = server->arg("file");
-  if (!safeComponent(name) || !safeComponent(file)) {
-    server->send(400, "text/plain", "bad plugin path");
-    return;
-  }
-  const std::string pluginDir = PluginLocations::findPluginDir(name.c_str());
-  if (pluginDir.empty()) {
-    server->send(404, "text/plain", "not found");
-    return;
-  }
-  const std::string path = pluginDir + "/" + file.c_str();
-  HalFile f = Storage.open(path.c_str(), O_RDONLY);
-  if (!f || !f.isOpen() || f.isDirectory()) {
-    server->send(404, "text/plain", "not found");
-    return;
-  }
-
-  server->setContentLength(f.size());
-  server->send(200, pluginContentType(file), "");
-  streamFileToClient(f);
-}
+void CrossPointWebServer::handlePluginList() const { WebPluginBridge::route(*this, XP_WEB_PLUGIN_LIST); }
+void CrossPointWebServer::handlePluginFile() const { WebPluginBridge::route(*this, XP_WEB_PLUGIN_FILE); }
+void CrossPointWebServer::handleBookKey() { WebPluginBridge::route(*this, XP_WEB_PLUGIN_KEY); }
+void CrossPointWebServer::handlePluginRunnerPage() const { WebPluginBridge::route(*this, XP_WEB_PLUGIN_PAGE); }
+void CrossPointWebServer::handlePluginFs() { WebPluginBridge::upload(*this, 4); }
+void CrossPointWebServer::handlePluginFsUpload() { WebPluginBridge::upload(*this, server->upload().status); }
 
 // POST /api/relay {plugin, method, url, headers:{}, body}
 //   -> 200 with the upstream body raw, its status in X-Relay-Status and its
@@ -1828,132 +1875,6 @@ void CrossPointWebServer::handleFetch() {
                      : "failed",
           (unsigned)written, millis() - fetchStartedAt, browserConnected ? "connected" : "disconnected", url.c_str());
   sendFetchResult(200, out);
-}
-
-// POST /api/plugin-fs?plugin=<name>&path=<path> with the file contents as a
-// multipart file part. A plugin writes a small file to SD. Multipart, not a raw
-// body: WebServer turns a plain body into a NUL-terminated String (truncating
-// binary data) and buffers all of it first, while file parts stream in chunks.
-void CrossPointWebServer::handlePluginFsUpload() {
-  static constexpr size_t MAX_PLUGIN_FILE = 256 * 1024;
-  auto& st = pluginFsUpload;
-  const HTTPUpload& part = server->upload();
-  const auto fail = [&st](const int status, const char* error) {
-    if (st.file.isOpen()) st.file.close();  // explicit: remove follows on the same path
-    if (!st.tmp.empty()) Storage.remove(st.tmp.c_str());
-    st.errorStatus = status;
-    st.error = error;
-  };
-
-  switch (part.status) {
-    case UPLOAD_FILE_START: {
-      if (st.file.isOpen()) st.file.close();
-      st.path = server->arg("path").c_str();
-      st.tmp.clear();
-      st.bytes = 0;
-      st.started = true;
-      st.errorStatus = 0;
-      st.error = nullptr;
-      if (!SETTINGS.pluginsEnabled) {
-        fail(403, "plugin system disabled");
-        return;
-      }
-      const String plugin = server->arg("plugin");
-      if (!safeComponent(plugin) || !protectedpaths::isPluginPath(st.path)) {
-        LOG_ERR("WEB", "Rejected plugin file write: plugin='%s' path='%s'", plugin.c_str(), st.path.c_str());
-        fail(400, "bad path");
-        return;
-      }
-      // ensureDirectoryExists() creates missing parents along the way, so this
-      // covers any depth under /.crosspoint/plugins/<name>/... in one call.
-      const size_t lastSlash = st.path.rfind('/');
-      if (lastSlash != std::string::npos && lastSlash > 0) {
-        Storage.ensureDirectoryExists(st.path.substr(0, lastSlash).c_str());
-      }
-      st.tmp = st.path + ".tmp";
-      Storage.remove(st.tmp.c_str());
-      if (!Storage.openFileForWrite("PLG", st.tmp, st.file)) fail(500, "cannot write");
-      return;
-    }
-    case UPLOAD_FILE_WRITE:
-      if (st.errorStatus) return;
-      if (part.currentSize > MAX_PLUGIN_FILE - st.bytes) {
-        fail(413, "too large");
-        return;
-      }
-      resetTaskWatchdogIfSubscribed();
-      if (st.file.write(part.buf, part.currentSize) != part.currentSize) {
-        fail(500, "sd write failed");
-        return;
-      }
-      st.bytes += part.currentSize;
-      return;
-    case UPLOAD_FILE_END:
-      if (st.errorStatus) return;
-      st.file.close();
-      // An empty body must not replace existing credentials with nothing.
-      if (st.bytes == 0) {
-        fail(400, "empty body");
-      } else if (!Storage.replaceFile(st.tmp.c_str(), st.path.c_str())) {
-        fail(500, "sd write failed");
-      } else if (library::isLibraryBookFile(st.path)) {
-        library::markLibraryIndexDirty();
-      }
-      return;
-    case UPLOAD_FILE_ABORTED:
-      fail(400, "upload aborted");
-      return;
-  }
-}
-
-void CrossPointWebServer::handlePluginFs() {
-  auto& st = pluginFsUpload;
-  if (!SETTINGS.pluginsEnabled && !st.started) {
-    server->send(403, "text/plain", "plugin system disabled");
-    return;
-  }
-  if (!st.started) {
-    server->send(400, "application/json", "{\"error\":\"missing file part\"}");
-  } else if (st.errorStatus) {
-    char msg[64];
-    snprintf(msg, sizeof(msg), "{\"error\":\"%s\"}", st.error);
-    server->send(st.errorStatus, "application/json", msg);
-  } else {
-    JsonDocument resp;
-    resp["ok"] = true;
-    resp["bytes"] = st.bytes;
-    sendJson(resp);
-  }
-  st.started = false;
-}
-
-// POST /api/book-key {path, key (base64, 16 or 32 bytes), expires?} -> {ok}
-// Stores a protected book's content key, wrapped to this device, as
-// "<path>.key" for the reader to open the book with.
-void CrossPointWebServer::handleBookKey() {
-  if (rejectIfPluginsDisabled()) return;
-  JsonDocument req;
-  if (!readJsonBody(req)) return;
-  const std::string path = req["path"] | "";
-  const char* keyB64 = req["key"] | "";
-  const int64_t expires = req["expires"] | static_cast<int64_t>(0);
-  uint8_t key[bookkey::MAX_KEY_LEN];
-  const int32_t n = freeink::content::base64Decode(keyB64, strlen(keyB64), key, sizeof(key));
-  if (!protectedpaths::isPluginPath(path) || (n != 16 && n != 32) || expires < 0) {
-    server->send(400, "application/json", "{\"error\":\"bad path/key\"}");
-    return;
-  }
-  if (!bookkey::write(path, key, static_cast<size_t>(n), expires)) {
-    server->send(500, "application/json", "{\"error\":\"cannot store key\"}");
-    return;
-  }
-  server->send(200, "application/json", "{\"ok\":true}");
-}
-
-void CrossPointWebServer::handlePluginRunnerPage() const {
-  if (rejectIfPluginsDisabled()) return;
-  sendStaticContent(server.get(), RunnerPageHtml, sizeof(RunnerPageHtml), RunnerPageHtmlETag, "text/html");
-  LOG_DBG("WEB", "Served plugin runner page");
 }
 
 CrossPointWebServer::PluginJob* CrossPointWebServer::allocPluginJob() {

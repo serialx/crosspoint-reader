@@ -1,7 +1,6 @@
 //! Font endpoint policy over the existing registry, installer and transfer leaves.
 use super::{
-    config::Asset, Field, Io, Output, Request, Result, Span, Text, Transfer, Transfers,
-    BUFFER_CAPACITY,
+    config::Asset, Field, Io, Request, Result, Span, Text, Transfer, Transfers, BUFFER_CAPACITY,
 };
 use core::ffi::{c_char, c_void};
 
@@ -74,30 +73,6 @@ enum Install {
 struct FontRequest<'a> {
     transfer: Transfer<'a>,
     fonts: &'a Fonts,
-}
-impl Text {
-    fn number(&mut self, n: usize) -> Result<()> {
-        let mut bytes = [0; 24];
-        let mut out = Output::new(&mut bytes);
-        out.number(n);
-        self.append(out.bytes())
-    }
-    fn quoted(&mut self, bytes: &[u8]) -> Result<()> {
-        self.append(b"\"")?;
-        // Reuse the shared escaping rules with a bounded scratch loan.
-        for part in bytes.chunks(16) {
-            let mut scratch = [0; 98];
-            let mut out = Output::new(&mut scratch);
-            out.quoted(part);
-            let encoded = out.bytes();
-            self.append(
-                encoded
-                    .get(1..encoded.len().saturating_sub(1))
-                    .unwrap_or(&[]),
-            )?;
-        }
-        self.append(b"\"")
-    }
 }
 impl FontRequest<'_> {
     fn r(&self) -> &Request<'_> {

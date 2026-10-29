@@ -32,7 +32,9 @@ typedef enum {
   XP_WEB_CLIENT_CLEAR,
   XP_WEB_CREATE,
   XP_WEB_AVAILABLE,
-  XP_WEB_OPEN_READ
+  XP_WEB_OPEN_READ,
+  XP_WEB_ENSURE_DIR,
+  XP_WEB_REPLACE  // path is source; data is a NUL-terminated target path.
 } XpWebIo;
 typedef enum { XP_WEB_CACHE, XP_WEB_REMOVE_BOOK, XP_WEB_MOVE_BOOK, XP_WEB_LIBRARY_BOOK } XpWebBook;
 typedef enum {
@@ -113,7 +115,9 @@ typedef enum {
   XP_WEB_WS_PATH,
   XP_WEB_WS_COMPLETE_NAME,
   XP_WEB_FONT_FAMILY,
-  XP_WEB_FONT_PATH
+  XP_WEB_FONT_PATH,
+  XP_WEB_PLUGIN_PATH,
+  XP_WEB_PLUGIN_TMP
 } XpWebStoredText;
 typedef enum {
   XP_WEB_UPLOAD_STOPPED,
@@ -305,6 +309,48 @@ typedef struct {
 void xp_web_fonts(void*, const XpWebFonts*, uint32_t route);
 // Upload status matches xp_web_upload: start=0, write=1, end=2, aborted=3, response=4.
 void xp_web_font_upload(void*, const XpWebFonts*, XpWebFontUpload*, uint32_t, XpWebText, const uint8_t*, size_t);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Entry spans borrow the PluginLocations result for this request. find/read
+// share scratch until the next find/read; JSON spans borrow the parsed document.
+// read(null) releases manifest scratch and its parsed document after serialization.
+// Upload path/tmp get spans are NUL-terminated and retain their existing owner.
+// Files retain their existing owner. Scalars return synchronously;
+// error points to immutable static storage. Callback spans must not be retained.
+typedef struct {
+  XpWebText name, dir;
+  bool js, manifest;
+} XpWebPluginEntry;
+typedef struct {
+  size_t bytes;
+  const char* error;
+  uint16_t status;
+  bool started;
+} XpWebPluginUpload;
+typedef enum { XP_WEB_PLUGIN_LIST, XP_WEB_PLUGIN_FILE, XP_WEB_PLUGIN_KEY, XP_WEB_PLUGIN_PAGE } XpWebPluginRoute;
+typedef enum { XP_WEB_PLUGIN_REJECTED, XP_WEB_PLUGIN_SERVED, XP_WEB_PLUGIN_JSON_OOM } XpWebPluginDiagnostic;
+typedef struct {
+  const XpWebTransfers* transfers;
+  XpWebText (*parse)(void*, XpWebText);
+  XpWebText (*json_string)(void*, const char*);
+  int64_t (*expires)(void*);
+  size_t (*scan)(void*);
+  void (*entry)(void*, size_t, XpWebPluginEntry*);
+  XpWebText (*find)(void*, const char*);
+  XpWebText (*read)(void*, const char*);
+  int32_t (*decode)(XpWebText, uint8_t*, size_t);
+  bool (*store)(const char*, const uint8_t*, size_t, int64_t);
+  XpWebAsset page;
+  void (*diagnostic)(void*, uint32_t, XpWebText, XpWebText);
+} XpWebPlugins;
+void xp_web_plugins(void*, const XpWebPlugins*, uint32_t route);
+// Status: start=0, write=1, end=2, aborted=3, response=4 (no upload-data loan).
+void xp_web_plugin_upload(void*, const XpWebPlugins*, XpWebPluginUpload*, uint32_t, const uint8_t*, size_t);
 #ifdef __cplusplus
 }
 #endif

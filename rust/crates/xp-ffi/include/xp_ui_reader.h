@@ -1018,6 +1018,134 @@ typedef enum {
  * More mode takes the persisted menu-action ID. */
 uint8_t xp_ui_reader_overlay_checkbox(uint8_t mode, int32_t row_or_action);
 
+/* Navigation resources are synchronous and retain no pointers. Invoke outside
+ * ModelLock. read/write copy one scalar under the short model lock; query and
+ * command may allocate, access storage, log or acquire the original RenderLock.
+ * Callbacks must not reenter navigation with the same mutable context. href is
+ * borrowed for the whole call, may be null only when href_len is zero, and is
+ * never mutated. Saved-position depth must remain within 0..3. Null/missing
+ * services or an unknown operation return zero with no effects. */
+/* Field reads/writes copy scalars only; signed values use i32 bit patterns.
+ * CachedOffset/PendingOffset writes set their optional presence. HasCachedOffset
+ * accepts only a zero write to clear it. HasCurrentOffset/CurrentOffset are
+ * read-only. SpineProgress carries IEEE-754 f32 bits; Saved* slots are fixed. */
+typedef enum {
+  XP_UI_READER_NAV_FIELD_SPINE = 0,
+  XP_UI_READER_NAV_FIELD_CACHED_SPINE = 1,
+  XP_UI_READER_NAV_FIELD_NEXT_PAGE = 2,
+  XP_UI_READER_NAV_FIELD_CACHED_COUNT = 3,
+  XP_UI_READER_NAV_FIELD_HAS_CACHED_OFFSET = 4,
+  XP_UI_READER_NAV_FIELD_CACHED_OFFSET = 5,
+  XP_UI_READER_NAV_FIELD_HAS_CURRENT_OFFSET = 6,
+  XP_UI_READER_NAV_FIELD_CURRENT_OFFSET = 7,
+  XP_UI_READER_NAV_FIELD_PENDING_OFFSET = 8,
+  XP_UI_READER_NAV_FIELD_PERCENT_JUMP = 9,
+  XP_UI_READER_NAV_FIELD_SPINE_PROGRESS = 10,
+  XP_UI_READER_NAV_FIELD_FOOTNOTE_DEPTH = 11,
+  XP_UI_READER_NAV_FIELD_SAVED_SPINE0 = 12,
+  XP_UI_READER_NAV_FIELD_SAVED_PAGE0 = 13,
+  XP_UI_READER_NAV_FIELD_SAVED_SPINE1 = 14,
+  XP_UI_READER_NAV_FIELD_SAVED_PAGE1 = 15,
+  XP_UI_READER_NAV_FIELD_SAVED_SPINE2 = 16,
+  XP_UI_READER_NAV_FIELD_SAVED_PAGE2 = 17,
+} XpUiReaderNavField;
+typedef enum {
+  /* argument ignored; returns book presence. Pure, no allocation or I/O. */
+  XP_UI_READER_NAV_QUERY_HAS_BOOK = 0,
+  /* argument ignored; returns total book bytes as u32. Pure. */
+  XP_UI_READER_NAV_QUERY_BOOK_SIZE = 1,
+  /* argument ignored; returns nonnegative spine count as i32 bits. Pure. */
+  XP_UI_READER_NAV_QUERY_SPINE_COUNT = 2,
+  /* argument=byte offset; returns found spine as i32 bits, negative if absent. May read book metadata. */
+  XP_UI_READER_NAV_QUERY_FIND_SPINE = 3,
+  /* argument=spine i32 bits; returns cumulative byte size. May read book metadata. */
+  XP_UI_READER_NAV_QUERY_CUMULATIVE = 4,
+  /* argument ignored; returns section presence. Pure. */
+  XP_UI_READER_NAV_QUERY_HAS_SECTION = 5,
+  /* argument ignored; returns current page as i32 bits. Pure. */
+  XP_UI_READER_NAV_QUERY_SECTION_PAGE = 6,
+  /* argument ignored; returns the u16 page watermark. Pure. */
+  XP_UI_READER_NAV_QUERY_SECTION_COUNT = 7,
+  /* argument ignored; returns estimated u16 page total. Pure. */
+  XP_UI_READER_NAV_QUERY_ESTIMATED_COUNT = 8,
+  /* argument ignored; returns active section-build state. Pure. */
+  XP_UI_READER_NAV_QUERY_BUILDING = 9,
+  /* argument=text offset; returns 0 when absent, otherwise bit16 plus u16 page. May read storage. */
+  XP_UI_READER_NAV_QUERY_MAP_OFFSET = 10,
+  /* argument=u16 page; returns presence and retains a scalar result for OFFSET_VALUE. May read storage. */
+  XP_UI_READER_NAV_QUERY_GET_OFFSET = 11,
+  /* argument ignored; returns the last GET_OFFSET result. Pure; valid only after a present result. */
+  XP_UI_READER_NAV_QUERY_OFFSET_VALUE = 12,
+  /* argument ignored; returns last FALLBACK spine as i32 bits. Pure. */
+  XP_UI_READER_NAV_QUERY_FALLBACK_SPINE = 13,
+  /* argument ignored; returns last FALLBACK page as i32 bits. Pure. */
+  XP_UI_READER_NAV_QUERY_FALLBACK_PAGE = 14,
+  /* argument ignored; returns the borrowed progress result offset-present flag. Pure. */
+  XP_UI_READER_NAV_QUERY_SYNC_HAS_OFFSET = 15,
+  /* argument ignored; returns the borrowed progress result text offset. Pure. */
+  XP_UI_READER_NAV_QUERY_SYNC_OFFSET = 16,
+  /* argument ignored; returns the borrowed progress result spine as i32 bits. Pure. */
+  XP_UI_READER_NAV_QUERY_SYNC_SPINE = 17,
+  /* argument ignored; returns the borrowed progress result page as i32 bits. Pure. */
+  XP_UI_READER_NAV_QUERY_SYNC_PAGE = 18,
+  /* argument ignored; returns the borrowed progress result total as i32 bits. Pure. */
+  XP_UI_READER_NAV_QUERY_SYNC_COUNT = 19,
+  /* argument ignored; returns the saved XPath/progress presence flag. Pure. */
+  XP_UI_READER_NAV_QUERY_SYNC_HAS_PROGRESS = 20,
+  /* argument ignored; resolves the borrowed href, returning i32 spine bits. May allocate/read storage. */
+  XP_UI_READER_NAV_QUERY_RESOLVE_HREF = 21,
+} XpUiReaderNavQuery;
+typedef enum {
+  /* a/b ignored; returns 0. Acquires the original RenderLock; may block. Must pair with UNLOCK. */
+  XP_UI_READER_NAV_COMMAND_LOCK = 0,
+  /* a/b ignored; returns 0. Releases the RenderLock held by this operation. */
+  XP_UI_READER_NAV_COMMAND_UNLOCK = 1,
+  /* a/b ignored; returns 0. Destroys the section, freeing resources and closing its storage handles. */
+  XP_UI_READER_NAV_COMMAND_DROP_SECTION = 2,
+  /* a/b ignored; returns 0. Requests the existing render-task update; never waits for a panel refresh. */
+  XP_UI_READER_NAV_COMMAND_UPDATE = 3,
+  /* a=page, b ignored; returns 0. Writes the section page; no allocation or I/O. */
+  XP_UI_READER_NAV_COMMAND_SET_SECTION_PAGE = 4,
+  /* a=current spine, b=page total; returns 0. Maps borrowed saved XPath/progress; may allocate/read storage. */
+  XP_UI_READER_NAV_COMMAND_FALLBACK = 5,
+  /* a=byte start, b=length within href; returns 0. Copies the anchor into a native temporary; may allocate. */
+  XP_UI_READER_NAV_COMMAND_PREPARE_ANCHOR = 6,
+  /* a/b ignored; returns 0. Moves the prepared anchor into the reader resource; may free the old buffer. */
+  XP_UI_READER_NAV_COMMAND_MOVE_ANCHOR = 7,
+  /* a/b ignored; returns 0. Emits the existing unresolved-href diagnostic; may block in logging. */
+  XP_UI_READER_NAV_COMMAND_LOG_UNRESOLVED = 8,
+  /* a=new depth, b=saved page; returns 0. Logs the saved current spine/page; may block in logging. */
+  XP_UI_READER_NAV_COMMAND_LOG_SAVED = 9,
+  /* a=stack index 0..2, b ignored; returns 0. Logs that saved position; may block in logging. */
+  XP_UI_READER_NAV_COMMAND_LOG_RESTORED = 10,
+  /* a=target spine, b ignored; returns 0. Logs the borrowed href and spine; may block in logging. */
+  XP_UI_READER_NAV_COMMAND_LOG_NAVIGATED = 11,
+  /* a=offset present, b=u32 offset bits; uses context spine/page/count, returns bool. May allocate/write storage. */
+  XP_UI_READER_NAV_COMMAND_SAVE_PROGRESS = 12,
+} XpUiReaderNavCommand;
+typedef enum {
+  XP_UI_READER_NAV_OPERATION_PERCENT = 0,
+  XP_UI_READER_NAV_OPERATION_PROGRESS = 1,
+  XP_UI_READER_NAV_OPERATION_DEFERRED = 2,
+  XP_UI_READER_NAV_OPERATION_CLEAR = 3,
+  XP_UI_READER_NAV_OPERATION_SAVE = 4,
+  XP_UI_READER_NAV_OPERATION_REMEMBER = 5,
+  XP_UI_READER_NAV_OPERATION_HREF = 6,
+  XP_UI_READER_NAV_OPERATION_RESTORE = 7,
+} XpUiReaderNavOperation;
+typedef struct {
+  void* context;
+  uint32_t (*read)(void* context, uint8_t field);
+  void (*write)(void* context, uint8_t field, uint32_t value);
+  uint32_t (*query)(void* context, uint8_t query, uint32_t argument);
+  uint32_t (*command)(void* context, uint8_t command, int32_t a, int32_t b);
+  const uint8_t* href;
+  uint32_t href_len;
+} XpUiReaderNavServices;
+/* Percent: a=percent; Save: a=spine,b=page (count is a context resource);
+ * Href: a=save-position; other arguments ignored. Deferred/Save return bool. */
+uint32_t xp_ui_reader_navigation(const XpUiReaderNavServices*, uint8_t operation, int32_t a, int32_t b);
+
 #ifdef __cplusplus
 }
 #endif
@@ -1539,3 +1667,81 @@ XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayViewServices, query) == 1 * s
 XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayViewServices, paint) == 2 * sizeof(void*));
 XP_UI_READER_VIEW_ASSERT(sizeof(XpUiReaderOverlayViewServices) == 3 * sizeof(void*));
 #undef XP_UI_READER_VIEW_ASSERT
+
+#if defined(__cplusplus)
+#define XP_UI_READER_NAV_ASSERT(x) static_assert(x, #x)
+static_assert(alignof(XpUiReaderNavServices) == alignof(void*), "navigation services alignment");
+#else
+#define XP_UI_READER_NAV_ASSERT(x) _Static_assert(x, #x)
+_Static_assert(_Alignof(XpUiReaderNavServices) == _Alignof(void*), "navigation services alignment");
+#endif
+XP_UI_READER_NAV_ASSERT(sizeof(XpUiReaderNavServices) == 7 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(offsetof(XpUiReaderNavServices, context) == 0 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(offsetof(XpUiReaderNavServices, read) == 1 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(offsetof(XpUiReaderNavServices, write) == 2 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(offsetof(XpUiReaderNavServices, query) == 3 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(offsetof(XpUiReaderNavServices, command) == 4 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(offsetof(XpUiReaderNavServices, href) == 5 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(offsetof(XpUiReaderNavServices, href_len) == 6 * sizeof(void*));
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SPINE == 0);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_CACHED_SPINE == 1);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_NEXT_PAGE == 2);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_CACHED_COUNT == 3);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_HAS_CACHED_OFFSET == 4);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_CACHED_OFFSET == 5);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_HAS_CURRENT_OFFSET == 6);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_CURRENT_OFFSET == 7);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_PENDING_OFFSET == 8);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_PERCENT_JUMP == 9);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SPINE_PROGRESS == 10);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_FOOTNOTE_DEPTH == 11);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SAVED_SPINE0 == 12);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SAVED_PAGE0 == 13);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SAVED_SPINE1 == 14);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SAVED_PAGE1 == 15);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SAVED_SPINE2 == 16);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_FIELD_SAVED_PAGE2 == 17);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_HAS_BOOK == 0);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_BOOK_SIZE == 1);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SPINE_COUNT == 2);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_FIND_SPINE == 3);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_CUMULATIVE == 4);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_HAS_SECTION == 5);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SECTION_PAGE == 6);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SECTION_COUNT == 7);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_ESTIMATED_COUNT == 8);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_BUILDING == 9);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_MAP_OFFSET == 10);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_GET_OFFSET == 11);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_OFFSET_VALUE == 12);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_FALLBACK_SPINE == 13);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_FALLBACK_PAGE == 14);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SYNC_HAS_OFFSET == 15);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SYNC_OFFSET == 16);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SYNC_SPINE == 17);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SYNC_PAGE == 18);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SYNC_COUNT == 19);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_SYNC_HAS_PROGRESS == 20);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_QUERY_RESOLVE_HREF == 21);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_LOCK == 0);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_UNLOCK == 1);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_DROP_SECTION == 2);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_UPDATE == 3);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_SET_SECTION_PAGE == 4);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_FALLBACK == 5);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_PREPARE_ANCHOR == 6);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_MOVE_ANCHOR == 7);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_LOG_UNRESOLVED == 8);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_LOG_SAVED == 9);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_LOG_RESTORED == 10);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_LOG_NAVIGATED == 11);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_COMMAND_SAVE_PROGRESS == 12);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_PERCENT == 0);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_PROGRESS == 1);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_DEFERRED == 2);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_CLEAR == 3);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_SAVE == 4);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_REMEMBER == 5);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_HREF == 6);
+XP_UI_READER_NAV_ASSERT(XP_UI_READER_NAV_OPERATION_RESTORE == 7);
+#undef XP_UI_READER_NAV_ASSERT

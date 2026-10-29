@@ -173,6 +173,8 @@ class EpubReaderActivity final : public ReaderActivity {
   void rememberCurrentContentOffset();
   bool saveProgress(int spineIndex, int currentPage, int pageCount);
   bool applyPageMove(const XpUiReaderMove& move, bool recordTurn);
+  bool runNavigationPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0, int32_t c = 0,
+                           const std::string* href = nullptr, const ProgressChangeResult* sync = nullptr);
   void jumpToPercent(int percent);
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   int currentTocIndex() const;

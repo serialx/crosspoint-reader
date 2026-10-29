@@ -511,3 +511,16 @@ pub unsafe extern "C" fn xp_ui_reader_overlay_view(
 pub extern "C" fn xp_ui_reader_overlay_checkbox(mode: u8, row_or_action: i32) -> u8 {
     reader::overlay_view::checkbox(mode, row_or_action)
 }
+
+/// # Safety
+/// Non-null services obey the synchronous navigation resource contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_navigation(
+    services: *const reader::epub_navigation::Services,
+    operation: u8,
+    a: i32,
+    b: i32,
+) -> u32 {
+    reader::epub_navigation::run(services, operation, a, b)
+}

@@ -28,6 +28,10 @@ def generate(repo, output):
         "void EpubReaderActivity::loadLinkStack(",
         "void EpubReaderActivity::restoreSavedPosition(",
     )]
+    if "bool EpubReaderActivity::runNavigationPolicy(" in reader:
+        methods = [(repo / "test/reader_lifecycle/restore_navigation_rust.inc").read_text()
+                   if method.startswith("void EpubReaderActivity::restoreSavedPosition(") else method
+                   for method in methods]
     if "bool EpubReaderActivity::applyPageMove(" in reader:
         methods.append(definition(reader, "bool EpubReaderActivity::applyPageMove("))
     load = definition(reader, 'if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f))')

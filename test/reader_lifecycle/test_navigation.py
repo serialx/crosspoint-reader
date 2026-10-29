@@ -17,6 +17,8 @@ names = ['void jumpToPercent(', 'void applyProgressChange(', 'bool applyDeferred
          'void clearDeferredReposition(', 'bool saveProgress(', 'void rememberCurrentContentOffset(',
          'void navigateToHref(', 'void restoreSavedPosition(']
 methods = '\n'.join(definition(source, name.replace(' ', ' EpubReaderActivity::', 1)) for name in names)
+if not freeze:
+    methods += '\n' + definition(source, 'bool EpubReaderActivity::runNavigationPolicy(')
 fixture = (HERE / 'navigation_oracle.cpp').read_text().replace('// NAVIGATION_METHODS', methods)
 with tempfile.TemporaryDirectory() as directory:
     p = Path(directory)
@@ -31,9 +33,9 @@ with tempfile.TemporaryDirectory() as directory:
         golden.write_bytes(gzip.compress(actual, mtime=0))
     else:
         assert actual == gzip.decompress(golden.read_bytes())
-        for before, after in [('if (percent >= 100)', 'if (percent > 100)'),
-                              ('pendingAnchor = std::move(anchor);', 'pendingAnchor.clear();'),
-                              ('if (newPage < 0) newPage = 0;', 'if (newPage < 0) newPage = 1;')]:
+        for before, after in [('return o.epub->getBookSize();', 'return 0;'),
+                              ('o.pendingAnchor = std::move(anchor);', 'o.pendingAnchor.clear();'),
+                              ('o.section->currentPage = a;', 'o.section->currentPage = a + 1;')]:
             wrong = fixture.replace(before, after)
             assert wrong != fixture
             assert run(wrong, 'wrong') != actual

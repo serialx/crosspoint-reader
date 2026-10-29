@@ -441,3 +441,5 @@ pub mod epub_loop;
 pub mod epub_overlay;
 pub mod values;
 pub mod overlay_view;
+
+pub mod epub_navigation;

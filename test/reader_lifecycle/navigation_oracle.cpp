@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
@@ -100,6 +101,9 @@ bool saveProgress(const Epub&, int spine, int page, int count, std::optional<uin
 }  // namespace EpubReaderUtils
 int clampPercent(int value) { return std::clamp(value, 0, 100); }
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {}
+  };
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();
   std::unique_ptr<Section> section = std::make_unique<Section>();
   Renderer renderer;
@@ -116,6 +120,8 @@ struct EpubReaderActivity {
   SavedPosition savedPositions[MAX_FOOTNOTE_DEPTH]{{0, 1}, {1, 2}, {2, 3}};
   int footnoteDepth = 0;
   void requestUpdate() { event("update"); }
+  bool runNavigationPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0, int32_t c = 0,
+                           const std::string* href = nullptr, const ProgressChangeResult* sync = nullptr);
   void jumpToPercent(int percent);
   void applyProgressChange(const ProgressChangeResult& sync);
   bool applyDeferredReposition();

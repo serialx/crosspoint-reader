@@ -841,6 +841,9 @@ void setup() {
   }
 
   allowSleepAt = millis() + 2000;
+#ifdef CROSSPOINT_UI_ORACLE
+  uiOracleEnter(renderer, mappedInputManager);  // Test-only activity fixtures.
+#endif
 }
 
 void loop() {

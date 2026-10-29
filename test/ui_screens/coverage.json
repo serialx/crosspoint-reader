@@ -524,17 +524,24 @@
     },
     {
       "source": "src/activities/util/DetailsActivity.cpp",
-      "status": "offline-gate",
+      "status": "fixture-entry",
       "groups": [
-        "opds-offline"
+        "fixture-details-plain",
+        "fixture-details-html",
+        "fixture-details-cover"
       ],
-      "reason": "Shared details view requires an online OPDS or plugin-hub entry; installed plugin help uses DictionaryDefinition instead.",
-      "contract": "src/activities/browser/OpdsBookBrowserActivity.cpp:864"
+      "reason": "Local ui_oracle fixture supplies public DetailsSpec; captures plain/HTML description, placeholder/PNG cover, More, confirm and cancel. Online acquisition and real service responses remain untested.",
+      "contract": "test/ui_screens/firmware/UiOracleEntry.cpp"
     },
     {
       "source": "src/activities/util/FrontlightPanelActivity.cpp",
-      "status": "unsupported-profile",
-      "reason": "No detected frontlight on emulated X3/X4; ActivityManager.cpp:142 gates the panel on detection."
+      "status": "fixture-entry",
+      "reason": "Local ui_oracle fixture supplies an inert frontlight facade for mono/warm panels; captures on/off, brightness adjustment and close. No physical frontlight, touch, slide switch, or quick tiles are qualified.",
+      "groups": [
+        "fixture-frontlight-mono",
+        "fixture-frontlight-warm"
+      ],
+      "contract": "test/ui_screens/firmware/UiOracleFrontlight.h"
     },
     {
       "source": "src/activities/util/FullScreenMessageActivity.cpp",
@@ -578,6 +585,7 @@
     "Crash is a GDB-forced second isRebootFromPanic return, not a real crash; SD error is an emulated SD-card eject before mount. Neither proves recovery or hardware fault behavior.",
     "Stock English text and built-in fonts only. Arbitrary translations, installed fonts, books, library sizes, content layout variants, and every setting combination are outside this finite matrix.",
     "OOM, corrupted cache, failing writes, update success, intermediate loading paints, every popup selection, and every touch/remapping path are not exhaustively injected. Reader and sleep images cover representative grayscale paths.",
-    "Nonreader screens are portrait; EPUB and its children use all four orientations. XTC explicitly forces portrait. Sleep ignores inversion by design; both requested polarities are retained."
+    "Nonreader screens are portrait; EPUB and its children use all four orientations. XTC explicitly forces portrait. Sleep ignores inversion by design; both requested polarities are retained.",
+    "Details and Frontlight fixture-entry groups require the local instrumented ui_oracle build. They prove activity pixels and refresh policy with synthetic data/capabilities, not network or hardware behavior. fixture-unknown and fixture-oversized prove rejected selectors preserve Home. See FIXTURE-GAPS.md for remaining state families and proposed seams."
   ]
 }

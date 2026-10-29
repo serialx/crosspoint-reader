@@ -2346,6 +2346,210 @@
           ]
         }
       ]
+    },
+    {
+      "id": "fixture-details-plain",
+      "fixture": "entry-details-plain",
+      "screens": [
+        {
+          "id": "details-plain",
+          "activity": "Details",
+          "steps": [
+            "expect-log:Entering activity: Details",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-plain-more",
+          "activity": "DictionaryDefinition",
+          "steps": [
+            "press:right",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-plain-return",
+          "activity": "Details",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "details-plain-confirm",
+          "activity": "Home",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-details-html",
+      "fixture": "entry-details-html",
+      "screens": [
+        {
+          "id": "details-html",
+          "activity": "Details",
+          "steps": [
+            "expect-log:Entering activity: Details",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-html-more",
+          "activity": "DictionaryDefinition",
+          "steps": [
+            "press:right",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "details-html-return",
+          "activity": "Details",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "details-html-confirm",
+          "activity": "Home",
+          "steps": [
+            "press:confirm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-details-cover",
+      "fixture": "entry-details-cover",
+      "screens": [
+        {
+          "id": "details-cover",
+          "activity": "Details",
+          "steps": [
+            "expect-log:Entering activity: Details",
+            "wait-quiet:2",
+            "expect-log:PNG decoding complete"
+          ]
+        },
+        {
+          "id": "details-cover-cancel",
+          "activity": "Home",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-frontlight-mono",
+      "fixture": "entry-frontlight-mono",
+      "screens": [
+        {
+          "id": "frontlight-mono",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "expect-log:Entering activity: FrontlightPanel",
+            "expect-log:Entering activity: Home"
+          ]
+        },
+        {
+          "id": "frontlight-mono-off",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "frontlight-mono-brighter",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "frontlight-mono-dimmer",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:left"
+          ]
+        },
+        {
+          "id": "frontlight-mono-close",
+          "activity": "Home",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-frontlight-warm",
+      "fixture": "entry-frontlight-warm",
+      "screens": [
+        {
+          "id": "frontlight-warm",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "expect-log:Entering activity: FrontlightPanel",
+            "expect-log:Entering activity: Home"
+          ]
+        },
+        {
+          "id": "frontlight-warm-off",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "frontlight-warm-brighter",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "frontlight-warm-dimmer",
+          "activity": "FrontlightPanel",
+          "steps": [
+            "press:left"
+          ]
+        },
+        {
+          "id": "frontlight-warm-close",
+          "activity": "Home",
+          "steps": [
+            "press:back"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-unknown",
+      "fixture": "entry-unknown",
+      "screens": [
+        {
+          "id": "fixture-unknown",
+          "activity": "Home",
+          "steps": [
+            "expect-log:Rejected unknown selector"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-oversized",
+      "fixture": "entry-oversized",
+      "screens": [
+        {
+          "id": "fixture-oversized",
+          "activity": "Home",
+          "steps": [
+            "expect-log:Rejected selector length"
+          ]
+        }
+      ]
     }
   ]
 }

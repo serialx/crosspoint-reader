@@ -67,13 +67,7 @@ pub static xp_plugin_roots: Roots = Roots([
     c"/plugins".as_ptr(),
     c"/.plugins".as_ptr(),
 ]);
-const EVENTS: [&[u8]; 5] = [
-    b"reader.open\0",
-    b"reader.exit\0",
-    b"reader.session\0",
-    b"book.downloaded\0",
-    b"sleep.enter\0",
-];
+include!(concat!(env!("OUT_DIR"), "/plugin_contract.rs"));
 fn version(v: &[u8], out: &mut [u32; 3]) -> bool {
     let mut p = 0;
     for (k, slot) in out.iter_mut().enumerate() {
@@ -300,14 +294,14 @@ pub extern "C" fn xp_plugin_http_ok(status: i32, failed: bool, complete: bool) -
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Subscriber {
-    name: [u8; 24],
-    dir: [u8; 64],
+    name: [u8; SUB_NAME_BYTES],
+    dir: [u8; SUB_DIR_BYTES],
     mask: u8,
     connect_mask: u8,
 }
 const EMPTY_SUB: Subscriber = Subscriber {
-    name: [0; 24],
-    dir: [0; 64],
+    name: [0; SUB_NAME_BYTES],
+    dir: [0; SUB_DIR_BYTES],
     mask: 0,
     connect_mask: 0,
 };
@@ -332,7 +326,7 @@ pub struct Subscriptions {
 /// name/dir spans remain valid through the current iteration.
 #[no_mangle]
 pub unsafe extern "C" fn xp_plugin_subscriptions(
-    table: *mut [Subscriber; 8],
+    table: *mut [Subscriber; MAX_EVENT_PLUGINS],
     ops: *const Subscriptions,
 ) {
     let s = &*ops;
@@ -349,7 +343,7 @@ pub unsafe extern "C" fn xp_plugin_subscriptions(
         }
         let name = (s.name)(s.ctx, i).bytes();
         let dir = (s.dir)(s.ctx, i).bytes();
-        if name.len() >= 24 || dir.len() >= 64 {
+        if name.len() >= SUB_NAME_BYTES || dir.len() >= SUB_DIR_BYTES {
             s.diagnostic(SubscriptionDiagnostic::Long as u32, i, 0);
             continue;
         }
@@ -377,9 +371,7 @@ pub unsafe extern "C" fn xp_plugin_subscriptions(
             n += 1;
         }
         (s.release)(s.ctx);
-        if mask & 16 != 0 {
-            connect |= 16;
-        }
+        connect |= mask & xp_plugin_event_mask(Event::SleepEnter as u32);
         if mask == 0 {
             continue;
         }
@@ -395,14 +387,20 @@ pub unsafe extern "C" fn xp_plugin_subscriptions(
 /// # Safety
 /// table points to eight readable subscribers.
 #[no_mangle]
-pub unsafe extern "C" fn xp_plugin_any(table: *const [Subscriber; 8], e: u32) -> bool {
+pub unsafe extern "C" fn xp_plugin_any(
+    table: *const [Subscriber; MAX_EVENT_PLUGINS],
+    e: u32,
+) -> bool {
     let bit = xp_plugin_event_mask(e);
     (*table).iter().any(|s| s.name[0] != 0 && s.mask & bit != 0)
 }
 /// # Safety
 /// table and input span are readable.
 #[no_mangle]
-pub unsafe extern "C" fn xp_plugin_mask(table: *const [Subscriber; 8], name: Span) -> u8 {
+pub unsafe extern "C" fn xp_plugin_mask(
+    table: *const [Subscriber; MAX_EVENT_PLUGINS],
+    name: Span,
+) -> u8 {
     (*table)
         .iter()
         .find(|s| s.name[0] != 0 && zbytes(&s.name) == name.bytes())
@@ -417,7 +415,7 @@ pub struct Connect {
 /// Table, operations and context remain valid for this synchronous call.
 #[no_mangle]
 pub unsafe extern "C" fn xp_plugin_wants_connect(
-    table: *const [Subscriber; 8],
+    table: *const [Subscriber; MAX_EVENT_PLUGINS],
     ops: *const Connect,
 ) -> bool {
     let s = &*ops;
@@ -475,7 +473,7 @@ pub unsafe extern "C" fn xp_plugin_append(ops: *const Ops, line_size: usize) {
         return;
     }
     // The original cap used fileSize; rollback uses the full 64-bit offset.
-    if s.simple(AppendOp::Size as u32) as u32 > 4096 {
+    if s.simple(AppendOp::Size as u32) as u32 > MAX_OUTBOX_BYTES as u32 {
         s.simple(AppendOp::Close as u32);
         s.simple(AppendOp::Remove as u32);
         if s.simple(AppendOp::Open as u32) == 0 {
@@ -985,7 +983,7 @@ pub struct Emit {
 /// Text callbacks copy values; the boolean marks static envelope keys.
 #[no_mangle]
 pub unsafe extern "C" fn xp_plugin_emit(
-    table: *const [Subscriber; 8],
+    table: *const [Subscriber; MAX_EVENT_PLUGINS],
     sequence: *mut Sequence,
     event: u32,
     vars: *const Var,
@@ -1028,7 +1026,7 @@ pub unsafe extern "C" fn xp_plugin_emit(
         (s.text)(s.ctx, v.key, v.value, false);
     }
     let len = (s.serialize)(s.ctx);
-    if len > 512 {
+    if len > MAX_EVENT_LINE {
         (s.oversize)(s.ctx, len);
         return;
     }
@@ -1102,7 +1100,7 @@ pub unsafe extern "C" fn xp_plugin_drain_file(budget: *mut usize, ops: *const Dr
 /// The table is readable and drain consumes one subscriber synchronously.
 #[no_mangle]
 pub unsafe extern "C" fn xp_plugin_drain_all(
-    table: *const [Subscriber; 8],
+    table: *const [Subscriber; MAX_EVENT_PLUGINS],
     mut budget: usize,
     ctx: *mut c_void,
     drain: unsafe extern "C" fn(*mut c_void, *const Subscriber, *mut usize),

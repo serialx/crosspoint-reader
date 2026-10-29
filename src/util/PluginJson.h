@@ -4,7 +4,8 @@
 
 // Slots borrow values from the caller's live ArduinoJson document.
 struct PluginJson {
-  JsonVariantConst slots[4];
+  static constexpr size_t SLOT_COUNT = XP_PLUGIN_JSON_SLOTS;
+  JsonVariantConst slots[SLOT_COUNT];
   JsonObjectConstIterator cursor;
   size_t cursorIndex = 0;
   uint32_t cursorSlot = UINT32_MAX;

@@ -42,3 +42,9 @@ the adopted token, and the expanded toast); a retained mint copy fails the test.
 Use `--token-lifetime --record` against frozen baseline sources, then
 `--token-lifetime --memory-baseline <baseline build>` for byte-exact trace and
 peak/live allocation comparison. The ordinary 48/944-case goldens are unchanged.
+
+`plugin_policy_contract` checks the persisted event IDs/wire names, each mask,
+sleep's implied-connect bit, writer bounds at 512/513 and 4096/4097 bytes, and
+64-bit rollback. `xp_plugin_contract.def` is the only event/limit definition:
+C++ expands it directly; Cargo's host-only `xp-ffi/build.rs` emits Rust constants
+in OUT_DIR and rejects noncontiguous IDs or an overflowing event mask.

@@ -27,16 +27,16 @@ constexpr const char* OUTBOX_NAME = "/events.jsonl";
 // Drop-oldest wholesale: a plugin that is never drained must not grow a file
 // forever, and by the time 4KB of events piled up the old ones describe stale
 // state anyway.
-constexpr size_t MAX_OUTBOX_BYTES = 4 * 1024;
+constexpr size_t MAX_OUTBOX_BYTES = XP_PLUGIN_MAX_OUTBOX_BYTES;
 constexpr size_t MAX_MANIFEST_SIZE = 8 * 1024;
-constexpr size_t MAX_EVENT_LINE = 512;
+constexpr size_t MAX_EVENT_LINE = XP_PLUGIN_MAX_EVENT_LINE;
 // Event handler responses are acknowledgements, not content.
 constexpr size_t MAX_EVENT_RESPONSE = 8 * 1024;
 
 // Static subscription table: one slot per installed plugin that declares an
 // "events" section. Rebuilt by refreshSubscriptions(); sized for a full
 // plugin list screen, not a marketplace.
-constexpr size_t MAX_EVENT_PLUGINS = 8;
+constexpr size_t MAX_EVENT_PLUGINS = XP_PLUGIN_MAX_EVENT_PLUGINS;
 using Subscriber = XpPluginSubscriber;
 Subscriber subscribers[MAX_EVENT_PLUGINS]{};
 int eventFromName(const char* name) { return xp_plugin_event(span(name)); }

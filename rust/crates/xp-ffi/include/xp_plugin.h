@@ -5,6 +5,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+enum {
+#define XP_PLUGIN_EVENT(name, id, wire)
+#define XP_PLUGIN_LIMIT(name, value) XP_PLUGIN_##name = value,
+#include "xp_plugin_contract.def"
+#undef XP_PLUGIN_LIMIT
+#undef XP_PLUGIN_EVENT
+};
 typedef enum {
   XP_PLUGIN_SUB_FULL,
   XP_PLUGIN_SUB_LONG,
@@ -22,11 +29,17 @@ typedef enum {
   XP_PLUGIN_TOAST,
   XP_PLUGIN_DEST
 } XpPluginManifestField;
-// All spans and callbacks are borrowed for one synchronous call.
+// Calls are synchronous: ctx/vtables and input spans live until return. Callbacks
+// must not retain borrowed pointers or reenter with active mutable contexts.
+// Nested calls require independent contexts/JSON slots and valid outer borrows.
+// Span data may be null only when len == 0. Null means absent where specified;
+// a non-null zero-length span is an empty value, not absent. No NUL is implied.
+// Callback inputs must be copied before return; encode/emit may pass stack data.
 typedef struct {
   const uint8_t* data;
   size_t len;
 } XpPluginSpan;
+// view borrows the current string until replace; replace consumes both spans.
 typedef struct {
   void* ctx;
   XpPluginSpan (*view)(void*);
@@ -53,11 +66,14 @@ uint8_t xp_plugin_event_mask(uint32_t);
 bool xp_plugin_receive(size_t size, size_t len, size_t max, size_t* reserved);
 bool xp_plugin_http_ok(int32_t status, bool failed, bool complete);
 typedef struct {
-  char name[24];
-  char dir[64];
+  char name[XP_PLUGIN_SUB_NAME_BYTES];
+  char dir[XP_PLUGIN_SUB_DIR_BYTES];
   uint8_t mask;
   uint8_t connect_mask;
 } XpPluginSubscriber;
+// name/dir remain valid through the subscription iteration, including release.
+// parse opens event storage; event returns null at end, otherwise valid until
+// release. connect reads the same index. release runs even after parse failure.
 typedef struct {
   void* ctx;
   size_t (*count)(void*);
@@ -70,18 +86,26 @@ typedef struct {
   void (*release)(void*);
   void (*diagnostic)(void*, uint32_t, size_t, size_t);
 } XpPluginSubscriptionOps;
-void xp_plugin_subscriptions(XpPluginSubscriber table[8], const XpPluginSubscriptionOps*);
-bool xp_plugin_any(const XpPluginSubscriber table[8], uint32_t event);
-uint8_t xp_plugin_mask(const XpPluginSubscriber table[8], XpPluginSpan name);
+void xp_plugin_subscriptions(XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS], const XpPluginSubscriptionOps*);
+bool xp_plugin_any(const XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS], uint32_t event);
+uint8_t xp_plugin_mask(const XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS], XpPluginSpan name);
 typedef struct {
   void* ctx;
   XpPluginSpan (*read)(void*, const XpPluginSubscriber*);
 } XpPluginConnectOps;
-bool xp_plugin_wants_connect(const XpPluginSubscriber table[8], const XpPluginConnectOps*);
+bool xp_plugin_wants_connect(const XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS], const XpPluginConnectOps*);
+// Each entry point selects its operation family below. Unless documented,
+// argument is zero and result is ignored. Boolean results are zero/nonzero.
+// File sizes, counts and offsets use all 64 bits; HTTP results carry signed
+// int32_t status in the low 32 bits (including negative transport errors).
 typedef struct {
   void* ctx;
   uint64_t (*call)(void*, uint32_t operation, uint64_t argument);
 } XpPluginOps;
+// OPEN -> bool; SIZE -> bytes; WRITE -> written bytes of the caller's line;
+// TRUNCATE(argument = previous size) rolls back a short write. Other results
+// are ignored. OPEN precedes access; cap reset is CLOSE/REMOVE/OPEN; the caller
+// owns final close. OPEN_ERROR/CAP/SHORT are diagnostic notifications only.
 typedef enum {
   XP_PLUGIN_FILE_OPEN,
   XP_PLUGIN_FILE_CLOSE,
@@ -103,6 +127,9 @@ typedef struct {
   void (*diagnostic)(void*, uint32_t, bool);
 } XpPluginDrainOps;
 void xp_plugin_drain_lines(XpPluginSpan, size_t* budget, const XpPluginDrainOps*);
+// EXISTS/BACKUP/RENAME/RESTORE -> bool; other results ignored. The context owns
+// destination/temp/backup paths. COMMIT and RESTORE_ERROR notify the caller;
+// successful rename removes backup before COMMIT, failure attempts restoration.
 typedef enum {
   XP_PLUGIN_INSTALL_EXISTS,
   XP_PLUGIN_INSTALL_REMOVE_BACKUP,
@@ -114,6 +141,12 @@ typedef enum {
   XP_PLUGIN_INSTALL_RESTORE_ERROR
 } XpPluginInstallOp;
 int32_t xp_plugin_install_download(int32_t status, const XpPluginOps*);
+// PREPARE creates request scratch; ALLOWED -> bool; DOWNLOAD/RESPONSE -> status.
+// RELEASE destroys scratch after every attempt, including a rejected path,
+// before MINT or retry. REJECTED is diagnostic. MINT -> bool and owns a fresh
+// token; SAVE persists it (result ignored); ACCEPT_TOKEN adopts it and releases
+// the duplicate. Retry follows adoption even if saving failed. TOAST runs only
+// after success and RELEASE. Other operation results are ignored.
 typedef enum {
   XP_PLUGIN_DELIVERY_PREPARE,
   XP_PLUGIN_DELIVERY_ALLOWED,
@@ -127,6 +160,16 @@ typedef enum {
   XP_PLUGIN_DELIVERY_TOAST
 } XpPluginDeliveryOp;
 bool xp_plugin_deliver(bool password_grant, bool download, bool show_toast, const XpPluginOps*);
+// Slots are 0..XP_PLUGIN_JSON_SLOTS-1, initially root in slot 0. select/pair
+// overwrite only `to`. select permits from == to and invalidates cached
+// iteration of `to`; pair requires distinct slots. A non-null key selects an
+// object field (even if empty); a null key selects the array index.
+// pair returns false at end; otherwise writes `to` and key in insertion order.
+// text returns null for non-string, non-null empty for an empty string. Returned
+// text/key borrows last until document mutation/destruction; the adapter must
+// not mutate the document. index implements the platform's atoi conversion.
+// resolve replaces slot 0; request/headers preserve root and use slots 1/3;
+// manifest may clobber every slot. Never reuse these slots in nested callbacks.
 typedef struct {
   void (*select)(void*, uint32_t from, uint32_t to, XpPluginSpan key, size_t index);
   XpPluginSpan (*text)(void*, uint32_t slot);
@@ -152,6 +195,9 @@ void xp_plugin_read_headers(const XpPluginJson*, const XpPluginRequest*);
 uint32_t xp_plugin_value_kind(const XpPluginJson*);
 bool xp_plugin_password(XpPluginSpan type, XpPluginSpan url);
 bool xp_plugin_mint_status(int32_t);
+// A scan owns one directory cursor. name is valid until next/root; append must
+// copy retained names/paths. find candidates own their path until candidate or
+// clear is called again. No cursor or path survives the enclosing API call.
 typedef struct {
   void* ctx;
   bool (*root)(void*, size_t);
@@ -172,6 +218,11 @@ typedef struct {
   void (*clear)(void*);
 } XpPluginFindOps;
 void xp_plugin_find(const XpPluginFindOps*, bool enabled, bool quarantine);
+// ALLOWED/READ/EXTRACT/OPEN -> bool; SERIALIZE -> byte count; WRITE -> bytes
+// written. SHORT(argument = written count) is diagnostic. Others return nothing.
+// Load orders ALLOWED/READ/EXTRACT; save invokes segment for nonempty path parts
+// (last marks the value), then SERIALIZE/OPEN/WRITE/FLUSH. Short writes close and
+// remove the partial file. The context owns normal close and document cleanup.
 typedef enum {
   XP_PLUGIN_TOKEN_ALLOWED,
   XP_PLUGIN_TOKEN_READ,
@@ -190,6 +241,8 @@ bool xp_plugin_save_token(bool empty_file, XpPluginSpan path, const XpPluginOps*
 typedef struct {
   void* ctx;
   void (*text)(void*, uint32_t field, XpPluginSpan value);
+  // field 0 = auth, 1 = handler. Borrow this slot as a new adapter's root;
+  // nested read_request must use independent slots. Copy fields before return.
   void (*request)(void*, uint32_t field, uint32_t json_slot, const char* method);
   void (*reserve)(void*, size_t);
   void (*begin_handler)(void*, int32_t event);
@@ -214,10 +267,12 @@ typedef struct {
   void (*append)(void*, const XpPluginSubscriber*, size_t);
   void (*oversize)(void*, size_t);
 } XpPluginEmitOps;
-void xp_plugin_emit(const XpPluginSubscriber table[8], XpPluginSequence*, uint32_t event, const XpPluginVar*,
-                    size_t count, const XpPluginEmitOps*);
+void xp_plugin_emit(const XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS], XpPluginSequence*, uint32_t event,
+                    const XpPluginVar*, size_t count, const XpPluginEmitOps*);
 typedef struct {
   void* ctx;
+  // Groups: config, metadata, event vars. Result spans last until the next
+  // pair call; replace must consume them synchronously without retaining them.
   bool (*pair)(void*, uint32_t group, size_t index, XpPluginSpan* key, XpPluginSpan* value);
   void (*replace)(void*, XpPluginSpan key, XpPluginSpan value, bool event_variable);
 } XpPluginSubstitutionOps;
@@ -234,7 +289,7 @@ typedef struct {
   void (*lines)(void*, size_t*);
 } XpPluginDrainFileOps;
 void xp_plugin_drain_file(size_t* budget, const XpPluginDrainFileOps*);
-void xp_plugin_drain_all(const XpPluginSubscriber table[8], size_t budget, void*,
+void xp_plugin_drain_all(const XpPluginSubscriber table[XP_PLUGIN_MAX_EVENT_PLUGINS], size_t budget, void*,
                          void (*drain)(void*, const XpPluginSubscriber*, size_t*));
 size_t xp_plugin_pick_handler(bool parsed, int32_t event, size_t count, void*, int32_t (*event_at)(void*, size_t));
 typedef struct {

@@ -33,3 +33,15 @@ foreach(mode off on)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
       $<TARGET_FILE:ReaderRenderOracle_${mode}> ${CMAKE_CURRENT_SOURCE_DIR}/render-${mode}.golden.gz)
 endforeach()
+
+set(INPUT_METHODS ${CMAKE_CURRENT_BINARY_DIR}/input_methods.inc)
+add_custom_command(OUTPUT ${INPUT_METHODS}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_input.py ${REPO_ROOT} ${INPUT_METHODS}
+  DEPENDS extract_input.py extract.py ${REPO_ROOT}/src/activities/reader/ReaderUtils.h
+  VERBATIM)
+add_executable(ReaderInputOracle input_oracle.cpp ${INPUT_METHODS})
+target_include_directories(ReaderInputOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src/activities/reader)
+target_link_libraries(ReaderInputOracle PRIVATE crosspoint_test_common)
+add_test(NAME reader_input_oracle
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
+    $<TARGET_FILE:ReaderInputOracle> ${CMAKE_CURRENT_SOURCE_DIR}/input.golden.gz)

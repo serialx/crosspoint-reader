@@ -22,5 +22,11 @@
       "lines": 189366,
       "sha256": "5f945723a380c99e9e19435c506917404167ef7903aa370fe2c8232bc60daf4e"
     }
+  },
+  "input_oracle": {
+    "source_commit": "8d534a99e53f3bc98d842740de606b0396d38d56",
+    "note": "Extracted ReaderUtils input definitions individually verified byte-identical to the original; refresh functions are excluded.",
+    "lines": 1065160,
+    "sha256": "0c333dfafcfa4a9aa1b2ad924d855e09843d74a392b3591d1704a07b11473175"
   }
 }

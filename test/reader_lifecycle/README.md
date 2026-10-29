@@ -33,3 +33,11 @@ allocations and driver operations. They freeze ordered operations, cadence,
 allocation attempts and diagnostics; dimensions use an 83-row panel to exercise
 a partial final strip. They do not validate pixels or actual panel waveforms;
 paired emulator captures provide that evidence.
+
+The input oracle extracts the original ReaderUtils policies and records lazy
+input probes as well as results. Repeated calls on one frame exercise release
+suppression after LONG and tap-held-time overrides. The matrix covers button
+combinations, all persisted short-power values, long-press boundaries, tilt,
+swapped navigation, touch zones, RTL, swipe/menu gestures, Back and exact float
+bits for chapter fractions. Renderer dimension reads are pure fixture values
+and are not logged. No GPIO polling or real input scheduling is simulated.

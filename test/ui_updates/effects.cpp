@@ -40,6 +40,8 @@ struct GfxRenderer {
   void drawText(int,int x,int y,const char* text){record("paint.text %d %d %s",x,y,text);}
   FontCacheManager* getFontCacheManager(){return &cache;}
 };
+static bool pulseInput = false;
+static unsigned pumpCount = 0;
 struct MappedInputManager {
   enum class Button {Back,Confirm,NavNext,NavPrevious};
   uint32_t pressed=0,released=0,held=0; bool tap=false,home=false;
@@ -48,12 +50,13 @@ struct MappedInputManager {
   bool isPressed(Button b)const{return held&(1u<<int(b));}
   bool wasScreenTapped(int&,int&)const{return tap;}
   bool wasHomeGesture()const{return home;}
-  void update(bool v){record("input.pump %d",v);}
+  void update(bool v){record("input.pump %d",v);if(pulseInput){pressed=pumpCount==1?1:0;released=pumpCount==2?1:0;++pumpCount;}}
   struct Labels {const char *btn1,*btn2,*btn3,*btn4;};
   Labels mapLabels(const char*a,const char*b,const char*c,const char*d)const{return {a,b,c,d};}
 };
 struct FilePathResult{std::string path;};
 struct ActivityResult {bool isCancelled=false;std::variant<std::monostate,FilePathResult> data;};
+static bool panelBusy = false;
 struct Activity {
   GfxRenderer& renderer;MappedInputManager& mappedInput;std::string name;
   bool finished=false;
@@ -61,7 +64,7 @@ struct Activity {
   virtual ~Activity()=default;
   virtual void onEnter(){record("enter %s",name.c_str());}
   virtual void onExit(){record("exit %s",name.c_str());}
-  struct RenderLock{explicit RenderLock(Activity&){} };
+  struct RenderLock{explicit RenderLock(Activity&){assert(!panelBusy);} };
   virtual void render(RenderLock&&){}
   virtual void loop(){}
   virtual bool preventAutoSleep(){return false;}
@@ -133,7 +136,7 @@ struct OtaUpdater {
  const char*getLatestVersion(){return "new";}
  unsigned getProcessedSize(){return processed;}
  unsigned getTotalSize(){return total;}
- int installUpdate(void(*cb)(void*),void*ctx){record("ota.install");for(unsigned p:{0,1,2,99,100}){processed=p;record("ota.progress %u",p);cb(ctx);}return cfg.otaInstall;}
+ int installUpdate(void(*cb)(void*),void*ctx){record("ota.install");for(unsigned p:{0,1,2,99,100}){processed=p;record("ota.progress %u",p);panelBusy=true;cb(ctx);panelBusy=false;}return cfg.otaInstall;}
 };
 using String=std::string;
 struct Entry{const char*name;bool dir;bool removeOk;};
@@ -159,7 +162,7 @@ namespace firmware_flash {
  enum class Result{OK,TOO_LARGE,TOO_SMALL,BAD_CHIP,WRONG_BOARD,BAD_IMAGE,WRITE};
  const char*resultName(Result r){static const char*names[]={"OK","TOO_LARGE","TOO_SMALL","BAD_CHIP","WRONG_BOARD","BAD_IMAGE","WRITE"};return names[int(r)];}
  Result validateImageFile(const char*path,size_t limit){record("firmware.validate %s %zu",path,limit);return Result(cfg.validate);}
- Result flashFromSdPath(const char*path,void(*cb)(size_t,size_t,void*),void*ctx){record("firmware.flash %s revalidate",path);for(unsigned n:{0,1,2,99,100}){record("firmware.progress %u 100",n);cb(n,100,ctx);}return Result(cfg.flash);}
+ Result flashFromSdPath(const char*path,void(*cb)(size_t,size_t,void*),void*ctx){record("firmware.flash %s revalidate",path);for(unsigned n:{0,1,2,99,100}){record("firmware.progress %u 100",n);panelBusy=true;cb(n,100,ctx);panelBusy=false;}return Result(cfg.flash);}
 }
 struct FontInstaller {
  enum class Error{OK,FAIL};
@@ -173,7 +176,7 @@ struct FontInstaller {
 struct {int registry(){return 0;}}sdFontSystem;
 struct HttpDownloader {
  enum{OK,ABORTED,FAIL};static constexpr unsigned MIN_TLS_FREE_HEAP=40000,MIN_TLS_MAX_ALLOC=20000;
- static int downloadToFile(const std::string&url,const char*path,std::function<void(size_t,size_t)>cb,bool*cancel,const char*,const char*,std::vector<int>,bool downgrade){record("http.download %s %s downgrade=%d",url.c_str(),path,downgrade);for(unsigned n:{0,50,100}){cb(n,100);if(*cancel){record("http.aborted");return ABORTED;}}return cfg.http;}
+ static int downloadToFile(const std::string&url,const char*path,std::function<void(size_t,size_t)>cb,bool*cancel,const char*,const char*,std::vector<int>,bool downgrade){record("http.download %s %s downgrade=%d",url.c_str(),path,downgrade);for(unsigned n:{0,50,100}){panelBusy=true;cb(n,100);panelBusy=false;if(*cancel){record("http.aborted");return ABORTED;}}return cfg.http;}
 };
 struct UITheme {
  struct Metrics {int topPadding=12,headerHeight=36,contentSidePadding=16,verticalSpacing=8,progressBarHeight=24;}metrics;

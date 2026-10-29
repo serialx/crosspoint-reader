@@ -23,7 +23,7 @@ def record(mutate=False):
         exe = Path(directory) / 'effects'
         cpp.write_text(source)
         subprocess.run(['c++', '-std=c++20', '-Wall', '-Wextra', '-Wno-unused-parameter', str(cpp), '-o', str(exe)], check=True)
-        return subprocess.check_output([str(exe)])
+        return b"\n".join(line.rstrip() for line in subprocess.check_output([str(exe)]).splitlines()) + b"\n"
 
 
 class Effects(unittest.TestCase):

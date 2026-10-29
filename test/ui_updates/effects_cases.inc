@@ -1,4 +1,4 @@
-static void reset(const char*label){cfg={};entries.clear();WiFi.modeValue=0;record("CASE %s",label);}
+static void reset(const char*label){cfg={};entries.clear();WiFi.modeValue=0;pulseInput=false;pumpCount=0;record("CASE %s",label);}
 static ActivityResult pathResult(){ActivityResult r;r.data=FilePathResult{"/firmware.bin"};return r;}
 static ActivityResult cancelled(){ActivityResult r;r.isCancelled=true;return r;}
 static void seed(FontDownloadActivity&a){
@@ -47,10 +47,10 @@ int main(){
  }
  for(int select:{0,1}){reset("cache-confirm");ClearCacheActivity a(r,i);a.onEnter();a.confirmPopup.selected=select;i={};i.released=2;a.loop();record("state %d finished %d",a.state,a.finished);}
  i={};
- for(int mode=0;mode<10;++mode){
+ for(int mode=0;mode<11;++mode){
   reset("font-transfer");FontDownloadActivity a(r,i);seed(a);
-  cfg.freeHeap=mode==1?100:200000;cfg.ensure=mode!=2;cfg.http=mode==3?2:0;cfg.crcOpen=mode!=4;cfg.crc=mode==5?43:42;cfg.fontValid=mode!=6;i.held=mode==7?1:0;i.pressed=mode==8?1:0;i.home=mode==9;
-  a.downloadFamily(a.families_[0]);record("state %d files %zu installed %d update %d cancel %d home %d error %s",a.state_,a.currentFileIndex_,a.families_[0].installed,a.families_[0].hasUpdate,a.cancelRequested_,a.goHomeRequested_,a.errorMessage_.c_str());
+  cfg.freeHeap=mode==1?100:200000;cfg.ensure=mode!=2;cfg.http=mode==3?2:0;cfg.crcOpen=mode!=4;cfg.crc=mode==5?43:42;cfg.fontValid=mode!=6;i.held=mode==7?1:0;i.pressed=mode==8?1:0;i.home=mode==9;pulseInput=mode==10;
+  a.downloadFamily(a.families_[0]);if(pulseInput){i.update(true);assert(i.released==1);}record("state %d files %zu installed %d update %d cancel %d home %d error %s",a.state_,a.currentFileIndex_,a.families_[0].installed,a.families_[0].hasUpdate,a.cancelRequested_,a.goHomeRequested_,a.errorMessage_.c_str());
  }
  i={};
  for(int mode=0;mode<6;++mode){reset("font-input");FontDownloadActivity a(r,i);seed(a);a.state_=mode<3?FontDownloadActivity::COMPLETE:FontDownloadActivity::ERROR;i={};i.pressed=mode%3==0?1:mode%3==1?2:0;i.tap=mode%3==2;a.handleCustomInput();record("state %d",a.state_);}

@@ -42,7 +42,7 @@ struct Input {
   Labels mapLabels(const char*a,const char*b,const char*c,const char*d) {return {a,b,c,d};}
 };
 constexpr int icon_download_24=0,icon_upload_24=1;
-namespace freeink::ui { BitmapRef bitmapFromIcon(int) {return {};} }
+namespace freeink::ui { BitmapRef bitmapFromIcon(int) {static const uint8_t bits[72]={};return {bits,24,24};} }
 struct Epub {
   int getTocIndexForSpineIndex(int index) {return index;}
   struct Item {std::string title;};

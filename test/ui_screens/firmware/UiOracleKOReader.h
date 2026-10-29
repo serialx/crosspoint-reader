@@ -50,8 +50,9 @@ struct UiOracleKOReader {
       sync->remoteProgress.percentage = 0.75f;
       sync->remoteProgress.device = "Oracle reader";
       sync->remotePosition = {1, 3, 10};
-      sync->ensureEpubLoaded();
-      if (!sync->epub) return;
+      sync->epub = std::make_shared<Epub>("/Oracle.epub", "/.crosspoint");
+      sync->epub->setupCacheDir();
+      if (!sync->epub->load(true, true)) return;
     }
     sync->resetUi();
     sync->app.on(1, &KOReaderSyncActivity::onResultRow, sync.get());

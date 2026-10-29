@@ -723,6 +723,17 @@
         "fixture-opds-bytes",
         "fixture-opds-auth"
       ]
+    },
+    {
+      "source": "src/activities/settings/UpdateUiActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "Shared update-family Rust scenes with synthetic service states.",
+      "groups": [
+        "fixture-upd-ota-2-theme0",
+        "fixture-upd-sd-3-theme0",
+        "fixture-upd-cache-0-theme0",
+        "fixture-upd-font-3-theme0"
+      ]
     }
   ],
   "additional_limits": [

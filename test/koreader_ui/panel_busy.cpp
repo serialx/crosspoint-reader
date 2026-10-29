@@ -77,7 +77,7 @@ int main() {
         probe.model.touch_armed = 1;
         probe.touchDispatched = true;
         probe.rejectBuild = buildFailure;
-        renderer.validScene = buildFailure;
+        renderer.paintOk = buildFailure;
         probe.render(RenderLock{});
         assert(probe.sceneFailed && !probe.model.touch_armed && !probe.touchDispatched);
         XpUiInput all{};
@@ -101,7 +101,7 @@ int main() {
         assert(cancel.kind == (kind ? XP_UI_ACTIVATE : XP_UI_CANCEL));
         if (kind) assert(cancel.value == 3);
         probe.rejectBuild = false;
-        renderer.validScene = true;
+        renderer.paintOk = true;
         probe.render(RenderLock{});
         assert(!probe.sceneFailed && probe.updateRust(confirm).kind == XP_UI_ACTIVATE);
       }

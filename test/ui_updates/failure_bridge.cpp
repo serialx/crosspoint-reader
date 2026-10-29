@@ -44,7 +44,11 @@ class RustActivityAdapter {
   virtual void rustPublished() = 0;
   virtual void rustSceneFailed() = 0;
   XpUiPaint rustResources() { return {}; }
-  bool paintRustScene(const XpUiScene&);
+  uint32_t suppressButtons = 0, lastHeld = 0;
+  bool sceneFailed = false, suppressContact = false, lastContact = false;
+  bool paintRustScene(const XpUiScene&, bool publish = true);
+  void rejectRustScene();
+  void publishRustScene(const XpUiScene&);
   void render(RenderLock&&);
 };
 class UpdateUiActivity : public RustActivityAdapter {

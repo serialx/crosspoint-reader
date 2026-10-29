@@ -81,6 +81,13 @@ struct RustActivityAdapter:CatalogUiActivity {
 };
 '''
         fixture = fixture.replace('bool drawUiScene(XpUiScene&,const int*)', 'bool drawUiScene(const XpUiScene&,const int*)')
+        if 'void RustActivityAdapter::rejectRustScene()' in adapter:
+            fixture = fixture.replace('bool paintRustScene(const XpUiScene&);',
+                                      'bool paintRustScene(const XpUiScene&, bool publish=true);\n'
+                                      'void rejectRustScene();void publishRustScene(const XpUiScene&);\n'
+                                      'uint32_t suppressButtons=0,lastHeld=0;\n'
+                                      'bool sceneFailed=false,suppressContact=false,lastContact=false;')
+            fixture += method(adapter, '::rejectRustScene(') + '\n' + method(adapter, '::publishRustScene(')
         fixture += method(adapter, '::render(') + '\n' + method(adapter, '::paintRustScene(')
         fixture += r'''
 struct OpdsServerListActivity:RustActivityAdapter {

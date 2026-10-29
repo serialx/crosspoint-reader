@@ -67,6 +67,11 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
       std::cerr << "job route allocated Rust memory: " << name << '\n';
       std::abort();
     }
+    if (std::getenv("WEB_FETCH_ALLOCATION_CHECK") && std::string_view(name).starts_with("fetch") &&
+        xp_test_allocation_attempts() != 0) {
+      std::cerr << "fetch route allocated Rust memory: " << name << '\n';
+      std::abort();
+    }
     if (wsUploadInProgress && !wsUploadFile) {
       std::cerr << "active upload has no file before teardown: " << name << '\n';
       std::abort();
@@ -144,6 +149,77 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+
+  if (const char* check = std::getenv("WEB_STRING_LIFETIME_CHECK")) {
+    const std::string_view mode(check);
+    const auto verify = [](size_t expected, const char* stage) {
+      const size_t live = String::liveStorage();
+      std::cerr << "String storage " << stage << ": " << live << " B, baseline " << expected << " B\n";
+      if (live != expected) std::abort();
+    };
+    if (mode == "tls") {
+      record("string-lifetime-tls", [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"plugin\":\"p\",\"url\":\"http://example.test\",\"body\":\"" + std::string(32768, 'x') + "\"}";
+        const size_t baseline = String::liveStorage();
+        pluginhttp::beforeRequest = [&] { verify(baseline, "TLS entry"); };
+        app.handleRelay();
+        pluginhttp::beforeRequest = {};
+      });
+    } else if (mode == "pkcs12") {
+      record("string-lifetime-pkcs12", [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"op\":\"pkcs12\",\"data\":\"" + std::string(65532, 'A') + "\",\"password\":\"synthetic\"}";
+        const size_t baseline = String::liveStorage();
+        bool entered = false;
+        freeink::content::beforePkcs12 = [&] {
+          entered = true;
+          verify(baseline, "PKCS12 entry");
+        };
+        app.handleCrypto();
+        freeink::content::beforePkcs12 = {};
+        if (!entered) std::abort();
+      });
+      record("string-lifetime-65536-field", [&](auto& app) {
+        app.server->args["plain"] = "{\"op\":\"pkcs12\",\"data\":\"" + std::string(65536, 'A') + "\"}";
+        app.handleCrypto();
+      });
+    } else if (mode == "fetch") {
+      for (int kind = 0; kind < 3; ++kind) {
+        record("string-lifetime-fetch", [&](auto& app) {
+          app.server->args["plain"] =
+              "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"headers\":{\"X-Test\":\"" +
+              std::string(32768, 'x') + "\"},\"maxBytes\":" + std::to_string(kind == 2 ? 2 : 0) + "}";
+          freeink::fetchResult.complete = kind != 1;
+          const size_t baseline = String::liveStorage();
+          bool entered = false;
+          freeink::beforeFetch = [&] {
+            entered = true;
+            if (WebJsonAllocator::live) std::abort();
+            verify(baseline, "fetch entry");
+          };
+          host::beforeResume = [&] { verify(baseline, "fetch restart"); };
+          app.handleFetch();
+          freeink::beforeFetch = {};
+          host::beforeResume = {};
+          if (!entered) std::abort();
+        });
+      }
+    } else if (mode == "resume") {
+      for (int status : {-1, 200}) {
+        record("string-lifetime-resume", [&](auto& app) {
+          app.server->args["plain"] = R"({"plugin":"p","url":"http://example.test"})";
+          pluginhttp::responseSize = 32768;
+          pluginhttp::responseStatus = status;
+          const size_t baseline = String::liveStorage();
+          host::beforeResume = [&] { verify(baseline, "service restart"); };
+          app.handleRelay();
+          host::beforeResume = {};
+        });
+      }
+    }
+    return 0;
+  }
   if (std::getenv("WEB_KEY_LIFETIME_CHECK")) {
     record("book-key-body-lifetime", [](auto& app) {
       app.server->args["plain"] =

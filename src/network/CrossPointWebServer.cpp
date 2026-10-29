@@ -204,7 +204,7 @@ const XpWebServices WebFileBridge::services = {
     .argument = [](void* ctx, const char* key) -> XpWebText {
       auto& b = self(ctx);
       if (!key) {
-        b.argument = String();
+        b.argument = static_cast<const char*>(nullptr);
         return {nullptr, 0};
       }
       if (!*key)
@@ -1433,7 +1433,7 @@ const XpWebRpc WebRpcBridge::request = {
           b.paths.clear();
           if (arguments) {
             b.paths.shrinkToFit();
-            b.argument = String();
+            b.argument = static_cast<const char*>(nullptr);
             releaseRequestArguments(b.owner.server.get());
           }
         },
@@ -1468,7 +1468,7 @@ const XpWebRelay WebRelayBridge::services = {
             // Reclaim upstream response storage before restarting network services.
             b.response.clear();
             b.response.shrinkToFit();
-            b.responseBody = String();
+            b.responseBody = static_cast<const char*>(nullptr);
             pluginhttp::Headers{}.swap(b.responseHeaders);
             b.mutableOwner.resumeTransferServices();
           }

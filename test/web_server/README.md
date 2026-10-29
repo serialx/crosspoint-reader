@@ -155,3 +155,12 @@ status codes, JSON coercion including NUL and integer overflow, and JSON OOM.
 The endpoint never requests cancellation: polls feed watchdog/heartbeat even
 after disconnect. The SDK transport is scripted; actual socket retries, timeout
 implementation and task watchdog expiry are outside this endpoint oracle.
+
+The String substitute models the pinned ESP32 core's capacity retention on move
+assignment, including moving from an empty string, and deallocation on null
+C-string assignment. `--review-check` tracks live host String capacity at parse
+completion, TLS/PKCS#12 entry and service restart, including a 32 KiB response.
+The 65,536-byte encoded-field case is rejected by the pinned ArduinoJson string
+limit; a 65,532-byte field reaches PKCS#12. The measurements use host capacity
+and SSO sizes, not the target allocator's rounding. Fetch routes are also checked
+with the Rust allocator disabled and must make zero Rust allocation attempts.

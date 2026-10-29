@@ -28,6 +28,12 @@ def generate(source, header):
     source = source.replace("void CrossPointWebServer::resumeTransferServices() {",
                             "void CrossPointWebServer::resumeTransferServices() {\n  if (host::beforeResume) host::beforeResume();")
     source = re.sub(r"\bJsonDocument\b", "WebJsonDocument", source)
+    if "xp_web_files" in source and 'return {nullptr, 0};\n      }\n      if (!*key)' not in source:
+        raise ValueError("argument release hook changed: review String lifetime instrumentation")
+    source = source.replace('return {nullptr, 0};\n      }\n      if (!*key)',
+        'if (std::getenv("WEB_STRING_PARSE_CHECK") && b.argument.capacity() > std::string{}.capacity()) { '
+        'std::cerr << "String scratch retained at parse completion: " << b.argument.capacity() << " B\\n"; std::abort(); }\n'
+        'return {nullptr, 0};\n      }\n      if (!*key)')
     header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
@@ -90,9 +96,14 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK"]:
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
+        for stage in ["tls", "pkcs12", "resume", "fetch"]:
+            subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_STRING_LIFETIME_CHECK": stage},
+                           stdout=subprocess.DEVNULL, check=True)
+        subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_STRING_PARSE_CHECK": "1"},
+                       stdout=subprocess.DEVNULL, check=True)
         print("review checks: completion consistency, translated allocation errors, system-name listing and book-key body lifetime and allocation-free job routes passed")
     if args.fault_check:
         if not args.archive:
@@ -103,7 +114,7 @@ def main():
         if jobs(zero) != jobs(expected):
             raise SystemExit("job transcripts changed with Rust allocator disabled")
         def rpc(data):
-            return [row for line in data.splitlines() if (row := json.loads(line))["case"].startswith(("crypto", "relay", "rc-json"))]
+            return [row for line in data.splitlines() if (row := json.loads(line))["case"].startswith(("crypto", "relay", "rc-json", "fetch"))]
         if rpc(zero) != rpc(expected):
             raise SystemExit("relay/crypto transcripts changed with Rust allocator disabled")
         for count in range(1, 128):

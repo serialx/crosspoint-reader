@@ -6,21 +6,63 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <set>
 #include <string>
 #include <type_traits>
 
 class String : public std::string {
  public:
-  using std::string::string;
+  inline static std::set<const String*> instances;
+  static size_t liveStorage() {
+    size_t bytes = 0;
+    for (const auto* s : instances) {
+      if (s->capacity() > std::string{}.capacity()) bytes += s->capacity() + 1;
+    }
+    return bytes;
+  }
   inline static size_t failAllocationSize = SIZE_MAX;
   inline static size_t failedAllocations = 0;
-  String() = default;
-  String(const char* s, size_t n) {
+  String() { instances.insert(this); }
+  ~String() { instances.erase(this); }
+  String(const char* s) : String() {
+    if (s) assign(s);
+  }
+  String(const String& s) : String() { assign(s); }
+  String(String&& s) : String() { std::string::swap(s); }
+  String& operator=(const String& s) {
+    std::string::operator=(s);
+    return *this;
+  }
+  String& operator=(const std::string& s) {
+    std::string::operator=(s);
+    return *this;
+  }
+  String& operator=(const char* s) {
+    if (s)
+      assign(s);
+    else
+      std::string{}.swap(*this);
+    return *this;
+  }
+  String& operator=(String&& s) {
+    // Arduino ESP32 3.3.11 WString::move retains sufficient destination capacity,
+    // even for an empty source. Only invalidation/destruction frees that storage.
+    if (this != &s) {
+      if (capacity() >= s.size()) {
+        assign(s);
+        std::string{}.swap(s);
+      } else {
+        std::string::operator=(std::move(s));
+      }
+    }
+    return *this;
+  }
+  String(const char* s, size_t n) : String() {
     if (s && reserve(n)) assign(s, n);
   }
-  String(const std::string& s) : std::string(s) {}
+  String(const std::string& s) : String() { assign(s); }
   template <class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-  explicit String(T n) : std::string(std::to_string(n)) {}
+  explicit String(T n) : String(std::to_string(n)) {}
   bool isEmpty() const { return empty(); }
   bool equals(const String& s) const { return size() == s.size() && std::strcmp(c_str(), s.c_str()) == 0; }
   bool equals(const char* s) const { return s ? std::strcmp(c_str(), s) == 0 : empty() || (*this)[0] == 0; }

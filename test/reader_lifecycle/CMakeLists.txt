@@ -114,3 +114,6 @@ add_test(NAME reader_close_overlay
 
 add_test(NAME reader_overlay_input
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_overlay_input.py)
+
+add_test(NAME reader_build_popup_lifetime
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_build_popup_lifetime.py)

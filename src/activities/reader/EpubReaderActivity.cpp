@@ -416,10 +416,10 @@ bool EpubReaderActivity::buildTickHeapGate() {
   return !buildHeapPaused;
 }
 
-void EpubReaderActivity::showBuildPopup(GfxRenderer& renderer, int32_t& pagesUntilFullRefresh) {
+void EpubReaderActivity::showBuildPopup() {
   if (!buildPopupPending || !renderer.hasFrameBuffer()) return;
   GUI.drawPopup(renderer, tr(STR_INDEXING));
-  pagesUntilFullRefresh = 1;
+  renderRefreshCounter() = 1;
   buildPopupPending = false;
 }
 
@@ -1778,7 +1778,7 @@ void EpubReaderActivity::renderBook() {
           bool started;
           {
             GfxRenderer::FrameBufferLoan loan(renderer);
-            started = section->startBuild(renderSpec, [this] { showBuildPopup(renderer, renderRefreshCounter()); });
+            started = section->startBuild(renderSpec, [this] { showBuildPopup(); });
           }
           if (!started) {
             LOG_ERR("ERS", "Failed to start section build");
@@ -1792,7 +1792,7 @@ void EpubReaderActivity::renderBook() {
                   : offsetJump.has_value() ? !section->buildReachedVisibleTextOffset(*offsetJump)
                                            : static_cast<int>(section->pageCount) <= target)) {
             if (buildPopupPending && millis() - buildStartMs >= BUILD_POPUP_DEADLINE_MS) {
-              showBuildPopup(renderer, renderRefreshCounter());
+              showBuildPopup();
             }
             if (!section->buildSomeMore(BUILD_PAGES_PER_CHUNK)) {
               LOG_ERR("ERS", "Failed during incremental section build");

@@ -85,6 +85,8 @@ struct UiListActivity:Activity {
   fui::ListNav nav;
   struct App{void clearTapFlash(){record("tap.clear");}}app;
   using Activity::Activity;
+  // UiListActivity.cpp:22-32 resets navigation and requests its first frame.
+  void onEnter() override { Activity::onEnter(); activeNav().reset(); requestUpdate(); }
   virtual int listCount()const{return 0;}
   virtual void buildScreen(UiScreen&){}
   virtual void activateIndex(int){}

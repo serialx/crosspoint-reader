@@ -951,6 +951,7 @@ render.wait
 state 5
 CASE font-wifi
 enter FontDownload
+render.request 0
 wifi.mode 1
 push WifiSelection
 render.wait
@@ -962,6 +963,7 @@ delay 30
 restart.silent
 CASE font-wifi
 enter FontDownload
+render.request 0
 wifi.mode 1
 push WifiSelection
 render.wait

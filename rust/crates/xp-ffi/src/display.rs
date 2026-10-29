@@ -568,7 +568,7 @@ pub unsafe extern "C" fn xp_display_execute_source(
     let request = &*request;
     let source = &mut *source;
     if request.struct_size as usize != size_of::<DisplayRequest>()
-        || !(&*bus).valid()
+        || !(&*bus).valid((*storage.cast::<Header>()).controller)
         || source.struct_size as usize != size_of::<DisplaySource>()
         || source.scratch.is_null()
         || source.paint.is_none()

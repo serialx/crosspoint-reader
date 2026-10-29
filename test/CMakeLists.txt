@@ -166,3 +166,5 @@ add_subdirectory(web_jobs)
 add_subdirectory(ota_policy)
 add_subdirectory(ui_utility)
 add_subdirectory(keyboard_oracle)
+
+add_subdirectory(home_ui)

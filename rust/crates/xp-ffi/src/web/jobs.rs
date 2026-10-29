@@ -77,7 +77,10 @@ fn copy_text(out: &mut [u8], bytes: &[u8]) {
 }
 // strtoul base 10 semantics, including the platform's unsigned-long width.
 fn status_id(mut bytes: &[u8]) -> u32 {
-    while bytes.first().is_some_and(u8::is_ascii_whitespace) {
+    while bytes
+        .first()
+        .is_some_and(|b| matches!(*b, b' ' | b'\t'..=b'\r'))
+    {
         bytes = &bytes[1..];
     }
     let negative = bytes.first() == Some(&b'-');

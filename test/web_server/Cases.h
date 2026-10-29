@@ -1266,5 +1266,12 @@ int main() {
       });
     }
   }
+
+  record("jobs-status-vertical-tab", [](auto& app) {
+    app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+    app.handlePluginJobSubmit();
+    app.server->args["id"] = "\v1";
+    app.handlePluginJobStatus();
+  });
   return 0;
 }

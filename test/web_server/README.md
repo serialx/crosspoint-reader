@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 904 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 905 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -116,7 +116,7 @@ Arduino implementation: emptiness uses the stored length while searches stop at
 NUL. Expectations come from dc21f50f C++; all prior 724 transcripts are unchanged.
 
 The job extension was recorded from unchanged C++ at `0798b4e8`. It preserves
-all previous 730 records and adds 174 cases: exact lease boundaries, completion
+all previous 730 records and adds 175 cases: exact lease boundaries, completion
 before/after expiry scans, repeated claims/completions, oldest-finished recycling,
 clock wrap, stop/start versus a fresh server, enabled gates, missing bodies,
 no-file requests, JSON coercion and size/name limits, NUL strings, status parsing,
@@ -132,3 +132,6 @@ Twelve additional original-C++ fixtures submit valid jobs before testing result
 sizes around the 192-byte limit; their claims combine a 23-byte action with
 191-byte serialized arguments. This reaches the oversized-result branch even
 when an oversized argument would have rejected submission.
+
+The final status-ID fixture covers leading vertical tab, accepted by C `strtoul`
+but excluded by Rust `is_ascii_whitespace`; it rejects that parser mismatch.

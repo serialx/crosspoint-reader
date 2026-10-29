@@ -95,3 +95,14 @@ target_link_libraries(BookBidiEligibilityOracle PRIVATE xp_ffi_host)
 add_test(NAME BookBidiEligibilityOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/frozen_trace.py $<TARGET_FILE:BookBidiEligibilityOracle>
   ${CMAKE_CURRENT_SOURCE_DIR}/bidi-eligibility-golden.txt.gz)
+add_test(NAME BookGetterOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/getters_oracle.py --oracle $<TARGET_FILE:BookOracle>)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ReclaimOracle.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/reclaim_oracle.py
+    ${REPO_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/ReclaimOracle.cpp
+  DEPENDS reclaim_oracle.py ${REPO_ROOT}/lib/Epub/ContentProtection.cpp VERBATIM)
+add_executable(BookReclaimOracle ${CMAKE_CURRENT_BINARY_DIR}/ReclaimOracle.cpp)
+target_link_libraries(BookReclaimOracle PRIVATE xp_ffi_host)
+add_test(NAME BookReclaimOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/frozen_trace.py $<TARGET_FILE:BookReclaimOracle>
+  ${CMAKE_CURRENT_SOURCE_DIR}/reclaim-golden.txt.gz)

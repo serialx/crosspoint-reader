@@ -13,7 +13,7 @@ shared = (ROOT / "src/util/WordSelectionInput.h").read_text()
 helpers = "class WordSelectionInput" + shared.split("class WordSelectionInput", 1)[1] + "\nusing Input = WordSelectionInput;\n"
 method = "void ClipSelectionActivity::loopButtons()" + source.split(
     "void ClipSelectionActivity::loopButtons()", 1
-)[1].split("void ClipSelectionActivity::loop()", 1)[0]
+)[1].split("void ClipSelectionActivity::drainRejectedTouch()", 1)[0]
 members = "XpUiSelectionState state{};\n"
 harness = r"""
 #include <algorithm>
@@ -160,9 +160,10 @@ struct ClipSelectionActivity {
   void loopButtons() {
     actionPopup.handleButtons(false, false, mappedInput.confirm, mappedInput.back, [this] { requestUpdate(); });
   }
+  void drainRejectedTouch();
   void loop();
 };
-""" + loop_prefix + r"""
+""" + "void ClipSelectionActivity::drainRejectedTouch()" + source.split("void ClipSelectionActivity::drainRejectedTouch()", 1)[1].split("void ClipSelectionActivity::loop()", 1)[0] + loop_prefix + r"""
 int main() {
   for (const bool touch : {false, true}) {
     ClipSelectionActivity selection;

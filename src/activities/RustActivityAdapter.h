@@ -32,7 +32,13 @@ class RustActivityAdapter : public Activity {
   // Published hits remain immutable while the next scene is built.
   virtual Publication* rustPublication() { return nullptr; }
   virtual bool buildRustScene(XpUiScene&) { return false; }
+  // POD-only snapshot compatibility check under ModelLock, before publication.
+  // Obsolete frames request a repaint without rejecting the user's input.
+  virtual bool rustSceneCurrent() const { return true; }
   virtual void rustPublished() {}
+  // Called by rejectRustScene under ModelLock: fixed POD only.
+  // Builders return failure without invoking this callback.
+  // Applies to Settings/KOReaderSettings, KOReader, Update and Catalog overrides too.
   virtual void rustSceneFailed() {}
   virtual XpUiPaint rustResources() { return {}; }
   virtual XpUiInterest rustInterest(uint32_t nowMs) const { return {}; }
@@ -42,6 +48,8 @@ class RustActivityAdapter : public Activity {
   // rejection; only a complete successful publication may clear it. Hooks run
   // under ModelLock and may touch only scalars/fixed POD, never owning resources.
   void rejectRustScene();
+  // An action waiting for RenderLock, ResourceLock or TextLock after the input
+  // gate must recheck rustSceneRejected() after that wait, before acting.
   bool rustSceneRejected() const;
   // Call before custom input, including native long presses and queued contacts.
   // Consumes failed/held-over gestures, preserves the family's cancel policy,
@@ -53,8 +61,8 @@ class RustActivityAdapter : public Activity {
   XpUiInput sampleRustInput() const;
 
  private:
-  uint32_t suppressButtons = 0;
-  uint32_t lastHeld = 0;
+  uint16_t suppressButtons = 0;
+  uint16_t lastHeld = 0;
   bool sceneFailed = false;
   bool suppressContact = false;
   bool lastContact = false;

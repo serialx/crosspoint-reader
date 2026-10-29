@@ -443,3 +443,5 @@ XpUiPaint TextSettingsActivity::rustResources() {
             }
           }};
 }
+
+bool TextSettingsActivity::rustSceneCurrent() const { return state.tab == rendering.tab; }

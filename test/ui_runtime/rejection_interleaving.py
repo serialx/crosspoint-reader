@@ -142,6 +142,7 @@ class ClipSelectionActivity:public SettingsUiActivity {
  const XpUiSelectionWord* wireWords(){return &word;}
  void cancel(){++cancellations;}
  void loopButtons(){}
+ void drainRejectedTouch();
  void applySelection(const XpUiSelectionUpdate& e){
   if(e.kind==XP_UI_SELECT_CANCEL)cancel();
   if(e.kind==XP_UI_SELECT_CONFIRM)++activations;
@@ -153,6 +154,7 @@ class ClipSelectionActivity:public SettingsUiActivity {
 };
 '''
 code += method('src/activities/reader/ClipSelectionActivity.cpp', 'void ClipSelectionActivity::loop()')
+code += method('src/activities/reader/ClipSelectionActivity.cpp', 'void ClipSelectionActivity::drainRejectedTouch()')
 for name in ['rustSceneFailed', 'cancelRejectedInput']:
     code += method('src/activities/reader/ClipSelectionActivity.h', '  void '+name+'(').replace(
         '  void '+name+'(', 'void ClipSelectionActivity::'+name+'(').replace(' override', '')

@@ -8,7 +8,8 @@
 class KOReaderUiActivity : public RustActivityAdapter {
  public:
   XpKoState model{};
-  bool sceneFailed = false, touchDispatched = false;
+  bool touchDispatched = false;
+  bool rejected() const { return rustSceneRejected(); }
   const char* status = "";
   bool rejectBuild = false;
   unsigned effects = 0;
@@ -21,7 +22,8 @@ class KOReaderUiActivity : public RustActivityAdapter {
     return !rejectBuild;
   }
   void rustSceneFailed() override;
-  void rustPublished() override { sceneFailed = false; }
+  void rustPublished() override {}
+  void cancelRejectedInput(const XpUiInput&) override;
   XpUiInterest rustInterest(uint32_t) const override;
   XpUiEffect updateRust(const XpUiInput&) override;
   void publish(XpKoPhase, XpKoMessage, uint8_t, const char*);
@@ -79,15 +81,12 @@ int main() {
         probe.rejectBuild = buildFailure;
         renderer.paintOk = buildFailure;
         probe.render(RenderLock{});
-        assert(probe.sceneFailed && !probe.model.touch_armed && !probe.touchDispatched);
-        XpUiInput all{};
-        all.pressed = all.released = all.held = 0xffff & ~XP_UI_BACK;
-        all.touch_flags = XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_RELEASED | XP_UI_TOUCH_HELD;
-        all.action = 1;
-        all.value = 1;
-        all.swipe = XP_UI_SWIPE_DOWN;
-        const auto rejected = probe.updateRust(all);
-        assert(!rejected.kind && rejected.invalidate && probe.model.selected == 0);
+        assert(probe.rejected() && !probe.model.touch_armed && !probe.touchDispatched);
+        input = {};
+        input.pressed = input.released = input.held = 0x7fff & ~1u;
+        input.touchFlags = XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_RELEASED | XP_UI_TOUCH_HELD;
+        probe.loop();
+        assert(probe.effects == 0 && probe.model.selected == 0);
         // An effect computed before the rejection cannot perform a sync/write afterward.
         if (!kind) {
           XpUiEffect queued{};
@@ -95,14 +94,14 @@ int main() {
           probe.applyRustEffect(queued);
           assert(probe.effects == 0);
         }
-        XpUiInput back{};
-        back.pressed = back.released = XP_UI_BACK;
-        const auto cancel = probe.updateRust(back);
-        assert(cancel.kind == (kind ? XP_UI_ACTIVATE : XP_UI_CANCEL));
-        if (kind) assert(cancel.value == 3);
+        input = {};
+        input.pressed = input.released = 1u << unsigned(MappedInputManager::Button::Back);
+        probe.loop();
+        assert(probe.last.kind == (kind ? XP_UI_ACTIVATE : XP_UI_CANCEL));
+        if (kind) assert(probe.last.value == 3);
         probe.rejectBuild = false;
         renderer.paintOk = true;
         probe.render(RenderLock{});
-        assert(!probe.sceneFailed && probe.updateRust(confirm).kind == XP_UI_ACTIVATE);
+        assert(!probe.rejected() && probe.updateRust(confirm).kind == XP_UI_ACTIVATE);
       }
 }

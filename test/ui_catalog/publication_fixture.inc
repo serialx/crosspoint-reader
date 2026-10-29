@@ -32,7 +32,8 @@ struct CatalogUiActivity {
   }else{nextHits.rows=1;nextHits.row_area={0,0,100,100};nextHits.heights[0]=100;}
   return true;
  }
- int rustResources(){return 0;}void rejectScene(){assert(false);}
+ int rustResources(){return 0;}void rejectRustScene(){assert(false);}
+ void publishRustScene(const XpUiScene&){ModelLock lock(*this);rustPublished();publication.ready=true;}
  void render(RenderLock&&);void rustPublished();void closeRouting();XpUiEffect updateRust(const XpUiInput&);
 };
 ResourceLock::ResourceLock(CatalogUiActivity& a):lock(a.resources){}

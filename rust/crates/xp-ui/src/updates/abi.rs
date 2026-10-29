@@ -23,8 +23,7 @@ fn wire_layout() {
     assert_eq!(offset_of!(State, popup_selected), 110);
     assert_eq!(offset_of!(State, popup_active), 111);
     assert_eq!(offset_of!(State, touch_active), 112);
-    assert_eq!(offset_of!(State, scene_failed), 113);
-    assert_eq!(offset_of!(State, reserved), 114);
+    assert_eq!(offset_of!(State, reserved), 113);
     assert_eq!(size_of::<Effect>(), 8);
     assert_eq!(align_of::<Effect>(), 4);
     assert_eq!(offset_of!(Effect, action), 0);

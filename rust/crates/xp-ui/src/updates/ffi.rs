@@ -133,7 +133,6 @@ pub unsafe fn publish(state: *mut State, snapshot: *const State, feedback: *cons
         unsafe { feedback.as_ref() },
     ) {
         if s.valid() && old.valid() && s.kind == old.kind && s.phase == old.phase {
-            s.scene_failed = 0;
             if old.is_list() {
                 let nav = s.nav_mut();
                 if nav.navigation_revision == old.nav().navigation_revision

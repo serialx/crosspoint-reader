@@ -57,7 +57,6 @@ class UpdateUiActivity : public RustActivityAdapter {
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};
   bool pendingHaptic = false;
-  bool routesReady = false;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t capacity = 0;
   int inputRowCount = 0;
@@ -70,8 +69,10 @@ class UpdateUiActivity : public RustActivityAdapter {
   XpUiUpdateResources resources();
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
   void rustSceneFailed() override;
+  void cancelRejectedInput(const XpUiInput&) override;
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t) const override;
   XpUiEffect updateRust(const XpUiInput&) override;

@@ -50,6 +50,8 @@ class RustActivityAdapter {
   void rejectRustScene();
   void publishRustScene(const XpUiScene&);
   void render(RenderLock&&);
+  bool rustSceneCurrent() const { return true; }
+  void requestUpdate() {}
 };
 class UpdateUiActivity : public RustActivityAdapter {
  public:
@@ -57,7 +59,7 @@ class UpdateUiActivity : public RustActivityAdapter {
   XpUiUpdateState model{}, painting{};
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};
-  bool pendingHaptic = false, routesReady = false;
+  bool pendingHaptic = false;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t capacity = 0;
   int inputRowCount = 3, inputFamilyCount = 3;
@@ -92,6 +94,10 @@ class UpdateUiActivity : public RustActivityAdapter {
     XpUiInput input{};
     input.pressed = pressed;
     input.released = released;
+    if (sceneFailed) {
+      input.pressed &= XP_UI_BACK;
+      input.released &= XP_UI_BACK;
+    }
     updateRust(input);
     applyRustEffect({});
   }
@@ -114,7 +120,8 @@ int main() {
       a.model.list.pending_scroll = 3;
       a.model.touch_active = 2;
       a.render({});
-      assert(!a.publication.ready && a.model.scene_failed);
+      assert(!a.publication.ready);
+      assert(a.sceneFailed);
       assert(a.model.list.active == -1 && a.model.list.pending_scroll == 0 && a.model.touch_active == 0);
       if (allocation) assert(a.commands.get() == original && a.capacity == 20);
       a.input(2, 2);
@@ -127,7 +134,7 @@ int main() {
       a.renderer.reject = false;
       failAllocation = false;
       a.render({});
-      assert(a.publication.ready && !a.model.scene_failed && a.capacity == 48);
+      assert(a.publication.ready && !a.sceneFailed && a.capacity == 48);
       a.input(0, 2);
       assert(a.actions == 1);
     }
@@ -140,11 +147,11 @@ int main() {
   xp_ui_updates_init(&font.model, XP_UI_UPDATE_FONTS, 0);
   font.model.phase = 3;
   font.model.has_groups = 1;
-  font.publication.ready = font.routesReady = true;
+  font.publication.ready = true;
   font.feedback.rows.first_row = {0, 0, 100, 20};
   font.feedback.rows.count = font.feedback.rows.uniform = 1;
   font.input(0, XP_UI_BACK);
-  assert(font.model.phase == 2 && !font.routesReady && !font.publication.ready);
+  assert(font.model.phase == 2 && !font.publication.ready);
   XpUiInput tap{};
   tap.touch_flags = XP_UI_TOUCH_RELEASED;
   tap.touch_x = tap.touch_y = 5;

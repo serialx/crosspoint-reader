@@ -345,13 +345,17 @@ void ClipSelectionActivity::loopButtons() {
   }
 }
 
+void ClipSelectionActivity::drainRejectedTouch() {
+  int x = 0, y = 0;
+  if (!mappedInput.isScreenTouchHeld(x, y)) {
+    ModelLock lock(*this);
+    state.ignore_touch = 0;
+  }
+}
+
 void ClipSelectionActivity::loop() {
   if (consumeRejectedInput()) {
-    int x = 0, y = 0;
-    if (!mappedInput.isScreenTouchHeld(x, y)) {
-      ModelLock lock(*this);
-      state.ignore_touch = 0;
-    }
+    drainRejectedTouch();
     return;
   }
   if (wordCount == 0 && !actionPopup.isActive()) {
@@ -365,11 +369,7 @@ void ClipSelectionActivity::loop() {
   RenderLock lock;
   if (rustSceneRejected()) {
     consumeRejectedInput();
-    int x = 0, y = 0;
-    if (!mappedInput.isScreenTouchHeld(x, y)) {
-      ModelLock model(*this);
-      state.ignore_touch = 0;
-    }
+    drainRejectedTouch();
     return;
   }
   if (actionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;

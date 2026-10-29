@@ -161,8 +161,7 @@ pub struct State {
     pub popup_selected: u8,
     pub popup_active: u8,
     pub touch_active: u8,
-    pub scene_failed: u8,
-    pub reserved: [u8; 2],
+    pub reserved: [u8; 3],
 }
 impl State {
     pub fn valid(&self) -> bool {
@@ -182,13 +181,11 @@ impl State {
                 self.home_requested,
                 self.has_groups,
                 self.popup_active,
-                self.scene_failed,
             ]
             .iter()
             .all(|v| *v <= 1)
     }
     fn scene_failed(&mut self) {
-        self.scene_failed = 1;
         self.touch_active = 0;
         self.list.active = -1;
         self.groups.active = -1;
@@ -461,15 +458,6 @@ impl State {
         row_count: i32,
         family_count: i32,
     ) -> Effect {
-        if self.scene_failed != 0 {
-            // Preserve cancellation, including the original next-loop popup dismissal.
-            input = Input {
-                pressed: input.pressed & BACK,
-                released: input.released & BACK,
-                now_ms: input.now_ms,
-                ..Input::default()
-            };
-        }
         if self.popup() {
             return self.popup_input(input, feedback, published);
         }

@@ -62,10 +62,6 @@ class CatalogUiActivity : public RustActivityAdapter {
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t capacity = 0;
   bool touchActivated = false;
-  bool sceneFailed = false;
-  uint16_t rejectedButtons = 0;
-  bool rejectedTouch = false;
-  void rejectScene();
   bool buildCatalogScene(XpUiScene&);
   int32_t consumedScroll = 0;
   freeink::ui::GfxRendererTarget target;
@@ -76,7 +72,10 @@ class CatalogUiActivity : public RustActivityAdapter {
   __attribute__((noinline)) XpUiRect searchButtonRect(int16_t minimum) const;
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
+  void rustSceneFailed() override;
+  void cancelRejectedInput(const XpUiInput&) override;
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t) const override;
   XpUiEffect updateRust(const XpUiInput&) override;

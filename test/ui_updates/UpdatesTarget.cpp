@@ -194,11 +194,12 @@ int main() {
                                        : message   ? XP_UI_UPDATE_CLEAR
                                                    : XP_UI_UPDATE_INSTALL));
               assert(effect.reserved == 0 && !current.popup_active);
-              // Rejected/unpublished scenes cannot route even a valid release.
+              // Unpublished scenes cannot route a valid release; the adapter owns rejection.
               current = state;
               assert(xp_ui_updates_input(&current, &input, &feedback, 0, 0, 0).action == XP_UI_UPDATE_NONE);
               xp_ui_updates_notify(&current, XP_UI_UPDATE_SCENE_FAILED, 0, 0);
-              assert(xp_ui_updates_input(&current, &input, &feedback, 1, 0, 0).action == XP_UI_UPDATE_NONE);
+              assert(current.touch_active == 0 && current.reserved[0] == 0 && current.reserved[1] == 0 &&
+                     current.reserved[2] == 0);
             }
           }
           for (const auto point :

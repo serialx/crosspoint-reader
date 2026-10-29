@@ -53,6 +53,7 @@ void CatalogUiActivity::onExit() {
 }
 void CatalogUiActivity::loop() {
   if (handleCustomInput()) return;
+  if (consumeRejectedInput()) return;
   int x = 0, y = 0;
   bool listOwnsTouch;
   {
@@ -83,25 +84,17 @@ void CatalogUiActivity::render(RenderLock&&) {
   {
     ResourceLock resources(*this);
     if (!buildRustScene(scene)) {
-      {
-        ModelLock lock(*this);
-        publication.ready = false;
-      }
+      rejectRustScene();
       LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
       return;
     }
     const auto paint = rustResources();
     if (!renderer.drawUiScene(scene, &paint)) {
-      {
-        ModelLock lock(*this);
-        rejectScene();
-      }
+      rejectRustScene();
       LOG_ERR("RUI", "Invalid scene in %s", name.c_str());
       return;
     }
-    ModelLock lock(*this);
-    rustPublished();
-    publication.ready = true;
+    publishRustScene(scene);
   }
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 }
@@ -121,33 +114,10 @@ void CatalogUiActivity::closeRouting() {
   ModelLock lock(*this);
   publication.ready = false;
 }
-XpUiInterest CatalogUiActivity::rustInterest(uint32_t now) const {
-  auto interest = xp_ui_catalog_interest(&ui, now);
-  interest.pressed |= rejectedButtons;
-  return interest;
-}
+XpUiInterest CatalogUiActivity::rustInterest(uint32_t now) const { return xp_ui_catalog_interest(&ui, now); }
 XpUiEffect CatalogUiActivity::updateRust(const XpUiInput& source) {
   touchActivated = false;
-  if (sceneFailed) {
-    if (source.released & XP_UI_BACK) {
-      XpUiInput back{};
-      back.released = XP_UI_BACK;
-      return xp_ui_catalog_update(&ui, &back, listCount(), hasSearch(), pageLinks());
-    }
-    XpUiEffect effect{};
-    effect.invalidate = true;
-    return effect;
-  }
   auto input = source;
-  rejectedButtons &= ~input.pressed;
-  input.held &= ~rejectedButtons;
-  input.released &= ~rejectedButtons;
-  rejectedButtons &= ~source.released;
-  if (input.touch_flags & XP_UI_TOUCH_PRESSED) rejectedTouch = false;
-  if (rejectedTouch) {
-    input.touch_flags = 0;
-    input.swipe = 0;
-  }
   if (publication.ready && input.touch_flags) {
     XpUiInteraction hit{};
     input.action = 0;
@@ -231,19 +201,9 @@ const char* CatalogUiActivity::text(uint32_t h) const {
       return row.heading;
   }
 }
-bool CatalogUiActivity::buildRustScene(XpUiScene& scene) {
-  const bool built = buildCatalogScene(scene);
-  if (!built) {
-    ModelLock lock(*this);
-    rejectScene();
-  }
-  return built;
-}
-void CatalogUiActivity::rejectScene() {
-  publication.ready = false;
-  sceneFailed = true;
-  rejectedButtons = UINT16_MAX & ~XP_UI_BACK;
-  rejectedTouch = true;
+bool CatalogUiActivity::buildRustScene(XpUiScene& scene) { return buildCatalogScene(scene); }
+void CatalogUiActivity::rustSceneFailed() {
+  touchActivated = false;
   ui.list.active = -1;
   ui.list.pending_scroll = 0;
   ui.list.last_repeat = 0;
@@ -338,7 +298,6 @@ bool CatalogUiActivity::buildCatalogScene(XpUiScene& scene) {
 void CatalogUiActivity::rustPublished() {
   xp_ui_catalog_publish(&ui, &next, consumedScroll);
   publishedHits = nextHits;
-  sceneFailed = false;
 }
 XpUiPaint CatalogUiActivity::rustResources() {
   return {this, nullptr, nullptr,
@@ -404,4 +363,20 @@ XpUiRect CatalogUiActivity::searchButtonRect(int16_t minimum) const {
        static_cast<int16_t>(band.y + 4 + header.actionOffsetY), header.trailingSize, header.trailingSize},
       minimum, {0, 0, width, height});
   return {rect.x, rect.y, rect.width, rect.height};
+}
+
+void CatalogUiActivity::cancelRejectedInput(const XpUiInput& input) {
+  if (!(input.released & XP_UI_BACK)) return;
+  XpUiInput back{};
+  back.released = XP_UI_BACK;
+  XpUiEffect effect{};
+  {
+    ModelLock lock(*this);
+    effect = updateRust(back);
+  }
+  applyRustEffect(effect);
+}
+
+bool CatalogUiActivity::rustSceneCurrent() const {
+  return ui.kind == paintState.kind && ui.mode == paintState.mode && ui.popup == paintState.popup;
 }

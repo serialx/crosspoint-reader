@@ -16,7 +16,7 @@ struct UpdateUiActivity:Activity {
  struct Publication { bool ready = true; } publication;
  XpUiUpdateFeedback next{};
  XpUiUpdateEffect pending{};
- bool pendingHaptic = false, routesReady = true;
+ bool pendingHaptic = false;
  int inputRowCount = 4, inputFamilyCount = 3;
  XpUiEffect updateRust(const XpUiInput&);
  void applyRustEffect(const XpUiEffect&);

@@ -83,7 +83,7 @@ struct UpdateUiActivity {
   XpUiUpdateState model{}, painting{};
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};
-  bool pendingHaptic = false, routesReady = true;
+  bool pendingHaptic = false;
   int inputRowCount = 5, inputFamilyCount = 4;
   virtual ~UpdateUiActivity() = default;
   virtual void prepareRows() = 0;
@@ -104,9 +104,21 @@ struct UpdateUiActivity {
   }
   XpUiPaint rustResources() { return {}; }
   Publication* rustPublication() { return &publication; }
+  bool rustSceneRejected() const { return false; }
+  void requestUpdate() {}
   void render(RenderLock&&);
   bool paintRustScene(const XpUiScene&);
   void rustPublished();
+  void rejectRustScene() {
+    ModelLock lock(*this);
+    publication.ready = false;
+    rustSceneFailed();
+  }
+  void publishRustScene(const XpUiScene&) {
+    ModelLock lock(*this);
+    rustPublished();
+    publication.ready = true;
+  }
   void rustSceneFailed();
   XpUiEffect updateRust(const XpUiInput&);
   int selectedIndex() const { return model.list.selected; }
@@ -118,7 +130,6 @@ struct UpdateUiActivity {
   void closeRouting() {
     ModelLock lock(*this);
     publication.ready = false;
-    routesReady = false;
   }
   void notify(XpUiUpdateEvent e) {
     ModelLock lock(*this);

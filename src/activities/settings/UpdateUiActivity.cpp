@@ -26,16 +26,10 @@ void UpdateUiActivity::render(RenderLock&&) {
       LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
     }
     releaseText();
-    {
-      ModelLock lock(*this);
-      if (painted) {
-        rustPublished();
-        publication.ready = true;
-      } else {
-        publication.ready = false;
-        rustSceneFailed();
-      }
-    }
+    if (painted)
+      publishRustScene(scene);
+    else
+      rejectRustScene();
   }
   if (!painted) return;
   switch (static_cast<XpUiRefresh>(scene.refresh)) {
@@ -76,7 +70,6 @@ uint8_t UpdateUiActivity::serviceResult(XpUiUpdateEvent event, uint32_t a, uint3
 void UpdateUiActivity::closeRouting() {
   ModelLock lock(*this);
   publication.ready = false;
-  routesReady = false;
 }
 bool UpdateUiActivity::preventAutoSleep() {
   ModelLock lock(*this);
@@ -120,17 +113,14 @@ XpUiEffect UpdateUiActivity::updateRust(const XpUiInput& input) {
   const bool list = model.kind == XP_UI_UPDATE_FONTS && (model.phase == 2 || model.phase == 3);
   const auto& nav = model.phase == 2 ? model.groups : model.list;
   const int drawn = nav.drawn > 0 ? nav.drawn : 1;
-  pending =
-      xp_ui_updates_input(&model, &input, &feedback, publication.ready && routesReady, inputRowCount, inputFamilyCount);
+  pending = xp_ui_updates_input(&model, &input, &feedback, publication.ready, inputRowCount, inputFamilyCount);
   if (oldPhase != model.phase) {
     publication.ready = false;
-    routesReady = false;
   }
-  pendingHaptic = (input.touch_flags & XP_UI_TOUCH_RELEASED) && publication.ready && routesReady &&
+  pendingHaptic = (input.touch_flags & XP_UI_TOUCH_RELEASED) && publication.ready &&
                   ((popupActive && !model.popup_active) || pending.action == XP_UI_UPDATE_FONT_ACTIVATE ||
                    pending.action == XP_UI_UPDATE_ENTER_GROUP);
-  if (list && !model.scene_failed && pending.action == XP_UI_UPDATE_NONE &&
-      !(input.released & (XP_UI_BACK | XP_UI_CONFIRM)) &&
+  if (list && pending.action == XP_UI_UPDATE_NONE && !(input.released & (XP_UI_BACK | XP_UI_CONFIRM)) &&
       (input.swipe == XP_UI_SWIPE_UP || input.swipe == XP_UI_SWIPE_DOWN)) {
     XpUiEffect effect{};
     effect.kind = XP_UI_SCROLL;
@@ -319,14 +309,10 @@ void UpdateUiActivity::rustSceneFailed() {
   xp_ui_updates_notify(&model, XP_UI_UPDATE_SCENE_FAILED, 0, 0);
   pending = {};
   pendingHaptic = false;
-  routesReady = false;
 }
 void UpdateUiActivity::rustPublished() {
-  routesReady = model.kind == painting.kind && model.phase == painting.phase;
-  if (routesReady) {
-    xp_ui_updates_publish(&model, &painting, &next);
-    feedback = next;
-  }
+  xp_ui_updates_publish(&model, &painting, &next);
+  feedback = next;
 }
 void UpdateUiActivity::hints(uint8_t kind) const {
   const char* back = tr(STR_BACK);
@@ -398,4 +384,20 @@ XpUiPaint UpdateUiActivity::rustResources() {
             else
               self.renderer.drawUiText(*c, clip, self.text(c->resource));
           }};
+}
+
+void UpdateUiActivity::cancelRejectedInput(const XpUiInput& input) {
+  XpUiInput back{};
+  back.pressed = input.pressed & XP_UI_BACK;
+  back.released = input.released & XP_UI_BACK;
+  back.now_ms = input.now_ms;
+  {
+    ModelLock lock(*this);
+    updateRust(back);
+  }
+  applyRustEffect({});
+}
+
+bool UpdateUiActivity::rustSceneCurrent() const {
+  return model.kind == painting.kind && model.phase == painting.phase && model.popup_active == painting.popup_active;
 }

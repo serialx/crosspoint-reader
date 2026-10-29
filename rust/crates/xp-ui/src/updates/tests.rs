@@ -114,68 +114,34 @@ fn original_progress_rounding() {
 }
 
 #[test]
-fn rejected_scene_blocks_actions_and_preserves_back() {
-    use crate::model::{NAV_NEXT, TOUCH_PRESSED, TOUCH_RELEASED};
-    for prior_publication in [false, true] {
-        for (kind, phase) in [(0, 2), (1, 5), (2, 3), (2, 6), (3, 0)] {
-            let mut state = State::new(kind, 0);
-            state.phase = phase;
-            state.popup_active = 1;
-            state.popup_selected = 1;
-            state.list.active = 0;
-            state.list.pending_scroll = 2;
-            state.list.last_repeat = 400;
-            state.touch_active = 2;
-            // Both allocation failure and painter rejection enter this same transition.
-            for _failure in ["build", "paint"] {
-                state.service(Event::SceneFailed, 0, 0);
-                assert_eq!(state.list.active, -1);
-                assert_eq!(state.list.pending_scroll, 0);
-                assert_eq!(state.list.last_repeat, 0);
-                assert_eq!(state.touch_active, 0);
-                let selected = state.list.selected;
-                for input in [
-                    Input {
-                        pressed: CONFIRM | NAV_NEXT,
-                        ..Input::default()
-                    },
-                    Input {
-                        released: CONFIRM,
-                        ..Input::default()
-                    },
-                    Input {
-                        held: NAV_NEXT,
-                        held_ms: 1000,
-                        now_ms: 2000,
-                        ..Input::default()
-                    },
-                    Input {
-                        touch_flags: TOUCH_PRESSED | TOUCH_RELEASED,
-                        ..Input::default()
-                    },
-                    Input {
-                        swipe: crate::model::SWIPE_UP,
-                        ..Input::default()
-                    },
-                ] {
-                    let effect = state.input(input, &Feedback::default(), prior_publication, 3, 3);
-                    assert_eq!(effect.action, 0, "kind={kind} phase={phase}");
-                    assert_eq!(state.list.selected, selected);
-                }
-            }
-            let effect = state.input(
-                Input {
-                    pressed: BACK,
-                    released: BACK,
-                    ..Input::default()
-                },
-                &Feedback::default(),
-                false,
-                3,
-                3,
-            );
-            assert!(effect.action == Action::Finish as u8 || effect.repaint != 0);
-        }
+fn rejected_scene_discards_gestures_and_preserves_back() {
+    for (kind, phase) in [(0, 2), (1, 5), (2, 3), (2, 6), (3, 0)] {
+        let mut state = State::new(kind, 0);
+        state.phase = phase;
+        state.popup_active = 1;
+        state.list.active = 0;
+        state.list.pending_scroll = 2;
+        state.list.last_repeat = 400;
+        state.touch_active = 2;
+        state.service(Event::SceneFailed, 0, 0);
+        assert_eq!(state.list.active, -1);
+        assert_eq!(state.list.pending_scroll, 0);
+        assert_eq!(state.list.last_repeat, 0);
+        assert_eq!(state.touch_active, 0);
+        assert_eq!(state.reserved, [0; 3]);
+        // The adapter owns rejection and forwards only the family's Back input.
+        let effect = state.input(
+            Input {
+                pressed: BACK,
+                released: BACK,
+                ..Input::default()
+            },
+            &Feedback::default(),
+            false,
+            3,
+            3,
+        );
+        assert!(effect.action == Action::Finish as u8 || effect.repaint != 0);
     }
 }
 
@@ -196,13 +162,9 @@ fn prepaint_activation_and_successful_republication() {
         );
         state.popup_active = 1;
         state.service(Event::SceneFailed, 0, 0);
-        assert_eq!(
-            state.input(input, &Feedback::default(), false, 0, 0).action,
-            0
-        );
         let snapshot = state;
         unsafe { super::ffi::publish(&mut state, &snapshot, &Feedback::default()) };
-        assert_eq!(state.scene_failed, 0);
+        assert_eq!(state.reserved, [0; 3]);
         assert_eq!(
             state.input(input, &Feedback::default(), true, 0, 0).action,
             Action::Clear as u8

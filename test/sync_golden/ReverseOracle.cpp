@@ -62,4 +62,13 @@ int main() {
     std::cout << position.has_value() << ':';
     if (position) emit(*position);
   }
+  // Unindexed and zero-index steps can match again after an earlier short element.
+  for (const std::string& chapter : {"<html><body><p id='anchor'>a</p><p>abcd</p></body></html>",
+                                     "<html><body><p id='anchor'>a</p><p id='x'>abcd</p></body></html>",
+                                     "<html><body><p id='anchor'>a</p><p><a/>abcd</p></body></html>",
+                                     "<html><body><div><p id='anchor'>a</p><p>abcd</p></div></body></html>"}) {
+    for (const std::string& step : {"p", "p[0]", "div/p", "div[0]/p[0]"})
+      for (size_t chunk : {1u, 7u, 1024u})
+        for (int cache : {0, 1, 2, 3, 4}) run(chapter, "/body/DocFragment[1]/body/" + step + "/text().2", chunk, cache);
+  }
 }

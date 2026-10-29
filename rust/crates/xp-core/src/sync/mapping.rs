@@ -163,7 +163,8 @@ fn apply(s: &Services, p: &mut Position, r: &Reverse, steps: &[Step], path: &[u8
             }
         }
     }
-    p.anchor = r.anchor;
+    let anchor = r.anchor();
+    p.anchor[..anchor.len()].copy_from_slice(anchor);
     let ratio = if r.total > 0 {
         r.target as f32 / r.total as f32
     } else {

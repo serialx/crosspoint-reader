@@ -5,9 +5,11 @@ against a traced host filesystem. Goldens record the original Epub implementatio
 at `0b70268b`, using a historical source export for the later extensions. It records return values, metadata, spine and TOC entries,
 progress, exact logs, file operation order and every remaining cache byte.
 
-Run `cmake -S test/book_io -B build/book-io`, `cmake --build build/book-io`, then
-`ctest --test-dir build/book-io --output-on-failure`. The full host suite also
-includes this target. `run.py --record` is only for approved baseline captures.
+Run `cmake -S test -B build/test`, `cmake --build build/test`, then
+`ctest --test-dir build/test -R BookIoGolden --output-on-failure`. The full host
+suite also includes the TXT, XTC, key, helper and callback tests in this directory.
+EPUB uses `epub-stubs`; the format tests use `stubs` and `txt-stubs` to preserve
+their separate filesystem and diagnostic traces. `run.py --record` is only for approved baseline captures.
 The optional CMake `BOOK_IO_EPUB_SOURCE` path supports a historical source export
 or a deliberately changed source for checking oracle sensitivity.
 

@@ -18,7 +18,7 @@ add_executable(BookOracle BookOracle.cpp
  ${REPO_ROOT}/lib/Memory/BuildScratch.cpp
  ${REPO_ROOT}/lib/hal/HalMemory.cpp
  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
-target_include_directories(BookOracle PRIVATE epub-stubs stubs
+target_include_directories(BookOracle PRIVATE epub-stubs
  ${REPO_ROOT}/lib/Epub ${REPO_ROOT}/lib/ZipFile
  ${REPO_ROOT}/lib/FsHelpers ${REPO_ROOT}/lib/Utf8
  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/lib/Serialization

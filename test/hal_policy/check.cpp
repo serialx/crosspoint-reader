@@ -5,6 +5,7 @@
 #include <DeviceSecret.h>
 #include <TrustedTime.h>
 #include <HalClock.h>
+#include <HalDisplay.h>
 #include <HalPowerManager.h>
 #include <BoardConfig.h>
 #include <XteinkDetect.h>
@@ -65,6 +66,17 @@ int main(int argc, char** argv) {
   }
   imuRead = false; ticks += 1000; sensor.update(1,0,true); sensor.update(1,0,false);
   sensor.clearPendingEvents(); sensor.deepSleep();
+ } else if (!strcmp(argv[1], "display")) {
+  deviceOverride = variant % 2 + 1; gpio.begin();
+  for (int reset : {ESP_RST_UNKNOWN, ESP_RST_POWERON, ESP_RST_DEEPSLEEP, ESP_RST_OTHER}) {
+   resetCause = reset; wakeCause=ESP_SLEEP_WAKEUP_GPIO; digitalValue=1; charging=true;
+   display.begin(variant >= 2);
+  }
+  for (int mode : {0,1,2,3}) for (bool off : {false,true}) {
+   auto refresh=static_cast<HalDisplay::RefreshMode>(mode);
+   display.displayBuffer(refresh,off); display.displayBufferAsync(refresh); display.refreshDisplay(refresh,off);
+   display.displayGrayscaleBase(refresh,off); display.displayGrayscaleBase(HalDisplay::GrayscaleMode::Overlay,refresh,off);
+  }
  } else if (!strcmp(argv[1], "gpio")) {
   deviceOverride = variant < 4 ? variant : 0; deviceCached = variant >= 4 ? variant-4 : 0;
   freeink::verdict = variant % 2 ? freeink::XteinkVerdict::X3Confirmed : freeink::XteinkVerdict::X4Confirmed;

@@ -10,14 +10,19 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 SOURCES = ['DeviceSecret/DeviceSecret.cpp', 'TrustedTime/TrustedTime.cpp',
-           'hal/HalGPIO.cpp', 'hal/HalClock.cpp', 'hal/HalFrontlight.cpp', 'hal/HalTiltSensor.cpp']
-CASES = {'secret': 7, 'time': 5, 'light': 3, 'tilt': 5, 'clock': 6, 'power': 4, 'gpio': 8}
+           'hal/HalDisplay.cpp', 'hal/HalGPIO.cpp', 'hal/HalClock.cpp', 'hal/HalFrontlight.cpp', 'hal/HalTiltSensor.cpp']
+CASES = {'secret': 7, 'time': 5, 'light': 3, 'tilt': 5, 'clock': 6, 'power': 4, 'gpio': 8, 'display': 4}
 
 def run(root, archive):
     with tempfile.TemporaryDirectory(prefix='hal-policy-') as tmp:
         exe = str(Path(tmp) / 'check')
+        # ESP32 unsigned long is 32-bit; macOS uses 64-bit long. Normalize only
+        # the firmware source copies so wraparound timer traces model the target.
+        for directory in ['hal', 'DeviceSecret', 'TrustedTime']:
+            for header in (root / 'lib' / directory).glob('*.h'):
+                (Path(tmp) / header.name).write_text(header.read_text().replace('unsigned long', 'uint32_t'))
         command = ['c++', '-std=c++20', '-DFREEINK_MCU_C3=1', '-Wall', '-Wextra', '-Werror',
-                   '-I' + str(HERE / 'stubs'), '-I' + str(root / 'rust/crates/xp-ffi/include')]
+                   '-I' + str(HERE / 'stubs'), '-I' + tmp, '-I' + str(root / 'rust/crates/xp-ffi/include')]
         command += ['-I' + str(root / 'lib' / d) for d in ['hal', 'DeviceSecret', 'TrustedTime']]
         power = (root / 'lib/hal/HalPowerManager.cpp').read_text()
         start = power.index('void HalPowerManager::startDeepSleep')
@@ -25,9 +30,13 @@ def run(root, archive):
         power = power[:start] + power[end:]
         power = power.replace('static constexpr gpio_num_t XTEINK_C3_GPIO13 = GPIO_NUM_13;', '')
         power_file = Path(tmp) / 'power.cpp'
-        power_file.write_text(power)
+        power_file.write_text(power.replace('unsigned long', 'uint32_t'))
         command += [str(power_file)]
-        command += [str(root / 'lib' / s) for s in SOURCES] + [str(HERE / 'check.cpp')]
+        for source in SOURCES:
+            source_file = Path(tmp) / Path(source).name
+            source_file.write_text((root / 'lib' / source).read_text().replace('unsigned long', 'uint32_t').replace('static_cast<long>', 'static_cast<int32_t>'))
+            command.append(str(source_file))
+        command += [str(HERE / 'check.cpp')]
         if archive:
             command += [str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]
         subprocess.run(command + ['-o', exe], check=True)

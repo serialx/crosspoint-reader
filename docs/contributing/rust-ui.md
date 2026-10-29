@@ -8,6 +8,9 @@ activities. This runtime does not poll hardware or create tasks.
 The wire interface is `rust/crates/xp-ffi/include/xp_ui.h` (ABI version 2).
 `FullScreenMessageActivity` is the synchronous entry-only example;
 `XtcReaderChapterSelectionActivity` is the stateful list example.
+`SettingsUiActivity`, `UpdateUiActivity` and `CatalogUiActivity` share bindings
+within their families. Home, library, file browser and network screens use the
+same adapter with their own Rust models and resource bindings.
 
 ## Storage and publication
 
@@ -29,8 +32,9 @@ have changed. The adapter accepts the next viewport and publishes hits only
 after successful painting. A short model critical section protects snapshots,
 updates and publication. Layout, font services, painting and synchronous panel
 refresh run outside that section. RenderLock still protects activity lifetime
-and the framebuffer; input never takes it. A failed build closes touch routing
-and leaves the previous frame displayed. Navigation effects run after unlocking.
+and the framebuffer; input never takes it. A failed build or paint rejects activation, clears pending gestures and leaves
+the previous frame displayed. Back remains available; a successful publication
+restores routing after held-over input has been released. Navigation effects run after unlocking.
 
 XTC alternates its hit buffers: the displayed table stays immutable while the
 next table is built. Rust commits the displayed viewport without replacing current selection,
@@ -109,8 +113,7 @@ screen requests no input or timer work.
 
 ## Invalidation and verification
 
-An update returns an effect and a repaint flag. These first screens conservatively
-rebuild the whole scene. `XpUiDamage` accepts native-coordinate rectangles; a
+An update returns an effect and a repaint flag. Screens conservatively rebuild the whole scene. `XpUiDamage` accepts native-coordinate rectangles; a
 ninth rectangle switches to full-screen damage. Raster damage does not change
 waveform policy. Messages retain their caller-selected refresh mode and XTC
 requests FAST, including the existing renderer's one-shot promotion behavior.
@@ -119,7 +122,7 @@ Run `cargo test -p xp-ui` from `rust` and the `ui_runtime_*` CTest cases. The te
 compare frozen SDK list geometry, glyph origins, C++ integer widget pixels and
 message placement; they also cover strip equivalence, input transitions,
 resource validation, overlay failure and C/Rust ABI layout. Firmware changes
-also require the normal host/build checks and [UI screen oracle captures](../../test/ui_screens/README.md) for `sd-error` and
-`xtc` on both boards and polarities. The standard emulator workloads check
+also require the normal host/build checks and [UI screen oracle captures](../../test/ui_screens/README.md) for every affected family on both boards and polarities.
+The message and chapter-list examples use the `sd-error` and `xtc` groups. The standard emulator workloads check
 unrelated reading behavior. Device verification remains part of the human
 handoff.

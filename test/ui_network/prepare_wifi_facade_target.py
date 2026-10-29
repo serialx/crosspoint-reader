@@ -20,8 +20,8 @@ s=s[:a]+'''                const auto expectedAllocations=allocations::events;co
                 candidate.networks.resize(count);candidate.networkStatuses.resize(count);
                 for(int i=0;i<count;++i){candidate.networks[i].ssid=labels[i];candidate.networkStatuses[i]=original.networkRowItems[i].value;}
                 if(orientation==0&&!touch&&phase==2&&count==17&&selection==1&&length==33&&style==0){
-                 failAllocation=0;candidate.render(RenderLock{});assert(candidate.sceneFailed&&!candidate.commands&&!candidate.visibleRows);
-                 failAllocation=1;candidate.render(RenderLock{});assert(candidate.sceneFailed&&!candidate.commands&&candidate.visibleRows);
+                 failAllocation=0;candidate.render(RenderLock{});assert(candidate.rustSceneRejected()&&!candidate.commands&&!candidate.visibleRows);
+                 failAllocation=1;candidate.render(RenderLock{});assert(candidate.rustSceneRejected()&&!candidate.commands&&candidate.visibleRows);
                  failAllocation=-1;
                 }
                 candidate.render(RenderLock{});
@@ -32,7 +32,7 @@ s=s[:a]+'''                const auto expectedAllocations=allocations::events;co
                 if(allocations::live!=0||(phase!=2&&(allocations::peak!=expectedPeak||allocations::count!=expectedCount))){fprintf(stderr,"Allocation mismatch o=%d touch=%d phase=%d style=%d count=%d sel=%d len=%d live=%zu peak=%zu/%zu count=%zu/%zu\\n",orientation,touch,phase,style,count,selection,length,allocations::live,allocations::peak,expectedPeak,allocations::count,expectedCount);for(size_t i=0;i<allocations::count;++i)fprintf(stderr," %lld",(long long)allocations::events[i]);fprintf(stderr,"\\n");return 1;}
                 if(phase!=2)for(size_t i=0;i<expectedCount;++i)assert(allocations::events[i]==expectedAllocations[i]);
                 assert(allocations::peak<=expectedPeak+2048);
-                assert(!candidate.sceneFailed);
+                assert(!candidate.rustSceneRejected());
                 if(orientation==0&&!touch&&phase==2&&count==17&&selection==1&&length==33&&style==0&&!wide){
                   auto* borrowed=candidate.visibleRows.get();const auto capacity=candidate.rowCapacity;allocations::watchedPointer=borrowed;allocations::watchedFrees=0;
                   paintHook=[&]{
@@ -58,6 +58,8 @@ s=s.replace('struct UITheme {','''struct UITheme {
  template<class...Args>static void drawCenteredWrappedText(Args&&...){std::abort();}
 ''')
 support=(HERE/'wifi_facade_support.inc').read_text()
+adapter=(ROOT/'src/activities/RustActivityAdapter.cpp').read_text()
+support=support.replace('// ADAPTER_METHODS','\n'.join(prepare.extract(adapter,'RustActivityAdapter',m)for m in ['rejectRustScene','rustSceneRejected','consumeRejectedInput','publishRustScene']).replace('RustActivityAdapter','FakeBase'))
 header=re.sub(r'^#(?:include|pragma)[^\n]*\n','',(ROOT/'src/activities/network/WifiSelectionActivity.h').read_text(),flags=re.M)
 header=header.replace('WifiSelectionActivity','Candidate').replace('class Candidate final : public RustActivityAdapter','struct Candidate final : public FakeBase')
 production=(ROOT/'src/activities/network/WifiSelectionActivity.cpp').read_text()

@@ -40,7 +40,6 @@ void NetworkModeSelectionActivity::onEnter() {
   Activity::onEnter();
   xp_ui_settings_list_init(&state, 0);
   publication.ready = false;
-  sceneFailed = false;
   requestUpdate();
 }
 void NetworkModeSelectionActivity::onModeSelected(NetworkMode mode) {
@@ -53,62 +52,19 @@ void NetworkModeSelectionActivity::onCancel() {
   setResult(std::move(result));
   finish();
 }
-void NetworkModeSelectionActivity::loop() {
-  uint32_t held = 0;
-  if (mappedInput.isPressed(MappedInputManager::Button::Confirm)) held |= XP_UI_CONFIRM;
-  if (mappedInput.isPressed(MappedInputManager::Button::NavNext)) held |= XP_UI_NAV_NEXT;
-  if (mappedInput.isPressed(MappedInputManager::Button::NavPrevious)) held |= XP_UI_NAV_PREVIOUS;
-  const auto touch = touchSnapshotFrom(mappedInput);
-  {
-    ModelLock lock(*this);
-    sampledHeld = held;
-    sampledTouch = touch.touchPressed || touch.touchHeld;
-    // The shared rejection gate can consume the release before updateRust runs.
-    suppressedButtons &= held;
-    if (!sampledTouch) suppressedTouch = false;
-  }
-  RustActivityAdapter::loop();
-}
 void NetworkModeSelectionActivity::rustSceneFailed() {
-  sceneFailed = true;
   state.active = -1;
   state.last_repeat = 0;
   state.pending_scroll = 0;
   state.navigation_revision++;
   touchActivated = false;
-  suppressedButtons |= sampledHeld;
-  suppressedTouch |= sampledTouch;
 }
 XpUiInterest NetworkModeSelectionActivity::rustInterest(uint32_t now) const {
-  auto interest = xp_ui_settings_list_interest(&state, now);
-  if (sceneFailed || suppressedButtons || suppressedTouch) {
-    interest.pressed |= XP_UI_CONFIRM | XP_UI_NAV_NEXT | XP_UI_NAV_PREVIOUS;
-    interest.released |= XP_UI_CONFIRM | XP_UI_NAV_NEXT | XP_UI_NAV_PREVIOUS;
-    interest.touch_flags |= XP_UI_TOUCH_HELD;
-  }
-  return interest;
+  return xp_ui_settings_list_interest(&state, now);
 }
 XpUiEffect NetworkModeSelectionActivity::updateRust(const XpUiInput& source) {
   auto input = source;
   touchActivated = false;
-  if (sceneFailed) {
-    suppressedButtons |= (source.pressed | source.held) & (XP_UI_CONFIRM | XP_UI_NAV_NEXT | XP_UI_NAV_PREVIOUS);
-    suppressedButtons &= ~source.released;
-    suppressedTouch = (source.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
-    XpUiInput cancel{};
-    cancel.released = source.released & XP_UI_BACK;
-    auto effect = xp_ui_settings_list_update(&state, &cancel, 0);
-    if (effect.kind != XP_UI_CANCEL) effect.invalidate = 1;
-    return effect;
-  }
-  input.pressed &= ~suppressedButtons;
-  input.released &= ~suppressedButtons;
-  input.held &= ~suppressedButtons;
-  suppressedButtons &= source.held;
-  if (suppressedTouch) {
-    input.touch_flags = 0;
-    suppressedTouch = (source.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
-  }
   if (publication.ready && input.touch_flags) {
     XpUiInteraction hit{};
     if (xp_ui_settings_hit(&hits, input.touch_x, input.touch_y, &hit)) {
@@ -212,7 +168,6 @@ bool NetworkModeSelectionActivity::buildRustScene(XpUiScene& scene) {
 void NetworkModeSelectionActivity::rustPublished() {
   xp_ui_settings_list_publish(&state, &next, renderingScroll);
   hits = nextHits;
-  sceneFailed = false;
 }
 XpUiPaint NetworkModeSelectionActivity::rustResources() {
   return {this, nullptr, nullptr,

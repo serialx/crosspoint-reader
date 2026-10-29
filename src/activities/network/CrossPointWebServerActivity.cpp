@@ -57,7 +57,11 @@ void CrossPointWebServerActivity::onExit() {
   Activity::onExit();
   run(XP_UI_NETWORK_EXIT);
 }
-void CrossPointWebServerActivity::loop() { run(XP_UI_NETWORK_TICK); }
+void CrossPointWebServerActivity::loop() {
+  consumeRejectedInput();
+  // Transport progress and the existing cancel policy continue during rejection.
+  run(XP_UI_NETWORK_TICK);
+}
 void CrossPointWebServerActivity::onNetworkModeSelected(NetworkMode mode) {
   run(XP_UI_NETWORK_INPUT, static_cast<uint8_t>(mode));
 }
@@ -362,8 +366,7 @@ void CrossPointWebServerActivity::render(RenderLock&&) {
       scene.refresh = XP_UI_NONE;
       painted = paintRustScene(scene);
     } else {
-      ModelLock modelLock(*this);
-      rustSceneFailed();
+      rejectRustScene();
     }
     alternateUrl.reset();
     primaryUrl.reset();

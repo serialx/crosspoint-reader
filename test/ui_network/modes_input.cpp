@@ -20,9 +20,9 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   XpUiSettingsHits hits{}, nextHits{};
   Publication publication;
   int32_t renderingScroll = 0;
-  bool sceneFailed = false, touchActivated = false;
-  uint32_t sampledHeld = 0, suppressedButtons = 0;
-  bool sampledTouch = false, suppressedTouch = false, buildOkay = true;
+  bool touchActivated = false;
+  using RustActivityAdapter::rustSceneRejected;
+  bool buildOkay = true;
   int completed = 0, mode = -1;
   bool cancelled = false;
   NetworkModeSelectionActivity(GfxRenderer& r, MappedInputManager& i, int count)
@@ -32,7 +32,6 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   void setResult(NetworkModeResult result) { mode = static_cast<int>(result.mode); }
   void setResult(ActivityResult result) { cancelled = result.isCancelled; }
   void finish() { ++completed; }
-  void loop() override;
   void rustSceneFailed() override;
   void onModeSelected(NetworkMode);
   void onCancel();
@@ -91,7 +90,7 @@ int main() {
         failure.buildOkay = !buildFailure;
         renderer.acceptScene = buildFailure;
         paint();
-        assert(failure.sceneFailed && !failure.publication.ready);
+        assert(failure.rustSceneRejected() && !failure.publication.ready);
         const auto selected = failure.state.selected;
         input.pressed = 1u << unsigned(MappedInputManager::Button::NavNext);
         input.released = 1u << unsigned(MappedInputManager::Button::Confirm);
@@ -110,7 +109,7 @@ int main() {
         failure.buildOkay = renderer.acceptScene = true;
         failure.next = failure.state;
         paint();
-        assert(!failure.sceneFailed && failure.publication.ready);
+        assert(!failure.rustSceneRejected() && failure.publication.ready);
         failure.loop();
         assert(failure.completed == 0);
         input.pressed = input.held = 0;

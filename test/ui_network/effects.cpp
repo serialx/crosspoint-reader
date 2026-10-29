@@ -108,6 +108,7 @@ struct ActivityResult {
 };
 std::function<void(const ActivityResult&)> childResult;
 struct Activity {
+  bool consumeRejectedInput() { return false; }
   template <class T, class F>
   void startActivityForResult(std::unique_ptr<T>, F callback) {
     record("child-wifi");

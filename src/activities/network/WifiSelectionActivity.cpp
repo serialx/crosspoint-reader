@@ -29,7 +29,6 @@ void WifiSelectionActivity::onEnter() {
     ModelLock lock(*this);
     model.allow_auto = allowAutoConnect;
     routingReady = false;
-    sceneFailed = false;
   }
   run(XP_UI_WIFI_EVENT_ENTER);
 }
@@ -45,22 +44,26 @@ void WifiSelectionActivity::run(XpUiWifiEvent event, uint32_t value, const XpUiI
     working = model;
   }
   CallContext context{*this, {}, {}};
+  context.navigationRevision = working.list.navigation_revision;
   const XpUiWifiServices services{&context, service, publish};
   xp_ui_network_wifi_run(&working, &services, event, value, input);
 }
 void WifiSelectionActivity::publish(void* ctx, XpUiWifiState* next) {
-  auto& self = static_cast<CallContext*>(ctx)->activity;
+  auto& call = *static_cast<CallContext*>(ctx);
+  auto& self = call.activity;
+  const bool rejected = self.rustSceneRejected();
   bool leaving = false;
   {
     ModelLock lock(self);
     leaving = self.model.phase == XP_UI_WIFI_PHASE_LIST && next->phase != XP_UI_WIFI_PHASE_LIST;
-    if (self.sceneFailed) {
+    if (rejected || self.model.list.navigation_revision != call.navigationRevision) {
       next->list.active = -1;
       next->list.last_repeat = 0;
       next->list.pending_scroll = 0;
       next->list.navigation_revision = self.model.list.navigation_revision + 1;
     }
     xp_ui_network_wifi_publish(&self.model, next);
+    call.navigationRevision = self.model.list.navigation_revision;
   }
   if (leaving) self.retireRows();
 }
@@ -477,6 +480,7 @@ void WifiSelectionActivity::onComplete(const bool connected) {
   finish();
 }
 void WifiSelectionActivity::loop() {
+  const bool blocked = consumeRejectedInput();
   XpUiInput input{};
   constexpr MappedInputManager::Button buttons[] = {
       MappedInputManager::Button::Back,        MappedInputManager::Button::Confirm, MappedInputManager::Button::NavNext,
@@ -515,43 +519,24 @@ void WifiSelectionActivity::loop() {
     case MappedInputManager::SwipeDir::None:
       break;
   }
-  bool retry = false, routed = false;
+  bool routed = false;
   {
     ModelLock lock(*this);
-    sampledHeld = input.held;
-    sampledTouch = touch.touchHeld || touch.touchPressed;
-    const auto held = input.held;
-    const auto flags = input.touch_flags;
-    if (sceneFailed) {
-      suppressedButtons |= (input.pressed | input.held) & ~XP_UI_BACK;
-      suppressedTouch |= sampledTouch;
-      retry = true;
-    }
-    input.pressed &= ~suppressedButtons;
-    input.released &= ~suppressedButtons;
-    input.held &= ~suppressedButtons;
-    suppressedButtons &= held;
-    if (suppressedTouch) {
-      input.touch_flags = 0;
-      suppressedTouch = (flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
-    }
-    if (sceneFailed) {
+    if (blocked) {
       input.pressed &= XP_UI_BACK;
       input.released &= XP_UI_BACK;
       input.held = 0;
       input.swipe = 0;
       input.touch_flags = 0;
     }
-    if (routingReady && !sceneFailed && input.touch_flags) {
+    if (routingReady && input.touch_flags) {
       routed = (input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_RELEASED)) != 0;
       xp_ui_network_wifi_hit(&hits, &model, &input);
     }
   }
-  run(XP_UI_WIFI_EVENT_TICK, (touch.longPress ? 1 : 0) | (routed ? 2 : 0), &input);
-  if (retry) requestUpdate();
+  run(XP_UI_WIFI_EVENT_TICK, (!blocked && touch.longPress ? 1 : 0) | (routed ? 2 : 0), &input);
 }
 void WifiSelectionActivity::rustSceneFailed() {
-  sceneFailed = true;
   routingReady = false;
   model.list.active = -1;
   model.list.last_repeat = 0;
@@ -559,8 +544,6 @@ void WifiSelectionActivity::rustSceneFailed() {
   model.list.navigation_revision++;
   model.flash_ticks = 0;
   model.flash_index = -1;
-  suppressedButtons |= sampledHeld & ~XP_UI_BACK;
-  suppressedTouch |= sampledTouch;
 }
 void WifiSelectionActivity::rustPublished() {
   xp_ui_network_wifi_view_publish(&model, &renderingState, &next);
@@ -568,7 +551,6 @@ void WifiSelectionActivity::rustPublished() {
       model.count == renderingState.count) {
     hits = nextHits;
     routingReady = true;
-    sceneFailed = false;
   }
 }
 const char* WifiSelectionActivity::text(uint32_t handle) const {
@@ -782,8 +764,7 @@ void WifiSelectionActivity::render(RenderLock&&) {
         }
       }
     } else {
-      ModelLock modelLock(*this);
-      rustSceneFailed();
+      rejectRustScene();
     }
     paintingIp.reset();
     paintingSsid.reset();

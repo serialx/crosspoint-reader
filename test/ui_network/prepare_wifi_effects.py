@@ -22,8 +22,8 @@ def candidate(core=False):
  a=s.index('struct WifiSelectionActivity : Activity {');b=s.index('\n};',a)+3
  cls='''struct WifiSelectionActivity:Activity {
  XpUiWifiState model{};XpUiWifiHits hits{};
- bool allowAutoConnect=true,routingReady=false,sceneFailed=false,suppressedTouch=false,sampledTouch=false;
- uint32_t suppressedButtons=0,sampledHeld=0;
+ bool allowAutoConnect=true,routingReady=false,testRejected=false;
+ bool rustSceneRejected()const{return testRejected;}
  std::vector<WifiNetworkInfo> networks;
  std::vector<std::string> networkStatuses,autoAttemptedSsids;
  std::vector<fui::ListItem> networkRowItems;
@@ -37,7 +37,7 @@ def candidate(core=False):
  uint32_t& connectionStartTime=model.connection_at;
  struct ModelLock{explicit ModelLock(WifiSelectionActivity&) {}};
  struct ResourceLock{explicit ResourceLock(WifiSelectionActivity&) {}};
- struct CallContext{WifiSelectionActivity& activity;std::optional<std::string>lastSsid;std::optional<WifiCredential>credential;char scanSsid[33]{};int32_t scanRssi=0;uint32_t scanIndex=0;};
+ struct CallContext{WifiSelectionActivity& activity;std::optional<std::string>lastSsid;std::optional<WifiCredential>credential;char scanSsid[33]{};int32_t scanRssi=0;uint32_t scanIndex=0,navigationRevision=0;};
  WifiSelectionActivity(){model.flash_index=-1;model.phase=XP_UI_WIFI_PHASE_SCANNING;xp_ui_settings_list_init(&model.list,0);}
  WifiSelectionActivity(GfxRenderer&,MappedInputManager&):WifiSelectionActivity(){}
  void onEnter();void onExit();void productionLoop();void loop(){model.count=networks.size();productionLoop();}

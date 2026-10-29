@@ -23,8 +23,7 @@ class WifiSelectionActivity final : public RustActivityAdapter {
   XpUiWifiState model{}, renderingState{};
   XpUiListState next{};
   XpUiWifiHits hits{}, nextHits{};
-  bool routingReady = false, sceneFailed = false, suppressedTouch = false, sampledTouch = false;
-  uint32_t suppressedButtons = 0, sampledHeld = 0;
+  bool routingReady = false;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t commandCapacity = 0;
   freeink::ui::GfxRendererTarget textTarget;
@@ -71,6 +70,7 @@ class WifiSelectionActivity final : public RustActivityAdapter {
     char scanSsid[33]{};
     int32_t scanRssi = 0;
     uint32_t scanIndex = 0;
+    uint32_t navigationRevision = 0;
   };
   void run(XpUiWifiEvent, uint32_t value = 0, const XpUiInput* input = nullptr);
   static uint32_t service(void*, uint32_t, uint32_t);

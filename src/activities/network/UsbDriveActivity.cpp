@@ -29,7 +29,11 @@ void UsbDriveActivity::onExit() {
   run(XP_UI_NETWORK_EXIT);
   Activity::onExit();
 }
-void UsbDriveActivity::loop() { run(XP_UI_NETWORK_TICK); }
+void UsbDriveActivity::loop() {
+  consumeRejectedInput();
+  // Transport progress and the existing cancel policy continue during rejection.
+  run(XP_UI_NETWORK_TICK);
+}
 void UsbDriveActivity::render(RenderLock&& lock) {
   RustActivityAdapter::render(std::move(lock));
   ModelLock modelLock(*this);

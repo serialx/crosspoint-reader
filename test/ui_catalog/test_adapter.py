@@ -156,7 +156,8 @@ struct CatalogUiActivity {
  bool buildRustScene(XpUiScene&) {renderer.text=rows[0].c_str();return true;}
  int rustResources() {return 0;}
  void rustPublished() {}
- void rejectScene() {sceneFailed=true;publication.ready=false;}
+ void rejectRustScene() {sceneFailed=true;publication.ready=false;}
+ void publishRustScene(const XpUiScene&){rustPublished();publication.ready=true;}
  void render(RenderLock&&);
 };
 ResourceLock::ResourceLock(CatalogUiActivity& a):lock(a.resources) {}
@@ -181,16 +182,6 @@ int main(){
 """
         self.compile_run(fixture, sanitize=True)
 
-    def test_failed_scene_only_allows_back_and_retry(self):
-        source = method((ROOT/'src/activities/CatalogUiActivity.cpp').read_text(), '::updateRust(')
-        source = source[:source.index('  auto input = source;')] + '  return {};\n}'
-        fixture = '#include <cassert>\n#include "xp_ui_catalog.h"\nextern "C" XpUiEffect xp_ui_catalog_update(XpUiCatalogState*,const XpUiInput* input,uint16_t,uint8_t,uint8_t){XpUiEffect e{};e.kind=input->released & XP_UI_BACK ? XP_UI_CANCEL : XP_UI_ACTIVATE;return e;}\nstruct CatalogUiActivity {bool touchActivated=true,sceneFailed=true;XpUiCatalogState ui{};int listCount(){return 3;}bool hasSearch(){return false;}uint8_t pageLinks(){return 0;}XpUiEffect updateRust(const XpUiInput&);};\n' + source + r"""
-int main(){CatalogUiActivity a;XpUiInput input{};input.released=XP_UI_CONFIRM;
- auto effect=a.updateRust(input);assert(effect.kind==XP_UI_EFFECT_NONE && effect.invalidate && !a.touchActivated);
- input.released=XP_UI_BACK;effect=a.updateRust(input);assert(effect.kind==XP_UI_CANCEL);
-}
-"""
-        self.compile_run(fixture)
 
     def test_auth_poll_does_not_wait_for_panel(self):
         source = method((ROOT/'src/activities/plugins/PluginCatalogActivity.cpp').read_text(), '::pollAuth(')
@@ -263,89 +254,12 @@ int main(){CatalogUiActivity a;XpUiInput input{};input.action=XP_UI_CATALOG_UNIN
  for(int x:{-1,200}){input.touch_x=x;effect=a.updateRust(input);assert(effect.kind==XP_UI_EFFECT_NONE && !received.touch_flags);}
  input.touch_x=20;a.ui.popup=1;effect=a.updateRust(input);assert(effect.kind==XP_UI_EFFECT_NONE && !received.touch_flags);
  a.ui.popup=0;a.publication.ready=false;effect=a.updateRust(input);assert(effect.kind==XP_UI_EFFECT_NONE && !received.touch_flags);
- a.sceneFailed=true;effect=a.updateRust(input);assert(effect.kind==XP_UI_EFFECT_NONE && effect.invalidate);
- a.rustPublished();a.publication.ready=true;effect=a.updateRust(input);assert(effect.kind==XP_UI_CATALOG_UNINSTALL && !a.sceneFailed);
+ a.rustPublished();a.publication.ready=true;effect=a.updateRust(input);assert(effect.kind==XP_UI_CATALOG_UNINSTALL);
  a.ui.popup=1;input.action=0;input.touch_x=500;effect=a.updateRust(input);assert(effect.invalidate && a.touchActivated && !a.ui.popup);
 }
 """
         self.compile_run(fixture)
 
-    def test_build_and_paint_rejection_before_and_after_publication(self):
-        cpp = (ROOT/'src/activities/CatalogUiActivity.cpp').read_text()
-        production = '\n'.join(method(cpp, '::'+name+'(') for name in
-                               ['render','buildRustScene','rejectScene','updateRust','rustPublished','rustInterest'])
-        fixture = r"""
-#include <cassert>
-#include <string>
-#include "xp_ui_catalog.h"
-#define LOG_ERR(...) ((void)0)
-struct RenderLock {};
-struct HalDisplay {enum {FAST_REFRESH};};
-struct CatalogUiActivity;
-struct ResourceLock {explicit ResourceLock(CatalogUiActivity&) {}};
-struct ModelLock {explicit ModelLock(CatalogUiActivity&) {}};
-extern "C" void xp_ui_catalog_publish(XpUiCatalogState*,const XpUiListState*,int32_t) {}
-extern "C" XpUiInterest xp_ui_catalog_interest(const XpUiCatalogState*,uint32_t) {return {};}
-extern "C" uint8_t xp_ui_catalog_hit(const XpUiCatalogHits*,int16_t,int16_t,XpUiInteraction* h) {
- h->action=1;h->value=2;return 1;
-}
-extern "C" XpUiEffect xp_ui_catalog_update(XpUiCatalogState* s,const XpUiInput* i,uint16_t,uint8_t,uint8_t) {
- XpUiEffect e{};
- if(i->released & XP_UI_BACK)e.kind=XP_UI_CANCEL;
- else if((i->released & XP_UI_CONFIRM) || (i->touch_flags & XP_UI_TOUCH_RELEASED) ||
-         (i->held & XP_UI_CONFIRM))e.kind=XP_UI_ACTIVATE;
- else if((i->pressed | i->held) & XP_UI_NAV_NEXT)++s->list.selected;
- return e;
-}
-struct CatalogUiActivity {
- struct {bool ready=false;} publication;
- struct Renderer {bool paint=true;int refreshes=0;
-  bool drawUiScene(XpUiScene&,const int*){return paint;}void displayBuffer(int){++refreshes;}
- } renderer;
- bool sharedRejected=false;
- void rejectRustScene(){sharedRejected=true;rejectScene();}
- void publishRustScene(const XpUiScene&){sharedRejected=false;rustPublished();publication.ready=true;}
- bool build=true,sceneFailed=false,touchActivated=false,rejectedTouch=false;
- uint16_t rejectedButtons=0;std::string name="catalog";
- XpUiCatalogState ui{};XpUiCatalogHits publishedHits{},nextHits{};XpUiListState next{};int32_t consumedScroll=0;
- bool buildCatalogScene(XpUiScene&){return build;}int rustResources(){return 0;}
- int listCount(){return 8;}bool hasSearch(){return true;}uint8_t pageLinks(){return 7;}
- void render(RenderLock&&);bool buildRustScene(XpUiScene&);void rejectScene();void rustPublished();
- XpUiEffect updateRust(const XpUiInput&);XpUiInterest rustInterest(uint32_t)const;
-};
-""" + production + r"""
-int main(){
- for(int kind=0;kind<=4;++kind)for(bool first:{false,true})for(bool paint:{false,true}){
-  CatalogUiActivity a;a.ui.kind=kind;XpUiInput input{};input.released=XP_UI_CONFIRM;
-  assert(a.updateRust(input).kind==XP_UI_ACTIVATE); // original pre-first-paint behavior
-  if(first)a.render(RenderLock{});
-  a.ui.list.active=3;a.ui.list.pending_scroll=9;a.ui.list.last_repeat=500;
-  a.ui.search_pending=a.ui.long_press=1;
-  a.build=paint;a.renderer.paint=!paint;const auto refreshes=a.renderer.refreshes;
-  a.render(RenderLock{});assert(a.sceneFailed && !a.publication.ready);assert(a.sharedRejected);
-  assert(a.renderer.refreshes==refreshes && a.ui.list.active==-1 && !a.ui.list.pending_scroll);
-  assert(!a.ui.list.last_repeat && !a.ui.search_pending && !a.ui.long_press);
-  input.pressed=XP_UI_NAV_NEXT;input.held=XP_UI_CONFIRM;input.held_ms=1200;
-  input.touch_flags=XP_UI_TOUCH_RELEASED;input.action=XP_UI_CATALOG_UNINSTALL;
-  input.swipe=XP_UI_SWIPE_UP;
-  const auto selected=a.ui.list.selected;
-  auto effect=a.updateRust(input);assert(!effect.kind && effect.invalidate && !a.touchActivated);
-  assert(a.ui.list.selected==selected);
-  input={};input.released=XP_UI_BACK;assert(a.updateRust(input).kind==XP_UI_CANCEL);
-  a.build=a.renderer.paint=true;a.render(RenderLock{});assert(!a.sceneFailed && a.publication.ready);
-  assert(a.rustInterest(0).pressed & XP_UI_CONFIRM);
-  input={};input.held=XP_UI_CONFIRM;input.held_ms=1200;input.touch_flags=XP_UI_TOUCH_HELD;
-  assert(!a.updateRust(input).kind);
-  input.held=0;input.released=XP_UI_CONFIRM;input.touch_flags=XP_UI_TOUCH_RELEASED;
-  assert(!a.updateRust(input).kind); // stale release is consumed
-  input={};input.pressed=XP_UI_CONFIRM;assert(!a.updateRust(input).kind);
-  input.pressed=0;input.released=XP_UI_CONFIRM;assert(a.updateRust(input).kind==XP_UI_ACTIVATE);
-  input={};input.touch_flags=XP_UI_TOUCH_PRESSED;assert(!a.updateRust(input).kind);
-  input.touch_flags=XP_UI_TOUCH_RELEASED;assert(a.updateRust(input).kind==XP_UI_ACTIVATE);
- }
-}
-"""
-        self.compile_run(fixture, sanitize=True)
 
     def compile_run(self, source, sanitize=False):
         with tempfile.TemporaryDirectory() as directory:

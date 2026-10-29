@@ -164,7 +164,7 @@ fn overflow_preserves_publication_and_recovers() {
                 );
                 let snapshot = state;
                 unsafe { ffi::publish(&mut state, &snapshot, &feedback) };
-                assert_eq!(state.scene_failed, 0);
+                assert_eq!(state.reserved, [0; 3]);
                 assert!(output.command_count <= 128);
                 maximum[usize::from(kind)] = maximum[usize::from(kind)].max(output.command_count);
             }

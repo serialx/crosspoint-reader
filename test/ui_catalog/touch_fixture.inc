@@ -61,7 +61,7 @@ struct Popup {
  bool handleInput(MappedInputManager&,const std::function<void()>&);
  bool handleButtons(bool,bool,bool,bool,const std::function<void()>&){return true;}
 };
-struct OriginalBase {bool handleCustomInput(){return false;}};
+struct OriginalBase {bool consumeRejectedInput(){return false;}bool handleCustomInput(){return false;}};
 using CatalogActivity=OriginalBase;
 struct Original:OriginalBase {
  enum class State {CHECK_WIFI,WIFI_SELECTION,SEARCH_INPUT,LOADING,BROWSING,DOWNLOADING,
@@ -93,7 +93,7 @@ struct CatalogUiActivity:RustActivityAdapter {
  explicit CatalogUiActivity(InputManager& i):mappedInput{i}{
   xp_ui_catalog_init(&ui,XP_UI_CATALOG_PLUGINS,-1,0);ui.mode=XP_UI_CATALOG_PLUGIN_PICKER;
  }
- bool handleCustomInput(){return false;}void loop();XpUiEffect updateRust(const XpUiInput&);
+ bool consumeRejectedInput(){return false;}bool handleCustomInput(){return false;}void loop();XpUiEffect updateRust(const XpUiInput&);
  int listCount(){return 1;}bool hasSearch(){return false;}uint8_t pageLinks(){return 0;}
  void requestUpdate(){}
  void applyRustEffect(const XpUiEffect& e){

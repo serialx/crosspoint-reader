@@ -78,6 +78,7 @@ struct {void loadFromFile(){}} OPDS_STORE;
 struct RustActivityAdapter:CatalogUiActivity {
  void render(RenderLock&&);bool paintRustScene(const XpUiScene&);
  virtual void rustSceneFailed() {}
+ bool rustSceneCurrent()const{return true;}void requestUpdate(){}
 };
 '''
         fixture = fixture.replace('bool drawUiScene(XpUiScene&,const int*)', 'bool drawUiScene(const XpUiScene&,const int*)')

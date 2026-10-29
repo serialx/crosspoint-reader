@@ -47,16 +47,13 @@ class KOReaderUiActivity : public RustActivityAdapter {
   std::unique_ptr<XpUiCommand[]> commands;
   XpUiInteraction hitBuffers[2][2]{};
   uint8_t nextHits = 0;
-  bool sceneFailed = false;
   bool touchDispatched = false;
   freeink::ui::GfxRendererTarget textTarget;
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
-  void rustPublished() override {
-    nextHits ^= 1;
-    sceneFailed = false;
-  }
+  void rustPublished() override { nextHits ^= 1; }
   void rustSceneFailed() override;
+  void cancelRejectedInput(const XpUiInput&) override;
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t) const override;
   XpUiEffect updateRust(const XpUiInput&) override;

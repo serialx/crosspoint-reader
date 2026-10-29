@@ -6,7 +6,7 @@ s = source.read_text()
 parts=[]
 for signature in ['XpUiInterest KOReaderUiActivity::rustInterest(', 'XpUiEffect KOReaderUiActivity::updateRust(',
                   'void KOReaderUiActivity::rustSceneFailed(', 'void KOReaderUiActivity::applyRustEffect(',
-                  'void KOReaderUiActivity::publish(', 'void KOReaderUiActivity::markReturn(']:
+                  'void KOReaderUiActivity::publish(', 'void KOReaderUiActivity::markReturn(', 'void KOReaderUiActivity::cancelRejectedInput(']:
     start=s.index(signature);end=s.index('{',start)+1;depth=1
     while depth:
         depth+=(s[end]=='{')-(s[end]=='}');end+=1

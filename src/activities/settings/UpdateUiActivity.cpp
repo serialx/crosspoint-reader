@@ -26,16 +26,10 @@ void UpdateUiActivity::render(RenderLock&&) {
       LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
     }
     releaseText();
-    {
-      ModelLock lock(*this);
-      if (painted) {
-        rustPublished();
-        publication.ready = true;
-      } else {
-        publication.ready = false;
-        rustSceneFailed();
-      }
-    }
+    if (painted)
+      publishRustScene(scene);
+    else
+      rejectRustScene();
   }
   if (!painted) return;
   switch (static_cast<XpUiRefresh>(scene.refresh)) {
@@ -129,8 +123,7 @@ XpUiEffect UpdateUiActivity::updateRust(const XpUiInput& input) {
   pendingHaptic = (input.touch_flags & XP_UI_TOUCH_RELEASED) && publication.ready && routesReady &&
                   ((popupActive && !model.popup_active) || pending.action == XP_UI_UPDATE_FONT_ACTIVATE ||
                    pending.action == XP_UI_UPDATE_ENTER_GROUP);
-  if (list && !model.scene_failed && pending.action == XP_UI_UPDATE_NONE &&
-      !(input.released & (XP_UI_BACK | XP_UI_CONFIRM)) &&
+  if (list && pending.action == XP_UI_UPDATE_NONE && !(input.released & (XP_UI_BACK | XP_UI_CONFIRM)) &&
       (input.swipe == XP_UI_SWIPE_UP || input.swipe == XP_UI_SWIPE_DOWN)) {
     XpUiEffect effect{};
     effect.kind = XP_UI_SCROLL;
@@ -399,3 +392,16 @@ XpUiPaint UpdateUiActivity::rustResources() {
               self.renderer.drawUiText(*c, clip, self.text(c->resource));
           }};
 }
+
+void UpdateUiActivity::cancelRejectedInput(const XpUiInput& input) {
+  XpUiInput back{};
+  back.pressed = input.pressed & XP_UI_BACK;
+  back.released = input.released & XP_UI_BACK;
+  back.now_ms = input.now_ms;
+  {
+    ModelLock lock(*this);
+    updateRust(back);
+  }
+  applyRustEffect({});
+}
+

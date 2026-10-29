@@ -35,7 +35,7 @@ typedef enum {
   XP_UI_UPDATE_CACHE_BEGIN = 18,     // a, b: 0; cache deletion was confirmed.
   XP_UI_UPDATE_CACHE_RESULT = 19,    // a: cache directory opened (0/1); b: 0 (per-entry failures are result data).
   XP_UI_UPDATE_FONT_BATCH = 20,      // a: number of files in the chosen family/batch; b: 0.
-  XP_UI_UPDATE_SCENE_FAILED = 21,    // a, b: 0; build or paint rejected, block activation until publication.
+  XP_UI_UPDATE_SCENE_FAILED = 21,    // a, b: 0; discard pending gestures after build or paint rejection.
 } XpUiUpdateEvent;
 typedef enum {
   XP_UI_UPDATE_NONE = 0,            // value: 0.
@@ -55,7 +55,7 @@ typedef struct {
   int32_t family_index;
   uint8_t kind, phase, recovery, cancel_requested, home_requested;
   uint8_t has_groups, popup_selected, popup_active, touch_active;
-  uint8_t scene_failed, reserved[2];
+  uint8_t reserved[3];
 } XpUiUpdateState;
 typedef struct {
   uint8_t action;
@@ -129,8 +129,7 @@ XP_UPDATE_ASSERT(offsetof(XpUiUpdateState, has_groups) == 109, "XpUiUpdateState.
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateState, popup_selected) == 110, "XpUiUpdateState.popup_selected");
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateState, popup_active) == 111, "XpUiUpdateState.popup_active");
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateState, touch_active) == 112, "XpUiUpdateState.touch_active");
-XP_UPDATE_ASSERT(offsetof(XpUiUpdateState, scene_failed) == 113, "XpUiUpdateState.scene_failed");
-XP_UPDATE_ASSERT(offsetof(XpUiUpdateState, reserved) == 114, "XpUiUpdateState.reserved");
+XP_UPDATE_ASSERT(offsetof(XpUiUpdateState, reserved) == 113, "XpUiUpdateState.reserved");
 XP_UPDATE_ASSERT(sizeof(XpUiUpdateEffect) == 8, "XpUiUpdateEffect size");
 XP_UPDATE_ASSERT(XP_UPDATE_ALIGN(XpUiUpdateEffect) == 4, "XpUiUpdateEffect alignment");
 XP_UPDATE_ASSERT(offsetof(XpUiUpdateEffect, action) == 0, "XpUiUpdateEffect.action");

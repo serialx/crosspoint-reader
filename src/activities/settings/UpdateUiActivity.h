@@ -72,6 +72,7 @@ class UpdateUiActivity : public RustActivityAdapter {
   bool buildRustScene(XpUiScene&) override;
   void rustPublished() override;
   void rustSceneFailed() override;
+  void cancelRejectedInput(const XpUiInput&) override;
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t) const override;
   XpUiEffect updateRust(const XpUiInput&) override;

@@ -60,8 +60,6 @@ class SettingsUiActivity : public RustActivityAdapter {
   Publication publication;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t commandCapacity = 0;
-  uint16_t requestedCapacity = 0;
-  bool sceneFailed = false;
   int32_t renderingScroll = 0;
   bool longTouch = false;
   bool touchActivated = false;

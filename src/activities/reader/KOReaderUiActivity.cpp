@@ -107,23 +107,12 @@ const char* KOReaderUiActivity::resourceText(uint32_t handle) const {
 }
 XpUiInterest KOReaderUiActivity::rustInterest(uint32_t now) const { return xp_ui_koreader_interest(&model, now); }
 void KOReaderUiActivity::rustSceneFailed() {
-  sceneFailed = true;
   model.touch_armed = 0;
   touchDispatched = false;
 }
 XpUiEffect KOReaderUiActivity::updateRust(const XpUiInput& input) {
-  auto next = input;
-  if (sceneFailed) {
-    next.pressed &= XP_UI_BACK;
-    next.released &= XP_UI_BACK;
-    next.held = 0;
-    next.action = 0;
-    next.touch_flags = 0;
-    next.swipe = 0;
-  }
-  auto effect = xp_ui_koreader_update(&model, &next);
-  touchDispatched = next.action && (next.touch_flags & XP_UI_TOUCH_RELEASED) && effect.kind == XP_UI_ACTIVATE;
-  if (sceneFailed) effect.invalidate = 1;
+  auto effect = xp_ui_koreader_update(&model, &input);
+  touchDispatched = input.action && (input.touch_flags & XP_UI_TOUCH_RELEASED) && effect.kind == XP_UI_ACTIVATE;
   // The original touch router invalidates after the synchronous handler.
   if (touchDispatched) effect.invalidate = 0;
   return effect;
@@ -251,11 +240,8 @@ XpUiPaint KOReaderUiActivity::rustResources() {
 }
 
 void KOReaderUiActivity::applyRustEffect(const XpUiEffect& effect) {
-  bool blocked;
-  {
-    ModelLock lock(*this);
-    blocked = sceneFailed && effect.kind == XP_UI_ACTIVATE && !(model.kind != XP_KO_SYNC && effect.value == 3);
-  }
+  const bool blocked =
+      rustSceneRejected() && effect.kind == XP_UI_ACTIVATE && !(model.kind != XP_KO_SYNC && effect.value == 3);
   if (blocked) {
     requestUpdate();
     return;
@@ -272,3 +258,17 @@ void KOReaderUiActivity::applyRustEffect(const XpUiEffect& effect) {
   }
   if (pending.kind) performEffect(pending);
 }
+
+void KOReaderUiActivity::cancelRejectedInput(const XpUiInput& input) {
+  XpUiInput back{};
+  back.pressed = input.pressed & XP_UI_BACK;
+  back.released = input.released & XP_UI_BACK;
+  back.now_ms = input.now_ms;
+  XpUiEffect effect{};
+  {
+    ModelLock lock(*this);
+    effect = updateRust(back);
+  }
+  applyRustEffect(effect);
+}
+

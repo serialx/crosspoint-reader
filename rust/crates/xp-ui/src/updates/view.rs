@@ -229,33 +229,25 @@ impl View<'_, '_> {
             feedback.options[index] = rect(r.x, r.y - (44 - r.h).max(0) / 2, r.w, r.h.max(44));
             let selected = state.popup_selected == index as u8;
             let invert = selected && l.list.list.selection == 0 && l.list.list.radius > 0;
-            self.arena.push(Command {
-                rect: r,
-                paint: if invert {
+            crate::settings::view::button(
+                self.arena,
+                r,
+                handle,
+                font,
+                if invert {
                     0
                 } else if selected {
                     2
                 } else {
                     1
                 },
-                radius: if l.list.list.selection == 0 {
+                if l.list.list.selection == 0 {
                     l.list.list.radius
                 } else {
                     0
                 },
-                ..Command::default()
-            })?;
-            self.arena.push(Command {
-                kind: Kind::TextHandle as u8,
-                rect: rect(r.x + 4, r.y + 2, r.w - 8, r.h - 4),
-                resource: handle,
-                generation: 1,
-                font,
-                align: 1,
-                max_lines: 1,
-                paint: u8::from(invert),
-                ..Command::default()
-            })?;
+                u8::from(invert),
+            )?;
         }
         Ok(())
     }

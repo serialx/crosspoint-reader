@@ -730,9 +730,12 @@ fn popup(a: &mut Arena<'_>, s: State, l: Layout, r: &mut Services) -> Result<(),
             w: inner,
             h: button,
         };
-        a.push(Command {
+        crate::settings::view::button(
+            a,
             rect,
-            paint: if selected {
+            0x8000_0019 + i as u32,
+            l.list.font,
+            if selected {
                 if invert {
                     0
                 } else {
@@ -742,23 +745,7 @@ fn popup(a: &mut Arena<'_>, s: State, l: Layout, r: &mut Services) -> Result<(),
                 1
             },
             radius,
-            ..Command::default()
-        })?;
-        text(
-            a,
-            Rect {
-                x: rect.x + 4,
-                y: rect.y + 2,
-                w: rect.w - 8,
-                h: rect.h - 4,
-            },
-            0x8000_0019 + i as u32,
-            1,
-            l.list.font,
             u8::from(selected && invert),
-            0,
-            1,
-            1,
         )?;
         a.hit(Interaction {
             rect: touch_rect(rect, screen, (narrow(r.line(l.list.font)?)? + 14).max(44)),

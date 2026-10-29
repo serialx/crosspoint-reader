@@ -213,9 +213,11 @@ fn button(a: &mut Arena<'_>, r: Rect, p: Button) -> Result<(), Error> {
         min_touch,
         screen,
     } = p;
-    fill(
+    view::button(
         a,
         r,
+        id,
+        font,
         if active {
             0
         } else if selected {
@@ -224,22 +226,7 @@ fn button(a: &mut Arena<'_>, r: Rect, p: Button) -> Result<(), Error> {
             1
         },
         0,
-    )?;
-    view::text(
-        a,
-        rect(
-            i32::from(r.x) + 4,
-            i32::from(r.y) + 2,
-            i32::from(r.w) - 8,
-            i32::from(r.h) - 4,
-        )?,
-        id,
-        1,
-        font,
         u8::from(active),
-        0,
-        1,
-        1,
     )?;
     let w = r.w.max(min_touch).min(screen.w);
     let h = r.h.max(min_touch).min(screen.h);

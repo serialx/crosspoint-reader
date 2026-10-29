@@ -14,7 +14,7 @@ class GfxRenderer;
 class MappedInputManager;
 
 // Resource facade for Rust toolbar/panel scenes over the reader page.
-// The parent keeps its Model, navigation and Event API until P9-U2b.
+// The parent keeps its Model, navigation and Event API while EpubReaderActivity owns its lifecycle.
 class ReaderToolbarUi {
  public:
   enum class Event { None = 0, Dismiss = 1, Tool = 2, PrevChapter = 3, NextChapter = 4, Scrub = 5, Row = 6 };
@@ -70,7 +70,7 @@ class ReaderToolbarUi {
   GfxRenderer& renderer;
   freeink::ui::GfxRendererTarget textTarget;
   Model model_;
-  // Transitional parent-owned API; P9-U2b removes this ListNav compatibility state.
+  // Retained until EpubReaderActivity delegates navigation state to Rust.
   freeink::ui::ListNav nav_;
   static constexpr int kMaxWindow = 16;
   std::string windowLabels_[kMaxWindow];

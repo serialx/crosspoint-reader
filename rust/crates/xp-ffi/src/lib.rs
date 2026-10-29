@@ -170,3 +170,5 @@ mod ui_boot;
 mod book_residual;
 
 mod ui_catalog;
+
+mod ui_koreader;

@@ -418,7 +418,10 @@ pub fn view(
     } else if l.kind == protocol::ABOUT || l.kind == protocol::TIMEZONE {
         // An unmodified smallText style inherits bodyText in the SDK.
         lines = 1;
-    } else if l.kind != protocol::SECTION || l.touch == 0 {
+    } else if l.kind != protocol::SECTION
+        || l.touch == 0
+        || l.flags & protocol::SMALL_LABELS_ON_TOUCH != 0
+    {
         style.font = l.small_font;
         style.bold = 0;
     }

@@ -89,3 +89,5 @@ static_assert(static_cast<int>(XP_UI_SCROLL) < XP_UI_SETTINGS_RESET);
 static_assert(XP_UI_SETTINGS_RESET == 4 && XP_UI_SETTINGS_COMMIT == 5 && XP_UI_SETTINGS_SAVE_VALUE == 6 &&
               XP_UI_SETTINGS_POPUP == 7 && XP_UI_SETTINGS_OPEN == 8);
 }  // namespace
+
+static_assert(XP_UI_SETTINGS_SMALL_LABELS_ON_TOUCH == 4);

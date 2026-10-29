@@ -8,6 +8,7 @@
 
 #include "FixtureSelector.h"
 #include "UiOracleFrontlight.h"
+#include "UiOracleKOReader.h"
 #include "activities/ActivityManager.h"
 #include "activities/browser/OpdsBookBrowserActivity.h"
 #include "activities/plugins/PluginCatalogActivity.h"
@@ -282,6 +283,10 @@ void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
       activityManager.replaceActivity(std::move(activity));
       return;
     }
+    case UiOracleCase::KOReaderSync:
+    case UiOracleCase::KOReaderAuth:
+      UiOracleKOReader::enter(renderer, input, std::string_view(selector, size));
+      return;
     // Settings-family fixtures bypass only the parent capability gate.
     case UiOracleCase::SettingsHomeButton: {
       auto activity = makeUniqueNoThrow<HomeButtonSettingsActivity>(renderer, input);

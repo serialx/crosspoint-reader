@@ -62,7 +62,8 @@ class GfxRenderer {
  public:
   XpNativeProvider textProvider() const { return {}; }
   int getLineHeight(int32_t) const { return 20; }
-  bool drawUiScene(const XpUiScene&, const XpUiPaint*) const { return true; }
+  bool validScene = true;
+  bool drawUiScene(const XpUiScene&, const XpUiPaint*) const { return validScene; }
   std::atomic<bool> refreshing{false}, finishRefresh{false};
   void displayBuffer(HalDisplay::RefreshMode) {
     refreshing = true;

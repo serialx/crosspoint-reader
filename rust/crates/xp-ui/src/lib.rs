@@ -29,3 +29,5 @@ pub mod text_settings;
 pub mod boot;
 
 pub mod catalog;
+
+pub mod koreader;

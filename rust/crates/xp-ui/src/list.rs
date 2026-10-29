@@ -25,6 +25,7 @@ pub struct Style {
 
 /// Per-row content shares the chapter list's viewport, selection and hit rules.
 pub trait Rows {
+    /// Decorative top padding and total heading height, including that padding.
     fn section(&mut self, _: u16, _: bool, _: Style) -> Result<(i16, i16), Error> {
         Ok((0, 0))
     }
@@ -42,21 +43,6 @@ pub trait Rows {
         1
     }
     fn height(&mut self, index: u16, width: i16, style: Style) -> Result<i16, Error>;
-    /// Total heading height and its decorative top padding (excluded from partial-row visibility).
-    fn heading_height(&mut self, _: u16, _: i16, _: Style) -> Result<(i16, i16), Error> {
-        Ok((0, 0))
-    }
-    fn paint_heading(
-        &mut self,
-        _: &mut Arena<'_>,
-        _: u16,
-        _: Rect,
-        _: Style,
-        _: u32,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
     fn paint(
         &mut self,
         arena: &mut Arena<'_>,
@@ -233,18 +219,11 @@ pub fn view_rows(
             return Err(Error::Invalid);
         }
         let row_height = i32::from(item_height);
-        let (heading_height, heading_padding) =
-            rows.heading_height(index as u16, row_width as i16, style)?;
-        if !(0..=8192).contains(&heading_height) || !(0..=heading_height).contains(&heading_padding)
-        {
-            return Err(Error::Invalid);
-        }
-        let partial =
-            y + i32::from(heading_height) + i32::from(section_height) + row_height > bottom;
+        let partial = y + i32::from(section_height) + row_height > bottom;
         if partial && !rows.partial() {
             break;
         }
-        if partial && bottom - y - i32::from(heading_padding) - i32::from(section_pad) < 18 {
+        if partial && bottom - y - i32::from(section_pad) < 18 {
             break;
         }
         if partial {
@@ -258,21 +237,6 @@ pub fn view_rows(
                 },
                 ..Command::default()
             })?;
-        }
-        if heading_height > 0 {
-            rows.paint_heading(
-                arena,
-                index as u16,
-                Rect {
-                    x: row_x as i16,
-                    y: y as i16,
-                    w: row_width as i16,
-                    h: heading_height,
-                },
-                style,
-                generation,
-            )?;
-            y += i32::from(heading_height);
         }
         if section_height > 0 {
             rows.paint_section(

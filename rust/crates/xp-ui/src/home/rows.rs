@@ -33,7 +33,6 @@ struct Measured {
     subtitle_height: i16,
     value_width: i16,
     height: i16,
-    heading_padding: i16,
 }
 pub struct Content<'a> {
     pub resources: &'a mut dyn Resources,
@@ -150,25 +149,23 @@ impl list::Rows for Content<'_> {
             subtitle_height: cv(sub)?,
             value_width: cv(value_width)?,
             height: cv(needed.max(min).max(text_h).max(icon))?,
-            heading_padding: 0,
         };
         Ok(self.measured.height)
     }
-    fn heading_height(&mut self, index: u16, _: i16, style: Style) -> Result<(i16, i16), Error> {
+    fn section(&mut self, _: u16, first: bool, style: Style) -> Result<(i16, i16), Error> {
         if self.measured.row.heading == 0 {
             return Ok((0, 0));
         }
-        let pad = if self.first == Some(index) { 0 } else { 16 };
-        self.measured.heading_padding = pad;
+        let pad = if first { 0 } else { 16 };
         Ok((
+            pad,
             cv(i32::from(pad)
                 + self.resources.line(self.small_font)?
                 + 4
                 + i32::from(style.row_gap))?,
-            pad,
         ))
     }
-    fn paint_heading(
+    fn paint_section(
         &mut self,
         a: &mut Arena<'_>,
         _: u16,
@@ -181,7 +178,7 @@ impl list::Rows for Content<'_> {
             a,
             Rect {
                 x: r.x + s.padding,
-                y: r.y + self.measured.heading_padding,
+                y: r.y,
                 w: r.w - 2 * s.padding,
                 h,
             },

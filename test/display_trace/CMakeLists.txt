@@ -21,6 +21,7 @@ endif()
 file(GLOB_RECURSE SDK_INPUTS CONFIGURE_DEPENDS "${DISPLAY_TRACE_SDK}/libs/display/FreeInkDisplay/src/*"
   "${DISPLAY_TRACE_SDK}/libs/display/FreeInkDisplay/include/*")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SDK_INPUTS}
+  "${DISPLAY_TRACE_SDK}/libs/hardware/BoardConfig/include/PanelDrivers.h"
   "${DISPLAY_TRACE_SDK}/libs/hardware/BoardConfig/include/BoardConfig.h" "${CMAKE_CURRENT_SOURCE_DIR}/prepare.py"
   "${CMAKE_CURRENT_SOURCE_DIR}/stubs/MetalioEInk4Board.h")
 foreach(profile IN ITEMS c3 x4pro x4c sticky metalio papermono a4 picco)
@@ -167,4 +168,5 @@ if(DISPLAY_TRACE_RUST)
   add_executable(display_retained_abi_test DisplayRetainedAbiTest.cpp)
   target_link_libraries(display_retained_abi_test PRIVATE xp_ffi_host)
   add_test(NAME display_retained_abi COMMAND display_retained_abi_test)
+  set_tests_properties(display_retained_abi PROPERTIES TIMEOUT 10)
 endif()

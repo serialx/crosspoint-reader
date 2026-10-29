@@ -104,6 +104,18 @@ int main() {
       check(result == 0 && ctx.caps.empty() && ctx.io == 0);
       request.data = nullptr;
       request.operation = XP_DISPLAY_OP_BEGIN;
+      const auto busyWait = bus.busy_wait;
+      const auto refreshWait = bus.refresh_wait;
+      bus.busy_wait = nullptr;
+      bus.refresh_wait = nullptr;
+      check(xp_display_execute(state.data(), &bus, &request, &result) == XP_DISPLAY_INVALID);
+      check(ctx.io == 0 && ctx.caps.empty());
+      bus.busy_wait = busyWait;
+      if (controller != XP_DISPLAY_UC8279C_A4) {
+        check(xp_display_execute(state.data(), &bus, &request, &result) == XP_DISPLAY_INVALID);
+        check(ctx.io == 0 && ctx.caps.empty());
+        bus.refresh_wait = refreshWait;
+      }
       check(xp_display_execute(state.data(), &bus, &request, &result) == XP_DISPLAY_OK);
       std::vector<uint8_t> plane(static_cast<size_t>(width) / 8 * height, 0x3c);
       request.operation = XP_DISPLAY_OP_GRAY_LSB;

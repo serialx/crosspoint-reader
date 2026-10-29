@@ -4,9 +4,11 @@
 extern "C" {
 #endif
 
-// Versioned framebuffer-driver ABI. All buffers are borrowed for one call;
-// only config.controller_config (optional immutable LUTs) lives until drop.
-// Serialize calls and keep the displayed frame available through FINISH.
+// Versioned framebuffer-driver ABI. Bus/request descriptors and frame spans are
+// borrowed for one call. Keep state, controller config/LUTs, platform table/context
+// and retained scratch valid until drop; retained allocations are released there.
+// Serialize calls except the atomic abort/generation APIs. Keep the displayed
+// frame available through FINISH.
 enum {
   XP_DISPLAY_ABI_VERSION = 1,
   XP_DISPLAY_STATE_BYTES = 64,
@@ -155,6 +157,7 @@ typedef struct {
   void (*reset_level)(void*, uint8_t);
   uint8_t (*busy_level)(void*);
   void (*busy_wait)(void*, uint32_t, uint32_t);
+  // Optional only for UC8279C A4, which uses busy_wait for refresh completion.
   void (*refresh_wait)(void*, uint32_t);
   void (*delay_ms)(void*, uint32_t);
   void (*delay_us)(void*, uint32_t);

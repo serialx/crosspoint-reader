@@ -79,14 +79,17 @@ impl ListModel {
             return Effect::default();
         }
         if self.revealed >= 0 {
-            let close = input.released & (model::BACK | model::CONFIRM) != 0
-                || input.touch_flags & model::TOUCH_RELEASED != 0
-                || input.swipe == model::SWIPE_RIGHT;
+            let button_close = input.released & (model::BACK | model::CONFIRM) != 0;
+            // A swipe also releases the contact, but has no tap coordinates.
+            let tap = input.touch_flags & model::TOUCH_RELEASED != 0
+                && input.touch_x >= 0
+                && input.touch_y >= 0;
+            let close = button_close || tap || input.swipe == model::SWIPE_RIGHT;
             if close {
                 let row = self.revealed;
                 self.revealed = -1;
                 return Effect {
-                    kind: if input.action == 2 && input.value == row {
+                    kind: if !button_close && tap && input.action == 2 && input.value == row {
                         DELETE
                     } else {
                         0

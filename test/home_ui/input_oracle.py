@@ -78,7 +78,39 @@ def record_file(mutation=False):
         return subprocess.check_output([str(out / "input")])
 
 
+def record_library(mutation=False):
+    with tempfile.TemporaryDirectory() as directory:
+        out = Path(directory)
+        (out / "MappedInputManager.h").write_text((HERE / "input_leaves.h").read_text())
+        (out / "ButtonNavigator.h").write_text(original("src/util/ButtonNavigator.h"))
+        native = original("src/activities/library/LibraryListActivity.cpp")
+        source = (HERE / "library_input.cpp").read_text()
+        source += method(native, "constexpr bool isRecentSort(")
+        source += method(native, "constexpr library::SortOrder orderForTab(")
+        for result, names in [("int", ["selectedEntry"]),
+                              ("bool", ["groupable", "deleteEligible", "handleCustomInput", "handleButtons"]),
+                              ("void", ["selectTab", "toggleSortDirection", "stepTab", "handleBackAction", "navigateButtons"])]:
+            for name in names:
+                source += method(native, f"{result} LibraryListActivity::{name}(")
+        source += original("src/util/ButtonNavigator.cpp").replace('#include "ButtonNavigator.h"', '')
+        source += (HERE / "library_input_cases.cpp").read_text()
+        if mutation:
+            source = source.replace("if (!degraded) toggleSortDirection();", "toggleSortDirection();")
+        (out / "input.cpp").write_text(source)
+        sdk = ROOT / "freeink-sdk/libs/ui/FreeInkUI"
+        subprocess.run(["c++", "-std=c++20", "-DFREEINK_CAP_TOUCH=0", "-DFREEINK_UI_COMPONENT_STYLE=0",
+                        "-I" + str(out), "-I" + str(sdk / "include"), str(out / "input.cpp"),
+                        str(sdk / "src/FreeInkUI.cpp"), "-o", str(out / "input")], check=True)
+        return subprocess.check_output([str(out / "input")])
+
+
 class HomeInput(unittest.TestCase):
+    def test_native_library_transitions(self):
+        self.assertEqual(record_library(), gzip.decompress((HERE / "library-input.golden.gz").read_bytes()))
+
+    def test_degraded_sort_mutation(self):
+        self.assertNotEqual(record_library(True), gzip.decompress((HERE / "library-input.golden.gz").read_bytes()))
+
     def test_native_file_transitions(self):
         self.assertEqual(record_file(), gzip.decompress((HERE / "file-input.golden.gz").read_bytes()))
 

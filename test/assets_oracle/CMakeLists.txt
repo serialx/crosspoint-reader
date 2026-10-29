@@ -60,3 +60,22 @@ if(ASSET_REFERENCE_ROOT)
   add_dependencies(asset_reference_allocations xp_ffi_host_build)
   target_link_libraries(asset_reference_allocations PRIVATE ${XP_FFI_HOST_ARCHIVE})
 endif()
+
+add_executable(image_asset_failures ImageFailures.cpp Allocation.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDecoderFactory.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/PngToFramebufferConverter.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/JpegToFramebufferConverter.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/GifToFramebufferConverter.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
+  ${DECODER_SOURCE_DIR}/JPEGDEC/src/JPEGDEC.cpp)
+target_compile_definitions(image_asset_failures PRIVATE __LINUX__)
+target_compile_options(image_asset_failures PRIVATE -UNDEBUG)
+target_include_directories(image_asset_failures PRIVATE ${ASSET_INCLUDES}
+  ${REPO_ROOT}/lib/Epub ${REPO_ROOT}/lib/Epub/Epub ${REPO_ROOT}/lib/PngDiagnostics
+  ${REPO_ROOT}/lib/GifSupport ${REPO_ROOT}/rust/crates/xp-ffi/include)
+add_dependencies(image_asset_failures xp_ffi_host_build)
+target_link_libraries(image_asset_failures PRIVATE ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ImageAssetFailurePaths COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/image_failures.py $<TARGET_FILE:image_asset_failures>)

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 SOURCES = ['DeviceSecret/DeviceSecret.cpp', 'TrustedTime/TrustedTime.cpp',
            'hal/HalClock.cpp', 'hal/HalFrontlight.cpp', 'hal/HalTiltSensor.cpp']
-CASES = {'secret': 7, 'time': 5, 'light': 3, 'tilt': 5, 'clock': 6}
+CASES = {'secret': 7, 'time': 5, 'light': 3, 'tilt': 5, 'clock': 6, 'power': 4}
 
 def run(root, archive):
     with tempfile.TemporaryDirectory(prefix='hal-policy-') as tmp:
@@ -19,6 +19,14 @@ def run(root, archive):
         command = ['c++', '-std=c++20', '-Wall', '-Wextra', '-Werror',
                    '-I' + str(HERE / 'stubs'), '-I' + str(root / 'rust/crates/xp-ffi/include')]
         command += ['-I' + str(root / 'lib' / d) for d in ['hal', 'DeviceSecret', 'TrustedTime']]
+        power = (root / 'lib/hal/HalPowerManager.cpp').read_text()
+        start = power.index('void HalPowerManager::startDeepSleep')
+        end = power.index('uint16_t HalPowerManager::getBatteryPercentage')
+        power = power[:start] + power[end:]
+        power = power.replace('static constexpr gpio_num_t XTEINK_C3_GPIO13 = GPIO_NUM_13;', '')
+        power_file = Path(tmp) / 'power.cpp'
+        power_file.write_text(power)
+        command += [str(power_file)]
         command += [str(root / 'lib' / s) for s in SOURCES] + [str(HERE / 'check.cpp')]
         if archive:
             command += [str(ROOT / 'test/cmake/xp_ffi_host.cpp'), archive]

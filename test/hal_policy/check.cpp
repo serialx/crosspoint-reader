@@ -5,6 +5,8 @@
 #include <DeviceSecret.h>
 #include <TrustedTime.h>
 #include <HalClock.h>
+#include <HalPowerManager.h>
+#include <BoardConfig.h>
 #include <HalFrontlight.h>
 #include <HalTiltSensor.h>
 #include <cstring>
@@ -61,6 +63,23 @@ int main(int argc, char** argv) {
   }
   imuRead = false; ticks += 1000; sensor.update(1,0,true); sensor.update(1,0,false);
   sensor.clearPendingEvents(); sensor.deepSleep();
+ } else if (!strcmp(argv[1], "power")) {
+  wifiConnected = false; chargerOk = variant == 1; cpuFreq = variant == 2 ? 0 : 160;
+  powerManager.setPowerSaving(true); powerManager.begin();
+  for (bool wifi : {false,true,false}) for (bool ok : {false,true}) {
+   wifiConnected = wifi; cpuOk = ok;
+   powerManager.setPowerSaving(true);
+   { HalPowerManager::Lock first; HalPowerManager::Lock nested; powerManager.setPowerSaving(true); }
+   powerManager.setPowerSaving(true); powerManager.setPowerSaving(false);
+  }
+  BoardConfig::ACTIVE.batteryGauge.gaugeAddr = variant == 3 ? 0 : 1;
+  for (uint32_t t : {0u,1u,1499u,1500u,1501u,3000u,0xfffffff0u,30u,1500u}) {
+   ticks = t;
+   for (bool ok : {true,false}) {
+    batteryOk = ok; batteryPercent = (t % 101);
+    printf("percent %u\n", powerManager.getBatteryPercentage());
+   }
+  }
  } else if (!strcmp(argv[1], "clock")) {
   rtcBegin = variant != 1; rtcRead = variant != 2; wifiConnected = variant != 3; rtcWrite = variant != 4;
   HalClock clock; clock.begin(); clock.setTimezone("UTC0");

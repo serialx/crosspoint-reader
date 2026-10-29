@@ -23,3 +23,9 @@ inline time_t testTime(time_t*) { printf("time %lld\n", (long long)clockNow); re
 inline int testSetTime(const timeval* tv, const void*) { clockNow = tv->tv_sec; printf("settime %lld\n", (long long)clockNow); return 0; }
 #define time testTime
 #define settimeofday testSetTime
+inline bool cpuOk = true;
+inline int cpuFreq = 160;
+constexpr int INPUT = 0;
+inline void pinMode(int pin, int mode) { printf("pinMode %d %d\n", pin, mode); }
+inline int getCpuFrequencyMhz() { puts("cpu get"); return cpuFreq; }
+inline bool setCpuFrequencyMhz(int mhz) { printf("cpu set %d %u\n", mhz, cpuOk); if (cpuOk) cpuFreq = mhz; return cpuOk; }

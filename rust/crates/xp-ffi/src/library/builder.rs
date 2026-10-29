@@ -435,7 +435,7 @@ fn ext(name: &[u8], suffix: &[u8]) -> bool {
     name.len() >= suffix.len() && name[name.len() - suffix.len()..].eq_ignore_ascii_case(suffix)
 }
 fn hidden(name: &[u8]) -> bool {
-    name.first() == Some(&b'.') || name == b"System Volume Information" || name == b"XTCache"
+    name.first() == Some(&b'.') || crate::system_items::hidden_name(name)
 }
 pub fn book(path: &[u8]) -> bool {
     !path.split(|&c| c == b'/').any(|p| p != b"." && hidden(p))

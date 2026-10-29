@@ -175,4 +175,5 @@ set_tests_properties(TrustedTimeTimezone PROPERTIES
 
 add_subdirectory(book_io)
 add_subdirectory(ui_settings)
+add_subdirectory(ui_network)
 add_subdirectory(section_io)

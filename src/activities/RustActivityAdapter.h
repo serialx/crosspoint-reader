@@ -45,6 +45,8 @@ class RustActivityAdapter : public Activity {
   // rejection; only a complete successful publication may clear it. Hooks run
   // under ModelLock and may touch only scalars/fixed POD, never owning resources.
   void rejectRustScene();
+  // An action waiting for RenderLock, ResourceLock or TextLock after the input
+  // gate must recheck rustSceneRejected() after that wait, before acting.
   bool rustSceneRejected() const;
   // Call before custom input, including native long presses and queued contacts.
   // Consumes failed/held-over gestures, preserves the family's cancel policy,

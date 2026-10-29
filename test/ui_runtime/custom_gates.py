@@ -56,6 +56,16 @@ struct UpdateUiActivity:RustActivityAdapter {
  bool rejected(){return rustSceneRejected();}
 };
 '''
+code+=r'''
+struct FontDownloadActivity:RustActivityAdapter {
+ using RustActivityAdapter::RustActivityAdapter;
+ struct ResourceLock{ResourceLock(FontDownloadActivity& a){if(a.rejectDuringWait)a.rejectRustScene();}};
+ bool rejectDuringWait=false,rowsDirty_=false;unsigned changes=0;
+ void closeRouting(){} void buildFilteredIndices(int){++changes;}
+ void notify(XpUiUpdateEvent){} void enterGroup(int);
+};
+'''
+code+=method('src/activities/settings/FontDownloadActivity.cpp','FontDownloadActivity::enterGroup(')
 for name,path in [('CatalogUiActivity','src/activities/CatalogUiActivity.cpp'),('UpdateUiActivity','src/activities/settings/UpdateUiActivity.cpp')]:
  names=['render','loop','rustSceneFailed','rustPublished','cancelRejectedInput','updateRust','applyRustEffect','rustInterest']
  if name=='CatalogUiActivity':names+=['buildRustScene']
@@ -84,6 +94,8 @@ template<class T>void check(T& a,GfxRenderer& r,MappedInputManager& i,bool publi
  a.loop();assert(a.backs==1);
 }
 int main(){
+ for(bool reject:{false,true}){GfxRenderer r;MappedInputManager i;FontDownloadActivity f("font",r,i);
+ f.rejectDuringWait=reject;f.enterGroup(1);assert(f.changes==unsigned(!reject));assert(f.rowsDirty_==!reject);}
  for(bool published:{false,true})for(bool build:{false,true})for(bool touch:{false,true}){
  GfxRenderer r;r.finishRefresh=true;MappedInputManager i;
  CatalogUiActivity c("catalog",r,i);xp_ui_catalog_init(&c.ui,XP_UI_CATALOG_SERVERS,0,0);

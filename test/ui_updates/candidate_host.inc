@@ -1,5 +1,6 @@
 #include <xp_ui_updates.h>
 struct UpdateUiActivity:Activity {
+ bool rustSceneRejected() const { return false; }
  XpUiUpdateState model{},painting{};XpUiUpdateFeedback feedback{};
  struct ModelLock { explicit ModelLock(UpdateUiActivity&){} };
  UpdateUiActivity(const char*n,GfxRenderer&r,MappedInputManager&i,XpUiUpdateKind k,bool recovery=false):Activity(n,r,i){xp_ui_updates_init(&model,k,recovery);}

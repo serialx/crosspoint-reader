@@ -53,6 +53,7 @@ class ClipSelectionActivity final : public RustActivityAdapter {
   bool isLookup() const { return mode != Mode::Clip; }
   void confirmSelection(ClippingResult::Action action = ClippingResult::Action::Clip);
   void loopButtons();
+  void drainRejectedTouch();
   bool handleButtons(uint8_t buttons);
   void cancel();
   bool buildSelectedText(int first, int last, std::string& text) const;

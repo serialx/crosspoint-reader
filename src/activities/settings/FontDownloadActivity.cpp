@@ -464,6 +464,10 @@ void FontDownloadActivity::buildFilteredIndices(const int groupListIndex) {
 
 void FontDownloadActivity::enterGroup(const int groupListIndex) {
   ResourceLock resources(*this);
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return;
+  }
   closeRouting();
   buildFilteredIndices(groupListIndex);
   {

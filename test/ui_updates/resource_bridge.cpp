@@ -104,9 +104,21 @@ struct UpdateUiActivity {
   }
   XpUiPaint rustResources() { return {}; }
   Publication* rustPublication() { return &publication; }
+  bool rustSceneRejected() const { return false; }
+  void requestUpdate() {}
   void render(RenderLock&&);
   bool paintRustScene(const XpUiScene&);
   void rustPublished();
+  void rejectRustScene() {
+    ModelLock lock(*this);
+    publication.ready = false;
+    rustSceneFailed();
+  }
+  void publishRustScene(const XpUiScene&) {
+    ModelLock lock(*this);
+    rustPublished();
+    publication.ready = true;
+  }
   void rustSceneFailed();
   XpUiEffect updateRust(const XpUiInput&);
   int selectedIndex() const { return model.list.selected; }

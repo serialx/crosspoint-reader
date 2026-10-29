@@ -143,6 +143,7 @@ class ClipSelectionActivity:public RustActivityAdapter {
  } actionPopup;
  void cancel(){++cancellations;}
  void loopButtons(){++actions;}
+ void drainRejectedTouch();
  const XpUiSelectionWord* wireWords(){return nullptr;}
  XpUiSelectionLayout sampleLayout(){return {};}
  void applySelection(const XpUiSelectionUpdate&){++actions;}
@@ -152,7 +153,7 @@ class ClipSelectionActivity:public RustActivityAdapter {
  void cancelRejectedInput(const XpUiInput&)override;
 };
 '''
-for signature in ['void ClipSelectionActivity::loop(', 'void ClipSelectionActivity::render(']:
+for signature in ['void ClipSelectionActivity::drainRejectedTouch(', 'void ClipSelectionActivity::loop(', 'void ClipSelectionActivity::render(']:
     code += method('src/activities/reader/ClipSelectionActivity.cpp', signature).replace('xp_ui_selection_view(', 'buildSelection(')
 for name in ['rustSceneFailed', 'cancelRejectedInput']:
     code += method('src/activities/reader/ClipSelectionActivity.h', '  void '+name+'(').replace('  void '+name+'(', 'void ClipSelectionActivity::'+name+'(').replace(' override', '')

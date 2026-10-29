@@ -33,6 +33,9 @@ class ImageBlock final : public Block {
   // to streaming when it doesn't fit); the reader calls this when the page
   // render completes so nothing stays resident between pages.
   static void releaseRenderCache();
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  static void setRenderReadWindow(uint8_t* data, size_t size);
+#endif
 
   // Lazy extraction hook: the section build only header-probes images for their
   // dimensions; the file at imagePath is extracted out of the book on first

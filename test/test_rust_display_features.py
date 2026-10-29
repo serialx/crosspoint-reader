@@ -17,6 +17,12 @@ class DisplayFeaturesTest(unittest.TestCase):
         self.assertEqual(selection.display_features([
             ("FREEINK_RUST_PANEL", 0), "FREEINK_DEVICE_X3"]), [])
 
+    def test_strip_flag_requires_rust_panel(self):
+        with self.assertRaises(ValueError):
+            selection.display_features(["XP_STRIP_RENDER", "FREEINK_DEVICE_X3"])
+        self.assertIn("reader-strips", self.select("FREEINK_DEVICE_X3", extra=["XP_STRIP_RENDER"]))
+        self.assertNotIn("reader-strips", self.select("FREEINK_DEVICE_X3", extra=[("XP_STRIP_RENDER", 0)]))
+
     def test_c3(self):
         self.assertEqual(self.select("FREEINK_DEVICE_X3", "FREEINK_DEVICE_X4"), [
             "display-ssd1677", "display-uc8179", "display-uc8253",

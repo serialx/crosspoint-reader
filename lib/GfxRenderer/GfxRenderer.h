@@ -94,6 +94,12 @@ class GfxRenderer {
   mutable int _stripY0 = 0;
   mutable int _stripRows = 0;
   mutable bool _stripActive = false;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  mutable XpPagePlan* pagePlan = nullptr;
+  mutable XpPageRowBounds* pageBounds = nullptr;
+  mutable size_t pageBoundsCount = 0;
+  mutable bool preparePagePlan = false;
+#endif
   mutable int clipLeft_ = 0;
   mutable int clipTop_ = 0;
   mutable int clipRight_ = 32767;
@@ -125,6 +131,47 @@ class GfxRenderer {
     void* images;
     void (*image)(void*, uint16_t, int32_t, int32_t, uint8_t);
   };
+  uint32_t renderPage(const uint8_t* arena, size_t size, const XpNativeProvider* provider,
+                      const XpPageRenderServices* services, XpGlyphPaint* paint, int32_t font, int32_t x, int32_t y,
+                      uint8_t mode) const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    if (pagePlan)
+      return xp_page_plan_render(arena, size, provider, services, paint, font, x, y, mode, pageBounds, pageBoundsCount,
+                                 pagePlan, preparePagePlan);
+#endif
+    return xp_page_render(arena, size, provider, services, paint, font, x, y, mode);
+  }
+
+  // Image polarity follows the strip target only in the opt-in reader path.
+  bool skipImageStrip() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return false;
+#else
+    return _stripActive;
+#endif
+  }
+  int imageOrigin() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return getWriteOriginY();
+#else
+    return 0;
+#endif
+  }
+  int imageEnd() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return getWriteOriginY() + getWriteRows();
+#else
+    return panelHeight;
+#endif
+  }
+  uint8_t* imageBuffer() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return getWriteTarget();
+#else
+    return frameBuffer;
+#endif
+  }
+
   XpGlyphTarget glyphTarget() const;
   void glyphSource(const EpdFontData* font, XpGlyphSource& source) const;
   static XpGlyphBitmap glyphMiss(void* raw, uint32_t cp, const void* glyph, XpGlyphDraw* draw, XpGlyphSource* source);
@@ -304,6 +351,10 @@ class GfxRenderer {
   // whose physical row falls outside the band are clipped. The clip is applied
   // after the orientation rotate, so it is orientation-agnostic. Used to render
   // grayscale planes band-by-band without a full second buffer.
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  void usePagePlan(XpPagePlan* plan, XpPageRowBounds* bounds, size_t count, bool prepare = false) const;
+  void copyStatusToStrip(int top, bool sourceInverted) const;
+#endif
   void beginStripTarget(uint8_t* scratch, int stripY0, int stripRows) const;
   void endStripTarget() const;
 

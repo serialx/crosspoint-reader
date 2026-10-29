@@ -275,3 +275,26 @@ ratios. It reports preparation separately and estimates two draws as
 `(preparation + 2 * strip_draw) / full_draw`; SPI transfer and panel refresh time
 are not included in that estimate. Physical X3 (792×528), X4 (800×480), and odd
 widths also have direct target tests in `xp-core::strip::tests`.
+
+## Reader strip integration
+
+`XP_STRIP_RENDER=1` requires `FREEINK_RUST_PANEL=1`. Both are opt-in build
+flags. The firmware uses the strip source only on single-buffer UC8253 X3 and
+SSD1677 X4. Other screens and controllers retain the framebuffer path. The
+framebuffer remains allocated; this stage does not save its RAM.
+
+The reader prepares one borrowed word/primitive plan after font prewarming and
+reuses it across BW, gray planes and old-frame replay. Page arena, font geometry,
+orientation, origin and element bounds remain fixed until the source is cleared.
+The activity reserves 8,000 scratch bytes, 16,384 command bytes and 4,096 bounds
+bytes; image pages add a 4,096-byte read window. Allocation failure or excess
+capacity uses the buffered path and releases partial reservations. Source
+callbacks do not allocate these buffers; existing image/font cache misses may
+still allocate. Device CPU and task-stack qualification are required before
+any default enablement.
+
+To exercise retained plans, add `-DSTRIP_PLAN=ON` and replace `strip-spike` with
+`reader-strips` in `XP_FFI_HOST_FEATURES` in the commands above. The expanded
+matrix also includes 80- and 160-row bands. `ReaderStripBuffersTest` in the full
+host suite checks every buffer allocation failure and retry. The retained-plan
+harness also checks null storage, missing/short bounds and exhausted capacity.

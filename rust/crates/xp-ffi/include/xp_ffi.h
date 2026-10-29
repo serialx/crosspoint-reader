@@ -1939,6 +1939,27 @@ uint8_t xp_library_book(const uint8_t*, size_t);
 uint8_t xp_library_build(const XpLibraryServices*, const uint8_t*, size_t, XpLibraryStats*, uint8_t, uint8_t*);
 uint8_t xp_library_dirty(const XpLibraryServices*, uint8_t*, uint8_t);
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+void xp_strip_packed_row(const XpImageTarget* target, int32_t x, int32_t y, int32_t width, const uint8_t* row,
+                         size_t len);
+// Commands borrow page bytes; invalidate on page/font/origin/orientation change.
+// Storage must be pointer-aligned; bounds needs one entry per page element.
+// Prepare clears valid on failure. Replay requires valid and unchanged storage/bounds.
+typedef struct {
+  int32_t start, end;
+} XpPageRowBounds;
+typedef struct {
+  void* storage;
+  size_t capacity_bytes;
+  size_t count;
+  uint8_t valid;
+} XpPagePlan;
+uint32_t xp_page_plan_render(const uint8_t* arena, size_t size, const XpNativeProvider* provider,
+                             const XpPageRenderServices* services, XpGlyphPaint* paint, int32_t font, int32_t x,
+                             int32_t y, uint8_t mode, XpPageRowBounds* bounds, size_t count, XpPagePlan* plan,
+                             uint8_t prepare);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

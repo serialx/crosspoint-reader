@@ -398,7 +398,7 @@ static bool stripPixels(const Page& page, GfxRenderer& renderer, FontCacheManage
           if (byte != 0x5a) return false;
         const auto prepareStats = stripStats;
         stripPhase = 0;
-        for (int band : {0, 1, 8, 16, 32, 37, 48, 64, int(HalDisplay::DISPLAY_HEIGHT)}) {
+        for (int band : {0, 1, 8, 16, 32, 37, 48, 64, 80, 160, int(HalDisplay::DISPLAY_HEIGHT)}) {
           renderer.setRenderMode(GfxRenderer::BW);
           renderer.displayGrayscaleBase(HalDisplay::FULL_REFRESH);
           for (int plane = 0; plane < 3; ++plane) {
@@ -580,3 +580,42 @@ int main(int argc, char** argv) {
   ImageBlock::releaseRenderCache();
   return std::cout.good() ? 0 : 19;
 }
+
+#ifdef XP_STRIP_PLAN
+struct PlanStorage {
+  void* storage;
+  size_t capacity_bytes, count;
+  uint8_t valid;
+};
+extern "C" uint32_t xp_page_plan_render(const uint8_t*, size_t, const XpNativeProvider*, const XpPageRenderServices*,
+                                        XpGlyphPaint*, int32_t, int32_t, int32_t, uint8_t, StripBounds*, size_t,
+                                        PlanStorage*, uint8_t);
+uint32_t pageGoldenPlan(const uint8_t* arena, size_t size, const XpNativeProvider* provider,
+                        const XpPageRenderServices* services, XpGlyphPaint* paint, int32_t font, int32_t x, int32_t y,
+                        uint8_t mode) {
+  static uint64_t commands[16384 / sizeof(uint64_t)];
+  static PlanStorage plan{commands, sizeof(commands), 0, 0};
+  static bool faultsChecked = false;
+  if (stripPhase == 1 && !faultsChecked && !stripBounds.empty()) {
+    const auto attempt = [&](PlanStorage& probe, StripBounds* bounds, size_t count) {
+      return xp_page_plan_render(arena, size, provider, services, paint, font, x, y, mode, bounds, count, &probe, 1);
+    };
+    PlanStorage probe{nullptr, sizeof(commands), 0, 1};
+    if (attempt(probe, stripBounds.data(), stripBounds.size()) != 1 || probe.valid) std::abort();
+    probe = {commands, sizeof(commands), 0, 1};
+    if (attempt(probe, nullptr, stripBounds.size()) != 1 || probe.valid) std::abort();
+    probe = {commands, sizeof(commands), 0, 1};
+    if (attempt(probe, stripBounds.data(), 0) != 1 || probe.valid) std::abort();
+    probe = {commands, 0, 0, 1};
+    if (attempt(probe, stripBounds.data(), stripBounds.size()) != 2 || probe.valid) std::abort();
+    faultsChecked = true;
+  }
+  const auto status = xp_page_plan_render(arena, size, provider, services, paint, font, x, y, mode, stripBounds.data(),
+                                          stripBounds.size(), &plan, stripPhase == 1);
+  if (status == 2 || (!plan.valid && stripPhase != 1)) {
+    return xp_page_strip_render(arena, size, provider, services, paint, font, x, y, mode, stripBounds.data(),
+                                stripBounds.size(), &stripStats, stripPhase == 1);
+  }
+  return status;
+}
+#endif

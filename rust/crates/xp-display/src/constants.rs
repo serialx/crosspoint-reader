@@ -8,6 +8,7 @@ pub const INVALID: u32 = 1;
 pub const UNSUPPORTED: u32 = 2;
 pub const FLAG_TURN_OFF: u32 = 1;
 pub const FLAG_FACTORY: u32 = 2;
+pub const FLAG_RESTORE_WINDOW: u32 = 4;
 pub const RESULT_ASYNC: u32 = 1;
 pub const RESULT_ABORTED: u32 = 2;
 pub const RESULT_COMMITTED: u32 = 4;

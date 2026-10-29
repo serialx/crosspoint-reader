@@ -38,6 +38,10 @@ namespace {
 
 // Version 2 rebuilds pixels decoded by PNGdec's faulty zlib fast-copy path.
 constexpr char PIXEL_CACHE_EXTENSION[] = ".px2";
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+uint8_t* renderReadWindow = nullptr;
+size_t renderReadWindowSize = 0;
+#endif
 
 std::string getCachePath(const std::string_view imagePath) {
   // The filename versions decoded pixels without changing the packed format.
@@ -177,7 +181,14 @@ void renderRowsFromPxcSlot(GfxRenderer& renderer, int x, int y) {
 
   for (int row = 0; row < pxcSlotHeight; row++) {
     const uint8_t* rowBuffer = pxcRowPtr((size_t)row * bytesPerRow, bytesPerRow, tempRow);
-    xp_image_packed_row(&target, x, y + row, pxcSlotWidth, rowBuffer, bytesPerRow);
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    if (target.rows < target.height) {
+      xp_strip_packed_row(&target, x, y + row, pxcSlotWidth, rowBuffer, bytesPerRow);
+    } else
+#endif
+    {
+      xp_image_packed_row(&target, x, y + row, pxcSlotWidth, rowBuffer, bytesPerRow);
+    }
   }
 }
 
@@ -230,7 +241,14 @@ bool renderFromCache(GfxRenderer& renderer, const std::string& cachePath, int x,
   int rowsPerRead = 4096 / bytesPerRow;
   if (rowsPerRead < 1) rowsPerRead = 1;
   if (rowsPerRead > cachedHeight) rowsPerRead = cachedHeight;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  const bool borrowed = renderReadWindow && renderReadWindowSize >= static_cast<size_t>(bytesPerRow);
+  if (borrowed) rowsPerRead = std::min(rowsPerRead, static_cast<int>(renderReadWindowSize / bytesPerRow));
+  uint8_t* readBuffer = borrowed ? renderReadWindow : (uint8_t*)malloc((size_t)rowsPerRead * bytesPerRow);
+#else
+  constexpr bool borrowed = false;
   uint8_t* readBuffer = (uint8_t*)malloc((size_t)rowsPerRead * bytesPerRow);
+#endif
   if (!readBuffer) {
     // Fall back to a single-row buffer under memory pressure.
     rowsPerRead = 1;
@@ -251,7 +269,7 @@ bool renderFromCache(GfxRenderer& renderer, const std::string& cachePath, int x,
       const size_t bytes = (size_t)toRead * bytesPerRow;
       if (cacheFile.read(readBuffer, bytes) != static_cast<int>(bytes)) {
         LOG_ERR("IMG", "Cache read error at row %d", row);
-        free(readBuffer);
+        if (!borrowed) free(readBuffer);
         return false;
       }
       rowsInBuffer = toRead;
@@ -261,10 +279,17 @@ bool renderFromCache(GfxRenderer& renderer, const std::string& cachePath, int x,
     const uint8_t* rowBuffer = readBuffer + (size_t)bufferRow * bytesPerRow;
     bufferRow++;
 
-    xp_image_packed_row(&target, x, y + row, cachedWidth, rowBuffer, bytesPerRow);
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    if (target.rows < target.height) {
+      xp_strip_packed_row(&target, x, y + row, cachedWidth, rowBuffer, bytesPerRow);
+    } else
+#endif
+    {
+      xp_image_packed_row(&target, x, y + row, cachedWidth, rowBuffer, bytesPerRow);
+    }
   }
 
-  free(readBuffer);
+  if (!borrowed) free(readBuffer);
   LOG_DBG("IMG", "Cache render complete");
   return true;
 }
@@ -287,6 +312,12 @@ bool ImageBlock::needsDecode() const { return !imageFailedThisRender(imagePath) 
 void ImageBlock::clearRenderFailures() { failedImageCount = 0; }
 
 void ImageBlock::releaseRenderCache() { releasePxcSlot(); }
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+void ImageBlock::setRenderReadWindow(uint8_t* data, size_t size) {
+  renderReadWindow = data;
+  renderReadWindowSize = size;
+}
+#endif
 
 void ImageBlock::renderPlaceholder(GfxRenderer& renderer, const int x, const int y) const {
   renderer.fillRect(x, y, width, height, true);
@@ -331,6 +362,20 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
     return;
   }
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  if (renderReadWindow && pxcSlotWidth) {
+    // Test the resident slot before constructing a temporary cache pathname.
+    uint64_t hash = imagePathHash(imagePath.substr(0, imagePath.rfind('.')));
+    for (const char c : std::string_view(PIXEL_CACHE_EXTENSION)) {
+      hash = (hash ^ static_cast<uint8_t>(c)) * 1099511628211ull;
+    }
+    if (hash == pxcSlotHash) {
+      renderRowsFromPxcSlot(renderer, x, y);
+      renderer.preserveImagePolarity(x, y, width, height);
+      return;
+    }
+  }
+#endif
   // Try to render from cache first
   std::string cachePath = getCachePath(imagePath);
   if (renderFromCache(renderer, cachePath, x, y, width, height)) {

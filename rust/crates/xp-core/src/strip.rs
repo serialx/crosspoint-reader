@@ -16,7 +16,8 @@ pub struct Strip<'a> {
     bytes: &'a mut [u8],
 }
 impl<'a> Strip<'a> {
-    /// Borrows exactly `stride * rows` bytes. Invalid geometry never writes storage.
+    /// Borrows the provided storage; writes only `stride * rows` bytes.
+    /// Invalid geometry never writes storage.
     pub fn new(target: GlyphTarget, bytes: &'a mut [u8]) -> Option<Self> {
         if !target.valid() || bytes.len() < target.buffer_len as usize {
             return None;

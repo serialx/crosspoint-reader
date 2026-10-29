@@ -2133,8 +2133,91 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     renderer.clearScreen();
   }
 
-  drawClippingHighlights(*page, fontId, orientedMarginTop, orientedMarginLeft);
-  page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  struct StripFrame {
+    EpubReaderActivity& owner;
+    Page& page;
+    int font, left, top, statusTop;
+    XpPagePlan plan{};
+    XpDisplaySource source{};
+    bool active = false;
+    ~StripFrame() {
+      if (active) display.setFrameSource(nullptr);
+      owner.renderer.usePagePlan(nullptr, nullptr, 0);
+      ImageBlock::setRenderReadWindow(nullptr, 0);
+    }
+    static uint32_t paint(void* raw, uint8_t* scratch, uint16_t y, uint16_t rows) {
+      auto& c = *static_cast<StripFrame*>(raw);
+      auto& r = c.owner.renderer;
+      const auto priorMode = r.getRenderMode();
+      r.setRenderMode(GfxRenderer::BW);
+      r.beginStripTarget(scratch, y, rows);
+      r.clearScreen();
+      c.owner.drawClippingHighlights(c.page, c.font, c.top, c.left);
+      c.page.render(r, c.font, c.left, c.top);
+      r.copyStatusToStrip(c.statusTop, display.isInverted());
+      r.endStripTarget();
+      if (display.isInverted()) {
+        for (size_t i = 0; i < static_cast<size_t>(rows) * r.getDisplayWidthBytes(); ++i) scratch[i] ^= 0xFF;
+      }
+      const size_t bytes = static_cast<size_t>(rows) * r.getDisplayWidthBytes();
+      const auto* expected = r.getFrameBuffer() + static_cast<size_t>(y) * r.getDisplayWidthBytes();
+      if (c.page.hasImages() && memcmp(scratch, expected, bytes) != 0) {
+        r.setRenderMode(priorMode);
+        return 1;
+      }
+      // Keep the existing screenshot/overlay buffer valid as the page streams.
+      memcpy(r.getFrameBuffer() + static_cast<size_t>(y) * r.getDisplayWidthBytes(), scratch,
+             static_cast<size_t>(rows) * r.getDisplayWidthBytes());
+      r.setRenderMode(priorMode);
+      return 0;
+    }
+  } stripFrame{*this,
+               *page,
+               fontId,
+               orientedMarginLeft,
+               orientedMarginTop,
+               renderer.getScreenHeight() - orientedMarginBottom - 8};
+  const bool stripBoard = display.getController() == HalDisplay::Controller::UC8253 ||
+                          (BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4 &&
+                           display.getController() == HalDisplay::Controller::SSD1677);
+  if (stripBoard && page->elementCount() <= ReaderStripBuffers::MAX_ELEMENTS) {
+    const size_t scratchBytes = static_cast<size_t>(renderer.getDisplayWidthBytes()) * ReaderStripBuffers::ROWS;
+    if (stripBuffers.prepare(renderer.getDisplayWidthBytes(), pageHasImages)) {
+      ImageBlock::setRenderReadWindow(stripBuffers.imageWindow.get(), stripBuffers.imageWindow ? 4096 : 0);
+      stripFrame.plan = {stripBuffers.commands.get(), ReaderStripBuffers::COMMAND_BYTES, 0, 0};
+      renderer.usePagePlan(&stripFrame.plan, stripBuffers.bounds.get(), page->elementCount(), true);
+      page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
+      renderer.usePagePlan(stripFrame.plan.valid ? &stripFrame.plan : nullptr, stripBuffers.bounds.get(),
+                           page->elementCount());
+      if (stripFrame.plan.valid) {
+        stripFrame.source = {sizeof(XpDisplaySource),    &stripFrame,
+                             stripBuffers.scratch.get(), static_cast<uint32_t>(scratchBytes),
+                             ReaderStripBuffers::ROWS,   renderer.getDisplayWidth(),
+                             &StripFrame::paint};
+        stripFrame.active = display.setFrameSource(&stripFrame.source);
+      }
+    } else {
+      LOG_ERR("ERS", "OOM: reader strips (%u bytes); using framebuffer",
+              static_cast<unsigned>(ReaderStripBuffers::SCRATCH_BYTES + ReaderStripBuffers::COMMAND_BYTES +
+                                    sizeof(XpPageRowBounds) * ReaderStripBuffers::MAX_ELEMENTS +
+                                    (pageHasImages ? 4096 : 0)));
+    }
+  }
+  if (!stripFrame.active) {
+    renderer.usePagePlan(nullptr, nullptr, 0);
+    ImageBlock::setRenderReadWindow(nullptr, 0);
+    stripBuffers = {};
+  }
+#endif
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  if (!stripFrame.active || pageHasImages) {
+#endif
+    drawClippingHighlights(*page, fontId, orientedMarginTop, orientedMarginLeft);
+    page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  }
+#endif
   renderStatusBar();
   const auto tBwRender = millis();
 
@@ -2176,7 +2259,11 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   const auto tDisplay = millis();
 
   if (tiledGrayscale) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    const int STRIP_ROWS = stripFrame.active ? ReaderStripBuffers::ROWS : 80;
+#else
     constexpr int STRIP_ROWS = 80;
+#endif
     const int gh = renderer.getDisplayHeight();
     const int gwBytes = renderer.getDisplayWidthBytes();
     const size_t planeBytes = static_cast<size_t>(gwBytes) * gh;
@@ -2198,7 +2285,12 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       return ESP.getFreeHeap() >= planeBytes + PLANE_BUF_HEADROOM &&
              ESP.getMaxAllocHeap() >= planeBytes + PLANE_BUF_MAX_ALLOC_RESERVE;
     };
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    auto lsbPlaneBuf =
+        (!stripFrame.active && overlapRefresh && planeBufFits()) ? makeUniqueNoThrow<uint8_t[]>(planeBytes) : nullptr;
+#else
     auto lsbPlaneBuf = (overlapRefresh && planeBufFits()) ? makeUniqueNoThrow<uint8_t[]>(planeBytes) : nullptr;
+#endif
     auto msbPlaneBuf = (lsbPlaneBuf && planeBufFits()) ? makeUniqueNoThrow<uint8_t[]>(planeBytes) : nullptr;
 
     if (lsbPlaneBuf) {
@@ -2231,7 +2323,17 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
               tPrewarm - t0, tBwRender - tPrewarm, tDisplay - tBwRender, tGrayRender - tDisplay, tWait - tGrayRender,
               tGrayWrite - tWait, tGrayDisplay - tGrayWrite, tEnd - tGrayDisplay, tEnd - t0, msbPlaneBuf ? 2 : 1);
     } else {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      struct Scratch {
+        std::unique_ptr<uint8_t[]> owned;
+        uint8_t* borrowed;
+        uint8_t* get() const { return borrowed ? borrowed : owned.get(); }
+        explicit operator bool() const { return get() != nullptr; }
+      } scratch{stripFrame.active ? nullptr : makeUniqueNoThrow<uint8_t[]>(static_cast<size_t>(gwBytes) * STRIP_ROWS),
+                stripFrame.active ? stripBuffers.scratch.get() : nullptr};
+#else
       auto scratch = makeUniqueNoThrow<uint8_t[]>(static_cast<size_t>(gwBytes) * STRIP_ROWS);
+#endif
       renderer.waitRefreshComplete();
       if (!scratch) {
         LOG_ERR("ERS", "OOM: grayscale strip scratch (%d bytes); skipping AA this page", gwBytes * STRIP_ROWS);

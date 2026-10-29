@@ -1,6 +1,6 @@
 //! SSD1677 controller policy, ported from FreeInk SDK 08effe64 Ssd1677Driver.
 //! Framebuffers are borrowed for each call; controller RED RAM owns the baseline.
-use crate::{constants::*, ssd1677_luts::*, Bus};
+use crate::{constants::*, frame::Frame, ssd1677_luts::*, Bus};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Refresh {
@@ -254,6 +254,37 @@ impl Ssd1677 {
         bus.cmd(command);
         bus.data_span(data);
     }
+    fn write_frame(
+        &self,
+        bus: &mut impl Bus,
+        command: u8,
+        frame: &mut Frame<'_>,
+    ) -> Result<(), u32> {
+        let Some(source) = frame.source() else {
+            Self::write(bus, command, frame.bytes());
+            return Ok(());
+        };
+        let stride = usize::from(self.width / 8);
+        let mut y = 0;
+        while y < self.height {
+            let rows = source.rows().min(self.height - y);
+            if rows == 0 {
+                return Err(INVALID);
+            }
+            let data = source.paint(y, rows)?;
+            if data.len() != stride * usize::from(rows) {
+                return Err(INVALID);
+            }
+            self.area(bus, 0, y, self.width, rows);
+            bus.cmd(command);
+            bus.txn_begin();
+            bus.txn_write(data);
+            bus.txn_end();
+            y += rows;
+        }
+        self.area(bus, 0, 0, self.width, self.height);
+        Ok(())
+    }
     fn fill(&self, bus: &mut impl Bus, command: u8, byte: u8) {
         let chunk = [byte; 128];
         bus.cmd(command);
@@ -418,10 +449,28 @@ impl Ssd1677 {
         bus: &mut impl Bus,
         frame: &[u8],
         previous: Option<&[u8]>,
-        mut mode: Refresh,
+        mode: Refresh,
         turn_off: bool,
         deferred: bool,
     ) {
+        let _ = self.display_frame(
+            bus,
+            &mut Frame::buffered(frame),
+            previous,
+            mode,
+            turn_off,
+            deferred,
+        );
+    }
+    pub fn display_frame(
+        &mut self,
+        bus: &mut impl Bus,
+        frame: &mut Frame<'_>,
+        previous: Option<&[u8]>,
+        mut mode: Refresh,
+        turn_off: bool,
+        deferred: bool,
+    ) -> Result<(), u32> {
         let cold = self.has(STATE_INITIAL_FULL);
         self.set(STATE_PENDING_SYNC, self.cfg.black_pulse && deferred);
         if self.has(STATE_NEEDS_GRAY_CLEAR) {
@@ -456,28 +505,32 @@ impl Ssd1677 {
             self.area(bus, 0, 0, self.width, self.height);
             self.fill(bus, 0x24, 0);
             self.fill(bus, 0x26, 0);
-            Self::write(bus, 0x24, frame);
+            self.write_frame(bus, 0x24, frame)?;
             self.refresh(bus, Refresh::Fast, turn_off, deferred);
         } else {
-            Self::write(bus, 0x24, frame);
+            self.write_frame(bus, 0x24, frame)?;
             if mode != Refresh::Fast {
-                Self::write(bus, 0x26, frame);
+                self.write_frame(bus, 0x26, frame)?;
             } else if let Some(previous) = previous {
                 Self::write(bus, 0x26, previous);
             }
             self.refresh(bus, mode, turn_off, deferred);
         }
         if (previous.is_none() || self.cfg.black_pulse) && !deferred {
-            self.sync(bus, frame);
+            self.sync_frame(bus, frame)?;
         }
         if !deferred {
             self.finish_power_off(bus);
         }
+        Ok(())
     }
     fn sync(&self, bus: &mut impl Bus, frame: &[u8]) {
+        let _ = self.sync_frame(bus, &mut Frame::buffered(frame));
+    }
+    fn sync_frame(&self, bus: &mut impl Bus, frame: &mut Frame<'_>) -> Result<(), u32> {
         self.area(bus, 0, 0, self.width, self.height);
-        Self::write(bus, 0x24, frame);
-        Self::write(bus, 0x26, frame);
+        self.write_frame(bus, 0x24, frame)?;
+        self.write_frame(bus, 0x26, frame)
     }
     fn finish_power_off(&mut self, bus: &mut impl Bus) {
         if self.has(STATE_PENDING_OFF) {
@@ -494,6 +547,21 @@ impl Ssd1677 {
         }
         self.set(STATE_PENDING_SYNC, false);
         self.finish_power_off(bus);
+    }
+    pub fn finish_frame(&mut self, bus: &mut impl Bus, frame: &mut Frame<'_>) -> Result<(), u32> {
+        bus.refresh_wait(63);
+        if self.has(STATE_PENDING_SYNC) {
+            self.sync_frame(bus, frame)?;
+        }
+        self.set(STATE_PENDING_SYNC, false);
+        self.finish_power_off(bus);
+        Ok(())
+    }
+    pub fn cleanup_frame(&mut self, bus: &mut impl Bus, frame: &mut Frame<'_>) -> Result<(), u32> {
+        self.area(bus, 0, 0, self.width, self.height);
+        self.write_frame(bus, 0x26, frame)?;
+        self.set(STATE_IN_GRAY, false);
+        Ok(())
     }
     pub fn display_window(
         &mut self,
@@ -572,6 +640,16 @@ impl Ssd1677 {
             self.display(bus, frame, None, fallback, turn_off, false);
         }
     }
+    pub fn begin_overlay_frame(
+        &mut self,
+        bus: &mut impl Bus,
+        frame: &mut Frame<'_>,
+        fallback: Refresh,
+        turn_off: bool,
+    ) -> Result<(), u32> {
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.display_frame(bus, frame, None, fallback, turn_off, false)
+    }
     pub fn gray_strip(&self, bus: &mut impl Bus, msb: bool, rows: &[u8], y: u16, height: u16) {
         if height == 0 {
             return;
@@ -592,6 +670,9 @@ impl Ssd1677 {
             bus.txn_write(&chunk[..input.len()]);
         }
         bus.txn_end();
+    }
+    pub fn restore_full_window(&self, bus: &mut impl Bus) {
+        self.area(bus, 0, 0, self.width, self.height);
     }
     pub fn gray_display(
         &mut self,

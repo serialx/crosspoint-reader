@@ -94,3 +94,8 @@ if(STRIP_IMAGES)
     ${DECODER_SOURCE_DIR}/JPEGDEC/src)
   target_compile_definitions(PageGolden PRIVATE __LINUX__ XP_STRIP_IMAGES=1)
 endif()
+
+option(STRIP_PLAN "Replay retained word placements in strip matrices" OFF)
+if(STRIP_PLAN)
+  target_compile_definitions(PageGolden PRIVATE XP_STRIP_PLAN=1)
+endif()

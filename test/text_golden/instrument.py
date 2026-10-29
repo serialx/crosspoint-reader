@@ -19,7 +19,7 @@ source = source.replace(anchor, '''
         textGoldenGlyph(*c.font, glyph->codepoint, c.paint->x + glyph->x, c.paint->y + glyph->y, c.style);
       });''')
 # Page draws share the same glyph observer without routing through drawText.
-anchor = 'xp_page_render(arena, size, &provider, &services, &paint, fontId, x, y, renderMode)'
+anchor = 'renderPage(arena, size, &provider, &services, &paint, fontId, x, y, renderMode)'
 if source.count(anchor) != 1:
     raise SystemExit('Page paint observer anchor changed')
 source = source.replace(anchor, """xp_page_render_traced(arena, size, &provider, &services, &paint, fontId, x, y, renderMode,

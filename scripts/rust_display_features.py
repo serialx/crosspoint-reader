@@ -16,11 +16,14 @@ CONTROLLERS = {
 def display_features(defines):
     values = {item[0]: str(item[1]) if len(item) > 1 else "1"
               for item in (d if isinstance(d, (tuple, list)) else (d,) for d in defines)}
+    strips = values.get("XP_STRIP_RENDER", "0") != "0"
     if values.get("FREEINK_RUST_PANEL", "0") == "0":
+        if strips:
+            raise ValueError("XP_STRIP_RENDER requires FREEINK_RUST_PANEL")
         return []
     selected = {controller for board, controllers in CONTROLLERS.items()
                 if values.get(board, "0") != "0" for controller in controllers}
     # These SDK configurations deliberately retain the C++ SSD1677 driver.
     if "FREEINK_SSD1677_CONFIG" in values or "SSD1677_PROBE_DEBUG" in values:
         selected.discard("ssd1677")
-    return ["display-" + controller for controller in sorted(selected)]
+    return ["display-" + controller for controller in sorted(selected)] + (["reader-strips"] if strips else [])

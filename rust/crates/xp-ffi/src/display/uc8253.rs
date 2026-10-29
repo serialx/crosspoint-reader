@@ -96,3 +96,39 @@ pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
         }
     }
 }
+
+#[cfg(feature = "reader-strips")]
+pub(super) unsafe fn execute_source(
+    storage: *mut c_void,
+    bus: &mut &DisplayBus,
+    request: &DisplayRequest,
+    source: &mut DisplaySource,
+) -> Result<u32, u32> {
+    if request.data.is_null() || request.data_len as usize > isize::MAX as usize {
+        return Err(INVALID);
+    }
+    if !matches!(
+        request.operation,
+        OP_DISPLAY
+            | OP_DISPLAY_START
+            | OP_DISPLAY_FINISH
+            | OP_GRAY_BASE
+            | OP_GRAY_BEGIN
+            | OP_GRAY_CLEANUP
+    ) {
+        return Err(UNSUPPORTED);
+    }
+    let r = Request {
+        operation: request.operation,
+        mode: request.mode,
+        flags: request.flags,
+        arg: request.arg,
+        x: request.x,
+        y: request.y,
+        width: request.width,
+        height: request.height,
+        data: None,
+    };
+    let panel = &mut (*storage.cast::<State>()).panel;
+    panel.execute_source(bus, r, Some(source))
+}

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <algorithm>
+#include <xp_book.h>
+
 #include <cstdint>
 
 #include "FootnoteEntry.h"
@@ -17,8 +18,7 @@ struct PageLink {
   PageLink() : href{} {}
 
   bool contains(const int pageX, const int pageY, const int slop, const int minWidth) const {
-    const int horizontalSlop = std::max(slop, (minWidth - width) / 2);
-    return pageX >= x - horizontalSlop && pageX < x + width + horizontalSlop && pageY >= y - slop &&
-           pageY < y + height + slop;
+    const int16_t bounds[4] = {x, y, width, height};
+    return xp_book_link_contains(bounds, pageX, pageY, slop, minWidth);
   }
 };

@@ -4,6 +4,7 @@
 #include <Logging.h>
 #include <Memory.h>
 #include <Utf8.h>
+#include <xp_book.h>
 
 #include "SectionCodec.h"
 
@@ -111,11 +112,7 @@ void Page::renderWithImagePlaceholders(GfxRenderer& renderer, const int fontId, 
 }
 
 size_t Page::allocationSize(const size_t arenaBytes, const size_t elements) {
-  const size_t alignment = alignof(ElementData);
-  if (arenaBytes > SIZE_MAX - sizeof(Page) - alignment + 1) return SIZE_MAX;
-  const size_t viewOffset = (sizeof(Page) + arenaBytes + alignment - 1) & ~(alignment - 1);
-  if (elements > (SIZE_MAX - viewOffset) / sizeof(ElementData)) return SIZE_MAX;
-  return viewOffset + elements * sizeof(ElementData);
+  return xp_book_page_allocation(sizeof(Page), arenaBytes, alignof(ElementData), elements, sizeof(ElementData));
 }
 
 size_t Page::plainLineAllocationSize(const size_t encodedBytes, const size_t lines) {
@@ -361,40 +358,64 @@ ImageBlock PageElementView::imageBlock() const {
 }
 
 bool Page::hasImages() const {
-  for (uint16_t i = 0; i < elementCount(); ++i)
-    if (element(i).getTag() == TAG_PageImage) return true;
-  return false;
+#ifdef XP_PAGE_CODEC_TEST
+  if (!arena) {
+    for (uint16_t i = 0; i < elementCount(); ++i)
+      if (element(i).getTag() == TAG_PageImage) return true;
+    return false;
+  }
+#endif
+  return xp_book_page_images(arena, arenaSize, nullptr, nullptr);
 }
 
 bool Page::hasImagesNeedingDecode() const {
-  for (uint16_t i = 0; i < elementCount(); ++i) {
-    const auto e = element(i);
-    if (e.getTag() == TAG_PageImage && e.imageBlock().needsDecode()) return true;
+#ifdef XP_PAGE_CODEC_TEST
+  if (!arena) {
+    for (uint16_t i = 0; i < elementCount(); ++i) {
+      const auto e = element(i);
+      if (e.getTag() == TAG_PageImage && e.imageBlock().needsDecode()) return true;
+    }
+    return false;
   }
-  return false;
+#endif
+  return xp_book_page_images(arena, arenaSize, const_cast<Page*>(this), [](void* raw, uint16_t index) -> uint8_t {
+    return static_cast<Page*>(raw)->element(index).imageBlock().needsDecode();
+  });
 }
 
 bool Page::getImageBoundingBox(int16_t& x, int16_t& y, int16_t& w, int16_t& h) const {
-  bool found = false;
-  int16_t minX = INT16_MAX, minY = INT16_MAX, maxX = INT16_MIN, maxY = INT16_MIN;
-  for (uint16_t i = 0; i < elementCount(); ++i) {
-    const auto e = element(i);
-    if (e.getTag() != TAG_PageImage) continue;
-    const auto img = e.imageBlock();
-    const int16_t right = e.xPos + img.getWidth(), bottom = e.yPos + img.getHeight();
-    minX = std::min(minX, e.xPos);
-    minY = std::min(minY, e.yPos);
-    maxX = std::max(maxX, right);
-    maxY = std::max(maxY, bottom);
-    found = true;
+#ifdef XP_PAGE_CODEC_TEST
+  if (!arena) {
+    bool found = false;
+    int16_t minX = INT16_MAX, minY = INT16_MAX, maxX = INT16_MIN, maxY = INT16_MIN;
+    for (uint16_t i = 0; i < elementCount(); ++i) {
+      const auto e = element(i);
+      if (e.getTag() != TAG_PageImage) continue;
+      const auto img = e.imageBlock();
+      const int16_t right = e.xPos + img.getWidth(), bottom = e.yPos + img.getHeight();
+      minX = std::min(minX, e.xPos);
+      minY = std::min(minY, e.yPos);
+      maxX = std::max(maxX, right);
+      maxY = std::max(maxY, bottom);
+      found = true;
+    }
+    if (found) {
+      x = minX;
+      y = minY;
+      w = maxX - minX;
+      h = maxY - minY;
+    }
+    return found;
   }
-  if (found) {
-    x = minX;
-    y = minY;
-    w = maxX - minX;
-    h = maxY - minY;
-  }
-  return found;
+#endif
+  int16_t bounds[4];
+  uint8_t found = 0;
+  if (xp_page_image_bounds(arena, arenaSize, bounds, &found) || !found) return false;
+  x = bounds[0];
+  y = bounds[1];
+  w = bounds[2];
+  h = bounds[3];
+  return true;
 }
 
 std::string_view PageElementView::dropCapText() const {

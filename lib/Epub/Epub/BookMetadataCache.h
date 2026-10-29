@@ -55,6 +55,7 @@ class BookMetadataCache {
   bool loaded;
   XpPkgCache* build = nullptr;
   struct BuildStreams;
+  struct ReadContext;
   HalFile& fileFor(uint32_t file);
   static uint32_t control(void*, uint32_t, uint32_t);
   static size_t read(void*, uint32_t, uint8_t*, size_t);
@@ -78,7 +79,6 @@ class BookMetadataCache {
   uint32_t bookSize = 0;
   mutable int windowFirst = -1;
   mutable uint32_t window[SIZE_WINDOW] = {};
-  bool fillWindow(int first) const;  // caller holds sizeWindowLock
 
   SpineEntry readSpineEntry(HalFile& file) const;
   TocEntry readTocEntry(HalFile& file) const;

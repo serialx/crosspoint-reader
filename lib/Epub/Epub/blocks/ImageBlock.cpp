@@ -3,6 +3,7 @@
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
 #include <Logging.h>
+#include <xp_book.h>
 #include <xp_ffi.h>
 
 #include "Epub/converters/ImageDecoderFactory.h"
@@ -38,7 +39,9 @@ enum class ImageDiagnostic : uint32_t {
   Decode = 10,
   MissingDecoder = 11,
   DecodeFailed = 12,
-  DecodeComplete = 13
+  DecodeComplete = 13,
+  ExtractBegin = 14,
+  ExtractFailed = 15
 };
 enum class ImageIo : uint32_t {
   OpenCache,
@@ -50,7 +53,10 @@ enum class ImageIo : uint32_t {
   LargestBlock,
   Extract,
   SourceSize,
-  Decode
+  Decode,
+  HasSource,
+  HasExtractor,
+  SourceExists
 };
 enum class ImageResult : uint32_t { NoPixels, Preserve, Placeholder };
 struct Context {
@@ -83,13 +89,14 @@ size_t io(void* raw, uint32_t op, const uint8_t* path, uint8_t* bytes, size_t le
       return ESP.getFreeHeap();
     case ImageIo::LargestBlock:
       return ESP.getMaxAllocHeap();
+    case ImageIo::HasSource:
+      return !self.source.empty();
+    case ImageIo::HasExtractor:
+      return self.extract != nullptr;
+    case ImageIo::SourceExists:
+      return Storage.exists(self.path.data());
     case ImageIo::Extract:
-      if (!self.source.empty() && self.extract && !Storage.exists(self.path.data())) {
-        LOG_DBG("IMG", "Lazy-extracting %s -> %s", self.source.data(), self.path.data());
-        if (!self.extract(self.extractContext, self.source.data(), self.path.data()))
-          LOG_ERR("IMG", "Lazy extraction failed: %s", self.source.data());
-      }
-      return 0;
+      return self.extract(self.extractContext, self.source.data(), self.path.data());
     case ImageIo::SourceSize: {
       if (!Storage.openFileForRead("IMG", self.path.data(), self.file)) return SIZE_MAX;
       const size_t size = self.file.size();
@@ -117,6 +124,12 @@ void target(void* raw, XpImageTarget* output) { *output = imageWriteTarget(*stat
 void diagnostic(void* raw, uint32_t event, [[maybe_unused]] int32_t a, [[maybe_unused]] int32_t b) {
   [[maybe_unused]] auto& self = *static_cast<Context*>(raw);
   switch (static_cast<ImageDiagnostic>(event)) {
+    case ImageDiagnostic::ExtractBegin:
+      LOG_DBG("IMG", "Lazy-extracting %s -> %s", self.source.data(), self.path.data());
+      break;
+    case ImageDiagnostic::ExtractFailed:
+      LOG_ERR("IMG", "Lazy extraction failed: %s", self.source.data());
+      break;
     case ImageDiagnostic::InvalidCache:
       LOG_ERR("IMG", "Invalid image cache: %s", self.cache);
       break;
@@ -176,8 +189,10 @@ bool ImageBlock::needsDecode() const {
 void ImageBlock::clearRenderFailures() { xp_assets_image_reset(false); }
 void ImageBlock::releaseRenderCache() { xp_assets_image_reset(true); }
 void ImageBlock::renderPlaceholder(GfxRenderer& renderer, const int x, const int y) const {
-  renderer.fillRect(x, y, width, height, true);
-  if (width > 2 && height > 2) renderer.fillRect(x + 1, y + 1, width - 2, height - 2, false);
+  xp_book_image_placeholder(x, y, width, height, &renderer,
+                            [](void* raw, int32_t x, int32_t y, int32_t width, int32_t height, uint8_t black) {
+                              static_cast<GfxRenderer*>(raw)->fillRect(x, y, width, height, black);
+                            });
 }
 void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
   auto* fonts = renderer.getFontCacheManager();

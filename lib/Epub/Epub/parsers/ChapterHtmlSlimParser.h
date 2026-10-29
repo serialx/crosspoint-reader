@@ -6,6 +6,8 @@
 #include "ChapterPageAssembler.h"
 
 class ChapterHtmlSlimParser final : private ChapterPageAssembler {
+  struct PolicyContext;
+  uint32_t parseOperation(uint32_t action);
   const std::string& filepath;
   std::unique_ptr<uint8_t[]> parseBuffer_;
   size_t parseBufferCapacity_ = 0;

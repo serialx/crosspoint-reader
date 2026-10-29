@@ -7,6 +7,7 @@
 #include <Memory.h>
 #include <MemoryManager.h>
 #include <Utf8.h>
+#include <xp_book.h>
 
 #include <algorithm>
 #include <array>
@@ -14,6 +15,7 @@
 #include <cmath>
 #include <iterator>
 #include <new>
+#include <optional>
 
 #include "ChapterTableConstants.h"
 #include "Epub.h"
@@ -24,90 +26,131 @@
 #include "Epub/converters/ImageToFramebufferDecoder.h"
 #include "Epub/htmlEntities.h"
 
-uint8_t ChapterPageAssembler::probeImage(XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width,
-                                         uint16_t& height) {
-  LOG_DBG("EHP", "Found image: src=%.*s", static_cast<int>(src.len), reinterpret_cast<const char*>(src.data));
-  auto* self = this;
-  // Resolve the image path relative to the HTML file
-  std::string resolvedPath = FsHelpers::normalisePath(
-      FsHelpers::decodeUriEscapes(self->contentBase + std::string(reinterpret_cast<const char*>(src.data), src.len)));
-
-  if (ImageDecoderFactory::isFormatSupported(resolvedPath)) {
-    // Create a unique filename for the cached image
-    std::string ext;
-    size_t extPos = resolvedPath.rfind('.');
-    if (extPos != std::string::npos) {
-      ext = resolvedPath.substr(extPos);
+struct ChapterPageAssembler::ProbeContext {
+  ChapterPageAssembler& owner;
+  XpChapterSpan src;
+  int32_t& counter;
+  bool& popup;
+  uint16_t& width;
+  uint16_t& height;
+  std::string resolved, cached;
+  ImageDimensions dimensions{0, 0};
+  std::optional<ImageDimsProbe> probe;
+  std::optional<HalFile> file;
+  ImageToFramebufferDecoder* decoder = nullptr;
+  ProbeContext(ChapterPageAssembler& owner, XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width,
+               uint16_t& height)
+      : owner(owner), src(src), counter(counter), popup(popup), width(width), height(height) {}
+  static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
+    auto& c = *static_cast<ProbeContext*>(raw);
+    auto& self = c.owner;
+    switch (static_cast<XpBookProbeOperation>(operation)) {
+      case XP_BOOK_PROBE_RESOLVE: {
+        c.resolved = FsHelpers::normalisePath(FsHelpers::decodeUriEscapes(
+            self.contentBase + std::string(reinterpret_cast<const char*>(c.src.data), c.src.len)));
+        break;
+      }
+      case XP_BOOK_PROBE_SUPPORTED: {
+        return ImageDecoderFactory::isFormatSupported(c.resolved);
+      }
+      case XP_BOOK_PROBE_PREPARE_CACHE: {
+        std::string ext;
+        const size_t dot = c.resolved.rfind('.');
+        if (dot != std::string::npos) ext = c.resolved.substr(dot);
+        c.cached = self.imageBasePath + std::to_string(c.counter++) + ext;
+        break;
+      }
+      case XP_BOOK_PROBE_PROBE: {
+        c.probe.emplace();
+        self.epub->readItemContentsToStream(c.resolved, *c.probe, 1024, true);
+        return c.probe->getDimensions(c.dimensions);
+      }
+      case XP_BOOK_PROBE_RETRY_PROBE: {
+        GfxRenderer::FrameBufferLoan loan(self.renderer);
+        ImageDimsProbe probe;
+        self.epub->readItemContentsToStream(c.resolved, probe, 1024, true);
+        return probe.getDimensions(c.dimensions);
+      }
+      case XP_BOOK_PROBE_HAS_POPUP: {
+        return bool(self.popupFn);
+      }
+      case XP_BOOK_PROBE_POPUP_SHOWN: {
+        return c.popup;
+      }
+      case XP_BOOK_PROBE_SET_POPUP: {
+        c.popup = true;
+        break;
+      }
+      case XP_BOOK_PROBE_POPUP: {
+        self.popupFn();
+        break;
+      }
+      case XP_BOOK_PROBE_OPEN: {
+        c.file.emplace();
+        return Storage.openFileForWrite("EHP", c.cached, *c.file);
+      }
+      case XP_BOOK_PROBE_EXTRACT: {
+        GfxRenderer::FrameBufferLoan loan(self.renderer);
+        return self.epub->readItemContentsToStream(c.resolved, *c.file, 4096);
+      }
+      case XP_BOOK_PROBE_FLUSH: {
+        c.file->flush();
+        break;
+      }
+      case XP_BOOK_PROBE_CLOSE: {
+        c.file->close();
+        break;
+      }
+      case XP_BOOK_PROBE_DECODER: {
+        c.decoder = ImageDecoderFactory::getDecoder(c.cached);
+        return c.decoder != nullptr;
+      }
+      case XP_BOOK_PROBE_DIMENSIONS: {
+        return c.decoder->getDimensions(c.cached, c.dimensions);
+      }
+      case XP_BOOK_PROBE_DELAY: {
+        delay(argument);
+        break;
+      }
+      case XP_BOOK_PROBE_STORE_SIZE: {
+        c.width = c.dimensions.width;
+        c.height = c.dimensions.height;
+        break;
+      }
+      case XP_BOOK_PROBE_ACCEPT: {
+        self.imageSource_ = std::move(c.resolved);
+        self.imageCache_ = std::move(c.cached);
+        break;
+      }
+      case XP_BOOK_PROBE_REMOVE: {
+        return Storage.remove(c.cached.c_str());
+      }
     }
-    std::string cachedImagePath = self->imageBasePath + std::to_string(counter++) + ext;
-
-    {
-      // Probe the dimensions from the entry's first bytes (early-aborted
-      // inflate, a few KB) instead of extracting the whole image now —
-      // extraction is deferred to the first render of the page (see
-      // ImageBlock's lazy extractor). This is what keeps first-open of an
-      // image-heavy chapter from stalling for seconds per image.
-      ImageDimensions dims = {0, 0};
-      ImageDimsProbe headerProbe;
-      self->epub->readItemContentsToStream(resolvedPath, headerProbe, 1024, /*allowEarlyStop=*/true);
-      bool gotDimensions = headerProbe.getDimensions(dims);
-
-      if (!gotDimensions) {
-        // Retry with framebuffer scratch when the heap cannot fit the inflate window.
-        GfxRenderer::FrameBufferLoan probeLoan(self->renderer);
-        ImageDimsProbe retryProbe;
-        self->epub->readItemContentsToStream(resolvedPath, retryProbe, 1024, /*allowEarlyStop=*/true);
-        gotDimensions = retryProbe.getDimensions(dims);
-      }
-
-      if (!gotDimensions) {
-        // No header within the stream (rare) — fall back to extracting the
-        // whole image and probing the file. That can take seconds, so
-        // surface the indexing popup first (single-shot per parser).
-        if (self->popupFn && !popup) {
-          popup = true;
-          self->popupFn();
-        }
-        HalFile cachedImageFile;
-        bool extractSuccess = false;
-        if (Storage.openFileForWrite("EHP", cachedImagePath, cachedImageFile)) {
-          {
-            // Same 32 KB inflate window as the probe; the popup is already up.
-            GfxRenderer::FrameBufferLoan extractLoan(self->renderer);
-            extractSuccess = self->epub->readItemContentsToStream(resolvedPath, cachedImageFile, 4096);
-          }
-          cachedImageFile.flush();
-          cachedImageFile.close();
-        }
-        if (extractSuccess) {
-          // Retry to absorb SD-card sync latency on slow cards, and to close
-          // the silent-drop bug where a single getDimensions failure was fatal.
-          ImageToFramebufferDecoder* decoder = ImageDecoderFactory::getDecoder(cachedImagePath);
-          for (int attempt = 0; attempt < 3 && !gotDimensions; attempt++) {
-            if (attempt > 0) {
-              delay(50);  // Give a slow SD card time to finish syncing before retrying
-            }
-            gotDimensions = decoder && decoder->getDimensions(cachedImagePath, dims);
-          }
-        } else {
-          LOG_ERR("EHP", "Failed to extract image");
-        }
-      }
-
-      width = dims.width;
-      height = dims.height;
-      if (gotDimensions) {
-        LOG_DBG("EHP", "Image dimensions: %dx%d", dims.width, dims.height);
-        imageSource_ = std::move(resolvedPath);
-        imageCache_ = std::move(cachedImagePath);
-        return 2;
-      }
-      LOG_ERR("EHP", "Failed to get image dimensions");
-      Storage.remove(cachedImagePath.c_str());
-      return 1;
+    return 0;
+  }
+  static void diagnostic(void* raw, uint32_t event, uint32_t) {
+    auto& c = *static_cast<ProbeContext*>(raw);
+    switch (static_cast<XpBookProbeEvent>(event)) {
+      case XP_BOOK_PROBE_EVENT_FOUND:
+        LOG_DBG("EHP", "Found image: src=%.*s", static_cast<int>(c.src.len), reinterpret_cast<const char*>(c.src.data));
+        break;
+      case XP_BOOK_PROBE_EVENT_EXTRACT_FAILED:
+        LOG_ERR("EHP", "Failed to extract image");
+        break;
+      case XP_BOOK_PROBE_EVENT_DIMENSIONS:
+        LOG_DBG("EHP", "Image dimensions: %dx%d", c.dimensions.width, c.dimensions.height);
+        break;
+      case XP_BOOK_PROBE_EVENT_DIMENSIONS_FAILED:
+        LOG_ERR("EHP", "Failed to get image dimensions");
+        break;
     }
   }
-  return 0;
+};
+uint8_t ChapterPageAssembler::probeImage(XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width,
+                                         uint16_t& height) {
+  ProbeContext context{*this, src, counter, popup, width, height};
+  const XpBookServices io{&context, ProbeContext::operation, nullptr, ProbeContext::diagnostic};
+  return xp_book_probe_image(&io);
 }
 
 uint8_t ChapterPageAssembler::completeBytes(XpChapterSpan bytes, XpChapterPosition position) {

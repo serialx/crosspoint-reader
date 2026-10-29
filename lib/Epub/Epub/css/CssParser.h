@@ -149,6 +149,8 @@ class CssParser {
   CacheLoadResult loadFromCache();
 
  private:
+  struct IoContext;
+  uint32_t cacheOperation(uint32_t action, bool complete = false) const;
   XpCss* handle = nullptr;
   std::string cachePath;
 

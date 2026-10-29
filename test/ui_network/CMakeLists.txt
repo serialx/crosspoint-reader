@@ -95,3 +95,16 @@ add_test(NAME ui_network_web_policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURREN
 
 add_test(NAME ui_network_wifi_entry_oracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_extra.py)
+
+set(WIFI_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiTarget.cpp)
+add_custom_command(OUTPUT ${WIFI_TARGET}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_target.py ${WIFI_TARGET}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_target.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc)
+add_executable(NetworkWifiTarget ${WIFI_TARGET} ${NETWORK_RENDER_SOURCES})
+target_include_directories(NetworkWifiTarget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(NetworkWifiTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
+target_compile_options(NetworkWifiTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(NetworkWifiTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
+target_link_libraries(NetworkWifiTarget PRIVATE xp_ffi_host)
+add_test(NAME ui_network_wifi_pixels COMMAND NetworkWifiTarget)

@@ -8,7 +8,7 @@ from extract import definition
 
 ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / 'src/activities/reader/EpubReaderActivity.cpp').read_text()
-callback = re.search(r'started = section->startBuild\(renderSpec, (\[this\] \{.*?\})\);', source)[1]
+callback = re.search(r'return o.section->startBuild\(spec, (\[owner = &o\] \{.*?\})\);', source)[1]
 helper = definition(source, 'void EpubReaderActivity::showBuildPopup(')
 fixture = r'''
 #include <cassert>
@@ -24,7 +24,7 @@ struct EpubReaderActivity {
   int32_t* renderFrame = nullptr;
   int32_t& renderRefreshCounter() { assert(renderFrame); return *renderFrame; }
   void showBuildPopup();
-  std::function<void()> imageProbe() { return CALLBACK; }
+  std::function<void()> imageProbe() { auto& o = *this; return CALLBACK; }
 };
 HELPER
 int main() {

@@ -4,12 +4,18 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
+#ifdef BOOK_RELEASE_LOG
+#define LOG_DBG(tag, fmt, ...) ((void)0)
+#else
 #define LOG_DBG(tag, fmt, ...) std::printf(tag " " fmt "\n", ##__VA_ARGS__)
+#endif
 #define LOG_ERR(tag, fmt, ...) std::printf(tag " " fmt "\n", ##__VA_ARGS__)
 static uint32_t ticks;
 static void event(const char* text, int a = 0, int b = 0) { std::printf("%s %d %d\n", text, a, b); }
@@ -234,6 +240,9 @@ struct Section {
 };
 Section::Config Section::seed{};
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {}
+  };
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();
   std::unique_ptr<Section> section;
   GfxRenderer renderer;

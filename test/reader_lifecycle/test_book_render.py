@@ -11,6 +11,7 @@ from extract import definition
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 freeze = '--freeze-original' in sys.argv
+release = '--release-log' in sys.argv
 source = (subprocess.check_output(['git', 'show', '8d534a99:src/activities/reader/EpubReaderActivity.cpp'], cwd=ROOT, text=True)
           if freeze else (ROOT / 'src/activities/reader/EpubReaderActivity.cpp').read_text())
 fixture = (HERE / 'book_render_oracle.cpp').read_text().replace('// BOOK_METHOD', definition(source, 'void EpubReaderActivity::renderBook()'))
@@ -19,17 +20,17 @@ with tempfile.TemporaryDirectory() as directory:
     def run(text, name):
         (p/(name+'.cpp')).write_text(text)
         subprocess.run(['c++','-std=c++17','-UNDEBUG','-Wno-format','-fsanitize=address,undefined',str(p/(name+'.cpp')),
-                        *rust_link_flags(),'-o',str(p/name)],check=True)
+                        *(['-DBOOK_RELEASE_LOG'] if release else []),*rust_link_flags(),'-o',str(p/name)],check=True)
         return subprocess.check_output([str(p/name)],timeout=20)
     actual=run(fixture,'book')
-    golden=HERE/'book-render.golden.gz'
+    golden=HERE/('book-render-release.golden.gz' if release else 'book-render.golden.gz')
     if freeze: golden.write_bytes(gzip.compress(actual,mtime=0))
     else:
         assert actual==gzip.decompress(golden.read_bytes())
-        for before,after in [('++pageLoadRetryCount > MAX_PAGE_LOAD_RETRIES','++pageLoadRetryCount >= MAX_PAGE_LOAD_RETRIES'),
-                             ('buildPopupPending = !showPopup;','buildPopupPending = false;'),
-                             ('pendingScreenshot = false;','pendingScreenshot = true;')]:
+        for before,after in [('o.pageLoadRetryCount = static_cast<decltype(o.pageLoadRetryCount)>(value);','o.pageLoadRetryCount = 0;'),
+                             ('o.buildPopupPending = static_cast<decltype(o.buildPopupPending)>(value);','o.buildPopupPending = false;'),
+                             ('o.pendingScreenshot = static_cast<decltype(o.pendingScreenshot)>(value);','o.pendingScreenshot = true;')]:
             wrong=fixture.replace(before,after)
             assert wrong!=fixture
             assert run(wrong,'wrong')!=actual
-    print(f'book render: {len(actual.splitlines())} frozen lines across 224 build/load/notice cases')
+    print(f'book render ({"release" if release else "debug"}): {len(actual.splitlines())} frozen lines across 224 build/load/notice cases')

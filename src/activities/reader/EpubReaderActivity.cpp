@@ -1613,391 +1613,721 @@ bool EpubReaderActivity::skipLoopDelay() {
 }
 
 void EpubReaderActivity::renderBook() {
-  currentPageMetadata.clear();
-  if (!epub) return;
-  // A radio start in flight takes ~50 KB while the stack comes up: the page waits for it rather than
-  // take the heap beside it (X3: abort() in a page restore at free 22,676 B). About 20 ms, once a visit.
-  bleturner::settleStart();
-  // Runs under the render task's RenderLock; catches every requestUpdate()
-  // exit from the overlay while its deferred chrome refresh is still pending.
-  settleOverlayRefresh();
-
-  const auto showPendingSyncSaveError = [this]() {
-    if (!pendingSyncSaveError) return;
-    pendingSyncSaveError = false;
-    GUI.drawPopup(renderer, tr(STR_SAVE_PROGRESS_FAILED));
-  };
-
-  const auto showBuildError = [this](const char* message = nullptr) {
-    renderer.clearScreen();
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-    GUI.drawPopup(renderer, message ? message : tr(STR_INDEX_FAILED));
-    automaticPageTurnActive = false;
-  };
-
-  if (currentSpineIndex < 0) currentSpineIndex = 0;
-  if (currentSpineIndex > epub->getSpineItemsCount()) currentSpineIndex = epub->getSpineItemsCount();
-
-  if (currentSpineIndex == epub->getSpineItemsCount()) {
-    return;
-  }
-
-  int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
-  renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
-                                   &orientedMarginLeft);
-  orientedMarginTop += SETTINGS.screenMargin;
-  orientedMarginLeft += SETTINGS.screenMargin;
-  orientedMarginRight += SETTINGS.screenMargin;
-
-  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
-
-  if (automaticPageTurnActive &&
-      (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight())) {
-    orientedMarginBottom +=
-        std::max(SETTINGS.screenMargin,
-                 static_cast<uint8_t>(statusBarHeight + UITheme::getInstance().getMetrics().statusBarVerticalMargin));
-  } else {
-    orientedMarginBottom += std::max(SETTINGS.screenMargin, statusBarHeight);
-  }
-
-  const uint16_t viewportWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
-  const uint16_t viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
-  buildViewportWidth = viewportWidth;
-  buildViewportHeight = viewportHeight;
-
-  const ReaderRenderSpec renderSpec = SETTINGS.readerRenderSpec(viewportWidth, viewportHeight);
-
-  if (!section) {
-    const auto filepath = epub->getSpineItem(currentSpineIndex).href;
-    LOG_DBG("ERS", "Loading file: %s, index: %d", filepath.c_str(), currentSpineIndex);
-    section = std::unique_ptr<Section>(new Section(epub, currentSpineIndex, renderer));
-    partialRebuildStartFailed = false;
-
-    const bool cacheLoaded = section->loadSectionFile(renderSpec);
-    if (cacheLoaded) {
-      cachedChapterTotalPageCount = 0;
-      cachedVisibleTextOffset.reset();
-    }
-    const bool cacheComplete = cacheLoaded && !section->isPartial();
-    const bool explicitOffsetJump = pendingOffsetJump.has_value();
-    const std::optional<uint32_t> offsetJump =
-        explicitOffsetJump ? pendingOffsetJump
-        : (pendingPageJump.has_value() || !pendingAnchor.empty() || currentSpineIndex != cachedSpineIndex)
-            ? std::nullopt
-            : cachedVisibleTextOffset;
-    if (!cacheComplete) {
-      if (section->isPartial()) {
-        LOG_DBG("ERS", "Partial cache found (%d pages), resuming build...", section->pageCount);
-      } else {
-        LOG_DBG("ERS", "Cache not found, building...");
+  using Cache = std::remove_pointer_t<decltype(renderer.getFontCacheManager())>;
+  struct Context {
+    EpubReaderActivity& o;
+    int margins[4]{};
+    ReaderRenderSpec spec{};
+    std::optional<std::string> path;
+    std::optional<GfxRenderer::FrameBufferLoan> loan;
+    std::unique_ptr<Page> page;
+    Cache* cache = nullptr;
+    uint32_t read(uint8_t field) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderBookField>(field)) {
+        case XP_UI_READER_BOOK_FIELD_SPINE: {
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        }
+        case XP_UI_READER_BOOK_FIELD_CACHED_SPINE: {
+          return static_cast<uint32_t>(o.cachedSpineIndex);
+        }
+        case XP_UI_READER_BOOK_FIELD_CACHED_COUNT: {
+          return static_cast<uint32_t>(o.cachedChapterTotalPageCount);
+        }
+        case XP_UI_READER_BOOK_FIELD_HAS_CACHED_OFFSET: {
+          return static_cast<uint32_t>(o.cachedVisibleTextOffset.has_value());
+        }
+        case XP_UI_READER_BOOK_FIELD_CACHED_OFFSET: {
+          return static_cast<uint32_t>(o.cachedVisibleTextOffset.value_or(0));
+        }
+        case XP_UI_READER_BOOK_FIELD_HAS_PENDING_PAGE: {
+          return static_cast<uint32_t>(o.pendingPageJump.has_value());
+        }
+        case XP_UI_READER_BOOK_FIELD_PENDING_PAGE: {
+          return static_cast<uint32_t>(o.pendingPageJump.value_or(0));
+        }
+        case XP_UI_READER_BOOK_FIELD_NEXT_PAGE: {
+          return static_cast<uint32_t>(o.nextPageNumber);
+        }
+        case XP_UI_READER_BOOK_FIELD_HAS_PENDING_OFFSET: {
+          return static_cast<uint32_t>(o.pendingOffsetJump.has_value());
+        }
+        case XP_UI_READER_BOOK_FIELD_PENDING_OFFSET: {
+          return static_cast<uint32_t>(o.pendingOffsetJump.value_or(0));
+        }
+        case XP_UI_READER_BOOK_FIELD_PENDING_PERCENT: {
+          return static_cast<uint32_t>(o.pendingPercentJump);
+        }
+        case XP_UI_READER_BOOK_FIELD_SPINE_PROGRESS: {
+          uint32_t bits;
+          memcpy(&bits, &o.pendingSpineProgress, sizeof(bits));
+          return bits;
+        }
+        case XP_UI_READER_BOOK_FIELD_AUTOMATIC: {
+          return static_cast<uint32_t>(o.automaticPageTurnActive);
+        }
+        case XP_UI_READER_BOOK_FIELD_SYNC_ERROR: {
+          return static_cast<uint32_t>(o.pendingSyncSaveError);
+        }
+        case XP_UI_READER_BOOK_FIELD_PARTIAL_START_FAILED: {
+          return static_cast<uint32_t>(o.partialRebuildStartFailed);
+        }
+        case XP_UI_READER_BOOK_FIELD_BUILD_POPUP: {
+          return static_cast<uint32_t>(o.buildPopupPending);
+        }
+        case XP_UI_READER_BOOK_FIELD_BUILD_WIDTH: {
+          return static_cast<uint32_t>(o.buildViewportWidth);
+        }
+        case XP_UI_READER_BOOK_FIELD_BUILD_HEIGHT: {
+          return static_cast<uint32_t>(o.buildViewportHeight);
+        }
+        case XP_UI_READER_BOOK_FIELD_PAGE_STALE: {
+          return static_cast<uint32_t>(o.pageBufferStale);
+        }
+        case XP_UI_READER_BOOK_FIELD_RETRY: {
+          return static_cast<uint32_t>(o.pageLoadRetryCount);
+        }
+        case XP_UI_READER_BOOK_FIELD_CURRENT_OFFSET: {
+          return static_cast<uint32_t>(o.currentPageVisibleOffset.value_or(0));
+        }
+        case XP_UI_READER_BOOK_FIELD_MARGIN_LEFT: {
+          return static_cast<uint32_t>(o.currentPageLinkMarginLeft);
+        }
+        case XP_UI_READER_BOOK_FIELD_MARGIN_TOP: {
+          return static_cast<uint32_t>(o.currentPageLinkMarginTop);
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_RENDER: {
+          return static_cast<uint32_t>(o.lastRenderCompleteMs);
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_SAVED_SPINE: {
+          return static_cast<uint32_t>(o.lastSavedSpineIndex);
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_SAVED_PAGE: {
+          return static_cast<uint32_t>(o.lastSavedPage);
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_SAVED_COUNT: {
+          return static_cast<uint32_t>(o.lastSavedPageCount);
+        }
+        case XP_UI_READER_BOOK_FIELD_SCREENSHOT: {
+          return static_cast<uint32_t>(o.pendingScreenshot);
+        }
+        case XP_UI_READER_BOOK_FIELD_BOOKMARK_NOTICE: {
+          return static_cast<uint32_t>(o.showBookmarkMessage);
+        }
+        case XP_UI_READER_BOOK_FIELD_BOOKMARK_REMOVED: {
+          return static_cast<uint32_t>(o.bookmarkRemoved);
+        }
+        case XP_UI_READER_BOOK_FIELD_DICTIONARY_NOTICE: {
+          return static_cast<uint32_t>(o.showDictionaryMessage);
+        }
+        case XP_UI_READER_BOOK_FIELD_FONT_NOTICE: {
+          return static_cast<uint32_t>(o.showFontDamagedMessage);
+        }
+        case XP_UI_READER_BOOK_FIELD_FONT_NOTICE_MS: {
+          return static_cast<uint32_t>(o.fontDamagedMessageTime);
+        }
+        case XP_UI_READER_BOOK_FIELD_CLIPPING_NOTICE: {
+          return static_cast<uint32_t>(o.showClippingMessage);
+        }
+        case XP_UI_READER_BOOK_FIELD_OVERLAY: {
+          return static_cast<uint32_t>(o.overlay);
+        }
+        case XP_UI_READER_BOOK_FIELD_STORED: {
+          return static_cast<uint32_t>(o.overlayPageStored);
+        }
       }
-
-      const bool needsFullBuild = pendingPercentJump;
-      if (needsFullBuild) {
-        GUI.drawPopup(renderer, tr(STR_INDEXING));
-        renderRefreshCounter() = 1;
-        const auto popupFn = [this]() {
-          if (renderer.hasFrameBuffer()) GUI.drawPopup(renderer, tr(STR_INDEXING));
-        };
-        if (!makeRoomForChapterBuild()) {
-          section.reset();
-          showBuildError(tr(STR_BT_BUILD_REFUSED));
-          return;
+      return 0;
+    }
+    void write(uint8_t field, uint32_t value) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderBookField>(field)) {
+        case XP_UI_READER_BOOK_FIELD_SPINE: {
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          break;
         }
-        GfxRenderer::FrameBufferLoan loan(renderer);
-        if (!section->createSectionFile(renderSpec, popupFn)) {
+        case XP_UI_READER_BOOK_FIELD_CACHED_SPINE: {
+          o.cachedSpineIndex = static_cast<decltype(o.cachedSpineIndex)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_CACHED_COUNT: {
+          o.cachedChapterTotalPageCount = static_cast<decltype(o.cachedChapterTotalPageCount)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_HAS_CACHED_OFFSET: {
+          assert(!value);
+          o.cachedVisibleTextOffset.reset();
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_CACHED_OFFSET: {
+          o.cachedVisibleTextOffset = value;
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_HAS_PENDING_PAGE: {
+          assert(!value);
+          o.pendingPageJump.reset();
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_PENDING_PAGE: {
+          o.pendingPageJump = value;
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_NEXT_PAGE: {
+          o.nextPageNumber = static_cast<decltype(o.nextPageNumber)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_HAS_PENDING_OFFSET: {
+          assert(!value);
+          o.pendingOffsetJump.reset();
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_PENDING_OFFSET: {
+          o.pendingOffsetJump = value;
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_PENDING_PERCENT: {
+          o.pendingPercentJump = static_cast<decltype(o.pendingPercentJump)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_SPINE_PROGRESS: {
+          memcpy(&o.pendingSpineProgress, &value, sizeof(value));
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_AUTOMATIC: {
+          o.automaticPageTurnActive = static_cast<decltype(o.automaticPageTurnActive)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_SYNC_ERROR: {
+          o.pendingSyncSaveError = static_cast<decltype(o.pendingSyncSaveError)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_PARTIAL_START_FAILED: {
+          o.partialRebuildStartFailed = static_cast<decltype(o.partialRebuildStartFailed)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_BUILD_POPUP: {
+          o.buildPopupPending = static_cast<decltype(o.buildPopupPending)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_BUILD_WIDTH: {
+          o.buildViewportWidth = static_cast<decltype(o.buildViewportWidth)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_BUILD_HEIGHT: {
+          o.buildViewportHeight = static_cast<decltype(o.buildViewportHeight)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_PAGE_STALE: {
+          o.pageBufferStale = value != 0;
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_RETRY: {
+          o.pageLoadRetryCount = static_cast<decltype(o.pageLoadRetryCount)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_CURRENT_OFFSET: {
+          o.currentPageVisibleOffset = value;
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_MARGIN_LEFT: {
+          o.currentPageLinkMarginLeft = static_cast<decltype(o.currentPageLinkMarginLeft)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_MARGIN_TOP: {
+          o.currentPageLinkMarginTop = static_cast<decltype(o.currentPageLinkMarginTop)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_RENDER: {
+          o.lastRenderCompleteMs = static_cast<decltype(o.lastRenderCompleteMs)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_SAVED_SPINE: {
+          o.lastSavedSpineIndex = static_cast<decltype(o.lastSavedSpineIndex)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_SAVED_PAGE: {
+          o.lastSavedPage = static_cast<decltype(o.lastSavedPage)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_LAST_SAVED_COUNT: {
+          o.lastSavedPageCount = static_cast<decltype(o.lastSavedPageCount)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_SCREENSHOT: {
+          o.pendingScreenshot = static_cast<decltype(o.pendingScreenshot)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_BOOKMARK_NOTICE: {
+          o.showBookmarkMessage = static_cast<decltype(o.showBookmarkMessage)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_BOOKMARK_REMOVED: {
+          o.bookmarkRemoved = static_cast<decltype(o.bookmarkRemoved)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_DICTIONARY_NOTICE: {
+          o.showDictionaryMessage = static_cast<decltype(o.showDictionaryMessage)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_FONT_NOTICE: {
+          o.showFontDamagedMessage = static_cast<decltype(o.showFontDamagedMessage)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_FONT_NOTICE_MS: {
+          o.fontDamagedMessageTime = static_cast<decltype(o.fontDamagedMessageTime)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_CLIPPING_NOTICE: {
+          o.showClippingMessage = static_cast<decltype(o.showClippingMessage)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_OVERLAY: {
+          o.overlay = static_cast<decltype(o.overlay)>(value);
+          break;
+        }
+        case XP_UI_READER_BOOK_FIELD_STORED: {
+          o.overlayPageStored = static_cast<decltype(o.overlayPageStored)>(value);
+          break;
+        }
+      }
+    }
+    uint32_t query(uint8_t query) {
+      switch (static_cast<XpUiReaderBookQuery>(query)) {
+        case XP_UI_READER_BOOK_QUERY_HAS_BOOK: {
+          return bool(o.epub);
+        }
+        case XP_UI_READER_BOOK_QUERY_SPINE_COUNT: {
+          return o.epub->getSpineItemsCount();
+        }
+        case XP_UI_READER_BOOK_QUERY_HAS_SECTION: {
+          return bool(o.section);
+        }
+        case XP_UI_READER_BOOK_QUERY_MARGIN_TOP: {
+          return margins[0];
+        }
+        case XP_UI_READER_BOOK_QUERY_MARGIN_RIGHT: {
+          return margins[1];
+        }
+        case XP_UI_READER_BOOK_QUERY_MARGIN_BOTTOM: {
+          return margins[2];
+        }
+        case XP_UI_READER_BOOK_QUERY_MARGIN_LEFT: {
+          return margins[3];
+        }
+        case XP_UI_READER_BOOK_QUERY_SCREEN_MARGIN: {
+          return SETTINGS.screenMargin;
+        }
+        case XP_UI_READER_BOOK_QUERY_STATUS_HEIGHT: {
+          return UITheme::getInstance().getStatusBarHeight();
+        }
+        case XP_UI_READER_BOOK_QUERY_PROGRESS_HEIGHT: {
+          return UITheme::getInstance().getProgressBarHeight();
+        }
+        case XP_UI_READER_BOOK_QUERY_STATUS_MARGIN: {
+          return UITheme::getInstance().getMetrics().statusBarVerticalMargin;
+        }
+        case XP_UI_READER_BOOK_QUERY_WIDTH: {
+          return o.renderer.getScreenWidth();
+        }
+        case XP_UI_READER_BOOK_QUERY_HEIGHT: {
+          return o.renderer.getScreenHeight();
+        }
+        case XP_UI_READER_BOOK_QUERY_PARTIAL: {
+          return o.section->isPartial();
+        }
+        case XP_UI_READER_BOOK_QUERY_BUILDING: {
+          return o.section->isBuilding();
+        }
+        case XP_UI_READER_BOOK_QUERY_COMPLETE: {
+          return o.section->isBuildComplete();
+        }
+        case XP_UI_READER_BOOK_QUERY_PAGE_COUNT: {
+          return o.section->pageCount;
+        }
+        case XP_UI_READER_BOOK_QUERY_PAGE: {
+          return o.section->currentPage;
+        }
+        case XP_UI_READER_BOOK_QUERY_HAS_ANCHOR: {
+          return !o.pendingAnchor.empty();
+        }
+        case XP_UI_READER_BOOK_QUERY_HAS_HTML: {
+          return o.section->hasHtmlCache();
+        }
+        case XP_UI_READER_BOOK_QUERY_FIND_ANCHOR: {
+          const auto p = o.section->findAnchor(o.pendingAnchor);
+          return p ? 0x10000u | *p : 0;
+        }
+        case XP_UI_READER_BOOK_QUERY_PAGE_FOR_ANCHOR: {
+          const auto p = o.section->getPageForAnchor(o.pendingAnchor);
+          return p ? 0x10000u | *p : 0;
+        }
+        case XP_UI_READER_BOOK_QUERY_HAS_TTF: {
+          return !o.renderer.getTtfFonts().empty();
+        }
+        case XP_UI_READER_BOOK_QUERY_NOW: {
+          return millis();
+        }
+        case XP_UI_READER_BOOK_QUERY_POPUP_ACTIVE: {
+          return o.overlayPopup.isActive();
+        }
+        case XP_UI_READER_BOOK_QUERY_USES_TOOLBAR: {
+          return o.usesToolbarMenu();
+        }
+        case XP_UI_READER_BOOK_QUERY_HAS_PAGE: {
+          return bool(page);
+        }
+        case XP_UI_READER_BOOK_QUERY_PAGE_OFFSET: {
+          return page->visibleTextOffset;
+        }
+        case XP_UI_READER_BOOK_QUERY_ESTIMATED_COUNT: {
+          return o.section->estimatedTotalPages();
+        }
+      }
+      return 0;
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderBookCommand>(command)) {
+        case XP_UI_READER_BOOK_COMMAND_SAMPLE_FONT_CACHE: {
+          assert(!cache);
+          cache = o.renderer.getFontCacheManager();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_TAKE_FONT_NOTICE: {
+          return SdCardFont::takeCorruptGlyphNotice();
+        }
+        case XP_UI_READER_BOOK_COMMAND_CLEAR_METADATA: {
+          o.currentPageMetadata.clear();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_RADIO_SETTLE: {
+          bleturner::settleStart();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_SETTLE_OVERLAY: {
+          o.settleOverlayRefresh();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_SAMPLE_MARGINS: {
+          o.renderer.getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_SET_MARGIN: {
+          assert(a >= 0 && a < 4);
+          margins[a] = b;
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_SET_SPEC: {
+          spec = SETTINGS.readerRenderSpec(o.buildViewportWidth, o.buildViewportHeight);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_GET_PATH: {
+          assert(!path);
+          path.emplace(o.epub->getSpineItem(o.currentSpineIndex).href);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DROP_PATH: {
+          path.reset();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_LOADING: {
+          LOG_DBG("ERS", "Loading file: %s, index: %d", path->c_str(), o.currentSpineIndex);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_NEW_SECTION: {
+          o.section = std::unique_ptr<Section>(new Section(o.epub, o.currentSpineIndex, o.renderer));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOAD_CACHE: {
+          return o.section->loadSectionFile(spec);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_PARTIAL: {
+          LOG_DBG("ERS", "Partial cache found (%d pages), resuming build...", o.section->pageCount);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_NO_CACHE: {
+          LOG_DBG("ERS", "Cache not found, building...");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_COUNTER: {
+          o.renderRefreshCounter() = a;
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_ROOM: {
+          return o.makeRoomForChapterBuild();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DROP_SECTION: {
+          o.section.reset();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOAN_BEGIN: {
+          assert(!loan);
+          loan.emplace(o.renderer);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOAN_END: {
+          assert(loan);
+          loan->end();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOAN_DROP: {
+          loan.reset();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_CREATE_ALL: {
+          return o.section->createSectionFile(spec, [owner = &o] {
+            if (owner->renderer.hasFrameBuffer()) GUI.drawPopup(owner->renderer, tr(STR_INDEXING));
+          });
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_PERSIST_FAILED: {
           LOG_ERR("ERS", "Failed to persist page data to SD");
-          section.reset();
-          loan.end();
-          showBuildError();
-          return;
+          break;
         }
-        loan.end();
-      } else {
-        const int target = pendingPageJump.has_value() ? *pendingPageJump : (nextPageNumber < 0 ? 0 : nextPageNumber);
-        const bool anchorJump = !pendingAnchor.empty();
-
-        if (section->isPartial() &&
-            (anchorJump ? section->getPageForAnchor(pendingAnchor).has_value()
-                        : target + PARTIAL_REBUILD_START_MARGIN < static_cast<int>(section->pageCount))) {
-          LOG_DBG("ERS", "Partial covers target %d of %d; deferring extension build", target, section->pageCount);
-        } else {
-          const size_t spineBytes =
-              epub->getCumulativeSpineItemSize(currentSpineIndex) -
-              (currentSpineIndex > 0 ? epub->getCumulativeSpineItemSize(currentSpineIndex - 1) : 0);
-          const bool willInflate = !section->hasHtmlCache();
-          bool showPopup;
-          if (anchorJump) {
-            showPopup = !section->findAnchor(pendingAnchor).has_value() && spineBytes > BUILD_POPUP_BYTE_THRESHOLD;
-          } else {
-            const bool targetAvailable = target < static_cast<int>(section->pageCount);
-            showPopup = !targetAvailable && ((spineBytes > BUILD_POPUP_BYTE_THRESHOLD && willInflate) ||
-                                             target > BUILD_POPUP_PAGE_THRESHOLD);
-          }
-          if (showPopup) {
-            GUI.drawPopup(renderer, tr(STR_INDEXING));
-            renderRefreshCounter() = 1;
-          }
-          buildPopupPending = !showPopup;
-          // Section (re)builds are the heap-hungriest path (per-word
-          // allocations for the whole section). Under TTF heap pressure, shed
-          // every rebuildable font cache first — dropped glyphs re-fault on
-          // demand after the build. Skipped for cpfont/builtin reading: the
-          // release drops the persistent advance table and mini tables, which
-          // would force SD metric re-reads on every fresh chapter for no gain.
-          if (!renderer.getTtfFonts().empty()) {
-            if (auto* fcm = renderer.getFontCacheManager()) {
-              fcm->releaseSdFontCaches();
-            }
-          }
-          if (!makeRoomForChapterBuild()) {
-            section.reset();
-            buildPopupPending = false;
-            showBuildError(tr(STR_BT_BUILD_REFUSED));
-            return;
-          }
+        case XP_UI_READER_BOOK_COMMAND_LOG_DEFERRED: {
+          LOG_DBG("ERS", "Partial covers target %d of %d; deferring extension build", a, o.section->pageCount);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_CUMULATIVE: {
+          return o.epub->getCumulativeSpineItemSize(a);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_RELEASE_FONT_CACHE: {
+          if (cache) cache->releaseSdFontCaches();
+          cache = nullptr;
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_HEAP: {
           LOG_DBG("ERS", "Heap before section build: %u (max block %u)", (unsigned)ESP.getFreeHeap(),
                   (unsigned)ESP.getMaxAllocHeap());
-          const unsigned long buildStartMs = millis();
-          bool started;
-          {
-            GfxRenderer::FrameBufferLoan loan(renderer);
-            started = section->startBuild(renderSpec, [this] { showBuildPopup(); });
-          }
-          if (!started) {
-            LOG_ERR("ERS", "Failed to start section build");
-            section.reset();
-            buildPopupPending = false;
-            showBuildError();
-            return;
-          }
-          while (!section->isBuildComplete() &&
-                 (anchorJump               ? !section->findAnchor(pendingAnchor)
-                  : offsetJump.has_value() ? !section->buildReachedVisibleTextOffset(*offsetJump)
-                                           : static_cast<int>(section->pageCount) <= target)) {
-            if (buildPopupPending && millis() - buildStartMs >= BUILD_POPUP_DEADLINE_MS) {
-              showBuildPopup();
-            }
-            if (!section->buildSomeMore(BUILD_PAGES_PER_CHUNK)) {
-              LOG_ERR("ERS", "Failed during incremental section build");
-              section.reset();
-              buildPopupPending = false;
-              showBuildError();
-              return;
-            }
-          }
-          buildPopupPending = false;
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_START_WITH_POPUP: {
+          return o.section->startBuild(spec, [owner = &o] { owner->showBuildPopup(); });
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_START_FAILED: {
+          LOG_ERR("ERS", "Failed to start section build");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_REACHED_OFFSET: {
+          return o.section->buildReachedVisibleTextOffset(static_cast<uint32_t>(a));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_SHOW_BUILD_POPUP: {
+          o.showBuildPopup();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_BUILD_MORE: {
+          return o.section->buildSomeMore(a);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_STEP_FAILED: {
+          LOG_ERR("ERS", "Failed during incremental section build");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_CACHE_FOUND: {
+          LOG_DBG("ERS", "Cache found, skipping build...");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_PAGE: {
+          o.section->currentPage = a;
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_MAP_OFFSET: {
+          const auto p = o.section->getPageForVisibleTextOffset(static_cast<uint32_t>(a));
+          return p ? 0x10000u | *p : 0;
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_CLEAR_DEFERRED: {
+          o.clearDeferredReposition();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_ANCHOR: {
+          LOG_DBG("ERS", "Resolved anchor '%s' to page %d", o.pendingAnchor.c_str(), a);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_CLEAR_ANCHOR: {
+          o.pendingAnchor.clear();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_START_PARTIAL: {
+          return o.section->startBuild(spec);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_PARTIAL_START_FAILED: {
+          LOG_ERR("ERS", "Failed to start partial extension build");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_APPLY_DEFERRED: {
+          o.applyDeferredReposition();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_CLEAR_SCREEN: {
+          o.renderer.clearScreen();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_EMPTY: {
+          LOG_DBG("ERS", "No pages to render");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_STATUS_BAR: {
+          o.renderStatusBar();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DISPLAY: {
+          o.renderer.displayBuffer();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_BOUNDS: {
+          LOG_DBG("ERS", "Page out of bounds: %d (max %d)", o.section->currentPage, o.section->pageCount);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_BOOKMARK_FLAG: {
+          o.updateBookmarkFlag();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOAD_PAGE: {
+          assert(!page);
+          page = o.section->loadPage(o.section->currentPage);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DROP_PAGE: {
+          page.reset();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_ASSIGN_METADATA: {
+          return o.currentPageMetadata.assign(*page);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_PAGE_LOAD_FAILED: {
+          LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_METADATA_FAILED: {
+          LOG_ERR("ERS", "Failed to copy page metadata - clearing section cache");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_ABANDON_BUILD: {
+          o.section->abandonBuild();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_CLEAR_CACHE: {
+          o.section->clearCache();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_RETRY_FAILED: {
+          LOG_ERR("ERS", "Page load retry limit reached, aborting");
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_UPDATE: {
+          o.requestUpdate();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DISCARD_OVERLAY: {
+          o.discardOverlayPage();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_RENDER_CONTENTS: {
+          o.renderContents(std::move(page), margins[0], margins[1], margins[2], margins[3]);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_LOG_RENDERED: {
+          LOG_DBG("ERS", "Rendered page in %dms", millis() - static_cast<uint32_t>(a));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_MARK_RENDERED: {
+          o.markPageRendered();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_SAVE_PROGRESS: {
+          return o.saveProgress(o.currentSpineIndex, o.section->currentPage, o.section->estimatedTotalPages());
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_SCREENSHOT: {
+          ScreenshotUtil::takeScreenshot(o.renderer);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_STORE: {
+          return o.renderer.storeBwBuffer();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_RENDER_OVERLAY: {
+          o.renderOverlay();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_RENDER_POPUP: {
+          o.overlayPopup.render(o.renderer);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_PUSH_REFRESH: {
+          o.pushOverlayRefresh();
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_BACK_HINTS: {
+          const auto labels = o.mappedInput.mapLabels(tr(STR_BACK), "", "", "");
+          GUI.drawButtonHints(o.renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_SYNC: {
+          GUI.drawPopup(o.renderer, tr(STR_SAVE_PROGRESS_FAILED));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_RADIO_ERROR: {
+          GUI.drawPopup(o.renderer, tr(STR_BT_BUILD_REFUSED));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_BUILD_ERROR: {
+          GUI.drawPopup(o.renderer, tr(STR_INDEX_FAILED));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_INDEX: {
+          GUI.drawPopup(o.renderer, tr(STR_INDEXING));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_BOOKMARK_REMOVED: {
+          GUI.drawPopup(o.renderer, tr(STR_BOOKMARK_REMOVED));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_BOOKMARK_ADDED: {
+          GUI.drawPopup(o.renderer, tr(STR_BOOKMARK_ADDED));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_DICTIONARY: {
+          GUI.drawPopup(o.renderer, tr(STR_DICT_NO_DICT_SET));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_FONT: {
+          GUI.drawPopup(o.renderer, tr(STR_FONT_DAMAGED));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_POPUP_CLIPPING: {
+          GUI.drawPopup(o.renderer, I18N.get(o.clippingMessage));
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DRAW_EMPTY: {
+          o.renderer.drawCenteredText(UI_12_FONT_ID, a, tr(STR_EMPTY_CHAPTER), true, EpdFontFamily::BOLD);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DRAW_BOUNDS: {
+          o.renderer.drawCenteredText(UI_12_FONT_ID, a, tr(STR_OUT_OF_BOUNDS), true, EpdFontFamily::BOLD);
+          break;
+        }
+        case XP_UI_READER_BOOK_COMMAND_DRAW_LOAD_ERROR: {
+          o.renderer.drawCenteredText(UI_12_FONT_ID, a, tr(STR_PAGE_LOAD_ERROR), true, EpdFontFamily::BOLD);
+          break;
         }
       }
-    } else {
-      LOG_DBG("ERS", "Cache found, skipping build...");
+      return 0;
     }
-
-    if (pendingPageJump.has_value()) {
-      section->currentPage = *pendingPageJump;
-      pendingPageJump.reset();
-    } else {
-      section->currentPage = nextPageNumber;
-      if (section->currentPage < 0) section->currentPage = 0;
-    }
-
-    if (offsetJump.has_value()) {
-      if (const auto offsetPage = section->getPageForVisibleTextOffset(*offsetJump)) {
-        section->currentPage = *offsetPage;
-        clearDeferredReposition();
-      }
-    }
-    if (explicitOffsetJump) {
-      clearDeferredReposition();
-    }
-    pendingOffsetJump.reset();
-
-    if (!pendingAnchor.empty()) {
-      const auto page = section->findAnchor(pendingAnchor);
-      if (page) {
-        section->currentPage = *page;
-        LOG_DBG("ERS", "Resolved anchor '%s' to page %d", pendingAnchor.c_str(), *page);
-      }
-      pendingAnchor.clear();
-    }
-
-    if (pendingPercentJump && section->pageCount > 0) {
-      int newPage = static_cast<int>(pendingSpineProgress * static_cast<float>(section->pageCount));
-      if (newPage >= section->pageCount) newPage = section->pageCount - 1;
-      section->currentPage = newPage;
-      pendingPercentJump = false;
-    }
-  }
-
-  // The two loops below build on until the page to show exists.
-  if ((section->isPartial() || section->isBuilding()) && section->currentPage >= static_cast<int>(section->pageCount) &&
-      !makeRoomForChapterBuild()) {
-    section.reset();
-    showBuildError(tr(STR_BT_BUILD_REFUSED));
-    return;
-  }
-  if (section->isPartial() && section->currentPage >= static_cast<int>(section->pageCount)) {
-    GUI.drawPopup(renderer, tr(STR_INDEXING));
-    renderRefreshCounter() = 1;
-  }
-  while (section->isPartial() && section->currentPage >= static_cast<int>(section->pageCount)) {
-    if (!section->isBuilding() && !section->startBuild(renderSpec)) {
-      LOG_ERR("ERS", "Failed to start partial extension build");
-      section.reset();
-      showBuildError();
-      return;
-    }
-    while (!section->isBuildComplete() && section->currentPage >= static_cast<int>(section->pageCount)) {
-      if (!section->buildSomeMore(BUILD_PAGES_PER_CHUNK)) {
-        LOG_ERR("ERS", "Failed during incremental section build");
-        section.reset();
-        showBuildError();
-        return;
-      }
-    }
-  }
-  if (section->isBuilding()) {
-    while (!section->isBuildComplete() && section->currentPage >= static_cast<int>(section->pageCount)) {
-      if (!section->buildSomeMore(BUILD_PAGES_PER_CHUNK)) {
-        LOG_ERR("ERS", "Failed during incremental section build");
-        section.reset();
-        showBuildError();
-        return;
-      }
-    }
-  }
-
-  if (!section->isBuilding() && section->pageCount > 0 &&
-      section->currentPage >= static_cast<int>(section->pageCount)) {
-    section->currentPage = section->pageCount - 1;
-  }
-
-  applyDeferredReposition();
-
-  renderer.clearScreen();
-
-  if (section->pageCount == 0) {
-    LOG_DBG("ERS", "No pages to render");
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_EMPTY_CHAPTER), true, EpdFontFamily::BOLD);
-    renderStatusBar();
-    renderer.displayBuffer();
-    pageBufferStale = false;
-    automaticPageTurnActive = false;
-    showPendingSyncSaveError();
-    return;
-  }
-
-  if (section->currentPage < 0 || section->currentPage >= section->pageCount) {
-    LOG_DBG("ERS", "Page out of bounds: %d (max %d)", section->currentPage, section->pageCount);
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_OUT_OF_BOUNDS), true, EpdFontFamily::BOLD);
-    renderStatusBar();
-    renderer.displayBuffer();
-    automaticPageTurnActive = false;
-    showPendingSyncSaveError();
-    return;
-  }
-
-  updateBookmarkFlag();
-
-  {
-    auto p = section->loadPage(section->currentPage);
-    if (!p || !currentPageMetadata.assign(*p)) {
-      if (!p) {
-        LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
-      } else {
-        LOG_ERR("ERS", "Failed to copy page metadata - clearing section cache");
-      }
-      automaticPageTurnActive = false;
-      const bool giveUp = ++pageLoadRetryCount > MAX_PAGE_LOAD_RETRIES;
-      section->abandonBuild();
-      section->clearCache();
-      section.reset();
-      if (giveUp) {
-        LOG_ERR("ERS", "Page load retry limit reached, aborting");
-        pageLoadRetryCount = 0;
-        renderer.clearScreen();
-        renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_PAGE_LOAD_ERROR), true, EpdFontFamily::BOLD);
-        renderer.displayBuffer();
-        showPendingSyncSaveError();
-        return;
-      }
-      requestUpdate();
-      showPendingSyncSaveError();
-      return;
-    }
-    pageLoadRetryCount = 0;
-
-    currentPageVisibleOffset = p->visibleTextOffset;
-    currentPageLinkMarginLeft = orientedMarginLeft;
-    currentPageLinkMarginTop = orientedMarginTop;
-
-    // The overlay and non-tiled grayscale renderer share the renderer's single
-    // stored-BW slot. Release the old page snapshot before renderContents()
-    // needs that slot, then snapshot the newly rendered page below.
-    discardOverlayPage();
-
-    const auto start = millis();
-    renderContents(std::move(p), orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
-    LOG_DBG("ERS", "Rendered page in %dms", millis() - start);
-    lastRenderCompleteMs = millis();
-    markPageRendered();
-  }
-
-  if (currentSpineIndex != lastSavedSpineIndex || section->currentPage != lastSavedPage ||
-      section->pageCount != lastSavedPageCount) {
-    if (saveProgress(currentSpineIndex, section->currentPage, section->estimatedTotalPages())) {
-      lastSavedSpineIndex = currentSpineIndex;
-      lastSavedPage = section->currentPage;
-      lastSavedPageCount = section->estimatedTotalPages();
-    }
-  }
-
-  showPendingSyncSaveError();
-
-  if (pendingScreenshot) {
-    pendingScreenshot = false;
-    ScreenshotUtil::takeScreenshot(renderer);
-  }
-
-  if (showBookmarkMessage) {
-    GUI.drawPopup(renderer, bookmarkRemoved ? tr(STR_BOOKMARK_REMOVED) : tr(STR_BOOKMARK_ADDED));
-  }
-
-  if (showDictionaryMessage) {
-    GUI.drawPopup(renderer, tr(STR_DICT_NO_DICT_SET));
-  }
-
-  // Glyphs of a damaged .cpfont draw as blanks; say why, once per loaded font.
-  if (SdCardFont::takeCorruptGlyphNotice()) {
-    showFontDamagedMessage = true;
-    fontDamagedMessageTime = millis();
-  }
-  if (showFontDamagedMessage) {
-    GUI.drawPopup(renderer, tr(STR_FONT_DAMAGED));
-  }
-
-  if (showClippingMessage) {
-    GUI.drawPopup(renderer, I18N.get(clippingMessage));
-  }
-
-  pageBufferStale = false;  // the page is back in the framebuffer
-
-  // Toolbar menu: overlay the toolbar / panel on top of the freshly rendered page.
-  if (overlay != Overlay::None && usesToolbarMenu()) {
-    // The page just re-rendered under the overlay: refresh the snapshot that
-    // backs panel->toolbar restores (any previous copy is stale).
-    overlayPageStored = renderer.storeBwBuffer();
-    renderOverlay();
-    // An open option picker rides on top of the freshly drawn panel.
-    if (overlayPopup.isActive()) overlayPopup.render(renderer);
-    // FAST, same as openOverlay: HALF's inverting pass flashes the sheet
-    // (white, in night mode) on every repaint under an open panel. Any AA
-    // residue a FAST differential leaves under the chrome has not shown in
-    // practice; restore a HALF cleanup here if text ever visibly ghosts
-    // through the sheet (see #2190 for the mechanism).
-    pushOverlayRefresh();
-  }
+  } context{*this, {}, {}, {}, {}, {}, nullptr};
+  const XpUiReaderBookServices services{
+      &context, [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
+      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
+      [](void* p, uint8_t q) { return static_cast<Context*>(p)->query(q); },
+      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
+  xp_ui_reader_book_render(&services);
+  assert(!context.path && !context.loan && !context.page && !context.cache);
 }
 
 void EpubReaderActivity::onEndOfBookRendered() {

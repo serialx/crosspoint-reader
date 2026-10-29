@@ -524,3 +524,11 @@ pub unsafe extern "C" fn xp_ui_reader_navigation(
 ) -> u32 {
     reader::epub_navigation::run(services, operation, a, b)
 }
+
+/// # Safety
+/// Non-null services obey the synchronous chapter-build resource contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_book_render(services: *const reader::book_render::Services) {
+    reader::book_render::run(services);
+}

@@ -40,3 +40,29 @@ TEST(ReaderStripBuffers, ImageWindowFailureAfterTextAlsoFallsBackWithoutReservat
   EXPECT_FALSE(buffers.bounds);
   EXPECT_FALSE(buffers.imageWindow);
 }
+
+TEST(ReaderStripBuffers, ActiveSourceLoanBlocksReclamationAndReallocation) {
+  ReaderStripBuffers buffers;
+  ASSERT_TRUE(buffers.prepare(99, true));
+  auto* scratch = buffers.scratch.get();
+  buffers.setSourceLoanActive(true);
+  EXPECT_FALSE(buffers.releaseIdle());
+  EXPECT_FALSE(buffers.prepare(99, false));
+  EXPECT_EQ(buffers.scratch.get(), scratch);
+  EXPECT_TRUE(buffers.commands);
+  EXPECT_TRUE(buffers.bounds);
+  EXPECT_TRUE(buffers.imageWindow);
+  buffers.setSourceLoanActive(false);
+  EXPECT_TRUE(buffers.releaseIdle());
+  EXPECT_FALSE(buffers.scratch);
+  EXPECT_FALSE(buffers.commands);
+  EXPECT_FALSE(buffers.bounds);
+  EXPECT_FALSE(buffers.imageWindow);
+  EXPECT_FALSE(buffers.releaseIdle());
+  int calls = 0;
+  ASSERT_TRUE(buffers.prepare(99, false, FaultAllocator{&calls, 0}));
+  EXPECT_EQ(calls, 3);
+  EXPECT_FALSE(buffers.imageWindow);
+  ASSERT_TRUE(buffers.prepare(99, true, FaultAllocator{&calls, 0}));
+  EXPECT_EQ(calls, 4);
+}

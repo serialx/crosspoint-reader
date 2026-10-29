@@ -380,6 +380,9 @@ void EpubReaderActivity::openReaderMenu() {
 // refused rather than run next to it. The stop finishes on the main loop (the module's tick) and
 // the start on its own task; neither needs the render lock this task holds.
 bool EpubReaderActivity::makeRoomForChapterBuild() {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  stripBuffers.releaseIdle();
+#endif
   bool asked = false;
   const auto roomMade = [this, &asked] {
     // The first ask stops the radio. A later one asks again only once a start that was still
@@ -402,6 +405,16 @@ bool EpubReaderActivity::buildTickHeapGate() {
   const size_t freeHeap = ESP.getFreeHeap();
   const size_t maxBlock = ESP.getMaxAllocHeap();
   buildHeapPaused = freeHeap < BACKGROUND_BUILD_MIN_FREE_HEAP || maxBlock < BACKGROUND_BUILD_MIN_MAX_ALLOC;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  if (buildHeapPaused && stripBuffers.releaseIdle()) {
+    const size_t reclaimedFree = ESP.getFreeHeap();
+    const size_t reclaimedBlock = ESP.getMaxAllocHeap();
+    buildHeapPaused = reclaimedFree < BACKGROUND_BUILD_MIN_FREE_HEAP || reclaimedBlock < BACKGROUND_BUILD_MIN_MAX_ALLOC;
+    LOG_DBG("ERS", "Released idle reader strips for build: heap %u/%u -> %u/%u", static_cast<unsigned>(freeHeap),
+            static_cast<unsigned>(maxBlock), static_cast<unsigned>(reclaimedFree),
+            static_cast<unsigned>(reclaimedBlock));
+  }
+#endif
   return !buildHeapPaused;
 }
 
@@ -462,6 +475,12 @@ void EpubReaderActivity::startClipSelection(const int initialX, const int initia
                                             const ClipSelectionActivity::Mode mode) {
   if (!section || !epub || section->currentPage < 0 || section->currentPage >= section->pageCount) return;
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  {
+    RenderLock lock;
+    stripBuffers.releaseIdle();
+  }
+#endif
   const int pageNumber = section->currentPage;
   const uint16_t pageCount = section->pageCount;
   const uint16_t spineIndex = static_cast<uint16_t>(currentSpineIndex);
@@ -717,6 +736,9 @@ void EpubReaderActivity::loop() {
     if (lock.ownsLock() && section && !section->isBuilding() && section->isPartial() && buildViewportWidth > 0 &&
         !partialRebuildStartFailed && !bleturner::holdsHeap() &&
         section->currentPage + PARTIAL_REBUILD_START_MARGIN >= static_cast<int>(section->pageCount)) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      stripBuffers.releaseIdle();
+#endif
       const ReaderRenderSpec buildSpec = SETTINGS.readerRenderSpec(buildViewportWidth, buildViewportHeight);
       if (!section->startBuild(buildSpec)) {
         partialRebuildStartFailed = true;
@@ -1153,6 +1175,12 @@ int EpubReaderActivity::currentTocIndex() const {
 }
 
 void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  {
+    RenderLock lock;
+    stripBuffers.releaseIdle();
+  }
+#endif
   auto progressChangeResultHandler = [this](const ActivityResult& result) {
     loadCachedBookmarks();
     if (result.isCancelled) {
@@ -2143,6 +2171,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     bool active = false;
     ~StripFrame() {
       if (active) display.setFrameSource(nullptr);
+      owner.stripBuffers.setSourceLoanActive(false);
       owner.renderer.usePagePlan(nullptr, nullptr, 0);
       ImageBlock::setRenderReadWindow(nullptr, 0);
     }
@@ -2196,6 +2225,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
                              ReaderStripBuffers::ROWS,   renderer.getDisplayWidth(),
                              &StripFrame::paint};
         stripFrame.active = display.setFrameSource(&stripFrame.source);
+        stripBuffers.setSourceLoanActive(stripFrame.active);
       }
     } else {
       LOG_ERR("ERS", "OOM: reader strips (%u bytes); using framebuffer",
@@ -2207,7 +2237,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   if (!stripFrame.active) {
     renderer.usePagePlan(nullptr, nullptr, 0);
     ImageBlock::setRenderReadWindow(nullptr, 0);
-    stripBuffers = {};
+    stripBuffers.releaseIdle();
   }
 #endif
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER

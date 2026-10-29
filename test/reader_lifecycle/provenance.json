@@ -1,0 +1,14 @@
+{
+  "source_commit": "8d534a99e53f3bc98d842740de606b0396d38d56",
+  "sha256": {
+    "src/activities/reader/EpubReaderActivity.cpp": "94195f5b806fd9e88602b137c8925291e399f79055ad01409213776e56498e92",
+    "src/activities/reader/ReaderUtils.h": "32a7c3afe28193933bac5f12f298ce40100240c527a56e021fd2a4628fd60f22",
+    "src/activities/reader/ReaderSession.h": "7ae59da0d5edc477574098b2689ebe6ea692774f3e9be3e720c0b6ef4a9ad9fc",
+    "src/activities/reader/ReaderSession.cpp": "cc229ae2af90faf0dc6033c85ab6349ce40c9aea46ee9f31d230bda13a30ad93",
+    "src/activities/reader/ChapterBuildGate.h": "39e79169556b6b7c16a1525f85c7b4f9615c7450256c06bae3d78f9b18f75981",
+    "src/activities/reader/RemoteTurnGate.h": "49681d66bb88b337c95a87a045ee993635730fa80251dbd90781938ae2599ae0",
+    "src/activities/reader/LinkNoteTitle.h": "67bf1bf32b4c82e818666fd0e566144e95fde31cf68a6d75a6761cd6682554aa",
+    "src/activities/reader/EpubReaderUtils.h": "244e6b7e7bbf127831bf941dd2a25d1f53e1e0861ffa7b6351e9268c884f975b",
+    "src/activities/reader/ProgressFile.h": "c2090caceac5a10c36a4d00b8187716de8f1df0dac5519d67803eb6f910e68f2"
+  }
+}

@@ -1,5 +1,9 @@
 #include "EpubReaderActivity.h"
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+#include "ReaderStripPainter.h"
+#endif
+
 #include <BlePageTurner.h>
 #include <Epub/Page.h>
 #include <Epub/blocks/TextBlock.h>
@@ -2164,8 +2168,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   struct StripFrame {
     EpubReaderActivity& owner;
-    Page& page;
-    int font, left, top, statusTop;
+    ReaderStripPainter painter;
     XpPagePlan plan{};
     XpDisplaySource source{};
     bool active = false;
@@ -2175,38 +2178,12 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       owner.renderer.usePagePlan(nullptr, nullptr, 0);
       ImageBlock::setRenderReadWindow(nullptr, 0);
     }
-    static uint32_t paint(void* raw, uint8_t* scratch, uint16_t y, uint16_t rows) {
-      auto& c = *static_cast<StripFrame*>(raw);
-      auto& r = c.owner.renderer;
-      const auto priorMode = r.getRenderMode();
-      r.setRenderMode(GfxRenderer::BW);
-      r.beginStripTarget(scratch, y, rows);
-      r.clearScreen();
-      c.owner.drawClippingHighlights(c.page, c.font, c.top, c.left);
-      c.page.render(r, c.font, c.left, c.top);
-      r.copyStatusToStrip(c.statusTop, display.isInverted());
-      r.endStripTarget();
-      if (display.isInverted()) {
-        for (size_t i = 0; i < static_cast<size_t>(rows) * r.getDisplayWidthBytes(); ++i) scratch[i] ^= 0xFF;
-      }
-      const size_t bytes = static_cast<size_t>(rows) * r.getDisplayWidthBytes();
-      const auto* expected = r.getFrameBuffer() + static_cast<size_t>(y) * r.getDisplayWidthBytes();
-      if (c.page.hasImages() && memcmp(scratch, expected, bytes) != 0) {
-        r.setRenderMode(priorMode);
-        return 1;
-      }
-      // Keep the existing screenshot/overlay buffer valid as the page streams.
-      memcpy(r.getFrameBuffer() + static_cast<size_t>(y) * r.getDisplayWidthBytes(), scratch,
-             static_cast<size_t>(rows) * r.getDisplayWidthBytes());
-      r.setRenderMode(priorMode);
-      return 0;
-    }
   } stripFrame{*this,
-               *page,
-               fontId,
-               orientedMarginLeft,
-               orientedMarginTop,
-               renderer.getScreenHeight() - orientedMarginBottom - 8};
+               {renderer, *page, fontId, orientedMarginLeft, orientedMarginTop,
+                renderer.getScreenHeight() - orientedMarginBottom - 8, display.isInverted(), this,
+                [](void* raw, const Page& page, int font, int left, int top) {
+                  static_cast<EpubReaderActivity*>(raw)->drawClippingHighlights(page, font, top, left);
+                }}};
   const bool stripBoard = display.getController() == HalDisplay::Controller::UC8253 ||
                           (BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4 &&
                            display.getController() == HalDisplay::Controller::SSD1677);
@@ -2220,10 +2197,10 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       renderer.usePagePlan(stripFrame.plan.valid ? &stripFrame.plan : nullptr, stripBuffers.bounds.get(),
                            page->elementCount());
       if (stripFrame.plan.valid) {
-        stripFrame.source = {sizeof(XpDisplaySource),    &stripFrame,
+        stripFrame.source = {sizeof(XpDisplaySource),    &stripFrame.painter,
                              stripBuffers.scratch.get(), static_cast<uint32_t>(scratchBytes),
                              ReaderStripBuffers::ROWS,   renderer.getDisplayWidth(),
-                             &StripFrame::paint};
+                             &ReaderStripPainter::paint};
         stripFrame.active = display.setFrameSource(&stripFrame.source);
         stripBuffers.setSourceLoanActive(stripFrame.active);
       }

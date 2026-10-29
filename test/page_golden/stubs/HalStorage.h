@@ -8,6 +8,11 @@
 #include <string>
 
 namespace HalFileTest {
+inline std::string watchedReadPath;
+inline bool failWatchedReads = false;
+inline size_t watchedReads = 0;
+inline size_t watchedReadsBeforeFailure = 0;
+inline bool allowGlyphMetadata = false;
 inline bool failNextWrite = false;
 inline bool failNextClose = false;
 }  // namespace HalFileTest
@@ -27,6 +32,7 @@ class HalFile {
   HalFile& operator=(HalFile&& other) noexcept {
     close();
     file_ = other.file_;
+    path_ = std::move(other.path_);
     other.file_ = nullptr;
     return *this;
   }
@@ -34,11 +40,20 @@ class HalFile {
   size_t fileSize() const { return size(); }
   bool open(const char* path, const char* mode) {
     close();
+    path_ = path;
     file_ = std::fopen(path, mode);
     return file_ != nullptr;
   }
   int available() const { return file_ ? static_cast<int>(size() - position()) : 0; }
-  size_t read(void* buffer, size_t count) { return file_ ? std::fread(buffer, 1, count, file_) : 0; }
+  size_t read(void* buffer, size_t count) {
+    if (!HalFileTest::watchedReadPath.empty() && path_ == HalFileTest::watchedReadPath) {
+      ++HalFileTest::watchedReads;
+      if (HalFileTest::failWatchedReads && HalFileTest::watchedReads > HalFileTest::watchedReadsBeforeFailure &&
+          !(HalFileTest::allowGlyphMetadata && count == 16))
+        return 0;
+    }
+    return file_ ? std::fread(buffer, 1, count, file_) : 0;
+  }
   size_t write(const void* buffer, size_t count) {
     if (HalFileTest::failNextWrite) {
       HalFileTest::failNextWrite = false;
@@ -80,6 +95,7 @@ class HalFile {
 
  private:
   std::FILE* file_ = nullptr;
+  std::string path_;
   size_t writeBytesLeft_ = SIZE_MAX;
 };
 

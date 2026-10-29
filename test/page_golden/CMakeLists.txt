@@ -99,3 +99,28 @@ option(STRIP_PLAN "Replay retained word placements in strip matrices" OFF)
 if(STRIP_PLAN)
   target_compile_definitions(PageGolden PRIVATE XP_STRIP_PLAN=1)
 endif()
+
+# Use the production painter and both controllers without the golden tracing replacements.
+if(STRIP_PLAN AND XP_FFI_HOST_FEATURES MATCHES "display-panel")
+  get_target_property(REPLAY_SOURCES PageGolden SOURCES)
+  list(REMOVE_ITEM REPLAY_SOURCES PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
+    ${INSTRUMENTED}/Page.cpp ${INSTRUMENTED}/TextBlock.cpp ${INSTRUMENTED}/ImageBlock.cpp)
+  add_executable(ReaderStripReplay ReaderStripReplay.cpp ${REPLAY_SOURCES}
+    ${REPO_ROOT}/lib/GfxRenderer/GfxRenderer.cpp ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp)
+  get_target_property(REPLAY_INCLUDES PageGolden INCLUDE_DIRECTORIES)
+  list(REMOVE_ITEM REPLAY_INCLUDES ${INSTRUMENTED})
+  target_include_directories(ReaderStripReplay PRIVATE ${REPO_ROOT}/lib/GfxRenderer ${REPLAY_INCLUDES})
+  get_target_property(REPLAY_DEFINITIONS PageGolden COMPILE_DEFINITIONS)
+  list(REMOVE_ITEM REPLAY_DEFINITIONS XP_STRIP_SPIKE=1 XP_STRIP_PLAN=1)
+  target_compile_definitions(ReaderStripReplay PRIVATE ${REPLAY_DEFINITIONS} XP_STRIP_RENDER=1)
+  target_compile_options(ReaderStripReplay PRIVATE -ffunction-sections -fdata-sections -fno-exceptions)
+  if(APPLE)
+    target_link_options(ReaderStripReplay PRIVATE -Wl,-dead_strip)
+  else()
+    target_link_options(ReaderStripReplay PRIVATE -Wl,--gc-sections)
+  endif()
+  target_link_libraries(ReaderStripReplay PRIVATE xp_ffi_host)
+  add_test(NAME ReaderStripReplay COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/strip_replay.py
+    $<TARGET_FILE:ReaderStripReplay>)
+endif()

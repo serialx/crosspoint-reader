@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory() as directory:
     header = (ROOT / 'src/activities/network/UsbDriveActivity.h').read_text()
     (out / 'UsbDriveActivity.h').write_text(header.replace('activities/RustActivityAdapter.h', 'RustActivityAdapter.h'))
     stub = (ROOT / 'test/ui_runtime/stubs/Activity.h').read_text()
-    stub = stub.replace('return true; }', 'return acceptScene; }')
+    stub = stub.replace('return paintOk; }', 'return acceptScene; }')
     stub = stub.replace('  std::atomic<bool> refreshing', '  bool acceptScene = true;\n  std::atomic<bool> refreshing')
     stub = stub.replace('  uint8_t touchFlags', '''  bool home = false;
   bool wasHomeGesture() const { return home; }

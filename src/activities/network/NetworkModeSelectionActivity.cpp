@@ -63,6 +63,9 @@ void NetworkModeSelectionActivity::loop() {
     ModelLock lock(*this);
     sampledHeld = held;
     sampledTouch = touch.touchPressed || touch.touchHeld;
+    // The shared rejection gate can consume the release before updateRust runs.
+    suppressedButtons &= held;
+    if (!sampledTouch) suppressedTouch = false;
   }
   RustActivityAdapter::loop();
 }

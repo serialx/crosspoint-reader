@@ -111,6 +111,8 @@ int main() {
         failure.next = failure.state;
         paint();
         assert(!failure.sceneFailed && failure.publication.ready);
+        failure.loop();
+        assert(failure.completed == 0);
         input.pressed = input.held = 0;
         input.released = 1u << unsigned(MappedInputManager::Button::Confirm);
         input.touchFlags = XP_UI_TOUCH_RELEASED;
@@ -123,6 +125,19 @@ int main() {
         input.released = 1u << unsigned(MappedInputManager::Button::Confirm);
         failure.loop();
         assert(failure.completed == 1 && failure.mode == selected);
+        failure.completed = 0;
+        failure.hits.first_row = {0, 0, 80, 30};
+        failure.hits.first_index = 2;
+        failure.hits.heights[0] = 30;
+        failure.hits.count = 1;
+        failure.hits.uniform = 1;
+        input = {};
+        input.touchFlags = XP_UI_TOUCH_PRESSED;
+        failure.loop();
+        assert(failure.completed == 0);
+        input.touchFlags = XP_UI_TOUCH_RELEASED;
+        failure.loop();
+        assert(failure.completed == 1 && failure.mode == 2);
         input = {};
       }
     }

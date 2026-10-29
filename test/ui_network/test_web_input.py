@@ -19,7 +19,7 @@ with tempfile.TemporaryDirectory() as directory:
     stub=stub.replace('using portMUX_TYPE', 'inline thread_local int modelDepth=0;\nusing portMUX_TYPE')
     stub=stub.replace('#define taskENTER_CRITICAL(m) (m)->lock()', '#define taskENTER_CRITICAL(m) do {(m)->lock(); ++modelDepth;} while(0)')
     stub=stub.replace('#define taskEXIT_CRITICAL(m) (m)->unlock()', '#define taskEXIT_CRITICAL(m) do {--modelDepth; (m)->unlock();} while(0)')
-    stub=stub.replace('bool drawUiScene(const XpUiScene&, const XpUiPaint*) const { return true; }', '''bool acceptScene=true;
+    stub=stub.replace('bool drawUiScene(const XpUiScene&, const XpUiPaint*) const { return paintOk; }', '''bool acceptScene=true;
   bool drawUiScene(const XpUiScene&,const XpUiPaint* paint) const {
     if(!acceptScene) return false;
     if(paint->resource) paint->resource(paint->context,nullptr,nullptr,{});

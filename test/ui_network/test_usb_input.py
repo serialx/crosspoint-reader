@@ -19,7 +19,7 @@ with tempfile.TemporaryDirectory() as directory:
     for filename in ['RustActivityAdapter.h', 'RustActivityAdapter.cpp']:
         shutil.copyfile(ROOT/'src/activities'/filename, out/filename)
     stub = (ROOT/'test/ui_runtime/stubs/Activity.h').read_text()
-    stub = stub.replace('return true; }', 'return acceptScene; }')
+    stub = stub.replace('return paintOk; }', 'return acceptScene; }')
     stub = stub.replace('  std::atomic<bool> refreshing', '  bool acceptScene = true;\n  std::atomic<bool> refreshing')
     stub = stub.replace('  uint8_t touchFlags', '  bool home = false;\n  bool wasHomeGesture() const {return home;}\n  uint8_t touchFlags')
     (out/'Activity.h').write_text(stub)

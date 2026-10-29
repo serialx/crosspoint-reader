@@ -848,6 +848,18 @@ typedef enum {
   XP_UI_READER_OVERLAY_QUERY_PRESSED = 14,
   /* Returns cached XP_UI button release bits; pure read. No arguments. */
   XP_UI_READER_OVERLAY_QUERY_RELEASED = 15,
+  /* No arguments; returns section presence. No allocation, lock, I/O or paint. */
+  XP_UI_READER_OVERLAY_QUERY_HAS_SECTION = 16,
+  /* No arguments; returns the atomic stale-framebuffer flag. No allocation, lock, I/O or paint. */
+  XP_UI_READER_OVERLAY_QUERY_PAGE_STALE = 17,
+  /* No arguments; returns touch capability. No allocation, lock, I/O or paint. */
+  XP_UI_READER_OVERLAY_QUERY_TOUCH = 18,
+  /* No arguments; returns signed TOC index bits. May allocate and read storage; caller holds RenderLock. */
+  XP_UI_READER_OVERLAY_QUERY_CURRENT_TOC = 19,
+  /* No arguments; returns the A4 board flag. No allocation, lock, I/O or paint. */
+  XP_UI_READER_OVERLAY_QUERY_IS_A4 = 20,
+  /* No arguments; returns the Xteink panel flag. No allocation, lock, I/O or paint. */
+  XP_UI_READER_OVERLAY_QUERY_IS_XTEINK = 21,
 } XpUiReaderOverlayQuery;
 typedef enum {
   /* a/b ignored; return ignored; dispatches existing picker, possibly synchronously calling PopupChanged; may
@@ -919,6 +931,20 @@ typedef enum {
   /* a/b ignored; returns mapped hold duration in milliseconds; reads original held-time provider and may clear expired
      touch-held bookkeeping; no hardware polling. */
   XP_UI_READER_OVERLAY_COMMAND_TAKE_HELD_MS = 30,
+  /* a/b ignored; returns 0. Resets mapped Home input; no allocation, lock, I/O or paint. */
+  XP_UI_READER_OVERLAY_COMMAND_RESET_HOME = 31,
+  /* a/b ignored; returns 0. Allocates toolbar resources; no painting. Requires no existing toolbar. */
+  XP_UI_READER_OVERLAY_COMMAND_CREATE_TOOLBAR = 32,
+  /* a=selected, b=top; returns 0. Takes the short toolbar model lock; no allocation, I/O or paint. */
+  XP_UI_READER_OVERLAY_COMMAND_RESET_NAVIGATION = 33,
+  /* a/b ignored; returns 0. Builds native row resources; may allocate/free and read storage, never paints. */
+  XP_UI_READER_OVERLAY_COMMAND_BUILD_MORE = 34,
+  /* a/b ignored; returns 0. Frees toolbar resources; no paint or panel wait. */
+  XP_UI_READER_OVERLAY_COMMAND_DROP_TOOLBAR = 35,
+  /* a=refresh counter, b ignored; returns 0. Takes short ModelLock; no allocation, I/O or paint. */
+  XP_UI_READER_OVERLAY_COMMAND_FORCE_COUNTER = 36,
+  /* a/b ignored; returns 0. Caller holds RenderLock; pushes FAST refresh and may block on the panel. */
+  XP_UI_READER_OVERLAY_COMMAND_DISPLAY_FAST = 37,
 } XpUiReaderOverlayCommand;
 typedef enum {
   /* Handle one mapped toolbar/panel input frame. Operation dispatch returns no value. */
@@ -927,6 +953,12 @@ typedef enum {
   XP_UI_READER_OVERLAY_OPERATION_POPUP_CHANGED = 1,
   /* Existing text-settings child result callback, owner-bound. Operation dispatch returns no value. */
   XP_UI_READER_OVERLAY_OPERATION_PICKER_RESULT = 2,
+  XP_UI_READER_OVERLAY_OPERATION_OPEN_NONE = 3,
+  XP_UI_READER_OVERLAY_OPERATION_OPEN_TOOLBAR = 4,
+  XP_UI_READER_OVERLAY_OPERATION_OPEN_CONTENTS = 5,
+  XP_UI_READER_OVERLAY_OPERATION_OPEN_TEXT = 6,
+  XP_UI_READER_OVERLAY_OPERATION_OPEN_MORE = 7,
+  XP_UI_READER_OVERLAY_OPERATION_CLOSE = 8,
 } XpUiReaderOverlayOperation;
 enum { XP_UI_READER_OVERLAY_TEXT_ROWS = 5, XP_UI_READER_OVERLAY_HOLD_MS = 1500, XP_UI_READER_OVERLAY_HOLD_ROWS = 10 };
 typedef struct {
@@ -943,6 +975,48 @@ typedef struct {
  * or arguments; owner-bound child callbacks create a fresh service context.
  * TOC_ITEM owns its entry until TOC_DROP after the update request. */
 void xp_ui_reader_overlay_run(const XpUiReaderOverlayServices*, uint8_t operation);
+
+/* Called under RenderLock, never ModelLock. Null/missing callbacks produce no paint.
+ * query supplies scalar state or a borrowed resource result; CHAPTER_TITLE prepares
+ * a string until paint returns. PROGRESS uses IEEE-754 f32 bits in both directions.
+ * paint borrows the view only for its synchronous call; no pointer is retained. */
+typedef enum {
+  XP_UI_READER_VIEW_HAS_BOOK = 0,
+  XP_UI_READER_VIEW_HAS_SECTION = 1,
+  XP_UI_READER_VIEW_HAS_TOOLBAR = 2,
+  XP_UI_READER_VIEW_MODE = 3,
+  XP_UI_READER_VIEW_CURSOR = 4,
+  XP_UI_READER_VIEW_FOCUS = 5,
+  XP_UI_READER_VIEW_CHAPTER_TITLE = 6,
+  XP_UI_READER_VIEW_PAGE_COUNT = 7,
+  XP_UI_READER_VIEW_CURRENT_PAGE = 8,
+  XP_UI_READER_VIEW_PROGRESS = 9,
+  XP_UI_READER_VIEW_TOUCH = 10,
+  XP_UI_READER_VIEW_INDEX = 11,
+  XP_UI_READER_VIEW_TOC_COUNT = 12,
+  XP_UI_READER_VIEW_MORE_COUNT = 13,
+} XpUiReaderOverlayViewQuery;
+typedef struct {
+  int32_t active_tool, selected_index, item_count, progress_permille;
+  uint8_t kind, dense, reserved[2]; /* kind: toolbar=1, contents=2, text=3, more=4 */
+  uint8_t page_info[40];            /* NUL-terminated toolbar label; empty for panels. */
+} XpUiReaderOverlayView;
+typedef struct {
+  void* context;
+  uint32_t (*query)(void* context, uint8_t query, uint32_t argument);
+  void (*paint)(void* context, const XpUiReaderOverlayView* view);
+} XpUiReaderOverlayViewServices;
+void xp_ui_reader_overlay_view(const XpUiReaderOverlayViewServices*);
+typedef enum {
+  XP_UI_READER_DECORATION_NONE = 0,
+  XP_UI_READER_DECORATION_FOCUS = 1,
+  XP_UI_READER_DECORATION_NIGHT = 2,
+  XP_UI_READER_DECORATION_BLUETOOTH = 3,
+  XP_UI_READER_DECORATION_FRONTLIGHT = 4,
+} XpUiReaderDecoration;
+/* Returns a decoration resource ID. Text mode takes a row index;
+ * More mode takes the persisted menu-action ID. */
+uint8_t xp_ui_reader_overlay_checkbox(uint8_t mode, int32_t row_or_action);
 
 #ifdef __cplusplus
 }
@@ -1380,6 +1454,25 @@ XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_PICKER_RESULT == 2);
 XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_TEXT_ROWS == 5);
 XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_HOLD_MS == 1500);
 XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_HOLD_ROWS == 10);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_HAS_SECTION == 16);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_PAGE_STALE == 17);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_TOUCH == 18);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_CURRENT_TOC == 19);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_IS_A4 == 20);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_QUERY_IS_XTEINK == 21);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_RESET_HOME == 31);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_CREATE_TOOLBAR == 32);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_RESET_NAVIGATION == 33);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_BUILD_MORE == 34);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_DROP_TOOLBAR == 35);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_FORCE_COUNTER == 36);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_COMMAND_DISPLAY_FAST == 37);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_NONE == 3);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_TOOLBAR == 4);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_CONTENTS == 5);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_TEXT == 6);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_MORE == 7);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_CLOSE == 8);
 #undef XP_UI_READER_OVERLAY_ASSERT
 #undef XP_UI_READER_OVERLAY_ALIGNOF
 
@@ -1422,3 +1515,27 @@ XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, reserved) == 38);
 XP_UI_READER_IDLE_ASSERT(XP_UI_READER_IDLE_ADMITTED == 1);
 XP_UI_READER_IDLE_ASSERT(XP_UI_READER_IDLE_SCREEN_LONG == 2);
 #undef XP_UI_READER_IDLE_ASSERT
+
+#if defined(__cplusplus)
+#define XP_UI_READER_VIEW_ASSERT(x) static_assert(x, #x)
+static_assert(alignof(XpUiReaderOverlayView) == 4, "overlay view alignment");
+static_assert(alignof(XpUiReaderOverlayViewServices) == alignof(void*), "overlay services alignment");
+#else
+#define XP_UI_READER_VIEW_ASSERT(x) _Static_assert(x, #x)
+_Static_assert(_Alignof(XpUiReaderOverlayView) == 4, "overlay view alignment");
+_Static_assert(_Alignof(XpUiReaderOverlayViewServices) == _Alignof(void*), "overlay services alignment");
+#endif
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, active_tool) == 0);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, selected_index) == 4);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, item_count) == 8);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, progress_permille) == 12);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, kind) == 16);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, dense) == 17);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, reserved) == 18);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayView, page_info) == 20);
+XP_UI_READER_VIEW_ASSERT(sizeof(XpUiReaderOverlayView) == 60);
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayViewServices, context) == 0 * sizeof(void*));
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayViewServices, query) == 1 * sizeof(void*));
+XP_UI_READER_VIEW_ASSERT(offsetof(XpUiReaderOverlayViewServices, paint) == 2 * sizeof(void*));
+XP_UI_READER_VIEW_ASSERT(sizeof(XpUiReaderOverlayViewServices) == 3 * sizeof(void*));
+#undef XP_UI_READER_VIEW_ASSERT

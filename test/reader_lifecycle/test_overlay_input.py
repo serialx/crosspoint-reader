@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from extract import definition
+from overlay_binding import binding
 sys.path.insert(0,str(ROOT / 'test'))
 from rust_host import rust_link_flags
 freeze = '--freeze-original' in sys.argv
@@ -23,7 +24,7 @@ fixture = fixture.replace('// SWIPE_ENUM', swipe)
 if not freeze:
     fixture = '#include <optional>\n#include <xp_ui_reader.h>\n' + fixture
     fixture = fixture.replace('  void handleOverlayInput();', '  void handleOverlayInput();\n  void runOverlayPolicy(uint8_t);')
-    fixture = fixture.replace(definition(source, 'void EpubReaderActivity::handleOverlayInput()'), definition(source, 'void EpubReaderActivity::handleOverlayInput()') + '\n' + definition(source, 'void EpubReaderActivity::runOverlayPolicy('))
+    fixture = fixture.replace(definition(source, 'void EpubReaderActivity::handleOverlayInput()'), definition(source, 'void EpubReaderActivity::handleOverlayInput()') + '\n' + binding(source, False))
     fixture = fixture.replace('struct EpubReaderActivity {', 'struct EpubReaderActivity {\n struct ModelLock { explicit ModelLock(EpubReaderActivity&) {} };')
 
 fixture = fixture.replace('// NAV_METHODS', '\n'.join(definition(nav, 'int ButtonNavigator::' + name) for name in ['nextIndex(', 'previousIndex(']))

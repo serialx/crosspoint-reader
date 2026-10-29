@@ -2791,171 +2791,129 @@ void EpubReaderActivity::settleOverlayRefresh() {
 }
 
 void EpubReaderActivity::openOverlay(Overlay target) {
-  mappedInput.resetHomeButtonInput();
-  const Overlay previous = overlay;
-  overlay = target;
-  if (!toolbarUi) toolbarUi = std::make_unique<ReaderToolbarUi>(renderer);
-  if (previous == Overlay::None) toolbarUi->begin();
-  // Buttons show a cursor from the start; touch boards only once a button moves it.
-  panelCursorShown = !mappedInput.hasTouch();
-  switch (target) {
-    case Overlay::Toolbar:
-      focusedTool = 0;
-      break;
-    case Overlay::Contents: {
-      RenderLock lock;
-      panelIndex = currentTocIndex();
-      // Fresh viewport opening on the current chapter, cursor shown or not.
-      toolbarUi->resetNavigation(panelIndex, panelIndex);
-      break;
-    }
-    case Overlay::Text:
-      panelIndex = 0;
-      toolbarUi->resetNavigation();
-      break;
-    case Overlay::More:
-      panelIndex = 0;
-      buildMoreActions();
-      toolbarUi->resetNavigation();
-      break;
-    default:
-      break;
-  }
-  panelHoldJumped = false;
-
-  // The page is already on screen and still in the framebuffer, so paint the
-  // chrome straight onto it and push one refresh. requestUpdate() would
-  // re-render the whole page first: slow, and visibly wrong, since that repaint
-  // lands before the overlay does.
-  //
-  // Refresh mode: FAST for every overlay paint, first open included. The AA
-  // pass only grays glyph edges, and residue a FAST differential leaves under
-  // the sheet has not shown in practice; it also self-heals on the
-  // Xteink-class panels, whose close path re-renders the page. If text or
-  // images ever visibly ghost through the chrome, restore a HALF cleanup on
-  // the first open (see #2190 for the mechanism).
-  if (section && !pageBufferStale) {
-    // Serialize against the render task: renderBook may be mid-page (status
-    // bar included) in the shared framebuffer, and painting the chrome from
-    // the loop task at the same time interleaves the two frames.
-    RenderLock lock;
-    settleOverlayRefresh();
-    if (previous == Overlay::None) {
-      // Snapshot the clean page so stepping back from a panel to the toolbar
-      // (and closing, where supported) can restore it without a re-render.
-      overlayPageStored = renderer.storeBwBuffer();
-    } else if (overlayPageStored) {
-      // Overlay -> overlay: wipe the previous chrome (toolbar header, sheet,
-      // progress row) back to the clean page so none of it shows around or
-      // through the new sheet; re-store for the next transition. No baseline
-      // resync: the glass still shows the old chrome, and the differential
-      // must keep diffing against it to erase it.
-      renderer.restoreBwBuffer(/*resyncPanelBaseline=*/false);
-      overlayPageStored = renderer.storeBwBuffer();
-    }
-    renderOverlay();
-    pushOverlayRefresh();
-  } else {
-    requestUpdate();  // no page in the framebuffer: renderBook() draws the overlay once it is
-  }
+  runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_OPEN_NONE + static_cast<uint8_t>(target));
 }
 
 // Grayscale panels re-render to restore AA; other boards restore the B/W snapshot.
-void EpubReaderActivity::closeOverlayToPage() {
-  mappedInput.resetHomeButtonInput();
-  overlay = Overlay::None;
-  overlayPopup.dismiss();  // an option picker cannot outlive its panel
-  toolbarUi.reset();       // ~1 KB of interaction table + props, only needed while open
-  if (BoardConfig::isEegoA4()) setRefreshCounter(1);
-  if (!xteinkClassPanel() && overlayPageStored) {
-    RenderLock lock;  // the render task shares the framebuffer
-    settleOverlayRefresh();
-    // No baseline resync: the glass shows the chrome, and erasing it needs
-    // the differential to keep diffing against the last pushed frame.
-    renderer.restoreBwBuffer(/*resyncPanelBaseline=*/false);
-    overlayPageStored = false;
-    renderer.displayBuffer(HalDisplay::FAST_REFRESH);
-    return;
-  }
-  discardOverlayPage();
-  requestUpdate();  // redraw the clean page
-}
+void EpubReaderActivity::closeOverlayToPage() { runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_CLOSE); }
 
 void EpubReaderActivity::renderOverlay() {
-  if (!epub || !section || !toolbarUi) return;
-
-  ReaderToolbarUi::Model model;
-  // The toolbar's tool pill is the button-navigation cursor: tap-first (same
-  // convention as the panel lists), it only shows once a button has moved it.
-  // Panels override below: there the pill marks the open panel on every board.
-  model.activeTool = (overlay == Overlay::Toolbar && !panelCursorShown) ? -1 : focusedTool;
-  // Strings the model points at live here until render() returns.
-  std::string chapterTitle, pageInfo;
-
-  if (overlay == Overlay::Toolbar) {
-    chapterTitle = currentChapterTitle();
-    const int pageCount = section->estimatedTotalPages();
-    const float chapterProgress =
-        pageCount > 0 ? static_cast<float>(section->currentPage + 1) / static_cast<float>(pageCount) : 0.0f;
-    const float bookProgress = epub->calculateProgress(currentSpineIndex, chapterProgress);
-    pageInfo = std::to_string(section->currentPage + 1) + "/" + std::to_string(pageCount) + "   " +
-               std::to_string(clampPercent(static_cast<int>(bookProgress * 100.0f + 0.5f))) + "%";
-    model.chapterTitle = chapterTitle.c_str();
-    model.pageInfo = pageInfo.c_str();
-    model.progressPermille = static_cast<int>(bookProgress * 1000.0f + 0.5f);
-    toolbarUi->setModel(model);
-    toolbarUi->render();
-    return;
-  }
-
-  // Panels (Contents / Text / More): a bottom sheet over the page.
-  model.panel = true;
-  if (!mappedInput.hasTouch()) {
-    model.denseRows = true;
-  }
-  // Tap-first: the cursor is only drawn once a button has moved it, so a
-  // tapped row does not stay inverted after its action.
-  model.selectedIndex = panelCursorShown ? panelIndex : -1;
-  if (overlay == Overlay::Contents) {
-    model.panelTitle = tr(STR_TOOL_CONTENTS);
-    model.itemCount = epub->getTocItemsCount();
-    model.rowText = [this](int i) {
-      const auto item = epub->getTocItem(i);
-      const int depth = item.level > 1 ? (item.level - 1) * 2 : 0;
-      return std::string(depth, ' ') + item.title;
-    };
-  } else if (overlay == Overlay::Text) {
-    model.panelTitle = tr(STR_TOOL_TEXT);
-    model.itemCount = kTextRowCount;
-    model.rowText = [this](int i) { return textRowName(i); };
-    model.rowValue = [this](int i) { return textRowValue(i); };
-    model.rowCheckbox = [](void*, int i) -> ReaderToolbarUi::RowFlags {
-      return {i == 4, i == 4 && SETTINGS.focusReadingEnabled};
-    };
-  } else {
-    model.panelTitle = tr(STR_TOOL_MORE);
-    model.itemCount = static_cast<int>(moreItems.size());
-    model.rowText = [this](int i) { return moreRowName(i); };
-    model.rowValue = [this](int i) { return moreRowValue(i); };
-    model.rowCheckboxContext = this;
-    model.rowCheckbox = [](void* ctx, int i) -> ReaderToolbarUi::RowFlags {
-      const auto* self = static_cast<EpubReaderActivity*>(ctx);
-      using MA = EpubReaderMenuActivity::MenuAction;
-      const auto action = self->moreItems[i].action;
-      switch (action) {
-        case MA::NIGHT_MODE:
-          return {true, SETTINGS.screenInverted != 0};
-        case MA::BLUETOOTH:
-          return {true, SETTINGS.ble.enabled != 0};
-        case MA::FRONTLIGHT:
-          return {true, Frontlight.isOn()};
-        default:
-          return {};
-      }
-    };
-  }
-  toolbarUi->setModel(model);
-  toolbarUi->render();
+  struct Context {
+    EpubReaderActivity& owner;
+    std::string chapterTitle;
+    std::string pageInfo;
+  } context{*this, {}, {}};
+  const XpUiReaderOverlayViewServices services{
+      &context,
+      [](void* ctx, uint8_t query, uint32_t argument) -> uint32_t {
+        auto& c = *static_cast<Context*>(ctx);
+        auto& o = c.owner;
+        switch (static_cast<XpUiReaderOverlayViewQuery>(query)) {
+          case XP_UI_READER_VIEW_HAS_BOOK:
+            return !!o.epub;
+          case XP_UI_READER_VIEW_HAS_SECTION:
+            return !!o.section;
+          case XP_UI_READER_VIEW_HAS_TOOLBAR:
+            return !!o.toolbarUi;
+          case XP_UI_READER_VIEW_MODE:
+            return static_cast<uint32_t>(o.overlay);
+          case XP_UI_READER_VIEW_CURSOR:
+            return o.panelCursorShown;
+          case XP_UI_READER_VIEW_FOCUS:
+            return o.focusedTool;
+          case XP_UI_READER_VIEW_CHAPTER_TITLE:
+            c.chapterTitle = o.currentChapterTitle();
+            return 0;
+          case XP_UI_READER_VIEW_PAGE_COUNT:
+            return o.section->estimatedTotalPages();
+          case XP_UI_READER_VIEW_CURRENT_PAGE:
+            return o.section->currentPage;
+          case XP_UI_READER_VIEW_PROGRESS: {
+            float chapterProgress;
+            memcpy(&chapterProgress, &argument, sizeof(chapterProgress));
+            const float progress = o.epub->calculateProgress(o.currentSpineIndex, chapterProgress);
+            uint32_t bits;
+            memcpy(&bits, &progress, sizeof(bits));
+            return bits;
+          }
+          case XP_UI_READER_VIEW_TOUCH:
+            return o.mappedInput.hasTouch();
+          case XP_UI_READER_VIEW_INDEX:
+            return o.panelIndex;
+          case XP_UI_READER_VIEW_TOC_COUNT:
+            return o.epub->getTocItemsCount();
+          case XP_UI_READER_VIEW_MORE_COUNT:
+            return o.moreItems.size();
+        }
+        return 0;
+      },
+      [](void* ctx, const XpUiReaderOverlayView* view) {
+        auto& c = *static_cast<Context*>(ctx);
+        auto& o = c.owner;
+        ReaderToolbarUi::Model model;
+        model.activeTool = view->active_tool;
+        model.panel = view->kind != XP_UI_READER_OVERLAY_MODE_TOOLBAR;
+        model.denseRows = view->dense;
+        model.selectedIndex = view->selected_index;
+        model.itemCount = view->item_count;
+        model.progressPermille = view->progress_permille;
+        switch (static_cast<XpUiReaderOverlayMode>(view->kind)) {
+          case XP_UI_READER_OVERLAY_MODE_TOOLBAR:
+            model.chapterTitle = c.chapterTitle.c_str();
+            c.pageInfo = reinterpret_cast<const char*>(view->page_info);
+            model.pageInfo = c.pageInfo.c_str();
+            break;
+          case XP_UI_READER_OVERLAY_MODE_CONTENTS:
+            model.panelTitle = tr(STR_TOOL_CONTENTS);
+            model.rowText = [&o](int i) {
+              const auto item = o.epub->getTocItem(i);
+              const int depth = item.level > 1 ? (item.level - 1) * 2 : 0;
+              return std::string(depth, ' ') + item.title;
+            };
+            break;
+          case XP_UI_READER_OVERLAY_MODE_TEXT:
+            model.panelTitle = tr(STR_TOOL_TEXT);
+            model.rowText = [&o](int i) { return o.textRowName(i); };
+            model.rowValue = [&o](int i) { return o.textRowValue(i); };
+            model.rowCheckbox = [](void*, int i) -> ReaderToolbarUi::RowFlags {
+              const bool toggle = xp_ui_reader_overlay_checkbox(XP_UI_READER_OVERLAY_MODE_TEXT, i) != 0;
+              return {toggle, toggle && SETTINGS.focusReadingEnabled};
+            };
+            break;
+          case XP_UI_READER_OVERLAY_MODE_MORE:
+            model.panelTitle = tr(STR_TOOL_MORE);
+            model.rowText = [&o](int i) { return o.moreRowName(i); };
+            model.rowValue = [&o](int i) { return o.moreRowValue(i); };
+            model.rowCheckboxContext = &o;
+            model.rowCheckbox = [](void* ctx, int i) -> ReaderToolbarUi::RowFlags {
+              const auto* self = static_cast<EpubReaderActivity*>(ctx);
+              using MA = EpubReaderMenuActivity::MenuAction;
+              const auto action = self->moreItems[i].action;
+              static_assert(static_cast<int>(MA::NIGHT_MODE) == 3);
+              static_assert(static_cast<int>(MA::FRONTLIGHT) == 4);
+              static_assert(static_cast<int>(MA::BLUETOOTH) == 5);
+              switch (static_cast<XpUiReaderDecoration>(
+                  xp_ui_reader_overlay_checkbox(XP_UI_READER_OVERLAY_MODE_MORE, static_cast<int32_t>(action)))) {
+                case XP_UI_READER_DECORATION_NIGHT:
+                  return {true, SETTINGS.screenInverted != 0};
+                case XP_UI_READER_DECORATION_BLUETOOTH:
+                  return {true, SETTINGS.ble.enabled != 0};
+                case XP_UI_READER_DECORATION_FRONTLIGHT:
+                  return {true, Frontlight.isOn()};
+                case XP_UI_READER_DECORATION_NONE:
+                case XP_UI_READER_DECORATION_FOCUS:
+                  return {};
+              }
+              return {};
+            };
+            break;
+          case XP_UI_READER_OVERLAY_MODE_NONE:
+            break;
+        }
+        o.toolbarUi->setModel(model);
+        o.toolbarUi->render();
+      }};
+  xp_ui_reader_overlay_view(&services);
 }
 
 void EpubReaderActivity::handleOverlayInput() { runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_INPUT); }
@@ -3019,6 +2977,18 @@ void EpubReaderActivity::runOverlayPolicy(uint8_t operation) {
     }
     uint32_t query(uint8_t query) {
       switch (static_cast<XpUiReaderOverlayQuery>(query)) {
+        case XP_UI_READER_OVERLAY_QUERY_HAS_SECTION:
+          return bool(o.section);
+        case XP_UI_READER_OVERLAY_QUERY_PAGE_STALE:
+          return o.pageBufferStale;
+        case XP_UI_READER_OVERLAY_QUERY_TOUCH:
+          return o.mappedInput.hasTouch();
+        case XP_UI_READER_OVERLAY_QUERY_CURRENT_TOC:
+          return o.currentTocIndex();
+        case XP_UI_READER_OVERLAY_QUERY_IS_A4:
+          return BoardConfig::isEegoA4();
+        case XP_UI_READER_OVERLAY_QUERY_IS_XTEINK:
+          return xteinkClassPanel();
         case XP_UI_READER_OVERLAY_QUERY_HAS_TOOLBAR:
           return bool(o.toolbarUi);
         case XP_UI_READER_OVERLAY_QUERY_POPUP_ACTIVE:
@@ -3056,6 +3026,27 @@ void EpubReaderActivity::runOverlayPolicy(uint8_t operation) {
     }
     uint32_t command(uint8_t cmd, int32_t a, int32_t b) {
       switch (static_cast<XpUiReaderOverlayCommand>(cmd)) {
+        case XP_UI_READER_OVERLAY_COMMAND_RESET_HOME:
+          o.mappedInput.resetHomeButtonInput();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_CREATE_TOOLBAR:
+          o.toolbarUi = std::make_unique<ReaderToolbarUi>(o.renderer);
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_RESET_NAVIGATION:
+          o.toolbarUi->resetNavigation(a, b);
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_BUILD_MORE:
+          o.buildMoreActions();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_DROP_TOOLBAR:
+          o.toolbarUi.reset();
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_FORCE_COUNTER:
+          o.setRefreshCounter(a);
+          break;
+        case XP_UI_READER_OVERLAY_COMMAND_DISPLAY_FAST:
+          o.renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+          break;
         case XP_UI_READER_OVERLAY_COMMAND_TAKE_SWIPE:
           return static_cast<uint32_t>(o.mappedInput.wasSwipe());
         case XP_UI_READER_OVERLAY_COMMAND_TAKE_HELD_MS:

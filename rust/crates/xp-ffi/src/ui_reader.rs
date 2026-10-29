@@ -493,3 +493,21 @@ pub unsafe extern "C" fn xp_ui_reader_overlay_run(
 ) {
     reader::epub_overlay::run(services, operation);
 }
+
+/// # Safety
+/// Non-null services obey the synchronous overlay-view callback contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_overlay_view(
+    services: *const reader::overlay_view::Services,
+) {
+    if let Some(services) = services.as_ref() {
+        reader::overlay_view::run(*services);
+    }
+}
+
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn xp_ui_reader_overlay_checkbox(mode: u8, row_or_action: i32) -> u8 {
+    reader::overlay_view::checkbox(mode, row_or_action)
+}

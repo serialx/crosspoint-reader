@@ -18,6 +18,7 @@ struct RenderLock {
 };
 struct Renderer {
   bool stores = false;
+  void displayBuffer(int) { assert(false); }
   bool storeBwBuffer() {
     event("store", stores);
     return stores;
@@ -40,7 +41,29 @@ struct ReaderToolbarUi {
   }
   void begin() { event("begin"); }
 };
+struct HalDisplay {
+  enum { FAST_REFRESH };
+};
+namespace BoardConfig {
+bool isEegoA4() {
+  assert(false);
+  return false;
+}
+}  // namespace BoardConfig
+bool xteinkClassPanel() {
+  assert(false);
+  return false;
+}
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {}
+  };
+  int currentSpineIndex = 0, nextPageNumber = 0;
+  struct Popup {
+    void dismiss() { assert(false); }
+  } overlayPopup;
+  void discardOverlayPage() { assert(false); }
+  void setRefreshCounter(int) { assert(false); }
   enum class Overlay { None, Toolbar, Contents, Text, More };
   Overlay overlay = Overlay::None;
   int focusedTool = 2, panelIndex = 9;

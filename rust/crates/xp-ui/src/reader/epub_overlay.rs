@@ -61,6 +61,12 @@ pub enum Query {
     FocusReading = 13,
     Pressed = 14,
     Released = 15,
+    HasSection = 16,
+    PageStale = 17,
+    Touch = 18,
+    CurrentToc = 19,
+    IsA4 = 20,
+    IsXteink = 21,
 }
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -96,6 +102,13 @@ pub enum Command {
     TakeSwipe = 28,
     SampleButtons = 29,
     TakeHeldMs = 30,
+    ResetHome = 31,
+    CreateToolbar = 32,
+    ResetNavigation = 33,
+    BuildMore = 34,
+    DropToolbar = 35,
+    ForceCounter = 36,
+    DisplayFast = 37,
 }
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -103,6 +116,12 @@ pub enum Operation {
     Input = 0,
     PopupChanged = 1,
     PickerResult = 2,
+    OpenNone = 3,
+    OpenToolbar = 4,
+    OpenContents = 5,
+    OpenText = 6,
+    OpenMore = 7,
+    Close = 8,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -140,6 +159,73 @@ const CONTENTS: u32 = Mode::Contents as u32;
 const TEXT: u32 = Mode::Text as u32;
 const MORE: u32 = Mode::More as u32;
 impl Engine {
+    fn open(&self, target: u32) {
+        use Command as C;
+        use Field as F;
+        self.op(C::ResetHome);
+        let previous = self.f(F::Overlay);
+        self.set(F::Overlay, target);
+        if self.q(Query::HasToolbar) == 0 {
+            self.op(C::CreateToolbar);
+        }
+        if previous == NONE {
+            self.op(C::ToolbarBegin);
+        }
+        self.set(F::Cursor, u32::from(self.q(Query::Touch) == 0));
+        match target {
+            TOOLBAR => self.set(F::Focus, 0),
+            CONTENTS => {
+                let _lock = self.lock();
+                let index = self.q(Query::CurrentToc);
+                self.set(F::Index, index);
+                self.c(C::ResetNavigation, index as i32, index as i32);
+            }
+            TEXT | MORE => {
+                self.set(F::Index, 0);
+                if target == MORE {
+                    self.op(C::BuildMore);
+                }
+                self.op(C::ResetNavigation);
+            }
+            _ => {}
+        }
+        self.set(F::Hold, 0);
+        if self.q(Query::HasSection) != 0 && self.q(Query::PageStale) == 0 {
+            let _lock = self.lock();
+            self.op(C::Settle);
+            if previous == NONE {
+                self.set(F::Stored, self.op(C::Store));
+            } else if self.f(F::Stored) != 0 {
+                self.op(C::Restore);
+                self.set(F::Stored, self.op(C::Store));
+            }
+            self.op(C::Render);
+            self.op(C::Push);
+        } else {
+            self.op(C::Update);
+        }
+    }
+    fn close(&self) {
+        use Command as C;
+        use Field as F;
+        self.op(C::ResetHome);
+        self.set(F::Overlay, NONE);
+        self.op(C::DismissPopup);
+        self.op(C::DropToolbar);
+        if self.q(Query::IsA4) != 0 {
+            self.c(C::ForceCounter, 1, 0);
+        }
+        if self.q(Query::IsXteink) == 0 && self.f(F::Stored) != 0 {
+            let _lock = self.lock();
+            self.op(C::Settle);
+            self.op(C::Restore);
+            self.set(F::Stored, 0);
+            self.op(C::DisplayFast);
+        } else {
+            self.op(C::Discard);
+            self.op(C::Update);
+        }
+    }
     fn new(s: Services) -> Option<Self> {
         Some(Self {
             context: s.context,
@@ -484,6 +570,10 @@ pub unsafe fn run(s: *const Services, operation: u8) {
                 x if x == Operation::Input as u8 => e.input(),
                 x if x == Operation::PopupChanged as u8 => e.popup_changed(),
                 x if x == Operation::PickerResult as u8 => e.picker_result(),
+                x if (Operation::OpenNone as u8..=Operation::OpenMore as u8).contains(&x) => {
+                    e.open(u32::from(x - Operation::OpenNone as u8))
+                }
+                x if x == Operation::Close as u8 => e.close(),
                 _ => {}
             }
         }
@@ -574,6 +664,25 @@ const _: () = {
     assert!(Mode::Contents as u8 == 2);
     assert!(Mode::Text as u8 == 3);
     assert!(Mode::More as u8 == 4);
+    assert!(Query::HasSection as u8 == 16);
+    assert!(Query::PageStale as u8 == 17);
+    assert!(Query::Touch as u8 == 18);
+    assert!(Query::CurrentToc as u8 == 19);
+    assert!(Query::IsA4 as u8 == 20);
+    assert!(Query::IsXteink as u8 == 21);
+    assert!(Command::ResetHome as u8 == 31);
+    assert!(Command::CreateToolbar as u8 == 32);
+    assert!(Command::ResetNavigation as u8 == 33);
+    assert!(Command::BuildMore as u8 == 34);
+    assert!(Command::DropToolbar as u8 == 35);
+    assert!(Command::ForceCounter as u8 == 36);
+    assert!(Command::DisplayFast as u8 == 37);
+    assert!(Operation::OpenNone as u8 == 3);
+    assert!(Operation::OpenToolbar as u8 == 4);
+    assert!(Operation::OpenContents as u8 == 5);
+    assert!(Operation::OpenText as u8 == 6);
+    assert!(Operation::OpenMore as u8 == 7);
+    assert!(Operation::Close as u8 == 8);
     assert!(TEXT_ROWS == 5 && HOLD_MS == 1500 && HOLD_ROWS == 10);
     assert!(SWIPE_UP == 3);
     assert!(SWIPE_DOWN == 4);
@@ -584,7 +693,7 @@ mod tests {
     use super::*;
     struct Fake {
         fields: [u32; 8],
-        queries: [u32; 16],
+        queries: [u32; 22],
         event: u32,
         buttons: u32,
         locks: i32,
@@ -601,7 +710,7 @@ mod tests {
             fields[Field::Stored as usize] = flags & 1;
             fields[Field::Cursor as usize] = (flags >> 1) & 1;
             fields[Field::Hold as usize] = (flags >> 2) & 1;
-            let mut queries = [0; 16];
+            let mut queries = [0; 22];
             queries[Query::HasToolbar as usize] = u32::from(flags & 128 == 0);
             queries[Query::PopupActive as usize] = u32::from(flags & 64 != 0);
             queries[Query::SpineCount as usize] = 7;
@@ -685,7 +794,7 @@ mod tests {
     }
     #[test]
     fn every_operation_releases_scoped_resources() {
-        for operation in [0, 1, 2, 3, 255] {
+        for operation in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 255] {
             for mode in 0..6 {
                 for event in 0..8 {
                     for flags in 0..256 {
@@ -694,7 +803,7 @@ mod tests {
                             run(&fake.services(), operation);
                         }
                         fake.balanced();
-                        if operation > 2 {
+                        if operation > 8 {
                             assert_eq!(fake.calls, 0);
                         }
                     }

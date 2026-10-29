@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <climits>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <string>
@@ -34,7 +36,7 @@ const char* tr(int id) {
 int clampPercent(int value) { return std::clamp(value, 0, 100); }
 constexpr int kTextRowCount = 5;
 struct EpubReaderMenuActivity {
-  enum class MenuAction { NIGHT_MODE, BLUETOOTH, FRONTLIGHT, OTHER };
+  enum class MenuAction { NIGHT_MODE = 3, BLUETOOTH = 5, FRONTLIGHT = 4, OTHER = 0 };
   struct MenuItem {
     MenuAction action;
   };
@@ -46,11 +48,12 @@ struct Epub {
   };
   std::vector<Item> items{{0, "zero"}, {1, "one"}, {2, "two"}, {4, "four"}};
   float extra = 0;
+  bool fixedProgress = false;
   int getTocItemsCount() const { return items.size(); }
   Item getTocItem(int i) const { return items.at(i); }
   float calculateProgress(int spine, float progress) const {
     std::printf("progress %d %.9g\n", spine, progress);
-    return extra + progress * .33333334f;
+    return fixedProgress ? 1.0f : extra + progress * .33333334f;
   }
 };
 struct Section {
@@ -123,9 +126,10 @@ struct EpubReaderActivity {
                                                           {EpubReaderMenuActivity::MenuAction::NIGHT_MODE},
                                                           {EpubReaderMenuActivity::MenuAction::BLUETOOTH},
                                                           {EpubReaderMenuActivity::MenuAction::FRONTLIGHT}};
+  std::string title = "Chapter title";
   std::string currentChapterTitle() const {
     std::puts("chapter-title");
-    return "Chapter title";
+    return title;
   }
   std::string textRowName(int i) const { return "text-" + std::to_string(i); }
   std::string textRowValue(int i) const { return "value-" + std::to_string(i); }
@@ -134,7 +138,26 @@ struct EpubReaderActivity {
   void renderOverlay();
 };
 // VIEW_METHODS
-int main() {
+int main(int argc, char**) {
+  if (argc > 1) {
+    const int pages[] = {65534, INT_MAX - 1, INT_MIN, INT_MIN};
+    const int counts[] = {65535, 65535, 65535, INT_MIN};
+    for (int i = 0; i < 4; ++i) {
+      EpubReaderActivity a;
+      a.overlay = EpubReaderActivity::Overlay::Toolbar;
+      a.section->currentPage = pages[i];
+      a.section->count = counts[i];
+      a.epub->fixedProgress = true;
+      a.title = "Без назви";  // Longest shipped STR_UNNAMED by UTF-8 byte length (17).
+      a.renderOverlay();
+    }
+    EpubReaderActivity a;
+    a.overlay = EpubReaderActivity::Overlay::Toolbar;
+    a.epub->fixedProgress = true;
+    a.title.assign(4096, 'x');
+    a.renderOverlay();
+    return 0;
+  }
   int index = 0;
   for (int mode = 0; mode < 5; ++mode)
     for (int touch = 0; touch < 2; ++touch)

@@ -25,6 +25,15 @@ struct HalDisplay {
   enum { FAST_REFRESH };
 };
 struct EpubReaderActivity {
+  int currentSpineIndex = 0, nextPageNumber = 0, focusedTool = 0, panelIndex = 0;
+  bool panelCursorShown = false, panelHoldJumped = false, section = false, pageBufferStale = false;
+  int currentTocIndex() {
+    assert(false);
+    return 0;
+  }
+  void buildMoreActions() { assert(false); }
+  void renderOverlay() { assert(false); }
+  void pushOverlayRefresh() { assert(false); }
   XpUiReaderBaseModel baseModel{};
   int32_t& pagesUntilFullRefresh = baseModel.pages_until_full_refresh;
   struct ModelLock {
@@ -33,16 +42,31 @@ struct EpubReaderActivity {
   enum class Overlay { None, Toolbar, Contents, Text, More };
   Overlay overlay = Overlay::Text;
   struct Toolbar {
+    Toolbar() = default;
+    template <class T>
+    explicit Toolbar(T&) {
+      assert(false);
+    }
+    void begin() { assert(false); }
+    void resetNavigation(int, int) { assert(false); }
     ~Toolbar() { event("toolbar-drop"); }
   };
   std::unique_ptr<Toolbar> toolbarUi;
   struct Input {
+    bool hasTouch() {
+      assert(false);
+      return false;
+    }
     void resetHomeButtonInput() { event("home-reset"); }
   } mappedInput;
   struct Popup {
     void dismiss() { event("popup-dismiss"); }
   } overlayPopup;
   struct Renderer {
+    bool storeBwBuffer() {
+      assert(false);
+      return false;
+    }
     void restoreBwBuffer(bool resync) {
       assert(!resync);
       event("restore-no-resync");
@@ -65,6 +89,7 @@ struct EpubReaderActivity {
   }
   void closeOverlayToPage();
 };
+using ReaderToolbarUi = EpubReaderActivity::Toolbar;
 // CLOSE_OVERLAY_METHOD
 int main() {
   unsigned caseId = 0;

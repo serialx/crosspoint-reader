@@ -28,6 +28,8 @@ def generate(repo, output):
         "void EpubReaderActivity::loadLinkStack(",
         "void EpubReaderActivity::restoreSavedPosition(",
     )]
+    if "bool EpubReaderActivity::applyPageMove(" in reader:
+        methods.append(definition(reader, "bool EpubReaderActivity::applyPageMove("))
     load = definition(reader, 'if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f))')
     methods.append("void EpubReaderActivity::loadProgress() { HalFile f; " + load + " }")
     loop = definition(reader, "void EpubReaderActivity::loop()")

@@ -171,7 +171,7 @@ add_subdirectory(keyboard_oracle)
 add_subdirectory(plugin_policy)
 
 add_subdirectory(hal_policy)
-set_tests_properties(TrustedTimeTimezone PROPERTIES
+set_tests_properties(TrustedTimeTimezone RemoteButtonInputIntegration PROPERTIES
   ENVIRONMENT "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}")
 
 add_subdirectory(book_io)

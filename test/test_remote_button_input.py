@@ -3,6 +3,7 @@
 from pathlib import Path
 import subprocess
 import tempfile
+from rust_host import rust_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / "src/MappedInputManager.cpp").read_text()
@@ -165,7 +166,7 @@ with tempfile.TemporaryDirectory() as directory:
     cpp.write_text("#include <initializer_list>\n" + harness)
     subprocess.run([
         "c++", "-std=c++20", "-DFREEINK_CAP_TOUCH=0", "-I", str(directory),
-        "-I", str(ROOT / "src"), str(cpp), "-o", str(executable),
+        "-I", str(ROOT / "src"), str(cpp), *rust_link_flags(), "-o", str(executable),
     ], check=True)
     subprocess.run([str(executable)], check=True)
 print("Remote button input regression checks passed")

@@ -281,22 +281,16 @@ bool EpubReaderActivity::loadBook() {
   if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f)) {
     uint8_t data[10];
     int dataSize = f.read(data, sizeof(data));
-    if (dataSize == 4 || dataSize == 6 || dataSize == 10) {
-      currentSpineIndex = data[0] + (data[1] << 8);
-      nextPageNumber = data[2] + (data[3] << 8);
-      if (nextPageNumber == UINT16_MAX) {
-        LOG_DBG("ERS", "Ignoring stale last-page sentinel from progress cache");
-        nextPageNumber = 0;
-      }
+    XpUiReaderProgress progress{};
+    const uint8_t loaded = xp_ui_reader_progress_decode(data, static_cast<uint32_t>(dataSize), &progress);
+    if (loaded != 0) {
+      currentSpineIndex = progress.spine;
+      nextPageNumber = progress.page;
+      if (loaded == 2) LOG_DBG("ERS", "Ignoring stale last-page sentinel from progress cache");
       cachedSpineIndex = currentSpineIndex;
       LOG_DBG("ERS", "Loaded cache: %d, %d", currentSpineIndex, nextPageNumber);
-    }
-    if (dataSize == 6) {
-      cachedChapterTotalPageCount = data[4] + (data[5] << 8);
-    } else if (dataSize == 10) {
-      cachedChapterTotalPageCount = data[4] + (data[5] << 8);
-      cachedVisibleTextOffset = static_cast<uint32_t>(data[6]) | (static_cast<uint32_t>(data[7]) << 8) |
-                                (static_cast<uint32_t>(data[8]) << 16) | (static_cast<uint32_t>(data[9]) << 24);
+      if (progress.has_count) cachedChapterTotalPageCount = progress.count;
+      if (progress.has_offset) cachedVisibleTextOffset = progress.offset;
     }
   }
 
@@ -1477,71 +1471,48 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
   }
 }
 
-bool EpubReaderActivity::pageTurn(bool isForwardTurn) {
+bool EpubReaderActivity::pageTurn(const bool isForwardTurn) {
   if (!section) return false;
-  // A "Bluetooth failed" note has been read: the page this turn paints shows the title again.
   bleturner::acknowledgeLinkNote();
   {
     RenderLock lock;
     clearDeferredReposition();
   }
-  if (isForwardTurn) {
-    if (section->currentPage < section->pageCount - 1 || section->isBuilding()) {
-      section->currentPage++;
-      lastPageTurnTime = millis();
-      return true;
-    } else if (currentSpineIndex + 1 < epub->getSpineItemsCount()) {
-      RenderLock lock;
-      nextPageNumber = 0;
-      currentSpineIndex++;
-      section.reset();
-      lastPageTurnTime = millis();
-      return true;
-    } else {
-      currentSpineIndex = epub->getSpineItemsCount();
-      lastPageTurnTime = millis();
-      return true;
-    }
-  } else {
-    if (section->currentPage > 0) {
-      section->currentPage--;
-      lastPageTurnTime = millis();
-      return true;
-    } else if (currentSpineIndex > 0) {
-      RenderLock lock;
-      nextPageNumber = 0;
-      pendingPageJump = std::numeric_limits<uint16_t>::max();
-      currentSpineIndex--;
-      section.reset();
-      lastPageTurnTime = millis();
-      return true;
-    }
-  }
-  return false;
+  const auto move = xp_ui_reader_turn(currentSpineIndex, epub->getSpineItemsCount(), section->currentPage,
+                                      section->pageCount, section->isBuilding(), isForwardTurn);
+  return applyPageMove(move, true);
 }
 
-bool EpubReaderActivity::skipPages(int amount) {
-  if (!section) return false;
-  bleturner::acknowledgeLinkNote();
-  if (amount > 0) {
-    RenderLock lock;
-    nextPageNumber = 0;
-    currentSpineIndex++;
-    section.reset();
-    return true;
-  } else {
-    if (section->currentPage > 0) {
-      section->currentPage = 0;
-      return true;
-    } else if (currentSpineIndex > 0) {
+bool EpubReaderActivity::applyPageMove(const XpUiReaderMove& move, const bool recordTurn) {
+  switch (static_cast<XpUiReaderMoveKind>(move.kind)) {
+    case XP_UI_READER_MOVE_NONE:
+      return false;
+    case XP_UI_READER_MOVE_PAGE:
+      section->currentPage = move.value;
+      break;
+    case XP_UI_READER_MOVE_CHAPTER: {
       RenderLock lock;
       nextPageNumber = 0;
-      currentSpineIndex--;
+      if (move.last_page) pendingPageJump = std::numeric_limits<uint16_t>::max();
+      currentSpineIndex = move.value;
       section.reset();
+      if (recordTurn) lastPageTurnTime = millis();
       return true;
     }
+    case XP_UI_READER_MOVE_END:
+      currentSpineIndex = move.value;
+      break;
+    default:
+      return false;
   }
-  return false;
+  if (recordTurn) lastPageTurnTime = millis();
+  return true;
+}
+
+bool EpubReaderActivity::skipPages(const int amount) {
+  if (!section) return false;
+  bleturner::acknowledgeLinkNote();
+  return applyPageMove(xp_ui_reader_skip(currentSpineIndex, section->currentPage, amount), false);
 }
 
 // Failed protected open: show the standard option dialog (wrapped message)
@@ -3386,17 +3357,11 @@ void EpubReaderActivity::navigateToHref(const std::string& hrefStr, const bool s
 }
 
 void EpubReaderActivity::saveLinkStack() const {
-  // [depth] then depth x (spine u16 LE, page u16 LE)
   uint8_t data[1 + MAX_FOOTNOTE_DEPTH * 4];
-  size_t size = 0;
-  data[size++] = static_cast<uint8_t>(footnoteDepth);
-  for (int i = 0; i < footnoteDepth; i++) {
-    const SavedPosition& pos = savedPositions[i];
-    data[size++] = pos.spineIndex & 0xFF;
-    data[size++] = (pos.spineIndex >> 8) & 0xFF;
-    data[size++] = pos.pageNumber & 0xFF;
-    data[size++] = (pos.pageNumber >> 8) & 0xFF;
-  }
+  XpUiReaderLinkPosition positions[MAX_FOOTNOTE_DEPTH];
+  for (int i = 0; i < MAX_FOOTNOTE_DEPTH; ++i)
+    positions[i] = {savedPositions[i].spineIndex, savedPositions[i].pageNumber};
+  const size_t size = xp_ui_reader_links_encode(positions, static_cast<uint8_t>(footnoteDepth), data);
   HalFile f;
   if (!Storage.openFileForWrite("ERS", epub->getCachePath() + "/links.bin", f)) return;
   if (f.write(data, size) != size) LOG_ERR("ERS", "Failed to write link stack");
@@ -3410,24 +3375,18 @@ void EpubReaderActivity::loadLinkStack() {
     uint8_t data[1 + MAX_FOOTNOTE_DEPTH * 4];
     if (Storage.openFileForRead("ERS", path, f)) {
       const int size = f.read(data, sizeof(data));
-      const int depth = size > 0 ? data[0] : 0;
-      if (depth >= 1 && depth <= MAX_FOOTNOTE_DEPTH && size == 1 + depth * 4) {
-        const int spineCount = epub->getSpineItemsCount();
-        bool valid = true;
-        for (int i = 0; i < depth; i++) {
-          const uint8_t* p = data + 1 + i * 4;
-          savedPositions[i] = {p[0] | (p[1] << 8), p[2] | (p[3] << 8)};
-          valid = valid && savedPositions[i].spineIndex < spineCount;
-        }
-        if (valid) {
-          footnoteDepth = depth;
-          LOG_DBG("ERS", "Loaded link stack, depth %d", depth);
-        }
+      XpUiReaderLinkPosition positions[MAX_FOOTNOTE_DEPTH];
+      for (int i = 0; i < MAX_FOOTNOTE_DEPTH; ++i)
+        positions[i] = {savedPositions[i].spineIndex, savedPositions[i].pageNumber};
+      const int depth =
+          xp_ui_reader_links_decode(data, static_cast<uint32_t>(size), epub->getSpineItemsCount(), positions);
+      for (int i = 0; i < MAX_FOOTNOTE_DEPTH; ++i) savedPositions[i] = {positions[i].spine, positions[i].page};
+      if (depth != 0) {
+        footnoteDepth = depth;
+        LOG_DBG("ERS", "Loaded link stack, depth %d", depth);
       }
     }
   }
-  // Consumed once: a later exit rewrites it, and an unclean shutdown must not
-  // resurrect a stale stack.
   Storage.remove(path.c_str());
 }
 

@@ -5,6 +5,7 @@
 #include <HalGPIO.h>
 #include <HalTiltSensor.h>
 #include <Logging.h>
+#include <xp_ui_reader.h>
 
 #include <cctype>
 #include <string_view>
@@ -179,17 +180,16 @@ inline bool isTouchMenuGesture(const GfxRenderer& renderer, const MappedInputMan
 // renderer.waitRefreshComplete() and must rebuild the differential baseline
 // before the next page turn (the tiled grayscale cleanup does).
 inline void displayWithRefreshCycle(const GfxRenderer& renderer, int& pagesUntilFullRefresh, bool async = false) {
-  const auto mode = (pagesUntilFullRefresh <= 1) ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
+  int32_t remaining = pagesUntilFullRefresh;
+  const auto mode = xp_ui_reader_refresh(&remaining, 0) ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
   if (async) {
     renderer.displayBufferAsync(mode);
   } else {
     renderer.displayBuffer(mode);
   }
-  if (pagesUntilFullRefresh <= 1) {
-    pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
-  } else {
-    pagesUntilFullRefresh--;
-  }
+  remaining = pagesUntilFullRefresh;
+  if (xp_ui_reader_refresh(&remaining, 0)) remaining = SETTINGS.getRefreshFrequency();
+  pagesUntilFullRefresh = remaining;
 }
 
 // Display the B/W base of a page whose grayscale pass follows. Panels that
@@ -202,13 +202,12 @@ inline void displayBaseWithRefreshCycle(const GfxRenderer& renderer, int& pagesU
     displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
     return;
   }
-  const auto mode = (pagesUntilFullRefresh <= 1) ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
+  int32_t remaining = pagesUntilFullRefresh;
+  const auto mode = xp_ui_reader_refresh(&remaining, 0) ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
   renderer.displayGrayscaleBase(mode);
-  if (pagesUntilFullRefresh <= 1) {
-    pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
-  } else {
-    pagesUntilFullRefresh--;
-  }
+  remaining = pagesUntilFullRefresh;
+  if (xp_ui_reader_refresh(&remaining, 0)) remaining = SETTINGS.getRefreshFrequency();
+  pagesUntilFullRefresh = remaining;
 }
 
 // Grayscale anti-aliasing pass. Renders content twice (LSB + MSB) to build

@@ -171,6 +171,7 @@ class EpubReaderActivity final : public ReaderActivity {
   void clearDeferredReposition();
   void rememberCurrentContentOffset();
   bool saveProgress(int spineIndex, int currentPage, int pageCount);
+  bool applyPageMove(const XpUiReaderMove& move, bool recordTurn);
   void jumpToPercent(int percent);
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   int currentTocIndex() const;

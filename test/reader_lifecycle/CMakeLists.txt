@@ -35,6 +35,11 @@ foreach(mode off on)
       $<TARGET_FILE:ReaderRenderOracle_${mode}> ${CMAKE_CURRENT_SOURCE_DIR}/render-${mode}.golden.gz)
 endforeach()
 
+add_executable(ReaderLifecycleAbi abi.cpp)
+target_link_libraries(ReaderLifecycleAbi PRIVATE crosspoint_test_common)
+target_compile_options(ReaderLifecycleAbi PRIVATE -UNDEBUG)
+add_test(NAME reader_lifecycle_abi COMMAND ReaderLifecycleAbi)
+
 set(INPUT_METHODS ${CMAKE_CURRENT_BINARY_DIR}/input_methods.inc)
 add_custom_command(OUTPUT ${INPUT_METHODS}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_input.py ${REPO_ROOT} ${INPUT_METHODS}

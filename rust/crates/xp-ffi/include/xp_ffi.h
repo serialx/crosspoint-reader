@@ -2902,6 +2902,10 @@ uint32_t xp_book_utf8_next(const uint8_t* data, size_t* consumed);
 // Loan result: 0 allowed, 1 clock unverified, 2 expired. No clock call for zero expiry.
 uint32_t xp_book_loan(int64_t expires, void* context, int64_t (*clock)(void*));
 
+// All callbacks are nullable in the ABI. Missing required callbacks return false
+// before I/O. Validate requires control/read, plus size when cached > 0; write is
+// unused and diagnostic may be null for silence. Convert requires control, plus
+// read/write for BMP; size/diagnostic and non-BMP read/write are unused.
 typedef struct {
   void* context;
   bool (*control)(void*, uint32_t, int32_t, int32_t);

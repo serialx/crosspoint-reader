@@ -223,24 +223,39 @@ pub unsafe fn find_cover(
 #[repr(C)]
 pub struct FileServices {
     pub context: *mut c_void,
-    pub control: unsafe extern "C" fn(*mut c_void, u32, i32, i32) -> bool,
-    pub read: Read,
-    pub write: Write,
-    pub size: unsafe extern "C" fn(*mut c_void) -> usize,
-    pub diagnostic: unsafe extern "C" fn(*mut c_void, u32, usize),
+    pub control: Option<unsafe extern "C" fn(*mut c_void, u32, i32, i32) -> bool>,
+    pub read: Option<Read>,
+    pub write: Option<Write>,
+    pub size: Option<unsafe extern "C" fn(*mut c_void) -> usize>,
+    pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, usize)>,
+}
+impl FileServices {
+    unsafe fn diagnose(&self, event: u32, size: usize) {
+        if let Some(diagnostic) = self.diagnostic {
+            diagnostic(self.context, event, size);
+        }
+    }
 }
 /// # Safety
 /// Services borrow their context and file buffers only for each call.
+/// Control/read are required; size is required when cached is nonzero.
+/// Write is unused and a missing diagnostic callback is silent.
 pub unsafe fn validate(io: &FileServices, cached: usize, tag: &[u8]) -> bool {
+    let (Some(control), Some(read)) = (io.control, io.read) else {
+        return false;
+    };
+    if cached > 0 && io.size.is_none() {
+        return false;
+    }
     let mut valid = true;
-    if (io.control)(io.context, 0, 0, 0) {
-        if (io.control)(io.context, 1, 0, 0) {
+    if control(io.context, 0, 0, 0) {
+        if control(io.context, 1, 0, 0) {
             let mut header = [0u8; 80];
-            let count = (io.read)(io.context, header.as_mut_ptr(), 79);
+            let count = read(io.context, header.as_mut_ptr(), 79);
             if count > 0 && count < 80 {
                 let end = header.iter().position(|b| *b == 0).unwrap_or(80);
                 if !tag.is_empty() && !header[..end].windows(tag.len()).any(|part| part == tag) {
-                    (io.diagnostic)(io.context, 0, 0);
+                    io.diagnose(0, 0);
                     valid = false;
                 }
             } else {
@@ -249,58 +264,70 @@ pub unsafe fn validate(io: &FileServices, cached: usize, tag: &[u8]) -> bool {
         } else {
             valid = false;
         }
-        (io.control)(io.context, 2, 0, 0);
+        control(io.context, 2, 0, 0);
     }
     if valid && cached > 0 {
-        if (io.control)(io.context, 3, 0, 0) {
-            if (io.size)(io.context) != cached {
-                let size = (io.size)(io.context);
-                (io.diagnostic)(io.context, 1, size);
-                valid = false;
+        if control(io.context, 3, 0, 0) {
+            if let Some(size) = io.size {
+                if size(io.context) != cached {
+                    let size = size(io.context);
+                    io.diagnose(1, size);
+                    valid = false;
+                }
             }
         } else {
             valid = false;
         }
-        (io.control)(io.context, 4, 0, 0);
+        control(io.context, 4, 0, 0);
     }
     if !valid {
-        (io.diagnostic)(io.context, 2, 0);
-        (io.control)(io.context, 5, 0, 0);
+        io.diagnose(2, 0);
+        control(io.context, 5, 0, 0);
     }
     valid
 }
 /// # Safety
-/// Services obey validate's contract. Kind is 1 BMP, 2 JPEG, 3 PNG, or 0 unsupported.
+/// Services obey validate's borrowing contract. Control is required, as are
+/// read/write for BMP. Size/diagnostic are unused. Kind is 0 unsupported,
+/// 1 BMP, 2 JPEG, or 3 PNG.
 pub unsafe fn convert(io: &FileServices, kind: u32, height: i32) -> bool {
-    if !(io.control)(io.context, 0, 0, 0) || kind == 0 || !(io.control)(io.context, 1, 0, 0) {
+    let Some(control) = io.control else {
+        return false;
+    };
+    let bmp_io = match (kind == 1, io.read, io.write) {
+        (true, Some(read), Some(write)) => Some((read, write)),
+        (true, _, _) => return false,
+        _ => None,
+    };
+    if !control(io.context, 0, 0, 0) || kind == 0 || !control(io.context, 1, 0, 0) {
         return false;
     }
-    let success = if kind == 1 {
+    let success = if let Some((read, write)) = bmp_io {
         let mut buffer = [0u8; 128];
         loop {
-            let count = (io.read)(io.context, buffer.as_mut_ptr(), buffer.len());
+            let count = read(io.context, buffer.as_mut_ptr(), buffer.len());
             if count <= 0 {
                 break count == 0;
             }
             if count as usize > buffer.len()
-                || (io.write)(io.context, buffer.as_ptr(), count as usize) != count as usize
+                || write(io.context, buffer.as_ptr(), count as usize) != count as usize
             {
                 break false;
             }
         }
     } else if height > 0 {
-        (io.control)(
+        control(
             io.context,
             kind + 2,
             (f64::from(height) * 0.6) as i32,
             height,
         )
     } else {
-        (io.control)(io.context, kind, 0, 0)
+        control(io.context, kind, 0, 0)
     };
-    (io.control)(io.context, 6, 0, 0);
+    control(io.context, 6, 0, 0);
     if !success {
-        (io.control)(io.context, 7, 0, 0);
+        control(io.context, 7, 0, 0);
     }
     success
 }

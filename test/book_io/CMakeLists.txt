@@ -36,3 +36,7 @@ add_test(NAME BookHelpersOracle COMMAND ${Python3_EXECUTABLE}
 
 add_test(NAME BookLoanOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/loan_oracle.py ${XP_FFI_HOST_ARCHIVE})
+
+add_executable(BookTxtCallbacksTest TxtCallbacksTest.cpp)
+target_link_libraries(BookTxtCallbacksTest PRIVATE xp_ffi_host GTest::gtest_main)
+gtest_discover_tests(BookTxtCallbacksTest)

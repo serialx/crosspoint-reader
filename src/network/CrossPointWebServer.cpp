@@ -126,6 +126,7 @@ struct WebFileBridge {
   HalFile files[3];
   HalFile* borrowed = nullptr;
   CrossPointWebServer::UploadState* uploadState = nullptr;
+  CrossPointWebServer::FontUploadState* fontState = nullptr;
   bool websocket = false;
   String argument;
   JsonDocument paths;
@@ -134,6 +135,22 @@ struct WebFileBridge {
 
   static XpWebText span(const String& value) {
     return {reinterpret_cast<const uint8_t*>(value.c_str()), value.length()};
+  }
+  static XpWebText span(const std::string& value) {
+    return {reinterpret_cast<const uint8_t*>(value.c_str()), value.size()};
+  }
+  static XpWebText parseJson(void* ctx, XpWebText body) {
+    const auto error = deserializeJson(self(ctx).paths, body.data, body.len);
+    const char* message = error ? error.c_str() : nullptr;
+    return {reinterpret_cast<const uint8_t*>(message), message ? strlen(message) : 0};
+  }
+  static XpWebText requestHeader(void* ctx, const char* name) {
+    auto& b = self(ctx);
+    b.argument = b.owner.server->header(name);
+    return span(b.argument);
+  }
+  static void sendAsset(void* ctx, XpWebText asset) {
+    self(ctx).owner.server->send_P(200, "text/html", reinterpret_cast<const char*>(asset.data), asset.len);
   }
   static String string(const XpWebText value) { return String(reinterpret_cast<const char*>(value.data), value.len); }
   static WebFileBridge& self(void* ctx) { return *static_cast<WebFileBridge*>(ctx); }
@@ -155,6 +172,9 @@ struct WebFileBridge {
         return wsUploadPath;
       case XP_WEB_WS_COMPLETE_NAME:
         return wsLastCompleteName;
+      case XP_WEB_FONT_FAMILY:
+      case XP_WEB_FONT_PATH:
+        break;
     }
     return argument;
   }
@@ -184,8 +204,17 @@ const XpWebServices WebFileBridge::services = {
         return {nullptr, 0};
       return span(b.argument);
     },
-    .send = [](void* ctx, uint16_t code, const char* type,
-               XpWebText body) { self(ctx).owner.server->send(code, type, string(body)); },
+    .send =
+        [](void* ctx, uint16_t code, const char* type, XpWebText body) {
+          auto& server = self(ctx).owner.server;
+          String response = string(body);
+          if (response.length() != body.len && strcmp(type, "application/json") == 0) {
+            LOG_ERR("WEB", "OOM: JSON response");
+            server->send(503, "application/json", "{\"error\":\"out of memory\"}");
+            return;
+          }
+          server->send(code, type, response);
+        },
     .header =
         [](void* ctx, const char* name, XpWebText value) {
           self(ctx).owner.server->sendHeader(name, string(value), strcmp(name, "Location") == 0);
@@ -238,6 +267,8 @@ const XpWebServices WebFileBridge::services = {
           return Storage.openFileForWrite(b.websocket ? "WS" : "WEB", path, file);
         case XP_WEB_AVAILABLE:
           return file.available();
+        case XP_WEB_OPEN_READ:
+          return Storage.openFileForRead("WEB", path, file);
       }
       return 0;
     },
@@ -260,8 +291,8 @@ const XpWebServices WebFileBridge::services = {
         },
     .buffer = [](void* ctx, bool allocate) -> uint8_t* {
       auto& b = self(ctx);
-      auto& buffer = b.uploadState ? b.uploadState->buffer : b.streamBuffer;
-      if (allocate && !b.uploadState) b.client = b.owner.server->client();
+      auto& buffer = b.fontState ? b.fontState->buffer : b.uploadState ? b.uploadState->buffer : b.streamBuffer;
+      if (allocate && !b.uploadState && !b.fontState) b.client = b.owner.server->client();
       if (allocate)
         buffer = makeUniqueNoThrow<uint8_t[]>(XP_WEB_BUFFER_CAPACITY);
       else
@@ -768,8 +799,21 @@ static size_t writeCount = 0;
 
 const XpWebTransfers WebFileBridge::transfers = {
     .files = &WebFileBridge::services,
-    .get = [](void* ctx, uint32_t field) -> XpWebText { return span(self(ctx).text(field)); },
-    .set = [](void* ctx, uint32_t field, XpWebText value) { self(ctx).text(field) = string(value); },
+    .get = [](void* ctx, uint32_t field) -> XpWebText {
+      auto& b = self(ctx);
+      if (field == XP_WEB_FONT_FAMILY) return span(b.fontState->familyName);
+      if (field == XP_WEB_FONT_PATH) return span(b.fontState->filePath);
+      return span(b.text(field));
+    },
+    .set =
+        [](void* ctx, uint32_t field, XpWebText value) {
+          auto& b = self(ctx);
+          if (field == XP_WEB_FONT_FAMILY || field == XP_WEB_FONT_PATH) {
+            auto& target = field == XP_WEB_FONT_FAMILY ? b.fontState->familyName : b.fontState->filePath;
+            target.assign(value.len ? reinterpret_cast<const char*>(value.data) : "", value.len);
+          } else
+            b.text(field) = string(value);
+        },
     .joined_path = [](void* ctx, bool ws) -> XpWebText {
       auto& b = self(ctx);
       const auto& parent = ws ? wsUploadPath : b.uploadState->path;
@@ -989,10 +1033,7 @@ struct WebConfigBridge : WebFileBridge {
 
 const XpWebConfig WebConfigBridge::services = {
     .files = &WebFileBridge::services,
-    .parse = [](void* ctx, XpWebText body) -> XpWebText {
-      const auto error = deserializeJson(self(ctx).paths, body.data, body.len);
-      return error ? view(error.c_str()) : XpWebText{nullptr, 0};
-    },
+    .parse = parseJson,
     .json_value = [](void* ctx, const char* key, int32_t header, bool convert) -> XpWebJsonValue {
       auto& b = config(ctx);
       const JsonVariantConst value =
@@ -1160,19 +1201,11 @@ const XpWebConfig WebConfigBridge::services = {
     .put_wifi = [](void*, XpWebText ssid,
                    XpWebText password) { return WIFI_STORE.addCredential(copy(ssid), copy(password)); },
     .remove_wifi = [](void*, XpWebText ssid) { return WIFI_STORE.removeCredential(copy(ssid)); },
-    .request_header =
-        [](void* ctx, const char* name) {
-          auto& b = self(ctx);
-          b.argument = b.owner.server->header(name);
-          return span(b.argument);
-        },
-    .send_asset =
-        [](void* ctx, XpWebText asset) {
-          self(ctx).owner.server->send_P(200, "text/html", reinterpret_cast<const char*>(asset.data), asset.len);
-        },
-    .asset = {reinterpret_cast<const uint8_t*>(SettingsPageHtml), sizeof(SettingsPageHtml)},
-    .etag = {reinterpret_cast<const uint8_t*>(SettingsPageHtmlETag),
-             std::char_traits<char>::length(SettingsPageHtmlETag)},
+    .page = {requestHeader,
+             sendAsset,
+             {reinterpret_cast<const uint8_t*>(SettingsPageHtml), sizeof(SettingsPageHtml)},
+             {reinterpret_cast<const uint8_t*>(SettingsPageHtmlETag),
+              std::char_traits<char>::length(SettingsPageHtmlETag)}},
     .diagnostic =
         [](void*, uint32_t event, size_t count, XpWebText text) {
           const char* value = text.len ? reinterpret_cast<const char*>(text.data) : "";
@@ -2088,240 +2121,151 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
 
 // --- Font management handlers ---
 
-void CrossPointWebServer::handleFontsPage() const {
-  sendStaticContent(server.get(), FontsPageHtml, sizeof(FontsPageHtml), FontsPageHtmlETag, "text/html");
-  LOG_DBG("WEB", "Served fonts page");
-}
-
-void CrossPointWebServer::handleFontList() const {
-  // Pick up any uploads/deletes that happened since the last reader load.
-  const_cast<SdCardFontSystem&>(sdFontSystem).refreshIfDirty();
-  const auto& families = sdFontSystem.registry().getFamilies();
-
-  JsonDocument doc;
-  JsonArray arr = doc["families"].to<JsonArray>();
-  doc["maxFamilies"] = SdCardFontRegistry::MAX_SD_FAMILIES;
-  // Vector (.ttf/.otf) fonts need PSRAM to stay resident; DRAM-only boards
-  // only take pre-rendered .cpfont uploads.
-  doc["vectorFonts"] = HalMemory::getPsramHeap().totalBytes > 0;
-
-  for (const auto& family : families) {
-    JsonObject fObj = arr.add<JsonObject>();
-    fObj["name"] = family.name;
-
-    JsonArray sizes = fObj["sizes"].to<JsonArray>();
-    for (uint8_t s : family.availableSizes()) {
-      sizes.add(s);
-    }
-
-    JsonArray files = fObj["files"].to<JsonArray>();
-    char path[SdCardFontFamilyInfo::PATH_BUFFER_SIZE];
-    for (const auto& file : family.files) {
-      if (!family.filePath(file, path, sizeof(path))) continue;
-      JsonObject fileObj = files.add<JsonObject>();
-      // Extract filename from full path
-      const char* name = strrchr(path, '/');
-      fileObj["name"] = name ? name + 1 : path;
-
-      // Stat the file for size
-      HalFile f;
-      if (Storage.openFileForRead("WEB", path, f)) {
-        fileObj["size"] = static_cast<unsigned long>(f.size());
-        f.close();
-      } else {
-        fileObj["size"] = 0;
-      }
-    }
+struct WebFontBridge : WebFileBridge {
+  explicit WebFontBridge(const CrossPointWebServer& owner) : WebFileBridge(owner) {}
+  std::vector<uint8_t> sizes;
+  char path[SdCardFontFamilyInfo::PATH_BUFFER_SIZE];
+  static WebFontBridge& fonts(void* ctx) { return static_cast<WebFontBridge&>(self(ctx)); }
+  static void route(const CrossPointWebServer& owner, XpWebFontRoute route) {
+    WebFontBridge bridge(owner);
+    xp_web_fonts(static_cast<WebFileBridge*>(&bridge), &services, route);
   }
-
-  sendJson(doc);
-}
-
-void CrossPointWebServer::handleFontUploadData() {
-  HTTPUpload& upload = server->upload();
-
-  switch (upload.status) {
-    case UPLOAD_FILE_START: {
-      resetTaskWatchdogIfSubscribed();
-      String family = server->arg("family");
-      fontUpload.file = HalFile();
-      fontUpload.familyName.clear();
-      fontUpload.filePath.clear();
-      fontUpload.valid = false;
-      fontUpload.magicChecked = false;
-      fontUpload.isVector = false;
-      fontUpload.bytesWritten = 0;
-      fontUpload.bufferPos = 0;
-      fontUpload.buffer.reset();
-
-      if (!FontInstaller::isValidFamilyName(family.c_str())) {
-        LOG_ERR("WEB", "Invalid font family name: %s", family.c_str());
-        break;
-      }
-
-      String filename = upload.filename;
-      filename.replace(' ', '_');
-      // Validate filename: rejects path traversal (../, /, \) and enforces
-      // a .cpfont/.ttf/.otf basename of alphanumeric + hyphen + underscore.
-      // Without this an attacker could supply
-      // "../../.crosspoint/settings.json" as a "filename" and have it written
-      // outside the fonts directory. Vector fonts need PSRAM to stay
-      // resident, so DRAM-only boards only accept .cpfont.
-      const bool psramCapable = HalMemory::getPsramHeap().totalBytes > 0;
-      fontUpload.isVector = psramCapable && FontInstaller::isValidVectorFontFilename(filename.c_str());
-      if (!fontUpload.isVector && !FontInstaller::isValidCpfontFilename(filename.c_str())) {
-        LOG_ERR("WEB", "Invalid font filename: %s", filename.c_str());
-        break;
-      }
-
-      fontUpload.familyName = family.c_str();
-
-      // Create a temporary FontInstaller for directory creation
-      FontInstaller installer(sdFontSystem.registry());
-      if (!installer.ensureFamilyDir(family.c_str())) {
-        LOG_ERR("WEB", "Failed to create font family dir");
-        break;
-      }
-
-      fontUpload.buffer = makeUniqueNoThrow<uint8_t[]>(FontUploadState::BUFFER_SIZE);
-      if (!fontUpload.buffer) {
-        LOG_ERR("WEB", "OOM: font upload buffer");
-        break;
-      }
-
-      char path[128];
-      FontInstaller::buildFontPath(family.c_str(), filename.c_str(), path, sizeof(path));
-      fontUpload.filePath = path;
-
-      if (!Storage.openFileForWrite("WEB", path, fontUpload.file)) {
-        LOG_ERR("WEB", "Failed to open font file for write: %s", path);
-        fontUpload.buffer.reset();
-        break;
-      }
-
-      fontUpload.valid = true;
-      LOG_DBG("WEB", "Font upload started: %s -> %s", filename.c_str(), path);
-      break;
+  static void upload(CrossPointWebServer& owner, uint32_t event) {
+    static_assert(CrossPointWebServer::FontUploadState::BUFFER_SIZE == XP_WEB_BUFFER_CAPACITY);
+    WebFileBridge bridge(owner);
+    auto& s = owner.fontUpload;
+    bridge.fontState = &s;
+    bridge.borrowed = &s.file;
+    XpWebFontUpload state{s.bytesWritten, s.bufferPos, s.buffer.get(), s.valid, s.magicChecked, s.isVector};
+    if (event == 4) {
+      xp_web_font_upload(&bridge, &services, &state, event, {nullptr, 0}, nullptr, 0);
+    } else {
+      const auto& part = owner.server->upload();
+      xp_web_font_upload(&bridge, &services, &state, event, span(part.filename), part.buf, part.currentSize);
     }
+    s.bytesWritten = state.bytes;
+    s.bufferPos = state.buffer_pos;
+    s.valid = state.valid;
+    s.magicChecked = state.magic_checked;
+    s.isVector = state.vector;
+  }
+  static const XpWebFonts services;
+};
 
-    case UPLOAD_FILE_WRITE: {
-      if (dropUploadIfCancelled() || !fontUpload.valid) break;
-      resetTaskWatchdogIfSubscribed();
-
-      // Validate magic bytes on first chunk only
-      if (!fontUpload.magicChecked && upload.currentSize >= 8) {
-        bool magicOk;
-        if (fontUpload.isVector) {
-          // sfnt versions: 0x00010000 (TrueType), "OTTO" (CFF), "true" (Apple)
-          static constexpr uint8_t kTtfMagic[4] = {0x00, 0x01, 0x00, 0x00};
-          magicOk = memcmp(upload.buf, kTtfMagic, 4) == 0 || memcmp(upload.buf, "OTTO", 4) == 0 ||
-                    memcmp(upload.buf, "true", 4) == 0;
-        } else {
-          magicOk = memcmp(upload.buf, "CPFONT\0\0", 8) == 0;
-        }
-        if (!magicOk) {
-          LOG_ERR("WEB", "Invalid font magic bytes");
-          fontUpload.valid = false;
-          break;
-        }
-        fontUpload.magicChecked = true;
+const XpWebFonts WebFontBridge::services = {
+    .transfers = &WebFileBridge::transfers,
+    .parse = parseJson,
+    .json_string = [](void* ctx, const char* key) -> XpWebText {
+      const char* value = self(ctx).paths[key].as<const char*>();
+      return {reinterpret_cast<const uint8_t*>(value), value ? strlen(value) : 0};
+    },
+    .registry = [](void*, uint32_t op) -> size_t {
+      switch (static_cast<XpWebFontRegistryOp>(op)) {
+        case XP_WEB_FONT_REFRESH:
+          sdFontSystem.refreshIfDirty();
+          return sdFontSystem.registry().getFamilies().size();
+        case XP_WEB_FONT_MAX:
+          return SdCardFontRegistry::MAX_SD_FAMILIES;
+        case XP_WEB_FONT_PSRAM:
+          return HalMemory::getPsramHeap().totalBytes > 0;
+        case XP_WEB_FONT_DIRTY:
+          sdFontSystem.markRegistryDirty();
+          return 0;
       }
-
-      // Buffer writes for efficiency
-      size_t remaining = upload.currentSize;
-      const uint8_t* src = upload.buf;
-      while (remaining > 0) {
-        size_t space = FontUploadState::BUFFER_SIZE - fontUpload.bufferPos;
-        size_t chunk = (remaining < space) ? remaining : space;
-        memcpy(fontUpload.buffer.get() + fontUpload.bufferPos, src, chunk);
-        fontUpload.bufferPos += chunk;
-        src += chunk;
-        remaining -= chunk;
-
-        if (fontUpload.bufferPos >= FontUploadState::BUFFER_SIZE) {
-          if (fontUpload.file.write(fontUpload.buffer.get(), fontUpload.bufferPos) != fontUpload.bufferPos) {
-            LOG_ERR("WEB", "Font upload write failed: %s", fontUpload.filePath.c_str());
-            fontUpload.valid = false;
-            break;
+      return 0;
+    },
+    .family =
+        [](void* ctx, size_t index, XpWebFontFamily* out) {
+          auto& b = fonts(ctx);
+          const auto& family = sdFontSystem.registry().getFamilies()[index];
+          b.sizes = family.availableSizes();
+          *out = {span(family.name), {b.sizes.data(), b.sizes.size()}, family.files.size()};
+        },
+    .file = [](void* ctx, size_t familyIndex, size_t index) -> XpWebText {
+      auto& b = fonts(ctx);
+      const auto& family = sdFontSystem.registry().getFamilies()[familyIndex];
+      if (!family.filePath(family.files[index], b.path, sizeof(b.path))) return {nullptr, 0};
+      return {reinterpret_cast<const uint8_t*>(b.path), strlen(b.path)};
+    },
+    .install =
+        [](void*, uint32_t op, const char* family, const char* filename, uint8_t* out, size_t capacity) {
+          FontInstaller installer(sdFontSystem.registry());
+          switch (static_cast<XpWebFontInstallOp>(op)) {
+            case XP_WEB_FONT_VALID_FAMILY:
+              return FontInstaller::isValidFamilyName(family);
+            case XP_WEB_FONT_VALID_CPFONT:
+              return FontInstaller::isValidCpfontFilename(filename);
+            case XP_WEB_FONT_VALID_VECTOR:
+              return FontInstaller::isValidVectorFontFilename(filename);
+            case XP_WEB_FONT_ENSURE_DIR:
+              return installer.ensureFamilyDir(family);
+            case XP_WEB_FONT_BUILD_PATH:
+              FontInstaller::buildFontPath(family, filename, reinterpret_cast<char*>(out), capacity);
+              return true;
+            case XP_WEB_FONT_REMOVE_FAMILY:
+              return installer.deleteFamily(family) == FontInstaller::Error::OK;
           }
-          fontUpload.bytesWritten += fontUpload.bufferPos;
-          fontUpload.bufferPos = 0;
-          resetTaskWatchdogIfSubscribed();
-        }
-      }
-      break;
-    }
+          return false;
+        },
+    .page = {requestHeader,
+             sendAsset,
+             {reinterpret_cast<const uint8_t*>(FontsPageHtml), sizeof(FontsPageHtml)},
+             {reinterpret_cast<const uint8_t*>(FontsPageHtmlETag), std::char_traits<char>::length(FontsPageHtmlETag)}},
+    .diagnostic =
+        [](void*, uint32_t event, XpWebText a, XpWebText b, size_t bytes, bool valid) {
+          const char* x = a.len ? reinterpret_cast<const char*>(a.data) : "";
+          const char* y = b.len ? reinterpret_cast<const char*>(b.data) : "";
+          switch (static_cast<XpWebFontDiagnostic>(event)) {
+            case XP_WEB_FONT_SERVED:
+              LOG_DBG("WEB", "Served fonts page");
+              break;
+            case XP_WEB_FONT_BAD_FAMILY:
+              LOG_ERR("WEB", "Invalid font family name: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FONT_BAD_NAME:
+              LOG_ERR("WEB", "Invalid font filename: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FONT_DIR_FAILED:
+              LOG_ERR("WEB", "Failed to create font family dir");
+              break;
+            case XP_WEB_FONT_OOM:
+              LOG_ERR("WEB", "OOM: font upload buffer");
+              break;
+            case XP_WEB_FONT_OPEN_FAILED:
+              LOG_ERR("WEB", "Failed to open font file for write: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FONT_STARTED:
+              LOG_DBG("WEB", "Font upload started: %.*s -> %.*s", int(a.len), x, int(b.len), y);
+              break;
+            case XP_WEB_FONT_BAD_MAGIC:
+              LOG_ERR("WEB", "Invalid font magic bytes");
+              break;
+            case XP_WEB_FONT_WRITE_FAILED:
+              LOG_ERR("WEB", "Font upload write failed: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FONT_ENDED:
+              LOG_DBG("WEB", "Font upload end: valid=%d, %zu bytes", valid, bytes);
+              break;
+            case XP_WEB_FONT_ABORTED:
+              LOG_DBG("WEB", "Font upload aborted");
+              break;
+            case XP_WEB_FONT_COMPLETE:
+              LOG_DBG("WEB", "Font upload complete: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FONT_DELETED:
+              LOG_DBG("WEB", "Deleted font family: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FONT_DELETE_FAILED:
+              LOG_ERR("WEB", "Failed to delete font family: %.*s", int(a.len), x);
+              break;
+            case XP_WEB_FONT_JSON_OOM:
+              LOG_ERR("WEB", "OOM: JSON response");
+              break;
+          }
+        }};
 
-    case UPLOAD_FILE_END: {
-      // Flush remaining buffer
-      if (fontUpload.valid && fontUpload.bufferPos > 0) {
-        if (fontUpload.file.write(fontUpload.buffer.get(), fontUpload.bufferPos) != fontUpload.bufferPos) {
-          LOG_ERR("WEB", "Font upload write failed: %s", fontUpload.filePath.c_str());
-          fontUpload.valid = false;
-        }
-        fontUpload.bytesWritten += fontUpload.bufferPos;
-        fontUpload.bufferPos = 0;
-      }
-      if (fontUpload.file.isOpen()) {
-        fontUpload.file.close();
-      }
-      fontUpload.bufferPos = 0;
-      fontUpload.buffer.reset();
-
-      if (!fontUpload.valid && !fontUpload.filePath.empty()) {
-        Storage.remove(fontUpload.filePath.c_str());
-      }
-
-      LOG_DBG("WEB", "Font upload end: valid=%d, %zu bytes", fontUpload.valid, fontUpload.bytesWritten);
-      break;
-    }
-
-    case UPLOAD_FILE_ABORTED: {
-      fontUpload.bufferPos = 0;
-      fontUpload.buffer.reset();
-      if (fontUpload.file) {
-        fontUpload.file.close();
-      }
-      if (!fontUpload.filePath.empty()) {
-        Storage.remove(fontUpload.filePath.c_str());
-      }
-      fontUpload.valid = false;
-      LOG_DBG("WEB", "Font upload aborted");
-      break;
-    }
-  }
-}
-
-void CrossPointWebServer::handleFontUpload() {
-  if (fontUpload.valid) {
-    sdFontSystem.markRegistryDirty();
-    server->send(200, "application/json", "{\"ok\":true}");
-    LOG_DBG("WEB", "Font upload complete: %s", fontUpload.filePath.c_str());
-  } else {
-    server->send(400, "application/json", "{\"error\":\"Invalid font file\"}");
-  }
-}
-
-void CrossPointWebServer::handleFontDelete() {
-  String body = server->arg("plain");
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body);
-
-  if (err || !doc["family"].is<const char*>()) {
-    server->send(400, "application/json", "{\"error\":\"Invalid request\"}");
-    return;
-  }
-
-  const char* familyName = doc["family"];
-  FontInstaller installer(sdFontSystem.registry());
-  auto result = installer.deleteFamily(familyName);
-
-  if (result == FontInstaller::Error::OK) {
-    sdFontSystem.markRegistryDirty();
-    server->send(200, "application/json", "{\"ok\":true}");
-    LOG_DBG("WEB", "Deleted font family: %s", familyName);
-  } else {
-    server->send(500, "application/json", "{\"error\":\"Delete failed\"}");
-    LOG_ERR("WEB", "Failed to delete font family: %s", familyName);
-  }
-}
+void CrossPointWebServer::handleFontsPage() const { WebFontBridge::route(*this, XP_WEB_FONT_PAGE); }
+void CrossPointWebServer::handleFontList() const { WebFontBridge::route(*this, XP_WEB_FONT_LIST); }
+void CrossPointWebServer::handleFontDelete() { WebFontBridge::route(*this, XP_WEB_FONT_DELETE); }
+void CrossPointWebServer::handleFontUpload() { WebFontBridge::upload(*this, 4); }
+void CrossPointWebServer::handleFontUploadData() { WebFontBridge::upload(*this, server->upload().status); }

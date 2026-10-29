@@ -1,4 +1,5 @@
 mod config;
+mod fonts;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.
 use crate::system_items::hidden_name as hidden;
@@ -134,6 +135,7 @@ enum Io {
     ClientClear,
     Create,
     Available,
+    OpenRead,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -778,6 +780,8 @@ enum Field {
     WsName,
     WsPath,
     WsCompleteName,
+    FontFamily,
+    FontPath,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]

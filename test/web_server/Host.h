@@ -283,6 +283,7 @@ class WebServer {
   String requestUri;
   HTTPMethod requestMethod = HTTP_GET;
   HTTPUpload part;
+  bool uploadAvailable = true;
   String header(const char* name) const {
     auto it = headers.find(name);
     return it == headers.end() ? String{} : it->second;
@@ -311,7 +312,13 @@ class WebServer {
   }
   String uri() const { return requestUri; }
   HTTPMethod method() const { return requestMethod; }
-  HTTPUpload& upload() { return part; }
+  HTTPUpload& upload() {
+    if (!uploadAvailable) {
+      std::cerr << "upload() accessed without a multipart file\n";
+      std::abort();
+    }
+    return part;
+  }
   NetworkClient client() const { return {}; }
   void setContentLength(size_t n) const {
     host::trace.push_back("length:" + (n == SIZE_MAX ? std::string("chunked") : std::to_string(n)));

@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 447 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 618 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -43,12 +43,13 @@ the test records their calls without validating their internal behavior or FAT
 alias resolution. ArduinoJson is the installed third-party implementation.
 Path helpers are extracted from repository source, and protected-path checks
 use the existing public header. The String substitute implements the operations
-used by these methods, including 32-bit saturating `toInt`; it does not inject
-String or JSON allocation failures. The transcript allocator trace covers only checked
+used by these methods, including 32-bit saturating `toInt`. A targeted String
+allocation hook covers the completed font-list response; other String and JSON
+allocation failures are not simulated. The transcript allocator trace covers only checked
 upload/download buffer requests, not total heap usage. `--fault-check` separately
 injects Rust allocation failures at 128 budgets for every case, checking that
 Rust allocations and the WebSocket upload owner are released after cleanup.
-It does not simulate C++ String allocation failures. Native `size_t` and
+Native `size_t` and
 `unsigned long` remain host-sized, so this suite does not establish target-width
 overflow parity. Synthetic fixtures contain no private books or credentials.
 
@@ -79,3 +80,19 @@ checked before teardown, in addition to retained allocations afterward.
 The separate settings-store oracle checks persisted bytes through the unchanged
 store implementations; the route oracle checks the values and call order sent
 to those stores. Neither substitutes for real browser/network testing.
+
+The font-route extension was recorded from the unchanged C++ handlers at
+`9ab0ddb8`. It covers empty and multi-family lists, escaped and oversized paths,
+missing file stats, deletion JSON types and embedded NUL, upload validation,
+PSRAM gating and all three vector signatures, 0/1/7/8/4095/4096/4097/8200-byte
+chunks, directory/create/write failures, partial writes, cancellation, abort,
+page revalidation, and embedded-NUL family state. Font discovery and FontInstaller are substituted service
+leaves; the separate font-registry suites cover their Rust-backed implementation.
+The compatibility cases intentionally preserve unchecked short magic prefixes.
+
+Five review fixtures, also recorded from `9ab0ddb8`, cover empty, plain, JSON,
+and fields-only font POSTs with no multipart file, plus failure of the final
+font-list String allocation followed by a successful retry. The transport mock
+rejects `upload()` access when no file is present. The String hook fails one
+allocation matching the completed response length, in either the original
+checked `reserve()` or the port's length-aware constructor.

@@ -108,11 +108,33 @@ pub struct Config {
     wifi: unsafe extern "C" fn(*mut c_void, usize, u32, *mut Wifi) -> bool,
     put_wifi: unsafe extern "C" fn(*mut c_void, Span, Span) -> bool,
     remove_wifi: unsafe extern "C" fn(*mut c_void, Span) -> bool,
+    page: Asset,
+    diagnostic: unsafe extern "C" fn(*mut c_void, u32, usize, Span),
+}
+#[repr(C)]
+pub(super) struct Asset {
     request_header: unsafe extern "C" fn(*mut c_void, *const c_char) -> Span,
     send_asset: unsafe extern "C" fn(*mut c_void, Span),
     asset: Span,
     etag: Span,
-    diagnostic: unsafe extern "C" fn(*mut c_void, u32, usize, Span),
+}
+impl Request<'_> {
+    pub(super) fn page(&self, page: &Asset) {
+        let etag = unsafe { (page.request_header)(self.ctx, c"If-None-Match".as_ptr()) };
+        let cached = unsafe { etag.bytes() == page.etag.bytes() };
+        if !cached {
+            self.header(b"Content-Encoding\0", b"gzip");
+        }
+        self.header(b"ETag\0", unsafe { page.etag.bytes() });
+        self.header(b"Cache-Control\0", b"no-cache");
+        unsafe {
+            if cached {
+                (self.services.send)(self.ctx, 304, c"text/html".as_ptr(), EMPTY);
+            } else {
+                (page.send_asset)(self.ctx, page.asset);
+            }
+        }
+    }
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -514,20 +536,7 @@ impl ConfigRequest<'_> {
         self.r.send(200, b"OK");
     }
     fn page(&self) {
-        let etag = unsafe { (self.c.request_header)(self.r.ctx, c"If-None-Match".as_ptr()) };
-        let cached = unsafe { etag.bytes() == self.c.etag.bytes() };
-        if !cached {
-            self.r.header(b"Content-Encoding\0", b"gzip");
-        }
-        self.r.header(b"ETag\0", unsafe { self.c.etag.bytes() });
-        self.r.header(b"Cache-Control\0", b"no-cache");
-        unsafe {
-            if cached {
-                (self.r.services.send)(self.r.ctx, 304, c"text/html".as_ptr(), EMPTY);
-            } else {
-                (self.c.send_asset)(self.r.ctx, self.c.asset);
-            }
-        }
+        self.r.page(&self.c.page);
         self.event(Event::Page, 0, EMPTY);
     }
 }

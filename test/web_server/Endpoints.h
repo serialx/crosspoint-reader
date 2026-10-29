@@ -95,7 +95,8 @@ struct SdCardFontFamilyInfo {
   static constexpr size_t PATH_BUFFER_SIZE = 128;
   std::string name = "Test";
   std::vector<FontFile> files = {{}};
-  std::vector<uint8_t> availableSizes() const { return {12, 16}; }
+  std::vector<uint8_t> sizes = {12, 16};
+  std::vector<uint8_t> availableSizes() const { return sizes; }
   bool filePath(const FontFile& f, char* out, size_t cap) const {
     return snprintf(out, cap, "/fonts/%s/%s", name.c_str(), f.name.c_str()) < static_cast<int>(cap);
   }

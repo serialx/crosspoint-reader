@@ -754,6 +754,22 @@ typedef struct {
  * incomplete services produce no probes/effects; callbacks retain no arguments. */
 void xp_ui_reader_loop_run(const XpUiReaderLoopServices*);
 
+/* Idle admission only while a reader render owns the framebuffer. Nonzero
+ * results require preserving the consuming mapped probes in their original order. */
+typedef struct {
+  int32_t spine, spine_count;
+  uint32_t confirm_threshold;
+  uint8_t busy, has_epub, load_popup, remembered, end_options, touch, remote, home_action;
+  uint8_t edges, held_buttons, overlay, automatic;
+  int8_t pending_turn;
+  uint8_t bookmark_notice, dictionary_notice, font_notice, clipping_notice, read_move, recents_removed;
+  uint8_t applied_orientation, orientation, long_button, short_power, tilt, footnote_depth, touch_controls;
+  uint8_t reserved[2];
+} XpUiReaderIdleSnapshot;
+/* SCREEN_LONG asks the caller to probe wasScreenLongPress before the Back probes. */
+enum { XP_UI_READER_IDLE_ADMITTED = 1, XP_UI_READER_IDLE_SCREEN_LONG = 2 };
+uint8_t xp_ui_reader_idle_plan(const XpUiReaderIdleSnapshot* snapshot);
+
 /* Stable event IDs; checked against the C++ provider. */
 typedef enum {
   XP_UI_READER_OVERLAY_EVENT_NONE = 0,
@@ -1366,3 +1382,43 @@ XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_HOLD_MS == 1500);
 XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_HOLD_ROWS == 10);
 #undef XP_UI_READER_OVERLAY_ASSERT
 #undef XP_UI_READER_OVERLAY_ALIGNOF
+
+#if defined(__cplusplus)
+#define XP_UI_READER_IDLE_ASSERT(x) static_assert((x), #x)
+#else
+#define XP_UI_READER_IDLE_ASSERT(x) _Static_assert((x), #x)
+#endif
+XP_UI_READER_IDLE_ASSERT(sizeof(XpUiReaderIdleSnapshot) == 40);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, spine) == 0);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, spine_count) == 4);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, confirm_threshold) == 8);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, busy) == 12);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, has_epub) == 13);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, load_popup) == 14);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, remembered) == 15);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, end_options) == 16);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, touch) == 17);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, remote) == 18);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, home_action) == 19);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, edges) == 20);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, held_buttons) == 21);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, overlay) == 22);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, automatic) == 23);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, pending_turn) == 24);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, bookmark_notice) == 25);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, dictionary_notice) == 26);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, font_notice) == 27);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, clipping_notice) == 28);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, read_move) == 29);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, recents_removed) == 30);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, applied_orientation) == 31);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, orientation) == 32);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, long_button) == 33);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, short_power) == 34);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, tilt) == 35);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, footnote_depth) == 36);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, touch_controls) == 37);
+XP_UI_READER_IDLE_ASSERT(offsetof(XpUiReaderIdleSnapshot, reserved) == 38);
+XP_UI_READER_IDLE_ASSERT(XP_UI_READER_IDLE_ADMITTED == 1);
+XP_UI_READER_IDLE_ASSERT(XP_UI_READER_IDLE_SCREEN_LONG == 2);
+#undef XP_UI_READER_IDLE_ASSERT

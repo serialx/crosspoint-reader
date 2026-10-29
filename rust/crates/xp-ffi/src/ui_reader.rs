@@ -2,6 +2,14 @@
 use xp_ui::reader::{self, BuildWait, LinkNote, Progress, Session};
 
 /// # Safety
+/// Non-null snapshot points to an initialized, aligned POD value for this call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_idle_plan(snapshot: *const reader::idle::Snapshot) -> u8 {
+    snapshot.as_ref().map_or(0, reader::idle::plan)
+}
+
+/// # Safety
 /// Non-null pointers must be aligned, valid for the declared reader-family wire
 /// value or buffer, and exclusively borrowed for mutations during this call.
 #[no_mangle]

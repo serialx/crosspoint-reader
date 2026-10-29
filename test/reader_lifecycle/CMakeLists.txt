@@ -120,3 +120,7 @@ add_test(NAME reader_overlay_input
 
 add_test(NAME reader_build_popup_lifetime
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_build_popup_lifetime.py)
+
+add_test(NAME reader_idle_projection
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_idle_projection.py)

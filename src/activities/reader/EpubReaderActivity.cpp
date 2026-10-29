@@ -683,7 +683,61 @@ void EpubReaderActivity::openClippings() {
   });
 }
 
+static_assert(static_cast<uint8_t>(HomeButtonAction::Ignore) == 1);
+
+bool EpubReaderActivity::tryIdleLoop() {
+  // This sampler is valid only while rendering excludes resource work.
+  if (!RenderLock::peek()) return false;
+  XpUiReaderIdleSnapshot sample{};
+  sample.busy = 1;
+  sample.has_epub = bool(epub);
+  sample.spine_count = epub ? epub->getSpineItemsCount() : 0;
+  sample.load_popup = loadFailurePopup.isActive();
+  sample.end_options = bool(endOfBookOptions);
+  sample.touch = mappedInput.hasTouch();
+  sample.remote = mappedInput.hasRemoteClick();
+  sample.home_action = static_cast<uint8_t>(mappedInput.homeButtonAction());
+  sample.edges = gpio.wasAnyPressed() || gpio.wasAnyReleased();
+  for (uint8_t button = HalGPIO::BTN_BACK; button <= HalGPIO::BTN_POWER; ++button) {
+    if (gpio.isPressed(button)) sample.held_buttons |= 1u << button;
+  }
+  sample.orientation = SETTINGS.orientation;
+  sample.long_button = SETTINGS.longPressButtonBehavior;
+  sample.short_power = SETTINGS.shortPwrBtn;
+  sample.tilt = SETTINGS.tiltPageTurn;
+  sample.confirm_threshold = confirmLongPressThreshold();
+  sample.touch_controls = SETTINGS.touchReaderControls;
+  {
+    ModelLock lock(*this);
+    sample.remembered = baseModel.book_remembered;
+    sample.spine = currentSpineIndex;
+    sample.overlay = static_cast<uint8_t>(overlay);
+    sample.automatic = automaticPageTurnActive;
+    sample.pending_turn = pendingManualTurn;
+    sample.bookmark_notice = showBookmarkMessage;
+    sample.dictionary_notice = showDictionaryMessage;
+    sample.font_notice = showFontDamagedMessage;
+    sample.clipping_notice = showClippingMessage;
+    sample.read_move = pendingReadFolderMove;
+    sample.recents_removed = recentsEntryRemoved;
+    sample.applied_orientation = appliedOrientation;
+    sample.footnote_depth = static_cast<uint8_t>(footnoteDepth);
+  }
+  const uint8_t plan = xp_ui_reader_idle_plan(&sample);
+  if (!(plan & XP_UI_READER_IDLE_ADMITTED)) return false;
+  // Button-only frames still perform every potentially consuming mapped probe.
+  if (plan & XP_UI_READER_IDLE_SCREEN_LONG) {
+    int x = 0, y = 0;
+    mappedInput.wasScreenLongPress(x, y);
+  }
+  mappedInput.wasBackGesture();
+  mappedInput.wasLongPressed(MappedInputManager::Button::Back, ReaderUtils::GO_BACK_OR_HOME_MS);
+  mappedInput.wasReleased(MappedInputManager::Button::Back);
+  return true;
+}
+
 void EpubReaderActivity::loop() {
+  if (tryIdleLoop()) return;
   static_assert(static_cast<uint32_t>(Overlay::None) == XP_UI_READER_VALUE_OVERLAY_NONE);
   static_assert(static_cast<uint32_t>(Overlay::Toolbar) == XP_UI_READER_VALUE_OVERLAY_TOOLBAR);
   using Cache = std::remove_pointer_t<decltype(renderer.getFontCacheManager())>;

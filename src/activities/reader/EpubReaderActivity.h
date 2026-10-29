@@ -148,6 +148,7 @@ class EpubReaderActivity final : public ReaderActivity {
   // back as soon as a button is down, so a short press is seen before more pages are built.
   void backgroundBuildTick();
   bool anyButtonPressed() const;
+  bool tryIdleLoop();
   // A background build failed in this spine. The error would likely recur, so from then on the
   // spine is built only as far as the reader goes; pages from earlier build steps stay readable.
   int backgroundBuildFailedSpine = -1;

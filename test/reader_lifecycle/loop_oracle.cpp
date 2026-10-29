@@ -318,6 +318,8 @@ struct EpubReaderActivity {
   bool toolbar = true, menuHandled = false, menuActive = false, backHandled = false, endTurnHandled = false,
        turnChanged = true, syncStarted = true;
   unsigned long confirmThreshold = 700;
+  // This frozen full-path oracle deliberately bypasses separately checked idle admission.
+  bool tryIdleLoop() { return false; }
   void loop();
   void requestUpdate() { event("update"); }
   void finish() { event("finish"); }

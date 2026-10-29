@@ -18,7 +18,7 @@ def function(source, signature):
     return source[start:end]
 
 
-def record(top_corners=False):
+def record(top_corners=False, wide_lines=False):
     source = (ROOT / 'lib/GfxRenderer/GfxRenderer.cpp').read_text()
     methods = [function(source, 'void GfxRenderer::drawLine(int x1, int y1, int x2, int y2, const bool state)'),
                function(source, 'void GfxRenderer::drawRect(const int x, const int y, const int width, const int height, const int lineWidth,'),
@@ -26,6 +26,7 @@ def record(top_corners=False):
                function(source, 'void GfxRenderer::drawRoundedRect(const int x, const int y, const int width, const int height, const int lineWidth,\n                                  const int cornerRadius, bool roundTopLeft'),
                'template<Color color>\n' + function(source, 'void GfxRenderer::fillArc('),
                function(source, 'void GfxRenderer::fillRoundedRect(const int x, const int y, const int width, const int height, const int cornerRadius,\n                                  bool roundTopLeft')]
+    methods.append(function(source, 'void GfxRenderer::drawLine(int x1, int y1, int x2, int y2, const int lineWidth,'))
     prefix = r'''
 #include <algorithm>
 #include <cstdint>
@@ -60,6 +61,7 @@ public:
     drawPixel(i,j,c==Color::Black||(c==Color::LightGray && i%2==0 && j%2==0)||(c==Color::DarkGray && (i+j)%2==0));
  }
  void drawLine(int,int,int,int,bool) const;
+ void drawLine(int,int,int,int,int,bool) const;
  void drawRect(int,int,int,int,int,bool) const;
  void drawArc(int,int,int,int,int,int,bool) const;
  void drawRoundedRect(int,int,int,int,int,int,bool,bool,bool,bool,bool) const;
@@ -81,6 +83,20 @@ int main() {
    }
   }
  }
+}
+'''
+    if wide_lines:
+        suffix = r'''
+int main() {
+ for(int orientation=0;orientation<4;orientation++)
+  for(int width : {0,1,2,3})
+   for(int paint=0;paint<2;paint++)
+    for(auto delta : {std::pair{15,0},std::pair{0,18},std::pair{15,21},std::pair{-15,21},std::pair{15,-21},std::pair{-15,-21}}) {
+     GfxRenderer r;r.orientation=orientation;
+     std::fill_n(r.bytes,96,paint==0?255:0);
+     r.drawLine(8,9,8+delta.first,9+delta.second,std::max(width,1),paint==0);
+     std::fwrite(r.bytes,1,96,stdout);
+    }
 }
 '''
     if top_corners:

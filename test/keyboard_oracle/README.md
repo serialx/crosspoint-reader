@@ -40,3 +40,16 @@ Run all keyboard checks with `ctest --test-dir build/test -R keyboard_ --output-
 `KeyboardTouch` compares 16,384 deterministic input frames directly with the
 pinned SDK TouchHoldRouter, including press/release priority, alternate keys,
 350/900 ms holds, slides, release slop, canceled swipes and timer wrap.
+
+`keyboard_mapping` extracts the actual application table, SDK callbacks,
+start/next wrappers and painter font choice. It checks both the pinned SDK IDs
+and deliberately permuted IDs against the real layout tables.
+
+`keyboard_routed_input` compares the original C++ with actual facade methods
+through text bytes, cursor and returned results. Its 71 real-layout cases cover
+pending shift/language/URL changes, masked multi-byte and RTL field taps, and
+contacts spanning publication. It also checks the active key used for painting.
+Glyph advances are fixed host leaves; bidi is real, and native-font pixels remain
+covered by `KeyboardTarget`. The original stale-key fallback after a field tap
+and a second release without a new press is preserved explicitly; a fresh
+off-target press/release must clear it. No frozen golden is changed.

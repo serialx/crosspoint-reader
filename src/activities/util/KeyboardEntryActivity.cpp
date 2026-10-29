@@ -18,6 +18,7 @@
 namespace fui = freeink::ui;
 static_assert(sizeof(XpUiKeyboardState) == 64 && alignof(XpUiKeyboardState) == 4);
 static_assert(offsetof(XpUiKeyboardState, row) == 32 && offsetof(XpUiKeyboardState, layout) == 40);
+static_assert(offsetof(XpUiKeyboardState, active_index) == 62);
 static_assert(sizeof(XpUiKeyboardRow) == 4 && alignof(XpUiKeyboardRow) == 1);
 static_assert(offsetof(XpUiKeyboardRow, independent) == 2);
 static_assert(sizeof(XpUiKeyboardKey) == (sizeof(void*) == 4 ? 16 : 32));
@@ -55,24 +56,23 @@ bool KeyboardEntryActivity::Bytes::grow(const uint32_t required, const uint32_t 
 }
 
 XpUiKeyboardLayouts KeyboardEntryActivity::layouts() {
-  return {nullptr,
-          [](void*, uint8_t id, uint8_t shift, uint8_t symbols, uint8_t language, uint8_t row) -> XpUiKeyboardRow {
-            if (id >= keyboard_layouts::COUNT) return {};
-            const auto& layout =
-                fui::builtinKeyboardLayout(static_cast<fui::KeyboardLayoutId>(id), shift, symbols, true, language);
-            if (row >= layout.rowCount) return {};
-            const auto& value = layout.rows[row];
-            return {value.count, value.insetUnits, static_cast<uint8_t>(value.independentKeyWidth), 0};
-          },
-          [](void*, uint8_t id, uint8_t shift, uint8_t symbols, uint8_t language, uint8_t row,
-             uint8_t col) -> XpUiKeyboardKey {
-            if (id >= keyboard_layouts::COUNT) return {};
-            const auto& layout =
-                fui::builtinKeyboardLayout(static_cast<fui::KeyboardLayoutId>(id), shift, symbols, true, language);
-            if (row >= layout.rowCount || col >= layout.rows[row].count) return {};
-            const auto& key = layout.rows[row].keys[col];
-            return {key.label, key.output, key.alt, key.value, static_cast<uint8_t>(key.kind), key.widthUnits};
-          }};
+  return {
+      nullptr,
+      [](void*, uint8_t id, uint8_t shift, uint8_t symbols, uint8_t language, uint8_t row) -> XpUiKeyboardRow {
+        if (id >= keyboard_layouts::COUNT) return {};
+        const auto& layout = fui::builtinKeyboardLayout(keyboard_layouts::ALL[id].id, shift, symbols, true, language);
+        if (row >= layout.rowCount) return {};
+        const auto& value = layout.rows[row];
+        return {value.count, value.insetUnits, static_cast<uint8_t>(value.independentKeyWidth), 0};
+      },
+      [](void*, uint8_t id, uint8_t shift, uint8_t symbols, uint8_t language, uint8_t row,
+         uint8_t col) -> XpUiKeyboardKey {
+        if (id >= keyboard_layouts::COUNT) return {};
+        const auto& layout = fui::builtinKeyboardLayout(keyboard_layouts::ALL[id].id, shift, symbols, true, language);
+        if (row >= layout.rowCount || col >= layout.rows[row].count) return {};
+        const auto& key = layout.rows[row].keys[col];
+        return {key.label, key.output, key.alt, key.value, static_cast<uint8_t>(key.kind), key.widthUnits};
+      }};
 }
 
 XpUiKeyboardMetrics KeyboardEntryActivity::metrics() const {
@@ -196,6 +196,8 @@ void KeyboardEntryActivity::loop() {
 }
 
 void KeyboardEntryActivity::rustPublished() {
+  const auto tables = layouts();
+  xp_ui_keyboard_publish(&state, &publishedState, &arena->snapshot, &tables);
   publishedState = arena->snapshot;
   publishedLayout = layout;
 }
@@ -261,6 +263,7 @@ void KeyboardEntryActivity::applyRustEffect(const XpUiEffect& navigation) {
 
 bool KeyboardEntryActivity::buildRustScene(XpUiScene& scene) {
   if (!arena || !text.data) return false;
+  const auto tables = layouts();
   for (;;) {
     uint32_t required;
     {
@@ -271,6 +274,7 @@ bool KeyboardEntryActivity::buildRustScene(XpUiScene& scene) {
     ModelLock lock(*this);
     if (state.length >= arena->raw.capacity) continue;
     arena->snapshot = state;
+    xp_ui_keyboard_publish(&arena->snapshot, &publishedState, &state, &tables);
     memcpy(arena->raw.data.get(), text.data.get(), state.length + 1);
     break;
   }
@@ -292,7 +296,6 @@ bool KeyboardEntryActivity::buildRustScene(XpUiScene& scene) {
     arena->spanCapacity = 8;
   }
   if (!arena->sceneText.grow(512, 0)) return false;
-  const auto tables = layouts();
   const auto fonts = metrics();
   XpUiScene next{};
   for (;;) {
@@ -397,7 +400,7 @@ void KeyboardEntryActivity::paintKey(const XpUiCommand& command) {
                         ? tr(STR_KEY_MODE_ABC)
                         : tr(STR_KEY_MODE_SYMBOLS);
   props.labelText.font =
-      arena->snapshot.layout == static_cast<uint8_t>(fui::KeyboardLayoutId::ArabicAr) && !arena->snapshot.symbols
+      keyboard_layouts::ALL[arena->snapshot.layout].id == fui::KeyboardLayoutId::ArabicAr && !arena->snapshot.symbols
           ? fui::GfxRendererTarget::FONT_SMALL
           : fui::GfxRendererTarget::FONT_BODY;
   props.altText.font = fui::GfxRendererTarget::FONT_SMALL;

@@ -3,6 +3,7 @@ root=pathlib.Path(__file__).resolve().parents[2]
 work=pathlib.Path(sys.argv[1]).resolve()
 sys.path.insert(0,str(root/'test/keyboard_oracle'))
 import record
+from layout_instrument import function
 s=record.source(root)
 s='#include "xp_ui_keyboard.h"\n'+s
 s=s.replace('class KeyboardEntryActivity : public Activity {','class KeyboardEntryActivity : public Activity {\n public:\n XpUiKeyboardState state{};\n void prepare(); void adopt();')
@@ -18,11 +19,11 @@ bool oracle_sync(XpUiKeyboardState*,const XpUiKeyboardLayouts*,int16_t);
 XpUiKeyboardLayouts layouts{
  nullptr,
  [](void*,uint8_t id,uint8_t shift,uint8_t symbols,uint8_t lang,uint8_t row)->XpUiKeyboardRow {
-  const auto& l=freeink::ui::builtinKeyboardLayout(static_cast<freeink::ui::KeyboardLayoutId>(id),shift,symbols,true,lang);
+  const auto& l=freeink::ui::builtinKeyboardLayout(keyboard_layouts::ALL[id].id,shift,symbols,true,lang);
   if(row>=l.rowCount)return {};const auto& r=l.rows[row];return {r.count,r.insetUnits,uint8_t(r.independentKeyWidth),0};
  },
  [](void*,uint8_t id,uint8_t shift,uint8_t symbols,uint8_t lang,uint8_t row,uint8_t col)->XpUiKeyboardKey {
-  const auto& l=freeink::ui::builtinKeyboardLayout(static_cast<freeink::ui::KeyboardLayoutId>(id),shift,symbols,true,lang);
+  const auto& l=freeink::ui::builtinKeyboardLayout(keyboard_layouts::ALL[id].id,shift,symbols,true,lang);
   if(row>=l.rowCount||col>=l.rows[row].count)return {};const auto& k=l.rows[row].keys[col];return {k.label,k.output,k.alt,k.value,uint8_t(k.kind),k.widthUnits};
  }};
 '''
@@ -54,8 +55,9 @@ replace('void KeyboardEntryActivity::loop()', '''void KeyboardEntryActivity::loo
  if(e.navigation.invalidate)requestUpdate();if(e.navigation.kind==XP_UI_ACTIVATE)onComplete(text);if(e.navigation.kind==XP_UI_CANCEL)onCancel();
 }''')
 replace('uint16_t enabled() {', 'uint16_t enabled(){return xp_ui_keyboard_enabled(SETTINGS.keyboardLayouts,uint8_t(I18N.getLanguage()));}')
-replace('freeink::ui::KeyboardLayoutId startingLayout() {', 'freeink::ui::KeyboardLayoutId startingLayout(){return static_cast<freeink::ui::KeyboardLayoutId>(xp_ui_keyboard_start(enabled(),uint8_t(I18N.getLanguage())));}')
-replace('freeink::ui::KeyboardLayoutId next(const freeink::ui::KeyboardLayoutId current) {', 'freeink::ui::KeyboardLayoutId next(const freeink::ui::KeyboardLayoutId id){return static_cast<freeink::ui::KeyboardLayoutId>(xp_ui_keyboard_next(enabled(),uint8_t(id)));}')
+layout_source=(root/'src/activities/util/KeyboardLayoutSet.cpp').read_text()
+for signature in ['freeink::ui::KeyboardLayoutId startingLayout() {', 'freeink::ui::KeyboardLayoutId next(const freeink::ui::KeyboardLayoutId current) {']:
+ replace(signature,function(layout_source,signature))
 # declarations must precede replacements; implementations need completed class.
 pos=s.index('namespace fui = freeink::ui;')
 s=s[:pos]+extra+s[pos:]

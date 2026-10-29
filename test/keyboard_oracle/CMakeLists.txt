@@ -33,3 +33,13 @@ target_include_directories(KeyboardTouch PRIVATE ${REPO_ROOT}/freeink-sdk/libs/u
 target_compile_options(KeyboardTouch PRIVATE -UNDEBUG)
 target_link_libraries(KeyboardTouch PRIVATE xp_ffi_host)
 add_test(NAME keyboard_touch COMMAND KeyboardTouch)
+
+add_custom_command(OUTPUT ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc
+ COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/layout_instrument.py ${REPO_ROOT} ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc
+ DEPENDS layout_instrument.py ${REPO_ROOT}/src/activities/util/KeyboardEntryActivity.cpp ${REPO_ROOT}/src/activities/util/KeyboardLayoutSet.h VERBATIM)
+foreach(target keyboard_abi KeyboardTarget KeyboardTouch)
+ target_sources(${target} PRIVATE ${KEYBOARD_INSTRUMENTED}/keyboard-layout-bindings.inc)
+ target_include_directories(${target} PRIVATE ${KEYBOARD_INSTRUMENTED} ${REPO_ROOT}/lib/I18n)
+endforeach()
+add_test(NAME keyboard_mapping COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/mapping.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME keyboard_routed_input COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/routed_input.py ${XP_FFI_HOST_ARCHIVE})

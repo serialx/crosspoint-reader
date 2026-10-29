@@ -13,6 +13,7 @@ typedef struct {
   uint8_t cursor_mode, toggle_position, password_visible, hint_visible, delete_count;
   uint8_t confirm_held, confirm_long, up_held, up_long, down_held, down_long;
   uint8_t right_held, right_long, touch_held, touch_long;
+  int16_t active_index;
 } XpUiKeyboardState;
 typedef struct {
   const char *label, *output, *alternate;
@@ -41,6 +42,10 @@ uint8_t xp_ui_keyboard_next(uint16_t enabled, uint8_t current);
 void xp_ui_keyboard_init(XpUiKeyboardState*, uint32_t length, uint32_t maximum, uint8_t input_type, uint16_t enabled,
                          uint8_t language);
 XpUiInterest xp_ui_keyboard_interest(const XpUiKeyboardState*);
+// After paint, reconcile the live active key by its interaction index across
+// the old and new publications. Called under ModelLock; no allocation or paint.
+void xp_ui_keyboard_publish(XpUiKeyboardState*, const XpUiKeyboardState* previous, const XpUiKeyboardState* next,
+                            const XpUiKeyboardLayouts*);
 // Storage is caller-owned; no allocation, I/O, logging or rendering occurs here.
 // capacity includes the terminator; insufficient capacity leaves an insert unapplied.
 // effect.haptics requests haptics (1 tap, 2 hold). grow==1 reports

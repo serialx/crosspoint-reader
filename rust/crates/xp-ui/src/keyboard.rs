@@ -56,6 +56,7 @@ pub struct State {
     pub right_long: u8,
     pub touch_held: u8,
     pub touch_long: u8,
+    pub active_index: i16,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -150,6 +151,7 @@ pub fn init(length: u32, maximum: u32, input_type: u8, mask: u16, language: u8) 
         },
         show_language: u8::from(mask.count_ones() > 1),
         active_key: i16::MIN,
+        active_index: -1,
         ..State::default()
     }
 }
@@ -693,6 +695,7 @@ pub fn update(
                     .map(|k| (k, false));
             }
             s.active_key = i16::MIN;
+            s.active_index = -1;
         } else if press {
             if s.touch_long == 0 {
                 let active = hit.unwrap_or(i16::MIN);
@@ -702,17 +705,20 @@ pub fn update(
                     effect.navigation.invalidate = u8::from(s.active_key != active);
                 }
                 s.active_key = active;
+                s.active_index = -1;
                 let threshold = if active == DELETE { 900 } else { 350 };
                 if active != i16::MIN && now.wrapping_sub(s.touch_start) >= threshold {
                     s.touch_long = 1;
                     event = Some((active, true));
                     s.active_key = i16::MIN;
+                    s.active_index = -1;
                 }
             }
         } else if s.touch_held != 0 && !contact {
             s.touch_held = 0;
             s.touch_long = 0;
             s.active_key = i16::MIN;
+            s.active_index = -1;
             effect.navigation.invalidate = 1;
         }
         if let Some((value, long)) = event {
@@ -937,6 +943,67 @@ pub unsafe extern "C" fn xp_ui_keyboard_init(
 pub unsafe extern "C" fn xp_ui_keyboard_interest(state: *const State) -> Interest {
     unsafe { state.as_ref() }.map_or(Interest::default(), interest)
 }
+// SDK active contacts retain their flat interaction index across publication,
+// even when that index is temporarily outside the new page's key count.
+fn publish(s: &mut State, previous: &State, next: &State, layouts: &Layouts) {
+    if s.active_index < 0 {
+        if s.active_key == i16::MIN {
+            return;
+        }
+        let mut index = 0;
+        'find: for row in 0..layouts.rows(previous) as u8 {
+            for col in 0..layouts.row(previous, row).count {
+                if layouts
+                    .key(previous, row, col)
+                    .is_some_and(|key| key.value == s.active_key)
+                {
+                    s.active_index = index;
+                    break 'find;
+                }
+                index += 1;
+            }
+        }
+    }
+    s.active_key = i16::MIN;
+    let mut index = s.active_index;
+    if index < 0 {
+        return;
+    }
+    for row in 0..layouts.rows(next) as u8 {
+        let count = i16::from(layouts.row(next, row).count);
+        if index < count {
+            s.active_key = layouts
+                .key(next, row, index as u8)
+                .map_or(i16::MIN, |key| key.value);
+            return;
+        }
+        index -= count;
+    }
+}
+/// # Safety
+/// State is exclusive; previous/next/layouts are readable and disjoint from it.
+/// SDK callback strings are immutable and valid for this synchronous call.
+#[no_mangle]
+pub unsafe extern "C" fn xp_ui_keyboard_publish(
+    state: *mut State,
+    previous: *const State,
+    next: *const State,
+    layouts: *const Layouts,
+) {
+    let (Some(state), Some(previous), Some(next), Some(layouts)) = (
+        unsafe { state.as_mut() },
+        unsafe { previous.as_ref() },
+        unsafe { next.as_ref() },
+        unsafe { layouts.as_ref() },
+    ) else {
+        return;
+    };
+    if previous.layout >= 10 || next.layout >= 10 || layouts.row.is_none() || layouts.key.is_none()
+    {
+        return;
+    }
+    publish(state, previous, next, layouts);
+}
 /// # Safety
 /// State and text are exclusive valid storage; input/layouts are readable and
 /// disjoint. Callbacks return bounded immutable SDK data for this call only.
@@ -1005,9 +1072,10 @@ mod tests {
                 size_of::<State>(),
                 align_of::<State>(),
                 offset_of!(State, row),
-                offset_of!(State, layout)
+                offset_of!(State, layout),
+                offset_of!(State, active_index)
             ),
-            (64, 4, 32, 40)
+            (64, 4, 32, 40, 62)
         );
         assert_eq!(
             (
@@ -1033,6 +1101,64 @@ mod tests {
             ),
             (16, 4, 8, 12)
         );
+    }
+    #[test]
+    fn published_active_index_survives_a_shorter_page() {
+        unsafe extern "C" fn rows(_: *mut c_void, id: u8, _: u8, _: u8, _: u8, row: u8) -> Row {
+            Row {
+                count: if row == 0 { 1 + u8::from(id == 1) } else { 0 },
+                ..Row::default()
+            }
+        }
+        unsafe extern "C" fn keys(
+            _: *mut c_void,
+            _: u8,
+            shift: u8,
+            _: u8,
+            _: u8,
+            _: u8,
+            col: u8,
+        ) -> WireKey {
+            WireKey {
+                value: 1000 + i16::from(shift) * 1000 + i16::from(col),
+                ..unsafe { key(core::ptr::null_mut(), 0, 0, 0, 0, 0, 0) }
+            }
+        }
+        let layouts = Layouts {
+            context: core::ptr::null_mut(),
+            row: Some(rows),
+            key: Some(keys),
+        };
+        let mut previous = init(0, 0, 0, 3, 0);
+        previous.layout = 1;
+        let mut live = previous;
+        live.active_key = 1001;
+        let mut next = previous;
+        next.layout = 0;
+        next.shifted = 1;
+        publish(&mut live, &previous, &next, &layouts);
+        assert_eq!((live.active_index, live.active_key), (1, i16::MIN));
+        previous = next;
+        next.layout = 1;
+        publish(&mut live, &previous, &next, &layouts);
+        assert_eq!((live.active_index, live.active_key), (1, 2001));
+
+        let mut text = [0; 8];
+        let release = Input {
+            touch_flags: model::TOUCH_RELEASED,
+            ..Input::default()
+        };
+        update(&mut live, &mut text, &layouts, &release, u32::MAX);
+        assert_eq!((live.active_index, live.active_key), (-1, i16::MIN));
+        let press = Input {
+            action: 1,
+            value: 2000,
+            touch_flags: model::TOUCH_PRESSED,
+            ..Input::default()
+        };
+        update(&mut live, &mut text, &layouts, &press, u32::MAX);
+        publish(&mut live, &next, &next, &layouts);
+        assert_eq!((live.active_index, live.active_key), (0, 2000));
     }
     #[test]
     fn growth_failure_and_maximum() {

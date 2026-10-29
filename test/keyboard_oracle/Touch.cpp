@@ -5,21 +5,10 @@
 #include <cstring>
 #include <string>
 
+#include "keyboard-layout-bindings.inc"
+
 namespace ui = freeink::ui;
-static XpUiKeyboardLayouts layouts{
-    nullptr,
-    [](void*, uint8_t id, uint8_t sh, uint8_t sy, uint8_t la, uint8_t r) -> XpUiKeyboardRow {
-      const auto& l = ui::builtinKeyboardLayout(ui::KeyboardLayoutId(id), sh, sy, true, la);
-      if (r >= l.rowCount) return {};
-      const auto& row = l.rows[r];
-      return {row.count, row.insetUnits, uint8_t(row.independentKeyWidth), 0};
-    },
-    [](void*, uint8_t id, uint8_t sh, uint8_t sy, uint8_t la, uint8_t r, uint8_t c) -> XpUiKeyboardKey {
-      const auto& l = ui::builtinKeyboardLayout(ui::KeyboardLayoutId(id), sh, sy, true, la);
-      if (r >= l.rowCount || c >= l.rows[r].count) return {};
-      const auto& key = l.rows[r].keys[c];
-      return {key.label, key.output, key.alt, key.value, uint8_t(key.kind), key.widthUnits};
-    }};
+static XpUiKeyboardLayouts layouts = ProductionKeyboardLayouts::layouts();
 int main() {
   const auto& layer = ui::builtinKeyboardLayout(ui::KeyboardLayoutId::QwertyEn, false, false, true, false);
   const int16_t values[]{layer.rows[0].keys[0].value, layer.rows[0].keys[1].value, 8};

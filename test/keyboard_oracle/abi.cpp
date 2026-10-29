@@ -1,28 +1,24 @@
 #include <FreeInkUI.h>
 
 #include <cassert>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <string>
 
+#include "keyboard-layout-bindings.inc"
 #include "xp_ui_keyboard.h"
 namespace ui = freeink::ui;
+static_assert(sizeof(XpUiKeyboardState) == 64 && offsetof(XpUiKeyboardState, active_index) == 62);
 static bool oversized = false;
-static XpUiKeyboardLayouts layouts{
-    nullptr,
-    [](void*, uint8_t id, uint8_t sh, uint8_t sy, uint8_t la, uint8_t r) -> XpUiKeyboardRow {
-      const auto& l = ui::builtinKeyboardLayout(ui::KeyboardLayoutId(id), sh, sy, true, la);
-      if (r >= l.rowCount) return {};
-      const auto& x = l.rows[r];
-      return {x.count, x.insetUnits, uint8_t(x.independentKeyWidth), 0};
-    },
-    [](void*, uint8_t id, uint8_t sh, uint8_t sy, uint8_t la, uint8_t r, uint8_t c) -> XpUiKeyboardKey {
-      const auto& l = ui::builtinKeyboardLayout(ui::KeyboardLayoutId(id), sh, sy, true, la);
-      if (r >= l.rowCount || c >= l.rows[r].count) return {};
-      const auto& x = l.rows[r].keys[c];
-      return {oversized ? "01234567890123456789" : x.label, x.output, x.alt, x.value, uint8_t(x.kind), x.widthUnits};
-    }};
+static XpUiKeyboardLayouts layouts = ProductionKeyboardLayouts::layouts();
+static auto originalKey = layouts.key;
 int main() {
+  layouts.key = [](void* p, uint8_t id, uint8_t sh, uint8_t sy, uint8_t la, uint8_t r, uint8_t c) {
+    auto key = originalKey(p, id, sh, sy, la, r, c);
+    if (oversized) key.label = "01234567890123456789";
+    return key;
+  };
   size_t longest = 0, alt = 0;
   for (uint8_t id = 0; id < 10; id++)
     for (uint8_t shift = 0; shift < 2; shift++)
@@ -33,7 +29,7 @@ int main() {
           s.shifted = shift;
           s.symbols = symbols;
           s.show_language = language;
-          const auto& l = ui::builtinKeyboardLayout(ui::KeyboardLayoutId(id), shift, symbols, true, language);
+          const auto& l = ui::builtinKeyboardLayout(keyboard_layouts::ALL[id].id, shift, symbols, true, language);
           unsigned keys = 0;
           for (uint8_t r = 0; r < l.rowCount; ++r) keys += l.rows[r].count;
           assert(keys <= 50);

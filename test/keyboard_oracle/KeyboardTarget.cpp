@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "Trace.h"
+#include "keyboard-layout-bindings.inc"
 void textGoldenGlyph(const EpdFontFamily&, uint32_t, int, int, EpdFontFamily::Style) {}
 void textGoldenScaled(int, uint32_t, int, int, EpdFontFamily::Style) {}
 #define STR_OK_BUTTON "OK"
@@ -46,21 +47,7 @@ class KeyboardEntryActivity {
   XpUiKeyboardViewLayout layout{};
   std::unique_ptr<Arena> arena = std::make_unique<Arena>();
   explicit KeyboardEntryActivity(GfxRenderer& r) : renderer(r) {}
-  static XpUiKeyboardLayouts layouts() {
-    return {nullptr,
-            [](void*, uint8_t id, uint8_t sh, uint8_t sy, uint8_t la, uint8_t r) -> XpUiKeyboardRow {
-              const auto& l = fui::builtinKeyboardLayout(fui::KeyboardLayoutId(id), sh, sy, true, la);
-              if (r >= l.rowCount) return {};
-              const auto& x = l.rows[r];
-              return {x.count, x.insetUnits, uint8_t(x.independentKeyWidth), 0};
-            },
-            [](void*, uint8_t id, uint8_t sh, uint8_t sy, uint8_t la, uint8_t r, uint8_t c) -> XpUiKeyboardKey {
-              const auto& l = fui::builtinKeyboardLayout(fui::KeyboardLayoutId(id), sh, sy, true, la);
-              if (r >= l.rowCount || c >= l.rows[r].count) return {};
-              const auto& x = l.rows[r].keys[c];
-              return {x.label, x.output, x.alt, x.value, uint8_t(x.kind), x.widthUnits};
-            }};
-  }
+  static XpUiKeyboardLayouts layouts() { return ProductionKeyboardLayouts::layouts(); }
   void paintKey(const XpUiCommand&);
   void paintRow(const XpUiCommand&);
   void paintText(const XpUiCommand&, XpUiRect);

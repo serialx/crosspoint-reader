@@ -477,6 +477,18 @@ int main() {
     app.begin();
     text(app, 2, "START:after-restart.epub:0:/books");
   });
+  for (bool wifi : {false, true})
+    record(wifi ? "wifi-escaped-json" : "opds-escaped-json", [&](auto& app) {
+      app.server->args["plain"] =
+          R"({"ssid":"A\u0000B","name":"A\u0000B","url":"x\n\t\"\\/","username":"U\u0000V","password":"P\u0000Q","headers":[{"name":"H\u0000I","value":"V\u0000W"}]})";
+      if (wifi) {
+        app.handlePostWifiNetwork();
+        app.handleGetWifiNetworks();
+      } else {
+        app.handlePostOpdsServer();
+        app.handleGetOpdsServers();
+      }
+    });
   record("settings-extra-descriptors", [](auto& app) {
     extendedSettings = true;
     app.handleGetSettings();

@@ -12,18 +12,20 @@ For a standalone run, build the native `xp-ffi` archive and pass its path:
 ```sh
 python3 test/web_server/extract.py --build build/web-server \
   --arduinojson .pio/libdeps/default/ArduinoJson/src \
-  --archive /path/to/native/libxp_ffi.a --mutation-check --sanitize --fault-check
+  --archive /path/to/native/libxp_ffi.a --mutation-check --sanitize --fault-check --review-check
 ```
 
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 346 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 447 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
-`--mutation-check` changes the download handler in the generated translation unit
-and requires rejection.
+`--mutation-check` changes download and settings responses, then suppresses
+synchronous disconnect handling, and requires rejection of each mutation.
+`--review-check` asserts completion consistency after allocation failure and
+translated file/HTTP/WS allocation errors before request teardown.
 `--record` deliberately replaces the golden and is only for reviewed baseline
 captures, never for accepting candidate differences.
 
@@ -66,3 +68,14 @@ Use `--sanitize` to compile the host executable with AddressSanitizer and
 UndefinedBehaviorSanitizer. The complete suite and mutation check passed with
 those instruments when this baseline was captured. New scenarios must extend
 coverage without rewriting existing expectations from a ported implementation.
+
+The settings extension was recorded from the original C++ at `22517c67`, before
+its handlers were ported. It covers JSON scalar and container coercion, embedded NUL and escaped control bytes, dynamic
+setting getters/setters, hidden/action entries, numeric boundaries, oversized
+JSON entries, omitted/empty/wrong-type secrets, header slot clearing, store
+failures, and synchronous WS disconnects during READY, PROGRESS, and DONE, including stop/start recovery.
+During the allocation sweep, ownership and completion/file consistency are
+checked before teardown, in addition to retained allocations afterward.
+The separate settings-store oracle checks persisted bytes through the unchanged
+store implementations; the route oracle checks the values and call order sent
+to those stores. Neither substitutes for real browser/network testing.

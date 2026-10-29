@@ -2270,6 +2270,8 @@
           "steps": [
             "press:down",
             "press:confirm",
+            "wait-log:page first=0 title=UI Oracle",
+            "wait-quiet:1",
             "press:down",
             "press:confirm:1200"
           ]

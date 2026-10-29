@@ -22,3 +22,5 @@ pub mod reader_chrome_ffi;
 pub mod utility;
 
 pub mod settings;
+
+pub mod boot;

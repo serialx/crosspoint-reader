@@ -4,6 +4,21 @@
   "scope": "Finite offline state families declared in screens.json; not an exhaustive product of settings, content, languages, and injected failures.",
   "sources": [
     {
+      "source": "src/activities/boot_sleep/BootUiActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "boot",
+        "crash",
+        "image",
+        "image-navigation",
+        "sleep-0",
+        "sleep-1",
+        "sleep-5",
+        "sleep-6"
+      ],
+      "reason": "Borrowed resources and bounded stack scenes shared by boot, sleep, crash, and image activities."
+    },
+    {
       "source": "src/activities/RustActivityAdapter.cpp",
       "status": "shared-implementation",
       "groups": [

@@ -1,28 +1,30 @@
 #pragma once
 #include <string>
 
-#include "activities/Activity.h"
+#include "BootUiActivity.h"
 
 class Bitmap;
 class HalFile;
 
-class SleepActivity final : public Activity {
+class SleepActivity final : public BootUiActivity {
  public:
   explicit SleepActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool fromTimeout = false)
-      : Activity("Sleep", renderer, mappedInput), fromTimeout(fromTimeout) {}
+      : BootUiActivity("Sleep", renderer, mappedInput), fromTimeout(fromTimeout) {}
   void onEnter() override;
 
  private:
-  void renderDefaultSleepScreen() const;
-  void renderCustomSleepScreen() const;
-  void renderCoverSleepScreen() const;
-  void renderBitmapSleepScreen(const Bitmap& bitmap, bool preserveBackground = false) const;
-  bool renderSleepOverlayFile(HalFile& file, const char* pathForLog) const;
-  bool renderTransparentOverlayPng(const std::string& path) const;
-  bool renderSleepOverlayPath(const std::string& path) const;
-  void renderLastScreenSleepScreen() const;
-  void renderTransparentCustomSleepScreen() const;
-  void renderBlankSleepScreen() const;
+  XpUiSleepPlan sleepPlan{};
+  void renderSleepRoute(uint8_t route);
+  void renderDefaultSleepScreen();
+  void renderCustomSleepScreen();
+  void renderCoverSleepScreen();
+  void renderBitmapSleepScreen(const Bitmap& bitmap, bool preserveBackground = false);
+  bool renderSleepOverlayFile(HalFile& file, const char* pathForLog);
+  bool renderTransparentOverlayPng(const std::string& path);
+  bool renderSleepOverlayPath(const std::string& path);
+  void renderLastScreenSleepScreen();
+  void renderTransparentCustomSleepScreen();
+  void renderBlankSleepScreen();
 
   bool fromTimeout = false;
   // Cover + Transparent: the cover under the overlay, and the same cover while its gray planes are redrawn.

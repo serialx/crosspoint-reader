@@ -154,3 +154,5 @@ mod assets;
 mod plugin;
 
 mod ui_settings;
+
+mod ui_boot;

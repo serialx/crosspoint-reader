@@ -22,10 +22,12 @@ inline bool step(const char* op, const std::string& path, uint64_t arg = 0) {
   std::printf("io %s %s %llu %d\n", op, displayPath(path).c_str(), static_cast<unsigned long long>(arg), failed);
   return !failed;
 }
-}
+}  // namespace booktest
 class HalFile {
  public:
-  ~HalFile() { if (opened) close(); }
+  ~HalFile() {
+    if (opened) close();
+  }
   bool seek64(uint64_t offset) {
     if (!booktest::step("seek", path, offset) || !opened || offset > booktest::files[path].size()) return false;
     position = offset;
@@ -52,15 +54,18 @@ class HalFile {
   bool available() const { return opened && position < booktest::files[path].size(); }
   bool isOpen() const { return opened; }
   explicit operator bool() const { return opened; }
-  void close() { booktest::step("close", path); opened = false; }
+  void close() {
+    booktest::step("close", path);
+    opened = false;
+  }
   bool open(const std::string& name, bool writing) {
     path = name;
     position = 0;
-    opened = booktest::step(writing ? "open-write" : "open-read", path) &&
-             (writing || booktest::files.count(path));
+    opened = booktest::step(writing ? "open-write" : "open-read", path) && (writing || booktest::files.count(path));
     if (opened && writing) booktest::files[path].clear();
     return opened;
   }
+
  private:
   std::string path;
   size_t position = 0;
@@ -69,6 +74,12 @@ class HalFile {
 struct HalStorage {
   bool openFileForRead(const char*, const std::string& path, HalFile& file) { return file.open(path, false); }
   bool openFileForWrite(const char*, const std::string& path, HalFile& file) { return file.open(path, true); }
+  bool replaceFile(const char* source, const char* target) {
+    if (!booktest::step("replace", source)) return false;
+    booktest::files[target] = booktest::files[source];
+    booktest::files.erase(source);
+    return true;
+  }
   bool exists(const char* path) { return booktest::step("exists", path) && booktest::files.count(path); }
   bool mkdir(const char* path) { return booktest::step("mkdir", path); }
   bool removeDir(const char* path) { return booktest::step("rmdir", path); }

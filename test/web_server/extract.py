@@ -52,6 +52,7 @@ def main():
     parser.add_argument("--archive", type=pathlib.Path)
     parser.add_argument("--ffi-include", type=pathlib.Path, default=ROOT / "rust/crates/xp-ffi/include")
     parser.add_argument("--fault-check", action="store_true")
+    parser.add_argument("--review-check", action="store_true")
     args = parser.parse_args()
     args.build.mkdir(parents=True, exist_ok=True)
     generated = args.build / "server.cpp"
@@ -82,6 +83,13 @@ def main():
         failures = [b["case"] for a, b in zip(old, new) if a != b]
         raise SystemExit(f"web oracle mismatch: {failures}; expected {len(old)} cases, got {len(new)}")
     print(f"web oracle: {len(actual.splitlines())} cases match byte for byte")
+    if args.review_check:
+        if not args.archive:
+            raise SystemExit("--review-check requires --archive")
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK"]:
+            subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
+                           stdout=subprocess.DEVNULL, check=True)
+        print("review checks: completion consistency and translated allocation errors passed")
     if args.fault_check:
         if not args.archive:
             raise SystemExit("--fault-check requires --archive")

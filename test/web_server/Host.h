@@ -78,7 +78,8 @@ inline void delay(unsigned long n) {
 }
 inline void yield() { host::trace.emplace_back("yield"); }
 inline void resetTaskWatchdogIfSubscribed() { host::trace.emplace_back("watchdog"); }
-inline const char* tr(int) { return "Memory error"; }
+inline const char* memoryTranslation = "Memory error";
+inline const char* tr(int) { return memoryTranslation; }
 inline constexpr int STR_MEMORY_ERROR = 0;
 struct Esp {
   unsigned getFreeHeap() const { return 60000; }

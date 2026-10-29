@@ -41,6 +41,7 @@ pub struct Services {
     paths: unsafe extern "C" fn(*mut c_void, bool) -> isize,
     path: unsafe extern "C" fn(*mut c_void, usize) -> Span,
     diagnostic: unsafe extern "C" fn(*mut c_void, u32, Span, Span),
+    memory_error: unsafe extern "C" fn(*mut c_void) -> *const c_char,
 }
 struct Text(Vec<u8>);
 type Result<T> = core::result::Result<T, ()>;
@@ -154,6 +155,9 @@ struct Request<'a> {
     services: &'a Services,
 }
 impl Request<'_> {
+    fn memory_error(&self) -> &[u8] {
+        unsafe { core::ffi::CStr::from_ptr((self.services.memory_error)(self.ctx)).to_bytes() }
+    }
     fn arg(&self, key: &'static [u8]) -> Result<Option<Text>> {
         let value = unsafe { (self.services.argument)(self.ctx, key.as_ptr().cast()) };
         if value.data.is_null() {
@@ -724,7 +728,7 @@ pub unsafe extern "C" fn xp_web_files(ctx: *mut c_void, services: *const Service
     };
     if result.is_err() {
         request.event(Event::Oom, b"", b"");
-        request.send(503, b"Out of memory");
+        request.send(503, request.memory_error());
     }
 }
 
@@ -758,9 +762,9 @@ pub struct Transfers {
     joined_path: unsafe extern "C" fn(*mut c_void, bool) -> Span,
     time: unsafe extern "C" fn(*mut c_void) -> u32,
     cancel: unsafe extern "C" fn(*mut c_void) -> bool,
-    memory_error: unsafe extern "C" fn(*mut c_void) -> *const c_char,
     diagnostic: unsafe extern "C" fn(*mut c_void, u32, Span, Span, usize, usize, usize),
     ws_send: unsafe extern "C" fn(*mut c_void, u8, Span) -> bool,
+    ws_memory_error: unsafe extern "C" fn(*mut c_void, u8) -> bool,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -947,9 +951,7 @@ impl Transfer<'_> {
                 }
                 state.buffer = unsafe { (self.r.services.buffer)(self.r.ctx, true) };
                 if state.buffer.is_null() {
-                    let message =
-                        unsafe { core::ffi::CStr::from_ptr((self.t.memory_error)(self.r.ctx)) };
-                    self.set(Field::UploadError, message.to_bytes());
+                    self.set(Field::UploadError, self.r.memory_error());
                     self.diagnostic(TransferEvent::UploadOom, b"", b"", 0, 0, 0);
                     return Ok(());
                 }
@@ -1071,10 +1073,13 @@ impl Transfer<'_> {
     #[inline(never)]
     fn ws_send(&self, state: &mut WsUpload, client: u8, bytes: &[u8]) {
         if unsafe { (self.t.ws_send)(self.r.ctx, client, Span::new(bytes)) } {
-            self.diagnostic(TransferEvent::WsDisconnect, b"", b"", client as usize, 0, 0);
-            if client == state.client && state.active && self.r.file(Io::IsOpen, 0) != 0 {
-                self.abort_ws(state, false);
-            }
+            self.ws_disconnected(state, client);
+        }
+    }
+    fn ws_disconnected(&self, state: &mut WsUpload, client: u8) {
+        self.diagnostic(TransferEvent::WsDisconnect, b"", b"", client as usize, 0, 0);
+        if client == state.client && state.active && self.r.file(Io::IsOpen, 0) != 0 {
+            self.abort_ws(state, false);
         }
     }
     fn abort_ws(&self, state: &mut WsUpload, web: bool) {
@@ -1290,7 +1295,7 @@ pub unsafe extern "C" fn xp_web_upload(
         .is_err()
     {
         if status == 4 {
-            transfer.r.send(503, b"Out of memory");
+            transfer.r.send(503, transfer.r.memory_error());
         } else {
             let owned = transfer.r.file(Io::IsOpen, 0) != 0 || state.success;
             transfer.r.file(Io::Close, 0);
@@ -1300,7 +1305,7 @@ pub unsafe extern "C" fn xp_web_upload(
             }
             state.success = false;
         }
-        transfer.set(Field::UploadError, b"Out of memory");
+        transfer.set(Field::UploadError, transfer.r.memory_error());
         transfer.r.event(Event::Oom, b"", b"");
     }
 }
@@ -1335,8 +1340,8 @@ pub unsafe extern "C" fn xp_web_ws(
             transfer.abort_ws(state, status == 4);
         }
         transfer.r.event(Event::Oom, b"", b"");
-        if status != 4 {
-            transfer.ws_send(state, client, b"ERROR:Out of memory");
+        if status != 4 && unsafe { (transfer.t.ws_memory_error)(transfer.r.ctx, client) } {
+            transfer.ws_disconnected(state, client);
         }
     }
 }

@@ -68,6 +68,7 @@ typedef struct {
   ptrdiff_t (*paths)(void*, bool);
   XpWebText (*path)(void*, size_t);
   void (*diagnostic)(void*, uint32_t, XpWebText, XpWebText);
+  const char* (*memory_error)(void*);
 } XpWebServices;
 typedef enum {
   XP_WEB_DOWNLOAD,
@@ -144,10 +145,11 @@ typedef struct {
   XpWebText (*joined_path)(void*, bool);
   uint32_t (*time)(void*);
   bool (*cancel)(void*);
-  const char* (*memory_error)(void*);
   void (*diagnostic)(void*, uint32_t, XpWebText, XpWebText, size_t, size_t, size_t);
   // Returns a synchronous disconnect of this client; never reenters Rust.
   bool (*ws_send)(void*, uint8_t, XpWebText);
+  // Translated ERROR: response, using checked transport-owned scratch.
+  bool (*ws_memory_error)(void*, uint8_t);
 } XpWebTransfers;
 // Upload status: start=0, write=1, end=2, aborted=3, response=4.
 void xp_web_upload(void*, const XpWebTransfers*, XpWebUpload*, uint32_t, XpWebText, const uint8_t*, size_t);

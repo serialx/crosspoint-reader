@@ -124,6 +124,33 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+  if (std::getenv("WEB_LOCALIZATION_CHECK")) {
+    memoryTranslation = "메모리 오류";
+    for (int kind = 0; kind < 3; ++kind)
+      record("localized-allocation-failure", [&](auto& app) {
+        xp_test_fail_allocation_after(0);
+        if (kind == 0) {
+          app.server->args["path"] = "/books/a.epub";
+          app.handleDownload();
+        }
+        if (kind == 1) {
+          app.server->part.filename = "new.epub";
+          upload(app, UPLOAD_FILE_START);
+          app.handleUploadPost(app.upload);
+        }
+        if (kind == 2) text(app, 1, "START:new.epub:4:/books");
+        const std::string expected =
+            kind == 2 ? "ws:1:ERROR:메모리 오류"
+                      : (kind == 0 ? "response:503:text/plain:메모리 오류" : "response:400:text/plain:메모리 오류");
+        if (std::find(host::trace.begin(), host::trace.end(), expected) == host::trace.end()) {
+          std::cerr << "missing translated error: " << expected << '\n';
+          for (const auto& e : host::trace) std::cerr << e << '\n';
+          std::abort();
+        }
+        xp_test_fail_allocation_after(SIZE_MAX);
+      });
+    return 0;
+  }
   if (std::getenv("WEB_COMPLETION_CHECK")) {
     for (bool previous : {false, true})
       record("completion-allocation-failure", [&](auto& app) {

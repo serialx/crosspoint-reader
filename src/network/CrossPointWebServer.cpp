@@ -344,7 +344,8 @@ const XpWebServices WebFileBridge::services = {
               LOG_ERR("WEB", "OOM: web file request");
               break;
           }
-        }};
+        },
+    .memory_error = [](void*) { return tr(STR_MEMORY_ERROR); }};
 
 CrossPointWebServer::CrossPointWebServer() {}
 
@@ -781,7 +782,6 @@ const XpWebTransfers WebFileBridge::transfers = {
     },
     .time = [](void*) -> uint32_t { return millis(); },
     .cancel = [](void* ctx) { return self(ctx).owner.dropUploadIfCancelled(); },
-    .memory_error = [](void*) { return tr(STR_MEMORY_ERROR); },
     .diagnostic =
         [](void*, uint32_t event, XpWebText x, XpWebText y, size_t a, size_t b, size_t c) {
           const char* first = x.data ? reinterpret_cast<const char*>(x.data) : "";
@@ -875,6 +875,17 @@ const XpWebTransfers WebFileBridge::transfers = {
                                             value.len);
           wsSending = false;
           return wsSendDisconnected;
+        },
+    .ws_memory_error =
+        [](void* ctx, uint8_t client) {
+          auto& b = self(ctx);
+          const char* message = tr(STR_MEMORY_ERROR);
+          if (!b.argument.reserve(strlen(message) + 6)) {
+            return transfers.ws_send(ctx, client, {reinterpret_cast<const uint8_t*>("ERROR:"), 6});
+          }
+          b.argument = "ERROR:";
+          b.argument += message;
+          return transfers.ws_send(ctx, client, span(b.argument));
         }};
 
 void WebFileBridge::http(const CrossPointWebServer& owner, CrossPointWebServer::UploadState& state, uint32_t event) {

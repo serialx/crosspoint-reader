@@ -7,7 +7,7 @@ if(WEB_TEST_ARDUINOJSON)
       --build ${CMAKE_CURRENT_BINARY_DIR}/oracle
       --arduinojson ${WEB_TEST_ARDUINOJSON}
       --archive ${XP_FFI_HOST_ARCHIVE}
-      --mutation-check)
+      --mutation-check --review-check)
 else()
   message(STATUS "Web server oracle needs WEB_TEST_ARDUINOJSON")
 endif()

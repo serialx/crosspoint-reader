@@ -1,20 +1,15 @@
 #pragma once
-#include <I18n.h>
-
 #include <string>
 
-#include "activities/Activity.h"
-
-class QrDisplayActivity final : public Activity {
- public:
-  explicit QrDisplayActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& textPayload)
-      : Activity("QrDisplay", renderer, mappedInput), textPayload(textPayload) {}
-
-  void onEnter() override;
-  void onExit() override;
-  void loop() override;
-  void render(RenderLock&&) override;
-
- private:
+#include "activities/util/UtilityActivity.h"
+class QrDisplayActivity final : public UtilityActivity {
   std::string textPayload;
+  const char* utilityText(uint32_t) const override;
+  void utilityHints() const override;
+  bool utilityResourceValid(uint32_t) const override;
+  void utilityResource(const XpUiCommand&) override;
+
+ public:
+  explicit QrDisplayActivity(GfxRenderer& renderer, MappedInputManager& input, const std::string& payload)
+      : UtilityActivity("QrDisplay", renderer, input, XP_UI_UTILITY_QR, 4, 0), textPayload(payload) {}
 };

@@ -16,7 +16,8 @@ class UsbDriveActivity final : public RustActivityAdapter {
   bool preventAutoSleep() override { return xp_ui_network_usb_prevent_sleep(&model); }
   bool requiresExclusiveStorageLoop() const override {
     ModelLock lock(*const_cast<UsbDriveActivity*>(this));
-    return model.preparing == 0;
+    // Only pre-handoff cancellation may release queued navigation without a restart.
+    return model.preparing == 0 || model.restart_requested == 0;
   }
 
  private:

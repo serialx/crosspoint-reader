@@ -33,7 +33,8 @@ with tempfile.TemporaryDirectory() as directory:
   bool consumeSuppressedRelease() { return false; }
   bool hasTouch() { return false; }
   bool wasScreenTapped(int&, int&) { return false; }
-  bool wasLightPanelGesture() { return false; }
+  bool lightPanel = false;
+  bool wasLightPanelGesture() { return lightPanel; }
   uint8_t touchFlags''')
     stub = stub.replace('#include <mutex>', '#include <mutex>\n#include <functional>')
     stub = stub.replace('  RenderLock() { renderMutex.lock(); }', '  bool locked = true;\n  RenderLock() { renderMutex.lock(); }')
@@ -60,7 +61,9 @@ with tempfile.TemporaryDirectory() as directory:
                     str(ROOT / 'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out / 'manager')], check=True)
     failures = []
     for stage in ['build', 'paint']:
-        for action in ['back', 'power', 'home', 'active']:
+        for action in ['back', 'power', 'home', 'back-before', 'back-between', 'power-before',
+                       'power-between', 'home-before', 'home-between', 'panel-before', 'panel-between',
+                       'active', 'active-io', 'active-suspend', 'active-back', 'active-power', 'active-home']:
             result = subprocess.run([str(out / 'manager'), stage, action])
             if result.returncode:
                 failures.append(f'{stage}/{action}')

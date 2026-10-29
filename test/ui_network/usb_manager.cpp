@@ -9,13 +9,19 @@
 #define LOG_INF(...) ((void)0)
 #define LOG_DBG(...) ((void)0)
 enum class UsbDriveState : uint8_t { Unsupported, WaitingForHost, Connected, Ejected, Disconnected, IoError };
+bool navigationPending();
 struct StorageMock {
   int begin = 0, end = 0, disconnect = 0;
+  int beginWithPendingNavigation = 0;
+  bool suspended = false;
   UsbDriveState phase = UsbDriveState::WaitingForHost;
-  bool beginUsbDrive() { return ++begin; }
+  bool beginUsbDrive() {
+    if (navigationPending()) ++beginWithPendingNavigation;
+    return ++begin;
+  }
   void endUsbDrive() { ++end; }
   UsbDriveState usbDriveState() { return phase; }
-  bool usbDriveHostSuspended() { return false; }
+  bool usbDriveHostSuspended() { return suspended; }
   bool disconnectUsbDriveHost() { return ++disconnect; }
 } Storage;
 int restarts = 0;
@@ -36,7 +42,8 @@ struct HeaderBackTapTarget {
   static void clear() {}
 };
 struct FrontlightMock {
-  bool present() { return false; }
+  bool detected = true;
+  bool present() { return detected; }
 } Frontlight;
 namespace haptic_feedback {
 void touchAction() {}
@@ -82,6 +89,7 @@ class ActivityManager {
   }
 };
 ActivityManager* manager;
+bool navigationPending() { return manager->pendingAction != ActivityManager::PendingAction::None; }
 void Activity::finish() { manager->popActivity(); }
 void Activity::requestUpdate() { manager->requestUpdate(); }
 void Activity::requestUpdateAndWait() { manager->paint(); }
@@ -101,7 +109,7 @@ int main(int argc, char** argv) {
   renderer.acceptScene = buildFailure;
   activityManager.replaceActivity(std::make_unique<UsbDriveActivity>(renderer, input));
   assert(Storage.begin == 0 && Storage.end == 0 && restarts == 0);
-  if (action == "active") {
+  if (action.starts_with("active")) {
     // A successful later preparing frame permits Begin exactly once.
     activityManager.loop();
     buildOkay = renderer.acceptScene = true;
@@ -113,21 +121,73 @@ int main(int argc, char** argv) {
     assert(activityManager.currentActivity->name == "UsbDrive");
     assert(activityManager.pendingAction == ActivityManager::PendingAction::Pop);
     assert(Storage.begin == 1 && Storage.end == 0 && restarts == 0);
-    Storage.phase = UsbDriveState::Disconnected;
+    if (action == "active-io") {
+      Storage.phase = UsbDriveState::IoError;
+      activityManager.loop();
+      assert(Storage.disconnect == 1 && Storage.end == 0 && restarts == 0);
+      assert(activityManager.requiresExclusiveStorageLoop());
+      testNow += 1000;
+    } else if (action == "active-suspend") {
+      Storage.phase = UsbDriveState::Connected;
+      Storage.suspended = true;
+      activityManager.loop();
+      assert(Storage.end == 0 && restarts == 0 && activityManager.requiresExclusiveStorageLoop());
+      testNow += 2000;
+    } else if (action == "active-back") {
+      input.pressed = 1u << unsigned(MappedInputManager::Button::Back);
+    } else if (action == "active-power") {
+      input.pressed = 1u << unsigned(MappedInputManager::Button::Power);
+    } else if (action == "active-home") {
+      input.home = true;
+    } else {
+      Storage.phase = UsbDriveState::Disconnected;
+    }
     activityManager.loop();
     assert(Storage.end == 1 && restarts == 1);
     // Restart is terminal on hardware; a returning host restart must still not navigate.
     assert(activityManager.currentActivity->name == "UsbDrive");
     assert(activityManager.pendingAction == ActivityManager::PendingAction::Pop);
+    assert(activityManager.requiresExclusiveStorageLoop());
+    input.pressed = 0;
+    input.home = false;
+    activityManager.loop();
+    assert(Storage.end == 1 && restarts == 1);
+    assert(activityManager.currentActivity->name == "UsbDrive");
     RenderLock lock;
     activityManager.exitActivity(lock);
     assert(Storage.end == 1);
+  } else if (action.starts_with("panel-")) {
+    activityManager.loop();  // Consume Rejected and request the retry frame.
+    buildOkay = renderer.acceptScene = true;
+    const bool before = action == "panel-before";
+    if (before) activityManager.paint();
+    input.lightPanel = true;
+    activityManager.loop();
+    input.lightPanel = false;  // One input frame, like the top-edge swipe.
+    if (!before) activityManager.paint();
+    activityManager.loop();
+    assert(activityManager.currentActivity->name == "UsbDrive");
+    assert(activityManager.stackActivities.empty());
+    assert(activityManager.pendingAction == ActivityManager::PendingAction::None);
+    assert(!activityManager.pendingActivity);
+    assert(Storage.begin == 1 && Storage.beginWithPendingNavigation == 0);
+    assert(Storage.end == 0 && restarts == 0 && activityManager.requiresExclusiveStorageLoop());
   } else {
-    if (action == "back") input.pressed = 1u << unsigned(MappedInputManager::Button::Back);
-    if (action == "power") input.pressed = 1u << unsigned(MappedInputManager::Button::Power);
-    if (action == "home") input.home = true;
-    // Home queues Replace in the manager; Back/Power queue Pop in the USB policy.
-    for (int n = 0; n < 3; ++n) activityManager.loop();
+    const bool recovered = action.find('-') != std::string::npos;
+    const bool before = action.ends_with("-before");
+    if (recovered) {
+      activityManager.loop();  // Consume Rejected before delivering cancellation.
+      buildOkay = renderer.acceptScene = true;
+      if (before) activityManager.paint();
+    }
+    if (action.starts_with("back")) input.pressed = 1u << unsigned(MappedInputManager::Button::Back);
+    if (action.starts_with("power")) input.pressed = 1u << unsigned(MappedInputManager::Button::Power);
+    if (action.starts_with("home")) input.home = true;
+    activityManager.loop();
+    input.pressed = 0;
+    input.home = false;
+    if (recovered && !before) activityManager.paint();
+    for (int n = 0; n < 2; ++n) activityManager.loop();
     assert(activityManager.currentActivity->name == "Home");
     assert(activityManager.pendingAction == ActivityManager::PendingAction::None);
     assert(!activityManager.pendingActivity);

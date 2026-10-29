@@ -3,6 +3,9 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::ffi::{c_char, c_void};
 
+// Fixed loan capacity in xp_web.h, shared by stream reads and upload copies.
+const BUFFER_CAPACITY: usize = 4096;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Span {
@@ -234,7 +237,7 @@ impl Request<'_> {
             if self.file(Io::Available, 0) == 0 {
                 break;
             }
-            let got = self.io(Io::Read, 0, core::ptr::null(), buffer, 4096) as isize;
+            let got = self.io(Io::Read, 0, core::ptr::null(), buffer, BUFFER_CAPACITY) as isize;
             if got <= 0 {
                 break;
             }
@@ -981,7 +984,7 @@ impl Transfer<'_> {
                 }
                 let mut remaining = data;
                 while !remaining.is_empty() {
-                    let space = 4096usize.checked_sub(state.buffer_pos).ok_or(())?;
+                    let space = BUFFER_CAPACITY.checked_sub(state.buffer_pos).ok_or(())?;
                     let count = space.min(remaining.len());
                     if count == 0 || state.buffer.is_null() {
                         return Err(());
@@ -995,7 +998,7 @@ impl Transfer<'_> {
                     }
                     state.buffer_pos += count;
                     remaining = remaining.get(count..).ok_or(())?;
-                    if state.buffer_pos >= 4096 && !self.flush(state) {
+                    if state.buffer_pos >= BUFFER_CAPACITY && !self.flush(state) {
                         self.set(
                             Field::UploadError,
                             b"Failed to write to SD card - disk may be full",

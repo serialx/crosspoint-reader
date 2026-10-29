@@ -123,6 +123,7 @@ unsigned long wsLastCompleteAt = 0;
 struct WebFileBridge {
   const CrossPointWebServer& owner;
   explicit WebFileBridge(const CrossPointWebServer& owner) : owner(owner) {}
+  static_assert(CrossPointWebServer::UploadState::UPLOAD_BUFFER_SIZE == XP_WEB_BUFFER_CAPACITY);
   HalFile files[3];
   HalFile* borrowed = nullptr;
   CrossPointWebServer::UploadState* uploadState = nullptr;
@@ -263,7 +264,7 @@ const XpWebServices WebFileBridge::services = {
       auto& buffer = b.uploadState ? b.uploadState->buffer : b.streamBuffer;
       if (allocate && !b.uploadState) b.client = b.owner.server->client();
       if (allocate)
-        buffer = makeUniqueNoThrow<uint8_t[]>(4096);
+        buffer = makeUniqueNoThrow<uint8_t[]>(XP_WEB_BUFFER_CAPACITY);
       else
         buffer.reset();
       return buffer.get();

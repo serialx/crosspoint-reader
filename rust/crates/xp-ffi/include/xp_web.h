@@ -7,6 +7,9 @@ extern "C" {
 #endif
 // Synchronous, serialized request loan. Callbacks retain no Rust spans and cannot
 // reenter these entry points. Spans are length-bounded; filesystem path pointers are NUL-terminated.
+// Non-null buffer loans and XpWebUpload::buffer hold exactly this many bytes.
+// C++ owns allocation/release; Rust never accesses beyond this capacity.
+enum { XP_WEB_BUFFER_CAPACITY = 4096 };
 typedef struct {
   const uint8_t* data;
   size_t len;

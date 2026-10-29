@@ -77,3 +77,120 @@ pub fn css_duplicate(entries: &[CssEntry], index: usize) -> bool {
             .get(..index)
             .is_some_and(|prior| prior.iter().any(|e| e.content_key == current.content_key))
 }
+
+#[repr(C)]
+pub struct ParseServices {
+    pub ctx: *mut c_void,
+    pub call: unsafe extern "C" fn(*mut c_void, u32, usize, usize) -> usize,
+    pub diagnostic: unsafe extern "C" fn(*mut c_void, u32, usize, usize),
+}
+#[repr(u32)]
+enum ParseOp {
+    Clear,
+    Dedup,
+    Heap,
+    Size,
+    OpenWrite,
+    Stream,
+    Close,
+    Remove,
+    OpenRead,
+    Parse,
+    DropTemp,
+    Empty,
+    Save,
+}
+impl ParseServices {
+    fn call(&self, op: ParseOp, index: usize, arg: usize) -> usize {
+        unsafe { (self.call)(self.ctx, op as u32, index, arg) }
+    }
+    fn log(&self, event: u32, index: usize, value: usize) {
+        unsafe { (self.diagnostic)(self.ctx, event, index, value) }
+    }
+}
+/// # Safety
+/// Dedup returns null or an immutable CssEntry table of count elements, live through this call.
+/// The borrowed services preserve file storage until the matching release.
+pub unsafe fn parse_files(s: &ParseServices, count: usize, partial_cache: bool) -> u32 {
+    use ParseOp as O;
+    if count == 0 {
+        s.log(0, 0, 0);
+    }
+    s.log(1, 0, count);
+    s.call(O::Clear, 0, 0);
+    let entries = if count > 1 {
+        let ptr = s.call(O::Dedup, 0, count) as *const CssEntry;
+        if ptr.is_null() {
+            s.log(2, 0, 0);
+            &[]
+        } else {
+            core::slice::from_raw_parts(ptr, count)
+        }
+    } else {
+        &[]
+    };
+    let mut result = 0;
+    let mut duplicates = 0;
+    for index in 0..count {
+        if css_duplicate(entries, index) {
+            duplicates += 1;
+            continue;
+        }
+        s.log(3, index, 0);
+        let heap = s.call(O::Heap, index, 0);
+        if heap < 65536 {
+            s.log(4, index, heap);
+            if result == 0 {
+                result = 1;
+            }
+            continue;
+        }
+        let size = s.call(O::Size, index, 0);
+        if size > 131072 {
+            s.log(5, index, size);
+            if result == 0 {
+                result = 1;
+            }
+            continue;
+        }
+        if s.call(O::OpenWrite, index, 0) == 0 {
+            s.log(6, index, 0);
+            result = 2;
+        } else if s.call(O::Stream, index, 1024) == 0 {
+            s.log(7, index, 0);
+            s.call(O::Close, index, 0);
+            s.call(O::Remove, index, 0);
+            result = 2;
+        } else {
+            s.call(O::Close, index, 0);
+            if s.call(O::OpenRead, index, 0) == 0 {
+                s.log(8, index, 0);
+                s.call(O::Remove, index, 0);
+                result = 2;
+            } else {
+                let parsed = s.call(O::Parse, index, 0);
+                s.call(O::Close, index, 0);
+                s.call(O::Remove, index, 0);
+                if parsed == 2 || (parsed == 1 && result == 0) {
+                    result = parsed;
+                }
+            }
+        }
+        s.call(O::DropTemp, index, 0);
+    }
+    if result == 2 {
+        s.log(9, 0, 0);
+    } else if result == 1 && s.call(O::Empty, 0, 0) != 0 {
+        s.log(10, 0, 0);
+        result = 2;
+    } else if result == 1 && partial_cache {
+        s.log(11, 0, 0);
+    } else if s.call(O::Save, 0, usize::from(result == 0)) == 0 {
+        s.log(12, 0, 0);
+        result = 2;
+    } else {
+        s.log(13, duplicates, result);
+    }
+    s.call(O::Clear, 0, 0);
+    result as u32
+}

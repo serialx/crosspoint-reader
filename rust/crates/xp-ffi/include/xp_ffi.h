@@ -159,7 +159,7 @@ int32_t xp_zip_name_matches(const uint8_t* name, size_t len, const uint8_t* targ
 // All calls are externally serialized. destroy is required exactly once after init.
 typedef struct XpWordStore XpWordStore;
 #ifdef __cplusplus
-enum class XpParaDiagnostic : uint32_t { NfcOffsets = 1, WordArena = 2, LineArena = 3, OtherStorage = 4 };
+enum class XpParaDiagnostic : uint32_t { NfcOffsets = 1, WordArena = 2, LineArena = 3, OtherStorage = 4, Rescued = 5 };
 #endif
 typedef struct XpParaAllocator {
   // word_chunk is 1 only for word-byte chunks; it affects diagnostics only.
@@ -167,13 +167,20 @@ typedef struct XpParaAllocator {
   void (*release)(void* data);
   /* Nullable, synchronous, no reentry. event 1: NFC chunk failure (a=bytes),
    * 2: word arena failure, 3: line extraction failure, 4: other storage failure
-   * (a=bytes). Context is null; other arguments are zero. */
+   * (a=bytes), 5: cache eviction rescued a word chunk (a=bytes). Context is null; other arguments are zero. */
   void (*diagnostic)(void* context, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d)
 #ifdef __cplusplus
       = nullptr
 #endif
       ;
+  // Nullable. Rust retries a failed allocation once after reclaim(bytes + 8 KiB).
+  void (*reclaim)(size_t bytes)
+#ifdef __cplusplus
+      = nullptr
+#endif
+      ;
 } XpParaAllocator;
+void* xp_para_allocate(const XpParaAllocator*, size_t bytes, uint8_t word_chunk);
 typedef struct {
   uint32_t chunk;
   uint16_t off;
@@ -2963,3 +2970,5 @@ bool xp_book_txt_convert(const XpBookTxtFileServices*, uint32_t kind, int32_t he
 #ifdef __cplusplus
 }
 #endif
+
+#include "xp_book_residual.h"

@@ -56,9 +56,7 @@ bool applyBidiVisual(const char* text, std::string& out, int direction) {
 }
 void appendShapedRtlTokens(const char* text, std::string& out) {
   // Avoid allocating the retained workspace for entirely LTR chapters.
-  bool rtl = false;
-  for (auto* p = reinterpret_cast<const uint8_t*>(text); *p; ++p) rtl |= *p >= 0xd6 && *p <= 0xdb;
-  if (!rtl) return;
+  if (!xp_book_bidi_should_shape(reinterpret_cast<const uint8_t*>(text))) return;
   const std::lock_guard<std::mutex> lock(bidiMutex);
   auto* work = getWorkspace();
   if (!work) return;
@@ -71,7 +69,7 @@ void appendShapedRtlTokens(const char* text, std::string& out) {
 }
 bool computeVisualWordOrder(const std::vector<std::string>& words, bool rtl, std::vector<uint16_t>& order) {
   order.clear();
-  if (words.size() <= 1 || words.size() > 128) return false;
+  if (!xp_book_bidi_word_count(words.size())) return false;
   order.reserve(words.size());
   order.resize(words.size());
   const std::lock_guard<std::mutex> lock(bidiMutex);
@@ -89,10 +87,9 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool rtl, std
 }
 bool computeVisualWordOrder(std::span<const char> text, std::span<const uint16_t> offsets, bool rtl,
                             std::span<uint16_t> order) {
-  if (order.size() != offsets.size()) return false;
-  for (auto offset : offsets)
-    if (offset >= text.size() || !memchr(text.data() + offset, 0, text.size() - offset)) return false;
-  if (offsets.size() <= 1 || offsets.size() > 128) return false;
+  if (!xp_book_bidi_word_spans(reinterpret_cast<const uint8_t*>(text.data()), text.size(), offsets.data(),
+                               offsets.size(), order.size()))
+    return false;
   const std::lock_guard<std::mutex> lock(bidiMutex);
   auto* work = getWorkspace();
   return work && xp_bidi_word_order(reinterpret_cast<const uint8_t*>(text.data()), text.size(), offsets.data(),

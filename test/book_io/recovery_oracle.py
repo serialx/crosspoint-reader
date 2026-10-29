@@ -39,7 +39,7 @@ int main() {
      calls = 0; failures = fail;
      printf("case %u %u %u %zu\n", chapter, fail, word, bytes);
      const auto* allocator = chapter ? chapterAllocator() : paragraphAllocator();
-     void* data = allocator->allocate(bytes, word);
+     void* data = xp_para_allocate(allocator, bytes, word);
      printf("result %u %u\n", data != nullptr, calls);
      if (data) {
       const auto* p = static_cast<const uint8_t*>(data);

@@ -86,11 +86,9 @@ bool Txt::convertCoverImageToBmp(const std::string& imagePath, const std::string
       },
       nullptr,
       nullptr};
-  const auto kind = FsHelpers::hasBmpExtension(imagePath)   ? XpBookTxtImageKind::Bmp
-                    : FsHelpers::hasJpgExtension(imagePath) ? XpBookTxtImageKind::Jpeg
-                    : FsHelpers::hasPngExtension(imagePath) ? XpBookTxtImageKind::Png
-                                                            : XpBookTxtImageKind::Unsupported;
-  return xp_book_txt_convert(&services, static_cast<uint32_t>(kind), thumbHeight);
+  return xp_book_txt_convert(
+      &services, xp_book_txt_image_kind({reinterpret_cast<const uint8_t*>(imagePath.data()), imagePath.size()}),
+      thumbHeight);
 }
 
 bool Txt::streamTxtToHtml(const std::string& filepath, Print& out) {
@@ -113,13 +111,13 @@ bool Txt::streamTxtToHtml(const std::string& filepath, Print& out) {
 }
 
 void Txt::invalidateCache(const std::string& cachePath) {
-  Storage.removeDir((cachePath + "/html").c_str());
-  Storage.removeDir((cachePath + "/sections").c_str());
+  Storage.removeDir((cachePath + xp_book_path(XpBookPath::HtmlDirectory)).c_str());
+  Storage.removeDir((cachePath + xp_book_path(XpBookPath::SectionsDirectory)).c_str());
 }
 
 bool Txt::validateCache(const std::string& filepath, const std::string& cachePath, size_t cachedSize) {
   using Action = XpBookTxtValidateAction;
-  const std::string htmlPath = cachePath + "/html/0.html";
+  const std::string htmlPath = cachePath + xp_book_path(XpBookPath::HtmlDocument);
   struct Context {
     const std::string& filepath;
     const std::string& cachePath;
@@ -201,15 +199,18 @@ bool Txt::buildTxtCache(const std::string& filepath, const std::string& cachePat
       case Action::BeginOpf:
         return ctx.cache->beginContentOpfPass();
       case Action::Spine:
-        ctx.cache->createSpineEntry("content.html");
+        ctx.cache->createSpineEntry(xp_book_path(XpBookPath::TextHref));
         return true;
       case Action::EndOpf:
         return ctx.cache->endContentOpfPass();
       case Action::BeginToc:
         return ctx.cache->beginTocPass();
-      case Action::Toc:
-        ctx.title = FsHelpers::getFileNameWithoutExtension(ctx.filepath);
-        ctx.cache->createTocEntry(ctx.title, "content.html", "", 0);
+      case Action::Toc: {
+        const auto title =
+            xp_book_txt_title({reinterpret_cast<const uint8_t*>(ctx.filepath.data()), ctx.filepath.size()});
+        ctx.title.assign(reinterpret_cast<const char*>(title.data), title.len);
+      }
+        ctx.cache->createTocEntry(ctx.title, xp_book_path(XpBookPath::TextHref), "", 0);
         return true;
       case Action::EndToc:
         return ctx.cache->endTocPass();
@@ -217,10 +218,25 @@ bool Txt::buildTxtCache(const std::string& filepath, const std::string& cachePat
         return ctx.cache->endWrite();
       case Action::Book: {
         auto& metadata = ctx.metadata.emplace();
-        metadata.title = utf8ComposeNfc(ctx.title);
-        metadata.language = "en";
-        ctx.companionCover = Txt::findCompanionCoverImage(ctx.filepath);
-        if (!ctx.companionCover.empty()) metadata.coverItemHref = ctx.companionCover;
+        xp_book_txt_metadata(&ctx, [](void* opaque, uint32_t operation, XpBookBorrow value) -> XpBookBorrow {
+          auto& ctx = *static_cast<Context*>(opaque);
+          enum class Field : uint32_t { Title, Language, FindCover, Cover };
+          switch (static_cast<Field>(operation)) {
+            case Field::Title:
+              ctx.metadata->title = utf8ComposeNfc(ctx.title);
+              break;
+            case Field::Language:
+              ctx.metadata->language.assign(reinterpret_cast<const char*>(value.data), value.len);
+              break;
+            case Field::FindCover:
+              ctx.companionCover = Txt::findCompanionCoverImage(ctx.filepath);
+              return {reinterpret_cast<const uint8_t*>(ctx.companionCover.data()), ctx.companionCover.size()};
+            case Field::Cover:
+              ctx.metadata->coverItemHref.assign(reinterpret_cast<const char*>(value.data), value.len);
+              break;
+          }
+          return {nullptr, 0};
+        });
         return ctx.cache->buildBookBin(ctx.filepath, metadata);
       }
       case Action::Cleanup:

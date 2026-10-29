@@ -26,7 +26,7 @@ impl<T: Copy> Array<T> {
         if bytes == 0 || bytes > isize::MAX as usize {
             return None;
         }
-        let data = ((*allocator).allocate)(bytes, 0).cast::<T>();
+        let data = (*allocator).allocate_bytes(bytes, 0).cast::<T>();
         if data.is_null() {
             (*allocator).diagnose(super::Diagnostic::Storage, bytes as u32);
             return None;
@@ -248,7 +248,7 @@ impl<T: Copy> Buffer<T> {
             self.failed = 1;
             return false;
         };
-        let data = ((*self.allocator).allocate)(bytes, 0).cast::<T>();
+        let data = (*self.allocator).allocate_bytes(bytes, 0).cast::<T>();
         if data.is_null() {
             (*self.allocator).diagnose(super::Diagnostic::Storage, bytes as u32);
             self.failed = 1;
@@ -331,6 +331,7 @@ mod tests {
         allocate,
         release,
         diagnostic: None,
+        reclaim: None,
     };
     struct Fixture {
         widths: Vec<u16>,

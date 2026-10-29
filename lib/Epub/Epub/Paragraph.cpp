@@ -12,18 +12,9 @@
 #include "hyphenation/Hyphenator.h"
 
 namespace {
-constexpr size_t RECLAIM_HEADROOM = 8 * 1024;
-
-void* allocateParagraphBytes(const size_t bytes, const uint8_t wordChunk) {
-  auto data = makeUniqueNoThrow<uint8_t[]>(bytes);
-  if (!data) {
-    freeink::MemoryManager::instance().ensureFree(bytes + RECLAIM_HEADROOM);
-    data = makeUniqueNoThrow<uint8_t[]>(bytes);
-    if (data && wordChunk)
-      LOG_DBG("WST", "Cache eviction rescued a %u-byte chunk allocation", static_cast<unsigned>(bytes));
-  }
-  // Rust owns this C-ABI allocation and returns it to releaseParagraphBytes.
-  return data.release();
+void* allocateParagraphBytes(size_t bytes, uint8_t) {
+  // Rust returns this allocation through releaseParagraphBytes.
+  return makeUniqueNoThrow<uint8_t[]>(bytes).release();
 }
 void releaseParagraphBytes(void* data) { delete[] static_cast<uint8_t*>(data); }
 const XpParaAllocator ALLOCATOR = {
@@ -39,11 +30,15 @@ const XpParaAllocator ALLOCATOR = {
         case XpParaDiagnostic::LineArena:
           LOG_ERR("PTX", "Dropping line: TextBlock or arena allocation failed");
           break;
+        case XpParaDiagnostic::Rescued:
+          LOG_DBG("WST", "Cache eviction rescued a %u-byte chunk allocation", static_cast<unsigned>(bytes));
+          break;
         case XpParaDiagnostic::OtherStorage:
           LOG_ERR("PTX", "OOM: paragraph storage (%zu bytes)", static_cast<size_t>(bytes));
           break;
       }
-    }};
+    },
+    [](size_t bytes) { freeink::MemoryManager::instance().ensureFree(bytes); }};
 }  // namespace
 
 const XpParaAllocator* paragraphAllocator() { return &ALLOCATOR; }

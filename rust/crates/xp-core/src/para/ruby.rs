@@ -53,7 +53,8 @@ impl Ruby {
         }
         while self.chunks.len() < count {
             unsafe {
-                let chunk = ((*self.allocator).allocate)(CHUNK * mem::size_of::<Bytes>(), 0)
+                let chunk = (*self.allocator)
+                    .allocate_bytes(CHUNK * mem::size_of::<Bytes>(), 0)
                     .cast::<Bytes>();
                 if chunk.is_null() {
                     (*self.allocator).diagnose(
@@ -170,6 +171,7 @@ mod tests {
         allocate,
         release,
         diagnostic: None,
+        reclaim: None,
     };
 
     #[test]

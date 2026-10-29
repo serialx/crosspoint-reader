@@ -37,14 +37,12 @@ WolfsslCrypto& crypto() {
 }
 
 void reclaimContentCaches() {
-  // miniz needs a contiguous inflate state plus stream buffers and metadata.
-  // ensureFree() checks total bytes and cannot detect a fragmented heap.
-  constexpr size_t CONTENT_WORKING_SET = 64 * 1024;
-  const size_t before = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-  if (before >= CONTENT_WORKING_SET) return;
-  freeink::MemoryManager::instance().clearCaches();
-  LOG_DBG("CPRO", "Cache reclaim: max_block=%u -> %u, free=%u", static_cast<unsigned>(before),
-          static_cast<unsigned>(ESP.getMaxAllocHeap()), static_cast<unsigned>(ESP.getFreeHeap()));
+  xp_book_reclaim_content(
+      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), [] { freeink::MemoryManager::instance().clearCaches(); },
+      []([[maybe_unused]] size_t before) {
+        LOG_DBG("CPRO", "Cache reclaim: max_block=%u -> %u, free=%u", static_cast<unsigned>(before),
+                static_cast<unsigned>(ESP.getMaxAllocHeap()), static_cast<unsigned>(ESP.getFreeHeap()));
+      });
 }
 
 // ByteSource over an SD file (read-only). One open handle per instance.

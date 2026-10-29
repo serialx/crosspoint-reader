@@ -279,3 +279,7 @@ pub fn progress(book_size: usize, previous: usize, current: usize, fraction: f32
     let total = previous as f32 + section;
     total / book_size as f32
 }
+
+pub mod residual;
+
+pub mod document;

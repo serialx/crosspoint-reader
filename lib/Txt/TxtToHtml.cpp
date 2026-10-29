@@ -9,7 +9,7 @@
 #include <cstring>
 
 const char* TxtToHtml::cacheVersionTag(std::string_view filename) {
-  return FsHelpers::hasMarkdownExtension(filename) ? "<!-- MD_CACHE_VERSION: 1 -->" : "<!-- TXT_CACHE_VERSION: 1 -->";
+  return xp_book_txt_cache_tag({reinterpret_cast<const uint8_t*>(filename.data()), filename.size()});
 }
 
 size_t TxtToHtml::escapedHtmlSize(const std::string_view text) {

@@ -18,7 +18,7 @@ impl Line {
             return false;
         }
         let bytes = count * if focus { 14 } else { 11 };
-        let data = ((*self.allocator).allocate)(bytes, 0);
+        let data = (*self.allocator).allocate_bytes(bytes, 0);
         if data.is_null() {
             (*self.allocator).diagnose(super::Diagnostic::Storage, bytes as u32);
             return false;
@@ -162,6 +162,7 @@ mod tests {
             allocate,
             release,
             diagnostic: None,
+            reclaim: None,
         };
         let mut line = Line {
             data: ptr::null_mut(),

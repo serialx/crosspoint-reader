@@ -160,3 +160,5 @@ mod assets;
 mod plugin;
 
 mod ui_settings;
+
+mod book_residual;

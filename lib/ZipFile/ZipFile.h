@@ -5,6 +5,7 @@
 #include <deque>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 
 class ZipFile {
@@ -47,6 +48,9 @@ class ZipFile {
   FileStatSlim lastLookup = {};
   bool lastLookupValid = false;
 
+  struct IndexContext;
+  static XpBookZipIndexServices indexServices(IndexContext&);
+  bool enumerate(bool, void*, void (*)(void*, std::string_view, uint32_t, uint32_t));
   bool loadFileStatSlim(const char* filename, FileStatSlim* fileStat);
   long getDataOffset(const FileStatSlim& fileStat);
   bool loadZipDetails();
@@ -77,46 +81,16 @@ class ZipFile {
 
   template <typename F>
   bool enumerateFilePaths(F&& callback) {
-    if (!fileStatSlimCache.empty()) {
-      for (const auto& entry : fileStatSlimCache) {
-        callback(std::string_view{entry.first});
-      }
-      return true;
-    }
-
-    return enumerateFileEntries([&callback](std::string_view path, uint32_t, uint32_t) { callback(path); });
+    return enumerate(true, const_cast<void*>(static_cast<const void*>(&callback)),
+                     [](void* opaque, std::string_view path, uint32_t, uint32_t) {
+                       (*static_cast<std::remove_reference_t<F>*>(opaque))(path);
+                     });
   }
-
-  // Callback receives (path, crc32, compressedSize) for each central-directory
-  // entry. Always scans the central directory: the slim-stat cache does not
-  // hold CRCs.
   template <typename F>
   bool enumerateFileEntries(F&& callback) {
-    const bool wasOpen = isOpen();
-    if (!wasOpen && !open()) {
-      return false;
-    }
-
-    if (!loadZipDetails()) {
-      if (!wasOpen) {
-        close();
-      }
-      return false;
-    }
-
-    XpZipWalker walker;
-    xp_zip_begin(zipDetails.centralDirOffset, zipDetails.centralDirOffset, &walker);
-    XpZipEntry entry;
-    char itemName[256];
-    while (readDirectoryEntry(walker, entry)) {
-      if (entry.name.length >= sizeof(itemName)) continue;
-      if (!readEntryName(entry, itemName)) break;
-      callback(std::string_view{itemName, entry.name.length}, entry.crc32, entry.compressed_size);
-    }
-
-    if (!wasOpen) {
-      close();
-    }
-    return true;
+    return enumerate(false, const_cast<void*>(static_cast<const void*>(&callback)),
+                     [](void* opaque, std::string_view path, uint32_t crc, uint32_t compressed) {
+                       (*static_cast<std::remove_reference_t<F>*>(opaque))(path, crc, compressed);
+                     });
   }
 };

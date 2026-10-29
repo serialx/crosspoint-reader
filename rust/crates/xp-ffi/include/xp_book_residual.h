@@ -7,9 +7,11 @@
 extern "C" {
 #endif
 // Synchronous borrowed spans, readable for len bytes (null only for zero length).
-// Callbacks must not reenter their active services context. Diagnostic sinks must
-// not enter Rust or retain pointers. Services, ctx and required callbacks stay live
-// until the entry point returns. Diagnostic slots are optional (null means silent);
+// All callbacks run inline on the calling task; the caller serializes shared owners.
+// Non-diagnostic callbacks may nest Rust calls only with distinct contexts, without
+// invalidating active borrows or owners. Diagnostic sinks must not enter Rust or
+// retain pointers. Services, ctx and required callbacks stay live until the entry
+// point returns. Diagnostic slots are optional (null means silent);
 // all other callback slots are required. Input spans stay readable for the entry
 // point. Callback spans are borrowed only for that callback unless stated below;
 // receivers copy rather than retain them.
@@ -17,14 +19,17 @@ typedef struct {
   const uint8_t* data;
   size_t len;
 } XpBookBorrow;
-uint8_t xp_book_bidi_should_shape(const uint8_t*);
-uint8_t xp_book_bidi_word_count(size_t);
-uint8_t xp_book_bidi_word_spans(const uint8_t*, size_t, const uint16_t*, size_t, size_t);
-uint8_t xp_book_xtc_progress(uint8_t, uint32_t, uint32_t);
-XpBookBorrow xp_book_xtc_title(XpBookBorrow, XpBookBorrow);
-uint32_t xp_book_txt_image_kind(XpBookBorrow);
-const char* xp_book_txt_cache_tag(XpBookBorrow);
-uint8_t xp_book_discover_css(XpBookBorrow, XpBookBorrow, size_t, void*, XpBookBorrow (*)(void*, size_t));
+uint8_t xp_book_bidi_should_shape(const uint8_t* data);
+uint8_t xp_book_bidi_word_count(size_t count);
+uint8_t xp_book_bidi_word_spans(const uint8_t* data, size_t len, const uint16_t* offsets, size_t count, size_t output);
+uint8_t xp_book_xtc_progress(uint8_t loaded, uint32_t page, uint32_t pages);
+XpBookBorrow xp_book_xtc_title(XpBookBorrow path, XpBookBorrow metadata);
+uint32_t xp_book_txt_image_kind(XpBookBorrow path);
+const char* xp_book_txt_cache_tag(XpBookBorrow path);
+// get visits indices in order until a duplicate is found; its path lives until the
+// next callback. No cleanup callback is issued; base/path must remain unchanged.
+uint8_t xp_book_discover_css(XpBookBorrow base, XpBookBorrow path, size_t count, void* ctx,
+                             XpBookBorrow (*get)(void* ctx, size_t index));
 typedef enum XpBookDocumentKind {
   XP_BOOK_DOCUMENT_CONTAINER = 1,  // container.xml; metadata flag ignored.
   XP_BOOK_DOCUMENT_NCX = 2,        // NCX TOC; metadata flag ignored.
@@ -74,20 +79,25 @@ typedef enum XpBookDocumentField {
   // Other OPF fields use XpPkgField. Guide HTML stays readable until GUIDE_RELEASE.
   XP_BOOK_DOCUMENT_AUXILIARY = 100,
 } XpBookDocumentField;
+// SIZE and SETUP must succeed before READ. ctx releases the parser on every return;
+// no parser-release callback is issued.
+// GUIDE_RELEASE follows each successful GUIDE_LOAD, even if no image is found.
+// FIND may parse a container with a distinct context under the common nesting rules.
 // Required: call, value, assign. Optional: diagnostic (event only, no payload).
 typedef struct XpBookDocumentServices {
   void* ctx;
-  size_t (*call)(void*, uint32_t, size_t);
+  size_t (*call)(void* ctx, uint32_t operation, size_t arg);
   // Parser values remain readable until parser mutation/release; guide HTML until GuideRelease.
-  XpBookBorrow (*value)(void*, uint32_t);
-  void (*assign)(void*, uint32_t, XpBookBorrow);
-  void (*diagnostic)(void*, uint32_t);
+  XpBookBorrow (*value)(void* ctx, uint32_t field);
+  void (*assign)(void* ctx, uint32_t field, XpBookBorrow value);
+  void (*diagnostic)(void* ctx, uint32_t event);
 } XpBookDocumentServices;
 // kind is XpBookDocumentKind (same values as XP_PKG_* passes); result=boolean.
-uint8_t xp_book_document(const XpBookDocumentServices*, uint32_t, uint8_t);
+uint8_t xp_book_document(const XpBookDocumentServices* services, uint32_t kind, uint8_t metadataOnly);
 typedef enum XpBookCssOp {
   XP_BOOK_CSS_FILE_CLEAR = 0,  // index=arg=0; clear parser; result ignored.
   // index=0, arg=count; result=null or aligned XpBookCssEntry[count] pointer cast to size_t.
+  // Null means allocation failure; parsing continues without deduplication.
   // The table stays immutable and readable until xp_book_css_parse_files returns.
   XP_BOOK_CSS_FILE_DEDUP = 1,
   XP_BOOK_CSS_FILE_HEAP = 2,        // index=file, arg=0; result=free heap bytes.
@@ -123,14 +133,19 @@ typedef enum XpBookCssDiagnostic {
   XP_BOOK_CSS_LOG_SAVE = 12,           // index=value=0; cache save failed.
   XP_BOOK_CSS_LOG_LOADED = 13,         // index=duplicate count, value=XpBookCssParseStatus; counts/rules are in ctx.
 } XpBookCssDiagnostic;
+// CLEAR runs before parsing and after cache handling. Successful OPEN_WRITE precedes STREAM,
+// CLOSE, OPEN_READ, PARSE, CLOSE, REMOVE. Stream/reopen failures still REMOVE;
+// DROP_TEMP follows every OPEN_WRITE attempt, including failure. Skipped files
+// have no temporary owner. ctx releases the dedup table after the call.
 // Required: call. Optional: diagnostic(event, index, value).
 typedef struct {
   void* ctx;
-  size_t (*call)(void*, uint32_t, size_t, size_t);
-  void (*diagnostic)(void*, uint32_t, size_t, size_t);
+  size_t (*call)(void* ctx, uint32_t operation, size_t index, size_t arg);
+  void (*diagnostic)(void* ctx, uint32_t event, size_t index, size_t value);
 } XpBookCssParseServices;
-// Returns XpBookCssParseStatus; file indices are in [0, count).
-uint32_t xp_book_css_parse_files(const XpBookCssParseServices*, size_t, uint8_t);
+// Returns XpBookCssParseStatus; file indices are in [0, count). Nonzero partialCache
+// means an existing partial cache is retained if this parse is also partial.
+uint32_t xp_book_css_parse_files(const XpBookCssParseServices* services, size_t count, uint8_t partialCache);
 typedef enum XpBookZipIndexOp {
   XP_BOOK_ZIP_INDEX_CACHE_SIZE = 0,     // arg=0; result=cached entry count.
   XP_BOOK_ZIP_INDEX_OPEN = 1,           // arg=0; retain scoped open/close owner; result=boolean.
@@ -158,46 +173,66 @@ typedef enum XpBookZipIndexAction {
   XP_BOOK_ZIP_PATHS = 2,    // Enumerate paths; target/last empty; result=boolean.
   XP_BOOK_ZIP_ENTRIES = 3,  // Enumerate entries; target/last empty; result=boolean.
 } XpBookZipIndexAction;
+// Cache hits may bypass OPEN. Scans require OPEN then DETAILS before START/next;
+// next precedes name and cache. Populate clears/reserves after START and retains
+// partial results on scan failure. No close callback is issued: on every return,
+// ctx releases its scoped owner, closing only a file opened by this call. DETAILS
+// may use a distinct detail context under the common nesting rules.
 // Required: control, next, name, cache; ctx retains the walker and scoped file owner.
 typedef struct XpBookZipIndexServices {
   void* ctx;
-  size_t (*control)(void*, uint32_t, uint32_t);
+  size_t (*control)(void* ctx, uint32_t operation, uint32_t arg);
   // next fills the entry (borrowed for this callback); false ends the walk.
-  bool (*next)(void*, XpZipEntry*);
+  bool (*next)(void* ctx, XpZipEntry* entry);
   // name receives a current entry; bool selects target-aware reading. Null means failure.
   // Returned name bytes remain valid until the next callback; cache/visitors copy them.
-  XpBookBorrow (*name)(void*, const XpZipEntry*, bool);
-  bool (*cache)(void*, uint32_t, const XpZipEntry*, XpBookBorrow);
+  XpBookBorrow (*name)(void* ctx, const XpZipEntry* entry, bool targetAware);
+  bool (*cache)(void* ctx, uint32_t operation, const XpZipEntry* entry, XpBookBorrow name);
 } XpBookZipIndexServices;
-uint8_t xp_book_zip_index(const XpBookZipIndexServices*, uint32_t, XpBookBorrow, XpBookBorrow);
-bool xp_book_zip_populate(const XpBookZipIndexServices*);
+uint8_t xp_book_zip_index(const XpBookZipIndexServices* services, uint32_t operation, XpBookBorrow target,
+                          XpBookBorrow last);
+bool xp_book_zip_populate(const XpBookZipIndexServices* services);
 typedef struct {
-  uint64_t hash;
-  uint16_t len, index;
+  uint64_t hash;        // FNV-1a 64-bit hash of normalized path bytes.
+  uint16_t len, index;  // Path byte length and caller's output index.
 } XpBookZipTarget;
-size_t xp_book_zip_batch(const XpBookZipIndexServices*, size_t, void*, XpBookZipTarget (*)(void*, size_t),
-                         bool (*)(void*, uint16_t, uint32_t));
+// Targets must stay sorted by (hash, len) and unchanged for the call. get returns
+// an in-range target by value and may repeat indices in binary-search order.
+// set receives target.index and the uncompressed size in bytes; true counts the
+// match. Returns counted matches; scanning stops when all count targets are counted
+// or the directory walk ends/fails. Earlier set calls are not rolled back.
+size_t xp_book_zip_batch(const XpBookZipIndexServices* services, size_t count, void* ctx,
+                         XpBookZipTarget (*get)(void* ctx, size_t index),
+                         bool (*set)(void* ctx, uint16_t index, uint32_t uncompressedSize));
 typedef enum XpBookZipDetailDiagnostic {
   XP_BOOK_ZIP_DETAIL_LOG_SMALL = 0,       // ZIP shorter than EOCD.
   XP_BOOK_ZIP_DETAIL_LOG_SIZE = 1,        // ZIP size cannot be represented.
   XP_BOOK_ZIP_DETAIL_LOG_ALLOCATION = 2,  // EOCD scan allocation failed.
   XP_BOOK_ZIP_DETAIL_LOG_SIGNATURE = 3,   // EOCD read/signature failed.
 } XpBookZipDetailDiagnostic;
+// cachedDetails bypasses all callbacks. Otherwise open, size, allocate and read
+// run in order; save runs only after a valid EOCD. Failure stops the sequence.
+// On every return, ctx releases its buffer/scoped owner; only a file opened by
+// this call is closed. No release callback is issued.
 // Required: open, size, allocate, read, save. Optional: diagnostic (event only).
 typedef struct {
   void* ctx;
-  bool (*open)(void*);
-  size_t (*size)(void*);
-  // allocate returns writable bytes owned by ctx until xp_book_zip_details returns.
-  uint8_t* (*allocate)(void*, size_t);
-  bool (*read)(void*, uint32_t, uint8_t*, size_t);
+  bool (*open)(void* ctx);
+  size_t (*size)(void* ctx);
+  // allocate returns null on allocation failure, otherwise writable bytes owned
+  // by ctx until xp_book_zip_details returns.
+  uint8_t* (*allocate)(void* ctx, size_t bytes);
+  bool (*read)(void* ctx, uint32_t offset, uint8_t* bytes, size_t len);
   // read returns full-read success; save copies the Details borrowed for this callback.
-  void (*save)(void*, const XpZipDetails*);
-  void (*diagnostic)(void*, uint32_t);
+  void (*save)(void* ctx, const XpZipDetails* details);
+  void (*diagnostic)(void* ctx, uint32_t event);
 } XpBookZipDetailServices;
-bool xp_book_zip_details(const XpBookZipDetailServices*, bool);
-void xp_book_zip_close(uint32_t*, bool*, bool*);
-int32_t xp_book_find_spine(XpBookBorrow, size_t, bool, void*, XpBookBorrow (*)(void*, size_t));
+bool xp_book_zip_details(const XpBookZipDetailServices* services, bool cachedDetails);
+void xp_book_zip_close(uint32_t* cursor, bool* valid, bool* last);
+// get visits indices in order until a match; returned paths live until the next
+// callback. No pointer is retained and no cleanup callback is issued.
+int32_t xp_book_find_spine(XpBookBorrow target, size_t count, bool filename, void* ctx,
+                           XpBookBorrow (*get)(void* ctx, size_t index));
 typedef struct {
   uint16_t width, height;
   uint8_t depth;
@@ -231,25 +266,35 @@ typedef enum XpBookXtcDiagnostic {
   XP_BOOK_XTC_LOG_COVER_DONE = 11,     // bytes=0; cover rendered; path in ctx.
   XP_BOOK_XTC_LOG_THUMB_DONE = 12,     // bytes=0; thumbnail rendered; dimensions/path in ctx.
 } XpBookXtcDiagnostic;
+// FIRST precedes info. The render path requires prepare, LOAD and OPEN_IMAGE
+// success before RENDER. prepare returns false on allocation failure. The unscaled
+// thumbnail path requires GENERATE_COVER, OPEN_SOURCE and OPEN_TARGET success before COPY;
+// GENERATE_COVER may nest generation with a distinct context. On every return,
+// ctx releases buffers/files; no release callback or output-file rollback is issued.
 // Required: call, info, prepare. Optional: diagnostic(event, bytes).
 typedef struct {
   void* ctx;
-  size_t (*call)(void*, uint32_t);
+  size_t (*call)(void* ctx, uint32_t operation);
   // info returns retained first-page dimensions/depth by value.
-  XpBookXtcInfo (*info)(void*);
+  XpBookXtcInfo (*info)(void* ctx);
   // prepare(bitmap bytes, row bytes, nullable thumbnail plan) returns allocation success.
   // Copy the plan during this callback; ctx owns all buffers/files until generate returns.
-  bool (*prepare)(void*, size_t, size_t, const XpBookXtcThumbnail*);
-  void (*diagnostic)(void*, uint32_t, size_t);
+  bool (*prepare)(void* ctx, size_t bitmapBytes, size_t rowBytes, const XpBookXtcThumbnail* plan);
+  void (*diagnostic)(void* ctx, uint32_t event, size_t bytes);
 } XpBookXtcCoverServices;
-bool xp_book_xtc_generate(const XpBookXtcCoverServices*, bool, int32_t);
+// thumbnail selects thumbnail generation; height is its requested height in pixels
+// and is ignored for a cover.
+bool xp_book_xtc_generate(const XpBookXtcCoverServices* services, bool thumbnail, int32_t height);
 typedef enum XpBookDirectoryOp {
   XP_BOOK_DIRECTORY_EXISTS = 0,  // path=full path; result=exists boolean.
   XP_BOOK_DIRECTORY_CREATE = 1,  // path=prefix or full path; result=mkdir boolean (ignored).
 } XpBookDirectoryOp;
 // Required control callback borrows each path only for the callback.
-void xp_book_directories(XpBookBorrow, void*, bool (*)(void*, uint32_t, XpBookBorrow));
-XpBookBorrow xp_book_txt_title(XpBookBorrow);
+// EXISTS runs first; if absent, CREATE visits prefixes then the full path. Failed
+// creates do not stop later calls; there is no rollback or cleanup callback.
+void xp_book_directories(XpBookBorrow path, void* ctx,
+                         bool (*control)(void* ctx, uint32_t operation, XpBookBorrow path));
+XpBookBorrow xp_book_txt_title(XpBookBorrow path);
 typedef enum XpBookPathValue {
   XP_BOOK_PATH_HTML_DIRECTORY = 0,      // /html
   XP_BOOK_PATH_SECTIONS_DIRECTORY = 1,  // /sections
@@ -273,7 +318,7 @@ enum class XpBookPath : uint32_t {
 typedef uint32_t XpBookPath;
 #endif
 // Returns static NUL-terminated text (empty for an unknown value).
-const char* xp_book_path(XpBookPath);
+const char* xp_book_path(XpBookPath kind);
 typedef enum XpBookTxtMetadataOp {
   XP_BOOK_TXT_META_TITLE = 0,     // value=empty; assign title from ctx; result ignored.
   XP_BOOK_TXT_META_LANGUAGE = 1,  // value=borrowed language; copy into metadata; result ignored.
@@ -281,7 +326,9 @@ typedef enum XpBookTxtMetadataOp {
   XP_BOOK_TXT_META_FIND_COVER = 2,
   XP_BOOK_TXT_META_COVER = 3,  // value=borrowed cover path; copy into metadata; result ignored.
 } XpBookTxtMetadataOp;
-void xp_book_txt_metadata(void*, XpBookBorrow (*)(void*, uint32_t, XpBookBorrow));
+// Calls TITLE, LANGUAGE, FIND_COVER, then COVER only for a nonempty result.
+// The caller owns metadata/cover storage; no rollback or cleanup callback is issued.
+void xp_book_txt_metadata(void* ctx, XpBookBorrow (*operation)(void* ctx, uint32_t operation, XpBookBorrow value));
 typedef enum XpBookLookupDiagnostic {
   XP_BOOK_LOOKUP_NONE = 0,      // Valid index.
   XP_BOOK_LOOKUP_UNLOADED = 1,  // Cache unloaded; index=-1.
@@ -292,11 +339,13 @@ typedef struct {
   int32_t index;
   uint32_t diagnostic;
 } XpBookLookup;
-XpBookLookup xp_book_lookup(bool, int32_t, int32_t, bool);
+XpBookLookup xp_book_lookup(bool loaded, int32_t index, int32_t count, bool toc);
 // clear is required; diagnostic is optional and receives the pre-reclaim largest block in bytes.
-void xp_book_reclaim_content(size_t, void (*)(), void (*)(size_t));
-XpBookLookup xp_book_toc_spine(int32_t);
-XpBookBorrow xp_book_href_path(XpBookBorrow);
+// Below 64 KiB, clear runs before diagnostic; otherwise neither runs. The caller
+// serializes the cache owner and must not recursively reclaim it from clear.
+void xp_book_reclaim_content(size_t before, void (*clear)(), void (*diagnostic)(size_t before));
+XpBookLookup xp_book_toc_spine(int32_t index);
+XpBookBorrow xp_book_href_path(XpBookBorrow path);
 #ifdef __cplusplus
 }
 #endif

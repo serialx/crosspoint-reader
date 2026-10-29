@@ -59,12 +59,12 @@ def events(text):
                         yield Command(code, bytes(payload), len(data_transactions))
                     code, payload = data[0], bytearray()
                     data_transactions.clear()
-            elif line.startswith(("source.read ", "step ", "wait.", "delay.", "geometry ")):
+            elif line.startswith(("source.read ", "source.failure ", "step ", "wait.", "delay.", "geometry ")):
                 if code is not None:
                     yield Command(code, bytes(payload), len(data_transactions))
                     code, payload = None, bytearray()
                     data_transactions.clear()
-                if line.startswith("source.read "):
+                if line.startswith(("source.read ", "source.failure ")):
                     assert cs == 1 and not transaction, "source read while display owns SPI"
                 yield line
     if code is not None:

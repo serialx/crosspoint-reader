@@ -70,6 +70,10 @@ int main(int argc, char** argv) {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   std::vector<uint8_t> scratch(100 * 160);
   XpDisplaySource source{};
+  struct SourceContext {
+    FreeInkDisplay* display;
+    int readsBeforeFailure = -1;
+  } sourceContext{&display};
 #endif
   std::ifstream script(argv[2]);
   if (!script) return 2;
@@ -118,18 +122,29 @@ int main(int argc, char** argv) {
     } else if (op == "source") {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
       source = {sizeof(source),
-                &display,
+                &sourceContext,
                 scratch.data(),
                 static_cast<uint32_t>(scratch.size()),
                 static_cast<uint16_t>(a),
                 display.getDisplayWidth(),
                 [](void* raw, uint8_t* out, uint16_t y, uint16_t rows) -> uint32_t {
-                  auto& d = *static_cast<FreeInkDisplay*>(raw);
+                  auto& context = *static_cast<SourceContext*>(raw);
+                  auto& d = *context.display;
+                  if (context.readsBeforeFailure == 0) {
+                    context.readsBeforeFailure = -1;
+                    trace::event("source.failure " + std::to_string(y));
+                    return 1;
+                  }
+                  if (context.readsBeforeFailure > 0) --context.readsBeforeFailure;
                   trace::event("source.read " + std::to_string(y) + " " + std::to_string(rows));
                   std::copy_n(d.getFrameBuffer() + y * d.getDisplayWidthBytes(), rows * d.getDisplayWidthBytes(), out);
                   return 0;
                 }};
       if (!display.setFrameSource(a ? &source : nullptr)) return 4;
+#endif
+    } else if (op == "source-fail") {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      sourceContext.readsBeforeFailure = a;
 #endif
     } else if (op == "frame") {
       if (a == 1)

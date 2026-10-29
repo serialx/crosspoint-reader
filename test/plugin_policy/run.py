@@ -14,15 +14,32 @@ p.add_argument('--source', type=pathlib.Path, default=ROOT)
 p.add_argument('--archive', type=pathlib.Path, required=True)
 p.add_argument('--json-include', type=pathlib.Path, default=ROOT/'.pio/libdeps/default/ArduinoJson/src')
 p.add_argument('--record', action='store_true')
+p.add_argument('--json-faults', action='store_true')
+p.add_argument('--asan', action='store_true')
 a = p.parse_args()
 a.build.mkdir(parents=True, exist_ok=True)
 cmd = ['c++', '-std=c++20', '-O2', '-I'+str(HERE/'stubs'), '-I'+str(a.source/'src'), '-I'+str(ROOT/'src'), '-I'+str(ROOT/'rust/crates/xp-ffi/include'), '-I'+str(a.json_include), str(HERE/'oracle.cpp')]
+if a.asan:
+    cmd += ['-fsanitize=address', '-fno-omit-frame-pointer', '-g']
+if a.json_faults:
+    cmd.append('-DPLUGIN_JSON_FAULTS')
 cmd += [str(a.source/'src/util'/f'{name}.cpp') for name in ('PluginEvents','PluginHttp','PluginLocations')]
 cmd += [str(ROOT/'test/cmake/xp_ffi_host.cpp'), str(a.archive), '-o', str(a.build/'oracle')]
 subprocess.run(cmd, check=True)
-actual = b''.join(b'CASE '+str(i).encode()+b'\n'+subprocess.check_output([str(a.build/'oracle'),str(i)]) for i in range(34))
+cases = [(i, 0) for i in range(48)]
+if a.json_faults:
+    cases += [(i, fault) for i in (0,7,16,22,23,29,40,43) for fault in range(1,113)]
+traces = []
+metrics = []
+for i, fault in cases:
+    result = subprocess.check_output([str(a.build/'oracle'), str(i), str(fault)])
+    lines = result.splitlines(keepends=True)
+    metrics += [f"CASE {i} FAULT {fault} ".encode() + line for line in lines if line.startswith(b'MEM ')]
+    traces.append(f"CASE {i} FAULT {fault}\n".encode() + b''.join(line for line in lines if not line.startswith(b'MEM ')))
+actual = b''.join(traces)
 (a.build/'actual.txt').write_bytes(actual)
-golden = HERE/'golden.txt.gz'
+(a.build/'memory.txt').write_bytes(b''.join(metrics))
+golden = HERE/('json-fault-golden.txt.gz' if a.json_faults else 'golden.txt.gz')
 if a.record:
     golden.write_bytes(gzip.compress(actual,mtime=0))
 else:
@@ -30,4 +47,4 @@ else:
     if expected != actual:
         print(''.join(difflib.unified_diff(expected.decode().splitlines(True),actual.decode().splitlines(True)))[:16000])
         raise SystemExit('plugin oracle differs')
-print('plugin policy: 34 cases passed')
+print(f'plugin policy: {len(cases)} cases passed')

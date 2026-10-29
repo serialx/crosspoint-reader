@@ -760,7 +760,7 @@ pub struct Transfers {
     cancel: unsafe extern "C" fn(*mut c_void) -> bool,
     memory_error: unsafe extern "C" fn(*mut c_void) -> *const c_char,
     diagnostic: unsafe extern "C" fn(*mut c_void, u32, Span, Span, usize, usize, usize),
-    ws_send: unsafe extern "C" fn(*mut c_void, u8, Span),
+    ws_send: unsafe extern "C" fn(*mut c_void, u8, Span) -> bool,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -1069,9 +1069,12 @@ impl Transfer<'_> {
         Ok(())
     }
     #[inline(never)]
-    fn ws_send(&self, client: u8, bytes: &[u8]) {
-        unsafe {
-            (self.t.ws_send)(self.r.ctx, client, Span::new(bytes));
+    fn ws_send(&self, state: &mut WsUpload, client: u8, bytes: &[u8]) {
+        if unsafe { (self.t.ws_send)(self.r.ctx, client, Span::new(bytes)) } {
+            self.diagnostic(TransferEvent::WsDisconnect, b"", b"", client as usize, 0, 0);
+            if client == state.client && state.active && self.r.file(Io::IsOpen, 0) != 0 {
+                self.abort_ws(state, false);
+            }
         }
     }
     fn abort_ws(&self, state: &mut WsUpload, web: bool) {
@@ -1109,30 +1112,30 @@ impl Transfer<'_> {
                     return Ok(());
                 };
                 if state.active {
-                    self.ws_send(client, b"ERROR:Upload already in progress");
+                    self.ws_send(state, client, b"ERROR:Upload already in progress");
                     return Ok(());
                 }
                 let Some(first) = rest.iter().position(|&b| b == b':') else {
-                    self.ws_send(client, b"ERROR:Invalid START format");
+                    self.ws_send(state, client, b"ERROR:Invalid START format");
                     return Ok(());
                 };
                 let tail = rest.get(first + 1..).ok_or(())?;
                 let Some(second) = tail.iter().position(|&b| b == b':') else {
-                    self.ws_send(client, b"ERROR:Invalid START format");
+                    self.ws_send(state, client, b"ERROR:Invalid START format");
                     return Ok(());
                 };
                 let name = rest.get(..first).ok_or(())?;
                 self.set(Field::WsName, name);
                 if !safe(name) {
                     self.diagnostic(TransferEvent::WsUnsafe, name, b"", 0, 0, 0);
-                    self.ws_send(client, b"ERROR:Invalid file name");
+                    self.ws_send(state, client, b"ERROR:Invalid file name");
                     return Ok(());
                 }
                 let token = tail.get(..second).ok_or(())?;
                 let digits = token.strip_prefix(b"+").unwrap_or(token);
                 if digits.is_empty() || !digits.iter().all(u8::is_ascii_digit) {
                     self.diagnostic(TransferEvent::WsBadSize, token, b"", 0, 0, 0);
-                    self.ws_send(client, b"ERROR:Invalid START format");
+                    self.ws_send(state, client, b"ERROR:Invalid START format");
                     return Ok(());
                 }
                 let mut total = 0usize;
@@ -1150,7 +1153,7 @@ impl Transfer<'_> {
                 state.started_at = self.time();
                 let path = self.path(true)?;
                 if self.r.sensitive(&path) {
-                    self.ws_send(client, b"ERROR:Cannot write protected items");
+                    self.ws_send(state, client, b"ERROR:Cannot write protected items");
                     return Ok(());
                 }
                 self.r.watchdog();
@@ -1158,7 +1161,7 @@ impl Transfer<'_> {
                     self.diagnostic(TransferEvent::WsCollision, path.bytes(), b"", 0, 0, 0);
                     let mut error = Text::new(b"ERROR:File already exists: ")?;
                     error.append(name)?;
-                    self.ws_send(client, error.bytes());
+                    self.ws_send(state, client, error.bytes());
                     return Ok(());
                 }
                 self.diagnostic(
@@ -1171,7 +1174,7 @@ impl Transfer<'_> {
                 );
                 self.r.watchdog();
                 if self.r.fs(Io::Create, 0, &path) == 0 {
-                    self.ws_send(client, b"ERROR:Failed to create file");
+                    self.ws_send(state, client, b"ERROR:Failed to create file");
                     state.active = false;
                     state.client = 255;
                     return Ok(());
@@ -1185,22 +1188,22 @@ impl Transfer<'_> {
                     self.diagnostic(TransferEvent::WsEmpty, path.bytes(), b"", 0, 0, 0);
                     self.r.book(0, &path, None);
                     self.r.book(3, &path, None);
-                    self.ws_send(client, b"DONE");
+                    self.ws_send(state, client, b"DONE");
                     state.last_progress = 0;
                 } else {
                     state.client = client;
                     state.active = true;
-                    self.ws_send(client, b"READY");
+                    self.ws_send(state, client, b"READY");
                 }
             }
             3 => {
                 if !state.active || self.r.file(Io::IsOpen, 0) == 0 || client != state.client {
-                    self.ws_send(client, b"ERROR:No upload in progress");
+                    self.ws_send(state, client, b"ERROR:No upload in progress");
                     return Ok(());
                 }
                 if data.len() > state.total.wrapping_sub(state.received) {
                     self.abort_ws(state, false);
-                    self.ws_send(client, b"ERROR:Upload overflow");
+                    self.ws_send(state, client, b"ERROR:Upload overflow");
                     return Ok(());
                 }
                 self.r.watchdog();
@@ -1214,7 +1217,7 @@ impl Transfer<'_> {
                 self.r.watchdog();
                 if wrote != data.len() {
                     self.abort_ws(state, false);
-                    self.ws_send(client, b"ERROR:Write failed - disk full?");
+                    self.ws_send(state, client, b"ERROR:Write failed - disk full?");
                     return Ok(());
                 }
                 state.received = state.received.wrapping_add(wrote);
@@ -1227,7 +1230,7 @@ impl Transfer<'_> {
                     out.number(state.received);
                     out.add(b":");
                     out.number(state.total);
-                    self.ws_send(client, out.bytes());
+                    self.ws_send(state, client, out.bytes());
                     state.last_progress = state.received;
                 }
                 if state.received >= state.total {
@@ -1248,7 +1251,7 @@ impl Transfer<'_> {
                     let path = self.path(true)?;
                     self.r.book(0, &path, None);
                     self.r.book(3, &path, None);
-                    self.ws_send(client, b"DONE");
+                    self.ws_send(state, client, b"DONE");
                     state.last_progress = 0;
                 }
             }
@@ -1333,7 +1336,7 @@ pub unsafe extern "C" fn xp_web_ws(
         }
         transfer.r.event(Event::Oom, b"", b"");
         if status != 4 {
-            transfer.ws_send(client, b"ERROR:Out of memory");
+            transfer.ws_send(state, client, b"ERROR:Out of memory");
         }
     }
 }

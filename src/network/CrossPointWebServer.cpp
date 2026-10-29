@@ -104,6 +104,10 @@ size_t wsUploadSize = 0;
 size_t wsUploadReceived = 0;
 unsigned long wsUploadStartTime = 0;
 bool wsUploadInProgress = false;
+// sendTXT can synchronously report disconnection. Return it to Rust after the
+// transport call so the live policy state handles it without reentrant loans.
+bool wsSending = false;
+bool wsSendDisconnected = false;
 uint8_t wsUploadClientNum = 255;  // 255 = no active upload client
 size_t wsLastProgressSent = 0;
 String wsLastCompleteName;
@@ -865,8 +869,12 @@ const XpWebTransfers WebFileBridge::transfers = {
         },
     .ws_send =
         [](void* ctx, uint8_t client, XpWebText value) {
+          wsSending = true;
+          wsSendDisconnected = false;
           self(ctx).owner.wsServer->sendTXT(client, value.len ? value.data : reinterpret_cast<const uint8_t*>(""),
                                             value.len);
+          wsSending = false;
+          return wsSendDisconnected;
         }};
 
 void WebFileBridge::http(const CrossPointWebServer& owner, CrossPointWebServer::UploadState& state, uint32_t event) {
@@ -2273,6 +2281,10 @@ void CrossPointWebServer::wsEventCallback(uint8_t num, WStype_t type, uint8_t* p
 void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
+      if (wsSending) {
+        wsSendDisconnected = true;
+        break;
+      }
       WebFileBridge::ws(*this, num, 0, payload, length);
       break;
     case WStype_CONNECTED:

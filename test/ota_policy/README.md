@@ -35,6 +35,9 @@ regenerates goldens and must only be used with the original implementation. The
 sensitivity check changes the original `processedSize += len` to add one extra
 byte; the golden comparison must fail.
 
+The `ota_policy_abi` test also verifies that null diagnostic callbacks are silent
+and leave error results unchanged.
+
 The existing `web_jobs_oracle` covers the already-ported SD flasher, image checks,
 board scanner and download policy. OTA UI screens and real device restart behavior
 are outside this host suite.

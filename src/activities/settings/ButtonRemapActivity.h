@@ -9,6 +9,9 @@ class ButtonRemapActivity final : public SettingsUiActivity {
       : SettingsUiActivity("ButtonRemap", renderer, input, XP_UI_SETTINGS_REMAP) {}
   void onEnter() override;
   void loop() override;
+  void cancelRejectedInput(const XpUiInput& input) override {
+    if (input.pressed & XP_UI_DOWN) finish();
+  }
 
  private:
   XpUiSettingsRemap remap{};

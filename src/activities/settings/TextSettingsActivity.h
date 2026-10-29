@@ -45,7 +45,7 @@ class TextSettingsActivity final : public RustActivityAdapter {
   char caption[128]{};
   int32_t renderingScroll = 0;
   bool touchActivated = false;
-  bool sceneFailed = false;
+  void rustSceneFailed() override { touchActivated = false; }
   int rebuildSizeList();
   void applyFamily(int index);
   void applySize(int index);

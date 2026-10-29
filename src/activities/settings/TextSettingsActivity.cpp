@@ -233,14 +233,6 @@ void TextSettingsActivity::activateRow(int row) {
 }
 XpUiEffect TextSettingsActivity::updateRust(const XpUiInput& source) {
   touchActivated = false;
-  // A failed build keeps the old pixels, but they no longer describe live state.
-  // Consume input to retry after failure; preserve input before the first build.
-  if (sceneFailed) {
-    XpUiEffect effect{};
-    effect.kind = source.released & XP_UI_BACK ? XP_UI_CANCEL : XP_UI_EFFECT_NONE;
-    effect.invalidate = effect.kind != XP_UI_CANCEL;
-    return effect;
-  }
   XpUiInput input = source;
   if (publication.ready && publishedHits.generation == static_cast<uint32_t>(state.tab) + 1 && input.touch_flags) {
     XpUiInteraction hit{};
@@ -255,7 +247,13 @@ XpUiEffect TextSettingsActivity::updateRust(const XpUiInput& source) {
   return effect;
 }
 void TextSettingsActivity::applyRustEffect(const XpUiEffect& effect) {
-  if (touchActivated) haptic_feedback::touchAction();
+  bool feedback;
+  {
+    ModelLock lock(*this);
+    feedback = touchActivated;
+    touchActivated = false;
+  }
+  if (feedback) haptic_feedback::touchAction();
   switch (effect.kind) {
     case XP_UI_CANCEL:
       finish();
@@ -349,8 +347,7 @@ XpUiReaderRows TextSettingsActivity::rows() {
 }
 bool TextSettingsActivity::buildRustScene(XpUiScene& scene) {
   const auto failed = [this] {
-    ModelLock lock(*this);
-    sceneFailed = true;
+    rejectRustScene();
     return false;
   };
   if (!commands.ready() && !commands.reserve(32)) return failed();
@@ -398,7 +395,6 @@ bool TextSettingsActivity::buildRustScene(XpUiScene& scene) {
   }
 }
 void TextSettingsActivity::rustPublished() {
-  sceneFailed = false;
   xp_ui_text_publish(&state, &next, renderingScroll);
   publishedHits = nextHits;
 }

@@ -10,6 +10,7 @@ void ButtonRemapActivity::onEnter() {
   if (!hasUiStorage()) return;
 }
 void ButtonRemapActivity::loop() {
+  if (consumeRejectedInput()) return;
   XpUiInput input{};
   input.now_ms = millis();
   if (mappedInput.wasPressed(MappedInputManager::Button::Up)) input.pressed |= XP_UI_UP;

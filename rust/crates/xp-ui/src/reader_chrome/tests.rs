@@ -29,6 +29,8 @@ struct Data {
     kind: u8,
     panel: bool,
     page: String,
+    windows: std::vec::Vec<(u16, u16)>,
+    long_label: String,
 }
 impl Data {
     fn value(&self, handle: u32) -> &str {
@@ -41,6 +43,9 @@ impl Data {
                 let index = (handle - 1) / 4;
                 match (handle - 1) % 4 {
                     0 => {
+                        if !self.long_label.is_empty() {
+                            return &self.long_label;
+                        }
                         if self.panel {
                             if index % 2 == 1 {
                                 "Chapter name with more words to fit beside the value"
@@ -74,7 +79,8 @@ impl Data {
     }
 }
 impl Resources for Data {
-    fn window(&mut self, _: u16, _: u16) -> Result<(), Error> {
+    fn window(&mut self, first: u16, count: u16) -> Result<(), Error> {
+        self.windows.push((first, count));
         Ok(())
     }
     fn row(&mut self, index: u16) -> Result<Row, Error> {
@@ -198,6 +204,8 @@ fn rich_rows_match_frozen_sdk() {
                         kind,
                         panel: false,
                         page: String::new(),
+                        windows: std::vec::Vec::new(),
+                        long_label: String::new(),
                     };
                     let screen = Screen::from_byte(kind).unwrap();
                     let mut content = list::Content::new(&mut data, 19, 24, screen, 0, 0, 4);
@@ -273,6 +281,8 @@ fn toolbar_matches_frozen_sdk() {
                         kind: 0,
                         panel: true,
                         page: String::new(),
+                        windows: std::vec::Vec::new(),
+                        long_label: String::new(),
                     };
                     let screen = Rect {
                         x: 0,
@@ -346,6 +356,79 @@ fn toolbar_matches_frozen_sdk() {
     let expected = golden("toolbar.golden.gz");
     same(&actual, expected.split("route ").next().unwrap());
 }
+#[test]
+fn toolbar_materializes_only_the_cpp_visible_window() {
+    let mut actual = String::new();
+    for width in [480, 528, 792, 800] {
+        for dense in [0, 1] {
+            for count in [2, 30] {
+                for selected in [0, count - 1] {
+                    let mut data = Data {
+                        kind: 0,
+                        panel: true,
+                        page: String::new(),
+                        windows: std::vec::Vec::new(),
+                        long_label: "A".repeat(1024),
+                    };
+                    let screen = Rect {
+                        x: 0,
+                        y: 0,
+                        w: width,
+                        h: if width < 600 { 792 } else { 480 },
+                    };
+                    let theme = Theme {
+                        screen,
+                        safe: screen,
+                        body_font: 1,
+                        small_font: 0,
+                        title_font: 2,
+                        row_min: 48,
+                        row_gap: 0,
+                        row_padding: 8,
+                        scroll_width: 3,
+                        space_sm: 4,
+                        space_md: 8,
+                        space_lg: 16,
+                        control_radius: 12,
+                        sheet_radius: 12,
+                        ..Theme::default()
+                    };
+                    let model = toolbar::Model {
+                        panel: 1,
+                        dense_rows: dense,
+                        panel_title: list::HEADER,
+                        ..toolbar::Model::default()
+                    };
+                    let mut commands = [Command::default(); 128];
+                    let mut hits = [Interaction::default(); 32];
+                    let mut arena = Arena::new(&mut commands, &mut [], &mut hits).unwrap();
+                    let next = toolbar::view(
+                        &mut arena,
+                        ListState::new(selected),
+                        model,
+                        theme,
+                        &mut data,
+                        count as u16,
+                        16,
+                        1,
+                    )
+                    .unwrap();
+                    assert_eq!(data.windows.len(), 1);
+                    let (first, requested) = data.windows[0];
+                    assert_eq!(i32::from(first), next.top);
+                    writeln!(
+                        actual,
+                        "window {width} {dense} {count} {selected}: {} {requested} {requested} {}",
+                        next.top, next.visible
+                    )
+                    .unwrap();
+                }
+            }
+        }
+    }
+    same(&actual, &golden("toolbar-window.golden.gz"));
+}
+
 #[test]
 fn toolbar_drag_release_and_suppressed_contact_match_sdk() {
     let mut actual = String::new();
@@ -922,6 +1005,8 @@ fn end_scene_fits_its_small_arena() {
                     kind: 0,
                     panel: false,
                     page: String::new(),
+                    windows: std::vec::Vec::new(),
+                    long_label: String::new(),
                 };
                 let mut commands = [Command::default(); 16];
                 let mut hits = [Interaction::default(); 4];
@@ -1098,6 +1183,8 @@ fn real_row_shapes_have_bounded_command_growth() {
                     kind,
                     panel: false,
                     page: String::new(),
+                    windows: std::vec::Vec::new(),
+                    long_label: String::new(),
                 };
                 let mut commands = [Command::default(); 128];
                 let mut layout = Layout::new(1, 1);

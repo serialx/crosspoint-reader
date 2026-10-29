@@ -24,7 +24,24 @@ def record(mutation=False):
         return subprocess.check_output([str(binary)])
 
 
+def record_windows():
+    with tempfile.TemporaryDirectory() as directory:
+        source = pathlib.Path(directory) / "windows.cpp"
+        frozen = (HERE / "toolbar.cpp").read_text()
+        source.write_text(frozen[:frozen.index("int main() {")] +
+                          (HERE / "toolbar_windows.cpp").read_text())
+        binary = pathlib.Path(directory) / "windows"
+        subprocess.run(["c++", "-std=c++20", "-DFREEINK_UI_COMPONENT_STYLE=0",
+                        "-I" + str(HERE), "-I" + str(SDK / "include"), str(source),
+                        str(SDK / "src/FreeInkUI.cpp"), "-o", str(binary)], check=True)
+        return b"".join(line + b"\n" for line in subprocess.check_output([str(binary)]).splitlines()
+                        if line.startswith(b"window "))
+
+
 class ReaderWidgets(unittest.TestCase):
+    def test_toolbar_window(self):
+        self.assertEqual(record_windows(), gzip.decompress((HERE / "toolbar-window.golden.gz").read_bytes()))
+
     def test_footnote_input(self):
         with tempfile.TemporaryDirectory() as directory:
             binary = pathlib.Path(directory) / "input"

@@ -431,10 +431,11 @@ pub fn view(
         scroll_left: t.scroll_left,
         bold: t.title_bold,
     };
+    let visible = ((i32::from(body.h) + i32::from(gap)) / stride).max(1) as u16;
     let mut content = Content::new(
         r,
         count,
-        capacity,
+        capacity.min(visible),
         Screen::Panel,
         t.small_font,
         t.body_font,

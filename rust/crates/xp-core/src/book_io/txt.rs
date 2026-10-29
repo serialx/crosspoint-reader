@@ -154,20 +154,20 @@ pub unsafe fn stream(
 #[repr(u32)]
 #[derive(Clone, Copy)]
 pub enum CacheAction {
-    Exists,
-    Mkdir,
-    Invalidate,
-    Begin,
-    BeginOpf,
-    Spine,
-    EndOpf,
-    BeginToc,
-    Toc,
-    EndToc,
-    End,
-    Book,
-    Cleanup,
-    Reload,
+    Exists = 0,
+    Mkdir = 1,
+    Invalidate = 2,
+    Begin = 3,
+    BeginOpf = 4,
+    Spine = 5,
+    EndOpf = 6,
+    BeginToc = 7,
+    Toc = 8,
+    EndToc = 9,
+    End = 10,
+    Book = 11,
+    Cleanup = 12,
+    Reload = 13,
 }
 pub type CacheControl = unsafe extern "C" fn(*mut c_void, u32) -> bool;
 
@@ -220,6 +220,47 @@ pub unsafe fn find_cover(
     }
 }
 
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum ValidateAction {
+    Exists = 0,
+    OpenHtml = 1,
+    CloseHtml = 2,
+    OpenRaw = 3,
+    CloseRaw = 4,
+    Invalidate = 5,
+}
+
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum ConvertAction {
+    Exists = 0,
+    Open = 1,
+    Jpeg = 2,
+    Png = 3,
+    JpegThumb = 4,
+    PngThumb = 5,
+    Close = 6,
+    Remove = 7,
+}
+
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum ImageKind {
+    Unsupported = 0,
+    Bmp = 1,
+    Jpeg = 2,
+    Png = 3,
+}
+
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum FileDiagnostic {
+    VersionMismatch = 0,
+    SizeChanged = 1,
+    InvalidCache = 2,
+}
+
 #[repr(C)]
 pub struct FileServices {
     pub context: *mut c_void,
@@ -230,9 +271,9 @@ pub struct FileServices {
     pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, usize)>,
 }
 impl FileServices {
-    unsafe fn diagnose(&self, event: u32, size: usize) {
+    unsafe fn diagnose(&self, event: FileDiagnostic, size: usize) {
         if let Some(diagnostic) = self.diagnostic {
-            diagnostic(self.context, event, size);
+            diagnostic(self.context, event as u32, size);
         }
     }
 }
@@ -241,6 +282,7 @@ impl FileServices {
 /// Control/read are required; size is required when cached is nonzero.
 /// Write is unused and a missing diagnostic callback is silent.
 pub unsafe fn validate(io: &FileServices, cached: usize, tag: &[u8]) -> bool {
+    use ValidateAction::*;
     let (Some(control), Some(read)) = (io.control, io.read) else {
         return false;
     };
@@ -248,14 +290,14 @@ pub unsafe fn validate(io: &FileServices, cached: usize, tag: &[u8]) -> bool {
         return false;
     }
     let mut valid = true;
-    if control(io.context, 0, 0, 0) {
-        if control(io.context, 1, 0, 0) {
+    if control(io.context, Exists as u32, 0, 0) {
+        if control(io.context, OpenHtml as u32, 0, 0) {
             let mut header = [0u8; 80];
             let count = read(io.context, header.as_mut_ptr(), 79);
             if count > 0 && count < 80 {
                 let end = header.iter().position(|b| *b == 0).unwrap_or(80);
                 if !tag.is_empty() && !header[..end].windows(tag.len()).any(|part| part == tag) {
-                    io.diagnose(0, 0);
+                    io.diagnose(FileDiagnostic::VersionMismatch, 0);
                     valid = false;
                 }
             } else {
@@ -264,42 +306,45 @@ pub unsafe fn validate(io: &FileServices, cached: usize, tag: &[u8]) -> bool {
         } else {
             valid = false;
         }
-        control(io.context, 2, 0, 0);
+        control(io.context, CloseHtml as u32, 0, 0);
     }
     if valid && cached > 0 {
-        if control(io.context, 3, 0, 0) {
+        if control(io.context, OpenRaw as u32, 0, 0) {
             if let Some(size) = io.size {
                 if size(io.context) != cached {
                     let size = size(io.context);
-                    io.diagnose(1, size);
+                    io.diagnose(FileDiagnostic::SizeChanged, size);
                     valid = false;
                 }
             }
         } else {
             valid = false;
         }
-        control(io.context, 4, 0, 0);
+        control(io.context, CloseRaw as u32, 0, 0);
     }
     if !valid {
-        io.diagnose(2, 0);
-        control(io.context, 5, 0, 0);
+        io.diagnose(FileDiagnostic::InvalidCache, 0);
+        control(io.context, Invalidate as u32, 0, 0);
     }
     valid
 }
 /// # Safety
 /// Services obey validate's borrowing contract. Control is required, as are
-/// read/write for BMP. Size/diagnostic are unused. Kind is 0 unsupported,
-/// 1 BMP, 2 JPEG, or 3 PNG.
+/// read/write for BMP. Size/diagnostic are unused. Kind uses ImageKind values.
 pub unsafe fn convert(io: &FileServices, kind: u32, height: i32) -> bool {
+    use ConvertAction::*;
     let Some(control) = io.control else {
         return false;
     };
-    let bmp_io = match (kind == 1, io.read, io.write) {
+    let bmp_io = match (kind == ImageKind::Bmp as u32, io.read, io.write) {
         (true, Some(read), Some(write)) => Some((read, write)),
         (true, _, _) => return false,
         _ => None,
     };
-    if !control(io.context, 0, 0, 0) || kind == 0 || !control(io.context, 1, 0, 0) {
+    if !control(io.context, Exists as u32, 0, 0)
+        || kind == ImageKind::Unsupported as u32
+        || !control(io.context, Open as u32, 0, 0)
+    {
         return false;
     }
     let success = if let Some((read, write)) = bmp_io {
@@ -315,19 +360,30 @@ pub unsafe fn convert(io: &FileServices, kind: u32, height: i32) -> bool {
                 break false;
             }
         }
-    } else if height > 0 {
-        control(
-            io.context,
-            kind + 2,
-            (f64::from(height) * 0.6) as i32,
-            height,
-        )
     } else {
-        control(io.context, kind, 0, 0)
+        let action = match (kind, height > 0) {
+            (k, false) if k == ImageKind::Jpeg as u32 => Some(Jpeg),
+            (k, false) if k == ImageKind::Png as u32 => Some(Png),
+            (k, true) if k == ImageKind::Jpeg as u32 => Some(JpegThumb),
+            (k, true) if k == ImageKind::Png as u32 => Some(PngThumb),
+            _ => None,
+        };
+        action.is_some_and(|action| {
+            if height > 0 {
+                control(
+                    io.context,
+                    action as u32,
+                    (f64::from(height) * 0.6) as i32,
+                    height,
+                )
+            } else {
+                control(io.context, action as u32, 0, 0)
+            }
+        })
     };
-    control(io.context, 6, 0, 0);
+    control(io.context, Close as u32, 0, 0);
     if !success {
-        control(io.context, 7, 0, 0);
+        control(io.context, Remove as u32, 0, 0);
     }
     success
 }

@@ -2886,8 +2886,26 @@ bool xp_book_zip_stream(const XpBookZipServices*, uint16_t method, uint32_t comp
 bool xp_book_copy_available(uint8_t* buffer, size_t capacity, void* context, bool (*available)(void*),
                             int32_t (*read)(void*, uint8_t*, size_t), size_t (*write)(void*, const uint8_t*, size_t));
 
-// TXT cache actions 0..13: exists, mkdir, invalidate, begin, begin-opf, spine,
-// end-opf, begin-toc, toc, end-toc, end, book, cleanup, reload.
+// Values match book_io::txt::CacheAction.
+#ifdef __cplusplus
+enum class XpBookTxtCacheAction : uint32_t {
+  Exists = 0,
+  Mkdir = 1,
+  Invalidate = 2,
+  Begin = 3,
+  BeginOpf = 4,
+  Spine = 5,
+  EndOpf = 6,
+  BeginToc = 7,
+  Toc = 8,
+  EndToc = 9,
+  End = 10,
+  Book = 11,
+  Cleanup = 12,
+  Reload = 13,
+  Complete = UINT32_MAX
+};
+#endif
 // TXT cache control selects existing C++ facade operations. UINT32_MAX means
 // success; otherwise the result identifies the failed action for diagnostics.
 uint32_t xp_book_txt_build(void* context, bool (*control)(void*, uint32_t));
@@ -2901,6 +2919,32 @@ const uint8_t* xp_book_xml_local(const uint8_t* name);
 uint32_t xp_book_utf8_next(const uint8_t* data, size_t* consumed);
 // Loan result: 0 allowed, 1 clock unverified, 2 expired. No clock call for zero expiry.
 uint32_t xp_book_loan(int64_t expires, void* context, int64_t (*clock)(void*));
+
+// Values match book_io::txt; control receives the action for its entry point.
+// Only JpegThumb/PngThumb use the int32 payloads (width, height); otherwise zero.
+#ifdef __cplusplus
+enum class XpBookTxtValidateAction : uint32_t {
+  Exists = 0,
+  OpenHtml = 1,
+  CloseHtml = 2,
+  OpenRaw = 3,
+  CloseRaw = 4,
+  Invalidate = 5
+};
+enum class XpBookTxtConvertAction : uint32_t {
+  Exists = 0,
+  Open = 1,
+  Jpeg = 2,
+  Png = 3,
+  JpegThumb = 4,
+  PngThumb = 5,
+  Close = 6,
+  Remove = 7
+};
+enum class XpBookTxtImageKind : uint32_t { Unsupported = 0, Bmp = 1, Jpeg = 2, Png = 3 };
+// SizeChanged carries the source byte size; the other events carry zero.
+enum class XpBookTxtFileDiagnostic : uint32_t { VersionMismatch = 0, SizeChanged = 1, InvalidCache = 2 };
+#endif
 
 // All callbacks are nullable in the ABI. Missing required callbacks return false
 // before I/O. Validate requires control/read, plus size when cached > 0; write is

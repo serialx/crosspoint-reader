@@ -43,7 +43,7 @@ std::string Txt::findCompanionCoverImage(const std::string& filepath) {
 
 bool Txt::convertCoverImageToBmp(const std::string& imagePath, const std::string& destBmpPath, int thumbHeight,
                                  bool cropped, bool originalThresholds) {
-  enum class Action : uint32_t { Exists, Open, Jpeg, Png, JpegThumb, PngThumb, Close, Remove };
+  using Action = XpBookTxtConvertAction;
   struct Context {
     const std::string& source;
     const std::string& destination;
@@ -86,11 +86,11 @@ bool Txt::convertCoverImageToBmp(const std::string& imagePath, const std::string
       },
       nullptr,
       nullptr};
-  const uint32_t kind = FsHelpers::hasBmpExtension(imagePath)   ? 1
-                        : FsHelpers::hasJpgExtension(imagePath) ? 2
-                        : FsHelpers::hasPngExtension(imagePath) ? 3
-                                                                : 0;
-  return xp_book_txt_convert(&services, kind, thumbHeight);
+  const auto kind = FsHelpers::hasBmpExtension(imagePath)   ? XpBookTxtImageKind::Bmp
+                    : FsHelpers::hasJpgExtension(imagePath) ? XpBookTxtImageKind::Jpeg
+                    : FsHelpers::hasPngExtension(imagePath) ? XpBookTxtImageKind::Png
+                                                            : XpBookTxtImageKind::Unsupported;
+  return xp_book_txt_convert(&services, static_cast<uint32_t>(kind), thumbHeight);
 }
 
 bool Txt::streamTxtToHtml(const std::string& filepath, Print& out) {
@@ -118,7 +118,7 @@ void Txt::invalidateCache(const std::string& cachePath) {
 }
 
 bool Txt::validateCache(const std::string& filepath, const std::string& cachePath, size_t cachedSize) {
-  enum class Action : uint32_t { Exists, OpenHtml, CloseHtml, OpenRaw, CloseRaw, Invalidate };
+  using Action = XpBookTxtValidateAction;
   const std::string htmlPath = cachePath + "/html/0.html";
   struct Context {
     const std::string& filepath;
@@ -155,15 +155,15 @@ bool Txt::validateCache(const std::string& filepath, const std::string& cachePat
       [](void* opaque) { return static_cast<Context*>(opaque)->file->size(); },
       [](void* opaque, uint32_t event, [[maybe_unused]] size_t size) {
         [[maybe_unused]] const auto& ctx = *static_cast<Context*>(opaque);
-        switch (event) {
-          case 0:
+        switch (static_cast<XpBookTxtFileDiagnostic>(event)) {
+          case XpBookTxtFileDiagnostic::VersionMismatch:
             LOG_DBG("TXT", "HTML cache version mismatch or missing, invalidating: %s", ctx.htmlPath.c_str());
             break;
-          case 1:
+          case XpBookTxtFileDiagnostic::SizeChanged:
             LOG_DBG("TXT", "File size changed (%u vs cached %u), invalidating cache", static_cast<uint32_t>(size),
                     static_cast<uint32_t>(ctx.cachedSize));
             break;
-          case 2:
+          case XpBookTxtFileDiagnostic::InvalidCache:
             LOG_DBG("TXT", "Cache invalid for %s, wiping html and sections", ctx.filepath.c_str());
             break;
         }
@@ -176,23 +176,7 @@ bool Txt::buildTxtCache(const std::string& filepath, const std::string& cachePat
                         std::unique_ptr<BookMetadataCache>& bookMetadataCache) {
   LOG_DBG("TXT", "Building metadata cache for TXT: %s", filepath.c_str());
 
-  enum class Action : uint32_t {
-    Exists,
-    Mkdir,
-    Invalidate,
-    Begin,
-    BeginOpf,
-    Spine,
-    EndOpf,
-    BeginToc,
-    Toc,
-    EndToc,
-    End,
-    Book,
-    Cleanup,
-    Reload,
-    Complete = UINT32_MAX
-  };
+  using Action = XpBookTxtCacheAction;
   struct Context {
     const std::string& filepath;
     const std::string& cachePath;

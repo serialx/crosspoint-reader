@@ -157,6 +157,7 @@ mod sync;
 mod ota;
 
 mod assets;
+mod dictionary_ui;
 mod plugin;
 
 mod ui_settings;

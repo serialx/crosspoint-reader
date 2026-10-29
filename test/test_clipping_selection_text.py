@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / "src/activities/reader/ClipSelectionActivity.cpp").read_text()
 reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
 header = (ROOT / "src/activities/reader/ClipSelectionActivity.h").read_text()
-word_box = "struct WordBox {" + header.split("struct WordBox {", 1)[1].split("  };", 1)[0] + "};"
+word_box = next(line.strip() for line in header.splitlines() if 'using WordBox =' in line)
 clean_word = "const char* cleanWordStart" + source.split("const char* cleanWordStart", 1)[1].split(
     "}  // namespace", 1
 )[0]
@@ -26,10 +26,7 @@ def method(name, next_name, text=source):
     start = text.rfind("\n", 0, signature) + 1
     return text[start:text.index(next_name, signature)].rstrip()
 
-extract_words = method("bool ClipSelectionActivity::extractWords", "int ClipSelectionActivity::closestInRow")
-clean_draw = method("void ClipSelectionActivity::drawWordClean", "void ClipSelectionActivity::drawWordHighlight")
-highlight_draw = method("void ClipSelectionActivity::drawWordHighlight", "bool ClipSelectionActivity::renderIncremental")
-selection_draw = method("void ClipSelectionActivity::drawSelection", "void ClipSelectionActivity::render(")
+extract_words = method("bool ClipSelectionActivity::extractWords", "bool ClipSelectionActivity::buildSelectedText")
 word_font = method("int clippingWordFont", "Rect clippingWordRect", reader_source)
 word_rect = method("Rect clippingWordRect", "int clampPercent", reader_source)
 saved_hit = method("int EpubReaderActivity::clippingAtPoint", "void EpubReaderActivity::drawClippingHighlights", reader_source)
@@ -37,6 +34,7 @@ saved_draw = method("void EpubReaderActivity::drawClippingHighlights", "void Epu
 
 # Compile production extraction, export, and redraws with bounded UI/rendering stubs.
 harness = r"""
+#include <xp_ui_dictionary.h>
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -231,7 +229,7 @@ struct ClipSelectionActivity {
   Rect handleRect(int, bool) const { return {}; }
   Rect actionRect() const { return {}; }
 };
-""" + build_text + extract_words + clean_draw + highlight_draw + selection_draw + r"""
+""" + build_text + extract_words + r"""
 struct EpubReaderActivity {
   Renderer& renderer;
   explicit EpubReaderActivity(Renderer& renderer) : renderer(renderer) {}
@@ -339,23 +337,6 @@ int main() {
     assert(activity.extractWords());
     assert(activity.wordCount == 2);
     expect(activity, 0, 1, "one\ntwo");
-    activity.renderer.draws.clear();
-    activity.renderer.fills.clear();
-    activity.rangeStart = 0;
-    activity.selected = 1;
-    activity.drawSelection();
-    activity.drawWordClean(0, 0, 0);  // Cursor leaves the old word.
-    activity.drawWordHighlight(1, 1, 1, 0, 0);
-    assert(activity.renderer.draws.size() == 4);
-    assert(activity.renderer.fills.size() == 4);
-    for (size_t i = 0; i < 4; ++i) {
-      const auto& draw = activity.renderer.draws[i];
-      const auto& fill = activity.renderer.fills[i];
-      assert(draw.tracking == tracking);
-      assert(draw.width == 24 + 2 * tracking);
-      assert(fill.width == draw.width);
-      assert(fill.x == draw.x);
-    }
     for (size_t i = 0; i < 2; ++i) {
       assert(activity.words[i].characterSpacing == tracking);
       assert(activity.words[i].width == 24 + 2 * tracking);

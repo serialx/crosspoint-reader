@@ -61,8 +61,8 @@ class RustActivityAdapter : public Activity {
   XpUiInput sampleRustInput() const;
 
  private:
-  uint32_t suppressButtons = 0;
-  uint32_t lastHeld = 0;
+  uint16_t suppressButtons = 0;
+  uint16_t lastHeld = 0;
   bool sceneFailed = false;
   bool suppressContact = false;
   bool lastContact = false;

@@ -57,6 +57,10 @@ XpUiInput RustActivityAdapter::sampleRustInput() const {
       MappedInputManager::Button::PageForward, MappedInputManager::Button::ScreenLeft,
       MappedInputManager::Button::ScreenRight, MappedInputManager::Button::ScreenUp,
       MappedInputManager::Button::ScreenDown};
+  static_assert(sizeof(buttons) / sizeof(buttons[0]) <= 16);
+  static_assert((XP_UI_BACK | XP_UI_CONFIRM | XP_UI_NAV_NEXT | XP_UI_NAV_PREVIOUS | XP_UI_LEFT | XP_UI_RIGHT |
+                 XP_UI_UP | XP_UI_DOWN | XP_UI_POWER | XP_UI_PAGE_BACK | XP_UI_PAGE_FORWARD | XP_UI_SCREEN_LEFT |
+                 XP_UI_SCREEN_RIGHT | XP_UI_SCREEN_UP | XP_UI_SCREEN_DOWN) <= UINT16_MAX);
   for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
     if (mappedInput.wasPressed(buttons[i])) input.pressed |= 1u << i;
     if (mappedInput.wasReleased(buttons[i])) input.released |= 1u << i;

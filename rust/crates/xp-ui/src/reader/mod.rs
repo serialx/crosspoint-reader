@@ -432,3 +432,5 @@ const _: () = {
     assert!(offset_of!(ProgressIo, remove_final) == 5 * size_of::<usize>());
     assert!(offset_of!(ProgressIo, rename_temp) == 6 * size_of::<usize>());
 };
+
+pub mod render;

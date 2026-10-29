@@ -115,7 +115,30 @@ static void inputPointers() {
   assert(!xp_ui_reader_toolbar_scroll(nullptr, 1, 10));
 }
 
+static void renderPointers() {
+  uint32_t calls = 0;
+  const XpUiReaderRenderServices complete{&calls,
+                                          [](void* raw, uint8_t) -> uint32_t {
+                                            ++*static_cast<uint32_t*>(raw);
+                                            return 0;
+                                          },
+                                          [](void* raw, const XpUiReaderRenderOp*) -> uint32_t {
+                                            ++*static_cast<uint32_t*>(raw);
+                                            return 0;
+                                          }};
+  xp_ui_reader_render_page(nullptr, 0);
+  for (int missing = 0; missing < 2; ++missing) {
+    auto services = complete;
+    if (missing == 0) services.read = nullptr;
+    if (missing == 1) services.execute = nullptr;
+    xp_ui_reader_render_page(&services, 0);
+    xp_ui_reader_render_page(&services, 1);
+  }
+  assert(calls == 0);
+}
+
 int main() {
+  renderPointers();
   inputPointers();
   progressStatuses();
   links();

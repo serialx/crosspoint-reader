@@ -353,3 +353,17 @@ pub unsafe extern "C" fn xp_ui_reader_toolbar_scroll(
         .as_mut()
         .map_or(0, |s| u8::from(input::toolbar_scroll(s, delta, count)))
 }
+
+use xp_ui::reader::render;
+/// # Safety
+/// Services obey the reader-family synchronous callback contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_render_page(
+    services: *const render::Services,
+    strip_enabled: u8,
+) {
+    if let Some(services) = services.as_ref() {
+        render::render(*services, strip_enabled != 0)
+    }
+}

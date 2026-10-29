@@ -2079,328 +2079,351 @@ void EpubReaderActivity::rememberCurrentContentOffset() {
 void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int orientedMarginTop,
                                         const int orientedMarginRight, const int orientedMarginBottom,
                                         const int orientedMarginLeft) {
-  const auto t0 = millis();
-  const int fontId = SETTINGS.getReaderFontId();
-  ImageBlock::clearRenderFailures();
-
-  struct PxcSlotGuard {
-    ~PxcSlotGuard() { ImageBlock::releaseRenderCache(); }
-  } pxcSlotGuard;
-
-  auto* fcm = renderer.getFontCacheManager();
-  auto scope = fcm->createPrewarmScope();
-  page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
-  // Scan the status bar too: a CJK book/chapter title redirected to the SD
-  // fallback font joins the page's single batch prewarm instead of triggering
-  // its own SD pass after the scope ends.
-  renderStatusBar();
-  scope.endScanAndPrewarm();
-  const auto tPrewarm = millis();
-
-  const bool pageHasImages = page->hasImages();
-  const bool pageHasImagesNeedingDecode = pageHasImages && page->hasImagesNeedingDecode();
-  const bool manualRefreshPending = forcedRefreshPending;
-  forcedRefreshPending = false;
-  const bool cleanImageBasePending = manualRefreshPending || pagesUntilFullRefresh <= 1;
-  const bool needsTextGrayscale = SETTINGS.textAntiAliasing;
-  const bool needsAnyGrayscale = needsTextGrayscale || (pageHasImages && !BoardConfig::isEegoA4());
-  const bool absoluteImageGrayscale = pageHasImages && !gpio.deviceIsX3() &&
-                                      display.getController() == HalDisplay::Controller::UC8279 &&
-                                      renderer.grayscaleCapabilities(HalDisplay::GrayscaleMode::Absolute).supported();
-  const auto grayscale = renderer.grayscaleCapabilities(absoluteImageGrayscale ? HalDisplay::GrayscaleMode::Absolute
-                                                                               : HalDisplay::GrayscaleMode::Overlay);
-  const bool tiledGrayscale = needsAnyGrayscale && grayscale.stripUploads;
-  // Paper Mono only (no other panel combines): defer the B/W base activation so
-  // the gray planes join it in a single waveform. Displaying the base
-  // separately makes the gray pass re-drive the whole text body — a visible
-  // flash on every AA page.
-  const bool combinedGrayscaleBase =
-      tiledGrayscale && !pageHasImages && grayscale.base == HalDisplay::GrayscaleBase::Combined;
-  const bool overlapRefresh = tiledGrayscale && grayscale.asyncBase && !pageHasImages;
-  auto renderGrayscalePass = [&]() {
-    // A4 gray planes replace the full page, including its clipping highlights.
-    if (BoardConfig::isEegoA4()) drawClippingHighlights(*page, fontId, orientedMarginTop, orientedMarginLeft);
-    if (absoluteImageGrayscale || needsTextGrayscale) {
-      page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
-    } else {
-      page->renderImages(renderer, fontId, orientedMarginLeft, orientedMarginTop);
-    }
-    // A4 replaces the whole frame with its gray planes, including the status bar.
-    if (absoluteImageGrayscale || BoardConfig::isEegoA4()) renderStatusBar();
-  };
-
-  if (pageHasImagesNeedingDecode) {
-    page->renderWithImagePlaceholders(renderer, fontId, orientedMarginLeft, orientedMarginTop);
-    renderStatusBar();
-    renderer.displayBuffer(HalDisplay::FAST_REFRESH);
-    renderer.clearScreen();
-  }
-
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  struct StripFrame {
+  (void)orientedMarginRight;
+  struct Context {
     EpubReaderActivity& owner;
-    ReaderStripPainter painter;
-    XpPagePlan plan{};
-    XpDisplaySource source{};
-    bool active = false;
-    ~StripFrame() {
-      if (active) display.setFrameSource(nullptr);
-      owner.stripBuffers.setSourceLoanActive(false);
-      owner.renderer.usePagePlan(nullptr, nullptr, 0);
-      ImageBlock::setRenderReadWindow(nullptr, 0);
-    }
-  } stripFrame{*this,
-               {renderer, *page, fontId, orientedMarginLeft, orientedMarginTop,
-                renderer.getScreenHeight() - orientedMarginBottom - 8, display.isInverted(), this,
-                [](void* raw, const Page& page, int font, int left, int top) {
-                  static_cast<EpubReaderActivity*>(raw)->drawClippingHighlights(page, font, top, left);
-                }}};
-  const bool stripBoard = display.getController() == HalDisplay::Controller::UC8253 ||
-                          (BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4 &&
-                           display.getController() == HalDisplay::Controller::SSD1677);
-  if (stripBoard && page->elementCount() <= ReaderStripBuffers::MAX_ELEMENTS) {
-    const size_t scratchBytes = static_cast<size_t>(renderer.getDisplayWidthBytes()) * ReaderStripBuffers::ROWS;
-    if (stripBuffers.prepare(renderer.getDisplayWidthBytes(), pageHasImages)) {
-      ImageBlock::setRenderReadWindow(stripBuffers.imageWindow.get(), stripBuffers.imageWindow ? 4096 : 0);
-      stripFrame.plan = {stripBuffers.commands.get(), ReaderStripBuffers::COMMAND_BYTES, 0, 0};
-      renderer.usePagePlan(&stripFrame.plan, stripBuffers.bounds.get(), page->elementCount(), true);
-      page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
-      renderer.usePagePlan(stripFrame.plan.valid ? &stripFrame.plan : nullptr, stripBuffers.bounds.get(),
-                           page->elementCount());
-      if (stripFrame.plan.valid) {
-        stripFrame.source = {sizeof(XpDisplaySource),    &stripFrame.painter,
-                             stripBuffers.scratch.get(), static_cast<uint32_t>(scratchBytes),
-                             ReaderStripBuffers::ROWS,   renderer.getDisplayWidth(),
-                             &ReaderStripPainter::paint};
-        stripFrame.active = display.setFrameSource(&stripFrame.source);
-        stripBuffers.setSourceLoanActive(stripFrame.active);
+    Page& page;
+    int font, left, top;
+    bool images = false;
+    struct ImageGuard {
+      ~ImageGuard() { ImageBlock::releaseRenderCache(); }
+    } imageGuard;
+    std::optional<FontCacheManager::PrewarmScope> prewarm;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    struct StripFrame {
+      EpubReaderActivity& owner;
+      ReaderStripPainter painter;
+      XpPagePlan plan{};
+      XpDisplaySource source{};
+      bool active = false;
+      ~StripFrame() {
+        if (active) display.setFrameSource(nullptr);
+        owner.stripBuffers.setSourceLoanActive(false);
+        owner.renderer.usePagePlan(nullptr, nullptr, 0);
+        ImageBlock::setRenderReadWindow(nullptr, 0);
       }
-    } else {
-      LOG_ERR("ERS", "OOM: reader strips (%u bytes); using framebuffer",
+    } strips;
+#endif
+    std::unique_ptr<uint8_t[]> lsb, msb, scratch;
+    uint8_t* borrowedScratch = nullptr;
+    unsigned long times[10]{};
+    Context(EpubReaderActivity& owner, Page& page, int left, int top, int bottom)
+        : owner(owner),
+          page(page),
+          font(SETTINGS.getReaderFontId()),
+          left(left),
+          top(top)
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          ,
+          strips{owner,
+                 {owner.renderer, page, font, left, top, owner.renderer.getScreenHeight() - bottom - 8,
+                  display.isInverted(), &owner,
+                  [](void* raw, const Page& page, int font, int left, int top) {
+                    static_cast<EpubReaderActivity*>(raw)->drawClippingHighlights(page, font, top, left);
+                  }}}
+#endif
+    {
+      (void)bottom;
+    }
+    uint8_t* buffer(uint8_t id) {
+      switch (static_cast<XpUiReaderRenderBuffer>(id)) {
+        case XP_UI_READER_BUFFER_LSB:
+          return lsb.get();
+        case XP_UI_READER_BUFFER_MSB:
+          return msb.get();
+        case XP_UI_READER_BUFFER_SCRATCH:
+          return borrowedScratch ? borrowedScratch : scratch.get();
+      }
+      return nullptr;
+    }
+    uint32_t read(uint8_t query) {
+      auto& renderer = owner.renderer;
+      switch (static_cast<XpUiReaderRenderQuery>(query)) {
+        case XP_UI_READER_RENDER_NOW:
+          return millis();
+        case XP_UI_READER_RENDER_HAS_IMAGES:
+          images = page.hasImages();
+          return images;
+        case XP_UI_READER_RENDER_IMAGES_NEED_DECODE:
+          return page.hasImagesNeedingDecode();
+        case XP_UI_READER_RENDER_TAKE_FORCED: {
+          const bool forced = owner.forcedRefreshPending;
+          owner.forcedRefreshPending = false;
+          return forced;
+        }
+        case XP_UI_READER_RENDER_COUNTER:
+          return owner.pagesUntilFullRefresh;
+        case XP_UI_READER_RENDER_FREQUENCY:
+          return SETTINGS.getRefreshFrequency();
+        case XP_UI_READER_RENDER_TEXT_AA:
+          return SETTINGS.textAntiAliasing;
+        case XP_UI_READER_RENDER_IS_A4:
+          return BoardConfig::isEegoA4();
+        case XP_UI_READER_RENDER_IS_X3:
+          return gpio.deviceIsX3();
+        case XP_UI_READER_RENDER_IS_UC8279:
+          return display.getController() == HalDisplay::Controller::UC8279;
+        case XP_UI_READER_RENDER_ABSOLUTE_SUPPORTED:
+          return renderer.grayscaleCapabilities(HalDisplay::GrayscaleMode::Absolute).supported();
+        case XP_UI_READER_RENDER_OVERLAY_CAPS:
+        case XP_UI_READER_RENDER_ABSOLUTE_CAPS: {
+          const auto caps = renderer.grayscaleCapabilities(query == XP_UI_READER_RENDER_ABSOLUTE_CAPS
+                                                               ? HalDisplay::GrayscaleMode::Absolute
+                                                               : HalDisplay::GrayscaleMode::Overlay);
+          return (caps.stripUploads ? 1u : 0u) | (caps.base == HalDisplay::GrayscaleBase::Combined ? 2u : 0u) |
+                 (caps.asyncBase ? 4u : 0u);
+        }
+        case XP_UI_READER_RENDER_STRIP_BOARD:
+          return display.getController() == HalDisplay::Controller::UC8253 ||
+                 (BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4 &&
+                  display.getController() == HalDisplay::Controller::SSD1677);
+        case XP_UI_READER_RENDER_ELEMENTS:
+          return page.elementCount();
+        case XP_UI_READER_RENDER_WIDTH_BYTES:
+          return renderer.getDisplayWidthBytes();
+        case XP_UI_READER_RENDER_HEIGHT:
+          return renderer.getDisplayHeight();
+        case XP_UI_READER_RENDER_FREE_HEAP:
+          return ESP.getFreeHeap();
+        case XP_UI_READER_RENDER_MAX_BLOCK:
+          return ESP.getMaxAllocHeap();
+      }
+      return 0;
+    }
+    void log(uint32_t id) const {
+      const auto* t = times;
+      switch (static_cast<XpUiReaderRenderLog>(id)) {
+        case XP_UI_READER_RENDER_STRIP_OOM:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          LOG_ERR(
+              "ERS", "OOM: reader strips (%u bytes); using framebuffer",
               static_cast<unsigned>(ReaderStripBuffers::SCRATCH_BYTES + ReaderStripBuffers::COMMAND_BYTES +
-                                    sizeof(XpPageRowBounds) * ReaderStripBuffers::MAX_ELEMENTS +
-                                    (pageHasImages ? 4096 : 0)));
-    }
-  }
-  if (!stripFrame.active) {
-    renderer.usePagePlan(nullptr, nullptr, 0);
-    ImageBlock::setRenderReadWindow(nullptr, 0);
-    stripBuffers.releaseIdle();
-  }
+                                    sizeof(XpPageRowBounds) * ReaderStripBuffers::MAX_ELEMENTS + (images ? 4096 : 0)));
 #endif
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  if (!stripFrame.active || pageHasImages) {
-#endif
-    drawClippingHighlights(*page, fontId, orientedMarginTop, orientedMarginLeft);
-    page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  }
-#endif
-  renderStatusBar();
-  const auto tBwRender = millis();
-
-  if (absoluteImageGrayscale) {
-    const auto baseMode = cleanImageBasePending ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
-    if (!renderer.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute, baseMode)) {
-      LOG_ERR("ERS", "Could not start absolute image page; displaying B/W");
-      ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
-      return;
-    }
-    LOG_DBG("ERS", "UC8279 image page: absolute quality waveform");
-    pagesUntilFullRefresh = 1;
-  } else if (pageHasImages) {
-    // Image pages use one base refresh before the grayscale pass. FAST leaves
-    // the panel receptive to the gray waveform; pending cleanup still honors
-    // the scheduled/manual HALF refresh.
-    renderer.displayBuffer(cleanImageBasePending ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH);
-    pagesUntilFullRefresh = 1;
-  } else if (combinedGrayscaleBase) {
-    // Stash the base without activating; displayGrayBuffer() below commits
-    // base + grays as one waveform.
-    ReaderUtils::displayBaseWithRefreshCycle(renderer, pagesUntilFullRefresh);
-  } else if (needsAnyGrayscale) {
-    if (pagesUntilFullRefresh <= 1) {
-      // A cleanup refresh settles X3 correctly only when its grayscale
-      // preconditioning waveform runs before the gray planes are written.
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
-      renderer.preconditionGrayscale();
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
-    } else if (overlapRefresh) {
-      ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh, /*async=*/true);
-    } else {
-      renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
-      pagesUntilFullRefresh--;
-    }
-  } else {
-    ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
-  }
-  const auto tDisplay = millis();
-
-  if (tiledGrayscale) {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-    const int STRIP_ROWS = stripFrame.active ? ReaderStripBuffers::ROWS : 80;
-#else
-    constexpr int STRIP_ROWS = 80;
-#endif
-    const int gh = renderer.getDisplayHeight();
-    const int gwBytes = renderer.getDisplayWidthBytes();
-    const size_t planeBytes = static_cast<size_t>(gwBytes) * gh;
-
-    auto renderPlaneToBuffer = [&](const bool lsbPlane, uint8_t* buf) {
-      renderer.setRenderMode(lsbPlane ? GfxRenderer::GRAYSCALE_LSB : GfxRenderer::GRAYSCALE_MSB);
-      for (int y = 0; y < gh; y += STRIP_ROWS) {
-        const int rows = (gh - y < STRIP_ROWS) ? (gh - y) : STRIP_ROWS;
-        renderer.beginStripTarget(buf + static_cast<size_t>(y) * gwBytes, y, rows);
-        renderer.clearScreen(0x00);
-        renderGrayscalePass();
-        renderer.endStripTarget();
+          break;
+        case XP_UI_READER_RENDER_ABSOLUTE_FAILED:
+          LOG_ERR("ERS", "Could not start absolute image page; displaying B/W");
+          break;
+        case XP_UI_READER_RENDER_ABSOLUTE_QUALITY:
+          LOG_DBG("ERS", "UC8279 image page: absolute quality waveform");
+          break;
+        case XP_UI_READER_RENDER_SCRATCH_OOM:
+          LOG_ERR("ERS", "OOM: grayscale strip scratch (%d bytes); skipping AA this page",
+                  owner.renderer.getDisplayWidthBytes() * 80);
+          break;
+        case XP_UI_READER_RENDER_STORE_FAILED:
+          LOG_ERR("ERS", "Failed to store BW buffer for grayscale render; skipping grayscale this page");
+          break;
+        case XP_UI_READER_RENDER_TIMING_ASYNC:
+          LOG_DBG("ERS",
+                  "Page render (tiled async): prewarm=%lums bw_render=%lums display=%lums gray_render=%lums "
+                  "wait=%lums gray_write=%lums gray_display=%lums cleanup=%lums total=%lums (planes buffered: %d)",
+                  t[1] - t[0], t[2] - t[1], t[3] - t[2], t[4] - t[3], t[5] - t[4], t[6] - t[5], t[7] - t[6],
+                  t[8] - t[7], t[8] - t[0], msb ? 2 : 1);
+          break;
+        case XP_UI_READER_RENDER_TIMING_TILED:
+          LOG_DBG("ERS",
+                  "Page render (tiled): prewarm=%lums bw_render=%lums display=%lums gray_lsb=%lums "
+                  "gray_msb=%lums gray_display=%lums cleanup=%lums total=%lums",
+                  t[1] - t[0], t[2] - t[1], t[3] - t[2], t[4] - t[3], t[5] - t[4], t[6] - t[5], t[7] - t[6],
+                  t[8] - t[0]);
+          break;
+        case XP_UI_READER_RENDER_TIMING_GRAY:
+          LOG_DBG("ERS",
+                  "Page render: prewarm=%lums bw_render=%lums display=%lums bw_store=%lums "
+                  "gray_lsb=%lums gray_msb=%lums gray_display=%lums bw_restore=%lums total=%lums",
+                  t[1] - t[0], t[2] - t[1], t[3] - t[2], t[4] - t[3], t[5] - t[4], t[6] - t[5], t[7] - t[6],
+                  t[8] - t[7], t[9] - t[0]);
+          break;
+        case XP_UI_READER_RENDER_TIMING_BW:
+          LOG_DBG("ERS", "Page render: prewarm=%lums bw_render=%lums display=%lums total=%lums", t[1] - t[0],
+                  t[2] - t[1], t[3] - t[2], t[4] - t[0]);
+          break;
       }
-    };
-
-    constexpr size_t PLANE_BUF_HEADROOM = 60000;
-    constexpr size_t PLANE_BUF_MAX_ALLOC_RESERVE = 16 * 1024;
-    const auto planeBufFits = [planeBytes] {
-      return ESP.getFreeHeap() >= planeBytes + PLANE_BUF_HEADROOM &&
-             ESP.getMaxAllocHeap() >= planeBytes + PLANE_BUF_MAX_ALLOC_RESERVE;
-    };
+    }
+    uint32_t execute(const XpUiReaderRenderOp& op) {
+      auto& renderer = owner.renderer;
+      const auto refresh = op.mode == XP_UI_HALF ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
+      switch (static_cast<XpUiReaderRenderOperation>(op.kind)) {
+        case XP_UI_READER_RENDER_IMAGE_RESET:
+          ImageBlock::clearRenderFailures();
+          break;
+        case XP_UI_READER_RENDER_PREWARM_BEGIN:
+          prewarm.emplace(*renderer.getFontCacheManager());
+          break;
+        case XP_UI_READER_RENDER_PAGE:
+          page.render(renderer, font, left, top);
+          break;
+        case XP_UI_READER_RENDER_STATUS:
+          owner.renderStatusBar();
+          break;
+        case XP_UI_READER_RENDER_PREWARM_END:
+          prewarm->endScanAndPrewarm();
+          break;
+        case XP_UI_READER_RENDER_HIGHLIGHTS:
+          owner.drawClippingHighlights(page, font, top, left);
+          break;
+        case XP_UI_READER_RENDER_IMAGES:
+          page.renderImages(renderer, font, left, top);
+          break;
+        case XP_UI_READER_RENDER_PLACEHOLDERS:
+          page.renderWithImagePlaceholders(renderer, font, left, top);
+          break;
+        case XP_UI_READER_RENDER_CLEAR:
+          renderer.clearScreen(op.value);
+          break;
+        case XP_UI_READER_RENDER_DISPLAY:
+          renderer.displayBuffer(refresh);
+          break;
+        case XP_UI_READER_RENDER_DISPLAY_ASYNC:
+          renderer.displayBufferAsync(refresh);
+          break;
+        case XP_UI_READER_RENDER_GRAY_BASE:
+          renderer.displayGrayscaleBase(refresh);
+          break;
+        case XP_UI_READER_RENDER_ABSOLUTE_BASE:
+          return renderer.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute, refresh);
+        case XP_UI_READER_RENDER_PRECONDITION:
+          renderer.preconditionGrayscale();
+          break;
+        case XP_UI_READER_RENDER_SET_COUNTER:
+          owner.pagesUntilFullRefresh = static_cast<int32_t>(op.value);
+          break;
+        case XP_UI_READER_RENDER_PREPARE_STRIPS:
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-    auto lsbPlaneBuf =
-        (!stripFrame.active && overlapRefresh && planeBufFits()) ? makeUniqueNoThrow<uint8_t[]>(planeBytes) : nullptr;
+          return owner.stripBuffers.prepare(renderer.getDisplayWidthBytes(), op.value != 0);
 #else
-    auto lsbPlaneBuf = (overlapRefresh && planeBufFits()) ? makeUniqueNoThrow<uint8_t[]>(planeBytes) : nullptr;
+          return false;
 #endif
-    auto msbPlaneBuf = (lsbPlaneBuf && planeBufFits()) ? makeUniqueNoThrow<uint8_t[]>(planeBytes) : nullptr;
-
-    if (lsbPlaneBuf) {
-      renderPlaneToBuffer(true, lsbPlaneBuf.get());
-      if (msbPlaneBuf) renderPlaneToBuffer(false, msbPlaneBuf.get());
-      const auto tGrayRender = millis();
-
-      renderer.waitRefreshComplete();
-      const auto tWait = millis();
-
-      renderer.writeGrayscalePlaneStrip(true, lsbPlaneBuf.get(), 0, gh);
-      if (msbPlaneBuf) {
-        renderer.writeGrayscalePlaneStrip(false, msbPlaneBuf.get(), 0, gh);
-      } else {
-        renderPlaneToBuffer(false, lsbPlaneBuf.get());
-        renderer.writeGrayscalePlaneStrip(false, lsbPlaneBuf.get(), 0, gh);
-      }
-      const auto tGrayWrite = millis();
-
-      renderer.setRenderMode(GfxRenderer::BW);
-      renderer.displayGrayBuffer();
-      const auto tGrayDisplay = millis();
-
-      renderer.cleanupGrayscaleWithFrameBuffer();
-      const auto tEnd = millis();
-
-      LOG_DBG("ERS",
-              "Page render (tiled async): prewarm=%lums bw_render=%lums display=%lums gray_render=%lums "
-              "wait=%lums gray_write=%lums gray_display=%lums cleanup=%lums total=%lums (planes buffered: %d)",
-              tPrewarm - t0, tBwRender - tPrewarm, tDisplay - tBwRender, tGrayRender - tDisplay, tWait - tGrayRender,
-              tGrayWrite - tWait, tGrayDisplay - tGrayWrite, tEnd - tGrayDisplay, tEnd - t0, msbPlaneBuf ? 2 : 1);
-    } else {
+        case XP_UI_READER_RENDER_IMAGE_WINDOW:
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-      struct Scratch {
-        std::unique_ptr<uint8_t[]> owned;
-        uint8_t* borrowed;
-        uint8_t* get() const { return borrowed ? borrowed : owned.get(); }
-        explicit operator bool() const { return get() != nullptr; }
-      } scratch{stripFrame.active ? nullptr : makeUniqueNoThrow<uint8_t[]>(static_cast<size_t>(gwBytes) * STRIP_ROWS),
-                stripFrame.active ? stripBuffers.scratch.get() : nullptr};
-#else
-      auto scratch = makeUniqueNoThrow<uint8_t[]>(static_cast<size_t>(gwBytes) * STRIP_ROWS);
+          ImageBlock::setRenderReadWindow(owner.stripBuffers.imageWindow.get(),
+                                          owner.stripBuffers.imageWindow ? 4096 : 0);
 #endif
-      renderer.waitRefreshComplete();
-      if (!scratch) {
-        LOG_ERR("ERS", "OOM: grayscale strip scratch (%d bytes); skipping AA this page", gwBytes * STRIP_ROWS);
-        if (overlapRefresh || combinedGrayscaleBase) {
-          // The BW refresh ran the shadow-free async path, so controller RAM's
-          // differential baseline was never rebuilt. Even with AA skipped it must
-          // be re-synced from the intact BW framebuffer, or the next differential
-          // update diffs against stale contents. On the combined-base path the
-          // base activation is still deferred; this cleanup commits it so the
-          // page reaches the panel even without its grays.
+          break;
+        case XP_UI_READER_RENDER_RECORD_BEGIN:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          strips.plan = {owner.stripBuffers.commands.get(), ReaderStripBuffers::COMMAND_BYTES, 0, 0};
+          renderer.usePagePlan(&strips.plan, owner.stripBuffers.bounds.get(), page.elementCount(), true);
+#endif
+          break;
+        case XP_UI_READER_RENDER_RECORD_END:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          renderer.usePagePlan(strips.plan.valid ? &strips.plan : nullptr, owner.stripBuffers.bounds.get(),
+                               page.elementCount());
+          return strips.plan.valid;
+#else
+          return false;
+#endif
+        case XP_UI_READER_RENDER_SET_SOURCE:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          strips.source = {sizeof(XpDisplaySource),          &strips.painter,
+                           owner.stripBuffers.scratch.get(), op.value,
+                           ReaderStripBuffers::ROWS,         renderer.getDisplayWidth(),
+                           &ReaderStripPainter::paint};
+          strips.active = display.setFrameSource(&strips.source);
+          owner.stripBuffers.setSourceLoanActive(strips.active);
+          return strips.active;
+#else
+          return false;
+#endif
+        case XP_UI_READER_RENDER_CLEAR_PLAN:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          renderer.usePagePlan(nullptr, nullptr, 0);
+#endif
+          break;
+        case XP_UI_READER_RENDER_CLEAR_WINDOW:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          ImageBlock::setRenderReadWindow(nullptr, 0);
+#endif
+          break;
+        case XP_UI_READER_RENDER_RELEASE_STRIPS:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          owner.stripBuffers.releaseIdle();
+#endif
+          break;
+        case XP_UI_READER_RENDER_ALLOCATE:
+          switch (static_cast<XpUiReaderRenderBuffer>(op.buffer)) {
+            case XP_UI_READER_BUFFER_LSB:
+              lsb = makeUniqueNoThrow<uint8_t[]>(op.value);
+              return lsb != nullptr;
+            case XP_UI_READER_BUFFER_MSB:
+              msb = makeUniqueNoThrow<uint8_t[]>(op.value);
+              return msb != nullptr;
+            case XP_UI_READER_BUFFER_SCRATCH:
+              scratch = makeUniqueNoThrow<uint8_t[]>(op.value);
+              return scratch != nullptr;
+          }
+          return false;
+        case XP_UI_READER_RENDER_BORROW_SCRATCH:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          borrowedScratch = owner.stripBuffers.scratch.get();
+          return borrowedScratch != nullptr;
+#else
+          return false;
+#endif
+        case XP_UI_READER_RENDER_MODE:
+          switch (op.mode) {
+            case 0:
+              renderer.setRenderMode(GfxRenderer::BW);
+              break;
+            case 1:
+              renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
+              break;
+            case 2:
+              renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
+              break;
+          }
+          break;
+        case XP_UI_READER_RENDER_STRIP_BEGIN:
+          renderer.beginStripTarget(buffer(op.buffer) + op.offset, op.y, op.rows);
+          break;
+        case XP_UI_READER_RENDER_STRIP_END:
+          renderer.endStripTarget();
+          break;
+        case XP_UI_READER_RENDER_WAIT:
+          renderer.waitRefreshComplete();
+          break;
+        case XP_UI_READER_RENDER_WRITE_PLANE:
+          renderer.writeGrayscalePlaneStrip(op.mode == 1, buffer(op.buffer), op.y, op.rows);
+          break;
+        case XP_UI_READER_RENDER_GRAY_DISPLAY:
+          renderer.displayGrayBuffer();
+          break;
+        case XP_UI_READER_RENDER_CLEANUP:
           renderer.cleanupGrayscaleWithFrameBuffer();
-        }
-      } else {
-        renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-        for (int y = 0; y < gh; y += STRIP_ROWS) {
-          const int rows = (gh - y < STRIP_ROWS) ? (gh - y) : STRIP_ROWS;
-          renderer.beginStripTarget(scratch.get(), y, rows);
-          renderer.clearScreen(0x00);
-          renderGrayscalePass();
-          renderer.endStripTarget();
-          renderer.writeGrayscalePlaneStrip(true, scratch.get(), y, rows);
-        }
-        const auto tGrayLsb = millis();
-
-        renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-        for (int y = 0; y < gh; y += STRIP_ROWS) {
-          const int rows = (gh - y < STRIP_ROWS) ? (gh - y) : STRIP_ROWS;
-          renderer.beginStripTarget(scratch.get(), y, rows);
-          renderer.clearScreen(0x00);
-          renderGrayscalePass();
-          renderer.endStripTarget();
-          renderer.writeGrayscalePlaneStrip(false, scratch.get(), y, rows);
-        }
-        const auto tGrayMsb = millis();
-
-        renderer.setRenderMode(GfxRenderer::BW);
-        renderer.displayGrayBuffer();
-        const auto tGrayDisplay = millis();
-
-        renderer.cleanupGrayscaleWithFrameBuffer();
-        const auto tCleanup = millis();
-
-        const auto tEnd = millis();
-        LOG_DBG("ERS",
-                "Page render (tiled): prewarm=%lums bw_render=%lums display=%lums gray_lsb=%lums "
-                "gray_msb=%lums gray_display=%lums cleanup=%lums total=%lums",
-                tPrewarm - t0, tBwRender - tPrewarm, tDisplay - tBwRender, tGrayLsb - tDisplay, tGrayMsb - tGrayLsb,
-                tGrayDisplay - tGrayMsb, tCleanup - tGrayDisplay, tEnd - t0);
+          break;
+        case XP_UI_READER_RENDER_STORE_BW:
+          return renderer.storeBwBuffer();
+        case XP_UI_READER_RENDER_RESTORE_BW:
+          renderer.restoreBwBuffer();
+          break;
+        case XP_UI_READER_RENDER_COPY_LSB:
+          renderer.copyGrayscaleLsbBuffers();
+          break;
+        case XP_UI_READER_RENDER_COPY_MSB:
+          renderer.copyGrayscaleMsbBuffers();
+          break;
+        case XP_UI_READER_RENDER_LOG:
+          log(op.value);
+          break;
+        case XP_UI_READER_RENDER_MARK:
+          times[op.value] = millis();
+          break;
       }
+      return 0;
     }
-  } else {
-    if (needsAnyGrayscale) {
-      if (!renderer.storeBwBuffer()) {
-        LOG_ERR("ERS", "Failed to store BW buffer for grayscale render; skipping grayscale this page");
-        if (absoluteImageGrayscale) renderer.setRenderMode(GfxRenderer::BW);
-        return;
-      }
-      const auto tBwStore = millis();
-
-      renderer.clearScreen(absoluteImageGrayscale ? 0xFF : 0x00);
-      renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-      renderGrayscalePass();
-      renderer.copyGrayscaleLsbBuffers();
-      const auto tGrayLsb = millis();
-
-      renderer.clearScreen(absoluteImageGrayscale ? 0xFF : 0x00);
-      renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-      renderGrayscalePass();
-      renderer.copyGrayscaleMsbBuffers();
-      const auto tGrayMsb = millis();
-
-      renderer.displayGrayBuffer();
-      const auto tGrayDisplay = millis();
-      renderer.setRenderMode(GfxRenderer::BW);
-      renderer.restoreBwBuffer();
-      const auto tBwRestore = millis();
-
-      const auto tEnd = millis();
-      LOG_DBG("ERS",
-              "Page render: prewarm=%lums bw_render=%lums display=%lums bw_store=%lums "
-              "gray_lsb=%lums gray_msb=%lums gray_display=%lums bw_restore=%lums total=%lums",
-              tPrewarm - t0, tBwRender - tPrewarm, tDisplay - tBwRender, tBwStore - tDisplay, tGrayLsb - tBwStore,
-              tGrayMsb - tGrayLsb, tGrayDisplay - tGrayMsb, tBwRestore - tGrayDisplay, tEnd - t0);
-    } else {
-      const auto tEnd = millis();
-      LOG_DBG("ERS", "Page render: prewarm=%lums bw_render=%lums display=%lums total=%lums", tPrewarm - t0,
-              tBwRender - tPrewarm, tDisplay - tBwRender, tEnd - t0);
-    }
-  }
+  } context{*this, *page, orientedMarginLeft, orientedMarginTop, orientedMarginBottom};
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  static_assert(ReaderStripBuffers::ROWS == 80 && ReaderStripBuffers::MAX_ELEMENTS == 512);
+  constexpr uint8_t stripEnabled = true;
+#else
+  constexpr uint8_t stripEnabled = false;
+#endif
+  const XpUiReaderRenderServices services{
+      &context, [](void* raw, uint8_t query) -> uint32_t { return static_cast<Context*>(raw)->read(query); },
+      [](void* raw, const XpUiReaderRenderOp* op) -> uint32_t { return static_cast<Context*>(raw)->execute(*op); }};
+  xp_ui_reader_render_page(&services, stripEnabled);
 }
 
 int EpubReaderActivity::clippingAtPoint(const Page& page, const int x, const int y) const {

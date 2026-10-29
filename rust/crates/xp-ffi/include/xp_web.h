@@ -56,7 +56,9 @@ typedef enum {
   XP_WEB_RENAME_FAILED,
   XP_WEB_MOVE_DONE,
   XP_WEB_MOVE_FAILED,
-  XP_WEB_OOM
+  XP_WEB_OOM,
+  XP_WEB_ROOT_PAGE,
+  XP_WEB_JSZIP_PAGE
 } XpWebDiagnostic;
 // argument and path borrow the same scratch String; either call invalidates the
 // previous span. A null argument key releases scratch; an empty key requests the
@@ -230,9 +232,19 @@ typedef enum {
 } XpWebConfigDiagnostic;
 typedef struct {
   XpWebText (*request_header)(void*, const char*);
-  void (*send_asset)(void*, XpWebText);
+  void (*send_asset)(void*, XpWebText, const char*);
   XpWebText asset, etag;
+  const char* content_type;
 } XpWebAsset;
+typedef enum {
+  XP_WEB_PAGE_HOME,
+  XP_WEB_PAGE_FILES,
+  XP_WEB_PAGE_JSZIP,
+  XP_WEB_PAGE_CSS,
+  XP_WEB_PAGE_ICONS,
+  XP_WEB_PAGE_ICON
+} XpWebPage;
+void xp_web_page(void*, const XpWebServices*, const XpWebAsset*, size_t, XpWebPage);
 typedef struct {
   const XpWebServices* files;
   XpWebText (*parse)(void*, XpWebText);
@@ -490,6 +502,112 @@ typedef struct {
   void (*diagnostic)(void*, uint32_t, size_t, uint32_t, const char*, bool);
 } XpWebFetch;
 void xp_web_fetch(void*, const XpWebFetch*);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Backing storage only; Rust owns lifecycle decisions. Transport callbacks may
+// dispatch routes, so the lifecycle entry never holds an exclusive state loan.
+typedef struct {
+  bool running, apMode, udpActive;
+} XpWebLifecycle;
+typedef enum {
+  XP_WEB_LIFE_NETWORK_MODE,
+  XP_WEB_LIFE_STA_CONNECTED,
+  XP_WEB_LIFE_AP_STATIONS,
+  XP_WEB_LIFE_HTTP_PRESENT,
+  XP_WEB_LIFE_WS_PRESENT,
+  XP_WEB_LIFE_WS_ACTIVE,
+  XP_WEB_LIFE_WS_FILE,
+  XP_WEB_LIFE_ALLOCATE_HTTP,
+  XP_WEB_LIFE_WIFI_AWAKE,
+  XP_WEB_LIFE_REGISTER,
+  XP_WEB_LIFE_HTTP_BEGIN,
+  XP_WEB_LIFE_ALLOCATE_WS,
+  XP_WEB_LIFE_RESTART_WS,
+  XP_WEB_LIFE_WS_BEGIN,
+  XP_WEB_LIFE_UDP_BEGIN,
+  XP_WEB_LIFE_UDP_STOP,
+  XP_WEB_LIFE_WS_CLOSE,
+  XP_WEB_LIFE_WS_DETACH,
+  XP_WEB_LIFE_ABORT_WS,
+  XP_WEB_LIFE_DELAY20,
+  XP_WEB_LIFE_DELAY10,
+  XP_WEB_LIFE_HTTP_STOP,
+  XP_WEB_LIFE_HTTP_DELETE,
+  XP_WEB_LIFE_HTTP_PUMP,
+  XP_WEB_LIFE_WS_PUMP,
+  XP_WEB_LIFE_CLOCK,
+  XP_WEB_LIFE_UDP_SIZE
+} XpWebLifeOp;
+typedef enum {
+  XP_WEB_LIFE_LOG_ALREADY_RUNNING,
+  XP_WEB_LIFE_LOG_NO_NETWORK,
+  XP_WEB_LIFE_LOG_BEFORE_BEGIN,
+  XP_WEB_LIFE_LOG_NETWORK,
+  XP_WEB_LIFE_LOG_CREATE_HTTP,
+  XP_WEB_LIFE_LOG_AFTER_ALLOCATE,
+  XP_WEB_LIFE_LOG_HTTP_OOM,
+  XP_WEB_LIFE_LOG_START_WS,
+  XP_WEB_LIFE_LOG_WS_STARTED,
+  XP_WEB_LIFE_LOG_DISCOVERY,
+  XP_WEB_LIFE_LOG_STARTED,
+  XP_WEB_LIFE_LOG_ADDRESSES,
+  XP_WEB_LIFE_LOG_AFTER_BEGIN,
+  XP_WEB_LIFE_LOG_SUSPENDED,
+  XP_WEB_LIFE_LOG_RESTART_OOM,
+  XP_WEB_LIFE_LOG_RESUMED,
+  XP_WEB_LIFE_LOG_ALREADY_STOPPED,
+  XP_WEB_LIFE_LOG_STOPPING,
+  XP_WEB_LIFE_LOG_BEFORE_STOP,
+  XP_WEB_LIFE_LOG_WS_STOPPING,
+  XP_WEB_LIFE_LOG_WS_STOPPED,
+  XP_WEB_LIFE_LOG_AFTER_STOP,
+  XP_WEB_LIFE_LOG_DELETED,
+  XP_WEB_LIFE_LOG_AFTER_DELETE,
+  XP_WEB_LIFE_LOG_FINAL,
+  XP_WEB_LIFE_LOG_NULL_HTTP,
+  XP_WEB_LIFE_LOG_ACTIVE
+} XpWebLifeLog;
+
+typedef enum { XP_WEB_BEGIN, XP_WEB_STOP, XP_WEB_PUMP, XP_WEB_SUSPEND, XP_WEB_RESUME } XpWebLifeAction;
+typedef struct {
+  uintptr_t (*operation)(void*, XpWebLifeOp);
+  void (*diagnostic)(void*, XpWebLifeLog, uint32_t);
+  int32_t (*read_packet)(void*, uint8_t*, size_t);
+  XpWebText (*hostname)(void*);
+  void (*reply)(void*, XpWebText, XpWebText, XpWebText);
+} XpWebLifeServices;
+void xp_web_lifecycle(void*, const XpWebLifeServices*, XpWebLifecycle*, XpWebLifeAction, uint16_t);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef enum {
+  XP_WEB_STATUS_VERSION,
+  XP_WEB_STATUS_FAMILY,
+  XP_WEB_STATUS_CAPABILITIES,
+  XP_WEB_STATUS_PLUGIN,
+  XP_WEB_STATUS_IP,
+  XP_WEB_STATUS_DEVICE
+} XpWebStatusText;
+typedef enum { XP_WEB_STATUS_API, XP_WEB_STATUS_RSSI, XP_WEB_STATUS_HEAP, XP_WEB_STATUS_TIME } XpWebStatusNumber;
+typedef struct {
+  XpWebText (*read)(void*, XpWebStatusText, bool);
+  int32_t (*number)(void*, XpWebStatusNumber);
+  void (*put_text)(void*, const char*, XpWebText, bool);
+  void (*put_number)(void*, const char*, int64_t);
+  bool (*hash)(void*, XpWebText, uint8_t*);
+  bool (*serial)(void*, uint8_t*);
+  void (*send)(void*);
+} XpWebStatusServices;
+void xp_web_status(void*, const XpWebStatusServices*, bool);
 #ifdef __cplusplus
 }
 #endif

@@ -112,11 +112,12 @@ pub struct Config {
     diagnostic: unsafe extern "C" fn(*mut c_void, u32, usize, Span),
 }
 #[repr(C)]
-pub(super) struct Asset {
+pub struct Asset {
     request_header: unsafe extern "C" fn(*mut c_void, *const c_char) -> Span,
-    send_asset: unsafe extern "C" fn(*mut c_void, Span),
+    send_asset: unsafe extern "C" fn(*mut c_void, Span, *const c_char),
     asset: Span,
     etag: Span,
+    content_type: *const c_char,
 }
 impl Request<'_> {
     pub(super) fn page(&self, page: &Asset) {
@@ -131,7 +132,7 @@ impl Request<'_> {
             if cached {
                 (self.services.send)(self.ctx, 304, c"text/html".as_ptr(), EMPTY);
             } else {
-                (page.send_asset)(self.ctx, page.asset);
+                (page.send_asset)(self.ctx, page.asset, page.content_type);
             }
         }
     }

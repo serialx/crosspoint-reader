@@ -2,8 +2,10 @@ mod config;
 mod fetch;
 mod fonts;
 mod jobs;
+mod lifecycle;
 mod plugins;
 mod rpc;
+mod status;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.
 use crate::system_items::hidden_name as hidden;
@@ -192,6 +194,8 @@ enum Event {
     MoveDone,
     MoveFailed,
     Oom,
+    RootPage,
+    JszipPage,
 }
 struct Request<'a> {
     ctx: *mut c_void,
@@ -1453,4 +1457,29 @@ pub unsafe extern "C" fn xp_web_component(data: *const u8, len: usize) -> bool {
         return false;
     }
     component(unsafe { Span { data, len }.bytes() })
+}
+
+/// # Safety
+/// The selected immutable asset and transport descriptor are valid for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn xp_web_page(
+    ctx: *mut c_void,
+    services: *const Services,
+    assets: *const config::Asset,
+    count: usize,
+    page: u32,
+) {
+    let Some(services) = (unsafe { services.as_ref() }) else {
+        return;
+    };
+    if assets.is_null() || page as usize >= count {
+        return;
+    }
+    let request = Request { ctx, services };
+    request.page(unsafe { &*assets.add(page as usize) });
+    match page {
+        0 => request.event(Event::RootPage, b"", b""),
+        2 => request.event(Event::JszipPage, b"", b""),
+        _ => {}
+    }
 }

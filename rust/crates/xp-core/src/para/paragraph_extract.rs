@@ -169,7 +169,7 @@ unsafe fn extract(
     let offsets_offset = ruby_offset + count * core::mem::size_of::<Span>();
     let order_offset = offsets_offset + count * 2;
     let text_offset = order_offset + count * 2;
-    let allocation = ((*(*p).allocator).allocate)(text_offset + bytes, 0);
+    let allocation = (*(*p).allocator).allocate_bytes(text_offset + bytes, 0);
     if allocation.is_null() {
         (*(*p).allocator).diagnose(super::Diagnostic::LineArena, 0);
         return None;

@@ -24,10 +24,27 @@ void* operator new[](size_t size, const std::nothrow_t&) noexcept { return bookN
 
 int main(int argc, char** argv) {
   if (argc != 3) return 2;
+  if (const char* heap = std::getenv("BOOK_FREE_HEAP")) ESP.freeHeap = std::strtoul(heap, nullptr, 10);
   BookFault::failAt = std::strtoull(argv[2], nullptr, 10);
   std::filesystem::create_directories("cache");
   Epub epub(argv[1], "cache");
+  const auto getters = [&] {
+    if (!std::getenv("BOOK_RESIDUAL_GETTERS")) return;
+    printf("getters metadata %s|%s|%s\n", epub.getTitle().c_str(), epub.getAuthor().c_str(),
+           epub.getLanguage().c_str());
+    for (int index : {-2, -1, 0, 1, 2, 3})
+      printf("getters index %d %zu %d %d\n", index, epub.getCumulativeSpineItemSize(index),
+             epub.getSpineIndexForTocIndex(index), epub.getTocIndexForSpineIndex(index));
+    for (size_t size : {size_t(0), size_t(1), epub.getBookSize(), SIZE_MAX})
+      printf("getters size %zu %d\n", size, epub.getSpineIndexForSize(size));
+    for (const char* path :
+         {"", "#anchor", "a.xhtml", "OPS/a.xhtml#one", "different/a.xhtml", "OPS/a%2Exhtml", "absent.xhtml"})
+      printf("getters href %s %d\n", path, epub.resolveHrefToSpineIndex(path));
+    printf("getters text %d\n", epub.getSpineIndexForTextReference());
+  };
+  getters();
   const bool loaded = epub.load();
+  getters();
   printf("result %u %d %d %zu\n", loaded, epub.getSpineItemsCount(), epub.getTocItemsCount(), epub.getBookSize());
   if (loaded) {
     printf("metadata %s|%s|%s\n", epub.getTitle().c_str(), epub.getAuthor().c_str(), epub.getLanguage().c_str());

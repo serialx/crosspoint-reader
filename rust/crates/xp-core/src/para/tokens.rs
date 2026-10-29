@@ -22,7 +22,7 @@ impl<T: Copy> Buffer<T> {
         else {
             return false;
         };
-        let data = (allocator.allocate)(bytes, 0).cast::<T>();
+        let data = allocator.allocate_bytes(bytes, 0).cast::<T>();
         if data.is_null() {
             allocator.diagnose(super::Diagnostic::Storage, bytes as u32);
             return false;
@@ -249,7 +249,9 @@ impl Tokens {
                         return false;
                     }
                 }
-                let chunk = (a.allocate)(64 * mem::size_of::<Word>(), 0).cast::<Word>();
+                let chunk = a
+                    .allocate_bytes(64 * mem::size_of::<Word>(), 0)
+                    .cast::<Word>();
                 if chunk.is_null() {
                     (*self.allocator).diagnose(
                         super::Diagnostic::Storage,
@@ -369,8 +371,9 @@ impl Tokens {
                 || offset < (*self.absorbed_tail).base
                 || offset - (*self.absorbed_tail).base > u16::MAX as u32
             {
-                let chunk =
-                    ((*self.allocator).allocate)(mem::size_of::<Absorbed>(), 0).cast::<Absorbed>();
+                let chunk = (*self.allocator)
+                    .allocate_bytes(mem::size_of::<Absorbed>(), 0)
+                    .cast::<Absorbed>();
                 if chunk.is_null() {
                     (*self.allocator).diagnose(
                         super::Diagnostic::NfcOffsets,

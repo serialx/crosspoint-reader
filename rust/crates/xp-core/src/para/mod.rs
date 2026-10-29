@@ -23,6 +23,7 @@ pub struct Allocator {
     pub allocate: unsafe extern "C" fn(usize, u8) -> *mut u8,
     pub release: unsafe extern "C" fn(*mut u8),
     pub diagnostic: Option<unsafe extern "C" fn(*mut core::ffi::c_void, u32, u32, u32, u32, u32)>,
+    pub reclaim: Option<unsafe extern "C" fn(usize)>,
 }
 
 #[derive(Clone, Copy)]
@@ -32,9 +33,27 @@ pub enum Diagnostic {
     WordArena = 2,
     LineArena = 3,
     Storage = 4,
+    Rescued = 5,
 }
 
 impl Allocator {
+    /// # Safety
+    /// Callbacks return writable, zeroed storage or null and preserve their release pairing.
+    #[inline(never)]
+    pub unsafe fn allocate_bytes(&self, bytes: usize, word: u8) -> *mut u8 {
+        let mut data = (self.allocate)(bytes, word);
+        if data.is_null() {
+            if let Some(reclaim) = self.reclaim {
+                reclaim(bytes.wrapping_add(8 * 1024));
+                data = (self.allocate)(bytes, word);
+                if !data.is_null() && word != 0 {
+                    self.diagnose(Diagnostic::Rescued, bytes as u32);
+                }
+            }
+        }
+        data
+    }
+
     pub fn diagnose(&self, event: Diagnostic, bytes: u32) {
         if let Some(callback) = self.diagnostic {
             unsafe { callback(core::ptr::null_mut(), event as u32, bytes, 0, 0, 0) };
@@ -97,7 +116,7 @@ impl WordStore {
             return false;
         };
         unsafe {
-            let grown = ((*self.allocator).allocate)(bytes, 0).cast::<Chunk>();
+            let grown = (*self.allocator).allocate_bytes(bytes, 0).cast::<Chunk>();
             if grown.is_null() {
                 return false;
             }
@@ -126,7 +145,7 @@ impl WordStore {
                     return None;
                 }
                 let capacity = need.max(2048);
-                let data = ((*self.allocator).allocate)(capacity, 1);
+                let data = (*self.allocator).allocate_bytes(capacity, 1);
                 if data.is_null() {
                     return None;
                 }
@@ -259,6 +278,7 @@ mod tests {
         allocate,
         release,
         diagnostic: None,
+        reclaim: None,
     };
     fn reset(fail_at: Option<usize>) {
         HEAP.with(|heap| {

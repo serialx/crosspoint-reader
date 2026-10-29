@@ -611,3 +611,14 @@ pub unsafe extern "C" fn xp_para_bind_chapter(
 ) {
     (*state).set_paragraph(paragraph);
 }
+
+/// # Safety
+/// Allocator callbacks obey the paragraph allocation/release contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_para_allocate(
+    allocator: *const Allocator,
+    bytes: usize,
+    word: u8,
+) -> *mut u8 {
+    (*allocator).allocate_bytes(bytes, word)
+}

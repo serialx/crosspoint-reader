@@ -14,6 +14,7 @@
 
 class ZipFile;
 struct XpBookIoServices;
+struct XpBookDocumentServices;
 struct XpBookMetadataServices;
 
 class Epub {
@@ -50,6 +51,8 @@ class Epub {
 
   bool loadMetadataFromSource(std::string& title, std::string& author);
   XpBookMetadataServices cacheServices() const;
+  struct DocumentContext;
+  static XpBookDocumentServices documentServices(DocumentContext&);
   struct ItemContext;
   static XpBookIoServices itemServices(ItemContext& context);
   struct CoverContext;
@@ -59,6 +62,7 @@ class Epub {
   bool parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, bool writeSpineEntries = true,
                        bool metadataOnly = false, ZipFile* sharedZip = nullptr);
   bool openProtection();
+  int findSpine(const std::string&, bool) const;
   bool parseTocNcxFile() const;
   bool parseTocNavFile() const;
   void discoverCssFilesFromZip();

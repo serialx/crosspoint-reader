@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <BoardConfig.h>
 #include <EInkDisplay.h>
+#include <xp_hal.h>
 
 class HalDisplay {
  public:
@@ -131,6 +132,7 @@ class HalDisplay {
 
  private:
   EInkDisplay einkDisplay;
+  static uint32_t dispatch(void* ctx, XpHalDisplayOp op, uint32_t refresh, bool off, uint32_t gray);
 };
 
 extern HalDisplay display;

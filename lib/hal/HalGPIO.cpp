@@ -15,68 +15,38 @@ constexpr char HW_NAMESPACE[] = "cphw";
 constexpr char NVS_KEY_DEV_OVERRIDE[] = "dev_ovr";  // 0=auto, 1=x4, 2=x3
 constexpr char NVS_KEY_DEV_CACHED[] = "dev_det";    // 0=unknown, 1=x4, 2=x3
 
-enum class NvsDeviceValue : uint8_t { Unknown = 0, X4 = 1, X3 = 2 };
-
-NvsDeviceValue readNvsDeviceValue(const char* key, NvsDeviceValue defaultValue) {
+uint8_t readDeviceValue(bool cached) {
   Preferences prefs;
-  if (!prefs.begin(HW_NAMESPACE, true)) {
-    return defaultValue;
-  }
-  const uint8_t raw = prefs.getUChar(key, static_cast<uint8_t>(defaultValue));
+  if (!prefs.begin(HW_NAMESPACE, true)) return 0;
+  const uint8_t raw = prefs.getUChar(cached ? NVS_KEY_DEV_CACHED : NVS_KEY_DEV_OVERRIDE, 0);
   prefs.end();
-  if (raw > static_cast<uint8_t>(NvsDeviceValue::X3)) {
-    return defaultValue;
-  }
-  return static_cast<NvsDeviceValue>(raw);
+  return raw;
 }
-
-void writeNvsDeviceValue(const char* key, NvsDeviceValue value) {
+void writeDeviceValue(uint8_t value) {
   Preferences prefs;
-  if (!prefs.begin(HW_NAMESPACE, false)) {
-    return;
-  }
-  prefs.putUChar(key, static_cast<uint8_t>(value));
+  if (!prefs.begin(HW_NAMESPACE, false)) return;
+  prefs.putUChar(NVS_KEY_DEV_CACHED, value);
   prefs.end();
 }
-
-HalGPIO::DeviceType nvsToDeviceType(NvsDeviceValue value) {
-  return value == NvsDeviceValue::X3 ? HalGPIO::DeviceType::X3 : HalGPIO::DeviceType::X4;
-}
-
 HalGPIO::DeviceType detectDeviceTypeWithFingerprint() {
-  // Explicit override for recovery/support:
-  // 0 = auto, 1 = force X4, 2 = force X3
-  const NvsDeviceValue overrideValue = readNvsDeviceValue(NVS_KEY_DEV_OVERRIDE, NvsDeviceValue::Unknown);
-  if (overrideValue == NvsDeviceValue::X3 || overrideValue == NvsDeviceValue::X4) {
-    LOG_INF("HW", "Device override active: %s", overrideValue == NvsDeviceValue::X3 ? "X3" : "X4");
-    return nvsToDeviceType(overrideValue);
-  }
-
-  const NvsDeviceValue cachedValue = readNvsDeviceValue(NVS_KEY_DEV_CACHED, NvsDeviceValue::Unknown);
-  if (cachedValue == NvsDeviceValue::X3 || cachedValue == NvsDeviceValue::X4) {
-    LOG_INF("HW", "Using cached device type: %s", cachedValue == NvsDeviceValue::X3 ? "X3" : "X4");
-    return nvsToDeviceType(cachedValue);
-  }
-
-  // No cache yet: use FreeInk's canonical two-pass X3 fingerprint and persist
-  // only confirmed results. Inconclusive probes deliberately remain uncached.
-  uint8_t score1 = 0;
-  uint8_t score2 = 0;
-  const freeink::XteinkVerdict verdict = freeink::detectXteinkVerdict(&score1, &score2);
-  LOG_INF("HW", "Xteink probe scores: pass1=%u pass2=%u verdict=%u", score1, score2, static_cast<unsigned>(verdict));
-
-  if (verdict == freeink::XteinkVerdict::X3Confirmed) {
-    writeNvsDeviceValue(NVS_KEY_DEV_CACHED, NvsDeviceValue::X3);
-    return HalGPIO::DeviceType::X3;
-  }
-
-  if (verdict == freeink::XteinkVerdict::X4Confirmed) {
-    writeNvsDeviceValue(NVS_KEY_DEV_CACHED, NvsDeviceValue::X4);
-    return HalGPIO::DeviceType::X4;
-  }
-
-  // Conservative fallback for first boot with inconclusive probes.
-  return HalGPIO::DeviceType::X4;
+  const XpHalDetectServices services{
+      nullptr, readDeviceValue, writeDeviceValue,
+      [](uint8_t* first, uint8_t* second) { return static_cast<uint8_t>(freeink::detectXteinkVerdict(first, second)); },
+      [](void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t) {
+        switch (event) {
+          case 0:
+            LOG_INF("HW", "Device override active: %s", a == 2 ? "X3" : "X4");
+            break;
+          case 1:
+            LOG_INF("HW", "Using cached device type: %s", a == 2 ? "X3" : "X4");
+            break;
+          case 2:
+            LOG_INF("HW", "Xteink probe scores: pass1=%u pass2=%u verdict=%u", static_cast<unsigned>(a),
+                    static_cast<unsigned>(b), static_cast<unsigned>(c));
+            break;
+        }
+      }};
+  return xp_hal_detect_x3(&services) ? HalGPIO::DeviceType::X3 : HalGPIO::DeviceType::X4;
 }
 
 }  // namespace
@@ -110,14 +80,11 @@ void HalGPIO::begin() {
 void HalGPIO::update() {
   inputMgr.update();
   const uint8_t pageButtons = inputMgr.capacitivePageButtonMask();
-  capacitivePagePressed = (pageButtons & ~previousCapacitivePageButtons) != 0;
-  previousCapacitivePageButtons = pageButtons;
   const bool connected = isUsbConnected();
-  usbStateChanged = (connected != lastUsbConnected);
-  lastUsbConnected = connected;
+  xp_hal_input_update(&state, pageButtons, connected);
 }
 
-bool HalGPIO::wasUsbStateChanged() const { return usbStateChanged; }
+bool HalGPIO::wasUsbStateChanged() const { return state.usb_changed; }
 
 bool HalGPIO::isPressed(uint8_t buttonIndex) const { return inputMgr.isPressed(buttonIndex); }
 
@@ -138,8 +105,7 @@ bool HalGPIO::rawInputActive() {
   InputManager::ButtonAdcSample g1{}, g2{};
   inputMgr.readButtonAdc(g1, g2);
   // The Xteink ladder idles at the ADC full-scale rail (~4095); every button band sits below 3900.
-  constexpr int kIdleRailMin = 4000;
-  return (g1.raw >= 0 && g1.raw < kIdleRailMin) || (g2.raw >= 0 && g2.raw < kIdleRailMin);
+  return xp_hal_input_adc(g1.raw, g2.raw);
 }
 
 unsigned long HalGPIO::getHeldTime() const { return inputMgr.getHeldTime(); }
@@ -210,15 +176,14 @@ bool HalGPIO::verifyPowerButtonWakeup() {
     return true;
   }
 
-  constexpr unsigned long POWER_WAKE_STABILITY_MS = 10;
-  const bool heldAtFirstSample = inputMgr.isPowerButtonPhysicallyPressed();
-  const unsigned long sampleStart = millis();
-  inputMgr.update();
-  while (millis() - sampleStart < POWER_WAKE_STABILITY_MS || inputMgr.isDebouncePending()) {
-    delay(1);
-    inputMgr.update();
-  }
-  return heldAtFirstSample && inputMgr.isPowerButtonPhysicallyPressed();
+  const XpHalWakeServices services{
+      &inputMgr,
+      [](void* ctx) { return static_cast<InputManager*>(ctx)->isPowerButtonPhysicallyPressed(); },
+      [](void* ctx) { return static_cast<InputManager*>(ctx)->isDebouncePending(); },
+      [](void* ctx) { static_cast<InputManager*>(ctx)->update(); },
+      []() { return static_cast<uint32_t>(millis()); },
+      [](uint32_t ms) { delay(ms); }};
+  return xp_hal_verify_wake(&services);
 }
 
 bool HalGPIO::isUsbConnected() const {
@@ -256,22 +221,9 @@ bool HalGPIO::coldBootImpliesPowerButton() const {
 HalGPIO::WakeupReason HalGPIO::getWakeupReason() const {
   const auto wakeupCause = esp_sleep_get_wakeup_cause();
   const auto resetReason = esp_reset_reason();
-
   const bool usbConnected = isUsbConnected();
-
-  if (resetReason == ESP_RST_DEEPSLEEP &&
-      (wakeupCause == ESP_SLEEP_WAKEUP_GPIO || wakeupCause == ESP_SLEEP_WAKEUP_EXT1)) {
-    return WakeupReason::PowerButton;
-  }
-  if (wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED && resetReason == ESP_RST_POWERON && !usbConnected &&
-      coldBootImpliesPowerButton()) {
-    return WakeupReason::PowerButton;
-  }
-  if (wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED && resetReason == ESP_RST_UNKNOWN && usbConnected) {
-    return WakeupReason::AfterFlash;
-  }
-  if (wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED && resetReason == ESP_RST_POWERON && usbConnected) {
-    return WakeupReason::AfterUSBPower;
-  }
-  return WakeupReason::Other;
+  return static_cast<WakeupReason>(xp_hal_wake_reason(
+      resetReason == ESP_RST_DEEPSLEEP, wakeupCause == ESP_SLEEP_WAKEUP_GPIO || wakeupCause == ESP_SLEEP_WAKEUP_EXT1,
+      wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED, resetReason == ESP_RST_POWERON, resetReason == ESP_RST_UNKNOWN,
+      usbConnected, coldBootImpliesPowerButton()));
 }

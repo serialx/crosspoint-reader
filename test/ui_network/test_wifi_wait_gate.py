@@ -1,11 +1,13 @@
 """Reject a scene at an existing Wi-Fi lock wait, before a sampled action executes."""
 from pathlib import Path
+import os
 import subprocess
 import sys
 import tempfile
 import prepare_wifi_effects
 
 ROOT = Path(__file__).resolve().parents[2]
+prepare_wifi_effects.ROOT = Path(os.environ.get("XP_REJECTION_SOURCE_ROOT", ROOT))
 source = prepare_wifi_effects.candidate()
 source = source[:source.index("int main()")]
 source = source.replace("static std::recursive_mutex panelMutex;", "static std::function<void()> waitHook;\nstatic std::recursive_mutex panelMutex;")
@@ -20,13 +22,14 @@ int main(int argc,char**argv){
  WifiSelectionActivity a;a.model.phase=which=="select"?XP_UI_WIFI_PHASE_LIST:
    which=="save"?XP_UI_WIFI_PHASE_SAVE:XP_UI_WIFI_PHASE_FORGET;
  a.model.count=1;a.model.list.selected=0;a.model.save_selection=0;a.model.forget_selection=1;
- a.selectedSSID="network";a.enteredPassword="secret";
+ a.selectedSSID=which=="select"?"before":"network";a.enteredPassword="secret";
  a.networks.push_back({"network",-45,true,true,false});a.networkStatuses.push_back("saved");
  int waits=0;
  waitHook=[&]{if(++waits==target){a.testRejected=!recovered;++a.model.list.navigation_revision;}};
  XpUiInput input{};if(which=="select")input.released=XP_UI_CONFIRM;else input.pressed=XP_UI_CONFIRM;
  a.run(XP_UI_WIFI_EVENT_TICK,0,&input);
  assert(waits>=target);
+ if(which=="select")assert(a.selectedSSID=="before");
  for(const auto& event:transcript){
   assert(event.find("persist-")==std::string::npos);
   assert(event.find("finish")==std::string::npos);

@@ -18,6 +18,8 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::cancelled = false;
   host::connected = true;
   host::now = 1000;
+  String::failAllocationSize = SIZE_MAX;
+  String::failedAllocations = 0;
   SETTINGS = {};
   extendedSettings = false;
   WiFi = {};
@@ -882,6 +884,28 @@ int main() {
                                                      app.fontUpload.familyName.size()));
     app.server->part.status = UPLOAD_FILE_ABORTED;
     app.handleFontUploadData();
+  });
+  for (const char* shape : {"empty", "plain", "json", "fields-only"}) {
+    record((std::string("fonts-no-upload:") + shape).c_str(), [&](auto& app) {
+      app.server->uploadAvailable = false;
+      if (std::string(shape) == "plain") app.server->args["plain"] = "font bytes";
+      if (std::string(shape) == "json") app.server->args["plain"] = "{}";
+      if (std::string(shape) == "fields-only") app.server->args["family"] = "Test";
+      app.handleFontUpload();
+    });
+  }
+  record("fonts-list-response-allocation", [](auto& app) {
+    app.handleFontList();
+    const std::string prefix = "response:200:application/json:";
+    const auto response = std::find_if(host::trace.begin(), host::trace.end(),
+                                       [&](const auto& event) { return event.starts_with(prefix); });
+    // Rust allocation sweeps may fail before the transport is reached.
+    if (response == host::trace.end()) return;
+    String::failAllocationSize = response->size() - prefix.size();
+    app.handleFontList();
+    host::trace.push_back("string-allocation-failures:" + std::to_string(String::failedAllocations));
+    String::failAllocationSize = SIZE_MAX;
+    app.handleFontList();
   });
   return 0;
 }

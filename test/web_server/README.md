@@ -43,12 +43,13 @@ the test records their calls without validating their internal behavior or FAT
 alias resolution. ArduinoJson is the installed third-party implementation.
 Path helpers are extracted from repository source, and protected-path checks
 use the existing public header. The String substitute implements the operations
-used by these methods, including 32-bit saturating `toInt`; it does not inject
-String or JSON allocation failures. The transcript allocator trace covers only checked
+used by these methods, including 32-bit saturating `toInt`. A targeted String
+allocation hook covers the completed font-list response; other String and JSON
+allocation failures are not simulated. The transcript allocator trace covers only checked
 upload/download buffer requests, not total heap usage. `--fault-check` separately
 injects Rust allocation failures at 128 budgets for every case, checking that
 Rust allocations and the WebSocket upload owner are released after cleanup.
-It does not simulate C++ String allocation failures. Native `size_t` and
+Native `size_t` and
 `unsigned long` remain host-sized, so this suite does not establish target-width
 overflow parity. Synthetic fixtures contain no private books or credentials.
 
@@ -88,3 +89,10 @@ chunks, directory/create/write failures, partial writes, cancellation, abort,
 page revalidation, and embedded-NUL family state. Font discovery and FontInstaller are substituted service
 leaves; the separate font-registry suites cover their Rust-backed implementation.
 The compatibility cases intentionally preserve unchecked short magic prefixes.
+
+Five review fixtures, also recorded from `9ab0ddb8`, cover empty, plain, JSON,
+and fields-only font POSTs with no multipart file, plus failure of the final
+font-list String allocation followed by a successful retry. The transport mock
+rejects `upload()` access when no file is present. The String hook fails one
+allocation matching the completed response length, in either the original
+checked `reserve()` or the port's length-aware constructor.

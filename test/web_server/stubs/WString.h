@@ -11,7 +11,12 @@
 class String : public std::string {
  public:
   using std::string::string;
+  inline static size_t failAllocationSize = SIZE_MAX;
+  inline static size_t failedAllocations = 0;
   String() = default;
+  String(const char* s, size_t n) {
+    if (reserve(n)) assign(s, n);
+  }
   String(const std::string& s) : std::string(s) {}
   template <class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
   explicit String(T n) : std::string(std::to_string(n)) {}
@@ -42,6 +47,11 @@ class String : public std::string {
     return static_cast<int32_t>(std::clamp<int64_t>(n, INT32_MIN, INT32_MAX));
   }
   bool reserve(size_t n) {
+    if (n == failAllocationSize) {
+      failAllocationSize = SIZE_MAX;
+      ++failedAllocations;
+      return false;
+    }
     std::string::reserve(n);
     return true;
   }

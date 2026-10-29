@@ -4,7 +4,7 @@ import sys
 ROOT = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parents[2]
 METHODS = {
     'boot_sleep/BootActivity.cpp': ['void BootActivity::onEnter()'],
-    'boot_sleep/SleepActivity.cpp': ['void SleepActivity::onEnter()', 'void SleepActivity::renderDefaultSleepScreen() const', 'void SleepActivity::renderLastScreenSleepScreen() const', 'void SleepActivity::renderBlankSleepScreen() const'],
+    'boot_sleep/SleepActivity.cpp': ['BitmapPlacement calculateBitmapPlacement(', 'void SleepActivity::onEnter()', 'void SleepActivity::renderDefaultSleepScreen() const', 'void SleepActivity::renderLastScreenSleepScreen() const', 'void SleepActivity::renderBlankSleepScreen() const'],
     'home/CrashActivity.cpp': ['void CrashActivity::loop()', 'void CrashActivity::render(RenderLock&&)'],
     'reader/XtcReaderActivity.cpp': ['bool XtcReaderActivity::pageTurn(bool isForward)', 'bool XtcReaderActivity::skipPages(int amount)', 'bool XtcReaderActivity::isAtEndOfBook() const', 'void XtcReaderActivity::onReturnFromEndOfBook()'],
     'util/BmpViewerActivity.cpp': ['void BmpViewerActivity::loop()'],

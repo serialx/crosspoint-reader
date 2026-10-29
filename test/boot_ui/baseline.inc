@@ -14,6 +14,38 @@ void BootActivity::onEnter() {
   renderer.displayBuffer();
 }
 
+BitmapPlacement calculateBitmapPlacement(const int bitmapWidth, const int bitmapHeight, const GfxRenderer& renderer) {
+  BitmapPlacement placement;
+  const auto pageWidth = renderer.getScreenWidth();
+  const auto pageHeight = renderer.getScreenHeight();
+
+  if (bitmapWidth > pageWidth || bitmapHeight > pageHeight) {
+    float ratio = static_cast<float>(bitmapWidth) / static_cast<float>(bitmapHeight);
+    const float screenRatio = static_cast<float>(pageWidth) / static_cast<float>(pageHeight);
+
+    if (ratio > screenRatio) {
+      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
+        placement.cropX = 1.0f - (screenRatio / ratio);
+        ratio = (1.0f - placement.cropX) * static_cast<float>(bitmapWidth) / static_cast<float>(bitmapHeight);
+      }
+      placement.x = 0;
+      placement.y = std::round((static_cast<float>(pageHeight) - static_cast<float>(pageWidth) / ratio) / 2);
+    } else {
+      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
+        placement.cropY = 1.0f - (ratio / screenRatio);
+        ratio = static_cast<float>(bitmapWidth) / ((1.0f - placement.cropY) * static_cast<float>(bitmapHeight));
+      }
+      placement.x = std::round((static_cast<float>(pageWidth) - static_cast<float>(pageHeight) * ratio) / 2);
+      placement.y = 0;
+    }
+  } else {
+    placement.x = (pageWidth - bitmapWidth) / 2;
+    placement.y = (pageHeight - bitmapHeight) / 2;
+  }
+
+  return placement;
+}
+
 void SleepActivity::onEnter() {
   Activity::onEnter();
 

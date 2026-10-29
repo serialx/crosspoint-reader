@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--source-root', type=Path, default=ROOT)
     parser.add_argument('--write-golden', action='store_true')
     parser.add_argument('--check-mutation', action='store_true')
+    parser.add_argument('--compressed', action='store_true', help='check compressed lookup failure and retry')
     args = parser.parse_args()
     args.build.mkdir(parents=True, exist_ok=True)
     source = args.source_root
@@ -39,9 +40,10 @@ def main():
                str(ROOT / 'lib/Epub/Epub/CjkBreaks.cpp'), str(ROOT / 'lib/Utf8/Utf8.cpp'),
                str(ROOT / 'lib/InflateReader/InflateReader.cpp'), *rust_link_flags(), '-o', str(binary)]
     subprocess.run(command, check=True)
-    result = subprocess.check_output([binary])
+    run = [binary] + (['--compressed'] if args.compressed else [])
+    result = subprocess.check_output(run)
     (args.build / 'actual.txt').write_bytes(result)
-    golden = HERE / 'golden.txt'
+    golden = HERE / ('golden-compressed.txt' if args.compressed else 'golden.txt')
     if args.write_golden:
         golden.write_bytes(result)
     else:
@@ -49,7 +51,7 @@ def main():
         if result != expected:
             sys.stdout.writelines(difflib.unified_diff(expected.decode().splitlines(True), result.decode().splitlines(True), fromfile='golden', tofile='actual'))
             return 1
-    if args.check_mutation:
+    if args.check_mutation and not args.compressed:
         original = normalizer.read_text()
         changed = original.replace('<html><body>', '<html><div>', 1)
         if changed == original:

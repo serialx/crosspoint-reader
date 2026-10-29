@@ -127,7 +127,34 @@ void zipcase(const std::string& input) {
     stored("/zipout");
   }
 }
-int main() {
+void compressedLookup() {
+  fixture();
+  files.erase("/dictionaries/Demo/test.dict");
+  files.erase("/dictionaries/Demo/test.syn");
+  std::string idx;
+  entry(idx, "cross", 510, 520);
+  put("/dictionaries/Demo/test.idx", idx);
+  const auto encoded = dictzip();
+  put("/dictionaries/Demo/test.dict.dz", encoded);
+  Dictionary dictionary;
+  printf("compressed-open %d\n", dictionary.open("Demo"));
+  index(dictionary);
+  lookup(dictionary, "cross");
+  stored("/.crosspoint/dict.tmp");
+  auto corrupt = encoded;
+  corrupt[28] = 7;  // Reserved DEFLATE block type in the first chunk.
+  put("/dictionaries/Demo/test.dict.dz", corrupt);
+  lookup(dictionary, "cross");
+  stored("/.crosspoint/dict.tmp");
+  put("/dictionaries/Demo/test.dict.dz", encoded);
+  lookup(dictionary, "cross");
+  stored("/.crosspoint/dict.tmp");
+}
+int main(int argc, char** argv) {
+  if (argc == 2 && std::string(argv[1]) == "--compressed") {
+    compressedLookup();
+    return 0;
+  }
   const auto encoded = dictzip();
   zipcase(encoded);
   for (size_t n = 0; n < 35; ++n) {

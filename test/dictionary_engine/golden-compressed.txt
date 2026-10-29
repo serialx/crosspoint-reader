@@ -1,0 +1,16 @@
+compressed-open 1
+INF DICT Indexed 1 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+index 1 0
+lookup cross 1 0
+matched 5 0c36469f09fb69fb63726f7373
+definition 520 1d61d14e00be3541
+/.crosspoint/dict.tmp 520 1d61d14e00be3541
+ERR DICT dictzip extraction failed for /dictionaries/Demo/test (error 3)
+lookup cross 0 3
+matched 5 0c36469f09fb69fb63726f7373
+definition 3 1a0fad1921d080766f6c64
+/.crosspoint/dict.tmp 0 cbf29ce484222325
+lookup cross 1 0
+matched 5 0c36469f09fb69fb63726f7373
+definition 520 1d61d14e00be3541
+/.crosspoint/dict.tmp 520 1d61d14e00be3541

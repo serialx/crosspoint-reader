@@ -65,6 +65,8 @@ class FileBrowserActivity final : public RustActivityAdapter {
   void applyRustEffect(const XpUiEffect&) override;
   bool buildRustScene(XpUiScene&) override;
   void rustPublished() override;
+  void rustSceneFailed() override;
+  void cancelRejectedInput(const XpUiInput&) override;
   XpUiPaint rustResources() override;
   XpUiHomeRows rows();
   XpUiFileFacts facts(int selected) const;

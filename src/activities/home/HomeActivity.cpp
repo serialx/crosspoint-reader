@@ -55,7 +55,13 @@ XpUiEffect HomeActivity::updateRust(const XpUiInput& input) {
 }
 
 void HomeActivity::applyRustEffect(const XpUiEffect& effect) {
-  if (touchActivated) haptic_feedback::touchAction(false);
+  bool touch;
+  {
+    ModelLock lock(*this);
+    touch = touchActivated;
+    touchActivated = false;
+  }
+  if (touch) haptic_feedback::touchAction(false);
   if (effect.kind != XP_UI_ACTIVATE) return;
   if (effect.value >= 0 && static_cast<size_t>(effect.value) < recentBooks.size()) {
     onRecentBookSelected(recentBooks[effect.value].path);
@@ -399,6 +405,7 @@ XpUiPaint HomeActivity::rustResources() {
 void HomeActivity::render(RenderLock&&) {
   XpUiScene scene{};
   if (!buildRustScene(scene)) {
+    rejectRustScene();
     LOG_ERR("RUI", "Cannot build scene in Home");
     return;
   }

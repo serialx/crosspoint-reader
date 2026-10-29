@@ -582,14 +582,20 @@ XpUiLibraryFacts LibraryListActivity::facts(const XpUiLibraryState* model) const
 
 void LibraryListActivity::loop() {
   if (optionPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;
+  if (consumeRejectedInput()) return;
   mappedInput.wasSwipe(&nativeTouchX, &nativeTouchY);
-  nativeLongPress = mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, LONG_PRESS_MS);
+  const bool longPress = mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, LONG_PRESS_MS);
   bool ready;
   {
     ModelLock lock(*this);
     ready = publication.ready;
   }
-  nativeLongTouch = ready && mappedInput.wasScreenLongPress(nativeTouchX, nativeTouchY);
+  const bool longTouch = ready && mappedInput.wasScreenLongPress(nativeTouchX, nativeTouchY);
+  {
+    ModelLock lock(*this);
+    nativeLongPress = longPress;
+    nativeLongTouch = longTouch;
+  }
   RustActivityAdapter::loop();
 }
 
@@ -622,10 +628,15 @@ XpUiEffect LibraryListActivity::updateRust(const XpUiInput& source) {
 }
 
 void LibraryListActivity::applyRustEffect(const XpUiEffect& effect) {
-  if (touchFeedback) {
-    haptic_feedback::touchAction(nativeLongTouch);
+  bool longTouch;
+  uint8_t feedback;
+  {
+    ModelLock lock(*this);
+    longTouch = nativeLongTouch;
+    feedback = touchFeedback;
     touchFeedback = 0;
   }
+  if (feedback) haptic_feedback::touchAction(longTouch);
   switch (effect.kind) {
     case XP_UI_SCROLL:
       LOG_DBG("LIST", "%s swipe delta=%d count=%d", name.c_str(), effect.value, listCount());
@@ -984,4 +995,26 @@ XpUiPaint LibraryListActivity::rustResources() {
             } else
               self.renderer.drawUiText(*c, clip, self.text(h));
           }};
+}
+
+void LibraryListActivity::rustSceneFailed() {
+  nativeLongPress = nativeLongTouch = false;
+  touchFeedback = 0;
+  state.last_repeat = 0;
+}
+
+void LibraryListActivity::cancelRejectedInput(const XpUiInput& input) {
+  if (!(input.released & XP_UI_BACK)) return;
+  XpUiInput back{};
+  back.released = XP_UI_BACK;
+  back.held_ms = input.held_ms;
+  XpUiEffect effect{};
+  {
+    ModelLock lock(*this);
+    auto f = facts();
+    f.long_confirm = f.long_touch = 0;
+    effect = xp_ui_library_update(&state, &back, &f).effect;
+  }
+  if (effect.invalidate) requestUpdate();
+  applyRustEffect(effect);
 }

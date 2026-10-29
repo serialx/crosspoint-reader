@@ -1,6 +1,7 @@
 #pragma once
 
 #include <LibraryIndexFile.h>
+#include <freertos/semphr.h>
 #include <xp_ui_home.h>
 
 #include <cstdint>
@@ -20,6 +21,8 @@ class LibraryListActivity final : public RustActivityAdapter {
  public:
   LibraryListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput);
 
+  ~LibraryListActivity() override { vSemaphoreDelete(resourceMutex); }
+
   void onEnter() override;
   void onExit() override;
 
@@ -27,8 +30,24 @@ class LibraryListActivity final : public RustActivityAdapter {
   void render(RenderLock&& lock) override;
 
  private:
+  // Order: RenderLock -> ResourceLock -> ModelLock. ResourceLock ends before painting.
+  // Only scene construction borrows mutable index/filter data.
+  StaticSemaphore_t resourceMutexStorage{};
+  SemaphoreHandle_t resourceMutex = xSemaphoreCreateMutexStatic(&resourceMutexStorage);
+  class ResourceLock {
+    SemaphoreHandle_t mutex;
+
+   public:
+    explicit ResourceLock(LibraryListActivity& owner) : mutex(owner.resourceMutex) {
+      xSemaphoreTake(mutex, portMAX_DELAY);
+    }
+    ~ResourceLock() { xSemaphoreGive(mutex); }
+    ResourceLock(const ResourceLock&) = delete;
+    ResourceLock& operator=(const ResourceLock&) = delete;
+  };
   int listCount(const XpUiLibraryState* model = nullptr) const;
   XpUiLibraryState state{};
+  bool resourcesChanged = true;  // Reject viewport feedback after a resource transaction.
   Publication publication;
   XpUiHomeListHits publishedHits{};
   freeink::ui::GfxRendererTarget textTarget;
@@ -40,6 +59,7 @@ class LibraryListActivity final : public RustActivityAdapter {
     XpUiReaderControl headerControls[3]{};
     uint8_t headerCount = 0;
     char position[32]{};
+    std::string headerSearchTitle;
   } frame;
   bool nativeLongPress = false, nativeLongTouch = false;
   int nativeTouchX = 0, nativeTouchY = 0;
@@ -121,9 +141,6 @@ class LibraryListActivity final : public RustActivityAdapter {
   // Empty query means no filtering and this owns no allocation, so the ordinary
   // shelf pays nothing proportional to the library for the feature.
   std::string query;
-  // The active query, pre-quoted for the header: headerTitle() returns a
-  // stable c_str the render task can hold across a build.
-  std::string headerSearchTitle;
   std::unique_ptr<uint16_t[]> filtered;
   uint16_t filteredCount = 0;
   bool filterFailed = false;

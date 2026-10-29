@@ -227,6 +227,7 @@ XpUiHomeTexts HomeActivity::textServices() {
             self.frame.titleBook = 255;
             self.prepareTitle(book);
             const auto& lines = self.frame.titleLines;
+            self.frame.titleLineCounts[book] = lines.size();
             int width = 0;
             for (const auto& line : lines)
               width =
@@ -296,6 +297,11 @@ XpUiPaint HomeActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void* p, uint32_t h, uint32_t generation) -> uint8_t {
             auto& self = *static_cast<HomeActivity*>(p);
+            if (h >= WRAPPED_TITLE && h < WRAPPED_TITLE + 12) {
+              const auto book = (h - WRAPPED_TITLE) / 4;
+              return generation == 1 && book < self.recentBooks.size() &&
+                     (h - WRAPPED_TITLE) % 4 < self.frame.titleLineCounts[book];
+            }
             return generation == 1 &&
                    ((self.coverGridUi &&
                      (self.coverGridUi->text(h) ||

@@ -295,10 +295,8 @@ void FileBrowserActivity::activateSelected() {
   XpUiEffect effect{};
   {
     ModelLock lock(*this);
-    XpUiInput input{};
-    input.released = XP_UI_CONFIRM;
     const auto f = facts(state.list.selected);
-    effect = xp_ui_file_update(&state, &input, &f).effect;
+    effect = xp_ui_file_activate(&state, &f);
   }
   applyRustEffect(effect);
 }

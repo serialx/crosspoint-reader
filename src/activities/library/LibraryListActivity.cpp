@@ -355,7 +355,7 @@ void LibraryListActivity::openSearch() {
   startActivityForResult(std::move(keyboard), [this](const ActivityResult& result) {
     swallowHeldReleases();
     if (result.isCancelled) return;
-    RenderLock lock(*this);
+    ResourceLock lock(*this);
     query = std::get<KeyboardResult>(result.data).text;
     applyFilter();
     event(XP_UI_LIBRARY_QUERY_LOADED, 0, filteredCount);
@@ -434,7 +434,7 @@ int LibraryListActivity::groupForBook(int entry) const {
 }
 
 bool LibraryListActivity::collapseGroups(int entry) {
-  RenderLock lock(*this);
+  ResourceLock lock(*this);
   if (!groupable() || !buildGroupStarts()) return false;
   event(XP_UI_LIBRARY_COLLAPSED, groupForBook(entry));
   requestUpdate();
@@ -442,7 +442,7 @@ bool LibraryListActivity::collapseGroups(int entry) {
 }
 
 void LibraryListActivity::expandGroup(int entry) {
-  RenderLock lock(*this);
+  ResourceLock lock(*this);
   if (!state.collapsed || entry < 0 || entry >= groupCount) return;
   event(XP_UI_LIBRARY_EXPANDED, groupStarts[entry]);
   requestUpdate();
@@ -463,9 +463,6 @@ void LibraryListActivity::applyFilter() {
   filtered.reset();
   filteredCount = 0;
   filterFailed = false;
-  // The header shows the active query in place of the screen title, so the
-  // reader can see what narrowed the list without reopening the keyboard.
-  headerSearchTitle = query.empty() ? std::string() : "“" + query + "”";
   if (query.empty()) return;
 
   const std::string needle = library::fold(query);
@@ -557,8 +554,8 @@ void LibraryListActivity::formatAuthorHeading(const std::string& author, std::st
 }
 
 const char* LibraryListActivity::headerTitle() const {
-  if (!headerSearchTitle.empty()) return headerSearchTitle.c_str();
-  return state.degraded ? tr(STR_LIBRARY_TITLE_UNSORTED) : tr(STR_LIBRARY);
+  if (!frame.headerSearchTitle.empty()) return frame.headerSearchTitle.c_str();
+  return frame.snapshot.degraded ? tr(STR_LIBRARY_TITLE_UNSORTED) : tr(STR_LIBRARY);
 }
 
 // OptionPopup is a self-contained modal: it owns the whole frame (hints
@@ -571,6 +568,7 @@ void LibraryListActivity::render(RenderLock&& lock) {
 void LibraryListActivity::event(uint8_t code, int32_t value, uint16_t count) {
   ModelLock lock(*this);
   xp_ui_library_event(&state, code, value, count);
+  resourcesChanged = true;
 }
 
 XpUiLibraryFacts LibraryListActivity::facts(const XpUiLibraryState* model) const {
@@ -661,7 +659,7 @@ void LibraryListActivity::applyRustEffect(const XpUiEffect& effect) {
       expandGroup(effect.value);
       break;
     case XP_UI_LIBRARY_CLEAR_QUERY: {
-      RenderLock lock(*this);
+      ResourceLock lock(*this);
       query.clear();
       applyFilter();
       event(XP_UI_LIBRARY_QUERY_CLEARED);
@@ -669,7 +667,7 @@ void LibraryListActivity::applyRustEffect(const XpUiEffect& effect) {
       break;
     }
     case XP_UI_LIBRARY_SORT: {
-      RenderLock lock(*this);
+      ResourceLock lock(*this);
       event(XP_UI_LIBRARY_SORT_BEGIN, effect.value);
       applyFilter();
       event(XP_UI_LIBRARY_SORT_FINISH, effect.value);
@@ -823,9 +821,13 @@ XpUiHomeRows LibraryListActivity::rows() {
 }
 
 bool LibraryListActivity::buildRustScene(XpUiScene& scene) {
+  ResourceLock resourcesLock(*this);
+  frame.headerSearchTitle.clear();
+  if (!query.empty()) frame.headerSearchTitle.append("“").append(query).append("”");
   {
     ModelLock lock(*this);
     frame.snapshot = state;
+    resourcesChanged = false;
   }
   XpUiLibraryLayout layout{};
   sampleReaderChromeTheme(renderer, layout.theme);
@@ -877,8 +879,9 @@ bool LibraryListActivity::buildRustScene(XpUiScene& scene) {
 }
 
 void LibraryListActivity::rustPublished() {
-  xp_ui_library_publish(&state, &frame.next, frame.snapshot.active_tab,
-                        frame.snapshot.lists[frame.snapshot.active_tab].pending_scroll);
+  if (!resourcesChanged)
+    xp_ui_library_publish(&state, &frame.next, frame.snapshot.active_tab,
+                          frame.snapshot.lists[frame.snapshot.active_tab].pending_scroll);
   xp_ui_home_list_header(&frame.hits, frame.headerControls, frame.headerCount);
   publishedHits = frame.hits;
 }

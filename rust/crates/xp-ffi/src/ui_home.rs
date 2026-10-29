@@ -265,6 +265,19 @@ pub unsafe extern "C" fn xp_ui_file_interest(
     unsafe { state.as_ref() }.map_or_else(Interest::default, |s| s.interest(now))
 }
 /// # Safety
+/// State and facts are live aligned disjoint descriptors, borrowed for this call.
+#[unsafe(no_mangle)]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_file_activate(
+    state: *mut home::file::State,
+    facts: *const home::file::Facts,
+) -> xp_ui::model::Effect {
+    let (Some(s), Some(f)) = (unsafe { state.as_ref() }, unsafe { facts.as_ref() }) else {
+        return xp_ui::model::Effect::default();
+    };
+    s.activate_bound(*f)
+}
+/// # Safety
 /// State is exclusive; input and facts are aligned disjoint borrowed descriptors.
 #[unsafe(no_mangle)]
 #[inline(never)]

@@ -69,6 +69,13 @@ impl State {
         }
         effect
     }
+    pub fn activate_bound(&self, facts: Facts) -> Effect {
+        // Directory selection is published only after the facade replaces its rows.
+        let mut snapshot = *self;
+        let mut effect = snapshot.activate(facts);
+        effect.invalidate = 0;
+        effect
+    }
     pub fn update(&mut self, i: Input, f: Facts) -> Update {
         let mut result = Update::default();
         if self.picker == 0 && i.released & model::BACK != 0 && i.held_ms >= 1000 && f.root == 0 {

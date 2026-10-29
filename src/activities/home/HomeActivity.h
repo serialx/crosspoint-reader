@@ -33,6 +33,7 @@ class HomeActivity final : public RustActivityAdapter {
       uint8_t style = 0;
     };
     std::array<TitleWrap, 3> titleWraps{};
+    std::array<uint8_t, 3> titleLineCounts{};
     std::vector<std::string> titleLines;
     uint8_t titleBook = 255;
     std::string authorLine;

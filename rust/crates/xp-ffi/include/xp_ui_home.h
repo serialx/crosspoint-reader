@@ -189,6 +189,7 @@ enum {
 #define XP_UI_FILE_PATH_SUFFIX 0x10000000u
 void xp_ui_file_init(XpUiFileState*, uint8_t picker);
 XpUiInterest xp_ui_file_interest(const XpUiFileState*, uint32_t now);
+XpUiEffect xp_ui_file_activate(XpUiFileState* state, const XpUiFileFacts* facts);
 XpUiFileUpdate xp_ui_file_update(XpUiFileState*, const XpUiInput*, const XpUiFileFacts*);
 uint8_t xp_ui_file_view(const XpUiFileState*, const XpUiFileFacts*, const XpUiFileLayout*, const XpUiHomeRows*,
                         const XpUiBuffer*, XpUiFileFeedback*, XpUiHomeListHits*, XpUiScene*);

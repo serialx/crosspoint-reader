@@ -210,3 +210,29 @@ normal O1 single/dual-buffer traces remain the facade parity test.
 `display_retained_abi` checks invalid initialization without writes or allocation,
 capabilities, versioned extra operations, and concurrent atomic abort increments.
 It does not qualify real panel waveforms or task scheduling on hardware.
+
+## Reader strip contract
+
+Strip uploads intentionally split a full-plane transfer. Compare reconstructed
+controller RAM and the allowed window sequence instead of raw transcript
+identity:
+
+```sh
+cmake -S test/display_trace -B build/strip-reference
+cmake --build build/strip-reference --target display_trace_c3_single
+cmake -S test/display_trace -B build/strip-trace \
+  -DDISPLAY_TRACE_RUST=ON -DDISPLAY_TRACE_STRIPS=ON
+cmake --build build/strip-trace --target display_trace_c3_single
+python3 test/display_trace/strip_check.py \
+  --reference-bin build/strip-reference/display_trace_c3_single \
+  --candidate-bin build/strip-trace/display_trace_c3_single
+```
+
+The independent decoder requires full payloads, legal per-band command order,
+correct row/gate direction, complete plane coverage and released CS before a
+source callback. It compares RAM at logical plane, activation and operation
+boundaries, and keeps waveform, wait, power and reset policy exact. Negative
+checks corrupt payloads, ordering, windows, activation, old-frame reseeding and
+bus ownership. For saved full transcripts use `oracle.py compare-strip
+--controller uc8253|ssd1677 EXPECTED ACTUAL`. Ordinary framebuffer operations
+must still pass the existing byte-exact oracle.

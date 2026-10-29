@@ -67,6 +67,10 @@ int main(int argc, char** argv) {
   FreeInkDisplay display(-1, -1, -1, -1, -1, -1);
   if (controller == "uc8253" || controller == "uc8279-x3") display.setDisplayX3();
   std::vector<uint8_t> bw, lsb, msb;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  std::vector<uint8_t> scratch(100 * 160);
+  XpDisplaySource source{};
+#endif
   std::ifstream script(argv[2]);
   if (!script) return 2;
   std::string line;
@@ -111,6 +115,22 @@ int main(int argc, char** argv) {
       }
       trace::event("geometry " + std::to_string(display.getDisplayWidth()) + " " +
                    std::to_string(display.getDisplayHeight()));
+    } else if (op == "source") {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      source = {sizeof(source),
+                &display,
+                scratch.data(),
+                static_cast<uint32_t>(scratch.size()),
+                static_cast<uint16_t>(a),
+                display.getDisplayWidth(),
+                [](void* raw, uint8_t* out, uint16_t y, uint16_t rows) -> uint32_t {
+                  auto& d = *static_cast<FreeInkDisplay*>(raw);
+                  trace::event("source.read " + std::to_string(y) + " " + std::to_string(rows));
+                  std::copy_n(d.getFrameBuffer() + y * d.getDisplayWidthBytes(), rows * d.getDisplayWidthBytes(), out);
+                  return 0;
+                }};
+      if (!display.setFrameSource(a ? &source : nullptr)) return 4;
+#endif
     } else if (op == "frame") {
       if (a == 1)
         for (auto& b : bw) b ^= 0xff;
@@ -167,7 +187,19 @@ int main(int argc, char** argv) {
           display.displayGrayscaleBase(a ? freeink::GrayscaleMode::Absolute : freeink::GrayscaleMode::Overlay);
       trace::event("gray.accepted " + std::to_string(accepted));
     } else if (op == "gray-full") {
-      display.copyGrayscaleBuffers(lsb.data(), msb.data());
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      if (source.rows) {
+        for (const auto plane : {FreeInkDisplay::GRAY_PLANE_LSB, FreeInkDisplay::GRAY_PLANE_MSB}) {
+          const auto& data = plane == FreeInkDisplay::GRAY_PLANE_LSB ? lsb : msb;
+          for (uint16_t y = 0; y < display.getDisplayHeight(); y += source.rows) {
+            const auto rows = std::min<unsigned>(source.rows, display.getDisplayHeight() - y);
+            trace::event("source.read " + std::to_string(y) + " " + std::to_string(rows));
+            display.writeGrayscalePlaneStrip(plane, data.data() + y * display.getDisplayWidthBytes(), y, rows);
+          }
+        }
+      } else
+#endif
+        display.copyGrayscaleBuffers(lsb.data(), msb.data());
     } else if (op == "gray-strips") {
       for (const auto plane : {FreeInkDisplay::GRAY_PLANE_LSB, FreeInkDisplay::GRAY_PLANE_MSB}) {
         const auto& data = plane == FreeInkDisplay::GRAY_PLANE_LSB ? lsb : msb;

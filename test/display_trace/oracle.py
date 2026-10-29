@@ -68,8 +68,17 @@ def main():
     sub = commands.add_parser("compare")
     sub.add_argument("expected", type=pathlib.Path)
     sub.add_argument("actual", type=pathlib.Path)
+    sub = commands.add_parser("compare-strip")
+    sub.add_argument("--controller", required=True, choices=("uc8253", "ssd1677"))
+    sub.add_argument("expected", type=pathlib.Path)
+    sub.add_argument("actual", type=pathlib.Path)
     commands.add_parser("list")
     args = parser.parse_args()
+    if args.command == "compare-strip":
+        from strip_contract import compare as compare_strip
+        points, reads = compare_strip(read(args.expected).decode(), read(args.actual).decode(), args.controller)
+        print(f"{args.controller}: {points} RAM checkpoints, {reads} source boundaries")
+        return 0
     if args.command == "compare":
         return 0 if compare(read(args.expected), read(args.actual), str(args.actual)) else 1
     if args.command == "list":

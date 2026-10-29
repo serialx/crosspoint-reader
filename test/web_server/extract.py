@@ -113,7 +113,15 @@ def main():
         print("mutation check: rejected changed settings response")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
-        if changed == source or run(changed) == expected:
+        if changed == source:
+            raise SystemExit("mutation check did not find disconnect entry point")
+        try:
+            accepted = run(changed) == expected
+        except subprocess.CalledProcessError as error:
+            if error.cmd != [str(args.build / "oracle")]:
+                raise
+            accepted = False  # A failed ownership invariant also rejects this mutation.
+        if accepted:
             raise SystemExit("mutation check did not reject ignored synchronous disconnect")
         generated.write_text(generate(source, header))
         print("mutation check: rejected ignored synchronous disconnect")

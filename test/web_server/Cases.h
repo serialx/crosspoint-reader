@@ -449,13 +449,34 @@ int main() {
           app.onWebSocketEvent(client, WStype_DISCONNECTED, nullptr, 0);
         }
       };
+      const auto checkDisconnected = [&] {
+        if (disconnected && (wsUploadInProgress || wsUploadFile)) {
+          std::cerr << "disconnect did not release upload before outer event returned\n";
+          std::abort();
+        }
+      };
       text(app, 1, "START:new.epub:131072:/books");
+      checkDisconnected();
       std::vector<uint8_t> data(65536, 'x');
       app.onWebSocketEvent(1, WStype_BIN, data.data(), data.size());
+      checkDisconnected();
       app.onWebSocketEvent(1, WStype_BIN, data.data(), data.size());
+      checkDisconnected();
       text(app, 2, "START:retry.epub:0:/books");
     });
   }
+  record("ws-disconnect-stop-restart", [](auto& app) {
+    app.wsServer->onSend = [&](uint8_t client, const String& message) {
+      if (message.startsWith("PROGRESS:")) app.onWebSocketEvent(client, WStype_DISCONNECTED, nullptr, 0);
+    };
+    text(app, 1, "START:interrupted.epub:131072:/books");
+    std::vector<uint8_t> bytes(65536, 'x');
+    app.onWebSocketEvent(1, WStype_BIN, bytes.data(), bytes.size());
+    if (wsUploadInProgress || wsUploadFile) std::abort();
+    app.stop();
+    app.begin();
+    text(app, 2, "START:after-restart.epub:0:/books");
+  });
   record("settings-extra-descriptors", [](auto& app) {
     extendedSettings = true;
     app.handleGetSettings();

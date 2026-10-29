@@ -92,3 +92,6 @@ add_test(NAME ui_network_web_pixels COMMAND NetworkWebTarget)
 add_test(NAME ui_network_web_input COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_web_input.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ui_network_web_policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_web_policy.py)
+
+add_test(NAME ui_network_wifi_entry_oracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_extra.py)

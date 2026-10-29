@@ -2,13 +2,13 @@
 import pathlib
 import subprocess
 import tempfile
-from record import ROOT, SDK, HERE
+from record import ROOT, SDK, HERE, baseline
 
 
 def record():
     recorder = (ROOT / 'test/ui_runtime/oracle.cpp').read_text().split('int main()')[0]
     # Include immutable application URL tables before replacing their owner.
-    cpp = (ROOT / 'src/activities/util/KeyboardEntryActivity.cpp').read_text()
+    cpp = baseline('src/activities/util/KeyboardEntryActivity.cpp')
     tables = cpp[cpp.index('constexpr uint8_t URL_KEY_WIDTH'):cpp.index('}  // namespace')]
     main = r'''
 int main() {

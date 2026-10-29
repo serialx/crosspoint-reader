@@ -18,3 +18,25 @@ with SDK 61c49287 before the port.
 
 Run `python3 test/keyboard_oracle/test_oracle.py`. For an archived source tree,
 use `record.py --root PATH --out TRANSCRIPT`. Goldens contain synthetic text only.
+
+After the port, `run_diff.py BUILD_DIRECTORY` links the production Rust modules
+and compares both frozen byte streams. Original method bodies are read from
+`git show ba6860d8`, so the firmware contains no legacy keyboard implementation.
+
+CTest also checks wire layout, SDK label bounds, atomic capacity failures, and
+a 10 KB zero-advance field. `KeyboardTarget` extracts the actual C++ resource
+painters and the original field renderer. It compares normal, full-field and
+long entries across four orientations, text/password/URL modes and cursor modes,
+and compares full-frame rendering with guarded 16-row bands. `KeyboardAllocation`
+extracts the production allocation, update/retry and view-build methods; injected
+failures verify unchanged text/cursor, one log per failed held edit, no allocation
+under the model lock, and no published partial scene when paint scratch fails.
+It also checks that touch queries use the painted layout until the next frame
+is published, and that ordinary password key taps allocate no cursor scratch.
+Compact row resources use the same Rust geometry walker as the expanded golden
+commands; the target test paints those rows through the actual facade.
+Run all keyboard checks with `ctest --test-dir build/test -R keyboard_ --output-on-failure`.
+
+`KeyboardTouch` compares 16,384 deterministic input frames directly with the
+pinned SDK TouchHoldRouter, including press/release priority, alternate keys,
+350/900 ms holds, slides, release slop, canceled swipes and timer wrap.

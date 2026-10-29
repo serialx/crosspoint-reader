@@ -14,8 +14,14 @@ def strip_includes(text):
     return re.sub(r'^#(?:include|pragma).*\n', '', text, flags=re.M)
 
 
+def baseline(path, root=ROOT):
+    if pathlib.Path(root).resolve() != ROOT:
+        return (pathlib.Path(root) / path).read_text()
+    return subprocess.check_output(['git', '-C', str(ROOT), 'show', 'ba6860d8:' + path], text=True)
+
+
 def source(root):
-    activity = (root / 'src/activities/util/KeyboardEntryActivity.cpp').read_text()
+    activity = baseline('src/activities/util/KeyboardEntryActivity.cpp', root)
     # Keep the production tables, navigation, edits, holds, masking and results.
     # Rendering and text-point placement have separate pixel/placement oracles.
     start = activity.index('int KeyboardEntryActivity::measureRange')
@@ -24,13 +30,13 @@ def source(root):
     start = activity.index('void KeyboardEntryActivity::render(')
     end = activity.index('void KeyboardEntryActivity::onComplete(')
     activity = activity[:start] + activity[end:]
-    header = strip_includes((root / 'src/activities/util/KeyboardEntryActivity.h').read_text())
+    header = strip_includes(baseline('src/activities/util/KeyboardEntryActivity.h', root))
     header = header.replace(' private:', ' public:')
-    layout = strip_includes((root / 'src/activities/util/KeyboardLayoutSet.h').read_text())
-    nav = strip_includes((root / 'src/util/ButtonNavigator.h').read_text())
+    layout = strip_includes(baseline('src/activities/util/KeyboardLayoutSet.h', root))
+    nav = strip_includes(baseline('src/util/ButtonNavigator.h', root))
     return ((HERE / 'leaves.h').read_text() + '\n' + nav + '\n' + header + '\n' + layout + '\n' +
-            strip_includes((root / 'src/activities/util/KeyboardLayoutSet.cpp').read_text()) + '\n' +
-            strip_includes((root / 'src/util/ButtonNavigator.cpp').read_text()) + '\n' +
+            strip_includes(baseline('src/activities/util/KeyboardLayoutSet.cpp', root)) + '\n' +
+            strip_includes(baseline('src/util/ButtonNavigator.cpp', root)) + '\n' +
             strip_includes(activity) + '\n' + (HERE / 'transcript.cpp').read_text())
 
 

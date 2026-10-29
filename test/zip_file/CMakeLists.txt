@@ -22,3 +22,16 @@ target_compile_definitions(ZipFileTest PRIVATE
   ZIP_EPUB_DIR="${REPO_ROOT}/test/epubs"
   ZIP_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
+
+add_executable(ZipIoOracle IoOracle.cpp
+  ${REPO_ROOT}/lib/ZipFile/ZipFile.cpp
+  ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp
+  ${REPO_ROOT}/lib/miniz/src/miniz_impl.c
+  ${REPO_ROOT}/lib/Memory/BuildScratch.cpp
+  ${REPO_ROOT}/lib/hal/HalMemory.cpp)
+get_target_property(ZIP_ORACLE_INCLUDES ZipFileTest INCLUDE_DIRECTORIES)
+target_include_directories(ZipIoOracle PRIVATE ${ZIP_ORACLE_INCLUDES})
+target_link_libraries(ZipIoOracle PRIVATE xp_ffi_host crosspoint_test_common)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME ZipIoOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/io_oracle.py $<TARGET_FILE:ZipIoOracle>)

@@ -15,12 +15,7 @@ class KeyboardEntryActivity : public RustActivityAdapter {
  public:
   explicit KeyboardEntryActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                  std::string title = "Enter Text", std::string initialText = "",
-                                 const size_t maxLength = 0, InputType inputType = InputType::Text)
-      : RustActivityAdapter("KeyboardEntry", renderer, mappedInput),
-        title(std::move(title)),
-        initialText(std::move(initialText)),
-        maxLength(maxLength),
-        inputType(inputType) {}
+                                 const size_t maxLength = 0, InputType inputType = InputType::Text);
   void onEnter() override;
   void onExit() override;
   void loop() override;

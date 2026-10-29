@@ -2,6 +2,11 @@
 
 #include "ActivityManager.h"
 
+Activity::Activity(std::string name, GfxRenderer& renderer, MappedInputManager& mappedInput)
+    : name(std::move(name)), renderer(renderer), mappedInput(mappedInput) {}
+
+Activity::~Activity() = default;
+
 void Activity::onEnter() { LOG_DBG("ACT", "Entering activity: %s", name.c_str()); }
 
 void Activity::onExit() { LOG_DBG("ACT", "Exiting activity: %s", name.c_str()); }

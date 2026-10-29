@@ -25,9 +25,8 @@ class Activity {
   ActivityResult result;
 
  public:
-  explicit Activity(std::string name, GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : name(std::move(name)), renderer(renderer), mappedInput(mappedInput) {}
-  virtual ~Activity() = default;
+  explicit Activity(std::string name, GfxRenderer& renderer, MappedInputManager& mappedInput);
+  virtual ~Activity();
   virtual void onEnter();
   virtual void onExit();
   // Last chance to queue activity-owned state before sleep events are drained.

@@ -25,6 +25,7 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   OPDS_STORE.servers = {{"Original", "https://example.test", "user", "secret", {{{"Auth", "token"}, {"", ""}}}}};
   PluginLocations::entries = {{"test", "/plugins/test"}};
   HalMemory::psram = false;
+  sdFontSystem.fonts.families = {{}};
   freeink::fetchResult = {};
   freeink::fetchRewind = freeink::fetchCrossOrigin = false;
   freeink::fetchWait = 0;
@@ -751,6 +752,126 @@ int main() {
       app.server->args.clear();
       handler();
     }
+  });
+
+  for (int mode = 0; mode < 7; ++mode) {
+    record(("fonts-list-extra:" + std::to_string(mode)).c_str(), [&](auto& app) {
+      auto& families = sdFontSystem.fonts.families;
+      if (mode == 0) families.clear();
+      if (mode == 1) families[0].files.clear();
+      if (mode == 2) {
+        families[0].name = "Quote\"\\\t\n";
+        families[0].files = {{"a\"b.cpfont"}, {"second.cpfont"}};
+        families[0].sizes = {0, 255};
+      }
+      if (mode == 3) families[0].name = std::string(150, 'x');
+      if (mode == 4) {
+        families.resize(20);
+        for (size_t i = 0; i < families.size(); ++i) families[i].name = "Family" + std::to_string(i);
+      }
+      if (mode == 5) {
+        HalMemory::psram = true;
+        families[0].sizes.clear();
+        families[0].files = {{"regular.ttf"}, {"bold.otf"}};
+      }
+      if (mode == 6) {
+        host::add("/fonts/Test/font.cpfont", "data");
+        host::failOperation = "open";
+        host::failAfter = 0;
+      }
+      app.handleFontList();
+    });
+  }
+  for (const char* body : {"", "{", "null", "[]", "{}", "{\"family\":null}", "{\"family\":7}", "{\"family\":true}",
+                           "{\"family\":[]}", "{\"family\":{}}", "{\"family\":\"\"}", "{\"family\":\"../bad\"}",
+                           "{\"family\":\"A\\u0000B\"}", "{\"family\":\"A\\\"\\\\B\"}"}) {
+    for (bool fail : {false, true}) {
+      record((std::string("fonts-delete-extra:") + body + ":" + std::to_string(fail)).c_str(), [&](auto& app) {
+        app.server->args["plain"] = body;
+        if (fail) {
+          host::failOperation = "font-delete";
+          host::failAfter = 0;
+        }
+        app.handleFontDelete();
+      });
+    }
+  }
+  for (const char* family : {"", "Test", "../bad", "bad/name", "bad\\name"}) {
+    for (const char* filename : {"with space.cpfont", "font.otf", "font.ttf", "../bad.cpfont", "font.cpfont"}) {
+      for (bool psram : {false, true}) {
+        record((std::string("fonts-start:") + family + ":" + filename + ":" + std::to_string(psram)).c_str(),
+               [&](auto& app) {
+                 HalMemory::psram = psram;
+                 app.server->args["family"] = family;
+                 app.server->part.filename = filename;
+                 app.server->part.status = UPLOAD_FILE_START;
+                 app.handleFontUploadData();
+                 app.server->part.status = UPLOAD_FILE_ABORTED;
+                 app.handleFontUploadData();
+                 app.handleFontUpload();
+               });
+      }
+    }
+  }
+  for (size_t size :
+       {size_t(0), size_t(1), size_t(7), size_t(8), size_t(4095), size_t(4096), size_t(4097), size_t(8200)}) {
+    for (int mode = 0; mode < 10; ++mode) {
+      record(("fonts-data:" + std::to_string(size) + ":" + std::to_string(mode)).c_str(), [&](auto& app) {
+        app.server->args["family"] = "Test";
+        app.server->part.filename = "font.cpfont";
+        if (mode == 1) {
+          host::failOperation = "font-dir";
+          host::failAfter = 0;
+        }
+        if (mode == 2) {
+          host::failOperation = "create";
+          host::failAfter = 0;
+        }
+        app.server->part.status = UPLOAD_FILE_START;
+        app.handleFontUploadData();
+        std::string data(size, 'x');
+        if (size >= 8 && mode != 3) data.replace(0, 8, "CPFONT\0\0", 8);
+        app.server->part.buf = reinterpret_cast<const uint8_t*>(data.data());
+        app.server->part.currentSize = size;
+        if (mode == 4) host::cancelled = true;
+        if (mode == 5) {
+          host::failOperation = "write";
+          host::failAfter = 0;
+        }
+        if (mode == 6) host::writeLimit = 3;
+        if (mode == 7) {
+          host::failOperation = "write";
+          host::failAfter = 1;
+        }
+        app.server->part.status = UPLOAD_FILE_WRITE;
+        app.handleFontUploadData();
+        if (mode == 8) app.handleFontUploadData();
+        app.server->part.status = mode == 9 ? UPLOAD_FILE_ABORTED : UPLOAD_FILE_END;
+        app.handleFontUploadData();
+        app.handleFontUpload();
+      });
+    }
+  }
+  for (const std::string magic :
+       {std::string("\0\1\0\0data", 8), std::string("OTTOdata"), std::string("truedata"), std::string("bad!data")}) {
+    record(("fonts-vector:" + std::to_string(static_cast<unsigned char>(magic[0]))).c_str(), [&](auto& app) {
+      HalMemory::psram = true;
+      app.server->args["family"] = "Test";
+      app.server->part.filename = "font.ttf";
+      app.server->part.status = UPLOAD_FILE_START;
+      app.handleFontUploadData();
+      app.server->part.buf = reinterpret_cast<const uint8_t*>(magic.data());
+      app.server->part.currentSize = magic.size();
+      app.server->part.status = UPLOAD_FILE_WRITE;
+      app.handleFontUploadData();
+      app.server->part.status = UPLOAD_FILE_END;
+      app.handleFontUploadData();
+      app.handleFontUpload();
+    });
+  }
+  record("fonts-page-cache", [](auto& app) {
+    app.server->headers["If-None-Match"] = FontsPageHtmlETag;
+    app.handleFontsPage();
   });
   return 0;
 }

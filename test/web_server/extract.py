@@ -111,6 +111,15 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed settings response")
         print("mutation check: rejected changed settings response")
+        changed = source.replace('"Invalid font file"', '"Invalid FONT file"', 1)
+        if changed == source:
+            changed = source.replace('fontUpload.valid = true;', 'fontUpload.valid = false;', 1)
+        if changed == source:
+            changed = source.replace('WebFontBridge::route(*this, XP_WEB_FONT_LIST)',
+                                     'WebFontBridge::route(*this, XP_WEB_FONT_DELETE)', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed fonts behavior")
+        print("mutation check: rejected changed fonts behavior")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
         if changed == source:

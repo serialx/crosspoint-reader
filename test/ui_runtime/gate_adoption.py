@@ -126,7 +126,7 @@ code += r'''
 template<class T> void gestures(T& a,GfxRenderer& r,MappedInputManager& i,bool touch) {
  i={};if(touch)i.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;
  else i.pressed=i.held=1u<<unsigned(MappedInputManager::Button::Confirm);
- a.loop();r.paintOk=false;a.render(RenderLock{});assert(a.rejected());
+ a.loop();auto failures=a.failures;r.paintOk=false;a.render(RenderLock{});assert(a.rejected()&&a.failures==failures+1);
  a.loop();r.paintOk=true;a.render(RenderLock{});assert(!a.rejected());
  i={};if(touch)i.touchFlags=XP_UI_TOUCH_RELEASED;
  else i.released=1u<<unsigned(MappedInputManager::Button::Confirm);
@@ -154,9 +154,6 @@ int main(int argc,char**argv){
   if(published)s.render(RenderLock{});gestures(s,r,i,touch);
   i={};KOReaderUiActivity k("koreader",r,i);k.model.phase=XP_KO_RESULT;
   if(published)k.render(RenderLock{});
-  // The real KOReader update resolves a published row action through the adapter.
-  static XpUiInteraction hit{{0,0,100,100},1,0,0,1};
-  k.publication.scene.interactions=&hit;k.publication.scene.interaction_count=1;k.publication.ready=true;
   gestures(k,r,i,touch);
  }
  puts("gate adoption passed");

@@ -30,6 +30,9 @@ logging = logging.replace('uint32_t millis() { return nowMs; }', '')
 logging = logging.replace('#define LOG_ERR(tag, ...) log("ERR", tag, __VA_ARGS__)', '')
 network = leaves[leaves.index('using wl_status_t'):leaves.index('#define tr(x)')]
 network = network.replace('struct WifiCredential {\n  std::string ssid, password;\n};', '')
+network = 'std::function<void()> scanDeleteHook;\n' + network
+network = network.replace('void scanDelete() { record("scan-delete"); }',
+                          'void scanDelete() { record("scan-delete"); scan=-2; rows.clear(); if(scanDeleteHook)scanDeleteHook(); }')
 # These are hardware/storage leaves from the existing effect oracle, not a model substitute.
 position = source.index('struct FakeBase {')
 extra = '''
@@ -49,7 +52,9 @@ source = source[:position] + '#include <cstdarg>\n' + logging + network + extra 
 source = source.replace('struct RenderLock {};', 'struct RenderLock {RenderLock()=default;template<class T>explicit RenderLock(T&) {assert(allocations::criticalDepth==0);}};')
 source = source.replace('struct FakeBase {', '''struct FakeBase {
  template<class T,class F>void startActivityForResult(std::unique_ptr<T>,F f){childResult=f;}
- void setResult(ActivityResult){} void finish(){record("finish");}
+ bool finished=false;
+ void setResult(ActivityResult r){record(r.isCancelled?"result:cancelled":"result:connected");}
+ void finish(){finished=true;record("finish");}
 ''')
 source = source.replace('void xSemaphoreGive(SemaphoreHandle_t s){s->mutex.unlock();}', '''std::function<void()> unlockHook;
 void xSemaphoreGive(SemaphoreHandle_t s){s->mutex.unlock();if(unlockHook)unlockHook();}''')

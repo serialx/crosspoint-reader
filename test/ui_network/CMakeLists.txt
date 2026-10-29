@@ -179,7 +179,7 @@ target_compile_definitions(NetworkWifiPartialTarget PRIVATE $<TARGET_PROPERTY:Ne
 target_compile_options(NetworkWifiPartialTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,COMPILE_OPTIONS>)
 target_link_options(NetworkWifiPartialTarget PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,LINK_OPTIONS>)
 target_link_libraries(NetworkWifiPartialTarget PRIVATE xp_ffi_host)
-foreach(WIFI_BOUNDARY scan password hidden connect save forget)
+foreach(WIFI_BOUNDARY scan password hidden connect save forget cancel cancel-back cancel-first cancel-first-back)
   foreach(WIFI_REJECTION 0 1 2)
     if(WIFI_REJECTION EQUAL 2 AND (WIFI_BOUNDARY STREQUAL "password" OR WIFI_BOUNDARY STREQUAL "hidden"))
       continue() # The parent has no drawable scene while its keyboard child is active.

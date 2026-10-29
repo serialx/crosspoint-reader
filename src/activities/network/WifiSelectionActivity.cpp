@@ -278,6 +278,7 @@ uint32_t WifiSelectionActivity::service(void* ctx, uint32_t operation, uint32_t 
     }
     case XP_UI_WIFI_CALL_SCAN_DELETE:
       WiFi.scanDelete();
+      call.committed = true;
       break;
     case XP_UI_WIFI_CALL_ROW_FLAGS: {
       ResourceLock lock(self);

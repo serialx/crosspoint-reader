@@ -23,6 +23,44 @@ int main(int argc, char** argv) {
   safe = {3, 5, renderer.getScreenWidth() - 8, renderer.getScreenHeight() - 45};
   MappedInputManager input;
   Candidate a(renderer, input, false);
+  if (which.starts_with("cancel")) {
+    const bool firstFrame = which.find("first") != std::string::npos;
+    const bool backOnly = which.find("back") != std::string::npos;
+    a.model.phase = XP_UI_WIFI_PHASE_SCANNING;
+    a.model.flash_index = -1;
+    xp_ui_settings_list_init(&a.model.list, 0);
+    if (!firstFrame) repaint(a);
+    bool interrupted = false;
+    scanDeleteHook = [&] {
+      assert(!interrupted);
+      interrupted = true;
+      if (firstFrame && rejection) {
+        assert(!a.commands && a.commandCapacity == 0);
+        failAllocation = 0;
+        a.render(RenderLock{});
+        assert(a.rustSceneRejected() && !a.commands && a.commandCapacity == 0);
+        failAllocation = -1;
+      } else if (rejection) {
+        a.rejectRustScene();
+      }
+      if (rejection == 2) repaint(a);
+    };
+    input.pressed = XP_UI_BACK;
+    input.held = XP_UI_BACK | (backOnly ? 0 : XP_UI_NAV_NEXT);
+    a.loop();
+    scanDeleteHook = {};
+    assert(interrupted);
+    // A finished activity is removed by the manager before the next input tick.
+    input = {};
+    if (!a.finished) a.loop();
+    assert(events("result:cancelled") == 1 && events("finish") == 1);
+    assert(events("result:connected") == 0 && events("scan-delete") == 1);
+    assert(a.model.count == 0 && a.networks.empty() && a.networkStatuses.empty());
+    assert(events("scan-complete") == 0 && events("scan-start:") == 0);
+    assert(events("keyboard:") == 0 && events("wifi-begin:") == 0);
+    puts(argv[1]);
+    return 0;
+  }
   a.model.phase = which == "save" ? XP_UI_WIFI_PHASE_SAVE : which == "forget" ? XP_UI_WIFI_PHASE_FORGET : XP_UI_WIFI_PHASE_LIST;
   a.model.count = 1;
   a.model.flash_index = -1;

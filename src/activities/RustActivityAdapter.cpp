@@ -18,6 +18,7 @@ bool RustActivityAdapter::paintRustScene(const XpUiScene& scene) {
     LOG_ERR("RUI", "Invalid scene in %s", name.c_str());
     ModelLock lock(*this);
     if (auto* publication = rustPublication()) publication->ready = false;
+    rustSceneFailed();
     return false;
   }
   {
@@ -54,6 +55,7 @@ void RustActivityAdapter::render(RenderLock&&) {
     {
       ModelLock lock(*this);
       if (auto* publication = rustPublication()) publication->ready = false;
+      rustSceneFailed();
     }
     LOG_ERR("RUI", "Cannot build scene in %s", name.c_str());
     return;

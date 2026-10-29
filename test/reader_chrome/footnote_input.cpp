@@ -95,4 +95,24 @@ int main() {
       }
     }
   }
+  // Highlight geometry from drawHighlightWithSnapshot at 386e3c45.
+  for (const int x : {-10, 0, 1, 12}) {
+    for (const int y : {-10, 0, 1, 12}) {
+      for (const int size : {0, 1, 12}) {
+        int hx = x - 2;
+        int hy = y - 2;
+        int hw = size + 4;
+        int hh = size + 4;
+        if (hx < 0) {
+          hw += hx;
+          hx = 0;
+        }
+        if (hy < 0) {
+          hh += hy;
+          hy = 0;
+        }
+        std::printf("highlight %d %d %d: %d %d %d %d %d %d\n", x, y, size, hx, hy, hw, hh, x, y - 1);
+      }
+    }
+  }
 }

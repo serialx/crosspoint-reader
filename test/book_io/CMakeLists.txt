@@ -106,3 +106,5 @@ target_link_libraries(BookReclaimOracle PRIVATE xp_ffi_host)
 add_test(NAME BookReclaimOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/frozen_trace.py $<TARGET_FILE:BookReclaimOracle>
   ${CMAKE_CURRENT_SOURCE_DIR}/reclaim-golden.txt.gz)
+add_test(NAME BookXtcResidualOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/xtc_residual_oracle.py $<TARGET_FILE:BookXtcOracle>)

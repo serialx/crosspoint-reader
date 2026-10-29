@@ -44,6 +44,32 @@ int main(int argc, char** argv) {
   if (argc != 2 && argc != 3) return 2;
   std::ifstream input(argv[1], std::ios::binary);
   std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)), {});
+  if (argc == 3 && std::string(argv[2]) == "residual") {
+    for (const std::string name : {"plain", ".hidden", "a/b.xtc", "/a.with.dot/name", "a/b.c.xtc"}) {
+      for (size_t fault = 0; fault < 5; ++fault) {
+        booktest::files.clear();
+        booktest::files[name] = bytes;
+        booktest::calls = 0;
+        booktest::fail = 0;
+        Xtc book(name, "/a//cache");
+        printf("before %s %u\n", book.getTitle().c_str(), book.calculateProgress(UINT32_MAX));
+        printf("loaded %u\n", book.load());
+        printf("title %s\n", book.getTitle().c_str());
+        for (uint32_t page : {0u, 1u, 2u, UINT32_MAX, UINT32_MAX / 100})
+          printf("progress %u %u\n", page, book.calculateProgress(page));
+        booktest::calls = 0;
+        booktest::fail = fault;
+        book.setupCacheDir();
+        printf("clear absent %u\n", book.clearCache());
+        booktest::files[book.getCachePath()] = {};
+        printf("clear present %u\n", book.clearCache());
+        printf("paths %s %s %s\n", booktest::displayPath(book.getCoverBmpPath()).c_str(),
+               booktest::displayPath(book.getThumbBmpPath()).c_str(),
+               booktest::displayPath(book.getThumbBmpPath(37)).c_str());
+      }
+    }
+    return 0;
+  }
   if (argc == 3) {
     booktest::files["book.xtc"] = bytes;
     if (std::string(argv[2]) == "negative-copy") {

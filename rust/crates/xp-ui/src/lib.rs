@@ -24,3 +24,5 @@ pub mod utility;
 
 pub mod settings;
 pub mod text_settings;
+
+pub mod updates;

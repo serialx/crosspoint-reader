@@ -40,6 +40,15 @@ class ReaderWidgets(unittest.TestCase):
             self.assertEqual(subprocess.check_output([str(binary)]),
                              gzip.decompress((HERE / "end-input.golden.gz").read_bytes()))
 
+    def test_toolbar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            binary = pathlib.Path(directory) / "toolbar"
+            subprocess.run(["c++", "-std=c++20", "-DFREEINK_UI_COMPONENT_STYLE=0",
+                            "-I" + str(SDK / "include"), str(HERE / "toolbar.cpp"),
+                            str(SDK / "src/FreeInkUI.cpp"), "-o", str(binary)], check=True)
+            self.assertEqual(subprocess.check_output([str(binary)]),
+                             gzip.decompress((HERE / "toolbar.golden.gz").read_bytes()))
+
     def test_placements(self):
         self.assertEqual(record(), gzip.decompress((HERE / "widgets.golden.gz").read_bytes()))
 

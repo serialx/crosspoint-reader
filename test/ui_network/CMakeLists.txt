@@ -47,3 +47,23 @@ add_test(NAME ui_network_usb_input COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_usb_input.py ${XP_FFI_HOST_ARCHIVE})
 
 add_test(NAME ui_network_abi COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_abi.py)
+
+add_test(NAME ui_network_calibre_effects COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_calibre_effects.py ${XP_FFI_HOST_ARCHIVE})
+
+set(CALIBRE_TARGET ${CMAKE_CURRENT_BINARY_DIR}/CalibreTarget.cpp)
+add_custom_command(OUTPUT ${CALIBRE_TARGET}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_calibre_target.py ${CALIBRE_TARGET}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/CalibreTarget.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_calibre_target.py ${CMAKE_CURRENT_SOURCE_DIR}/calibre_render_original.inc
+    ${REPO_ROOT}/src/activities/network/CalibreConnectActivity.cpp)
+add_executable(NetworkCalibreTarget ${CALIBRE_TARGET} ${NETWORK_RENDER_SOURCES})
+target_include_directories(NetworkCalibreTarget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(NetworkCalibreTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
+target_compile_options(NetworkCalibreTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(NetworkCalibreTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
+target_link_libraries(NetworkCalibreTarget PRIVATE xp_ffi_host)
+add_test(NAME ui_network_calibre_pixels COMMAND NetworkCalibreTarget)
+
+add_test(NAME ui_network_calibre_input COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_calibre_input.py ${XP_FFI_HOST_ARCHIVE})

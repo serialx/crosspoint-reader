@@ -56,3 +56,31 @@ pub unsafe extern "C" fn xp_ui_network_modes_view(
 ) -> u8 {
     unsafe { ffi::modes_view(state, layout, resources, buffer, next, out, hits) }
 }
+
+use xp_ui::network::{calibre, calibre_view};
+/// # Safety
+/// Descriptors live and disjoint; callbacks do not reenter state.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_network_calibre_run(
+    state: *mut calibre::State,
+    services: *const calibre::Services,
+    event: u8,
+    input: *const Input,
+    value: u8,
+) {
+    unsafe { ffi::calibre_run(state, services, event, input, value) }
+}
+/// # Safety
+/// Descriptors live and disjoint; command storage exclusively borrowed.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_network_calibre_view(
+    state: *const calibre::State,
+    layout: *const calibre_view::Layout,
+    now: u32,
+    buffer: *const Buffer,
+    out: *mut SceneView,
+) -> u8 {
+    unsafe { ffi::calibre_view(state, layout, now, buffer, out) }
+}

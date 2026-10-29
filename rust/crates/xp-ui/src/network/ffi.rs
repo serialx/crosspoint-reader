@@ -170,3 +170,80 @@ pub unsafe fn modes_view(
     }
     0
 }
+
+use super::{calibre, calibre_view};
+
+/// # Safety
+/// Descriptors are aligned, live and disjoint; callbacks must not reenter state.
+pub unsafe fn calibre_run(
+    state: *mut calibre::State,
+    services: *const calibre::Services,
+    event: u8,
+    input: *const Input,
+    value: u8,
+) {
+    let (Some(state), Some(services)) = (unsafe { state.as_mut() }, unsafe { services.as_ref() })
+    else {
+        return;
+    };
+    if services.call.is_none() || services.publish.is_none() || services.upload.is_none() {
+        return;
+    }
+    let mut leaves = calibre::Services {
+        context: services.context,
+        call: services.call,
+        publish: services.publish,
+        upload: services.upload,
+    };
+    state.run(
+        &mut leaves,
+        event,
+        unsafe { input.as_ref() }.copied().unwrap_or_default(),
+        value != 0,
+    );
+}
+/// # Safety
+/// Descriptors are aligned and disjoint; command storage is exclusively borrowed.
+pub unsafe fn calibre_view(
+    state: *const calibre::State,
+    layout: *const calibre_view::Layout,
+    now: u32,
+    buffer: *const Buffer,
+    out: *mut SceneView,
+) -> u8 {
+    let (Some(state), Some(layout), Some(buffer), Some(out)) = (
+        unsafe { state.as_ref() },
+        unsafe { layout.as_ref() },
+        unsafe { buffer.as_ref() },
+        unsafe { out.as_mut() },
+    ) else {
+        return 0;
+    };
+    if buffer.commands.is_null() || usize::from(buffer.command_capacity) > MAX_COMMAND_BYTES / 32 {
+        return 0;
+    }
+    let commands = unsafe {
+        core::slice::from_raw_parts_mut(buffer.commands, usize::from(buffer.command_capacity))
+    };
+    let Ok(mut arena) = Arena::new(commands, &mut [], &mut []) else {
+        return 0;
+    };
+    if calibre_view::view(&mut arena, state, layout, now).is_err() {
+        return 0;
+    }
+    let Ok(scene) = arena.finish(Refresh::Fast, 1) else {
+        return 0;
+    };
+    *out = SceneView {
+        commands: buffer.commands,
+        text: core::ptr::null(),
+        interactions: core::ptr::null(),
+        generation: 1,
+        command_count: scene.commands.len() as u16,
+        text_len: 0,
+        interaction_count: 0,
+        refresh: Refresh::Fast as u8,
+        reserved: 0,
+    };
+    1
+}

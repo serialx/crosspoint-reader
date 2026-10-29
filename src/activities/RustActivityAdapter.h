@@ -33,6 +33,9 @@ class RustActivityAdapter : public Activity {
   virtual Publication* rustPublication() { return nullptr; }
   virtual bool buildRustScene(XpUiScene&) { return false; }
   virtual void rustPublished() {}
+  // Called by rejectRustScene under ModelLock: fixed POD only.
+  // Builders return failure without invoking this callback.
+  // Applies to Settings/KOReaderSettings, KOReader, Update and Catalog overrides too.
   virtual void rustSceneFailed() {}
   virtual XpUiPaint rustResources() { return {}; }
   virtual XpUiInterest rustInterest(uint32_t nowMs) const { return {}; }

@@ -217,13 +217,7 @@ XpUiSettingsResources SettingsUiActivity::resources() {
 }
 
 bool SettingsUiActivity::buildRustScene(XpUiScene& scene) {
-  const auto failed = [this]() {
-    ModelLock lock(*this);
-    rustSceneFailed();
-    return false;
-  };
-  if ((!commands && !reserveCommands(commandCapacity)) || listCount() < 0 || listCount() > UINT16_MAX)
-    return failed();
+  if ((!commands && !reserveCommands(commandCapacity)) || listCount() < 0 || listCount() > UINT16_MAX) return false;
   prepareRows();
   XpUiListState snapshot{};
   {
@@ -272,7 +266,7 @@ bool SettingsUiActivity::buildRustScene(XpUiScene& scene) {
     const XpUiBuffer buffer{commands.get(), nullptr, commandCapacity, 0};
     const auto result = xp_ui_settings_view(&snapshot, &layout, &services, &buffer, &next, &scene, &nextHits);
     if (result == 1) return true;
-    if (result != 2 || !reserveCommands(commandCapacity + 16)) return failed();
+    if (result != 2 || !reserveCommands(commandCapacity + 16)) return false;
   }
 }
 void SettingsUiActivity::rustPublished() {

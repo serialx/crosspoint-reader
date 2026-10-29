@@ -201,14 +201,7 @@ const char* CatalogUiActivity::text(uint32_t h) const {
       return row.heading;
   }
 }
-bool CatalogUiActivity::buildRustScene(XpUiScene& scene) {
-  const bool built = buildCatalogScene(scene);
-  if (!built) {
-    ModelLock lock(*this);
-    rustSceneFailed();
-  }
-  return built;
-}
+bool CatalogUiActivity::buildRustScene(XpUiScene& scene) { return buildCatalogScene(scene); }
 void CatalogUiActivity::rustSceneFailed() {
   touchActivated = false;
   ui.list.active = -1;

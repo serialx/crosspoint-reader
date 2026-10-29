@@ -126,8 +126,6 @@ bool KOReaderUiActivity::buildRustScene(XpUiScene& scene) {
   }
   prepareText();
   if (!commands && !initializeUi()) {
-    ModelLock lock(*this);
-    rustSceneFailed();
     return false;
   }
   const auto& m = UITheme::getInstance().getMetrics();
@@ -174,12 +172,7 @@ bool KOReaderUiActivity::buildRustScene(XpUiScene& scene) {
   layout.has_device = deviceText && deviceText[0];
   XpUiBuffer buffer{commands.get(), hitBuffers[nextHits], static_cast<uint16_t>(painting.kind == XP_KO_SYNC ? 32 : 6),
                     2};
-  const bool success = xp_ui_koreader_view(&painting, &layout, &buffer, &scene);
-  {
-    ModelLock lock(*this);
-    if (!success) rustSceneFailed();
-  }
-  return success;
+  return xp_ui_koreader_view(&painting, &layout, &buffer, &scene);
 }
 XpUiPaint KOReaderUiActivity::rustResources() {
   return {

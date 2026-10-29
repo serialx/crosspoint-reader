@@ -160,6 +160,14 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed crypto policy")
         print("mutation check: rejected changed crypto policy")
+        changed = source.replace('segmentLimit > 0 && written - requestedOffset >= segmentLimit',
+                                 'segmentLimit > 0 && written - requestedOffset > segmentLimit', 1)
+        if changed == source:
+            changed = source.replace('xp_web_fetch(static_cast<WebFileBridge*>(&bridge), &WebFetchBridge::services);',
+                                     'return;', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed fetch policy")
+        print("mutation check: rejected changed fetch policy")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
         if changed == source:

@@ -40,6 +40,9 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   freeink::fetchResult = {};
   freeink::fetchRewind = freeink::fetchCrossOrigin = false;
   freeink::fetchWait = 0;
+  freeink::fetchSteps.clear();
+  freeink::fetchScripted = false;
+  freeink::beforeFetch = {};
   wsUploadFile.close();
   wsUploadFileName = "";
   wsUploadPath = "";
@@ -675,6 +678,95 @@ int main() {
       }
       if (kind == 8) freeink::fetchResult.status = 404;
       if (kind == 9) freeink::fetchResult = {-1, 0, false};
+      app.handleFetch();
+    });
+  }
+
+  for (int status : {-1, 0, 199, 200, 204, 206, 299, 300, 302, 400, 404, 416, 500}) {
+    for (int kind = 0; kind < 12; ++kind) {
+      record(("fetch-script:" + std::to_string(status) + ":" + std::to_string(kind)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"url\":\"https://example.test/book\",\"dest\":\"/books/"
+            "new.epub\",\"headers\":{\"Authorization\":\"token\"},\"offset\":" +
+            std::to_string(kind == 7 || kind == 8 ? 4 : 0) + ",\"maxBytes\":" + std::to_string(kind == 9 ? 2 : 0) + "}";
+        host::add("/books/new.epub", "existing");
+        host::add("/books/new.epub.part", "part");
+        freeink::fetchScripted = true;
+        freeink::fetchResult = {status, kind == 10 ? size_t(0) : size_t(8), kind != 1 && kind != 2};
+        freeink::fetchSteps = {{2, 4999}, {2, 1}, {4, 5000}};
+        if (kind == 1) freeink::fetchSteps = {{2}, {0, 60001}};
+        if (kind == 2) freeink::fetchSteps = {{2}, {0, 60001, true}};
+        if (kind == 3) freeink::fetchSteps = {{0, 5000, true}, {8}};
+        if (kind == 4) freeink::fetchSteps = {{2, 5000}, {6, 5000, true}};
+        if (kind == 5) freeink::fetchSteps = {{0, 0, false, true}, {8, 60001}};
+        if (kind == 6) freeink::fetchSteps = {{2}, {6, 5000, false, true}};
+        if (kind == 7) freeink::fetchSteps = {{0, 0, false, false, true}, {4}};
+        if (kind == 8) freeink::fetchSteps = {{4, 5000}};
+        if (kind == 10) freeink::fetchSteps = {};
+        if (kind == 11) freeink::fetchSteps = {{2}, {0, 0, false, false, true}, {8}};
+        app.handleFetch();
+      });
+    }
+  }
+  for (const char* failure : {"create", "open", "write", "replace", "remove", "mkdir"}) {
+    for (int after : {0, 1, 2}) {
+      record((std::string("fetch-storage:") + failure + ":" + std::to_string(after)).c_str(), [&](auto& app) {
+        host::failOperation = failure;
+        host::failAfter = after;
+        host::add("/books/new.epub", "existing");
+        host::add("/books/new.epub.part", "part");
+        app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"offset\":" +
+                                    std::to_string(std::string_view(failure) == "open" ? 4 : 0) + "}";
+        freeink::fetchScripted = true;
+        freeink::fetchSteps = {{2}, {2}, {0, 5000, false, false, true}, {4}};
+        app.handleFetch();
+      });
+    }
+  }
+  for (int limit : {0, 1, 3, 4}) {
+    record(("fetch-short-write:" + std::to_string(limit)).c_str(), [&](auto& app) {
+      host::writeLimit = limit;
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\"}";
+      app.handleFetch();
+    });
+  }
+  for (const char* field : {"url", "dest", "offset", "maxBytes", "headers"}) {
+    for (const char* value :
+         {"null", "false", "true", "[]", "{}", "0", "-1", "2147483647", "2147483648", "4294967295", "4194305", "1.5",
+          "\" 4\"", "\"\"", "\"http://example.test\\u0000suffix\"", "\"/books/new.epub\\u0000suffix\""}) {
+      record((std::string("fetch-json:") + field + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"" +
+                                    std::string(field) + "\":" + value + "}";
+        app.handleFetch();
+      });
+    }
+  }
+  for (int after : {0, 1, 2, 3, 4, 5, 8, 16}) {
+    record(("fetch-json-oom:" + std::to_string(after)).c_str(), [&](auto& app) {
+      WebJsonAllocator::failAfter = after;
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\"}";
+      app.handleFetch();
+      WebJsonAllocator::failAfter = -1;
+    });
+  }
+  for (int kind = 0; kind < 4; ++kind) {
+    record(("fetch-recovery:" + std::to_string(kind)).c_str(), [&](auto& app) {
+      freeink::fetchScripted = true;
+      freeink::fetchSteps = {{2}};
+      freeink::fetchResult = {200, 4, false};
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"maxBytes\":2}";
+      app.handleFetch();
+      freeink::fetchResult = {206, 4, true};
+      if (kind == 1) {
+        freeink::fetchRewind = true;
+        freeink::fetchResult.status = 200;
+      }
+      if (kind == 2) {
+        host::failOperation = "write";
+        host::failAfter = 0;
+      }
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"offset\":" +
+                                  std::to_string(kind == 3 ? 3 : 2) + "}";
       app.handleFetch();
     });
   }

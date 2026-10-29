@@ -352,9 +352,18 @@ struct FetchResult {
 inline FetchResult fetchResult;
 inline bool fetchRewind = false, fetchCrossOrigin = false;
 inline unsigned long fetchWait = 0;
+struct FetchStep {
+  size_t bytes = 0;
+  unsigned long wait = 0;
+  bool disconnect = false, cancel = false, rewind = false;
+};
+inline std::vector<FetchStep> fetchSteps;
+inline std::function<void()> beforeFetch;
+inline bool fetchScripted = false;
 inline FetchResult fetchResumable(const std::string& url, const FetchOptions& options,
                                   const std::function<void(SecureHttpClient&, bool)>& setup, FetchSink& sink,
                                   const std::function<bool()>& poll) {
+  if (beforeFetch) beforeFetch();
   host::trace.push_back("fetch:" + url + ":" + std::to_string(options.startOffset));
   SecureHttpClient http;
   setup(http, true);
@@ -367,6 +376,27 @@ inline FetchResult fetchResumable(const std::string& url, const FetchOptions& op
     return result;
   }
   auto result = fetchResult;
+  if (fetchScripted) {
+    for (const auto& step : fetchSteps) {
+      host::now += step.wait;
+      if (step.disconnect) host::connected = false;
+      if (step.cancel) host::cancelled = true;
+      const bool aborted = poll();
+      host::trace.push_back("fetch-poll:" + std::to_string(aborted));
+      if (aborted || (step.rewind && !sink.rewind())) {
+        result.complete = false;
+        return result;
+      }
+      if (step.bytes && result.status >= 200 && result.status < 300) {
+        const std::vector<uint8_t> bytes(step.bytes, 5);
+        if (!sink.write(bytes.data(), bytes.size())) {
+          result.complete = false;
+          return result;
+        }
+      }
+    }
+    return result;
+  }
   const uint8_t bytes[] = {1, 2, 3, 4};
   if (result.status >= 200 && result.status < 300 && !sink.write(bytes, sizeof(bytes))) result.complete = false;
   return result;

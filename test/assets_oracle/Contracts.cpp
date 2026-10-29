@@ -3,10 +3,13 @@
 
 #include <array>
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 
 extern "C" size_t asset_allocation_attempts();
+extern "C" size_t asset_platform_live();
+extern "C" size_t asset_platform_largest();
 struct Sink {
   size_t calls = 0, fail = SIZE_MAX;
   std::vector<uint8_t> bytes;
@@ -17,7 +20,33 @@ struct Sink {
     return true;
   }
 };
+void jpegPlatformBuffers() {
+  static const std::array<uint8_t, 2048 * 16> grayscale{};
+  XpAssetJpegConfig config{2048, 16, false, false, false};
+  auto run = [&]() {
+    Sink sink;
+    const XpAssetJpegServices services{
+        &sink, [](void* ctx, const uint8_t* bytes, size_t len) { Sink::write(ctx, bytes, len); }, [](void*) {},
+        [](void*, uint32_t, int32_t, int32_t, int32_t, int32_t) {},
+        [](void*, void* state, XpAssetJpegBlock block) {
+          return block(state, 0, 0, 2048, 16, 2048, grayscale.data());
+        }};
+    return xp_assets_jpeg_bmp(2048, 16, false, &config, &services);
+  };
+  const size_t before = asset_allocation_attempts();
+  assert(run());
+  const size_t allocations = asset_allocation_attempts() - before;
+  assert(allocations == 3 && asset_platform_largest() == 32768 && asset_platform_live() == 0);
+  for (size_t i = 0; i < allocations; ++i) {
+    const auto index = std::to_string(asset_allocation_attempts() + i);
+    assert(setenv("ASSET_FAIL_ALLOC", index.c_str(), 1) == 0);
+    assert(!run() && asset_platform_live() == 0);
+    assert(unsetenv("ASSET_FAIL_ALLOC") == 0);
+    assert(run() && asset_platform_live() == 0);
+  }
+}
 int main() {
+  jpegPlatformBuffers();
   std::string text = "https://crosspointreader.com";
   uint8_t version = 0;
   size_t payload = 0;

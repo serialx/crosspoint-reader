@@ -1,9 +1,14 @@
 //! Page-lifetime image cache owners. One read window is reused until release.
 use crate::image::frame::{Target, Writer};
 extern crate alloc;
+#[cfg(target_arch = "riscv32")]
 use alloc::alloc::{alloc_zeroed, dealloc, realloc};
 use alloc::vec::Vec;
-use core::{alloc::Layout, ptr, slice};
+#[cfg(target_arch = "riscv32")]
+use core::alloc::Layout;
+use core::{ptr, slice};
+#[cfg(not(target_arch = "riscv32"))]
+type Buffer = super::memory::Buffer<u8>;
 
 /// # Safety
 /// Target callbacks lend exclusive writable bytes through the next target call.
@@ -58,10 +63,12 @@ pub fn cache_path(path: &[u8]) -> Option<Vec<u8>> {
     output.extend_from_slice(b".px2\0");
     Some(output)
 }
+#[cfg(target_arch = "riscv32")]
 struct Buffer {
     data: *mut u8,
     len: usize,
 }
+#[cfg(target_arch = "riscv32")]
 impl Buffer {
     const fn new() -> Self {
         Self {
@@ -113,6 +120,7 @@ impl Buffer {
         }
     }
 }
+#[cfg(target_arch = "riscv32")]
 impl Drop for Buffer {
     fn drop(&mut self) {
         if !self.data.is_null() {
@@ -152,12 +160,23 @@ impl State {
         }
     }
     fn release_slot(&mut self) {
+        #[cfg(target_arch = "riscv32")]
         let payload = (self.slot_width as usize).div_ceil(4) * self.slot_height as usize;
-        for (i, chunk) in self.chunks.iter_mut().enumerate() {
+        // The C3 deallocator still needs the exact chunk layout.
+        #[allow(clippy::unused_enumerate_index)]
+        for (_i, chunk) in self.chunks.iter_mut().enumerate() {
             if !chunk.is_null() {
-                let len = (payload - i * CHUNK).min(CHUNK);
+                #[cfg(target_arch = "riscv32")]
+                let len = (payload - _i * CHUNK).min(CHUNK);
                 // SAFETY: each non-null chunk owns exactly this validated payload range.
-                unsafe { dealloc(*chunk, Layout::from_size_align_unchecked(len, 1)) };
+                #[cfg(target_arch = "riscv32")]
+                unsafe {
+                    dealloc(*chunk, Layout::from_size_align_unchecked(len, 1))
+                };
+                #[cfg(not(target_arch = "riscv32"))]
+                unsafe {
+                    super::memory::free(*chunk)
+                };
                 *chunk = ptr::null_mut();
             }
         }

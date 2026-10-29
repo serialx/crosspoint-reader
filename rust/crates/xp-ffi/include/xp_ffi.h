@@ -2192,6 +2192,24 @@ const char* xp_sync_error_string(uint32_t);
 
 // Assets: synchronous borrowed buffers; callbacks must not reenter asset APIs.
 // Buffers are borrowed only for a callback, except the image open-cache path below.
+// Asset buffer platform leaves use the display ABI caps convention: 3 = DEFAULT
+// (malloc domain, including configured PSRAM preference). Rust chooses sizes and
+// lifetimes. Nonzero sizes fit isize; returned storage is aligned for u32/i16.
+// Allocation failure returns null. Failed realloc preserves the original owner.
+// Free accepts null; every successful allocation/reallocation uses this paired free.
+// C3 retains its existing internal allocator path; these leaves serve other targets.
+void* xp_assets_platform_alloc(size_t bytes, uint32_t caps);
+void* xp_assets_platform_realloc(void* data, size_t bytes, uint32_t caps);
+void xp_assets_platform_free(void* data);
+// JPEG diagnostic(event, a, b, c, d), stable event numbers:
+// 0 dimensions (source width,height); 1 progressive grid (decoded width,height);
+// 2 invalid dimensions (source width,height); 3 scaling and 7 smoothing
+// (decoded width,height, output width,height); 4 MCU allocation failure
+// (decoded width * 16 bytes); 5 row and 6 smoothing allocation failure
+// (a is the same legacy MCU byte count, not the failed allocation size);
+// 8 scaling, 9 1-bit dither, 10 2-bit dither allocation failure; 11 block origin
+// (x,y, decoded width,height); 12 missing rows. Unlisted payload fields are zero.
+// Events report observations only; callbacks must not change conversion policy.
 typedef struct {
   int32_t width, height;
   bool one_bit, crop, original_thresholds;
@@ -2225,6 +2243,13 @@ typedef struct {
 // IO: 0 open cache (NUL-terminated path), 1 read data, 2 seek len, 3 size,
 // 4 close, 5 free heap, 6 largest block, 7 extract, 8 source size (SIZE_MAX missing),
 // 9 decode (NUL-terminated cache path; 0 no decoder, 1 failure, 2 success).
+// Image diagnostic(event, a, b), stable event numbers:
+// 0 invalid cache; 1 cache loading (width,height); 2 RAM cache loaded;
+// 3 row/path allocation failure; 4 cache read failure (row,0); 5 stream complete;
+// 6 render; 7 bounds; 8 missing source; 9 empty source; 10 decode;
+// 11 missing decoder; 12 decode failure; 13 decode complete.
+// All other payloads are zero. Paths, placement and screen geometry come from
+// the caller's context. Events do not transfer ownership or request recovery.
 // The open-cache path remains valid through the following InvalidCache (0) or
 // CacheLoading (1) diagnostic only. Other borrowed pointers must not be retained.
 typedef struct {

@@ -111,3 +111,12 @@ extern "C" void heap_caps_free(void* ptr) {
 // Isolated ABI suites link the whole Rust archive without the C++ page sink.
 // Chapter suites override this with the real destructor; accidental use fails.
 extern "C" __attribute__((weak)) void xp_chapter_release_block(void*) { std::abort(); }
+
+// Asset DEFAULT allocations use the host heap while preserving fault accounting.
+extern "C" void* xp_assets_platform_alloc(size_t bytes, uint32_t caps) {
+  return caps == 3 ? heap_caps_malloc(bytes, 0) : nullptr;
+}
+extern "C" void* xp_assets_platform_realloc(void* data, size_t bytes, uint32_t caps) {
+  return caps == 3 ? heap_caps_realloc(data, bytes, 0) : nullptr;
+}
+extern "C" void xp_assets_platform_free(void* data) { heap_caps_free(data); }

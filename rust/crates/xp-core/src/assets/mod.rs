@@ -137,3 +137,6 @@ pub fn qr_rectangles(
     }
 }
 pub mod image;
+
+#[cfg(not(target_arch = "riscv32"))]
+mod memory;

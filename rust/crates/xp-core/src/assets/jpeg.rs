@@ -1,5 +1,11 @@
 extern crate alloc;
+#[cfg(not(target_arch = "riscv32"))]
+use super::memory::{Buffer, Zeroed};
+#[cfg(target_arch = "riscv32")]
 use alloc::vec::Vec;
+#[cfg(target_arch = "riscv32")]
+type Buffer<T> = Vec<T>;
+#[cfg(target_arch = "riscv32")]
 use core::alloc::Layout;
 
 #[repr(C)]
@@ -21,17 +27,23 @@ pub trait Output {
 /// Only these primitive buffers accept an all-zero representation.
 /// # Safety
 /// Implementors have no invalid all-zero bit pattern and no destructor.
+#[cfg(target_arch = "riscv32")]
 unsafe trait Zeroed: Copy {}
+#[cfg(target_arch = "riscv32")]
 unsafe impl Zeroed for u8 {}
+#[cfg(target_arch = "riscv32")]
 unsafe impl Zeroed for u32 {}
+#[cfg(target_arch = "riscv32")]
 unsafe impl Zeroed for i16 {}
 
+#[cfg(target_arch = "riscv32")]
 #[inline(never)]
 fn zero_allocation(layout: Layout) -> *mut u8 {
     // SAFETY: callers supply a nonempty checked layout and handle allocation failure.
     unsafe { alloc::alloc::alloc_zeroed(layout) }
 }
-fn zeros<T: Zeroed>(len: usize) -> Option<Vec<T>> {
+#[cfg(target_arch = "riscv32")]
+fn zeros<T: Zeroed>(len: usize) -> Option<Buffer<T>> {
     if len == 0 {
         return Some(Vec::new());
     }
@@ -42,6 +54,11 @@ fn zeros<T: Zeroed>(len: usize) -> Option<Vec<T>> {
     }
     // SAFETY: allocation uses T's exact layout; Zeroed guarantees initialized elements.
     Some(unsafe { Vec::from_raw_parts(data, len, len) })
+}
+#[cfg(not(target_arch = "riscv32"))]
+fn zeros<T: Zeroed>(len: usize) -> Option<Buffer<T>> {
+    let mut buffer = Buffer::new();
+    buffer.grow(len).then_some(buffer)
 }
 fn step(src: usize, dst: usize) -> u32 {
     if src <= 1 || dst <= 1 {
@@ -85,12 +102,12 @@ pub struct Converter {
     row_index: usize,
     rows_since_yield: u8,
     blocks_since_yield: u8,
-    mcu: Vec<u8>,
-    row: Vec<u8>,
-    smooth_rows: Vec<u8>,
-    accum: Vec<u32>,
-    counts: Vec<u32>,
-    errors: Vec<i16>,
+    mcu: Buffer<u8>,
+    row: Buffer<u8>,
+    smooth_rows: Buffer<u8>,
+    accum: Buffer<u32>,
+    counts: Buffer<u32>,
+    errors: Buffer<i16>,
 }
 impl Converter {
     pub fn new(

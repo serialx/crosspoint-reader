@@ -168,3 +168,5 @@ add_subdirectory(ui_utility)
 add_subdirectory(keyboard_oracle)
 
 add_subdirectory(plugin_policy)
+
+add_subdirectory(dictionary_ui)

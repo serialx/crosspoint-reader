@@ -16,8 +16,23 @@ static unsigned long millis() {
   event("millis", clockMs);
   return clockMs;
 }
-#define LOG_DBG(...) event("debug")
-#define LOG_ERR(...) event("error")
+template <typename... Args>
+static void debug(Args&&...) {
+  event("debug");
+}
+template <typename... Args>
+static void error(Args&&...) {
+  event("error");
+}
+#ifndef LOOP_LOG_LEVEL
+#define LOOP_LOG_LEVEL 2
+#endif
+#if LOOP_LOG_LEVEL >= 2
+#define LOG_DBG(...) debug(__VA_ARGS__)
+#else
+#define LOG_DBG(...) ((void)0)
+#endif
+#define LOG_ERR(...) error(__VA_ARGS__)
 using ReaderRenderSpec = int;
 struct CrossPointSettings {
   enum SHORT_PWRBTN { FOOTNOTES = 4, CREATE_CLIPPING = 6 };

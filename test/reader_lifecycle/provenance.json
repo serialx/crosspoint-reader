@@ -44,11 +44,13 @@
     "method_sha256": "2aae5ae6b23c3a06881f36d975cace1be34140b27a9fe8e4c2378ef021fd6e95",
     "cases": 4608,
     "frames_per_case": 2,
-    "lines": 313499,
-    "golden_sha256": "f98295b71e36b2229138df62db8d294700a74744dad165f8821e7392a978c0a8",
-    "mutation": "Final notePageTurn direction inverted: fails at line 6371.",
+    "lines": 316808,
+    "golden_sha256": "2c942dbe59aac7f1248497a01d49e7f1928ea4344498125129ac0a4518dc2a4d",
+    "mutation": "Final notePageTurn direction inverted: fails at line 6456.",
     "limitations": "Deterministic resource leaves and uint32-range times on the host; no GPIO scheduling, resource pixel output, or full activity ownership.",
-    "generation": 2,
-    "note": "Extracts production duration constants as well as the original loop. Generation 1 fixture incorrectly supplied 2000 ms instead of the actual 2500 ms message duration; generation 2 adds exact 2499/2500/2501 ms cases before activity port."
+    "generation": 3,
+    "note": "Original source loop and production timing constants. Debug arguments are evaluated, including the clock read inside the idle-prewarm log; a separate release-level capture omits debug calls and their arguments. Generation 2 did not evaluate diagnostic arguments.",
+    "release_lines": 309908,
+    "release_sha256": "9a7fdd7ad2545507745a31020f4e34ea2ef3737a252171bb4de3bddd35a56992"
   }
 }

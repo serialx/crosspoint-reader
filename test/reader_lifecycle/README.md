@@ -65,3 +65,8 @@ the frozen trace. The prior 6,789-line lifecycle trace remains an exact prefix.
 Full-loop generation 2 also extracts the production timing constants. The first
 fixture supplied a 2,000 ms message duration; the source uses 2,500 ms. The corrected
 capture includes 2,499/2,500/2,501 ms cases and was frozen before the activity port.
+
+Full-loop generation 3 evaluates diagnostic arguments just as Logging.h does,
+including the clock read inside the idle-prewarm debug log. A separate release
+capture omits debug logs and their argument evaluation. Both captures come from
+the original loop before its port; generation 2 only recorded the log event.

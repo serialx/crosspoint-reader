@@ -69,3 +69,10 @@ target_include_directories(ReaderLoopOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} 
 add_test(NAME reader_loop_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
     $<TARGET_FILE:ReaderLoopOracle> ${CMAKE_CURRENT_SOURCE_DIR}/loop.golden.gz)
+
+add_executable(ReaderLoopOracleRelease loop_oracle.cpp ${LOOP_METHODS})
+target_compile_definitions(ReaderLoopOracleRelease PRIVATE LOOP_LOG_LEVEL=1)
+target_include_directories(ReaderLoopOracleRelease PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
+add_test(NAME reader_loop_oracle_release
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
+    $<TARGET_FILE:ReaderLoopOracleRelease> ${CMAKE_CURRENT_SOURCE_DIR}/loop-release.golden.gz)

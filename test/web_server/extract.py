@@ -107,6 +107,11 @@ def main():
         failures = [b["case"] for a, b in zip(old, new) if a != b]
         raise SystemExit(f"web oracle mismatch: {failures}; expected {len(old)} cases, got {len(new)}")
     print(f"web oracle: {len(actual.splitlines())} cases match byte for byte")
+    guard = subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_TRACE_LIMIT_CHECK": "1"},
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if guard.returncode == 0 or b"transcript string limit:" not in guard.stderr:
+        raise SystemExit("transcript string-limit guard did not reject an oversized event")
+    print("transcript string-limit guard: passed")
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")

@@ -125,13 +125,28 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
       item["value"] = v.value;
     }
   }
+  if (std::getenv("WEB_TRACE_LIMIT_CHECK")) host::trace.emplace_back(65000, 'x');
   auto events = output["events"].to<JsonArray>();
-  for (const auto& event : host::trace) events.add(event);
+  for (const auto& event : host::trace) {
+    if (event.size() >= 65000) {
+      std::cerr << "transcript string limit: " << name << " event " << events.size() << '\n';
+      std::abort();
+    }
+    events.add(event);
+  }
   auto files = output["files"].to<JsonObject>();
   for (const auto& [path, node] : host::files) {
     auto file = files[path].to<JsonObject>();
     file["directory"] = node->directory;
-    file["hex"] = host::hex(reinterpret_cast<const uint8_t*>(node->bytes.data()), node->bytes.size());
+    if (node->bytes.size() >= 32000) {
+      auto chunks = file["hex_chunks"].to<JsonArray>();
+      for (size_t offset = 0; offset < node->bytes.size(); offset += 2048) {
+        chunks.add(host::hex(reinterpret_cast<const uint8_t*>(node->bytes.data() + offset),
+                             std::min(size_t(2048), node->bytes.size() - offset)));
+      }
+    } else {
+      file["hex"] = host::hex(reinterpret_cast<const uint8_t*>(node->bytes.data()), node->bytes.size());
+    }
   }
   if (std::getenv("WEB_TRACE_AUDIT")) {
     JsonDocument audit;
@@ -154,6 +169,10 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
     audit["largest_event_bytes"] = largest;
     serializeJson(audit, std::cerr);
     std::cerr << '\n';
+  }
+  if (output.overflowed() || events.size() != host::trace.size() || files.size() != host::files.size()) {
+    std::cerr << "transcript overflow: " << name << '\n';
+    std::abort();
   }
   serializeJson(output, std::cout);
   std::cout << '\n';

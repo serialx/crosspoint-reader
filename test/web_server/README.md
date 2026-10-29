@@ -202,3 +202,20 @@ settings, fonts, and runner pages too. The complete suite was replayed against
 the unported server at `22517c67`; one existing runner transcript was corrected
 from that source because slice 4 (`0798b4e8`) accidentally used `sizeof(pointer)`
 as its ETag length. All other earlier records remain unchanged at this step.
+
+A later completeness audit found six historical transcript overflows: `pages`,
+`registered-routes`, and `life-static:/files` lost trailing events after large
+asset strings; `ws-synchronous-disconnect:DONE`, `plugins-list-extra:2`, and
+`plugins-fs-extra:3` lost large filesystem values. Those six rows were recaptured
+from the complete original server at `22517c67`, using 2,048-byte body/file
+chunks, then replayed against the candidate. Other records were preserved.
+Files smaller than 32,000 bytes retain their original `hex` field; larger files
+use an ordered `hex_chunks` array. Large static bodies use `response-bytes`
+followed by ordered `static-chunk` events. Concatenating the chunks recovers every
+byte without changing the simulated response or storage operations.
+
+The harness now aborts on events of 65,000 bytes or more, any ArduinoJson
+overflow, or a missing event/file entry. Every extractor run injects an
+oversized event to verify that guard. `WEB_TRACE_AUDIT=1` emits per-case event
+counts, maximum event length and overflow state to stderr; all 1,666 complete
+rows have equal source/recorded event counts and no overflow.

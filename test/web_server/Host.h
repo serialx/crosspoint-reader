@@ -368,7 +368,7 @@ class WebServer {
   void sendContent(const String& body) const { host::trace.push_back("chunk:" + body); }
   void send(int code) const { send(code, "text/html", ""); }
   void send_P(int code, const char* type, const char* data, size_t n) const {
-    if (host::chunkStaticBodies) {
+    if (host::chunkStaticBodies || n >= 32000) {
       host::trace.push_back("response-bytes:" + std::to_string(code) + ":" + type + ":" + std::to_string(n));
       for (size_t offset = 0; offset < n; offset += 2048) {
         host::trace.push_back("static-chunk:" + host::hex(reinterpret_cast<const uint8_t*>(data + offset),

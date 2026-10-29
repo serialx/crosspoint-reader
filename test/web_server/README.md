@@ -18,7 +18,7 @@ python3 test/web_server/extract.py --build build/web-server \
 The parity suite and mutation check are registered with CTest when ArduinoJson
 is available. Sanitizers and the allocation sweep are separate options. Set
 `WEB_TEST_ARDUINOJSON` at CMake configure time to use another installed copy.
-`golden.jsonl.gz` contains 905 ordered transcripts recorded before the port.
+`golden.jsonl.gz` contains 1544 ordered transcripts recorded before the port.
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
@@ -135,3 +135,32 @@ when an oversized argument would have rejected submission.
 
 The final status-ID fixture covers leading vertical tab, accepted by C `strtoul`
 but excluded by Rust `is_ascii_whitespace`; it rejects that parser mismatch.
+
+The relay/crypto extension was captured from unchanged C++ at `8f4db011`.
+All earlier 905 records are preserved. New cases cover relay HTTP status mapping,
+32 KiB response boundaries and timeouts, JSON types and embedded NUL, crypto
+base64/field limits, random length coercion, each checked allocation position,
+primitive/encoding failures and JSON allocator failures. Dedicated assertions
+check that parsed JSON and transport argument arrays are released before TLS,
+the PKCS#12 request document before extraction, and upstream response JSON before
+restarting suspended services. Crypto argument traces use
+synthetic data only. Relay transport outcomes and primitive results remain
+controlled substitutes; these cases do not exercise real TLS or cryptography.
+
+The fetch extension was recorded from unchanged C++ at `ffd48814`. It covers
+resume offsets and interrupted segment recovery, ignored Range and rewinds,
+short bodies, browser disconnect and upload cancellation before/during transfer,
+5-second heartbeat boundaries and 60-second waits, storage failures/short writes,
+status codes, JSON coercion including NUL and integer overflow, and JSON OOM.
+The endpoint never requests cancellation: polls feed watchdog/heartbeat even
+after disconnect. The SDK transport is scripted; actual socket retries, timeout
+implementation and task watchdog expiry are outside this endpoint oracle.
+
+The String substitute models the pinned ESP32 core's capacity retention on move
+assignment, including moving from an empty string, and deallocation on null
+C-string assignment. `--review-check` tracks live host String capacity at parse
+completion, TLS/PKCS#12 entry and service restart, including a 32 KiB response.
+The 65,536-byte encoded-field case is rejected by the pinned ArduinoJson string
+limit; a 65,532-byte field reaches PKCS#12. The measurements use host capacity
+and SSO sizes, not the target allocator's rounding. Fetch routes are also checked
+with the Rust allocator disabled and must make zero Rust allocation attempts.

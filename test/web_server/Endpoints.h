@@ -302,6 +302,10 @@ inline std::string findPluginDir(const char* name) {
 }
 }  // namespace PluginLocations
 namespace pluginhttp {
+inline int responseStatus = 201;
+inline size_t responseSize = 8;
+inline bool timeout = false;
+inline std::function<void()> beforeRequest;
 using Headers = std::vector<std::pair<std::string, std::string>>;
 inline void readHeaders(JsonVariantConst value, Headers& out) {
   for (auto p : value.as<JsonObjectConst>()) out.emplace_back(p.key().c_str(), p.value().as<std::string>());
@@ -309,12 +313,19 @@ inline void readHeaders(JsonVariantConst value, Headers& out) {
 inline int request(void*, const std::string& url, const std::string& method, const std::string& body,
                    const Headers& headers, String& out, size_t limit, Headers* response,
                    const std::function<bool()>& poll) {
+  if (beforeRequest) beforeRequest();
   host::trace.push_back("relay:" + method + ":" + url + ":" + body + ":" + std::to_string(limit));
   for (auto& h : headers) host::trace.push_back("relay-header:" + h.first + ":" + h.second);
   poll();
-  out = "response";
+  if (timeout) {
+    host::now += 30000;
+    poll();
+    return -1;
+  }
+  if (responseSize > limit) return -1;
+  out = responseSize == 8 ? "response" : std::string(responseSize, 'r');
   *response = {{"X-Test", "a"}, {"X-Test", "b"}};
-  return host::fail("relay") ? -1 : 201;
+  return host::fail("relay") ? -1 : responseStatus;
 }
 }  // namespace pluginhttp
 namespace freeink {
@@ -341,9 +352,18 @@ struct FetchResult {
 inline FetchResult fetchResult;
 inline bool fetchRewind = false, fetchCrossOrigin = false;
 inline unsigned long fetchWait = 0;
+struct FetchStep {
+  size_t bytes = 0;
+  unsigned long wait = 0;
+  bool disconnect = false, cancel = false, rewind = false;
+};
+inline std::vector<FetchStep> fetchSteps;
+inline std::function<void()> beforeFetch;
+inline bool fetchScripted = false;
 inline FetchResult fetchResumable(const std::string& url, const FetchOptions& options,
                                   const std::function<void(SecureHttpClient&, bool)>& setup, FetchSink& sink,
                                   const std::function<bool()>& poll) {
+  if (beforeFetch) beforeFetch();
   host::trace.push_back("fetch:" + url + ":" + std::to_string(options.startOffset));
   SecureHttpClient http;
   setup(http, true);
@@ -356,6 +376,27 @@ inline FetchResult fetchResumable(const std::string& url, const FetchOptions& op
     return result;
   }
   auto result = fetchResult;
+  if (fetchScripted) {
+    for (const auto& step : fetchSteps) {
+      host::now += step.wait;
+      if (step.disconnect) host::connected = false;
+      if (step.cancel) host::cancelled = true;
+      const bool aborted = poll();
+      host::trace.push_back("fetch-poll:" + std::to_string(aborted));
+      if (aborted || (step.rewind && !sink.rewind())) {
+        result.complete = false;
+        return result;
+      }
+      if (step.bytes && result.status >= 200 && result.status < 300) {
+        const std::vector<uint8_t> bytes(step.bytes, 5);
+        if (!sink.write(bytes.data(), bytes.size())) {
+          result.complete = false;
+          return result;
+        }
+      }
+    }
+    return result;
+  }
   const uint8_t bytes[] = {1, 2, 3, 4};
   if (result.status >= 200 && result.status < 300 && !sink.write(bytes, sizeof(bytes))) result.complete = false;
   return result;
@@ -383,12 +424,22 @@ inline int32_t base64Decode(const char* input, size_t n, uint8_t* out, size_t ca
 struct RsaKeyPairDer {
   std::vector<uint8_t> spki, pkcs8;
 };
+inline std::function<void()> beforePkcs12;
 struct WolfsslCrypto {
   std::string lastError = "mock failure";
   void randomBytes(uint8_t* p, size_t n) { std::memset(p, 1, n); }
-  void sha1(const uint8_t*, size_t, uint8_t* p) { std::memset(p, 2, 20); }
-  void sha256(const uint8_t*, size_t, uint8_t* p) { std::memset(p, 3, 32); }
-  bool aes128CbcDecrypt(const uint8_t*, const uint8_t*, const uint8_t* p, size_t n, uint8_t* out) {
+  void sha1(const uint8_t* d, size_t n, uint8_t* p) {
+    host::cryptoInput("sha1", d, n);
+    std::memset(p, 2, 20);
+  }
+  void sha256(const uint8_t* d, size_t n, uint8_t* p) {
+    host::cryptoInput("sha256", d, n);
+    std::memset(p, 3, 32);
+  }
+  bool aes128CbcDecrypt(const uint8_t* k, const uint8_t* iv, const uint8_t* p, size_t n, uint8_t* out) {
+    host::cryptoInput("aes-key", k, 16);
+    host::cryptoInput("aes-iv", iv, 16);
+    host::cryptoInput("aes-data", p, n);
     std::memcpy(out, p, n);
     return !host::fail("crypto");
   }
@@ -412,6 +463,7 @@ struct WolfsslCrypto {
   }
   bool pkcs12Extract(const uint8_t*, size_t, const std::string&, std::vector<uint8_t>* key,
                      std::vector<uint8_t>* cert) {
+    if (beforePkcs12) beforePkcs12();
     *key = {1, 2};
     *cert = {3, 4};
     return !host::fail("crypto");
@@ -421,13 +473,20 @@ struct WolfsslCrypto {
 }  // namespace freeink
 struct Aes {};
 constexpr int AES_ENCRYPTION = 1;
-inline int wc_AesSetKey(Aes*, const uint8_t*, size_t, const uint8_t*, int) { return host::fail("crypto") ? -1 : 0; }
+inline int wc_AesSetKey(Aes*, const uint8_t* k, size_t n, const uint8_t* iv, int) {
+  host::cryptoInput("aes-key", k, n);
+  host::cryptoInput("aes-iv", iv, 16);
+  return host::fail("crypto") ? -1 : 0;
+}
 inline int wc_AesCbcEncrypt(Aes*, uint8_t* out, const uint8_t* input, size_t n) {
+  host::cryptoInput("aes-padded", input, n);
   std::memmove(out, input, n);
-  return 0;
+  return host::fail("aes-encrypt") ? -1 : 0;
 }
 namespace base64 {
 inline String encode(const uint8_t* p, size_t n) {
+  if (host::fail("encode-empty")) return "";
+  if (host::fail("encode-fail")) return "-FAIL-";
   constexpr char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   String out;
   for (size_t i = 0; i < n; i += 3) {

@@ -16,6 +16,10 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::failOperation.clear();
   host::failAfter = -1;
   host::writeLimit = SIZE_MAX;
+  host::cryptoTrace = false;
+  host::beforeResume = {};
+  pluginhttp::beforeRequest = {};
+  freeink::content::beforePkcs12 = {};
   host::cancelled = false;
   host::connected = true;
   host::now = 1000;
@@ -30,9 +34,15 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   PluginLocations::entries = {{"test", "/plugins/test"}};
   HalMemory::psram = false;
   sdFontSystem.fonts.families = {{}};
+  pluginhttp::responseStatus = 201;
+  pluginhttp::responseSize = 8;
+  pluginhttp::timeout = false;
   freeink::fetchResult = {};
   freeink::fetchRewind = freeink::fetchCrossOrigin = false;
   freeink::fetchWait = 0;
+  freeink::fetchSteps.clear();
+  freeink::fetchScripted = false;
+  freeink::beforeFetch = {};
   wsUploadFile.close();
   wsUploadFileName = "";
   wsUploadPath = "";
@@ -55,6 +65,11 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
     if (std::getenv("WEB_JOB_ALLOCATION_CHECK") && std::string_view(name).starts_with("job") &&
         xp_test_allocation_attempts() != 0) {
       std::cerr << "job route allocated Rust memory: " << name << '\n';
+      std::abort();
+    }
+    if (std::getenv("WEB_FETCH_ALLOCATION_CHECK") && std::string_view(name).starts_with("fetch") &&
+        xp_test_allocation_attempts() != 0) {
+      std::cerr << "fetch route allocated Rust memory: " << name << '\n';
       std::abort();
     }
     if (wsUploadInProgress && !wsUploadFile) {
@@ -134,6 +149,77 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+
+  if (const char* check = std::getenv("WEB_STRING_LIFETIME_CHECK")) {
+    const std::string_view mode(check);
+    const auto verify = [](size_t expected, const char* stage) {
+      const size_t live = String::liveStorage();
+      std::cerr << "String storage " << stage << ": " << live << " B, baseline " << expected << " B\n";
+      if (live != expected) std::abort();
+    };
+    if (mode == "tls") {
+      record("string-lifetime-tls", [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"plugin\":\"p\",\"url\":\"http://example.test\",\"body\":\"" + std::string(32768, 'x') + "\"}";
+        const size_t baseline = String::liveStorage();
+        pluginhttp::beforeRequest = [&] { verify(baseline, "TLS entry"); };
+        app.handleRelay();
+        pluginhttp::beforeRequest = {};
+      });
+    } else if (mode == "pkcs12") {
+      record("string-lifetime-pkcs12", [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"op\":\"pkcs12\",\"data\":\"" + std::string(65532, 'A') + "\",\"password\":\"synthetic\"}";
+        const size_t baseline = String::liveStorage();
+        bool entered = false;
+        freeink::content::beforePkcs12 = [&] {
+          entered = true;
+          verify(baseline, "PKCS12 entry");
+        };
+        app.handleCrypto();
+        freeink::content::beforePkcs12 = {};
+        if (!entered) std::abort();
+      });
+      record("string-lifetime-65536-field", [&](auto& app) {
+        app.server->args["plain"] = "{\"op\":\"pkcs12\",\"data\":\"" + std::string(65536, 'A') + "\"}";
+        app.handleCrypto();
+      });
+    } else if (mode == "fetch") {
+      for (int kind = 0; kind < 3; ++kind) {
+        record("string-lifetime-fetch", [&](auto& app) {
+          app.server->args["plain"] =
+              "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"headers\":{\"X-Test\":\"" +
+              std::string(32768, 'x') + "\"},\"maxBytes\":" + std::to_string(kind == 2 ? 2 : 0) + "}";
+          freeink::fetchResult.complete = kind != 1;
+          const size_t baseline = String::liveStorage();
+          bool entered = false;
+          freeink::beforeFetch = [&] {
+            entered = true;
+            if (WebJsonAllocator::live) std::abort();
+            verify(baseline, "fetch entry");
+          };
+          host::beforeResume = [&] { verify(baseline, "fetch restart"); };
+          app.handleFetch();
+          freeink::beforeFetch = {};
+          host::beforeResume = {};
+          if (!entered) std::abort();
+        });
+      }
+    } else if (mode == "resume") {
+      for (int status : {-1, 200}) {
+        record("string-lifetime-resume", [&](auto& app) {
+          app.server->args["plain"] = R"({"plugin":"p","url":"http://example.test"})";
+          pluginhttp::responseSize = 32768;
+          pluginhttp::responseStatus = status;
+          const size_t baseline = String::liveStorage();
+          host::beforeResume = [&] { verify(baseline, "service restart"); };
+          app.handleRelay();
+          host::beforeResume = {};
+        });
+      }
+    }
+    return 0;
+  }
   if (std::getenv("WEB_KEY_LIFETIME_CHECK")) {
     record("book-key-body-lifetime", [](auto& app) {
       app.server->args["plain"] =
@@ -668,6 +754,95 @@ int main() {
       }
       if (kind == 8) freeink::fetchResult.status = 404;
       if (kind == 9) freeink::fetchResult = {-1, 0, false};
+      app.handleFetch();
+    });
+  }
+
+  for (int status : {-1, 0, 199, 200, 204, 206, 299, 300, 302, 400, 404, 416, 500}) {
+    for (int kind = 0; kind < 12; ++kind) {
+      record(("fetch-script:" + std::to_string(status) + ":" + std::to_string(kind)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"url\":\"https://example.test/book\",\"dest\":\"/books/"
+            "new.epub\",\"headers\":{\"Authorization\":\"token\"},\"offset\":" +
+            std::to_string(kind == 7 || kind == 8 ? 4 : 0) + ",\"maxBytes\":" + std::to_string(kind == 9 ? 2 : 0) + "}";
+        host::add("/books/new.epub", "existing");
+        host::add("/books/new.epub.part", "part");
+        freeink::fetchScripted = true;
+        freeink::fetchResult = {status, kind == 10 ? size_t(0) : size_t(8), kind != 1 && kind != 2};
+        freeink::fetchSteps = {{2, 4999}, {2, 1}, {4, 5000}};
+        if (kind == 1) freeink::fetchSteps = {{2}, {0, 60001}};
+        if (kind == 2) freeink::fetchSteps = {{2}, {0, 60001, true}};
+        if (kind == 3) freeink::fetchSteps = {{0, 5000, true}, {8}};
+        if (kind == 4) freeink::fetchSteps = {{2, 5000}, {6, 5000, true}};
+        if (kind == 5) freeink::fetchSteps = {{0, 0, false, true}, {8, 60001}};
+        if (kind == 6) freeink::fetchSteps = {{2}, {6, 5000, false, true}};
+        if (kind == 7) freeink::fetchSteps = {{0, 0, false, false, true}, {4}};
+        if (kind == 8) freeink::fetchSteps = {{4, 5000}};
+        if (kind == 10) freeink::fetchSteps = {};
+        if (kind == 11) freeink::fetchSteps = {{2}, {0, 0, false, false, true}, {8}};
+        app.handleFetch();
+      });
+    }
+  }
+  for (const char* failure : {"create", "open", "write", "replace", "remove", "mkdir"}) {
+    for (int after : {0, 1, 2}) {
+      record((std::string("fetch-storage:") + failure + ":" + std::to_string(after)).c_str(), [&](auto& app) {
+        host::failOperation = failure;
+        host::failAfter = after;
+        host::add("/books/new.epub", "existing");
+        host::add("/books/new.epub.part", "part");
+        app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"offset\":" +
+                                    std::to_string(std::string_view(failure) == "open" ? 4 : 0) + "}";
+        freeink::fetchScripted = true;
+        freeink::fetchSteps = {{2}, {2}, {0, 5000, false, false, true}, {4}};
+        app.handleFetch();
+      });
+    }
+  }
+  for (int limit : {0, 1, 3, 4}) {
+    record(("fetch-short-write:" + std::to_string(limit)).c_str(), [&](auto& app) {
+      host::writeLimit = limit;
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\"}";
+      app.handleFetch();
+    });
+  }
+  for (const char* field : {"url", "dest", "offset", "maxBytes", "headers"}) {
+    for (const char* value :
+         {"null", "false", "true", "[]", "{}", "0", "-1", "2147483647", "2147483648", "4294967295", "4194305", "1.5",
+          "\" 4\"", "\"\"", "\"http://example.test\\u0000suffix\"", "\"/books/new.epub\\u0000suffix\""}) {
+      record((std::string("fetch-json:") + field + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"" +
+                                    std::string(field) + "\":" + value + "}";
+        app.handleFetch();
+      });
+    }
+  }
+  for (int after : {0, 1, 2, 3, 4, 5, 8, 16}) {
+    record(("fetch-json-oom:" + std::to_string(after)).c_str(), [&](auto& app) {
+      WebJsonAllocator::failAfter = after;
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\"}";
+      app.handleFetch();
+      WebJsonAllocator::failAfter = -1;
+    });
+  }
+  for (int kind = 0; kind < 4; ++kind) {
+    record(("fetch-recovery:" + std::to_string(kind)).c_str(), [&](auto& app) {
+      freeink::fetchScripted = true;
+      freeink::fetchSteps = {{2}};
+      freeink::fetchResult = {200, 4, false};
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"maxBytes\":2}";
+      app.handleFetch();
+      freeink::fetchResult = {206, 4, true};
+      if (kind == 1) {
+        freeink::fetchRewind = true;
+        freeink::fetchResult.status = 200;
+      }
+      if (kind == 2) {
+        host::failOperation = "write";
+        host::failAfter = 0;
+      }
+      app.server->args["plain"] = "{\"url\":\"http://example.test\",\"dest\":\"/books/new.epub\",\"offset\":" +
+                                  std::to_string(kind == 3 ? 3 : 2) + "}";
       app.handleFetch();
     });
   }
@@ -1273,5 +1448,156 @@ int main() {
     app.server->args["id"] = "\v1";
     app.handlePluginJobStatus();
   });
+
+  for (const char* route : {"relay", "crypto"}) {
+    for (const char* body : {"", "null", "[]", "42", "true", "{}", "{", R"({"op":null})"}) {
+      record((std::string("rc-json:") + route + ":" + body).c_str(), [&](auto& app) {
+        app.server->uploadAvailable = false;
+        app.server->args["plain"] = body;
+        if (std::string(route) == "relay")
+          app.handleRelay();
+        else
+          app.handleCrypto();
+      });
+    }
+  }
+  for (const char* field : {"plugin", "url", "method", "body", "headers"}) {
+    for (const char* value : {"null", "42", "true", "[]", "{}", R"("")", R"("a/b")", R"("a..b")", R"("a\\b")",
+                              R"("a\u0000/b")", R"("\u0000x")", R"({"X-A":null,"X-B":[1],"X-C":42})"}) {
+      record((std::string("relay-field:") + field + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string(R"({"plugin":"p","url":"https://example.test",)") + "\"" + field + "\":" + value + "}";
+        app.handleRelay();
+      });
+    }
+  }
+  for (int status : {-3, -1, 0, 200, 301, 400, 401, 404, 500, 599}) {
+    record(("relay-status:" + std::to_string(status)).c_str(), [&](auto& app) {
+      pluginhttp::responseStatus = status;
+      app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+      app.handleRelay();
+    });
+  }
+  for (size_t size : {0, 32767, 32768, 32769}) {
+    record(("relay-body-limit:" + std::to_string(size)).c_str(), [&](auto& app) {
+      pluginhttp::responseSize = size;
+      app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+      app.handleRelay();
+    });
+  }
+  record("relay-timeout", [&](auto& app) {
+    pluginhttp::timeout = true;
+    app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+    app.handleRelay();
+  });
+  for (const char* value :
+       {"null", "true", "1.5", "-1", "0", "1", "4095", "4096", "4097", "2147483648", "4294967295", R"("22")", "[]"}) {
+    record((std::string("crypto-random-coercion:") + value).c_str(), [&](auto& app) {
+      app.server->args["plain"] = std::string(R"({"op":"random","len":)") + value + "}";
+      app.handleCrypto();
+    });
+  }
+  for (const char* op : {"sha1", "sha256", "aesenc", "aesdec", "rsadec", "pubencrypt", "sign", "pkcs12", "random"}) {
+    for (const char* value :
+         {"null", "42", "true", "[]", R"("")", R"("!")", R"("AA==\u0000junk")", R"(" AA==")", R"("AAAA")"}) {
+      record((std::string("crypto-input:") + op + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"op\":\"") + op + "\",\"data\":" + value + ",\"hash\":" + value + "}";
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+  }
+  for (const char* op :
+       {"sha1", "sha256", "aesenc", "aesdec", "rsadec", "pubencrypt", "sign", "pkcs12", "keygen", "random"}) {
+    for (int budget = 0; budget < 7; ++budget) {
+      record((std::string("crypto-alloc:") + op + ":" + std::to_string(budget)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"op\":\"") + op +
+            R"(","key":"AAAAAAAAAAAAAAAAAAAAAA==","iv":"AAAAAAAAAAAAAAAAAAAAAA==","data":"AA==","private":"AA==","cert":"AA==","hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAA="})";
+        host::failOperation = "alloc";
+        host::failAfter = budget;
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+    for (const char* failure : {"encode-empty", "encode-fail", "crypto", "aes-encrypt"}) {
+      record((std::string("crypto-failure:") + op + ":" + failure).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"op\":\"") + op +
+            R"(","key":"AAAAAAAAAAAAAAAAAAAAAA==","iv":"AAAAAAAAAAAAAAAAAAAAAA==","data":"AAAAAAAAAAAAAAAAAAAAAA==","private":"AA==","cert":"AA==","hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAA="})";
+        host::failOperation = failure;
+        host::failAfter = 0;
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+  }
+  for (size_t size : {0, 15, 16, 17, 20, 31, 32, 65535, 65536, 65537}) {
+    for (const char* field : {"data", "key", "iv", "hash"}) {
+      record((std::string("crypto-field-bound:") + field + ":" + std::to_string(size)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string(R"({"op":"aesdec","key":"AAAAAAAAAAAAAAAAAAAAAA==","iv":"AAAAAAAAAAAAAAAAAAAAAA==",)") + "\"" +
+            field + "\":\"" + std::string(size, 'A') + "\"}";
+        host::cryptoTrace = true;
+        app.handleCrypto();
+      });
+    }
+  }
+  for (const char* route : {"relay", "crypto"}) {
+    for (int budget = 0; budget < 12; ++budget) {
+      record((std::string("rc-json-alloc:") + route + ":" + std::to_string(budget)).c_str(), [&](auto& app) {
+        app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test","op":"keygen"})";
+        WebJsonAllocator::failAfter = budget;
+        if (std::string(route) == "relay")
+          app.handleRelay();
+        else
+          app.handleCrypto();
+        WebJsonAllocator::failAfter = -1;
+      });
+    }
+  }
+
+  record("relay-release-before-tls", [](auto& app) {
+    app.server->_currentArgs = new String[1];
+    app.server->_currentArgCount = 1;
+    app.server->_postArgs = new String[1];
+    app.server->_postArgsLen = 1;
+    app.server->args["plain"] =
+        R"({"plugin":"p","url":"https://example.test","headers":{"Authorization":"synthetic"},"body":"payload"})";
+    pluginhttp::beforeRequest = [&] {
+      if (app.server->_currentArgs || app.server->_postArgs || WebJsonAllocator::live) std::abort();
+    };
+    app.handleRelay();
+    pluginhttp::beforeRequest = {};
+  });
+  record("crypto-pkcs12-release", [](auto& app) {
+    app.server->args["plain"] = R"({"op":"pkcs12","data":"AA==","password":"synthetic"})";
+    freeink::content::beforePkcs12 = [] {
+      if (WebJsonAllocator::live) std::abort();
+    };
+    app.handleCrypto();
+    freeink::content::beforePkcs12 = {};
+  });
+
+  for (const char* op : {R"("sha1\u0000suffix")", R"("aesdec\u0000suffix")", R"("\u0000sha1")", "null", "42", "[]"}) {
+    record((std::string("crypto-op-coercion:") + op).c_str(), [&](auto& app) {
+      app.server->args["plain"] = std::string("{\"op\":") + op + R"(,"data":"AA=="})";
+      host::cryptoTrace = true;
+      app.handleCrypto();
+    });
+  }
+
+  for (int status : {-1, 200}) {
+    record(("relay-response-release:" + std::to_string(status)).c_str(), [&](auto& app) {
+      app.server->args["plain"] = R"({"plugin":"p","url":"https://example.test"})";
+      pluginhttp::responseStatus = status;
+      host::beforeResume = [] {
+        if (WebJsonAllocator::live) std::abort();
+      };
+      app.handleRelay();
+      host::beforeResume = {};
+    });
+  }
   return 0;
 }

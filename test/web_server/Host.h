@@ -43,6 +43,11 @@ inline unsigned long now = 1000;
 inline std::string failOperation;
 inline int failAfter = -1;
 inline bool cancelled = false, connected = true;
+inline bool cryptoTrace = false;
+inline std::function<void()> beforeResume;
+inline void cryptoInput(const char* name, const uint8_t* p, size_t n) {
+  if (cryptoTrace) trace.push_back(std::string("crypto-input:") + name + ":" + hex(p, n));
+}
 inline size_t writeLimit = SIZE_MAX;
 inline bool fail(const char* operation) {
   if (failOperation != operation || failAfter < 0) return false;
@@ -72,15 +77,23 @@ inline void add(const std::string& path, const std::string& bytes = "", bool dir
 class WebJsonAllocator : public ArduinoJson::Allocator {
  public:
   inline static int failAfter = -1;
+  inline static size_t live = 0;
   static bool fail() {
     if (failAfter < 0) return false;
     if (failAfter == 0) return true;
     --failAfter;
     return false;
   }
-  void* allocate(size_t size) override { return fail() ? nullptr : std::malloc(size); }
+  void* allocate(size_t size) override {
+    void* p = fail() ? nullptr : std::malloc(size);
+    if (p) ++live;
+    return p;
+  }
   void* reallocate(void* ptr, size_t size) override { return std::realloc(ptr, size); }
-  void deallocate(void* ptr) override { std::free(ptr); }
+  void deallocate(void* ptr) override {
+    if (ptr) --live;
+    std::free(ptr);
+  }
 };
 inline WebJsonAllocator webJsonAllocator;
 class WebJsonDocument : public ArduinoJson::JsonDocument {

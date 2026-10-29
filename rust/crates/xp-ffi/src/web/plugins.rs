@@ -4,9 +4,6 @@ use super::{
 };
 use core::ffi::{c_char, c_void};
 
-unsafe extern "C" {
-    fn xp_plugin_path_candidate(path: *const u8, len: usize) -> bool;
-}
 #[repr(C)]
 struct Entry {
     name: Span,
@@ -70,10 +67,6 @@ impl PluginRequest<'_> {
     }
     fn value(&self, key: &core::ffi::CStr) -> Span {
         unsafe { (self.p.json_string)(self.r().ctx, key.as_ptr()) }
-    }
-    fn plugin_path(&self, path: &[u8]) -> bool {
-        (unsafe { xp_plugin_path_candidate(path.as_ptr(), path.len()) })
-            && !unsafe { (self.r().services.sensitive)(self.r().ctx, path.as_ptr().cast()) }
     }
     fn list(&self) -> Result<()> {
         let count = unsafe { (self.p.scan)(self.r().ctx) };
@@ -200,7 +193,7 @@ impl PluginRequest<'_> {
         let expires = unsafe { (self.p.expires)(self.r().ctx) };
         let mut decoded = [0; 32];
         let len = unsafe { (self.p.decode)(key, decoded.as_mut_ptr(), decoded.len()) };
-        if !self.plugin_path(path.bytes()) || !matches!(len, 16 | 32) || expires < 0 {
+        if !self.r().plugin_path(path.bytes()) || !matches!(len, 16 | 32) || expires < 0 {
             self.json(400, b"{\"error\":\"bad path/key\"}");
         } else if !unsafe { (self.p.store)(path.ptr(), decoded.as_ptr(), len as usize, expires) } {
             self.json(500, b"{\"error\":\"cannot store key\"}");
@@ -236,7 +229,7 @@ impl PluginRequest<'_> {
                 }
                 let plugin = self.r().arg_or(b"plugin\0", b"")?;
                 let path = self.t.get(Field::PluginPath);
-                if !component(plugin.bytes()) || !self.plugin_path(path) {
+                if !component(plugin.bytes()) || !self.r().plugin_path(path) {
                     self.event(0, c_bytes(plugin.bytes()), c_bytes(path));
                     self.fail(s, 400, c"bad path");
                     return Ok(());

@@ -1,7 +1,9 @@
 mod config;
+mod fetch;
 mod fonts;
 mod jobs;
 mod plugins;
+mod rpc;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.
 use crate::system_items::hidden_name as hidden;
@@ -50,6 +52,9 @@ pub struct Services {
     path: unsafe extern "C" fn(*mut c_void, usize) -> Span,
     diagnostic: unsafe extern "C" fn(*mut c_void, u32, Span, Span),
     memory_error: unsafe extern "C" fn(*mut c_void) -> *const c_char,
+}
+unsafe extern "C" {
+    fn xp_plugin_path_candidate(path: *const u8, len: usize) -> bool;
 }
 struct Text(Vec<u8>);
 type Result<T> = core::result::Result<T, ()>;
@@ -164,6 +169,9 @@ enum Io {
     OpenRead,
     EnsureDir,
     Replace,
+    OpenAppend,
+    Flush,
+    CreatePlugin,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -221,6 +229,40 @@ impl Request<'_> {
     #[inline(never)]
     fn fs(&self, op: Io, slot: u32, path: &Text) -> usize {
         self.io(op, slot, path.ptr(), core::ptr::null_mut(), 0)
+    }
+    // Callers provide a NUL-terminated loan for the shared sensitive-path leaf.
+    fn plugin_path(&self, path: &[u8]) -> bool {
+        (unsafe { xp_plugin_path_candidate(path.as_ptr(), path.len()) })
+            && !unsafe { (self.services.sensitive)(self.ctx, path.as_ptr().cast()) }
+    }
+    #[inline(never)]
+    fn json_body(
+        &self,
+        parse: unsafe extern "C" fn(*mut c_void, Span) -> Span,
+        send: unsafe extern "C" fn(*mut c_void, u16, *const c_char),
+    ) -> bool {
+        let body = unsafe { (self.services.argument)(self.ctx, c"plain".as_ptr()) };
+        let error = if body.data.is_null() {
+            Some(c"{\"error\":\"missing body\"}")
+        } else {
+            let error = unsafe { parse(self.ctx, body) };
+            unsafe {
+                (self.services.argument)(self.ctx, core::ptr::null());
+            }
+            if error.data.is_null() {
+                None
+            } else {
+                Some(c"{\"error\":\"bad json\"}")
+            }
+        };
+        if let Some(error) = error {
+            unsafe {
+                send(self.ctx, 400, error.as_ptr());
+            }
+            false
+        } else {
+            true
+        }
     }
     #[inline(never)]
     fn send(&self, status: u16, body: &[u8]) {

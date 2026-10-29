@@ -143,24 +143,8 @@ impl JobRequest<'_> {
             (self.s.json)(self.r.ctx, key.as_ptr(), out.as_mut_ptr(), out.len());
         }
     }
-    fn body(&self) -> bool {
-        let body = self.arg(c"plain");
-        if body.data.is_null() {
-            self.send(400, c"{\"error\":\"missing body\"}");
-            return false;
-        }
-        let error = unsafe { (self.s.parse)(self.r.ctx, body) };
-        unsafe {
-            (self.r.services.argument)(self.r.ctx, core::ptr::null());
-        }
-        if !error.data.is_null() {
-            self.send(400, c"{\"error\":\"bad json\"}");
-            return false;
-        }
-        true
-    }
     fn submit(&self, q: &mut Queue) {
-        if !self.body() {
+        if !self.r.json_body(self.s.parse, self.s.send) {
             return;
         }
         let plugin = self.string(c"plugin");
@@ -234,7 +218,7 @@ impl JobRequest<'_> {
         self.send(200, c"{\"id\":0}");
     }
     fn complete(&self, q: &mut Queue) {
-        if !self.body() {
+        if !self.r.json_body(self.s.parse, self.s.send) {
             return;
         }
         let id = self.integer(c"id");

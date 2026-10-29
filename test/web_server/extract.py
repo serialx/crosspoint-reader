@@ -25,7 +25,15 @@ def function(source, name):
 
 
 def generate(source, header):
+    source = source.replace("void CrossPointWebServer::resumeTransferServices() {",
+                            "void CrossPointWebServer::resumeTransferServices() {\n  if (host::beforeResume) host::beforeResume();")
     source = re.sub(r"\bJsonDocument\b", "WebJsonDocument", source)
+    if "xp_web_files" in source and 'return {nullptr, 0};\n      }\n      if (!*key)' not in source:
+        raise ValueError("argument release hook changed: review String lifetime instrumentation")
+    source = source.replace('return {nullptr, 0};\n      }\n      if (!*key)',
+        'if (std::getenv("WEB_STRING_PARSE_CHECK") && b.argument.capacity() > std::string{}.capacity()) { '
+        'std::cerr << "String scratch retained at parse completion: " << b.argument.capacity() << " B\\n"; std::abort(); }\n'
+        'return {nullptr, 0};\n      }\n      if (!*key)')
     header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
@@ -88,9 +96,14 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK"]:
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
+        for stage in ["tls", "pkcs12", "resume", "fetch"]:
+            subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_STRING_LIFETIME_CHECK": stage},
+                           stdout=subprocess.DEVNULL, check=True)
+        subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_STRING_PARSE_CHECK": "1"},
+                       stdout=subprocess.DEVNULL, check=True)
         print("review checks: completion consistency, translated allocation errors, system-name listing and book-key body lifetime and allocation-free job routes passed")
     if args.fault_check:
         if not args.archive:
@@ -100,6 +113,10 @@ def main():
             return [row for line in data.splitlines() if (row := json.loads(line))["case"].startswith("job")]
         if jobs(zero) != jobs(expected):
             raise SystemExit("job transcripts changed with Rust allocator disabled")
+        def rpc(data):
+            return [row for line in data.splitlines() if (row := json.loads(line))["case"].startswith(("crypto", "relay", "rc-json", "fetch"))]
+        if rpc(zero) != rpc(expected):
+            raise SystemExit("relay/crypto transcripts changed with Rust allocator disabled")
         for count in range(1, 128):
             subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_FAIL_AFTER": str(count)},
                            stdout=subprocess.DEVNULL, check=True)
@@ -140,6 +157,28 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed plugin behavior")
         print("mutation check: rejected changed plugin behavior")
+        changed = source.replace('static constexpr size_t RELAY_BODY_LIMIT = 32 * 1024;',
+                                 'static constexpr size_t RELAY_BODY_LIMIT = 31 * 1024;', 1)
+        if changed == source:
+            changed = source.replace('WebRelayBridge bridge(*this);', 'return; WebRelayBridge bridge(*this);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed relay policy")
+        print("mutation check: rejected changed relay policy")
+        changed = source.replace('static constexpr int MAX_RANDOM_BYTES = 4096;',
+                                 'static constexpr int MAX_RANDOM_BYTES = 4095;', 1)
+        if changed == source:
+            changed = source.replace('WebCryptoBridge bridge(*this);', 'return; WebCryptoBridge bridge(*this);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed crypto policy")
+        print("mutation check: rejected changed crypto policy")
+        changed = source.replace('segmentLimit > 0 && written - requestedOffset >= segmentLimit',
+                                 'segmentLimit > 0 && written - requestedOffset > segmentLimit', 1)
+        if changed == source:
+            changed = source.replace('xp_web_fetch(static_cast<WebFileBridge*>(&bridge), &WebFetchBridge::services);',
+                                     'return;', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed fetch policy")
+        print("mutation check: rejected changed fetch policy")
         signature = "void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {"
         changed = source.replace(signature, signature + "\n  if (type == WStype_DISCONNECTED) return;", 1)
         if changed == source:

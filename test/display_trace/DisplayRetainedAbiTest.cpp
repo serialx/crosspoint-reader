@@ -37,7 +37,7 @@ struct FakeBus {
   unsigned refreshes = 0, allocated = 0, freed = 0;
 };
 
-static void overlap(bool duringAllocation) {
+static void overlap(bool duringAllocation, bool abortWork) {
   alignas(XP_DISPLAY_STATE_ALIGN) uint8_t state[XP_DISPLAY_PAPER_MONO_STATE_BYTES];
   uint8_t scratch[16384];
   FakeBus fake;
@@ -113,19 +113,31 @@ static void overlap(bool duringAllocation) {
   uint32_t result = 0;
   std::thread render([&] { result = execute(XP_DISPLAY_OP_GRAY_DISPLAY); });
   fake.gate.wait();
-  xp_display_abort(state);
-  assert(xp_display_generation(state) == 1);
+  if (abortWork) xp_display_abort(state);
+  assert(xp_display_generation(state) == (abortWork ? 1u : 0u));
   fake.gate.resume();
   render.join();
-  // Cancellation before commit skips it; a started waveform finishes synchronously.
-  assert(result == (XP_DISPLAY_RESULT_ABORTED | (duringAllocation ? 0u : XP_DISPLAY_RESULT_COMMITTED)));
-  assert(fake.refreshes == (duringAllocation ? 0u : 1u));
+  // Allocation overlap has no frame yet; a started waveform finishes synchronously.
+  assert(result ==
+         ((abortWork ? XP_DISPLAY_RESULT_ABORTED : 0u) | (duringAllocation ? 0u : XP_DISPLAY_RESULT_COMMITTED)));
+  unsigned expectedRefreshes = duringAllocation ? 0u : 1u;
+  assert(fake.refreshes == expectedRefreshes);
+  if (duringAllocation) {
+    // Stage a complete frame without restarting the canceled work generation.
+    execute(XP_DISPLAY_OP_SEED_PREVIOUS, &white);
+    execute(XP_DISPLAY_OP_GRAY_LSB, &gray);
+    execute(XP_DISPLAY_OP_GRAY_MSB, &gray);
+    assert(execute(XP_DISPLAY_OP_GRAY_DISPLAY) ==
+           (abortWork ? XP_DISPLAY_RESULT_ABORTED : XP_DISPLAY_RESULT_COMMITTED));
+    if (!abortWork) ++expectedRefreshes;
+    assert(fake.refreshes == expectedRefreshes);
+  }
   execute(XP_DISPLAY_OP_BEGIN_WORK);
   execute(XP_DISPLAY_OP_SEED_PREVIOUS, &white);
   execute(XP_DISPLAY_OP_GRAY_LSB, &white);
   execute(XP_DISPLAY_OP_GRAY_MSB, &white);
   assert(execute(XP_DISPLAY_OP_GRAY_DISPLAY) == XP_DISPLAY_RESULT_COMMITTED);
-  assert(fake.refreshes == (duringAllocation ? 1u : 2u));
+  assert(fake.refreshes == expectedRefreshes + 1);
   xp_display_drop(state);
   assert(fake.allocated == 8 && fake.freed == fake.allocated);
 }
@@ -138,8 +150,9 @@ static void* allocate(void*, uint32_t size, uint32_t caps) {
   return std::calloc(1, size);
 }
 int main() {
-  overlap(true);
-  overlap(false);
+  overlap(true, false);  // No-abort control for the same-generation commit.
+  overlap(true, true);
+  overlap(false, true);
   alignas(XP_DISPLAY_STATE_ALIGN) static uint8_t state[XP_DISPLAY_PAPER_MONO_STATE_BYTES];
   static uint8_t scratch[16384];
   XpDisplayPlatform platform{1, sizeof(platform), nullptr, allocate, [](void*, void* p) { std::free(p); }};

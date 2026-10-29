@@ -16,7 +16,12 @@
 #include "RemoteTurnGate.h"
 
 static uint32_t clockMs = 1234;
-unsigned long millis() { return clockMs; }
+static bool traceClock = false;
+static int lockDepth = 0;
+unsigned long millis() {
+  if (traceClock) std::printf("clock-lock %d\n", lockDepth);
+  return clockMs;
+}
 static bool radioHeap = false;
 namespace bleturner {
 void acknowledgeLinkNote() { std::puts("ack-link"); }
@@ -26,9 +31,9 @@ bool holdsHeap() { return radioHeap; }
 struct RenderLock {
   enum class Mode { Try };
   static inline bool available = true;
-  RenderLock() = default;
-  explicit RenderLock(Mode) {}
-  ~RenderLock() {}
+  RenderLock() { ++lockDepth; }
+  explicit RenderLock(Mode) { ++lockDepth; }
+  ~RenderLock() { --lockDepth; }
   bool ownsLock() const { return available; }
   static bool peek() { return !available; }
 };
@@ -155,6 +160,9 @@ struct EpubReaderActivity {
   bool anyButtonPressed() const { return buttonDown; }
   void requestUpdate() { std::puts("update"); }
   bool pageTurn(bool);
+#if __has_include(<xp_ui_reader.h>)
+  bool applyPageMove(const XpUiReaderMove&, bool);
+#endif
   bool skipPages(int);
   bool buildTickHeapGate();
   void backgroundBuildTick();
@@ -321,6 +329,9 @@ static void persistence() {
     std::printf("links %d %d %d\n", depth, b.footnoteDepth, Storage.exists("/cache/links.bin"));
     for (const auto& p : b.savedPositions) std::printf("position %d %d\n", p.spineIndex, p.pageNumber);
   }
+}
+
+static void corruptPersistence() {
   for (int size = 0; size <= 14; ++size) {
     for (int depth = 0; depth <= 4; ++depth) {
       for (int invalidSpine = 0; invalidSpine < 2; ++invalidSpine) {
@@ -416,6 +427,22 @@ static void chrome() {
   }
 }
 
+static void turnLockTiming() {
+  traceClock = true;
+  for (int spine : {0, 1, 2}) {
+    for (int page : {0, 2}) {
+      for (bool forward : {false, true}) {
+        EpubReaderActivity a;
+        a.currentSpineIndex = spine;
+        a.section->currentPage = page;
+        std::printf("turn-lock %d %d %d\n", spine, page, forward);
+        a.pageTurn(forward);
+      }
+    }
+  }
+  traceClock = false;
+}
+
 int main() {
   sessions();
   turns();
@@ -423,4 +450,6 @@ int main() {
   inputTiming();
   persistence();
   chrome();
+  corruptPersistence();
+  turnLockTiming();
 }

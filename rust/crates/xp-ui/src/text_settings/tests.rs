@@ -107,9 +107,19 @@ fn labels_borrow_i18n_and_localize() {
     let fr = xp_core::i18n::language_from_code(b"FR");
     let translated = labels::label(fr, 0, 0, 0, &mut scratch);
     assert_eq!(unsafe { CStr::from_ptr(en) }.to_bytes(), b"Font");
-    assert_ne!(unsafe { CStr::from_ptr(en) }, unsafe {
-        CStr::from_ptr(translated)
-    });
+    let languages = option_env!("XP_I18N_BUILTIN_LANGS").unwrap_or("all").trim();
+    if languages.is_empty()
+        || languages.eq_ignore_ascii_case("all")
+        || languages
+            .split(',')
+            .any(|code| code.trim().eq_ignore_ascii_case("FR"))
+    {
+        assert_ne!(unsafe { CStr::from_ptr(en) }, unsafe {
+            CStr::from_ptr(translated)
+        });
+    } else {
+        assert_eq!(translated, en);
+    }
     assert_eq!(
         translated,
         xp_core::i18n::get(fr, xp_core::i18n::ids::STR_FONT)

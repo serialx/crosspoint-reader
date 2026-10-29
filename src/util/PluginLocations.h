@@ -1,4 +1,6 @@
 #pragma once
+#include <xp_plugin.h>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -8,73 +10,47 @@
 // /.plugins are friendlier for users copying folders onto the card from a
 // computer.
 namespace PluginLocations {
-inline constexpr const char* ROOTS[] = {"/.crosspoint/plugins", "/plugins", "/.plugins"};
+inline constexpr auto& ROOTS = xp_plugin_roots;
 inline constexpr size_t ROOT_COUNT = sizeof(ROOTS) / sizeof(ROOTS[0]);
 inline constexpr const char* INSTALL_MARKER = ".installing";
 
-inline bool isPluginRoot(const std::string& dir) {
-  for (size_t i = 0; i < ROOT_COUNT; i++) {
-    if (dir == ROOTS[i]) return true;
-  }
-  return false;
-}
+inline XpPluginSpan span(const std::string& s) { return {reinterpret_cast<const uint8_t*>(s.data()), s.size()}; }
+inline bool isPluginRoot(const std::string& dir) { return xp_plugin_root(span(dir)); }
 
 // A bundle targeting one direct child of a plugin root may update an existing
 // same-named plugin in place instead of creating a duplicate in another root.
 // Nested and non-plugin bundle destinations keep their configured behavior.
 inline bool shouldReuseInstalledBundleDir(const std::string& destDir, const std::string& subdir) {
-  return !subdir.empty() && subdir.find('/') == std::string::npos && isPluginRoot(destDir);
+  return xp_plugin_reuse_dir(span(destDir), span(subdir));
 }
 
 enum class DeviceKind { None, Catalog, Background };
 enum class PickerAction { None, Catalog, Readme };
 
-constexpr bool isDiscoverableEntry(const bool quarantined, const bool hasPluginJs, const bool hasDevice,
-                                   const bool hasManifest) {
-  return !quarantined && (hasPluginJs || hasDevice || hasManifest);
+inline bool isDiscoverableEntry(const bool quarantined, const bool hasPluginJs, const bool hasDevice,
+                                const bool hasManifest) {
+  return xp_plugin_discoverable(quarantined, hasPluginJs, hasDevice, hasManifest);
 }
 
-constexpr DeviceKind classifyDeviceManifest(const bool hasBrowseUrl, const bool hasEvents) {
-  if (hasBrowseUrl) return DeviceKind::Catalog;
-  if (hasEvents) return DeviceKind::Background;
-  return DeviceKind::None;
+inline DeviceKind classifyDeviceManifest(const bool hasBrowseUrl, const bool hasEvents) {
+  return static_cast<DeviceKind>(xp_plugin_classify(hasBrowseUrl, hasEvents));
 }
 
 // A catalog opens; any other plugin with a README shows it (web-only plugins
 // included, so their setup notes are readable on the device).
-constexpr PickerAction pickerAction(const DeviceKind kind, const bool hasReadme) {
-  if (kind == DeviceKind::Catalog) return PickerAction::Catalog;
-  return hasReadme ? PickerAction::Readme : PickerAction::None;
+inline PickerAction pickerAction(const DeviceKind kind, const bool hasReadme) {
+  return static_cast<PickerAction>(xp_plugin_picker(static_cast<uint32_t>(kind), hasReadme));
 }
 
 // Exactly MAJOR.MINOR.PATCH: three digit-only components, nothing else (no
 // sign, spaces, suffix or fourth part), each fitting in 32 bits.
-inline bool parseVersion(const std::string& v, uint32_t (&out)[3]) {
-  size_t pos = 0;
-  for (int k = 0; k < 3; k++) {
-    if (k > 0 && (pos >= v.size() || v[pos++] != '.')) return false;
-    if (pos >= v.size() || v[pos] < '0' || v[pos] > '9') return false;
-    uint64_t n = 0;
-    for (; pos < v.size() && v[pos] >= '0' && v[pos] <= '9'; pos++) {
-      n = n * 10 + static_cast<uint64_t>(v[pos] - '0');
-      if (n > UINT32_MAX) return false;
-    }
-    out[k] = static_cast<uint32_t>(n);
-  }
-  return pos == v.size();
-}
+inline bool parseVersion(const std::string& v, uint32_t (&out)[3]) { return xp_plugin_version(span(v), out); }
 
 // Plugin versions are MAJOR.MINOR.PATCH (the catalog contract). True when
 // `catalog` is newer than `installed`. An installed copy without a valid
 // version is offered the update; a malformed catalog version never is.
 inline bool isNewerVersion(const std::string& catalog, const std::string& installed) {
-  uint32_t c[3], i[3];
-  if (!parseVersion(catalog, c)) return false;
-  if (!parseVersion(installed, i)) return true;
-  for (int k = 0; k < 3; k++) {
-    if (c[k] != i[k]) return c[k] > i[k];
-  }
-  return false;
+  return xp_plugin_newer(span(catalog), span(installed));
 }
 
 // One SD plugin folder, classified by the marker files it carries.

@@ -6,6 +6,7 @@
 #include <Logging.h>
 #include <esp_random.h>
 #include <time.h>
+#include <xp_plugin.h>
 
 #include <cstdio>
 #include <cstring>
@@ -13,17 +14,15 @@
 #include <vector>
 
 #include "PluginHttp.h"
+#include "PluginJson.h"
 #include "PluginLocations.h"
 #include "components/UITheme.h"
 #include "network/ProtectedPaths.h"
 
 namespace {
 
-constexpr const char* EVENT_NAMES[] = {"reader.open", "reader.exit", "reader.session", "book.downloaded",
-                                       "sleep.enter"};
-static_assert(sizeof(EVENT_NAMES) / sizeof(EVENT_NAMES[0]) == static_cast<size_t>(pluginevents::Event::COUNT),
-              "event name table out of sync");
-
+XpPluginSpan span(const std::string& s) { return {reinterpret_cast<const uint8_t*>(s.data()), s.size()}; }
+XpPluginSpan span(const char* s) { return {reinterpret_cast<const uint8_t*>(s), s ? strlen(s) : 0}; }
 constexpr const char* OUTBOX_NAME = "/events.jsonl";
 // Drop-oldest wholesale: a plugin that is never drained must not grow a file
 // forever, and by the time 4KB of events piled up the old ones describe stale
@@ -38,22 +37,9 @@ constexpr size_t MAX_EVENT_RESPONSE = 8 * 1024;
 // "events" section. Rebuilt by refreshSubscriptions(); sized for a full
 // plugin list screen, not a marketplace.
 constexpr size_t MAX_EVENT_PLUGINS = 8;
-struct Subscriber {
-  char name[24] = {0};      // plugin folder name; "" = empty slot
-  char dir[64] = {0};       // "<root>/<name>"
-  uint8_t mask = 0;         // bit per Event
-  uint8_t connectMask = 0;  // events whose handler declares "connect": true
-};
-Subscriber subscribers[MAX_EVENT_PLUGINS];
-
-uint8_t eventBit(const pluginevents::Event e) { return static_cast<uint8_t>(1u << static_cast<uint8_t>(e)); }
-
-int eventFromName(const char* name) {
-  for (size_t i = 0; i < static_cast<size_t>(pluginevents::Event::COUNT); i++) {
-    if (strcmp(EVENT_NAMES[i], name) == 0) return static_cast<int>(i);
-  }
-  return -1;
-}
+using Subscriber = XpPluginSubscriber;
+Subscriber subscribers[MAX_EVENT_PLUGINS]{};
+int eventFromName(const char* name) { return xp_plugin_event(span(name)); }
 
 std::string outboxPath(const Subscriber& sub) { return std::string(sub.dir) + OUTBOX_NAME; }
 
@@ -62,139 +48,179 @@ std::string outboxPath(const Subscriber& sub) { return std::string(sub.dir) + OU
 namespace pluginevents {
 
 void refreshSubscriptions() {
-  for (auto& sub : subscribers) sub = Subscriber{};
-
-  size_t slot = 0;
-  for (const auto& entry : PluginLocations::scanPlugins()) {
-    if (!entry.hasDevice) continue;
-    if (slot >= MAX_EVENT_PLUGINS) {
-      LOG_ERR("PEVT", "subscription table full; ignoring %s", entry.name.c_str());
-      break;
-    }
-    // The fixed-size table cannot hold these: a truncated name or folder would
-    // point emit() and drain() at a different outbox than the plugin's own.
-    if (entry.name.size() >= sizeof(Subscriber::name) || entry.dir.size() >= sizeof(Subscriber::dir)) {
-      LOG_ERR("PEVT", "plugin name/path too long for events; ignoring %s", entry.name.c_str());
-      continue;
-    }
+  struct Context {
+    std::vector<PluginLocations::Entry> entries = PluginLocations::scanPlugins();
     std::string raw;
-    if (!Storage.readFileToString("PEVT", entry.dir + "/device.json", MAX_MANIFEST_SIZE, raw)) continue;
-    // Filtered parse: only the events section, so a big manifest costs a few
-    // hundred bytes here instead of a full document.
-    JsonDocument filter;
-    filter["events"] = true;
     JsonDocument doc;
-    if (deserializeJson(doc, raw, DeserializationOption::Filter(filter)) != DeserializationError::Ok) continue;
-    uint8_t mask = 0;
-    uint8_t connectMask = 0;
-    for (JsonPairConst kv : doc["events"].as<JsonObjectConst>()) {
-      const int e = eventFromName(kv.key().c_str());
-      if (e < 0) {
-        LOG_DBG("PEVT", "%s: unknown event '%s' ignored", entry.name.c_str(), kv.key().c_str());
-        continue;
+    mutable JsonObjectConstIterator cursor;
+    mutable size_t cursorIndex = 0;
+    JsonObjectConstIterator seek(size_t index) const {
+      auto object = doc["events"].as<JsonObjectConst>();
+      if (index == 0 || index < cursorIndex) {
+        cursor = object.begin();
+        cursorIndex = 0;
       }
-      mask |= static_cast<uint8_t>(1u << e);
-      if (kv.value()["connect"] | false) connectMask |= static_cast<uint8_t>(1u << e);
+      while (cursorIndex < index && cursor != object.end()) {
+        ++cursor;
+        ++cursorIndex;
+      }
+      return cursor;
     }
-    // sleep.enter exists to act before the chip powers down (sleep image,
-    // pre-sleep sync), so subscribing implies "connect": true; requiring the
-    // flag would make the common case silently defer to the next session.
-    if (mask & eventBit(Event::SleepEnter)) connectMask |= eventBit(Event::SleepEnter);
-    if (mask == 0) continue;
-    Subscriber& sub = subscribers[slot++];
-    // Lengths checked above, so these copy whole strings.
-    strncpy(sub.name, entry.name.c_str(), sizeof(sub.name) - 1);
-    strncpy(sub.dir, entry.dir.c_str(), sizeof(sub.dir) - 1);
-    sub.mask = mask;
-    sub.connectMask = connectMask;
-    LOG_DBG("PEVT", "%s subscribes mask=0x%02x", sub.name, sub.mask);
-  }
+    const char* eventKey(size_t index) const {
+      auto it = seek(index);
+      return it == doc["events"].as<JsonObjectConst>().end() ? nullptr : it->key().c_str();
+    }
+    JsonVariantConst eventValue(size_t index) const {
+      auto it = seek(index);
+      return it == doc["events"].as<JsonObjectConst>().end() ? JsonVariantConst{} : it->value();
+    }
+  } context;
+  static const XpPluginSubscriptionOps opsCallbacks{
+      nullptr,
+      [](void* p) { return static_cast<Context*>(p)->entries.size(); },
+      [](void* p, size_t i) { return static_cast<Context*>(p)->entries[i].hasDevice; },
+      [](void* p, size_t i) { return span(static_cast<Context*>(p)->entries[i].name); },
+      [](void* p, size_t i) { return span(static_cast<Context*>(p)->entries[i].dir); },
+      [](void* p, size_t i) {
+        auto& c = *static_cast<Context*>(p);
+        if (!Storage.readFileToString("PEVT", c.entries[i].dir + "/device.json", MAX_MANIFEST_SIZE, c.raw))
+          return false;
+        JsonDocument filter;
+        filter["events"] = true;
+        return deserializeJson(c.doc, c.raw, DeserializationOption::Filter(filter)) == DeserializationError::Ok;
+      },
+      [](void* p, size_t i) { return span(static_cast<Context*>(p)->eventKey(i)); },
+      [](void* p, size_t i) { return static_cast<Context*>(p)->eventValue(i)["connect"] | false; },
+      [](void* p) {
+        auto& c = *static_cast<Context*>(p);
+        c.doc.clear();
+        std::string{}.swap(c.raw);
+      },
+      [](void* p, uint32_t event, size_t i, size_t value) {
+        const auto& c = *static_cast<Context*>(p);
+        switch (static_cast<XpPluginSubscriptionDiagnostic>(event)) {
+          case XP_PLUGIN_SUB_FULL:
+            LOG_ERR("PEVT", "subscription table full; ignoring %s", c.entries[i].name.c_str());
+            break;
+          case XP_PLUGIN_SUB_LONG:
+            LOG_ERR("PEVT", "plugin name/path too long for events; ignoring %s", c.entries[i].name.c_str());
+            break;
+          case XP_PLUGIN_SUB_UNKNOWN:
+            LOG_DBG("PEVT", "%s: unknown event '%s' ignored", c.entries[i].name.c_str(), c.eventKey(value));
+            break;
+          case XP_PLUGIN_SUB_ADDED:
+            LOG_DBG("PEVT", "%s subscribes mask=0x%02x", c.entries[i].name.c_str(), static_cast<unsigned>(value));
+            break;
+        }
+      }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  xp_plugin_subscriptions(subscribers, &ops);
 }
 
-bool anySubscriber(const Event e) {
-  for (const auto& sub : subscribers) {
-    if (sub.name[0] != '\0' && (sub.mask & eventBit(e))) return true;
-  }
-  return false;
-}
-
-uint8_t subscriptionMask(const char* plugin) {
-  for (const auto& sub : subscribers) {
-    if (sub.name[0] != '\0' && strcmp(sub.name, plugin) == 0) return sub.mask;
-  }
-  return 0;
-}
-
+bool anySubscriber(Event e) { return xp_plugin_any(subscribers, static_cast<uint32_t>(e)); }
+uint8_t subscriptionMask(const char* plugin) { return xp_plugin_mask(subscribers, span(plugin)); }
 bool wantsConnectAny() {
-  for (const auto& sub : subscribers) {
-    if (sub.name[0] == '\0' || sub.connectMask == 0) continue;
-    std::string raw;
-    if (!Storage.readFileToString("PEVT", outboxPath(sub), MAX_OUTBOX_BYTES + MAX_EVENT_LINE, raw)) continue;
-    for (size_t i = 0; i < static_cast<size_t>(Event::COUNT); i++) {
-      if (!(sub.connectMask & eventBit(static_cast<Event>(i)))) continue;
-      char eventField[48];
-      snprintf(eventField, sizeof(eventField), "\"e\":\"%s\"", EVENT_NAMES[i]);
-      if (raw.find(eventField) != std::string::npos) return true;
-    }
-  }
-  return false;
+  std::string raw;
+  static const XpPluginConnectOps opsCallbacks{
+      nullptr, [](void* p, const Subscriber* sub) {
+        auto& raw = *static_cast<std::string*>(p);
+        std::string{}.swap(raw);
+        if (!Storage.readFileToString("PEVT", outboxPath(*sub), MAX_OUTBOX_BYTES + MAX_EVENT_LINE, raw))
+          return XpPluginSpan{};
+        return span(raw);
+      }};
+  auto ops = opsCallbacks;
+  ops.ctx = &raw;
+  return xp_plugin_wants_connect(subscribers, &ops);
 }
+
+namespace {
+void appendEvent(const Subscriber& sub, const std::string& line, size_t lineSize) {
+  const std::string path = outboxPath(sub);
+  struct AppendContext {
+    const Subscriber& sub;
+    const std::string& path;
+    const std::string& line;
+    HalFile file;
+  } context{sub, path, line, {}};
+  static const XpPluginAppendOps opsCallbacks{
+      nullptr,
+      [](void* p) {
+        auto& c = *static_cast<AppendContext*>(p);
+        c.file = Storage.open(c.path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
+        return c.file && c.file.isOpen();
+      },
+      [](void* p) { static_cast<AppendContext*>(p)->file.close(); },
+      [](void* p) { Storage.remove(static_cast<AppendContext*>(p)->path.c_str()); },
+      [](void* p) { return static_cast<AppendContext*>(p)->file.fileSize64(); },
+      [](void* p) {
+        auto& c = *static_cast<AppendContext*>(p);
+        return c.file.write(reinterpret_cast<const uint8_t*>(c.line.data()), c.line.size());
+      },
+      [](void* p, uint64_t n) { static_cast<AppendContext*>(p)->file.truncate(n); },
+      [](void* p) { static_cast<AppendContext*>(p)->file.flush(); },
+      [](void* p, uint32_t event) {
+        const auto& sub = static_cast<AppendContext*>(p)->sub;
+        switch (static_cast<XpPluginAppendDiagnostic>(event)) {
+          case XP_PLUGIN_APPEND_OPEN:
+            LOG_ERR("PEVT", "%s: outbox open failed", sub.name);
+            break;
+          case XP_PLUGIN_APPEND_CAP:
+            LOG_DBG("PEVT", "%s: outbox over cap, dropped", sub.name);
+            break;
+          case XP_PLUGIN_APPEND_SHORT:
+            LOG_ERR("PEVT", "%s: short outbox append; event dropped", sub.name);
+            break;
+        }
+      }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  xp_plugin_append(&ops, lineSize);
+}
+}  // namespace
 
 void emit(const Event e, const Var* vars, const size_t varCount) {
   if (!anySubscriber(e)) return;
-
-  // One line: {"e":"reader.exit","id":"3fa9c21b-7","ts":1734212345,"vars":{"book":"...","percent":"74"}}
-  JsonDocument doc;
-  doc["e"] = EVENT_NAMES[static_cast<size_t>(e)];
-  // Unique id for server-side dedupe of at-least-once delivery: a per-boot
-  // nonce plus an in-session counter, unique across queued events and reboots
-  // without an SD read-modify-write per event. ts alone repeats (1-second
-  // resolution, and 0 whenever the clock was never set).
-  static const uint32_t bootNonce = esp_random();
-  static uint32_t seq = 0;
-  char id[24];
-  snprintf(id, sizeof(id), "%08lx-%lu", static_cast<unsigned long>(bootNonce), static_cast<unsigned long>(++seq));
-  doc["id"] = id;
-  // Best-effort unix time: 0 when the clock was never set (no RTC, no NTP yet).
-  doc["ts"] = static_cast<long long>(time(nullptr));
-  JsonObject varsObj = doc["vars"].to<JsonObject>();
-  for (size_t i = 0; i < varCount; i++) {
-    varsObj[vars[i].key] = vars[i].value;
-  }
-  std::string line;
-  line.reserve(160);
-  serializeJson(doc, line);
-  line += '\n';
-  if (line.size() > MAX_EVENT_LINE) {
-    LOG_ERR("PEVT", "event line too large (%u); dropped", static_cast<unsigned>(line.size()));
-    return;
-  }
-
-  for (const auto& sub : subscribers) {
-    if (sub.name[0] == '\0' || !(sub.mask & eventBit(e))) continue;
-    const std::string path = outboxPath(sub);
-    HalFile file = Storage.open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
-    if (!file || !file.isOpen()) {
-      LOG_ERR("PEVT", "%s: outbox open failed", sub.name);
-      continue;
-    }
-    if (file.fileSize() > MAX_OUTBOX_BYTES) {
-      // Drop-oldest wholesale (see MAX_OUTBOX_BYTES).
-      file.close();  // explicit: remove follows on the same path
-      Storage.remove(path.c_str());
-      file = Storage.open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
-      if (!file || !file.isOpen()) continue;
-      LOG_DBG("PEVT", "%s: outbox over cap, dropped", sub.name);
-    }
-    const uint64_t before = file.fileSize64();
-    if (file.write(reinterpret_cast<const uint8_t*>(line.data()), line.size()) != line.size()) {
-      // A torn line would glue the next event onto it and the drain would drop
-      // both as corrupt: cut back to the last complete line, losing only this one.
-      LOG_ERR("PEVT", "%s: short outbox append; event dropped", sub.name);
-      file.truncate(before);
-    }
-    file.flush();
-  }
+  static XpPluginSequence sequence{};
+  struct Context {
+    JsonDocument doc;
+    JsonVariant node;
+    std::string line;
+  } context;
+  context.node = context.doc.to<JsonObject>();
+  static const XpPluginEmitOps opsCallbacks{
+      nullptr,
+      [](void*) {
+        static const uint32_t nonce = esp_random();
+        return nonce;
+      },
+      [](void*) { return static_cast<int64_t>(time(nullptr)); },
+      [](void* p, const char* key, const char* value, bool staticKey) {
+        auto& c = *static_cast<Context*>(p);
+        c.node[JsonString(key, staticKey)] = JsonString(value, false);
+      },
+      [](void* p, const char* key, int64_t value) { static_cast<Context*>(p)->node[JsonString(key, true)] = value; },
+      [](void* p, const char* key) {
+        auto& c = *static_cast<Context*>(p);
+        c.node = c.node[JsonString(key, true)].to<JsonObject>();
+      },
+      [](void* p) {
+        auto& c = *static_cast<Context*>(p);
+        c.line.reserve(160);
+        serializeJson(c.doc, c.line);
+        c.line += '\n';
+        return c.line.size();
+      },
+      [](void* p, const Subscriber* sub, size_t size) { appendEvent(*sub, static_cast<Context*>(p)->line, size); },
+      [](void*, size_t size) { LOG_ERR("PEVT", "event line too large (%u); dropped", static_cast<unsigned>(size)); }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  static_assert(sizeof(Var) == sizeof(XpPluginVar));
+  static_assert(offsetof(Var, key) == offsetof(XpPluginVar, key));
+  static_assert(offsetof(Var, value) == offsetof(XpPluginVar, value));
+  xp_plugin_emit(subscribers, &sequence, static_cast<uint32_t>(e), reinterpret_cast<const XpPluginVar*>(vars), varCount,
+                 &ops);
 }
 
 namespace {
@@ -215,7 +241,7 @@ struct DrainManifest {
     bool isDownload() const { return !dest.empty(); }
   };
   std::vector<Handler> handlers;
-  bool hasPasswordGrant() const { return authType == "password" && !authReq.url.empty(); }
+  bool hasPasswordGrant() const { return xp_plugin_password(span(authType), span(authReq.url)); }
 };
 
 // False only when device.json cannot be read or parsed; a manifest that parses
@@ -233,31 +259,60 @@ bool loadDrainManifest(const Subscriber& sub, DrainManifest& out) {
   JsonDocument doc;
   if (deserializeJson(doc, raw, DeserializationOption::Filter(filter)) != DeserializationError::Ok) return false;
 
-  out.tokenFile = pluginhttp::inPluginDir(sub.dir, doc["token"]["file"] | "");
-  out.tokenPath = doc["token"]["path"] | "token";
-  out.configFile = pluginhttp::inPluginDir(sub.dir, doc["config"]["file"] | "");
-  JsonVariantConst auth = doc["auth"];
-  out.authType = auth["type"] | "device_code";
-  pluginhttp::readRequest(auth["request"], "POST", out.authReq);
-  out.authTokenPath = auth["token_path"] | "access_token";
-
-  out.handlers.reserve(2);
-  for (JsonPairConst kv : doc["events"].as<JsonObjectConst>()) {
-    const int e = eventFromName(kv.key().c_str());
-    if (e < 0) continue;
-    DrainManifest::Handler h;
-    h.event = e;
-    JsonVariantConst dl = kv.value()["download"];
-    if (dl["url"].as<const char*>()) {
-      pluginhttp::readRequest(dl, "GET", h.req);
-      h.dest = dl["dest"] | "";
-      if (h.dest.empty()) continue;  // a download without a destination is meaningless
-    } else {
-      pluginhttp::readRequest(kv.value()["request"], "POST", h.req);
-    }
-    h.toast = kv.value()["toast"] | "";
-    if (!h.req.url.empty()) out.handlers.push_back(std::move(h));
-  }
+  PluginJson json(doc.as<JsonVariantConst>());
+  const auto api = json.api();
+  struct Context {
+    const Subscriber& sub;
+    DrainManifest& out;
+    PluginJson& json;
+    DrainManifest::Handler handler;
+  } context{sub, out, json, {}};
+  static const XpPluginManifestOps opsCallbacks{
+      nullptr,
+      [](void* p, uint32_t field, XpPluginSpan value) {
+        auto& c = *static_cast<Context*>(p);
+        const auto* text = reinterpret_cast<const char*>(value.data);
+        switch (static_cast<XpPluginManifestField>(field)) {
+          case XP_PLUGIN_TOKEN_FILE:
+            c.out.tokenFile = pluginhttp::inPluginDir(c.sub.dir, value.len ? text : "");
+            break;
+          case XP_PLUGIN_TOKEN_PATH:
+            c.out.tokenPath.assign(text, value.len);
+            break;
+          case XP_PLUGIN_CONFIG_FILE:
+            c.out.configFile = pluginhttp::inPluginDir(c.sub.dir, value.len ? text : "");
+            break;
+          case XP_PLUGIN_AUTH_TYPE:
+            c.out.authType.assign(text, value.len);
+            break;
+          case XP_PLUGIN_AUTH_TOKEN_PATH:
+            c.out.authTokenPath.assign(text, value.len);
+            break;
+          case XP_PLUGIN_TOAST:
+            c.handler.toast.assign(text, value.len);
+            break;
+          case XP_PLUGIN_DEST:
+            c.handler.dest.assign(text, value.len);
+            break;
+        }
+      },
+      [](void* p, uint32_t field, uint32_t slot, const char* method) {
+        auto& c = *static_cast<Context*>(p);
+        pluginhttp::readRequest(c.json.slots[slot], method, field == 0 ? c.out.authReq : c.handler.req);
+      },
+      [](void* p, size_t n) { static_cast<Context*>(p)->out.handlers.reserve(n); },
+      [](void* p, int32_t event) {
+        auto& h = static_cast<Context*>(p)->handler;
+        h = DrainManifest::Handler{};
+        h.event = event;
+      },
+      [](void* p) {
+        auto& c = *static_cast<Context*>(p);
+        c.out.handlers.push_back(std::move(c.handler));
+      }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  xp_plugin_manifest(&api, &ops);
   return true;
 }
 
@@ -267,17 +322,60 @@ bool loadDrainManifest(const Subscriber& sub, DrainManifest& out) {
 std::string drainSubstituted(std::string tpl, const std::string& token, const pluginhttp::Headers& config,
                              const pluginhttp::Headers& meta, JsonVariantConst vars, const long long ts,
                              const char* id) {
-  pluginhttp::substituteAll(tpl, "{token}", token);
-  for (const auto& kv : config) pluginhttp::substituteAll(tpl, kv.first.c_str(), kv.second);
-  for (const auto& kv : meta) pluginhttp::substituteAll(tpl, kv.first.c_str(), kv.second);
-  char tsBuf[16];
-  snprintf(tsBuf, sizeof(tsBuf), "%lld", ts);
-  pluginhttp::substituteAll(tpl, "{event.ts}", tsBuf);
-  pluginhttp::substituteAll(tpl, "{event.id}", id);
-  for (JsonPairConst kv : vars.as<JsonObjectConst>()) {
-    pluginhttp::substituteAll(tpl, (std::string("{event.") + kv.key().c_str() + "}").c_str(),
-                              pluginhttp::variantToString(kv.value()));
-  }
+  char timestamp[16];
+  snprintf(timestamp, sizeof(timestamp), "%lld", ts);
+  struct Context {
+    std::string& text;
+    const pluginhttp::Headers& config;
+    const pluginhttp::Headers& meta;
+    JsonObjectConst vars;
+    std::string value;
+    JsonObjectConstIterator cursor;
+    size_t cursorIndex = 0;
+  } context{tpl, config, meta, vars.as<JsonObjectConst>(), {}, {}, 0};
+  static const XpPluginSubstitutionOps opsCallbacks{
+      nullptr,
+      [](void* p, uint32_t group, size_t i, XpPluginSpan* key, XpPluginSpan* value) {
+        auto& c = *static_cast<Context*>(p);
+        if (group < 2) {
+          const auto& pairs = group == 0 ? c.config : c.meta;
+          if (i >= pairs.size()) return false;
+          *key = span(pairs[i].first);
+          *value = span(pairs[i].second);
+        } else {
+          if (i == 0) {
+            c.cursor = c.vars.begin();
+            c.cursorIndex = 0;
+          }
+          while (c.cursorIndex < i && c.cursor != c.vars.end()) {
+            ++c.cursor;
+            ++c.cursorIndex;
+          }
+          if (c.cursor == c.vars.end()) return false;
+          *key = span(c.cursor->key().c_str());
+          std::string{}.swap(c.value);
+          c.value = pluginhttp::variantToString(c.cursor->value());
+          *value = span(c.value);
+        }
+        return true;
+      },
+      [](void* p, XpPluginSpan key, XpPluginSpan value, bool event) {
+        auto& c = *static_cast<Context*>(p);
+        std::string pattern;
+        if (event) {
+          pattern = "{event." + std::string(reinterpret_cast<const char*>(key.data), key.len) + "}";
+          key = span(pattern);
+        }
+        const XpPluginString text{&c.text, [](void* p) { return span(*static_cast<std::string*>(p)); },
+                                  [](void* p, size_t pos, size_t len, XpPluginSpan value) {
+                                    static_cast<std::string*>(p)->replace(
+                                        pos, len, reinterpret_cast<const char*>(value.data), value.len);
+                                  }};
+        xp_plugin_substitute(&text, key, value, false);
+      }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  xp_plugin_event_substitute(span(token), span(timestamp), span(id), &ops);
   return tpl;
 }
 
@@ -289,16 +387,12 @@ std::string drainSubstituted(std::string tpl, const std::string& token, const pl
 bool deliverLine(const DrainManifest& mf, const std::string& lineText, std::string& token,
                  const pluginhttp::Headers& config, GfxRenderer* renderer) {
   JsonDocument doc;
-  if (deserializeJson(doc, lineText) != DeserializationError::Ok) return true;  // corrupt line: drop
-  const int e = eventFromName(doc["e"] | "");
-  const DrainManifest::Handler* handler = nullptr;
-  for (const auto& h : mf.handlers) {
-    if (h.event == e) {
-      handler = &h;
-      break;
-    }
-  }
-  if (!handler) return true;
+  const bool parsed = deserializeJson(doc, lineText) == DeserializationError::Ok;
+  const size_t selected = xp_plugin_pick_handler(
+      parsed, eventFromName(doc["e"] | ""), mf.handlers.size(), const_cast<DrainManifest*>(&mf),
+      [](void* p, size_t i) -> int32_t { return static_cast<DrainManifest*>(p)->handlers[i].event; });
+  if (selected == SIZE_MAX) return true;
+  const auto* handler = &mf.handlers[selected];
 
   JsonVariantConst vars = doc["vars"];
   const long long ts = doc["ts"] | 0LL;
@@ -321,14 +415,12 @@ bool deliverLine(const DrainManifest& mf, const std::string& lineText, std::stri
     for (const auto& h : handler->req.headers) {
       headers.emplace_back(h.first, drainSubstituted(h.second, tok, config, meta, vars, ts, id));
     }
-    if (handler->isDownload()) {
-      const std::string dest = drainSubstituted(handler->dest, tok, config, meta, vars, ts, id);
-      // Substituted fields must not climb out of the tree or land on a
-      // credential store (same guard as the catalog sidecar writer).
-      if (!protectedpaths::isPluginPath(dest)) {
-        LOG_ERR("PEVT", "unsafe download dest rejected: %s", dest.c_str());
-        return 200;  // treat as delivered: retrying can never fix the manifest
-      }
+    std::string dest;
+    const auto allowed = [&]() {
+      dest = drainSubstituted(handler->dest, tok, config, meta, vars, ts, id);
+      return protectedpaths::isPluginPath(dest);
+    };
+    const auto download = [&]() {
       // Generous for images (a 4-bit 800x480 BMP is ~192KB), still bounded.
       constexpr size_t MAX_EVENT_DOWNLOAD = 1024 * 1024;
       // Stream to a sibling temp and swap it in only on a clean 2xx, so a
@@ -338,126 +430,175 @@ bool deliverLine(const DrainManifest& mf, const std::string& lineText, std::stri
           nullptr, drainSubstituted(handler->req.url, tok, config, meta, vars, ts, id), handler->req.method,
           drainSubstituted(handler->req.body, tok, config, meta, vars, ts, id), headers, tmp.c_str(),
           MAX_EVENT_DOWNLOAD);
-      if (st >= 200 && st < 300) {
-        // rename won't overwrite an existing file, so park the old dest as a
-        // backup and restore it if the swap fails: a failed commit must not
-        // lose both the old file and the fresh download. -1 (local failure,
-        // same convention as pluginhttp) keeps the line queued for retry.
-        const std::string bak = dest + ".bak";
-        Storage.remove(bak.c_str());
-        const bool hadDest = Storage.exists(dest.c_str());
-        if (hadDest && !Storage.rename(dest.c_str(), bak.c_str())) {
-          Storage.remove(tmp.c_str());
-          return -1;
-        }
-        if (!Storage.rename(tmp.c_str(), dest.c_str())) {
-          Storage.remove(tmp.c_str());
-          if (hadDest && !Storage.rename(bak.c_str(), dest.c_str())) {
-            LOG_ERR("PEVT", "restore of %s failed", dest.c_str());
-          }
-          return -1;
-        }
-        Storage.remove(bak.c_str());
-        if (library::isLibraryBookFile(dest)) library::markLibraryIndexDirty();
-      } else {
-        Storage.remove(tmp.c_str());
-      }
-      return st;
-    }
-    String response;
-    return pluginhttp::request(
-        nullptr, drainSubstituted(handler->req.url, tok, config, meta, vars, ts, id), handler->req.method,
-        drainSubstituted(handler->req.body, tok, config, meta, vars, ts, id), headers, response, MAX_EVENT_RESPONSE);
+      struct InstallContext {
+        const std::string& dest;
+        const std::string& tmp;
+        std::string bak;
+      } context{dest, tmp, {}};
+      static const XpPluginInstallOps opsCallbacks{
+          nullptr,
+          [](void* p) { return Storage.exists(static_cast<InstallContext*>(p)->dest.c_str()); },
+          [](void* p) {
+            auto& c = *static_cast<InstallContext*>(p);
+            if (c.bak.empty()) c.bak = c.dest + ".bak";
+            Storage.remove(c.bak.c_str());
+          },
+          [](void* p) {
+            auto& c = *static_cast<InstallContext*>(p);
+            return Storage.rename(c.dest.c_str(), c.bak.c_str());
+          },
+          [](void* p) {
+            auto& c = *static_cast<InstallContext*>(p);
+            return Storage.rename(c.tmp.c_str(), c.dest.c_str());
+          },
+          [](void* p) {
+            auto& c = *static_cast<InstallContext*>(p);
+            return Storage.rename(c.bak.c_str(), c.dest.c_str());
+          },
+          [](void* p) { Storage.remove(static_cast<InstallContext*>(p)->tmp.c_str()); },
+          [](void* p) {
+            const auto& dest = static_cast<InstallContext*>(p)->dest;
+            if (library::isLibraryBookFile(dest)) library::markLibraryIndexDirty();
+          },
+          [](void* p) { LOG_ERR("PEVT", "restore of %s failed", static_cast<InstallContext*>(p)->dest.c_str()); }};
+      auto ops = opsCallbacks;
+      ops.ctx = &context;
+      return xp_plugin_install_download(st, &ops);
+    };
+    const auto response = [&]() {
+      String body;
+      return pluginhttp::request(
+          nullptr, drainSubstituted(handler->req.url, tok, config, meta, vars, ts, id), handler->req.method,
+          drainSubstituted(handler->req.body, tok, config, meta, vars, ts, id), headers, body, MAX_EVENT_RESPONSE);
+    };
+    struct RunContext {
+      const decltype(allowed)& allowedFn;
+      const decltype(download)& downloadFn;
+      const decltype(response)& responseFn;
+      const std::string& dest;
+    } context{allowed, download, response, dest};
+    static const XpPluginRunOps opsCallbacks{
+        nullptr, [](void* p) { return static_cast<RunContext*>(p)->allowedFn(); },
+        [](void* p) -> int32_t { return static_cast<RunContext*>(p)->downloadFn(); },
+        [](void* p) -> int32_t { return static_cast<RunContext*>(p)->responseFn(); },
+        [](void* p) {
+          LOG_ERR("PEVT", "unsafe download dest rejected: %s", static_cast<RunContext*>(p)->dest.c_str());
+        }};
+    auto ops = opsCallbacks;
+    ops.ctx = &context;
+    return xp_plugin_run(handler->isDownload(), &ops);
   };
 
-  int status = run(token);
-  // A password-grant token expires; on 401/403 mint a fresh one and retry once.
-  if ((status == 401 || status == 403) && mf.hasPasswordGrant()) {
-    std::string minted;
-    // Same template vocabulary as the delivery request (e.g. a {cfg.*} client
-    // secret in an auth header).
+  std::string minted;
+  const auto mint = [&]() {
     pluginhttp::Headers authHeaders;
     authHeaders.reserve(mf.authReq.headers.size());
     for (const auto& h : mf.authReq.headers) {
       authHeaders.emplace_back(h.first, drainSubstituted(h.second, token, config, meta, vars, ts, id));
     }
-    if (pluginhttp::mintPasswordToken(nullptr, drainSubstituted(mf.authReq.url, token, config, meta, vars, ts, id),
-                                      mf.authReq.method,
-                                      drainSubstituted(mf.authReq.body, token, config, meta, vars, ts, id), authHeaders,
-                                      mf.authTokenPath, minted)) {
-      pluginhttp::saveTokenToFile(mf.tokenFile, mf.tokenPath, minted);
-      token = minted;
-      status = run(token);
-    }
-  }
-  if (status < 200 || status >= 300) return false;
-
-  if (renderer && !handler->toast.empty()) {
+    return pluginhttp::mintPasswordToken(
+        nullptr, drainSubstituted(mf.authReq.url, token, config, meta, vars, ts, id), mf.authReq.method,
+        drainSubstituted(mf.authReq.body, token, config, meta, vars, ts, id), authHeaders, mf.authTokenPath, minted);
+  };
+  const auto toast = [&]() {
     GUI.drawPopup(*renderer, drainSubstituted(handler->toast, token, config, meta, vars, ts, id).c_str());
-  }
-  return true;
+  };
+  struct DeliveryContext {
+    const decltype(run)& runFn;
+    const decltype(mint)& mintFn;
+    const decltype(toast)& toastFn;
+    const DrainManifest& manifest;
+    std::string& token;
+    std::string& minted;
+  } context{run, mint, toast, mf, token, minted};
+  static const XpPluginDeliveryOps opsCallbacks{nullptr,
+                                                [](void* p) -> int32_t {
+                                                  auto& c = *static_cast<DeliveryContext*>(p);
+                                                  return c.runFn(c.token);
+                                                },
+                                                [](void* p) { return static_cast<DeliveryContext*>(p)->mintFn(); },
+                                                [](void* p) {
+                                                  auto& c = *static_cast<DeliveryContext*>(p);
+                                                  pluginhttp::saveTokenToFile(c.manifest.tokenFile,
+                                                                              c.manifest.tokenPath, c.minted);
+                                                },
+                                                [](void* p) {
+                                                  auto& c = *static_cast<DeliveryContext*>(p);
+                                                  c.token = c.minted;
+                                                },
+                                                [](void* p) { static_cast<DeliveryContext*>(p)->toastFn(); }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  return xp_plugin_deliver(mf.hasPasswordGrant(), renderer && !handler->toast.empty(), &ops);
 }
 
 }  // namespace
 
-void drain(GfxRenderer* renderer, const size_t maxEvents) {
-  size_t budget = maxEvents;
-  for (const auto& sub : subscribers) {
-    if (budget == 0) break;
-    if (sub.name[0] == '\0') continue;
-    const std::string path = outboxPath(sub);
-    if (!Storage.exists(path.c_str())) continue;
-
-    std::string raw;
-    if (!Storage.readFileToString("PEVT", path, MAX_OUTBOX_BYTES + MAX_EVENT_LINE, raw)) continue;
-
-    DrainManifest mf;
-    // Unreadable or malformed right now (SD fault, a half-written manifest):
-    // keep the queue for the next drain.
-    if (!loadDrainManifest(sub, mf)) continue;
-    if (mf.handlers.empty()) {
-      // Subscribed but no runnable handlers (JS-only consumer, or manifest
-      // edited away): the queue would never advance, so clear it.
-      Storage.remove(path.c_str());
-      continue;
-    }
+namespace {
+void drainFile(const Subscriber& sub, GfxRenderer* renderer, size_t* budget) {
+  struct Context {
+    const Subscriber& sub;
+    GfxRenderer* renderer;
+    std::string path, raw;
+    DrainManifest manifest;
     std::string token;
     pluginhttp::Headers config;
-    pluginhttp::loadTokenFromFile(mf.tokenFile, mf.tokenPath, token);
-    pluginhttp::loadConfigFile(mf.configFile, config);
-    // Pre-build the substitution patterns (see drainSubstituted).
-    for (auto& kv : config) kv.first = "{cfg." + kv.first + "}";
-
-    // Walk lines; stop at the first failure so order is preserved.
-    size_t pos = 0;
-    bool stalled = false;
-    while (pos < raw.size() && budget > 0 && !stalled) {
-      size_t nl = raw.find('\n', pos);
-      if (nl == std::string::npos) nl = raw.size();
-      const std::string lineText = raw.substr(pos, nl - pos);
-      if (!lineText.empty()) {
-        if (deliverLine(mf, lineText, token, config, renderer)) {
-          budget--;
-        } else {
-          stalled = true;
-          break;
-        }
-      }
-      pos = nl + 1;
-    }
-
-    if (pos >= raw.size() && !stalled) {
-      Storage.remove(path.c_str());
-    } else if (pos > 0) {
-      // Rewrite the unprocessed tail so delivered events are not replayed.
-      // writeFile keeps the old outbox if the rewrite fails: replaying delivered
-      // events beats losing undelivered ones.
-      if (!Storage.writeFile(path.c_str(), String(raw.c_str() + pos))) {
-        LOG_ERR("PEVT", "%s: outbox rewrite failed", sub.name);
-      }
-    }
-    LOG_DBG("PEVT", "%s: drained (stalled=%d)", sub.name, stalled);
-  }
+  } context{sub, renderer, outboxPath(sub), {}, {}, {}, {}};
+  static const XpPluginDrainFileOps opsCallbacks{
+      nullptr,
+      [](void* p) { return Storage.exists(static_cast<Context*>(p)->path.c_str()); },
+      [](void* p) {
+        auto& c = *static_cast<Context*>(p);
+        return Storage.readFileToString("PEVT", c.path, MAX_OUTBOX_BYTES + MAX_EVENT_LINE, c.raw);
+      },
+      [](void* p) {
+        auto& c = *static_cast<Context*>(p);
+        return loadDrainManifest(c.sub, c.manifest);
+      },
+      [](void* p) { return static_cast<Context*>(p)->manifest.handlers.size(); },
+      [](void* p) { Storage.remove(static_cast<Context*>(p)->path.c_str()); },
+      [](void* p) {
+        auto& c = *static_cast<Context*>(p);
+        pluginhttp::loadTokenFromFile(c.manifest.tokenFile, c.manifest.tokenPath, c.token);
+        pluginhttp::loadConfigFile(c.manifest.configFile, c.config);
+        for (auto& kv : c.config) kv.first = "{cfg." + kv.first + "}";
+      },
+      [](void* p, size_t* budget) {
+        auto& c = *static_cast<Context*>(p);
+        const XpPluginDrainOps lines{p,
+                                     [](void* p, XpPluginSpan line) {
+                                       auto& c = *static_cast<Context*>(p);
+                                       return deliverLine(
+                                           c.manifest, std::string(reinterpret_cast<const char*>(line.data), line.len),
+                                           c.token, c.config, c.renderer);
+                                     },
+                                     [](void* p) { Storage.remove(static_cast<Context*>(p)->path.c_str()); },
+                                     [](void* p, size_t pos) {
+                                       auto& c = *static_cast<Context*>(p);
+                                       return Storage.writeFile(c.path.c_str(), String(c.raw.c_str() + pos));
+                                     },
+                                     [](void* p, uint32_t event, bool stalled) {
+                                       const auto& sub = static_cast<Context*>(p)->sub;
+                                       switch (static_cast<XpPluginDrainDiagnostic>(event)) {
+                                         case XP_PLUGIN_DRAIN_REWRITE:
+                                           LOG_ERR("PEVT", "%s: outbox rewrite failed", sub.name);
+                                           break;
+                                         case XP_PLUGIN_DRAIN_FINISHED:
+                                           LOG_DBG("PEVT", "%s: drained (stalled=%d)", sub.name, stalled);
+                                           break;
+                                       }
+                                     }};
+        xp_plugin_drain_lines(span(c.raw), budget, &lines);
+      }};
+  auto ops = opsCallbacks;
+  ops.ctx = &context;
+  xp_plugin_drain_file(budget, &ops);
+}
+}  // namespace
+void drain(GfxRenderer* renderer, const size_t maxEvents) {
+  xp_plugin_drain_all(subscribers, maxEvents, renderer, [](void* p, const Subscriber* sub, size_t* budget) {
+    drainFile(*sub, static_cast<GfxRenderer*>(p), budget);
+  });
 }
 
 }  // namespace pluginevents

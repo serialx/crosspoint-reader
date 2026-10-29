@@ -42,6 +42,9 @@ def steps_for(group, machine):
                 steps.append('wait-quiet:2')
             if group.get('input_quiet_ms') == 0 and step.startswith('press:'):
                 steps.append('wait-quiet:1')
+        if screen['activity'] == 'Sleep':
+            # Quiet between cover passes is not completion (main.cpp enterDeepSleep).
+            steps.append('wait-log:Entering deep sleep')
         if not group.get('boot'):
             steps.append('wait-quiet:1')
         steps.extend(['shot:' + screen['id'], 'mark:after-' + screen['id']])
@@ -61,6 +64,9 @@ def summarize(run, group, machine):
             continue
         sid = screen['id']
         before, shot, after = (by_name[k] for k in ('before-' + sid, sid, 'after-' + sid))
+        if screen['activity'] == 'Sleep' and not any(
+                before['t'] <= r['t'] <= shot['t'] and 'Entering deep sleep' in r['line'] for r in console):
+            raise RuntimeError(f'{run}/{sid}: sleep completion missing before capture')
         logs = [r['line'] for r in console if before['t'] <= r['t'] <= after['t']]
         activity = None
         stack = []

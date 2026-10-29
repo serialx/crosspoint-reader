@@ -15,6 +15,13 @@ refresh sequences, and 430 startup intervals match. See `p9-o2b/comparison-final
 Original provenance, timings, and raw recordings remain in `p9-o2/`.
 Earlier pilot and interrupted recordings are retained as diagnostic evidence.
 
+The settled-sleep generation is `p9-o2c/goldens-a/`. It retains every non-Sleep
+record and PNG byte from `p9-o2b/goldens-a/`; only Sleep cases are recaptured
+using the same archived golden firmware. `p9-o2c/frozen-a/` retains the previous
+generation, and `p9-o2c/golden-diff.json` lists every regenerated case and changed
+pixel/refresh digest. Use the settled generation with the current harness:
+the older sleep scripts do not satisfy its completion contract.
+
 ## Coverage
 
 `screens.json` declares each group, settings, fixture, ordered button sequence,
@@ -211,6 +218,13 @@ synthetic. EPUB ZIP timestamps are fixed. The XTC fixture reuses
 `test/xtc_diff/generate.py`, whose source hash is recorded. Every case receives a
 fresh card, fixed RTC `2026-01-01T09:00:00`, `--sleep off`, no turbo, no ghosting,
 and no access points. Normal captures wait for serial quiet and a settled panel.
+Sleep captures first wait for `Entering deep sleep`, emitted by
+`enterDeepSleep()` after sleep rendering and display/storage shutdown, then use
+the normal `wait-quiet:1` panel-settling step. A quiet gap during cover generation
+is not completion. Extraction rejects a Sleep screenshot without that log line
+inside its own capture interval and before the screenshot. The full ordered API
+requests, controller waveforms, panel count, startup record, and pixels remain
+equality gates; no trailing refresh is discarded or normalized.
 Before each press, the emulator seeks 200 ms of guest log/panel/CPU idle. EPUB
 reader groups additionally use `wait-quiet:1` for display stability before
 each button. The first reader paint

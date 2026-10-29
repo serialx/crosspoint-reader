@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image
 from compare import compare
 from fixtures import epub
-from capture import summarize
+from capture import HERE, steps_for, summarize
 
 
 class OracleTests(unittest.TestCase):
@@ -100,6 +100,50 @@ class OracleTests(unittest.TestCase):
         a, b = self.root / 'a.epub', self.root / 'b.epub'
         epub(a); epub(b)
         self.assertEqual(a.read_bytes(), b.read_bytes())
+
+    def test_every_sleep_capture_waits_for_completion_then_panel_quiet(self):
+        suite = json.loads((HERE / 'screens.json').read_text())
+        for group in suite['groups']:
+            for machine in group.get('machines', ['x3', 'x4']):
+                steps = steps_for(group, machine)
+                for screen in group['screens']:
+                    if machine not in screen.get('machines', ['x3', 'x4']):
+                        continue
+                    start = steps.index('mark:before-' + screen['id'])
+                    end = steps.index('shot:' + screen['id'])
+                    interval = steps[start:end]
+                    with self.subTest(group=group['id'], machine=machine, screen=screen['id']):
+                        if screen['activity'] == 'Sleep':
+                            self.assertEqual(interval[-2:], ['wait-log:Entering deep sleep', 'wait-quiet:1'])
+                        else:
+                            self.assertNotIn('wait-log:Entering deep sleep', interval)
+
+    def test_sleep_completion_must_precede_capture_in_its_own_interval(self):
+        run = self.root / 'case/run'
+        run.mkdir(parents=True)
+        Image.new('RGB', (3, 2), 'white').save(run / 'sleep.png')
+        rows = [
+            {'step': 'mark', 'name': 'before-sleep', 't': 4, 'guest_ms': 4000,
+             'panel_refreshes': 0, 'panel_refresh_ms': 0},
+            {'step': 'shot', 'name': 'sleep', 't': 6, 'file': 'sleep.png',
+             'pixels_sha256': 'pixels', 'size': [3, 2]},
+            {'step': 'mark', 'name': 'after-sleep', 't': 7, 'guest_ms': 7000,
+             'panel_refreshes': 0, 'panel_refresh_ms': 0},
+        ]
+        (run / 'run.jsonl').write_text('\n'.join(map(json.dumps, rows)))
+        group = {'screens': [{'id': 'sleep', 'activity': 'Sleep'}]}
+        for timestamp in [None, 3, 6.5, 5]:
+            logs = [{'t': 4, 'line': 'Entering activity: Sleep'}]
+            if timestamp is not None:
+                logs.append({'t': timestamp, 'line': '[MAIN] Entering deep sleep'})
+            logs.sort(key=lambda row: row['t'])
+            (run / 'console.jsonl').write_text('\n'.join(map(json.dumps, logs)))
+            with self.subTest(completion_time=timestamp):
+                if timestamp == 5:
+                    self.assertEqual(summarize(run, group, 'x3')[0]['activity_observed'], 'Sleep')
+                else:
+                    with self.assertRaisesRegex(RuntimeError, 'sleep completion missing'):
+                        summarize(run, group, 'x3')
 
     def test_startup_home_before_ready_is_extracted(self):
         run = self.root / 'case/run'

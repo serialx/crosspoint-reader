@@ -630,6 +630,21 @@ int main() {
     }
     flush();
   }
+  for (uint32_t age : {0u, 5999u, 6000u, 6001u}) {
+    start("calibre-wrap-" + std::to_string(age));
+    {
+      CalibreConnectActivity a;
+      a.startWebServer();
+      CrossPointWebServer::nextStatus.lastCompleteAt = 0xfffffff0u;
+      CrossPointWebServer::nextStatus.lastCompleteName = std::string(255, 'n') + ".epub";
+      nowMs = 0xfffffff0u + age;
+      a.loop();
+      record("completed:" + std::to_string(a.lastCompleteAt) + ":" + std::to_string(a.lastProcessedCompleteAt) + ":" + a.lastCompleteName);
+      a.loop();
+      record("completed-again:" + std::to_string(a.lastCompleteAt) + ":" + std::to_string(a.lastProcessedCompleteAt) + ":" + a.lastCompleteName);
+    }
+    flush();
+  }
   for (bool ok : {false, true}) {
     start("web-ap-" + std::to_string(ok));
     {

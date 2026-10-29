@@ -46,6 +46,22 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
     app.running = true;
     app.setUploadCancelCheck([] { return host::cancelled; });
     execute(app);
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+    if (wsUploadInProgress && !wsUploadFile) {
+      std::cerr << "active upload has no file before teardown: " << name << '\n';
+      std::abort();
+    }
+    if (wsLastCompleteAt != 0) {
+      const std::string suffix = "/" + std::string(wsLastCompleteName.c_str());
+      const bool found = std::any_of(host::files.begin(), host::files.end(), [&](const auto& file) {
+        return file.first.ends_with(suffix) && file.second->bytes.size() == wsLastCompleteSize;
+      });
+      if (!found) {
+        std::cerr << "completion has no matching file before teardown: " << name << '\n';
+        std::abort();
+      }
+    }
+#endif
   }
 #ifdef XP_FFI_HOST_FAULT_INJECTION
   if (xp_test_live_allocations() != 0 || wsUploadInProgress) {
@@ -107,6 +123,28 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 }
 
 int main() {
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+  if (std::getenv("WEB_COMPLETION_CHECK")) {
+    for (bool previous : {false, true})
+      record("completion-allocation-failure", [&](auto& app) {
+        if (previous) text(app, 1, "START:previous.epub:0:/books");
+        const auto before = app.getWsUploadStatus();
+        text(app, 1, "START:failed.epub:4:/books");
+        xp_test_fail_allocation_after(0);
+        uint8_t bytes[4] = {1, 2, 3, 4};
+        app.onWebSocketEvent(1, WStype_BIN, bytes, sizeof(bytes));
+        const auto after = app.getWsUploadStatus();
+        if (after.inProgress || wsUploadFile || host::files.contains("/books/failed.epub") ||
+            after.lastCompleteName != before.lastCompleteName || after.lastCompleteSize != before.lastCompleteSize ||
+            after.lastCompleteAt != before.lastCompleteAt) {
+          std::cerr << "completion allocation failure published success or retained partial upload\n";
+          std::abort();
+        }
+        xp_test_fail_allocation_after(SIZE_MAX);
+      });
+    return 0;
+  }
+#endif
   for (const auto& path : {"", "/", "books//a.epub", "/books/../books/a.epub", "/books/missing", "/books",
                            "/.crosspoint/wifi.json", "/CROSSP~1/WIFI.JSON", "/XTCache", "/books/.hidden"}) {
     record(("download:" + std::string(path)).c_str(), [&](auto& app) {

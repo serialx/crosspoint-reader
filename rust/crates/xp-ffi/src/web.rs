@@ -1234,6 +1234,7 @@ impl Transfer<'_> {
                     state.last_progress = state.received;
                 }
                 if state.received >= state.total {
+                    let path = self.path(true)?;
                     self.r.file(Io::Close, 0);
                     state.active = false;
                     state.client = 255;
@@ -1248,7 +1249,6 @@ impl Transfer<'_> {
                         self.time().wrapping_sub(state.started_at) as usize,
                         0,
                     );
-                    let path = self.path(true)?;
                     self.r.book(0, &path, None);
                     self.r.book(3, &path, None);
                     self.ws_send(state, client, b"DONE");

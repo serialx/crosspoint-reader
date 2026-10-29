@@ -55,19 +55,19 @@ int32_t bmpJpegSeek(JPEGFILE* pFile, int32_t pos) {
 }
 
 enum class JpegDiagnostic : uint32_t {
-  Dimensions,
-  ProgressiveGrid,
-  InvalidDimensions,
-  Scaling,
-  McuAllocation,
-  RowAllocation,
-  SmoothAllocation,
-  Smoothing,
-  ScaleAllocation,
-  DitherOneAllocation,
-  DitherTwoAllocation,
-  BlockOrigin,
-  MissingRows
+  Dimensions = 0,
+  ProgressiveGrid = 1,
+  InvalidDimensions = 2,
+  Scaling = 3,
+  McuAllocation = 4,
+  RowAllocation = 5,
+  SmoothAllocation = 6,
+  Smoothing = 7,
+  ScaleAllocation = 8,
+  DitherOneAllocation = 9,
+  DitherTwoAllocation = 10,
+  BlockOrigin = 11,
+  MissingRows = 12
 };
 struct Context {
   JPEGDEC& jpeg;

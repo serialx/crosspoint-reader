@@ -25,20 +25,20 @@ void ImageBlock::setExtractor(void* ctx, ExtractFn fn) {
 
 namespace {
 enum class ImageDiagnostic : uint32_t {
-  InvalidCache,
-  CacheLoading,
-  CacheLoaded,
-  RowAllocation,
-  CacheRead,
-  CacheComplete,
-  Render,
-  Bounds,
-  MissingFile,
-  EmptyFile,
-  Decode,
-  MissingDecoder,
-  DecodeFailed,
-  DecodeComplete
+  InvalidCache = 0,
+  CacheLoading = 1,
+  CacheLoaded = 2,
+  RowAllocation = 3,
+  CacheRead = 4,
+  CacheComplete = 5,
+  Render = 6,
+  Bounds = 7,
+  MissingFile = 8,
+  EmptyFile = 9,
+  Decode = 10,
+  MissingDecoder = 11,
+  DecodeFailed = 12,
+  DecodeComplete = 13
 };
 enum class ImageIo : uint32_t {
   OpenCache,

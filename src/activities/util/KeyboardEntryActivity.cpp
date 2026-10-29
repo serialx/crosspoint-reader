@@ -159,6 +159,7 @@ void KeyboardEntryActivity::onEnter() {
   memcpy(text.data.get(), initialText.c_str(), initialText.size() + 1);
   xp_ui_keyboard_init(&state, initialText.size(), maxLength, static_cast<uint8_t>(inputType),
                       keyboard_layouts::enabled(), static_cast<uint8_t>(I18N.getLanguage()));
+  inputInterest = xp_ui_keyboard_interest(&state);
   std::string().swap(initialText);
   layout = viewLayout();
   requestUpdate();
@@ -173,15 +174,16 @@ void KeyboardEntryActivity::onExit() {
 
 void KeyboardEntryActivity::loop() {
   if (!arena || !text.data) return;
+  reconcileInput();
+  if (consumeRejectedInput()) return;
   tappedCursor = UINT32_MAX;
   int x = 0, y = 0;
   if (mappedInput.wasScreenTapped(x, y)) {
-    XpUiKeyboardState snapshot;
+    const XpUiKeyboardState snapshot = state;
     const auto tables = layouts();
     bool keyTap = false;
     {
       ModelLock lock(*this);
-      snapshot = state;
       XpUiInteraction hit{};
       keyTap = publication.ready && xp_ui_keyboard_hit(&publishedState, &tables, &publishedLayout, x, y, &hit);
     }
@@ -204,14 +206,36 @@ void KeyboardEntryActivity::loop() {
 }
 
 void KeyboardEntryActivity::rustPublished() {
-  const auto tables = layouts();
-  xp_ui_keyboard_publish(&state, &publishedState, &arena->snapshot, &tables);
+  if (!publicationPending) previousPublished = publishedState;
   publishedState = arena->snapshot;
   publishedLayout = layout;
+  publicationPending = true;
+}
+
+void KeyboardEntryActivity::reconcileInput() {
+  TextLock textLock(*this);
+  const auto tables = layouts();
+  ModelLock lock(*this);
+  if (publicationPending) {
+    xp_ui_keyboard_publish(&state, &previousPublished, &publishedState, &tables);
+    publicationPending = false;
+  }
+  if (resetInput) {
+    pending = {};
+    lastInput = {};
+    tappedCursor = UINT32_MAX;
+    state.confirm_held = state.confirm_long = state.up_held = state.up_long = 0;
+    state.down_held = state.down_long = state.right_held = state.right_long = 0;
+    state.touch_held = state.touch_long = 0;
+    state.active_key = INT16_MIN;
+    state.active_index = -1;
+    state.last_repeat = state.touch_start = 0;
+    resetInput = false;
+  }
+  inputInterest = xp_ui_keyboard_interest(&state);
 }
 
 XpUiEffect KeyboardEntryActivity::updateRust(const XpUiInput& input) {
-  beforeInput = state;
   lastInput = input;
   const auto tables = layouts();
   if (publication.ready && input.touch_flags) {
@@ -221,34 +245,38 @@ XpUiEffect KeyboardEntryActivity::updateRust(const XpUiInput& input) {
       lastInput.value = hit.value;
     }
   }
-  pending = xp_ui_keyboard_update(&state, text.data.get(), text.capacity, &tables, &lastInput, tappedCursor);
-  auto navigation = pending.navigation;
-  navigation.kind = XP_UI_EFFECT_NONE;
-  if (pending.grow) navigation.invalidate = 0;
-  return navigation;
+  return {};
 }
 
 void KeyboardEntryActivity::applyRustEffect(const XpUiEffect& navigation) {
-  auto effect = navigation.kind == XP_UI_CANCEL ? navigation : pending.navigation;
-  if (pending.grow) {
-    // Allocate outside ModelLock; publication only borrows the render snapshot.
-    Bytes replacement;
-    const uint32_t capacity = std::max(pending.required_capacity,
-                                       text.capacity <= UINT32_MAX / 2 ? text.capacity * 2 : pending.required_capacity);
-    if (replacement.grow(capacity, 0)) {
-      const auto tables = layouts();
-      ModelLock lock(*this);
-      memcpy(replacement.data.get(), text.data.get(), state.length + 1);
-      std::swap(text.data, replacement.data);
-      std::swap(text.capacity, replacement.capacity);
-      state = beforeInput;
-      pending = xp_ui_keyboard_update(&state, text.data.get(), text.capacity, &tables, &lastInput, tappedCursor);
-    } else {
-      LOG_ERR("RUI", "Cannot grow keyboard text: %u bytes", pending.required_capacity);
-    }
-    effect = pending.navigation;
-    if (effect.invalidate) requestUpdate();
+  if (navigation.kind != XP_UI_CANCEL && rustSceneRejected()) {
+    reconcileInput();
+    return;
   }
+  XpUiEffect effect{};
+  {
+    TextLock textLock(*this);
+    if (navigation.kind == XP_UI_CANCEL) {
+      pending = {};
+      effect = navigation;
+    } else {
+      beforeInput = state;
+      const auto tables = layouts();
+      pending = xp_ui_keyboard_update(&state, text.data.get(), text.capacity, &tables, &lastInput, tappedCursor);
+      if (pending.grow) {
+        if (text.grow(pending.required_capacity, state.length + 1)) {
+          state = beforeInput;
+          pending = xp_ui_keyboard_update(&state, text.data.get(), text.capacity, &tables, &lastInput, tappedCursor);
+        } else {
+          LOG_ERR("RUI", "Cannot grow keyboard text: %u bytes", pending.required_capacity);
+        }
+      }
+      effect = pending.navigation;
+    }
+    ModelLock lock(*this);
+    inputInterest = xp_ui_keyboard_interest(&state);
+  }
+  if (effect.invalidate) requestUpdate();
   if (pending.haptics) haptic_feedback::touchAction(pending.haptics == 2);
   pending = {};
   switch (static_cast<XpUiEffectKind>(effect.kind)) {
@@ -275,14 +303,18 @@ bool KeyboardEntryActivity::buildRustScene(XpUiScene& scene) {
   for (;;) {
     uint32_t required;
     {
-      ModelLock lock(*this);
+      TextLock lock(*this);
       required = state.length + 1;
     }
     if (!arena->raw.grow(required, 0)) return false;
-    ModelLock lock(*this);
+    TextLock textLock(*this);
     if (state.length >= arena->raw.capacity) continue;
     arena->snapshot = state;
-    xp_ui_keyboard_publish(&arena->snapshot, &publishedState, &state, &tables);
+    {
+      ModelLock lock(*this);
+      if (publicationPending) xp_ui_keyboard_publish(&arena->snapshot, &previousPublished, &publishedState, &tables);
+      xp_ui_keyboard_publish(&arena->snapshot, &publishedState, &state, &tables);
+    }
     memcpy(arena->raw.data.get(), text.data.get(), state.length + 1);
     break;
   }

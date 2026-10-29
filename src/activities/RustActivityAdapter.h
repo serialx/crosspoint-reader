@@ -33,6 +33,7 @@ class RustActivityAdapter : public Activity {
   virtual Publication* rustPublication() { return nullptr; }
   virtual bool buildRustScene(XpUiScene&) { return false; }
   virtual void rustPublished() {}
+  virtual void rustSceneFailed() {}
   virtual XpUiPaint rustResources() { return {}; }
   virtual XpUiInterest rustInterest(uint32_t nowMs) const { return {}; }
   virtual XpUiEffect updateRust(const XpUiInput&) { return {}; }

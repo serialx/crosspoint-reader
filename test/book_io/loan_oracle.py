@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """Compare the original protected-book gate source with the exported Rust gate."""
 import argparse
+import gzip
 import subprocess
 import tempfile
 from pathlib import Path
 p = argparse.ArgumentParser()
 p.add_argument('archive')
 p.add_argument('--capture', action='store_true')
+p.add_argument('--mutation-check', action='store_true')
 a = p.parse_args()
 root = Path(__file__).resolve().parents[2]
 source = (root/'lib/Epub/ContentProtection.cpp').read_text()
-if a.capture:
+if a.capture or a.mutation_check:
+    source=subprocess.check_output(['git','show','0b70268b:lib/Epub/ContentProtection.cpp'],cwd=root,text=True)
+    if a.mutation_check: source=source.replace('now > expiresAt','now >= expiresAt')
+if a.capture or a.mutation_check:
     start = source.index('  if (expiresAt != 0)')
     end = source.index('\n  auto decryptor', start)
     gate = 'void* check(int64_t expiresAt, std::string& err) {\n'+source[start:end]+'\nreturn (void*)1; }'
@@ -36,9 +41,9 @@ std::printf("%lld %lld %d %s\\n",(long long)expiry,(long long)now,result!=nullpt
 with tempfile.TemporaryDirectory() as d:
     cpp=Path(d)/'loan.cpp';cpp.write_text(code)
     exe=Path(d)/'loan'
-    subprocess.run(['c++','-std=c++20',str(cpp),a.archive,'-o',str(exe)],check=True)
+    subprocess.run(['c++','-std=c++20',str(cpp),str(root/'test/cmake/xp_ffi_host.cpp'),a.archive,'-o',str(exe)],check=True)
     actual=subprocess.check_output([str(exe)])
-golden=Path(__file__).with_name('loan-golden.txt')
-if a.capture: golden.write_bytes(actual)
-elif actual!=golden.read_bytes(): raise SystemExit('Loan gate differs from original source')
+golden=Path(__file__).with_name('loan-golden.txt.gz')
+if a.capture: golden.write_bytes(gzip.compress(actual,mtime=0))
+elif actual!=gzip.decompress(golden.read_bytes()): raise SystemExit('Loan gate differs from original source')
 print('Loan gate: 25 exact result, error, and clock-call traces')

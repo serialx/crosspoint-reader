@@ -21,6 +21,7 @@
 #include <Zip.h>
 #include <ZipFile.h>
 #include <esp_heap_caps.h>
+#include <xp_ffi.h>
 
 #include "BookKey.h"
 
@@ -155,16 +156,16 @@ std::unique_ptr<ContentDecryptor> openProtectedBook(const std::string& epubPath,
   // powered-off gap, it does not suspend it. A book carrying a due date with
   // no trustworthy clock at all fails closed rather than open.
   // Exact err strings below are matched by the reader for the user message.
-  if (expiresAt != 0) {
-    const int64_t now = trustedtime::trustedNow();
-    if (now == 0) {
+  enum class LoanStatus : uint32_t { Allowed, Unverified, Expired };
+  switch (static_cast<LoanStatus>(xp_book_loan(expiresAt, nullptr, [](void*) { return trustedtime::trustedNow(); }))) {
+    case LoanStatus::Allowed:
+      break;
+    case LoanStatus::Unverified:
       err = "loan date unverified";
       return nullptr;
-    }
-    if (now > expiresAt) {
+    case LoanStatus::Expired:
       err = "access expired";
       return nullptr;
-    }
   }
 
   auto decryptor = makeUniqueNoThrow<ProtectedBookDecryptor>(epubPath, std::move(book));

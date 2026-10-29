@@ -2778,6 +2778,141 @@ uint32_t xp_page_plan_render(const uint8_t* arena, size_t size, const XpNativePr
                              uint8_t prepare);
 #endif
 
+// Book adapters: call-local borrowed buffers; callbacks may not retain pointers
+// or reenter. TXT input/output each contain 8192 initialized writable bytes,
+// disjoint from title/tag and each other. Status: 0 success, -1 read, -2 write.
+size_t xp_book_txt_escaped_size(const uint8_t* text, size_t len);
+void xp_book_txt_escape(const uint8_t* text, size_t len, void* context, void (*emit)(void*, const uint8_t*, size_t));
+int32_t xp_book_txt_stream(const uint8_t* title, size_t title_len, const uint8_t* tag, size_t tag_len, uint8_t* input,
+                           uint8_t* output, void* context, int32_t (*read)(void*, uint8_t*, size_t),
+                           size_t (*write)(void*, const uint8_t*, size_t));
+
+// XTC image output preserves write/yield order and ignores short writes, as the
+// original facade did. Buffers are disjoint and borrowed for this call only.
+typedef struct {
+  uint16_t width, height;
+  float scale;
+} XpBookXtcThumbnail;
+void xp_book_xtc_thumbnail(uint16_t width, uint16_t height, int32_t target, XpBookXtcThumbnail* out);
+void xp_book_xtc_image(const uint8_t* pixels, size_t len, uint16_t width, uint16_t height, uint8_t depth, uint8_t* row,
+                       size_t row_len, const XpBookXtcThumbnail* plan, void* context,
+                       size_t (*write)(void*, const uint8_t*, size_t), void (*yield_now)(void*));
+
+// Wrapped-key platform leaves. All pointers are borrowed for the call; cipher
+// has a 32-byte KEK, 12-byte IV, 16-byte tag and key_len-byte input/output.
+typedef struct {
+  uint8_t* output;
+  const uint8_t *input, *kek, *iv;
+  uint8_t* tag;
+  const uint8_t* aad;
+  size_t key_len, aad_len;
+  bool encrypt;
+} XpBookKeyCipher;
+typedef struct {
+  void* context;
+  bool (*secret)(void*, uint8_t*);
+  bool (*hash)(void*, const uint8_t*, size_t, uint8_t*);
+  void (*random)(void*, uint8_t*, size_t);
+  bool (*cipher)(void*, const XpBookKeyCipher*);
+  int32_t (*read)(void*, uint8_t*, size_t);
+  bool (*write)(void*, const uint8_t*, size_t);
+  bool (*replace)(void*);
+} XpBookKeyServices;
+int32_t xp_book_key_write(const uint8_t* key, size_t len, int64_t expires, const XpBookKeyServices* services);
+int32_t xp_book_key_read(uint8_t* key, int64_t* expires, const XpBookKeyServices* services);
+
+// XTC diagnostics use event,a,b,c,d (d is unused); all calls are synchronous.
+// Events 1-10 describe header/table validation using the inspected state. Event 7
+// adds file size in a:b (low:high). Events 11-14 and 20 carry an XtcError in a.
+// Events 15/16 report open/reopen. Events 17/21 carry page index a and offset b:c.
+// Events 18/22 carry page index a; 19 carries chapter count a; 23 carries page a
+// and magic b; 24 carries page a, declared bytes b and expected bytes c;
+// 25/26 carry needed/expected bytes a and available/read bytes b.
+// XTC reader state has Rust Cell-compatible scalar layout. Calls are serialized;
+// callbacks may inspect it for diagnostics, but may not mutate it or reenter.
+typedef struct {
+  XpXtcHeader header;
+  uint16_t width, height;
+  uint8_t depth;
+  bool opened, has_chapters, chapters_loaded;
+  int32_t error;
+} XpBookXtcState;
+typedef struct {
+  void* context;
+  bool (*open)(void*);
+  bool (*is_open)(void*);
+  void (*close)(void*);
+  int32_t (*read)(void*, uint8_t*, size_t);
+  bool (*seek)(void*, uint64_t);
+  uint64_t (*size)(void*);
+  void (*metadata)(void*, uint32_t, const uint8_t*, size_t);
+  size_t (*chapters)(void*, uint32_t, size_t, const uint8_t*, uint16_t, uint16_t);
+  void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+} XpBookXtcServices;
+typedef struct {
+  void* context;
+  uint8_t* (*allocate)(void*, size_t);
+  void (*emit)(void*, const uint8_t*, size_t, size_t);
+} XpBookXtcStream;
+int32_t xp_book_xtc_open(const XpBookXtcState*, const XpBookXtcServices*);
+void xp_book_xtc_close(const XpBookXtcState*, const XpBookXtcServices*);
+void xp_book_xtc_chapters(const XpBookXtcState*, const XpBookXtcServices*);
+bool xp_book_xtc_page_info(const XpBookXtcState*, const XpBookXtcServices*, uint32_t index, XpXtcEntry*);
+size_t xp_book_xtc_load(const XpBookXtcState*, const XpBookXtcServices*, uint32_t index, uint8_t*, size_t);
+int32_t xp_book_xtc_stream(const XpBookXtcState*, const XpBookXtcServices*, uint32_t index, size_t,
+                           const XpBookXtcStream*);
+
+// ZIP extraction uses the existing C allocator and InflateStream scratch owner.
+// Callback spans are borrowed; inflater fill context is valid only until return.
+typedef size_t (*XpBookZipFill)(void*, const uint8_t**);
+typedef struct {
+  void* context;
+  int32_t (*read)(void*, uint8_t*, size_t);
+  uint8_t* (*allocate)(void*, size_t);
+  void (*release)(void*, uint8_t*);
+  bool (*init)(void*, bool, XpBookZipFill, void*);
+  bool (*exact)(void*, uint8_t*, size_t);
+  int32_t (*inflate)(void*, uint8_t*, size_t, size_t*);
+  size_t (*write)(void*, const uint8_t*, size_t);
+  void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+} XpBookZipServices;
+uint8_t* xp_book_zip_memory(const XpBookZipServices*, uint16_t method, uint32_t compressed, uint32_t inflated,
+                            bool trailing_nul, size_t* size);
+bool xp_book_zip_stream(const XpBookZipServices*, uint16_t method, uint32_t compressed, uint32_t inflated, size_t chunk,
+                        bool early_stop);
+
+// Copy while the source reports available bytes; retain legacy ignored writes.
+// Negative reads fail without exposing an invalid span to the destination.
+bool xp_book_copy_available(uint8_t* buffer, size_t capacity, void* context, bool (*available)(void*),
+                            int32_t (*read)(void*, uint8_t*, size_t), size_t (*write)(void*, const uint8_t*, size_t));
+
+// TXT cache actions 0..13: exists, mkdir, invalidate, begin, begin-opf, spine,
+// end-opf, begin-toc, toc, end-toc, end, book, cleanup, reload.
+// TXT cache control selects existing C++ facade operations. UINT32_MAX means
+// success; otherwise the result identifies the failed action for diagnostics.
+uint32_t xp_book_txt_build(void* context, bool (*control)(void*, uint32_t));
+void xp_book_txt_find_cover(void* context, bool (*candidate)(void*, const uint8_t*, const uint8_t*));
+
+// Borrowed text only; trim outputs must be disjoint and writable. XML names are
+// NUL-terminated (or null); the result aliases the name or a static empty string.
+bool xp_book_ascii_space(uint8_t byte);
+void xp_book_ascii_trim(const uint8_t* data, size_t len, size_t* start, size_t* end);
+const uint8_t* xp_book_xml_local(const uint8_t* name);
+uint32_t xp_book_utf8_next(const uint8_t* data, size_t* consumed);
+// Loan result: 0 allowed, 1 clock unverified, 2 expired. No clock call for zero expiry.
+uint32_t xp_book_loan(int64_t expires, void* context, int64_t (*clock)(void*));
+
+typedef struct {
+  void* context;
+  bool (*control)(void*, uint32_t, int32_t, int32_t);
+  int32_t (*read)(void*, uint8_t*, size_t);
+  size_t (*write)(void*, const uint8_t*, size_t);
+  size_t (*size)(void*);
+  void (*diagnostic)(void*, uint32_t, size_t);
+} XpBookTxtFileServices;
+bool xp_book_txt_validate(const XpBookTxtFileServices*, size_t cached, const uint8_t* tag, size_t len);
+bool xp_book_txt_convert(const XpBookTxtFileServices*, uint32_t kind, int32_t height);
+
 #ifdef __cplusplus
 }
 #endif

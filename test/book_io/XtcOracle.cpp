@@ -1,5 +1,6 @@
 #include <HalStorage.h>
 #include <Xtc.h>
+
 #include <fstream>
 #include <iterator>
 
@@ -40,9 +41,28 @@ void run(const std::vector<uint8_t>& bytes, size_t fail, bool images) {
   }
 }
 int main(int argc, char** argv) {
-  if (argc != 2) return 2;
+  if (argc != 2 && argc != 3) return 2;
   std::ifstream input(argv[1], std::ios::binary);
   std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)), {});
+  if (argc == 3) {
+    booktest::files["book.xtc"] = bytes;
+    if (std::string(argv[2]) == "negative-copy") {
+      Xtc book("book.xtc", "/cache");
+      if (!book.load() || !book.generateCoverBmp()) return 3;
+      booktest::calls = 0;
+      booktest::fail = 10;  // First no-scale cover-copy read.
+      if (book.generateThumbBmp(300)) return 4;
+      return 0;
+    }
+    xtc::XtcParser parser;
+    if (parser.open("book.xtc") != xtc::XtcError::OK) return 3;
+    booktest::calls = 0;
+    booktest::fail = 6;  // First bitmap read, after entry and page header.
+    bool emitted = false;
+    const auto result = parser.loadPageStreaming(0, [&](const uint8_t*, size_t, size_t) { emitted = true; }, 17);
+    if (result != xtc::XtcError::READ_ERROR || emitted) return 4;
+    return 0;
+  }
   for (bool images : {false, true}) {
     run(bytes, 0, images);
     const size_t steps = booktest::calls;

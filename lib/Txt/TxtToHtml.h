@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Print.h>
+#include <xp_ffi.h>
 
 #include <cstddef>
 #include <string>
@@ -10,22 +11,14 @@ class TxtToHtml {
  public:
   template <typename Append>
   static void streamEscapedHtml(Append&& append, std::string_view text) {
-    for (const char c : text) {
-      switch (c) {
-        case '&':
-          append("&amp;");
-          break;
-        case '<':
-          append("&lt;");
-          break;
-        case '>':
-          append("&gt;");
-          break;
-        default:
-          append(std::string_view(&c, 1));
-          break;
-      }
-    }
+    struct Context {
+      Append& append;
+    } context{append};
+    xp_book_txt_escape(
+        reinterpret_cast<const uint8_t*>(text.data()), text.size(), &context,
+        [](void* ctx, const uint8_t* bytes, size_t size) {
+          static_cast<Context*>(ctx)->append(std::string_view(reinterpret_cast<const char*>(bytes), size));
+        });
   }
 
   static const char* cacheVersionTag(std::string_view filename);

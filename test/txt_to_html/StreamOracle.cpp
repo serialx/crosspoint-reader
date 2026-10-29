@@ -55,8 +55,13 @@ void run(const std::string& name, const std::string& bytes, size_t chunk, size_t
 int main() {
   std::string allBytes;
   for (unsigned i = 0; i < 256; ++i) allBytes.push_back(static_cast<char>(i));
-  const std::vector<std::string> inputs = {"", "\xef\xbb\xbftext", "\xef\xbb", " a  b   \r\n  <&>\t\001\rX ",
-                                          allBytes, std::string(8190, 'x') + "  &\n", std::string(9000, '&')};
+  const std::vector<std::string> inputs = {"",
+                                           "\xef\xbb\xbftext",
+                                           "\xef\xbb",
+                                           " a  b   \r\n  <&>\t\001\rX ",
+                                           allBytes,
+                                           std::string(8190, 'x') + "  &\n",
+                                           std::string(9000, '&')};
   for (const auto& input : inputs) {
     for (size_t chunk : {size_t{1}, size_t{2}, size_t{3}, size_t{8192}}) {
       run("/books/a&<>.MD", input, chunk, 0, 0);

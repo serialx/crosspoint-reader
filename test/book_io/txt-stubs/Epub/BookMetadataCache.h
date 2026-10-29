@@ -1,10 +1,13 @@
 #pragma once
 #include <HalStorage.h>
+
 #include <string>
 #include <string_view>
 class BookMetadataCache {
  public:
-  struct BookMetadata { std::string title, author, language, coverItemHref, textReferenceHref; };
+  struct BookMetadata {
+    std::string title, author, language, coverItemHref, textReferenceHref;
+  };
   explicit BookMetadataCache(const std::string&) { booktest::step("cache-create", ""); }
   ~BookMetadataCache() { booktest::step("cache-destroy", ""); }
   bool beginWrite() { return booktest::step("begin", ""); }
@@ -18,7 +21,8 @@ class BookMetadataCache {
   bool endTocPass() { return booktest::step("end-toc", ""); }
   bool endWrite() { return booktest::step("end", ""); }
   bool buildBookBin(const std::string& path, const BookMetadata& metadata) {
-    return booktest::step("book-bin", path + ":" + metadata.title + ":" + metadata.language + ":" + metadata.coverItemHref);
+    return booktest::step("book-bin",
+                          path + ":" + metadata.title + ":" + metadata.language + ":" + metadata.coverItemHref);
   }
   bool cleanupTmpFiles() const { return booktest::step("cleanup", ""); }
   bool load() { return booktest::step("cache-load", ""); }

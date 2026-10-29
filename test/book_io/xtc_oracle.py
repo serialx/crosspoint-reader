@@ -10,6 +10,8 @@ import tempfile
 parser = argparse.ArgumentParser()
 parser.add_argument('executable')
 parser.add_argument('--capture', action='store_true')
+parser.add_argument('--negative-stream', action='store_true')
+parser.add_argument('--negative-copy', action='store_true')
 args = parser.parse_args()
 here = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('xtc_fixtures', here.parent / 'xtc_diff/generate.py')
@@ -18,6 +20,11 @@ spec.loader.exec_module(fixtures)
 result = bytearray()
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory) / 'book.xtc'
+    if args.negative_stream or args.negative_copy:
+        path.write_bytes(fixtures.book())
+        subprocess.run([args.executable, path, 'negative-copy' if args.negative_copy else 'negative-stream'], check=True, stdout=subprocess.DEVNULL)
+        print('Negative XTC read rejected without exposing an invalid buffer')
+        raise SystemExit(0)
     for depth in (1, 2):
         for width, height in ((9, 11), (16, 17)):
             for legacy in (False, True):

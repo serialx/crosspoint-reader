@@ -1,5 +1,6 @@
 #include <HalStorage.h>
 #include <ZipFile.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -26,22 +27,30 @@ int main(int argc, char** argv) {
   ziptest::trace = true;
   for (const char* name : {"stored", "deflated", "absent"}) {
     for (size_t fail = 0; fail <= 12; ++fail) {
-      Storage.setFile("archive", bytes); ziptest::operations = 0; ziptest::fail = fail;
+      Storage.setFile("archive", bytes);
+      ziptest::operations = 0;
+      ziptest::fail = fail;
       std::printf("memory %s %zu\n", name, fail);
-      ZipFile zip(archivePath); size_t count = 777;
+      ZipFile zip(archivePath);
+      size_t count = 777;
       uint8_t* data = zip.readFileToMemory(name, &count, true);
       std::printf("result %d %zu\n", data != nullptr, count);
       if (data) {
         for (size_t i = 0; i <= count; ++i) std::printf("%02x", data[i]);
-        std::puts(""); std::free(data);
+        std::puts("");
+        std::free(data);
       }
     }
     for (size_t chunk : {size_t{1}, size_t{7}, size_t{1024}}) {
       for (bool early : {false, true}) {
         for (size_t fail = 0; fail <= 3; ++fail) {
-          Storage.setFile("archive", bytes); ziptest::operations = 0; ziptest::fail = 0;
+          Storage.setFile("archive", bytes);
+          ziptest::operations = 0;
+          ziptest::fail = 0;
           std::printf("stream %s %zu %d %zu\n", name, chunk, early, fail);
-          ZipFile zip(archivePath); Writer out; out.fail = fail;
+          ZipFile zip(archivePath);
+          Writer out;
+          out.fail = fail;
           std::printf("result %d\n", zip.readFileToStream(name, out, chunk, early));
         }
       }

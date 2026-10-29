@@ -33,3 +33,6 @@ target_include_directories(BookHelpersOracle PRIVATE ${REPO_ROOT}/lib/AsciiText
 target_link_libraries(BookHelpersOracle PRIVATE xp_ffi_host)
 add_test(NAME BookHelpersOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/helpers_oracle.py $<TARGET_FILE:BookHelpersOracle>)
+
+add_test(NAME BookLoanOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/loan_oracle.py ${XP_FFI_HOST_ARCHIVE})

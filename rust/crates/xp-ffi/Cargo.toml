@@ -17,7 +17,7 @@ xp-core = { path = "../xp-core" }
 xp-display = { path = "../xp-display", optional = true, default-features = false }
 
 [features]
-reader-strips = ["strip-spike", "display-api"]
+reader-strips = ["strip-spike", "display-api", "xp-core/reader-strips"]
 strip-spike = ["xp-core/strip-spike", "dep:embedded-graphics-core"]
 display-api = ["dep:xp-display"]
 display-panel = ["display-uc8253", "display-ssd1677", "display-uc8179", "display-uc8279-x3", "display-uc8279-x4", "display-uc8279c-a4", "display-ssd2677", "display-paper-mono"]

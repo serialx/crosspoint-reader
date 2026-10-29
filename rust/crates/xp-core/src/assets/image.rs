@@ -17,6 +17,11 @@ pub unsafe trait Services {
     fn open_cache(&mut self, path: &[u8]) -> bool;
     fn read(&mut self, bytes: &mut [u8]) -> usize;
     fn seek(&mut self, offset: usize);
+    #[cfg(feature = "reader-strips")]
+    fn seek_rows(&mut self, offset: usize) -> bool {
+        self.seek(offset);
+        true
+    }
     fn size(&mut self) -> usize;
     fn close(&mut self);
     fn heap(&mut self) -> (usize, usize);
@@ -129,6 +134,8 @@ impl Drop for Buffer {
     }
 }
 pub struct State {
+    #[cfg(feature = "reader-strips")]
+    read_window: (*mut u8, usize),
     failures: [u64; 16],
     slot_hash: u64,
     chunks: [*mut u8; 6],
@@ -140,7 +147,14 @@ pub struct State {
 }
 // Bound the C3 cache/failure state; the row window is page-lifetime heap.
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<State>() == 176);
+const _: () = assert!(
+    core::mem::size_of::<State>()
+        == if cfg!(feature = "reader-strips") {
+            184
+        } else {
+            176
+        }
+);
 impl Default for State {
     fn default() -> Self {
         Self::new()
@@ -149,6 +163,8 @@ impl Default for State {
 impl State {
     pub const fn new() -> Self {
         Self {
+            #[cfg(feature = "reader-strips")]
+            read_window: (ptr::null_mut(), 0),
             failures: [0; 16],
             slot_hash: 0,
             chunks: [ptr::null_mut(); 6],
@@ -158,6 +174,17 @@ impl State {
             failure_count: 0,
             slot_attempted: false,
         }
+    }
+    /// # Safety
+    /// Non-null storage is exclusively borrowed until replaced by a null loan.
+    /// It must remain valid across render/release calls and cannot alias the target.
+    #[cfg(feature = "reader-strips")]
+    pub unsafe fn set_read_window(&mut self, data: *mut u8, len: usize) {
+        self.read_window = if data.is_null() || len > isize::MAX as usize {
+            (ptr::null_mut(), 0)
+        } else {
+            (data, len)
+        };
     }
     fn release_slot(&mut self) {
         #[cfg(target_arch = "riscv32")]
@@ -283,7 +310,11 @@ impl State {
         // SAFETY: Services lends the exclusive target until the next target callback.
         let target = s.target();
         let mut writer = unsafe { Writer::new(target) };
-        for r in 0..self.slot_height as usize {
+        #[cfg(feature = "reader-strips")]
+        let range = visible_rows(&target, y, self.slot_height as usize);
+        #[cfg(not(feature = "reader-strips"))]
+        let range = 0..self.slot_height as usize;
+        for r in range {
             let start = r * stride;
             let chunk = start / CHUNK;
             let offset = start % CHUNK;
@@ -335,7 +366,12 @@ impl State {
         }
         s.seek(4);
         let desired = (4096 / stride).max(1).min(h) * stride;
-        if self.work.len - path_len < stride
+        #[cfg(feature = "reader-strips")]
+        let borrowed = !self.read_window.0.is_null() && self.read_window.1 >= stride;
+        #[cfg(not(feature = "reader-strips"))]
+        let borrowed = false;
+        if !borrowed
+            && self.work.len - path_len < stride
             && !self.work.grow(path_len + desired)
             && !self.work.grow(path_len + stride)
         {
@@ -343,15 +379,41 @@ impl State {
             s.close();
             return false;
         }
+        #[cfg(feature = "reader-strips")]
+        let (data, capacity) = if borrowed {
+            (self.read_window.0, self.read_window.1.min(desired))
+        } else {
+            (
+                unsafe { self.work.data.add(path_len) },
+                self.work.len - path_len,
+            )
+        };
+        #[cfg(feature = "reader-strips")]
+        let rows = (capacity / stride).min(h);
+        #[cfg(not(feature = "reader-strips"))]
         let rows = ((self.work.len - path_len) / stride).min(h);
         // SAFETY: Services preserves the target loan during storage calls.
         let target = s.target();
         let mut writer = unsafe { Writer::new(target) };
-        let mut row = 0;
-        while row < h {
-            let count = (h - row).min(rows);
+        #[cfg(feature = "reader-strips")]
+        let range = visible_rows(&target, c.y, h);
+        #[cfg(not(feature = "reader-strips"))]
+        let range = 0..h;
+        #[cfg(feature = "reader-strips")]
+        if !s.seek_rows(4 + range.start * stride) {
+            s.close();
+            return false;
+        }
+        let mut row = range.start;
+        while row < range.end {
+            let count = (range.end - row).min(rows);
             let bytes = count * stride;
-            if s.read(&mut self.work.bytes_mut()[path_len..path_len + bytes]) != bytes {
+            // SAFETY: owned work or the exclusive caller loan covers this batch.
+            #[cfg(feature = "reader-strips")]
+            let batch = unsafe { slice::from_raw_parts_mut(data, bytes) };
+            #[cfg(not(feature = "reader-strips"))]
+            let batch = &mut self.work.bytes_mut()[path_len..path_len + bytes];
+            if s.read(batch) != bytes {
                 s.diagnostic(4, row as i32, 0);
                 s.close();
                 return false;
@@ -361,7 +423,7 @@ impl State {
                     &mut writer,
                     &target,
                     (c.x, c.y + (row + index) as i32, w),
-                    &self.work.bytes()[path_len + index * stride..path_len + (index + 1) * stride],
+                    &batch[index * stride..(index + 1) * stride],
                     s,
                 );
             }
@@ -439,5 +501,77 @@ impl State {
 impl Drop for State {
     fn drop(&mut self) {
         self.release_slot();
+    }
+}
+
+// Portrait bands intersect columns; only landscape bands can skip logical rows.
+#[cfg(feature = "reader-strips")]
+fn visible_rows(target: &Target, y: i32, height: usize) -> core::ops::Range<usize> {
+    if target.rows >= target.height || !matches!(target.orientation, 1 | 3) {
+        return 0..height;
+    }
+    let origin = i64::from(target.origin);
+    let end = origin + i64::from(target.rows);
+    let y = i64::from(y);
+    let (first, last) = if target.orientation == 1 {
+        (
+            i64::from(target.height) - end - y,
+            i64::from(target.height) - origin - y,
+        )
+    } else {
+        (origin - y, end - y)
+    };
+    first.clamp(0, height as i64) as usize..last.clamp(0, height as i64) as usize
+}
+
+#[cfg(all(test, feature = "reader-strips"))]
+mod strip_tests {
+    use super::*;
+
+    #[test]
+    fn row_bounds_match_cpp_corner_intersections() {
+        for height in [480, 528] {
+            for orientation in 0..4 {
+                for origin in (0..height).step_by(80) {
+                    let target = Target {
+                        data: ptr::null_mut(),
+                        len: 0,
+                        stride: 100,
+                        origin,
+                        rows: 80.min(height - origin),
+                        width: 800,
+                        height,
+                        orientation,
+                        mode: 0,
+                        absolute: 0,
+                    };
+                    for y in [0, 20, 100, 400] {
+                        for h in [1, 79, 80, 81, 380] {
+                            let mut first = 0;
+                            let mut end = h;
+                            let intersects = |r: usize| {
+                                let native = match orientation {
+                                    1 => height - 1 - (y + r as i32),
+                                    3 => y + r as i32,
+                                    _ => return true,
+                                };
+                                native >= origin && native < origin + target.rows
+                            };
+                            while first < end && !intersects(first) {
+                                first += 1;
+                            }
+                            while end > first && !intersects(end - 1) {
+                                end -= 1;
+                            }
+                            // Empty ranges may have different endpoints but emit no rows.
+                            assert_eq!(
+                                visible_rows(&target, y, h).collect::<Vec<_>>(),
+                                (first..end).collect::<Vec<_>>()
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 }

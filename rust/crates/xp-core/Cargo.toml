@@ -9,6 +9,7 @@ package-trace = []
 chapter-trace = []
 chapter-test = []
 strip-spike = []
+reader-strips = ["strip-spike"]
 
 [dependencies]
 embedded-graphics-core.workspace = true

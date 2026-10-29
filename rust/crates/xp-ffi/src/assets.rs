@@ -226,7 +226,9 @@ unsafe impl ImageServices for ImageCallbacks {
         width: usize,
         row: &[u8],
     ) -> bool {
-        if !STRIP_SPIKE.load(core::sync::atomic::Ordering::Relaxed) {
+        if !cfg!(feature = "reader-strips")
+            && !STRIP_SPIKE.load(core::sync::atomic::Ordering::Relaxed)
+        {
             return false;
         }
         unsafe { xp_strip_packed_row(target, x, y, width as i32, row.as_ptr(), row.len()) };
@@ -240,6 +242,10 @@ unsafe impl ImageServices for ImageCallbacks {
     }
     fn seek(&mut self, offset: usize) {
         self.scalar(2, offset);
+    }
+    #[cfg(feature = "reader-strips")]
+    fn seek_rows(&mut self, offset: usize) -> bool {
+        self.scalar(2, offset) != 0
     }
     fn size(&mut self) -> usize {
         self.scalar(3, 0)
@@ -380,4 +386,13 @@ extern "C" {
         row: *const u8,
         len: usize,
     );
+}
+
+/// # Safety
+/// Under the render lock, lend exclusive storage until the next null setter.
+/// Release/reset does not end the loan. Storage must not alias any renderer target.
+#[cfg(feature = "reader-strips")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_assets_image_read_window(data: *mut u8, len: usize) {
+    unsafe { (&mut *IMAGE_STATE.0.get()).set_read_window(data, len) };
 }

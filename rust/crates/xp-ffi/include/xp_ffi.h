@@ -2755,6 +2755,9 @@ bool xp_lcp_unwrap(const XpLcpServices*, uint8_t out[32]);
 bool xp_system_item_name(const uint8_t* data, size_t len);
 
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+// Serialized render-owner loan; clear before freeing/reusing the caller buffer.
+// Cache reset/release does not end the loan and never frees borrowed storage.
+void xp_assets_image_read_window(uint8_t* data, size_t len);
 void xp_strip_packed_row(const XpImageTarget* target, int32_t x, int32_t y, int32_t width, const uint8_t* row,
                          size_t len);
 // Commands borrow page bytes; invalidate on page/font/origin/orientation change.

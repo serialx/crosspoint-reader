@@ -203,3 +203,7 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
       break;
   }
 }
+
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+void ImageBlock::setRenderReadWindow(uint8_t* data, size_t size) { xp_assets_image_read_window(data, size); }
+#endif

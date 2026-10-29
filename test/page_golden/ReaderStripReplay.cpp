@@ -142,6 +142,26 @@ int main(int argc, char** argv) {
   ImageBlock::clearRenderFailures();
   require(ReaderStripPainter::paint(&imagePainter, scratch.data(), 0, 80) == 0, "image cache recovery");
   std::cout << "PASS streamed image cache failure with RAM slot unavailable preserves retained BW\n";
+  std::array<uint8_t, 4096> window;
+  window.fill(0xcd);
+  ImageBlock::releaseRenderCache();
+  ImageBlock::setRenderReadWindow(window.data(), window.size());
+  imagePage->render(renderer, 100, 0, 0);
+  require(window[0] == 0x1b, "streaming did not use borrowed window");
+  ImageBlock::releaseRenderCache();  // Must not free the caller's storage.
+  ImageBlock::setRenderReadWindow(nullptr, 0);
+  window.fill(0x5a);
+  imagePage->render(renderer, 100, 0, 0);
+  require(std::all_of(window.begin(), window.end(), [](uint8_t b) { return b == 0x5a; }),
+          "ended window loan was reused");
+  ImageBlock::releaseRenderCache();
+  ImageBlock::setRenderReadWindow(window.data(), 1);
+  renderer.clearScreen();
+  imagePage->render(renderer, 100, 0, 0);
+  require(display.pixels == imageBw, "undersized loan did not fall back to owned window");
+  require(window[0] == 0x5a, "undersized loan was written");
+  ImageBlock::setRenderReadWindow(nullptr, 0);
+  std::cout << "PASS borrowed image window: used, not freed, ended, undersized fallback\n";
   std::array<size_t, 4> streamingReads{};
   for (const auto heap : {24 * 1024, 200 * 1024}) {
     ESP.freeHeap = heap;

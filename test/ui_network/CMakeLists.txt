@@ -162,3 +162,8 @@ foreach(WIFI_PANEL X3 X4)
   target_link_libraries(${WIFI_LEGACY} PRIVATE xp_ffi_host)
   add_test(NAME ui_network_wifi_${WIFI_PANEL}_legacy_pixels COMMAND ${WIFI_LEGACY})
 endforeach()
+add_test(NAME ui_network_shared_gate COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_shared_gate.py ${XP_FFI_HOST_ARCHIVE}
+  wifi-failure calibre-failure web-failure wifi-stale calibre-stale web-stale modes-stale usb-stale)
+add_test(NAME ui_network_wait_gate COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_wait_gate.py ${XP_FFI_HOST_ARCHIVE})

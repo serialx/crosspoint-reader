@@ -136,7 +136,9 @@ pub unsafe fn publish(state: *mut State, snapshot: *const State, feedback: *cons
             s.scene_failed = 0;
             if old.is_list() {
                 let nav = s.nav_mut();
-                if nav.navigation_revision == old.nav().navigation_revision {
+                if nav.navigation_revision == old.nav().navigation_revision
+                    && nav.selected == old.nav().selected
+                {
                     nav.selected = f.list.selected;
                 }
                 nav.publish(&f.list, old.nav().pending_scroll);

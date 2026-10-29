@@ -28,3 +28,5 @@ add_test(NAME ui_updates_resource_bridge COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_resource_bridge.py ${XP_FFI_HOST_ARCHIVE})
 add_test(NAME ui_updates_extended_effects COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/test_extended_effects.py ${XP_FFI_HOST_ARCHIVE})
+add_test(NAME ui_updates_touch_publication COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_touch_publication.py ${XP_FFI_HOST_ARCHIVE})

@@ -5,6 +5,7 @@ struct UpdateUiActivity:Activity {
  UpdateUiActivity(const char*n,GfxRenderer&r,MappedInputManager&i,XpUiUpdateKind k,bool recovery=false):Activity(n,r,i){xp_ui_updates_init(&model,k,recovery);}
  uint8_t phase()const{return model.phase;}
  int selectedIndex()const{return model.list.selected;}
+ int paintedSelectedIndex()const{return feedback.list.selected;}
  int groupIndex()const{return model.groups.selected;}
  void notify(XpUiUpdateEvent e,uint32_t a=0,uint32_t b=0){xp_ui_updates_notify(&model,e,a,b);}
  uint8_t serviceResult(XpUiUpdateEvent e,uint32_t a=0,uint32_t b=0){return xp_ui_updates_result(&model,e,a,b);}

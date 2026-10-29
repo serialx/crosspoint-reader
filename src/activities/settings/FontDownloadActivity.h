@@ -118,7 +118,7 @@ class FontDownloadActivity final : public UpdateUiActivity {
   const char* fontConfirmLabel() const override;
   void performAction(XpUiUpdateAction, int32_t) override;
   void activateIndex(int index);
-  void activateSelected();
+  void activateFamilyRow(int index);
 
   void onWifiSelectionComplete(bool success);
   bool fetchAndParseManifest();
@@ -137,7 +137,7 @@ class FontDownloadActivity final : public UpdateUiActivity {
   int specialRowCount() const;
   bool isDownloadAllRow(int index) const;
   bool isUpdateAllRow(int index) const;
-  void promptDeleteSelectedFamily();
+  void promptDeleteFamily(int index);
   void onDeleteConfirmationResult(const ActivityResult& result);
   int familyIndexFromList(int listIndex) const;
   int listItemCount() const;

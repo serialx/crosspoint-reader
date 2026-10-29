@@ -110,6 +110,7 @@ struct UpdateUiActivity {
   void rustSceneFailed();
   XpUiEffect updateRust(const XpUiInput&);
   int selectedIndex() const { return model.list.selected; }
+  int paintedSelectedIndex() const { return next.list.selected; }
   uint8_t phase() const {
     ModelLock lock(*const_cast<UpdateUiActivity*>(this));
     return model.phase;
@@ -262,7 +263,6 @@ int main() {
     assert(a.next.list.selected == 0);
     a.rustPublished();
     assert(a.model.list.selected == 0);
-    a.painting.list.selected = a.next.list.selected;
     assert(std::string(a.fontConfirmLabel()) == "STR_DELETE");
     a.inputRowCount = 1;
     XpUiInput confirm{};

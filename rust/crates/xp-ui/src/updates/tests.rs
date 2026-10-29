@@ -312,3 +312,42 @@ fn shrinking_font_publication_clamps_only_unchanged_navigation() {
         }
     }
 }
+
+#[test]
+fn older_font_publication_preserves_touch_selection() {
+    use crate::{model::TOUCH_RELEASED, scene::Rect, settings::hits};
+    let mut state = State::new(FONTS, 0);
+    state.phase = font::FAMILIES;
+    let feedback = Feedback {
+        list: state.list,
+        rows: hits::Layout {
+            first_row: Rect {
+                x: 0,
+                y: 0,
+                w: 100,
+                h: 20,
+            },
+            count: 4,
+            uniform: 1,
+            ..hits::Layout::default()
+        },
+        ..Feedback::default()
+    };
+    let initial = state;
+    unsafe { super::ffi::publish(&mut state, &initial, &feedback) };
+    let snapshot = state;
+    let input = Input {
+        touch_flags: TOUCH_RELEASED,
+        touch_x: 10,
+        touch_y: 50,
+        ..Input::default()
+    };
+    let effect = unsafe { super::ffi::input(&mut state, &input, &feedback, 1, 4, 3) };
+    assert_eq!(
+        (effect.action, effect.value),
+        (Action::FontActivate as u8, 2)
+    );
+    assert_eq!(state.list.selected, 2);
+    unsafe { super::ffi::publish(&mut state, &snapshot, &feedback) };
+    assert_eq!(state.list.selected, 2);
+}

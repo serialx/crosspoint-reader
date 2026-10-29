@@ -33,6 +33,7 @@ class UpdateUiActivity : public RustActivityAdapter {
   XpUiUpdateState painting{};
   uint8_t phase() const;
   int selectedIndex() const;
+  int paintedSelectedIndex() const { return next.list.selected; }
   void notify(XpUiUpdateEvent, uint32_t a = 0, uint32_t b = 0);
   uint8_t serviceResult(XpUiUpdateEvent, uint32_t a = 0, uint32_t b = 0);
   void closeRouting();

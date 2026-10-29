@@ -311,13 +311,7 @@ bool UpdateUiActivity::buildRustScene(XpUiScene& scene) {
   for (;;) {
     const XpUiBuffer buffer{commands.get(), nullptr, capacity, 0};
     auto result = xp_ui_updates_view(&painting, &layout, &services, &buffer, &next, &scene);
-    if (result == 1) {
-      if (painting.kind == XP_UI_UPDATE_FONTS && (painting.phase == 2 || painting.phase == 3)) {
-        auto& nav = painting.phase == 2 ? painting.groups : painting.list;
-        nav.selected = next.list.selected;
-      }
-      return true;
-    }
+    if (result == 1) return true;
     if (result != 2 || !reserve(capacity + 16)) return false;
   }
 }

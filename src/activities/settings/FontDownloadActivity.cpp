@@ -41,7 +41,7 @@ void FontDownloadActivity::activateIndex(const int index) {
       // Activation starts a download or opens the delete prompt; a lingering
       // flash would gray an unrelated row.
 
-      activateSelected();  // ends with requestUpdateAndWait itself
+      activateFamilyRow(index);  // ends with requestUpdateAndWait itself
       return;
     case WIFI_SELECTION:
     case LOADING_MANIFEST:
@@ -636,8 +636,8 @@ void FontDownloadActivity::downloadFamily(ManifestFamily& family) {
   }
 }
 
-void FontDownloadActivity::promptDeleteSelectedFamily() {
-  const int pendingDeleteFamilyIndex = familyIndexFromList(selectedIndex());
+void FontDownloadActivity::promptDeleteFamily(const int index) {
+  const int pendingDeleteFamilyIndex = familyIndexFromList(index);
   if (pendingDeleteFamilyIndex < 0 || pendingDeleteFamilyIndex >= static_cast<int>(families_.size())) {
     return;
   }
@@ -678,16 +678,16 @@ void FontDownloadActivity::onDeleteConfirmationResult(const ActivityResult& resu
   requestUpdate();
 }
 
-void FontDownloadActivity::activateSelected() {
+void FontDownloadActivity::activateFamilyRow(const int index) {
   if (filteredIndices_.empty()) return;
-  if (isDownloadAllRow(selectedIndex())) {
+  if (isDownloadAllRow(index)) {
     uint32_t count = 0;
     for (const int familyIndex : filteredIndices_) {
       if (!families_[familyIndex].installed) count += families_[familyIndex].fileCount;
     }
     notify(XP_UI_UPDATE_FONT_BATCH, count);
     downloadAll();
-  } else if (isUpdateAllRow(selectedIndex())) {
+  } else if (isUpdateAllRow(index)) {
     uint32_t count = 0;
     for (const int familyIndex : filteredIndices_) {
       if (families_[familyIndex].hasUpdate) count += families_[familyIndex].fileCount;
@@ -697,14 +697,14 @@ void FontDownloadActivity::activateSelected() {
   } else {
     // The special rows disappear when a download starts, so a stale selection
     // can map past the family table.
-    const int familyIndex = familyIndexFromList(selectedIndex());
+    const int familyIndex = familyIndexFromList(index);
     if (familyIndex < 0 || familyIndex >= static_cast<int>(families_.size())) return;
     auto& family = families_[familyIndex];
     if (!family.installed || family.hasUpdate) {
       notify(XP_UI_UPDATE_FONT_BATCH, family.fileCount);
       downloadFamily(family);
     } else {
-      promptDeleteSelectedFamily();
+      promptDeleteFamily(index);
       return;
     }
   }
@@ -830,7 +830,7 @@ const char* FontDownloadActivity::headerSubtitle() const {
                                                                            : tr(STR_ALL_FONTS);
 }
 const char* FontDownloadActivity::fontConfirmLabel() const {
-  const int index = painting.list.selected;
+  const int index = paintedSelectedIndex();
   if (filteredIndices_.empty()) return "";
   if (isUpdateAllRow(index)) return tr(STR_UPDATE);
   if (!isDownloadAllRow(index)) {

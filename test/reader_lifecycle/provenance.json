@@ -65,5 +65,24 @@
     "action_sha256": "10c501c806c904822f814c2cb6af59cc3957e7f02bae423a67b6a0b49bfb74f6",
     "note": "Original source methods and action IDs; records exact requested allocation/free sizes to detect transient resource lifetime changes in nested lifecycle operations.",
     "lifetime_negative": "Keeping the document string until outer onExit returns fails at line 64: release-bytes expected before exit subscriber probe."
+  },
+  "close_overlay": {
+    "baseline": "8d534a99",
+    "source": "src/activities/reader/EpubReaderActivity.cpp:closeOverlayToPage",
+    "cases": 48,
+    "trace_lines": 444,
+    "capture_command": "python3 test/reader_lifecycle/test_close_overlay.py --freeze-original",
+    "negative": "Omitting the A4 counter assignment changes the frozen resource-boundary trace.",
+    "coverage": "A4 flag, Xteink-panel flag, stored framebuffer, toolbar lifetime and initial refresh counter 0/1/15; existing restore/settle/display/lock order."
+  },
+  "overlay_input": {
+    "baseline": "8d534a99",
+    "source": "src/activities/reader/EpubReaderActivity.cpp:handleOverlayInput",
+    "cases": 1728,
+    "trace_lines": 24067,
+    "capture_command": "python3 test/reader_lifecycle/test_overlay_input.py --freeze-original",
+    "negative": "Changing left-tool rotation from +2 to +1 changes the frozen transition trace.",
+    "coverage": "Toolbar/Contents/Text/More; routed events, buttons, paired hold-release, swipes, row bounds, popup still-active/dismissed, font-picker result, TOC jump and scroll/panel cursor behavior; every resource-lock path returns at depth zero.; TOC item ownership/destruction relative to navigation and update.",
+    "limits": "Resource leaves are deterministic; actual SDK/Rust viewport behavior is covered separately by nav.golden.gz and reader_toolbar_publication."
   }
 }

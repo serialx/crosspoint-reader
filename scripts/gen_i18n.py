@@ -17,7 +17,7 @@ Each YAML file must contain:
 The English file is the reference. Missing keys in other languages are
 automatically filled from English, with a warning.
 
-By default the script scans the src/ and lib/ trees for STR_* references and
+By default the script scans the src/, lib/ and rust/crates/ trees for STR_* references and
 reports any translation keys that are never used.  Pass --strip-unused to
 omit those keys from the generated output entirely.
 
@@ -260,7 +260,7 @@ def load_translations(
 # Unused-string detection
 # ---------------------------------------------------------------------------
 
-_GENERATED_FILENAMES: Set[str] = {"I18nKeys.h", "I18nStrings.h", "I18nStrings.cpp"}
+_GENERATED_FILENAMES: Set[str] = {"I18nKeys.h", "I18nStrings.h", "I18nStrings.cpp", "i18n_generated.rs"}
 
 
 def find_used_string_keys(
@@ -268,7 +268,7 @@ def find_used_string_keys(
     skip_filenames: Optional[Set[str]] = None,
 ) -> Set[str]:
     """
-    Scan C/C++ source files under *src_dirs* for STR_* identifiers.
+    Scan C/C++ and Rust source files under *src_dirs* for STR_* identifiers.
 
     Files whose basename appears in *skip_filenames* are skipped so that
     the generated I18n files don't count as "usage" of themselves.
@@ -284,17 +284,20 @@ def find_used_string_keys(
         p = Path(src_dir)
         if not p.is_dir():
             continue
-        for f in p.rglob("*"):
-            if f.suffix not in {".cpp", ".h", ".c"}:
-                continue
-            if f.name in skip_filenames:
-                continue
-            try:
-                text = f.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            for m in STR_KEY_RE.finditer(text):
-                used.add(m.group(0))
+        for directory, children, filenames in os.walk(p):
+            children[:] = [name for name in children if name not in {"target", "build", ".pio", ".git"}]
+            for filename in filenames:
+                f = Path(directory) / filename
+                if f.suffix not in {".cpp", ".h", ".c", ".rs"}:
+                    continue
+                if f.name in skip_filenames:
+                    continue
+                try:
+                    text = f.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                for m in STR_KEY_RE.finditer(text):
+                    used.add(m.group(0))
 
     return used
 
@@ -521,6 +524,9 @@ def generate_rust(
     lines = [AUTO_GENERATED_COMMENT, "",
              f"pub const LANGUAGE_COUNT: u8 = {len(languages)};",
              f"pub const STRING_COUNT: usize = {len(string_keys)};", ""]
+    lines += ["pub mod ids {"] + [
+        f"    pub const {key}: u16 = {i};" for i, key in enumerate(string_keys)
+    ] + ["}", ""]
     for symbol, values in [
         ("LANGUAGE_CODES", languages),
         ("LANGUAGE_NAMES", language_names),
@@ -681,7 +687,7 @@ def main(
     # Default paths (relative to project root)
     default_translations_dir = "lib/I18n/translations"
     default_output_dir = "lib/I18n/"
-    default_src_dirs = ["src", "lib"]
+    default_src_dirs = ["src", "lib", "rust/crates"]
 
     if translations_dir is None or output_dir is None:
         if len(sys.argv) == 3:
@@ -833,7 +839,7 @@ if __name__ == "__main__":
         nargs="+",
         metavar="DIR",
         default=None,
-        help="Source directories to scan for STR_* usage (default: src lib)",
+        help="Source directories to scan for STR_* usage (default: src lib rust/crates)",
     )
     parser.add_argument(
         "--strip-unused",

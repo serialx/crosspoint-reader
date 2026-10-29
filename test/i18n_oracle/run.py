@@ -22,7 +22,7 @@ def main():
             out = Path(temporary)
             subprocess.run([sys.executable, str(ROOT / "scripts/gen_i18n.py"),
                             str(ROOT / "lib/I18n/translations"), str(out),
-                            "--src-dirs", str(ROOT / "src"), str(ROOT / "lib"), *options],
+                            "--src-dirs", str(ROOT / "src"), str(ROOT / "lib"), str(ROOT / "rust/crates"), *options],
                            check=True, stdout=subprocess.DEVNULL)
             # Quoted includes in I18n.h must resolve against this configuration.
             for file in ["I18n.cpp", "I18n.h"]:

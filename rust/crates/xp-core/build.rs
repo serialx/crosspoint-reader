@@ -19,11 +19,16 @@ fn main() {
         .arg(env::var("XP_I18N_BUILTIN_LANGS").unwrap_or_else(|_| "all".into()))
         .arg("--src-dirs")
         .arg(root.join("src"))
-        .arg(root.join("lib"));
+        .arg(root.join("lib"))
+        .arg(root.join("rust/crates"));
     if env::var("XP_I18N_STRIP_UNUSED").as_deref() == Ok("1") {
         command.arg("--strip-unused");
         println!("cargo:rerun-if-changed={}", root.join("src").display());
         println!("cargo:rerun-if-changed={}", root.join("lib").display());
+        println!(
+            "cargo:rerun-if-changed={}",
+            root.join("rust/crates").display()
+        );
     }
     let output = command.output().expect("run i18n generator");
     assert!(

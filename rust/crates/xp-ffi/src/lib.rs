@@ -160,3 +160,4 @@ mod assets;
 mod plugin;
 
 mod ui_settings;
+mod ui_text_settings;

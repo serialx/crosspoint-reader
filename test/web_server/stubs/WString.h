@@ -15,7 +15,7 @@ class String : public std::string {
   inline static size_t failedAllocations = 0;
   String() = default;
   String(const char* s, size_t n) {
-    if (reserve(n)) assign(s, n);
+    if (s && reserve(n)) assign(s, n);
   }
   String(const std::string& s) : std::string(s) {}
   template <class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>

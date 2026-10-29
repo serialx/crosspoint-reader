@@ -204,8 +204,17 @@ const XpWebServices WebFileBridge::services = {
         return {nullptr, 0};
       return span(b.argument);
     },
-    .send = [](void* ctx, uint16_t code, const char* type,
-               XpWebText body) { self(ctx).owner.server->send(code, type, string(body)); },
+    .send =
+        [](void* ctx, uint16_t code, const char* type, XpWebText body) {
+          auto& server = self(ctx).owner.server;
+          String response = string(body);
+          if (response.length() != body.len && strcmp(type, "application/json") == 0) {
+            LOG_ERR("WEB", "OOM: JSON response");
+            server->send(503, "application/json", "{\"error\":\"out of memory\"}");
+            return;
+          }
+          server->send(code, type, response);
+        },
     .header =
         [](void* ctx, const char* name, XpWebText value) {
           self(ctx).owner.server->sendHeader(name, string(value), strcmp(name, "Location") == 0);
@@ -2128,8 +2137,12 @@ struct WebFontBridge : WebFileBridge {
     bridge.fontState = &s;
     bridge.borrowed = &s.file;
     XpWebFontUpload state{s.bytesWritten, s.bufferPos, s.buffer.get(), s.valid, s.magicChecked, s.isVector};
-    const auto& part = owner.server->upload();
-    xp_web_font_upload(&bridge, &services, &state, event, span(part.filename), part.buf, part.currentSize);
+    if (event == 4) {
+      xp_web_font_upload(&bridge, &services, &state, event, {nullptr, 0}, nullptr, 0);
+    } else {
+      const auto& part = owner.server->upload();
+      xp_web_font_upload(&bridge, &services, &state, event, span(part.filename), part.buf, part.currentSize);
+    }
     s.bytesWritten = state.bytes;
     s.bufferPos = state.buffer_pos;
     s.valid = state.valid;

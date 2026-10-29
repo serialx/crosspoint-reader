@@ -887,6 +887,8 @@ int main() {
   });
   for (const char* shape : {"empty", "plain", "json", "fields-only"}) {
     record((std::string("fonts-no-upload:") + shape).c_str(), [&](auto& app) {
+      app.server->requestMethod = HTTP_POST;
+      app.server->requestUri = "/api/fonts/upload";
       app.server->uploadAvailable = false;
       if (std::string(shape) == "plain") app.server->args["plain"] = "font bytes";
       if (std::string(shape) == "json") app.server->args["plain"] = "{}";

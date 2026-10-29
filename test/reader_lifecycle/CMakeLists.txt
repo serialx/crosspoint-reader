@@ -94,3 +94,11 @@ add_test(NAME reader_base_oracle
 foreach(target ReaderLoopOracle ReaderLoopOracleRelease ReaderBaseOracle)
   target_compile_options(${target} PRIVATE -UNDEBUG)
 endforeach()
+
+add_test(NAME reader_toolbar_publication
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_toolbar_publication.py)
+
+add_test(NAME reader_prepaint_input
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_prepaint_input.py)

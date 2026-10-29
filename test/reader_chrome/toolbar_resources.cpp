@@ -30,14 +30,17 @@ struct ResourceTarget : Recorder {
   }
 };
 struct ReaderToolbarUi {
-  Toolbar::Model model_;
+  struct RowFlags {
+    bool toggle = false, checked = false;
+  };
+  struct ResourceModel : Toolbar::Model {
+    RowFlags (*rowCheckbox)(void*, int) = nullptr;
+  } model_;
   Metrics renderer;
   ResourceTarget textTarget;
   static constexpr int kMaxWindow = 16;
   std::string windowLabels_[16], windowValues_[16];
-  struct {
-    bool toggle, checked;
-  } rowFlags[16]{};
+  RowFlags rowFlags[16]{};
   uint16_t windowFirst = 0, windowCount = 0;
   char pageIndicator[16]{};
   const char* text(uint32_t) const;
@@ -53,12 +56,15 @@ int main() {
     old.model_.panel = now.model_.panel = true;
     old.model_.denseRows = now.model_.denseRows = true;
     old.model_.selectedIndex = now.model_.selectedIndex = 0;
-    old.model_.rowCheckbox = now.model_.rowCheckbox = [](void*, int index, ui::ListItem& item) {
+    old.model_.rowCheckbox = [](void*, int index, ui::ListItem& item) {
       if (index % 3 != 0) {
         item.value = nullptr;
         item.toggle = true;
         item.toggleChecked = index % 3 == 2;
       }
+    };
+    now.model_.rowCheckbox = [](void*, int index) -> ReaderToolbarUi::RowFlags {
+      return {index % 3 != 0, index % 3 == 2};
     };
     old.model_.rowText = [&](int) {
       ++oldCalls;

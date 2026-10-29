@@ -278,7 +278,9 @@ const _: () = {
 };
 
 pub fn toolbar_reset(state: &mut crate::model::ListState) {
+    let revision = state.navigation_revision.wrapping_add(1);
     *state = crate::model::ListState::new(0);
+    state.navigation_revision = revision;
 }
 pub fn toolbar_page_rows(state: &crate::model::ListState) -> i32 {
     if state.drawn > 0 {
@@ -300,5 +302,16 @@ pub fn toolbar_scroll(state: &mut crate::model::ListState, delta: i32, count: i3
         return false;
     }
     state.top = next;
+    state.navigation_revision = state.navigation_revision.wrapping_add(1);
     true
+}
+
+pub fn toolbar_publish(state: &mut crate::model::ListState, painted: &crate::model::ListState) {
+    if state.navigation_revision == painted.navigation_revision {
+        state.selected = painted.selected;
+        state.top = painted.top;
+        state.visible = painted.visible;
+        state.drawn = painted.drawn;
+        state.drawn_count = painted.drawn_count;
+    }
 }

@@ -2,13 +2,13 @@
 
 #include <FreeInkUIGfxRenderer.h>
 #include <freertos/FreeRTOS.h>
+#include <xp_ui_reader.h>
 #include <xp_ui_reader_chrome.h>
 
 #include <functional>
 #include <string>
 
 #include "ReaderChromeListActivity.h"
-#include "components/lists/list.h"
 
 class GfxRenderer;
 class MappedInputManager;
@@ -18,6 +18,11 @@ class MappedInputManager;
 class ReaderToolbarUi {
  public:
   enum class Event { None = 0, Dismiss = 1, Tool = 2, PrevChapter = 3, NextChapter = 4, Scrub = 5, Row = 6 };
+
+  struct RowFlags {
+    bool toggle = false;
+    bool checked = false;
+  };
 
   struct Model {
     bool panel = false;  // false = toolbar, true = a Contents/Text/More panel
@@ -31,7 +36,7 @@ class ReaderToolbarUi {
     int selectedIndex = -1;  // row the buttons' cursor sits on; -1 = none shown
     std::function<std::string(int)> rowText;
     std::function<std::string(int)> rowValue;
-    void (*rowCheckbox)(void* ctx, int index, freeink::ui::ListItem& item) = nullptr;
+    RowFlags (*rowCheckbox)(void* ctx, int index) = nullptr;
     void* rowCheckboxContext = nullptr;
     // Tile row: the tool in focus (toolbar) / the open panel (panel). 0..2.
     int activeTool = 0;
@@ -61,31 +66,27 @@ class ReaderToolbarUi {
   // Route one loop-task input frame; returns the action it mapped to, if any.
   Routed route(const MappedInputManager& input);
 
-  // Parent compatibility state; Rust resolves the measured viewport.
-  freeink::ui::ListNav& nav() { return nav_; }
+  void resetNavigation(int selected = 0, int top = 0);
+  bool scrollNavigation(int delta, int count);
   // Rows one page holds, measured after the first render.
-  int visibleRows() const { return nav_.pageRows(); }
+  int visibleRows() const;
 
  private:
   GfxRenderer& renderer;
   freeink::ui::GfxRendererTarget textTarget;
   Model model_;
-  // Retained until EpubReaderActivity delegates navigation state to Rust.
-  freeink::ui::ListNav nav_;
+  XpUiListState nav_{};
   static constexpr int kMaxWindow = 16;
   std::string windowLabels_[kMaxWindow];
   std::string windowValues_[kMaxWindow];
-  struct RowFlags {
-    bool toggle = false;
-    bool checked = false;
-  } rowFlags[kMaxWindow];
+  RowFlags rowFlags[kMaxWindow];
   uint16_t windowFirst = 0, windowCount = 0;
   char pageIndicator[16]{};
   ReaderChromeCommands commands;
   XpUiReaderTheme theme{};
   XpUiReaderToolbarInput contact{-1, -1, 0, {0, 0, 0}};
   XpUiReaderHitLayout published{};
-  portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
+  mutable portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
   bool ready = false;
   const char* text(uint32_t handle) const;
   XpUiReaderRows resources();

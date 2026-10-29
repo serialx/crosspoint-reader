@@ -2741,18 +2741,17 @@ void EpubReaderActivity::openOverlay(Overlay target) {
       RenderLock lock;
       panelIndex = currentTocIndex();
       // Fresh viewport opening on the current chapter, cursor shown or not.
-      toolbarUi->nav().reset(panelIndex);
-      toolbarUi->nav().top = panelIndex;
+      toolbarUi->resetNavigation(panelIndex, panelIndex);
       break;
     }
     case Overlay::Text:
       panelIndex = 0;
-      toolbarUi->nav().reset();
+      toolbarUi->resetNavigation();
       break;
     case Overlay::More:
       panelIndex = 0;
       buildMoreActions();
-      toolbarUi->nav().reset();
+      toolbarUi->resetNavigation();
       break;
     default:
       break;
@@ -2865,8 +2864,8 @@ void EpubReaderActivity::renderOverlay() {
     model.itemCount = kTextRowCount;
     model.rowText = [this](int i) { return textRowName(i); };
     model.rowValue = [this](int i) { return textRowValue(i); };
-    model.rowCheckbox = [](void*, int i, freeink::ui::ListItem& item) {
-      if (i == 4) GUI.setCheckboxRow(item, SETTINGS.focusReadingEnabled);
+    model.rowCheckbox = [](void*, int i) -> ReaderToolbarUi::RowFlags {
+      return {i == 4, i == 4 && SETTINGS.focusReadingEnabled};
     };
   } else {
     model.panelTitle = tr(STR_TOOL_MORE);
@@ -2874,13 +2873,20 @@ void EpubReaderActivity::renderOverlay() {
     model.rowText = [this](int i) { return moreRowName(i); };
     model.rowValue = [this](int i) { return moreRowValue(i); };
     model.rowCheckboxContext = this;
-    model.rowCheckbox = [](void* ctx, int i, freeink::ui::ListItem& item) {
+    model.rowCheckbox = [](void* ctx, int i) -> ReaderToolbarUi::RowFlags {
       const auto* self = static_cast<EpubReaderActivity*>(ctx);
       using MA = EpubReaderMenuActivity::MenuAction;
       const auto action = self->moreItems[i].action;
-      if (action == MA::NIGHT_MODE) GUI.setCheckboxRow(item, SETTINGS.screenInverted);
-      if (action == MA::BLUETOOTH) GUI.setCheckboxRow(item, SETTINGS.ble.enabled);
-      if (action == MA::FRONTLIGHT) GUI.setCheckboxRow(item, Frontlight.isOn());
+      switch (action) {
+        case MA::NIGHT_MODE:
+          return {true, SETTINGS.screenInverted != 0};
+        case MA::BLUETOOTH:
+          return {true, SETTINGS.ble.enabled != 0};
+        case MA::FRONTLIGHT:
+          return {true, Frontlight.isOn()};
+        default:
+          return {};
+      }
     };
   }
   toolbarUi->setModel(model);
@@ -3078,7 +3084,7 @@ void EpubReaderActivity::handleOverlayInput() {
   // from what is visible; on touch boards only the viewport moves.
   const auto pageList = [this, count, pageRows, &fastRedraw](int direction) {
     if (count <= 0) return;
-    const bool moved = toolbarUi->nav().scrollBy(direction * pageRows, count);
+    const bool moved = toolbarUi->scrollNavigation(direction * pageRows, count);
     if (panelCursorShown) {
       panelIndex = std::clamp(panelIndex + direction * pageRows, 0, count - 1);
       fastRedraw();

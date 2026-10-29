@@ -354,6 +354,21 @@ pub unsafe extern "C" fn xp_ui_reader_toolbar_scroll(
         .map_or(0, |s| u8::from(input::toolbar_scroll(s, delta, count)))
 }
 
+/// # Safety
+/// Non-null states are valid, aligned, disjoint, and exclusively borrowed for this call.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_toolbar_nav_publish(
+    state: *mut ListState,
+    painted: *const ListState,
+) {
+    if state.is_null() || painted.is_null() {
+        return;
+    }
+    debug_assert!((state as usize).abs_diff(painted as usize) >= core::mem::size_of::<ListState>());
+    input::toolbar_publish(&mut *state, &*painted);
+}
+
 use xp_ui::reader::render;
 /// # Safety
 /// Services obey the reader-family synchronous callback contract.

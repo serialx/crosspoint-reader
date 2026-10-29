@@ -148,6 +148,12 @@ XpUiReaderChapterDisplay xp_ui_reader_chapter_display(int32_t page, int32_t tota
 void xp_ui_reader_toolbar_nav_reset(XpUiListState*);
 int32_t xp_ui_reader_toolbar_page_rows(const XpUiListState*);
 uint8_t xp_ui_reader_toolbar_scroll(XpUiListState*, int32_t delta, int32_t count);
+// POD-only, synchronous, O(1), allocation-free and without logging. Null pointers are ignored.
+// The parent holds its short model lock. Snapshot before layout; publish after successful paint.
+// Both states must be disjoint. A reset/scroll increments the 32-bit navigation_revision modulo
+// 2^32; publication accepts selected/top and row counts only if the revision still matches.
+// Exactly 2^32 changes during one layout can produce a false match; this wrap case is accepted.
+void xp_ui_reader_toolbar_nav_publish(XpUiListState* state, const XpUiListState* painted);
 
 /* Reader page-render sequencing. Rust issues one synchronous operation at a
  * time; the callback executes an existing renderer/storage/allocator leaf.

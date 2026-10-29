@@ -1248,5 +1248,23 @@ int main() {
       });
     }
   }
+
+  for (const size_t size : {188, 189, 190, 191, 192, 512}) {
+    for (bool ok : {false, true}) {
+      record(("jobs-result-bound:" + std::to_string(size) + ":" + std::to_string(ok)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"plugin\":\"p\",\"action\":\"12345678901234567890123\",\"args\":\"" + std::string(189, 'x') + "\"}";
+        app.handlePluginJobSubmit();
+        app.server->args["plugin"] = "p";
+        app.handlePluginJobClaim();
+        app.server->args["plain"] = std::string("{\"id\":1,\"claim\":1,\"ok\":") + (ok ? "true" : "false") +
+                                    ",\"result\":\"" + std::string(size, 'y') + "\"}";
+        app.handlePluginJobComplete();
+        app.server->args["id"] = "1";
+        app.handlePluginJobStatus();
+        app.handlePluginJobComplete();
+      });
+    }
+  }
   return 0;
 }

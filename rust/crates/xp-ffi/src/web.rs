@@ -1,5 +1,6 @@
 mod config;
 mod fonts;
+mod jobs;
 mod plugins;
 extern crate alloc;
 // Web file-route policy; synchronous transport and HAL leaves are supplied by C++.

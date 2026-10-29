@@ -5,6 +5,7 @@
 #include <NetworkUdp.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
+#include <xp_web.h>
 
 #include <memory>
 #include <string>
@@ -15,6 +16,7 @@ class CrossPointWebServer {
   friend struct WebConfigBridge;
   friend struct WebFontBridge;
   friend struct WebPluginBridge;
+  friend struct WebJobBridge;
 
  public:
   struct WsUploadStatus {
@@ -165,33 +167,8 @@ class CrossPointWebServer {
     const char* error = nullptr;
   } pluginFsUpload;
 
-  // SD-plugin job queue. External systems (a companion app, a script) enqueue
-  // {plugin, action, args}; any open page hosting the plugin (File Manager,
-  // Settings, or the headless /plugins-run page) claims and executes it, then
-  // posts the result. The firmware only stores small JSON blobs — plugin logic
-  // never runs on-device. Fixed pool inside this (heap-allocated, web-session
-  // lifetime) object: no allocation per job, oldest finished slot recycled.
-  struct PluginJob {
-    uint32_t id = 0;         // 0 = empty slot
-    uint32_t claim = 0;      // current claim; a completion must echo it
-    uint32_t updatedAt = 0;  // millis() of last state change
-    uint8_t state = 0;
-    char plugin[24] = {0};
-    char action[24] = {0};
-    char args[192] = {0};    // Serialized JSON value
-    char result[192] = {0};  // Serialized JSON value from the executor
-  };
-  static constexpr uint8_t JOB_EMPTY = 0;
-  static constexpr uint8_t JOB_PENDING = 1;
-  static constexpr uint8_t JOB_RUNNING = 2;
-  static constexpr uint8_t JOB_DONE = 3;
-  static constexpr uint8_t JOB_ERROR = 4;
-  static constexpr size_t MAX_PLUGIN_JOBS = 6;
-  static constexpr uint32_t PLUGIN_JOB_LEASE_MS = 10UL * 60 * 1000;
-  PluginJob pluginJobs[MAX_PLUGIN_JOBS];
-  uint32_t nextPluginJobId = 1;
-  uint32_t nextPluginJobClaim = 1;
-  PluginJob* allocPluginJob();
+  // Rust owns queue policy and this fixed storage for the web-session lifetime.
+  XpWebJobQueue pluginJobs;
   void handlePluginRunnerPage() const;  // GET /plugins-run -> headless executor page
   void handlePluginJobSubmit();         // POST /api/plugin-jobs          -> {id}
   void handlePluginJobClaim();          // GET  /api/plugin-jobs/claim    -> next pending job for a plugin

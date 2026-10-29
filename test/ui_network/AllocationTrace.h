@@ -8,6 +8,9 @@
 // Host-only requested sizes. Signed events preserve live multisets and peaks.
 namespace allocations {
 inline bool enabled = false;
+inline thread_local unsigned criticalDepth = 0;
+inline void* watchedPointer = nullptr;
+inline size_t watchedFrees = 0;
 inline std::array<int64_t, 4096> events{};
 inline std::array<void*, 256> pointers{};
 inline std::array<size_t, 256> sizes{};
@@ -18,6 +21,7 @@ inline void begin() {
   enabled = true;
 }
 inline void allocated(void* pointer, size_t bytes) {
+  assert(criticalDepth == 0);
   if (!enabled) return;
   for (size_t i = 0; i < pointers.size(); ++i) {
     if (pointers[i]) continue;
@@ -32,6 +36,8 @@ inline void allocated(void* pointer, size_t bytes) {
   std::abort();
 }
 inline void released(void* pointer) {
+  assert(criticalDepth == 0);
+  if (pointer && pointer == watchedPointer) ++watchedFrees;
   if (!enabled || !pointer) return;
   for (size_t i = 0; i < pointers.size(); ++i) {
     if (pointers[i] != pointer) continue;

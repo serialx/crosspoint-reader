@@ -7,7 +7,20 @@ class GfxRenderer;
 class MappedInputManager;
 
 namespace networkui {
-enum class Kind { Text, Header, Subheader, Footer, Progress, Qr, Line };
+enum class Kind {
+  Text,
+  Header,
+  Subheader,
+  Footer,
+  Progress,
+  Qr,
+  Line,
+  Help,
+  Centered,
+  Wrapped,
+  WrappedBottom,
+  FlowText
+};
 // Borrowed only for this paint call; formatted strings stay owned by the caller.
 struct Resource {
   Kind kind;

@@ -1,5 +1,6 @@
 #include <FontCacheManager.h>
 #include <FontDecompressor.h>
+#include <FreeInkUIGfxRenderer.h>
 #include <GfxRenderer.h>
 #include <builtinFonts/all.h>
 #include <fontIds.h>
@@ -28,6 +29,16 @@ struct Metrics {
       progressBarHeight = 8;
 } metrics;
 struct UITheme {
+  enum class TextVerticalAlignment { TOP, CENTER, BOTTOM };
+  template <class... Args>
+  static void drawCenteredText(Args&&...) {
+    std::abort();
+  }
+  template <class... Args>
+  static void drawCenteredWrappedText(Args&&...) {
+    std::abort();
+  }
+
   static UITheme& getInstance() {
     static UITheme t;
     return t;
@@ -41,6 +52,10 @@ std::string rectText(Rect r) {
          std::to_string(r.height);
 }
 struct {
+  template <class... Args>
+  void drawHelpText(Args&&...) {
+    std::abort();
+  }
   void drawHeader(GfxRenderer&, Rect r, const char* s, const char* = nullptr) {
     allocations::Pause pause;
     chrome.push_back("header:" + rectText(r) + ":" + s);

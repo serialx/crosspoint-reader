@@ -108,3 +108,55 @@ target_compile_options(NetworkWifiTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget
 target_link_options(NetworkWifiTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
 target_link_libraries(NetworkWifiTarget PRIVATE xp_ffi_host)
 add_test(NAME ui_network_wifi_pixels COMMAND NetworkWifiTarget)
+
+set(WIFI_FACADE_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiFacadeTarget.cpp)
+add_custom_command(OUTPUT ${WIFI_FACADE_TARGET}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${WIFI_FACADE_TARGET}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
+    ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.h ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.cpp
+    ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
+add_executable(NetworkWifiFacadeTarget ${WIFI_FACADE_TARGET} ${NETWORK_RENDER_SOURCES})
+target_include_directories(NetworkWifiFacadeTarget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(NetworkWifiFacadeTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS> TEST_DISPLAY_CALLBACK=1)
+target_compile_options(NetworkWifiFacadeTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(NetworkWifiFacadeTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
+target_link_libraries(NetworkWifiFacadeTarget PRIVATE xp_ffi_host)
+add_test(NAME ui_network_wifi_facade_pixels COMMAND NetworkWifiFacadeTarget)
+add_test(NAME ui_network_wifi_effects COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_wifi_effects.py ${XP_FFI_HOST_ARCHIVE})
+
+foreach(WIFI_KIND Target FacadeTarget)
+  set(WIFI_ORIGINAL NetworkWifi${WIFI_KIND})
+  set(WIFI_X3 NetworkWifiX3${WIFI_KIND})
+  get_target_property(WIFI_SOURCES ${WIFI_ORIGINAL} SOURCES)
+  add_executable(${WIFI_X3} ${WIFI_SOURCES})
+  target_include_directories(${WIFI_X3} PRIVATE $<TARGET_PROPERTY:${WIFI_ORIGINAL},INCLUDE_DIRECTORIES>)
+  target_compile_definitions(${WIFI_X3} PRIVATE $<TARGET_PROPERTY:${WIFI_ORIGINAL},COMPILE_DEFINITIONS>
+    TEST_DISPLAY_WIDTH=528 TEST_DISPLAY_HEIGHT=792)
+  target_compile_options(${WIFI_X3} PRIVATE $<TARGET_PROPERTY:${WIFI_ORIGINAL},COMPILE_OPTIONS>)
+  target_link_options(${WIFI_X3} PRIVATE $<TARGET_PROPERTY:${WIFI_ORIGINAL},LINK_OPTIONS>)
+  target_link_libraries(${WIFI_X3} PRIVATE xp_ffi_host)
+  add_test(NAME ui_network_wifi_x3_${WIFI_KIND}_pixels COMMAND ${WIFI_X3})
+endforeach()
+
+set(WIFI_LEGACY_TARGET ${CMAKE_CURRENT_BINARY_DIR}/WifiLegacyTarget.cpp)
+add_custom_command(OUTPUT ${WIFI_LEGACY_TARGET}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${WIFI_LEGACY_TARGET} legacy
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/WifiTarget.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wifi_facade_support.inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/prepare_wifi_facade_target.py ${CMAKE_CURRENT_SOURCE_DIR}/wifi_render_original.inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/wifi_theme_original.inc
+    ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.h ${REPO_ROOT}/src/activities/network/WifiSelectionActivity.cpp
+    ${REPO_ROOT}/src/activities/network/NetworkUiBinding.h ${REPO_ROOT}/src/activities/network/NetworkUiBinding.cpp)
+foreach(WIFI_PANEL X3 X4)
+  set(WIFI_LEGACY NetworkWifi${WIFI_PANEL}LegacyTarget)
+  add_executable(${WIFI_LEGACY} ${WIFI_LEGACY_TARGET} ${NETWORK_RENDER_SOURCES})
+  target_include_directories(${WIFI_LEGACY} PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,INCLUDE_DIRECTORIES>)
+  target_compile_definitions(${WIFI_LEGACY} PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,COMPILE_DEFINITIONS>)
+  if(WIFI_PANEL STREQUAL "X3")
+    target_compile_definitions(${WIFI_LEGACY} PRIVATE TEST_DISPLAY_WIDTH=528 TEST_DISPLAY_HEIGHT=792)
+  endif()
+  target_compile_options(${WIFI_LEGACY} PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,COMPILE_OPTIONS>)
+  target_link_options(${WIFI_LEGACY} PRIVATE $<TARGET_PROPERTY:NetworkWifiFacadeTarget,LINK_OPTIONS>)
+  target_link_libraries(${WIFI_LEGACY} PRIVATE xp_ffi_host)
+  add_test(NAME ui_network_wifi_${WIFI_PANEL}_legacy_pixels COMMAND ${WIFI_LEGACY})
+endforeach()

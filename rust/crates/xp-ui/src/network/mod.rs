@@ -8,3 +8,5 @@ pub mod web;
 pub mod web_view;
 
 mod view;
+pub mod wifi;
+pub mod wifi_view;

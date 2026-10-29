@@ -33,10 +33,10 @@ def helper(source, name):
         level += (source[i] == '{') - (source[i] == '}')
         i += 1
     return source[start:i]
-def generate(root=ROOT, frozen_usb=False, frozen_calibre=False, frozen_web=False):
+def generate(root=ROOT, frozen_usb=False, frozen_calibre=False, frozen_web=False, frozen_wifi=True):
     parts = []
     for cls, methods in METHODS.items():
-        source = ((HERE/'original.inc').read_text() if (frozen_usb and cls == 'UsbDriveActivity') or (frozen_calibre and cls == 'CalibreConnectActivity') or (frozen_web and cls == 'CrossPointWebServerActivity')
+        source = ((HERE/'original.inc').read_text() if (frozen_wifi and cls == 'WifiSelectionActivity') or (frozen_usb and cls == 'UsbDriveActivity') or (frozen_calibre and cls == 'CalibreConnectActivity') or (frozen_web and cls == 'CrossPointWebServerActivity')
                   else (root/'src/activities/network'/f'{cls}.cpp').read_text())
         parts += [extract(source, cls, m) for m in methods]
     source = (HERE/'effects.cpp').read_text()

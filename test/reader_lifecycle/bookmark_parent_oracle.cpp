@@ -182,6 +182,13 @@ int main() {
           event("matches", bookmarkMatchesProgress(entry(value, match ? 1 : 3, match ? page : 123, match ? count : 456),
                                                    1, page, count, range));
     }
+  for (float start : {-INFINITY, -0.0f, 0.0f, 0.2499f, 0.25f, 0.2501f, INFINITY, NAN})
+    for (float end : {-INFINITY, -0.0f, 0.0f, 0.4999f, 0.5f, 0.5001f, INFINITY, NAN})
+      for (float value : {-INFINITY, -0.0f, 0.0f, 0.2499f, 0.25f, 0.2501f, 0.4999f, 0.5f, 0.5001f, INFINITY, NAN}) {
+        const ProgressRange range{start, end};
+        std::printf("edge %08x %08x %08x %d\n", bits(start), bits(end), bits(value),
+                    bookmarkMatchesProgress(entry(value, 3, 123, 456), 1, 2, 5, range));
+      }
   storageTrace.trackLifetime = true;
   for (int depth = 0; depth <= 3; ++depth)
     for (bool open : {false, true})

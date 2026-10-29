@@ -20,11 +20,13 @@ class GfxRenderer : public ChapterTestRenderer {
  public:
 #ifdef XP_FOOTNOTE_SELECT_TEST
   void getOrientedViewableTRBL(int* top, int* right, int* bottom, int* left) { *top = *right = *bottom = *left = 0; }
+  bool failFootnoteBuild = false, paintOk = true, snapshotOk = true;
   int highlightX = 0, highlightY = 0;
   std::string highlightNumber;
   void clearScreen() {}
   void drawUiText(const XpUiCommand&, XpUiRect, const char* text) { highlightNumber = text; }
   bool drawUiScene(const XpUiScene& scene, const XpUiPaint* paint) {
+    if (!paintOk) return false;
     std::vector<uint8_t> bytes(48000, 0xff);
     XpGlyphTarget target{
         bytes.data(), static_cast<uint32_t>(bytes.size()), 480, 800, 60, 0, 800, {0, 0, 480, 800}, 3, 0, 0, 0, 0};
@@ -32,6 +34,7 @@ class GfxRenderer : public ChapterTestRenderer {
   }
   void displayBuffer(int) {}
   size_t readFramebufferRegion(int x, int y, int, int, uint8_t*, size_t) {
+    if (!snapshotOk) return 0;
     highlightX = x;
     highlightY = y;
     return 1;

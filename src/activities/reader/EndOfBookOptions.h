@@ -60,6 +60,9 @@ class EndOfBookOptions {
   XpUiReaderHitLayout published{};
   portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
   bool ready = false;
+  bool sceneFailed = false;
+  bool suppressedContact = false, lastContact = false;
+  uint32_t suppressed = 0, lastHeld = 0;
   const MappedInputManager* renderingInput = nullptr;
   const char* text(uint32_t handle) const;
   XpUiReaderRows resources();

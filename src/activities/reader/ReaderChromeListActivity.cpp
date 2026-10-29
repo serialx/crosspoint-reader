@@ -12,16 +12,15 @@
 namespace fui = freeink::ui;
 
 bool ReaderChromeCommands::reserve(uint16_t count) {
-  if (count <= capacity) return true;
+  if (commands && count <= capacity) return true;
   if (count > 128) return false;
   commands.reset();
-  capacity = 0;
-  commands = makeUniqueNoThrow<XpUiCommand[]>(count);
+  capacity = std::max(count, capacity);
+  commands = makeUniqueNoThrow<XpUiCommand[]>(capacity);
   if (!commands) {
-    LOG_ERR("RUI", "Cannot allocate %u command bytes", static_cast<unsigned>(count * sizeof(XpUiCommand)));
+    LOG_ERR("RUI", "Cannot allocate %u command bytes", static_cast<unsigned>(capacity * sizeof(XpUiCommand)));
     return false;
   }
-  capacity = count;
   return true;
 }
 
@@ -54,15 +53,21 @@ void ReaderChromeListActivity::onExit() {
 
 void ReaderChromeListActivity::loop() {
   if (handleCustomInput()) return;
+  if (consumeRejectedInput()) return;
   const bool actions = kind == XP_UI_READER_BOOKMARKS || kind == XP_UI_READER_CLIPPINGS;
-  nativeLongPress = actions && mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, 700);
+  const bool longPress = actions && mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, 700);
   bool ready;
   {
     ModelLock lock(*this);
     ready = publication.ready;
   }
   if (kind == XP_UI_READER_BOOKMARKS) mappedInput.wasSwipe(&nativeTouchX, &nativeTouchY);
-  nativeLongTouch = actions && ready && mappedInput.wasScreenLongPress(nativeTouchX, nativeTouchY);
+  const bool longTouch = actions && ready && mappedInput.wasScreenLongPress(nativeTouchX, nativeTouchY);
+  {
+    ModelLock lock(*this);
+    nativeLongPress = longPress;
+    nativeLongTouch = longTouch;
+  }
   RustActivityAdapter::loop();
 }
 
@@ -122,22 +127,29 @@ XpUiEffect ReaderChromeListActivity::updateRust(const XpUiInput& source) {
 }
 
 void ReaderChromeListActivity::applyRustEffect(const XpUiEffect& effect) {
+  bool longTouch, touch;
+  {
+    ModelLock lock(*this);
+    longTouch = nativeLongTouch;
+    touch = touchActivated;
+    touchActivated = false;
+  }
   switch (effect.kind) {
     case XP_UI_EFFECT_NONE:
-      if (nativeLongTouch && effect.invalidate) haptic_feedback::touchAction(true);
+      if (longTouch && effect.invalidate) haptic_feedback::touchAction(true);
       break;
     case XP_UI_CANCEL:
       onBackButton();
       break;
     case XP_UI_ACTIVATE:
-      if (touchActivated) haptic_feedback::touchAction(false);
+      if (touch) haptic_feedback::touchAction(false);
       activateIndex(effect.value);
       break;
     case XP_UI_SCROLL:
       LOG_DBG("LIST", "%s swipe delta=%d count=%d", name.c_str(), static_cast<int>(effect.value), listCount());
       break;
     case XP_UI_READER_ACTIONS:
-      if (nativeLongTouch) haptic_feedback::touchAction(true);
+      if (longTouch) haptic_feedback::touchAction(true);
       onRowLongPress(effect.value);
       break;
     case XP_UI_READER_DELETE:
@@ -257,7 +269,7 @@ void sampleReaderChromeTheme(const GfxRenderer& renderer, XpUiReaderTheme& theme
 }
 
 bool ReaderChromeListActivity::buildRustScene(XpUiScene& scene) {
-  if (!arena.commands.ready() || listCount() < 0 || listCount() > UINT16_MAX) return false;
+  if (!arena.commands.recover() || listCount() < 0 || listCount() > UINT16_MAX) return false;
   XpUiReaderListState snapshot{};
   {
     ModelLock lock(*this);
@@ -283,8 +295,7 @@ void ReaderChromeListActivity::rustPublished() {
 bool ReaderChromeListActivity::renderList(bool refresh) {
   XpUiScene scene{};
   if (!buildRustScene(scene)) {
-    ModelLock lock(*this);
-    publication.ready = false;
+    rejectRustScene();
     return false;
   }
   if (!refresh) scene.refresh = XP_UI_NONE;
@@ -338,4 +349,10 @@ XpUiPaint ReaderChromeListActivity::rustResources() {
             } else
               self.renderer.drawUiText(*command, clip, self.text(command->resource));
           }};
+}
+
+void ReaderChromeListActivity::rustSceneFailed() {
+  nativeLongPress = nativeLongTouch = false;
+  touchActivated = false;
+  state.list.last_repeat = 0;
 }

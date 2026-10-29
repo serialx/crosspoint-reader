@@ -88,6 +88,7 @@ bool EpubReaderFootnoteSelectActivity::drawHighlightWithSnapshot() {
                                   footnoteScratch.number[0] ? 1 : 0, &buffer, &rect, &scene)) {
     LOG_ERR("RUI", "Cannot build footnote highlight");
     snapshotIdx = -1;
+    rejectRustScene();
     return false;
   }
   const bool saved =
@@ -108,8 +109,10 @@ bool EpubReaderFootnoteSelectActivity::drawHighlightWithSnapshot() {
   if (!renderer.drawUiScene(scene, &resources)) {
     LOG_ERR("RUI", "Invalid footnote highlight");
     snapshotIdx = -1;
+    rejectRustScene();
     return false;
   }
+  publishRustScene(scene);
   return saved;
 }
 
@@ -139,6 +142,9 @@ void EpubReaderFootnoteSelectActivity::render(RenderLock&&) {
 
   if (footnoteLinkCount != 0) {
     drawHighlightWithSnapshot();
+    if (rustSceneRejected()) return;
+  } else {
+    publishRustScene(XpUiScene{});
   }
 
   drawHints();

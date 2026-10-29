@@ -26,6 +26,7 @@ class XtcReaderChapterSelectionActivity final : public RustActivityAdapter {
   XpUiResources resources();
   Publication* rustPublication() override { return &publication; }
   void rustPublished() override;
+  void rustSceneFailed() override { state.last_repeat = 0; }
   XpUiInterest rustInterest(uint32_t nowMs) const override { return xp_ui_list_interest(&state, nowMs); }
   XpUiPaint rustResources() override;
   bool buildRustScene(XpUiScene& scene) override;

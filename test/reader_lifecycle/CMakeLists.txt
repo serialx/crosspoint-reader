@@ -128,3 +128,7 @@ add_test(NAME reader_idle_projection
 add_test(NAME reader_overlay_view
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_overlay_view.py)
+
+add_test(NAME reader_overlay_open
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_overlay_open.py)

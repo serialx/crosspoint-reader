@@ -25,6 +25,8 @@ def function(source, name):
 
 
 def generate(source, header):
+    source = re.sub(r"\bJsonDocument\b", "WebJsonDocument", source)
+    header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
     pieces = ['#include "Host.h"', '#include "Endpoints.h"', header]
@@ -86,17 +88,22 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK"]:
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
-        print("review checks: completion consistency, translated allocation errors and system-name listing passed")
+        print("review checks: completion consistency, translated allocation errors, system-name listing and book-key body lifetime and allocation-free job routes passed")
     if args.fault_check:
         if not args.archive:
             raise SystemExit("--fault-check requires --archive")
-        for count in range(128):
+        zero = subprocess.check_output([str(args.build / "oracle")], env={**os.environ, "WEB_FAIL_AFTER": "0"})
+        def jobs(data):
+            return [row for line in data.splitlines() if (row := json.loads(line))["case"].startswith("job")]
+        if jobs(zero) != jobs(expected):
+            raise SystemExit("job transcripts changed with Rust allocator disabled")
+        for count in range(1, 128):
             subprocess.run([str(args.build / "oracle")], env={**os.environ, "WEB_FAIL_AFTER": str(count)},
                            stdout=subprocess.DEVNULL, check=True)
-        print("allocation failures: 128 budgets across all cases, no retained Rust allocation or WS owner")
+        print("allocation failures: 128 budgets across all cases, no retained Rust allocation or WS owner; job transcripts identical with allocator disabled")
     if args.mutation_check:
         changed = source.replace('"Missing path"', '"Missing PATH"', 1)
         if changed == source:
@@ -120,6 +127,13 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed fonts behavior")
         print("mutation check: rejected changed fonts behavior")
+        changed = source.replace('now - job.updatedAt > PLUGIN_JOB_LEASE_MS',
+                                 'now - job.updatedAt >= PLUGIN_JOB_LEASE_MS', 1)
+        if changed == source:
+            changed = source.replace('XP_WEB_JOB_CLAIM);', 'XP_WEB_JOB_STATUS);', 1)
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject changed job lease policy")
+        print("mutation check: rejected changed job lease policy")
         changed = source.replace('"bad plugin path"', '"BAD plugin path"', 1)
         if changed == source:
             changed = source.replace('XP_WEB_PLUGIN_FILE);', 'XP_WEB_PLUGIN_LIST);', 1)

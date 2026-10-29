@@ -386,7 +386,7 @@ const XpWebServices WebFileBridge::services = {
         },
     .memory_error = [](void*) { return tr(STR_MEMORY_ERROR); }};
 
-CrossPointWebServer::CrossPointWebServer() {}
+CrossPointWebServer::CrossPointWebServer() { xp_web_job_init(&pluginJobs); }
 
 CrossPointWebServer::~CrossPointWebServer() { stop(); }
 
@@ -1289,7 +1289,7 @@ namespace {
 
 // A path component is safe if it has no separators or parent refs.
 bool safeComponent(const String& s) {
-  return !s.isEmpty() && s.indexOf('/') < 0 && s.indexOf('\\') < 0 && s.indexOf("..") < 0;
+  return xp_web_component(reinterpret_cast<const uint8_t*>(s.c_str()), s.length());
 }
 
 }  // namespace
@@ -1877,132 +1877,57 @@ void CrossPointWebServer::handleFetch() {
   sendFetchResult(200, out);
 }
 
-CrossPointWebServer::PluginJob* CrossPointWebServer::allocPluginJob() {
-  PluginJob* best = nullptr;
-  for (auto& job : pluginJobs) {
-    if (job.state == JOB_EMPTY) return &job;
-    const bool finished = job.state == JOB_DONE || job.state == JOB_ERROR;
-    if (finished && (!best || job.updatedAt < best->updatedAt)) best = &job;
+struct WebJobBridge : WebFileBridge {
+  static void route(CrossPointWebServer& owner, XpWebJobRoute route) {
+    WebFileBridge bridge(owner);
+    xp_web_job_route(&bridge, &services, &owner.pluginJobs, route);
   }
-  return best;
-}
+  static const XpWebJobServices services;
+};
 
-// POST /api/plugin-jobs {plugin, action, args?} -> {id}
-void CrossPointWebServer::handlePluginJobSubmit() {
-  if (rejectIfPluginsDisabled()) return;
-  JsonDocument req;
-  if (!readJsonBody(req)) return;
-  const String plugin = req["plugin"] | "";
-  const String action = req["action"] | "";
-  // The claim response embeds action without JSON escaping.
-  const auto identifierSafe = [](const String& s) {
-    for (const char c : s) {
-      if (!isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-' && c != '.') return false;
-    }
-    return !s.isEmpty();
-  };
-  if (!safeComponent(plugin) || !identifierSafe(action) || plugin.length() >= sizeof(PluginJob::plugin) ||
-      action.length() >= sizeof(PluginJob::action) ||
-      (!req["args"].isNull() && measureJson(req["args"]) >= sizeof(PluginJob::args))) {
-    server->send(400, "application/json", "{\"error\":\"bad plugin/action/args\"}");
-    return;
-  }
-  PluginJob* job = allocPluginJob();
-  if (!job) {
-    server->send(503, "application/json", "{\"error\":\"job queue full\"}");
-    return;
-  }
-  *job = PluginJob{};
-  job->id = nextPluginJobId++;
-  job->state = JOB_PENDING;
-  job->updatedAt = millis();
-  snprintf(job->plugin, sizeof(job->plugin), "%s", plugin.c_str());
-  snprintf(job->action, sizeof(job->action), "%s", action.c_str());
-  if (!req["args"].isNull()) serializeJson(req["args"], job->args, sizeof(job->args));
-  LOG_INF("WEB", "Plugin job %u queued: %s/%s", (unsigned)job->id, job->plugin, job->action);
-  char msg[48];
-  snprintf(msg, sizeof(msg), "{\"id\":%u}", (unsigned)job->id);
-  server->send(200, "application/json", msg);
-}
+const XpWebJobServices WebJobBridge::services = {
+    .files = &WebFileBridge::services,
+    .parse = parseJson,
+    .string = [](void* ctx, const char* key) -> XpWebText {
+      const char* value = self(ctx).paths[key] | "";
+      return {reinterpret_cast<const uint8_t*>(value), strlen(value)};
+    },
+    .integer = [](void* ctx, const char* key) -> uint32_t { return self(ctx).paths[key] | 0; },
+    .boolean = [](void* ctx, const char* key) -> bool { return self(ctx).paths[key] | false; },
+    .json = [](void* ctx, const char* key, uint8_t* out, size_t capacity) -> size_t {
+      const auto value = self(ctx).paths[key];
+      if (value.isNull()) return 0;
+      return out ? serializeJson(value, reinterpret_cast<char*>(out), capacity) : measureJson(value);
+    },
+    .time = WebFileBridge::transfers.time,
+    .send = [](void* ctx, uint16_t status,
+               const char* json) { self(ctx).owner.server->send(status, "application/json", json); },
+    // Queued/expired/stale/completed map to the original WEB milestones.
+    .diagnostic =
+        [](void*, uint32_t event, uint32_t id, XpWebText plugin, XpWebText action) {
+          switch (static_cast<XpWebJobDiagnostic>(event)) {
+            case XP_WEB_JOB_QUEUED:
+              LOG_INF("WEB", "Plugin job %u queued: %.*s/%.*s", (unsigned)id, static_cast<int>(plugin.len),
+                      reinterpret_cast<const char*>(plugin.data), static_cast<int>(action.len),
+                      reinterpret_cast<const char*>(action.data));
+              break;
+            case XP_WEB_JOB_EXPIRED:
+              LOG_INF("WEB", "Plugin job %u lease expired; requeued", (unsigned)id);
+              break;
+            case XP_WEB_JOB_STALE:
+              LOG_INF("WEB", "Plugin job %u: stale completion ignored", (unsigned)id);
+              break;
+            case XP_WEB_JOB_DONE:
+            case XP_WEB_JOB_FAILED:
+              LOG_INF("WEB", "Plugin job %u %s", (unsigned)id, event == XP_WEB_JOB_DONE ? "done" : "failed");
+              break;
+          }
+        }};
 
-// GET /api/plugin-jobs/claim?plugin=<name> -> {id, action, args} or {id:0}
-void CrossPointWebServer::handlePluginJobClaim() {
-  if (rejectIfPluginsDisabled()) return;
-  const String plugin = server->arg("plugin");
-  const uint32_t now = millis();
-  for (auto& job : pluginJobs) {
-    if (job.state == JOB_RUNNING && now - job.updatedAt > PLUGIN_JOB_LEASE_MS) {
-      job.state = JOB_PENDING;
-      job.updatedAt = now;
-      LOG_INF("WEB", "Plugin job %u lease expired; requeued", (unsigned)job.id);
-    }
-    if (job.state != JOB_PENDING || plugin != job.plugin) continue;
-    job.state = JOB_RUNNING;
-    job.claim = nextPluginJobClaim++;
-    job.updatedAt = now;
-    const std::string msg = "{\"id\":" + std::to_string(job.id) + ",\"claim\":" + std::to_string(job.claim) +
-                            ",\"action\":\"" + job.action + "\",\"args\":" + (job.args[0] ? job.args : "{}") + "}";
-    server->send(200, "application/json", msg.c_str());
-    return;
-  }
-  server->send(200, "application/json", "{\"id\":0}");
-}
-
-// POST /api/plugin-jobs/complete {id, claim, ok, result?} -> {ok}
-// 409 when `claim` is stale: the lease expired and another runner re-claimed
-// the job, so this late result must not overwrite that runner's.
-void CrossPointWebServer::handlePluginJobComplete() {
-  if (rejectIfPluginsDisabled()) return;
-  JsonDocument req;
-  if (!readJsonBody(req)) return;
-  const uint32_t id = req["id"] | 0;
-  const uint32_t claim = req["claim"] | 0;
-  for (auto& job : pluginJobs) {
-    if (job.id != id) continue;
-    if (job.state == JOB_DONE || job.state == JOB_ERROR) {
-      server->send(200, "application/json", "{\"ok\":true}");
-      return;
-    }
-    if (job.state != JOB_RUNNING) break;
-    if (job.claim != claim) {
-      LOG_INF("WEB", "Plugin job %u: stale completion ignored", (unsigned)id);
-      server->send(409, "application/json", "{\"error\":\"stale claim\"}");
-      return;
-    }
-    job.state = (req["ok"] | false) ? JOB_DONE : JOB_ERROR;
-    job.updatedAt = millis();
-    job.result[0] = '\0';
-    if (!req["result"].isNull()) {
-      if (measureJson(req["result"]) >= sizeof(job.result)) {
-        strcpy(job.result, "{\"error\":\"result too large\"}");
-      } else {
-        serializeJson(req["result"], job.result, sizeof(job.result));
-      }
-    }
-    LOG_INF("WEB", "Plugin job %u %s", (unsigned)id, job.state == JOB_DONE ? "done" : "failed");
-    server->send(200, "application/json", "{\"ok\":true}");
-    return;
-  }
-  server->send(404, "application/json", "{\"error\":\"no such running job\"}");
-}
-
-// GET /api/plugin-jobs/status?id=<n> -> {id, state, result}
-void CrossPointWebServer::handlePluginJobStatus() {
-  if (rejectIfPluginsDisabled()) return;
-  const uint32_t id = strtoul(server->arg("id").c_str(), nullptr, 10);
-  static constexpr const char* STATE_NAMES[] = {"empty", "pending", "running", "done", "error"};
-  for (auto& job : pluginJobs) {
-    if (job.id != id || job.state == JOB_EMPTY) continue;
-    const std::string msg = "{\"id\":" + std::to_string(id) + ",\"state\":\"" + STATE_NAMES[job.state] +
-                            "\",\"result\":" + (job.result[0] ? job.result : "null") + "}";
-    server->send(200, "application/json", msg.c_str());
-    return;
-  }
-  // Unknown: never existed, or its slot was recycled after completion.
-  char msg[64];
-  snprintf(msg, sizeof(msg), "{\"id\":%u,\"state\":\"unknown\",\"result\":null}", (unsigned)id);
-  server->send(200, "application/json", msg);
-}
+void CrossPointWebServer::handlePluginJobSubmit() { WebJobBridge::route(*this, XP_WEB_JOB_SUBMIT); }
+void CrossPointWebServer::handlePluginJobClaim() { WebJobBridge::route(*this, XP_WEB_JOB_CLAIM); }
+void CrossPointWebServer::handlePluginJobComplete() { WebJobBridge::route(*this, XP_WEB_JOB_COMPLETE); }
+void CrossPointWebServer::handlePluginJobStatus() { WebJobBridge::route(*this, XP_WEB_JOB_STATUS); }
 
 // WebSocket callback trampoline
 void CrossPointWebServer::wsEventCallback(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {

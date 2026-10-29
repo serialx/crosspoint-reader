@@ -442,9 +442,18 @@ inline String encode(const uint8_t* p, size_t n) {
   return out;
 }
 }  // namespace base64
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+extern "C" size_t xp_test_live_allocations();
+#endif
 namespace bookkey {
 constexpr size_t MAX_KEY_LEN = 32;
 inline bool write(const std::string& path, const uint8_t*, size_t n, int64_t expires) {
+#ifdef XP_FFI_HOST_FAULT_INJECTION
+  if (std::getenv("WEB_KEY_LIFETIME_CHECK") && xp_test_live_allocations() != 1) {
+    std::cerr << "book-key body still allocated at store callback\n";
+    std::abort();
+  }
+#endif
   host::trace.push_back("bookkey:" + path + ":" + std::to_string(n) + ":" + std::to_string(expires));
   return !host::fail("bookkey");
 }

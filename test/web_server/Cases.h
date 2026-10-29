@@ -3,6 +3,7 @@
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
+extern "C" size_t xp_test_allocation_attempts();
 #endif
 
 static void record(const char* name, const std::function<void(CrossPointWebServer&)>& execute) {
@@ -20,6 +21,7 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::now = 1000;
   String::failAllocationSize = SIZE_MAX;
   String::failedAllocations = 0;
+  WebJsonAllocator::failAfter = -1;
   SETTINGS = {};
   extendedSettings = false;
   WiFi = {};
@@ -50,6 +52,11 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
     app.setUploadCancelCheck([] { return host::cancelled; });
     execute(app);
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+    if (std::getenv("WEB_JOB_ALLOCATION_CHECK") && std::string_view(name).starts_with("job") &&
+        xp_test_allocation_attempts() != 0) {
+      std::cerr << "job route allocated Rust memory: " << name << '\n';
+      std::abort();
+    }
     if (wsUploadInProgress && !wsUploadFile) {
       std::cerr << "active upload has no file before teardown: " << name << '\n';
       std::abort();
@@ -127,6 +134,17 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+  if (std::getenv("WEB_KEY_LIFETIME_CHECK")) {
+    record("book-key-body-lifetime", [](auto& app) {
+      app.server->args["plain"] =
+          std::string(16384, ' ') + R"({"path":"/books/new.epub","key":"AAAAAAAAAAAAAAAAAAAAAA=="})";
+      app.handleBookKey();
+      if (std::none_of(host::trace.begin(), host::trace.end(),
+                       [](const auto& event) { return event.starts_with("bookkey:"); }))
+        std::abort();
+    });
+    return 0;
+  }
   if (std::getenv("WEB_LOCALIZATION_CHECK")) {
     memoryTranslation = "메모리 오류";
     for (int kind = 0; kind < 3; ++kind)
@@ -1062,5 +1080,198 @@ int main() {
       app.handlePluginFs();
     });
   }
+
+  // Queue policy: observe responses/logs, never inspect implementation storage.
+  for (const uint32_t elapsed : {599999U, 600000U, 600001U}) {
+    for (int mode = 0; mode < 4; ++mode) {
+      record(("jobs-expiry:" + std::to_string(elapsed) + ":" + std::to_string(mode)).c_str(), [&](auto& app) {
+        app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+        app.handlePluginJobSubmit();
+        app.server->args["plugin"] = "p";
+        app.handlePluginJobClaim();
+        host::now += elapsed;
+        app.server->args["id"] = "1";
+        app.handlePluginJobStatus();  // Status alone does not expire a lease.
+        if (mode != 0) {
+          app.server->args["plugin"] = mode == 2 ? "other" : "p";
+          app.handlePluginJobClaim();
+        }
+        app.server->args["plain"] = mode == 3 ? R"({"id":1,"claim":2,"ok":false})" : R"({"id":1,"claim":1,"ok":true})";
+        app.handlePluginJobComplete();
+        app.handlePluginJobStatus();
+        app.handlePluginJobComplete();
+      });
+    }
+  }
+  for (bool wrap : {false, true}) {
+    record(("jobs-recycle:" + std::to_string(wrap)).c_str(), [&](auto& app) {
+      host::now = wrap ? UINT32_MAX - 1000U : 1000U;
+      app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+      for (int i = 0; i < 7; ++i) app.handlePluginJobSubmit();
+      app.server->args["plugin"] = "p";
+      for (int i = 0; i < 7; ++i) app.handlePluginJobClaim();
+      for (int i : {3, 1, 5}) {
+        host::now = static_cast<uint32_t>(host::now + 501);
+        app.server->args["plain"] =
+            "{\"id\":" + std::to_string(i) + ",\"claim\":" + std::to_string(i) + ",\"ok\":false}";
+        app.handlePluginJobComplete();
+      }
+      app.server->args["plain"] = R"({"plugin":"p","action":"new"})";
+      for (int i = 0; i < 4; ++i) app.handlePluginJobSubmit();
+      for (int i = 0; i <= 10; ++i) {
+        app.server->args["id"] = std::to_string(i);
+        app.handlePluginJobStatus();
+      }
+    });
+    record(("jobs-wrap-lease:" + std::to_string(wrap)).c_str(), [&](auto& app) {
+      host::now = wrap ? UINT32_MAX - 1000U : 1000U;
+      app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+      app.handlePluginJobSubmit();
+      app.server->args["plugin"] = "p";
+      app.handlePluginJobClaim();
+      host::now = static_cast<uint32_t>(host::now + 600001);
+      app.handlePluginJobClaim();
+    });
+  }
+  for (const char* field : {"plugin", "action", "args"}) {
+    for (const char* value : {"null", "false", "123", "1.5", "[]", "{}", "\"\"", "\"p\"", "\"a.b-c_d\"", "\"a b\"",
+                              "\"a/b\"", "\"a\\\\b\"", "\"..\"", "\"é\"", "\"p\\u0000/..\"", "\"\\u0000p\"", "\"p\\n\"",
+                              "\"12345678901234567890123\"", "\"123456789012345678901234\""}) {
+      record((std::string("jobs-types:") + field + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            std::string("{\"plugin\":\"p\",\"action\":\"run\",\"") + field + "\":" + value + "}";
+        app.handlePluginJobSubmit();
+        app.server->args["plugin"] = "p";
+        app.handlePluginJobClaim();
+        app.server->args["id"] = "1";
+        app.handlePluginJobStatus();
+      });
+    }
+  }
+  for (const char* field : {"id", "claim", "ok", "result"}) {
+    for (const char* value : {"null", "true", "false", "0", "1", "-1", "2147483648", "4294967296", "1.5", "\"1\"",
+                              "\"p\\u0000x\"", "[]", "{}"}) {
+      record((std::string("jobs-complete-types:") + field + ":" + value).c_str(), [&](auto& app) {
+        app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+        app.handlePluginJobSubmit();
+        app.server->args["plugin"] = "p";
+        app.handlePluginJobClaim();
+        app.server->args["plain"] = std::string("{\"id\":1,\"claim\":1,\"ok\":true,\"") + field + "\":" + value + "}";
+        app.handlePluginJobComplete();
+        app.server->args["id"] = "1";
+        app.handlePluginJobStatus();
+      });
+    }
+  }
+  for (int mode = 0; mode < 5; ++mode) {
+    record(("jobs-lifecycle:" + std::to_string(mode)).c_str(), [&](auto& app) {
+      app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+      app.handlePluginJobSubmit();
+      if (mode == 0) {
+        app.stop();
+        app.begin();
+      }
+      if (mode == 1) SETTINGS.pluginsEnabled = false;
+      if (mode == 2) {
+        SETTINGS.pluginsEnabled = false;
+        app.handlePluginJobClaim();
+        SETTINGS.pluginsEnabled = true;
+      }
+      if (mode == 3) {
+        CrossPointWebServer rebooted;
+        rebooted.server = std::make_unique<CrossPointHttpServer>(80);
+        rebooted.server->args["id"] = "1";
+        rebooted.handlePluginJobStatus();
+      }
+      app.server->args["plugin"] = mode == 4 ? String("p\0suffix", 8) : String("p");
+      app.handlePluginJobClaim();
+      app.handlePluginJobClaim();
+      app.server->args["id"] = "1";
+      app.handlePluginJobStatus();
+      app.server->args["plain"] = R"({"id":1,"claim":1,"ok":true})";
+      app.handlePluginJobComplete();
+    });
+  }
+  for (const char* id : {"", "abc", " 1", "+1", "1tail", "-1", "4294967295", "0x1"}) {
+    record((std::string("jobs-status-parse:") + id).c_str(), [&](auto& app) {
+      app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+      app.handlePluginJobSubmit();
+      app.server->args["id"] = id;
+      app.handlePluginJobStatus();
+    });
+  }
+  for (int route = 0; route < 4; ++route) {
+    for (bool disabled : {false, true}) {
+      record(("jobs-no-file:" + std::to_string(route) + ":" + std::to_string(disabled)).c_str(), [&](auto& app) {
+        SETTINGS.pluginsEnabled = !disabled;
+        app.server->uploadAvailable = false;
+        switch (route) {
+          case 0:
+            app.handlePluginJobSubmit();
+            break;
+          case 1:
+            app.handlePluginJobClaim();
+            break;
+          case 2:
+            app.handlePluginJobComplete();
+            break;
+          case 3:
+            app.handlePluginJobStatus();
+            break;
+        }
+      });
+    }
+  }
+
+  for (int budget = 0; budget < 8; ++budget) {
+    for (bool complete : {false, true}) {
+      record(("jobs-json-oom:" + std::to_string(budget) + ":" + std::to_string(complete)).c_str(), [&](auto& app) {
+        app.server->args["plain"] = R"({"plugin":"p","action":"run","args":{"v":[1,2,3]}})";
+        if (complete) {
+          app.handlePluginJobSubmit();
+          app.server->args["plugin"] = "p";
+          app.handlePluginJobClaim();
+          app.server->args["plain"] = R"({"id":1,"claim":1,"ok":true,"result":{"v":[1,2,3]}})";
+        }
+        WebJsonAllocator::failAfter = budget;
+        if (complete)
+          app.handlePluginJobComplete();
+        else
+          app.handlePluginJobSubmit();
+        WebJsonAllocator::failAfter = -1;
+        app.server->args["id"] = "1";
+        app.handlePluginJobStatus();
+        if (complete)
+          app.handlePluginJobComplete();
+        else
+          app.handlePluginJobSubmit();
+      });
+    }
+  }
+
+  for (const size_t size : {188, 189, 190, 191, 192, 512}) {
+    for (bool ok : {false, true}) {
+      record(("jobs-result-bound:" + std::to_string(size) + ":" + std::to_string(ok)).c_str(), [&](auto& app) {
+        app.server->args["plain"] =
+            "{\"plugin\":\"p\",\"action\":\"12345678901234567890123\",\"args\":\"" + std::string(189, 'x') + "\"}";
+        app.handlePluginJobSubmit();
+        app.server->args["plugin"] = "p";
+        app.handlePluginJobClaim();
+        app.server->args["plain"] = std::string("{\"id\":1,\"claim\":1,\"ok\":") + (ok ? "true" : "false") +
+                                    ",\"result\":\"" + std::string(size, 'y') + "\"}";
+        app.handlePluginJobComplete();
+        app.server->args["id"] = "1";
+        app.handlePluginJobStatus();
+        app.handlePluginJobComplete();
+      });
+    }
+  }
+
+  record("jobs-status-vertical-tab", [](auto& app) {
+    app.server->args["plain"] = R"({"plugin":"p","action":"run"})";
+    app.handlePluginJobSubmit();
+    app.server->args["id"] = "\v1";
+    app.handlePluginJobStatus();
+  });
   return 0;
 }

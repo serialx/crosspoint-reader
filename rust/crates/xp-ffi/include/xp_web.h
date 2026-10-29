@@ -86,6 +86,7 @@ typedef enum {
   XP_WEB_NOT_FOUND
 } XpWebRoute;
 // File slots 0..2 belong to this request; every open is closed before return.
+bool xp_web_component(const uint8_t* data, size_t len);
 void xp_web_files(void* ctx, const XpWebServices* services, uint32_t route);
 void xp_web_stream(void* ctx, const XpWebServices* services);
 #ifdef __cplusplus
@@ -351,6 +352,43 @@ typedef struct {
 void xp_web_plugins(void*, const XpWebPlugins*, uint32_t route);
 // Status: start=0, write=1, end=2, aborted=3, response=4 (no upload-data loan).
 void xp_web_plugin_upload(void*, const XpWebPlugins*, XpWebPluginUpload*, uint32_t, const uint8_t*, size_t);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Opaque, inline Rust queue: six slots and two counters, no owned allocations.
+// Initialize once at server construction; stop/begin retain it. Serialized calls
+// loan it exclusively; callbacks must neither access it nor reenter job routes.
+typedef struct {
+  uint32_t words[674];
+} XpWebJobQueue;
+typedef enum { XP_WEB_JOB_SUBMIT, XP_WEB_JOB_CLAIM, XP_WEB_JOB_COMPLETE, XP_WEB_JOB_STATUS } XpWebJobRoute;
+typedef enum {
+  XP_WEB_JOB_QUEUED,
+  XP_WEB_JOB_EXPIRED,
+  XP_WEB_JOB_STALE,
+  XP_WEB_JOB_DONE,
+  XP_WEB_JOB_FAILED
+} XpWebJobDiagnostic;
+typedef struct {
+  const XpWebServices* files;
+  XpWebText (*parse)(void*, XpWebText);
+  // C-string views of JSON fields, borrowed until the next parse.
+  XpWebText (*string)(void*, const char*);
+  uint32_t (*integer)(void*, const char*);
+  bool (*boolean)(void*, const char*);
+  // Null output measures non-null JSON (null returns zero); otherwise serializes.
+  size_t (*json)(void*, const char*, uint8_t*, size_t);
+  uint32_t (*time)(void*);
+  void (*send)(void*, uint16_t, const char*);
+  // Nullable: null suppresses diagnostics. Text is borrowed only for the call.
+  void (*diagnostic)(void*, uint32_t, uint32_t, XpWebText, XpWebText);
+} XpWebJobServices;
+void xp_web_job_init(XpWebJobQueue*);
+void xp_web_job_route(void*, const XpWebJobServices*, XpWebJobQueue*, uint32_t);
 #ifdef __cplusplus
 }
 #endif

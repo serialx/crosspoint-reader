@@ -52,5 +52,14 @@
     "note": "Original source loop and production timing constants. Debug arguments are evaluated, including the clock read inside the idle-prewarm log; a separate release-level capture omits debug calls and their arguments. Generation 2 did not evaluate diagnostic arguments.",
     "release_lines": 309908,
     "release_sha256": "9a7fdd7ad2545507745a31020f4e34ea2ef3737a252171bb4de3bddd35a56992"
+  },
+  "base_activity": {
+    "source": "8d534a99:src/activities/reader/ReaderActivity.cpp",
+    "methods_sha256": "b8849ae88ac00b24736260cfd061615756dadc4a3bbee3251f3e23f8b70524b0",
+    "cases": 576,
+    "lines": 50580,
+    "golden_sha256": "a179c8e685ded913c92c2f81b657b43f0081ab6c96448eecb9a462cd68fe917f",
+    "limitations": "Deterministic resource leaves; page rasterization, task scheduling and child activity implementations are covered separately.",
+    "mutation": "Inverted shared-loop session direction: rejected at line 475."
   }
 }

@@ -70,3 +70,11 @@ Full-loop generation 3 evaluates diagnostic arguments just as Logging.h does,
 including the clock read inside the idle-prewarm debug log. A separate release
 capture omits debug logs and their argument evaluation. Both captures come from
 the original loop before its port; generation 2 only recorded the log event.
+
+The shared ReaderActivity oracle covers 576 lifecycle/input configurations from
+8d534a99: entry/exit ordering, remembered-book publication, end-book allocation
+and actions, format/Back precedence, touch/buttons, skips and session flushes.
+Its 50,580 trace lines include failed allocation and load, absent subscribers,
+invalid document IDs and two loop frames around a render. The page renderer and
+child activities are deterministic leaves; their own oracles cover their policy.
+An inverted session direction is rejected at line 475.

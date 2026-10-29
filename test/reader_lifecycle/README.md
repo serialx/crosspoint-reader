@@ -74,11 +74,16 @@ the original loop before its port; generation 2 only recorded the log event.
 The shared ReaderActivity oracle covers 576 lifecycle/input configurations from
 8d534a99: entry/exit ordering, remembered-book publication, end-book allocation
 and actions, format/Back precedence, touch/buttons, skips and session flushes.
-Its 50,618 trace lines include failed allocation and load, absent subscribers,
+Its 53,786 trace lines include failed allocation and load, absent subscribers,
 invalid document IDs and two loop frames around a render. The page renderer and
 child activities are deterministic leaves; their own oracles cover their policy.
-An inverted session direction is rejected at line 475.
+An inverted session direction is rejected at line 494.
 
 Shared lifecycle generation 2 extracts the production end-book action enum as
 well as method bodies. The first fixture listed all actions in a different
 numeric order; generation 2 freezes the actual IDs before porting this code.
+
+Shared lifecycle generation 3 records requested allocation and release sizes,
+including nested menu paths and document IDs. Delaying the document release
+until the outer onExit returns fails at line 64. Both helpers must release their
+transient strings at the original boundary, before their caller continues.

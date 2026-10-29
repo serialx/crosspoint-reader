@@ -3,12 +3,48 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
+#include <new>
 #include <string>
 #include <tuple>
 #include <utility>
 static unsigned eventId;
 static void event(const char* name, int a = 0, int b = 0) { std::printf("%u %s %d %d\n", eventId++, name, a, b); }
+struct Allocation {
+  void* pointer;
+  size_t bytes;
+};
+static Allocation allocations[128]{};
+static bool recordAllocations = false;
+void* operator new(size_t bytes) {
+  void* pointer = std::malloc(bytes ? bytes : 1);
+  if (!pointer) throw std::bad_alloc();
+  if (recordAllocations) {
+    bool tracked = false;
+    for (auto& slot : allocations) {
+      if (!slot.pointer) {
+        slot = {pointer, bytes};
+        tracked = true;
+        break;
+      }
+    }
+    if (!tracked) std::abort();
+    event("allocate-bytes", static_cast<int>(bytes));
+  }
+  return pointer;
+}
+void operator delete(void* pointer) noexcept {
+  for (auto& slot : allocations) {
+    if (pointer && slot.pointer == pointer) {
+      event("release-bytes", static_cast<int>(slot.bytes));
+      slot = {};
+      break;
+    }
+  }
+  std::free(pointer);
+}
+void operator delete(void* pointer, size_t) noexcept { ::operator delete(pointer); }
 template <typename... Args>
 static void log(const char* tag, const char* fmt, Args... args) {
   std::printf("%u %s ", eventId++, tag);
@@ -182,7 +218,7 @@ struct EndOfBookOptions {
   void render(GfxRenderer&, MappedInputManager&) { event("end-render"); }
   Action handleMenuInput(MappedInputManager&, std::string* p) {
     event("end-input", int(action));
-    *p = "/next.epub";
+    *p = "/library/next-very-long-path.epub";
     return action;
   }
 };
@@ -305,6 +341,7 @@ struct ReaderActivity : Activity {
 };
 #include "base_methods.inc"
 int main() {
+  recordAllocations = true;
   for (unsigned phase = 0; phase < 24; ++phase)
     for (unsigned action = 0; action < 24; ++action) {
       eventId = 0;
@@ -346,7 +383,7 @@ int main() {
       a.handleEndOfBookMenu(true);
       a.handleEndOfBookPageTurn(action & 1, action & 2);
       a.handleForcedRefresh();
-      a.flushReaderSession();
+      if (action & 1) a.flushReaderSession();
       a.onExit();
       event("state", a.pagesUntilFullRefresh, a.forcedRefreshPending);
       event("publication", a.pageRendered.load(), a.endOfBookOptionsReady.load());

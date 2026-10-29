@@ -57,12 +57,13 @@
     "source": "8d534a99:src/activities/reader/ReaderActivity.cpp",
     "methods_sha256": "b8849ae88ac00b24736260cfd061615756dadc4a3bbee3251f3e23f8b70524b0",
     "cases": 576,
-    "lines": 50618,
-    "golden_sha256": "15ca59d55e16877a7d9b7565a055314ea592c624b819ab2420047f3ac2e842f7",
+    "lines": 53786,
+    "golden_sha256": "8ad8010f26e7697c31f27ad137db2cabdb4c92dfee5022491ac7b4ab118da1ee",
     "limitations": "Deterministic resource leaves; page rasterization, task scheduling and child activity implementations are covered separately.",
-    "mutation": "Inverted shared-loop session direction: rejected at line 475.",
-    "generation": 2,
+    "mutation": "Inverted shared-loop session direction: rejected at line 494.",
+    "generation": 3,
     "action_sha256": "10c501c806c904822f814c2cb6af59cc3957e7f02bae423a67b6a0b49bfb74f6",
-    "note": "Extracts the actual EndOfBookOptions action enum; generation 1 stub reordered its numeric IDs. Both captures precede the base lifecycle port."
+    "note": "Original source methods and action IDs; records exact requested allocation/free sizes to detect transient resource lifetime changes in nested lifecycle operations.",
+    "lifetime_negative": "Keeping the document string until outer onExit returns fails at line 64: release-bytes expected before exit subscriber probe."
   }
 }

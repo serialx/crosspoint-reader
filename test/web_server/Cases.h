@@ -19,6 +19,9 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
   host::cryptoTrace = false;
   host::chunkStaticBodies = false;
   host::beforeResume = {};
+  host::httpDispatch = {};
+  host::beforeResponse = {};
+  host::headerScratch = nullptr;
   pluginhttp::beforeRequest = {};
   freeink::content::beforePkcs12 = {};
   host::cancelled = false;
@@ -194,6 +197,40 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 
+  if (std::getenv("WEB_STATIC_SCRATCH_CHECK")) {
+    for (const char* path : {"/", "/files", "/js/jszip.min.js", "/assets/web.css", "/assets/icons.svg",
+                             "/assets/crosspoint-icon.svg", "/settings", "/fonts", "/plugins-run"}) {
+      record(path, [&](auto& app) {
+        app.running = false;
+        app.begin();
+        auto handler = app.server->routes.at(std::string("0:") + path);
+        handler();
+        const auto it = std::find_if(host::trace.rbegin(), host::trace.rend(),
+                                     [](const auto& line) { return line.starts_with("header:ETag:"); });
+        if (it == host::trace.rend()) std::abort();
+        const auto etag = it->substr(12);
+        for (const auto& value : {etag, etag + std::string("\0suffix", 7), std::string("\0", 1) + etag,
+                                  etag + std::string("\0different", 10), std::string("mismatch"),
+                                  std::string(4096, 'x'), etag + std::string(4096 - etag.size(), '\0')}) {
+          app.server->headers["If-None-Match"] = String(value.data(), value.size());
+          size_t callbacks = 0;
+          host::beforeResponse = [&] {
+            ++callbacks;
+            if (host::headerScratch &&
+                (!host::headerScratch->isEmpty() || host::headerScratch->capacity() > std::string{}.capacity())) {
+              std::cerr << "ETag scratch retained at response: " << path << " " << value.size() << " B\n";
+              std::abort();
+            }
+          };
+          handler();
+          host::beforeResponse = {};
+          if (callbacks < 3) std::abort();
+        }
+      });
+    }
+    std::cerr << "static scratch: 63 cases released before all header/send callbacks\n";
+    return 0;
+  }
   if (const char* check = std::getenv("WEB_STRING_LIFETIME_CHECK")) {
     const std::string_view mode(check);
     const auto verify = [](size_t expected, const char* stage) {
@@ -1642,6 +1679,31 @@ int main() {
       app.handleRelay();
       host::beforeResume = {};
     });
+  }
+  for (bool relay : {false, true}) {
+    for (bool fail : {false, true}) {
+      record((std::string("life-http-dispatch:") + (relay ? "relay:" : "fetch:") + std::to_string(fail)).c_str(),
+             [&](auto& app) {
+               app.running = false;
+               app.begin();
+               app.server->args["plain"] = relay ? R"({"plugin":"p","url":"https://example.test"})"
+                                                 : R"({"url":"https://example.test/book","dest":"/books/pump.epub"})";
+               pluginhttp::responseStatus = fail ? -1 : 200;
+               freeink::fetchResult = {fail ? -1 : 200, 4, !fail};
+               size_t dispatches = 0, restarts = 0;
+               host::beforeResume = [&] { ++restarts; };
+               host::httpDispatch = [&] {
+                 ++dispatches;
+                 auto handler = app.server->routes.at(std::string("1:/api/") + (relay ? "relay" : "fetch"));
+                 handler();
+               };
+               app.handleClient();
+               host::beforeResume = {};
+               if (dispatches != 1 || restarts != 1) std::abort();
+               host::discoveryPacket = "hello";
+               app.handleClient();
+             });
+    }
   }
   for (int mode : {0, 1, 2, 3}) {
     for (int connected : {0, WL_CONNECTED}) {

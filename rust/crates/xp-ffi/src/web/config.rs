@@ -127,6 +127,7 @@ impl Request<'_> {
             etag.bytes().split(|&byte| byte == 0).next()
                 == page.etag.bytes().split(|&byte| byte == 0).next()
         };
+        unsafe { (self.services.argument)(self.ctx, core::ptr::null()) };
         if !cached {
             self.header(b"Content-Encoding\0", b"gzip");
         }

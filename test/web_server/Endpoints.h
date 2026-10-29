@@ -32,7 +32,8 @@ constexpr const char* PLUGIN_CAPABILITIES = "oracle";
 using wifi_mode_t = int;
 constexpr int WIFI_MODE_STA = 1, WIFI_MODE_AP = 2, WL_CONNECTED = 3;
 struct IP {
-  String toString() const { return "192.0.2.1"; }
+  const char* address = "192.0.2.1";
+  String toString() const { return address; }
 };
 struct WifiStub {
   int mode = WIFI_MODE_STA, statusValue = WL_CONNECTED, stations = 0;
@@ -40,7 +41,7 @@ struct WifiStub {
   int getMode() const { return mode; }
   int status() const { return statusValue; }
   int softAPgetStationNum() const { return stations; }
-  IP softAPIP() const { return {}; }
+  IP softAPIP() const { return {"192.0.2.2"}; }
   IP localIP() const { return {}; }
   int RSSI() const { return -42; }
   const char* getHostname() const { return hostname.c_str(); }

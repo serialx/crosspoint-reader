@@ -39,6 +39,8 @@ def generate(source, header):
         'if (std::getenv("WEB_STRING_PARSE_CHECK") && b.argument.capacity() > std::string{}.capacity()) { '
         'std::cerr << "String scratch retained at parse completion: " << b.argument.capacity() << " B\\n"; std::abort(); }\n'
         'return {nullptr, 0};\n      }\n      if (!*key)')
+    source = source.replace('b.argument = b.owner.server->header(name);',
+                            'b.argument = b.owner.server->header(name); host::headerScratch = &b.argument;')
     header = re.sub(r"\bJsonDocument\b", "WebJsonDocument", header)
     header = re.sub(r"^#(?:pragma|include).*\n", "", header, flags=re.MULTILINE)
     header = header.replace(" private:", " public:")
@@ -93,7 +95,12 @@ def main():
                         "-I" + str(ROOT / "test/web_server"), "-I" + str(ROOT),
                         "-I" + str(args.arduinojson), "-I" + str(args.ffi_include),
                         str(generated), *link, "-o", str(args.build / "oracle")], check=True)
-        return subprocess.check_output([str(args.build / "oracle")])
+        try:
+            return subprocess.check_output([str(args.build / "oracle")])
+        except subprocess.CalledProcessError as error:
+            if text != source and error.returncode < 0:
+                return b"mutation rejected by host invariant\n"
+            raise
 
     actual = run(source)
     (args.build / "actual.jsonl").write_bytes(actual)
@@ -115,7 +122,7 @@ def main():
     if args.review_check:
         if not args.archive:
             raise SystemExit("--review-check requires --archive")
-        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK"]:
+        for variable in ["WEB_COMPLETION_CHECK", "WEB_LOCALIZATION_CHECK", "WEB_SYSTEM_NAME_CHECK", "WEB_KEY_LIFETIME_CHECK", "WEB_JOB_ALLOCATION_CHECK", "WEB_FETCH_ALLOCATION_CHECK", "WEB_STATIC_SCRATCH_CHECK"]:
             subprocess.run([str(args.build / "oracle")], env={**os.environ, variable: "1"},
                            stdout=subprocess.DEVNULL, check=True)
         for stage in ["tls", "pkcs12", "resume", "fetch"]:
@@ -210,6 +217,10 @@ def main():
         if changed == source or run(changed) == expected:
             raise SystemExit("mutation check did not reject changed status mode")
         print("mutation check: rejected changed status mode")
+        changed = source.replace('WiFi.softAPIP()', 'WiFi.localIP()')
+        if changed == source or run(changed) == expected:
+            raise SystemExit("mutation check did not reject swapped status IP source")
+        print("mutation check: rejected swapped status IP source")
         changed = source.replace('HomePageHtml, sizeof(HomePageHtml), HomePageHtmlETag',
                                  'FilesPageHtml, sizeof(FilesPageHtml), FilesPageHtmlETag', 1)
         if changed == source:

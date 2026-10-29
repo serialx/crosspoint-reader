@@ -48,6 +48,9 @@ inline bool cancelled = false, connected = true;
 inline bool cryptoTrace = false;
 inline bool chunkStaticBodies = false;
 inline std::function<void()> beforeResume;
+inline std::function<void()> httpDispatch;
+inline std::function<void()> beforeResponse;
+inline const String* headerScratch = nullptr;
 inline void cryptoInput(const char* name, const uint8_t* p, size_t n) {
   if (cryptoTrace) trace.push_back(std::string("crypto-input:") + name + ":" + hex(p, n));
 }
@@ -343,7 +346,11 @@ class WebServer {
   }
   void begin() { host::trace.emplace_back("server-begin"); }
   void stop() { host::trace.emplace_back("server-stop"); }
-  void handleClient() { host::trace.emplace_back("server-client"); }
+  void handleClient() {
+    host::trace.emplace_back("server-client");
+    auto dispatch = std::move(host::httpDispatch);
+    if (dispatch) dispatch();
+  }
   bool hasArg(const char* name) const { return args.count(name); }
   String arg(const char* name) const {
     auto it = args.find(name);
@@ -363,11 +370,13 @@ class WebServer {
     host::trace.push_back("length:" + (n == SIZE_MAX ? std::string("chunked") : std::to_string(n)));
   }
   void send(int code, const char* type, const String& body) const {
+    if (host::beforeResponse) host::beforeResponse();
     host::trace.push_back("response:" + std::to_string(code) + ":" + type + ":" + body);
   }
   void sendContent(const String& body) const { host::trace.push_back("chunk:" + body); }
   void send(int code) const { send(code, "text/html", ""); }
   void send_P(int code, const char* type, const char* data, size_t n) const {
+    if (host::beforeResponse) host::beforeResponse();
     if (host::chunkStaticBodies || n >= 32000) {
       host::trace.push_back("response-bytes:" + std::to_string(code) + ":" + type + ":" + std::to_string(n));
       for (size_t offset = 0; offset < n; offset += 2048) {
@@ -388,6 +397,7 @@ class WebServer {
   }
   void sendContent(const char* body, size_t n) const { sendContent(String(body, n)); }
   void sendHeader(const char* name, const String& value, bool = false) const {
+    if (host::beforeResponse) host::beforeResponse();
     host::trace.push_back(std::string("header:") + name + ":" + value);
   }
 };

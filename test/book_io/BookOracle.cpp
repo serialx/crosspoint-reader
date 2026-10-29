@@ -24,6 +24,7 @@ void* operator new[](size_t size, const std::nothrow_t&) noexcept { return bookN
 
 int main(int argc, char** argv) {
   if (argc != 3) return 2;
+  if (const char* heap = std::getenv("BOOK_FREE_HEAP")) ESP.freeHeap = std::strtoul(heap, nullptr, 10);
   BookFault::failAt = std::strtoull(argv[2], nullptr, 10);
   std::filesystem::create_directories("cache");
   Epub epub(argv[1], "cache");

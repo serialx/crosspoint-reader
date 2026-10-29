@@ -74,3 +74,24 @@ add_test(NAME BookLoanOracle COMMAND ${Python3_EXECUTABLE}
 add_executable(BookTxtCallbacksTest TxtCallbacksTest.cpp)
 target_link_libraries(BookTxtCallbacksTest PRIVATE xp_ffi_host GTest::gtest_main)
 gtest_discover_tests(BookTxtCallbacksTest)
+
+add_test(NAME BookResidualOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/residual_oracle.py --oracle $<TARGET_FILE:BookOracle>)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/RecoveryOracle.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/recovery_oracle.py
+    ${REPO_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/RecoveryOracle.cpp
+  DEPENDS recovery_oracle.py ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp VERBATIM)
+add_executable(BookRecoveryOracle ${CMAKE_CURRENT_BINARY_DIR}/RecoveryOracle.cpp)
+target_include_directories(BookRecoveryOracle PRIVATE ${REPO_ROOT}/lib/Memory)
+target_link_libraries(BookRecoveryOracle PRIVATE xp_ffi_host)
+add_test(NAME BookRecoveryOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/frozen_trace.py $<TARGET_FILE:BookRecoveryOracle>
+  ${CMAKE_CURRENT_SOURCE_DIR}/recovery-golden.txt.gz)
+add_executable(BookBidiEligibilityOracle BidiEligibilityOracle.cpp ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp)
+target_include_directories(BookBidiEligibilityOracle PRIVATE ${REPO_ROOT}/lib/MiniBidi
+  ${REPO_ROOT}/lib/Memory ${REPO_ROOT}/test/minibidi_arabic/stubs)
+target_link_libraries(BookBidiEligibilityOracle PRIVATE xp_ffi_host)
+add_test(NAME BookBidiEligibilityOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/frozen_trace.py $<TARGET_FILE:BookBidiEligibilityOracle>
+  ${CMAKE_CURRENT_SOURCE_DIR}/bidi-eligibility-golden.txt.gz)

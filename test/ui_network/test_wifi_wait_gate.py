@@ -16,17 +16,17 @@ if "bool rustSceneRejected()" not in source:
     source = source.replace("struct ModelLock{", "bool testRejected=false; bool rustSceneRejected()const{return testRejected;}\n struct ModelLock{", 1)
 source += r'''
 int main(int argc,char**argv){
- assert(argc==2);const std::string which=argv[1];
+ assert(argc==4);const std::string which=argv[1];const int target=atoi(argv[2]);const bool recovered=atoi(argv[3]);
  WifiSelectionActivity a;a.model.phase=which=="select"?XP_UI_WIFI_PHASE_LIST:
    which=="save"?XP_UI_WIFI_PHASE_SAVE:XP_UI_WIFI_PHASE_FORGET;
  a.model.count=1;a.model.list.selected=0;a.model.save_selection=0;a.model.forget_selection=1;
  a.selectedSSID="network";a.enteredPassword="secret";
  a.networks.push_back({"network",-45,true,true,false});a.networkStatuses.push_back("saved");
  int waits=0;
- waitHook=[&]{if(++waits==(which=="select"?1:2))a.testRejected=true;};
+ waitHook=[&]{if(++waits==target){a.testRejected=!recovered;++a.model.list.navigation_revision;}};
  XpUiInput input{};if(which=="select")input.released=XP_UI_CONFIRM;else input.pressed=XP_UI_CONFIRM;
  a.run(XP_UI_WIFI_EVENT_TICK,0,&input);
- assert(a.testRejected);
+ assert(waits>=target);
  for(const auto& event:transcript){
   assert(event.find("persist-")==std::string::npos);
   assert(event.find("finish")==std::string::npos);
@@ -46,9 +46,12 @@ with tempfile.TemporaryDirectory(prefix="wifi-wait-") as directory:
                     "-o", str(out / "check")], check=True)
     failed = []
     for case in ["select", "save", "forget"]:
-        result = subprocess.run([str(out / "check"), case])
-        print(case, result.returncode, flush=True)
-        if result.returncode:
-            failed.append(case)
+        for target in ([1, 2, 3] if case == "select" else [2, 3]):
+            for recovered in [0, 1]:
+                args = [case, str(target), str(recovered)]
+                result = subprocess.run([str(out / "check"), *args])
+                print(args, result.returncode, flush=True)
+                if result.returncode:
+                    failed.append("/".join(args))
     if failed:
         raise SystemExit("Failed: " + ", ".join(failed))

@@ -27,3 +27,9 @@ target_include_directories(BookTxtOracle PRIVATE txt-stubs stubs ${REPO_ROOT}/li
 target_link_libraries(BookTxtOracle PRIVATE xp_ffi_host)
 add_test(NAME BookTxtOracle COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/txt_oracle.py $<TARGET_FILE:BookTxtOracle>)
+add_executable(BookHelpersOracle HelpersOracle.cpp ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+target_include_directories(BookHelpersOracle PRIVATE ${REPO_ROOT}/lib/AsciiText
+  ${REPO_ROOT}/lib/XmlParserUtils ${REPO_ROOT}/lib/Utf8)
+target_link_libraries(BookHelpersOracle PRIVATE xp_ffi_host)
+add_test(NAME BookHelpersOracle COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/helpers_oracle.py $<TARGET_FILE:BookHelpersOracle>)

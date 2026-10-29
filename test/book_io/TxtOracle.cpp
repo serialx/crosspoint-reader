@@ -23,7 +23,26 @@ size_t run(unsigned mode, size_t fail) {
   cache.reset();
   return booktest::calls;
 }
+size_t cover(unsigned mode, size_t fail) {
+  booktest::files.clear();
+  const char* extension[] = {".bmp", ".jpg", ".png", ".no"};
+  const std::string path = std::string("/cover") + extension[mode % 4];
+  if (!(mode & 4)) booktest::files[path] = std::vector<uint8_t>(300, 42);
+  booktest::calls = 0; booktest::fail = fail;
+  std::printf("cover-case %u %zu\n", mode, fail);
+  std::printf("convert %d\n", Txt::convertCoverImageToBmp(path, "/out", mode & 8 ? 50 : 0, mode & 16, mode & 32));
+  for (const auto& [name, data] : booktest::files) {
+    std::printf("file %s %zu ",name.c_str(),data.size());
+    for (auto byte:data) std::printf("%02x",byte);
+    std::puts("");
+  }
+  return booktest::calls;
+}
 int main() {
+  for (unsigned mode = 0; mode < 64; ++mode) {
+    const size_t steps = cover(mode, 0);
+    for (size_t fail = 1; fail <= steps; ++fail) cover(mode, fail);
+  }
   for (unsigned mode = 0; mode < 32; ++mode) {
     const size_t steps = run(mode, 0);
     for (size_t fail = 1; fail <= steps; ++fail) run(mode, fail);

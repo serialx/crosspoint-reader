@@ -54,7 +54,14 @@ void CatalogUiActivity::onExit() {
 void CatalogUiActivity::loop() {
   if (handleCustomInput()) return;
   int x = 0, y = 0;
-  if (ui.kind == XP_UI_CATALOG_PLUGINS && mappedInput.wasScreenLongPress(x, y)) {
+  bool listOwnsTouch;
+  {
+    ModelLock lock(*this);
+    listOwnsTouch = ui.kind == XP_UI_CATALOG_PLUGINS && !ui.popup &&
+                    (ui.mode == XP_UI_CATALOG_PLUGIN_PICKER || ui.mode == XP_UI_CATALOG_LIST_PICKER ||
+                     ui.mode == XP_UI_CATALOG_BROWSING);
+  }
+  if (listOwnsTouch && mappedInput.wasScreenLongPress(x, y)) {
     XpUiInput input{};
     input.touch_flags = XP_UI_TOUCH_RELEASED;
     input.touch_x = x;

@@ -32,9 +32,29 @@ class Review(unittest.TestCase):
             binary = path.with_suffix('')
             subprocess.run(['c++', '-std=c++20', '-pthread', '-fsanitize=address,undefined',
                             '-fno-omit-frame-pointer', '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
+                            '-I' + str(ROOT / 'freeink-sdk/libs/ui/FreeInkUI/include'),
+                            '-I' + str(ROOT / 'test/ui_catalog'),
                             str(path), str(ROOT / 'test/cmake/xp_ffi_host.cpp'), str(LIBRARY),
                             '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=10)
+
+    def test_sdk_contacts_retain_original_owner(self):
+        sdk = (ROOT / 'freeink-sdk/libs/hardware/InputManager/src/InputManager.cpp').read_text()
+        mapped = source('src/MappedInputManager.cpp')
+        ui = source('src/activities/CatalogUiActivity.cpp')
+        snapshot = method(source('src/components/UiAppHelpers.h'), 'inline freeink::ui::InputSnapshot touchSnapshotFrom(')
+        sdk_methods = '\n'.join(method(sdk, '::' + name + '(') for name in
+                                ['serviceTouch', 'wasTouchTap', 'wasTouchLongPress', 'suppressTouchContact',
+                                 'isTouchTapCandidate', 'isTouchHeldAt', 'wasTouchReleased'])
+        mapped_methods = '\n'.join(method(mapped, '::' + name + '(') for name in
+                                   ['wasScreenTapped', 'wasScreenLongPress', 'wasScreenTouchDown',
+                                    'isScreenTouchHeld', 'wasScreenTouchReleased'])
+        callbacks = '\n'.join(method(ui, '::' + name + '(') for name in ['loop', 'updateRust'])
+        fixture = (ROOT / 'test/ui_catalog/touch_fixture.inc').read_text()
+        self.compile_run(fixture.replace('// SDK_METHODS', sdk_methods)
+                         .replace('// MAPPED_METHODS', mapped_methods)
+                         .replace('// SNAPSHOT_METHOD', snapshot)
+                         .replace('// CATALOG_METHODS', callbacks))
 
     def test_unauthorized_back_follows_production_callback(self):
         plugin = source('src/activities/plugins/PluginCatalogActivity.cpp')

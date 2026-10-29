@@ -2,6 +2,7 @@
 import importlib.util
 import struct
 import zipfile
+import zlib
 from pathlib import Path
 
 
@@ -37,9 +38,32 @@ def bitmap(path, overlay=False):
     path.write_bytes(header + data)
 
 
+def cover_png(path):
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+    width, height = 96, 128
+    rows = b''.join(b'\0' + bytes(((x // 24 + y // 32) % 4) * 85 for x in range(width))
+                    for y in range(height))
+    path.write_bytes(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 0, 0, 0, 0))
+                     + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
+
+
 def prepare(case, kind):
     root = case / 'assets'
     root.mkdir()
+    if kind.startswith('entry-'):
+        name = kind.removeprefix('entry-')
+        allowed = {'details-plain', 'details-html', 'details-cover', 'frontlight-mono', 'frontlight-warm',
+                   'unknown', 'oversized'}
+        if name not in allowed:
+            raise ValueError(f'Unknown activity fixture: {kind}')
+        selector = root / 'ui-oracle-case.txt'
+        selector.write_text('x' * 32 if name == 'oversized' else name)
+        assets = [(selector, '/.crosspoint')]
+        if name == 'details-cover':
+            cover_png(root / 'OracleCover.png')
+            assets.append((root / 'OracleCover.png', '/'))
+        return assets
     if kind == 'empty':
         return []
     if kind == 'sleep-overlay':

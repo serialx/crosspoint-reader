@@ -22,12 +22,28 @@ generation, and `p9-o2c/golden-diff.json` lists every regenerated case and chang
 pixel/refresh digest. Use the settled generation with the current harness:
 the older sleep scripts do not satisfy its completion contract.
 
+The Library initialization generation is `p9-o2d/library-goldens-a/`. It
+validates the same 430 cases and replaces only the four `library-actions`
+recordings with fresh captures from the original golden firmware. The new script
+waits for the fixture's first Library row and a settled panel before row input.
+Both independent captures retain the original eight images and all refresh and
+startup values. Source manifests and recording provenance remain intact.
+
+The additional fixture goldens are `p9-o2d/fixtures-final-a/` and
+`p9-o2d/fixtures-final-b/`, recorded from `p9-o2d/golden-final-build/`.
+They use the original firmware/SDK revisions above plus the test-only entry
+sources. Their 88 images, refresh records and 28 startup intervals match.
+Separate Details title and Frontlight margin mutations fail pixels on both
+boards and polarities. These are a separate generation from the original
+430 cases; the two instrumented firmware builds are not interchangeable.
+
 ## Coverage
 
 `screens.json` declares each group, settings, fixture, ordered button sequence,
 expected activity, and screenshot name. Groups start on independent fresh cards;
-screens within a group share navigation state. There are 66 groups and 168 named
-states: the complete matrix expands these into 430 emulator runs and 1,044 images.
+screens within a group share navigation state. The original 66 groups and 168
+named states expand into 430 runs and 1,044 images. Seven fixture-entry groups
+add 28 runs and 88 images; they require the local build described below.
 
 Both X3 and X4 run in normal and inverted mode. EPUB reader groups run with all
 four orientation settings: portrait, clockwise landscape, inverted portrait, and
@@ -56,7 +72,10 @@ every combination of settings. In particular:
 - BLE captures the menu, enable, scan with no peers, and empty paired list.
   Pairing, mapping/learning, connected peers, and their errors need a BLE peer.
 - X3/X4 do not expose USB mass storage, Home-button settings, or a detected
-  frontlight panel. X4 does not expose the RTC settings entry.
+  frontlight panel. A test-only facade now supplies Frontlight pixels, and
+  synthetic `DetailsSpec` values supply Details pixels without a service.
+  Neither fixture qualifies the missing hardware or network behavior.
+  X4 does not expose the RTC settings entry.
 - Dictionary lookup/index busy paints are traversed but are not separate settled
   goldens. Misses, allocation failures, corrupted caches, failed writes, every
   intermediate loading paint, and all touch/remapping paths are not exhaustively
@@ -64,6 +83,8 @@ every combination of settings. In particular:
 
 Use the inventory before treating a passing comparison as coverage of a new UI
 path. Add a named state and repeat both complete captures when extending it.
+`FIXTURE-GAPS.md` expands every declared gap and proposes the smallest relevant
+service, capability, timing or fault fixture for later work.
 
 ## Prerequisites and build
 
@@ -110,8 +131,64 @@ its standard package path; `capture.py --gdb` can select another installed GDB.
 This logging build is for pixels and refresh policy, not performance equivalence
 with a release build.
 
+### Local activity-entry fixtures
+
+To record the seven `fixture-*` groups, extend the ignored environment above:
+
+```ini
+build_src_filter = +<*> +<../test/ui_screens/firmware/UiOracleEntry.cpp>
+build_flags =
+  ${env:default.build_flags}
+  -DSSD1677_PROBE_DEBUG=1
+  -DCROSSPOINT_VERSION=\"2.0.0-dev-serialx/riir-p9-o2-ui-539ebafc\"
+  -DCROSSPOINT_UI_ORACLE=1
+  -include $PROJECT_DIR/test/ui_screens/firmware/UiOracleOverride.h
+```
+
+Keep this in `platformio.local.ini`; do not add it to shipped environments.
+The one guarded call at the end of `setup()` invokes the test source. No selector
+file means normal routing. The harness stages `/.crosspoint/ui-oracle-case.txt`
+with an exact selector of at most 31 bytes, without a newline. Unknown, empty,
+oversized or unreadable values log an error and preserve normal routing.
+
+Details uses the real activity and its public `DetailsSpec`: plain and HTML
+descriptions, placeholder and synthetic PNG covers, More, confirm and cancel.
+Frontlight uses the real panel and physical-button handling. The forced-include
+header replaces only the firmware `Frontlight` macro with an inert facade;
+it supplies mono/warm capabilities and bounded brightness/on state without SDK
+or bus calls. The fixture waits for the existing Home-painted predicate before
+pushing the sheet, so its uncovered area retains the real Home screen. Touch
+tiles, warmth gestures, slide switches, and real hardware remain outside this
+fixture. `FixtureTest.cpp` is a host check and is excluded from the local firmware
+source filter.
+
+The additional goldens must come from the original firmware `539ebafc` and SDK
+`37d272d4`, rebuilt with these same fixture sources and guarded setup call.
+Keep that instrumented build's artifacts and hashes separate from the original
+unmodified build. Do not combine unlike firmware artifacts into one manifest or
+stamp old captures with new source hashes. Compare new fixture groups using
+their own freshly recorded pair; use the retained original-generation harness
+and golden manifest for existing captures until those are explicitly recaptured.
+
+```sh
+python3 test/ui_screens/capture.py --build FIXTURE_BUILD \
+  --emulator-identity EMULATOR_JSON --out NEW_FIXTURE_CAPTURE --orientations 0 \
+  --groups fixture-details-plain fixture-details-html fixture-details-cover \
+  fixture-frontlight-mono fixture-frontlight-warm fixture-unknown fixture-oversized
+```
+
+All ordinary recording checks still apply: exact inputs, activity, every RGB
+pixel, ordered API/controller refreshes, panel counts and startup intervals.
+The rejection cases assert Home plus the rejection log. The cover case also
+requires the PNG decode-completion log; Frontlight requires Home entry before
+the panel is captured. To test sensitivity,
+change one line in an activity's pixel-producing code in a separate scratch
+build and require the corresponding fixture comparison to fail.
+
 ## Capture and compare
 
+The full current matrix requires the activity-entry environment above; the
+refresh-only build cannot reach the seven `fixture-*` groups.
 Output directories must not already exist. Keep them outside the repository:
 
 ```sh

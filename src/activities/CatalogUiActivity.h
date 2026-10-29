@@ -15,7 +15,7 @@ class CatalogUiActivity : public RustActivityAdapter {
   void loop() override;
 
  protected:
-  XpUiCatalogState ui{};
+  XpUiCatalogState ui{}, paintState{};
   virtual int listCount() const = 0;
   virtual bool rowAt(int, XpUiCatalogRow&) const = 0;
   virtual void prepareRows() {}
@@ -27,7 +27,7 @@ class CatalogUiActivity : public RustActivityAdapter {
   virtual const char* catalogText(uint32_t) const;
   virtual bool hasSearch() const { return false; }
   virtual uint8_t pageLinks() const { return 0; }
-  virtual void pageNumbers(int16_t&, int16_t&) const {}
+  virtual void pageNumbers(int32_t&, int32_t&) const {}
   virtual void catalogEffect(const XpUiEffect&) {}
   int selectedIndex() const;
   void selectIndex(int);
@@ -43,6 +43,8 @@ class CatalogUiActivity : public RustActivityAdapter {
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t capacity = 0;
   bool touchActivated = false;
+  bool sceneFailed = false;
+  bool buildCatalogScene(XpUiScene&);
   int32_t consumedScroll = 0;
   freeink::ui::GfxRendererTarget target;
   bool reserveCommands(uint16_t);

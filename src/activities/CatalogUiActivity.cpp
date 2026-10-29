@@ -11,7 +11,7 @@ static_assert(sizeof(XpUiCatalogState) == 68);
 static_assert(offsetof(XpUiCatalogState, mode) == 61);
 static_assert(sizeof(XpUiCatalogHits) == 288);
 static_assert(offsetof(XpUiCatalogHits, controls) == 140);
-static_assert(sizeof(XpUiCatalogLayout) == 84);
+static_assert(sizeof(XpUiCatalogLayout) == 88);
 static_assert(offsetof(XpUiCatalogLayout, search_button) == 48);
 static_assert(sizeof(XpUiCatalogRow) == 4 * sizeof(void*));
 static_assert(offsetof(XpUiCatalogResources, count) == 6 * sizeof(void*));
@@ -22,10 +22,10 @@ CatalogUiActivity::CatalogUiActivity(const char* name, GfxRenderer& renderer, Ma
   xp_ui_catalog_init(&ui, kind, index, picker);
 }
 bool CatalogUiActivity::reserveCommands(uint16_t count) {
-  if (count <= capacity) return true;
+  if (commands && count <= capacity) return true;
   if (count > 128) return false;
   commands.reset();
-  capacity = 0;
+  capacity = count;
   commands = makeUniqueNoThrow<XpUiCommand[]>(count);
   if (!commands) {
     LOG_ERR("RUI", "Cannot allocate %u command bytes", unsigned(count * sizeof(XpUiCommand)));
@@ -71,6 +71,12 @@ void CatalogUiActivity::closeRouting() {
 }
 XpUiInterest CatalogUiActivity::rustInterest(uint32_t now) const { return xp_ui_catalog_interest(&ui, now); }
 XpUiEffect CatalogUiActivity::updateRust(const XpUiInput& source) {
+  if (sceneFailed) {
+    XpUiEffect effect{};
+    effect.kind = (source.released & XP_UI_BACK) ? XP_UI_CANCEL : XP_UI_EFFECT_NONE;
+    effect.invalidate = effect.kind == XP_UI_EFFECT_NONE;
+    return effect;
+  }
   auto input = source;
   touchActivated = false;
   if (publication.ready && input.touch_flags) {
@@ -141,12 +147,22 @@ const char* CatalogUiActivity::text(uint32_t h) const {
   }
 }
 bool CatalogUiActivity::buildRustScene(XpUiScene& scene) {
-  if (!commands || listCount() < 0 || listCount() > UINT16_MAX) return false;
+  const bool built = buildCatalogScene(scene);
+  if (!built) {
+    ModelLock lock(*this);
+    sceneFailed = true;
+  }
+  return built;
+}
+bool CatalogUiActivity::buildCatalogScene(XpUiScene& scene) {
+  if (!commands && !reserveCommands(capacity)) return false;
+  if (listCount() < 0 || listCount() > UINT16_MAX) return false;
   prepareRows();
   XpUiCatalogState snapshot{};
   {
     ModelLock lock(*this);
     snapshot = ui;
+    paintState = snapshot;
     consumedScroll = ui.list.pending_scroll;
   }
   const auto& m = UITheme::getInstance().getMetrics();
@@ -219,6 +235,7 @@ bool CatalogUiActivity::buildRustScene(XpUiScene& scene) {
 void CatalogUiActivity::rustPublished() {
   xp_ui_catalog_publish(&ui, &next, consumedScroll);
   publishedHits = nextHits;
+  sceneFailed = false;
 }
 XpUiPaint CatalogUiActivity::rustResources() {
   return {this, nullptr, nullptr,

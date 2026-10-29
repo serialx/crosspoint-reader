@@ -89,7 +89,7 @@ class OpdsBookBrowserActivity final : public OpdsCatalogActivity {
   const char* headerTitle() const override { return browserTitle(); }
   const char* catalogText(uint32_t) const override;
   uint8_t pageLinks() const override;
-  void pageNumbers(int16_t& current, int16_t& total) const override {
+  void pageNumbers(int32_t& current, int32_t& total) const override {
     current = pageCurrent;
     total = pageTotal;
   }

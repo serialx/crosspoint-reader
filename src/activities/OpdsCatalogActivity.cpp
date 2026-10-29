@@ -114,11 +114,11 @@ const char* OpdsCatalogActivity::catalogText(uint32_t handle) const {
     case 0x80000006:
       return errorMessage.c_str();
     case 0x80000009:
-      if (downloadProgress >= 1024 * 1024)
-        snprintf(bytesText, sizeof(bytesText), "%u.%u MB", unsigned(downloadProgress >> 20),
-                 unsigned((downloadProgress >> 10) % 1024 * 10 / 1024));
+      if (paintState.progress >= 1024 * 1024)
+        snprintf(bytesText, sizeof(bytesText), "%u.%u MB", unsigned(paintState.progress >> 20),
+                 unsigned((paintState.progress >> 10) % 1024 * 10 / 1024));
       else
-        snprintf(bytesText, sizeof(bytesText), "%u KB", unsigned(downloadProgress >> 10));
+        snprintf(bytesText, sizeof(bytesText), "%u KB", unsigned(paintState.progress >> 10));
       return bytesText;
     default:
       return CatalogUiActivity::catalogText(handle);
@@ -135,11 +135,6 @@ void OpdsCatalogActivity::beginDownload(const std::string& title) {
 }
 
 void OpdsCatalogActivity::onDownloadProgress(const size_t downloaded, const size_t total) {
-  {
-    RenderLock renderLock(*this);
-    downloadProgress = downloaded;
-    downloadTotal = total;
-  }
   // Home cancels immediately; other configured actions are deferred to the
   // next main-loop pass by the transfer input pump.
   mappedInput.update(true);
@@ -153,6 +148,8 @@ void OpdsCatalogActivity::onDownloadProgress(const size_t downloaded, const size
   bool redraw;
   {
     ModelLock lock(*this);
+    downloadProgress = downloaded;
+    downloadTotal = total;
     redraw = xp_ui_catalog_progress(&ui, downloaded, total, millis());
   }
   if (redraw) requestUpdate(true);

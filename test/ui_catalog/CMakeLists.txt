@@ -11,3 +11,5 @@ target_compile_options(CatalogTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COM
 target_link_options(CatalogTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
 target_link_libraries(CatalogTarget PRIVATE xp_ffi_host)
 add_test(NAME ui_catalog_pixels COMMAND CatalogTarget)
+
+add_test(NAME ui_catalog_adapter COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_adapter.py)

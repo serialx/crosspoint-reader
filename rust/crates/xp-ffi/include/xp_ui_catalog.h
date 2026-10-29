@@ -41,7 +41,8 @@ typedef struct {
   XpUiRect safe, search_button;
   int32_t small_font;
   int16_t top_padding, header_height, hints_height, spacing, tab_height, side_padding;
-  int16_t space_md, button_height, page_current, page_total;
+  int16_t space_md, button_height;
+  int32_t page_current, page_total;
   uint8_t touch, search, pages, control_radius;
 } XpUiCatalogLayout;
 typedef struct {

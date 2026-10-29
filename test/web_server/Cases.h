@@ -3,6 +3,7 @@
 #ifdef XP_FFI_HOST_FAULT_INJECTION
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_live_allocations();
+extern "C" size_t xp_test_allocation_attempts();
 #endif
 
 static void record(const char* name, const std::function<void(CrossPointWebServer&)>& execute) {
@@ -51,6 +52,11 @@ static void record(const char* name, const std::function<void(CrossPointWebServe
     app.setUploadCancelCheck([] { return host::cancelled; });
     execute(app);
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+    if (std::getenv("WEB_JOB_ALLOCATION_CHECK") && std::string_view(name).starts_with("job") &&
+        xp_test_allocation_attempts() != 0) {
+      std::cerr << "job route allocated Rust memory: " << name << '\n';
+      std::abort();
+    }
     if (wsUploadInProgress && !wsUploadFile) {
       std::cerr << "active upload has no file before teardown: " << name << '\n';
       std::abort();
@@ -128,6 +134,17 @@ static void text(CrossPointWebServer& app, uint8_t client, const std::string& by
 
 int main() {
 #ifdef XP_FFI_HOST_FAULT_INJECTION
+  if (std::getenv("WEB_KEY_LIFETIME_CHECK")) {
+    record("book-key-body-lifetime", [](auto& app) {
+      app.server->args["plain"] =
+          std::string(16384, ' ') + R"({"path":"/books/new.epub","key":"AAAAAAAAAAAAAAAAAAAAAA=="})";
+      app.handleBookKey();
+      if (std::none_of(host::trace.begin(), host::trace.end(),
+                       [](const auto& event) { return event.starts_with("bookkey:"); }))
+        std::abort();
+    });
+    return 0;
+  }
   if (std::getenv("WEB_LOCALIZATION_CHECK")) {
     memoryTranslation = "메모리 오류";
     for (int kind = 0; kind < 3; ++kind)

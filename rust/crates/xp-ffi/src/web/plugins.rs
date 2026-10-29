@@ -1,5 +1,7 @@
 //! Browser plugin routes over the shared transport and existing plugin services.
-use super::{config::Asset, Field, Io, Request, Result, Span, Text, Transfer, Transfers};
+use super::{
+    c_bytes, component, config::Asset, Field, Io, Request, Result, Span, Text, Transfer, Transfers,
+};
 use core::ffi::{c_char, c_void};
 
 unsafe extern "C" {
@@ -41,17 +43,6 @@ const EMPTY: Span = Span {
 struct PluginRequest<'a> {
     t: Transfer<'a>,
     p: &'a Plugins,
-}
-fn c_bytes(bytes: &[u8]) -> &[u8] {
-    bytes.split(|&b| b == 0).next().unwrap_or(&[])
-}
-fn component(bytes: &[u8]) -> bool {
-    // Arduino String tests emptiness by length, but indexOf uses C-string searches.
-    let visible = c_bytes(bytes);
-    !bytes.is_empty()
-        && !visible.contains(&b'/')
-        && !visible.contains(&b'\\')
-        && !visible.windows(2).any(|p| p == b"..")
 }
 impl PluginRequest<'_> {
     fn r(&self) -> &Request<'_> {
@@ -202,6 +193,7 @@ impl PluginRequest<'_> {
             self.json(400, b"{\"error\":\"bad json\"}");
             return Ok(());
         }
+        drop(body);
         let path = Text::new(c_bytes(unsafe { self.value(c"path").bytes() }))?;
         let key = self.value(c"key");
         let key = Span::new(c_bytes(unsafe { key.bytes() }));

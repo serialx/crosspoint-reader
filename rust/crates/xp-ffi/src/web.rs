@@ -1391,3 +1391,23 @@ pub unsafe extern "C" fn xp_web_stream(ctx: *mut c_void, services: *const Servic
     };
     Request { ctx, services }.stream();
 }
+
+fn c_bytes(bytes: &[u8]) -> &[u8] {
+    bytes.split(|&b| b == 0).next().unwrap_or(&[])
+}
+fn component(bytes: &[u8]) -> bool {
+    // Arduino String tests emptiness by length, but indexOf uses C-string searches.
+    let visible = c_bytes(bytes);
+    !bytes.is_empty()
+        && !visible.contains(&b'/')
+        && !visible.contains(&b'\\')
+        && !visible.windows(2).any(|p| p == b"..")
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn xp_web_component(data: *const u8, len: usize) -> bool {
+    if data.is_null() && len != 0 {
+        return false;
+    }
+    component(unsafe { Span { data, len }.bytes() })
+}

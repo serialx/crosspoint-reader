@@ -1289,7 +1289,7 @@ namespace {
 
 // A path component is safe if it has no separators or parent refs.
 bool safeComponent(const String& s) {
-  return !s.isEmpty() && s.indexOf('/') < 0 && s.indexOf('\\') < 0 && s.indexOf("..") < 0;
+  return xp_web_component(reinterpret_cast<const uint8_t*>(s.c_str()), s.length());
 }
 
 }  // namespace

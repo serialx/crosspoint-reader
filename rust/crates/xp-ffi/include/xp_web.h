@@ -86,6 +86,7 @@ typedef enum {
   XP_WEB_NOT_FOUND
 } XpWebRoute;
 // File slots 0..2 belong to this request; every open is closed before return.
+bool xp_web_component(const uint8_t* data, size_t len);
 void xp_web_files(void* ctx, const XpWebServices* services, uint32_t route);
 void xp_web_stream(void* ctx, const XpWebServices* services);
 #ifdef __cplusplus

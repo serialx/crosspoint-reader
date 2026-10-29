@@ -22,10 +22,11 @@ is available. Sanitizers and the allocation sweep are separate options. Set
 Each record has the case name, responses/chunks, diagnostics, service calls,
 final in-memory filesystem bytes (hexadecimal), and settings/credential state.
 Generated source and actual transcripts stay in the selected build directory.
-`--mutation-check` changes download and settings responses, then suppresses
-synchronous disconnect handling, and requires rejection of each mutation.
-`--review-check` asserts completion consistency after allocation failure and
-translated file/HTTP/WS allocation errors before request teardown.
+`--mutation-check` changes download, settings, font, plugin, and job behavior,
+then suppresses synchronous disconnect handling; each mutation must be rejected.
+`--review-check` asserts completion consistency after allocation failure,
+translated file/HTTP/WS allocation errors, system-name filtering, release of the
+parsed book-key body before storage, and zero Rust allocations in job routes.
 `--record` deliberately replaces the golden and is only for reviewed baseline
 captures, never for accepting candidate differences.
 
@@ -50,7 +51,8 @@ allocator substitute injects allocate failures for job submit/complete, while
 reallocate is passed through. The transcript allocator trace covers only checked
 upload/download buffer requests, not total heap usage. `--fault-check` separately
 injects Rust allocation failures at 128 budgets for every case, checking that
-Rust allocations and the WebSocket upload owner are released after cleanup.
+Rust allocations and the WebSocket upload owner are released after cleanup. It
+also requires identical job transcripts with the Rust allocator disabled.
 Native `size_t` and
 `unsigned long` remain host-sized, so this suite does not establish target-width
 overflow parity. Synthetic fixtures contain no private books or credentials.

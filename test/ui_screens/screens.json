@@ -2555,11 +2555,438 @@
       "id": "fixture-settings-home-button",
       "fixture": "entry-settings-home-button",
       "screens": [
-        {"id": "home-button", "activity": "HomeButtonSettings", "steps": ["expect-log:Entering activity: HomeButtonSettings", "wait-quiet:2"]},
-        {"id": "home-button-options", "activity": "HomeButtonSettings", "steps": ["press:confirm"]},
-        {"id": "home-button-cancel", "activity": "HomeButtonSettings", "steps": ["press:back"]},
-        {"id": "home-button-double", "activity": "HomeButtonSettings", "steps": ["press:down"]},
-        {"id": "home-button-long", "activity": "HomeButtonSettings", "steps": ["press:down"]}
+        {
+          "id": "home-button",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "expect-log:Entering activity: HomeButtonSettings",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "home-button-options",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "home-button-cancel",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "home-button-double",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        },
+        {
+          "id": "home-button-long",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-browse",
+      "fixture": "entry-opds-browse",
+      "screens": [
+        {
+          "id": "opds-fixture-browse",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "opds-search",
+          "activity": "KeyboardEntry",
+          "steps": [
+            "press:left",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "opds-search-cancel",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "press:back",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-empty",
+      "fixture": "entry-opds-empty",
+      "screens": [
+        {
+          "id": "opds-fixture-empty",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-error",
+      "fixture": "entry-opds-error",
+      "screens": [
+        {
+          "id": "opds-fixture-error",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-loading",
+      "fixture": "entry-opds-loading",
+      "screens": [
+        {
+          "id": "opds-fixture-loading",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-download",
+      "fixture": "entry-opds-download",
+      "screens": [
+        {
+          "id": "opds-fixture-download",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-bytes",
+      "fixture": "entry-opds-bytes",
+      "screens": [
+        {
+          "id": "opds-fixture-bytes",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-opds-auth",
+      "fixture": "entry-opds-auth",
+      "screens": [
+        {
+          "id": "opds-fixture-auth",
+          "activity": "OpdsBookBrowser",
+          "steps": [
+            "expect-log:Entering activity: OpdsBookBrowser",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-browse",
+      "fixture": "entry-plugin-browse",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-browse",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "plugin-browse-next",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "plugin-browse-hold",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-xml",
+      "fixture": "entry-plugin-xml",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-xml",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "plugin-xml-next",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "plugin-xml-hold",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-lists",
+      "fixture": "entry-plugin-lists",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-lists",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "plugin-lists-next",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right"
+          ]
+        },
+        {
+          "id": "plugin-lists-hold",
+          "activity": "PluginCatalog",
+          "steps": [
+            "press:right:1200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-empty",
+      "fixture": "entry-plugin-empty",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-empty",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-error",
+      "fixture": "entry-plugin-error",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-error",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-loading",
+      "fixture": "entry-plugin-loading",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-loading",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-wifi",
+      "fixture": "entry-plugin-wifi",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-wifi",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-search",
+      "fixture": "entry-plugin-search",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-search",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-download",
+      "fixture": "entry-plugin-download",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-download",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-done",
+      "fixture": "entry-plugin-done",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-done",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-no-token",
+      "fixture": "entry-plugin-no-token",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-no-token",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-plugin-auth",
+      "fixture": "entry-plugin-auth",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "plugin-auth",
+          "activity": "PluginCatalog",
+          "steps": [
+            "expect-log:Entering activity: PluginCatalog",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-download",
+      "fixture": "entry-hub-download",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-download",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-done",
+      "fixture": "entry-hub-done",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-done",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-error",
+      "fixture": "entry-hub-error",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-error",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-hub-loading",
+      "fixture": "entry-hub-loading",
+      "rotates": false,
+      "screens": [
+        {
+          "id": "hub-loading",
+          "activity": "PluginHubInstall",
+          "steps": [
+            "expect-log:Entering activity: PluginHubInstall",
+            "wait-quiet:2"
+          ]
+        }
       ]
     },
     {

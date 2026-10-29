@@ -54,7 +54,8 @@ def prepare(case, kind):
     if kind.startswith('entry-'):
         name = kind.removeprefix('entry-')
         allowed = {'details-plain', 'details-html', 'details-cover', 'frontlight-mono', 'frontlight-warm',
-                   'unknown', 'oversized', 'settings-home-button'}
+                   'unknown', 'oversized', 'settings-home-button', 'opds-browse', 'opds-empty',
+                   'opds-error', 'opds-loading', 'opds-download', 'opds-bytes', 'opds-auth', 'plugin-browse', 'plugin-xml', 'plugin-lists', 'plugin-empty', 'plugin-error', 'plugin-loading', 'plugin-wifi', 'plugin-search', 'plugin-download', 'plugin-done', 'plugin-no-token', 'plugin-auth', 'hub-download', 'hub-done', 'hub-error', 'hub-loading'}
         if name not in allowed:
             raise ValueError(f'Unknown activity fixture: {kind}')
         selector = root / 'ui-oracle-case.txt'

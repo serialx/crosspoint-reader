@@ -48,6 +48,8 @@ pub struct Content<'a> {
     pub value_font: i32,
     pub padding_y: i16,
     pub lines: u8,
+    pub subtitle_lines: u8,
+    pub balance_value: bool,
     pub value_inset: i16,
     pub disabled: u32,
     pub managed: bool,
@@ -71,6 +73,8 @@ impl<'a> Content<'a> {
             value_font: small_font,
             padding_y,
             lines,
+            subtitle_lines: 1,
+            balance_value: true,
             value_inset,
             disabled: 0,
             managed: true,
@@ -151,7 +155,8 @@ impl list::Rows for Content<'_> {
                 0
             };
         let lines = self.lines;
-        if has_value
+        if self.balance_value
+            && has_value
             && lines > 1
             && self.resources.width(row.label, style.font, style.bold)? > label_width
         {
@@ -171,10 +176,21 @@ impl list::Rows for Content<'_> {
         } else {
             line
         };
-        let subtitle_height = if row.subtitle != 0 {
+        let subtitle_line = if row.subtitle != 0 {
             self.resources.line(self.small_font)?
         } else {
             0
+        };
+        let subtitle_height = if row.subtitle != 0 && self.subtitle_lines > 1 {
+            self.resources.height(
+                row.subtitle,
+                self.small_font,
+                0,
+                self.subtitle_lines,
+                i16_value(content_width)?,
+            )?
+        } else {
+            subtitle_line
         };
         let value_height = if row.toggle != 0 {
             28
@@ -189,7 +205,7 @@ impl list::Rows for Content<'_> {
         let needed = if self.padding_y >= 0 {
             text_height.max(icon) + 2 * i32::from(self.padding_y)
         } else if row.subtitle != 0 {
-            text_height + (row_min - line - subtitle_height).max(0)
+            text_height + (row_min - line - subtitle_line).max(0)
         } else if label_height > row_min {
             row_min + label_height - line
         } else {
@@ -335,7 +351,7 @@ impl list::Rows for Content<'_> {
                 fg,
                 0,
                 0,
-                1,
+                self.subtitle_lines,
             )?;
         }
         Ok(())

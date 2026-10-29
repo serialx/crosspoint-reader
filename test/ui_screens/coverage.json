@@ -40,7 +40,16 @@
     {
       "source": "src/activities/CatalogActivity.cpp",
       "status": "shared-implementation",
-      "reason": "No separate activity entry; exercised through its concrete callers."
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
+      "groups": [
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
+      ]
     },
     {
       "source": "src/activities/UiListActivity.cpp",
@@ -85,9 +94,16 @@
       "source": "src/activities/browser/OpdsBookBrowserActivity.cpp",
       "status": "offline-gate",
       "groups": [
-        "opds-offline"
+        "opds-offline",
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
       ],
-      "reason": "OPDS requires a successful Wi-Fi connection before catalog results, details, pagination, and download/progress/error states.",
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
       "contract": "src/activities/CatalogActivity.cpp:52"
     },
     {
@@ -185,7 +201,19 @@
       "status": "captured",
       "groups": [
         "plugin-readme",
-        "plugins"
+        "plugins",
+        "fixture-plugin-browse",
+        "fixture-plugin-xml",
+        "fixture-plugin-lists",
+        "fixture-plugin-empty",
+        "fixture-plugin-error",
+        "fixture-plugin-loading",
+        "fixture-plugin-wifi",
+        "fixture-plugin-search",
+        "fixture-plugin-download",
+        "fixture-plugin-done",
+        "fixture-plugin-no-token",
+        "fixture-plugin-auth"
       ],
       "activity": "PluginCatalog"
     },
@@ -473,7 +501,11 @@
       "source": "src/activities/settings/PluginHubInstallActivity.cpp",
       "status": "offline-gate",
       "groups": [
-        "plugins"
+        "plugins",
+        "fixture-hub-download",
+        "fixture-hub-done",
+        "fixture-hub-error",
+        "fixture-hub-loading"
       ],
       "reason": "Wi-Fi gate captured; remote plugin catalog/download/install states require the hub.",
       "contract": "src/activities/settings/PluginHubInstallActivity.cpp:39"
@@ -668,6 +700,20 @@
         "status-cache"
       ],
       "reason": "Shared settings-family Rust scene binding and ABI layout checks."
+    },
+    {
+      "source": "src/activities/CatalogUiActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
+      "groups": [
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
+      ]
     }
   ],
   "additional_limits": [

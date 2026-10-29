@@ -168,3 +168,5 @@ mod ui_text_settings;
 mod ui_boot;
 
 mod book_residual;
+
+mod ui_catalog;

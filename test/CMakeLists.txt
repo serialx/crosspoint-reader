@@ -184,3 +184,4 @@ add_subdirectory(home_ui)
 add_subdirectory(boot_ui)
 
 add_subdirectory(dictionary_engine)
+add_subdirectory(ui_catalog)

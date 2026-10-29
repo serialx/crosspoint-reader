@@ -26,15 +26,10 @@ class OpdsBookBrowserActivity final : public CatalogActivity {
   void onExit() override;
 
  private:
-  // Subclass actions after the base's ACTION_SEARCH/ACTION_CANCEL.
-  static constexpr freeink::ui::ActionId ACTION_PAGE = ACTION_USER + 2;
-
+#ifdef CROSSPOINT_UI_ORACLE
+  friend bool uiOracleOpdsEnter(OpdsBookBrowserActivity&);
+#endif
   std::vector<OpdsEntry> entries;
-  // Row buffer, built whenever entries changes (fetchFeed()/releaseEntries())
-  // so buildBrowsingScreen() reuses it on every repaint instead of rebuilding
-  // a ListItem vector per render.
-  std::vector<freeink::ui::ListItem> rowItems;
-  void rebuildRowItems();
   std::vector<std::string> navigationHistory;
   std::string currentPath;
   // The active search query. While browsing its results the header shows it
@@ -85,27 +80,27 @@ class OpdsBookBrowserActivity final : public CatalogActivity {
   OpdsHttpTransport opdsTransport;
   freeink::opds::OpdsClient opdsClient{opdsTransport};
 
-  // --- CatalogActivity / UiListActivity contract -----------------------------
-  int listCount() const override { return state == State::BROWSING ? static_cast<int>(entries.size()) : 0; }
+  // Catalog UI resource and network bindings.
+  int listCount() const override { return getState() == State::BROWSING ? static_cast<int>(entries.size()) : 0; }
   bool hasSearch() const override { return !searchTemplate.empty() || !searchDescriptionUrl.empty(); }
   std::string searchPrefill() const override { return searchQuery; }
   void activateIndex(int index) override;
-  void buildScreen(UiScreen& screen) override;
+  bool rowAt(int, XpUiCatalogRow&) const override;
+  const char* headerTitle() const override { return browserTitle(); }
+  const char* catalogText(uint32_t) const override;
+  uint8_t pageLinks() const override;
+  void pageNumbers(int32_t& current, int32_t& total) const override {
+    current = pageCurrent;
+    total = pageTotal;
+  }
+  mutable char pageText[32]{};
   void drawFooter() override;
   void startBrowse() override;
   void downloadFinished(bool cancelled) override;
   void performSearch(const std::string& query) override;
   void onBackButton() override;
-  // Pagination side buttons; everything else
-  // falls through to the shared catalog input handling.
-  bool handleCustomInput() override;
-
-  // Bottom pagination tab bar (arrow icons); drawn only when the feed
-  // advertises next/previous/first/last links.
-  void buildPaginationBar(UiScreen& screen);
+  void catalogEffect(const XpUiEffect&) override;
   void followPageLink(const std::string& href);
-  void buildBrowsingScreen(UiScreen& screen);
-  static void onPageEvent(const freeink::ui::ActionEvent& event, void* user);
 
   // LCP acquisition: fetch the license, fulfill through the LCP service,
   // then prompt for the passphrase and store the device-wrapped book key.

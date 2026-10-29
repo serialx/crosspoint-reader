@@ -1,14 +1,14 @@
 #pragma once
 
 #include "OpdsServerStore.h"
-#include "activities/UiListActivity.h"
+#include "activities/CatalogUiActivity.h"
 
 /**
  * Edit screen for a single OPDS server.
  * Shows Name, URL, Username, Password fields and a Delete option.
  * Used for both adding new servers and editing existing ones.
  */
-class OpdsSettingsActivity final : public UiListActivity {
+class OpdsSettingsActivity final : public CatalogUiActivity {
  public:
   /**
    * @param serverIndex Index into OpdsServerStore, or -1 for a new server
@@ -18,13 +18,11 @@ class OpdsSettingsActivity final : public UiListActivity {
   void onEnter() override;
 
  private:
-  int serverIndex;
   OpdsServer editServer;
-  bool isNewServer = false;
-  bool showSaveError = false;
 
   int listCount() const override { return getMenuItemCount(); }
-  void buildScreen(UiScreen& screen) override;
+  void prepareRows() override;
+  bool rowAt(int index, XpUiCatalogRow& row) const override;
   void activateIndex(int index) override;
   const char* headerTitle() const override;
   void drawFooter() override;
@@ -33,16 +31,5 @@ class OpdsSettingsActivity final : public UiListActivity {
   void handleSelection();
   bool saveServer();
 
-  // Row storage: at most 7 rows (Name/URL/Username/Password/2 custom headers
-  // + Delete, see BASE_ITEMS in the .cpp), so a fixed-capacity array avoids
-  // any heap allocation for the row list. Labels are set once in the
-  // constructor (they never change); buildScreen() only refreshes the value
-  // pointers.
-  static constexpr int MAX_MENU_ITEMS = 7;
-  freeink::ui::ListItem fieldRowItems[MAX_MENU_ITEMS]{};
-
-  // Masked "Name: ******" display text for the two custom header rows.
-  // fieldRowItems[i].value points here, so these must outlive each render
-  // (unlike Name/URL/Username, which point directly into editServer's fields).
   std::string headerDisplayBuf[OpdsServer::MAX_CUSTOM_HEADERS];
 };

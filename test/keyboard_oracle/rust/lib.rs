@@ -92,3 +92,19 @@ pub unsafe extern "C" fn oracle_widget(
     };
     1
 }
+
+// The debug staticlib retains asset code; keyboard oracles must never call it.
+#[no_mangle]
+pub extern "C" fn xp_assets_platform_alloc(_bytes: usize, _caps: u32) -> *mut u8 {
+    std::process::abort()
+}
+
+#[no_mangle]
+pub extern "C" fn xp_assets_platform_realloc(_data: *mut u8, _bytes: usize, _caps: u32) -> *mut u8 {
+    std::process::abort()
+}
+
+#[no_mangle]
+pub extern "C" fn xp_assets_platform_free(_data: *mut u8) {
+    std::process::abort()
+}

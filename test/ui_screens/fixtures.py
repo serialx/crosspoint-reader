@@ -55,7 +55,10 @@ def prepare(case, kind):
         name = kind.removeprefix('entry-')
         allowed = {'details-plain', 'details-html', 'details-cover', 'frontlight-mono', 'frontlight-warm',
                    'unknown', 'oversized', 'settings-home-button'}
-        if name not in allowed:
+        update_cases = {f'upd-{family}-{phase}' for family, phases in
+                        [('ota', range(1, 7)), ('sd', range(6)), ('cache', range(4)), ('font', range(1, 7))]
+                        for phase in phases}
+        if name not in allowed | update_cases:
             raise ValueError(f'Unknown activity fixture: {kind}')
         selector = root / 'ui-oracle-case.txt'
         selector.write_text('x' * 32 if name == 'oversized' else name)

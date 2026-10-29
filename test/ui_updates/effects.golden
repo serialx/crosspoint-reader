@@ -1,0 +1,1024 @@
+CASE ota-check
+enter OtaUpdate
+DBG OTA Turning on WiFi...
+wifi.mode 1
+DBG OTA Launching WifiSelectionActivity...
+push WifiSelection
+DBG OTA WiFi connected, checking for update
+render.wait
+ota.check
+ota.newer
+DBG OTA No new update available
+state 4 sleep 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.center 384 1 STR_NO_UPDATE
+paint.hints STR_BACK |  |  | 
+panel.fast
+exit OtaUpdate
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE ota-check
+enter OtaUpdate
+DBG OTA Turning on WiFi...
+wifi.mode 1
+DBG OTA Launching WifiSelectionActivity...
+push WifiSelection
+DBG OTA WiFi connected, checking for update
+render.wait
+ota.check
+ota.newer
+popup STR_NEW_UPDATE 2 1 STR_CANCEL STR_UPDATE
+render.request 0
+state 2 sleep 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.text 16 132 STR_CURRENT_VERSIONbaseline
+paint.text 16 164 STR_NEW_VERSIONnew
+paint.popup 1
+panel.fast
+exit OtaUpdate
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE ota-check
+enter OtaUpdate
+DBG OTA Turning on WiFi...
+wifi.mode 1
+DBG OTA Launching WifiSelectionActivity...
+push WifiSelection
+DBG OTA WiFi connected, checking for update
+render.wait
+ota.check
+DBG OTA No firmware asset for this board in latest release
+state 4 sleep 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.center 384 1 STR_NO_UPDATE
+paint.hints STR_BACK |  |  | 
+panel.fast
+exit OtaUpdate
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE ota-check
+enter OtaUpdate
+DBG OTA Turning on WiFi...
+wifi.mode 1
+DBG OTA Launching WifiSelectionActivity...
+push WifiSelection
+DBG OTA WiFi connected, checking for update
+render.wait
+ota.check
+DBG OTA No firmware asset for this board in latest release
+state 4 sleep 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.center 384 1 STR_NO_UPDATE
+paint.hints STR_BACK |  |  | 
+panel.fast
+exit OtaUpdate
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE ota-check
+enter OtaUpdate
+DBG OTA Turning on WiFi...
+wifi.mode 1
+DBG OTA Launching WifiSelectionActivity...
+push WifiSelection
+DBG OTA WiFi connected, checking for update
+render.wait
+ota.check
+DBG OTA Update check failed: 2
+state 5 sleep 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.hints STR_BACK |  |  | 
+panel.fast
+exit OtaUpdate
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE ota-check
+enter OtaUpdate
+DBG OTA Turning on WiFi...
+wifi.mode 1
+DBG OTA Launching WifiSelectionActivity...
+push WifiSelection
+DBG OTA WiFi connected, checking for update
+render.wait
+ota.check
+DBG OTA Update check failed: 2
+state 5 sleep 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.hints STR_BACK |  |  | 
+panel.fast
+exit OtaUpdate
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE ota-wifi-cancel
+ERR OTA WiFi connection failed, exiting
+finish
+CASE ota-install
+DBG OTA New update available, starting download...
+render.wait
+ota.install
+ota.progress 0
+render.request 1
+ota.progress 1
+render.request 1
+ota.progress 2
+render.request 1
+ota.progress 99
+render.request 1
+ota.progress 100
+render.request 1
+render.wait
+delay 3000
+state 7
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+panel.fast
+restart.normal
+CASE ota-install
+DBG OTA New update available, starting download...
+render.wait
+ota.install
+ota.progress 0
+render.request 1
+ota.progress 1
+render.request 1
+ota.progress 2
+render.request 1
+ota.progress 99
+render.request 1
+ota.progress 100
+render.request 1
+DBG OTA Update failed: 2
+render.request 0
+state 5
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE ota-install
+DBG OTA New update available, starting download...
+render.wait
+ota.install
+ota.progress 0
+render.request 1
+ota.progress 1
+render.request 1
+ota.progress 2
+render.request 1
+ota.progress 99
+render.request 1
+ota.progress 100
+render.request 1
+DBG OTA Update failed: 3
+render.request 0
+state 5
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_WRONG_DEVICE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE ota-progress
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 0 / 100
+paint.center 384 0 STR_UPDATING
+DBG UI Drawing progress bar: current=0, total=100, percent=0
+paint.rect 16 416 496 24
+paint.center 455 0 0%
+paint.center 480 0 0 / 100
+panel.fast
+percent 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 1 / 100
+percent 0
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 2 / 100
+paint.center 384 0 STR_UPDATING
+DBG UI Drawing progress bar: current=2, total=100, percent=2
+paint.rect 16 416 496 24
+paint.fill 18 418 9 20
+paint.center 455 0 2%
+paint.center 480 0 2 / 100
+panel.fast
+percent 2
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 3 / 100
+percent 2
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 4 / 100
+paint.center 384 0 STR_UPDATING
+DBG UI Drawing progress bar: current=4, total=100, percent=4
+paint.rect 16 416 496 24
+paint.fill 18 418 19 20
+paint.center 455 0 4%
+paint.center 480 0 4 / 100
+panel.fast
+percent 4
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 49 / 100
+paint.center 384 0 STR_UPDATING
+DBG UI Drawing progress bar: current=49, total=100, percent=49
+paint.rect 16 416 496 24
+paint.fill 18 418 241 20
+paint.center 455 0 49%
+paint.center 480 0 49 / 100
+panel.fast
+percent 49
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 50 / 100
+paint.center 384 0 STR_UPDATING
+DBG UI Drawing progress bar: current=50, total=100, percent=50
+paint.rect 16 416 496 24
+paint.fill 18 418 246 20
+paint.center 455 0 50%
+paint.center 480 0 50 / 100
+panel.fast
+percent 50
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 99 / 100
+paint.center 384 0 STR_UPDATING
+DBG UI Drawing progress bar: current=99, total=100, percent=99
+paint.rect 16 416 496 24
+paint.fill 18 418 487 20
+paint.center 455 0 99%
+paint.center 480 0 99 / 100
+panel.fast
+percent 99
+paint.clear
+paint.header 0 12 528 36 STR_UPDATE | 
+DBG OTA Update progress: 100 / 100
+paint.center 384 0 STR_UPDATING
+DBG UI Drawing progress bar: current=100, total=100, percent=100
+paint.rect 16 416 496 24
+paint.fill 18 418 492 20
+paint.center 455 0 100%
+paint.center 480 0 100 / 100
+panel.fast
+percent 100
+CASE ota-dismiss
+finish
+finished 1
+CASE ota-dismiss
+finished 0
+CASE ota-dismiss
+finished 0
+CASE ota-dismiss
+finish
+finished 1
+CASE ota-dismiss
+finish
+finished 1
+CASE ota-dismiss
+finished 0
+CASE ota-dismiss
+finished 0
+CASE ota-dismiss
+finish
+finished 1
+CASE sd-picker-cancel
+enter SdFirmwareUpdate
+INF FW SdFirmwareUpdateActivity build=Oct 29 2026 00:00:00 recovery=0
+push FileBrowser
+finish
+CASE sd-confirm-cancel
+finish
+CASE sd-failed-input
+finish
+state 5
+CASE sd-failed-input
+finish
+state 5
+CASE sd-failed-input
+state 5
+CASE sd-failed-input
+finish
+state 5
+CASE sd-picker-cancel
+enter SdFirmwareUpdate
+INF FW SdFirmwareUpdateActivity build=Oct 29 2026 00:00:00 recovery=1
+push FileBrowser
+push FileBrowser
+CASE sd-confirm-cancel
+push FileBrowser
+CASE sd-failed-input
+push FileBrowser
+state 0
+CASE sd-failed-input
+push FileBrowser
+state 0
+CASE sd-failed-input
+state 5
+CASE sd-failed-input
+push FileBrowser
+state 0
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 200
+file.close firmware
+partition.next
+firmware.validate /firmware.bin 1000
+confirm STR_FIRMWARE_UPDATE_PROMPT | firmware.bin
+push Confirmation
+state 2 error 
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+render.request 0
+state 5 error STR_FIRMWARE_FILE_OPEN_FAILED
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_FILE_OPEN_FAILED
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 200
+file.close firmware
+partition.next
+ERR FW no next-update partition available
+render.request 0
+state 5 error STR_INVALID_FIRMWARE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_INVALID_FIRMWARE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 1001
+file.close firmware
+partition.next
+ERR FW firmware (1001 bytes) exceeds partition (1000 bytes)
+render.request 0
+state 5 error STR_FIRMWARE_TOO_LARGE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_TOO_LARGE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 200
+file.close firmware
+partition.next
+firmware.validate /firmware.bin 1000
+ERR FW image validation failed: TOO_LARGE
+render.request 0
+state 5 error STR_FIRMWARE_TOO_LARGE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_TOO_LARGE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 200
+file.close firmware
+partition.next
+firmware.validate /firmware.bin 1000
+ERR FW image validation failed: TOO_SMALL
+render.request 0
+state 5 error STR_FIRMWARE_TOO_SMALL
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_TOO_SMALL
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 200
+file.close firmware
+partition.next
+firmware.validate /firmware.bin 1000
+ERR FW image validation failed: BAD_CHIP
+render.request 0
+state 5 error STR_FIRMWARE_WRONG_DEVICE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_WRONG_DEVICE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 200
+file.close firmware
+partition.next
+firmware.validate /firmware.bin 1000
+ERR FW image validation failed: WRONG_BOARD
+render.request 0
+state 5 error STR_FIRMWARE_WRONG_DEVICE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_WRONG_DEVICE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-validate
+DBG FW Selected: /firmware.bin
+render.wait
+file.open FW /firmware.bin
+file.size 200
+file.close firmware
+partition.next
+firmware.validate /firmware.bin 1000
+ERR FW image validation failed: BAD_IMAGE
+render.request 0
+state 5 error STR_INVALID_FIRMWARE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_INVALID_FIRMWARE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-flash
+render.wait
+INF FW SD update: /firmware.bin (200 bytes)
+firmware.flash /firmware.bin revalidate
+firmware.progress 0 100
+render.request 1
+firmware.progress 1 100
+render.request 1
+firmware.progress 2 100
+render.request 1
+firmware.progress 99 100
+render.request 1
+firmware.progress 100 100
+render.request 1
+INF FW SD firmware update complete, restarting
+render.wait
+delay 1500
+restart.normal
+state 4 error 
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_COMPLETE
+paint.wrap 16 416 496 376 3 STR_RESTARTING_HINT
+panel.fast
+CASE sd-flash
+render.wait
+INF FW SD update: /firmware.bin (200 bytes)
+firmware.flash /firmware.bin revalidate
+firmware.progress 0 100
+render.request 1
+firmware.progress 1 100
+render.request 1
+firmware.progress 2 100
+render.request 1
+firmware.progress 99 100
+render.request 1
+firmware.progress 100 100
+render.request 1
+ERR FW flash failed: BAD_CHIP
+render.request 0
+state 5 error STR_FIRMWARE_WRONG_DEVICE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_WRONG_DEVICE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-flash
+render.wait
+INF FW SD update: /firmware.bin (200 bytes)
+firmware.flash /firmware.bin revalidate
+firmware.progress 0 100
+render.request 1
+firmware.progress 1 100
+render.request 1
+firmware.progress 2 100
+render.request 1
+firmware.progress 99 100
+render.request 1
+firmware.progress 100 100
+render.request 1
+ERR FW flash failed: WRONG_BOARD
+render.request 0
+state 5 error STR_FIRMWARE_WRONG_DEVICE
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_WRONG_DEVICE
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-flash
+render.wait
+INF FW SD update: /firmware.bin (200 bytes)
+firmware.flash /firmware.bin revalidate
+firmware.progress 0 100
+render.request 1
+firmware.progress 1 100
+render.request 1
+firmware.progress 2 100
+render.request 1
+firmware.progress 99 100
+render.request 1
+firmware.progress 100 100
+render.request 1
+ERR FW flash failed: WRITE
+render.request 0
+state 5 error STR_FIRMWARE_WRITE_FAILED
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATE_FAILED
+paint.center 416 0 STR_FIRMWARE_WRITE_FAILED
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE sd-progress
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATING
+DBG UI Drawing progress bar: current=0, total=100, percent=0
+paint.rect 16 416 496 24
+paint.center 455 0 0%
+paint.center 480 0 STR_FIRMWARE_UPDATE_DO_NOT_POWER_OFF
+panel.fast
+percent 0
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+percent 0
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+percent 0
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATING
+DBG UI Drawing progress bar: current=1, total=100, percent=1
+paint.rect 16 416 496 24
+paint.fill 18 418 4 20
+paint.center 455 0 1%
+paint.center 480 0 STR_FIRMWARE_UPDATE_DO_NOT_POWER_OFF
+panel.fast
+percent 1
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+percent 1
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+percent 1
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATING
+DBG UI Drawing progress bar: current=2, total=100, percent=2
+paint.rect 16 416 496 24
+paint.fill 18 418 9 20
+paint.center 455 0 2%
+paint.center 480 0 STR_FIRMWARE_UPDATE_DO_NOT_POWER_OFF
+panel.fast
+percent 2
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATING
+DBG UI Drawing progress bar: current=99, total=100, percent=99
+paint.rect 16 416 496 24
+paint.fill 18 418 487 20
+paint.center 455 0 99%
+paint.center 480 0 STR_FIRMWARE_UPDATE_DO_NOT_POWER_OFF
+panel.fast
+percent 99
+paint.clear
+paint.header 0 12 528 36 STR_SD_FIRMWARE_UPDATE | 
+paint.center 384 1 STR_UPDATING
+DBG UI Drawing progress bar: current=100, total=100, percent=100
+paint.rect 16 416 496 24
+paint.fill 18 418 492 20
+paint.center 455 0 100%
+paint.center 480 0 STR_FIRMWARE_UPDATE_DO_NOT_POWER_OFF
+panel.fast
+percent 100
+CASE cache-clear
+enter ClearCache
+popup STR_CLEAR_READING_CACHE 2 0 STR_CANCEL STR_CLEAR_BUTTON
+popup.message STR_CLEAR_CACHE_WARNING_2
+render.request 0
+DBG CLEAR_CACHE User confirmed, starting cache clear
+render.wait
+DBG CLEAR_CACHE Clearing cache...
+directory.open /.crosspoint
+file.next epub_good
+file.name epub_good
+DBG CLEAR_CACHE Removing cache: /.crosspoint/epub_good
+file.close epub_good
+directory.remove /.crosspoint/epub_good
+file.next txt_bad
+file.name txt_bad
+DBG CLEAR_CACHE Removing cache: /.crosspoint/txt_bad
+file.close txt_bad
+directory.remove /.crosspoint/txt_bad
+ERR CLEAR_CACHE Failed to remove: /.crosspoint/txt_bad
+file.next xtc_ok
+file.name xtc_ok
+DBG CLEAR_CACHE Removing cache: /.crosspoint/xtc_ok
+file.close xtc_ok
+directory.remove /.crosspoint/xtc_ok
+file.next settings
+file.name settings
+file.close settings
+file.next epub_file
+file.name epub_file
+file.close epub_file
+file.close root
+DBG CLEAR_CACHE Cache cleared: 2 removed, 1 failed
+render.request 0
+state 2 removed 2 failed 1
+paint.clear
+paint.header 0 12 528 36 STR_CLEAR_READING_CACHE | 
+paint.center 376 1 STR_CACHE_CLEARED
+paint.center 406 0 2 STR_ITEMS_REMOVED, 1 STR_FAILED_LOWER
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE cache-clear
+enter ClearCache
+popup STR_CLEAR_READING_CACHE 2 0 STR_CANCEL STR_CLEAR_BUTTON
+popup.message STR_CLEAR_CACHE_WARNING_2
+render.request 0
+DBG CLEAR_CACHE User confirmed, starting cache clear
+render.wait
+DBG CLEAR_CACHE Clearing cache...
+directory.open /.crosspoint
+DBG CLEAR_CACHE Failed to open cache directory
+render.request 0
+state 3 removed 0 failed 0
+paint.clear
+paint.header 0 12 528 36 STR_CLEAR_READING_CACHE | 
+paint.center 376 1 STR_CLEAR_CACHE_FAILED
+paint.center 406 0 STR_CHECK_SERIAL_OUTPUT
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE cache-clear
+enter ClearCache
+popup STR_CLEAR_READING_CACHE 2 0 STR_CANCEL STR_CLEAR_BUTTON
+popup.message STR_CLEAR_CACHE_WARNING_2
+render.request 0
+DBG CLEAR_CACHE User confirmed, starting cache clear
+render.wait
+DBG CLEAR_CACHE Clearing cache...
+directory.open /.crosspoint
+DBG CLEAR_CACHE Failed to open cache directory
+file.close root
+render.request 0
+state 3 removed 0 failed 0
+paint.clear
+paint.header 0 12 528 36 STR_CLEAR_READING_CACHE | 
+paint.center 376 1 STR_CLEAR_CACHE_FAILED
+paint.center 406 0 STR_CHECK_SERIAL_OUTPUT
+paint.hints STR_BACK |  |  | 
+panel.fast
+CASE cache-confirm
+enter ClearCache
+popup STR_CLEAR_READING_CACHE 2 0 STR_CANCEL STR_CLEAR_BUTTON
+popup.message STR_CLEAR_CACHE_WARNING_2
+render.request 0
+render.request 0
+finish
+state 0 finished 1
+CASE cache-confirm
+enter ClearCache
+popup STR_CLEAR_READING_CACHE 2 0 STR_CANCEL STR_CLEAR_BUTTON
+popup.message STR_CLEAR_CACHE_WARNING_2
+render.request 0
+DBG CLEAR_CACHE User confirmed, starting cache clear
+render.wait
+DBG CLEAR_CACHE Clearing cache...
+directory.open /.crosspoint
+file.close root
+DBG CLEAR_CACHE Cache cleared: 0 removed, 0 failed
+render.request 0
+render.request 0
+state 2 finished 0
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/one.cpfont
+DBG FONT Downloaded one.cpfont (size=100 crc32=0000002a)
+font.validate /fonts/Family/one.cpfont
+render.wait
+http.download http://fonts/two.cpfont /fonts/Family/two.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/two.cpfont
+DBG FONT Downloaded two.cpfont (size=100 crc32=0000002a)
+font.validate /fonts/Family/two.cpfont
+font.registry
+state 5 files 2 installed 1 update 0 cancel 0 home 0 error 
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 100 bytes
+ERR FONT Low heap for download (100 free, 100000 max block)
+state 6 files 0 installed 0 update 0 cancel 0 home 0 error STR_MEMORY_ERROR
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+state 6 files 0 installed 0 update 0 cancel 0 home 0 error Failed to create font directory
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+ERR FONT Download failed: one.cpfont (2)
+font.delete Family
+state 6 files 0 installed 0 update 0 cancel 0 home 0 error Download failed: one.cpfont
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/one.cpfont
+ERR FONT Failed to open file for CRC check: /fonts/Family/one.cpfont
+font.delete Family
+state 6 files 0 installed 0 update 0 cancel 0 home 0 error Failed to compute checksum: one.cpfont
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/one.cpfont
+ERR FONT CRC32 mismatch for one.cpfont: got 0000002b expected 0000002a
+font.delete Family
+state 6 files 0 installed 0 update 0 cancel 0 home 0 error Checksum mismatch: one.cpfont
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/one.cpfont
+DBG FONT Downloaded one.cpfont (size=100 crc32=0000002a)
+font.validate /fonts/Family/one.cpfont
+ERR FONT Invalid .cpfont: /fonts/Family/one.cpfont
+font.delete Family
+state 6 files 0 installed 0 update 0 cancel 0 home 0 error Invalid font file: one.cpfont
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+http.aborted
+font.delete Family
+state 3 files 0 installed 0 update 0 cancel 1 home 0 error 
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+http.aborted
+font.delete Family
+state 3 files 0 installed 0 update 0 cancel 1 home 0 error 
+CASE font-transfer
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+http.aborted
+font.delete Family
+home
+state 4 files 0 installed 0 update 0 cancel 1 home 1 error 
+CASE font-input
+render.request 0
+state 3
+CASE font-input
+render.request 0
+state 3
+CASE font-input
+render.request 0
+state 3
+CASE font-input
+render.request 0
+state 3
+CASE font-input
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/one.cpfont
+DBG FONT Downloaded one.cpfont (size=100 crc32=0000002a)
+font.validate /fonts/Family/one.cpfont
+render.wait
+http.download http://fonts/two.cpfont /fonts/Family/two.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/two.cpfont
+DBG FONT Downloaded two.cpfont (size=100 crc32=0000002a)
+font.validate /fonts/Family/two.cpfont
+font.registry
+render.wait
+state 5
+CASE font-input
+render.wait
+font-cache.release
+DBG FONT Free heap after SD font cache release: 200000 bytes
+font.ensure Family
+render.wait
+http.download http://fonts/one.cpfont /fonts/Family/one.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/one.cpfont
+DBG FONT Downloaded one.cpfont (size=100 crc32=0000002a)
+font.validate /fonts/Family/one.cpfont
+render.wait
+http.download http://fonts/two.cpfont /fonts/Family/two.cpfont downgrade=1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+input.pump 1
+render.request 1
+font.crc /fonts/Family/two.cpfont
+DBG FONT Downloaded two.cpfont (size=100 crc32=0000002a)
+font.validate /fonts/Family/two.cpfont
+font.registry
+render.wait
+state 5
+CASE font-wifi
+enter FontDownload
+wifi.mode 1
+push WifiSelection
+render.wait
+manifest.fetch
+state 6
+exit FontDownload
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE font-wifi
+enter FontDownload
+wifi.mode 1
+push WifiSelection
+render.wait
+manifest.fetch
+state 3
+exit FontDownload
+wifi.disconnect 0
+delay 30
+restart.silent
+CASE font-view
+paint.clear
+paint.header 0 12 528 36 STR_FONT_BROWSER | 
+panel.fast
+sleep 0
+CASE font-view
+paint.clear
+paint.header 0 12 528 36 STR_FONT_BROWSER | 
+paint.center 384 0 STR_LOADING_FONT_LIST
+panel.fast
+sleep 1
+CASE font-view
+paint.clear
+paint.header 0 12 528 36 STR_FONT_BROWSER | 
+paint.list
+paint.hints STR_BACK | STR_OPEN | STR_DIR_UP | STR_DIR_DOWN
+panel.fast
+sleep 0
+CASE font-view
+paint.clear
+paint.header 0 12 528 36 STR_FONT_BROWSER | 
+paint.list
+paint.hints STR_BACK | STR_DOWNLOAD | STR_DIR_UP | STR_DIR_DOWN
+panel.fast
+sleep 0
+CASE font-view
+paint.clear
+paint.header 0 12 528 36 STR_FONT_BROWSER | 
+paint.center 360 0 STR_DOWNLOADING Family (1/2)
+DBG UI Drawing progress bar: current=49, total=100, percent=49
+paint.rect 16 392 496 24
+paint.fill 18 394 241 20
+paint.center 431 0 49%
+paint.hints STR_CANCEL |  |  | 
+panel.fast
+sleep 1
+CASE font-view
+paint.clear
+paint.header 0 12 528 36 STR_FONT_BROWSER | 
+paint.center 384 1 STR_FONT_INSTALLED
+paint.hints STR_BACK |  |  | 
+panel.fast
+sleep 1
+CASE font-view
+paint.clear
+paint.header 0 12 528 36 STR_FONT_BROWSER | 
+paint.center 360 1 STR_FONT_INSTALL_FAILED
+paint.center 392 0 failure
+paint.hints STR_BACK | STR_RETRY |  | 
+panel.fast
+sleep 1

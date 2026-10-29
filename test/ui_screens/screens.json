@@ -2555,11 +2555,1032 @@
       "id": "fixture-settings-home-button",
       "fixture": "entry-settings-home-button",
       "screens": [
-        {"id": "home-button", "activity": "HomeButtonSettings", "steps": ["expect-log:Entering activity: HomeButtonSettings", "wait-quiet:2"]},
-        {"id": "home-button-options", "activity": "HomeButtonSettings", "steps": ["press:confirm"]},
-        {"id": "home-button-cancel", "activity": "HomeButtonSettings", "steps": ["press:back"]},
-        {"id": "home-button-double", "activity": "HomeButtonSettings", "steps": ["press:down"]},
-        {"id": "home-button-long", "activity": "HomeButtonSettings", "steps": ["press:down"]}
+        {
+          "id": "home-button",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "expect-log:Entering activity: HomeButtonSettings",
+            "wait-quiet:2"
+          ]
+        },
+        {
+          "id": "home-button-options",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:confirm"
+          ]
+        },
+        {
+          "id": "home-button-cancel",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:back"
+          ]
+        },
+        {
+          "id": "home-button-double",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        },
+        {
+          "id": "home-button-long",
+          "activity": "HomeButtonSettings",
+          "steps": [
+            "press:down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-1-theme0",
+      "fixture": "entry-upd-ota-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-1",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-1-theme1",
+      "fixture": "entry-upd-ota-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-1",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-1-theme3",
+      "fixture": "entry-upd-ota-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-1",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-2-theme0",
+      "fixture": "entry-upd-ota-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-2",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-2-theme1",
+      "fixture": "entry-upd-ota-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-2",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-2-theme3",
+      "fixture": "entry-upd-ota-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-2",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-3-theme0",
+      "fixture": "entry-upd-ota-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-3",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-3-theme1",
+      "fixture": "entry-upd-ota-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-3",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-3-theme3",
+      "fixture": "entry-upd-ota-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-3",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-4-theme0",
+      "fixture": "entry-upd-ota-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-4",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-4-theme1",
+      "fixture": "entry-upd-ota-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-4",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-4-theme3",
+      "fixture": "entry-upd-ota-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-4",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-5-theme0",
+      "fixture": "entry-upd-ota-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-5",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-5-theme1",
+      "fixture": "entry-upd-ota-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-5",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-5-theme3",
+      "fixture": "entry-upd-ota-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-5",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-6-theme0",
+      "fixture": "entry-upd-ota-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-ota-6",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-6-theme1",
+      "fixture": "entry-upd-ota-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-ota-6",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-ota-6-theme3",
+      "fixture": "entry-upd-ota-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-ota-6",
+          "activity": "OtaUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-0-theme0",
+      "fixture": "entry-upd-sd-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-0",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-0-theme1",
+      "fixture": "entry-upd-sd-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-0",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-0-theme3",
+      "fixture": "entry-upd-sd-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-0",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-1-theme0",
+      "fixture": "entry-upd-sd-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-1",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-1-theme1",
+      "fixture": "entry-upd-sd-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-1",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-1-theme3",
+      "fixture": "entry-upd-sd-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-1",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-2-theme0",
+      "fixture": "entry-upd-sd-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-2",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-2-theme1",
+      "fixture": "entry-upd-sd-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-2",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-2-theme3",
+      "fixture": "entry-upd-sd-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-2",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-3-theme0",
+      "fixture": "entry-upd-sd-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-3",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-3-theme1",
+      "fixture": "entry-upd-sd-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-3",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-3-theme3",
+      "fixture": "entry-upd-sd-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-3",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-4-theme0",
+      "fixture": "entry-upd-sd-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-4",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-4-theme1",
+      "fixture": "entry-upd-sd-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-4",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-4-theme3",
+      "fixture": "entry-upd-sd-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-4",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-5-theme0",
+      "fixture": "entry-upd-sd-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-sd-5",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-5-theme1",
+      "fixture": "entry-upd-sd-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-sd-5",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-sd-5-theme3",
+      "fixture": "entry-upd-sd-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-sd-5",
+          "activity": "SdFirmwareUpdate",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-0-theme0",
+      "fixture": "entry-upd-cache-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-0",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-0-theme1",
+      "fixture": "entry-upd-cache-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-0",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-0-theme3",
+      "fixture": "entry-upd-cache-0",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-0",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-1-theme0",
+      "fixture": "entry-upd-cache-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-1",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-1-theme1",
+      "fixture": "entry-upd-cache-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-1",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-1-theme3",
+      "fixture": "entry-upd-cache-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-1",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-2-theme0",
+      "fixture": "entry-upd-cache-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-2",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-2-theme1",
+      "fixture": "entry-upd-cache-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-2",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-2-theme3",
+      "fixture": "entry-upd-cache-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-2",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-3-theme0",
+      "fixture": "entry-upd-cache-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-cache-3",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-3-theme1",
+      "fixture": "entry-upd-cache-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-cache-3",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-cache-3-theme3",
+      "fixture": "entry-upd-cache-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-cache-3",
+          "activity": "ClearCache",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-1-theme0",
+      "fixture": "entry-upd-font-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-1",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-1-theme1",
+      "fixture": "entry-upd-font-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-1",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-1-theme3",
+      "fixture": "entry-upd-font-1",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-1",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-2-theme0",
+      "fixture": "entry-upd-font-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-2",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-2-theme1",
+      "fixture": "entry-upd-font-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-2",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-2-theme3",
+      "fixture": "entry-upd-font-2",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-2",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-3-theme0",
+      "fixture": "entry-upd-font-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-3",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-3-theme1",
+      "fixture": "entry-upd-font-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-3",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-3-theme3",
+      "fixture": "entry-upd-font-3",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-3",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-4-theme0",
+      "fixture": "entry-upd-font-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-4",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-4-theme1",
+      "fixture": "entry-upd-font-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-4",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-4-theme3",
+      "fixture": "entry-upd-font-4",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-4",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-5-theme0",
+      "fixture": "entry-upd-font-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-5",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-5-theme1",
+      "fixture": "entry-upd-font-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-5",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-5-theme3",
+      "fixture": "entry-upd-font-5",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-5",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-6-theme0",
+      "fixture": "entry-upd-font-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 0
+      },
+      "screens": [
+        {
+          "id": "upd-font-6",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-6-theme1",
+      "fixture": "entry-upd-font-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 1
+      },
+      "screens": [
+        {
+          "id": "upd-font-6",
+          "activity": "FontDownload",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "fixture-upd-font-6-theme3",
+      "fixture": "entry-upd-font-6",
+      "rotates": false,
+      "settings": {
+        "uiTheme": 3
+      },
+      "screens": [
+        {
+          "id": "upd-font-6",
+          "activity": "FontDownload",
+          "steps": []
+        }
       ]
     }
   ]

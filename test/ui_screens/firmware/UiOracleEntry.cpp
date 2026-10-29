@@ -14,6 +14,9 @@
 #include "activities/util/FrontlightPanelActivity.h"
 
 UiOracleFrontlight uiOracleFrontlight;
+#ifdef CROSSPOINT_UPDATE_UI_ORACLE
+bool uiUpdateOracleEnter(GfxRenderer&, MappedInputManager&, std::string_view);
+#endif
 
 namespace {
 constexpr char SELECTOR_PATH[] = "/.crosspoint/ui-oracle-case.txt";
@@ -62,6 +65,9 @@ void uiOracleEnter(GfxRenderer& renderer, MappedInputManager& input) {
     LOG_ERR("ORACLE", "Failed to read selector");
     return;
   }
+#ifdef CROSSPOINT_UPDATE_UI_ORACLE
+  if (uiUpdateOracleEnter(renderer, input, std::string_view(selector, size))) return;
+#endif
   const auto selected = uiOracleCase(std::string_view(selector, size));
   switch (selected) {
     // Settings-family fixtures bypass only the parent capability gate.

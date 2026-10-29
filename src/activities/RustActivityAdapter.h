@@ -32,6 +32,9 @@ class RustActivityAdapter : public Activity {
   // Published hits remain immutable while the next scene is built.
   virtual Publication* rustPublication() { return nullptr; }
   virtual bool buildRustScene(XpUiScene&) { return false; }
+  // POD-only snapshot compatibility check under ModelLock, before publication.
+  // Obsolete frames request a repaint without rejecting the user's input.
+  virtual bool rustSceneCurrent() const { return true; }
   virtual void rustPublished() {}
   // Called by rejectRustScene under ModelLock: fixed POD only.
   // Builders return failure without invoking this callback.

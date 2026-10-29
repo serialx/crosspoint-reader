@@ -70,6 +70,7 @@ class SettingsUiActivity : public RustActivityAdapter {
   XpUiSettingsResources resources();
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t) const override;

@@ -1030,3 +1030,7 @@ void LibraryListActivity::cancelRejectedInput(const XpUiInput& input) {
   if (effect.invalidate) requestUpdate();
   applyRustEffect(effect);
 }
+
+bool LibraryListActivity::rustSceneCurrent() const {
+  return !resourcesChanged && state.active_tab == frame.snapshot.active_tab;
+}

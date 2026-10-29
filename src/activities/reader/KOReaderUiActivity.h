@@ -51,6 +51,7 @@ class KOReaderUiActivity : public RustActivityAdapter {
   freeink::ui::GfxRendererTarget textTarget;
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override { nextHits ^= 1; }
   void rustSceneFailed() override;
   void cancelRejectedInput(const XpUiInput&) override;

@@ -72,6 +72,7 @@ class CatalogUiActivity : public RustActivityAdapter {
   __attribute__((noinline)) XpUiRect searchButtonRect(int16_t minimum) const;
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
   void rustSceneFailed() override;
   void cancelRejectedInput(const XpUiInput&) override;

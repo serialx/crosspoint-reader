@@ -265,3 +265,6 @@ void KOReaderUiActivity::cancelRejectedInput(const XpUiInput& input) {
   applyRustEffect(effect);
 }
 
+bool KOReaderUiActivity::rustSceneCurrent() const {
+  return model.kind == painting.kind && model.phase == painting.phase;
+}

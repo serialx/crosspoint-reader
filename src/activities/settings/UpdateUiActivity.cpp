@@ -405,3 +405,6 @@ void UpdateUiActivity::cancelRejectedInput(const XpUiInput& input) {
   applyRustEffect({});
 }
 
+bool UpdateUiActivity::rustSceneCurrent() const {
+  return model.kind == painting.kind && model.phase == painting.phase && model.popup_active == painting.popup_active;
+}

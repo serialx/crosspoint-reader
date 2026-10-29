@@ -54,6 +54,7 @@ class TextSettingsActivity final : public RustActivityAdapter {
   XpUiReaderRows rows();
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
   XpUiPaint rustResources() override;
   XpUiInterest rustInterest(uint32_t now) const override { return xp_ui_text_interest(&state, now); }

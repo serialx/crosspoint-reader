@@ -69,6 +69,7 @@ class LibraryListActivity final : public RustActivityAdapter {
   XpUiEffect updateRust(const XpUiInput&) override;
   void applyRustEffect(const XpUiEffect&) override;
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
   void rustSceneFailed() override;
   void cancelRejectedInput(const XpUiInput&) override;

@@ -377,3 +377,6 @@ void CatalogUiActivity::cancelRejectedInput(const XpUiInput& input) {
   applyRustEffect(effect);
 }
 
+bool CatalogUiActivity::rustSceneCurrent() const {
+  return ui.kind == paintState.kind && ui.mode == paintState.mode && ui.popup == paintState.popup;
+}

@@ -16,6 +16,8 @@ def method(path, signature):
     return s[start:end]
 
 families = {
+ 'SettingsUiActivity': ('settings', '''XpUiListState state{},next{};int renderingScroll=0;XpUiSettingsHits publishedHits{},nextHits{};bool sceneFailed=false;''',
+                      ['state.navigation_revision=1;next.navigation_revision=0;']),
  'KOReaderUiActivity': ('reader', '''XpKoState model{},painting{};uint8_t nextHits=0;bool sceneFailed=false;''',
                       ['model.phase=1;painting.phase=0;']),
  'UpdateUiActivity': ('settings', '''XpUiUpdateState model{},painting{};XpUiUpdateFeedback feedback{},next{};bool routesReady=false;''',

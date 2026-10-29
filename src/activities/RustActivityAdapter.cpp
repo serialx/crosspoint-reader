@@ -119,19 +119,26 @@ void RustActivityAdapter::loop() {
 }
 
 void RustActivityAdapter::publishRustScene(const XpUiScene& scene) {
+  bool current;
   {
     ModelLock lock(*this);
-    sceneFailed = false;
-    rustPublished();
-    if (auto* publication = rustPublication()) {
-      publication->scene = scene;
-      publication->scene.commands = nullptr;
-      publication->scene.command_count = 0;
-      publication->scene.text = nullptr;
-      publication->scene.text_len = 0;
-      publication->ready = true;
+    current = rustSceneCurrent();
+    if (current) {
+      sceneFailed = false;
+      rustPublished();
+      if (auto* publication = rustPublication()) {
+        publication->scene = scene;
+        publication->scene.commands = nullptr;
+        publication->scene.command_count = 0;
+        publication->scene.text = nullptr;
+        publication->scene.text_len = 0;
+        publication->ready = true;
+      }
+    } else if (auto* publication = rustPublication()) {
+      publication->ready = false;
     }
   }
+  if (!current) requestUpdate();
 }
 
 void RustActivityAdapter::rejectRustScene() {

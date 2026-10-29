@@ -50,6 +50,8 @@ class RustActivityAdapter {
   void rejectRustScene();
   void publishRustScene(const XpUiScene&);
   void render(RenderLock&&);
+  bool rustSceneCurrent() const { return true; }
+  void requestUpdate() {}
 };
 class UpdateUiActivity : public RustActivityAdapter {
  public:
@@ -92,6 +94,10 @@ class UpdateUiActivity : public RustActivityAdapter {
     XpUiInput input{};
     input.pressed = pressed;
     input.released = released;
+    if (sceneFailed) {
+      input.pressed &= XP_UI_BACK;
+      input.released &= XP_UI_BACK;
+    }
     updateRust(input);
     applyRustEffect({});
   }
@@ -114,7 +120,7 @@ int main() {
       a.model.list.pending_scroll = 3;
       a.model.touch_active = 2;
       a.render({});
-      assert(!a.publication.ready && a.model.scene_failed);
+      assert(!a.publication.ready);
       assert(a.sceneFailed);
       assert(a.model.list.active == -1 && a.model.list.pending_scroll == 0 && a.model.touch_active == 0);
       if (allocation) assert(a.commands.get() == original && a.capacity == 20);
@@ -128,7 +134,7 @@ int main() {
       a.renderer.reject = false;
       failAllocation = false;
       a.render({});
-      assert(a.publication.ready && !a.model.scene_failed && a.capacity == 48);
+      assert(a.publication.ready && !a.sceneFailed && a.capacity == 48);
       a.input(0, 2);
       assert(a.actions == 1);
     }

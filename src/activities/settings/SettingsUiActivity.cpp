@@ -81,6 +81,7 @@ void SettingsUiActivity::rustSceneFailed() {
   state.active = -1;
   state.pending_scroll = 0;
   state.last_repeat = 0;
+  ++state.navigation_revision;
   longTouch = touchActivated = false;
 }
 int SettingsUiActivity::selectedIndex() const {
@@ -93,10 +94,13 @@ void SettingsUiActivity::selectIndex(int value) {
 }
 void SettingsUiActivity::resetSelection(int value) {
   ModelLock lock(*this);
+  const auto revision = state.navigation_revision;
   xp_ui_settings_list_init(&state, value);
+  state.navigation_revision = revision + 1;
 }
 void SettingsUiActivity::resetUi() {
   ModelLock lock(*this);
+  ++state.navigation_revision;
   publication.ready = false;
 }
 void SettingsUiActivity::setCheckboxRow(SettingsUiRow& row, bool checked) {
@@ -323,3 +327,4 @@ XpUiPaint SettingsUiActivity::rustResources() {
           }};
 }
 
+bool SettingsUiActivity::rustSceneCurrent() const { return state.navigation_revision == next.navigation_revision; }

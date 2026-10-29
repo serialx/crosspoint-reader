@@ -150,7 +150,7 @@ struct SettingsUiActivity : RustActivityAdapter {
   XpUiListState state{};
   XpUiSettingsHits publishedHits{}, nextHits{};
   Publication publication;
-  bool longPress = false, longTouch = false, touchActivated = false;
+  bool longPress = false, longTouch = false, touchActivated = false, sceneFailed = false;
   int touchX = -1, touchY = -1;
   std::string name;
   SettingsUiActivity() {

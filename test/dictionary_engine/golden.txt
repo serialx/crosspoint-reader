@@ -1,0 +1,1214 @@
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 1 0
+/zipout 1 af63dc4c8601ec8c61
+zip-extract 500 40 1 0
+/zipout 40 04f29b503b14ca8161616161616161616161616162626262626262626262626262626262626262626262626262626262
+zip-extract 1024 512 1 0
+/zipout 512 beb53c859d1a7d25
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 0
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 1
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 2
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 3
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 4
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 5
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 6
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 7
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 8
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 9
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 10
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 11
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 12
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 13
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 14
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 15
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 16
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 17
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 18
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 19
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 20
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 21
+zip-parse 0 2 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 22
+zip-parse 0 2 0 0 512 0 1 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 23
+zip-parse 0 2 0 0 512 0 1 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 24
+zip-parse 0 2 0 0 512 0 2 0 517
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 25
+zip-parse 0 2 0 0 512 0 2 0 517
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 26
+zip-parse 0 2 0 0 512 0 3 0 517 1034
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 27
+zip-parse 0 2 0 0 512 0 3 0 517 1034
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 28
+zip-parse 1 0 28 33882629 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 29
+zip-parse 1 0 28 16909570 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 30
+zip-parse 1 0 28 66053 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 31
+zip-parse 1 0 28 33554690 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 32
+zip-parse 1 0 28 4278321153 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 33
+zip-parse 1 0 28 4261347840 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-truncate 34
+zip-parse 1 0 28 1644035842 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 1 0
+/zipout 1 af63dc4c8601ec8c61
+zip-extract 500 40 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-mutate 0
+zip-parse 0 3 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 3
+/zipout 0 cbf29ce484222325
+zip-mutate 2
+zip-parse 0 3 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 3
+/zipout 0 cbf29ce484222325
+zip-mutate 3
+zip-parse 0 3 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 3
+/zipout 0 cbf29ce484222325
+zip-mutate 10
+zip-parse 0 3 0 0 512 0 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 3
+/zipout 0 cbf29ce484222325
+zip-mutate 14
+zip-parse 0 3 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 3
+/zipout 0 cbf29ce484222325
+zip-mutate 16
+zip-parse 0 3 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 3
+/zipout 0 cbf29ce484222325
+zip-mutate 18
+zip-parse 1 0 28 1536 767 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 1 0
+/zipout 1 af63dc4c8601ec8c61
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-mutate 20
+zip-parse 0 3 0 0 0 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 3
+/zipout 0 cbf29ce484222325
+zip-mutate 22
+zip-parse 1 0 28 1536 512 1 4 0 762 1279 1796
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 1 0
+/zipout 1 af63dc4c8601ec8c61
+zip-extract 500 40 1 0
+/zipout 40 07de9cc448b14d0161616161616161616161616102020202020202020202020202020202020202020202020202020202
+zip-extract 1024 512 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-mutate 28
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 1 0
+/zipout 512 beb53c859d1a7d25
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-mutate 29
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 1 0
+/zipout 512 beb53c859d1a7d25
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-mutate 30
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 1 0
+/zipout 512 beb53c859d1a7d25
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-mutate 31
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 1 0
+/zipout 512 beb53c859d1a7d25
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-mutate 32
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 3
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 1 0
+/zipout 512 beb53c859d1a7d25
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-alloc 0
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-alloc 1
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-alloc 2
+zip-parse 1 0 28 1536 512 1 4 0 517 1034 1551
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 2
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 2
+/zipout 0 cbf29ce484222325
+zip-parse 0 1 0 0 512 0 0
+zip-extract 0 0 1 0
+/zipout 0 cbf29ce484222325
+zip-extract 0 1 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 500 40 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1024 512 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 1535 2 0 1
+/zipout 0 cbf29ce484222325
+zip-extract 4294967295 2 0 1
+/zipout 0 cbf29ce484222325
+open 1
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+/dictionaries/Demo/test.qidx 28 98a8f50b0ecd2b9351494458020000000001000001000000750000000900000000000000
+/dictionaries/Demo/test.sidx 28 006bcd6ef1e5ec2b53494458020000000001000001000000330000000500000000000000
+needs 0
+lookup APPLE 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+lookup app 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup absent 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup alias 1 0
+matched 5 509220bb65a646b7616c696173
+definition 39 b879ac4dae1db992016170706c650a66697273740a0a016170706c650a6c6173740a0a0173746f72790a73746f7279
+lookup broken 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup boxes 1 0
+matched 3 004d2e191349e4f2626f78
+definition 3 004d2e191349e4f2626f78
+lookup dogs 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup loved 1 0
+matched 4 ce3adbad71178ff16c6f7665
+definition 4 ce3adbad71178ff16c6f7665
+lookup making 1 0
+matched 4 1f5359a2ce9388cf6d616b65
+definition 4 1f5359a2ce9388cf6d616b65
+lookup running 1 0
+matched 3 89b2a81960c55a4a72756e
+definition 3 89b2a81960c55a4a72756e
+lookup stopped 1 0
+matched 4 af1f52191db2bcc573746f70
+definition 4 af1f52191db2bcc573746f70
+lookup stories 1 0
+matched 5 44ee40ad76b09b9273746f7279
+definition 5 44ee40ad76b09b9273746f7279
+lookup dog's 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup dog’s 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup 「APPLE。」 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+lookup —apple!” 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+ERR DICT Synonym index unusable for /dictionaries/Demo/test; synonyms skipped
+lookup alias 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+ERR DICT Synonym index unusable for /dictionaries/Demo/test; synonyms skipped
+lookup dogs 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 25 94f51284645e2649016170706c650a66697273740a0a016170706c650a6c617374
+ERR DICT Index seek to 0 failed
+ERR DICT Synonym index unusable for /dictionaries/Demo/test; synonyms skipped
+lookup apple 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup apple 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+ERR DICT Low heap for lookup (8366 byte working set)
+lookup apple 0 2
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+ERR DICT Low heap for lookup (8366 byte working set)
+lookup apple 0 2
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+open 1
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+/dictionaries/Demo/test.qidx 28 98a8f50b0ecd2b9351494458020000000001000001000000750000000900000000000000
+/dictionaries/Demo/test.sidx 28 006bcd6ef1e5ec2b53494458020000000001000001000000330000000500000000000000
+needs 0
+lookup APPLE 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 37 924e381f7e77d3973c68323e6170706c653c2f68323e66697273743c68323e6170706c653c2f68323e6c617374
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 37 924e381f7e77d3973c68323e6170706c653c2f68323e66697273743c68323e6170706c653c2f68323e6c617374
+lookup app 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup absent 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup alias 1 0
+matched 5 509220bb65a646b7616c696173
+definition 56 f9105567690f71f03c68323e6170706c653c2f68323e66697273743c68323e6170706c653c2f68323e6c6173743c68323e73746f72793c2f68323e73746f7279
+lookup broken 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup boxes 1 0
+matched 3 004d2e191349e4f2626f78
+definition 3 004d2e191349e4f2626f78
+lookup dogs 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup loved 1 0
+matched 4 ce3adbad71178ff16c6f7665
+definition 4 ce3adbad71178ff16c6f7665
+lookup making 1 0
+matched 4 1f5359a2ce9388cf6d616b65
+definition 4 1f5359a2ce9388cf6d616b65
+lookup running 1 0
+matched 3 89b2a81960c55a4a72756e
+definition 3 89b2a81960c55a4a72756e
+lookup stopped 1 0
+matched 4 af1f52191db2bcc573746f70
+definition 4 af1f52191db2bcc573746f70
+lookup stories 1 0
+matched 5 44ee40ad76b09b9273746f7279
+definition 5 44ee40ad76b09b9273746f7279
+lookup dog's 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup dog’s 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup 「APPLE。」 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 37 924e381f7e77d3973c68323e6170706c653c2f68323e66697273743c68323e6170706c653c2f68323e6c617374
+lookup —apple!” 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 37 924e381f7e77d3973c68323e6170706c653c2f68323e66697273743c68323e6170706c653c2f68323e6c617374
+ERR DICT Synonym index unusable for /dictionaries/Demo/test; synonyms skipped
+lookup alias 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+ERR DICT Synonym index unusable for /dictionaries/Demo/test; synonyms skipped
+lookup dogs 1 0
+matched 3 caaf3b18f47478e9646f67
+definition 3 caaf3b18f47478e9646f67
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 37 924e381f7e77d3973c68323e6170706c653c2f68323e66697273743c68323e6170706c653c2f68323e6c617374
+ERR DICT Index seek to 0 failed
+ERR DICT Synonym index unusable for /dictionaries/Demo/test; synonyms skipped
+lookup apple 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+lookup apple 0 4
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+ERR DICT Low heap for lookup (8366 byte working set)
+lookup apple 0 2
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+ERR DICT Low heap for lookup (8366 byte working set)
+lookup apple 0 2
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+INF DICT Indexed 600 entries (3 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 1 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+/dictionaries/Demo/test.qidx 36 06d0ddcc6e84ab8b51494458020000000001000003000000d827000058020000000000000011000000220000
+lookup word0250 1 0
+matched 8 ee2740950fda0daa776f726430323530
+definition 258 788a0cafd402229501776f7264303235300a510a0a01776f7264303235300a520a0a01776f7264303235300a530a0a01776f7264303235300a540a0a01776f7264303235300a550a0a01776f7264303235300a560a0a01776f7264303235300a570a0a01776f7264303235300a580a0a01776f7264303235300a590a0a01776f7264303235300a5a0a0a01776f7264303235300a410a0a01776f7264303235300a420a0a01776f7264303235300a430a0a01776f7264303235300a440a0a01776f7264303235300a450a0a01776f7264303235300a460a0a01776f7264303235300a470a0a01776f7264303235300a480a0a01776f7264303235300a490a0a01776f7264303235300a4a
+lookup word0599 1 0
+matched 8 d4c73a9501a70a1c776f726430353939
+definition 1 af63ff4c8602280542
+lookup alias 1 0
+matched 5 509220bb65a646b7616c696173
+definition 11 0b49720c47cf8ccb01776f7264303531320a53
+write-limit 0
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+write-limit 1
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+write-limit 23
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+write-limit 24
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+write-limit 27
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+write-limit 28
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+write-limit 35
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+write-limit 51
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+needs 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+read-limit 0
+ERR DICT Index scan read failed at 0
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+read-limit 1
+ERR DICT Index scan read failed at 1
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+read-limit 9
+ERR DICT Index scan read failed at 9
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+read-limit 20
+ERR DICT Index scan read failed at 20
+ERR DICT Index build failed, removing /dictionaries/Demo/test.qidx
+index 0 2
+absent /dictionaries/Demo/test.qidx
+ERR DICT Out of memory for the 4112 byte entry list
+alloc-limit 0 open 0
+index 0 2
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+alloc-limit 1 open 1
+ERR DICT OOM: 4096 byte index scan buffer
+index 0 1
+ERR DICT Low heap for 6 byte headword
+lookup apple 0 2
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+alloc-limit 2 open 1
+INF DICT Indexed 9 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+ERR DICT OOM: 4096 byte index scan buffer
+ERR DICT Synonym index build failed; synonyms disabled for /dictionaries/Demo/test
+index 1 0
+ERR DICT Low heap for 6 byte headword
+lookup apple 0 2
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 e0ef1a8881d1053f51494458020000000001000001000000000000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 ebab96e82702cc8e51494458020000000001000001000000010000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 f6681347cc3493dd51494458020000000001000001000000020000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 01248fa771665b2c51494458020000000001000001000000030000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 0be10c071698227b51494458020000000001000001000000040000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 169d8866bbc9e9ca51494458020000000001000001000000050000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 215a04c660fbb11951494458020000000001000001000000060000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 2c168126062d786851494458020000000001000001000000070000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 36d2fd85ab5f3fb751494458020000000001000001000000080000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 418f79e55091070651494458020000000001000001000000090000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 4c4bf644f5c2ce55514944580200000000010000010000000a0000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 570872a49af495a4514944580200000000010000010000000b0000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 61c4ef0440265cf3514944580200000000010000010000000c0000000000000000000000
+INF DICT Indexed 0 entries (1 samples) from /dictionaries/Demo/test.idx in 0 ms
+INF DICT Indexed 5 entries (1 samples) from /dictionaries/Demo/test.syn in 0 ms
+index 1 0
+lookup apple 0 1
+matched 3 1a0fad1921d080766f6c64
+definition 3 1a0fad1921d080766f6c64
+/dictionaries/Demo/test.qidx 28 6c816b63e5582442514944580200000000010000010000000d0000000000000000000000
+ERR DICT Zero-length definition entry
+lookup apple 0 4
+matched 5 f74a62a458befdbf6170706c65
+definition 3 1a0fad1921d080766f6c64
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 65535 52ea6f54e3c56bbf
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 65536 a9c6f43f08762325
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 65536 a9c6f43f08762325
+lookup apple 1 0
+matched 5 f74a62a458befdbf6170706c65
+definition 65536 a9c6f43f08762325
+ERR DICT /dictionaries/Demo/test uses 64-bit index offsets (unsupported)
+ifo idxoffsetbits=64
+ 0 0
+ERR DICT /dictionaries/Demo/test uses 64-bit index offsets (unsupported)
+ifo idxoffsetbits = 64
+ 0 0
+ifo sametypesequence=x
+ 1 1
+ifo sametypesequence=hm
+ 1 0
+DBG DREG Skipping /dictionaries/Ambiguous: multiple index stems found
+DBG DREG Found dictionary: Demo
+DBG DREG Found dictionary: hidden
+registry Demo test
+registry hidden x
+resolve Demo 1 /dictionaries/Demo/test
+resolve hidden 1 /.dictionaries/hidden/x
+resolve .Demo 0 old
+resolve ../Demo 0 old
+resolve a/b 0 old
+resolve a\b 0 old
+resolve  0 old
+resolve Missing 0 old
+html 1
+/html 26 b2ad2c3a5e1f5d473c68746d6c3e3c626f64793e3c2f626f64793e3c2f68746d6c3e
+html 1
+/html 60 e44b57c9a61512f23c68746d6c3e3c626f64793e3c703e48656c6c6f2026616d703b20776f726c643c62722f3e61667465723c2f703e3c2f626f64793e3c2f68746d6c3e
+html 1
+/html 30 12cc9784c93b10303c68746d6c3e3c626f64793e746578743c2f626f64793e3c2f68746d6c3e
+html 1
+/html 69 3683481d114c88273c68746d6c3e3c626f64793e7820266c743b20792026636f70793b20262361623b2026237846463b2026616d703b233b2026616d703b3b3c2f626f64793e3c2f68746d6c3e
+html 1
+/html 42 6e95592a7c004aa63c68746d6c3e3c626f64793e3c696d6720616c743d273e272f3e68693c2f626f64793e3c2f68746d6c3e
+html 1
+/html 68 248300c3b0cd12f83c68746d6c3e3c626f64793e3c6162636465666768696a6b6c6d6e6f20583d2731273e7a3c2f6162636465666768696a6b6c6d6e6f3e3c2f626f64793e3c2f68746d6c3e
+html 1
+/html 31 ec5ae887f12b0cd63c68746d6c3e3c626f64793e266c743b703c2f626f64793e3c2f68746d6c3e
+html 1
+/html 26 b2ad2c3a5e1f5d473c68746d6c3e3c626f64793e3c2f626f64793e3c2f68746d6c3e
+html 1
+/html 37 b791b4b03a1a5be83c68746d6c3e3c626f64793e3c623e756e636c6f7365643c2f626f64793e3c2f68746d6c3e
+html 1
+/html 32 fb4cfdef013f76523c68746d6c3e3c626f64793e3c6272202f3e3c2f626f64793e3c2f68746d6c3e
+html-write 0 0
+/html 0 cbf29ce484222325
+html-write 1 0
+/html 1 af63b14c8601a37b3c
+html-write 127 0
+/html 127 a2b745489c4ddf9d3c68746d6c3e3c626f64793e26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b
+html-write 128 0
+/html 128 cb4a756198532ac13c68746d6c3e3c626f64793e26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26
+html-write 129 0
+/html 129 c2b014d5d5516de03c68746d6c3e3c626f64793e26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b2661
+html-write 200 0
+/html 200 c6f1a861a82708793c68746d6c3e3c626f64793e26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d703b26616d

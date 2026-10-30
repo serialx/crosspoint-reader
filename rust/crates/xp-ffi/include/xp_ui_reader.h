@@ -949,7 +949,7 @@ typedef enum {
   XP_UI_READER_OVERLAY_OPERATION_OPEN_TEXT = 6,
   XP_UI_READER_OVERLAY_OPERATION_OPEN_MORE = 7,
   XP_UI_READER_OVERLAY_OPERATION_CLOSE = 8,
-  // Cancel popup, toolbar or panel without sampling input; no-op when closed.
+  /* Cancel popup, toolbar or panel without sampling input; no-op when closed. */
   XP_UI_READER_OVERLAY_OPERATION_CANCEL = 9,
 } XpUiReaderOverlayOperation;
 enum { XP_UI_READER_OVERLAY_TEXT_ROWS = 5, XP_UI_READER_OVERLAY_HOLD_MS = 1500, XP_UI_READER_OVERLAY_HOLD_ROWS = 10 };

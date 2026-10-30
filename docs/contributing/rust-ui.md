@@ -37,7 +37,11 @@ updates and publication. Layout, font services, painting and synchronous panel
 refresh run outside that section. RenderLock still protects activity lifetime
 and the framebuffer; input never takes it. A failed build or paint rejects activation, clears pending gestures and leaves
 the previous frame displayed. Back remains available; a successful publication
-restores routing after held-over input has been released. Navigation effects run after unlocking.
+restores routing after held-over input has been released. Rejection arms suppression
+for all buttons and touch. The first loop keeps only held inputs suppressed through
+their release. A fresh gesture arriving between failure and that first loop may be
+consumed, even if rendering has already recovered. An empty frame clears suppression;
+after a consumed gesture is released, the next gesture works. Navigation effects run after unlocking.
 
 XTC alternates its hit buffers: the displayed table stays immutable while the
 next table is built. Rust commits the displayed viewport without replacing current selection,

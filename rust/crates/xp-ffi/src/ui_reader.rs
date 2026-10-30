@@ -560,3 +560,11 @@ pub unsafe extern "C" fn xp_ui_reader_book_lifetime(
 ) -> u8 {
     reader::book_lifetime::run(services, operation)
 }
+
+/// # Safety
+/// Services obey the synchronous chapter build resource contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_build_policy(services: *const reader::build_policy::Services, operation: u8) -> u8 {
+    reader::build_policy::run(services, operation)
+}

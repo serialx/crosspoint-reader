@@ -142,6 +142,9 @@ struct Section {
   }
 };
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {}
+  };
   enum class Overlay { None, Toolbar };
   static constexpr uint32_t BUILD_ROOM_WAIT_MS = 5000, BUILD_ROOM_STEP_MS = 50;
   static constexpr size_t BACKGROUND_BUILD_MIN_FREE_HEAP = 32768, BACKGROUND_BUILD_MIN_MAX_ALLOC = 16384;

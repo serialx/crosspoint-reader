@@ -34,6 +34,8 @@ def generate(repo, output):
                    for method in methods]
     if "bool EpubReaderActivity::applyPageMove(" in reader:
         methods.append(definition(reader, "bool EpubReaderActivity::applyPageMove("))
+    if "bool EpubReaderActivity::runBuildPolicy(" in reader:
+        methods.append((repo / "test/reader_lifecycle/build_policy_rust.inc").read_text())
     if "bool EpubReaderActivity::runBookLifetime(" in reader:
         methods.append((repo / "test/reader_lifecycle/load_progress_rust.inc").read_text())
     else:

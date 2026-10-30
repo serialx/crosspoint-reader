@@ -155,6 +155,7 @@ class EpubReaderActivity final : public ReaderActivity {
   // Bluetooth page turner: every chapter build stops the radio until the chapter is built and its
   // page is shown. False: the radio still holds or is taking the heap, and the build must not run.
   std::atomic<bool> radioReleasedForBuild{false};
+  bool runBuildPolicy(uint8_t operation) const;
   bool makeRoomForChapterBuild();
   static constexpr uint32_t BUILD_ROOM_WAIT_MS = 5000;
   static constexpr uint32_t BUILD_ROOM_STEP_MS = 50;

@@ -166,6 +166,7 @@ struct EpubReaderActivity {
 #endif
   bool skipPages(int);
   bool buildTickHeapGate();
+  bool runBuildPolicy(uint8_t operation) const;
   void backgroundBuildTick();
   bool backgroundBuildWanted() const;
   bool skipLoopDelay();

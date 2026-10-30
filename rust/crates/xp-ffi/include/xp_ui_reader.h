@@ -1569,6 +1569,94 @@ typedef struct {
 } XpUiReaderLifetimeServices;
 uint8_t xp_ui_reader_book_lifetime(const XpUiReaderLifetimeServices* services, uint8_t operation);
 
+/* Chapter build services borrow their context synchronously; no pointer escapes.
+ * ROOM waits for radio admission; HEAP evaluates/reclaims the existing idle-strip
+ * buffers; POPUP paints the pending indexing notice; BUTTONS samples debounced
+ * buttons; BACKGROUND executes one existing bounded build step; WANTED and DELAY
+ * return scheduling predicates. Unknown operations or null/incomplete services
+ * do nothing and return zero. Boolean operations return 0/1; POPUP/BACKGROUND
+ * return zero. No Rust allocation or persistent state is introduced.
+ *
+ * read/write carry signed i32 bits or 0/1 flags. Fields through BUFFER_STALE are
+ * reader scalars under the existing short ModelLock. Remaining fields are
+ * read-only native facts, used in the original caller lock context. REFRESH is
+ * accessed only after PAINT_INDEX; no render-frame reference is captured early.
+ * BACKGROUND owns TRY_LOCK/UNLOCK with a Rust guard, including failed try-locks.
+ * Other operations retain the caller's existing locking and never acquire it.
+ *
+ * RADIO_STATUS samples running/stopping/starting in bits 0/1/2. RADIO_BEFORE
+ * requests release and returns whether the original result is not NotHeld.
+ * CLOCK samples wrapping u32 milliseconds; SLEEP(a=milliseconds) waits.
+ * RELEASE_STRIPS returns whether an idle buffer was released (false in builds
+ * without reader strips). READ_FREE/READ_BLOCK sample bytes and retain the last
+ * readings solely for LOG_RECLAIMED(a=old free,b=old block). LOG_ROOM_DENIED and
+ * LOG_BUILD_FAILED retain original diagnostics. PAINT_INDEX paints the existing
+ * popup. TRY_LOCK constructs a native try-lock and returns ownership; UNLOCK
+ * destroys it even after a failed acquisition. BUTTON(a=0..6) samples Back,
+ * Confirm, Left, Right, Up, Down, Power in that order. RAW samples raw contact;
+ * LOAN_COUNT reads the framebuffer loan counter; BUILD_SOME performs the original
+ * two-page step with raw-contact callback and returns success. DROP_SECTION
+ * destroys its existing owner; REPOSITION invokes deferred navigation and returns
+ * bool; UPDATE requests repaint; RADIO_HEAP samples existing radio ownership.
+ * Other command arguments are ignored. All command callbacks run outside the
+ * short model critical section, preserving resource/render-lock ordering. */
+typedef enum {
+  XP_UI_READER_BUILD_OPERATION_ROOM = 0,
+  XP_UI_READER_BUILD_OPERATION_HEAP = 1,
+  XP_UI_READER_BUILD_OPERATION_POPUP = 2,
+  XP_UI_READER_BUILD_OPERATION_BUTTONS = 3,
+  XP_UI_READER_BUILD_OPERATION_BACKGROUND = 4,
+  XP_UI_READER_BUILD_OPERATION_WANTED = 5,
+  XP_UI_READER_BUILD_OPERATION_DELAY = 6,
+} XpUiReaderBuildOperation;
+typedef enum {
+  XP_UI_READER_BUILD_FIELD_RADIO_RELEASED = 0,
+  XP_UI_READER_BUILD_FIELD_HEAP_PAUSED = 1,
+  XP_UI_READER_BUILD_FIELD_POPUP_PENDING = 2,
+  XP_UI_READER_BUILD_FIELD_REFRESH = 3,
+  XP_UI_READER_BUILD_FIELD_OVERLAY = 4,
+  XP_UI_READER_BUILD_FIELD_PENDING_TURN = 5,
+  XP_UI_READER_BUILD_FIELD_SPINE = 6,
+  XP_UI_READER_BUILD_FIELD_FAILED_SPINE = 7,
+  XP_UI_READER_BUILD_FIELD_NEXT_PAGE = 8,
+  XP_UI_READER_BUILD_FIELD_BUFFER_STALE = 9,
+  XP_UI_READER_BUILD_FIELD_HAS_SECTION = 10,
+  XP_UI_READER_BUILD_FIELD_BUILDING = 11,
+  XP_UI_READER_BUILD_FIELD_COMPLETE = 12,
+  XP_UI_READER_BUILD_FIELD_PAGE = 13,
+  XP_UI_READER_BUILD_FIELD_FRAMEBUFFER = 14,
+} XpUiReaderBuildField;
+typedef enum {
+  XP_UI_READER_BUILD_COMMAND_RELEASE_STRIPS = 0,
+  XP_UI_READER_BUILD_COMMAND_RADIO_STATUS = 1,
+  XP_UI_READER_BUILD_COMMAND_RADIO_BEFORE = 2,
+  XP_UI_READER_BUILD_COMMAND_CLOCK = 3,
+  XP_UI_READER_BUILD_COMMAND_SLEEP = 4,
+  XP_UI_READER_BUILD_COMMAND_LOG_ROOM_DENIED = 5,
+  XP_UI_READER_BUILD_COMMAND_READ_FREE = 6,
+  XP_UI_READER_BUILD_COMMAND_READ_BLOCK = 7,
+  XP_UI_READER_BUILD_COMMAND_LOG_RECLAIMED = 8,
+  XP_UI_READER_BUILD_COMMAND_PAINT_INDEX = 9,
+  XP_UI_READER_BUILD_COMMAND_TRY_LOCK = 10,
+  XP_UI_READER_BUILD_COMMAND_UNLOCK = 11,
+  XP_UI_READER_BUILD_COMMAND_BUTTON = 12,
+  XP_UI_READER_BUILD_COMMAND_RAW = 13,
+  XP_UI_READER_BUILD_COMMAND_LOAN_COUNT = 14,
+  XP_UI_READER_BUILD_COMMAND_BUILD_SOME = 15,
+  XP_UI_READER_BUILD_COMMAND_LOG_BUILD_FAILED = 16,
+  XP_UI_READER_BUILD_COMMAND_DROP_SECTION = 17,
+  XP_UI_READER_BUILD_COMMAND_REPOSITION = 18,
+  XP_UI_READER_BUILD_COMMAND_UPDATE = 19,
+  XP_UI_READER_BUILD_COMMAND_RADIO_HEAP = 20,
+} XpUiReaderBuildCommand;
+typedef struct {
+  void* context;
+  uint32_t (*read)(void* context, uint8_t field);
+  void (*write)(void* context, uint8_t field, uint32_t value);
+  uint32_t (*command)(void* context, uint8_t command, int32_t a, int32_t b);
+} XpUiReaderBuildServices;
+uint8_t xp_ui_reader_build_policy(const XpUiReaderBuildServices* services, uint8_t operation);
+
 #ifdef __cplusplus
 }
 #endif
@@ -2469,3 +2557,60 @@ XP_UI_READER_LIFETIME_ASSERT(XP_UI_READER_LIFETIME_COMMAND_DROP_MOVE_PATHS == 32
 XP_UI_READER_LIFETIME_ASSERT(XP_UI_READER_LIFETIME_COMMAND_DROP_BOOK == 33);
 XP_UI_READER_LIFETIME_ASSERT(XP_UI_READER_LIFETIME_COMMAND_MOVE_BOOK == 34);
 #undef XP_UI_READER_LIFETIME_ASSERT
+
+#if defined(__cplusplus)
+#define XP_UI_READER_BUILD_ASSERT(x) static_assert(x, #x)
+static_assert(alignof(XpUiReaderBuildServices) == alignof(void*), "build services alignment");
+#else
+#define XP_UI_READER_BUILD_ASSERT(x) _Static_assert(x, #x)
+_Static_assert(_Alignof(XpUiReaderBuildServices) == _Alignof(void*), "build services alignment");
+#endif
+XP_UI_READER_BUILD_ASSERT(sizeof(XpUiReaderBuildServices) == 4 * sizeof(void*));
+XP_UI_READER_BUILD_ASSERT(offsetof(XpUiReaderBuildServices, context) == 0 * sizeof(void*));
+XP_UI_READER_BUILD_ASSERT(offsetof(XpUiReaderBuildServices, read) == 1 * sizeof(void*));
+XP_UI_READER_BUILD_ASSERT(offsetof(XpUiReaderBuildServices, write) == 2 * sizeof(void*));
+XP_UI_READER_BUILD_ASSERT(offsetof(XpUiReaderBuildServices, command) == 3 * sizeof(void*));
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_OPERATION_ROOM == 0);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_OPERATION_HEAP == 1);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_OPERATION_POPUP == 2);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_OPERATION_BUTTONS == 3);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_OPERATION_BACKGROUND == 4);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_OPERATION_WANTED == 5);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_OPERATION_DELAY == 6);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_RADIO_RELEASED == 0);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_HEAP_PAUSED == 1);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_POPUP_PENDING == 2);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_REFRESH == 3);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_OVERLAY == 4);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_PENDING_TURN == 5);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_SPINE == 6);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_FAILED_SPINE == 7);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_NEXT_PAGE == 8);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_BUFFER_STALE == 9);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_HAS_SECTION == 10);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_BUILDING == 11);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_COMPLETE == 12);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_PAGE == 13);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_FIELD_FRAMEBUFFER == 14);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_RELEASE_STRIPS == 0);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_RADIO_STATUS == 1);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_RADIO_BEFORE == 2);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_CLOCK == 3);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_SLEEP == 4);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_LOG_ROOM_DENIED == 5);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_READ_FREE == 6);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_READ_BLOCK == 7);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_LOG_RECLAIMED == 8);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_PAINT_INDEX == 9);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_TRY_LOCK == 10);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_UNLOCK == 11);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_BUTTON == 12);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_RAW == 13);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_LOAN_COUNT == 14);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_BUILD_SOME == 15);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_LOG_BUILD_FAILED == 16);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_DROP_SECTION == 17);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_REPOSITION == 18);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_UPDATE == 19);
+XP_UI_READER_BUILD_ASSERT(XP_UI_READER_BUILD_COMMAND_RADIO_HEAP == 20);
+#undef XP_UI_READER_BUILD_ASSERT

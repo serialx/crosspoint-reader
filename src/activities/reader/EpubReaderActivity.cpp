@@ -306,87 +306,17 @@ void EpubReaderActivity::openReaderMenu() {
 // settling, usually lets go soon after: the build waits up to BUILD_ROOM_WAIT_MS more, then is
 // refused rather than run next to it. The stop finishes on the main loop (the module's tick) and
 // the start on its own task; neither needs the render lock this task holds.
-bool EpubReaderActivity::makeRoomForChapterBuild() {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  stripBuffers.releaseIdle();
-#endif
-  bool asked = false;
-  const auto roomMade = [this, &asked] {
-    // The first ask stops the radio. A later one asks again only once a start that was still
-    // settling has left the radio up.
-    if (!radioReleasedForBuild.load() && (!asked || !bleturner::status().starting)) {
-      radioReleasedForBuild = bleturner::beforeChapterBuild() != bleturner::BuildRelease::NotHeld;
-    }
-    asked = true;
-    return chapterBuildMayRun(bleturner::status());
-  };
-  const auto nowMs = [] { return static_cast<uint32_t>(millis()); };
-  const auto nap = [](const uint32_t ms) { delay(ms); };
-  if (waitForBuildRoom(roomMade, nowMs, nap, BUILD_ROOM_WAIT_MS, BUILD_ROOM_STEP_MS)) return true;
-  LOG_ERR("ERS", "Bluetooth radio still holds the heap after %u ms; chapter build refused",
-          static_cast<unsigned>(BUILD_ROOM_WAIT_MS));
-  return false;
-}
+bool EpubReaderActivity::makeRoomForChapterBuild() { return runBuildPolicy(XP_UI_READER_BUILD_OPERATION_ROOM); }
 
-bool EpubReaderActivity::buildTickHeapGate() {
-  const size_t freeHeap = ESP.getFreeHeap();
-  const size_t maxBlock = ESP.getMaxAllocHeap();
-  buildHeapPaused = freeHeap < BACKGROUND_BUILD_MIN_FREE_HEAP || maxBlock < BACKGROUND_BUILD_MIN_MAX_ALLOC;
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  if (buildHeapPaused && stripBuffers.releaseIdle()) {
-    const size_t reclaimedFree = ESP.getFreeHeap();
-    const size_t reclaimedBlock = ESP.getMaxAllocHeap();
-    buildHeapPaused = reclaimedFree < BACKGROUND_BUILD_MIN_FREE_HEAP || reclaimedBlock < BACKGROUND_BUILD_MIN_MAX_ALLOC;
-    LOG_DBG("ERS", "Released idle reader strips for build: heap %u/%u -> %u/%u", static_cast<unsigned>(freeHeap),
-            static_cast<unsigned>(maxBlock), static_cast<unsigned>(reclaimedFree),
-            static_cast<unsigned>(reclaimedBlock));
-  }
-#endif
-  return !buildHeapPaused;
-}
+bool EpubReaderActivity::buildTickHeapGate() { return runBuildPolicy(XP_UI_READER_BUILD_OPERATION_HEAP); }
 
-void EpubReaderActivity::showBuildPopup() {
-  if (!buildPopupPending || !renderer.hasFrameBuffer()) return;
-  GUI.drawPopup(renderer, tr(STR_INDEXING));
-  renderRefreshCounter() = 1;
-  buildPopupPending = false;
-}
+void EpubReaderActivity::showBuildPopup() { runBuildPolicy(XP_UI_READER_BUILD_OPERATION_POPUP); }
 
 // Debounced state of every button. Covers the frame between a raw release and its debounced
 // release edge, which would otherwise run a build step before the page turn.
-bool EpubReaderActivity::anyButtonPressed() const {
-  using Button = MappedInputManager::Button;
-  for (const Button button :
-       {Button::Back, Button::Confirm, Button::Left, Button::Right, Button::Up, Button::Down, Button::Power}) {
-    if (mappedInput.isPressed(button)) return true;
-  }
-  return false;
-}
+bool EpubReaderActivity::anyButtonPressed() const { return runBuildPolicy(XP_UI_READER_BUILD_OPERATION_BUTTONS); }
 
-void EpubReaderActivity::backgroundBuildTick() {
-  RenderLock lock(RenderLock::Mode::Try);
-  // Not under an open toolbar or panel: those repaint straight onto the page in the framebuffer.
-  if (!lock.ownsLock() || overlay != Overlay::None || !backgroundBuildWanted()) return;
-  // A button is down or a page turn is queued: the next loop frames act on it first.
-  if (buttonContactClosed() || anyButtonPressed() || pendingManualTurn != 0 || !buildTickHeapGate()) return;
-  // A build step can lend the framebuffer (image probes), which hands it back white while the
-  // panel still shows the page; redraw so nothing is later painted over the blank buffer.
-  const uint32_t loansBefore = renderer.frameBufferLoanCount();
-  const bool built = section->buildSomeMore(BACKGROUND_BUILD_PAGES_PER_TICK, &buttonContactClosed);
-  if (renderer.frameBufferLoanCount() != loansBefore) {
-    pageBufferStale = true;
-    requestUpdate();
-  }
-  if (!built) {
-    LOG_ERR("ERS", "Background section build failed");
-    backgroundBuildFailedSpine = currentSpineIndex;
-    nextPageNumber = section->currentPage;
-    section.reset();
-    requestUpdate();
-  } else if (section->isBuildComplete() && applyDeferredReposition()) {
-    requestUpdate();
-  }
-}
+void EpubReaderActivity::backgroundBuildTick() { runBuildPolicy(XP_UI_READER_BUILD_OPERATION_BACKGROUND); }
 
 void EpubReaderActivity::openDictionaryWordSelect() {
   if (SETTINGS.dictionaryName[0] == '\0') {
@@ -1512,16 +1442,9 @@ void EpubReaderActivity::onReturnFromEndOfBook() {
 // parser and its page LUT are freed soon (and a radio stopped for the build comes back with no
 // parser alive). Not while the radio holds the heap, and not in a spine whose background build
 // failed.
-bool EpubReaderActivity::backgroundBuildWanted() const {
-  return section && section->isBuilding() && !bleturner::holdsHeap() && currentSpineIndex != backgroundBuildFailedSpine;
-}
+bool EpubReaderActivity::backgroundBuildWanted() const { return runBuildPolicy(XP_UI_READER_BUILD_OPERATION_WANTED); }
 
-bool EpubReaderActivity::skipLoopDelay() {
-  // The main loop holds the render lock while querying this hint. It keeps yielding while a button
-  // is down: a press that starts inside a long build step gets its second debounce sample ~5 ms
-  // after the step instead of after a 10 ms sleep.
-  return overlay == Overlay::None && !buildHeapPaused && backgroundBuildWanted();
-}
+bool EpubReaderActivity::skipLoopDelay() { return runBuildPolicy(XP_UI_READER_BUILD_OPERATION_DELAY); }
 
 void EpubReaderActivity::renderBook() {
   using Cache = std::remove_pointer_t<decltype(renderer.getFontCacheManager())>;
@@ -4308,5 +4231,214 @@ bool EpubReaderActivity::runBookLifetime(uint8_t operation) {
       [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
   const bool result = xp_ui_reader_book_lifetime(&services, operation);
   assert(!context.loaded && !context.loan && !context.file && !context.paths);
+  return result;
+}
+
+bool EpubReaderActivity::runBuildPolicy(uint8_t operation) const {
+  struct Context {
+    EpubReaderActivity& o;
+    std::optional<RenderLock> lock;
+    uint32_t freeHeap = 0, maxBlock = 0;
+    uint32_t read(uint8_t field) {
+      switch (static_cast<XpUiReaderBuildField>(field)) {
+        case XP_UI_READER_BUILD_FIELD_HAS_SECTION:
+          return static_cast<uint32_t>(bool(o.section));
+        case XP_UI_READER_BUILD_FIELD_BUILDING:
+          return static_cast<uint32_t>(o.section->isBuilding());
+        case XP_UI_READER_BUILD_FIELD_COMPLETE:
+          return static_cast<uint32_t>(o.section->isBuildComplete());
+        case XP_UI_READER_BUILD_FIELD_PAGE:
+          return static_cast<uint32_t>(o.section->currentPage);
+        case XP_UI_READER_BUILD_FIELD_FRAMEBUFFER:
+          return static_cast<uint32_t>(o.renderer.hasFrameBuffer());
+        default:
+          break;
+      }
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderBuildField>(field)) {
+        case XP_UI_READER_BUILD_FIELD_RADIO_RELEASED:
+          return static_cast<uint32_t>(o.radioReleasedForBuild.load());
+        case XP_UI_READER_BUILD_FIELD_HEAP_PAUSED:
+          return static_cast<uint32_t>(o.buildHeapPaused);
+        case XP_UI_READER_BUILD_FIELD_POPUP_PENDING:
+          return static_cast<uint32_t>(o.buildPopupPending);
+        case XP_UI_READER_BUILD_FIELD_REFRESH:
+          return static_cast<uint32_t>(o.renderRefreshCounter());
+        case XP_UI_READER_BUILD_FIELD_OVERLAY:
+          return static_cast<uint32_t>(o.overlay);
+        case XP_UI_READER_BUILD_FIELD_PENDING_TURN:
+          return static_cast<uint32_t>(o.pendingManualTurn);
+        case XP_UI_READER_BUILD_FIELD_SPINE:
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        case XP_UI_READER_BUILD_FIELD_FAILED_SPINE:
+          return static_cast<uint32_t>(o.backgroundBuildFailedSpine);
+        case XP_UI_READER_BUILD_FIELD_NEXT_PAGE:
+          return static_cast<uint32_t>(o.nextPageNumber);
+        case XP_UI_READER_BUILD_FIELD_BUFFER_STALE:
+          return static_cast<uint32_t>(o.pageBufferStale.load());
+        default:
+          return 0;
+      }
+    }
+    void write(uint8_t field, uint32_t value) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderBuildField>(field)) {
+        case XP_UI_READER_BUILD_FIELD_RADIO_RELEASED: {
+          o.radioReleasedForBuild = value != 0;
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_HEAP_PAUSED: {
+          o.buildHeapPaused = static_cast<decltype(o.buildHeapPaused)>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_POPUP_PENDING: {
+          o.buildPopupPending = static_cast<decltype(o.buildPopupPending)>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_REFRESH: {
+          o.renderRefreshCounter() = static_cast<int32_t>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_OVERLAY: {
+          o.overlay = static_cast<decltype(o.overlay)>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_PENDING_TURN: {
+          o.pendingManualTurn = static_cast<decltype(o.pendingManualTurn)>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_SPINE: {
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_FAILED_SPINE: {
+          o.backgroundBuildFailedSpine = static_cast<decltype(o.backgroundBuildFailedSpine)>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_NEXT_PAGE: {
+          o.nextPageNumber = static_cast<decltype(o.nextPageNumber)>(value);
+          break;
+        }
+        case XP_UI_READER_BUILD_FIELD_BUFFER_STALE: {
+          o.pageBufferStale = value != 0;
+          break;
+        }
+        default:
+          break;
+      }
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderBuildCommand>(command)) {
+        case XP_UI_READER_BUILD_COMMAND_RELEASE_STRIPS: {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          return o.stripBuffers.releaseIdle();
+#else
+          return false;
+#endif
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_RADIO_STATUS: {
+          const auto status = bleturner::status();
+          return status.running | (status.stopping << 1) | (status.starting << 2);
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_RADIO_BEFORE: {
+          return bleturner::beforeChapterBuild() != bleturner::BuildRelease::NotHeld;
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_CLOCK: {
+          return static_cast<uint32_t>(millis());
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_SLEEP: {
+          delay(static_cast<uint32_t>(a));
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_LOG_ROOM_DENIED: {
+          LOG_ERR("ERS", "Bluetooth radio still holds the heap after %u ms; chapter build refused",
+                  static_cast<unsigned>(BUILD_ROOM_WAIT_MS));
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_READ_FREE: {
+          freeHeap = ESP.getFreeHeap();
+          return freeHeap;
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_READ_BLOCK: {
+          maxBlock = ESP.getMaxAllocHeap();
+          return maxBlock;
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_LOG_RECLAIMED: {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          LOG_DBG("ERS", "Released idle reader strips for build: heap %u/%u -> %u/%u", static_cast<unsigned>(a),
+                  static_cast<unsigned>(b), static_cast<unsigned>(freeHeap), static_cast<unsigned>(maxBlock));
+#endif
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_PAINT_INDEX: {
+          GUI.drawPopup(o.renderer, tr(STR_INDEXING));
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_TRY_LOCK: {
+          assert(!lock);
+          lock.emplace(RenderLock::Mode::Try);
+          return lock->ownsLock();
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_UNLOCK: {
+          lock.reset();
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_BUTTON: {
+          using Button = MappedInputManager::Button;
+          constexpr Button buttons[] = {Button::Back, Button::Confirm, Button::Left, Button::Right,
+                                        Button::Up,   Button::Down,    Button::Power};
+          assert(a >= 0 && a < 7);
+          return o.mappedInput.isPressed(buttons[a]);
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_RAW: {
+          return buttonContactClosed();
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_LOAN_COUNT: {
+          return o.renderer.frameBufferLoanCount();
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_BUILD_SOME: {
+          return o.section->buildSomeMore(BACKGROUND_BUILD_PAGES_PER_TICK, &buttonContactClosed);
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_LOG_BUILD_FAILED: {
+          LOG_ERR("ERS", "Background section build failed");
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_DROP_SECTION: {
+          o.section.reset();
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_REPOSITION: {
+          return o.applyDeferredReposition();
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_UPDATE: {
+          o.requestUpdate();
+          break;
+        }
+        case XP_UI_READER_BUILD_COMMAND_RADIO_HEAP: {
+          return bleturner::holdsHeap();
+          break;
+        }
+      }
+      return 0;
+    }
+  } context{const_cast<EpubReaderActivity&>(*this), {}};
+  const XpUiReaderBuildServices services{
+      &context, [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
+      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
+      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
+  const bool result = xp_ui_reader_build_policy(&services, operation);
+  assert(!context.lock);
   return result;
 }

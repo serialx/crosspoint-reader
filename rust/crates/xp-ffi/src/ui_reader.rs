@@ -568,3 +568,11 @@ pub unsafe extern "C" fn xp_ui_reader_book_lifetime(
 pub unsafe extern "C" fn xp_ui_reader_build_policy(services: *const reader::build_policy::Services, operation: u8) -> u8 {
     reader::build_policy::run(services, operation)
 }
+
+/// # Safety
+/// Services obey the synchronous reader settings resource contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_settings(services: *const reader::settings::Services, operation: u8, argument: i32) {
+    reader::settings::run(services, operation, argument);
+}

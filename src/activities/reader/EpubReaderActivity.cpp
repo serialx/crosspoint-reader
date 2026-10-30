@@ -1246,55 +1246,15 @@ bool EpubReaderActivity::launchKOReaderSync() {
 }
 
 void EpubReaderActivity::applyInitialOrientation() {
-  ReaderActivity::applyInitialOrientation();
-  appliedOrientation = SETTINGS.orientation;
+  runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_INITIAL_ORIENTATION, 0);
 }
 
 void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
-  // Also runs when SETTINGS already holds the new value but this layout was
-  // built for the old one — that is what an external change looks like here.
-  if (SETTINGS.orientation == orientation && appliedOrientation == orientation) {
-    return;
-  }
-
-  RenderLock lock(*this);
-  if (section) {
-    rememberCurrentContentOffset();
-    cachedSpineIndex = currentSpineIndex;
-    cachedChapterTotalPageCount = section->pageCount;
-    nextPageNumber = section->currentPage;
-  }
-
-  if (SETTINGS.orientation != orientation) {
-    SETTINGS.orientation = orientation;
-    SETTINGS.saveToFile();
-  }
-  ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
-  appliedOrientation = orientation;
-  section.reset();
+  runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_ORIENTATION, orientation);
 }
 
 void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption) {
-  if (selectedPageTurnOption == 0 || selectedPageTurnOption >= std::size(PAGE_TURN_RATES)) {
-    automaticPageTurnActive = false;
-    return;
-  }
-
-  lastPageTurnTime = millis();
-  pageTurnDuration = (1UL * 60 * 1000) / PAGE_TURN_RATES[selectedPageTurnOption];
-  automaticPageTurnActive = true;
-
-  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
-  if (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight()) {
-    RenderLock lock;
-    if (section) {
-      rememberCurrentContentOffset();
-      cachedSpineIndex = currentSpineIndex;
-      cachedChapterTotalPageCount = section->pageCount;
-      nextPageNumber = section->currentPage;
-    }
-    section.reset();
-  }
+  runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_AUTO_TURN, selectedPageTurnOption);
 }
 
 bool EpubReaderActivity::pageTurn(const bool isForwardTurn) {
@@ -2690,53 +2650,12 @@ std::string EpubReaderActivity::textRowValue(int row) const {
 
 // Live apply: persist, re-paginate, and let renderBook() redraw the page with
 // the open panel back on top -- the book itself is the preview.
-void EpubReaderActivity::applyTextSettingLive() {
-  applyReaderTextSettings();
-  discardOverlayPage();  // the stored page is laid out with the old settings
-  requestUpdate();
-}
+void EpubReaderActivity::applyTextSettingLive() { runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_LIVE_TEXT, 0); }
 
 // Settings-style option pickers for the Text panel's enum rows. Every
 // selection applies immediately to the page under the sheet.
 void EpubReaderActivity::showTextRowPopup(const int row) {
-  switch (row) {
-    case 1: {
-      // The point sizes the active family actually ships.
-      const auto sizes = readerFontPointSizes(&sdFontSystem.registry(), SETTINGS.sdFontFamilyName);
-      if (sizes.empty()) return;
-      std::vector<std::string> labels;
-      labels.reserve(sizes.size());
-      for (const uint8_t size : sizes) labels.push_back(std::to_string(size) + " pt");
-      const uint8_t cur = snapToNearestPointSize(sizes, SETTINGS.fontPointSize);
-      int curIdx = 0;
-      for (size_t i = 0; i < sizes.size(); ++i) {
-        if (sizes[i] == cur) curIdx = static_cast<int>(i);
-      }
-      overlayPopup.show(StrId::STR_FONT_SIZE, labels, curIdx, [this, sizes](int idx) {
-        if (idx < 0 || idx >= static_cast<int>(sizes.size())) return;
-        SETTINGS.fontPointSize = sizes[idx];
-        applyTextSettingLive();
-      });
-      break;
-    }
-    case 2:
-      overlayPopup.show(StrId::STR_LINE_SPACING, kSpacingIds, static_cast<int>(std::size(kSpacingIds)),
-                        SETTINGS.lineSpacing % CrossPointSettings::LINE_COMPRESSION_COUNT, [this](int idx) {
-                          SETTINGS.lineSpacing = static_cast<uint8_t>(idx);
-                          applyTextSettingLive();
-                        });
-      break;
-    case 3:
-      overlayPopup.show(StrId::STR_PARA_ALIGNMENT, kAlignIds, static_cast<int>(std::size(kAlignIds)),
-                        SETTINGS.paragraphAlignment % CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT, [this](int idx) {
-                          SETTINGS.paragraphAlignment = static_cast<uint8_t>(idx);
-                          applyTextSettingLive();
-                        });
-      break;
-    default:
-      return;
-  }
-  paintOverlayPopup();
+  runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_POPUP, row);
 }
 
 void EpubReaderActivity::discardOverlayPage() {
@@ -3185,26 +3104,7 @@ void EpubReaderActivity::paintOverlayPopup() {
   pushOverlayRefresh();
 }
 
-void EpubReaderActivity::applyReaderTextSettings() {
-  {
-    RenderLock lock;
-    if (section) {
-      rememberCurrentContentOffset();
-      cachedSpineIndex = currentSpineIndex;
-      cachedChapterTotalPageCount = section->pageCount;
-      nextPageNumber = section->currentPage;
-    }
-    // Release the old parser and page table before settings serialization needs heap.
-    section.reset();  // force re-pagination with the new settings
-  }
-  SETTINGS.saveToFile();
-  // (Re)load or unload the selected SD-card font for the current family/size.
-  // The reader otherwise only loads SD fonts on book open, so without this an
-  // in-reader font change wouldn't take effect until re-opening the book.
-  // Locked because the render task can load or unload SD font variants too.
-  RenderLock lock;
-  sdFontSystem.ensureLoaded(renderer);
-}
+void EpubReaderActivity::applyReaderTextSettings() { runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_TEXT, 0); }
 
 // The More panel carries everything the classic list menu offers except the
 // two entries that have their own tool (chapters -> Contents, text -> Text).
@@ -4441,4 +4341,239 @@ bool EpubReaderActivity::runBuildPolicy(uint8_t operation) const {
   const bool result = xp_ui_reader_build_policy(&services, operation);
   assert(!context.lock);
   return result;
+}
+
+void EpubReaderActivity::runSettingsPolicy(uint8_t operation, int32_t argument,
+                                           const std::vector<uint8_t>* resultSizes) {
+  struct Choices {
+    const std::vector<uint8_t> sizes;
+    std::vector<std::string> labels;
+    Choices() : sizes(readerFontPointSizes(&sdFontSystem.registry(), SETTINGS.sdFontFamilyName)) {}
+  };
+  struct Context {
+    EpubReaderActivity& o;
+    const std::vector<uint8_t>* resultSizes;
+    std::optional<RenderLock> lock;
+    std::optional<Choices> choices;
+    uint32_t read(uint8_t field) {
+      switch (static_cast<XpUiReaderSettingsField>(field)) {
+        case XP_UI_READER_SETTINGS_FIELD_ORIENTATION:
+          return SETTINGS.orientation;
+        case XP_UI_READER_SETTINGS_FIELD_FONT_SIZE:
+          return SETTINGS.fontPointSize;
+        case XP_UI_READER_SETTINGS_FIELD_SPACING:
+          return SETTINGS.lineSpacing;
+        case XP_UI_READER_SETTINGS_FIELD_ALIGNMENT:
+          return SETTINGS.paragraphAlignment;
+        case XP_UI_READER_SETTINGS_FIELD_HAS_SECTION:
+          return static_cast<uint32_t>(bool(o.section));
+        case XP_UI_READER_SETTINGS_FIELD_PAGE_COUNT:
+          return static_cast<uint32_t>(o.section->pageCount);
+        case XP_UI_READER_SETTINGS_FIELD_PAGE:
+          return static_cast<uint32_t>(o.section->currentPage);
+        case XP_UI_READER_SETTINGS_FIELD_RATE_COUNT:
+          return static_cast<uint32_t>(std::size(PAGE_TURN_RATES));
+        case XP_UI_READER_SETTINGS_FIELD_STATUS_HEIGHT:
+          return static_cast<uint32_t>(UITheme::getInstance().getStatusBarHeight());
+        case XP_UI_READER_SETTINGS_FIELD_PROGRESS_HEIGHT:
+          return static_cast<uint32_t>(UITheme::getInstance().getProgressBarHeight());
+        case XP_UI_READER_SETTINGS_FIELD_SIZE_COUNT:
+          return static_cast<uint32_t>(resultSizes ? resultSizes->size() : (choices ? choices->sizes.size() : 0));
+        case XP_UI_READER_SETTINGS_FIELD_SPACING_COUNT:
+          return static_cast<uint32_t>(CrossPointSettings::LINE_COMPRESSION_COUNT);
+        case XP_UI_READER_SETTINGS_FIELD_ALIGNMENT_COUNT:
+          return static_cast<uint32_t>(CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT);
+        default:
+          break;
+      }
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderSettingsField>(field)) {
+        case XP_UI_READER_SETTINGS_FIELD_APPLIED_ORIENTATION:
+          return static_cast<uint32_t>(o.appliedOrientation);
+        case XP_UI_READER_SETTINGS_FIELD_SPINE:
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        case XP_UI_READER_SETTINGS_FIELD_CACHED_SPINE:
+          return static_cast<uint32_t>(o.cachedSpineIndex);
+        case XP_UI_READER_SETTINGS_FIELD_CACHED_COUNT:
+          return static_cast<uint32_t>(o.cachedChapterTotalPageCount);
+        case XP_UI_READER_SETTINGS_FIELD_NEXT_PAGE:
+          return static_cast<uint32_t>(o.nextPageNumber);
+        case XP_UI_READER_SETTINGS_FIELD_LAST_TURN:
+          return static_cast<uint32_t>(o.lastPageTurnTime);
+        case XP_UI_READER_SETTINGS_FIELD_TURN_DURATION:
+          return static_cast<uint32_t>(o.pageTurnDuration);
+        case XP_UI_READER_SETTINGS_FIELD_AUTO_ACTIVE:
+          return static_cast<uint32_t>(o.automaticPageTurnActive);
+        default:
+          return 0;
+      }
+    }
+    void write(uint8_t field, uint32_t value) {
+      switch (static_cast<XpUiReaderSettingsField>(field)) {
+        case XP_UI_READER_SETTINGS_FIELD_ORIENTATION:
+          SETTINGS.orientation = static_cast<uint8_t>(value);
+          return;
+        case XP_UI_READER_SETTINGS_FIELD_FONT_SIZE:
+          SETTINGS.fontPointSize = static_cast<uint8_t>(value);
+          return;
+        case XP_UI_READER_SETTINGS_FIELD_SPACING:
+          SETTINGS.lineSpacing = static_cast<uint8_t>(value);
+          return;
+        case XP_UI_READER_SETTINGS_FIELD_ALIGNMENT:
+          SETTINGS.paragraphAlignment = static_cast<uint8_t>(value);
+          return;
+        default:
+          break;
+      }
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderSettingsField>(field)) {
+        case XP_UI_READER_SETTINGS_FIELD_APPLIED_ORIENTATION:
+          o.appliedOrientation = static_cast<decltype(o.appliedOrientation)>(value);
+          break;
+        case XP_UI_READER_SETTINGS_FIELD_SPINE:
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          break;
+        case XP_UI_READER_SETTINGS_FIELD_CACHED_SPINE:
+          o.cachedSpineIndex = static_cast<decltype(o.cachedSpineIndex)>(value);
+          break;
+        case XP_UI_READER_SETTINGS_FIELD_CACHED_COUNT:
+          o.cachedChapterTotalPageCount = static_cast<decltype(o.cachedChapterTotalPageCount)>(value);
+          break;
+        case XP_UI_READER_SETTINGS_FIELD_NEXT_PAGE:
+          o.nextPageNumber = static_cast<decltype(o.nextPageNumber)>(value);
+          break;
+        case XP_UI_READER_SETTINGS_FIELD_LAST_TURN:
+          o.lastPageTurnTime = static_cast<decltype(o.lastPageTurnTime)>(value);
+          break;
+        case XP_UI_READER_SETTINGS_FIELD_TURN_DURATION:
+          o.pageTurnDuration = static_cast<decltype(o.pageTurnDuration)>(value);
+          break;
+        case XP_UI_READER_SETTINGS_FIELD_AUTO_ACTIVE:
+          o.automaticPageTurnActive = static_cast<decltype(o.automaticPageTurnActive)>(value);
+          break;
+        default:
+          break;
+      }
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t) {
+      switch (static_cast<XpUiReaderSettingsCommand>(command)) {
+        case XP_UI_READER_SETTINGS_COMMAND_BASE_ORIENTATION: {
+          o.ReaderActivity::applyInitialOrientation();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_LOCK: {
+          assert(!lock);
+          if (a)
+            lock.emplace(o);
+          else
+            lock.emplace();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_UNLOCK: {
+          lock.reset();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_REMEMBER_OFFSET: {
+          o.rememberCurrentContentOffset();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_DROP_SECTION: {
+          o.section.reset();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_SAVE_SETTINGS: {
+          SETTINGS.saveToFile();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_APPLY_ORIENTATION: {
+          ReaderUtils::applyOrientation(o.renderer, SETTINGS.orientation);
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_CLOCK: {
+          return static_cast<uint32_t>(millis());
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_RATE: {
+          assert(a >= 0 && static_cast<size_t>(a) < std::size(PAGE_TURN_RATES));
+          return PAGE_TURN_RATES[a];
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_ENSURE_FONTS: {
+          sdFontSystem.ensureLoaded(o.renderer);
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_DISCARD_OVERLAY: {
+          o.discardOverlayPage();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_UPDATE: {
+          o.requestUpdate();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_PREPARE_SIZES: {
+          assert(!choices);
+          choices.emplace();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_DROP_SIZES: {
+          choices.reset();
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_RESERVE_LABELS: {
+          assert(choices);
+          choices->labels.reserve(static_cast<size_t>(a));
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_ADD_LABEL: {
+          assert(choices && a >= 0 && static_cast<size_t>(a) < choices->sizes.size());
+          choices->labels.push_back(std::to_string(choices->sizes[a]) + " pt");
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_SNAP_SIZE: {
+          assert(choices);
+          return snapToNearestPointSize(choices->sizes, SETTINGS.fontPointSize);
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_SIZE_AT: {
+          const auto& sizes = resultSizes ? *resultSizes : choices->sizes;
+          assert(a >= 0 && static_cast<size_t>(a) < sizes.size());
+          return sizes[a];
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_SHOW_SIZES: {
+          assert(choices);
+          o.overlayPopup.show(StrId::STR_FONT_SIZE, choices->labels, a,
+                              [owner = &o, sizes = choices->sizes](int index) {
+                                owner->runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_SIZE_RESULT, index, &sizes);
+                              });
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_SHOW_SPACING: {
+          o.overlayPopup.show(StrId::STR_LINE_SPACING, kSpacingIds, static_cast<int>(std::size(kSpacingIds)), a,
+                              [owner = &o](int index) {
+                                owner->runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_SPACING_RESULT, index);
+                              });
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_SHOW_ALIGNMENT: {
+          o.overlayPopup.show(StrId::STR_PARA_ALIGNMENT, kAlignIds, static_cast<int>(std::size(kAlignIds)), a,
+                              [owner = &o](int index) {
+                                owner->runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_ALIGNMENT_RESULT, index);
+                              });
+          break;
+        }
+        case XP_UI_READER_SETTINGS_COMMAND_PAINT_POPUP: {
+          o.paintOverlayPopup();
+          break;
+        }
+      }
+      return 0;
+    }
+  } context{*this, resultSizes, {}, {}};
+  const XpUiReaderSettingsServices services{
+      &context, [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
+      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
+      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
+  xp_ui_reader_settings(&services, operation, argument);
+  assert(!context.lock && !context.choices);
 }

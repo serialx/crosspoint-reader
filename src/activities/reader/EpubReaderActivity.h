@@ -202,6 +202,7 @@ class EpubReaderActivity final : public ReaderActivity {
   void paintOverlayPopup();
   // Persist the reader text settings, (re)load the selected SD font, and
   // re-paginate the current chapter so changes apply without re-opening the book.
+  void runSettingsPolicy(uint8_t operation, int32_t argument = 0, const std::vector<uint8_t>* resultSizes = nullptr);
   void applyReaderTextSettings();
   // More panel rows.
   void buildMoreActions();

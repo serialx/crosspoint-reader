@@ -84,6 +84,7 @@ struct Fonts {
   }
   void ensureLoaded(Renderer&) { event("load-font", lockDepth); }
 };
+static Fonts sdFontSystem;
 static std::vector<uint8_t> sizes;
 std::vector<uint8_t> readerFontPointSizes(int*, const char* family) {
   std::printf("sizes [%s]\n", family);
@@ -117,7 +118,6 @@ struct EpubReaderActivity : ReaderActivity {
     explicit ModelLock(EpubReaderActivity&) {}
   };
   Renderer renderer;
-  Fonts sdFontSystem;
   Popup overlayPopup;
   std::unique_ptr<Section> section;
   int appliedOrientation = 0, currentSpineIndex = 3, cachedSpineIndex = -1, cachedChapterTotalPageCount = 0,
@@ -128,6 +128,7 @@ struct EpubReaderActivity : ReaderActivity {
   void discardOverlayPage() { event("discard", lockDepth); }
   void requestUpdate() { event("update", lockDepth); }
   void paintOverlayPopup() { event("paint-popup", lockDepth); }
+  void runSettingsPolicy(uint8_t operation, int32_t argument = 0, const std::vector<uint8_t>* resultSizes = nullptr);
   void applyInitialOrientation();
   void applyOrientation(uint8_t);
   void toggleAutoPageTurn(uint8_t);

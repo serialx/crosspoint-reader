@@ -453,3 +453,5 @@ pub mod view_values;
 pub mod book_lifetime;
 
 pub mod build_policy;
+
+pub mod settings;

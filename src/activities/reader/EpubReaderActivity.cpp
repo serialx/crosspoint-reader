@@ -1764,6 +1764,23 @@ void EpubReaderActivity::renderBook() {
       }
       return 0;
     }
+    // Spine metadata is needed only during preparation, before page drawing.
+    [[gnu::noinline]] void loadSpinePath() {
+      assert(!path);
+      path.emplace(o.epub->getSpineItem(o.currentSpineIndex).href);
+    }
+    [[gnu::noinline]] void sampleSpec() {
+      spec = SETTINGS.readerRenderSpec(o.buildViewportWidth, o.buildViewportHeight);
+    }
+    [[gnu::noinline]] bool createSection() {
+      return o.section->createSectionFile(spec, [owner = &o] {
+        if (owner->renderer.hasFrameBuffer()) GUI.drawPopup(owner->renderer, tr(STR_INDEXING));
+      });
+    }
+    [[gnu::noinline]] bool startBuild(bool popup) {
+      if (popup) return o.section->startBuild(spec, [owner = &o] { owner->showBuildPopup(); });
+      return o.section->startBuild(spec);
+    }
     uint32_t command(uint8_t command, int32_t a, int32_t b) {
       switch (static_cast<XpUiReaderBookCommand>(command)) {
         case XP_UI_READER_BOOK_COMMAND_SAMPLE_FONT_CACHE: {
@@ -1796,12 +1813,11 @@ void EpubReaderActivity::renderBook() {
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_SET_SPEC: {
-          spec = SETTINGS.readerRenderSpec(o.buildViewportWidth, o.buildViewportHeight);
+          sampleSpec();
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_GET_PATH: {
-          assert(!path);
-          path.emplace(o.epub->getSpineItem(o.currentSpineIndex).href);
+          loadSpinePath();
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_DROP_PATH: {
@@ -1855,9 +1871,7 @@ void EpubReaderActivity::renderBook() {
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_CREATE_ALL: {
-          return o.section->createSectionFile(spec, [owner = &o] {
-            if (owner->renderer.hasFrameBuffer()) GUI.drawPopup(owner->renderer, tr(STR_INDEXING));
-          });
+          return createSection();
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_LOG_PERSIST_FAILED: {
@@ -1883,7 +1897,7 @@ void EpubReaderActivity::renderBook() {
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_START_WITH_POPUP: {
-          return o.section->startBuild(spec, [owner = &o] { owner->showBuildPopup(); });
+          return startBuild(true);
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_LOG_START_FAILED: {
@@ -1932,7 +1946,7 @@ void EpubReaderActivity::renderBook() {
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_START_PARTIAL: {
-          return o.section->startBuild(spec);
+          return startBuild(false);
           break;
         }
         case XP_UI_READER_BOOK_COMMAND_LOG_PARTIAL_START_FAILED: {
@@ -2234,7 +2248,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       }
       return 0;
     }
-    void log(uint32_t id) const {
+    [[gnu::noinline]] void log(uint32_t id) const {
       const auto* t = times;
       switch (static_cast<XpUiReaderRenderLog>(id)) {
         case XP_UI_READER_RENDER_STRIP_OOM:

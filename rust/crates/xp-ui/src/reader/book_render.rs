@@ -215,6 +215,7 @@ impl Engine {
         });
         self.set(Field::Automatic, 0);
     }
+    #[inline(never)]
     fn viewport(&self) {
         self.op(Command::SampleMargins);
         let margin = self.q(Query::ScreenMargin) as i32;

@@ -278,8 +278,7 @@ widths also have direct target tests in `xp-core::strip::tests`.
 
 ## Reader strip integration
 
-`XP_STRIP_RENDER=1` requires `FREEINK_RUST_PANEL=1`. Both are opt-in build
-flags. The firmware uses the strip source only on single-buffer UC8253 X3 and
+`XP_STRIP_RENDER=1` is an independent, opt-in build flag. The firmware uses the strip source only on single-buffer UC8253 X3 and
 SSD1677 X4. Other screens and controllers retain the framebuffer path. The
 framebuffer remains allocated; this stage does not save its RAM.
 

@@ -18,17 +18,9 @@ def display_features(defines, compiler, header):
     values = {item[0]: str(item[1]) if len(item) > 1 else "1"
               for item in (d if isinstance(d, (tuple, list)) else (d,) for d in defines)}
     strips = values.get("XP_STRIP_RENDER", "0") != "0"
-    if values.get("FREEINK_RUST_PANEL", "0") == "0":
-        if strips:
-            raise ValueError("XP_STRIP_RENDER requires FREEINK_RUST_PANEL")
-        return []
     source = []
     for macro, feature in DRIVERS.items():
-        condition = macro
-        # These configurations deliberately retain the SDK's C++ SSD1677 driver.
-        if feature == "ssd1677":
-            condition += " && !defined(FREEINK_SSD1677_CONFIG) && !defined(SSD1677_PROBE_DEBUG)"
-        source += ["#if " + condition, "display-" + feature, "#endif"]
+        source += ["#if " + macro, "display-" + feature, "#endif"]
     command = [str(compiler), "-E", "-P", "-x", "c++", "-include", str(header), "-"]
     command += ["-D" + key + "=" + value for key, value in values.items()]
     result = subprocess.run(command, input="\n".join(source) + "\n", text=True,

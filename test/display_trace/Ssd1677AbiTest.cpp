@@ -14,6 +14,9 @@ void check(bool value, const char* message) {
 }
 struct Trace {
   unsigned attempts = 0, failAt = 0, live = 0, frees = 0, diagnostic = 0, requested = 0;
+  unsigned clockReads = 0, refreshEvents = 0;
+  uint32_t clock = 0xffffffe0;
+  std::array<uint32_t, 4> refresh{};
   std::vector<unsigned> commands;
   std::vector<unsigned> allocations;
   std::vector<unsigned> liveAtRefresh;
@@ -57,10 +60,19 @@ XpDisplayBus bus(Trace& trace) {
           [](void*, uint32_t) {},
           [](void*, uint32_t) {},
           [](void*, uint32_t) {},
-          [](void*) -> uint32_t { return 0; },
-          [](void*, uint32_t, uint32_t) -> uint32_t { return 0; },
-          [](void* ctx, uint32_t event, uint32_t bytes, uint32_t, uint32_t, uint32_t, const uint8_t*, uint32_t) {
+          [](void* ctx) -> uint32_t {
             auto& t = *static_cast<Trace*>(ctx);
+            ++t.clockReads;
+            t.clock += 17;
+            return t.clock;
+          },
+          [](void*, uint32_t, uint32_t) -> uint32_t { return 0; },
+          [](void* ctx, uint32_t event, uint32_t bytes, uint32_t b, uint32_t c, uint32_t d, const uint8_t*, uint32_t) {
+            auto& t = *static_cast<Trace*>(ctx);
+            if (event == XP_DISPLAY_DIAG_SSD_REFRESH) {
+              ++t.refreshEvents;
+              t.refresh = {bytes, b, c, d};
+            }
             t.diagnostic = event;
             t.requested = bytes;
           }};
@@ -161,6 +173,76 @@ int main() {
   config.height = 656;
   check(xp_display_init_v2(storage.data(), storage.size(), &config, &options) == XP_DISPLAY_INVALID, "oversized frame");
   check(storage == before, "invalid init modified storage");
+  config.height = 480;
+  XpDisplaySsd1677Config custom{};
+  check(xp_display_ssd1677_default_config(nullptr) == XP_DISPLAY_INVALID, "null default output");
+  check(xp_display_ssd1677_default_config(&custom) == XP_DISPLAY_OK, "default config export");
+  const auto defaults = custom;
+  config.controller_config = &custom;
+  config.controller_config_size = sizeof(custom);
+  const auto reject = [&] {
+    storage.fill(0x5a);
+    const auto original = storage;
+    t = {};
+    check(xp_display_init_v2(storage.data(), storage.size(), &config, &options) == XP_DISPLAY_INVALID,
+          "invalid descriptor accepted");
+    check(storage == original && t.allocations.empty() && t.commands.empty(), "invalid init had effects");
+  };
+  for (uint32_t size = 0; size < sizeof(custom); ++size) {
+    config.controller_config_size = size;
+    reject();
+  }
+  config.controller_config_size = sizeof(custom);
+  for (uint32_t version : {0u, 2u, 0xffffffffu}) {
+    custom.version = version;
+    reject();
+  }
+  custom = defaults;
+  custom.struct_size--;
+  reject();
+  for (uint8_t* field : {&custom.gray_power_first, &custom.absolute, &custom.overlay, &custom.second_control,
+                         &custom.restore_temp, &custom.black_pulse}) {
+    custom = defaults;
+    *field = 2;
+    reject();
+  }
+  for (auto* lut : {&custom.gray, &custom.factory, &custom.fast_lut, &custom.full_lut, &custom.half_lut}) {
+    for (uint32_t size : {0u, 1u, 109u, 111u, 0xffffffffu}) {
+      custom = defaults;
+      *lut = {defaults.gray.data, size};
+      reject();
+    }
+    custom = defaults;
+    *lut = {nullptr, 110};
+    reject();
+  }
+  custom = defaults;
+  custom.gray = {nullptr, 0};
+  reject();
+  custom = defaults;
+  config.controller_config = reinterpret_cast<const char*>(&custom) + 1;
+  reject();
+  config.controller_config = &custom;
+  options.controller_config_version = 2;
+  reject();
+  options.controller_config_version = 1;
+  for (bool diagnostics : {false, true}) {
+    t = {};
+    config.flags = diagnostics ? XP_DISPLAY_SSD1677_DIAGNOSTICS : 0;
+    init();
+    r = {};
+    r.struct_size = sizeof(r);
+    r.operation = XP_DISPLAY_OP_DISPLAY;
+    r.mode = 0;
+    r.data = frame.data();
+    r.data_len = frame.size();
+    run(r, XP_DISPLAY_OK);
+    check(t.allocations.empty(), "custom descriptor allocated");
+    check(t.clockReads == (diagnostics ? 2u : 0u), "diagnostic clock gating");
+    check(t.refreshEvents == (diagnostics ? 1u : 0u), "refresh event count");
+    if (diagnostics) check(t.refresh == std::array<uint32_t, 4>{0, 17, 0xf7, 1}, "refresh payload/wrapping time");
+    xp_display_drop(storage.data());
+  }
   std::printf("SSD1677 ABI: allocation failures, cleanup, retries, bounds and null inputs passed; state=%u bytes\n",
               xp_display_state_size(XP_DISPLAY_SSD1677));
 }

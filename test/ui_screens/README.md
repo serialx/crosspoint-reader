@@ -105,6 +105,8 @@ into `../share/qemu/` relative to the QEMU executable directory. The recorded ex
 
 The `default` firmware detects X3/X4 at runtime. For refresh instrumentation, use
 the existing SDK `SSD1677_PROBE_DEBUG` flag in an **ignored local** environment.
+SSD1677 refresh events come from Rust and keep the existing SDK log strings.
+A value of zero disables diagnostics without changing the selected driver.
 No firmware source or checked-in build configuration changes are needed:
 
 ```ini

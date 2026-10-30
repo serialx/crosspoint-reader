@@ -36,6 +36,35 @@ def generate(repo, output):
                    for method in methods]
     if "bool EpubReaderActivity::applyPageMove(" in reader:
         methods.append(definition(reader, "bool EpubReaderActivity::applyPageMove("))
+    if "uint32_t EpubReaderActivity::runProjection(" in reader:
+        # The complete projection binding is checked by test_projection.py; this
+        # older lifecycle fixture keeps its narrower turn/gate platform surface.
+        import re
+        projection = definition(reader, "uint32_t EpubReaderActivity::runProjection(")
+        read = projection.split("uint32_t read(", 1)[1].split("void write(", 1)[0]
+        write = projection.split("void write(", 1)[1].split("uint32_t command(", 1)[0]
+        command = projection.split("uint32_t command(", 1)[1].split("} context", 1)[0]
+        def cases(text, kind, names):
+            result = []
+            for name in names:
+                start = text.index("case XP_UI_READER_PROJECTION_" + kind + "_" + name + ":")
+                end = re.search(r"\n\s*(?:case |default:)", text[start + 5:])
+                assert end
+                result.append(text[start:start + 5 + end.start()])
+            return "\n".join(result)
+        fields = ["HAS_SECTION", "SPINE", "PAGE", "PAGE_COUNT", "BUILDING"]
+        writes = ["SPINE", "NEXT_PAGE", "PAGE", "PENDING_PAGE", "LAST_TURN"]
+        commands = ["SPINE_COUNT", "LOCK", "UNLOCK", "CLEAR_DEFERRED", "ACKNOWLEDGE", "DROP_SECTION", "CLOCK"]
+        bridge = """uint32_t EpubReaderActivity::runProjection(uint8_t operation,int32_t a,int32_t b,uint8_t c,void*) const {
+          struct Context { EpubReaderActivity& o; std::optional<RenderLock> lock;
+          uint32_t read(uint8_t f) { switch(f) { READ default:return 0; } }
+          void write(uint8_t f,uint32_t value) { switch(f) { WRITE default:return; } }
+          uint32_t command(uint8_t command,int32_t a,int32_t b) { switch(command) { COMMAND default:break; } return 0; }
+          } context{const_cast<EpubReaderActivity&>(*this),{}};
+        """
+        bridge = bridge.replace("READ", cases(read,"FIELD",fields)).replace("WRITE", cases(write,"FIELD",writes)).replace("COMMAND", cases(command,"COMMAND",commands))
+        bridge += projection[projection.index("  const XpUiReaderProjectionServices services"):]
+        methods.append(bridge)
     if "bool EpubReaderActivity::runBuildPolicy(" in reader:
         methods.append((repo / "test/reader_lifecycle/build_policy_rust.inc").read_text())
     if "bool EpubReaderActivity::runBookLifetime(" in reader:

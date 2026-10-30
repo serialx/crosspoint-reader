@@ -14,6 +14,14 @@ for signature in ['bool EpubReaderActivity::applyPageMove(','uint32_t EpubReader
 if 'bool EpubReaderActivity::inputOverPage(' in source:methods+='\n'+definition(source,'bool EpubReaderActivity::inputOverPage(')
 else:methods+='\n'+definition(header,'bool inputOverPage()').replace('bool inputOverPage()','bool EpubReaderActivity::inputOverPage()').replace(' override','')
 fixture=(HERE/'projection_oracle.cpp').read_text().replace('// PROJECTION_METHODS',methods)
+if not freeze:
+    fixture = fixture.replace('static int lockDepth', 'static bool projectionActive = false;\nstatic int lockDepth')
+    fixture = fixture.replace('event("fallback-percent");', 'assert(!projectionActive); event("fallback-percent");')
+    signature = 'uint32_t EpubReaderActivity::runProjection('
+    if signature in fixture:
+        start = fixture.index('{', fixture.index(signature)) + 1
+        fixture = fixture[:start] + 'struct Active { Active(){assert(!projectionActive);projectionActive=true;} ~Active(){projectionActive=false;} } active;' + fixture[start:]
+
 with tempfile.TemporaryDirectory() as directory:
  path=Path(directory)
  def run(text):
@@ -25,5 +33,7 @@ with tempfile.TemporaryDirectory() as directory:
   golden.write_bytes(gzip.compress(actual,mtime=0))
   for before,after in [('currentPage > 0 ?','currentPage > 1 ?'),('fraction, 0.0f, 1.0f','fraction, 0.0f, 0.5f'),('if (BoardConfig::hasTouch()) return 0;','if (false) return 0;')]:
    wrong=fixture.replace(before,after);assert wrong!=fixture and run(wrong)!=actual
- else:assert actual==gzip.decompress(golden.read_bytes())
+ else:
+  assert actual==gzip.decompress(golden.read_bytes())
+  run((HERE/'projection_abi.cpp').read_text())
  print(f'projections: {len(actual.splitlines())} original trace lines')

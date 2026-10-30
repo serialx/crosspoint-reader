@@ -134,7 +134,7 @@ struct EpubReaderActivity : ReaderActivity {
   std::unique_ptr<Section> section = std::make_unique<Section>();
   mutable GfxRenderer renderer;
   int currentSpineIndex = 0, nextPageNumber = 2, cachedChapterTotalPageCount = 8;
-  uint16_t pendingPageJump = 123;
+  std::optional<uint16_t> pendingPageJump = 123;
   unsigned long lastPageTurnTime = 56;
   bool automaticPageTurnActive = true, pendingSyncSaveError = true, toolbar = false;
   enum class Overlay { None, Toolbar };
@@ -168,7 +168,7 @@ struct EpubReaderActivity : ReaderActivity {
   bool applyPageMove(const XpUiReaderMove&, bool);
   uint32_t runProjection(uint8_t, int32_t = 0, int32_t = 0, uint8_t = 0, void* = nullptr) const;
   void dump() const {
-    std::printf("state %d %d %d %d %lu %d %d %d\n", currentSpineIndex, nextPageNumber, pendingPageJump,
+    std::printf("state %d %d %d %d %lu %d %d %d\n", currentSpineIndex, nextPageNumber, pendingPageJump.value_or(0),
                 section ? section->currentPage : -99, lastPageTurnTime, automaticPageTurnActive, pendingSyncSaveError,
                 !!section);
   }

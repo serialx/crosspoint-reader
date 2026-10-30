@@ -208,16 +208,14 @@ EpubReaderActivity::~EpubReaderActivity() { runBookLifetime(XP_UI_READER_LIFETIM
 bool EpubReaderActivity::loadBook() { return runBookLifetime(XP_UI_READER_LIFETIME_OPERATION_LOAD); }
 
 ChapterPosition EpubReaderActivity::chapterPosition() const {
-  if (section) return {section->currentPage, section->estimatedTotalPages()};
-  return {nextPageNumber, cachedChapterTotalPageCount};
+  ChapterPosition result;
+  runProjection(XP_UI_READER_PROJECTION_OPERATION_CHAPTER, 0, 0, 0, &result);
+  return result;
 }
 
 int EpubReaderActivity::bookPercentFor(const ChapterPosition& position) const {
-  if (!epub || epub->getBookSize() == 0 || !position.hasTotal()) return 0;
-  // The page index can run past the chapter's estimated total while it is still
-  // building, so the fraction is clamped before the cast.
-  const float fraction = epub->calculateProgress(currentSpineIndex, position.chapterFraction());
-  return static_cast<int>(std::clamp(fraction, 0.0f, 1.0f) * 100.0f + 0.5f);
+  return static_cast<int>(
+      runProjection(XP_UI_READER_PROJECTION_OPERATION_BOOK_PERCENT, position.pageIndex, position.totalPages));
 }
 
 void EpubReaderActivity::openReaderMenu() { runMenuPolicy(XP_UI_READER_PARENT_OPERATION_OPEN, 0); }
@@ -1228,11 +1226,7 @@ void EpubReaderActivity::applyProgressChange(const ProgressChangeResult& sync) {
 }
 
 int EpubReaderActivity::currentTocIndex() const {
-  if (!epub) return 0;
-  if (section) return std::max(0, section->getTocIndexForPage(section->currentPage));
-  // Child screens may have released the section; its saved anchor map remains readable.
-  Section cachedSection(epub, currentSpineIndex, renderer);
-  return std::max(0, cachedSection.getTocIndexForPage(nextPageNumber));
+  return static_cast<int>(runProjection(XP_UI_READER_PROJECTION_OPERATION_TOC));
 }
 
 void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action) {
@@ -1240,21 +1234,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
 }
 
 unsigned long EpubReaderActivity::confirmLongPressThreshold() const {
-  // The setting is hidden on these boards, so a stale stored value must not act.
-  if (BoardConfig::hasTouch()) return 0;
-  switch (SETTINGS.longPressMenuFunction) {
-    case CrossPointSettings::LP_MENU_BOOKMARK:
-    case CrossPointSettings::LP_MENU_DICTIONARY:
-    case CrossPointSettings::LP_MENU_CREATE_CLIPPING:
-    case CrossPointSettings::LP_MENU_FOOTNOTES:
-      return ReaderUtils::BOOKMARK_HOLD_MS;
-    case CrossPointSettings::LP_MENU_KOSYNC:
-      return KOREADER_STORE.hasCredentials() ? ReaderUtils::GO_HOME_MS : 0;
-    case CrossPointSettings::LP_MENU_READER_MENU:
-    case CrossPointSettings::LP_MENU_DISABLED:
-    default:
-      return 0;
-  }
+  return runProjection(XP_UI_READER_PROJECTION_OPERATION_CONFIRM_THRESHOLD);
 }
 
 bool EpubReaderActivity::launchKOReaderSync() { return runChildPolicy(XP_UI_READER_CHILD_OPERATION_SYNC); }
@@ -1271,48 +1251,17 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
   runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_AUTO_TURN, selectedPageTurnOption);
 }
 
-bool EpubReaderActivity::pageTurn(const bool isForwardTurn) {
-  if (!section) return false;
-  bleturner::acknowledgeLinkNote();
-  {
-    RenderLock lock;
-    clearDeferredReposition();
-  }
-  const auto move = xp_ui_reader_turn(currentSpineIndex, epub->getSpineItemsCount(), section->currentPage,
-                                      section->pageCount, section->isBuilding(), isForwardTurn);
-  return applyPageMove(move, true);
+bool EpubReaderActivity::pageTurn(bool isForwardTurn) {
+  return runProjection(XP_UI_READER_PROJECTION_OPERATION_TURN, isForwardTurn) != 0;
 }
 
-bool EpubReaderActivity::applyPageMove(const XpUiReaderMove& move, const bool recordTurn) {
-  switch (static_cast<XpUiReaderMoveKind>(move.kind)) {
-    case XP_UI_READER_MOVE_NONE:
-      return false;
-    case XP_UI_READER_MOVE_PAGE:
-      section->currentPage = move.value;
-      break;
-    case XP_UI_READER_MOVE_CHAPTER: {
-      RenderLock lock;
-      nextPageNumber = 0;
-      if (move.last_page) pendingPageJump = std::numeric_limits<uint16_t>::max();
-      currentSpineIndex = move.value;
-      section.reset();
-      if (recordTurn) lastPageTurnTime = millis();
-      return true;
-    }
-    case XP_UI_READER_MOVE_END:
-      currentSpineIndex = move.value;
-      break;
-    default:
-      return false;
-  }
-  if (recordTurn) lastPageTurnTime = millis();
-  return true;
+bool EpubReaderActivity::applyPageMove(const XpUiReaderMove& move, bool recordTurn) {
+  return runProjection(XP_UI_READER_PROJECTION_OPERATION_APPLY_MOVE, move.kind, move.value,
+                       (move.last_page ? 1 : 0) | (recordTurn ? 2 : 0)) != 0;
 }
 
-bool EpubReaderActivity::skipPages(const int amount) {
-  if (!section) return false;
-  bleturner::acknowledgeLinkNote();
-  return applyPageMove(xp_ui_reader_skip(currentSpineIndex, section->currentPage, amount), false);
+bool EpubReaderActivity::skipPages(int amount) {
+  return runProjection(XP_UI_READER_PROJECTION_OPERATION_SKIP, amount) != 0;
 }
 
 // Failed protected open: show the standard option dialog (wrapped message)
@@ -1429,28 +1378,13 @@ bool EpubReaderActivity::runRecoveryPolicy(uint8_t operation, int32_t a, int32_t
   return xp_ui_reader_recovery(&services, operation, a, b) != 0;
 }
 
-bool EpubReaderActivity::remoteShortcut(const bool readerMenu) {
-  if (!section) return false;
-  automaticPageTurnActive = false;
-  if (!readerMenu) {
-    startClipSelection();
-  } else if (usesToolbarMenu()) {
-    openOverlay(Overlay::Toolbar);
-  } else {
-    openReaderMenu();
-  }
-  return true;
+bool EpubReaderActivity::remoteShortcut(bool readerMenu) {
+  return runProjection(XP_UI_READER_PROJECTION_OPERATION_REMOTE, readerMenu) != 0;
 }
 
-bool EpubReaderActivity::isAtEndOfBook() const { return epub && currentSpineIndex >= epub->getSpineItemsCount(); }
+bool EpubReaderActivity::isAtEndOfBook() const { return runProjection(XP_UI_READER_PROJECTION_OPERATION_AT_END) != 0; }
 
-void EpubReaderActivity::onReturnFromEndOfBook() {
-  if (epub && epub->getSpineItemsCount() > 0) {
-    currentSpineIndex = epub->getSpineItemsCount() - 1;
-    nextPageNumber = 0;
-    pendingPageJump = std::numeric_limits<uint16_t>::max();
-  }
-}
+void EpubReaderActivity::onReturnFromEndOfBook() { runProjection(XP_UI_READER_PROJECTION_OPERATION_RETURN_END); }
 
 // A started build runs to the end of the chapter, one bounded step per idle loop frame, so the
 // parser and its page LUT are freed soon (and a radio stopped for the build comes back with no
@@ -2178,13 +2112,7 @@ void EpubReaderActivity::renderBook() {
   assert(!context.path && !context.loan && !context.page && !context.cache);
 }
 
-void EpubReaderActivity::onEndOfBookRendered() {
-  automaticPageTurnActive = false;
-  if (pendingSyncSaveError) {
-    pendingSyncSaveError = false;
-    GUI.drawPopup(renderer, tr(STR_SAVE_PROGRESS_FAILED));
-  }
-}
+void EpubReaderActivity::onEndOfBookRendered() { runProjection(XP_UI_READER_PROJECTION_OPERATION_RENDERED_END); }
 
 bool EpubReaderActivity::applyDeferredReposition() { return runNavigationPolicy(XP_UI_READER_NAV_OPERATION_DEFERRED); }
 
@@ -3460,63 +3388,21 @@ void EpubReaderActivity::runBookmarkPolicy(uint8_t operation, void* resources) {
 }
 
 ScreenshotInfo EpubReaderActivity::getScreenshotInfo() const {
-  ScreenshotInfo info;
-  info.readerType = ScreenshotInfo::ReaderType::Epub;
-  if (epub) {
-    snprintf(info.title, sizeof(info.title), "%s", epub->getTitle().c_str());
-    info.spineIndex = currentSpineIndex;
-  }
-  if (section) {
-    info.currentPage = section->currentPage + 1;
-    info.totalPages = section->estimatedTotalPages();
-    if (epub && epub->getBookSize() > 0 && info.totalPages > 0) {
-      const float chapterProgress = static_cast<float>(section->currentPage) / static_cast<float>(info.totalPages);
-      int pct = static_cast<int>(epub->calculateProgress(currentSpineIndex, chapterProgress) * 100.0f + 0.5f);
-      if (pct < 0) pct = 0;
-      if (pct > 100) pct = 100;
-      info.progressPercent = pct;
-    }
-  }
-  return info;
+  ScreenshotInfo result;
+  result.readerType = ScreenshotInfo::ReaderType::Epub;
+  runProjection(XP_UI_READER_PROJECTION_OPERATION_SCREENSHOT, 0, 0, 0, &result);
+  return result;
 }
 
 int EpubReaderActivity::getProgressBasisPoints() const {
-  if (isAtEndOfBook()) return 10000;
-  if (!epub || !section || epub->getBookSize() == 0) return getProgressPercent() * 100;
-  const int totalPages = section->estimatedTotalPages();
-  if (totalPages <= 0) return getProgressPercent() * 100;
-  const float chapterProgress = static_cast<float>(section->currentPage) / static_cast<float>(totalPages);
-  const int basisPoints =
-      static_cast<int>(epub->calculateProgress(currentSpineIndex, chapterProgress) * 10000.0f + 0.5f);
-  return std::clamp(basisPoints, 0, 10000);
+  const uint32_t value = runProjection(XP_UI_READER_PROJECTION_OPERATION_BASIS_POINTS);
+  return value == UINT32_MAX ? getProgressPercent() * 100 : static_cast<int>(value);
 }
 
 CrossPointPosition EpubReaderActivity::getCurrentPosition() const {
-  const int currentPage = section ? section->currentPage : nextPageNumber;
-  const int totalPages = section ? section->estimatedTotalPages() : cachedChapterTotalPageCount;
-  std::optional<uint16_t> paragraphIndex;
-  if (section && currentPage >= 0 && currentPage < section->pageCount) {
-    const uint16_t paragraphPage =
-        currentPage > 0 ? static_cast<uint16_t>(currentPage - 1) : static_cast<uint16_t>(currentPage);
-    if (const auto pIdx = section->getParagraphIndexForPage(paragraphPage)) {
-      paragraphIndex = *pIdx;
-    }
-  }
-
-  CrossPointPosition localPos = {currentSpineIndex, currentPage, totalPages};
-  localPos.hasResolvedSpineIndex = true;
-  localPos.hasMappedPage = true;
-  if (section && currentPage >= 0 && currentPage < section->pageCount) {
-    if (const auto offset = section->getVisibleTextOffsetForPage(static_cast<uint16_t>(currentPage))) {
-      localPos.visibleTextOffset = *offset;
-      localPos.hasVisibleTextOffset = true;
-    }
-  }
-  if (paragraphIndex.has_value()) {
-    localPos.paragraphIndex = *paragraphIndex;
-    localPos.hasParagraphIndex = true;
-  }
-  return localPos;
+  CrossPointPosition result{};
+  runProjection(XP_UI_READER_PROJECTION_OPERATION_POSITION, 0, 0, 0, &result);
+  return result;
 }
 
 bool EpubReaderActivity::runNavigationPolicy(uint8_t operation, int32_t a, int32_t b, int32_t c,
@@ -5185,4 +5071,204 @@ void EpubReaderActivity::runMenuPolicy(uint8_t operation, int32_t argument, cons
       [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
   xp_ui_reader_menu_parent(&services, operation, argument);
   assert(!context.lock && !context.qr && !context.labels);
+}
+
+bool EpubReaderActivity::inputOverPage() const {
+  return runProjection(XP_UI_READER_PROJECTION_OPERATION_INPUT_OVER) != 0;
+}
+uint32_t EpubReaderActivity::runProjection(uint8_t operation, int32_t a, int32_t b, uint8_t c, void* output) const {
+  struct Context {
+    EpubReaderActivity& o;
+    uint8_t operation;
+    void* output;
+    std::optional<RenderLock> lock;
+    uint32_t read(uint8_t field) {
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderProjectionField>(field)) {
+        case XP_UI_READER_PROJECTION_FIELD_HAS_BOOK:
+          return static_cast<uint32_t>(!!o.epub);
+        case XP_UI_READER_PROJECTION_FIELD_HAS_SECTION:
+          return static_cast<uint32_t>(!!o.section);
+        case XP_UI_READER_PROJECTION_FIELD_SPINE:
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        case XP_UI_READER_PROJECTION_FIELD_NEXT_PAGE:
+          return static_cast<uint32_t>(o.nextPageNumber);
+        case XP_UI_READER_PROJECTION_FIELD_CACHED_COUNT:
+          return static_cast<uint32_t>(o.cachedChapterTotalPageCount);
+        case XP_UI_READER_PROJECTION_FIELD_PAGE:
+          return static_cast<uint32_t>(o.section->currentPage);
+        case XP_UI_READER_PROJECTION_FIELD_PAGE_COUNT:
+          return static_cast<uint32_t>(o.section->pageCount);
+        case XP_UI_READER_PROJECTION_FIELD_BUILDING:
+          return static_cast<uint32_t>(o.section->isBuilding());
+        case XP_UI_READER_PROJECTION_FIELD_AUTO_TURN:
+          return static_cast<uint32_t>(o.automaticPageTurnActive);
+        case XP_UI_READER_PROJECTION_FIELD_PENDING_SYNC_ERROR:
+          return static_cast<uint32_t>(o.pendingSyncSaveError);
+        case XP_UI_READER_PROJECTION_FIELD_PENDING_PAGE:
+          return static_cast<uint32_t>(o.pendingPageJump.value_or(0));
+        case XP_UI_READER_PROJECTION_FIELD_LAST_TURN:
+          return static_cast<uint32_t>(o.lastPageTurnTime);
+        case XP_UI_READER_PROJECTION_FIELD_OVERLAY_OPEN:
+          return static_cast<uint32_t>(o.overlay != Overlay::None);
+        case XP_UI_READER_PROJECTION_FIELD_HAS_TOUCH:
+          return static_cast<uint32_t>(BoardConfig::hasTouch());
+        case XP_UI_READER_PROJECTION_FIELD_LONG_PRESS_FUNCTION:
+          return static_cast<uint32_t>(SETTINGS.longPressMenuFunction);
+        default:
+          return 0;
+      }
+    }
+    void write(uint8_t field, uint32_t value) {
+      switch (static_cast<XpUiReaderProjectionField>(field)) {
+        case XP_UI_READER_PROJECTION_FIELD_OUTPUT_PAGE:
+          if (operation == XP_UI_READER_PROJECTION_OPERATION_CHAPTER)
+            static_cast<ChapterPosition*>(output)->pageIndex = static_cast<int32_t>(value);
+          else
+            static_cast<ScreenshotInfo*>(output)->currentPage = static_cast<int32_t>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_OUTPUT_TOTAL:
+          if (operation == XP_UI_READER_PROJECTION_OPERATION_CHAPTER)
+            static_cast<ChapterPosition*>(output)->totalPages = static_cast<int32_t>(value);
+          else
+            static_cast<ScreenshotInfo*>(output)->totalPages = static_cast<int32_t>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_OUTPUT_SPINE:
+          static_cast<ScreenshotInfo*>(output)->spineIndex = static_cast<int32_t>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_OUTPUT_PERCENT:
+          static_cast<ScreenshotInfo*>(output)->progressPercent = static_cast<int32_t>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_OUTPUT_PARAGRAPH:
+          static_cast<CrossPointPosition*>(output)->paragraphIndex = static_cast<uint16_t>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_OUTPUT_HAS_PARAGRAPH:
+          static_cast<CrossPointPosition*>(output)->hasParagraphIndex = value != 0;
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_OUTPUT_HAS_OFFSET:
+          static_cast<CrossPointPosition*>(output)->hasVisibleTextOffset = value != 0;
+          return;
+        default:
+          break;
+      }
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderProjectionField>(field)) {
+        case XP_UI_READER_PROJECTION_FIELD_SPINE:
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_NEXT_PAGE:
+          o.nextPageNumber = static_cast<decltype(o.nextPageNumber)>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_PAGE:
+          o.section->currentPage = static_cast<decltype(o.section->currentPage)>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_AUTO_TURN:
+          o.automaticPageTurnActive = static_cast<decltype(o.automaticPageTurnActive)>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_PENDING_SYNC_ERROR:
+          o.pendingSyncSaveError = static_cast<decltype(o.pendingSyncSaveError)>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_PENDING_PAGE:
+          o.pendingPageJump = static_cast<decltype(o.pendingPageJump)>(value);
+          return;
+        case XP_UI_READER_PROJECTION_FIELD_LAST_TURN:
+          o.lastPageTurnTime = static_cast<decltype(o.lastPageTurnTime)>(value);
+          return;
+        default:
+          return;
+      }
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderProjectionCommand>(command)) {
+        case XP_UI_READER_PROJECTION_COMMAND_BOOK_SIZE:
+          return o.epub->getBookSize();
+        case XP_UI_READER_PROJECTION_COMMAND_SPINE_COUNT:
+          return o.epub->getSpineItemsCount();
+        case XP_UI_READER_PROJECTION_COMMAND_ESTIMATE:
+          return o.section->estimatedTotalPages();
+        case XP_UI_READER_PROJECTION_COMMAND_TOC_CURRENT:
+          return o.section->getTocIndexForPage(o.section->currentPage);
+        case XP_UI_READER_PROJECTION_COMMAND_TOC_CACHED: {
+          Section cached(o.epub, o.currentSpineIndex, o.renderer);
+          return cached.getTocIndexForPage(o.nextPageNumber);
+        }
+        case XP_UI_READER_PROJECTION_COMMAND_TITLE: {
+          auto& info = *static_cast<ScreenshotInfo*>(output);
+          snprintf(info.title, sizeof(info.title), "%s", o.epub->getTitle().c_str());
+          break;
+        }
+        case XP_UI_READER_PROJECTION_COMMAND_PROGRESS: {
+          float fraction;
+          std::memcpy(&fraction, &b, sizeof(fraction));
+          const float result = o.epub->calculateProgress(a, fraction);
+          uint32_t bits;
+          std::memcpy(&bits, &result, sizeof(bits));
+          return bits;
+        }
+        case XP_UI_READER_PROJECTION_COMMAND_PARAGRAPH: {
+          const auto value = o.section->getParagraphIndexForPage(static_cast<uint16_t>(a));
+          return value ? (0x10000u | *value) : 0;
+        }
+        case XP_UI_READER_PROJECTION_COMMAND_OFFSET: {
+          const auto value = o.section->getVisibleTextOffsetForPage(static_cast<uint16_t>(a));
+          if (value) static_cast<CrossPointPosition*>(output)->visibleTextOffset = *value;
+          return value.has_value();
+        }
+        case XP_UI_READER_PROJECTION_COMMAND_INIT_POSITION: {
+          auto& result = *static_cast<CrossPointPosition*>(output);
+          result = {o.currentSpineIndex, a, b};
+          result.hasResolvedSpineIndex = true;
+          result.hasMappedPage = true;
+          break;
+        }
+        case XP_UI_READER_PROJECTION_COMMAND_CREDENTIALS:
+          return KOREADER_STORE.hasCredentials();
+        case XP_UI_READER_PROJECTION_COMMAND_TOOLBAR_MENU:
+          return o.usesToolbarMenu();
+        case XP_UI_READER_PROJECTION_COMMAND_BASE_INPUT:
+          return o.ReaderActivity::inputOverPage();
+        case XP_UI_READER_PROJECTION_COMMAND_START_SELECTION:
+          o.startClipSelection();
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_OPEN_TOOLBAR:
+          o.openOverlay(Overlay::Toolbar);
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_OPEN_MENU:
+          o.openReaderMenu();
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_SAVE_ERROR_POPUP:
+          GUI.drawPopup(o.renderer, tr(STR_SAVE_PROGRESS_FAILED));
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_LOCK:
+          lock.emplace();
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_UNLOCK:
+          lock.reset();
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_CLEAR_DEFERRED:
+          o.clearDeferredReposition();
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_ACKNOWLEDGE:
+          bleturner::acknowledgeLinkNote();
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_DROP_SECTION:
+          o.section.reset();
+          break;
+        case XP_UI_READER_PROJECTION_COMMAND_CLOCK:
+          return millis();
+        default:
+          break;
+      }
+      return 0;
+    }
+  } context{const_cast<EpubReaderActivity&>(*this), operation, output, {}};
+  const XpUiReaderProjectionServices services{
+      &context, [](void* c, uint8_t f) -> uint32_t { return static_cast<Context*>(c)->read(f); },
+      [](void* c, uint8_t f, uint32_t v) { static_cast<Context*>(c)->write(f, v); },
+      [](void* c, uint8_t op, int32_t a, int32_t b) -> uint32_t {
+        return static_cast<Context*>(c)->command(op, a, b);
+      }};
+  const uint32_t result = xp_ui_reader_projection(&services, operation, a, b, c);
+  assert(!context.lock);
+  return result;
 }

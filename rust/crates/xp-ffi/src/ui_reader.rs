@@ -675,3 +675,16 @@ pub unsafe extern "C" fn xp_ui_reader_child(
 ) -> u8 {
     xp_ui::reader::child::run(s, operation, a, b, c)
 }
+
+/// # Safety
+/// The borrowed services and output remain valid until this call returns.
+#[no_mangle]
+pub unsafe extern "C" fn xp_ui_reader_projection(
+    s: *const xp_ui::reader::projection::Services,
+    operation: u8,
+    a: i32,
+    b: i32,
+    c: u8,
+) -> u32 {
+    xp_ui::reader::projection::run(s, operation, a, b, c)
+}

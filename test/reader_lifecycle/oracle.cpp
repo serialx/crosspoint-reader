@@ -164,6 +164,7 @@ struct EpubReaderActivity {
   }
   bool anyButtonPressed() const { return buttonDown; }
   void requestUpdate() { std::puts("update"); }
+  uint32_t runProjection(uint8_t, int32_t = 0, int32_t = 0, uint8_t = 0, void* = nullptr) const;
   bool pageTurn(bool);
 #if __has_include(<xp_ui_reader.h>)
   bool applyPageMove(const XpUiReaderMove&, bool);

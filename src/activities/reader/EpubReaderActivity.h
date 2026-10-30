@@ -160,7 +160,7 @@ class EpubReaderActivity final : public ReaderActivity {
   bool makeRoomForChapterBuild();
   static constexpr uint32_t BUILD_ROOM_WAIT_MS = 5000;
   static constexpr uint32_t BUILD_ROOM_STEP_MS = 50;
-  bool inputOverPage() const override { return overlay != Overlay::None || ReaderActivity::inputOverPage(); }
+  bool inputOverPage() const override;
   // "Connecting Bluetooth…" or "Bluetooth failed" in place of the status bar title.
   mutable LinkNoteTitle linkNoteTitle;
   static constexpr size_t RENDER_MIN_FREE_HEAP = 24 * 1024;
@@ -182,6 +182,7 @@ class EpubReaderActivity final : public ReaderActivity {
   int currentTocIndex() const;
   // Live section position, or the values cached before a child screen
   // released the section.
+  uint32_t runProjection(uint8_t operation, int32_t a = 0, int32_t b = 0, uint8_t c = 0, void* output = nullptr) const;
   ChapterPosition chapterPosition() const;
   int bookPercentFor(const ChapterPosition& position) const;
   void runMenuPolicy(uint8_t operation, int32_t argument = 0, const ActivityResult* result = nullptr);

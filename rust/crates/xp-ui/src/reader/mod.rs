@@ -457,3 +457,5 @@ pub mod build_policy;
 pub mod settings;
 
 pub mod menu_parent;
+
+pub mod recovery;

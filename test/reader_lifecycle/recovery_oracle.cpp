@@ -78,6 +78,7 @@ void silentRestartToReader() { event("restart"); }
 struct Manager {
   void goToReader(const std::string& path) { std::printf("go [%s]\n", path.c_str()); }
 };
+static Manager activityManager;
 struct Popup {
   bool active = false;
   std::function<void(int)> callback;
@@ -100,7 +101,6 @@ struct ReaderActivity {
 struct EpubReaderActivity : ReaderActivity {
   Renderer renderer;
   Input mappedInput;
-  Manager activityManager;
   Popup loadFailurePopup;
   std::string loadProtectionError, bookPath = "original.epub";
   std::unique_ptr<WifiSelectionActivity> child;
@@ -113,6 +113,7 @@ struct EpubReaderActivity : ReaderActivity {
   }
   void finish() { event("finish"); }
   void requestUpdate() { event("update"); }
+  bool runRecoveryPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0, const ActivityResult* result = nullptr);
   bool handleLoadFailure();
   void beginLoanTimeSync();
   void render(RenderLock&&);

@@ -250,6 +250,7 @@ class EpubReaderActivity final : public ReaderActivity {
 
   bool runBookLifetime(uint8_t operation);
   bool loadBook() override;
+  bool runRecoveryPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0, const ActivityResult* result = nullptr);
   bool handleLoadFailure() override;
   // Wi-Fi join + SNTP for a loan whose date could not be verified, then a
   // clean re-open of the book.

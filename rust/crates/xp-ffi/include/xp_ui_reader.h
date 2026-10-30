@@ -1944,6 +1944,72 @@ typedef struct {
 } XpUiReaderParentServices;
 void xp_ui_reader_menu_parent(const XpUiReaderParentServices* services, uint8_t operation, int32_t argument);
 
+/* Protected-open recovery: synchronous borrowed context, no pointer retained by Rust.
+ * LOAD and RENDER return handled; other operations return zero. LOAD_RESULT takes a=picker
+ * index,b=original offerSync boolean captured when the popup was created.
+ * RETRY_RESULT takes a=index. Other arguments are ignored. WIFI_RESULT borrows
+ * ActivityResult only for this call. RENDER paints an active failure popup and
+ * returns one, otherwise returns zero for the native facade to delegate base
+ * rendering after the policy stack unwinds. Native callbacks capture owner and the original
+ * offerSync flag, never the stack context, child, popup, result or lock.
+ * Null/incomplete services and unknown operations have no effects.
+ * Queries are pure bool facts: three original error-string comparisons,
+ * CANCELLED from the borrowed result and POPUP_ACTIVE from the existing popup.
+ * SHOW_FAILURE(a=message:0 DRM,1 expired,2 unverified;b=offerSync) constructs the
+ * original translated option strings and installs LOAD_RESULT. SHOW_RETRY
+ * installs RETRY_RESULT. UPDATE/FINISH retain their original lifecycle effects.
+ * START_WIFI creates the original child and installs WIFI_RESULT, returning
+ * allocation success; LOG_OOM emits the original error on failure. CONNECTED
+ * samples WiFi.status() and returns its equality with WL_CONNECTED; SYNC(a=ms)
+ * calls syncNow and returns bool. PAINT_SYNC draws the original message.
+ * DISCONNECT(a=bool), DELAY(a=ms), SAVE_PATH (copies current bookPath then saves),
+ * RESTART and REOPEN retain original resource/IO/relaunch operations. CLEAR,
+ * PAINT_FAILURE retain original display/lock ownership. BASE_RENDER is reserved
+ * and never emitted. The native facade owns its RenderLock; it does not cross
+ * the recovery ABI. This avoids keeping recovery dispatch frames on deep render.
+ * No ModelLock, heap owner or new scheduling operation is added. Other command
+ * arguments and return values are ignored. */
+typedef enum {
+  XP_UI_READER_RECOVERY_OPERATION_LOAD = 0,
+  XP_UI_READER_RECOVERY_OPERATION_BEGIN = 1,
+  XP_UI_READER_RECOVERY_OPERATION_LOAD_RESULT = 2,
+  XP_UI_READER_RECOVERY_OPERATION_WIFI_RESULT = 3,
+  XP_UI_READER_RECOVERY_OPERATION_RETRY_RESULT = 4,
+  XP_UI_READER_RECOVERY_OPERATION_RENDER = 5,
+} XpUiReaderRecoveryOperation;
+typedef enum {
+  XP_UI_READER_RECOVERY_QUERY_ERROR_EMPTY = 0,
+  XP_UI_READER_RECOVERY_QUERY_ERROR_EXPIRED = 1,
+  XP_UI_READER_RECOVERY_QUERY_ERROR_UNVERIFIED = 2,
+  XP_UI_READER_RECOVERY_QUERY_CANCELLED = 3,
+  XP_UI_READER_RECOVERY_QUERY_POPUP_ACTIVE = 4,
+} XpUiReaderRecoveryQuery;
+typedef enum {
+  XP_UI_READER_RECOVERY_COMMAND_SHOW_FAILURE = 0,
+  XP_UI_READER_RECOVERY_COMMAND_UPDATE = 1,
+  XP_UI_READER_RECOVERY_COMMAND_FINISH = 2,
+  XP_UI_READER_RECOVERY_COMMAND_START_WIFI = 3,
+  XP_UI_READER_RECOVERY_COMMAND_LOG_OOM = 4,
+  XP_UI_READER_RECOVERY_COMMAND_CONNECTED = 5,
+  XP_UI_READER_RECOVERY_COMMAND_PAINT_SYNC = 6,
+  XP_UI_READER_RECOVERY_COMMAND_SYNC = 7,
+  XP_UI_READER_RECOVERY_COMMAND_DISCONNECT = 8,
+  XP_UI_READER_RECOVERY_COMMAND_DELAY = 9,
+  XP_UI_READER_RECOVERY_COMMAND_SHOW_RETRY = 10,
+  XP_UI_READER_RECOVERY_COMMAND_SAVE_PATH = 11,
+  XP_UI_READER_RECOVERY_COMMAND_RESTART = 12,
+  XP_UI_READER_RECOVERY_COMMAND_REOPEN = 13,
+  XP_UI_READER_RECOVERY_COMMAND_CLEAR = 14,
+  XP_UI_READER_RECOVERY_COMMAND_PAINT_FAILURE = 15,
+  XP_UI_READER_RECOVERY_COMMAND_BASE_RENDER = 16,
+} XpUiReaderRecoveryCommand;
+typedef struct {
+  void* context;
+  uint32_t (*query)(void* context, uint8_t query);
+  uint32_t (*command)(void* context, uint8_t command, int32_t a, int32_t b);
+} XpUiReaderRecoveryServices;
+uint8_t xp_ui_reader_recovery(const XpUiReaderRecoveryServices* services, uint8_t operation, int32_t a, int32_t b);
+
 #ifdef __cplusplus
 }
 #endif
@@ -3107,3 +3173,44 @@ XP_UI_READER_PARENT_ASSERT(XP_UI_READER_PARENT_ACTION_SYNC == 16);
 XP_UI_READER_PARENT_ASSERT(XP_UI_READER_PARENT_ACTION_DELETE_CACHE == 17);
 XP_UI_READER_PARENT_ASSERT(XP_UI_READER_PARENT_ACTION_DICTIONARY == 18);
 #undef XP_UI_READER_PARENT_ASSERT
+
+#if defined(__cplusplus)
+#define XP_UI_READER_RECOVERY_ASSERT(x) static_assert(x, #x)
+static_assert(alignof(XpUiReaderRecoveryServices) == alignof(void*), "recovery services alignment");
+#else
+#define XP_UI_READER_RECOVERY_ASSERT(x) _Static_assert(x, #x)
+_Static_assert(_Alignof(XpUiReaderRecoveryServices) == _Alignof(void*), "recovery services alignment");
+#endif
+XP_UI_READER_RECOVERY_ASSERT(sizeof(XpUiReaderRecoveryServices) == 3 * sizeof(void*));
+XP_UI_READER_RECOVERY_ASSERT(offsetof(XpUiReaderRecoveryServices, context) == 0 * sizeof(void*));
+XP_UI_READER_RECOVERY_ASSERT(offsetof(XpUiReaderRecoveryServices, query) == 1 * sizeof(void*));
+XP_UI_READER_RECOVERY_ASSERT(offsetof(XpUiReaderRecoveryServices, command) == 2 * sizeof(void*));
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_OPERATION_LOAD == 0);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_OPERATION_BEGIN == 1);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_OPERATION_LOAD_RESULT == 2);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_OPERATION_WIFI_RESULT == 3);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_OPERATION_RETRY_RESULT == 4);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_OPERATION_RENDER == 5);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_QUERY_ERROR_EMPTY == 0);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_QUERY_ERROR_EXPIRED == 1);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_QUERY_ERROR_UNVERIFIED == 2);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_QUERY_CANCELLED == 3);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_QUERY_POPUP_ACTIVE == 4);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_SHOW_FAILURE == 0);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_UPDATE == 1);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_FINISH == 2);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_START_WIFI == 3);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_LOG_OOM == 4);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_CONNECTED == 5);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_PAINT_SYNC == 6);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_SYNC == 7);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_DISCONNECT == 8);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_DELAY == 9);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_SHOW_RETRY == 10);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_SAVE_PATH == 11);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_RESTART == 12);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_REOPEN == 13);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_CLEAR == 14);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_PAINT_FAILURE == 15);
+XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_BASE_RENDER == 16);
+#undef XP_UI_READER_RECOVERY_ASSERT

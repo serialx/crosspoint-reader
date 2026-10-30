@@ -1095,75 +1095,115 @@ bool EpubReaderActivity::skipPages(const int amount) {
 // Failed protected open: show the standard option dialog (wrapped message)
 // instead of silently falling back to the previous screen. Exact error
 // strings are set by openProtectedBook (ContentProtection.cpp).
-bool EpubReaderActivity::handleLoadFailure() {
-  if (loadProtectionError.empty()) return false;
-  const std::string& perr = loadProtectionError;
-  StrId msg = StrId::STR_DRM_PROTECTED_FILE;
-  bool offerSync = false;
-  if (perr == "access expired") {
-    msg = StrId::STR_LOAN_EXPIRED;
-  } else if (perr == "loan date unverified") {
-    msg = StrId::STR_LOAN_TIME_UNVERIFIED;
-    offerSync = true;
-  }
-  const char* options[2] = {I18N.get(offerSync ? StrId::STR_CLOCK_SYNC_NOW : StrId::STR_OK_BUTTON),
-                            I18N.get(StrId::STR_OK_BUTTON)};
-  loadFailurePopup.showMessage("", I18N.get(msg), options, offerSync ? 2 : 1, 0, [this, offerSync](const int index) {
-    if (offerSync && index == 0) {
-      beginLoanTimeSync();
-      return;
-    }
-    finish();
-  });
-  requestUpdate();
-  return true;  // stay alive; the popup's Back dismiss lands in loop()'s !epub finish
-}
+bool EpubReaderActivity::handleLoadFailure() { return runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_LOAD); }
 
-void EpubReaderActivity::beginLoanTimeSync() {
-  auto wifi = makeUniqueNoThrow<WifiSelectionActivity>(renderer, mappedInput);
-  if (!wifi) {
-    LOG_ERR("ERS", "OOM: Wi-Fi selection for loan time sync");
-    finish();
-    return;
-  }
-  startActivityForResult(std::move(wifi), [this](const ActivityResult& result) {
-    if (result.isCancelled || WiFi.status() != WL_CONNECTED) {
-      finish();
-      return;
-    }
-    GUI.drawPopup(renderer, tr(STR_SYNCING_TIME));
-    const bool synced = trustedtime::syncNow(5000);
-    WiFi.disconnect(false);
-    delay(30);
-    if (!synced) {
-      // Reopening would hit the same unverified-time refusal: offer a retry.
-      const char* options[2] = {I18N.get(StrId::STR_RETRY), I18N.get(StrId::STR_OK_BUTTON)};
-      loadFailurePopup.showMessage("", I18N.get(StrId::STR_CLOCK_SYNC_FAIL), options, 2, 0, [this](const int index) {
-        if (index == 0) {
-          beginLoanTimeSync();
-          return;
-        }
-        finish();
-      });
-      requestUpdate();
-      return;
-    }
-    APP_STATE.openEpubPath = bookPath;
-    APP_STATE.saveToFile();
-    // Reboot straight back into this book with a clean heap (no-op on touch
-    // boards, which fall through to the in-place relaunch below).
-    silentRestartToReader();
-    activityManager.goToReader(bookPath);
-  });
-}
+void EpubReaderActivity::beginLoanTimeSync() { runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_BEGIN); }
 
 void EpubReaderActivity::render(RenderLock&& lock) {
-  if (loadFailurePopup.isActive()) {
-    renderer.clearScreen();
-    loadFailurePopup.processRender(renderer, mappedInput);
-    return;
-  }
-  ReaderActivity::render(std::move(lock));
+  if (!runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_RENDER)) ReaderActivity::render(std::move(lock));
+}
+
+bool EpubReaderActivity::runRecoveryPolicy(uint8_t operation, int32_t a, int32_t b, const ActivityResult* result) {
+  struct Context {
+    EpubReaderActivity& o;
+    const ActivityResult* result;
+    uint32_t query(uint8_t query) {
+      switch (static_cast<XpUiReaderRecoveryQuery>(query)) {
+        case XP_UI_READER_RECOVERY_QUERY_ERROR_EMPTY:
+          return o.loadProtectionError.empty();
+        case XP_UI_READER_RECOVERY_QUERY_ERROR_EXPIRED:
+          return o.loadProtectionError == "access expired";
+        case XP_UI_READER_RECOVERY_QUERY_ERROR_UNVERIFIED:
+          return o.loadProtectionError == "loan date unverified";
+        case XP_UI_READER_RECOVERY_QUERY_CANCELLED:
+          assert(result);
+          return result->isCancelled;
+        case XP_UI_READER_RECOVERY_QUERY_POPUP_ACTIVE:
+          return o.loadFailurePopup.isActive();
+      }
+      return 0;
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderRecoveryCommand>(command)) {
+        case XP_UI_READER_RECOVERY_COMMAND_SHOW_FAILURE: {
+          const StrId messages[] = {StrId::STR_DRM_PROTECTED_FILE, StrId::STR_LOAN_EXPIRED,
+                                    StrId::STR_LOAN_TIME_UNVERIFIED};
+          assert(a >= 0 && a < 3);
+          const bool offerSync = b != 0;
+          const char* options[2] = {I18N.get(offerSync ? StrId::STR_CLOCK_SYNC_NOW : StrId::STR_OK_BUTTON),
+                                    I18N.get(StrId::STR_OK_BUTTON)};
+          o.loadFailurePopup.showMessage(
+              "", I18N.get(messages[a]), options, offerSync ? 2 : 1, 0, [owner = &o, offerSync](const int index) {
+                owner->runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_LOAD_RESULT, index, offerSync);
+              });
+          break;
+        }
+        case XP_UI_READER_RECOVERY_COMMAND_UPDATE:
+          o.requestUpdate();
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_FINISH:
+          o.finish();
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_START_WIFI: {
+          auto wifi = makeUniqueNoThrow<WifiSelectionActivity>(o.renderer, o.mappedInput);
+          if (!wifi) return false;
+          o.startActivityForResult(std::move(wifi), [owner = &o](const ActivityResult& result) {
+            owner->runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_WIFI_RESULT, 0, 0, &result);
+          });
+          return true;
+        }
+        case XP_UI_READER_RECOVERY_COMMAND_LOG_OOM:
+          LOG_ERR("ERS", "OOM: Wi-Fi selection for loan time sync");
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_CONNECTED:
+          return WiFi.status() == WL_CONNECTED;
+        case XP_UI_READER_RECOVERY_COMMAND_PAINT_SYNC:
+          GUI.drawPopup(o.renderer, tr(STR_SYNCING_TIME));
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_SYNC:
+          return trustedtime::syncNow(a);
+        case XP_UI_READER_RECOVERY_COMMAND_DISCONNECT:
+          WiFi.disconnect(a != 0);
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_DELAY:
+          delay(a);
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_SHOW_RETRY: {
+          const char* options[2] = {I18N.get(StrId::STR_RETRY), I18N.get(StrId::STR_OK_BUTTON)};
+          o.loadFailurePopup.showMessage(
+              "", I18N.get(StrId::STR_CLOCK_SYNC_FAIL), options, 2, 0, [owner = &o](const int index) {
+                owner->runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_RETRY_RESULT, index);
+              });
+          break;
+        }
+        case XP_UI_READER_RECOVERY_COMMAND_SAVE_PATH:
+          APP_STATE.openEpubPath = o.bookPath;
+          APP_STATE.saveToFile();
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_RESTART:
+          silentRestartToReader();
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_REOPEN:
+          activityManager.goToReader(o.bookPath);
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_CLEAR:
+          o.renderer.clearScreen();
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_PAINT_FAILURE:
+          o.loadFailurePopup.processRender(o.renderer, o.mappedInput);
+          break;
+        case XP_UI_READER_RECOVERY_COMMAND_BASE_RENDER:
+          break;
+      }
+      return 0;
+    }
+  } context{*this, result};
+  const XpUiReaderRecoveryServices services{
+      &context, [](void* c, uint8_t q) -> uint32_t { return static_cast<Context*>(c)->query(q); },
+      [](void* c, uint8_t command, int32_t a, int32_t b) -> uint32_t {
+        return static_cast<Context*>(c)->command(command, a, b);
+      }};
+  return xp_ui_reader_recovery(&services, operation, a, b) != 0;
 }
 
 bool EpubReaderActivity::remoteShortcut(const bool readerMenu) {

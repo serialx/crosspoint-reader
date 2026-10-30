@@ -584,3 +584,11 @@ pub unsafe extern "C" fn xp_ui_reader_settings(services: *const reader::settings
 pub unsafe extern "C" fn xp_ui_reader_menu_parent(services: *const reader::menu_parent::Services, operation: u8, argument: i32) {
     reader::menu_parent::run(services, operation, argument);
 }
+
+/// # Safety
+/// Services obey the synchronous protected-open recovery contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_recovery(services: *const reader::recovery::Services, operation: u8, a: i32, b: i32) -> u8 {
+    reader::recovery::run(services, operation, a, b)
+}

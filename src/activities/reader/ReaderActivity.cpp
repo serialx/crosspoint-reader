@@ -69,9 +69,16 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
   struct Context {
     ReaderActivity& o;
     uint8_t operation;
-    std::optional<RenderLock> lock;
-    std::optional<std::string> openPath, document;
-    ReaderSession session;
+    struct Resources {
+      std::optional<RenderLock> lock;
+      std::optional<std::string> openPath, document;
+      ReaderSession session;
+    };
+    Resources* resources = nullptr;
+    Resources& nonRenderResources() {
+      assert(resources);
+      return *resources;
+    }
     bool exists() {
       if (Storage.exists(o.bookPath.c_str())) return true;
       LOG_ERR("READER", "File does not exist: %s", o.bookPath.c_str());
@@ -96,7 +103,8 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
         case XP_UI_READER_BASE_QUERY_SUBSCRIBER_EXIT:
           return pluginevents::anySubscriber(pluginevents::Event::ReaderExit);
         case XP_UI_READER_BASE_QUERY_SESSION_WORTHY:
-          return (session = o.snapshotReaderSession(), session.isEmitWorthy());
+          return (nonRenderResources().session = o.snapshotReaderSession(),
+                  nonRenderResources().session.isEmitWorthy());
         case XP_UI_READER_BASE_QUERY_SUBSCRIBER_SESSION:
           return pluginevents::anySubscriber(pluginevents::Event::ReaderSession);
         case XP_UI_READER_BASE_QUERY_HELD:
@@ -108,13 +116,15 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
     }
     // Keep event formatting buffers off the page-render call chain.
     __attribute__((noinline)) void emitSession() {
+      auto& resources = nonRenderResources();
+      auto& session = resources.session;
       char startTime[24], endTime[24], duration[16], startProgress[8], endProgress[8];
       snprintf(startTime, sizeof(startTime), "%lld", static_cast<long long>(session.startTime()));
       snprintf(endTime, sizeof(endTime), "%lld", static_cast<long long>(session.endTime()));
       snprintf(duration, sizeof(duration), "%lu", static_cast<unsigned long>(session.durationSeconds()));
       snprintf(startProgress, sizeof(startProgress), "%u", session.startProgressBp());
       snprintf(endProgress, sizeof(endProgress), "%u", session.endProgressBp());
-      const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()},     {"document", document->c_str()},
+      const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()},     {"document", resources.document->c_str()},
                                         {"start_time", startTime},        {"end_time", endTime},
                                         {"duration_seconds", duration},   {"start_progress_bp", startProgress},
                                         {"end_progress_bp", endProgress}, {"progress_scale", "10000"}};
@@ -126,6 +136,17 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
       const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()}, {"percent", percent}};
       pluginevents::emit(pluginevents::Event::ReaderExit, vars, 2);
     }
+    // Metadata temporaries must not enlarge the nested page-render dispatcher.
+    [[gnu::noinline]] void addRecentBook() {
+      RECENT_BOOKS.addBook(o.bookPath, o.getBookTitle(), o.getBookAuthor(), o.getBookThumbBmpPath());
+    }
+    [[gnu::noinline]] uint32_t calculateDocument() {
+      nonRenderResources().document.emplace(KOReaderDocumentId::calculate(o.bookPath));
+      return nonRenderResources().document->size();
+    }
+    [[gnu::noinline]] void saveState() { APP_STATE.saveToFile(); }
+    [[gnu::noinline]] void rememberPath() { APP_STATE.openEpubPath = o.bookPath; }
+    [[gnu::noinline]] void openNext() { activityManager.goToReader(*nonRenderResources().openPath); }
     uint32_t command(uint8_t cmd, int32_t a, int32_t b) {
       switch (static_cast<XpUiReaderBaseCommand>(cmd)) {
         case XP_UI_READER_BASE_COMMAND_FORCE_REFRESH:
@@ -155,7 +176,7 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           APP_STATE.openEpubPath.clear();
           break;
         case XP_UI_READER_BASE_COMMAND_SAVE_STATE:
-          APP_STATE.saveToFile();
+          saveState();
           break;
         case XP_UI_READER_BASE_COMMAND_ENSURE_FONTS:
           sdFontSystem.ensureLoaded(o.renderer);
@@ -170,10 +191,10 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           return o.handleLoadFailure();
           break;
         case XP_UI_READER_BASE_COMMAND_REMEMBER_PATH:
-          APP_STATE.openEpubPath = o.bookPath;
+          rememberPath();
           break;
         case XP_UI_READER_BASE_COMMAND_RECENT_ADD:
-          RECENT_BOOKS.addBook(o.bookPath, o.getBookTitle(), o.getBookAuthor(), o.getBookThumbBmpPath());
+          addRecentBook();
           break;
         case XP_UI_READER_BASE_COMMAND_EMIT_OPEN: {
           const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()}};
@@ -186,8 +207,7 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           o.resetReaderSession();
           break;
         case XP_UI_READER_BASE_COMMAND_DOCUMENT:
-          document.emplace(KOReaderDocumentId::calculate(o.bookPath));
-          return document->size();
+          return calculateDocument();
           break;
         case XP_UI_READER_BASE_COMMAND_EMIT_SESSION:
           emitSession();
@@ -217,11 +237,12 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           o.endOfBookOptions->render(o.renderer, o.mappedInput);
           break;
         case XP_UI_READER_BASE_COMMAND_END_INPUT:
-          openPath.emplace();
-          return static_cast<uint32_t>(o.endOfBookOptions->handleMenuInput(o.mappedInput, &*openPath));
+          nonRenderResources().openPath.emplace();
+          return static_cast<uint32_t>(
+              o.endOfBookOptions->handleMenuInput(o.mappedInput, &*nonRenderResources().openPath));
           break;
         case XP_UI_READER_BASE_COMMAND_OPEN_NEXT:
-          activityManager.goToReader(*openPath);
+          openNext();
           break;
         case XP_UI_READER_BASE_COMMAND_HOME:
           o.onGoHome();
@@ -266,45 +287,56 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           o.renderBook();
           break;
         case XP_UI_READER_BASE_COMMAND_LOCK:
-          assert(!lock);
-          lock.emplace(o);
+          assert(!nonRenderResources().lock);
+          nonRenderResources().lock.emplace(o);
           break;
         case XP_UI_READER_BASE_COMMAND_UNLOCK:
-          assert(lock);
-          lock.reset();
+          assert(nonRenderResources().lock);
+          nonRenderResources().lock.reset();
           break;
         case XP_UI_READER_BASE_COMMAND_PATH_DROP:
-          openPath.reset();
+          nonRenderResources().openPath.reset();
           break;
         case XP_UI_READER_BASE_COMMAND_DOCUMENT_DROP:
-          document.reset();
+          nonRenderResources().document.reset();
           break;
         case XP_UI_READER_BASE_COMMAND_DOCUMENT_BYTE:
-          return static_cast<unsigned char>((*document)[a]);
+          return static_cast<unsigned char>((*nonRenderResources().document)[a]);
           break;
       }
       return 0;
     }
+    [[gnu::always_inline]] uint8_t run(uint8_t a, uint8_t b) {
+      const XpUiReaderBaseServices services{
+          this,
+          [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
+          [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
+          [](void* p, uint8_t q) { return static_cast<Context*>(p)->query(q); },
+          [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); },
+          [](void* p) -> XpUiReaderTurnInput {
+            auto& o = static_cast<Context*>(p)->o;
+            auto t = ReaderUtils::detectTouchPageTurn(o.renderer, o.mappedInput);
+            return {static_cast<uint32_t>(t.heldMs), t.prev, t.next, 0, 0};
+          },
+          [](void* p) -> XpUiReaderTurnInput {
+            auto& o = static_cast<Context*>(p)->o;
+            auto [prev, next, tilt] = ReaderUtils::detectPageTurn(o.mappedInput);
+            return {0, prev, next, tilt, 0};
+          }};
+      return xp_ui_reader_base_run(&services, operation, a, b);
+    }
+    // Render uses none of these lifecycle/input resources. Keep their storage
+    // in a separate frame so it is absent throughout nested page drawing.
+    [[gnu::noinline]] uint8_t runWithResources(uint8_t a, uint8_t b) {
+      Resources storage;
+      resources = &storage;
+      const auto result = run(a, b);
+      assert(!storage.lock);
+      resources = nullptr;
+      return result;
+    }
   } context{*this, operation};
-  const XpUiReaderBaseServices services{
-      &context,
-      [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
-      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
-      [](void* p, uint8_t q) { return static_cast<Context*>(p)->query(q); },
-      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); },
-      [](void* p) -> XpUiReaderTurnInput {
-        auto& o = static_cast<Context*>(p)->o;
-        auto t = ReaderUtils::detectTouchPageTurn(o.renderer, o.mappedInput);
-        return {static_cast<uint32_t>(t.heldMs), t.prev, t.next, 0, 0};
-      },
-      [](void* p) -> XpUiReaderTurnInput {
-        auto& o = static_cast<Context*>(p)->o;
-        auto [prev, next, tilt] = ReaderUtils::detectPageTurn(o.mappedInput);
-        return {0, prev, next, tilt, 0};
-      }};
-  const auto result = xp_ui_reader_base_run(&services, operation, a, b);
-  assert(!context.lock);
-  return result;
+  return operation == XP_UI_READER_BASE_OPERATION_RENDER ? context.run(a, b) : context.runWithResources(a, b);
 }
 void ReaderActivity::onEnter() { runBase(XP_UI_READER_BASE_OPERATION_ENTER, 0, 0); }
 void ReaderActivity::onExit() { runBase(XP_UI_READER_BASE_OPERATION_EXIT, 0, 0); }

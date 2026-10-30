@@ -205,6 +205,7 @@ impl Engine {
         }
         true
     }
+    #[inline(never)]
     fn input(&self) {
         self.remember();
         self.clear_end();
@@ -337,7 +338,7 @@ impl Engine {
 /// # Safety
 /// The borrowed callbacks are synchronous and valid for this call.
 pub unsafe fn run(services: Services, operation: u8, a: bool, b: bool) -> u8 {
-    let operations = [
+    const OPERATIONS: [Operation; 11] = [
         Operation::Enter,
         Operation::Exit,
         Operation::Remember,
@@ -350,7 +351,7 @@ pub unsafe fn run(services: Services, operation: u8, a: bool, b: bool) -> u8 {
         Operation::Flush,
         Operation::MenuActive,
     ];
-    let Some(operation) = operations.get(operation as usize).copied() else {
+    let Some(operation) = OPERATIONS.get(operation as usize).copied() else {
         return 0;
     };
     Engine::new(services).map_or(0, |e| e.run(operation, a, b))

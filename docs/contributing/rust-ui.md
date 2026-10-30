@@ -1,6 +1,6 @@
 # Rust UI coexistence
 
-`xp-ui` builds bounded scenes and routes input snapshots. `RustActivityAdapter`
+The scene runtime in `xp-ui` builds bounded scenes and routes input snapshots. `RustActivityAdapter`
 keeps the existing ActivityManager, render task, RenderLock, result objects and
 push/pop behavior. A stack can contain both C++ activities and Rust-backed
 activities. This runtime does not poll hardware or create tasks.
@@ -11,6 +11,9 @@ The wire interface is `rust/crates/xp-ffi/include/xp_ui.h` (ABI version 2).
 `SettingsUiActivity`, `UpdateUiActivity` and `CatalogUiActivity` share bindings
 within their families. Home, library, file browser and network screens use the
 same adapter with their own Rust models and resource bindings.
+
+The scene contracts below apply to scene-based activities. The reader uses the
+[policy boundary](#reader-policy-boundary) described separately.
 
 ## Storage and publication
 
@@ -128,3 +131,25 @@ also require the normal host/build checks and [UI screen oracle captures](../../
 The message and chapter-list examples use the `sd-error` and `xtc` groups. The standard emulator workloads check
 unrelated reading behavior. Device verification remains part of the human
 handoff.
+
+## Reader policy boundary
+
+Reader policy lives in `rust/crates/xp-ui/src/reader/`. Thin FFI exports in
+`rust/crates/xp-ffi/src/ui_reader.rs` and the contract in
+`rust/crates/xp-ffi/include/xp_ui_reader.h` connect it to native service contexts
+in `src/activities/reader/ReaderActivity.cpp` and `EpubReaderActivity.cpp`.
+Native EPUB scalar state remains authoritative; a canonical Rust EPUB model is
+deferred. The shared ReaderActivity model and session are Rust-defined.
+
+Services borrow their context and resources synchronously. Retained child-result
+callbacks capture the native owner and owned values, then create a fresh service
+context when called; they never retain a stack service descriptor. Rust guards
+pair BEGIN/END operations to release native resources on every return path.
+ModelLock permits only bounded scalar and POD copies. Allocation, reference-count
+changes, storage, logging and blocking locks stay outside that critical section.
+The port preserves the existing RenderLock scopes, including reader input paths
+that already needed them; the scene input rule above does not redefine those scopes.
+
+The [reader lifecycle oracle](../../test/reader_lifecycle/README.md) documents
+host parity checks and their limits. These checks do not establish hardware
+qualification.

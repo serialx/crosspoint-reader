@@ -11,6 +11,7 @@ class MappedInputManager {
     y = touchY;
     return tapped;
   }
+  bool wasScreenLongPress(int&, int&) const { return false; }
   bool wasPressed(Button b) const { return pressed == b; }
   bool wasReleased(Button b) const { return released == b; }
   bool isPressed(Button) const { return false; }

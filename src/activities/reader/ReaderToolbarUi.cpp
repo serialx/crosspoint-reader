@@ -20,8 +20,30 @@ void ReaderToolbarUi::begin() {
   taskENTER_CRITICAL(&mutex);
   ready = false;
   contact = {-1, -1, 0, {0, 0, 0}};
+  xp_ui_reader_toolbar_nav_reset(&nav_);
   taskEXIT_CRITICAL(&mutex);
-  nav_.reset();
+}
+
+void ReaderToolbarUi::resetNavigation(const int selected, const int top) {
+  taskENTER_CRITICAL(&mutex);
+  xp_ui_reader_toolbar_nav_reset(&nav_);
+  nav_.selected = selected;
+  nav_.top = top;
+  taskEXIT_CRITICAL(&mutex);
+}
+
+bool ReaderToolbarUi::scrollNavigation(const int delta, const int count) {
+  taskENTER_CRITICAL(&mutex);
+  const bool moved = xp_ui_reader_toolbar_scroll(&nav_, delta, count);
+  taskEXIT_CRITICAL(&mutex);
+  return moved;
+}
+
+int ReaderToolbarUi::visibleRows() const {
+  taskENTER_CRITICAL(&mutex);
+  const int rows = xp_ui_reader_toolbar_page_rows(&nav_);
+  taskEXIT_CRITICAL(&mutex);
+  return rows;
 }
 
 ReaderToolbarUi::Routed ReaderToolbarUi::route(const MappedInputManager& input) {
@@ -89,9 +111,8 @@ XpUiReaderRows ReaderToolbarUi::resources() {
           const int index = first + i;
           self.windowLabels_[i] = self.model_.rowText ? self.model_.rowText(index) : std::string();
           self.windowValues_[i] = self.model_.rowValue ? self.model_.rowValue(index) : std::string();
-          fui::ListItem item;
-          if (self.model_.rowCheckbox) self.model_.rowCheckbox(self.model_.rowCheckboxContext, index, item);
-          self.rowFlags[i] = {item.toggle, item.toggleChecked};
+          self.rowFlags[i] =
+              self.model_.rowCheckbox ? self.model_.rowCheckbox(self.model_.rowCheckboxContext, index) : RowFlags{};
         }
         return true;
       },
@@ -129,12 +150,10 @@ XpUiReaderRows ReaderToolbarUi::resources() {
 
 void ReaderToolbarUi::render() {
   if (model_.itemCount > UINT16_MAX) return;
-  XpUiListState state{};
+  taskENTER_CRITICAL(&mutex);
+  XpUiListState state = nav_;
+  taskEXIT_CRITICAL(&mutex);
   state.selected = std::clamp(model_.selectedIndex, -1, std::max(0, model_.itemCount) - 1);
-  state.top = nav_.top;
-  state.visible = nav_.visibleRows;
-  state.drawn = nav_.drawnRows;
-  state.drawn_count = nav_.drawnCount;
   state.active = -1;
   state.follow = state.selected >= 0;
   sampleReaderChromeTheme(renderer, theme);
@@ -215,13 +234,7 @@ void ReaderToolbarUi::render() {
   ready = valid;
   if (valid) {
     published = nextHits;
+    xp_ui_reader_toolbar_nav_publish(&nav_, &next);
   }
   taskEXIT_CRITICAL(&mutex);
-  if (valid) {
-    nav_.selected = next.selected;
-    nav_.top = next.top;
-    nav_.visibleRows = next.visible;
-    nav_.drawnRows = next.drawn;
-    nav_.drawnCount = next.drawn_count;
-  }
 }

@@ -65,6 +65,7 @@ Top-level activity groups:
 ## Reader and content pipeline
 
 Reader orchestration starts in `src/activities/reader/ReaderActivity.h` and dispatches to format-specific readers.
+The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust policy ownership and native resource lifetimes.
 EPUB processing is implemented in `lib/Epub/`. Its XML consumers use the
 streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
 Rust owns the parser and XPath state and consumes XML events directly. The pinned SDK's

@@ -34,3 +34,5 @@ pub mod koreader;
 pub mod updates;
 
 pub mod network;
+
+pub mod reader;

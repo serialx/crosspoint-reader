@@ -223,7 +223,7 @@ void XtcReaderActivity::renderPage() {
       return;
     }
 
-    if (pagesUntilFullRefresh <= 1) {
+    if (renderRefreshCounter() <= 1) {
       // Periodic ghost cleanup: scrub via the normal path, then run the
       // settle flavor of the grayscale base pass (DTM planes are equal after
       // the display sync, so only the gentle reinforcement cells fire).
@@ -235,10 +235,10 @@ void XtcReaderActivity::renderPage() {
         renderer.displayBuffer(HalDisplay::HALF_REFRESH);
         renderer.preconditionGrayscale();
       }
-      pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
+      renderRefreshCounter() = SETTINGS.getRefreshFrequency();
     } else {
       renderer.displayGrayscaleBase(HalDisplay::FAST_REFRESH);
-      pagesUntilFullRefresh--;
+      renderRefreshCounter()--;
     }
 
     renderer.clearScreen(0x00);
@@ -285,7 +285,9 @@ void XtcReaderActivity::renderPage() {
     renderStatusBarOverlay(renderer, StatusBarOverlayPosition::Bottom);
   }
 
-  ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
+  int counter = renderRefreshCounter();
+  ReaderUtils::displayWithRefreshCycle(renderer, counter);
+  renderRefreshCounter() = counter;
 
   LOG_DBG("XTR", "Rendered page %lu/%lu (%u-bit)", state.page + 1, xtc->getPageCount(), bitDepth);
   markPageRendered();

@@ -433,8 +433,7 @@ bool ActivityManager::isForegroundHomeShown() const {
 bool ActivityManager::remoteShortcut(const bool readerMenu) {
   if (!isForegroundReader()) return false;
   auto* reader = static_cast<ReaderActivity*>(currentActivity.get());
-  if (!remoteTurnAccepted(reader->pageRendered.load(std::memory_order_acquire), RenderLock::peek(),
-                          reader->inputOverPage())) {
+  if (!remoteTurnAccepted(reader->acceptsRemoteInput(), RenderLock::peek(), reader->inputOverPage())) {
     return false;
   }
   return reader->remoteShortcut(readerMenu);
@@ -446,8 +445,7 @@ bool ActivityManager::remoteTurn(const bool forward, const bool chapter) {
   if (!reader || reader->inputOverPage()) {
     return !chapter && remoteClick(forward ? RemoteButton::Next : RemoteButton::Previous);
   }
-  if (!remoteTurnAccepted(reader->pageRendered.load(std::memory_order_acquire), RenderLock::peek(),
-                          reader->inputOverPage())) {
+  if (!remoteTurnAccepted(reader->acceptsRemoteInput(), RenderLock::peek(), reader->inputOverPage())) {
     return false;
   }
   const bool turned = chapter ? reader->skipPages(forward ? 1 : -1) : reader->pageTurn(forward);

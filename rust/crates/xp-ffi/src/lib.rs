@@ -175,3 +175,5 @@ mod ui_koreader;
 mod ui_updates;
 
 mod ui_network;
+
+mod ui_reader;

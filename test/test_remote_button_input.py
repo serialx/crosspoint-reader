@@ -3,6 +3,7 @@
 from pathlib import Path
 import subprocess
 import tempfile
+from rust_host import rust_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / "src/MappedInputManager.cpp").read_text()
@@ -114,6 +115,7 @@ harness = harness.replace("int main() {", r"""
 struct RenderLock { static bool peek() { return false; } };
 struct ReaderActivity {
   std::atomic<bool> pageRendered{true};
+  bool acceptsRemoteInput() const { return pageRendered.load(std::memory_order_acquire); }
   bool menu = false;
   int pages = 0, chapters = 0;
   bool inputOverPage() const { return menu; }
@@ -165,7 +167,7 @@ with tempfile.TemporaryDirectory() as directory:
     cpp.write_text("#include <initializer_list>\n" + harness)
     subprocess.run([
         "c++", "-std=c++20", "-DFREEINK_CAP_TOUCH=0", "-I", str(directory),
-        "-I", str(ROOT / "src"), str(cpp), "-o", str(executable),
+        "-I", str(ROOT / "src"), str(cpp), *rust_link_flags(), "-o", str(executable),
     ], check=True)
     subprocess.run([str(executable)], check=True)
 print("Remote button input regression checks passed")

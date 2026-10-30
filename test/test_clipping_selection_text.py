@@ -1,6 +1,7 @@
 """Run with python3 test/test_clipping_selection_text.py (requires a host C/C++ compiler)."""
 
 from pathlib import Path
+import sys
 import subprocess
 import tempfile
 from rust_host import rust_link_flags
@@ -27,10 +28,14 @@ def method(name, next_name, text=source):
     return text[start:text.index(next_name, signature)].rstrip()
 
 extract_words = method("bool ClipSelectionActivity::extractWords", "bool ClipSelectionActivity::buildSelectedText")
-word_font = method("int clippingWordFont", "Rect clippingWordRect", reader_source)
-word_rect = method("Rect clippingWordRect", "int clampPercent", reader_source)
+sys.path.insert(0, str(ROOT / "test/reader_lifecycle"))
+from extract import definition
+word_font = definition(reader_source, "int clippingWordFont(")
+word_rect = definition(reader_source, "Rect clippingWordRect(") if "Rect clippingWordRect(" in reader_source else ""
 saved_hit = method("int EpubReaderActivity::clippingAtPoint", "void EpubReaderActivity::drawClippingHighlights", reader_source)
-saved_draw = method("void EpubReaderActivity::drawClippingHighlights", "void EpubReaderActivity::renderStatusBar", reader_source)
+saved_draw = definition(reader_source, "void EpubReaderActivity::drawClippingHighlights(")
+if "int EpubReaderActivity::runClippingPolicy(" in reader_source:
+    saved_draw += definition(reader_source, "int EpubReaderActivity::runClippingPolicy(")
 
 # Compile production extraction, export, and redraws with bounded UI/rendering stubs.
 harness = r"""
@@ -40,6 +45,8 @@ harness = r"""
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <optional>
+#include <xp_ui_reader.h>
 #include <set>
 #include <span>
 #include <string>
@@ -231,6 +238,8 @@ struct ClipSelectionActivity {
 };
 """ + build_text + extract_words + r"""
 struct EpubReaderActivity {
+  struct ModelLock { explicit ModelLock(const EpubReaderActivity&) {} };
+  int runClippingPolicy(uint8_t, const Page&, const XpUiReaderClipInput&) const;
   Renderer& renderer;
   explicit EpubReaderActivity(Renderer& renderer) : renderer(renderer) {}
   struct Section { int currentPage = 0, pageCount = 1; } sectionData;

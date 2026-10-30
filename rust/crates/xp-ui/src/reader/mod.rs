@@ -109,39 +109,6 @@ pub fn progress_decode(data: &[u8]) -> Option<(Progress, bool)> {
 pub fn remote_allowed(shown: bool, rendering: bool, input_over_page: bool) -> bool {
     shown && !rendering && !input_over_page
 }
-pub fn build_allowed(running: bool, stopping: bool, starting: bool) -> bool {
-    !running && !stopping && !starting
-}
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct BuildWait {
-    pub context: *mut c_void,
-    pub ready: Option<unsafe extern "C" fn(*mut c_void) -> u8>,
-    pub now: Option<unsafe extern "C" fn(*mut c_void) -> u32>,
-    pub sleep: Option<unsafe extern "C" fn(*mut c_void, u32)>,
-}
-/// # Safety
-/// Callbacks and context must remain valid for this synchronous call and must not reenter it.
-pub unsafe fn wait_build(services: BuildWait, wait_ms: u32, step_ms: u32) -> bool {
-    let (Some(ready), Some(now), Some(sleep)) = (services.ready, services.now, services.sleep)
-    else {
-        return false;
-    };
-    if ready(services.context) != 0 {
-        return true;
-    }
-    let started = now(services.context);
-    loop {
-        if now(services.context).wrapping_sub(started) >= wait_ms {
-            return false;
-        }
-        sleep(services.context, step_ms);
-        if ready(services.context) != 0 {
-            return true;
-        }
-    }
-}
-
 pub fn refresh(remaining: &mut i32, frequency: i32) -> bool {
     let half = *remaining <= 1;
     *remaining = if half { frequency } else { *remaining - 1 };
@@ -192,12 +159,6 @@ const _: () = {
     assert!(size_of::<LinkNote>() == 2);
     assert!(align_of::<LinkNote>() == 1);
     assert!(offset_of!(LinkNote, drawn) == 1);
-    assert!(size_of::<BuildWait>() == 4 * size_of::<usize>());
-    assert!(align_of::<BuildWait>() == align_of::<usize>());
-    assert!(offset_of!(BuildWait, context) == 0);
-    assert!(offset_of!(BuildWait, ready) == size_of::<usize>());
-    assert!(offset_of!(BuildWait, now) == 2 * size_of::<usize>());
-    assert!(offset_of!(BuildWait, sleep) == 3 * size_of::<usize>());
 };
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 //! Thin reader-family exports. Policy and wire layouts live in xp-ui.
-use xp_ui::reader::{self, BuildWait, LinkNote, Progress, Session};
+use xp_ui::reader::{self, LinkNote, Progress, Session};
 
 /// # Safety
 /// Non-null snapshot points to an initialized, aligned POD value for this call.
@@ -100,33 +100,6 @@ pub extern "C" fn xp_ui_reader_remote_allowed(shown: u8, rendering: u8, input_ov
         rendering != 0,
         input_over_page != 0,
     ))
-}
-/// # Safety
-/// Non-null pointers must be aligned, valid for the declared reader-family wire
-/// value or buffer, and exclusively borrowed for mutations during this call.
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_build_allowed(running: u8, stopping: u8, starting: u8) -> u8 {
-    u8::from(reader::build_allowed(
-        running != 0,
-        stopping != 0,
-        starting != 0,
-    ))
-}
-/// # Safety
-/// Non-null pointers must be aligned, valid for the declared reader-family wire
-/// value or buffer, and exclusively borrowed for mutations during this call.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_wait_build(
-    services: *const BuildWait,
-    wait_ms: u32,
-    step_ms: u32,
-) -> u8 {
-    let Some(services) = services.as_ref().copied() else {
-        return 0;
-    };
-    u8::from(reader::wait_build(services, wait_ms, step_ms))
 }
 /// # Safety
 /// Non-null pointers must be aligned, valid for the declared reader-family wire

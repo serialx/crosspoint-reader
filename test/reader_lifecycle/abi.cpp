@@ -279,9 +279,9 @@ int main() {
   const auto saved = out;
   assert(xp_ui_reader_progress_decode(bytes, 4, &out) == 1);
   assert(out.spine == saved.spine && out.page == saved.page && !out.has_count && !out.has_offset);
-  XpUiReaderBuildWait services{};
-  assert(!xp_ui_reader_wait_build(nullptr, 5000, 50));
-  assert(!xp_ui_reader_wait_build(&services, 5000, 50));
+  XpUiReaderBuildServices services{};
+  assert(!xp_ui_reader_build_policy(nullptr, XP_UI_READER_BUILD_OPERATION_ROOM));
+  assert(!xp_ui_reader_build_policy(&services, XP_UI_READER_BUILD_OPERATION_ROOM));
   assert(!xp_ui_reader_refresh(nullptr, 3));
   assert(!xp_ui_reader_link_draw(nullptr, 1, 1));
   assert(!xp_ui_reader_link_repaint(nullptr, 1));

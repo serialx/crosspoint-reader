@@ -35,16 +35,6 @@ uint32_t xp_ui_reader_progress_encode(int32_t spine, int32_t page, int32_t count
 /* 0 invalid, 1 loaded, 2 loaded with stale page sentinel reset; invalid leaves out unchanged. */
 uint8_t xp_ui_reader_progress_decode(const uint8_t* data, uint32_t len, XpUiReaderProgress* out);
 uint8_t xp_ui_reader_remote_allowed(uint8_t shown, uint8_t rendering, uint8_t input_over_page);
-uint8_t xp_ui_reader_build_allowed(uint8_t running, uint8_t stopping, uint8_t starting);
-/* Callback group: radio/clock/delay leaves, outside ModelLock. All slots required;
- * null services or a missing slot returns false without invoking any callback. */
-typedef struct {
-  void* context;
-  uint8_t (*ready)(void*);
-  uint32_t (*now)(void*);
-  void (*sleep)(void*, uint32_t);
-} XpUiReaderBuildWait;
-uint8_t xp_ui_reader_wait_build(const XpUiReaderBuildWait*, uint32_t wait_ms, uint32_t step_ms);
 /* Returns 1 for HALF, 0 for FAST; advances the existing counter. */
 uint8_t xp_ui_reader_refresh(int32_t* remaining, int32_t frequency);
 typedef struct {
@@ -2559,11 +2549,6 @@ static_assert(offsetof(XpUiReaderProgress, offset) == 8);
 static_assert(sizeof(XpUiReaderLinkNote) == 2 && alignof(XpUiReaderLinkNote) == 1);
 static_assert(offsetof(XpUiReaderLinkNote, drawn_in_title) == 0);
 static_assert(offsetof(XpUiReaderLinkNote, drawn) == 1);
-static_assert(sizeof(XpUiReaderBuildWait) == 4 * sizeof(void*));
-static_assert(alignof(XpUiReaderBuildWait) == alignof(void*));
-static_assert(offsetof(XpUiReaderBuildWait, ready) == sizeof(void*));
-static_assert(offsetof(XpUiReaderBuildWait, now) == 2 * sizeof(void*));
-static_assert(offsetof(XpUiReaderBuildWait, sleep) == 3 * sizeof(void*));
 #endif
 
 #ifdef __cplusplus

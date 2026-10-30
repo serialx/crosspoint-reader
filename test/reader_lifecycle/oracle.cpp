@@ -250,7 +250,7 @@ static void gates() {
     status.running = flags & 1;
     status.stopping = flags & 2;
     status.starting = flags & 4;
-    std::printf("gates %d %d %d\n", flags, xp_ui_reader_build_allowed(status.running, status.stopping, status.starting),
+    std::printf("gates %d %d %d\n", flags, buildRoomForRadio(status.running, status.stopping, status.starting),
                 remoteTurnAccepted(flags & 1, flags & 2, flags & 4));
   }
   for (uint32_t start : {0u, UINT32_MAX - 1000}) {
@@ -261,9 +261,9 @@ static void gates() {
           [&] {
             ++calls;
             if (calls == 1) now += 3000;
-            return now - (start + 3000) >= readyAt;
+            return now - (start + 3000) >= readyAt ? 0u : 1u;
           },
-          [&] { return now; }, [&](uint32_t ms) { now += ms; }, 5000, 50);
+          [&] { return now; }, [&](uint32_t ms) { now += ms; });
       std::printf("wait %u %u %d %u %d\n", start, readyAt, ok, now, calls);
     }
   }

@@ -64,7 +64,9 @@ failed = definition(parent_header, '  void rustSceneFailed()') if '  void rustSc
 failed = failed.replace('rustSceneFailed()', 'failedState()').replace(' override', '')
 fixture = fixture.replace('// FAILED_STATE', failed)
 fixture = fixture.replace('// CANCEL_METHOD', cancel)
-fixture = fixture.replace('// INPUT_METHOD', definition(parent, 'void EpubReaderActivity::handleOverlayInput()'))
+fixture = fixture.replace('// INPUT_METHOD',
+                          'void EpubReaderActivity::handleOverlayInput() { runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_INPUT); }'
+                          if revision else definition(parent, 'void EpubReaderActivity::handleOverlayInput()'))
 fixture = fixture.replace('// CANCEL_DECL', '''void dispatchCancel(const XpUiInput&);
   void cancelRejectedInput(const XpUiInput& input) override {
     if (recoverBeforeCancel) { failure=0; allocationFails=false; renderer.paintOk=true; build(); }

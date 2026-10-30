@@ -174,7 +174,7 @@ int main() {
               assert(nav.top == next.top && nav.drawnRows == next.drawn);
               ++cases;
             }
-  assert(maximumCommands <= 72);
+  assert(maximumCommands <= 71);
   std::printf("%u dense font-list cases match SDK pixels and viewport feedback, max commands=%u\n", cases,
               maximumCommands);
 }

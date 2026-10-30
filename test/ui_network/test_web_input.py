@@ -9,7 +9,7 @@ header='\n'.join(line for line in header.splitlines() if not line.startswith('#'
 header=header.replace('class CrossPointWebServerActivity final','struct CrossPointWebServerActivity final')
 source=(HERE/'web_input.cpp').read_text().replace('// PRODUCTION_CLASS',header)
 production=(ROOT/'src/activities/network/CrossPointWebServerActivity.cpp').read_text()
-methods=['onEnter','onExit','loop','run','render']
+methods=['onEnter','onExit','loop','run','render','rustSceneCurrent']
 source=source.replace('// PRODUCTION_METHODS','\n'.join(prepare.extract(production,'CrossPointWebServerActivity',m) for m in methods))
 with tempfile.TemporaryDirectory() as directory:
     out=Path(directory)

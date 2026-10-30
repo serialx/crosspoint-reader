@@ -15,7 +15,6 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   static constexpr int MENU_ITEM_COUNT = 3;
 #endif
   void onEnter() override;
-  void loop() override;
   void onModeSelected(NetworkMode mode);
   void onCancel();
 
@@ -26,15 +25,13 @@ class NetworkModeSelectionActivity final : public RustActivityAdapter {
   XpUiSettingsRow rows[MENU_ITEM_COUNT]{};
   Publication publication;
   int32_t renderingScroll = 0;
-  bool sceneFailed = false;
   bool touchActivated = false;
-  uint32_t sampledHeld = 0, suppressedButtons = 0;
-  bool sampledTouch = false, suppressedTouch = false;
   freeink::ui::GfxRendererTarget textTarget;
   const char* text(uint32_t) const;
   XpUiSettingsResources resources();
   Publication* rustPublication() override { return &publication; }
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   void rustPublished() override;
   void rustSceneFailed() override;
   XpUiPaint rustResources() override;

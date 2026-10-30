@@ -115,6 +115,41 @@ pub fn text(
     })
 }
 
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+pub fn button(
+    arena: &mut Arena<'_>,
+    rect: Rect,
+    resource: u32,
+    font: i32,
+    paint: u8,
+    radius: u8,
+    foreground: u8,
+) -> Result<(), Error> {
+    arena.push(Command {
+        rect,
+        paint,
+        radius,
+        ..Command::default()
+    })?;
+    text(
+        arena,
+        Rect {
+            x: i16_value(i32::from(rect.x) + 4)?,
+            y: i16_value(i32::from(rect.y) + 2)?,
+            w: i16_value(i32::from(rect.w) - 8)?,
+            h: i16_value(i32::from(rect.h) - 4)?,
+        },
+        resource,
+        1,
+        font,
+        foreground,
+        0,
+        1,
+        1,
+    )
+}
+
 impl list::Rows for Content<'_> {
     fn partial(&self) -> bool {
         self.managed

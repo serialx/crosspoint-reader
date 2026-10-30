@@ -56,9 +56,9 @@ class UpdateUiActivity : public RustActivityAdapter {
   Publication publication;
   XpUiUpdateFeedback feedback{}, next{};
   XpUiUpdateEffect pending{};
-  bool pendingHaptic = false;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t capacity = 0;
+  bool pendingHaptic = false;
   int inputRowCount = 0;
   int inputFamilyCount = 0;
   freeink::ui::GfxRendererTarget textTarget;

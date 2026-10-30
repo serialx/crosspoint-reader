@@ -287,7 +287,6 @@ enum {
   XP_UI_WEB_URL_QR = 1307,
   XP_UI_WEB_PRIMARY_URL = 1308,
   XP_UI_WEB_ALTERNATE_URL = 1309,
-  XP_UI_WEB_THICK_LINE = 1310  // Native line primitive; Rust provides endpoints and width.
 };
 // Raw text commands carry alignment; the facade binds native centered-text
 // measurement/drawing and QR painting, keeping formatted-string lifetimes.

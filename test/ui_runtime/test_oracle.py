@@ -27,6 +27,9 @@ class Golden(unittest.TestCase):
     def test_cpp_widget_pixels(self):
         self.assertEqual(geometry_oracle.record(), (HERE / "geometry.golden").read_bytes())
 
+    def test_wide_line_pixels(self):
+        self.assertEqual(geometry_oracle.record(wide_lines=True), (HERE / "wide-lines.golden").read_bytes())
+
     def test_top_corner_pixels(self):
         self.assertEqual(geometry_oracle.record(True), (HERE / "top-corners.golden").read_bytes())
 

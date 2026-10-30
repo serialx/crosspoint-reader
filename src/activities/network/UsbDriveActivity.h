@@ -30,5 +30,6 @@ class UsbDriveActivity final : public RustActivityAdapter {
   static uint32_t service(void*, uint32_t operation, uint32_t value);
   static const char* text(uint32_t handle);
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   XpUiPaint rustResources() override;
 };

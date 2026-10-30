@@ -11,7 +11,7 @@ ROOT = HERE.parents[1]
 source = (HERE / 'usb_manager.cpp').read_text()
 methods = []
 for cls, filename, names in [
-    ('UsbDriveActivity', 'network/UsbDriveActivity.cpp', ['onEnter', 'onExit', 'loop', 'render', 'run', 'service']),
+    ('UsbDriveActivity', 'network/UsbDriveActivity.cpp', ['onEnter', 'onExit', 'loop', 'render', 'rustSceneCurrent', 'run', 'service']),
     ('ActivityManager', 'ActivityManager.cpp', ['loop', 'exitActivity', 'replaceActivity', 'pushActivity',
                                                'popActivity', 'goHome', 'requiresExclusiveStorageLoop']),
 ]:

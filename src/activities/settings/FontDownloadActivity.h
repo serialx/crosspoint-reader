@@ -93,13 +93,13 @@ class FontDownloadActivity final : public UpdateUiActivity {
   std::vector<int> filteredIndices_;
 
   std::string errorMessage_;
-  bool transferCancel = false;
   std::string statusText;
-  uint8_t cachedPhase = 255;
   // Shared cache for group and family rows. It is rebuilt only when the visible
   // list changes, never for cursor movement or tap flash repaints.
   std::vector<std::string> rowLabels_;
   std::vector<freeink::ui::ListItem> rowItems_;
+  bool transferCancel = false;
+  uint8_t cachedPhase = 255;
   std::atomic<bool> rowsDirty_{true};
   void rebuildRowItems();
   void rebuildGroupRowItems();

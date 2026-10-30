@@ -3,7 +3,7 @@ import re
 import prepare, prepare_wifi_extra
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
-METHODS=['onEnter','onExit','run','service','publish','keyboard','appendHiddenNetworkEntry','rebuildNetworkStatuses','getSignalStrengthIndicator','onComplete','loop']
+METHODS=['CallContext::inputCurrent','onEnter','onExit','run','service','publish','keyboard','appendHiddenNetworkEntry','rebuildNetworkStatuses','getSignalStrengthIndicator','onComplete','loop']
 def source(core=False):
  s=prepare_wifi_extra.source()
  # Exercise keyboard entry through network selection in both implementations.
@@ -22,8 +22,8 @@ def candidate(core=False):
  a=s.index('struct WifiSelectionActivity : Activity {');b=s.index('\n};',a)+3
  cls='''struct WifiSelectionActivity:Activity {
  XpUiWifiState model{};XpUiWifiHits hits{};
- bool allowAutoConnect=true,routingReady=false,sceneFailed=false,suppressedTouch=false,sampledTouch=false;
- uint32_t suppressedButtons=0,sampledHeld=0;
+ bool allowAutoConnect=true,routingReady=false,testRejected=false;
+ bool rustSceneRejected()const{return testRejected;}
  std::vector<WifiNetworkInfo> networks;
  std::vector<std::string> networkStatuses,autoAttemptedSsids;
  std::vector<fui::ListItem> networkRowItems;
@@ -37,7 +37,7 @@ def candidate(core=False):
  uint32_t& connectionStartTime=model.connection_at;
  struct ModelLock{explicit ModelLock(WifiSelectionActivity&) {}};
  struct ResourceLock{explicit ResourceLock(WifiSelectionActivity&) {}};
- struct CallContext{WifiSelectionActivity& activity;std::optional<std::string>lastSsid;std::optional<WifiCredential>credential;char scanSsid[33]{};int32_t scanRssi=0;uint32_t scanIndex=0;};
+ // CALL_CONTEXT
  WifiSelectionActivity(){model.flash_index=-1;model.phase=XP_UI_WIFI_PHASE_SCANNING;xp_ui_settings_list_init(&model.list,0);}
  WifiSelectionActivity(GfxRenderer&,MappedInputManager&):WifiSelectionActivity(){}
  void onEnter();void onExit();void productionLoop();void loop(){model.count=networks.size();productionLoop();}
@@ -53,6 +53,9 @@ def candidate(core=False):
  static void onRowEvent(const fui::ActionEvent& event,void* ctx){auto& a=*static_cast<WifiSelectionActivity*>(ctx);a.model.count=a.networks.size();XpUiInput i{};i.action=1;i.value=event.value;i.touch_flags=XP_UI_TOUCH_RELEASED;a.run(XP_UI_WIFI_EVENT_TICK,event.longPress|2,&i);}
  static void onPromptEvent(const fui::ActionEvent& event,void* ctx){auto& a=*static_cast<WifiSelectionActivity*>(ctx);XpUiInput i{};i.action=3;i.value=event.value;i.touch_flags=XP_UI_TOUCH_RELEASED;a.run(XP_UI_WIFI_EVENT_TICK,event.longPress|2,&i);}
 };'''.replace('XpUiInput*=','XpUiInput* =')
+ header=(ROOT/'src/activities/network/WifiSelectionActivity.h').read_text()
+ context=header[header.index('  struct CallContext {'):header.index('  void run(',header.index('  struct CallContext {'))]
+ cls=cls.replace('// CALL_CONTEXT',context)
  s=s[:a]+cls+s[b:]
  names=prepare.METHODS['WifiSelectionActivity']+['onEnter','onExit','onRowEvent','onScanEvent','onPromptEvent','promptPasswordEntry','promptHiddenSsid','rebuildNetworkRowItems','getSignalStrengthIndicator']
  for name in names:s=s.replace(prepare.extract(s,'WifiSelectionActivity',name),'')

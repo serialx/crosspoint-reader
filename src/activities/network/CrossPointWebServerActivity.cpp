@@ -57,7 +57,11 @@ void CrossPointWebServerActivity::onExit() {
   Activity::onExit();
   run(XP_UI_NETWORK_EXIT);
 }
-void CrossPointWebServerActivity::loop() { run(XP_UI_NETWORK_TICK); }
+void CrossPointWebServerActivity::loop() {
+  consumeRejectedInput();
+  // Transport progress and the existing cancel policy continue during rejection.
+  run(XP_UI_NETWORK_TICK);
+}
 void CrossPointWebServerActivity::onNetworkModeSelected(NetworkMode mode) {
   run(XP_UI_NETWORK_INPUT, static_cast<uint8_t>(mode));
 }
@@ -326,6 +330,10 @@ uint32_t CrossPointWebServerActivity::service(void* context, uint32_t operation,
   assert(false && "Unknown web operation");
   return 0;
 }
+bool CrossPointWebServerActivity::rustSceneCurrent() const {
+  return model.phase == renderingState.phase && model.mode == renderingState.mode &&
+         model.is_ap == renderingState.is_ap;
+}
 bool CrossPointWebServerActivity::buildRustScene(XpUiScene& scene) {
   {
     ModelLock lock(*this);
@@ -362,8 +370,7 @@ void CrossPointWebServerActivity::render(RenderLock&&) {
       scene.refresh = XP_UI_NONE;
       painted = paintRustScene(scene);
     } else {
-      ModelLock modelLock(*this);
-      rustSceneFailed();
+      rejectRustScene();
     }
     alternateUrl.reset();
     primaryUrl.reset();
@@ -375,7 +382,7 @@ XpUiPaint CrossPointWebServerActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void*, uint32_t handle, uint32_t generation) -> uint8_t {
             return generation == 1 && (handle == XP_UI_NETWORK_HEADER || handle == XP_UI_NETWORK_FOOTER ||
-                                       (handle >= XP_UI_WEB_SUBHEADER && handle <= XP_UI_WEB_THICK_LINE));
+                                       (handle >= XP_UI_WEB_SUBHEADER && handle <= XP_UI_WEB_ALTERNATE_URL));
           },
           [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
             auto& self = *static_cast<CrossPointWebServerActivity*>(context);
@@ -429,9 +436,6 @@ XpUiPaint CrossPointWebServerActivity::rustResources() {
                 if (!self.renderingState.is_ap)
                   self.alternateUrl.emplace(std::string(tr(STR_OR_HTTP_PREFIX)) + AP_HOSTNAME + ".local/");
                 resource.labels[0] = self.alternateUrl->c_str();
-                break;
-              case XP_UI_WEB_THICK_LINE:
-                resource.kind = Kind::Line;
                 break;
               default:
                 return;

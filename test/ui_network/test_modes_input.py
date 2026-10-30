@@ -9,7 +9,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 source = (HERE/'modes_input.cpp').read_text()
 production = (ROOT/'src/activities/network/NetworkModeSelectionActivity.cpp').read_text()
-methods = ['loop', 'rustSceneFailed', 'onModeSelected', 'onCancel', 'rustInterest', 'updateRust', 'applyRustEffect', 'rustPublished']
+methods = ['rustSceneFailed', 'onModeSelected', 'onCancel', 'rustInterest', 'updateRust', 'applyRustEffect', 'rustPublished', 'rustSceneCurrent']
 source = source.replace('// PRODUCTION_METHODS', '\n'.join(prepare.extract(production, 'NetworkModeSelectionActivity', m) for m in methods))
 with tempfile.TemporaryDirectory() as directory:
     out = Path(directory)

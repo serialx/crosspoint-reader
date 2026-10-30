@@ -29,7 +29,6 @@ pub const SCAN_HINT: u32 = 1306;
 pub const URL_QR: u32 = 1307;
 pub const PRIMARY_URL: u32 = 1308;
 pub const ALTERNATE_URL: u32 = 1309;
-pub const THICK_LINE: u32 = 1310;
 fn text(
     a: &mut Arena<'_>,
     l: &Layout,
@@ -82,14 +81,13 @@ fn wifi(a: &mut Arena<'_>, s: &State, l: &Layout) -> Result<(), Error> {
     } else {
         for (y, delta) in [(bottom - 14, 14), (bottom, -14)] {
             a.push(Command {
-                kind: Kind::Bitmap as u8,
+                kind: Kind::Line as u8,
                 rect: Rect {
                     x: right - 14,
                     y,
                     w: 14,
                     h: delta,
                 },
-                resource: THICK_LINE,
                 generation: 1,
                 width: 2,
                 ..Command::default()
@@ -249,7 +247,6 @@ const _: () = {
     assert!(URL_QR == 1307);
     assert!(PRIMARY_URL == 1308);
     assert!(ALTERNATE_URL == 1309);
-    assert!(THICK_LINE == 1310);
     assert!(core::mem::offset_of!(Layout, screen) == 0);
     assert!(core::mem::offset_of!(Layout, font) == 8);
     assert!(core::mem::offset_of!(Layout, small_font) == 12);

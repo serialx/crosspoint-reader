@@ -42,7 +42,16 @@ struct FakeBase {
  virtual bool buildRustScene(XpUiScene&){return false;}
  virtual XpUiPaint rustResources(){return{};}
  virtual void rustPublished(){};virtual void rustSceneFailed(){};
- bool paintRustScene(const XpUiScene& scene){lastCommandCount=scene.command_count;if(paintHook)paintHook();auto paint=rustResources();bool okay=renderer.drawUiScene(scene,&paint);{ModelLock lock(*this);if(okay)rustPublished();else rustSceneFailed();}return okay;}
+ struct Publication{XpUiScene scene{};bool ready=false;};
+ bool sceneFailed=false,suppressContact=false,lastContact=false;uint16_t suppressButtons=0,lastHeld=0;
+ virtual Publication* rustPublication(){return nullptr;}
+ virtual bool rustSceneCurrent()const{return true;}
+ virtual void cancelRejectedInput(const XpUiInput&){}
+ XpUiInput sampleRustInput()const{XpUiInput i{};i.pressed=mappedInput.pressed;i.released=mappedInput.released;i.held=mappedInput.held;
+ i.touch_flags=(mappedInput.snapshot.touchPressed?XP_UI_TOUCH_PRESSED:0)|(mappedInput.snapshot.touchReleased?XP_UI_TOUCH_RELEASED:0)|(mappedInput.snapshot.touchHeld?XP_UI_TOUCH_HELD:0);return i;}
+ bool rustSceneRejected()const;void rejectRustScene();bool consumeRejectedInput();void publishRustScene(const XpUiScene&);
+ bool paintRustScene(const XpUiScene& scene){lastCommandCount=scene.command_count;if(paintHook)paintHook();auto paint=rustResources();bool okay=renderer.drawUiScene(scene,&paint);if(okay)publishRustScene(scene);else rejectRustScene();return okay;}
+
 };
 struct {
  template<class...Args>void drawHeader(Args&&...){}
@@ -52,6 +61,7 @@ struct {
  template<class...Args>void drawHelpText(Args&&...){}
 }GUI;
 struct QrUtils{template<class...Args>static void drawQrCode(Args&&...){std::abort();}};
+// ADAPTER_METHODS
 // CANDIDATE_HEADER
 // SHARED_BINDING
 // CANDIDATE_METHODS
@@ -74,15 +84,15 @@ void checkWifiFailureAndPanel(GfxRenderer& renderer){
  xp_ui_settings_list_init(&candidate.model.list,0);candidate.selectedSSID="network";
  candidate.networks.resize(17);candidate.networkStatuses.resize(17);
  for(auto& n:candidate.networks)n.ssid="network";
- candidate.render(RenderLock{});assert(!candidate.sceneFailed&&candidate.commandCapacity==13);
+ candidate.render(RenderLock{});assert(!candidate.rustSceneRejected()&&candidate.commandCapacity==13);
  auto* old=candidate.commands.get();const auto oldCapacity=candidate.commandCapacity;
  candidate.model.phase=XP_UI_WIFI_PHASE_LIST;
- failAllocation=0;candidate.render(RenderLock{});assert(candidate.sceneFailed&&candidate.commands.get()==old&&candidate.commandCapacity==oldCapacity);
- failAllocation=1;candidate.render(RenderLock{});assert(candidate.sceneFailed&&candidate.commands.get()==old&&candidate.visibleRows);
+ failAllocation=0;candidate.render(RenderLock{});assert(candidate.rustSceneRejected()&&candidate.commands.get()==old&&candidate.commandCapacity==oldCapacity);
+ failAllocation=1;candidate.render(RenderLock{});assert(candidate.rustSceneRejected()&&candidate.commands.get()==old&&candidate.visibleRows);
  input.pressed=input.held=XP_UI_CONFIRM|XP_UI_NAV_NEXT;input.snapshot.touchPressed=input.snapshot.touchHeld=true;
- candidate.loop();assert(candidate.model.list.selected==0&&candidate.suppressedTouch&&candidate.suppressedButtons);
+ candidate.loop();assert(candidate.model.list.selected==0&&candidate.rustSceneRejected());
  input.pressed=XP_UI_BACK;candidate.loop();assert(candidate.completed==1);
- failAllocation=-1;candidate.render(RenderLock{});assert(!candidate.sceneFailed&&candidate.commands.get()!=old);
+ failAllocation=-1;candidate.render(RenderLock{});assert(!candidate.rustSceneRejected()&&candidate.commands.get()!=old);
  input.pressed=input.held=0;input.released=XP_UI_CONFIRM|XP_UI_NAV_NEXT;input.snapshot.touchPressed=input.snapshot.touchHeld=false;input.snapshot.touchReleased=true;
  candidate.loop();assert(candidate.model.list.selected==0&&candidate.completed==1);
  input.released=0;input.snapshot={};

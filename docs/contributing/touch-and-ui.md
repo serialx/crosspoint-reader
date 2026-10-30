@@ -2,31 +2,30 @@
 
 CrossPoint runs on touch devices (Seeed Sticky, M5Paper, M5Stack PaperMono, LilyGo T5, Xteink X4 Pro) alongside the button-only Xteink X3/X4. Every screen must work with both input styles.
 
-**There is one supported way to build a new screen: FreeInkUI, hosted through the firmware base classes below.** Touch hit-testing, tap highlighting, long-press, swipe scrolling, and button focus navigation all come from the shared stack; you never hand-roll coordinate math.
-
-The old bridge helpers (`rowTouch`, `colTouch`, manual rect `contains()` checks) are legacy. They survive only for the two remaining hand-rolled surfaces (the theme-driven home screen and the reader page) and must not appear in new code. PRs that add new uses will be asked to convert.
-
----
+New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; a `RustActivityAdapter` facade keeps ActivityManager navigation, resource bindings and publication. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
 
 ## Picking the right host
 
 | Your screen is... | Use | In-tree reference |
 |---|---|---|
-| A single list of rows | subclass `UiListActivity` | [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp) (minimal), [`FileBrowserActivity`](../../src/activities/home/FileBrowserActivity.cpp) (long-press and lazy rows) |
-| Tabbed lists | subclass `UiTabListActivity` | [`SettingsActivity`](../../src/activities/settings/SettingsActivity.cpp) |
-| Custom FUI layout (sliders, prompts, state machines) | inherit `UiAppHost` directly | [`EpubReaderPercentSelectionActivity`](../../src/activities/reader/EpubReaderPercentSelectionActivity.cpp), [`WifiSelectionActivity`](../../src/activities/network/WifiSelectionActivity.cpp) |
-| A modal picker or confirm inside a legacy activity | `OptionPopup` (or push `ConfirmationActivity`) | [`OtaUpdateActivity`](../../src/activities/settings/OtaUpdateActivity.cpp) |
-| A Yes/No prompt inside a FUI screen | build `fui::optionDialog` into the screen | `WifiSelectionActivity::buildPromptDialog` |
+| A settings list | `SettingsUiActivity` | [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp) |
+| A file or library list | `RustActivityAdapter` with the shared Rust list and Home resources | [`FileBrowserActivity`](../../src/activities/home/FileBrowserActivity.cpp), [`LibraryListActivity`](../../src/activities/library/LibraryListActivity.cpp) |
+| A network state machine | `RustActivityAdapter` with a Rust scene and published input geometry | [`WifiSelectionActivity`](../../src/activities/network/WifiSelectionActivity.cpp) |
+| A download or update screen | `UpdateUiActivity` | [`OtaUpdateActivity`](../../src/activities/settings/OtaUpdateActivity.cpp) |
+| A modal picker inside an existing C++ facade | `OptionPopup` | [`SettingsActivity`](../../src/activities/settings/SettingsActivity.cpp) |
+| A separate Yes/No activity | `ConfirmationActivity` | [`FontDownloadActivity`](../../src/activities/settings/FontDownloadActivity.cpp) |
 
-All of these paths route input through the same SDK interaction table, so touch and physical buttons fire the same actions with no per-screen coordinate code.
+Layout and input must use the same published geometry. The Rust runtime guide describes the model lock, resource lifetime, scene rejection and publication contracts.
 
-## The hosting stack
+## Remaining C++ hosting stack
+
+The following describes the existing C++ hosts. For new screens, use the Rust hosts above. `EpubReaderPercentSelectionActivity` still uses `UiAppHost` for its slider dialog.
 
 `UiAppHost` ([src/components/UiAppHost.h](../../src/components/UiAppHost.h)) owns what every FUI screen shares: the font-bound render target, the `FreeInkApp`, and the `uiReady` handshake that lets the loop task route touch snapshots against the interaction table the render task rebuilds. Never re-implement that handshake; it is a cross-task protocol and lives in exactly one place.
 
 `UiListActivity` ([src/activities/UiListActivity.h](../../src/activities/UiListActivity.h)) layers the list protocol on top: swipes scroll the viewport without moving the selection, buttons move the selection and pull the viewport along (`fui::ListNav`), plus the render skeleton (header chrome, app, footer hints). `UiTabListActivity` is the tab-bar sibling; its selection ring puts the tab bar at position 0 and the rows after it.
 
-### New list screen skeleton
+### Legacy list host contract
 
 Subclasses supply the data; the base owns the loop. The whole contract:
 
@@ -74,11 +73,10 @@ class MyListActivity final : public UiListActivity {
 };
 ```
 
-For small bounded lists, [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp)
-builds a fixed row array in `onEnter()` and reuses it in `buildScreen()`. For
-large lists, follow [`FileBrowserActivity::provideRow()`](../../src/activities/home/FileBrowserActivity.cpp)
-and `fui::ListProps::rowProvider`: format rows on demand into reusable scratch
-storage instead of materializing the whole row list. Optional overrides include
+For small bounded lists, build a fixed row array in `onEnter()` and reuse it in
+`buildScreen()`. For large lists, use `fui::ListProps::rowProvider`: format rows
+on demand into reusable scratch storage instead of materializing the whole row
+list. Optional overrides include
 `onRowLongPress(index)`, `drawFooter()`, and `handleButtons()` for extra physical
 input. Use `ACTION_USER`-and-up action ids for non-row elements and register
 handlers in `onEnter()` after the base's.
@@ -125,16 +123,16 @@ Because the back gesture arrives as `Button::Back`, most button-era activities g
 
 ## Legacy bridge helpers (do not use in new code)
 
-`MappedInputManager` still exposes raw touch accessors. The FUI stack consumes them internally (via `touchSnapshotFrom` in [`UiAppHelpers.h`](../../src/components/UiAppHelpers.h)); activities should not.
+`MappedInputManager` still exposes raw touch accessors. The shared input adapters consume them internally (via `touchSnapshotFrom` in [`UiAppHelpers.h`](../../src/components/UiAppHelpers.h)); activities should not.
 
 | Helper | Status |
 |---|---|
-| `wasScreenTapped` / `wasScreenTouchDown` / `isScreenTouchHeld` | Consumed by the FUI snapshot builder. Direct use only in the two legacy surfaces |
-| `rowTouch` / `colTouch` | Legacy row/column band math. Sole remaining user: `HomeActivity` (theme-driven layout) |
+| `wasScreenTapped` / `wasScreenTouchDown` / `isScreenTouchHeld` | Consumed by the FUI snapshot builder. Direct use only where an existing surface owns the input frame |
+| `rowTouch` / `colTouch` | Legacy row/column band math; no current activity caller |
 | `wasSwipe()` | Raw swipe direction, for behavior beyond the global gestures (reader page turns) |
 | `hasTouch()` | Still fine anywhere: gate touch-only chrome (on-screen Cancel/OK pairs) on it |
 
-The `wasListItemTapped` / `wasListItemTouchedDown` helpers from the button-era bridge have been removed; every themed list is a `UiListActivity` now. If you are porting a branch that still calls them, convert the screen to `UiListActivity` rather than resurrecting the helpers.
+The `wasListItemTapped` / `wasListItemTouchedDown` helpers from the button-era bridge have been removed; the current list families route input in Rust against published geometry. If you are porting a branch that still calls them, use the relevant Rust UI family host.
 
 As with all input: never call the SDK `InputManager` or read GPIO directly. The HAL rule from the main guide applies to touch too.
 

@@ -218,7 +218,6 @@ static_assert(XP_UI_WEB_SCAN_HINT == 1306);
 static_assert(XP_UI_WEB_URL_QR == 1307);
 static_assert(XP_UI_WEB_PRIMARY_URL == 1308);
 static_assert(XP_UI_WEB_ALTERNATE_URL == 1309);
-static_assert(XP_UI_WEB_THICK_LINE == 1310);
 static_assert(sizeof(XpUiWebState) == 20 && alignof(XpUiWebState) == 4);
 static_assert(offsetof(XpUiWebState, last_handle) == 0);
 static_assert(offsetof(XpUiWebState, first_disconnect) == 4);

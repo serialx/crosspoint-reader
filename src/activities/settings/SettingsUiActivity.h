@@ -60,9 +60,9 @@ class SettingsUiActivity : public RustActivityAdapter {
   Publication publication;
   std::unique_ptr<XpUiCommand[]> commands;
   uint16_t commandCapacity = 0;
-  int32_t renderingScroll = 0;
   bool longTouch = false;
   bool touchActivated = false;
+  int32_t renderingScroll = 0;
   int touchX = -1, touchY = -1;
   freeink::ui::GfxRendererTarget textTarget;
   bool reserveCommands(uint16_t);

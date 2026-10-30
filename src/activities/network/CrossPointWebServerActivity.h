@@ -37,6 +37,7 @@ class CrossPointWebServerActivity final : public RustActivityAdapter {
   void onNetworkModeSelected(NetworkMode);
   void onWifiSelectionComplete(bool);
   bool buildRustScene(XpUiScene&) override;
+  bool rustSceneCurrent() const override;
   XpUiPaint rustResources() override;
 
  public:

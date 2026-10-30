@@ -242,210 +242,523 @@ bool EpubReaderActivity::anyButtonPressed() const { return runBuildPolicy(XP_UI_
 
 void EpubReaderActivity::backgroundBuildTick() { runBuildPolicy(XP_UI_READER_BUILD_OPERATION_BACKGROUND); }
 
-void EpubReaderActivity::openDictionaryWordSelect() {
-  if (SETTINGS.dictionaryName[0] == '\0') {
-    showDictionaryMessage = true;
-    dictionaryMessageTime = millis();
-    requestUpdate();
-    return;
-  }
-  startClipSelection(-1, -1, ClipSelectionActivity::Mode::Lookup);
-}
-
-void EpubReaderActivity::startClipSelection(const int initialX, const int initialY,
-                                            const ClipSelectionActivity::Mode mode) {
-  if (!section || !epub || section->currentPage < 0 || section->currentPage >= section->pageCount) return;
-
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  {
-    RenderLock lock;
-    stripBuffers.releaseIdle();
-  }
-#endif
-  const int pageNumber = section->currentPage;
-  const uint16_t pageCount = section->pageCount;
-  const uint16_t spineIndex = static_cast<uint16_t>(currentSpineIndex);
-  std::vector<std::unique_ptr<Page>> pages;
-  pages.reserve(CLIP_SELECTION_PAGE_WINDOW);
-  for (int pageOffset = 0; pageOffset < CLIP_SELECTION_PAGE_WINDOW && pageNumber + pageOffset < pageCount;
-       ++pageOffset) {
-    auto page = section->loadPage(pageNumber + pageOffset);
-    if (!page) break;
-    if (pageOffset == 0 && initialX >= 0 && CLIPPINGS.hasClippings()) {
-      RenderLock lock;
-      const int clippingIndex = clippingAtPoint(*page, initialX, initialY);
-      if (clippingIndex >= 0) {
-        const bool removed = CLIPPINGS.removeClippingAt(static_cast<size_t>(clippingIndex));
-        if (!removed) LOG_ERR("CLIP", "Failed to delete highlighted clipping %d", clippingIndex);
-        clippingMessage = removed ? StrId::STR_CLIPPING_REMOVED : StrId::STR_CLIPPING_DELETE_FAILED;
-        showClippingMessage = true;
-        clippingMessageTime = millis();
-        requestUpdate();
-        return;
-      }
-    }
-    pages.push_back(std::move(page));
-  }
-  if (pages.empty()) {
-    LOG_ERR("CLIP", "Failed to load page %d for clipping selection", pageNumber);
-    requestUpdate();
-    return;
-  }
-
-  if (buildViewportWidth == 0 || buildViewportHeight == 0) {
-    LOG_ERR("CLIP", "Cannot anchor clipping before the reader viewport is initialized");
-    requestUpdate();
-    return;
-  }
-  const uint32_t layoutSignature =
-      readerRenderSpecSignature(SETTINGS.readerRenderSpec(buildViewportWidth, buildViewportHeight));
-
-  int marginTop, marginRight, marginBottom, marginLeft;
-  renderer.getOrientedViewableTRBL(&marginTop, &marginRight, &marginBottom, &marginLeft);
-  marginTop += SETTINGS.screenMargin;
-  marginLeft += SETTINGS.screenMargin;
-
-  std::string chapterTitle;
-  const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
-  if (tocIndex >= 0) chapterTitle = epub->getTocItem(tocIndex).title;
-  std::string bookTitle = epub->getTitle();
-  std::string author = epub->getAuthor();
-
-  auto activity = makeUniqueNoThrow<ClipSelectionActivity>(renderer, mappedInput, std::move(pages), marginLeft,
-                                                           marginTop, initialX, initialY, mode);
-  if (!activity) {
-    LOG_ERR("CLIP", "Failed to allocate clipping selection activity");
-    requestUpdate();
-    return;
-  }
-  startActivityForResult(std::move(activity), [this, spineIndex, pageNumber, pageCount, layoutSignature,
-                                               bookTitle = std::move(bookTitle), author = std::move(author),
-                                               chapterTitle = std::move(chapterTitle)](const ActivityResult& result) {
-    if (result.isCancelled) {
-      requestUpdate();
-      return;
-    }
-    const auto& clipping = std::get<ClippingResult>(result.data);
-    const uint16_t startPage = static_cast<uint16_t>(pageNumber + clipping.startPageOffset);
-    const uint16_t endPage = static_cast<uint16_t>(pageNumber + clipping.endPageOffset);
-    if (section && currentSpineIndex == spineIndex && endPage < section->pageCount) {
-      section->currentPage = endPage;
-      currentPageVisibleOffset = section->getVisibleTextOffsetForPage(endPage);
-    }
-    if (clipping.action == ClippingResult::Action::Bookmark) {
-      addBookmark();
-      showBookmarkMessage = true;
-      bookmarkMessageTime = millis();
-      requestUpdate();
-      return;
-    }
-    if (clipping.action == ClippingResult::Action::Lookup) {
-      auto page = section ? section->loadPage(section->currentPage) : nullptr;
-      if (!page) {
-        LOG_ERR("CLIP", "Failed to load lookup page");
-        requestUpdate();
-        return;
-      }
-      int top, right, bottom, left;
-      renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
-      auto lookup = makeUniqueNoThrow<DictionaryWordSelectActivity>(renderer, mappedInput, std::move(page),
-                                                                    left + SETTINGS.screenMargin,
-                                                                    top + SETTINGS.screenMargin, clipping.text);
-      if (!lookup) {
-        LOG_ERR("CLIP", "OOM: dictionary lookup activity");
-        requestUpdate();
-        return;
-      }
-      startActivityForResult(std::move(lookup), [this](const ActivityResult& result) {
-        if (!result.isCancelled) openDictionaryWordSelect();
-      });
-      return;
-    }
-    const uint16_t paragraphIndex =
-        section ? section->getParagraphIndexForPage(startPage).value_or(UINT16_MAX) : UINT16_MAX;
-    const auto addResult = CLIPPINGS.addClipping(
-        spineIndex, startPage, endPage, pageCount, clipping.startWordIndex, clipping.endWordIndex, clipping.wordCount,
-        chapterTitle.c_str(), paragraphIndex, clipping.text, layoutSignature, clipping.startOffset, clipping.endOffset);
-    bool exported = false;
-    if (addResult == ClippingStore::AddResult::Added) {
-      exported = ClippingsManager::saveClipping(bookTitle, author, chapterTitle, startPage + 1, clipping.text);
-    }
-    clippingMessage = addResult == ClippingStore::AddResult::LimitReached ? StrId::STR_CLIPPING_LIMIT_REACHED
-                      : exported                                          ? StrId::STR_CLIPPING_SAVED
-                      : addResult == ClippingStore::AddResult::Added      ? StrId::STR_CLIPPING_EXPORT_FAILED
-                                                                          : StrId::STR_CLIPPING_FAILED;
-    showClippingMessage = true;
-    clippingMessageTime = millis();
-    requestUpdate();
-  });
-}
-
-void EpubReaderActivity::openFootnoteSelect(const bool reopenMenuOnCancel) {
-  std::string href;
-  bool singleFootnote;
+struct ReaderChildCapture {
+  uint16_t spine;
+  int page;
+  uint16_t count;
+  uint32_t signature;
+  const std::string& title;
+  const std::string& author;
+  const std::string& chapter;
+};
+namespace {
+struct ReaderChildResources {
+  std::optional<RenderLock> lock;
+  std::optional<std::vector<std::unique_ptr<Page>>> pages;
   std::unique_ptr<Page> page;
-  {
-    RenderLock lock;
-    if (!section || currentPageMetadata.footnotes().empty()) return;
-    singleFootnote = currentPageMetadata.footnotes().size() == 1;
-    if (singleFootnote) {
-      href = currentPageMetadata.footnotes()[0].href;
-    } else {
-      page = section->loadPage(section->currentPage);
-    }
-  }
-  // Navigation acquires RenderLock itself; only owned data may leave the scope above.
-  if (singleFootnote) {
-    navigateToHref(href, true);
-    return;
-  }
-  if (!page) return;
+  std::unique_ptr<Activity> activity;
+  std::optional<std::string> chapter, title, author, href, path;
+  std::optional<CrossPointPosition> position;
+  std::optional<SavedProgressPosition> saved;
+  std::optional<GfxRenderer::FrameBufferLoan> loan;
+  decltype(std::declval<GfxRenderer&>().getFontCacheManager()) cache = nullptr;
+  uint16_t spine = 0, count = 0, paragraph = UINT16_MAX;
+  int firstPage = 0;
+  uint32_t signature = 0;
+  int margins[4]{};
+};
+}  // namespace
 
-  int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
-  renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
-                                   &orientedMarginLeft);
-  orientedMarginTop += SETTINGS.screenMargin;
-  orientedMarginLeft += SETTINGS.screenMargin;
-  auto selector = makeUniqueNoThrow<EpubReaderFootnoteSelectActivity>(renderer, mappedInput, std::move(page),
-                                                                      orientedMarginLeft, orientedMarginTop);
-  if (!selector) {
-    LOG_ERR("ERA", "OOM: EpubReaderFootnoteSelectActivity");
-    return;
-  }
-  startActivityForResult(std::move(selector), [this, reopenMenuOnCancel](const ActivityResult& result) {
-    if (result.isCancelled) {
-      if (reopenMenuOnCancel) {
-        openReaderMenu();
-      } else {
-        requestUpdate();
-      }
-      return;
-    }
-    const auto& footnoteResult = std::get<FootnoteResult>(result.data);
-    navigateToHref(footnoteResult.href, true);
-    requestUpdate();
-  });
+void EpubReaderActivity::openDictionaryWordSelect() {
+  runChildPolicy(XP_UI_READER_CHILD_OPERATION_DICTIONARY, 0, 0, ClipSelectionActivity::Mode::Lookup);
 }
 
-void EpubReaderActivity::openClippings() {
-  if (!CLIPPINGS.hasClippings()) {
-    requestUpdate();
-    return;
-  }
-  auto list = makeUniqueNoThrow<EpubReaderClippingListActivity>(renderer, mappedInput);
-  if (!list) {
-    LOG_ERR("CLIP", "OOM: clipping list");
-    return;
-  }
-  startActivityForResult(std::move(list), [this](const ActivityResult& result) {
-    if (!result.isCancelled) {
-      if (const auto* progress = std::get_if<ProgressChangeResult>(&result.data)) {
-        applyProgressChange(*progress);
-        return;
+void EpubReaderActivity::startClipSelection(int x, int y, ClipSelectionActivity::Mode mode) {
+  runChildPolicy(XP_UI_READER_CHILD_OPERATION_SELECTION, x, y, mode);
+}
+
+void EpubReaderActivity::openFootnoteSelect(bool reopen) {
+  runChildPolicy(XP_UI_READER_CHILD_OPERATION_FOOTNOTE, reopen);
+}
+
+void EpubReaderActivity::openClippings() { runChildPolicy(XP_UI_READER_CHILD_OPERATION_CLIPPINGS); }
+
+bool EpubReaderActivity::runChildPolicy(uint8_t operation, int32_t a, int32_t b, ClipSelectionActivity::Mode mode,
+                                        const ActivityResult* result, const ReaderChildCapture* capture) {
+  ReaderChildResources resources;
+  struct Context {
+    EpubReaderActivity& o;
+    ReaderChildResources& r;
+    ClipSelectionActivity::Mode mode;
+    const ActivityResult* result;
+    const ReaderChildCapture* capture;
+    uint32_t read(uint8_t field) {
+      switch (static_cast<XpUiReaderChildField>(field)) {
+        case XP_UI_READER_CHILD_FIELD_DICTIONARY_EMPTY:
+          return SETTINGS.dictionaryName[0] == '\0';
+        case XP_UI_READER_CHILD_FIELD_HAS_SECTION:
+          return bool(o.section);
+        case XP_UI_READER_CHILD_FIELD_HAS_BOOK:
+          return bool(o.epub);
+        case XP_UI_READER_CHILD_FIELD_PAGE:
+          return o.section->currentPage;
+        case XP_UI_READER_CHILD_FIELD_PAGE_COUNT:
+          return o.section->pageCount;
+        case XP_UI_READER_CHILD_FIELD_SPINE: {
+          ModelLock lock(o);
+          return o.currentSpineIndex;
+        }
+        case XP_UI_READER_CHILD_FIELD_BUILD_WIDTH: {
+          ModelLock lock(o);
+          return o.buildViewportWidth;
+        }
+        case XP_UI_READER_CHILD_FIELD_BUILD_HEIGHT: {
+          ModelLock lock(o);
+          return o.buildViewportHeight;
+        }
+        case XP_UI_READER_CHILD_FIELD_WINDOW:
+          return CLIP_SELECTION_PAGE_WINDOW;
+        case XP_UI_READER_CHILD_FIELD_HAS_CLIPPINGS:
+          return CLIPPINGS.hasClippings();
+        case XP_UI_READER_CHILD_FIELD_SCREEN_MARGIN:
+          return SETTINGS.screenMargin;
+        case XP_UI_READER_CHILD_FIELD_CANCELLED:
+          return result->isCancelled;
+        case XP_UI_READER_CHILD_FIELD_RESULT_ACTION:
+          return static_cast<uint32_t>(std::get<ClippingResult>(result->data).action);
+        case XP_UI_READER_CHILD_FIELD_START_PAGE_OFFSET:
+          return std::get<ClippingResult>(result->data).startPageOffset;
+        case XP_UI_READER_CHILD_FIELD_END_PAGE_OFFSET:
+          return std::get<ClippingResult>(result->data).endPageOffset;
+        case XP_UI_READER_CHILD_FIELD_CAPTURED_SPINE:
+          return capture ? capture->spine : r.spine;
+        case XP_UI_READER_CHILD_FIELD_CAPTURED_PAGE:
+          return capture ? capture->page : r.firstPage;
+        case XP_UI_READER_CHILD_FIELD_CAPTURED_PAGE_COUNT:
+          return capture ? capture->count : r.count;
+        case XP_UI_READER_CHILD_FIELD_HAS_PROGRESS_RESULT:
+          return std::get_if<ProgressChangeResult>(&result->data) != nullptr;
+        case XP_UI_READER_CHILD_FIELD_FOOTNOTE_COUNT:
+          return o.currentPageMetadata.footnotes().size();
+        case XP_UI_READER_CHILD_FIELD_HAS_CREDENTIALS:
+          return KOREADER_STORE.hasCredentials();
+        case XP_UI_READER_CHILD_FIELD_NEXT_PAGE: {
+          ModelLock lock(o);
+          return o.nextPageNumber;
+        }
+        case XP_UI_READER_CHILD_FIELD_CACHED_PAGE_COUNT: {
+          ModelLock lock(o);
+          return o.cachedChapterTotalPageCount;
+        }
+        case XP_UI_READER_CHILD_FIELD_FOOTNOTE_DEPTH: {
+          ModelLock lock(o);
+          return o.footnoteDepth;
+        }
+        case XP_UI_READER_CHILD_FIELD_SHOW_DICTIONARY: {
+          ModelLock lock(o);
+          return o.showDictionaryMessage;
+        }
+        case XP_UI_READER_CHILD_FIELD_DICTIONARY_TIME: {
+          ModelLock lock(o);
+          return o.dictionaryMessageTime;
+        }
+        case XP_UI_READER_CHILD_FIELD_SHOW_BOOKMARK: {
+          ModelLock lock(o);
+          return o.showBookmarkMessage;
+        }
+        case XP_UI_READER_CHILD_FIELD_BOOKMARK_TIME: {
+          ModelLock lock(o);
+          return o.bookmarkMessageTime;
+        }
+        case XP_UI_READER_CHILD_FIELD_SHOW_CLIPPING: {
+          ModelLock lock(o);
+          return o.showClippingMessage;
+        }
+        case XP_UI_READER_CHILD_FIELD_CLIPPING_TIME: {
+          ModelLock lock(o);
+          return o.clippingMessageTime;
+        }
+        case XP_UI_READER_CHILD_FIELD_PENDING_SYNC_ERROR: {
+          ModelLock lock(o);
+          return o.pendingSyncSaveError;
+        }
+        case XP_UI_READER_CHILD_FIELD_STRIPS_ENABLED:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          return 1;
+#else
+          return 0;
+#endif
+        case XP_UI_READER_CHILD_FIELD_CLIPPING_MESSAGE:
+          return 0;
+      }
+      return 0;
+    }
+    void write(uint8_t field, uint32_t value) {
+      switch (static_cast<XpUiReaderChildField>(field)) {
+        case XP_UI_READER_CHILD_FIELD_PAGE: {
+          ModelLock lock(o);
+          o.section->currentPage = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_NEXT_PAGE: {
+          ModelLock lock(o);
+          o.nextPageNumber = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_SHOW_DICTIONARY: {
+          ModelLock lock(o);
+          o.showDictionaryMessage = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_DICTIONARY_TIME: {
+          ModelLock lock(o);
+          o.dictionaryMessageTime = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_SHOW_BOOKMARK: {
+          ModelLock lock(o);
+          o.showBookmarkMessage = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_BOOKMARK_TIME: {
+          ModelLock lock(o);
+          o.bookmarkMessageTime = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_SHOW_CLIPPING: {
+          ModelLock lock(o);
+          o.showClippingMessage = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_CLIPPING_TIME: {
+          ModelLock lock(o);
+          o.clippingMessageTime = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_PENDING_SYNC_ERROR: {
+          ModelLock lock(o);
+          o.pendingSyncSaveError = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_CAPTURED_SPINE: {
+          r.spine = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_CAPTURED_PAGE: {
+          r.firstPage = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_CAPTURED_PAGE_COUNT: {
+          r.count = value;
+          break;
+        }
+        case XP_UI_READER_CHILD_FIELD_CLIPPING_MESSAGE: {
+          constexpr StrId messages[] = {StrId::STR_CLIPPING_REMOVED,       StrId::STR_CLIPPING_DELETE_FAILED,
+                                        StrId::STR_CLIPPING_LIMIT_REACHED, StrId::STR_CLIPPING_SAVED,
+                                        StrId::STR_CLIPPING_EXPORT_FAILED, StrId::STR_CLIPPING_FAILED};
+          if (value < std::size(messages)) {
+            ModelLock lock(o);
+            o.clippingMessage = messages[value];
+          }
+          break;
+        }
+        default:
+          break;
       }
     }
-    requestUpdate();
-  });
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderChildCommand>(command)) {
+        case XP_UI_READER_CHILD_COMMAND_CLOCK:
+          return millis();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_UPDATE:
+          o.requestUpdate();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOCK:
+          r.lock.emplace();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_UNLOCK:
+          r.lock.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_RELEASE_STRIPS:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          o.stripBuffers.releaseIdle();
+#endif
+          break;
+        case XP_UI_READER_CHILD_COMMAND_PAGES_BEGIN:
+          r.pages.emplace();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_PAGES_END:
+          r.pages.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_RESERVE_PAGES:
+          r.pages->reserve(a);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_PAGE_LOAD:
+          r.page = o.section->loadPage(a);
+          return bool(r.page);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_PAGE_END:
+          r.page.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_APPEND_PAGE:
+          r.pages->push_back(std::move(r.page));
+          break;
+        case XP_UI_READER_CHILD_COMMAND_HIT:
+          return o.clippingAtPoint(*r.page, a, b);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_REMOVE_CLIPPING:
+          return CLIPPINGS.removeClippingAt(a);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_REMOVE_FAILED:
+          LOG_ERR("CLIP", "Failed to delete highlighted clipping %d", static_cast<int>(a));
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_NO_PAGE:
+          LOG_ERR("CLIP", "Failed to load page %d for clipping selection", static_cast<int>(a));
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_NO_VIEWPORT:
+          LOG_ERR("CLIP", "Cannot anchor clipping before the reader viewport is initialized");
+          break;
+        case XP_UI_READER_CHILD_COMMAND_SIGNATURE:
+          r.signature =
+              readerRenderSpecSignature(SETTINGS.readerRenderSpec(o.buildViewportWidth, o.buildViewportHeight));
+          return r.signature;
+          break;
+        case XP_UI_READER_CHILD_COMMAND_MARGINS:
+          o.renderer.getOrientedViewableTRBL(&r.margins[0], &r.margins[1], &r.margins[2], &r.margins[3]);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_TOC_INDEX:
+          return o.epub->getTocIndexForSpineIndex(o.currentSpineIndex);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_CHAPTER_BEGIN:
+          r.chapter.emplace();
+          if (a >= 0) *r.chapter = o.epub->getTocItem(a).title;
+          break;
+        case XP_UI_READER_CHILD_COMMAND_CHAPTER_END:
+          r.chapter.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_TITLE_BEGIN:
+          r.title.emplace(o.epub->getTitle());
+          break;
+        case XP_UI_READER_CHILD_COMMAND_TITLE_END:
+          r.title.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_AUTHOR_BEGIN:
+          r.author.emplace(o.epub->getAuthor());
+          break;
+        case XP_UI_READER_CHILD_COMMAND_AUTHOR_END:
+          r.author.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_NEW_SELECTION:
+          r.activity = makeUniqueNoThrow<ClipSelectionActivity>(o.renderer, o.mappedInput, std::move(*r.pages),
+                                                                r.margins[3] + SETTINGS.screenMargin,
+                                                                r.margins[0] + SETTINGS.screenMargin, a, b, mode);
+          return bool(r.activity);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LAUNCH_SELECTION:
+          o.startActivityForResult(
+              std::move(r.activity),
+              [owner = &o, spineIndex = r.spine, pageNumber = r.firstPage, pageCount = r.count,
+               layoutSignature = r.signature, bookTitle = std::move(*r.title), author = std::move(*r.author),
+               chapterTitle = std::move(*r.chapter)](const ActivityResult& result) {
+                const ReaderChildCapture capture{spineIndex, pageNumber, pageCount,   layoutSignature,
+                                                 bookTitle,  author,     chapterTitle};
+                owner->runChildPolicy(XP_UI_READER_CHILD_OPERATION_SELECTION_RESULT, 0, 0,
+                                      ClipSelectionActivity::Mode::Clip, &result, &capture);
+              });
+          break;
+        case XP_UI_READER_CHILD_COMMAND_DROP_ACTIVITY:
+          r.activity.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_SELECTION_OOM:
+          LOG_ERR("CLIP", "Failed to allocate clipping selection activity");
+          break;
+        case XP_UI_READER_CHILD_COMMAND_READ_VISIBLE_OFFSET:
+          o.currentPageVisibleOffset = o.section->getVisibleTextOffsetForPage(a);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_ADD_BOOKMARK:
+          o.addBookmark();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOOKUP_PAGE:
+          r.page = o.section ? o.section->loadPage(o.section->currentPage) : nullptr;
+          return bool(r.page);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_NEW_LOOKUP:
+          r.activity = makeUniqueNoThrow<DictionaryWordSelectActivity>(
+              o.renderer, o.mappedInput, std::move(r.page), r.margins[3] + SETTINGS.screenMargin,
+              r.margins[0] + SETTINGS.screenMargin, std::get<ClippingResult>(result->data).text);
+          return bool(r.activity);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LAUNCH_LOOKUP:
+          o.startActivityForResult(std::move(r.activity), [owner = &o](const ActivityResult& result) {
+            owner->runChildPolicy(XP_UI_READER_CHILD_OPERATION_LOOKUP_RESULT, 0, 0, ClipSelectionActivity::Mode::Lookup,
+                                  &result);
+          });
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_LOOKUP_PAGE:
+          LOG_ERR("CLIP", "Failed to load lookup page");
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_LOOKUP_OOM:
+          LOG_ERR("CLIP", "OOM: dictionary lookup activity");
+          break;
+        case XP_UI_READER_CHILD_COMMAND_PARAGRAPH_INDEX:
+          r.paragraph = o.section->getParagraphIndexForPage(a).value_or(UINT16_MAX);
+          return r.paragraph;
+          break;
+        case XP_UI_READER_CHILD_COMMAND_ADD_CLIPPING: {
+          const auto& c = std::get<ClippingResult>(result->data);
+          return static_cast<uint32_t>(CLIPPINGS.addClipping(
+              capture->spine, a, b, capture->count, c.startWordIndex, c.endWordIndex, c.wordCount,
+              capture->chapter.c_str(), r.paragraph, c.text, capture->signature, c.startOffset, c.endOffset));
+        } break;
+        case XP_UI_READER_CHILD_COMMAND_EXPORT_CLIPPING:
+          return ClippingsManager::saveClipping(capture->title, capture->author, capture->chapter, a,
+                                                std::get<ClippingResult>(result->data).text);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_HREF_BEGIN:
+          r.href.emplace();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_HREF_END:
+          r.href.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_COPY_FIRST_HREF:
+          *r.href = o.currentPageMetadata.footnotes()[0].href;
+          break;
+        case XP_UI_READER_CHILD_COMMAND_NAVIGATE_HREF:
+          o.navigateToHref(*r.href, true);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_NEW_FOOTNOTE:
+          r.activity = makeUniqueNoThrow<EpubReaderFootnoteSelectActivity>(o.renderer, o.mappedInput, std::move(r.page),
+                                                                           r.margins[3] + SETTINGS.screenMargin,
+                                                                           r.margins[0] + SETTINGS.screenMargin);
+          return bool(r.activity);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LAUNCH_FOOTNOTE:
+          o.startActivityForResult(std::move(r.activity), [owner = &o, reopen = bool(a)](const ActivityResult& result) {
+            owner->runChildPolicy(XP_UI_READER_CHILD_OPERATION_FOOTNOTE_RESULT, reopen, 0,
+                                  ClipSelectionActivity::Mode::Clip, &result);
+          });
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_FOOTNOTE_OOM:
+          LOG_ERR("ERA", "OOM: EpubReaderFootnoteSelectActivity");
+          break;
+        case XP_UI_READER_CHILD_COMMAND_OPEN_MENU:
+          o.openReaderMenu();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_NAVIGATE_RESULT_HREF:
+          o.navigateToHref(std::get<FootnoteResult>(result->data).href, true);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_NEW_CLIPPINGS:
+          r.activity = makeUniqueNoThrow<EpubReaderClippingListActivity>(o.renderer, o.mappedInput);
+          return bool(r.activity);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LAUNCH_CLIPPINGS:
+          o.startActivityForResult(std::move(r.activity), [owner = &o](const ActivityResult& result) {
+            owner->runChildPolicy(XP_UI_READER_CHILD_OPERATION_CLIPPINGS_RESULT, 0, 0,
+                                  ClipSelectionActivity::Mode::Clip, &result);
+          });
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_CLIPPINGS_OOM:
+          LOG_ERR("CLIP", "OOM: clipping list");
+          break;
+        case XP_UI_READER_CHILD_COMMAND_APPLY_RESULT_PROGRESS:
+          o.applyProgressChange(std::get<ProgressChangeResult>(result->data));
+          break;
+        case XP_UI_READER_CHILD_COMMAND_FLUSH_SESSION:
+          o.flushReaderSession();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LAUNCH_EVENTS_ONLY:
+          activityManager.replaceActivity(std::make_unique<KOReaderSyncActivity>(
+              o.renderer, o.mappedInput, o.epub->getPath(), o.getCurrentPosition(), SavedProgressPosition{}, "", true));
+          break;
+        case XP_UI_READER_CHILD_COMMAND_ESTIMATE:
+          return o.section->estimatedTotalPages();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_POSITION_BEGIN:
+          r.position.emplace(o.getCurrentPosition());
+          break;
+        case XP_UI_READER_CHILD_COMMAND_POSITION_END:
+          r.position.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_SAVED_POSITION_BEGIN:
+          r.saved.emplace();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_SAVED_POSITION_END:
+          r.saved.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_PATH_BEGIN:
+          r.path.emplace(o.epub->getPath());
+          break;
+        case XP_UI_READER_CHILD_COMMAND_PATH_END:
+          r.path.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_SAVE_PROGRESS:
+          return o.saveProgress(o.currentSpineIndex, a, b);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_SYNC_SAVE_FAILED:
+          LOG_ERR("KOSync", "Aborting sync because current progress could not be saved");
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_SYNC_BEFORE:
+          LOG_DBG("KOSync", "Releasing epub for sync (heap before: %u)", (unsigned)ESP.getFreeHeap());
+          break;
+        case XP_UI_READER_CHILD_COMMAND_DISCARD_OVERLAY:
+          o.discardOverlayPage();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_RELEASE_IMAGES:
+          ImageBlock::releaseRenderCache();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_CLEAR_EXTRACTOR:
+          ImageBlock::setExtractor(nullptr, nullptr);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_DROP_SECTION:
+          o.section.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_CACHE_BEGIN:
+          r.cache = o.renderer.getFontCacheManager();
+          return r.cache != nullptr;
+          break;
+        case XP_UI_READER_CHILD_COMMAND_RELEASE_CACHE:
+          r.cache->releaseSdFontCaches();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_CACHE_END:
+          r.cache = nullptr;
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOAN_BEGIN:
+          r.loan.emplace(o.renderer);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOAN_END:
+          r.loan.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_MAP_PROGRESS:
+          *r.saved = ProgressMapper::toSavedProgress(o.epub, *r.position);
+          break;
+        case XP_UI_READER_CHILD_COMMAND_SAVE_LINKS:
+          o.saveLinkStack();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_DROP_BOOK:
+          o.epub.reset();
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LOG_SYNC_AFTER:
+          LOG_DBG("KOSync", "Epub released (heap after: %u)", (unsigned)ESP.getFreeHeap());
+          break;
+        case XP_UI_READER_CHILD_COMMAND_LAUNCH_SYNC:
+          activityManager.replaceActivity(std::make_unique<KOReaderSyncActivity>(
+              o.renderer, o.mappedInput, *r.path, *r.position, std::move(*r.saved), std::move(*r.chapter)));
+          break;
+        case XP_UI_READER_CHILD_COMMAND_DICTIONARY:
+          o.openDictionaryWordSelect();
+          break;
+      }
+      return 0;
+    }
+  } context{*this, resources, mode, result, capture};
+  const XpUiReaderChildServices services{
+      &context, [](void* c, uint8_t f) -> uint32_t { return static_cast<Context*>(c)->read(f); },
+      [](void* c, uint8_t f, uint32_t v) { static_cast<Context*>(c)->write(f, v); },
+      [](void* c, uint8_t id, int32_t a, int32_t b) -> uint32_t {
+        return static_cast<Context*>(c)->command(id, a, b);
+      }};
+  return xp_ui_reader_child(&services, operation, a, b, static_cast<uint8_t>(mode));
 }
 
 static_assert(static_cast<uint8_t>(HomeButtonAction::Ignore) == 1);
@@ -944,64 +1257,7 @@ unsigned long EpubReaderActivity::confirmLongPressThreshold() const {
   }
 }
 
-bool EpubReaderActivity::launchKOReaderSync() {
-  flushReaderSession();
-
-  // Without a KOReader server the sync activity only brings the device online
-  // and drains that outbox; a failed join exits back to the reader with the
-  // events still queued.
-  if (!KOREADER_STORE.hasCredentials()) {
-    activityManager.replaceActivity(std::make_unique<KOReaderSyncActivity>(
-        renderer, mappedInput, epub->getPath(), getCurrentPosition(), SavedProgressPosition{}, "",
-        /*pluginEventsOnly=*/true));
-    return true;
-  }
-
-  RenderLock renderLock;
-
-  const int currentPage = section ? section->currentPage : nextPageNumber;
-  const int totalPages = section ? section->estimatedTotalPages() : cachedChapterTotalPageCount;
-
-  CrossPointPosition localPos = getCurrentPosition();
-  SavedProgressPosition localKoPos;
-  const int tocIdx = epub->getTocIndexForSpineIndex(currentSpineIndex);
-  std::string localChapterName = (tocIdx >= 0) ? epub->getTocItem(tocIdx).title : "";
-  const std::string savedEpubPath = epub->getPath();
-
-  if (!saveProgress(currentSpineIndex, currentPage, totalPages)) {
-    LOG_ERR("KOSync", "Aborting sync because current progress could not be saved");
-    pendingSyncSaveError = true;
-    requestUpdate();
-    return true;
-  }
-
-  LOG_DBG("KOSync", "Releasing epub for sync (heap before: %u)", (unsigned)ESP.getFreeHeap());
-  {
-    if (section) {
-      nextPageNumber = section->currentPage;
-    }
-    discardOverlayPage();
-    ImageBlock::releaseRenderCache();
-    ImageBlock::setExtractor(nullptr, nullptr);
-    section.reset();
-    if (auto* fcm = renderer.getFontCacheManager()) {
-      fcm->releaseSdFontCaches();
-    }
-    // No rendering may run while the chapter mapper borrows the framebuffer.
-    {
-      GfxRenderer::FrameBufferLoan loan(renderer);
-      localKoPos = ProgressMapper::toSavedProgress(epub, localPos);
-    }
-    // The destructor can no longer save the back-stack once epub is gone.
-    if (footnoteDepth > 0) saveLinkStack();
-    epub.reset();
-  }
-  LOG_DBG("KOSync", "Epub released (heap after: %u)", (unsigned)ESP.getFreeHeap());
-
-  activityManager.replaceActivity(std::make_unique<KOReaderSyncActivity>(
-      renderer, mappedInput, savedEpubPath, localPos, std::move(localKoPos), std::move(localChapterName)));
-  return true;
-}
+bool EpubReaderActivity::launchKOReaderSync() { return runChildPolicy(XP_UI_READER_CHILD_OPERATION_SYNC); }
 
 void EpubReaderActivity::applyInitialOrientation() {
   runSettingsPolicy(XP_UI_READER_SETTINGS_OPERATION_INITIAL_ORIENTATION, 0);

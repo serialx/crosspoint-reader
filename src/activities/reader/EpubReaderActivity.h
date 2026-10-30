@@ -24,6 +24,7 @@
 #include "ReaderStripBuffers.h"
 #endif
 
+struct ReaderChildCapture;
 class EpubReaderActivity final : public ReaderActivity {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   ReaderStripBuffers stripBuffers;
@@ -219,6 +220,9 @@ class EpubReaderActivity final : public ReaderActivity {
   void openClippings();
   void applyProgressChange(const ProgressChangeResult& progress);
   bool launchKOReaderSync();
+  bool runChildPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0,
+                      ClipSelectionActivity::Mode mode = ClipSelectionActivity::Mode::Clip,
+                      const ActivityResult* result = nullptr, const ReaderChildCapture* capture = nullptr);
   unsigned long confirmLongPressThreshold() const;
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
   void runBookmarkPolicy(uint8_t operation, void* resources = nullptr);

@@ -7,7 +7,11 @@ sys.path.insert(0,str(ROOT/'test'));from rust_host import rust_link_flags
 freeze='--freeze-original' in sys.argv;release='--release-log' in sys.argv
 reader=(subprocess.check_output(['git','show','8d534a99:src/activities/reader/EpubReaderActivity.cpp'],cwd=ROOT,text=True) if freeze else (ROOT/'src/activities/reader/EpubReaderActivity.cpp').read_text())
 methods='\n'.join(definition(reader,s) for s in ['void EpubReaderActivity::openDictionaryWordSelect(', 'void EpubReaderActivity::startClipSelection(', 'void EpubReaderActivity::openFootnoteSelect(', 'void EpubReaderActivity::openClippings(', 'bool EpubReaderActivity::launchKOReaderSync('])
-fixture=(HERE/'child_parent_oracle.cpp').read_text().replace('// CHILD_METHODS',methods)
+resources=""
+if "bool EpubReaderActivity::runChildPolicy(" in reader:
+ resources=definition(reader,"struct ReaderChildCapture {")+";\n"+definition(reader,"struct ReaderChildResources {")+";\n"
+ methods+="\n"+definition(reader,"bool EpubReaderActivity::runChildPolicy(")
+fixture=(HERE/'child_parent_oracle.cpp').read_text().replace('// CHILD_RESOURCES',resources).replace('// CHILD_METHODS',methods)
 with tempfile.TemporaryDirectory() as directory:
  p=Path(directory)
  for strip in [0,1]:

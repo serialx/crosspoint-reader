@@ -291,6 +291,9 @@ struct {
   }
 } activityManager;
 constexpr int CLIP_SELECTION_PAGE_WINDOW = 3;
+using Activity = Child;
+struct ReaderChildCapture;
+// CHILD_RESOURCES
 struct EpubReaderActivity {
   struct ModelLock {
     explicit ModelLock(EpubReaderActivity&) {
@@ -352,6 +355,9 @@ struct EpubReaderActivity {
   void openFootnoteSelect(bool);
   void openClippings();
   bool launchKOReaderSync();
+  bool runChildPolicy(uint8_t, int32_t = 0, int32_t = 0,
+                      ClipSelectionActivity::Mode = ClipSelectionActivity::Mode::Clip, const ActivityResult* = nullptr,
+                      const ReaderChildCapture* = nullptr);
 };
 // CHILD_METHODS
 int main() {

@@ -463,3 +463,5 @@ pub mod recovery;
 pub mod bookmark;
 
 pub mod clipping;
+
+pub mod child;

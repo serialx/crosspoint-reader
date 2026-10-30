@@ -11,6 +11,42 @@ def method(name):
     return source[start:end]
 
 entry = method('openFootnoteSelect')
+child_metadata = ""
+if 'bool EpubReaderActivity::runChildPolicy(' in source:
+    def child_case(kind, name):
+        token = 'case XP_UI_READER_CHILD_' + kind + '_' + name + ':'
+        start = source.index(token, source.index('bool EpubReaderActivity::runChildPolicy('))
+        end = source.index('case XP_UI_READER_CHILD_', start + len(token))
+        return source[start:end].rstrip()
+    queries = ''.join(child_case('FIELD', name) for name in ['HAS_SECTION', 'PAGE', 'CANCELLED', 'FOOTNOTE_COUNT'])
+    commands = ''.join(child_case('COMMAND', name) for name in [
+        'LOCK', 'UNLOCK', 'HREF_BEGIN', 'HREF_END', 'COPY_FIRST_HREF', 'PAGE_LOAD', 'PAGE_END',
+        'NAVIGATE_HREF', 'MARGINS', 'NEW_FOOTNOTE', 'LAUNCH_FOOTNOTE', 'LOG_FOOTNOTE_OOM',
+        'DROP_ACTIVITY', 'OPEN_MENU', 'NAVIGATE_RESULT_HREF', 'UPDATE'])
+    commands = commands.replace('ClipSelectionActivity::Mode::Clip', '0')
+    child_metadata = queries + commands
+    entry += """
+    bool EpubReaderActivity::runChildPolicy(uint8_t operation, int32_t argument, int32_t b,
+                                           uint8_t mode, const ActivityResult* result) {
+      struct Resources { std::optional<RenderLock> lock; std::optional<std::string> href;
+        std::unique_ptr<Page> page; std::unique_ptr<Activity> activity; int margins[4]{}; } resources;
+      struct Context {
+        EpubReaderActivity& o; Resources& r; const ActivityResult* result;
+        uint32_t read(uint8_t field) { switch(field) {
+    """ + queries + """
+        default: return 0; } }
+        uint32_t command(uint8_t command, int32_t a, int32_t b) { switch(command) {
+    """ + commands + """
+        default: break; } return 0; }
+      } context{*this,resources,result};
+      const XpUiReaderChildServices services{&context,
+        [](void* c,uint8_t f)->uint32_t{return static_cast<Context*>(c)->read(f);},
+        [](void*,uint8_t,uint32_t){},
+        [](void* c,uint8_t cmd,int32_t a,int32_t b)->uint32_t{return static_cast<Context*>(c)->command(cmd,a,b);}};
+      return xp_ui_reader_child(&services,operation,argument,b,mode);
+    }
+    """
+
 tap_start = source.index('        case XP_UI_READER_LOOP_COMMAND_MATCH_LINK:')
 tap_end = source.index('        case XP_UI_READER_LOOP_COMMAND_BACK_NAVIGATION:', tap_start)
 tap_commands = source[tap_start:tap_end]

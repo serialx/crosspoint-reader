@@ -41,6 +41,7 @@ class EpubReaderActivity {
   EpubReaderActivity(FootnoteSection& s, GfxRenderer& r, MappedInputManager& m)
       : section(&s), renderer(r), mappedInput(m) {}
   void openFootnoteSelect(bool reopenMenuOnCancel);
+  bool runChildPolicy(uint8_t, int32_t = 0, int32_t = 0, uint8_t = 0, const ActivityResult* = nullptr);
   void testLinkTap();
   bool testMenuAvailability();
   bool testMoreAvailability();

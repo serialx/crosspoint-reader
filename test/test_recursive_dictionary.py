@@ -58,13 +58,43 @@ back_handler = "  int sx = 0;" + back_handler
 lookup_source = (ROOT / "src/activities/reader/DictionaryWordSelectActivity.cpp").read_text()
 definition_result = block(lookup_source, "[this](const ActivityResult& result)")
 reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
-lookup_result = block(reader_source.split("startActivityForResult(std::move(lookup)", 1)[1],
-                      "[this](const ActivityResult& result)")
+reader_result_bridge = ""
+if "XP_UI_READER_CHILD_COMMAND_LAUNCH_LOOKUP:" in reader_source:
+    lookup_result = block(reader_source.split("case XP_UI_READER_CHILD_COMMAND_LAUNCH_LOOKUP:", 1)[1],
+                          "[owner = &o]").replace("ClipSelectionActivity::Mode::Lookup", "0")
+    reader_result_bridge = r"""
+  void runChildPolicy(uint8_t operation, int32_t a, int32_t b, uint8_t mode, const ActivityResult* result) {
+    struct Context { DictionaryDefinitionActivity& owner; const ActivityResult& result; } context{*this,*result};
+    const XpUiReaderChildServices services{&context,
+      [](void* p,uint8_t field)->uint32_t {
+        if (field==XP_UI_READER_CHILD_FIELD_CANCELLED) return static_cast<Context*>(p)->result.isCancelled;
+        switch(field) {
+          case XP_UI_READER_CHILD_FIELD_HAS_SECTION:
+          case XP_UI_READER_CHILD_FIELD_HAS_BOOK:
+          case XP_UI_READER_CHILD_FIELD_PAGE_COUNT:
+          case XP_UI_READER_CHILD_FIELD_BUILD_WIDTH:
+          case XP_UI_READER_CHILD_FIELD_BUILD_HEIGHT:
+          case XP_UI_READER_CHILD_FIELD_WINDOW: return 1;
+          default: return 0;
+        }
+      },
+      [](void*,uint8_t,uint32_t){},
+      [](void* p,uint8_t cmd,int32_t,int32_t)->uint32_t {
+        if (cmd==XP_UI_READER_CHILD_COMMAND_LAUNCH_SELECTION) static_cast<Context*>(p)->owner.openDictionaryWordSelect();
+        return cmd==XP_UI_READER_CHILD_COMMAND_PAGE_LOAD || cmd==XP_UI_READER_CHILD_COMMAND_NEW_SELECTION;
+      }};
+    xp_ui_reader_child(&services,operation,a,b,mode);
+  }
+"""
+else:
+    lookup_result = block(reader_source.split("startActivityForResult(std::move(lookup)", 1)[1],
+                          "[this](const ActivityResult& result)")
 reader_constants = "\n".join(re.findall(
     r"^constexpr unsigned long (?:GO_HOME_MS|GO_BACK_OR_HOME_MS) = [^;]+;",
     (ROOT / "src/activities/reader/ReaderUtils.h").read_text(), re.MULTILINE))
 harness = r'''
 #include <algorithm>
+#include <xp_ui_reader.h>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -250,7 +280,8 @@ struct DictionaryDefinitionActivity {
   void openDictionaryWordSelect() { selectionOpened = true; }
   void handleBack() { ''' + back_handler + r''' }
   void onDefinitionResult(const ActivityResult& child) { (''' + definition_result + r''')(child); }
-  void onLookupResult(const ActivityResult& child) { (''' + lookup_result + r''')(child); }
+  ''' + reader_result_bridge + r'''
+  void onLookupResult(const ActivityResult& child) { auto& o = *this; (void)o; (''' + lookup_result + r''')(child); }
   void startActivityForResult(std::unique_ptr<ClipSelectionActivity> next, ActivityResultHandler handler) {
     child = std::move(next);
     callback = std::move(handler);
@@ -482,6 +513,7 @@ lookup_methods = "\n".join(block(dictionary_source, name) for name in (
 ))
 lookup_harness = r'''
 #include <algorithm>
+#include <xp_ui_reader.h>
 #include <cassert>
 #include <cctype>
 #include <cstdint>

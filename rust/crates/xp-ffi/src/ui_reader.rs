@@ -565,7 +565,10 @@ pub unsafe extern "C" fn xp_ui_reader_book_lifetime(
 /// Services obey the synchronous chapter build resource contract.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_build_policy(services: *const reader::build_policy::Services, operation: u8) -> u8 {
+pub unsafe extern "C" fn xp_ui_reader_build_policy(
+    services: *const reader::build_policy::Services,
+    operation: u8,
+) -> u8 {
     reader::build_policy::run(services, operation)
 }
 
@@ -573,7 +576,11 @@ pub unsafe extern "C" fn xp_ui_reader_build_policy(services: *const reader::buil
 /// Services obey the synchronous reader settings resource contract.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_settings(services: *const reader::settings::Services, operation: u8, argument: i32) {
+pub unsafe extern "C" fn xp_ui_reader_settings(
+    services: *const reader::settings::Services,
+    operation: u8,
+    argument: i32,
+) {
     reader::settings::run(services, operation, argument);
 }
 
@@ -581,7 +588,11 @@ pub unsafe extern "C" fn xp_ui_reader_settings(services: *const reader::settings
 /// Services obey the synchronous reader menu-parent resource contract.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_menu_parent(services: *const reader::menu_parent::Services, operation: u8, argument: i32) {
+pub unsafe extern "C" fn xp_ui_reader_menu_parent(
+    services: *const reader::menu_parent::Services,
+    operation: u8,
+    argument: i32,
+) {
     reader::menu_parent::run(services, operation, argument);
 }
 
@@ -589,32 +600,54 @@ pub unsafe extern "C" fn xp_ui_reader_menu_parent(services: *const reader::menu_
 /// Services obey the synchronous protected-open recovery contract.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_recovery(services: *const reader::recovery::Services, operation: u8, a: i32, b: i32) -> u8 {
+pub unsafe extern "C" fn xp_ui_reader_recovery(
+    services: *const reader::recovery::Services,
+    operation: u8,
+    a: i32,
+    b: i32,
+) -> u8 {
     reader::recovery::run(services, operation, a, b)
 }
 
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn xp_ui_reader_bookmark_range(page: i32, count: i32) -> reader::bookmark::ProgressRange {
+pub extern "C" fn xp_ui_reader_bookmark_range(
+    page: i32,
+    count: i32,
+) -> reader::bookmark::ProgressRange {
     reader::bookmark::range(page, count)
 }
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn xp_ui_reader_bookmark_matches(bookmark: reader::bookmark::BookmarkPosition, spine: i32, page: i32, count: i32, range: reader::bookmark::ProgressRange) -> u8 {
-    u8::from(reader::bookmark::matches(bookmark, spine, page, count, range))
+pub extern "C" fn xp_ui_reader_bookmark_matches(
+    bookmark: reader::bookmark::BookmarkPosition,
+    spine: i32,
+    page: i32,
+    count: i32,
+    range: reader::bookmark::ProgressRange,
+) -> u8 {
+    u8::from(reader::bookmark::matches(
+        bookmark, spine, page, count, range,
+    ))
 }
 /// # Safety
 /// Services obey the synchronous bookmark resource contract.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_bookmark(services: *const reader::bookmark::Services, operation: u8) {
+pub unsafe extern "C" fn xp_ui_reader_bookmark(
+    services: *const reader::bookmark::Services,
+    operation: u8,
+) {
     reader::bookmark::run(services, operation);
 }
 /// # Safety
 /// Services obey the synchronous link persistence and buffer-borrow contract.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_link_persistence(services: *const reader::bookmark::LinkServices, load: u8) {
+pub unsafe extern "C" fn xp_ui_reader_link_persistence(
+    services: *const reader::bookmark::LinkServices,
+    load: u8,
+) {
     reader::bookmark::link_run(services, load);
 }
 
@@ -622,6 +655,23 @@ pub unsafe extern "C" fn xp_ui_reader_link_persistence(services: *const reader::
 /// Services/input obey the synchronous borrowed clipping-view contract.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_clipping(services: *const reader::clipping::Services, operation: u8, input: *const reader::clipping::Input) -> i32 {
+pub unsafe extern "C" fn xp_ui_reader_clipping(
+    services: *const reader::clipping::Services,
+    operation: u8,
+    input: *const reader::clipping::Input,
+) -> i32 {
     reader::clipping::run(services, operation, input)
+}
+
+/// # Safety
+/// The service callbacks and borrowed resources obey the reader child contract.
+#[no_mangle]
+pub unsafe extern "C" fn xp_ui_reader_child(
+    s: *const xp_ui::reader::child::Services,
+    operation: u8,
+    a: i32,
+    b: i32,
+    c: u8,
+) -> u8 {
+    xp_ui::reader::child::run(s, operation, a, b, c)
 }

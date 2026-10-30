@@ -1,19 +1,20 @@
+#include <BlePageTurner.h>
 #include <gtest/gtest.h>
 
-#include "activities/reader/ChapterBuildGate.h"
+#include "../reader_lifecycle/build_wait_fixture.h"
 
 namespace {
 bleturner::Status radio() { return bleturner::Status{}; }
 }  // namespace
 
 TEST(ChapterBuildGate, RunsWithTheRadioOff) {
-  EXPECT_TRUE(chapterBuildMayRun(radio()));
+  EXPECT_TRUE(xp_ui_reader_build_allowed(radio().running, radio().stopping, radio().starting));
   auto idle = radio();
   idle.idleStopped = true;  // stopped for this build, or for idleness
-  EXPECT_TRUE(chapterBuildMayRun(idle));
+  EXPECT_TRUE(xp_ui_reader_build_allowed(idle.running, idle.stopping, idle.starting));
   auto refused = radio();
   refused.readerDeferred = true;  // refused for memory: it holds nothing
-  EXPECT_TRUE(chapterBuildMayRun(refused));
+  EXPECT_TRUE(xp_ui_reader_build_allowed(refused.running, refused.stopping, refused.starting));
 }
 
 // The radio did not stop within its budget (StillUp), or a start was still settling after it
@@ -22,13 +23,13 @@ TEST(ChapterBuildGate, RefusedWhileTheRadioHoldsOrTakesTheHeap) {
   auto up = radio();
   up.running = true;
   up.connected = true;
-  EXPECT_FALSE(chapterBuildMayRun(up));
+  EXPECT_FALSE(xp_ui_reader_build_allowed(up.running, up.stopping, up.starting));
   auto stopping = radio();
   stopping.stopping = true;
-  EXPECT_FALSE(chapterBuildMayRun(stopping));
+  EXPECT_FALSE(xp_ui_reader_build_allowed(stopping.running, stopping.stopping, stopping.starting));
   auto starting = radio();
   starting.starting = true;
-  EXPECT_FALSE(chapterBuildMayRun(starting));
+  EXPECT_FALSE(xp_ui_reader_build_allowed(starting.running, starting.stopping, starting.starting));
 }
 
 namespace {

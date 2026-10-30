@@ -1,3 +1,5 @@
+#include <BlePageTurner.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -9,12 +11,12 @@
 #include <optional>
 #include <string_view>
 
-#include "ChapterBuildGate.h"
 #include "ChapterPosition.h"
 #include "EpubReaderUtils.h"
 #include "LinkNoteTitle.h"
 #include "ReaderSession.h"
 #include "RemoteTurnGate.h"
+#include "build_wait_fixture.h"
 
 static uint32_t clockMs = 1234;
 static bool traceClock = false;
@@ -248,7 +250,7 @@ static void gates() {
     status.running = flags & 1;
     status.stopping = flags & 2;
     status.starting = flags & 4;
-    std::printf("gates %d %d %d\n", flags, chapterBuildMayRun(status),
+    std::printf("gates %d %d %d\n", flags, xp_ui_reader_build_allowed(status.running, status.stopping, status.starting),
                 remoteTurnAccepted(flags & 1, flags & 2, flags & 4));
   }
   for (uint32_t start : {0u, UINT32_MAX - 1000}) {

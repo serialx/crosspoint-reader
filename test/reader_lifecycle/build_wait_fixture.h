@@ -1,11 +1,6 @@
 #pragma once
 
-#include <BlePageTurner.h>
 #include <xp_ui_reader.h>
-
-inline bool chapterBuildMayRun(const bleturner::Status& radio) {
-  return xp_ui_reader_build_allowed(radio.running, radio.stopping, radio.starting);
-}
 
 // Callbacks borrow their captures for this synchronous wait; no storage escapes.
 template <typename Ready, typename Now, typename Sleep>

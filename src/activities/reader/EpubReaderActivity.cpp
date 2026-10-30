@@ -31,7 +31,6 @@
 
 #include "../../util/BookmarkFile.h"
 #include "BookmarkEntry.h"
-#include "ChapterBuildGate.h"
 #include "ClipSelectionActivity.h"
 #include "ClippingStore.h"
 #include "CrossPointSettings.h"
@@ -1253,11 +1252,6 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
 
 bool EpubReaderActivity::pageTurn(bool isForwardTurn) {
   return runProjection(XP_UI_READER_PROJECTION_OPERATION_TURN, isForwardTurn) != 0;
-}
-
-bool EpubReaderActivity::applyPageMove(const XpUiReaderMove& move, bool recordTurn) {
-  return runProjection(XP_UI_READER_PROJECTION_OPERATION_APPLY_MOVE, move.kind, move.value,
-                       (move.last_page ? 1 : 0) | (recordTurn ? 2 : 0)) != 0;
 }
 
 bool EpubReaderActivity::skipPages(int amount) {

@@ -32,7 +32,7 @@ if freeze:
     methods += '\nvoid EpubReaderActivity::showBuildPopup() { showBuildPopup(renderer, refresh); }'
 if 'bool EpubReaderActivity::runBuildPolicy(' in reader:
     methods += '\n' + definition(reader, 'bool EpubReaderActivity::runBuildPolicy(')
-gate = source('src/activities/reader/ChapterBuildGate.h')
+gate = source('src/activities/reader/ChapterBuildGate.h') if freeze else ''
 gate = '\n'.join(line for line in gate.splitlines() if not line.startswith(('#include', '#pragma')))
 fixture = (HERE / 'build_policy_oracle.cpp').read_text().replace('// BUILD_GATE', gate).replace('// BUILD_METHODS', methods)
 with tempfile.TemporaryDirectory() as directory:

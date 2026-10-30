@@ -37,7 +37,7 @@ void release(void* ctx, void* p) {
   std::free(p);
 }
 XpDisplayBus bus(Trace& trace) {
-  return {XP_DISPLAY_ABI_VERSION,
+  return {XP_DISPLAY_BUS_VERSION,
           sizeof(XpDisplayBus),
           &trace,
           [](void* ctx, uint8_t command) {
@@ -75,7 +75,8 @@ XpDisplayBus bus(Trace& trace) {
             }
             t.diagnostic = event;
             t.requested = bytes;
-          }};
+          },
+          nullptr};
 }
 }  // namespace
 int main() {

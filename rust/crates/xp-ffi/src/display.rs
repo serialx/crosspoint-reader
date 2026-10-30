@@ -2,9 +2,9 @@ use core::ffi::c_void;
 use core::mem::{align_of, size_of};
 use core::sync::atomic::{AtomicU32, Ordering};
 use xp_display::constants::*;
-use xp_display::Bus;
 #[cfg(feature = "display-uc8253")]
 use xp_display::X3Config;
+use xp_display::{Bus, RowOrder};
 
 #[repr(C)]
 pub struct DisplayBus {
@@ -30,30 +30,35 @@ pub struct DisplayBus {
     clock_ms: Option<unsafe extern "C" fn(*mut c_void) -> u32>,
     probe: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> u32>,
     diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32, *const u8, u32)>,
+    plane: Option<unsafe extern "C" fn(*mut c_void, u8, *const u8, u32, u16, u8, u8) -> u32>,
 }
 
 impl DisplayBus {
-    fn valid(&self, controller: u32) -> bool {
-        self.abi_version == ABI_VERSION
-            && self.struct_size as usize == size_of::<Self>()
-            && self.cmd.is_some()
-            && self.data8.is_some()
-            && self.data_span.is_some()
-            && self.cmd_data.is_some()
-            && self.txn_begin.is_some()
-            && self.txn_cmd.is_some()
-            && self.txn_data.is_some()
-            && self.txn_write.is_some()
-            && self.txn_end.is_some()
-            && self.reset.is_some()
-            && self.reset_level.is_some()
-            && self.busy_level.is_some()
-            && self.busy_wait.is_some()
-            && (controller == UC8279C_A4 || self.refresh_wait.is_some())
-            && self.delay_ms.is_some()
-            && self.delay_us.is_some()
-            && self.clock_ms.is_some()
-            && self.probe.is_some()
+    unsafe fn valid(bus: *const Self, controller: u32) -> bool {
+        // Read only the fixed header until the caller's table size is known.
+        if (*bus).abi_version != BUS_VERSION || (*bus).struct_size as usize != size_of::<Self>() {
+            return false;
+        }
+        let bus = &*bus;
+        bus.cmd.is_some()
+            && bus.data8.is_some()
+            && bus.data_span.is_some()
+            && bus.cmd_data.is_some()
+            && bus.txn_begin.is_some()
+            && bus.txn_cmd.is_some()
+            && bus.txn_data.is_some()
+            && bus.txn_write.is_some()
+            && bus.txn_end.is_some()
+            && bus.reset.is_some()
+            && bus.reset_level.is_some()
+            && bus.busy_level.is_some()
+            && bus.busy_wait.is_some()
+            && (controller == UC8279C_A4 || bus.refresh_wait.is_some())
+            && bus.delay_ms.is_some()
+            && bus.delay_us.is_some()
+            && bus.clock_ms.is_some()
+            && bus.probe.is_some()
+            && (controller != UC8253_X3 || bus.plane.is_some())
     }
 }
 impl Bus for &DisplayBus {
@@ -95,6 +100,25 @@ impl Bus for &DisplayBus {
     fn txn_write(&mut self, data: &[u8]) {
         if let Some(callback) = self.txn_write {
             unsafe { callback(self.ctx, data.as_ptr(), data.len() as u16) }
+        }
+    }
+    fn plane(&mut self, command: u8, data: &[u8], stride: u16, order: RowOrder) -> Result<(), u32> {
+        let callback = self.plane.ok_or(UNSUPPORTED)?;
+        let status = unsafe {
+            callback(
+                self.ctx,
+                command,
+                data.as_ptr(),
+                data.len() as u32,
+                stride,
+                order as u8,
+                0,
+            )
+        };
+        if status == OK {
+            Ok(())
+        } else {
+            Err(status)
         }
     }
     fn txn_end(&mut self) {
@@ -464,7 +488,9 @@ pub unsafe extern "C" fn xp_display_execute(
     }
     let request = &*request;
     let controller = (*storage.cast::<Header>()).controller;
-    if request.struct_size as usize != size_of::<DisplayRequest>() || !(&*bus).valid(controller) {
+    if request.struct_size as usize != size_of::<DisplayRequest>()
+        || !DisplayBus::valid(bus, controller)
+    {
         return INVALID;
     }
     let mut bus = &*bus;
@@ -573,7 +599,7 @@ pub unsafe extern "C" fn xp_display_execute_source(
     let request = &*request;
     let source = &mut *source;
     if request.struct_size as usize != size_of::<DisplayRequest>()
-        || !(&*bus).valid((*storage.cast::<Header>()).controller)
+        || !DisplayBus::valid(bus, (*storage.cast::<Header>()).controller)
         || source.struct_size as usize != size_of::<DisplaySource>()
         || source.scratch.is_null()
         || source.paint.is_none()

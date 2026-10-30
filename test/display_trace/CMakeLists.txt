@@ -193,3 +193,14 @@ endforeach()
 
 add_test(NAME ssd1677_config COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/ssd_config_oracle.py
   --bin-dir ${CMAKE_CURRENT_BINARY_DIR})
+
+if(DISPLAY_TRACE_RUST)
+  add_executable(display_plane_transport_test PlaneTransportTest.cpp Trace.cpp ${STAGED}/src/bus/EpdBus.cpp)
+  target_link_libraries(display_plane_transport_test PRIVATE xp_ffi_host)
+  target_include_directories(display_plane_transport_test PRIVATE stubs . ${STAGED} ${STAGED}/include)
+  target_compile_definitions(display_plane_transport_test PRIVATE ARDUINO=1 FREEINK_DEVICE_X3=1 FREEINK_DEVICE_X4=1)
+  if(APPLE)
+    target_link_options(display_plane_transport_test PRIVATE "LINKER:-U,_freeink_board_epd_power" "LINKER:-U,_freeink_board_epd_reset")
+  endif()
+  add_test(NAME display_plane_transport COMMAND display_plane_transport_test)
+endif()

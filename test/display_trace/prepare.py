@@ -18,6 +18,8 @@ shutil.copy(stubs / "MetalioEInk4Board.h", out / "MetalioEInk4Board.h")
 # Track the retained UltraChip planes without interposing host STL allocations.
 for name in ("Uc8179", "Uc8279X4", "Uc8279cA4", "RustPanel"):
     driver = out / "src/driver" / f"{name}Driver.cpp"
+    if not driver.exists():
+        continue
     text = driver.read_text().replace("std::malloc(", "trace::allocateDefault(")
     text = re.sub(r"(?<![\w:])malloc\(", "trace::allocateDefault(", text)
     driver.write_text('#include "Trace.h"\n' + text)

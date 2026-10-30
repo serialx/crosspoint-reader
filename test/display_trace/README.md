@@ -1,9 +1,9 @@
 # Display bus oracle
 
-This freezes the C++ display contract at reader `539ebafc` and FreeInk SDK
+The default runners use the Rust panel drivers and preserve the C++ display contract at reader `539ebafc` and FreeInk SDK
 `37d272d42732c31065ebed4d9cb90cef7bfa7416`. Use it to prove a replacement driver
 sends the same panel bytes in the same order. No firmware source or SDK file is
-changed. The oracle compiles the real facade, selected drivers, LUTs, board
+changed. The oracle compiles the real facade, Rust adapter, board
 profiles and bus code against host SPI/GPIO/time/semaphore adapters.
 
 ## Run
@@ -16,12 +16,14 @@ python3 test/display_trace/oracle.py list
 python3 test/display_trace/oracle.py verify --bin-dir build/display_trace --case c3-uc8253-single
 ```
 
-The full `test/` CMake project also registers `display_trace` and
-`display_trace_sensitivity`. The sensitivity test builds a separate SDK copy in
-its build directory, changes only UC8253's sleep command from `07` to `06`, and
+The full `test/` CMake project also registers these tests. The sleep sensitivity
+test builds an isolated Rust workspace copy in its build directory, changes only
+UC8253's sleep command from `07` to `06`, and
 requires the comparison to fail at `step sleep` with those exact bytes. It never
-changes the submodule. Build/check requirements: C++20, CMake, Python 3 with
-standard-library gzip/lzma, and the initialized SDK; no device or PlatformIO.
+changes the source workspace. The cancellation sensitivity test disables Paper
+Mono's generation check in another copy and requires the overlap assertion to fail.
+Build/check requirements: C++20, CMake, the repository Rust toolchain, Python 3
+with standard-library gzip/lzma, and the initialized SDK; no device or PlatformIO.
 
 ## Controller and board coverage
 
@@ -95,8 +97,8 @@ FNV-1a-64 for larger payloads (offset `14695981039346656037`, prime
 that line N times to obtain the original operations. SHA-256 of the complete
 uncompressed trace is stored in `goldens/manifest.json`.
 
-A future Rust runner can implement the same script and adapter protocol, expose
-`display_trace_PROFILE_BUFFERS CONTROLLER SCRIPT --compact PAGE.raw`, and use:
+The runners expose `display_trace_PROFILE_BUFFERS CONTROLLER SCRIPT --compact PAGE.raw`.
+To compare saved traces or use a separately built runner:
 
 ```sh
 python3 test/display_trace/oracle.py verify --bin-dir /path/to/rust/runners
@@ -162,54 +164,52 @@ ESP power-management locks are not modeled. ISR callbacks run synchronously when
 the fake semaphore advances time. The oracle proves software sequences for these
 inputs; it supplies no hardware timing, power, heap or pixel-quality measurement.
 
-## Rust UC8253 adapter
+## Rust drivers and frozen extended cases
 
-The Rust controller is opt-in: firmware builds use `FREEINK_RUST_PANEL=1`,
-which selects controller features from the SDK board flags in the existing
-`xp-ffi` archive. The host oracle uses `display-panel` to enable all controllers.
-The SDK bus, reset, SPI transactions, and BUSY waits remain the trace boundary.
-The default build continues to select the C++ controller.
+Firmware selects Rust controller features from the SDK board flags in the
+existing `xp-ffi` archive. The SDK bus, reset, SPI transactions and BUSY waits
+remain the trace boundary. The host archive enables all controllers with
+`display-panel`; firmware enables only each board's selected families. Missing
+Rust linkage is a build error.
+
+`display_trace` compares the original 61 frozen goldens. `display_trace_extended`
+compares 138 additional traces frozen at reader `e39d25c2` / SDK `62a72e7c`:
+eight X3 cases, 112 UltraChip cases and 18 retained-driver cases. Each compressed
+trace has a SHA-256 entry in `extended-goldens/manifest.json`.
+
+X3 covers both buffer modes, default/custom/zero-length LUTs, disabled Direct,
+missing planes, cleanup, recovery, resync, async completion and sleep/wake.
+UltraChip covers register overrides, mounts, gray modes, windows and allocation
+failures. Retained cases cover Sticky/Picco SSD2677 and Paper Mono allocation
+size/caps/order, every PSRAM failure position, persistent failure, diagnostics,
+committed/aborted status, stale planes, windows and idle/sleep/wake.
+
+`ssd1677_config` compares 72 C++ traces frozen before the source cut: 24 config
+and mount variants, each with debug absent, zero and one. It covers every config
+field, null optional LUTs, custom precedence over the fast-DU shortcut, synchronous
+and asynchronous refreshes, both log branches and grayscale calibration fallback.
+`ssd-config-goldens/manifest.json` records hashes and diagnostic text.
+
+The live ABI tests exercise invalid storage/version/size/alignment, capabilities,
+borrowed LUT bounds, allocation failures and cancellation. SSD debug-disabled
+refreshes make no clock callback; enabled refreshes report elapsed time correctly
+across wrapping milliseconds. Paper Mono tests abort during allocation and a
+started refresh, then verify recovery in a new generation. These are software
+contract tests, not real-panel or task-scheduling qualification.
+
+For a historical differential, export the pinned pre-cut SDK outside the source
+workspace and select it explicitly:
 
 ```sh
-cmake -S test/display_trace -B build/display-rust -DDISPLAY_TRACE_RUST=ON
-cmake --build build/display-rust -j 6
-ctest --test-dir build/display-rust --output-on-failure
-```
-
-`display_trace` still compares the unmodified frozen goldens. The additional
-`display_trace_x3_extended` test compares C++ and Rust directly in both buffer
-modes, with default LUTs, Direct mode disabled, a changed LUT/length config, and zero-length LUT payloads.
-It covers Direct/Overlay/Absolute grayscale, missing planes, cleanup, recovery,
-resync conditioning, async completion, and sleep/wake. `display_abi` checks
-storage validation, descriptor versions, unsupported controller IDs, default
-LUT export, and concurrent cancellation-generation increments. No test in this
-suite accesses a device.
-
-## Retained SSD2677 and Paper Mono drivers
-
-Build the same sources twice to compare the C++ and Rust implementations:
-
-```sh
-cmake -S test/display_trace -B build/display-cpp
+cmake -S test/display_trace -B build/display-cpp \
+  -DDISPLAY_TRACE_CPP_SDK=/absolute/path/to/exported-sdk
 cmake --build build/display-cpp -j 8
-cmake -S test/display_trace -B build/display-rust -DDISPLAY_TRACE_RUST=ON
-cmake --build build/display-rust -j 8
 python3 test/display_trace/retained_oracle.py --cpp-dir build/display-cpp \
-  --rust-dir build/display-rust --out /tmp/retained-driver-evidence
-ctest --test-dir build/display-rust -R display_retained_abi --output-on-failure
+  --rust-dir build/display_trace --out /tmp/retained-driver-evidence
 ```
 
-The paired retained-driver runner covers Sticky/Picco SSD2677 and Paper Mono,
-with one fresh process for normal operation and each PSRAM allocation failure
-position, plus persistent allocation failure (18 cases). It records allocation size/caps/order, bus bytes, diagnostic
-text, and committed/aborted/maintenance status. Scenarios include recovery,
-missing and partial gray planes, cancellation, stale-generation planes, valid
-and invalid windows, idle/sleep/wake, and Paper Mono's light-frame clamps. The
-normal O1 single/dual-buffer traces remain the facade parity test.
-
-`display_retained_abi` checks invalid initialization without writes or allocation,
-capabilities, versioned extra operations, and concurrent atomic abort increments.
-It does not qualify real panel waveforms or task scheduling on hardware.
+That mode requires the old controller sources. It cannot select a C++ production
+fallback in the current SDK. Keep private captures outside the repository.
 
 ## Reader strip contract
 
@@ -221,7 +221,7 @@ identity:
 cmake -S test/display_trace -B build/strip-reference
 cmake --build build/strip-reference --target display_trace_c3_single
 cmake -S test/display_trace -B build/strip-trace \
-  -DDISPLAY_TRACE_RUST=ON -DDISPLAY_TRACE_STRIPS=ON
+  -DDISPLAY_TRACE_STRIPS=ON
 cmake --build build/strip-trace --target display_trace_c3_single
 python3 test/display_trace/strip_check.py \
   --reference-bin build/strip-reference/display_trace_c3_single \

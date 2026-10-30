@@ -34,6 +34,7 @@ pub trait Bus {
     fn delay_us(&mut self, duration: u32);
     fn clock_ms(&mut self) -> u32;
     fn probe(&mut self, kind: u32, arg: u32) -> u32;
+    fn diagnostic(&mut self, _event: u32, _a: u32, _b: u32, _c: u32, _d: u32) {}
 }
 
 pub trait Panel {

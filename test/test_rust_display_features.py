@@ -18,12 +18,11 @@ class DisplayFeaturesTest(unittest.TestCase):
         return selection.display_features(defines, shutil.which("c++"), header or self.header)
 
     def select(self, *boards, extra=()):
-        return self.features([("FREEINK_RUST_PANEL", 1), *boards, *extra])
+        return self.features([*boards, *extra])
 
-    def test_disabled(self):
-        self.assertEqual(self.features(["FREEINK_DEVICE_X3"]), [])
-        self.assertEqual(self.features([
-            ("FREEINK_RUST_PANEL", 0), "FREEINK_DEVICE_X3"]), [])
+    def test_rust_is_default(self):
+        self.assertEqual(self.features(["FREEINK_DEVICE_X3"]),
+                         ["display-uc8253", "display-uc8279-x3"])
 
     def test_sdk_policy_is_authoritative(self):
         # Simulate an SDK-only change; Cargo must select the newly enabled driver.
@@ -31,7 +30,7 @@ class DisplayFeaturesTest(unittest.TestCase):
             header = Path(directory) / "PanelDrivers.h"
             header.write_text(self.header.read_text() +
                               "\n#undef FREEINK_DRIVER_SSD2677\n#define FREEINK_DRIVER_SSD2677 1\n")
-            self.assertEqual(self.features(["FREEINK_RUST_PANEL", "FREEINK_DEVICE_X3"], header), [
+            self.assertEqual(self.features(["FREEINK_DEVICE_X3"], header), [
                 "display-ssd2677", "display-uc8253", "display-uc8279-x3"])
 
     def test_preprocess_failure_is_fatal(self):
@@ -39,7 +38,7 @@ class DisplayFeaturesTest(unittest.TestCase):
             header = Path(directory) / "PanelDrivers.h"
             header.write_text("#error invalid panel policy\n")
             with self.assertRaises(subprocess.CalledProcessError):
-                self.features(["FREEINK_RUST_PANEL", "FREEINK_DEVICE_X3"], header)
+                self.features(["FREEINK_DEVICE_X3"], header)
 
     def test_other_sdk_boards(self):
         for board in ("DELINK", "MURPHY_M4", "ONEPAGE", "WS397"):
@@ -47,9 +46,7 @@ class DisplayFeaturesTest(unittest.TestCase):
         for board in ("M5", "MURPHY", "LILYGO", "PAPERS3", "M5PAPER"):
             self.assertEqual(self.select("FREEINK_DEVICE_" + board), [])
 
-    def test_strip_flag_requires_rust_panel(self):
-        with self.assertRaises(ValueError):
-            self.features(["XP_STRIP_RENDER", "FREEINK_DEVICE_X3"])
+    def test_strip_flag_is_independent(self):
         self.assertIn("reader-strips", self.select("FREEINK_DEVICE_X3", extra=["XP_STRIP_RENDER"]))
         self.assertNotIn("reader-strips", self.select("FREEINK_DEVICE_X3", extra=[("XP_STRIP_RENDER", 0)]))
 
@@ -69,10 +66,10 @@ class DisplayFeaturesTest(unittest.TestCase):
                               ("PAPERMONO", "paper-mono"), ("EEGO_A4", "uc8279c-a4")):
             self.assertEqual(self.select("FREEINK_DEVICE_" + board), ["display-" + driver])
 
-    def test_disabled_board_and_cpp_overrides(self):
+    def test_disabled_board_and_custom_overrides(self):
         self.assertEqual(self.select(("FREEINK_DEVICE_X3", 0)), [])
-        for flag in ("FREEINK_SSD1677_CONFIG", "SSD1677_PROBE_DEBUG"):
-            self.assertEqual(self.select("FREEINK_DEVICE_STICKY", extra=[flag]), ["display-ssd2677"])
+        for flag in ("FREEINK_SSD1677_CONFIG", "SSD1677_PROBE_DEBUG", ("SSD1677_PROBE_DEBUG", 0)):
+            self.assertEqual(self.select("FREEINK_DEVICE_STICKY", extra=[flag]), ["display-ssd1677", "display-ssd2677"])
 
 
 if __name__ == "__main__":

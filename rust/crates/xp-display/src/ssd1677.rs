@@ -28,33 +28,113 @@ pub struct Window {
     pub height: u16,
 }
 
-struct Config {
-    scan: u8,
-    border_init: u8,
-    half_temp: u8,
-    gray: &'static [u8],
-    factory: &'static [u8],
-    full_seq: u8,
-    fast_seq: u8,
-    half_seq: u8,
-    border_full: u8,
-    border_fast: u8,
-    border_half: u8,
-    border_gray: u8,
-    gray_power_first: bool,
-    second_control: bool,
-    restore_temp: bool,
-    black_pulse: bool,
-    fast_lut: Option<&'static [u8]>,
-    full_lut: Option<&'static [u8]>,
-    half_lut: Option<&'static [u8]>,
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Lut {
+    pub data: *const u8,
+    pub len: u32,
+}
+impl Lut {
+    const fn new(bytes: &'static [u8]) -> Self {
+        assert!(bytes.len() >= 110);
+        Self {
+            data: bytes.as_ptr(),
+            len: 110,
+        }
+    }
+    const fn none() -> Self {
+        Self {
+            data: core::ptr::null(),
+            len: 0,
+        }
+    }
+    fn valid(&self) -> bool {
+        if self.data.is_null() {
+            self.len == 0
+        } else {
+            self.len == 110
+        }
+    }
+    fn bytes(&self) -> Option<&[u8]> {
+        if self.data.is_null() {
+            None
+        } else {
+            // Initialization validates the span; its owner keeps it immutable until drop.
+            Some(unsafe { core::slice::from_raw_parts(self.data, self.len as usize) })
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Config {
+    pub version: u32,
+    pub struct_size: u32,
+    pub booster: [u8; 5],
+    pub scan: u8,
+    pub border_init: u8,
+    pub half_temp: u8,
+    pub full_seq: u8,
+    pub fast_seq: u8,
+    pub half_seq: u8,
+    pub border_full: u8,
+    pub border_fast: u8,
+    pub border_half: u8,
+    pub border_gray: u8,
+    pub gray_power_first: u8,
+    pub absolute: u8,
+    pub overlay: u8,
+    pub second_control: u8,
+    pub restore_temp: u8,
+    pub black_pulse: u8,
+    pub gray: Lut,
+    pub factory: Lut,
+    pub fast_lut: Lut,
+    pub full_lut: Lut,
+    pub half_lut: Lut,
+}
+// Configurations borrow immutable waveform data for the controller's lifetime.
+unsafe impl Sync for Config {}
+impl Config {
+    pub fn valid(&self) -> bool {
+        self.version == 1
+            && self.struct_size as usize == core::mem::size_of::<Self>()
+            && [
+                self.gray_power_first,
+                self.absolute,
+                self.overlay,
+                self.second_control,
+                self.restore_temp,
+                self.black_pulse,
+            ]
+            .into_iter()
+            .all(|v| v <= 1)
+            && [
+                self.gray,
+                self.factory,
+                self.fast_lut,
+                self.full_lut,
+                self.half_lut,
+            ]
+            .into_iter()
+            .all(|lut| lut.valid())
+            && (!self.gray.data.is_null() || (self.absolute == 0 && self.overlay == 0))
+    }
+}
+pub fn default_config() -> &'static Config {
+    &X4
 }
 const X4: Config = Config {
+    version: 1,
+    struct_size: core::mem::size_of::<Config>() as u32,
+    booster: [0xae, 0xc7, 0xc3, 0xc0, 0x80],
+    absolute: 1,
+    overlay: 1,
     scan: 2,
     border_init: 0x80,
     half_temp: 0x5a,
-    gray: &LUT_GRAYSCALE,
-    factory: &LUT_FACTORY_QUALITY,
+    gray: Lut::new(&LUT_GRAYSCALE),
+    factory: Lut::new(&LUT_FACTORY_QUALITY),
     full_seq: 0xf7,
     fast_seq: 0xfc,
     half_seq: 0xd7,
@@ -62,57 +142,57 @@ const X4: Config = Config {
     border_fast: 0xc0,
     border_half: 0xc0,
     border_gray: 0xc0,
-    gray_power_first: false,
-    second_control: false,
-    restore_temp: false,
-    black_pulse: false,
-    fast_lut: None,
-    full_lut: None,
-    half_lut: None,
+    gray_power_first: 0,
+    second_control: 0,
+    restore_temp: 0,
+    black_pulse: 0,
+    fast_lut: Lut::none(),
+    full_lut: Lut::none(),
+    half_lut: Lut::none(),
 };
 static STICKY: Config = Config {
     border_init: 1,
-    gray: &LUT_GRAYSCALE_STICKY,
+    gray: Lut::new(&LUT_GRAYSCALE_STICKY),
     fast_seq: 0xff,
     half_seq: 0,
     border_full: 1,
     border_fast: 0x80,
     border_half: 0,
     border_gray: 0x80,
-    gray_power_first: true,
+    gray_power_first: 1,
     ..X4
 };
 static METALIO: Config = Config {
     border_init: 1,
     half_temp: 0x6a,
-    gray: &LUT_GRAYSCALE_METALIO,
-    factory: &LUT_FACTORY_QUALITY_METALIO,
+    gray: Lut::new(&LUT_GRAYSCALE_METALIO),
+    factory: Lut::new(&LUT_FACTORY_QUALITY_METALIO),
     border_full: 1,
     border_fast: 0x80,
     border_half: 1,
-    second_control: true,
-    restore_temp: true,
-    black_pulse: true,
-    fast_lut: Some(&LUT_FAST_METALIO),
+    second_control: 1,
+    restore_temp: 1,
+    black_pulse: 1,
+    fast_lut: Lut::new(&LUT_FAST_METALIO),
     ..X4
 };
 const PICCO: Config = Config {
     border_init: 1,
-    gray: &LUT_GRAYSCALE_STICKY,
+    gray: Lut::new(&LUT_GRAYSCALE_STICKY),
     fast_seq: 0xdc,
     border_full: 0,
     border_fast: 0,
     border_half: 0,
     border_gray: 0x80,
-    gray_power_first: true,
-    fast_lut: Some(&LUT_PICCO_FAST),
+    gray_power_first: 1,
+    fast_lut: Lut::new(&LUT_PICCO_FAST),
     ..X4
 };
 static YRD: Config = PICCO;
 static DEPG: Config = Config {
-    fast_lut: Some(&LUT_PICCO_DEPG_FAST),
-    full_lut: Some(&LUT_PICCO_DEPG_FULL),
-    half_lut: Some(&LUT_PICCO_DEPG_FULL),
+    fast_lut: Lut::new(&LUT_PICCO_DEPG_FAST),
+    full_lut: Lut::new(&LUT_PICCO_DEPG_FULL),
+    half_lut: Lut::new(&LUT_PICCO_DEPG_FULL),
     ..PICCO
 };
 static OPM: Config = Config {
@@ -132,6 +212,7 @@ const STATE_IN_GRAY: u16 = 1 << 7;
 const STATE_CUSTOM_LUT: u16 = 1 << 8;
 const STATE_PENDING_OFF: u16 = 1 << 9;
 const STATE_INITIAL_FULL: u16 = 1 << 10;
+const STATE_DIAGNOSTICS: u16 = 1 << 11;
 
 pub struct Ssd1677 {
     cfg: &'static Config,
@@ -156,7 +237,7 @@ impl Ssd1677 {
             || !width.is_multiple_of(8)
             || height == 0
             || u32::from(width / 8) * u32::from(height) > u16::MAX as u32
-            || flags & !7 != 0
+            || flags & !15 != 0
         {
             return None;
         }
@@ -178,6 +259,10 @@ impl Ssd1677 {
                 STATE_MIRROR_Y
             } else {
                 0
+            } | if flags & SSD1677_DIAGNOSTICS != 0 {
+                STATE_DIAGNOSTICS
+            } else {
+                0
             } | if flags & SSD1677_FAST_DU != 0 {
                 STATE_FAST_DU
             } else {
@@ -188,14 +273,27 @@ impl Ssd1677 {
             height,
         })
     }
+    /// # Safety
+    /// The descriptor and every non-null LUT must remain readable and immutable until drop.
+    pub unsafe fn with_config(mut self, cfg: &'static Config) -> Option<Self> {
+        if !cfg.valid() {
+            return None;
+        }
+        self.cfg = cfg;
+        self.set(STATE_FAST_DU, false);
+        Some(self)
+    }
+    pub fn gray_fallback(&self) -> bool {
+        self.cfg.overlay == 0 && self.cfg.absolute == 0
+    }
     pub fn frame_size(&self) -> usize {
         usize::from(self.width / 8) * usize::from(self.height)
     }
     pub fn capabilities(&self, mode: u32) -> u32 {
         CAP_ASYNC_DISPLAY
             | match mode {
-                0 => CAP_OVERLAY | CAP_STRIPS | CAP_ASYNC_BASE,
-                1 => CAP_ABSOLUTE | CAP_COMBINED | CAP_STRIPS,
+                0 if self.cfg.overlay != 0 => CAP_OVERLAY | CAP_STRIPS | CAP_ASYNC_BASE,
+                1 if self.cfg.absolute != 0 => CAP_ABSOLUTE | CAP_COMBINED | CAP_STRIPS,
                 _ => 0,
             }
     }
@@ -206,7 +304,7 @@ impl Ssd1677 {
         bus.busy_wait(0, TAG_SSD_SOFT_RESET);
         Self::reg(bus, 0x18, 0x80);
         bus.cmd(0x0c);
-        for b in [0xae, 0xc7, 0xc3, 0xc0, 0x80] {
+        for b in self.cfg.booster {
             bus.data8(b);
         }
         bus.cmd(0x01);
@@ -324,17 +422,22 @@ impl Ssd1677 {
     }
     fn refresh(&mut self, bus: &mut impl Bus, mode: Refresh, turn_off: bool, deferred: bool) {
         self.set(STATE_PENDING_OFF, false);
+        let start = if self.has(STATE_DIAGNOSTICS) {
+            bus.clock_ms()
+        } else {
+            0
+        };
         Self::reg(bus, 0x21, if mode == Refresh::Fast { 0 } else { 0x40 });
-        if self.cfg.second_control {
+        if self.cfg.second_control != 0 {
             bus.data8(0);
         }
-        if self.cfg.restore_temp && mode != Refresh::Half {
+        if (self.cfg.restore_temp != 0) && mode != Refresh::Half {
             Self::reg(bus, 0x18, 0x80);
         }
         let lut = match mode {
-            Refresh::Fast => self.cfg.fast_lut,
-            Refresh::Half => self.cfg.half_lut,
-            Refresh::Full => self.cfg.full_lut,
+            Refresh::Fast => self.cfg.fast_lut.bytes(),
+            Refresh::Half => self.cfg.half_lut.bytes(),
+            Refresh::Full => self.cfg.full_lut.bytes(),
         };
         let board_lut = lut.is_some() && !self.has(STATE_CUSTOM_LUT);
         if board_lut {
@@ -368,6 +471,7 @@ impl Ssd1677 {
             }
             self.set(STATE_SCREEN_ON, seq & 3 == 0);
             self.set(STATE_PENDING_OFF, turn_off && self.has(STATE_SCREEN_ON));
+            self.refresh_diagnostic(bus, mode, start, seq, true);
             return;
         }
         if board_lut && mode != Refresh::Fast {
@@ -411,6 +515,26 @@ impl Ssd1677 {
         }
         if board_lut {
             self.set_lut(bus, None);
+        }
+        self.refresh_diagnostic(bus, mode, start, control, false);
+    }
+    fn refresh_diagnostic(
+        &self,
+        bus: &mut impl Bus,
+        mode: Refresh,
+        start: u32,
+        control: u8,
+        sequence: bool,
+    ) {
+        if self.has(STATE_DIAGNOSTICS) {
+            let elapsed = bus.clock_ms().wrapping_sub(start);
+            bus.diagnostic(
+                DIAG_SSD_REFRESH,
+                mode as u32,
+                elapsed,
+                u32::from(control),
+                u32::from(sequence),
+            );
         }
     }
     fn power_on(&mut self, bus: &mut impl Bus) {
@@ -472,7 +596,7 @@ impl Ssd1677 {
         deferred: bool,
     ) -> Result<(), u32> {
         let cold = self.has(STATE_INITIAL_FULL);
-        self.set(STATE_PENDING_SYNC, self.cfg.black_pulse && deferred);
+        self.set(STATE_PENDING_SYNC, (self.cfg.black_pulse != 0) && deferred);
         if self.has(STATE_NEEDS_GRAY_CLEAR) {
             if mode == Refresh::Fast {
                 mode = self.clean_mode();
@@ -494,7 +618,7 @@ impl Ssd1677 {
             }
         }
         self.area(bus, 0, 0, self.width, self.height);
-        if self.cfg.black_pulse && mode == Refresh::Half {
+        if (self.cfg.black_pulse != 0) && mode == Refresh::Half {
             if cold {
                 self.fill(bus, 0x26, 0xff);
             } else if let Some(previous) = previous {
@@ -516,7 +640,7 @@ impl Ssd1677 {
             }
             self.refresh(bus, mode, turn_off, deferred);
         }
-        if (previous.is_none() || self.cfg.black_pulse) && !deferred {
+        if (previous.is_none() || (self.cfg.black_pulse != 0)) && !deferred {
             self.sync_frame(bus, frame)?;
         }
         if !deferred {
@@ -684,11 +808,13 @@ impl Ssd1677 {
         self.set(STATE_IN_GRAY, !factory);
         self.set_lut(
             bus,
-            Some(lut.unwrap_or(if factory {
-                self.cfg.factory
-            } else {
-                self.cfg.gray
-            })),
+            lut.or_else(|| {
+                if factory {
+                    Some(self.cfg.factory.bytes().unwrap_or(&LUT_FACTORY_QUALITY))
+                } else {
+                    self.cfg.gray.bytes()
+                }
+            }),
         );
         if factory {
             Self::reg(bus, 0x21, 0);
@@ -701,7 +827,7 @@ impl Ssd1677 {
             }
             self.set(STATE_NEEDS_GRAY_CLEAR, true);
         } else {
-            if self.cfg.gray_power_first {
+            if self.cfg.gray_power_first != 0 {
                 self.power_on(bus);
             }
             self.refresh(bus, Refresh::Fast, turn_off, false);
@@ -730,7 +856,7 @@ mod tests {
             (800, 0, 0, 0),
             (800, 656, 0, 0),
             (800, 480, 6, 0),
-            (800, 480, 0, 8),
+            (800, 480, 0, 16),
         ] {
             assert!(Ssd1677::new(w, h, v, f).is_none());
         }

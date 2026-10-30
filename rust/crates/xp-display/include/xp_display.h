@@ -80,8 +80,23 @@ enum {
   XP_DISPLAY_TAG_X3_POWER_DOWN = 6,
 };
 
-// SSD1677 config.variant and config.flags. Unknown/custom SDK configurations
-// and SSD1677_PROBE_DEBUG keep C++; no controller_config payload is accepted.
+// Descriptor and LUTs are borrowed, immutable until xp_display_drop. Null optional
+// LUTs have length zero; non-null LUTs have exactly 110 readable bytes.
+typedef struct {
+  const uint8_t* data;
+  uint32_t len;
+} XpDisplaySsd1677Lut;
+typedef struct {
+  uint32_t version, struct_size;
+  uint8_t booster[5], scan, border_init, half_temp;
+  uint8_t full_seq, fast_seq, half_seq, border_full, border_fast, border_half, border_gray;
+  uint8_t gray_power_first, absolute, overlay, second_control, restore_temp, black_pulse;
+  XpDisplaySsd1677Lut gray, factory, fast_lut, full_lut, half_lut;
+} XpDisplaySsd1677Config;
+// Writes version 1 X4 defaults, with borrowed Rust-owned immutable LUTs.
+uint32_t xp_display_ssd1677_default_config(XpDisplaySsd1677Config* out);
+
+// SSD1677 board selection and mount/debug flags. A custom descriptor supersedes board defaults.
 enum {
   XP_DISPLAY_SSD1677_X4 = 0,
   XP_DISPLAY_SSD1677_STICKY = 1,
@@ -92,6 +107,7 @@ enum {
   XP_DISPLAY_SSD1677_MIRROR_X = 1,
   XP_DISPLAY_SSD1677_MIRROR_Y = 2,
   XP_DISPLAY_SSD1677_FAST_DU = 4,
+  XP_DISPLAY_SSD1677_DIAGNOSTICS = 8,
 };
 
 // Shared registry; append values without changing existing descriptor layouts.
@@ -117,6 +133,7 @@ enum {
   XP_DISPLAY_TAG_SSD_POWER_DOWN = 65,
   XP_DISPLAY_TAG_SSD_FACTORY_GRAY = 66,
   XP_DISPLAY_DIAG_SSD_WINDOW_ALLOCATION = 67,
+  XP_DISPLAY_DIAG_SSD_REFRESH = 68,  // mode, elapsed ms, control byte, sequence branch
   XP_DISPLAY_TAG_V4_FIRST = 90,
   XP_DISPLAY_TAG_V4_LAST = 119,
   XP_DISPLAY_TAG_V3_EXTRA_FIRST = 120,

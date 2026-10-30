@@ -30,6 +30,13 @@ FetchContent_MakeAvailable(googletest)
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
+set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,display-panel" CACHE STRING "Cargo features for host tests")
+if(NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)display-panel(,|$)")
+  set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},display-panel" CACHE STRING "Cargo features for host tests" FORCE)
+endif()
+if(DISPLAY_TRACE_STRIPS AND NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)reader-strips(,|$)")
+  set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},reader-strips" CACHE STRING "Cargo features for host tests" FORCE)
+endif()
 include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
 
 add_library(crosspoint_test_common INTERFACE)

@@ -296,7 +296,7 @@ bool UpdateUiActivity::buildRustScene(XpUiScene& scene) {
   const auto services = resources();
   // The dense C3 font matrix uses at most 71 commands. Reserve on the first frame
   // so the list does not need overlapping old and new command arenas.
-  const uint16_t initial = painting.kind == XP_UI_UPDATE_FONTS ? 72 : 20;
+  const uint16_t initial = painting.kind == XP_UI_UPDATE_FONTS ? 71 : 20;
   if (!reserve(initial)) return false;
   for (;;) {
     const XpUiBuffer buffer{commands.get(), nullptr, capacity, 0};

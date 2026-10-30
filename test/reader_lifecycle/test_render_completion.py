@@ -26,10 +26,20 @@ with tempfile.TemporaryDirectory(prefix='reader-completion-') as directory:
     stub = stub.replace('#define taskENTER_CRITICAL(m) (m)->lock()',
                         'inline thread_local unsigned criticalDepth=0;\n#define taskENTER_CRITICAL(m) ((m)->lock(), ++criticalDepth)')
     stub = stub.replace('#define taskEXIT_CRITICAL(m) (m)->unlock()',
-                        '#define taskEXIT_CRITICAL(m) (--criticalDepth, (m)->unlock())')
+                        'void afterModelUnlock();\n#define taskEXIT_CRITICAL(m) (--criticalDepth, (m)->unlock(), afterModelUnlock())')
     (out / 'Activity.h').write_text(stub)
     (out / 'completion.cpp').write_text(fixture)
     subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-I'+str(out),
                     '-I'+str(ROOT/'test/ui_runtime/stubs'), str(out/'completion.cpp'),
                     str(out/'RustActivityAdapter.cpp'), *rust_link_flags(), '-o', str(out/'completion')], check=True)
     subprocess.run([str(out/'completion')], check=True, timeout=10)
+    split = fixture.replace('ModelLock modelLock(*this);\n  if (overlay == Overlay::None) publishRustScene({});',
+                            'bool publish; { ModelLock modelLock(*this); publish = overlay == Overlay::None; }\n  if (publish) publishRustScene({});')
+    assert split != fixture
+    (out / 'split.cpp').write_text(split)
+    subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-I'+str(out),
+                    '-I'+str(ROOT/'test/ui_runtime/stubs'), str(out/'split.cpp'),
+                    str(out/'RustActivityAdapter.cpp'), *rust_link_flags(), '-o', str(out/'split')], check=True)
+    result = subprocess.run([str(out/'split')], capture_output=True, text=True, timeout=10)
+    assert result.returncode != 0 and 'overlay.value == Overlay::None' in result.stderr
+    print('completion transitions pass; split decision/publication mutant rejected')

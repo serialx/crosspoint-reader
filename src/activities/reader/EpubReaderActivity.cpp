@@ -225,7 +225,7 @@ void EpubReaderActivity::openReaderMenu() { runMenuPolicy(XP_UI_READER_PARENT_OP
 // build fits next to it (X3: with the radio up, 55 KB free and a 47 KB block, a 6 KB chapter ran
 // out of memory). So the radio stops for every build and starts again once the chapter is built
 // and its page is shown. A radio that did not stop within the module's 3 s, or a start still
-// settling, usually lets go soon after: the build waits up to BUILD_ROOM_WAIT_MS more, then is
+// settling, usually lets go soon after: the build waits up to the Rust policy timeout, then is
 // refused rather than run next to it. The stop finishes on the main loop (the module's tick) and
 // the start on its own task; neither needs the render lock this task holds.
 bool EpubReaderActivity::makeRoomForChapterBuild() { return runBuildPolicy(XP_UI_READER_BUILD_OPERATION_ROOM); }
@@ -4256,7 +4256,7 @@ bool EpubReaderActivity::runBuildPolicy(uint8_t operation) const {
         }
         case XP_UI_READER_BUILD_COMMAND_LOG_ROOM_DENIED: {
           LOG_ERR("ERS", "Bluetooth radio still holds the heap after %u ms; chapter build refused",
-                  static_cast<unsigned>(BUILD_ROOM_WAIT_MS));
+                  static_cast<unsigned>(a));
           break;
         }
         case XP_UI_READER_BUILD_COMMAND_READ_FREE: {

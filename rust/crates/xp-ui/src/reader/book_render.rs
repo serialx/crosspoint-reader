@@ -1,5 +1,9 @@
 //! Chapter build and page-restore sequencing over borrowed native resources.
 use super::services::{Core, Guard};
+use super::thresholds::{
+    BUILD_POPUP_BYTE_THRESHOLD, BUILD_POPUP_DEADLINE_MS, BUILD_POPUP_PAGE_THRESHOLD,
+    PARTIAL_REBUILD_START_MARGIN,
+};
 use core::ffi::c_void;
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -303,7 +307,8 @@ impl Engine {
                     && if anchor {
                         self.q(Query::PageForAnchor) & 0x10000 != 0
                     } else {
-                        target.wrapping_add(15) < self.q(Query::PageCount) as i32
+                        target.wrapping_add(PARTIAL_REBUILD_START_MARGIN)
+                            < self.q(Query::PageCount) as i32
                     };
                 if covered {
                     self.c(Command::LogDeferred, target, 0);
@@ -318,10 +323,12 @@ impl Engine {
                         });
                     let inflate = self.q(Query::HasHtml) == 0;
                     let popup = if anchor {
-                        self.q(Query::FindAnchor) & 0x10000 == 0 && bytes > 96 * 1024
+                        self.q(Query::FindAnchor) & 0x10000 == 0
+                            && bytes > BUILD_POPUP_BYTE_THRESHOLD
                     } else {
                         target >= self.q(Query::PageCount) as i32
-                            && ((bytes > 96 * 1024 && inflate) || target > 20)
+                            && ((bytes > BUILD_POPUP_BYTE_THRESHOLD && inflate)
+                                || target > BUILD_POPUP_PAGE_THRESHOLD)
                     };
                     if popup {
                         self.op(Command::PopupIndex);
@@ -361,7 +368,8 @@ impl Engine {
                         }
                     {
                         if self.f(Field::BuildPopup) != 0
-                            && self.q(Query::Now).wrapping_sub(started_at) >= 1000
+                            && self.q(Query::Now).wrapping_sub(started_at)
+                                >= BUILD_POPUP_DEADLINE_MS
                         {
                             self.op(Command::ShowBuildPopup);
                         }

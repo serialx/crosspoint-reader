@@ -1,4 +1,5 @@
 //! Reader gestures retain lazy mapped-frame probes, including their side effects.
+use super::thresholds::{GO_HOME_MS, SKIP_HOLD_MS};
 use crate::model::{BACK, LEFT, PAGE_BACK, PAGE_FORWARD, POWER, RIGHT, SWIPE_LEFT, SWIPE_RIGHT};
 use core::ffi::c_void;
 
@@ -98,7 +99,7 @@ pub unsafe fn buttons(services: Services, config: Config) -> Turn {
         if use_press {
             probe.button(button, ButtonQuery::Press, 0)
         } else {
-            probe.button(button, ButtonQuery::Long, 700)
+            probe.button(button, ButtonQuery::Long, SKIP_HOLD_MS)
                 || probe.button(button, ButtonQuery::Release, 0)
         }
     };
@@ -204,11 +205,12 @@ pub unsafe fn back(services: Services, short_browser: bool) -> u8 {
     if probe.read(Query::BackGesture) != 0 {
         return 0;
     }
-    if !probe.button(BACK, ButtonQuery::Long, 1000) && !probe.button(BACK, ButtonQuery::Release, 0)
+    if !probe.button(BACK, ButtonQuery::Long, GO_HOME_MS)
+        && !probe.button(BACK, ButtonQuery::Release, 0)
     {
         return 0;
     }
-    if (probe.read(Query::HeldMs) >= 1000) != short_browser {
+    if (probe.read(Query::HeldMs) >= GO_HOME_MS) != short_browser {
         1
     } else {
         2

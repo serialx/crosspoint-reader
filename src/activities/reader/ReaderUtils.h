@@ -24,9 +24,9 @@ static_assert(CrossPointSettings::READER_MENU_OFF == 0 && CrossPointSettings::RE
               CrossPointSettings::READER_MENU_SWIPE_UP == 2);
 static_assert(static_cast<uint8_t>(HomeButtonAction::NextPage) == 2);
 
+// Cross-checked against Rust reader thresholds by native_back_threshold_matches_rust.
 constexpr unsigned long GO_HOME_MS = 1000;
 constexpr unsigned long GO_BACK_OR_HOME_MS = GO_HOME_MS;
-constexpr unsigned long SKIP_HOLD_MS = 700;
 constexpr unsigned long BOOKMARK_HOLD_MS = 400;
 constexpr unsigned long BOOKMARK_MESSAGE_DURATION_MS = 2500;
 

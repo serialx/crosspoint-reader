@@ -138,8 +138,6 @@ class EpubReaderActivity final : public ReaderActivity {
 
   static constexpr int BUILD_PAGES_PER_CHUNK = 8;
   static constexpr int BACKGROUND_BUILD_PAGES_PER_TICK = 2;
-  static constexpr size_t BACKGROUND_BUILD_MIN_FREE_HEAP = 32 * 1024;
-  static constexpr size_t BACKGROUND_BUILD_MIN_MAX_ALLOC = 16 * 1024;
   // Requires the render lock; heap admission is checked separately by the build tick.
   bool backgroundBuildWanted() const;
   bool buildTickHeapGate();
@@ -158,16 +156,9 @@ class EpubReaderActivity final : public ReaderActivity {
   std::atomic<bool> radioReleasedForBuild{false};
   bool runBuildPolicy(uint8_t operation) const;
   bool makeRoomForChapterBuild();
-  static constexpr uint32_t BUILD_ROOM_WAIT_MS = 5000;
-  static constexpr uint32_t BUILD_ROOM_STEP_MS = 50;
   bool inputOverPage() const override;
   // "Connecting Bluetooth…" or "Bluetooth failed" in place of the status bar title.
   mutable LinkNoteTitle linkNoteTitle;
-  static constexpr size_t RENDER_MIN_FREE_HEAP = 24 * 1024;
-  static constexpr int PARTIAL_REBUILD_START_MARGIN = 15;
-  static constexpr int BUILD_POPUP_PAGE_THRESHOLD = 20;
-  static constexpr size_t BUILD_POPUP_BYTE_THRESHOLD = 96 * 1024;
-  static constexpr unsigned long BUILD_POPUP_DEADLINE_MS = 1000;
   bool buildPopupPending = false;
   void showBuildPopup();
   bool applyDeferredReposition();

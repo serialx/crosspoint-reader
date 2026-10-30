@@ -1,5 +1,6 @@
 //! Shared reader lifecycle with borrowed resource callbacks and POD publication.
 use super::input::Turn;
+use super::thresholds::SKIP_HOLD_MS;
 use super::values;
 use core::ffi::c_void;
 #[repr(u8)]
@@ -228,7 +229,7 @@ impl Engine {
         };
         let skip = buttons.from_tilt == 0
             && self.q(Query::LongButton) == values::LONG_BUTTON_SKIP
-            && held >= 700;
+            && held >= SKIP_HOLD_MS;
         let changed = if skip {
             self.c(Command::Skip, if prev { -10 } else { 10 }, 0)
         } else {

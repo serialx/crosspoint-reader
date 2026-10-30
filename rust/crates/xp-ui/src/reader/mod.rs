@@ -1,5 +1,6 @@
 //! Reader lifecycle policy. Storage, clocks, locking and panel I/O remain borrowed leaves.
 pub mod idle;
+mod thresholds;
 use core::ffi::c_void;
 
 #[repr(C)]

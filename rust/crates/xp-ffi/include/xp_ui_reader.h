@@ -1589,8 +1589,8 @@ uint8_t xp_ui_reader_book_lifetime(const XpUiReaderLifetimeServices* services, u
  * CLOCK samples wrapping u32 milliseconds; SLEEP(a=milliseconds) waits.
  * RELEASE_STRIPS returns whether an idle buffer was released (false in builds
  * without reader strips). READ_FREE/READ_BLOCK sample bytes and retain the last
- * readings solely for LOG_RECLAIMED(a=old free,b=old block). LOG_ROOM_DENIED and
- * LOG_BUILD_FAILED retain original diagnostics. PAINT_INDEX paints the existing
+ * readings solely for LOG_RECLAIMED(a=old free,b=old block).
+ * LOG_ROOM_DENIED(a=timeout ms) and LOG_BUILD_FAILED retain original diagnostics. PAINT_INDEX paints the existing
  * popup. TRY_LOCK constructs a native try-lock and returns ownership; UNLOCK
  * destroys it even after a failed acquisition. BUTTON(a=0..6) samples Back,
  * Confirm, Left, Right, Up, Down, Power in that order. RAW samples raw contact;

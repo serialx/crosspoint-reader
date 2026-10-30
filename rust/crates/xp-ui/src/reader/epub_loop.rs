@@ -1,6 +1,9 @@
 //! Reader loop decisions. Resource callbacks execute outside the model critical section.
 use super::input::Turn;
 use super::services::Core;
+use super::thresholds::{
+    BACKGROUND_BUILD_MIN_MAX_ALLOC, GO_HOME_MS, RENDER_MIN_FREE_HEAP, SKIP_HOLD_MS,
+};
 use super::values;
 use core::ffi::c_void;
 #[repr(u8)]
@@ -224,8 +227,8 @@ impl Engine {
             && self.q(Q::Framebuffer) != 0
             && self.f(F::LastRendered) != 0
             && self.q(Q::Now).wrapping_sub(self.f(F::LastRendered)) > 400
-            && self.q(Q::FreeHeap) > 24 * 1024
-            && self.q(Q::MaxBlock) > 16 * 1024
+            && self.q(Q::FreeHeap) > RENDER_MIN_FREE_HEAP
+            && self.q(Q::MaxBlock) > BACKGROUND_BUILD_MIN_MAX_ALLOC
             && (self.f(F::IdleSpine) != self.f(F::Spine) || self.f(F::IdlePage) != self.q(Q::Page))
         {
             self.set(F::IdleSpine, self.f(F::Spine));
@@ -433,7 +436,10 @@ impl Engine {
             }
             return;
         }
-        if self.f(F::FootnoteDepth) > 0 && self.q(Q::BackRelease) != 0 && self.q(Q::Held) < 1000 {
+        if self.f(F::FootnoteDepth) > 0
+            && self.q(Q::BackRelease) != 0
+            && self.q(Q::Held) < GO_HOME_MS
+        {
             self.op(C::RestorePosition);
             return;
         }
@@ -495,7 +501,7 @@ impl Engine {
         } else {
             self.q(Q::Held)
         };
-        let long = buttons.from_tilt == 0 && held >= 700;
+        let long = buttons.from_tilt == 0 && held >= SKIP_HOLD_MS;
         if long && self.q(Q::LongButtonBehavior) == values::LONG_BUTTON_SKIP {
             let succeeded = self.c(C::Skip, if next { 1 } else { -1 }, 0);
             self.c(C::NoteTurn, 0, succeeded as i32);

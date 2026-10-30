@@ -1,5 +1,9 @@
 //! Chapter admission and bounded background-build policy.
 use super::services::Core;
+use super::thresholds::{
+    BACKGROUND_BUILD_MIN_FREE_HEAP, BACKGROUND_BUILD_MIN_MAX_ALLOC, BUILD_ROOM_STEP_MS,
+    BUILD_ROOM_WAIT_MS,
+};
 use core::ffi::c_void;
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -97,11 +101,11 @@ impl Engine {
         }
         let started = self.op(Command::Clock);
         loop {
-            if self.op(Command::Clock).wrapping_sub(started) >= 5000 {
-                self.op(Command::LogRoomDenied);
+            if self.op(Command::Clock).wrapping_sub(started) >= BUILD_ROOM_WAIT_MS {
+                self.cmd(Command::LogRoomDenied, BUILD_ROOM_WAIT_MS, 0);
                 return false;
             }
-            self.cmd(Command::Sleep, 50, 0);
+            self.cmd(Command::Sleep, BUILD_ROOM_STEP_MS, 0);
             if self.ready(&mut asked) {
                 return true;
             }
@@ -110,12 +114,14 @@ impl Engine {
     fn heap(&self) -> bool {
         let free = self.op(Command::ReadFree);
         let block = self.op(Command::ReadBlock);
-        let mut paused = free < 32768 || block < 16384;
+        let mut paused =
+            free < BACKGROUND_BUILD_MIN_FREE_HEAP || block < BACKGROUND_BUILD_MIN_MAX_ALLOC;
         self.set(Field::HeapPaused, u32::from(paused));
         if paused && self.op(Command::ReleaseStrips) != 0 {
             let reclaimed_free = self.op(Command::ReadFree);
             let reclaimed_block = self.op(Command::ReadBlock);
-            paused = reclaimed_free < 32768 || reclaimed_block < 16384;
+            paused = reclaimed_free < BACKGROUND_BUILD_MIN_FREE_HEAP
+                || reclaimed_block < BACKGROUND_BUILD_MIN_MAX_ALLOC;
             self.set(Field::HeapPaused, u32::from(paused));
             self.cmd(Command::LogReclaimed, free, block);
         }
@@ -343,6 +349,9 @@ mod tests {
             assert_eq!(calls(Command::Clock), 4);
             assert_eq!(calls(Command::Sleep), 2);
             assert_eq!(calls(Command::LogRoomDenied), 1);
+            assert!(f
+                .events
+                .contains(&(Command::LogRoomDenied as u8, BUILD_ROOM_WAIT_MS, 0)));
             assert!(f
                 .events
                 .iter()

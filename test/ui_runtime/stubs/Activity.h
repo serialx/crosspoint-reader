@@ -46,6 +46,7 @@ class MappedInputManager {
   };
   enum class SwipeDir { None, Left, Right, Up, Down };
   uint32_t pressed = 0, released = 0, held = 0, heldTime = 0;
+  mutable unsigned heldProbes = 0;
   uint8_t touchFlags = 0;
   int rawPressed = -1;
   bool longConfirm = false;
@@ -54,7 +55,10 @@ class MappedInputManager {
   SwipeDir swipe = SwipeDir::None;
   bool wasPressed(Button b) const { return pressed & (1u << static_cast<unsigned>(b)); }
   bool wasReleased(Button b) const { return released & (1u << static_cast<unsigned>(b)); }
-  bool isPressed(Button b) const { return held & (1u << static_cast<unsigned>(b)); }
+  bool isPressed(Button b) const {
+    ++heldProbes;
+    return held & (1u << static_cast<unsigned>(b));
+  }
   uint32_t getHeldTime() const { return heldTime; }
   SwipeDir wasSwipe() const { return swipe; }
 };

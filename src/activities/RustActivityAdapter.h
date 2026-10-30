@@ -61,10 +61,8 @@ class RustActivityAdapter : public Activity {
 
  private:
   uint16_t suppressButtons = 0;
-  uint16_t lastHeld = 0;
   bool sceneFailed = false;
   bool suppressContact = false;
-  bool lastContact = false;
 
  protected:
   XpUiMetrics rustMetrics() const;

@@ -99,6 +99,9 @@ struct ReaderActivity {
   void render(RenderLock&&) { event("base-render", locks); }
 };
 struct EpubReaderActivity : ReaderActivity {
+  enum class Overlay { None };
+  Overlay overlay = Overlay::None;
+  void publishRustScene(const XpUiScene&) {}
   Renderer renderer;
   Input mappedInput;
   Popup loadFailurePopup;

@@ -41,6 +41,9 @@ class Probe final : public RustActivityAdapter {
 
 class FailureProbe final : public RustActivityAdapter {
  public:
+  using RustActivityAdapter::consumeRejectedInput;
+  using RustActivityAdapter::publishRustScene;
+  using RustActivityAdapter::rejectRustScene;
   bool rejectBuild = true;
   unsigned failures = 0, published = 0;
   FailureProbe(GfxRenderer& r, MappedInputManager& i) : RustActivityAdapter("failure", r, i) {}
@@ -48,6 +51,36 @@ class FailureProbe final : public RustActivityAdapter {
   void rustSceneFailed() override { ++failures; }
   void rustPublished() override { ++published; }
 };
+static void recoveryBeforeInput() {
+  for (bool touch : {false, true}) {
+    GfxRenderer renderer;
+    MappedInputManager input;
+    FailureProbe probe(renderer, input);
+    assert(!probe.consumeRejectedInput());
+    assert(input.heldProbes == 0);
+    probe.rejectRustScene();
+    probe.publishRustScene({});
+    // A fresh gesture in this narrow window is consumed once, even though the
+    // recovered scene is valid. The next gesture must work normally.
+    if (touch) {
+      input.touchFlags = XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD;
+    } else {
+      input.pressed = input.held = 1u << unsigned(MappedInputManager::Button::Confirm);
+    }
+    assert(probe.consumeRejectedInput());
+    input.pressed = input.held = 0;
+    input.released = touch ? 0 : 1u << unsigned(MappedInputManager::Button::Confirm);
+    input.touchFlags = touch ? XP_UI_TOUCH_RELEASED : 0;
+    assert(probe.consumeRejectedInput());
+    input = {};
+    assert(!probe.consumeRejectedInput());
+    if (touch)
+      input.touchFlags = XP_UI_TOUCH_RELEASED;
+    else
+      input.released = 1u << unsigned(MappedInputManager::Button::Confirm);
+    assert(!probe.consumeRejectedInput());
+  }
+}
 static void rejectionRecovery() {
   for (bool published : {false, true}) {
     for (bool buildFailure : {false, true}) {
@@ -106,6 +139,7 @@ static void rejectionRecovery() {
 }
 
 int main() {
+  recoveryBeforeInput();
   rejectionRecovery();
   GfxRenderer renderer;
   MappedInputManager input;

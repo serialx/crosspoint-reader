@@ -1,3 +1,4 @@
+#define LOG_ERR(...) ((void)0)
 #include <xp_ui_reader.h>
 
 #include <algorithm>
@@ -101,7 +102,7 @@ struct ReaderToolbarUi {
     bool denseRows = false;
   } model;
   void setModel(const Model& value) { model = value; }
-  void render() {
+  bool render() {
     std::printf("model %d %d %d %d %d %d [%s] [%s] [%s]\n", model.panel, model.activeTool, model.denseRows,
                 model.selectedIndex, model.itemCount, model.progressPermille,
                 model.chapterTitle ? model.chapterTitle : "", model.pageInfo ? model.pageInfo : "",
@@ -111,6 +112,7 @@ struct ReaderToolbarUi {
       std::printf("row %d [%s] [%s] %d %d\n", i, model.rowText ? model.rowText(i).c_str() : "",
                   model.rowValue ? model.rowValue(i).c_str() : "", flags.toggle, flags.checked);
     }
+    return true;
   }
 };
 struct EpubReaderActivity {
@@ -135,6 +137,8 @@ struct EpubReaderActivity {
   std::string textRowValue(int i) const { return "value-" + std::to_string(i); }
   std::string moreRowName(int i) const { return "more-" + std::to_string(i); }
   std::string moreRowValue(int i) const { return "more-value-" + std::to_string(i); }
+  void publishRustScene(const XpUiScene&) {}
+  void rejectRustScene() { assert(false); }
   void renderOverlay();
 };
 // VIEW_METHODS

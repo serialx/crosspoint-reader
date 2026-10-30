@@ -195,8 +195,8 @@ impl Uc8253 {
         let stride = usize::from(self.width / 8);
         bus.cmd(command);
         bus.txn_begin();
-        for y in (0..usize::from(rows)).rev() {
-            bus.txn_write(&data[y * stride..(y + 1) * stride]);
+        for row in data[..usize::from(rows) * stride].rchunks_exact(stride) {
+            bus.txn_write(row);
         }
         bus.txn_end();
     }

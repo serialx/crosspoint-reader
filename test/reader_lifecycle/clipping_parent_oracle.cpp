@@ -11,7 +11,11 @@
 #include <vector>
 
 #include "clippings/ClippingText.h"
-static void event(const char* name, int a = 0, int b = 0) { std::printf("%s %d %d\n", name, a, b); }
+static int modelDepth = 0;
+static void event(const char* name, int a = 0, int b = 0) {
+  assert(modelDepth == 0);
+  std::printf("%s %d %d\n", name, a, b);
+}
 static unsigned long clockMs = 100;
 unsigned long millis() {
   event("clock", clockMs);
@@ -20,7 +24,7 @@ unsigned long millis() {
 #ifdef CLIPPING_RELEASE_LOG
 #define LOG_DBG(...) ((void)0)
 #else
-#define LOG_DBG(tag, fmt, ...) std::printf("debug " fmt "\n", ##__VA_ARGS__)
+#define LOG_DBG(tag, fmt, ...) (assert(modelDepth == 0), std::printf("debug " fmt "\n", ##__VA_ARGS__))
 #endif
 struct Rect {
   int x, y, width, height;
@@ -51,6 +55,7 @@ struct GfxRenderer {
     *l = 4;
   }
   int getTextAdvanceX(int font, const char* text, EpdFontFamily::Style style, int spacing = 0) const {
+    assert(modelDepth == 0);
     std::printf("advance %d [%s] %d %d\n", font, text, int(style), spacing);
     if (std::strcmp(text, "zero") == 0) return 0;
     if (std::strcmp(text, "negative") == 0) return -1;
@@ -65,8 +70,14 @@ struct GfxRenderer {
     event("height", font);
     return 10 + font % 3;
   }
-  void drawPixel(int x, int y, bool color) const { std::printf("pixel %d %d %d\n", x, y, color); }
-  void fillRectDither(int x, int y, int w, int h, Color) const { std::printf("dither %d %d %d %d\n", x, y, w, h); }
+  void drawPixel(int x, int y, bool color) const {
+    assert(modelDepth == 0);
+    std::printf("pixel %d %d %d\n", x, y, color);
+  }
+  void fillRectDither(int x, int y, int w, int h, Color) const {
+    assert(modelDepth == 0);
+    std::printf("dither %d %d %d %d\n", x, y, w, h);
+  }
 };
 struct Word {
   const char* text;
@@ -80,6 +91,9 @@ struct TextBlock {
   struct Style {
     int characterSpacing = 1;
   };
+  TextBlock(const std::vector<Word>* words, bool valid = true, int font = 8)
+      : words(words), validValue(valid), font(font) {}
+  TextBlock(const TextBlock&) = delete;
   const std::vector<Word>* words;
   bool validValue = true;
   int font = 8;
@@ -114,9 +128,13 @@ struct TextBlock {
 constexpr int TAG_PageLine = 3;
 struct PageElementView {
   int tag, xPos, yPos;
-  TextBlock block;
+  struct BlockSeed {
+    const std::vector<Word>* words;
+    bool validValue = true;
+    int font = 8;
+  } block;
   int getTag() const { return tag; }
-  TextBlock textBlock() const { return block; }
+  TextBlock textBlock() const { return TextBlock{block.words, block.validValue, block.font}; }
 };
 struct Page {
   std::vector<PageElementView> lines;
@@ -161,6 +179,13 @@ struct Section {
   uint16_t pageCount = 3;
 };
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {
+      assert(modelDepth == 0);
+      ++modelDepth;
+    }
+    ~ModelLock() { --modelDepth; }
+  };
   GfxRenderer renderer;
   std::unique_ptr<Section> section = std::make_unique<Section>();
   int currentSpineIndex = 2, buildViewportWidth = 80, buildViewportHeight = 100;

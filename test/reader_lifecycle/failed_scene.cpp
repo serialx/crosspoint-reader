@@ -131,6 +131,9 @@ class EpubReaderActivity : public ReaderActivity {
     toolbarUi->begin();
   }
   bool panelHoldJumped = false;
+  bool recoverBeforeCancel = false, popupActive = false;
+  unsigned popupInputs = 0, routes = 0, sampled = 0, swipes = 0;
+  unsigned restored = 0, stored = 0, redrawn = 0, pushed = 0, settled = 0, lockDepth = 0;
   // FAILED_STATE
   void rustSceneFailed() override {
     ++notifications;
@@ -163,7 +166,8 @@ class EpubReaderActivity : public ReaderActivity {
     auto& o = *this;
     // OVERLAY_DISPATCH
   }
-  void handleOverlayInput() {
+  void handleOverlayInput();
+  void runOverlayPolicy(uint8_t operation) {
     const XpUiReaderOverlayServices services{
         this, [](void* p, uint8_t f) { return static_cast<EpubReaderActivity*>(p)->fields[f]; },
         [](void* p, uint8_t f, uint32_t v) { static_cast<EpubReaderActivity*>(p)->fields[f] = v; },
@@ -173,7 +177,11 @@ class EpubReaderActivity : public ReaderActivity {
             case XP_UI_READER_OVERLAY_QUERY_HAS_TOOLBAR:
               return 1;
             case XP_UI_READER_OVERLAY_QUERY_POPUP_ACTIVE:
-              return 0;
+              return o.popupActive;
+            case XP_UI_READER_OVERLAY_QUERY_TOC_COUNT:
+            case XP_UI_READER_OVERLAY_QUERY_MORE_COUNT:
+            case XP_UI_READER_OVERLAY_QUERY_ROWS:
+              return 5;
             case XP_UI_READER_OVERLAY_QUERY_ROUTED:
               return o.routed.routed;
             case XP_UI_READER_OVERLAY_QUERY_VALUE:
@@ -190,10 +198,49 @@ class EpubReaderActivity : public ReaderActivity {
           auto& o = *static_cast<EpubReaderActivity*>(p);
           switch (static_cast<XpUiReaderOverlayCommand>(c)) {
             case XP_UI_READER_OVERLAY_COMMAND_ROUTE:
+              ++o.routes;
               o.routed = o.toolbarUi->route(o.mappedInput);
               return static_cast<uint32_t>(o.routed.event);
             case XP_UI_READER_OVERLAY_COMMAND_SAMPLE_BUTTONS:
+              ++o.sampled;
               return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_TAKE_SWIPE:
+              ++o.swipes;
+              return static_cast<uint32_t>(o.mappedInput.wasSwipe());
+            case XP_UI_READER_OVERLAY_COMMAND_POPUP_INPUT:
+              ++o.popupInputs;
+              if (o.mappedInput.touchFlags || o.mappedInput.released) ++o.actions;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_DISMISS_POPUP:
+              o.popupActive = false;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_LOCK:
+              ++o.lockDepth;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_UNLOCK:
+              --o.lockDepth;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_SETTLE:
+              ++o.settled;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_RESTORE:
+              ++o.restored;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_STORE:
+              ++o.stored;
+              return 1;
+            case XP_UI_READER_OVERLAY_COMMAND_RENDER:
+              ++o.redrawn;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_PUSH:
+              ++o.pushed;
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_UPDATE:
+              o.requestUpdate();
+              return 0;
+            case XP_UI_READER_OVERLAY_COMMAND_SCROLL:
+              ++o.actions;
+              return 1;
             case XP_UI_READER_OVERLAY_COMMAND_OPEN:
               ++o.actions;
               return 0;
@@ -205,10 +252,11 @@ class EpubReaderActivity : public ReaderActivity {
               return 0;
           }
         }};
-    xp_ui_reader_overlay_run(&services, XP_UI_READER_OVERLAY_OPERATION_INPUT);
+    xp_ui_reader_overlay_run(&services, operation);
   }
 };
 // LOOP_METHOD
+// INPUT_METHOD
 // CANCEL_METHOD
 // PARENT_RENDER
 
@@ -219,6 +267,49 @@ int main(int argc, char** argv) {
   MappedInputManager input;
   EpubReaderActivity a(r, input);
   const auto confirm = 1u << static_cast<unsigned>(MappedInputManager::Button::Confirm);
+  if (check == "cancel-mixed") {
+    a.build();
+    const auto& hits = a.toolbarUi->published;
+    bool found = false;
+    for (unsigned i = 0; i < hits.control_count; ++i) {
+      if (hits.controls[i].action == XP_UI_READER_OVERLAY_EVENT_TOOL) {
+        input.touchX = hits.controls[i].rect.x + 1;
+        input.touchY = hits.controls[i].rect.y + 1;
+        found = true;
+        break;
+      }
+    }
+    assert(found);
+    input.touchFlags = XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD;
+    a.loop();
+    const auto previous = a.actions;
+    failure = 1;
+    a.build();
+    a.loop();  // Observe the held contact on the rejected scene.
+    if (stage == "contents") a.fields[0] = XP_UI_READER_OVERLAY_MODE_CONTENTS;
+    if (stage == "text" || stage == "popup") a.fields[0] = XP_UI_READER_OVERLAY_MODE_TEXT;
+    if (stage == "more") a.fields[0] = XP_UI_READER_OVERLAY_MODE_MORE;
+    a.popupActive = stage == "popup";
+    a.fields[XP_UI_READER_OVERLAY_FIELD_STORED] = 1;
+    a.routes = a.sampled = a.swipes = a.popupInputs = 0;
+    a.recoverBeforeCancel = kind == "recover";
+    input.touchFlags = XP_UI_TOUCH_RELEASED;
+    input.released = confirm | (1u << static_cast<unsigned>(MappedInputManager::Button::Back));
+    input.held = 1u << static_cast<unsigned>(MappedInputManager::Button::Down);
+    input.swipe = MappedInputManager::SwipeDir::Up;
+    a.loop();
+    assert(a.routes == 0 && a.sampled == 0 && a.swipes == 0 && a.popupInputs == 0);
+    assert(a.lockDepth == 0);
+    if (stage == "toolbar") {
+      assert(a.cancelled == 1 && a.actions == previous + 1);
+    } else {
+      assert(a.actions == previous && !a.popupActive);
+      assert(a.fields[0] == (stage == "popup" ? XP_UI_READER_OVERLAY_MODE_TEXT : XP_UI_READER_OVERLAY_MODE_TOOLBAR));
+      assert(a.restored == 1 && a.stored == 1 && a.settled >= 1);
+      assert(a.redrawn == 1 && a.pushed == 1);
+    }
+    return 0;
+  }
   if (check == "prepaint") {
     input.touchFlags = XP_UI_TOUCH_RELEASED;
     a.loop();

@@ -44,7 +44,7 @@ else:
     publication = publication[:publication.index('      }};')]
 cancel = ''
 if 'void EpubReaderActivity::cancelRejectedInput(' in parent:
-    cancel = definition(parent, 'void EpubReaderActivity::cancelRejectedInput(')
+    cancel = definition(parent, 'void EpubReaderActivity::cancelRejectedInput(').replace('::cancelRejectedInput(', '::dispatchCancel(')
 fixture = (HERE / 'failed_scene.cpp').read_text()
 fixture = fixture.replace('// COMMAND_CLASS', commands).replace('// TOOLBAR_CLASS', header)
 fixture = fixture.replace('// TOOLBAR_METHODS', reserve + '\n' + methods)
@@ -64,7 +64,12 @@ failed = definition(parent_header, '  void rustSceneFailed()') if '  void rustSc
 failed = failed.replace('rustSceneFailed()', 'failedState()').replace(' override', '')
 fixture = fixture.replace('// FAILED_STATE', failed)
 fixture = fixture.replace('// CANCEL_METHOD', cancel)
-fixture = fixture.replace('// CANCEL_DECL', 'void cancelRejectedInput(const XpUiInput&) override;' if cancel else '')
+fixture = fixture.replace('// INPUT_METHOD', definition(parent, 'void EpubReaderActivity::handleOverlayInput()'))
+fixture = fixture.replace('// CANCEL_DECL', '''void dispatchCancel(const XpUiInput&);
+  void cancelRejectedInput(const XpUiInput& input) override {
+    if (recoverBeforeCancel) { failure=0; allocationFails=false; renderer.paintOk=true; build(); }
+    dispatchCancel(input);
+  }''' if cancel else '')
 with tempfile.TemporaryDirectory(prefix='reader-failed-scene-') as directory:
     out = Path(directory)
     for name in ['RustActivityAdapter.cpp', 'RustActivityAdapter.h']:
@@ -82,7 +87,11 @@ with tempfile.TemporaryDirectory(prefix='reader-failed-scene-') as directory:
                         'inline thread_local unsigned criticalDepth=0;\n#define taskENTER_CRITICAL(m) ((m)->lock(), ++criticalDepth)')
     stub = stub.replace('#define taskEXIT_CRITICAL(m) (m)->unlock()',
                         '#define taskEXIT_CRITICAL(m) (--criticalDepth, (m)->unlock())')
+    stub = stub.replace('uint8_t touchFlags = 0;', 'int16_t touchX=10, touchY=10; uint8_t touchFlags = 0;')
     (out / 'Activity.h').write_text(stub)
+    (out / 'components').mkdir()
+    touch = (ROOT / 'test/ui_runtime/stubs/components/UiAppHelpers.h').read_text()
+    (out / 'components/UiAppHelpers.h').write_text(touch.replace('return {10, 10,', 'return {input.touchX, input.touchY,'))
     (out / 'gate.cpp').write_text(fixture)
     flags = rust_link_flags()
     subprocess.run(['c++', '-std=c++20', '-pthread', '-UNDEBUG', '-I'+str(out),
@@ -96,6 +105,11 @@ with tempfile.TemporaryDirectory(prefix='reader-failed-scene-') as directory:
                 result = subprocess.run([str(out/'gate'), stage, failure, guarantee], capture_output=True, text=True, timeout=10)
                 print(stage, failure, guarantee, 'PASS' if result.returncode == 0 else 'FAIL', result.stderr.strip(), flush=True)
                 results.append(result.returncode)
+    for variant in ['toolbar', 'contents', 'text', 'more', 'popup']:
+        for recover in ['failed', 'recover']:
+            result = subprocess.run([str(out/'gate'), variant, recover, 'cancel-mixed'], capture_output=True, text=True, timeout=10)
+            print('cancel-mixed', variant, recover, 'PASS' if result.returncode == 0 else 'FAIL', result.stderr.strip(), flush=True)
+            results.append(result.returncode)
     if any(results):
         raise SystemExit(1)
     if not revision:

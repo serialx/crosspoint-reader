@@ -71,7 +71,7 @@ class WifiSelectionActivity final : public RustActivityAdapter {
     int32_t scanRssi = 0;
     uint32_t scanIndex = 0;
     uint32_t navigationRevision = 0;
-    bool inputAction = false, inputRejected = false;
+    bool inputAction = false, inputRejected = false, committed = false;
     bool inputCurrent();
   };
   void run(XpUiWifiEvent, uint32_t value = 0, const XpUiInput* input = nullptr);

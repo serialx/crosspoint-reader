@@ -205,7 +205,7 @@ impl Engine {
         }
         true
     }
-    #[inline(never)]
+    #[inline(never)] // Keep input temporaries off the nested page-drawing stack.
     fn input(&self) {
         self.remember();
         self.clear_end();

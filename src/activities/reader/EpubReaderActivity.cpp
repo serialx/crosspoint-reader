@@ -2248,7 +2248,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       }
       return 0;
     }
-    [[gnu::noinline]] void log(uint32_t id) const {
+    [[gnu::noinline]] void log(uint32_t id) const {  // Keep log locals off the nested page-drawing stack.
       const auto* t = times;
       switch (static_cast<XpUiReaderRenderLog>(id)) {
         case XP_UI_READER_RENDER_STRIP_OOM:

@@ -125,6 +125,8 @@ struct EpubReaderActivity {
     return {};
   }
   void requestUpdate() { event("update", lockDepth); }
+  void runBookmarkPolicy(uint8_t operation, void* resources = nullptr);
+  void runLinkPersistence(uint8_t load) const;
   void loadCachedBookmarks();
   void addBookmark();
   void updateBookmarkFlag();

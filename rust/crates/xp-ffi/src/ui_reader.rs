@@ -592,3 +592,28 @@ pub unsafe extern "C" fn xp_ui_reader_menu_parent(services: *const reader::menu_
 pub unsafe extern "C" fn xp_ui_reader_recovery(services: *const reader::recovery::Services, operation: u8, a: i32, b: i32) -> u8 {
     reader::recovery::run(services, operation, a, b)
 }
+
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn xp_ui_reader_bookmark_range(page: i32, count: i32) -> reader::bookmark::ProgressRange {
+    reader::bookmark::range(page, count)
+}
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn xp_ui_reader_bookmark_matches(bookmark: reader::bookmark::BookmarkPosition, spine: i32, page: i32, count: i32, range: reader::bookmark::ProgressRange) -> u8 {
+    u8::from(reader::bookmark::matches(bookmark, spine, page, count, range))
+}
+/// # Safety
+/// Services obey the synchronous bookmark resource contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_bookmark(services: *const reader::bookmark::Services, operation: u8) {
+    reader::bookmark::run(services, operation);
+}
+/// # Safety
+/// Services obey the synchronous link persistence and buffer-borrow contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_link_persistence(services: *const reader::bookmark::LinkServices, load: u8) {
+    reader::bookmark::link_run(services, load);
+}

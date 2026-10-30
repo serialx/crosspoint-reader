@@ -459,3 +459,5 @@ pub mod settings;
 pub mod menu_parent;
 
 pub mod recovery;
+
+pub mod bookmark;

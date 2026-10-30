@@ -19,6 +19,10 @@ methods = '\n'.join(definition(source, signature) for signature in [
     'void EpubReaderActivity::updateBookmarkFlag(', 'void EpubReaderActivity::saveLinkStack(',
     'void EpubReaderActivity::loadLinkStack(',
 ])
+if 'void EpubReaderActivity::runBookmarkPolicy(' in source:
+    methods = definition(source, 'struct ReaderBookmarkResources') + ';\n' + methods
+    methods += '\n' + definition(source, 'void EpubReaderActivity::runBookmarkPolicy(')
+    methods += '\n' + definition(source, 'void EpubReaderActivity::runLinkPersistence(')
 match = '\n'.join(definition(source, signature) for signature in ['ProgressRange getPageProgressRange(', 'bool bookmarkMatchesProgress('])
 fixture = (HERE / 'bookmark_parent_oracle.cpp').read_text().replace('// BOOKMARK_METHODS', methods).replace('// MATCH_METHODS', match)
 with tempfile.TemporaryDirectory() as directory:

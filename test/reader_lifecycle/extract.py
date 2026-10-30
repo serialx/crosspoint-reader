@@ -28,6 +28,8 @@ def generate(repo, output):
         "void EpubReaderActivity::loadLinkStack(",
         "void EpubReaderActivity::restoreSavedPosition(",
     )]
+    if "void EpubReaderActivity::runLinkPersistence(" in reader:
+        methods.append(definition(reader, "void EpubReaderActivity::runLinkPersistence("))
     if "bool EpubReaderActivity::runNavigationPolicy(" in reader:
         methods = [(repo / "test/reader_lifecycle/restore_navigation_rust.inc").read_text()
                    if method.startswith("void EpubReaderActivity::restoreSavedPosition(") else method

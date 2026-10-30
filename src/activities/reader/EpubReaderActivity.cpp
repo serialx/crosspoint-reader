@@ -92,7 +92,6 @@ bool xteinkClassPanel() {
 }
 
 constexpr int PAGE_TURN_RATES[] = {1, 1, 3, 6, 12};
-constexpr float bookmarkProgressEpsilon = 0.0001f;
 constexpr int CLIP_SELECTION_PAGE_WINDOW = 3;
 
 // Word i's font: headings and CSS font-size runs can differ from the section font.
@@ -144,27 +143,15 @@ struct ProgressRange {
 
 ProgressRange getPageProgressRange(const std::shared_ptr<Epub>& epub, const int spineIndex, const int page,
                                    const int pageCount) {
-  if (pageCount <= 1) {
-    return {epub->calculateProgress(spineIndex, 0.0f), epub->calculateProgress(spineIndex, 1.0f)};
-  }
-
-  const float step = 1.0f / static_cast<float>(pageCount - 1);
-  const float anchor = std::clamp(static_cast<float>(page) * step, 0.0f, 1.0f);
-  const float start = std::max(0.0f, anchor - (step * 0.5f));
-  const float end = std::min(1.0f, anchor + (step * 0.5f));
-  return {epub->calculateProgress(spineIndex, start), epub->calculateProgress(spineIndex, end)};
+  const auto range = xp_ui_reader_bookmark_range(page, pageCount);
+  return {epub->calculateProgress(spineIndex, range.start), epub->calculateProgress(spineIndex, range.end)};
 }
 
 bool bookmarkMatchesProgress(const BookmarkEntry& bookmark, const int spineIndex, const int page, const int pageCount,
                              const ProgressRange& pageRange) {
-  if (bookmark.computedSpineIndex == spineIndex && bookmark.computedChapterPageCount == pageCount &&
-      bookmark.computedChapterProgress == page) {
-    return true;
-  }
-
-  const float bookmarkProgress = std::clamp(bookmark.percentage, 0.0f, 1.0f);
-  return bookmarkProgress + bookmarkProgressEpsilon >= pageRange.start &&
-         bookmarkProgress - bookmarkProgressEpsilon <= pageRange.end;
+  return xp_ui_reader_bookmark_matches({bookmark.percentage, bookmark.computedSpineIndex,
+                                        bookmark.computedChapterProgress, bookmark.computedChapterPageCount},
+                                       spineIndex, page, pageCount, {pageRange.start, pageRange.end}) != 0;
 }
 
 std::string buildReadFolderDestination(const std::string& srcPath) {
@@ -2955,119 +2942,269 @@ void EpubReaderActivity::navigateToHref(const std::string& href, bool savePositi
   runNavigationPolicy(XP_UI_READER_NAV_OPERATION_HREF, savePosition, 0, 0, &href);
 }
 
-void EpubReaderActivity::saveLinkStack() const {
-  uint8_t data[1 + MAX_FOOTNOTE_DEPTH * 4];
-  XpUiReaderLinkPosition positions[MAX_FOOTNOTE_DEPTH];
-  for (int i = 0; i < MAX_FOOTNOTE_DEPTH; ++i)
-    positions[i] = {savedPositions[i].spineIndex, savedPositions[i].pageNumber};
-  const size_t size = xp_ui_reader_links_encode(positions, static_cast<uint8_t>(footnoteDepth), data);
-  HalFile f;
-  if (!Storage.openFileForWrite("ERS", epub->getCachePath() + "/links.bin", f)) return;
-  if (f.write(data, size) != size) LOG_ERR("ERS", "Failed to write link stack");
-}
+void EpubReaderActivity::saveLinkStack() const { runLinkPersistence(0); }
 
-void EpubReaderActivity::loadLinkStack() {
-  const std::string path = epub->getCachePath() + "/links.bin";
-  if (!Storage.exists(path.c_str())) return;
-  {
-    HalFile f;
-    uint8_t data[1 + MAX_FOOTNOTE_DEPTH * 4];
-    if (Storage.openFileForRead("ERS", path, f)) {
-      const int size = f.read(data, sizeof(data));
-      XpUiReaderLinkPosition positions[MAX_FOOTNOTE_DEPTH];
-      for (int i = 0; i < MAX_FOOTNOTE_DEPTH; ++i)
-        positions[i] = {savedPositions[i].spineIndex, savedPositions[i].pageNumber};
-      const int depth =
-          xp_ui_reader_links_decode(data, static_cast<uint32_t>(size), epub->getSpineItemsCount(), positions);
-      for (int i = 0; i < MAX_FOOTNOTE_DEPTH; ++i) savedPositions[i] = {positions[i].spine, positions[i].page};
-      if (depth != 0) {
-        footnoteDepth = depth;
-        LOG_DBG("ERS", "Loaded link stack, depth %d", depth);
+void EpubReaderActivity::loadLinkStack() { runLinkPersistence(1); }
+
+void EpubReaderActivity::runLinkPersistence(uint8_t load) const {
+  struct Context {
+    EpubReaderActivity& o;
+    std::optional<std::string> path;
+    std::optional<HalFile> file;
+    uint32_t query(uint8_t query, uint32_t index) {
+      switch (static_cast<XpUiReaderBookmarkLinkQuery>(query)) {
+        case XP_UI_READER_BOOKMARK_LINK_QUERY_DEPTH: {
+          ModelLock lock(o);
+          return o.footnoteDepth;
+        }
+        case XP_UI_READER_BOOKMARK_LINK_QUERY_SPINE: {
+          assert(index < MAX_FOOTNOTE_DEPTH);
+          ModelLock lock(o);
+          return o.savedPositions[index].spineIndex;
+        }
+        case XP_UI_READER_BOOKMARK_LINK_QUERY_PAGE: {
+          assert(index < MAX_FOOTNOTE_DEPTH);
+          ModelLock lock(o);
+          return o.savedPositions[index].pageNumber;
+        }
+        case XP_UI_READER_BOOKMARK_LINK_QUERY_SPINE_COUNT:
+          return o.epub->getSpineItemsCount();
       }
+      return 0;
     }
-  }
-  Storage.remove(path.c_str());
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderBookmarkLinkCommand>(command)) {
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_PATH_BEGIN:
+          path.emplace(o.epub->getCachePath() + "/links.bin");
+          break;
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_PATH_END:
+          path.reset();
+          break;
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_EXISTS:
+          return Storage.exists(path->c_str());
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_FILE_BEGIN:
+          file.emplace();
+          break;
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_FILE_END:
+          file.reset();
+          break;
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_OPEN_READ:
+          return Storage.openFileForRead("ERS", *path, *file);
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_OPEN_WRITE:
+          return Storage.openFileForWrite("ERS", o.epub->getCachePath() + "/links.bin", *file);
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_REMOVE:
+          Storage.remove(path->c_str());
+          break;
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_LOG_WRITE_FAILED:
+          LOG_ERR("ERS", "Failed to write link stack");
+          break;
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_LOG_LOADED:
+          LOG_DBG("ERS", "Loaded link stack, depth %d", static_cast<int>(a));
+          break;
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_DEPTH: {
+          ModelLock lock(o);
+          o.footnoteDepth = a;
+          break;
+        }
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_SPINE: {
+          assert(a >= 0 && a < MAX_FOOTNOTE_DEPTH);
+          ModelLock lock(o);
+          o.savedPositions[a].spineIndex = b;
+          break;
+        }
+        case XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_PAGE: {
+          assert(a >= 0 && a < MAX_FOOTNOTE_DEPTH);
+          ModelLock lock(o);
+          o.savedPositions[a].pageNumber = b;
+          break;
+        }
+      }
+      return 0;
+    }
+  } context{const_cast<EpubReaderActivity&>(*this), {}, {}};
+  const XpUiReaderLinkServices services{
+      &context,
+      [](void* c, uint8_t query, uint32_t index) -> uint32_t { return static_cast<Context*>(c)->query(query, index); },
+      [](void* c, uint8_t command, int32_t a, int32_t b) -> uint32_t {
+        return static_cast<Context*>(c)->command(command, a, b);
+      },
+      [](void* c, uint8_t write, uint8_t* bytes, uint32_t size) -> int32_t {
+        auto& file = *static_cast<Context*>(c)->file;
+        return write ? file.write(bytes, size) : file.read(bytes, size);
+      }};
+  xp_ui_reader_link_persistence(&services, load);
 }
 
 void EpubReaderActivity::restoreSavedPosition() { runNavigationPolicy(XP_UI_READER_NAV_OPERATION_RESTORE); }
 
-void EpubReaderActivity::loadCachedBookmarks() {
-  cachedBookmarks.clear();
-  if (!epub) {
-    currentPageBookmarked = false;
-    return;
-  }
+namespace {
+struct ReaderBookmarkResources {
+  std::optional<RenderLock> lock;
+  std::optional<SavedProgressPosition> progress;
+  std::optional<std::string> text;
+  std::optional<BookmarkEntry> entry;
+  std::optional<uint32_t> offset;
+};
+}  // namespace
 
-  BookmarkFile::load(epub->getPath(), cachedBookmarks);
-  updateBookmarkFlag();
-}
+void EpubReaderActivity::loadCachedBookmarks() { runBookmarkPolicy(XP_UI_READER_BOOKMARK_OPERATION_LOAD); }
 
 void EpubReaderActivity::addBookmark() {
-  if (!section || !epub) return;
-  LOG_DBG("ERS", "Toggle bookmark at spine %d, page %d", currentSpineIndex, section ? section->currentPage : -1);
-  int currentPage;
-  int pageCount;
-  {
-    RenderLock lock;
-    pageCount = section->estimatedTotalPages();
-    currentPage = section->currentPage;
-  }
-
-  SavedProgressPosition progress = ProgressMapper::toSavedProgress(epub, getCurrentPosition());
-  const ProgressRange pageRange = getPageProgressRange(epub, currentSpineIndex, currentPage, pageCount);
-
-  const size_t bookmarkCountBeforeToggle = cachedBookmarks.size();
-  cachedBookmarks.erase(std::remove_if(cachedBookmarks.begin(), cachedBookmarks.end(),
-                                       [&](const BookmarkEntry& b) {
-                                         return bookmarkMatchesProgress(b, currentSpineIndex, currentPage, pageCount,
-                                                                        pageRange);
-                                       }),
-                        cachedBookmarks.end());
-  if (cachedBookmarks.size() != bookmarkCountBeforeToggle) {
-    bookmarkRemoved = true;
-    currentPageBookmarked = false;
-  } else {
-    std::string pageText;
-    if (currentPage >= 0 && currentPage < pageCount) {
-      pageText = section->getTextFromSectionFile();
-    }
-    BookmarkEntry entry;
-    entry.percentage = progress.percentage;
-    entry.xpath = progress.xpath;
-    entry.summary = BookmarkUtil::sanitizeBookmarkSummary(pageText);
-    entry.computedSpineIndex = currentSpineIndex;
-    entry.computedChapterPageCount = pageCount;
-    entry.computedChapterProgress = currentPage;
-    const std::optional<uint32_t> offset =
-        currentPageVisibleOffset.has_value() ? currentPageVisibleOffset
-        : (currentPage >= 0 && currentPage < section->pageCount)
-            ? section->getVisibleTextOffsetForPage(static_cast<uint16_t>(currentPage))
-            : std::nullopt;
-    if (offset.has_value()) {
-      entry.visibleTextOffset = *offset;
-      entry.hasVisibleTextOffset = true;
-    }
-    cachedBookmarks.insert(cachedBookmarks.begin(), entry);
-    bookmarkRemoved = false;
-    currentPageBookmarked = true;
-  }
-
-  if (!BookmarkFile::save(epub->getPath(), cachedBookmarks)) {
-    LOG_ERR("ERS", "Failed to save bookmarks");
-  }
-  requestUpdate();
+  ReaderBookmarkResources resources;
+  runBookmarkPolicy(XP_UI_READER_BOOKMARK_OPERATION_ADD, &resources);
 }
 
-void EpubReaderActivity::updateBookmarkFlag() {
-  if (!section || !epub || cachedBookmarks.empty()) {
-    currentPageBookmarked = false;
-    return;
-  }
-  const int pageCount = section->estimatedTotalPages();
-  const ProgressRange pageRange = getPageProgressRange(epub, currentSpineIndex, section->currentPage, pageCount);
-  currentPageBookmarked = std::any_of(cachedBookmarks.begin(), cachedBookmarks.end(), [&](const BookmarkEntry& b) {
-    return bookmarkMatchesProgress(b, currentSpineIndex, section->currentPage, pageCount, pageRange);
-  });
+void EpubReaderActivity::updateBookmarkFlag() { runBookmarkPolicy(XP_UI_READER_BOOKMARK_OPERATION_FLAG); }
+
+void EpubReaderActivity::runBookmarkPolicy(uint8_t operation, void* resources) {
+  struct Context {
+    EpubReaderActivity& o;
+    ReaderBookmarkResources* resources;
+    ProgressRange range{};
+    uint32_t read(uint8_t field) {
+      switch (static_cast<XpUiReaderBookmarkField>(field)) {
+        case XP_UI_READER_BOOKMARK_FIELD_HAS_SECTION:
+          return bool(o.section);
+        case XP_UI_READER_BOOKMARK_FIELD_HAS_BOOK:
+          return bool(o.epub);
+        case XP_UI_READER_BOOKMARK_FIELD_SPINE: {
+          ModelLock lock(o);
+          return o.currentSpineIndex;
+        }
+        case XP_UI_READER_BOOKMARK_FIELD_PAGE:
+          return o.section->currentPage;
+        case XP_UI_READER_BOOKMARK_FIELD_SECTION_COUNT:
+          return o.section->pageCount;
+        case XP_UI_READER_BOOKMARK_FIELD_BOOKMARK_COUNT:
+          return o.cachedBookmarks.size();
+        case XP_UI_READER_BOOKMARK_FIELD_HAS_CURRENT_OFFSET: {
+          ModelLock lock(o);
+          return o.currentPageVisibleOffset.has_value();
+        }
+        case XP_UI_READER_BOOKMARK_FIELD_CURRENT_OFFSET: {
+          ModelLock lock(o);
+          return *o.currentPageVisibleOffset;
+        }
+        case XP_UI_READER_BOOKMARK_FIELD_LOADED_OFFSET:
+          return *resources->offset;
+        case XP_UI_READER_BOOKMARK_FIELD_REMOVED: {
+          ModelLock lock(o);
+          return o.bookmarkRemoved;
+        }
+        case XP_UI_READER_BOOKMARK_FIELD_BOOKMARKED: {
+          ModelLock lock(o);
+          return o.currentPageBookmarked;
+        }
+      }
+      return 0;
+    }
+    void write(uint8_t field, uint32_t value) {
+      ModelLock lock(o);
+      switch (static_cast<XpUiReaderBookmarkField>(field)) {
+        case XP_UI_READER_BOOKMARK_FIELD_REMOVED:
+          o.bookmarkRemoved = value != 0;
+          break;
+        case XP_UI_READER_BOOKMARK_FIELD_BOOKMARKED:
+          o.currentPageBookmarked = value != 0;
+          break;
+        default:
+          break;
+      }
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderBookmarkCommand>(command)) {
+        case XP_UI_READER_BOOKMARK_COMMAND_LOCK:
+          resources->lock.emplace();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_UNLOCK:
+          resources->lock.reset();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_LOG_TOGGLE:
+          LOG_DBG("ERS", "Toggle bookmark at spine %d, page %d", o.currentSpineIndex,
+                  o.section ? o.section->currentPage : -1);
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_ESTIMATE:
+          return o.section->estimatedTotalPages();
+        case XP_UI_READER_BOOKMARK_COMMAND_PROGRESS_BEGIN:
+          resources->progress.emplace(ProgressMapper::toSavedProgress(o.epub, o.getCurrentPosition()));
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_PROGRESS_END:
+          resources->progress.reset();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_RANGE:
+          range = getPageProgressRange(o.epub, o.currentSpineIndex, a, b);
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_ERASE_MATCHES: {
+          const size_t before = o.cachedBookmarks.size();
+          o.cachedBookmarks.erase(std::remove_if(o.cachedBookmarks.begin(), o.cachedBookmarks.end(),
+                                                 [&](const BookmarkEntry& entry) {
+                                                   return bookmarkMatchesProgress(entry, o.currentSpineIndex, a, b,
+                                                                                  range);
+                                                 }),
+                                  o.cachedBookmarks.end());
+          return o.cachedBookmarks.size() != before;
+        }
+        case XP_UI_READER_BOOKMARK_COMMAND_ANY_MATCH:
+          return std::any_of(o.cachedBookmarks.begin(), o.cachedBookmarks.end(), [&](const BookmarkEntry& entry) {
+            return bookmarkMatchesProgress(entry, o.currentSpineIndex, a, b, range);
+          });
+        case XP_UI_READER_BOOKMARK_COMMAND_TEXT_BEGIN:
+          resources->text.emplace();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_TEXT_READ:
+          *resources->text = o.section->getTextFromSectionFile();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_TEXT_END:
+          resources->text.reset();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_ENTRY_BEGIN: {
+          auto& entry = resources->entry.emplace();
+          entry.percentage = resources->progress->percentage;
+          entry.xpath = resources->progress->xpath;
+          entry.summary = BookmarkUtil::sanitizeBookmarkSummary(*resources->text);
+          entry.computedSpineIndex = o.currentSpineIndex;
+          entry.computedChapterPageCount = b;
+          entry.computedChapterProgress = a;
+          break;
+        }
+        case XP_UI_READER_BOOKMARK_COMMAND_ENTRY_OFFSET:
+          resources->entry->visibleTextOffset = static_cast<uint32_t>(a);
+          resources->entry->hasVisibleTextOffset = true;
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_ENTRY_INSERT:
+          o.cachedBookmarks.insert(o.cachedBookmarks.begin(), *resources->entry);
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_ENTRY_END:
+          resources->entry.reset();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_OFFSET_READ:
+          resources->offset = o.section->getVisibleTextOffsetForPage(static_cast<uint16_t>(a));
+          return resources->offset.has_value();
+        case XP_UI_READER_BOOKMARK_COMMAND_CLEAR:
+          o.cachedBookmarks.clear();
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_LOAD:
+          BookmarkFile::load(o.epub->getPath(), o.cachedBookmarks);
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_SAVE:
+          return BookmarkFile::save(o.epub->getPath(), o.cachedBookmarks);
+        case XP_UI_READER_BOOKMARK_COMMAND_LOG_SAVE_FAILED:
+          LOG_ERR("ERS", "Failed to save bookmarks");
+          break;
+        case XP_UI_READER_BOOKMARK_COMMAND_UPDATE:
+          o.requestUpdate();
+          break;
+      }
+      return 0;
+    }
+  } context{*this, static_cast<ReaderBookmarkResources*>(resources)};
+  const XpUiReaderBookmarkServices services{
+      &context, [](void* c, uint8_t field) -> uint32_t { return static_cast<Context*>(c)->read(field); },
+      [](void* c, uint8_t field, uint32_t value) { static_cast<Context*>(c)->write(field, value); },
+      [](void* c, uint8_t command, int32_t a, int32_t b) -> uint32_t {
+        return static_cast<Context*>(c)->command(command, a, b);
+      }};
+  xp_ui_reader_bookmark(&services, operation);
 }
 
 ScreenshotInfo EpubReaderActivity::getScreenshotInfo() const {

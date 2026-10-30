@@ -117,6 +117,10 @@ struct Section {
 };
 
 struct EpubReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(const EpubReaderActivity&) {}
+  };
+  void runLinkPersistence(uint8_t load) const;
   enum class Overlay { None, Toolbar };
   std::unique_ptr<Section> section = std::make_unique<Section>();
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();

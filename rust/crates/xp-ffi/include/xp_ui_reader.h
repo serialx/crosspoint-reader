@@ -2010,6 +2010,135 @@ typedef struct {
 } XpUiReaderRecoveryServices;
 uint8_t xp_ui_reader_recovery(const XpUiReaderRecoveryServices* services, uint8_t operation, int32_t a, int32_t b);
 
+/* Bookmark and consumed-link composition, synchronous borrowed context.
+ * Pure helpers preserve original f32 arithmetic (including NaN comparisons):
+ * range returns chapter-fraction bounds; matching uses direct position equality
+ * or clamped percentage within the page range plus/minus 0.0001f.
+ * Native getPageProgressRange retains only the two EPUB calculateProgress calls.
+ * LOAD/ADD/FLAG borrow owner. Only ADD supplies native temporary resources, in
+ * its separate facade stack frame; FLAG/LOAD do not reserve Entry/string storage.
+ * Rust guards balance LOCK, PROGRESS, TEXT and ENTRY scopes on all return paths.
+ * Fields are pure scalar facts; REMOVED/BOOKMARKED writes use short ModelLock.
+ * No resource callback runs inside ModelLock. Signed fields preserve i32 bits.
+ *
+ * LOCK/UNLOCK retain original RenderLock. LOG_TOGGLE preserves diagnostic args.
+ * ESTIMATE reads Section::estimatedTotalPages. PROGRESS_BEGIN/END own the original
+ * SavedProgressPosition; RANGE(a=page,b=count) retains the two converted bounds.
+ * ERASE_MATCHES/ANY_MATCH(a=page,b=count) retain native STL vector mutation/scan
+ * with the Rust matching predicate; they return removed/any-match booleans.
+ * Native STL owns element move/destruction order, not matching decisions.
+ * TEXT_BEGIN/END own original pageText string; TEXT_READ assigns section text.
+ * ENTRY_BEGIN(a=page,b=count) constructs original BookmarkEntry and copies mapped
+ * progress, sanitized text and position. ENTRY_OFFSET(a=u32) sets its offset and
+ * presence flag; ENTRY_INSERT copies entry to vector front; ENTRY_END destroys it.
+ * OFFSET_READ(a=page) retains Section optional offset, returns presence and
+ * exposes value through LOADED_OFFSET. CLEAR/LOAD/SAVE are existing BookmarkFile
+ * operations (SAVE returns bool); LOG_SAVE_FAILED and UPDATE retain their effects.
+ * Other arguments and return values are ignored. No pointer escapes the call.
+ *
+ * Link queries read depth, position spine/page by index 0..2, and spine count.
+ * PATH_BEGIN/END own the original load path; EXISTS/OpenRead/REMOVE use it.
+ * FILE_BEGIN/END own HalFile including its implementation release; OPEN_READ and
+ * OPEN_WRITE return success, latter keeps original temporary path construction.
+ * TRANSFER read=0/write=1 borrows a buffer only for that call and returns byte
+ * count; writes never modify bytes. Rust owns the bounded 13-byte wire buffer and
+ * 3-position codec array. SET_DEPTH(a), SET_SPINE(a=index,b=value), SET_PAGE(a,b)
+ * publish decoded POD values. LOG_WRITE_FAILED/LOG_LOADED(a=depth) are original
+ * diagnostics. load removes the consumed path only after FileEnd, also on failed
+ * open; PathEnd is last. save never creates persistent path storage.
+ * Null/incomplete services and unknown operations have no effects. */
+typedef struct {
+  float start;
+  float end;
+} XpUiReaderProgressRange;
+typedef struct {
+  float percentage;
+  int32_t spine;
+  int32_t page;
+  int32_t count;
+} XpUiReaderBookmarkPosition;
+XpUiReaderProgressRange xp_ui_reader_bookmark_range(int32_t page, int32_t count);
+uint8_t xp_ui_reader_bookmark_matches(XpUiReaderBookmarkPosition bookmark, int32_t spine, int32_t page, int32_t count,
+                                      XpUiReaderProgressRange range);
+typedef enum {
+  XP_UI_READER_BOOKMARK_OPERATION_LOAD = 0,
+  XP_UI_READER_BOOKMARK_OPERATION_ADD = 1,
+  XP_UI_READER_BOOKMARK_OPERATION_FLAG = 2,
+} XpUiReaderBookmarkOperation;
+typedef enum {
+  XP_UI_READER_BOOKMARK_FIELD_HAS_SECTION = 0,
+  XP_UI_READER_BOOKMARK_FIELD_HAS_BOOK = 1,
+  XP_UI_READER_BOOKMARK_FIELD_SPINE = 2,
+  XP_UI_READER_BOOKMARK_FIELD_PAGE = 3,
+  XP_UI_READER_BOOKMARK_FIELD_SECTION_COUNT = 4,
+  XP_UI_READER_BOOKMARK_FIELD_BOOKMARK_COUNT = 5,
+  XP_UI_READER_BOOKMARK_FIELD_HAS_CURRENT_OFFSET = 6,
+  XP_UI_READER_BOOKMARK_FIELD_CURRENT_OFFSET = 7,
+  XP_UI_READER_BOOKMARK_FIELD_LOADED_OFFSET = 8,
+  XP_UI_READER_BOOKMARK_FIELD_REMOVED = 9,
+  XP_UI_READER_BOOKMARK_FIELD_BOOKMARKED = 10,
+} XpUiReaderBookmarkField;
+typedef enum {
+  XP_UI_READER_BOOKMARK_COMMAND_LOCK = 0,
+  XP_UI_READER_BOOKMARK_COMMAND_UNLOCK = 1,
+  XP_UI_READER_BOOKMARK_COMMAND_LOG_TOGGLE = 2,
+  XP_UI_READER_BOOKMARK_COMMAND_ESTIMATE = 3,
+  XP_UI_READER_BOOKMARK_COMMAND_PROGRESS_BEGIN = 4,
+  XP_UI_READER_BOOKMARK_COMMAND_PROGRESS_END = 5,
+  XP_UI_READER_BOOKMARK_COMMAND_RANGE = 6,
+  XP_UI_READER_BOOKMARK_COMMAND_ERASE_MATCHES = 7,
+  XP_UI_READER_BOOKMARK_COMMAND_ANY_MATCH = 8,
+  XP_UI_READER_BOOKMARK_COMMAND_TEXT_BEGIN = 9,
+  XP_UI_READER_BOOKMARK_COMMAND_TEXT_READ = 10,
+  XP_UI_READER_BOOKMARK_COMMAND_TEXT_END = 11,
+  XP_UI_READER_BOOKMARK_COMMAND_ENTRY_BEGIN = 12,
+  XP_UI_READER_BOOKMARK_COMMAND_ENTRY_OFFSET = 13,
+  XP_UI_READER_BOOKMARK_COMMAND_ENTRY_INSERT = 14,
+  XP_UI_READER_BOOKMARK_COMMAND_ENTRY_END = 15,
+  XP_UI_READER_BOOKMARK_COMMAND_OFFSET_READ = 16,
+  XP_UI_READER_BOOKMARK_COMMAND_CLEAR = 17,
+  XP_UI_READER_BOOKMARK_COMMAND_LOAD = 18,
+  XP_UI_READER_BOOKMARK_COMMAND_SAVE = 19,
+  XP_UI_READER_BOOKMARK_COMMAND_LOG_SAVE_FAILED = 20,
+  XP_UI_READER_BOOKMARK_COMMAND_UPDATE = 21,
+} XpUiReaderBookmarkCommand;
+typedef enum {
+  XP_UI_READER_BOOKMARK_LINK_QUERY_DEPTH = 0,
+  XP_UI_READER_BOOKMARK_LINK_QUERY_SPINE = 1,
+  XP_UI_READER_BOOKMARK_LINK_QUERY_PAGE = 2,
+  XP_UI_READER_BOOKMARK_LINK_QUERY_SPINE_COUNT = 3,
+} XpUiReaderBookmarkLinkQuery;
+typedef enum {
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_PATH_BEGIN = 0,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_PATH_END = 1,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_EXISTS = 2,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_FILE_BEGIN = 3,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_FILE_END = 4,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_OPEN_READ = 5,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_OPEN_WRITE = 6,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_REMOVE = 7,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_LOG_WRITE_FAILED = 8,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_LOG_LOADED = 9,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_DEPTH = 10,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_SPINE = 11,
+  XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_PAGE = 12,
+} XpUiReaderBookmarkLinkCommand;
+typedef struct {
+  void* context;
+  uint32_t (*read)(void* context, uint8_t field);
+  void (*write)(void* context, uint8_t field, uint32_t value);
+  uint32_t (*command)(void* context, uint8_t command, int32_t a, int32_t b);
+} XpUiReaderBookmarkServices;
+void xp_ui_reader_bookmark(const XpUiReaderBookmarkServices* services, uint8_t operation);
+typedef struct {
+  void* context;
+  uint32_t (*query)(void* context, uint8_t query, uint32_t index);
+  uint32_t (*command)(void* context, uint8_t command, int32_t a, int32_t b);
+  int32_t (*transfer)(void* context, uint8_t write, uint8_t* bytes, uint32_t size);
+} XpUiReaderLinkServices;
+/* load=0 saves; load=1 loads; other values have no effects. */
+void xp_ui_reader_link_persistence(const XpUiReaderLinkServices* services, uint8_t load);
+
 #ifdef __cplusplus
 }
 #endif
@@ -3214,3 +3343,81 @@ XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_CLEAR == 14);
 XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_PAINT_FAILURE == 15);
 XP_UI_READER_RECOVERY_ASSERT(XP_UI_READER_RECOVERY_COMMAND_BASE_RENDER == 16);
 #undef XP_UI_READER_RECOVERY_ASSERT
+
+#if defined(__cplusplus)
+#define XP_UI_READER_BOOKMARK_ASSERT(x) static_assert(x, #x)
+#else
+#define XP_UI_READER_BOOKMARK_ASSERT(x) _Static_assert(x, #x)
+#endif
+XP_UI_READER_BOOKMARK_ASSERT(sizeof(XpUiReaderProgressRange) == 8);
+XP_UI_READER_BOOKMARK_ASSERT(sizeof(XpUiReaderBookmarkPosition) == 16);
+XP_UI_READER_BOOKMARK_ASSERT(sizeof(XpUiReaderBookmarkServices) == 4 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkServices, context) == 0 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkServices, read) == 1 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkServices, write) == 2 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkServices, command) == 3 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(sizeof(XpUiReaderLinkServices) == 4 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderLinkServices, context) == 0 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderLinkServices, query) == 1 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderLinkServices, command) == 2 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderLinkServices, transfer) == 3 * sizeof(void*));
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderProgressRange, start) == 0);
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderProgressRange, end) == 4);
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkPosition, percentage) == 0);
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkPosition, spine) == 4);
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkPosition, page) == 8);
+XP_UI_READER_BOOKMARK_ASSERT(offsetof(XpUiReaderBookmarkPosition, count) == 12);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_OPERATION_LOAD == 0);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_OPERATION_ADD == 1);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_OPERATION_FLAG == 2);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_HAS_SECTION == 0);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_HAS_BOOK == 1);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_SPINE == 2);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_PAGE == 3);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_SECTION_COUNT == 4);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_BOOKMARK_COUNT == 5);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_HAS_CURRENT_OFFSET == 6);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_CURRENT_OFFSET == 7);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_LOADED_OFFSET == 8);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_REMOVED == 9);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_FIELD_BOOKMARKED == 10);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_LOCK == 0);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_UNLOCK == 1);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_LOG_TOGGLE == 2);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_ESTIMATE == 3);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_PROGRESS_BEGIN == 4);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_PROGRESS_END == 5);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_RANGE == 6);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_ERASE_MATCHES == 7);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_ANY_MATCH == 8);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_TEXT_BEGIN == 9);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_TEXT_READ == 10);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_TEXT_END == 11);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_ENTRY_BEGIN == 12);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_ENTRY_OFFSET == 13);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_ENTRY_INSERT == 14);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_ENTRY_END == 15);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_OFFSET_READ == 16);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_CLEAR == 17);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_LOAD == 18);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_SAVE == 19);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_LOG_SAVE_FAILED == 20);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_COMMAND_UPDATE == 21);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_QUERY_DEPTH == 0);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_QUERY_SPINE == 1);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_QUERY_PAGE == 2);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_QUERY_SPINE_COUNT == 3);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_PATH_BEGIN == 0);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_PATH_END == 1);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_EXISTS == 2);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_FILE_BEGIN == 3);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_FILE_END == 4);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_OPEN_READ == 5);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_OPEN_WRITE == 6);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_REMOVE == 7);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_LOG_WRITE_FAILED == 8);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_LOG_LOADED == 9);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_DEPTH == 10);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_SPINE == 11);
+XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_PAGE == 12);
+#undef XP_UI_READER_BOOKMARK_ASSERT

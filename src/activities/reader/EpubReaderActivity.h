@@ -220,6 +220,8 @@ class EpubReaderActivity final : public ReaderActivity {
   bool launchKOReaderSync();
   unsigned long confirmLongPressThreshold() const;
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
+  void runBookmarkPolicy(uint8_t operation, void* resources = nullptr);
+  void runLinkPersistence(uint8_t load) const;
   void loadCachedBookmarks();
   void addBookmark();
   void updateBookmarkFlag();

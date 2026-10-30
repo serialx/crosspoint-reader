@@ -22,6 +22,7 @@
 #include "components/UIScale.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
+#include "components/UiHeader.h"
 #include "components/icons/headerIcons.h"
 #include "components/icons/listIcons.h"
 #include "components/icons/search32.h"
@@ -943,7 +944,7 @@ void LibraryListActivity::paintHeader(const XpUiCommand& command) {
   const fui::InputSnapshot input{};
   fui::InteractionBuffer<24> controls;
   fui::Frame<24> surface(textTarget, device, input, controls);
-  fui::header(surface, band, header);
+  paintUiHeader(surface, band, header);
   frame.headerCount = std::min<size_t>(controls.count(), 3);
   for (uint8_t i = 0; i < frame.headerCount; ++i) {
     const auto& c = controls.data()[i];

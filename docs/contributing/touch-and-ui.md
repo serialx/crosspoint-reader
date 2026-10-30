@@ -73,11 +73,10 @@ class MyListActivity final : public UiListActivity {
 };
 ```
 
-For small bounded lists, [`LanguageSelectActivity`](../../src/activities/settings/LanguageSelectActivity.cpp)
-builds a fixed row array in `onEnter()` and reuses it in `buildScreen()`. For
-large lists, follow [`FileBrowserActivity::provideRow()`](../../src/activities/home/FileBrowserActivity.cpp)
-and `fui::ListProps::rowProvider`: format rows on demand into reusable scratch
-storage instead of materializing the whole row list. Optional overrides include
+For small bounded lists, build a fixed row array in `onEnter()` and reuse it in
+`buildScreen()`. For large lists, use `fui::ListProps::rowProvider`: format rows
+on demand into reusable scratch storage instead of materializing the whole row
+list. Optional overrides include
 `onRowLongPress(index)`, `drawFooter()`, and `handleButtons()` for extra physical
 input. Use `ACTION_USER`-and-up action ids for non-row elements and register
 handlers in `onEnter()` after the base's.

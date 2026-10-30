@@ -99,6 +99,9 @@ struct ReaderActivity {
   void render(RenderLock&&) { event("base-render", locks); }
 };
 struct EpubReaderActivity : ReaderActivity {
+  struct ModelLock {
+    explicit ModelLock(EpubReaderActivity&) {}
+  };
   enum class Overlay { None };
   Overlay overlay = Overlay::None;
   void publishRustScene(const XpUiScene&) {}

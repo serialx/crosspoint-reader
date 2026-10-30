@@ -83,6 +83,7 @@ with tempfile.TemporaryDirectory(prefix='reader-failed-scene-') as directory:
   void drawUiText(const XpUiCommand&,XpUiRect,const char*) {}
   bool paintOk = true;''')
     stub = '#include <array>\n#include <cassert>\n' + stub
+    stub = stub.replace('using portMUX_TYPE = std::mutex;', 'using portMUX_TYPE = std::recursive_mutex;')
     stub = stub.replace('#define taskENTER_CRITICAL(m) (m)->lock()',
                         'inline thread_local unsigned criticalDepth=0;\n#define taskENTER_CRITICAL(m) ((m)->lock(), ++criticalDepth)')
     stub = stub.replace('#define taskEXIT_CRITICAL(m) (m)->unlock()',

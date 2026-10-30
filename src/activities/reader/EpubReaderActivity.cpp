@@ -1268,6 +1268,8 @@ void EpubReaderActivity::beginLoanTimeSync() { runRecoveryPolicy(XP_UI_READER_RE
 
 void EpubReaderActivity::render(RenderLock&& lock) {
   if (!runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_RENDER)) ReaderActivity::render(std::move(lock));
+  // Keep the overlay decision and publication in the same model transition.
+  ModelLock modelLock(*this);
   if (overlay == Overlay::None) publishRustScene({});
 }
 

@@ -236,6 +236,8 @@ static void overlayPointers() {
                                              ++*static_cast<uint32_t*>(p);
                                              return 0;
                                            }};
+  static_assert(XP_UI_READER_OVERLAY_OPERATION_CANCEL == 9);
+  xp_ui_reader_overlay_run(nullptr, XP_UI_READER_OVERLAY_OPERATION_CANCEL);
   xp_ui_reader_overlay_run(nullptr, 0);
   xp_ui_reader_overlay_run(&complete, 255);
   for (int missing = 0; missing < 4; ++missing) {
@@ -244,7 +246,7 @@ static void overlayPointers() {
     if (missing == 1) services.write = nullptr;
     if (missing == 2) services.query = nullptr;
     if (missing == 3) services.command = nullptr;
-    for (uint8_t operation = 0; operation <= XP_UI_READER_OVERLAY_OPERATION_PICKER_RESULT; ++operation)
+    for (uint8_t operation = 0; operation <= XP_UI_READER_OVERLAY_OPERATION_CANCEL; ++operation)
       xp_ui_reader_overlay_run(&services, operation);
   }
   assert(calls == 0);

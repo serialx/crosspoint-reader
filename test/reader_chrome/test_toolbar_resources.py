@@ -1,6 +1,7 @@
 """Count allocations/callbacks in the actual toolbar resource window vs C++."""
 from pathlib import Path
 import subprocess
+import re
 import sys
 import tempfile
 
@@ -12,7 +13,7 @@ from rust_host import rust_link_flags
 frozen = (HERE / 'toolbar.cpp').read_text()
 frozen = frozen[:frozen.index('int main() {')]
 source = (ROOT / 'src/activities/reader/ReaderToolbarUi.cpp').read_text()
-methods = source[source.index('const char* ReaderToolbarUi::text('):source.index('void ReaderToolbarUi::render()')]
+methods = source[source.index('const char* ReaderToolbarUi::text('):re.search(r'(?:void|bool) ReaderToolbarUi::render\(\)', source).start()]
 fixture = (HERE / 'toolbar_resources.cpp').read_text().replace('// RESOURCE_METHODS', methods)
 with tempfile.TemporaryDirectory() as directory:
     p = Path(directory)

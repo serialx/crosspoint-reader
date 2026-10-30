@@ -813,6 +813,7 @@ bool EpubReaderActivity::tryIdleLoop() {
 
 void EpubReaderActivity::loop() {
   if (tryIdleLoop()) return;
+  if (consumeRejectedInput()) return;
   static_assert(static_cast<uint32_t>(Overlay::None) == XP_UI_READER_VALUE_OVERLAY_NONE);
   static_assert(static_cast<uint32_t>(Overlay::Toolbar) == XP_UI_READER_VALUE_OVERLAY_TOOLBAR);
   using Cache = std::remove_pointer_t<decltype(renderer.getFontCacheManager())>;
@@ -1117,7 +1118,7 @@ void EpubReaderActivity::loop() {
           RECENT_BOOKS.addBook(o.epub->getPath(), o.epub->getTitle(), o.epub->getAuthor(), o.epub->getThumbBmpPath());
           break;
         case XP_UI_READER_LOOP_COMMAND_OVERLAY_INPUT:
-          o.handleOverlayInput();
+          if (!o.consumeRejectedInput()) o.handleOverlayInput();
           break;
         case XP_UI_READER_LOOP_COMMAND_DISCARD_OVERLAY:
           o.discardOverlayPage();
@@ -1267,6 +1268,9 @@ void EpubReaderActivity::beginLoanTimeSync() { runRecoveryPolicy(XP_UI_READER_RE
 
 void EpubReaderActivity::render(RenderLock&& lock) {
   if (!runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_RENDER)) ReaderActivity::render(std::move(lock));
+  // Keep the overlay decision and publication in the same model transition.
+  ModelLock modelLock(*this);
+  if (overlay == Overlay::None) publishRustScene({});
 }
 
 bool EpubReaderActivity::runRecoveryPolicy(uint8_t operation, int32_t a, int32_t b, const ActivityResult* result) {
@@ -2801,9 +2805,18 @@ void EpubReaderActivity::renderOverlay() {
             break;
         }
         o.toolbarUi->setModel(model);
-        o.toolbarUi->render();
+        if (o.toolbarUi->render()) {
+          o.publishRustScene({});
+        } else {
+          o.rejectRustScene();
+          LOG_ERR("RUI", "Cannot build reader toolbar");
+        }
       }};
   xp_ui_reader_overlay_view(&services);
+}
+
+void EpubReaderActivity::cancelRejectedInput(const XpUiInput& input) {
+  if (input.released & XP_UI_BACK) runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_CANCEL);
 }
 
 void EpubReaderActivity::handleOverlayInput() { runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_INPUT); }

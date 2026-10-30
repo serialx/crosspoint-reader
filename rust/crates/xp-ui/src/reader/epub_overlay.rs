@@ -123,6 +123,7 @@ pub enum Operation {
     OpenText = 6,
     OpenMore = 7,
     Close = 8,
+    Cancel = 9,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -387,6 +388,19 @@ impl Engine {
             self.redraw();
         }
     }
+    fn cancel(&self) {
+        if self.f(Field::Overlay) == NONE || self.q(Query::HasToolbar) == 0 {
+            return;
+        }
+        if self.q(Query::PopupActive) != 0 {
+            self.op(Command::DismissPopup);
+            self.popup_changed();
+        } else if self.f(Field::Overlay) == TOOLBAR {
+            self.op(Command::Close);
+        } else {
+            self.dismiss();
+        }
+    }
     fn input(&self) {
         use Command as C;
         use Field as F;
@@ -557,6 +571,7 @@ pub unsafe fn run(s: *const Services, operation: u8) {
                     e.open(u32::from(x - Operation::OpenNone as u8))
                 }
                 x if x == Operation::Close as u8 => e.close(),
+                x if x == Operation::Cancel as u8 => e.cancel(),
                 _ => {}
             }
         }
@@ -627,6 +642,7 @@ const _: () = {
     assert!(Command::TakeSwipe as u8 == 28);
     assert!(Command::SampleButtons as u8 == 29);
     assert!(Command::TakeHeldMs as u8 == 30);
+    assert!(Operation::Cancel as u8 == 9);
     assert!(Operation::Input as u8 == 0);
     assert!(Operation::PopupChanged as u8 == 1);
     assert!(Operation::PickerResult as u8 == 2);
@@ -683,6 +699,7 @@ mod tests {
         toc: i32,
         invalid: bool,
         calls: usize,
+        commands: u64,
     }
     impl Fake {
         fn new(mode: u32, event: u32, flags: u32) -> Self {
@@ -713,6 +730,7 @@ mod tests {
                 toc: 0,
                 invalid: false,
                 calls: 0,
+                commands: 0,
             }
         }
         fn services(&mut self) -> Services {
@@ -742,6 +760,7 @@ mod tests {
     unsafe extern "C" fn command(p: *mut c_void, command: u8, a: i32, b: i32) -> u32 {
         let f = &mut *(p as *mut Fake);
         f.calls += 1;
+        f.commands |= 1 << command;
         match command {
             x if x == Command::Lock as u8 => {
                 f.invalid |= f.locks != 0;
@@ -763,6 +782,7 @@ mod tests {
             x if x == Command::TocAnchor as u8 => {
                 f.invalid |= f.toc != 1 || f.locks != 1;
             }
+            x if x == Command::DismissPopup as u8 => f.queries[Query::PopupActive as usize] = 0,
             x if x == Command::Route as u8 => return f.event,
             x if x == Command::Store as u8 => return f.buttons & 1,
             x if x == Command::TakeSwipe as u8 => return f.buttons % 5,
@@ -786,10 +806,41 @@ mod tests {
                             run(&fake.services(), operation);
                         }
                         fake.balanced();
-                        if operation > 8 {
+                        if operation > Operation::Cancel as u8 {
                             assert_eq!(fake.calls, 0);
                         }
                     }
+                }
+            }
+        }
+    }
+    #[test]
+    fn cancel_never_samples_input() {
+        for mode in 0..=MORE {
+            for flags in [0, 1, 64, 65, 128] {
+                let mut fake = Fake::new(mode, Event::Tool as u32, flags);
+                unsafe { run(&fake.services(), Operation::Cancel as u8) };
+                fake.balanced();
+                for command in [
+                    Command::Route,
+                    Command::PopupInput,
+                    Command::SampleButtons,
+                    Command::TakeSwipe,
+                    Command::TakeHeldMs,
+                    Command::Open,
+                ] {
+                    assert_eq!(fake.commands & (1 << command as u8), 0);
+                }
+                if mode == NONE || flags == 128 {
+                    assert_eq!(fake.calls, 0);
+                } else if flags & 64 != 0 {
+                    assert_eq!(fake.fields[Field::Overlay as usize], mode);
+                    assert_eq!(fake.queries[Query::PopupActive as usize], 0);
+                    assert_ne!(fake.commands & (1 << Command::DismissPopup as u8), 0);
+                } else if mode == TOOLBAR {
+                    assert_eq!(fake.commands, 1 << Command::Close as u8);
+                } else {
+                    assert_eq!(fake.fields[Field::Overlay as usize], TOOLBAR);
                 }
             }
         }

@@ -148,8 +148,7 @@ XpUiReaderRows ReaderToolbarUi::resources() {
       1};
 }
 
-void ReaderToolbarUi::render() {
-  if (model_.itemCount > UINT16_MAX) return;
+bool ReaderToolbarUi::render() {
   taskENTER_CRITICAL(&mutex);
   XpUiListState state = nav_;
   taskEXIT_CRITICAL(&mutex);
@@ -173,7 +172,7 @@ void ReaderToolbarUi::render() {
   XpUiReaderHitLayout nextHits{};
   XpUiScene scene{};
   bool built = false;
-  if (commands.reserve(24)) {
+  if (model_.itemCount <= UINT16_MAX && commands.reserve(24)) {
     for (;;) {
       const auto buffer = commands.buffer();
       const auto status = xp_ui_reader_toolbar_view(&state, &model, &theme, &rows, &buffer, &next, &scene, &nextHits);
@@ -187,8 +186,9 @@ void ReaderToolbarUi::render() {
   if (!built) {
     taskENTER_CRITICAL(&mutex);
     ready = false;
+    contact = {-1, -1, 0, {0, 0, 0}};
     taskEXIT_CRITICAL(&mutex);
-    return;
+    return false;
   }
   const int pageRows = std::max<int32_t>(1, next.drawn > 0 ? next.drawn : next.visible);
   snprintf(pageIndicator, sizeof(pageIndicator), "%d/%d", static_cast<int>(next.top / pageRows + 1),
@@ -232,9 +232,11 @@ void ReaderToolbarUi::render() {
   const bool valid = renderer.drawUiScene(scene, &paint);
   taskENTER_CRITICAL(&mutex);
   ready = valid;
+  if (!valid) contact = {-1, -1, 0, {0, 0, 0}};
   if (valid) {
     published = nextHits;
     xp_ui_reader_toolbar_nav_publish(&nav_, &next);
   }
   taskEXIT_CRITICAL(&mutex);
+  return valid;
 }

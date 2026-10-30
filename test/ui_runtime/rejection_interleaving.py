@@ -251,6 +251,14 @@ int main(int argc,char** argv){
    if(contact){input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();assert(!a.selections);}
    // No idle frame is allowed between recovery/old release and the fresh press.
    input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
+   if(!contact){
+    // Recovery preceded the first rejection observation: consume this one
+    // fresh gesture conservatively, then admit the next complete gesture.
+    assert(a.state.range_start==-1 && !a.selections);
+    input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();
+    assert(!a.selections && !a.activations && !a.cancellations);
+    input.touchFlags=XP_UI_TOUCH_PRESSED|XP_UI_TOUCH_HELD;a.loop();
+   }
    assert(a.state.range_start==0 && a.selections==1);
    input.touchFlags=XP_UI_TOUCH_RELEASED;a.loop();
    assert(a.selections==1 && !a.cancellations && !a.activations && !a.state.dragging);
@@ -295,6 +303,11 @@ int main(int argc,char** argv){
    rejectWhileWaiting(a,r,buildFailure);
    assert(a.jumps==0 && a.finished==0);
    input={};a.buildOk=r.paintOk=true;paint(a);
+   input.released=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();
+   // No loop observed the rejection before recovery; this first release is
+   // consumed even if it belongs to a fresh gesture.
+   assert(a.jumps==0 && a.finished==0);
+   input={};a.loop();
    input.released=1u<<unsigned(MappedInputManager::Button::Confirm);a.loop();
    assert(a.jumps==1 && a.finished==1);
    input={};a.buildOk=false;paint(a);

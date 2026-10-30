@@ -61,8 +61,8 @@ class ReaderToolbarUi {
   // What the next render() draws. The strings must stay alive until render()
   // returns; the row callbacks are invoked during render() for the visible rows.
   void setModel(const Model& model) { model_ = model; }
-  // Paint into the framebuffer (no refresh, no clear). Run from the render task.
-  void render();
+  // Paint on the render task (no refresh, no clear). The parent publishes or rejects the result.
+  bool render();
   // Route one loop-task input frame; returns the action it mapped to, if any.
   Routed route(const MappedInputManager& input);
 

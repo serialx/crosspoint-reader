@@ -183,6 +183,8 @@ class EpubReaderActivity final : public ReaderActivity {
   void closeOverlayToPage();
   void discardOverlayPage();
   void handleOverlayInput();
+  void cancelRejectedInput(const XpUiInput& input) override;
+  void rustSceneFailed() override { panelHoldJumped = false; }
   void runOverlayPolicy(uint8_t operation);
   void renderOverlay();
   std::string currentChapterTitle() const;

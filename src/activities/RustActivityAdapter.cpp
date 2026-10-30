@@ -157,8 +157,10 @@ void RustActivityAdapter::publishRustScene(const XpUiScene& scene) {
 void RustActivityAdapter::rejectRustScene() {
   ModelLock lock(*this);
   sceneFailed = true;
-  suppressButtons |= lastHeld;
-  suppressContact |= lastContact;
+  // Recovery can publish before the loop observes rejection. This may consume
+  // one fresh gesture; then retain only held gestures through their release.
+  suppressButtons = UINT16_MAX;
+  suppressContact = true;
   if (auto* publication = rustPublication()) publication->ready = false;
   rustSceneFailed();
 }
@@ -169,6 +171,10 @@ bool RustActivityAdapter::rustSceneRejected() const {
 }
 
 bool RustActivityAdapter::consumeRejectedInput() {
+  {
+    ModelLock lock(*this);
+    if (!sceneFailed && !suppressButtons && !suppressContact) return false;
+  }
   const auto input = sampleRustInput();
   bool failed, consume;
   {
@@ -182,8 +188,6 @@ bool RustActivityAdapter::consumeRejectedInput() {
     }
     suppressButtons &= input.held;
     if (!(input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD))) suppressContact = false;
-    lastHeld = input.held;
-    lastContact = (input.touch_flags & (XP_UI_TOUCH_PRESSED | XP_UI_TOUCH_HELD)) != 0;
   }
   if (failed) {
     requestUpdate();

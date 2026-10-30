@@ -617,3 +617,11 @@ pub unsafe extern "C" fn xp_ui_reader_bookmark(services: *const reader::bookmark
 pub unsafe extern "C" fn xp_ui_reader_link_persistence(services: *const reader::bookmark::LinkServices, load: u8) {
     reader::bookmark::link_run(services, load);
 }
+
+/// # Safety
+/// Services/input obey the synchronous borrowed clipping-view contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_clipping(services: *const reader::clipping::Services, operation: u8, input: *const reader::clipping::Input) -> i32 {
+    reader::clipping::run(services, operation, input)
+}

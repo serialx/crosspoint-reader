@@ -99,26 +99,6 @@ int clippingWordFont(const GfxRenderer& renderer, const int fontId, const TextBl
   return TextBlock::renderFontId(renderer, block.wordFontId(i, fontId), fontId);
 }
 
-Rect clippingWordRect(const GfxRenderer& renderer, const int fontId, const PageElementView& line,
-                      const TextBlock& textBlock, const uint16_t i, const int top, const int left,
-                      const int wordWidth) {
-  const auto* block = &textBlock;
-  const int wordFont = clippingWordFont(renderer, fontId, *block, i);
-  const char* text = block->wordText(i);
-  const auto style = static_cast<EpdFontFamily::Style>(block->wordStyle(i) & ~EpdFontFamily::UNDERLINE);
-  const int skipX =
-      clippingText::hasEmSpacePrefix(text) ? renderer.getTextAdvanceX(wordFont, "\xe2\x80\x83", style) : 0;
-  int width = wordWidth - skipX;
-  if (i + 1 < block->wordCount() && block->wordXpos(i + 1) > block->wordXpos(i)) {
-    width = std::min(width, static_cast<int>(block->wordXpos(i + 1) - block->wordXpos(i) - skipX));
-  }
-  const int lineFont = TextBlock::renderFontId(renderer, block->blockFontId(fontId), fontId);
-  return Rect{left + line.xPos + block->wordXpos(i) + skipX,
-              top + line.yPos + block->getRubyShift(renderer.getFontAscenderSize(lineFont)) +
-                  block->wordYOffset(renderer, fontId, i),
-              width, renderer.getLineHeight(wordFont)};
-}
-
 int clampPercent(int percent) {
   if (percent < 0) {
     return 0;
@@ -2309,127 +2289,143 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
 }
 
 int EpubReaderActivity::clippingAtPoint(const Page& page, const int x, const int y) const {
-  int top, right, bottom, left;
-  renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
-  const int fontId = SETTINGS.getReaderFontId();
-  const uint32_t signature =
-      readerRenderSpecSignature(SETTINGS.readerRenderSpec(buildViewportWidth, buildViewportHeight));
-  uint16_t wordIndex = 0;
-  for (uint16_t elementIndex = 0; elementIndex < page.elementCount(); ++elementIndex) {
-    const auto line = page.element(elementIndex);
-    if (line.getTag() != TAG_PageLine) continue;
-    const auto& textBlock = line.textBlock();
-    const auto* block = &textBlock;
-    if (!block || !block->valid()) continue;
-    for (uint16_t i = 0; i < block->wordCount(); ++i) {
-      const char* text = block->wordText(i);
-      if (!clippingText::hasVisibleText(text)) continue;
-      const auto style = static_cast<EpdFontFamily::Style>(block->wordStyle(i) & ~EpdFontFamily::UNDERLINE);
-      const int width = renderer.getTextAdvanceX(clippingWordFont(renderer, fontId, *block, i), text, style,
-                                                 block->getBlockStyle().characterSpacing);
-      if (width <= 0) continue;
-      const uint16_t index = wordIndex++;
-      const Rect rect = clippingWordRect(renderer, fontId, line, *block, i, top + SETTINGS.screenMargin,
-                                         left + SETTINGS.screenMargin, width);
-      if (x < rect.x || x >= rect.x + rect.width || y < rect.y || y >= rect.y + rect.height) continue;
-      const auto range = block->wordSourceRange(i);
-      for (size_t j = 0; j < CLIPPINGS.clippingCount(); ++j) {
-        if (clippingContainsWord(*CLIPPINGS.clippingAt(j), currentSpineIndex, section->currentPage, section->pageCount,
-                                 signature, index, range.start, range.end))
-          return static_cast<int>(j);
-      }
-    }
-  }
-  return -1;
+  return runClippingPolicy(XP_UI_READER_CLIP_OPERATION_HIT, page, {x, y, 0, 0, 0});
 }
 
 void EpubReaderActivity::drawClippingHighlights(const Page& page, const int fontId, const int orientedMarginTop,
                                                 const int orientedMarginLeft) const {
-  if (!section || !CLIPPINGS.hasClippings() || section->currentPage < 0 || section->currentPage >= section->pageCount) {
-    return;
-  }
+  runClippingPolicy(XP_UI_READER_CLIP_OPERATION_DRAW, page, {0, 0, fontId, orientedMarginTop, orientedMarginLeft});
+}
 
-  size_t chapterClippings = 0;
-  for (size_t i = 0; i < CLIPPINGS.clippingCount(); ++i) {
-    if (CLIPPINGS.clippingAt(i)->spineIndex == currentSpineIndex) ++chapterClippings;
-  }
-  if (!chapterClippings) return;
-
-  const auto started = millis();
-  size_t highlightedWords = 0;
-  const uint16_t currentPage = static_cast<uint16_t>(section->currentPage);
-  const uint32_t layoutSignature =
-      readerRenderSpecSignature(SETTINGS.readerRenderSpec(buildViewportWidth, buildViewportHeight));
-  const auto isHighlighted = [&](const uint16_t wordIndex, const TextBlock::SourceRange range) {
-    // ponytail: scan at most 256 C3 / 1024 S3 clippings per word; index by chapter if this becomes slow.
-    for (size_t index = 0; index < CLIPPINGS.clippingCount(); ++index) {
-      const Clipping& clipping = *CLIPPINGS.clippingAt(index);
-      if (clippingContainsWord(clipping, static_cast<uint16_t>(currentSpineIndex), currentPage, section->pageCount,
-                               layoutSignature, wordIndex, range.start, range.end))
-        return true;
-    }
-    return false;
+int EpubReaderActivity::runClippingPolicy(uint8_t operation, const Page& page, const XpUiReaderClipInput& input) const {
+  struct BlockView {
+    TextBlock value;
+    explicit BlockView(const PageElementView& line) : value(line.textBlock()) {}
   };
-
-  const auto fillHighlight = [&](const int x, const int y, const int width, const int height) {
-    if (BoardConfig::isEegoA4() && renderer.getRenderMode() != GfxRenderer::BW) {
-      // Gray planes start at zero and use set bits for ink, opposite to B/W.
-      for (int py = y + (y & 1); py < y + height; py += 2) {
-        for (int px = x + (x & 1); px < x + width; px += 2) renderer.drawPixel(px, py, false);
-      }
-    } else {
-      renderer.fillRectDither(x, y, width, height, Color::LightGray);
-    }
-  };
-
-  uint16_t pageWordIndex = 0;
-  for (uint16_t elementIndex = 0; elementIndex < page.elementCount(); ++elementIndex) {
-    const auto line = page.element(elementIndex);
-    if (line.getTag() != TAG_PageLine) continue;
-    const auto& textBlock = line.textBlock();
-    const auto* block = &textBlock;
-    if (!block || !block->valid()) continue;
-    bool hasPreviousHighlight = false;
-    int previousHighlightX = 0;
-    int previousHighlightWidth = 0;
-    for (uint16_t i = 0; i < block->wordCount(); ++i) {
-      const char* text = block->wordText(i);
-      if (!clippingText::hasVisibleText(text)) continue;
-      const auto style = static_cast<EpdFontFamily::Style>(block->wordStyle(i) & ~EpdFontFamily::UNDERLINE);
-      int width = renderer.getTextAdvanceX(clippingWordFont(renderer, fontId, *block, i), text, style,
-                                           block->getBlockStyle().characterSpacing);
-      if (width <= 0) continue;
-      const uint16_t wordIndex = pageWordIndex++;
-      if (!isHighlighted(wordIndex, block->wordSourceRange(i))) {
-        hasPreviousHighlight = false;
-        continue;
-      }
-
-      const Rect rect =
-          clippingWordRect(renderer, fontId, line, *block, i, orientedMarginTop, orientedMarginLeft, width);
-      const int x = rect.x;
-      const int y = rect.y;
-      width = rect.width;
-      if (width > 0) {
-        const int highlightRight = x + width;
-        const int previousHighlightRight = previousHighlightX + previousHighlightWidth;
-        if (hasPreviousHighlight && previousHighlightRight < x) {
-          fillHighlight(previousHighlightRight, y, x - previousHighlightRight, renderer.getLineHeight(fontId));
-        } else if (hasPreviousHighlight && highlightRight < previousHighlightX) {
-          fillHighlight(highlightRight, y, previousHighlightX - highlightRight, renderer.getLineHeight(fontId));
+  struct Context {
+    EpubReaderActivity& o;
+    const Page& page;
+    std::optional<PageElementView> line;
+    std::optional<BlockView> block;
+    int margins[4]{};
+    unsigned long started = 0;
+    uint32_t query(uint8_t query, uint32_t index) {
+      switch (static_cast<XpUiReaderClipQuery>(query)) {
+        case XP_UI_READER_CLIP_QUERY_HAS_SECTION:
+          return bool(o.section);
+        case XP_UI_READER_CLIP_QUERY_HAS_CLIPPINGS:
+          return CLIPPINGS.hasClippings();
+        case XP_UI_READER_CLIP_QUERY_PAGE:
+          return o.section->currentPage;
+        case XP_UI_READER_CLIP_QUERY_PAGE_COUNT:
+          return o.section->pageCount;
+        case XP_UI_READER_CLIP_QUERY_SPINE: {
+          ModelLock lock(o);
+          return o.currentSpineIndex;
         }
-        fillHighlight(x, y, width, renderer.getLineHeight(fontId));
-        previousHighlightX = x;
-        previousHighlightWidth = width;
-        hasPreviousHighlight = true;
-        ++highlightedWords;
-      } else {
-        hasPreviousHighlight = false;
+        case XP_UI_READER_CLIP_QUERY_ELEMENT_COUNT:
+          return page.elementCount();
+        case XP_UI_READER_CLIP_QUERY_WORD_COUNT:
+          return block->value.wordCount();
+        case XP_UI_READER_CLIP_QUERY_VISIBLE:
+          return clippingText::hasVisibleText(block->value.wordText(index));
+        case XP_UI_READER_CLIP_QUERY_WORD_X:
+          return block->value.wordXpos(index);
+        case XP_UI_READER_CLIP_QUERY_LINE_X:
+          return line->xPos;
+        case XP_UI_READER_CLIP_QUERY_LINE_Y:
+          return line->yPos;
+        case XP_UI_READER_CLIP_QUERY_TOP:
+          return margins[0];
+        case XP_UI_READER_CLIP_QUERY_LEFT:
+          return margins[3];
+        case XP_UI_READER_CLIP_QUERY_SCREEN_MARGIN:
+          return SETTINGS.screenMargin;
+        case XP_UI_READER_CLIP_QUERY_CLIP_COUNT:
+          return CLIPPINGS.clippingCount();
+        case XP_UI_READER_CLIP_QUERY_A4:
+          return BoardConfig::isEegoA4();
+        case XP_UI_READER_CLIP_QUERY_BW:
+          return o.renderer.getRenderMode() == GfxRenderer::BW;
+        case XP_UI_READER_CLIP_QUERY_EM_SPACE:
+          return clippingText::hasEmSpacePrefix(block->value.wordText(index));
+        case XP_UI_READER_CLIP_QUERY_SOURCE_START:
+          return block->value.wordSourceRange(index).start;
+        case XP_UI_READER_CLIP_QUERY_SOURCE_END:
+          return block->value.wordSourceRange(index).end;
       }
+      return 0;
     }
-  }
-  LOG_DBG("CLIP", "Highlight pass: chapter_clips=%u highlighted_words=%u time=%lums",
-          static_cast<unsigned>(chapterClippings), static_cast<unsigned>(highlightedWords), millis() - started);
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderClipCommand>(command)) {
+        case XP_UI_READER_CLIP_COMMAND_MARGINS:
+          o.renderer.getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
+          break;
+        case XP_UI_READER_CLIP_COMMAND_READER_FONT:
+          return SETTINGS.getReaderFontId();
+        case XP_UI_READER_CLIP_COMMAND_SIGNATURE:
+          return readerRenderSpecSignature(SETTINGS.readerRenderSpec(o.buildViewportWidth, o.buildViewportHeight));
+        case XP_UI_READER_CLIP_COMMAND_ELEMENT_BEGIN:
+          line.emplace(page.element(a));
+          return line->getTag() == TAG_PageLine;
+        case XP_UI_READER_CLIP_COMMAND_ELEMENT_END:
+          line.reset();
+          break;
+        case XP_UI_READER_CLIP_COMMAND_BLOCK_BEGIN:
+          block.emplace(*line);
+          return block->value.valid();
+        case XP_UI_READER_CLIP_COMMAND_BLOCK_END:
+          block.reset();
+          break;
+        case XP_UI_READER_CLIP_COMMAND_WORD_FONT:
+          return clippingWordFont(o.renderer, b, block->value, a);
+        case XP_UI_READER_CLIP_COMMAND_MEASURE:
+          return o.renderer.getTextAdvanceX(
+              b, block->value.wordText(a),
+              static_cast<EpdFontFamily::Style>(block->value.wordStyle(a) & ~EpdFontFamily::UNDERLINE),
+              block->value.getBlockStyle().characterSpacing);
+        case XP_UI_READER_CLIP_COMMAND_EM_WIDTH:
+          return o.renderer.getTextAdvanceX(
+              b, "\xe2\x80\x83",
+              static_cast<EpdFontFamily::Style>(block->value.wordStyle(a) & ~EpdFontFamily::UNDERLINE));
+        case XP_UI_READER_CLIP_COMMAND_LINE_FONT:
+          return TextBlock::renderFontId(o.renderer, block->value.blockFontId(a), a);
+        case XP_UI_READER_CLIP_COMMAND_RUBY:
+          return block->value.getRubyShift(o.renderer.getFontAscenderSize(a));
+        case XP_UI_READER_CLIP_COMMAND_Y_OFFSET:
+          return block->value.wordYOffset(o.renderer, b, a);
+        case XP_UI_READER_CLIP_COMMAND_LINE_HEIGHT:
+          return o.renderer.getLineHeight(a);
+        case XP_UI_READER_CLIP_COMMAND_PIXEL:
+          o.renderer.drawPixel(a, b, false);
+          break;
+        case XP_UI_READER_CLIP_COMMAND_CLOCK_START:
+          started = millis();
+          break;
+        case XP_UI_READER_CLIP_COMMAND_LOG:
+          LOG_DBG("CLIP", "Highlight pass: chapter_clips=%u highlighted_words=%u time=%lums", static_cast<unsigned>(a),
+                  static_cast<unsigned>(b), millis() - started);
+          break;
+      }
+      return 0;
+    }
+  } context{const_cast<EpubReaderActivity&>(*this), page, {}, {}};
+  const XpUiReaderClipServices services{
+      &context,
+      [](void* c, uint8_t query, uint32_t index) -> uint32_t { return static_cast<Context*>(c)->query(query, index); },
+      [](void* c, uint8_t command, int32_t a, int32_t b) -> uint32_t {
+        return static_cast<Context*>(c)->command(command, a, b);
+      },
+      [](void* c, const XpUiReaderClipRect* rect) {
+        static_cast<Context*>(c)->o.renderer.fillRectDither(rect->x, rect->y, rect->width, rect->height,
+                                                            Color::LightGray);
+      },
+      [](void*, uint32_t index, XpUiReaderClipRecord* out) {
+        const auto& c = *CLIPPINGS.clippingAt(index);
+        *out = {c.spineIndex,   c.startPage,       c.endPage,     c.pageCount, c.startWordIndex,
+                c.endWordIndex, c.layoutSignature, c.startOffset, c.endOffset};
+      }};
+  return xp_ui_reader_clipping(&services, operation, &input);
 }
 
 void EpubReaderActivity::renderStatusBar() const { readerViewValue(XP_UI_READER_VALUE_OPERATION_STATUS); }

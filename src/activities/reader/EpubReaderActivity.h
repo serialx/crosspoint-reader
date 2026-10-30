@@ -214,6 +214,7 @@ class EpubReaderActivity final : public ReaderActivity {
   void openDictionaryWordSelect();
   void startClipSelection(int initialX = -1, int initialY = -1,
                           ClipSelectionActivity::Mode mode = ClipSelectionActivity::Mode::Clip);
+  int runClippingPolicy(uint8_t operation, const Page& page, const XpUiReaderClipInput& input) const;
   int clippingAtPoint(const Page& page, int x, int y) const;
   void openClippings();
   void applyProgressChange(const ProgressChangeResult& progress);

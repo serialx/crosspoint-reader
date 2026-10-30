@@ -2139,6 +2139,102 @@ typedef struct {
 /* load=0 saves; load=1 loads; other values have no effects. */
 void xp_ui_reader_link_persistence(const XpUiReaderLinkServices* services, uint8_t load);
 
+/* Reader clipping traversal: borrowed page/owner; no heap owner or retained pointer.
+ * HIT uses input x/y, samples original margins/font/settings and returns clipping
+ * index or -1. DRAW uses font/top/left and returns -1. Other inputs are ignored.
+ * Rust owns traversal, clipping matching, em-space/adjacent-word geometry, hit
+ * bounds, LTR/RTL bridges and A4 grayscale parity. No page rasterizer changes.
+ * Native WordFont remains a font-resolution leaf using existing TextBlock APIs;
+ * Measure/EmWidth retain underline masking and existing font/text metrics.
+ *
+ * Queries are pure resource/POD facts. VISIBLE/EM_SPACE/SOURCE_START/SOURCE_END
+ * and WORD_X use index=word; other indices are ignored. VISIBLE and EM_SPACE use
+ * existing clippingText byte-scan helpers. BW returns renderer mode==BW. SPINE
+ * copies existing POD under ModelLock; resource queries run outside it.
+ * MARGINS fills original oriented TRBL; READER_FONT and SIGNATURE call settings
+ * leaves, returning original values. ELEMENT_BEGIN(a=index) owns the PageElement
+ * view and returns whether it is a line; ELEMENT_END releases it. BLOCK_BEGIN
+ * owns its TextBlock view and returns valid; BLOCK_END releases it. Rust guards
+ * release block before element on continue, hit and normal completion.
+ * WORD_FONT(a=word,b=base) resolves existing word font. MEASURE(a=word,b=font)
+ * measures existing text with character spacing; EM_WIDTH(a=word,b=font)
+ * measures the em-space using the same masked style and no character spacing.
+ * LINE_FONT(a=base) resolves block font; RUBY(a=lineFont), Y_OFFSET(a=word,b=base)
+ * and LINE_HEIGHT(a=font) retain original metrics. PIXEL(a=x,b=y) draws false.
+ * CLOCK_START retains original millis for lazy diagnostic timing; LOG(a=clips,
+ * b=highlightedWords) evaluates original end-clock only when logging is enabled.
+ * Paint borrows one rect synchronously and fills original LightGray dither;
+ * Rust invokes it only for the original non-A4-gray branch. Clipping copies one
+ * original record projection by index into the non-null output; Rust owns the
+ * matching predicate, leaving the shared store/other activities unchanged.
+ * Other command arguments/returns are ignored; signed values preserve i32 bits.
+ * No callback is invoked under ModelLock. Null/incomplete services, null input
+ * and unknown operations return -1 without effects. */
+typedef struct {
+  int32_t x, y, width, height;
+} XpUiReaderClipRect;
+typedef struct {
+  int32_t x, y, font, top, left;
+} XpUiReaderClipInput;
+typedef struct {
+  uint16_t spine, start_page, end_page, page_count, start_word, end_word;
+  uint32_t signature, start_offset, end_offset;
+} XpUiReaderClipRecord;
+typedef enum {
+  XP_UI_READER_CLIP_OPERATION_HIT = 0,
+  XP_UI_READER_CLIP_OPERATION_DRAW = 1,
+} XpUiReaderClipOperation;
+typedef enum {
+  XP_UI_READER_CLIP_QUERY_HAS_SECTION = 0,
+  XP_UI_READER_CLIP_QUERY_HAS_CLIPPINGS = 1,
+  XP_UI_READER_CLIP_QUERY_PAGE = 2,
+  XP_UI_READER_CLIP_QUERY_PAGE_COUNT = 3,
+  XP_UI_READER_CLIP_QUERY_SPINE = 4,
+  XP_UI_READER_CLIP_QUERY_ELEMENT_COUNT = 5,
+  XP_UI_READER_CLIP_QUERY_WORD_COUNT = 6,
+  XP_UI_READER_CLIP_QUERY_VISIBLE = 7,
+  XP_UI_READER_CLIP_QUERY_WORD_X = 8,
+  XP_UI_READER_CLIP_QUERY_LINE_X = 9,
+  XP_UI_READER_CLIP_QUERY_LINE_Y = 10,
+  XP_UI_READER_CLIP_QUERY_TOP = 11,
+  XP_UI_READER_CLIP_QUERY_LEFT = 12,
+  XP_UI_READER_CLIP_QUERY_SCREEN_MARGIN = 13,
+  XP_UI_READER_CLIP_QUERY_CLIP_COUNT = 14,
+  XP_UI_READER_CLIP_QUERY_A4 = 15,
+  XP_UI_READER_CLIP_QUERY_BW = 16,
+  XP_UI_READER_CLIP_QUERY_EM_SPACE = 17,
+  XP_UI_READER_CLIP_QUERY_SOURCE_START = 18,
+  XP_UI_READER_CLIP_QUERY_SOURCE_END = 19,
+} XpUiReaderClipQuery;
+typedef enum {
+  XP_UI_READER_CLIP_COMMAND_MARGINS = 0,
+  XP_UI_READER_CLIP_COMMAND_READER_FONT = 1,
+  XP_UI_READER_CLIP_COMMAND_SIGNATURE = 2,
+  XP_UI_READER_CLIP_COMMAND_ELEMENT_BEGIN = 3,
+  XP_UI_READER_CLIP_COMMAND_ELEMENT_END = 4,
+  XP_UI_READER_CLIP_COMMAND_BLOCK_BEGIN = 5,
+  XP_UI_READER_CLIP_COMMAND_BLOCK_END = 6,
+  XP_UI_READER_CLIP_COMMAND_WORD_FONT = 7,
+  XP_UI_READER_CLIP_COMMAND_MEASURE = 8,
+  XP_UI_READER_CLIP_COMMAND_EM_WIDTH = 9,
+  XP_UI_READER_CLIP_COMMAND_LINE_FONT = 10,
+  XP_UI_READER_CLIP_COMMAND_RUBY = 11,
+  XP_UI_READER_CLIP_COMMAND_Y_OFFSET = 12,
+  XP_UI_READER_CLIP_COMMAND_LINE_HEIGHT = 13,
+  XP_UI_READER_CLIP_COMMAND_PIXEL = 14,
+  XP_UI_READER_CLIP_COMMAND_CLOCK_START = 15,
+  XP_UI_READER_CLIP_COMMAND_LOG = 16,
+} XpUiReaderClipCommand;
+typedef struct {
+  void* context;
+  uint32_t (*query)(void* context, uint8_t query, uint32_t index);
+  uint32_t (*command)(void* context, uint8_t command, int32_t a, int32_t b);
+  void (*paint)(void* context, const XpUiReaderClipRect* rect);
+  void (*clipping)(void* context, uint32_t index, XpUiReaderClipRecord* out);
+} XpUiReaderClipServices;
+int32_t xp_ui_reader_clipping(const XpUiReaderClipServices* services, uint8_t operation,
+                              const XpUiReaderClipInput* input);
+
 #ifdef __cplusplus
 }
 #endif
@@ -3421,3 +3517,83 @@ XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_DEPTH == 10)
 XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_SPINE == 11);
 XP_UI_READER_BOOKMARK_ASSERT(XP_UI_READER_BOOKMARK_LINK_COMMAND_SET_PAGE == 12);
 #undef XP_UI_READER_BOOKMARK_ASSERT
+
+#if defined(__cplusplus)
+#define XP_UI_READER_CLIP_ASSERT(x) static_assert(x, #x)
+#define XP_UI_READER_CLIP_ALIGN(t) alignof(t)
+#else
+#define XP_UI_READER_CLIP_ASSERT(x) _Static_assert(x, #x)
+#define XP_UI_READER_CLIP_ALIGN(t) _Alignof(t)
+#endif
+XP_UI_READER_CLIP_ASSERT(sizeof(XpUiReaderClipServices) == 5 * sizeof(void*));
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_ALIGN(XpUiReaderClipServices) == XP_UI_READER_CLIP_ALIGN(void*));
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipServices, context) == 0 * sizeof(void*));
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipServices, query) == 1 * sizeof(void*));
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipServices, command) == 2 * sizeof(void*));
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipServices, paint) == 3 * sizeof(void*));
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipServices, clipping) == 4 * sizeof(void*));
+XP_UI_READER_CLIP_ASSERT(sizeof(XpUiReaderClipRect) == 16);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_ALIGN(XpUiReaderClipRect) == 4);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRect, x) == 0);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRect, y) == 4);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRect, width) == 8);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRect, height) == 12);
+XP_UI_READER_CLIP_ASSERT(sizeof(XpUiReaderClipInput) == 20);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_ALIGN(XpUiReaderClipInput) == 4);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipInput, x) == 0);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipInput, y) == 4);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipInput, font) == 8);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipInput, top) == 12);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipInput, left) == 16);
+XP_UI_READER_CLIP_ASSERT(sizeof(XpUiReaderClipRecord) == 24);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_ALIGN(XpUiReaderClipRecord) == 4);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, spine) == 0);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, start_page) == 2);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, end_page) == 4);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, page_count) == 6);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, start_word) == 8);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, end_word) == 10);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, signature) == 12);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, start_offset) == 16);
+XP_UI_READER_CLIP_ASSERT(offsetof(XpUiReaderClipRecord, end_offset) == 20);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_OPERATION_HIT == 0);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_OPERATION_DRAW == 1);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_HAS_SECTION == 0);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_HAS_CLIPPINGS == 1);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_PAGE == 2);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_PAGE_COUNT == 3);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_SPINE == 4);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_ELEMENT_COUNT == 5);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_WORD_COUNT == 6);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_VISIBLE == 7);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_WORD_X == 8);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_LINE_X == 9);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_LINE_Y == 10);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_TOP == 11);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_LEFT == 12);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_SCREEN_MARGIN == 13);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_CLIP_COUNT == 14);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_A4 == 15);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_BW == 16);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_EM_SPACE == 17);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_SOURCE_START == 18);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_QUERY_SOURCE_END == 19);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_MARGINS == 0);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_READER_FONT == 1);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_SIGNATURE == 2);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_ELEMENT_BEGIN == 3);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_ELEMENT_END == 4);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_BLOCK_BEGIN == 5);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_BLOCK_END == 6);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_WORD_FONT == 7);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_MEASURE == 8);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_EM_WIDTH == 9);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_LINE_FONT == 10);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_RUBY == 11);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_Y_OFFSET == 12);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_LINE_HEIGHT == 13);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_PIXEL == 14);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_CLOCK_START == 15);
+XP_UI_READER_CLIP_ASSERT(XP_UI_READER_CLIP_COMMAND_LOG == 16);
+#undef XP_UI_READER_CLIP_ASSERT
+#undef XP_UI_READER_CLIP_ALIGN

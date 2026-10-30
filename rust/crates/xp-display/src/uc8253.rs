@@ -1,7 +1,7 @@
 // MIT: Copyright (c) 2026 FreeInk. See LICENSE.freeink.
 // Port of FreeInk SDK 37d272d4 Uc8253X3Driver.cpp; waveform policy is unchanged.
 use crate::constants::*;
-use crate::{frame::Frame, luts, Bus, Panel, Request};
+use crate::{frame::Frame, luts, Bus, Panel, Request, RowOrder};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Refresh {
@@ -191,14 +191,14 @@ impl Uc8253 {
         }
         bus.txn_end();
     }
-    fn plane(&self, bus: &mut impl Bus, command: u8, data: &[u8], rows: u16) {
-        let stride = usize::from(self.width / 8);
-        bus.cmd(command);
-        bus.txn_begin();
-        for row in data[..usize::from(rows) * stride].rchunks_exact(stride) {
-            bus.txn_write(row);
-        }
-        bus.txn_end();
+    fn plane(&self, bus: &mut impl Bus, command: u8, data: &[u8], rows: u16) -> Result<(), u32> {
+        let stride = self.width / 8;
+        bus.plane(
+            command,
+            &data[..usize::from(rows) * usize::from(stride)],
+            stride,
+            RowOrder::Reverse,
+        )
     }
     fn frame_plane(
         &self,
@@ -207,7 +207,7 @@ impl Uc8253 {
         frame: &mut Frame<'_>,
     ) -> Result<(), u32> {
         let Some(source) = frame.source() else {
-            self.plane(bus, command, frame.bytes(), self.height);
+            self.plane(bus, command, frame.bytes(), self.height)?;
             return Ok(());
         };
         let stride = usize::from(self.width / 8);
@@ -228,7 +228,7 @@ impl Uc8253 {
                 self.height - y - rows,
                 self.height - y - 1,
             );
-            self.plane(bus, command, data, rows);
+            self.plane(bus, command, data, rows)?;
             bus.cmd(0x92);
             y += rows;
         }
@@ -471,7 +471,7 @@ impl Uc8253 {
             (self.height - 1).wrapping_sub(end),
             (self.height - 1).wrapping_sub(y),
         );
-        self.plane(bus, if msb { 0x13 } else { 0x10 }, data, rows);
+        self.plane(bus, if msb { 0x13 } else { 0x10 }, data, rows)?;
         bus.cmd(0x92);
         if !msb {
             self.set(STATE_LSB_VALID, true);
@@ -643,7 +643,7 @@ impl Uc8253 {
                 if self.has(STATE_DIRECT_PASS) {
                     self.strip(bus, r.data, false, 0, self.height)?;
                 } else if let Some(data) = r.data {
-                    self.plane(bus, 0x10, self.frame(Some(data))?, self.height);
+                    self.plane(bus, 0x10, self.frame(Some(data))?, self.height)?;
                     bus.cmd(0x11);
                     self.set(STATE_LSB_VALID, true);
                 } else {
@@ -655,7 +655,7 @@ impl Uc8253 {
                     if self.has(STATE_DIRECT_PASS) {
                         self.strip(bus, Some(data), true, 0, self.height)?;
                     } else {
-                        self.plane(bus, 0x13, self.frame(Some(data))?, self.height);
+                        self.plane(bus, 0x13, self.frame(Some(data))?, self.height)?;
                         bus.cmd(0x11);
                     }
                 }

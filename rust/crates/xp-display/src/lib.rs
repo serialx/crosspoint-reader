@@ -14,6 +14,13 @@ mod ssd1677_luts;
 ))]
 pub mod ultrachip;
 
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum RowOrder {
+    Forward = 0,
+    Reverse = 1,
+}
+
 /// Physical I/O only; controller commands and state remain in the panel.
 pub trait Bus {
     fn cmd(&mut self, command: u8);
@@ -25,6 +32,8 @@ pub trait Bus {
     fn txn_data(&mut self, value: u8);
     fn txn_write(&mut self, data: &[u8]);
     fn txn_end(&mut self);
+    /// One command and one transaction, retaining one write per row.
+    fn plane(&mut self, command: u8, data: &[u8], stride: u16, order: RowOrder) -> Result<(), u32>;
     fn reset(&mut self, settle_ms: u16);
     fn reset_level(&mut self, level: u8);
     fn busy_level(&mut self) -> u8;

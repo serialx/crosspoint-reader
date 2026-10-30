@@ -1,5 +1,6 @@
 // Values shared with include/xp_display.h.
 pub const ABI_VERSION: u32 = 1;
+pub const BUS_VERSION: u32 = 2;
 pub const STATE_BYTES: u32 = 64;
 pub const STATE_ALIGN: u32 = 8;
 pub const UC8253_X3: u32 = 1;

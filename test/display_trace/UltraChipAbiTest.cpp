@@ -39,7 +39,7 @@ int main() {
                                    ++context(p).freed;
                                    std::free(allocation);
                                  }};
-      XpDisplayBus bus{XP_DISPLAY_ABI_VERSION,
+      XpDisplayBus bus{XP_DISPLAY_BUS_VERSION,
                        sizeof(bus),
                        &ctx,
                        [](void* p, uint8_t) { ++context(p).io; },
@@ -60,6 +60,7 @@ int main() {
                        [](void* p, uint32_t) { ++context(p).io; },
                        [](void*) -> uint32_t { return 0; },
                        [](void*, uint32_t, uint32_t) -> uint32_t { return 0; },
+                       nullptr,
                        nullptr};
       alignas(XP_DISPLAY_STATE_ALIGN) std::array<uint8_t, XP_DISPLAY_STATE_BYTES> state;
       state.fill(0xa5);

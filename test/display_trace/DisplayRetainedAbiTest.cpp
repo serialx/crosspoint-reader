@@ -61,7 +61,7 @@ static void overlap(bool duringAllocation, bool abortWork) {
   XpDisplayInitOptions options{1, sizeof(options), 1, &platform};
   XpDisplayRetainedConfig retained{scratch, sizeof(scratch), 0};
   XpDisplayConfig config{1, sizeof(config), XP_DISPLAY_PAPER_MONO, 1, 800, 480, 0, &retained, sizeof(retained)};
-  XpDisplayBus bus{1,
+  XpDisplayBus bus{XP_DISPLAY_BUS_VERSION,
                    sizeof(bus),
                    &fake,
                    [](void*, uint8_t) {},
@@ -89,6 +89,7 @@ static void overlap(bool duringAllocation, bool abortWork) {
                    [](void*, uint32_t) {},
                    [](void*) -> uint32_t { return 0; },
                    [](void*, uint32_t, uint32_t) -> uint32_t { return 0; },
+                   nullptr,
                    nullptr};
   assert(xp_display_init_v2(state, sizeof(state), &config, &options) == XP_DISPLAY_OK);
   auto execute = [&](uint32_t operation, const std::vector<uint8_t>* data = nullptr) {

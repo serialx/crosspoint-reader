@@ -2,7 +2,7 @@ use super::*;
 use constants::*;
 
 #[derive(Default)]
-struct QuietBus(u32, u32);
+struct QuietBus(u32, u32, u32, u32);
 impl Bus for QuietBus {
     fn cmd(&mut self, command: u8) {
         self.0 += 1;
@@ -27,7 +27,13 @@ impl Bus for QuietBus {
         self.0 += 1;
     }
     fn txn_write(&mut self, _: &[u8]) {
+        self.2 += 1;
         self.0 += 1;
+    }
+    fn plane(&mut self, _: u8, _: &[u8], _: u16, _: RowOrder) -> Result<(), u32> {
+        self.3 += 1;
+        self.0 += 1;
+        Ok(())
     }
     fn txn_end(&mut self) {
         self.0 += 1;
@@ -199,4 +205,23 @@ fn failed_source_never_activates_partial_x4_ram() {
         assert_eq!(result, Err(INVALID));
         assert_eq!(bus.1, 0);
     }
+}
+
+#[test]
+fn x3_gray_upload_does_not_cross_the_bus_once_per_row() {
+    let mut panel = unsafe { Uc8253::new(792, 528, core::ptr::null()).unwrap() };
+    let mut bus = QuietBus::default();
+    let data = [0xa5; 99 * 528];
+    assert!(panel
+        .execute(
+            &mut bus,
+            Request {
+                operation: OP_GRAY_LSB,
+                data: Some(&data),
+                ..Request::default()
+            }
+        )
+        .is_ok());
+    assert_eq!(bus.2, 0, "whole-plane upload must bypass per-row bus calls");
+    assert_eq!(bus.3, 1);
 }

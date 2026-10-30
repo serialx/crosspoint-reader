@@ -13,7 +13,7 @@ struct StripDisplayReplay {
   }
   XpDisplayBus bus() {
     XpDisplayBus b{};
-    b.abi_version = XP_DISPLAY_ABI_VERSION;
+    b.abi_version = XP_DISPLAY_BUS_VERSION;
     b.struct_size = sizeof(b);
     b.ctx = this;
     b.cmd = [](void* c, uint8_t v) { emit(c, 0, &v, 1); };
@@ -37,6 +37,19 @@ struct StripDisplayReplay {
     b.delay_us = [](void*, uint32_t) {};
     b.clock_ms = [](void* c) { return static_cast<StripDisplayReplay*>(c)->clock++; };
     b.probe = [](void*, uint32_t, uint32_t) -> uint32_t { return 0; };
+    b.plane = [](void* c, uint8_t command, const uint8_t* p, uint32_t length, uint16_t stride, uint8_t direction,
+                 uint8_t transform) -> uint32_t {
+      if (!p || !length || !stride || length % stride) return XP_DISPLAY_INVALID;
+      if (direction > XP_DISPLAY_ROWS_REVERSE || transform != XP_DISPLAY_BYTES_IDENTITY) return XP_DISPLAY_UNSUPPORTED;
+      emit(c, 0, &command, 1);
+      emit(c, 3);
+      for (uint32_t offset = 0; offset < length; offset += stride) {
+        const uint32_t index = direction == XP_DISPLAY_ROWS_REVERSE ? length - stride - offset : offset;
+        emit(c, 2, p + index, stride);
+      }
+      emit(c, 4);
+      return XP_DISPLAY_OK;
+    };
     return b;
   }
 

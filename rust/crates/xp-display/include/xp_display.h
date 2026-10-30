@@ -11,6 +11,10 @@ extern "C" {
 // frame available through FINISH.
 enum {
   XP_DISPLAY_ABI_VERSION = 1,
+  XP_DISPLAY_BUS_VERSION = 2,
+  XP_DISPLAY_ROWS_FORWARD = 0,
+  XP_DISPLAY_ROWS_REVERSE = 1,
+  XP_DISPLAY_BYTES_IDENTITY = 0,
   XP_DISPLAY_STATE_BYTES = 64,
   XP_DISPLAY_STATE_ALIGN = 8,
   // Factory capacities are checked against each Rust state on the target.
@@ -183,6 +187,15 @@ typedef struct {
   uint32_t (*probe)(void*, uint32_t, uint32_t);
   // Optional; text is borrowed, not terminated. No callback may reenter Rust.
   void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const uint8_t*, uint32_t);
+  // Version 2: required for UC8253, optional for other controllers. No active
+  // transaction on entry. Emit command, then one transaction with one write per
+  // stride-byte row. length must be nonzero and a multiple of nonzero stride.
+  // direction is FORWARD/REVERSE; transform accepts IDENTITY only, reserved for
+  // existing per-row transforms if those controllers move to this operation.
+  // Reject invalid spans/unsupported values before any bus activity. Borrow only
+  // for this call; return OK/INVALID/UNSUPPORTED. No scratch or allocation.
+  uint32_t (*plane)(void*, uint8_t command, const uint8_t*, uint32_t length, uint16_t stride, uint8_t direction,
+                    uint8_t transform);
 } XpDisplayBus;
 
 typedef struct {

@@ -576,3 +576,11 @@ pub unsafe extern "C" fn xp_ui_reader_build_policy(services: *const reader::buil
 pub unsafe extern "C" fn xp_ui_reader_settings(services: *const reader::settings::Services, operation: u8, argument: i32) {
     reader::settings::run(services, operation, argument);
 }
+
+/// # Safety
+/// Services obey the synchronous reader menu-parent resource contract.
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn xp_ui_reader_menu_parent(services: *const reader::menu_parent::Services, operation: u8, argument: i32) {
+    reader::menu_parent::run(services, operation, argument);
+}

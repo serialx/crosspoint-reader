@@ -194,3 +194,11 @@ add_test(NAME reader_child_parent
 add_test(NAME reader_child_parent_release
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_child_parent.py --release-log)
+
+add_test(NAME reader_menu_parent
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_menu_parent.py)
+
+add_test(NAME reader_menu_parent_release
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_menu_parent.py --release-log)

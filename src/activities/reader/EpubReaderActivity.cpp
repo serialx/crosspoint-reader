@@ -253,50 +253,7 @@ int EpubReaderActivity::bookPercentFor(const ChapterPosition& position) const {
   return static_cast<int>(std::clamp(fraction, 0.0f, 1.0f) * 100.0f + 0.5f);
 }
 
-void EpubReaderActivity::openReaderMenu() {
-  pendingManualTurn = 0;
-  if (usesToolbarMenu()) {
-    // Reached from a child activity's result handler (footnotes, bookmarks,
-    // go-to-percent... cancelled back to the menu), so the framebuffer holds
-    // that screen, not the page: re-render the page and let renderBook() put
-    // the toolbar on top. The in-reader fast path is openOverlay().
-    overlay = Overlay::Toolbar;
-    focusedTool = 0;
-    panelHoldJumped = false;
-    panelCursorShown = !mappedInput.hasTouch();
-    if (!toolbarUi) toolbarUi = std::make_unique<ReaderToolbarUi>(renderer);
-    toolbarUi->begin();
-    discardOverlayPage();
-    requestUpdate();
-    return;
-  }
-  // Child screens (chapter list, text settings) release the section to free its
-  // pagination buffers; chapterPosition() covers that with the cached position.
-  const ChapterPosition position = chapterPosition();
-  const int bookProgressPercent = bookPercentFor(position);
-
-  bool hasFootnotes;
-  {
-    RenderLock lock;
-    hasFootnotes = !currentPageMetadata.footnotes().empty();
-  }
-  startActivityForResult(
-      std::make_unique<EpubReaderMenuActivity>(renderer, mappedInput, epub->getTitle(), position.displayPage(),
-                                               position.totalPages, bookProgressPercent, SETTINGS.orientation,
-                                               hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
-      [this](const ActivityResult& result) {
-        const auto& menu = std::get<MenuResult>(result.data);
-
-        if (SETTINGS.orientation != menu.orientation) {
-          applyOrientation(menu.orientation);
-        }
-
-        toggleAutoPageTurn(menu.pageTurnOption);
-        if (!result.isCancelled) {
-          onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
-        }
-      });
-}
+void EpubReaderActivity::openReaderMenu() { runMenuPolicy(XP_UI_READER_PARENT_OPERATION_OPEN, 0); }
 
 // Runs on the render task, under its lock, right before every chapter build. The page turner's
 // radio holds about 50 KB while it runs, and no heap figure taken before a build tells whether the
@@ -999,173 +956,7 @@ int EpubReaderActivity::currentTocIndex() const {
 }
 
 void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action) {
-#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
-  {
-    RenderLock lock;
-    stripBuffers.releaseIdle();
-  }
-#endif
-  auto progressChangeResultHandler = [this](const ActivityResult& result) {
-    loadCachedBookmarks();
-    if (result.isCancelled) {
-      openReaderMenu();
-    } else {
-      const auto& sync = std::get<ProgressChangeResult>(result.data);
-
-      applyProgressChange(sync);
-    }
-  };
-
-  switch (action) {
-    case EpubReaderMenuActivity::MenuAction::SELECT_CHAPTER: {
-      int tocIndex;
-      // Release the section while the chapter list is up (mirrors the
-      // TEXT_SETTINGS path): picking a chapter resets it anyway, and its
-      // tens-of-KB footprint is the difference between the chapter list
-      // holding its CJK glyph arena (RAM-only repaints) and re-reading
-      // glyphs from SD on every row step. Cancel restores via the same
-      // cached-position rebuild TEXT_SETTINGS uses.
-      {
-        RenderLock lock;
-        tocIndex = currentTocIndex();
-        if (section) {
-          rememberCurrentContentOffset();
-          cachedSpineIndex = currentSpineIndex;
-          cachedChapterTotalPageCount = section->pageCount;
-          nextPageNumber = section->currentPage;
-        }
-        section.reset();
-      }
-      startActivityForResult(
-          std::make_unique<EpubReaderChapterSelectionActivity>(renderer, mappedInput, epub, tocIndex),
-          [this](const ActivityResult& result) {
-            if (result.isCancelled) {
-              openReaderMenu();
-              return;
-            }
-            const auto& chapterResult = std::get<ChapterResult>(result.data);
-            RenderLock lock;
-            clearDeferredReposition();
-            currentSpineIndex = chapterResult.spineIndex;
-            pendingAnchor = chapterResult.anchor;
-            nextPageNumber = 0;
-            section.reset();
-            requestUpdate();
-          });
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::FOOTNOTES: {
-      openFootnoteSelect(true);
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::TEXT_SETTINGS: {
-      startActivityForResult(std::make_unique<TextSettingsActivity>(renderer, mappedInput, &sdFontSystem.registry(),
-                                                                    TextSettingsActivity::Tab::Family),
-                             [this](const ActivityResult&) {
-                               {
-                                 RenderLock lock;
-                                 if (section) {
-                                   rememberCurrentContentOffset();
-                                   cachedSpineIndex = currentSpineIndex;
-                                   cachedChapterTotalPageCount = section->pageCount;
-                                   nextPageNumber = section->currentPage;
-                                 }
-                                 section.reset();
-                               }
-                               openReaderMenu();
-                             });
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::BLUETOOTH:
-    case EpubReaderMenuActivity::MenuAction::NIGHT_MODE:
-      // Handled in-place by EpubReaderMenuActivity so its On/Off value updates
-      // without closing the menu.
-      break;
-    case EpubReaderMenuActivity::MenuAction::FRONTLIGHT:
-      // Handled in-place by EpubReaderMenuActivity using the live frontlight HAL.
-      break;
-    case EpubReaderMenuActivity::MenuAction::GO_TO_PERCENT: {
-      const int initialPercent = bookPercentFor(chapterPosition());
-      startActivityForResult(
-          std::make_unique<EpubReaderPercentSelectionActivity>(renderer, mappedInput, initialPercent),
-          [this](const ActivityResult& result) {
-            if (result.isCancelled) {
-              openReaderMenu();
-            } else {
-              jumpToPercent(std::get<PercentResult>(result.data).percent);
-            }
-          });
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::DICTIONARY: {
-      openDictionaryWordSelect();
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::DISPLAY_QR: {
-      if (section && section->currentPage >= 0 && section->currentPage < section->pageCount) {
-        std::string fullText = section->getTextFromSectionFile();
-        if (!fullText.empty()) {
-          startActivityForResult(std::make_unique<QrDisplayActivity>(renderer, mappedInput, fullText),
-                                 [this](const ActivityResult&) { openReaderMenu(); });
-          break;
-        }
-      }
-      requestUpdate();
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::GO_HOME: {
-      onGoHome();
-      return;
-    }
-    case EpubReaderMenuActivity::MenuAction::DELETE_CACHE: {
-      {
-        RenderLock lock;
-        if (epub && section) {
-          uint16_t backupSpine = currentSpineIndex;
-          uint16_t backupPage = section->currentPage;
-          uint16_t backupPageCount = section->pageCount;
-          section.reset();
-          epub->clearCache();
-          epub->setupCacheDir();
-          if (!saveProgress(backupSpine, backupPage, backupPageCount)) {
-            LOG_ERR("ERS", "Failed to save progress before cache clear");
-          }
-        }
-      }
-      onGoHome();
-      return;
-    }
-    case EpubReaderMenuActivity::MenuAction::SCREENSHOT: {
-      {
-        RenderLock lock;
-        pendingScreenshot = true;
-      }
-      requestUpdate();
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::SYNC: {
-      launchKOReaderSync();
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::BOOKMARKS: {
-      startActivityForResult(
-          std::make_unique<EpubReaderBookmarksActivity>(renderer, mappedInput, epub, epub->getPath()),
-          progressChangeResultHandler);
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::SAVE_CLIPPING: {
-      startClipSelection();
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::VIEW_CLIPPINGS: {
-      openClippings();
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::TOGGLE_BOOKMARK: {
-      addBookmark();
-      break;
-    }
-  }
+  runMenuPolicy(XP_UI_READER_PARENT_OPERATION_CONFIRM, static_cast<int32_t>(action));
 }
 
 unsigned long EpubReaderActivity::confirmLongPressThreshold() const {
@@ -3108,20 +2899,7 @@ void EpubReaderActivity::applyReaderTextSettings() { runSettingsPolicy(XP_UI_REA
 
 // The More panel carries everything the classic list menu offers except the
 // two entries that have their own tool (chapters -> Contents, text -> Text).
-void EpubReaderActivity::buildMoreActions() {
-  using MA = EpubReaderMenuActivity::MenuAction;
-  bool hasFootnotes;
-  {
-    RenderLock lock;
-    hasFootnotes = !currentPageMetadata.footnotes().empty();
-  }
-  EpubReaderMenuActivity::buildMenuItems(moreItems, hasFootnotes, !cachedBookmarks.empty(), CLIPPINGS.hasClippings());
-  moreItems.erase(std::remove_if(moreItems.begin(), moreItems.end(),
-                                 [](const auto& item) {
-                                   return item.action == MA::SELECT_CHAPTER || item.action == MA::TEXT_SETTINGS;
-                                 }),
-                  moreItems.end());
-}
+void EpubReaderActivity::buildMoreActions() { runMenuPolicy(XP_UI_READER_PARENT_OPERATION_BUILD_MORE, 0); }
 
 std::string EpubReaderActivity::moreRowName(int row) const {
   return readerViewValue(XP_UI_READER_VALUE_OPERATION_MORE_NAME, row);
@@ -3131,100 +2909,7 @@ std::string EpubReaderActivity::moreRowValue(int row) const {
   return readerViewValue(XP_UI_READER_VALUE_OPERATION_MORE_VALUE, row);
 }
 
-void EpubReaderActivity::activateMoreRow(int row) {
-  using MA = EpubReaderMenuActivity::MenuAction;
-  if (row < 0 || row >= static_cast<int>(moreItems.size())) return;
-  {
-    RenderLock lock;  // several actions launch screens that paint the framebuffer
-    settleOverlayRefresh();
-  }
-  const auto action = moreItems[row].action;
-  // In-place toggles keep the panel open and re-render the page beneath it.
-  switch (action) {
-    case MA::ROTATE_SCREEN: {
-      static constexpr StrId kOrientIds[] = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW,
-                                             StrId::STR_ORIENTATION_INVERTED, StrId::STR_LANDSCAPE_CCW};
-      static_assert(std::size(kOrientIds) == CrossPointSettings::ORIENTATION_COUNT, "orientation options");
-      overlayPopup.show(StrId::STR_ORIENTATION, kOrientIds, static_cast<int>(std::size(kOrientIds)),
-                        SETTINGS.orientation % CrossPointSettings::ORIENTATION_COUNT, [this](int idx) {
-                          if (idx == SETTINGS.orientation) return;
-                          applyOrientation(static_cast<uint8_t>(idx));
-                          // The stored page is laid out for the old orientation.
-                          discardOverlayPage();
-                          requestUpdate();
-                        });
-      paintOverlayPopup();
-      return;
-    }
-    case MA::AUTO_PAGE_TURN: {
-      std::vector<std::string> labels;
-      labels.reserve(std::size(PAGE_TURN_RATES));
-      labels.emplace_back(tr(STR_STATE_OFF));
-      for (size_t i = 1; i < std::size(PAGE_TURN_RATES); ++i) labels.push_back(std::to_string(PAGE_TURN_RATES[i]));
-      overlayPopup.show(StrId::STR_AUTO_TURN_PAGES_PER_MIN, labels, autoTurnOption, [this](int idx) {
-        autoTurnOption = idx;
-        toggleAutoPageTurn(static_cast<uint8_t>(idx));
-      });
-      paintOverlayPopup();
-      return;
-    }
-    case MA::BLUETOOTH:
-      EpubReaderMenuActivity::toggleBluetooth();
-      {
-        RenderLock lock;
-        renderOverlay();
-        pushOverlayRefresh();
-      }
-      return;
-    case MA::NIGHT_MODE:
-      SETTINGS.screenInverted = SETTINGS.screenInverted == 0 ? 1 : 0;
-      SETTINGS.saveToFile();
-      discardOverlayPage();
-      requestUpdate();
-      return;
-    case MA::FRONTLIGHT: {
-      const bool lightOn = !Frontlight.isOn();
-      Frontlight.setOn(lightOn);
-      SETTINGS.frontlightOn = lightOn ? 1 : 0;
-      SETTINGS.saveToFile();
-      {
-        RenderLock lock;  // the render task shares the framebuffer
-        renderOverlay();
-        renderer.displayBuffer(HalDisplay::FAST_REFRESH);
-      }
-      return;
-    }
-    default:
-      break;
-  }
-  // Leaf actions open their own screen / perform the action; close the overlay first.
-  overlay = Overlay::None;
-  if (action == MA::GO_TO_PERCENT && overlayPageStored) {
-    // The percent dialog is a popup over the current frame: wipe the toolbar
-    // chrome back to the clean page first so the dialog draws over the page,
-    // not the sheet. No refresh push — the dialog's first frame carries it.
-    RenderLock lock;
-    settleOverlayRefresh();
-    renderer.restoreBwBuffer(/*resyncPanelBaseline=*/false);
-    overlayPageStored = false;
-  } else {
-    discardOverlayPage();
-  }
-  if (action == MA::TOGGLE_BOOKMARK) {
-    // No child activity here to trigger the re-render the list menu relies on:
-    // show the same confirmation popup the long-press path does.
-    addBookmark();
-    showBookmarkMessage = true;
-    bookmarkMessageTime = millis();
-    requestUpdate();
-    return;
-  }
-  onReaderMenuConfirm(action);
-  // Child screens re-render the reader on Pop; GO_HOME/DELETE_CACHE leave the
-  // reader entirely. In-place actions would otherwise leave the closed panel
-  // on screen.
-  if (action != MA::GO_HOME && action != MA::DELETE_CACHE) requestUpdate();
-}
+void EpubReaderActivity::activateMoreRow(int row) { runMenuPolicy(XP_UI_READER_PARENT_OPERATION_ACTIVATE_MORE, row); }
 
 void EpubReaderActivity::navigateToHref(const std::string& href, bool savePosition) {
   runNavigationPolicy(XP_UI_READER_NAV_OPERATION_HREF, savePosition, 0, 0, &href);
@@ -4576,4 +4261,499 @@ void EpubReaderActivity::runSettingsPolicy(uint8_t operation, int32_t argument,
       [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
   xp_ui_reader_settings(&services, operation, argument);
   assert(!context.lock && !context.choices);
+}
+
+void EpubReaderActivity::runMenuPolicy(uint8_t operation, int32_t argument, const ActivityResult* result) {
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::SELECT_CHAPTER) ==
+                XP_UI_READER_PARENT_ACTION_CHAPTER);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::FOOTNOTES) ==
+                XP_UI_READER_PARENT_ACTION_FOOTNOTES);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::TEXT_SETTINGS) == XP_UI_READER_PARENT_ACTION_TEXT);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::NIGHT_MODE) == XP_UI_READER_PARENT_ACTION_NIGHT);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::FRONTLIGHT) ==
+                XP_UI_READER_PARENT_ACTION_FRONTLIGHT);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::BLUETOOTH) ==
+                XP_UI_READER_PARENT_ACTION_BLUETOOTH);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::GO_TO_PERCENT) ==
+                XP_UI_READER_PARENT_ACTION_PERCENT);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::AUTO_PAGE_TURN) ==
+                XP_UI_READER_PARENT_ACTION_AUTO);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::ROTATE_SCREEN) ==
+                XP_UI_READER_PARENT_ACTION_ORIENTATION);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::BOOKMARKS) ==
+                XP_UI_READER_PARENT_ACTION_BOOKMARKS);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::SAVE_CLIPPING) ==
+                XP_UI_READER_PARENT_ACTION_SAVE_CLIPPING);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::VIEW_CLIPPINGS) ==
+                XP_UI_READER_PARENT_ACTION_VIEW_CLIPPINGS);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::TOGGLE_BOOKMARK) ==
+                XP_UI_READER_PARENT_ACTION_TOGGLE_BOOKMARK);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::SCREENSHOT) ==
+                XP_UI_READER_PARENT_ACTION_SCREENSHOT);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::DISPLAY_QR) == XP_UI_READER_PARENT_ACTION_QR);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::GO_HOME) == XP_UI_READER_PARENT_ACTION_HOME);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::SYNC) == XP_UI_READER_PARENT_ACTION_SYNC);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::DELETE_CACHE) ==
+                XP_UI_READER_PARENT_ACTION_DELETE_CACHE);
+  static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::DICTIONARY) ==
+                XP_UI_READER_PARENT_ACTION_DICTIONARY);
+  struct Context {
+    EpubReaderActivity& o;
+    const ActivityResult* result;
+    ChapterPosition position{};
+    std::optional<RenderLock> lock;
+    std::optional<std::string> qr;
+    std::optional<std::vector<std::string>> labels;
+    uint16_t temporaryCount = 0;
+    uint32_t read(uint8_t field) {
+      switch (static_cast<XpUiReaderParentField>(field)) {
+        case XP_UI_READER_PARENT_FIELD_ORIENTATION:
+          return SETTINGS.orientation;
+        case XP_UI_READER_PARENT_FIELD_SCREEN_INVERTED:
+          return SETTINGS.screenInverted;
+        case XP_UI_READER_PARENT_FIELD_FRONTLIGHT_ON:
+          return SETTINGS.frontlightOn;
+        case XP_UI_READER_PARENT_FIELD_USES_TOOLBAR:
+          return static_cast<uint32_t>(o.usesToolbarMenu());
+        case XP_UI_READER_PARENT_FIELD_HAS_TOOLBAR:
+          return static_cast<uint32_t>(bool(o.toolbarUi));
+        case XP_UI_READER_PARENT_FIELD_TOUCH:
+          return static_cast<uint32_t>(o.mappedInput.hasTouch());
+        case XP_UI_READER_PARENT_FIELD_HAS_BOOK:
+          return static_cast<uint32_t>(bool(o.epub));
+        case XP_UI_READER_PARENT_FIELD_HAS_SECTION:
+          return static_cast<uint32_t>(bool(o.section));
+        case XP_UI_READER_PARENT_FIELD_PAGE:
+          return static_cast<uint32_t>(o.section->currentPage);
+        case XP_UI_READER_PARENT_FIELD_PAGE_COUNT:
+          return static_cast<uint32_t>(o.section->pageCount);
+        case XP_UI_READER_PARENT_FIELD_MORE_COUNT:
+          return static_cast<uint32_t>(o.moreItems.size());
+        case XP_UI_READER_PARENT_FIELD_ORIENTATION_COUNT:
+          return static_cast<uint32_t>(CrossPointSettings::ORIENTATION_COUNT);
+        case XP_UI_READER_PARENT_FIELD_RATE_COUNT:
+          return static_cast<uint32_t>(std::size(PAGE_TURN_RATES));
+        case XP_UI_READER_PARENT_FIELD_CANCELLED:
+          return static_cast<uint32_t>(result->isCancelled);
+        case XP_UI_READER_PARENT_FIELD_RESULT_ORIENTATION:
+          return static_cast<uint32_t>(std::get<MenuResult>(result->data).orientation);
+        case XP_UI_READER_PARENT_FIELD_RESULT_AUTO:
+          return static_cast<uint32_t>(std::get<MenuResult>(result->data).pageTurnOption);
+        case XP_UI_READER_PARENT_FIELD_RESULT_ACTION:
+          return static_cast<uint32_t>(std::get<MenuResult>(result->data).action);
+        case XP_UI_READER_PARENT_FIELD_RESULT_SPINE:
+          return static_cast<uint32_t>(std::get<ChapterResult>(result->data).spineIndex);
+        case XP_UI_READER_PARENT_FIELD_TEMPORARY_COUNT:
+          return static_cast<uint32_t>(temporaryCount);
+        case XP_UI_READER_PARENT_FIELD_STRIPS_ENABLED:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          return true;
+#else
+          return false;
+#endif
+        default:
+          break;
+      }
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderParentField>(field)) {
+        case XP_UI_READER_PARENT_FIELD_PENDING_TURN:
+          return static_cast<uint32_t>(o.pendingManualTurn);
+        case XP_UI_READER_PARENT_FIELD_OVERLAY:
+          return static_cast<uint32_t>(o.overlay);
+        case XP_UI_READER_PARENT_FIELD_FOCUS:
+          return static_cast<uint32_t>(o.focusedTool);
+        case XP_UI_READER_PARENT_FIELD_HOLD_JUMPED:
+          return static_cast<uint32_t>(o.panelHoldJumped);
+        case XP_UI_READER_PARENT_FIELD_CURSOR:
+          return static_cast<uint32_t>(o.panelCursorShown);
+        case XP_UI_READER_PARENT_FIELD_CACHED_SPINE:
+          return static_cast<uint32_t>(o.cachedSpineIndex);
+        case XP_UI_READER_PARENT_FIELD_CACHED_COUNT:
+          return static_cast<uint32_t>(o.cachedChapterTotalPageCount);
+        case XP_UI_READER_PARENT_FIELD_NEXT_PAGE:
+          return static_cast<uint32_t>(o.nextPageNumber);
+        case XP_UI_READER_PARENT_FIELD_SPINE:
+          return static_cast<uint32_t>(o.currentSpineIndex);
+        case XP_UI_READER_PARENT_FIELD_SCREENSHOT:
+          return static_cast<uint32_t>(o.pendingScreenshot);
+        case XP_UI_READER_PARENT_FIELD_OVERLAY_STORED:
+          return static_cast<uint32_t>(o.overlayPageStored);
+        case XP_UI_READER_PARENT_FIELD_SHOW_BOOKMARK:
+          return static_cast<uint32_t>(o.showBookmarkMessage);
+        case XP_UI_READER_PARENT_FIELD_BOOKMARK_TIME:
+          return static_cast<uint32_t>(o.bookmarkMessageTime);
+        case XP_UI_READER_PARENT_FIELD_AUTO_OPTION:
+          return static_cast<uint32_t>(o.autoTurnOption);
+        default:
+          return 0;
+      }
+    }
+    void write(uint8_t field, uint32_t value) {
+      switch (static_cast<XpUiReaderParentField>(field)) {
+        case XP_UI_READER_PARENT_FIELD_ORIENTATION:
+          SETTINGS.orientation = static_cast<uint8_t>(value);
+          return;
+        case XP_UI_READER_PARENT_FIELD_SCREEN_INVERTED:
+          SETTINGS.screenInverted = static_cast<uint8_t>(value);
+          return;
+        case XP_UI_READER_PARENT_FIELD_FRONTLIGHT_ON:
+          SETTINGS.frontlightOn = static_cast<uint8_t>(value);
+          return;
+        case XP_UI_READER_PARENT_FIELD_TEMPORARY_COUNT:
+          temporaryCount = static_cast<uint16_t>(value);
+          return;
+        default:
+          break;
+      }
+      ModelLock guard(o);
+      switch (static_cast<XpUiReaderParentField>(field)) {
+        case XP_UI_READER_PARENT_FIELD_PENDING_TURN:
+          o.pendingManualTurn = static_cast<decltype(o.pendingManualTurn)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_OVERLAY:
+          o.overlay = static_cast<decltype(o.overlay)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_FOCUS:
+          o.focusedTool = static_cast<decltype(o.focusedTool)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_HOLD_JUMPED:
+          o.panelHoldJumped = static_cast<decltype(o.panelHoldJumped)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_CURSOR:
+          o.panelCursorShown = static_cast<decltype(o.panelCursorShown)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_CACHED_SPINE:
+          o.cachedSpineIndex = static_cast<decltype(o.cachedSpineIndex)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_CACHED_COUNT:
+          o.cachedChapterTotalPageCount = static_cast<decltype(o.cachedChapterTotalPageCount)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_NEXT_PAGE:
+          o.nextPageNumber = static_cast<decltype(o.nextPageNumber)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_SPINE:
+          o.currentSpineIndex = static_cast<decltype(o.currentSpineIndex)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_SCREENSHOT:
+          o.pendingScreenshot = static_cast<decltype(o.pendingScreenshot)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_OVERLAY_STORED:
+          o.overlayPageStored = static_cast<decltype(o.overlayPageStored)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_SHOW_BOOKMARK:
+          o.showBookmarkMessage = static_cast<decltype(o.showBookmarkMessage)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_BOOKMARK_TIME:
+          o.bookmarkMessageTime = static_cast<decltype(o.bookmarkMessageTime)>(value);
+          break;
+        case XP_UI_READER_PARENT_FIELD_AUTO_OPTION:
+          o.autoTurnOption = static_cast<decltype(o.autoTurnOption)>(value);
+          break;
+        default:
+          break;
+      }
+    }
+    uint32_t command(uint8_t command, int32_t a, int32_t b) {
+      switch (static_cast<XpUiReaderParentCommand>(command)) {
+        case XP_UI_READER_PARENT_COMMAND_LOCK: {
+          assert(!lock);
+          lock.emplace();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_UNLOCK: {
+          lock.reset();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_RELEASE_STRIPS: {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+          o.stripBuffers.releaseIdle();
+#endif
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_NEW_TOOLBAR: {
+          o.toolbarUi = std::make_unique<ReaderToolbarUi>(o.renderer);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_BEGIN_TOOLBAR: {
+          o.toolbarUi->begin();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_DISCARD: {
+          o.discardOverlayPage();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_UPDATE: {
+          o.requestUpdate();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_PREPARE_POSITION: {
+          position = o.chapterPosition();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_PERCENT: {
+          return o.bookPercentFor(position);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_FOOTNOTES_PRESENT: {
+          return !o.currentPageMetadata.footnotes().empty();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_MENU: {
+          o.startActivityForResult(
+              std::make_unique<EpubReaderMenuActivity>(
+                  o.renderer, o.mappedInput, o.epub->getTitle(), position.displayPage(), position.totalPages, a,
+                  SETTINGS.orientation, b != 0, !o.cachedBookmarks.empty(), CLIPPINGS.hasClippings()),
+              [owner = &o](const ActivityResult& result) {
+                owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_MENU_RESULT, 0, &result);
+              });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_APPLY_ORIENTATION: {
+          o.applyOrientation(static_cast<uint8_t>(a));
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_AUTO_TURN: {
+          o.toggleAutoPageTurn(static_cast<uint8_t>(a));
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_OPEN_MENU: {
+          o.openReaderMenu();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_CURRENT_TOC: {
+          return o.currentTocIndex();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_REMEMBER_OFFSET: {
+          o.rememberCurrentContentOffset();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_DROP_SECTION: {
+          o.section.reset();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_CHAPTER: {
+          o.startActivityForResult(
+              std::make_unique<EpubReaderChapterSelectionActivity>(o.renderer, o.mappedInput, o.epub, a),
+              [owner = &o](const ActivityResult& result) {
+                owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_CHAPTER_RESULT, 0, &result);
+              });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_CLEAR_DEFERRED: {
+          o.clearDeferredReposition();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_ASSIGN_ANCHOR: {
+          o.pendingAnchor = std::get<ChapterResult>(result->data).anchor;
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_TEXT: {
+          o.startActivityForResult(
+              std::make_unique<TextSettingsActivity>(o.renderer, o.mappedInput, &sdFontSystem.registry(),
+                                                     TextSettingsActivity::Tab::Family),
+              [owner = &o](const ActivityResult& result) {
+                owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_TEXT_RESULT, 0, &result);
+              });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_FOOTNOTES: {
+          o.openFootnoteSelect(a != 0);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_PERCENT: {
+          o.startActivityForResult(std::make_unique<EpubReaderPercentSelectionActivity>(o.renderer, o.mappedInput, a),
+                                   [owner = &o](const ActivityResult& result) {
+                                     owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_PERCENT_RESULT, 0, &result);
+                                   });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_DICTIONARY: {
+          o.openDictionaryWordSelect();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_PREPARE_QR: {
+          assert(!qr);
+          qr.emplace(o.section->getTextFromSectionFile());
+          return !qr->empty();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_DROP_QR: {
+          qr.reset();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_QR: {
+          assert(qr);
+          o.startActivityForResult(std::make_unique<QrDisplayActivity>(o.renderer, o.mappedInput, *qr),
+                                   [owner = &o](const ActivityResult& result) {
+                                     owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_REOPEN_RESULT, 0, &result);
+                                   });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_HOME: {
+          o.onGoHome();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_CLEAR_CACHE: {
+          o.epub->clearCache();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SETUP_CACHE: {
+          o.epub->setupCacheDir();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SAVE_PROGRESS: {
+          return o.saveProgress(a, b, temporaryCount);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_LOG_SAVE_FAILED: {
+          LOG_ERR("ERS", "Failed to save progress before cache clear");
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SYNC: {
+          o.launchKOReaderSync();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_BOOKMARKS: {
+          o.startActivityForResult(
+              std::make_unique<EpubReaderBookmarksActivity>(o.renderer, o.mappedInput, o.epub, o.epub->getPath()),
+              [owner = &o](const ActivityResult& result) {
+                owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_PROGRESS_RESULT, 0, &result);
+              });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_START_CLIP: {
+          o.startClipSelection();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_OPEN_CLIPPINGS: {
+          o.openClippings();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_BOOKMARK: {
+          o.addBookmark();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_LOAD_BOOKMARKS: {
+          o.loadCachedBookmarks();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_APPLY_PROGRESS: {
+          o.applyProgressChange(std::get<ProgressChangeResult>(result->data));
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_JUMP_PERCENT: {
+          o.jumpToPercent(std::get<PercentResult>(result->data).percent);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_BUILD_ITEMS: {
+          EpubReaderMenuActivity::buildMenuItems(o.moreItems, a != 0, !o.cachedBookmarks.empty(),
+                                                 CLIPPINGS.hasClippings());
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_ACTION_AT: {
+          assert(a >= 0 && static_cast<size_t>(a) < o.moreItems.size());
+          return static_cast<uint32_t>(o.moreItems[a].action);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_ERASE_ITEM: {
+          assert(a >= 0 && static_cast<size_t>(a) < o.moreItems.size());
+          o.moreItems.erase(o.moreItems.begin() + a);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SETTLE: {
+          o.settleOverlayRefresh();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_RESTORE_PAGE: {
+          o.renderer.restoreBwBuffer(false);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_ORIENTATION: {
+          static constexpr StrId ids[] = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_ORIENTATION_INVERTED,
+                                          StrId::STR_LANDSCAPE_CCW};
+          static_assert(std::size(ids) == CrossPointSettings::ORIENTATION_COUNT, "orientation options");
+          o.overlayPopup.show(StrId::STR_ORIENTATION, ids, static_cast<int>(std::size(ids)), a,
+                              [owner = &o](int index) {
+                                owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_ORIENTATION_RESULT, index);
+                              });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_PREPARE_LABELS: {
+          assert(!labels);
+          labels.emplace();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_DROP_LABELS: {
+          labels.reset();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_RESERVE_LABELS: {
+          assert(labels);
+          labels->reserve(static_cast<size_t>(a));
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_ADD_OFF_LABEL: {
+          assert(labels);
+          labels->emplace_back(tr(STR_STATE_OFF));
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_ADD_RATE_LABEL: {
+          assert(labels && a >= 0 && static_cast<size_t>(a) < std::size(PAGE_TURN_RATES));
+          labels->push_back(std::to_string(PAGE_TURN_RATES[a]));
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SHOW_AUTO: {
+          assert(labels);
+          o.overlayPopup.show(StrId::STR_AUTO_TURN_PAGES_PER_MIN, *labels, a, [owner = &o](int index) {
+            owner->runMenuPolicy(XP_UI_READER_PARENT_OPERATION_AUTO_RESULT, index);
+          });
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_PAINT_POPUP: {
+          o.paintOverlayPopup();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_TOGGLE_BLUETOOTH: {
+          EpubReaderMenuActivity::toggleBluetooth();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_RENDER_OVERLAY: {
+          o.renderOverlay();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_PUSH_OVERLAY: {
+          o.pushOverlayRefresh();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_SAVE_SETTINGS: {
+          SETTINGS.saveToFile();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_LIGHT_GET: {
+          return Frontlight.isOn();
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_LIGHT_SET: {
+          Frontlight.setOn(a != 0);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_DISPLAY_FAST: {
+          o.renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+          break;
+        }
+        case XP_UI_READER_PARENT_COMMAND_CLOCK: {
+          return static_cast<uint32_t>(millis());
+          break;
+        }
+      }
+      return 0;
+    }
+  } context{*this, result, {}, {}, {}, {}};
+  const XpUiReaderParentServices services{
+      &context, [](void* p, uint8_t f) { return static_cast<Context*>(p)->read(f); },
+      [](void* p, uint8_t f, uint32_t v) { static_cast<Context*>(p)->write(f, v); },
+      [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); }};
+  xp_ui_reader_menu_parent(&services, operation, argument);
+  assert(!context.lock && !context.qr && !context.labels);
 }

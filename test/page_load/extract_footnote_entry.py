@@ -50,28 +50,50 @@ tap = """
     }};
   xp_ui_reader_loop_run(&services);
 """
-menus = []
-for name in ('openReaderMenu', 'buildMoreActions'):
-    body = method(name)
-    start = body.index('  bool hasFootnotes;')
-    end = body.index('\n  }', start) + len('\n  }')
-    menus.append(body[start:end])
+# Execute the Rust parent policy while retaining the actual native metadata leaf.
+parent_start = source.index('        case XP_UI_READER_PARENT_COMMAND_FOOTNOTES_PRESENT:')
+parent_end = source.index('        case XP_UI_READER_PARENT_COMMAND_SHOW_MENU:', parent_start)
+parent_metadata = source[parent_start:parent_end]
+parent = """
+  struct Context { EpubReaderActivity& o; std::optional<RenderLock> lock; bool available = false; } context{*this, {}};
+  const XpUiReaderParentServices services{
+    &context,
+    [](void*, uint8_t) -> uint32_t { return 0; },
+    [](void*, uint8_t, uint32_t) {},
+    [](void* p, uint8_t command, int32_t a, int32_t b) -> uint32_t {
+      auto& c = *static_cast<Context*>(p); auto& o = c.o;
+      switch (command) {
+        case XP_UI_READER_PARENT_COMMAND_LOCK: c.lock.emplace(); break;
+        case XP_UI_READER_PARENT_COMMAND_UNLOCK: c.lock.reset(); break;
+""" + parent_metadata + """
+        case XP_UI_READER_PARENT_COMMAND_SHOW_MENU: c.available = b != 0; break;
+        case XP_UI_READER_PARENT_COMMAND_BUILD_ITEMS: c.available = a != 0; break;
+        default: break;
+      }
+      return 0;
+    }};
+  xp_ui_reader_menu_parent(&services, OPERATION, 0);
+  assert(!context.lock);
+  return context.available;
+"""
+menus = [parent.replace('OPERATION', operation) for operation in
+         ['XP_UI_READER_PARENT_OPERATION_OPEN', 'XP_UI_READER_PARENT_OPERATION_BUILD_MORE']]
 
-# New input consumers must be added to this executable harness too.
+# One shared menu leaf serves both parent operations; render clear/assign are locked by ActivityManager.
 assert source.count('currentPageMetadata.') == sum(
-    text.count('currentPageMetadata.') for text in [entry, tap, *menus]
-) + 2  # renderBook's clear and assign are protected by ActivityManager.
+    text.count('currentPageMetadata.') for text in [entry, tap, parent_metadata]
+) + 2
 
 pathlib.Path(sys.argv[2]).write_text(
     '#include "FootnoteReader.h"\n'
-    '#include <xp_ui_reader.h>\n'
+    '#include <xp_ui_reader.h>\n#include <optional>\n#include <cassert>\n'
     '#include "activities/reader/EpubReaderFootnoteSelectActivity.h"\n'
     '#include "activities/reader/EpubReaderUtils.h"\n'
     '#include "CrossPointSettings.h"\n'
     'namespace haptic_feedback { void touchAction() {} }\n' + entry + '\n'
     'void EpubReaderActivity::testLinkTap() {\n' + tap + '}\n'
-    'bool EpubReaderActivity::testMenuAvailability() {\n' + menus[0] + '\nreturn hasFootnotes;\n}\n'
-    'bool EpubReaderActivity::testMoreAvailability() {\n' + menus[1] + '\nreturn hasFootnotes;\n}\n')
+    'bool EpubReaderActivity::testMenuAvailability() {\n' + menus[0] + '\n}\n'
+    'bool EpubReaderActivity::testMoreAvailability() {\n' + menus[1] + '\n}\n')
 
 selector = pathlib.Path(sys.argv[3]).read_text()
 selector = selector.replace('#include "EpubReaderFootnoteSelectActivity.h"',

@@ -136,6 +136,7 @@ struct Fonts {
     return registryValue;
   }
 };
+static Fonts sdFontSystem;
 struct ReaderToolbarUi {
   explicit ReaderToolbarUi(GfxRenderer&) { event("new-toolbar"); }
   void begin() { event("begin-toolbar"); }
@@ -236,7 +237,6 @@ struct EpubReaderActivity {
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();
   std::unique_ptr<Section> section;
   std::unique_ptr<ReaderToolbarUi> toolbarUi;
-  Fonts sdFontSystem;
   StripBuffers stripBuffers;
   Metadata currentPageMetadata;
   Popup overlayPopup;
@@ -304,6 +304,7 @@ struct EpubReaderActivity {
   void renderOverlay() { event("render-overlay", lockDepth); }
   void pushOverlayRefresh() { event("push-overlay", lockDepth); }
   void paintOverlayPopup() { event("paint-popup", lockDepth); }
+  void runMenuPolicy(uint8_t operation, int32_t argument = 0, const ActivityResult* result = nullptr);
   void openReaderMenu();
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction);
   void buildMoreActions();

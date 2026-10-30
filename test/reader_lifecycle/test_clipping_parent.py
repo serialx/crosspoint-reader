@@ -20,7 +20,7 @@ methods='\n'.join(definition(reader,s) for s in ['int EpubReaderActivity::clippi
 geometry='\n'.join(definition(reader,s) for s in ['int clippingWordFont(', 'Rect clippingWordRect('] if s in reader)
 if 'int EpubReaderActivity::runClippingPolicy(' in reader:
     methods += '\n' + definition(reader,'int EpubReaderActivity::runClippingPolicy(')
-match='\n'.join(definition(clipping,s) for s in ['inline bool clippingStoredRangeMatchesLayout(', 'inline bool clippingContainsWord('])
+match='\n'.join(definition(clipping,s) for s in ['inline bool clippingStoredRangeMatchesLayout(', 'inline bool clippingContainsWord(']) if freeze else ''
 fixture=(HERE/'clipping_parent_oracle.cpp').read_text().replace('// CLIPPING_RECORD',next(line for line in clipping.splitlines() if line.startswith('inline constexpr size_t CLIPPING_CHAPTER_TITLE_MAX'))+'\n'+definition(clipping,'struct Clipping {')+';').replace('// CLIPPING_MATCH',match).replace('// GEOMETRY_METHODS',geometry).replace('// CLIPPING_METHODS',methods)
 with tempfile.TemporaryDirectory() as directory:
     path=Path(directory)

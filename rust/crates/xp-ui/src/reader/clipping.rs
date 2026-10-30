@@ -448,6 +448,89 @@ mod tests {
     extern crate std;
     use super::*;
     use std::vec::Vec;
+    #[test]
+    fn removal_matches_portable_and_legacy_highlight_boundaries() {
+        struct Case {
+            record: Record,
+            spine: u16,
+            count: u16,
+        }
+        unsafe extern "C" fn query(c: *mut c_void, q: u8, _: u32) -> u32 {
+            let c = &*c.cast::<Case>();
+            match q {
+                x if x == Query::ClipCount as u8 => 1,
+                x if x == Query::Spine as u8 => u32::from(c.spine),
+                x if x == Query::PageCount as u8 => u32::from(c.count),
+                _ => panic!("unexpected query"),
+            }
+        }
+        unsafe extern "C" fn record(c: *mut c_void, _: u32, out: *mut Record) {
+            *out = (*c.cast::<Case>()).record;
+        }
+        let mut case = Case {
+            record: Record {
+                spine: 2,
+                start_offset: 100,
+                end_offset: 200,
+                ..Record::default()
+            },
+            spine: 2,
+            count: 300,
+        };
+        impl Case {
+            fn find(
+                &mut self,
+                word: u16,
+                start: u32,
+                end: u32,
+                page: u16,
+                signature: u32,
+            ) -> Option<u32> {
+                Policy {
+                    context: (self as *mut Case).cast(),
+                    query,
+                    command,
+                    paint,
+                    clipping: record,
+                }
+                .find(word, start, end, page, signature)
+            }
+        }
+        assert_eq!(case.find(0, 95, 105, 99, 42), Some(0));
+        case.count = 1;
+        assert_eq!(case.find(0, 190, 210, 0, 0), Some(0));
+        case.spine = 3;
+        assert_eq!(case.find(0, 100, 110, 0, 0), None);
+        case.spine = 2;
+        assert_eq!(case.find(0, 90, 100, 0, 0), None);
+        assert_eq!(case.find(0, 200, 210, 0, 0), None);
+        assert_eq!(case.find(0, u32::MAX, u32::MAX, 0, 0), None);
+        case.record = Record {
+            spine: 2,
+            start_page: 2,
+            end_page: 3,
+            start_word: 4,
+            end_word: 6,
+            page_count: 10,
+            signature: 42,
+            start_offset: u32::MAX,
+            end_offset: u32::MAX,
+        };
+        case.count = 10;
+        assert_eq!(case.find(4, 0, 1, 2, 42), Some(0));
+        assert_eq!(case.find(6, 0, 1, 3, 42), Some(0));
+        assert_eq!(case.find(3, 0, 1, 2, 42), None);
+        assert_eq!(case.find(7, 0, 1, 3, 42), None);
+        assert_eq!(case.find(4, 0, 1, 2, 43), None);
+        case.count = 11;
+        assert_eq!(case.find(4, 0, 1, 2, 42), None);
+        case.count = 10;
+        assert_eq!(case.find(4, 0, 1, 1, 42), None);
+        assert_eq!(case.find(4, 0, 1, 4, 42), None);
+        case.record.signature = 0;
+        assert_eq!(case.find(4, 0, 1, 2, 0), None);
+    }
+
     #[derive(Default)]
     struct Fake {
         bits: u32,

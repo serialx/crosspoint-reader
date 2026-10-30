@@ -299,6 +299,20 @@ void HomeActivity::rustPublished() {
   publishedGrid = frame.grid;
 }
 
+// Keep bitmap parsing storage off the header/theme call chain.
+[[gnu::noinline]] void HomeActivity::paintCoverThumb(uint32_t book, const Rect& rect) {
+  HalFile file;
+  const auto path = UITheme::getCoverThumbPath(recentBooks[book].coverBmpPath, xp_ui_home_thumb_height(&frame.layout));
+  if (Storage.openFileForRead("HOME", path, file)) {
+    Bitmap bitmap(file);
+    if (bitmap.parseHeaders() == BmpReaderError::Ok) {
+      if (frame.layout.theme == 0) LOG_DBG("THEME", "Rendering bmp");
+      GUI.drawCoverThumbFill(renderer, bitmap, rect);
+      if (frame.layout.theme == 0 && frame.snapshot.selected == 0) LOG_DBG("THEME", "Drawing selection");
+    }
+  }
+}
+
 XpUiPaint HomeActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void* p, uint32_t h, uint32_t generation) -> uint8_t {
@@ -338,18 +352,7 @@ XpUiPaint HomeActivity::rustResources() {
               return;
             }
             if (h >= XP_UI_HOME_COVER && h < XP_UI_HOME_COVER + self.recentBooks.size()) {
-              HalFile file;
-              const auto path = UITheme::getCoverThumbPath(self.recentBooks[h - XP_UI_HOME_COVER].coverBmpPath,
-                                                           xp_ui_home_thumb_height(&self.frame.layout));
-              if (Storage.openFileForRead("HOME", path, file)) {
-                Bitmap bitmap(file);
-                if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-                  if (self.frame.layout.theme == 0) LOG_DBG("THEME", "Rendering bmp");
-                  GUI.drawCoverThumbFill(self.renderer, bitmap, rect);
-                  if (self.frame.layout.theme == 0 && self.frame.snapshot.selected == 0)
-                    LOG_DBG("THEME", "Drawing selection");
-                }
-              }
+              self.paintCoverThumb(h - XP_UI_HOME_COVER, rect);
               return;
             }
             if (h >= XP_UI_HOME_MENU_ICON && h < XP_UI_HOME_MENU_ICON + self.frame.menuCount) {

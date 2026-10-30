@@ -81,6 +81,7 @@ class HomeActivity final : public RustActivityAdapter {
   void prepareTitle(uint8_t book);
   void sampleLayout();
   void prepareCovers();
+  void paintCoverThumb(uint32_t book, const Rect& rect);
   bool allocateCoverBuffer();
   bool storeCoverBuffer();  // Store frame buffer for cover image
   void freeCoverBuffer();   // Free the stored cover buffer

@@ -2814,7 +2814,7 @@ void EpubReaderActivity::renderOverlay() {
 }
 
 void EpubReaderActivity::cancelRejectedInput(const XpUiInput& input) {
-  if (input.released & XP_UI_BACK) handleOverlayInput();
+  if (input.released & XP_UI_BACK) runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_CANCEL);
 }
 
 void EpubReaderActivity::handleOverlayInput() { runOverlayPolicy(XP_UI_READER_OVERLAY_OPERATION_INPUT); }

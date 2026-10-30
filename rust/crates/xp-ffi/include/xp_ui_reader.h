@@ -949,6 +949,8 @@ typedef enum {
   XP_UI_READER_OVERLAY_OPERATION_OPEN_TEXT = 6,
   XP_UI_READER_OVERLAY_OPERATION_OPEN_MORE = 7,
   XP_UI_READER_OVERLAY_OPERATION_CLOSE = 8,
+  // Cancel popup, toolbar or panel without sampling input; no-op when closed.
+  XP_UI_READER_OVERLAY_OPERATION_CANCEL = 9,
 } XpUiReaderOverlayOperation;
 enum { XP_UI_READER_OVERLAY_TEXT_ROWS = 5, XP_UI_READER_OVERLAY_HOLD_MS = 1500, XP_UI_READER_OVERLAY_HOLD_ROWS = 10 };
 typedef struct {
@@ -2521,8 +2523,8 @@ typedef struct {
   void (*write)(void* context, uint8_t field, uint32_t value);
   uint32_t (*command)(void* context, uint8_t command, int32_t a, int32_t b);
 } XpUiReaderProjectionServices;
-uint32_t xp_ui_reader_projection(const XpUiReaderProjectionServices* services, uint8_t operation,
-                                 int32_t a, int32_t b, uint8_t c);
+uint32_t xp_ui_reader_projection(const XpUiReaderProjectionServices* services, uint8_t operation, int32_t a, int32_t b,
+                                 uint8_t c);
 
 #ifdef __cplusplus
 }
@@ -2974,6 +2976,7 @@ XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_CONTENTS == 5);
 XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_TEXT == 6);
 XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_OPEN_MORE == 7);
 XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_CLOSE == 8);
+XP_UI_READER_OVERLAY_ASSERT(XP_UI_READER_OVERLAY_OPERATION_CANCEL == 9);
 #undef XP_UI_READER_OVERLAY_ASSERT
 #undef XP_UI_READER_OVERLAY_ALIGNOF
 

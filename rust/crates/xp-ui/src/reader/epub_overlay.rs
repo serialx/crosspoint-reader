@@ -123,6 +123,7 @@ pub enum Operation {
     OpenText = 6,
     OpenMore = 7,
     Close = 8,
+    Cancel = 9,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -387,6 +388,19 @@ impl Engine {
             self.redraw();
         }
     }
+    fn cancel(&self) {
+        if self.f(Field::Overlay) == NONE || self.q(Query::HasToolbar) == 0 {
+            return;
+        }
+        if self.q(Query::PopupActive) != 0 {
+            self.op(Command::DismissPopup);
+            self.popup_changed();
+        } else if self.f(Field::Overlay) == TOOLBAR {
+            self.op(Command::Close);
+        } else {
+            self.dismiss();
+        }
+    }
     fn input(&self) {
         use Command as C;
         use Field as F;
@@ -557,6 +571,7 @@ pub unsafe fn run(s: *const Services, operation: u8) {
                     e.open(u32::from(x - Operation::OpenNone as u8))
                 }
                 x if x == Operation::Close as u8 => e.close(),
+                x if x == Operation::Cancel as u8 => e.cancel(),
                 _ => {}
             }
         }
@@ -627,6 +642,7 @@ const _: () = {
     assert!(Command::TakeSwipe as u8 == 28);
     assert!(Command::SampleButtons as u8 == 29);
     assert!(Command::TakeHeldMs as u8 == 30);
+    assert!(Operation::Cancel as u8 == 9);
     assert!(Operation::Input as u8 == 0);
     assert!(Operation::PopupChanged as u8 == 1);
     assert!(Operation::PickerResult as u8 == 2);

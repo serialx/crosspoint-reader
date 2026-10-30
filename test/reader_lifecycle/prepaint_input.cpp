@@ -13,14 +13,15 @@
 #define LOG_ERR(...) ((void)0)
 struct MappedInputManager {
   enum class Button { Back, Confirm, NavNext, NavPrevious };
-  uint8_t pressed = 0, released = 0;
+  uint16_t pressed = 0, released = 0, held = 0;
   bool touchReleased = false;
   bool wasPressed(Button button) const { return pressed & (1u << static_cast<unsigned>(button)); }
   bool wasReleased(Button button) const { return released & (1u << static_cast<unsigned>(button)); }
+  bool isPressed(Button button) const { return held & (1u << static_cast<unsigned>(button)); }
   unsigned long getHeldTime() const { return 0; }
 };
 struct Touch {
-  bool touchPressed = false, touchReleased = false;
+  bool touchPressed = false, touchReleased = false, touchHeld = false;
   int16_t touchX = 10, touchY = 10;
 };
 static Touch touchSnapshotFrom(const MappedInputManager& input) { return {false, input.touchReleased}; }
@@ -56,6 +57,8 @@ struct EndOfBookOptions {
   uint16_t rowCount = 2;
   int mutex = 0;
   bool ready = false;
+  bool sceneFailed = false, suppressedContact = false, lastContact = false;
+  uint32_t suppressed = 0, lastHeld = 0;
   bool loaded = false;
   void (*atFirstPaint)(EndOfBookOptions&) = nullptr;
   explicit EndOfBookOptions(GfxRenderer&) { xp_ui_reader_list_init(&state, 0); }

@@ -1,5 +1,5 @@
 use super::*;
-use xp_display::ssd1677::{Refresh, Ssd1677, Window, WindowAllocator};
+use xp_display::ssd1677::{Config, Refresh, Ssd1677, Window, WindowAllocator};
 
 #[repr(C)]
 struct State {
@@ -192,6 +192,17 @@ unsafe fn execute(
         OP_GRAY_DISPLAY | OP_GRAY_CALIBRATE => {
             let lut = optional(r.lut, r.lut_len, 110)?;
             let calibration = r.operation == OP_GRAY_CALIBRATE;
+            if panel.gray_fallback() && (lut.is_none() || calibration) {
+                panel.display(
+                    bus,
+                    optional(r.data, r.data_len, size)?.ok_or(INVALID)?,
+                    None,
+                    Refresh::Full,
+                    !calibration && turn_off,
+                    false,
+                );
+                return Ok(result);
+            }
             panel.gray_display(
                 bus,
                 !calibration && turn_off,
@@ -238,17 +249,30 @@ pub(super) unsafe fn dispatch(action: Action<'_>) -> u32 {
             config,
             options,
         } => {
-            if !config.controller_config.is_null()
-                || config.controller_config_size != 0
-                || options.controller_config_version != 1
-            {
+            if options.controller_config_version != 1 {
                 return INVALID;
             }
-            let Some(panel) =
+            let Some(mut panel) =
                 Ssd1677::new(config.width, config.height, config.variant, config.flags)
             else {
                 return INVALID;
             };
+            if config.controller_config.is_null() {
+                if config.controller_config_size != 0 {
+                    return INVALID;
+                }
+            } else {
+                if config.controller_config_size as usize != size_of::<Config>()
+                    || !(config.controller_config as usize).is_multiple_of(align_of::<Config>())
+                {
+                    return INVALID;
+                }
+                let Some(custom) = panel.with_config(&*config.controller_config.cast::<Config>())
+                else {
+                    return INVALID;
+                };
+                panel = custom;
+            }
             storage.cast::<State>().write(State {
                 header: Header::new(SSD1677),
                 platform: options.platform,
@@ -328,4 +352,15 @@ pub(super) unsafe fn execute_source(
         _ => return Err(UNSUPPORTED),
     }
     Ok(result)
+}
+
+/// # Safety
+/// `out` must point to writable storage for one configuration descriptor.
+#[no_mangle]
+pub unsafe extern "C" fn xp_display_ssd1677_default_config(out: *mut Config) -> u32 {
+    if out.is_null() || !(out as usize).is_multiple_of(align_of::<Config>()) {
+        return INVALID;
+    }
+    out.write(*xp_display::ssd1677::default_config());
+    OK
 }

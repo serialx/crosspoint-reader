@@ -88,3 +88,6 @@ pub const SSD1677_PICCO_OPM: u32 = 5;
 pub const SSD1677_MIRROR_X: u32 = 1;
 pub const SSD1677_MIRROR_Y: u32 = 2;
 pub const SSD1677_FAST_DU: u32 = 4;
+
+pub const SSD1677_DIAGNOSTICS: u32 = 8;
+pub const DIAG_SSD_REFRESH: u32 = 68;

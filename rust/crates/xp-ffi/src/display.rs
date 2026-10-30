@@ -146,6 +146,11 @@ impl Bus for &DisplayBus {
             0
         }
     }
+    fn diagnostic(&mut self, event: u32, a: u32, b: u32, c: u32, d: u32) {
+        if let Some(callback) = self.diagnostic {
+            unsafe { callback(self.ctx, event, a, b, c, d, core::ptr::null(), 0) }
+        }
+    }
     fn probe(&mut self, kind: u32, arg: u32) -> u32 {
         if let Some(callback) = self.probe {
             unsafe { callback(self.ctx, kind, arg) }

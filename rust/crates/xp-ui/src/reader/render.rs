@@ -260,6 +260,63 @@ impl Engine {
             y += rows;
         }
     }
+    // Plane upload temporaries are not live during the initial page/image draw.
+    #[inline(never)]
+    fn tiled(&mut self, active: bool, overlap: bool, combined: bool, absolute: bool, text: bool) {
+        let height = self.query(Query::Height) as u16;
+        let width = self.query(Query::WidthBytes);
+        let bytes = width.wrapping_mul(u32::from(height));
+        let lsb = !active && overlap && self.fits(bytes) && self.allocate(Buffer::Lsb, bytes);
+        let msb = lsb && self.fits(bytes) && self.allocate(Buffer::Msb, bytes);
+        if lsb {
+            self.plane(Buffer::Lsb, true, width, height, absolute, text);
+            if msb {
+                self.plane(Buffer::Msb, false, width, height, absolute, text);
+            }
+            self.mark();
+            self.simple(Kind::Wait);
+            self.mark();
+            self.write(Buffer::Lsb, true, 0, height);
+            if msb {
+                self.write(Buffer::Msb, false, 0, height);
+            } else {
+                self.plane(Buffer::Lsb, false, width, height, absolute, text);
+                self.write(Buffer::Lsb, false, 0, height);
+            }
+            self.mark();
+            self.mode(0);
+            self.simple(Kind::GrayDisplay);
+            self.mark();
+            self.simple(Kind::Cleanup);
+            self.mark();
+            self.log(Log::TimingAsync);
+        } else {
+            let scratch = if active {
+                self.simple(Kind::BorrowScratch) != 0
+            } else {
+                self.allocate(Buffer::Scratch, width.wrapping_mul(80))
+            };
+            self.simple(Kind::Wait);
+            if !scratch {
+                self.log(Log::ScratchOom);
+                if overlap || combined {
+                    self.simple(Kind::Cleanup);
+                }
+            } else {
+                self.plane(Buffer::Scratch, true, width, height, absolute, text);
+                self.mark();
+                self.plane(Buffer::Scratch, false, width, height, absolute, text);
+                self.mark();
+                self.mode(0);
+                self.simple(Kind::GrayDisplay);
+                self.mark();
+                self.simple(Kind::Cleanup);
+                self.mark();
+                self.mark();
+                self.log(Log::TimingTiled);
+            }
+        }
+    }
     fn run(mut self, strip_enabled: bool) {
         self.mark();
         self.simple(Kind::ImageReset);
@@ -355,59 +412,7 @@ impl Engine {
         }
         self.mark();
         if tiled {
-            let height = self.query(Query::Height) as u16;
-            let width = self.query(Query::WidthBytes);
-            let bytes = width.wrapping_mul(u32::from(height));
-            let lsb = !active && overlap && self.fits(bytes) && self.allocate(Buffer::Lsb, bytes);
-            let msb = lsb && self.fits(bytes) && self.allocate(Buffer::Msb, bytes);
-            if lsb {
-                self.plane(Buffer::Lsb, true, width, height, absolute, text);
-                if msb {
-                    self.plane(Buffer::Msb, false, width, height, absolute, text);
-                }
-                self.mark();
-                self.simple(Kind::Wait);
-                self.mark();
-                self.write(Buffer::Lsb, true, 0, height);
-                if msb {
-                    self.write(Buffer::Msb, false, 0, height);
-                } else {
-                    self.plane(Buffer::Lsb, false, width, height, absolute, text);
-                    self.write(Buffer::Lsb, false, 0, height);
-                }
-                self.mark();
-                self.mode(0);
-                self.simple(Kind::GrayDisplay);
-                self.mark();
-                self.simple(Kind::Cleanup);
-                self.mark();
-                self.log(Log::TimingAsync);
-            } else {
-                let scratch = if active {
-                    self.simple(Kind::BorrowScratch) != 0
-                } else {
-                    self.allocate(Buffer::Scratch, width.wrapping_mul(80))
-                };
-                self.simple(Kind::Wait);
-                if !scratch {
-                    self.log(Log::ScratchOom);
-                    if overlap || combined {
-                        self.simple(Kind::Cleanup);
-                    }
-                } else {
-                    self.plane(Buffer::Scratch, true, width, height, absolute, text);
-                    self.mark();
-                    self.plane(Buffer::Scratch, false, width, height, absolute, text);
-                    self.mark();
-                    self.mode(0);
-                    self.simple(Kind::GrayDisplay);
-                    self.mark();
-                    self.simple(Kind::Cleanup);
-                    self.mark();
-                    self.mark();
-                    self.log(Log::TimingTiled);
-                }
-            }
+            self.tiled(active, overlap, combined, absolute, text);
         } else if any_gray {
             if self.simple(Kind::StoreBw) == 0 {
                 self.log(Log::StoreFailed);

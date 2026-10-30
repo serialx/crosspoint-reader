@@ -215,6 +215,7 @@ impl Engine {
         });
         self.set(Field::Automatic, 0);
     }
+    #[inline(never)] // Keep viewport preparation temporaries off the nested page-drawing stack.
     fn viewport(&self) {
         self.op(Command::SampleMargins);
         let margin = self.q(Query::ScreenMargin) as i32;

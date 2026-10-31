@@ -303,7 +303,10 @@ Extraction is Rust-owned as well. `xp_book_zip_memory` and
 which sequences the lookup, the seek to the entry's data offset whose result it
 ignores, the stored copy, the method-8 deflate read, output allocation and
 release, and the streaming early stop. The memory path reads deflate input
-through a 1,024-byte buffer. `ZipFile::readFileToMemory` and
+through a 1,024-byte buffer. Allocation and release, inflate, and the write sink
+are still C++ callbacks that `extractServices` builds into `XpBookZipServices`
+(`lib/ZipFile/ZipPlatform.cpp:60-82`), so buffers come from `malloc` at `:65` and
+Rust only borrows them. `ZipFile::readFileToMemory` and
 `ZipFile::readFileToStream` (`lib/ZipFile/ZipPlatform.cpp:387-405`) only build
 the service records and forward those two calls.
 
@@ -339,17 +342,23 @@ cmake --build build/test --target ZipFileTest
 build/test/zip_file/ZipFileTest
 ```
 
-The host-only wrappers in `rust/crates/xp-ffi/src/zip.rs` (`xp_zip_eocd_request`,
+The test-only wrappers in `rust/crates/xp-ffi/src/zip.rs` (`xp_zip_eocd_request`,
 `xp_zip_eocd`, `xp_zip_begin`, `xp_zip_request`, `xp_zip_next`,
-`xp_zip_local_request`, `xp_zip_data_offset`) reject invalid null/alignment/length
-arguments and offset overflow. The shipping callback ABI leaves pointer validity
-to the caller: `xp_book_zip_index` (`rust/crates/xp-ffi/src/book_residual.rs:98-112`)
-null-checks only the services record, then writes `output` unguarded, and
-`Span::bytes` (`rust/crates/xp-core/src/book/residual.rs:94-100`) checks nothing,
-so callers must pass valid aligned storage. Short local headers and failed
-seeks/reads fail without parsing uninitialized bytes. The compatibility corpus
-does not define results for the old scanner's unchecked short reads. ZIP64 and
-multi-disk support are not added by this change.
+`xp_zip_local_request`, `xp_zip_data_offset`, `xp_zip_name_matches`) reject invalid
+null/alignment/length arguments and offset overflow. Five of them carry
+`#[cfg(not(target_os = "none"))]` (`:54`, `:67`, `:84`, `:111`, `:123`) and so
+never reach a firmware build; `xp_zip_eocd_request` (`:24`) and `xp_zip_eocd`
+(`:38`) compile for every target but no firmware code references them, so the
+linker drops them from shipped images; `xp_zip_name_matches` (`:148`) is the
+eighth, referenced only from `test/zip_file/ZipFileTest.cpp`. The shipping callback
+ABI leaves pointer validity to the caller: `xp_book_zip_index`
+(`rust/crates/xp-ffi/src/book_residual.rs:98-112`) null-checks only the services
+record, then writes `output` unguarded, and `Span::bytes`
+(`rust/crates/xp-core/src/book/residual.rs:94-100`) checks nothing, so callers must
+pass valid aligned storage. Short local headers and failed seeks/reads fail
+without parsing uninitialized bytes. The compatibility corpus does not define
+results for the old scanner's unchecked short reads. ZIP64 and multi-disk
+support are not added by this change.
 
 ## Chapter and section compatibility
 

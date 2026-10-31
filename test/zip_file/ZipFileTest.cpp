@@ -12,6 +12,9 @@
 #include <string>
 #include <vector>
 
+#include "AllocationProbe.h"
+#include "ZipTestAbi.h"
+
 namespace {
 
 constexpr uint16_t METHOD_STORED = 0;
@@ -345,6 +348,15 @@ std::string hexName(std::string_view name) {
   return name.empty() ? "-" : out.str();
 }
 
+long localOffset(ZipFile& zip, const ZipFile::FileStatSlim& stat) {
+  XpZipRead request;
+  xp_zip_local_request(stat.localHeaderOffset, &request);
+  uint8_t header[30];
+  if (!zip.file.seek(request.offset) || zip.file.read(header, request.length) != int(request.length)) return -1;
+  uint64_t offset;
+  return xp_zip_data_offset(stat.localHeaderOffset, header, sizeof(header), &offset) == 0 ? long(offset) : -1;
+}
+
 std::string directoryOracle(const std::vector<uint8_t>& bytes) {
   const std::string path = "/oracle.epub";
   Storage.setFile(path, bytes);
@@ -376,7 +388,7 @@ std::string directoryOracle(const std::vector<uint8_t>& bytes) {
       const bool sized = zip.getInflatedFileSize(name.c_str(), &size);
       out << "lookup " << found << ' ' << sized << ' ' << size << ' ' << stat.method << ' ' << stat.compressedSize
           << ' ' << stat.uncompressedSize << ' ' << stat.localHeaderOffset << ' '
-          << (found ? zip.getDataOffset(stat) : -1) << ' ' << zip.lastCentralDirPos << '\n';
+          << (found ? localOffset(zip, stat) : -1) << ' ' << zip.lastCentralDirPos << '\n';
     }
   }
   std::deque<ZipFile::SizeTarget> targets;
@@ -579,4 +591,192 @@ TEST_F(ZipFileTest, TrailingNulSizeOverflowDoesNotAllocateOutput) {
   size_t size = 777;
   EXPECT_EQ(zip.readFileToMemory("entry", &size, true), nullptr);
   EXPECT_EQ(size, 777u);
+}
+
+TEST_F(ZipFileTest, ExtractionPreservesOpenOwnershipAndWarmLookup) {
+  ZipBuilder builder;
+  builder.addStored("stored", "value").addDeflated("deflated", DEFLATED_BYTES, DEFLATED_TEXT.size());
+  for (bool owned : {false, true}) {
+    install(builder);
+    ZipFile zip(path);
+    if (owned) ASSERT_TRUE(zip.open());
+    for (const char* name : {"stored", "deflated"}) {
+      const std::string expected = std::string(name) == "stored" ? "value" : DEFLATED_TEXT;
+      EXPECT_EQ(sizeOf(zip, name), expected.size());
+      HalFile::readOffsets.clear();
+      EXPECT_EQ(extract(zip, name), expected);
+      EXPECT_EQ(zip.isOpen(), owned);
+      if (owned) EXPECT_FALSE(touchedCentralDirectory());
+      VectorSink sink;
+      EXPECT_TRUE(zip.readFileToStream(name, sink, 7));
+      EXPECT_EQ(sink.text(), expected);
+      EXPECT_EQ(zip.isOpen(), owned);
+    }
+    zip.close();
+    EXPECT_FALSE(zip.lastLookupValid);
+    EXPECT_FALSE(zip.lastCentralDirPosValid);
+    ASSERT_TRUE(zip.open());
+    HalFile::readOffsets.clear();
+    EXPECT_EQ(extract(zip, "stored"), "value");
+    EXPECT_TRUE(touchedCentralDirectory());
+  }
+}
+
+TEST_F(ZipFileTest, FailedOpenAndCentralSeekLeaveSizeUntouched) {
+  ZipBuilder builder;
+  builder.addStored("entry", "value");
+  for (size_t fail : {size_t(1), size_t(4)}) {
+    install(builder);
+    ziptest::operations = 0;
+    ziptest::fail = fail;
+    ZipFile zip(path);
+    size_t size = 777;
+    EXPECT_FALSE(zip.getInflatedFileSize("entry", &size));
+    EXPECT_EQ(size, 777u);
+    EXPECT_FALSE(zip.isOpen());
+    EXPECT_FALSE(zip.lastLookupValid);
+    ziptest::fail = 0;
+    EXPECT_EQ(sizeOf(zip, "entry"), 5u);
+  }
+}
+
+TEST_F(ZipFileTest, EveryShortCentralAndLocalHeaderKeepsFailureOutcome) {
+  ZipBuilder builder;
+  builder.addStored("entry", "value");
+  for (size_t length = 0; length < 46; ++length) {
+    install(builder);
+    ZipFile zip(path);
+    HalFile::shortReadOffset = centralDirOffset;
+    HalFile::shortReadCount = length;
+    size_t size = 777;
+    EXPECT_FALSE(zip.getInflatedFileSize("entry", &size)) << length;
+    EXPECT_EQ(size, 777u);
+    EXPECT_FALSE(zip.lastLookupValid);
+    // A stopped directory scan still succeeds with a partial (empty) map.
+    EXPECT_TRUE(zip.loadAllFileStatSlims());
+    EXPECT_TRUE(zip.fileStatSlimCache.empty());
+  }
+  for (size_t length = 0; length < 30; ++length) {
+    install(builder);
+    ZipFile zip(path);
+    ASSERT_TRUE(zip.open());
+    ASSERT_EQ(sizeOf(zip, "entry"), 5u);
+    HalFile::shortReadOffset = 0;
+    HalFile::shortReadCount = length;
+    size_t size = 777;
+    EXPECT_EQ(zip.readFileToMemory("entry", &size), nullptr) << length;
+    EXPECT_EQ(size, 777u);
+    EXPECT_TRUE(zip.isOpen());
+  }
+  HalFile::shortReadOffset = SIZE_MAX;
+}
+
+TEST_F(ZipFileTest, BoundaryNamesAndPartialNameReadPreservePartialMap) {
+  const std::string maximum(255, 'm'), overlong(256, 'o');
+  ZipBuilder builder;
+  builder.addStored(maximum, "max").addStored(overlong, "skip").addStored("last", "end");
+  install(builder);
+  ZipFile zip(path);
+  EXPECT_EQ(extract(zip, maximum.c_str()), "max");
+  size_t size = 777;
+  EXPECT_FALSE(zip.getInflatedFileSize(overlong.c_str(), &size));
+  HalFile::shortReadOffset = centralDirOffset + 46 + maximum.size() + 46 + overlong.size() + 46;
+  HalFile::shortReadCount = 2;
+  EXPECT_TRUE(zip.loadAllFileStatSlims());
+  EXPECT_EQ(zip.fileStatSlimCache.size(), 1u);
+  EXPECT_EQ(extract(zip, maximum.c_str()), "max");
+  EXPECT_FALSE(zip.getInflatedFileSize("last", &size));
+  HalFile::shortReadOffset = SIZE_MAX;
+}
+
+TEST_F(ZipFileTest, SparseBatchMatchesDuplicateKeysAndIgnoresInvalidOutputIndex) {
+  ZipBuilder builder;
+  builder.addStored("one", "1").addStored("two", "22").addStored("three", "333");
+  install(builder);
+  ZipFile zip(path);
+  std::deque<ZipFile::SizeTarget> targets{{ZipFile::fnvHash64("absent", 6), 6, 0},
+                                          {ZipFile::fnvHash64("two", 3), 3, 1},
+                                          {ZipFile::fnvHash64("two", 3), 3, 2},
+                                          {ZipFile::fnvHash64("two", 3), 3, 65535}};
+  std::sort(targets.begin(), targets.end(),
+            [](auto a, auto b) { return a.hash < b.hash || (a.hash == b.hash && a.len < b.len); });
+  std::deque<uint32_t> sizes(3, 777);
+  EXPECT_EQ(zip.fillUncompressedSizes(targets, sizes), 2);
+  EXPECT_EQ(sizes, (std::deque<uint32_t>{777, 2, 2}));
+  EXPECT_FALSE(zip.isOpen());
+}
+
+TEST_F(ZipFileTest, EachNativeBufferAllocationFailureCanRetry) {
+  ZipBuilder builder;
+  builder.addStored("stored", "value").addDeflated("deflated", DEFLATED_BYTES, DEFLATED_TEXT.size());
+  for (const char* name : {"stored", "deflated"}) {
+    for (bool stream : {false, true}) {
+      install(builder);
+      size_t attempts = 0;
+      {
+        ZipFile zip(path);
+        VectorSink sink;
+        ziptest::captureAllocations = true;
+        ziptest::allocationCount = 0;
+        ziptest::allocationFail = SIZE_MAX;
+        if (stream) {
+          EXPECT_TRUE(zip.readFileToStream(name, sink, 64));
+        } else {
+          uint8_t* bytes = zip.readFileToMemory(name);
+          EXPECT_NE(bytes, nullptr);
+          free(bytes);
+        }
+        attempts = ziptest::allocationCount;
+        ziptest::captureAllocations = false;
+      }
+      const bool deflated = std::string(name) == "deflated";
+      EXPECT_EQ(attempts, deflated ? (stream ? 5u : 4u) : 2u);
+      const auto requests = ziptest::allocationSizes;
+      for (size_t fail = 0; fail < attempts; ++fail) {
+        SCOPED_TRACE(fail);
+        install(builder);
+        ZipFile zip(path);
+        VectorSink sink;
+        ziptest::captureAllocations = true;
+        ziptest::allocationCount = 0;
+        ziptest::allocationFail = fail;
+        if (stream) {
+          EXPECT_FALSE(zip.readFileToStream(name, sink, 64));
+        } else {
+          size_t size = 777;
+          EXPECT_EQ(zip.readFileToMemory(name, &size), nullptr);
+          EXPECT_EQ(size, 777u);
+        }
+        EXPECT_EQ(ziptest::allocationCount, fail + 1);
+        for (size_t i = 0; i <= fail; ++i) EXPECT_EQ(ziptest::allocationSizes[i], requests[i]);
+        ziptest::captureAllocations = false;
+        EXPECT_FALSE(zip.isOpen());
+        EXPECT_FALSE(zip.lastLookupValid);
+        EXPECT_EQ(extract(zip, name), deflated ? DEFLATED_TEXT : "value");
+      }
+    }
+  }
+}
+
+TEST_F(ZipFileTest, SameHashNamesKeepExactLookupAndBatchCollisionBehavior) {
+  const char* first = "!0IC=VloaY";
+  const char* second = "=. hx\"iX<;";
+  ASSERT_EQ(ZipFile::fnvHash64(first, 10), 0u);
+  ASSERT_EQ(ZipFile::fnvHash64(second, 10), 0u);
+  ZipBuilder builder;
+  builder.addStored(first, "a").addStored(second, "bb");
+  for (bool populated : {false, true}) {
+    install(builder);
+    ZipFile zip(path);
+    ASSERT_TRUE(zip.open());
+    if (populated) ASSERT_TRUE(zip.loadAllFileStatSlims());
+    EXPECT_EQ(extract(zip, first), "a");
+    EXPECT_EQ(extract(zip, second), "bb");
+    EXPECT_EQ(extract(zip, first), "a");
+    std::deque<ZipFile::SizeTarget> targets{{0, 10, 0}, {0, 10, 1}};
+    std::deque<uint32_t> sizes(2, 777);
+    // Batch targets contain only hash and length, so the first entry fills both.
+    EXPECT_EQ(zip.fillUncompressedSizes(targets, sizes), 2);
+    EXPECT_EQ(sizes, (std::deque<uint32_t>{1, 1}));
+  }
 }

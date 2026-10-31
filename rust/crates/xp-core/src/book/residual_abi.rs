@@ -78,13 +78,20 @@ pub const XP_BOOK_ZIP_INDEX_CACHE_SIZE: u32 = 0;
 pub const XP_BOOK_ZIP_INDEX_OPEN: u32 = 1;
 pub const XP_BOOK_ZIP_INDEX_DETAILS: u32 = 2;
 pub const XP_BOOK_ZIP_INDEX_CENTRAL: u32 = 3;
-pub const XP_BOOK_ZIP_INDEX_START: u32 = 4;
 pub const XP_BOOK_ZIP_INDEX_CLEAR: u32 = 5;
 pub const XP_BOOK_ZIP_INDEX_RESERVE: u32 = 6;
 pub const XP_BOOK_ZIP_INDEX_CURSOR: u32 = 7;
 pub const XP_BOOK_ZIP_INDEX_LAST_VALID: u32 = 8;
 pub const XP_BOOK_ZIP_INDEX_CURSOR_VALID: u32 = 9;
 pub const XP_BOOK_ZIP_INDEX_CURSOR_VALUE: u32 = 10;
+
+// XpBookZipDiagnostic
+pub const XP_BOOK_ZIP_LOG_CENTRAL_SEEK: u32 = 0;
+pub const XP_BOOK_ZIP_LOG_CENTRAL_INVALID: u32 = 1;
+pub const XP_BOOK_ZIP_LOG_TARGET_NAME: u32 = 2;
+pub const XP_BOOK_ZIP_LOG_NAME: u32 = 3;
+pub const XP_BOOK_ZIP_LOG_LOCAL_READ: u32 = 4;
+pub const XP_BOOK_ZIP_LOG_LOCAL_INVALID: u32 = 5;
 
 // XpBookZipCacheOp
 pub const XP_BOOK_ZIP_CACHE_FIND: u32 = 0;

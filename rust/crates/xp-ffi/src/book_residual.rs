@@ -100,10 +100,17 @@ pub unsafe extern "C" fn xp_book_zip_index(
     operation: u32,
     target: Span,
     last: Span,
+    output: *mut xp_core::zip::Entry,
 ) -> u8 {
     let Some(s) = s.as_ref() else { return 0 };
     (match operation {
-        XP_BOOK_ZIP_LOOKUP => zip_index::lookup(s, target, last),
+        XP_BOOK_ZIP_LOOKUP => {
+            let Some(entry) = zip_index::lookup(s, target, last) else {
+                return 0;
+            };
+            output.write(entry);
+            true
+        }
         XP_BOOK_ZIP_PATHS => zip_index::enumerate(s, true),
         XP_BOOK_ZIP_ENTRIES => zip_index::enumerate(s, false),
         _ => false,

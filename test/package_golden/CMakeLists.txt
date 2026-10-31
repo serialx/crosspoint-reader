@@ -77,7 +77,7 @@ target_compile_options(PackageDiagnosticsTest PRIVATE -UNDEBUG)
 add_test(NAME PackageDiagnosticFailures COMMAND PackageDiagnosticsTest ${CMAKE_CURRENT_BINARY_DIR}/diagnostic-failures)
 
 add_executable(ZipDiagnosticsTest ZipDiagnosticsTest.cpp
-  ${REPO_ROOT}/lib/ZipFile/ZipFile.cpp
+  ${REPO_ROOT}/lib/ZipFile/ZipPlatform.cpp
   ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp
   ${REPO_ROOT}/lib/miniz/src/miniz_impl.c
   ${REPO_ROOT}/lib/Memory/BuildScratch.cpp

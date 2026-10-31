@@ -1,7 +1,6 @@
 add_executable(ZipFileTest
   ZipFileTest.cpp
-  ${REPO_ROOT}/lib/ZipFile/ZipFile.cpp
-  ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp
+  AllocationPlatform.cpp
   ${REPO_ROOT}/lib/miniz/src/miniz_impl.c
   ${REPO_ROOT}/lib/Memory/BuildScratch.cpp
   ${REPO_ROOT}/lib/hal/HalMemory.cpp
@@ -24,7 +23,7 @@ target_compile_definitions(ZipFileTest PRIVATE
 )
 
 add_executable(ZipIoOracle IoOracle.cpp
-  ${REPO_ROOT}/lib/ZipFile/ZipFile.cpp
+  ${REPO_ROOT}/lib/ZipFile/ZipPlatform.cpp
   ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp
   ${REPO_ROOT}/lib/miniz/src/miniz_impl.c
   ${REPO_ROOT}/lib/Memory/BuildScratch.cpp

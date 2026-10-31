@@ -28,6 +28,13 @@ pub struct Entry {
     pub method: u16,
 }
 
+const _: () = {
+    assert!(core::mem::size_of::<Entry>() == 32);
+    assert!(core::mem::align_of::<Entry>() == 4);
+    assert!(core::mem::offset_of!(Entry, compressed_size) == 16);
+    assert!(core::mem::offset_of!(Entry, method) == 28);
+};
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Walker {

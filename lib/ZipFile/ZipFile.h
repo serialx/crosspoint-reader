@@ -52,10 +52,7 @@ class ZipFile {
   static XpBookZipIndexServices indexServices(IndexContext&);
   bool enumerate(bool, void*, void (*)(void*, std::string_view, uint32_t, uint32_t));
   bool loadFileStatSlim(const char* filename, FileStatSlim* fileStat);
-  long getDataOffset(const FileStatSlim& fileStat);
   bool loadZipDetails();
-  bool readDirectoryEntry(XpZipWalker& walker, XpZipEntry& entry);
-  bool readEntryName(const XpZipEntry& entry, char* name, const char* target = nullptr);
 
  public:
   explicit ZipFile(const std::string& filePath) : filePath(filePath) {}

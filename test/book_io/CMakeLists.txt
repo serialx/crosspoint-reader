@@ -10,7 +10,7 @@ add_executable(BookOracle BookOracle.cpp
  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
  ${REPO_ROOT}/lib/Epub/Epub/css/CssPlatform.cpp
- ${REPO_ROOT}/lib/ZipFile/ZipFile.cpp
+ ${REPO_ROOT}/lib/ZipFile/ZipPlatform.cpp
  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
  ${REPO_ROOT}/lib/Utf8/Utf8.cpp
  ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp

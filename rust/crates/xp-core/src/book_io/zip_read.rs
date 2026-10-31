@@ -1,4 +1,6 @@
 //! ZIP extraction sequencing; allocation and the existing inflater loan stay with C++.
+use super::zip_index;
+use crate::book::{residual::Span, residual_abi::XP_BOOK_ZIP_INDEX_OPEN};
 use core::{ffi::c_void, ptr};
 
 pub type FillFn = unsafe extern "C" fn(*mut c_void, *mut *const u8) -> usize;
@@ -64,6 +66,24 @@ unsafe extern "C" fn fill(context: *mut c_void, out: *mut *const u8) -> usize {
     ctx.remaining -= count as usize;
     out.write(ctx.buffer);
     count as usize
+}
+
+/// # Safety
+/// Both service records borrow the same archive; index retains its scoped file owner.
+/// Target/last spans stay readable until lookup finishes, before cache mutation.
+pub unsafe fn prepare(
+    index: &zip_index::Services,
+    target: Span,
+    last: Span,
+) -> Option<crate::zip::Entry> {
+    if index.call(XP_BOOK_ZIP_INDEX_OPEN, 0) == 0 {
+        return None;
+    }
+    let entry = zip_index::lookup(index, target, last)?;
+    let offset = index.data_offset(&entry)?;
+    // The existing facade ignores this seek's result; preserve its read/error path.
+    (index.seek)(index.ctx, offset);
+    Some(entry)
 }
 
 /// # Safety

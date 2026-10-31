@@ -148,59 +148,64 @@ typedef struct {
 uint32_t xp_book_css_parse_files(const XpBookCssParseServices* services, size_t count, uint8_t partialCache);
 typedef enum XpBookZipIndexOp {
   XP_BOOK_ZIP_INDEX_CACHE_SIZE = 0,     // arg=0; result=cached entry count.
-  XP_BOOK_ZIP_INDEX_OPEN = 1,           // arg=0; retain scoped open/close owner; result=boolean.
-  XP_BOOK_ZIP_INDEX_DETAILS = 2,        // arg=0; load ZIP details; result=boolean.
+  XP_BOOK_ZIP_INDEX_OPEN = 1,           // Retain scoped open/close owner; result=boolean.
+  XP_BOOK_ZIP_INDEX_DETAILS = 2,        // Load ZIP details; result=boolean.
   XP_BOOK_ZIP_INDEX_CENTRAL = 3,        // arg=0; result=central-directory byte offset.
-  XP_BOOK_ZIP_INDEX_START = 4,          // arg=start byte offset; initialize directory walker; result ignored.
   XP_BOOK_ZIP_INDEX_CLEAR = 5,          // arg=0; clear entry map (populate only); result ignored.
   XP_BOOK_ZIP_INDEX_RESERVE = 6,        // arg=0; reserve map for total entries (populate only); result ignored.
   XP_BOOK_ZIP_INDEX_CURSOR = 7,         // arg=byte offset; set valid lookup cursor; result ignored.
-  XP_BOOK_ZIP_INDEX_LAST_VALID = 8,     // arg=0; result=boolean: last lookup valid.
-  XP_BOOK_ZIP_INDEX_CURSOR_VALID = 9,   // arg=0; result=boolean: cursor valid.
-  XP_BOOK_ZIP_INDEX_CURSOR_VALUE = 10,  // arg=0; result=cursor byte offset.
+  XP_BOOK_ZIP_INDEX_LAST_VALID = 8,     // Last lookup valid.
+  XP_BOOK_ZIP_INDEX_CURSOR_VALID = 9,   // Cursor valid.
+  XP_BOOK_ZIP_INDEX_CURSOR_VALUE = 10,  // Cursor byte offset.
 } XpBookZipIndexOp;
 typedef enum XpBookZipCacheOp {
-  XP_BOOK_ZIP_CACHE_FIND = 0,  // entry=null, name=target; copy cached stat to output; result=found boolean.
-  XP_BOOK_ZIP_CACHE_LAST = 1,  // entry=null, name=target; copy last stat to output; result=boolean.
-  XP_BOOK_ZIP_CACHE_REMEMBER =
-      2,  // entry=current, name=target; copy stat/name to last lookup and output; result ignored.
-  XP_BOOK_ZIP_CACHE_INSERT = 3,  // entry=current, name=entry path; copy into map; result ignored.
-  XP_BOOK_ZIP_CACHE_PATHS = 4,   // entry=null, name=empty; visit cached paths; result=boolean.
-  XP_BOOK_ZIP_CACHE_VISIT = 5,   // entry=current, name=entry path; invoke visitor; result ignored.
+  XP_BOOK_ZIP_CACHE_FIND = 0,      // entry=output, name=target; copy cached stat; result=found boolean.
+  XP_BOOK_ZIP_CACHE_LAST = 1,      // entry=output, name=target; copy last stat; result=boolean.
+  XP_BOOK_ZIP_CACHE_REMEMBER = 2,  // Copy current entry/name to last lookup; result ignored.
+  XP_BOOK_ZIP_CACHE_INSERT = 3,    // entry=current, name=entry path; copy into map; result ignored.
+  XP_BOOK_ZIP_CACHE_PATHS = 4,     // entry=null, name=empty; visit cached paths; result=boolean.
+  XP_BOOK_ZIP_CACHE_VISIT = 5,     // entry=current, name=entry path; invoke visitor; result ignored.
 } XpBookZipCacheOp;
 typedef enum XpBookZipIndexAction {
   XP_BOOK_ZIP_LOOKUP = 0,   // Lookup target using last name; result=boolean.
   XP_BOOK_ZIP_PATHS = 2,    // Enumerate paths; target/last empty; result=boolean.
   XP_BOOK_ZIP_ENTRIES = 3,  // Enumerate entries; target/last empty; result=boolean.
 } XpBookZipIndexAction;
-// Cache hits may bypass OPEN. Scans require OPEN then DETAILS before START/next;
-// next precedes name and cache. Populate clears/reserves after START and retains
-// partial results on scan failure. No close callback is issued: on every return,
-// ctx releases its scoped owner, closing only a file opened by this call. DETAILS
-// may use a distinct detail context under the common nesting rules.
-// Required: control, next, name, cache; ctx retains the walker and scoped file owner.
+typedef enum XpBookZipDiagnostic {
+  XP_BOOK_ZIP_LOG_CENTRAL_SEEK = 0,
+  XP_BOOK_ZIP_LOG_CENTRAL_INVALID = 1,
+  XP_BOOK_ZIP_LOG_TARGET_NAME = 2,
+  XP_BOOK_ZIP_LOG_NAME = 3,
+  XP_BOOK_ZIP_LOG_LOCAL_READ = 4,
+  XP_BOOK_ZIP_LOG_LOCAL_INVALID = 5,
+} XpBookZipDiagnostic;
+// Required except diagnostic; name has 256 writable bytes. read returns at most len bytes, or a negative error.
+// OPEN retains one scoped owner across repeated calls, closing archives opened here after inflater cleanup.
+// DETAILS may nest a distinct context. Cache FIND/LAST fill entry; other operations borrow it for the callback.
 typedef struct XpBookZipIndexServices {
   void* ctx;
   size_t (*control)(void* ctx, uint32_t operation, uint32_t arg);
-  // next fills the entry (borrowed for this callback); false ends the walk.
-  bool (*next)(void* ctx, XpZipEntry* entry);
-  // name receives a current entry; bool selects target-aware reading. Null means failure.
-  // Returned name bytes remain valid until the next callback; cache/visitors copy them.
-  XpBookBorrow (*name)(void* ctx, const XpZipEntry* entry, bool targetAware);
-  bool (*cache)(void* ctx, uint32_t operation, const XpZipEntry* entry, XpBookBorrow name);
+  bool (*seek)(void* ctx, size_t offset);
+  int32_t (*read)(void* ctx, uint8_t* bytes, size_t len);
+  bool (*cache)(void* ctx, uint32_t operation, XpZipEntry* entry, XpBookBorrow name);
+  uint8_t* name;
+  void (*diagnostic)(void* ctx, uint32_t event, uint32_t expected, int32_t actual);
 } XpBookZipIndexServices;
+// LOOKUP writes output only on success; other actions allow null. target/last are read before cache mutation.
 uint8_t xp_book_zip_index(const XpBookZipIndexServices* services, uint32_t operation, XpBookBorrow target,
-                          XpBookBorrow last);
+                          XpBookBorrow last, XpZipEntry* output);
+uint8_t* xp_book_zip_memory(const XpBookZipServices*, const XpBookZipIndexServices*, XpBookBorrow target,
+                            XpBookBorrow last, bool trailing_nul, size_t* size);
+bool xp_book_zip_stream(const XpBookZipServices*, const XpBookZipIndexServices*, XpBookBorrow target, XpBookBorrow last,
+                        size_t chunk, bool early_stop);
 bool xp_book_zip_populate(const XpBookZipIndexServices* services);
 typedef struct {
   uint64_t hash;        // FNV-1a 64-bit hash of normalized path bytes.
   uint16_t len, index;  // Path byte length and caller's output index.
 } XpBookZipTarget;
-// Targets must stay sorted by (hash, len) and unchanged for the call. get returns
-// an in-range target by value and may repeat indices in binary-search order.
-// set receives target.index and the uncompressed size in bytes; true counts the
-// match. Returns counted matches; scanning stops when all count targets are counted
-// or the directory walk ends/fails. Earlier set calls are not rolled back.
+// Targets stay sorted by (hash, len). get may repeat in-range indices; set receives
+// target.index and size in bytes, returning true to count a match. Stops at count
+// matches or scan end/failure; earlier writes remain. Returns the match count.
 size_t xp_book_zip_batch(const XpBookZipIndexServices* services, size_t count, void* ctx,
                          XpBookZipTarget (*get)(void* ctx, size_t index),
                          bool (*set)(void* ctx, uint16_t index, uint32_t uncompressedSize));
@@ -210,20 +215,15 @@ typedef enum XpBookZipDetailDiagnostic {
   XP_BOOK_ZIP_DETAIL_LOG_ALLOCATION = 2,  // EOCD scan allocation failed.
   XP_BOOK_ZIP_DETAIL_LOG_SIGNATURE = 3,   // EOCD read/signature failed.
 } XpBookZipDetailDiagnostic;
-// cachedDetails bypasses all callbacks. Otherwise open, size, allocate and read
-// run in order; save runs only after a valid EOCD. Failure stops the sequence.
-// On every return, ctx releases its buffer/scoped owner; only a file opened by
-// this call is closed. No release callback is issued.
-// Required: open, size, allocate, read, save. Optional: diagnostic (event only).
+// Cached details bypass callbacks; otherwise open/size/allocate/read/save stop at failure. save needs valid EOCD.
+// ctx releases buffer/scoped file owner on return. All callbacks except diagnostic are required.
 typedef struct {
   void* ctx;
   bool (*open)(void* ctx);
   size_t (*size)(void* ctx);
-  // allocate returns null on allocation failure, otherwise writable bytes owned
-  // by ctx until xp_book_zip_details returns.
+  // Null on failure; otherwise ctx owns bytes until return.
   uint8_t* (*allocate)(void* ctx, size_t bytes);
   bool (*read)(void* ctx, uint32_t offset, uint8_t* bytes, size_t len);
-  // read returns full-read success; save copies the Details borrowed for this callback.
   void (*save)(void* ctx, const XpZipDetails* details);
   void (*diagnostic)(void* ctx, uint32_t event);
 } XpBookZipDetailServices;

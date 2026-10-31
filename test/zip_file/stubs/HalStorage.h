@@ -52,7 +52,8 @@ class HalFile : public Print {
     if (!ziptest::step("read", pos, len) || !data || pos == failReadOffset) return -1;
     readOffsets.push_back(pos);
     const size_t remaining = data->size() - pos;
-    const size_t count = len < remaining ? len : remaining;
+    size_t count = len < remaining ? len : remaining;
+    if (pos == shortReadOffset && count > shortReadCount) count = shortReadCount;
     std::memcpy(dst, data->data() + pos, count);
     pos += count;
     return static_cast<int>(count);
@@ -70,6 +71,7 @@ class HalFile : public Print {
 
   static inline std::vector<size_t> readOffsets;
   static inline size_t failReadOffset = SIZE_MAX;
+  static inline size_t shortReadOffset = SIZE_MAX, shortReadCount = 0;
 
  private:
   const std::vector<uint8_t>* data = nullptr;
@@ -98,6 +100,7 @@ class HalStorage {
     openCount = 0;
     HalFile::readOffsets.clear();
     HalFile::failReadOffset = SIZE_MAX;
+    HalFile::shortReadOffset = SIZE_MAX;
   }
 
   int openCount = 0;

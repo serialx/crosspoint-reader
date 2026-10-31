@@ -61,7 +61,7 @@ target_compile_definitions(PngInflateTest PRIVATE
 gtest_discover_tests(PngInflateTest)
 
 add_executable(ZipInflateTest ZipCrcTest.cpp
-  ${REPO_ROOT}/lib/ZipFile/ZipFile.cpp
+  ${REPO_ROOT}/lib/ZipFile/ZipPlatform.cpp
   ${REPO_ROOT}/lib/miniz/src/InflateStream.cpp
   ${REPO_ROOT}/lib/Memory/BuildScratch.cpp
   ${REPO_ROOT}/lib/hal/HalMemory.cpp)

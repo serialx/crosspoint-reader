@@ -265,38 +265,65 @@ pub unsafe extern "C" fn xp_book_xtc_stream(
     xtc_reader::stream(state, io, index, chunk_size, sink)
 }
 
-use xp_core::book_io::zip_read;
+use xp_core::book::residual::Span;
+use xp_core::book_io::{zip_index, zip_read};
 /// # Safety
 /// Services obey zip_read::memory's callback contract; optional size is writable.
 #[no_mangle]
 pub unsafe extern "C" fn xp_book_zip_memory(
     io: *const zip_read::Services,
-    method: u16,
-    compressed: u32,
-    inflated: u32,
+    index: *const zip_index::Services,
+    target: Span,
+    last: Span,
     trailing_nul: bool,
     size: *mut usize,
 ) -> *mut u8 {
     let Some(io) = io.as_ref() else {
         return core::ptr::null_mut();
     };
-    zip_read::memory(io, method, compressed, inflated, trailing_nul, size)
+    let Some(index) = index.as_ref() else {
+        return core::ptr::null_mut();
+    };
+    let Some(entry) = zip_read::prepare(index, target, last) else {
+        return core::ptr::null_mut();
+    };
+    zip_read::memory(
+        io,
+        entry.method,
+        entry.compressed_size,
+        entry.uncompressed_size,
+        trailing_nul,
+        size,
+    )
 }
 /// # Safety
 /// Services obey zip_read::stream's callback contract.
 #[no_mangle]
 pub unsafe extern "C" fn xp_book_zip_stream(
     io: *const zip_read::Services,
-    method: u16,
-    compressed: u32,
-    inflated: u32,
+    index: *const zip_index::Services,
+    target: Span,
+    last: Span,
     chunk: usize,
     early_stop: bool,
 ) -> bool {
     let Some(io) = io.as_ref() else {
         return false;
     };
-    zip_read::stream(io, method, compressed, inflated, chunk, early_stop)
+    let Some(index) = index.as_ref() else {
+        return false;
+    };
+    let Some(entry) = zip_read::prepare(index, target, last) else {
+        return false;
+    };
+    zip_read::stream(
+        io,
+        entry.method,
+        entry.compressed_size,
+        entry.uncompressed_size,
+        chunk,
+        early_stop,
+    )
 }
 
 /// # Safety

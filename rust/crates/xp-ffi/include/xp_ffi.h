@@ -129,22 +129,8 @@ typedef struct {
   uint32_t next_offset, crc32, compressed_size, uncompressed_size, local_offset;
   uint16_t method;
 } XpZipEntry;
-// Opaque fields: initialize with xp_zip_begin; do not modify or concurrently use.
-typedef struct {
-  uint32_t opaque[4];
-} XpZipWalker;
-// Request/parse functions: 0 success, -1 invalid/truncated input; outputs unchanged on failure.
 int32_t xp_zip_eocd_request(uint32_t size, XpZipRead* out);
 int32_t xp_zip_eocd(const uint8_t* data, size_t len, XpZipDetails* out);
-int32_t xp_zip_begin(uint32_t central, uint32_t start, XpZipWalker* out);
-// request: 1 read header, 0 finished, -1 invalid arguments.
-int32_t xp_zip_request(const XpZipWalker* walker, XpZipRead* out);
-// next: 1 entry (name read request in out), 2 wrapped (request again), 0 end,
-// -1 invalid arguments or offset overflow. Supply the reply to the last request;
-// short replies end/wrap the scan. A name length >= 256 must be skipped.
-int32_t xp_zip_next(XpZipWalker* walker, const uint8_t* data, size_t len, XpZipEntry* out);
-int32_t xp_zip_local_request(uint32_t offset, XpZipRead* out);
-int32_t xp_zip_data_offset(uint32_t offset, const uint8_t* data, size_t len, uint64_t* out);
 // 1 exact byte match, 0 mismatch/oversized name, -1 invalid arguments.
 int32_t xp_zip_name_matches(const uint8_t* name, size_t len, const uint8_t* target, size_t target_len);
 
@@ -2878,11 +2864,6 @@ typedef struct {
   size_t (*write)(void*, const uint8_t*, size_t);
   void (*diagnostic)(void*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 } XpBookZipServices;
-uint8_t* xp_book_zip_memory(const XpBookZipServices*, uint16_t method, uint32_t compressed, uint32_t inflated,
-                            bool trailing_nul, size_t* size);
-bool xp_book_zip_stream(const XpBookZipServices*, uint16_t method, uint32_t compressed, uint32_t inflated, size_t chunk,
-                        bool early_stop);
-
 // Copy while the source reports available bytes; retain legacy ignored writes.
 // Negative reads fail without exposing an invalid span to the destination.
 bool xp_book_copy_available(uint8_t* buffer, size_t capacity, void* context, bool (*available)(void*),

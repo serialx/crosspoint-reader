@@ -1,5 +1,7 @@
 use core::slice;
-use xp_core::zip::{self, Details, Entry, ReadAt, Step, Walker};
+use xp_core::zip::{self, Details, ReadAt};
+#[cfg(not(target_os = "none"))]
+use xp_core::zip::{Entry, Step, Walker};
 
 unsafe fn input<'a>(data: *const u8, len: usize) -> Option<&'a [u8]> {
     if len > isize::MAX as usize || (len != 0 && data.is_null()) {
@@ -49,6 +51,7 @@ pub unsafe extern "C" fn xp_zip_eocd(data: *const u8, len: usize, out: *mut Deta
 
 /// # Safety
 /// out points to one aligned writable Walker, exclusively owned by the caller.
+#[cfg(not(target_os = "none"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_zip_begin(central: u32, start: u32, out: *mut Walker) -> i32 {
     if !writable(out) {
@@ -61,6 +64,7 @@ pub unsafe extern "C" fn xp_zip_begin(central: u32, start: u32, out: *mut Walker
 /// # Safety
 /// walker is initialized by xp_zip_begin and unchanged except through this API.
 /// out is aligned writable and disjoint from walker.
+#[cfg(not(target_os = "none"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_zip_request(walker: *const Walker, out: *mut ReadAt) -> i32 {
     if walker.is_null() || !walker.is_aligned() || !writable(out) {
@@ -77,6 +81,7 @@ pub unsafe extern "C" fn xp_zip_request(walker: *const Walker, out: *mut ReadAt)
 /// walker is initialized, aligned and exclusively borrowed. data borrows len
 /// readable bytes (NULL only for zero len). out is aligned writable. All regions
 /// are disjoint; no input pointer is retained. Short replies end or wrap the scan.
+#[cfg(not(target_os = "none"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_zip_next(
     walker: *mut Walker,
@@ -103,6 +108,7 @@ pub unsafe extern "C" fn xp_zip_next(
 
 /// # Safety
 /// out points to one aligned writable ReadAt.
+#[cfg(not(target_os = "none"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_zip_local_request(offset: u32, out: *mut ReadAt) -> i32 {
     if !writable(out) {
@@ -114,6 +120,7 @@ pub unsafe extern "C" fn xp_zip_local_request(offset: u32, out: *mut ReadAt) -> 
 
 /// # Safety
 /// data borrows len readable bytes; out is aligned writable and disjoint.
+#[cfg(not(target_os = "none"))]
 #[no_mangle]
 pub unsafe extern "C" fn xp_zip_data_offset(
     offset: u32,

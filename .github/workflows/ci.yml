@@ -82,6 +82,10 @@ jobs:
       - name: Run cppcheck
         run: pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
 
+      - name: Report cppcheck version
+        if: always()
+        run: ~/.platformio/packages/tool-cppcheck/cppcheck --version
+
   build:
     name: Build ${{ matrix.env }}
     runs-on: ubuntu-latest

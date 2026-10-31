@@ -37,6 +37,7 @@ bool drawPagePixels(GfxRenderer& renderer, const uint8_t* bytes, uint32_t length
   XpUiCommand command{};
   const XpUiBuffer buffer{&command, nullptr, 1, 0};
   XpUiScene scene{};
+  // cppcheck-suppress knownConditionTrueFalse // Width callback returns int32_t, not the enclosing bool.
   const XpUiBootMetrics metrics{nullptr, [](void*, uint32_t, int32_t, uint8_t) { return int32_t{0}; }};
   const XpUiPaint paint{&context, nullptr, nullptr,
                         [](void*, uint32_t h, uint32_t g) -> uint8_t { return h == XP_UI_BOOT_XTC_PIXELS && g == 1; },

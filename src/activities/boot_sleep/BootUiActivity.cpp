@@ -46,7 +46,7 @@ const char* BootUiActivity::resourceText(const uint32_t handle) const {
 XpUiPaint BootUiActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void* p, uint32_t handle, uint32_t generation) -> uint8_t {
-            auto& self = *static_cast<BootUiActivity*>(p);
+            const auto& self = *static_cast<BootUiActivity*>(p);
             return generation == 1 &&
                    ((handle >= XP_UI_BOOT_LOGO && handle <= XP_UI_BOOT_HINTS) || handle == XP_UI_BOOT_IMAGE_BUTTONS ||
                     handle == XP_UI_BOOT_FIRST_HINT || self.resourceText(handle));
@@ -141,10 +141,11 @@ bool BootUiActivity::paintBootViewInto(const XpUiBootView view, const XpUiRefres
   XpUiScene scene{};
   activeView = &data;
   const XpUiBootMetrics metrics{
-      this, [](void* p, uint32_t h, int32_t f, uint8_t s) -> int32_t {
-        auto& self = *static_cast<BootUiActivity*>(p);
+      this, [](void* p, uint32_t h, int32_t f, uint8_t s) {
+        const auto& self = *static_cast<BootUiActivity*>(p);
         const char* text = self.resourceText(h);
-        return text ? self.renderer.getTextWidth(f, text, static_cast<EpdFontFamily::Style>(s)) : -1;
+        return static_cast<int32_t>(text ? self.renderer.getTextWidth(f, text, static_cast<EpdFontFamily::Style>(s))
+                                         : -1);
       }};
   const bool result = xp_ui_boot_view(&layout, &metrics, &buffer, &scene) && paintRustScene(scene, !deferPublication);
   activeView = nullptr;

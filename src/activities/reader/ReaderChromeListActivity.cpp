@@ -310,7 +310,7 @@ void ReaderChromeListActivity::drawFooter() {
 XpUiPaint ReaderChromeListActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void* p, uint32_t handle, uint32_t generation) -> uint8_t {
-            auto& self = *static_cast<ReaderChromeListActivity*>(p);
+            const auto& self = *static_cast<ReaderChromeListActivity*>(p);
             if (generation != 1) return false;
             if (handle == XP_UI_READER_FOOTER || handle == XP_UI_READER_DELETE_ICON) return true;
             if (handle < XP_UI_READER_HEADER && handle > 0 && (handle - 1) % 4 == 3) {

@@ -111,7 +111,7 @@ bool ClipSelectionActivity::extractWords() {
         if (element.getTag() == TAG_PageLine) {
           const auto& textBlock = element.textBlock();
           const auto* block = &textBlock;
-          if (block && block->valid()) capacity += block->wordCount();
+          if (block->valid()) capacity += block->wordCount();
         }
       }
     }
@@ -138,7 +138,7 @@ bool ClipSelectionActivity::extractWords() {
       if (line.getTag() != TAG_PageLine) continue;
       const auto& textBlock = line.textBlock();
       const auto* block = &textBlock;
-      if (!block || !block->valid()) continue;
+      if (!block->valid()) continue;
 
       if (needsFontPrewarm && block->wordCount() != 0) {
         uint8_t styleMask = 0;

@@ -760,15 +760,15 @@ void LibraryListActivity::prepareRows(uint16_t first, uint16_t capacity) {
 
 const char* LibraryListActivity::text(uint32_t h) const {
   if (h > 0 && h < 0x10000000u) {
-    const size_t index = (h - 1) / 4;
-    if (index >= winItems.size()) return nullptr;
+    const size_t rowIndex = (h - 1) / 4;
+    if (rowIndex >= winItems.size()) return nullptr;
     switch ((h - 1) % 4) {
       case 0:
-        return winTitles[index].c_str();
+        return winTitles[rowIndex].c_str();
       case 1:
-        return winAuthors[index].c_str();
+        return winAuthors[rowIndex].c_str();
       case 2:
-        return winItems[index].heading < 0 ? nullptr : winHeaders[winItems[index].heading].c_str();
+        return winItems[rowIndex].heading < 0 ? nullptr : winHeaders[winItems[rowIndex].heading].c_str();
       default:
         return nullptr;
     }
@@ -889,12 +889,12 @@ bool LibraryListActivity::buildRustScene(XpUiScene& scene) {
     if (status == XP_UI_HOME_VIEW_OK) {
       if (f.books) {
         const int next = frame.next.list.drawn;
-        const int rows = winItems.size();
+        const int loadedRows = winItems.size();
         LOG_DBG("LIB", "page tab=%d top=%d full=%d loaded=%d body=%d..%d next=%d title=%s", frame.snapshot.active_tab,
-                windowStart, next, rows, frame.next.body.y, frame.next.body.y + frame.next.body.h,
-                next < rows ? windowStart + next : -1, next < rows ? winTitles[next].c_str() : "<none>");
-        LOG_DBG("LIB", "page first=%d title=%s", rows > 0 ? windowStart : -1,
-                rows > 0 ? winTitles[0].c_str() : "<none>");
+                windowStart, next, loadedRows, frame.next.body.y, frame.next.body.y + frame.next.body.h,
+                next < loadedRows ? windowStart + next : -1, next < loadedRows ? winTitles[next].c_str() : "<none>");
+        LOG_DBG("LIB", "page first=%d title=%s", loadedRows > 0 ? windowStart : -1,
+                loadedRows > 0 ? winTitles[0].c_str() : "<none>");
       }
       return true;
     }
@@ -956,7 +956,7 @@ void LibraryListActivity::paintHeader(const XpUiCommand& command) {
 XpUiPaint LibraryListActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void* p, uint32_t h, uint32_t generation) -> uint8_t {
-            auto& self = *static_cast<LibraryListActivity*>(p);
+            const auto& self = *static_cast<LibraryListActivity*>(p);
             if (generation != 1) return false;
             if (h == XP_UI_LIBRARY_HEADER || h == XP_UI_LIBRARY_FOOTER || h == XP_UI_READER_DELETE_ICON ||
                 h == XP_UI_LIBRARY_UP || h == XP_UI_LIBRARY_DOWN)

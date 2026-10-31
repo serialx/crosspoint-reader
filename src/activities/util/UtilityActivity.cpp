@@ -171,6 +171,7 @@ bool UtilityActivity::buildRustScene(XpUiScene& scene) {
       [](void* p, uint32_t h, int32_t font, int16_t width, uint8_t bold, uint8_t lines) -> int16_t {
         auto& self = *static_cast<UtilityActivity*>(p);
         const char* value = self.utilityText(h);
+        // cppcheck-suppress returnNonBoolInBooleanFunction // This callback returns int16_t, not the enclosing bool.
         if (!value) return -1;
         fui::GfxRendererTarget textTarget(self.renderer);
         textTarget.setFont(0, font);

@@ -28,7 +28,6 @@ class CatalogActivity : public CatalogUiActivity {
       : CatalogUiActivity(name, renderer, input, kind) {
     if (kind != XP_UI_CATALOG_BROWSER) xp_ui_catalog_mode(&ui, XP_UI_CATALOG_LOADING);
   }
-  void onEnter() override;
   void onExit() override;
 
  protected:
@@ -44,7 +43,7 @@ class CatalogActivity : public CatalogUiActivity {
 
   virtual void startBrowse() = 0;
   virtual void retryBrowse() { startBrowse(); }
-  virtual bool hasSearch() const = 0;
+  bool hasSearch() const override = 0;
   virtual void performSearch(const std::string& query) = 0;
   virtual void downloadFinished(bool cancelled) = 0;
   virtual void wifiSelectionCancelled();

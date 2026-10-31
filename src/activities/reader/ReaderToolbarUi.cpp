@@ -69,6 +69,7 @@ ReaderToolbarUi::Routed ReaderToolbarUi::route(const MappedInputManager& input) 
       0};
   int32_t permille = -1;
   taskENTER_CRITICAL(&mutex);
+  // cppcheck-suppress knownConditionTrueFalse // Another task can clear ready between the two lock scopes.
   const auto effect = ready ? xp_ui_reader_toolbar_route(&contact, &published, &frame, &permille) : XpUiEffect{};
   taskEXIT_CRITICAL(&mutex);
   result.permille = permille;
@@ -127,7 +128,7 @@ XpUiReaderRows ReaderToolbarUi::resources() {
         return true;
       },
       [](void* p, uint32_t handle, int32_t font, uint8_t bold) -> int32_t {
-        auto& self = *static_cast<ReaderToolbarUi*>(p);
+        const auto& self = *static_cast<ReaderToolbarUi*>(p);
         const char* value = self.text(handle);
         return value ? self.renderer.getTextWidth(font, value, static_cast<EpdFontFamily::Style>(bold)) : -1;
       },

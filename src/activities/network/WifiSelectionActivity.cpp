@@ -799,9 +799,9 @@ bool WifiSelectionActivity::buildRustScene(XpUiScene& scene) {
     commands = std::move(arena);
     commandCapacity = budget.commands;
   }
-  const auto service = resources();
+  const auto rowResources = resources();
   const XpUiBuffer buffer{commands.get(), nullptr, commandCapacity, 0};
-  return xp_ui_network_wifi_view(&renderingState, &layout, &service, &buffer, &next, &scene, &nextHits) == 1;
+  return xp_ui_network_wifi_view(&renderingState, &layout, &rowResources, &buffer, &next, &scene, &nextHits) == 1;
 }
 
 void WifiSelectionActivity::render(RenderLock&&) {

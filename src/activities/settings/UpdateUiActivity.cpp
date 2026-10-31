@@ -17,7 +17,7 @@ void UpdateUiActivity::render(RenderLock&&) {
   XpUiScene scene{};
   bool painted = false;
   {
-    ResourceLock resources(*this);
+    ResourceLock resourceLock(*this);
     if (buildRustScene(scene)) {
       const auto paint = rustResources();
       painted = renderer.drawUiScene(scene, &paint);
@@ -100,7 +100,7 @@ void UpdateUiActivity::onExit() {
 }
 void UpdateUiActivity::loop() {
   {
-    ResourceLock resources(*this);
+    ResourceLock resourceLock(*this);
     inputRowCount = rowCount();
     inputFamilyCount = familyCount();
   }

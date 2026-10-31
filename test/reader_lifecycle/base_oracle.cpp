@@ -253,11 +253,11 @@ struct Touch {
 };
 static Touch touch;
 static bool prev = false, next = false, tilt = false;
-static Touch detectTouchPageTurn(GfxRenderer&, MappedInputManager&) {
+static Touch detectTouchPageTurn(const GfxRenderer&, const MappedInputManager&) {
   event("touch", touch.prev, touch.next);
   return touch;
 }
-static auto detectPageTurn(MappedInputManager&) {
+static auto detectPageTurn(const MappedInputManager&) {
   event("buttons", prev, next);
   return std::tuple{prev, next, tilt};
 }

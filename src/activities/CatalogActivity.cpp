@@ -16,8 +16,6 @@
 
 static_assert(static_cast<int>(CatalogActivity::State::AUTH) == XP_UI_CATALOG_AUTH);
 
-void CatalogActivity::onEnter() { CatalogUiActivity::onEnter(); }
-
 void CatalogActivity::onExit() {
   CatalogUiActivity::onExit();
   if (WiFi.getMode() != WIFI_MODE_NULL) {

@@ -116,18 +116,19 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
     }
     // Keep event formatting buffers off the page-render call chain.
     __attribute__((noinline)) void emitSession() {
-      auto& resources = nonRenderResources();
-      auto& session = resources.session;
+      auto& sessionResources = nonRenderResources();
+      auto& session = sessionResources.session;
       char startTime[24], endTime[24], duration[16], startProgress[8], endProgress[8];
       snprintf(startTime, sizeof(startTime), "%lld", static_cast<long long>(session.startTime()));
       snprintf(endTime, sizeof(endTime), "%lld", static_cast<long long>(session.endTime()));
       snprintf(duration, sizeof(duration), "%lu", static_cast<unsigned long>(session.durationSeconds()));
       snprintf(startProgress, sizeof(startProgress), "%u", session.startProgressBp());
       snprintf(endProgress, sizeof(endProgress), "%u", session.endProgressBp());
-      const pluginevents::Var vars[] = {{"book", o.bookPath.c_str()},     {"document", resources.document->c_str()},
-                                        {"start_time", startTime},        {"end_time", endTime},
-                                        {"duration_seconds", duration},   {"start_progress_bp", startProgress},
-                                        {"end_progress_bp", endProgress}, {"progress_scale", "10000"}};
+      const pluginevents::Var vars[] = {
+          {"book", o.bookPath.c_str()},     {"document", sessionResources.document->c_str()},
+          {"start_time", startTime},        {"end_time", endTime},
+          {"duration_seconds", duration},   {"start_progress_bp", startProgress},
+          {"end_progress_bp", endProgress}, {"progress_scale", "10000"}};
       pluginevents::emit(pluginevents::Event::ReaderSession, vars, 8);
     }
     __attribute__((noinline)) void emitExit() {
@@ -144,7 +145,7 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
       nonRenderResources().document.emplace(KOReaderDocumentId::calculate(o.bookPath));
       return nonRenderResources().document->size();
     }
-    [[gnu::noinline]] void saveState() { APP_STATE.saveToFile(); }
+    [[gnu::noinline]] static void saveState() { APP_STATE.saveToFile(); }
     [[gnu::noinline]] void rememberPath() { APP_STATE.openEpubPath = o.bookPath; }
     [[gnu::noinline]] void openNext() { activityManager.goToReader(*nonRenderResources().openPath); }
     uint32_t command(uint8_t cmd, int32_t a, int32_t b) {
@@ -314,13 +315,13 @@ uint8_t ReaderActivity::runBase(uint8_t operation, uint8_t a, uint8_t b) {
           [](void* p, uint8_t q) { return static_cast<Context*>(p)->query(q); },
           [](void* p, uint8_t c, int32_t a, int32_t b) { return static_cast<Context*>(p)->command(c, a, b); },
           [](void* p) -> XpUiReaderTurnInput {
-            auto& o = static_cast<Context*>(p)->o;
-            auto t = ReaderUtils::detectTouchPageTurn(o.renderer, o.mappedInput);
+            const auto& owner = static_cast<Context*>(p)->o;
+            auto t = ReaderUtils::detectTouchPageTurn(owner.renderer, owner.mappedInput);
             return {static_cast<uint32_t>(t.heldMs), t.prev, t.next, 0, 0};
           },
           [](void* p) -> XpUiReaderTurnInput {
-            auto& o = static_cast<Context*>(p)->o;
-            auto [prev, next, tilt] = ReaderUtils::detectPageTurn(o.mappedInput);
+            const auto& owner = static_cast<Context*>(p)->o;
+            auto [prev, next, tilt] = ReaderUtils::detectPageTurn(owner.mappedInput);
             return {0, prev, next, tilt, 0};
           }};
       return xp_ui_reader_base_run(&services, operation, a, b);

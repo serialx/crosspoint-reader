@@ -30,7 +30,7 @@ class Paragraph {
   void setRubyForWordAt(size_t index, const std::string& text);
   void setRubyGroupAt(size_t index, size_t count, const std::string& text);
   std::string getRubyTextAt(size_t index) const;
-  void ensureRubyCapacity() {}
+  static void ensureRubyCapacity() {}
   EpdFontFamily::Style getWordStyleAt(size_t index) const {
     return static_cast<EpdFontFamily::Style>(xp_para_word_style(handle(), index));
   }

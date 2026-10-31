@@ -11,6 +11,7 @@ bool encode(void*, const uint8_t* text, size_t len, uint8_t version, uint8_t* mo
   return qrcode_initBytes(&code, modules, version, ECC_LOW, const_cast<uint8_t*>(text), static_cast<uint16_t>(len)) ==
          0;
 }
+// cppcheck-suppress constParameterCallback // The Rust C ABI requires a mutable void context.
 void draw(void* context, int32_t x, int32_t y, int32_t size) {
   static_cast<const GfxRenderer*>(context)->fillRect(x, y, size, size, true);
 }

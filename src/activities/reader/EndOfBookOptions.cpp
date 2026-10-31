@@ -104,7 +104,7 @@ XpUiReaderRows EndOfBookOptions::resources() {
         return true;
       },
       [](void* p, uint32_t handle, int32_t font, uint8_t bold) -> int32_t {
-        auto& self = *static_cast<EndOfBookOptions*>(p);
+        const auto& self = *static_cast<EndOfBookOptions*>(p);
         const char* value = self.text(handle);
         return value ? self.renderer.getTextWidth(font, value, static_cast<EpdFontFamily::Style>(bold)) : -1;
       },

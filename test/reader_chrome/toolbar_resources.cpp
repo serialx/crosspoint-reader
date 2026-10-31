@@ -16,7 +16,7 @@ struct EpdFontFamily {
   enum Style { Regular };
 };
 struct Metrics {
-  int getTextWidth(int font, const char* text, EpdFontFamily::Style) {
+  int getTextWidth(int font, const char* text, EpdFontFamily::Style) const {
     return std::strlen(text) * (font == 0 ? 8 : 10);
   }
   int getLineHeight(int font) { return font == 0 ? 18 : 24; }

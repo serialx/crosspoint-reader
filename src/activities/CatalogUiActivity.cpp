@@ -80,8 +80,8 @@ void CatalogUiActivity::loop() {
   RustActivityAdapter::loop();
 }
 void CatalogUiActivity::render(RenderLock&&) {
-  XpUiScene scene{};
   {
+    XpUiScene scene{};
     ResourceLock resources(*this);
     if (!buildRustScene(scene)) {
       rejectRustScene();

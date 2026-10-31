@@ -119,7 +119,7 @@ size_t operation(void* opaque, uint32_t op, size_t a, size_t b, const uint8_t* b
       clearBookCache(path);
       return 0;
     case XP_DAV_MOVE_BOOK:
-      return ClippingStore::moveBook(c.path, c.destination.c_str());
+      return ClippingStore::moveBook(c.path, c.destination);
     case XP_DAV_STREAM: {
       NetworkClient client = c.server.client();
       return Storage.readFileToStream(path, client);

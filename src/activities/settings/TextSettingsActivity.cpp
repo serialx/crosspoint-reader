@@ -303,7 +303,7 @@ XpUiReaderRows TextSettingsActivity::rows() {
   return {this,
           [](void*, uint16_t, uint16_t) -> uint8_t { return 1; },
           [](void* p, uint16_t index, XpUiReaderRow* row) -> uint8_t {
-            auto& self = *static_cast<TextSettingsActivity*>(p);
+            const auto& self = *static_cast<TextSettingsActivity*>(p);
             const auto& s = self.rendering;
             const uint32_t h = index * 4 + 1;
             *row = {};
@@ -411,7 +411,7 @@ void TextSettingsActivity::rustPublished() {
 XpUiPaint TextSettingsActivity::rustResources() {
   return {this, nullptr, nullptr,
           [](void* p, uint32_t h, uint32_t generation) -> uint8_t {
-            auto& self = *static_cast<TextSettingsActivity*>(p);
+            const auto& self = *static_cast<TextSettingsActivity*>(p);
             return generation == static_cast<uint32_t>(self.rendering.tab) + 1 &&
                    (h == XP_UI_READER_HEADER || h == XP_UI_READER_FOOTER || h == XP_UI_TEXT_PREVIEW || self.text(h));
           },

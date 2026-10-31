@@ -504,7 +504,7 @@ bool Dictionary::lookup(const char* word, std::string& definitionOut, std::strin
         return false;
       },
       [](void* ctx, uint8_t kind, size_t index) -> XpDictionaryView {
-        auto& c = *static_cast<Context*>(ctx);
+        const auto& c = *static_cast<Context*>(ctx);
         if (static_cast<DictionaryView>(kind) == DictionaryView::Headword) {
           const char* head = c.dictionary.entryList->at(index).headword.get();
           return {reinterpret_cast<const uint8_t*>(head), strlen(head)};

@@ -37,7 +37,7 @@ bool drawPagePixels(GfxRenderer& renderer, const uint8_t* bytes, uint32_t length
   XpUiCommand command{};
   const XpUiBuffer buffer{&command, nullptr, 1, 0};
   XpUiScene scene{};
-  const XpUiBootMetrics metrics{nullptr, [](void*, uint32_t, int32_t, uint8_t) -> int32_t { return 0; }};
+  const XpUiBootMetrics metrics{nullptr, [](void*, uint32_t, int32_t, uint8_t) { return int32_t{0}; }};
   const XpUiPaint paint{&context, nullptr, nullptr,
                         [](void*, uint32_t h, uint32_t g) -> uint8_t { return h == XP_UI_BOOT_XTC_PIXELS && g == 1; },
                         [](void* p, const XpGlyphTarget* target, const XpUiCommand*, XpUiRect) {
@@ -72,7 +72,7 @@ void drawPageError(GfxRenderer& renderer, const char* text) {
   const XpUiPaint paint{&context, nullptr, nullptr,
                         [](void*, uint32_t h, uint32_t g) -> uint8_t { return h == XP_UI_BOOT_ERROR && g == 1; },
                         [](void* p, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
-                          auto& c = *static_cast<Context*>(p);
+                          const auto& c = *static_cast<Context*>(p);
                           c.renderer.drawUiText(*command, clip, c.text);
                         }};
   if (!xp_ui_boot_view(&layout, &metrics, &buffer, &scene) || !renderer.drawUiScene(scene, &paint)) {

@@ -66,8 +66,9 @@ inline void log(const char* level, const char* origin, const char* format, ...) 
   va_start(args, format);
   vsnprintf(bytes, sizeof(bytes), format, args);
   va_end(args);
-  trace.push_back(std::string(level) + ":" + origin + ":" +
-                  std::regex_replace(std::string(bytes), std::regex("server=0x[0-9a-fA-F]+"), "server=PTR"));
+  trace.push_back(
+      std::string(level) + ":" + origin + ":" +
+      std::regex_replace(std::string(bytes), std::regex("server=(0x[0-9a-fA-F]+|\\(nil\\))"), "server=PTR"));
 }
 struct Node {
   bool directory = false;
@@ -349,6 +350,7 @@ class WebServer {
   void handleClient() {
     host::trace.emplace_back("server-client");
     auto dispatch = std::move(host::httpDispatch);
+    host::httpDispatch = {};  // A moved-from std::function need not be empty.
     if (dispatch) dispatch();
   }
   bool hasArg(const char* name) const { return args.count(name); }

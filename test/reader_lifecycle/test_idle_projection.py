@@ -111,11 +111,12 @@ def project(raw):
     return ('\n'.join(result)+'\n').encode()
 with tempfile.TemporaryDirectory() as directory:
     path=Path(directory)
-    flags=['c++','-std=c++17','-UNDEBUG','-I'+str(ROOT/'src'),*rust_link_flags()]
+    flags=['c++','-std=c++17','-UNDEBUG','-I'+str(ROOT/'src')]
+    link=rust_link_flags()
     def run(body, idle=''):
         code=fixture.replace('#include "loop_methods.inc"', body+'\n'+idle)+main
         cpp=path/'idle.cpp';cpp.write_text(code)
-        subprocess.run([*flags,str(cpp),'-o',str(path/'idle')],check=True)
+        subprocess.run([*flags,str(cpp),*link,'-o',str(path/'idle')],check=True)
         return project(subprocess.check_output([str(path/'idle')]))
     expected=run(loop)
     golden=HERE/'idle-projection.golden.gz'

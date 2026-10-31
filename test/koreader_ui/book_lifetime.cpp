@@ -79,7 +79,8 @@ struct Epub {
   struct Item {
     std::string title;
   };
-  Item getTocItem(int) {
+  // Keep temporary allocations observable in optimized oracle builds.
+  [[gnu::noinline]] Item getTocItem(int) {
     assert(!destroyed && !inModelLock);
     return {longTitle ? std::string(4096, 'x') : std::string("Remote chapter")};
   }

@@ -60,7 +60,7 @@ void checkPrefixes(bool remotePrefix, bool bindingPrefix) {
     bleturner::Config expected;
     expected.enabled = 1;
     expected.remoteCount = 2;
-    for (const auto i : {0, 1}) {
+    for (int i = 0; i < 2; ++i) {
       std::snprintf(expected.remotes[i].addr, sizeof(expected.remotes[i].addr), "11:22:33:44:55:0%d", i + 1);
       expected.remotes[i].bindings[0] = binding;
       expected.remotes[i].count = 1;

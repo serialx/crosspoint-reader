@@ -13,15 +13,17 @@ runs:
       run: |
         rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
         rustup target add --toolchain 1.99.0 riscv32imc-unknown-none-elf
+        cargo +1.99.0 fetch --manifest-path rust/Cargo.toml --locked --target riscv32imc-unknown-none-elf
 
     - name: Install Rust for ESP32-S3
       if: inputs.mcu == 'esp32s3'
-      uses: esp-rs/xtensa-toolchain@v1.7.0
+      shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
-      with:
-        buildtargets: esp32s3
-        version: "1.97.0.0"
-        default: false
-        override: false
-        export: false
+      run: |
+        host="$(rustc -vV | sed -n 's/^host: //p')"
+        curl --fail --location --retry 3 \
+          "https://github.com/esp-rs/espup/releases/download/v0.17.1/espup-${host}" \
+          --output "$RUNNER_TEMP/espup"
+        chmod +x "$RUNNER_TEMP/espup"
+        "$RUNNER_TEMP/espup" install --targets esp32s3 --toolchain-version 1.97.0.0

@@ -79,8 +79,8 @@ jobs:
 
       - name: Extract env
         run: |
-          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "BRANCH_SUFFIX=${GITHUB_REF_NAME#release/}" >> $GITHUB_ENV
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "BRANCH_SUFFIX=${GITHUB_REF_NAME#release/}" >> "$GITHUB_ENV"
 
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-esp

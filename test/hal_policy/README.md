@@ -7,6 +7,13 @@ retry behavior, lock spans, diagnostics, secret/time bytes, and C++ allocation
 counts, requested bytes and frees. `abi.cpp` checks state sizes, null handling,
 timer wraparound and all 2,880 valid clock strings.
 
+Behavioral traces still match the checked-in goldens. Allocation counts, requested
+bytes and frees match an independent build of the frozen `0b70268b` sources with
+the current host toolchain. Apple enables libc++'s alternate string layout, so
+some string capacities differ from Linux even with the same libc++ major version.
+The runner reads the original source bytes directly from Git and prints their
+aggregate SHA-256; a checkout with that commit's history is required.
+
 Run through CTest, or supply a host Rust archive:
 
 ```sh

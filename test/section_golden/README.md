@@ -368,11 +368,13 @@ a short watermark, and zero-page partials. Run with `--partial --verify --output
 
 `SectionAnchorBounds` drives the buffered TOC reader and the direct anchor reader
 over the same synthetic section. It cuts the file at every byte from the start of
-the anchor table up to the paragraph table, sets the first anchor-name length to
-0, 1, 255, 65535, `0x7fffffff` and `0xffffffff`, and sets seven version bytes (0,
-1, 67, 69, 213, 215, 255) that must each be rejected as an absent cache. A
-complete section must still map page 3 to TOC index 4; an oversized name length
-must leave every `toc` lookup at index 0 and every `direct`/`find` query empty.
+the anchor table up to the paragraph table; those cuts only have to finish
+without error, and no golden pins their results. It sets the first anchor-name
+length to 0, 1, 255, 65535, `0x7fffffff` and `0xffffffff`, and asserts that
+lengths of 255 and above leave every `toc` lookup at index 0 and every
+`direct`/`find` query empty. It sets seven version bytes (0, 1, 67, 69, 213,
+215, 255), each of which must be rejected as an absent cache, and a complete
+section must still map page 3 to TOC index 4.
 
 Run these focused checks with:
 

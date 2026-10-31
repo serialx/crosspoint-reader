@@ -60,8 +60,12 @@ at the same path leaves this key unchanged.
 
 ### Cache Invalidation Rules
 
-Inspect `Section::loadSectionFile()` for the full comparison of layout settings,
-fonts, and viewport dimensions. Format/version mismatches invalidate saved data.
+Cache invalidation is decided by `xp_core::section::header_matches`
+(`rust/crates/xp-core/src/section/mod.rs`): it compares the font id, bit-exact
+line compression, and header word slots `values[3..14]`. `headerFields()` in
+`lib/Epub/Epub/SectionPlatform.cpp` derives those slots from `ReaderRenderSpec`,
+and `Section::loadSectionFile()` there delegates to `xp_book_section_load`.
+Format/version mismatches also invalidate saved data.
 Path changes select another cache; same-path content replacement needs the
 appropriate freshness check and an affected-cache reset during testing.
 

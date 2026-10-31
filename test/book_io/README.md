@@ -28,7 +28,8 @@ The host target uses `-ftrivial-auto-var-init=zero`: the baseline cache reader
 uses unchecked `readPod`/`readString` calls, and a failed read otherwise leaves
 stack values undefined. This makes those captures repeatable; it does not fix
 the firmware or establish a contract for its undefined failure behavior. The
-first observed case was the version diagnostic at BookMetadataCache.cpp:322.
+first observed case was the version diagnostic at
+`0b70268b:BookMetadataCache.cpp:322-325`.
 
 The extended baseline capture covers cover/thumbnail orchestration with JPG, PNG,
 GIF and unsupported formats, duplicate CSS paths/content, and scripted protected

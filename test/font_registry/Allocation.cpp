@@ -34,8 +34,7 @@ void* allocate(size_t bytes, bool filename) {
     live += bytes;
     peak = live > peak ? live : peak;
     if (filename) ++names;
-    std::printf("alloc %zu %zu %s live=%zu names=%zu\n", requests, bytes, filename ? "name" : "container", live,
-                names);
+    std::printf("alloc %zu %zu %s live=%zu names=%zu\n", requests, bytes, filename ? "name" : "container", live, names);
     return p;
   }
   std::abort();
@@ -72,7 +71,8 @@ int main(int argc, char** argv) {
     for (const auto& family : registry.getFamilies()) {
       std::printf("family %s vector=%d files=%zu\n", family.name.c_str(), family.vector, family.files.size());
       for (const auto& file : family.files) {
-        std::printf("file %s size=%u style=%u\n", file.name ? file.name.get() : "canonical", file.pointSize, file.style);
+        std::printf("file %s size=%u style=%u\n", file.name ? file.name.get() : "canonical", file.pointSize,
+                    file.style);
       }
     }
   }

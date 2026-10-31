@@ -1,7 +1,8 @@
 #pragma once
-#include "CssStyle.h"
 #include <array>
 #include <cstring>
+
+#include "CssStyle.h"
 namespace css_oracle {
 constexpr std::array STYLE_LENGTH_FIELDS = {
     &CssStyle::textIndent,   &CssStyle::marginTop,   &CssStyle::marginBottom,  &CssStyle::marginLeft,
@@ -81,4 +82,4 @@ void encodeStyleWire(const CssStyle& style, uint8_t (&out)[STYLE_WIRE_BYTES]) {
   memcpy(out + offset, &definedBits, sizeof(definedBits));
 }
 
-}
+}  // namespace css_oracle

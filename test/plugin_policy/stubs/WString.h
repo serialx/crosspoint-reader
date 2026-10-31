@@ -12,7 +12,7 @@ class String : public std::string {
   }
   bool concat(const char* p, size_t n) {
     if (oracle::fault == "concat") return false;
-    append(p,n);
+    append(p, n);
     return true;
   }
 };

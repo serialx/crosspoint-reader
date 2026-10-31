@@ -8,8 +8,8 @@
 #include <string_view>
 #include <type_traits>
 
-#include "Epub/blocks/BlockStyle.h"
 #include "Epub/FootnoteEntry.h"
+#include "Epub/blocks/BlockStyle.h"
 
 namespace ChapterTrace {
 inline std::ofstream stream;

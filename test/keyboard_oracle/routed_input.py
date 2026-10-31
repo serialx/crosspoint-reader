@@ -1,5 +1,6 @@
 """Compare original routing and current facade with real SDK layouts."""
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -28,7 +29,7 @@ struct BidiUtils {
 };
 struct Rect { int x=0,y=0,width=528,height=792; };
 ''')
-s = s.replace('struct ThemeMetrics { int keyboardKeySpacing=6, keyboardKeyHeight=56; };', '''
+s = re.sub(r'struct ThemeMetrics\s*\{[^}]*\};', '''
 struct ThemeMetrics {
  int keyboardKeySpacing=6,keyboardKeyHeight=56,topPadding=0,headerHeight=40,verticalSpacing=8,
  keyboardVerticalOffset=0,sideButtonHintsWidth=0,keyboardTextFieldWidthPercent=80,buttonHintsHeight=40;
@@ -40,7 +41,7 @@ struct UITheme {
  static Rect getContentArea(const GfxRenderer&){return {};}
 };
 struct { bool deviceIsX3() const {return false;} } gpio;
-''')
+''', s, count=1)
 s = s.replace('  bool wasPressed(Button b)', '  bool hasTouch() const {return true;}\n  bool wasPressed(Button b)')
 s = s.replace('void KeyboardEntryActivity::render(RenderLock&&) {}', '')
 s = s.replace('bool KeyboardEntryActivity::cursorPositionFromPoint(int, int, size_t&) const { return false; }', '')

@@ -5,8 +5,8 @@ int main() {
   for (int width : {480, 528, 792, 800}) {
     for (int selected : {-1, 0, 3, 18}) {
       for (int kind : {0, 1, 2}) {
-        for (auto selection : {ui::SelectionStyle::InvertFill, ui::SelectionStyle::LightPill,
-                              ui::SelectionStyle::Triangle}) {
+        for (auto selection :
+             {ui::SelectionStyle::InvertFill, ui::SelectionStyle::LightPill, ui::SelectionStyle::Triangle}) {
           std::printf("list %d %d %d %u\n", width, selected, kind, unsigned(selection));
           Recorder target;
           ui::DeviceContext device;
@@ -106,7 +106,11 @@ int main() {
         grid.itemProvider = [](uint16_t index, void*) { return ui::coverGridItem(nullptr, index + 1); };
         ui::coverGrid(frame, {12, 190, static_cast<int16_t>(width - 24), 299}, grid);
         ui::TabItem tabs[5];
-        for (int i = 0; i < 5; ++i) { tabs[i].value = i + count; tabs[i].selected = i == selected; tabs[i].icon = icon; }
+        for (int i = 0; i < 5; ++i) {
+          tabs[i].value = i + count;
+          tabs[i].selected = i == selected;
+          tabs[i].icon = icon;
+        }
         ui::TabBarProps props;
         props.tabs = tabs;
         props.count = 5;

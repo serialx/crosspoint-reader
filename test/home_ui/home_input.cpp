@@ -1,5 +1,7 @@
 #include "ButtonNavigator.h"
-struct Rect { int x, y, width, height; };
+struct Rect {
+  int x, y, width, height;
+};
 struct Metrics {
   int homeRecentBooksCount = 3, contentSidePadding = 12, homeTopPadding = 80, homeCoverTileHeight = 240;
   int homeMenuTopOffset = 12, menuSpacing = 6;
@@ -7,17 +9,26 @@ struct Metrics {
 };
 struct UITheme {
   Metrics metrics;
-  static UITheme& getInstance() { static UITheme t; return t; }
+  static UITheme& getInstance() {
+    static UITheme t;
+    return t;
+  }
   const Metrics& getMetrics() { return metrics; }
-  Rect getContentArea(int) { return {10,0,508,792}; }
+  Rect getContentArea(int) { return {10, 0, 508, 792}; }
   int getMenuRowHeight(int) { return 36; }
 };
 #define GUI UITheme::getInstance()
 static int haptics;
-namespace haptic_feedback { inline void touchAction() { ++haptics; } }
+namespace haptic_feedback {
+inline void touchAction() { ++haptics; }
+}  // namespace haptic_feedback
 enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, OPDS_BROWSER, FILE_TRANSFER, SETTINGS_MENU };
-struct RecentBook { std::string path; };
-struct CoverGridHomeUi { int selectedAction(const MappedInputManager&) { return -1; } };
+struct RecentBook {
+  std::string path;
+};
+struct CoverGridHomeUi {
+  int selectedAction(const MappedInputManager&) { return -1; }
+};
 class HomeActivity {
  public:
   MappedInputManager mappedInput;

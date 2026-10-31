@@ -1,6 +1,7 @@
 """Frozen text-settings widget geometry from dc21f50f and mutation sensitivity."""
 from pathlib import Path
 import subprocess
+import re
 import tempfile
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -41,7 +42,8 @@ if __name__ == "__main__":
         binary = Path(directory) / "nav"
         subprocess.run(["c++", "-std=c++17", str(HERE / "NavigationOracle.cpp"), "-o", str(binary)], check=True)
         assert subprocess.check_output([str(binary)]) == (HERE / "navigation.golden").read_bytes()
-        changed = (HERE / "NavigationOracle.cpp").read_text().replace("uint32_t(input.now-last)>500", "uint32_t(input.now-last)>=500")
+        changed = re.sub(r"uint32_t\(input.now\s*-\s*last\)\s*>\s*500", "uint32_t(input.now - last) >= 500",
+                         (HERE / "NavigationOracle.cpp").read_text())
         assert changed != (HERE / "NavigationOracle.cpp").read_text()
         mutant = Path(directory) / "mutation.cpp"
         mutant.write_text(changed)

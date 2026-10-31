@@ -54,37 +54,56 @@ class Recorder final : public ui::DrawTarget {
 
 int main() {
   for (const int width : {480, 528, 792, 800}) {
-    for (const auto selection : {ui::SelectionStyle::InvertFill, ui::SelectionStyle::LightPill, ui::SelectionStyle::Underline, ui::SelectionStyle::Triangle}) {
+    for (const auto selection : {ui::SelectionStyle::InvertFill, ui::SelectionStyle::LightPill,
+                                 ui::SelectionStyle::Underline, ui::SelectionStyle::Triangle}) {
       for (const bool wifi : {false, true}) {
         for (const int selected : {0, 1, 3}) {
           std::printf("network %d %u %d %d\n", width, unsigned(selection), wifi, selected);
           Recorder target;
-          ui::DeviceContext device; device.width = width; device.height = 400;
+          ui::DeviceContext device;
+          device.width = width;
+          device.height = 400;
           ui::InteractionBuffer<24> hits;
           ui::Frame<24> frame(target, device, {}, hits);
           auto theme = ui::themeTokensForLineHeight(24);
-          theme.listSelectionStyle = selection; theme.listRowRadius = 12; theme.listRowGap = 3; theme.listInset = 5;
+          theme.listSelectionStyle = selection;
+          theme.listRowRadius = 12;
+          theme.listRowGap = 3;
+          theme.listInset = 5;
           ui::Screen<24> screen(frame, theme);
           ui::ListItem rows[4];
           const char* labels[] = {"Join a Network", "Connect to Calibre", "Create Hotspot", "USB Drive"};
-          const char* subtitles[] = {"Connect to an existing WiFi network", "Transfer books from Calibre", "Create a wireless network", "Connect to a computer"};
+          const char* subtitles[] = {"Connect to an existing WiFi network", "Transfer books from Calibre",
+                                     "Create a wireless network", "Connect to a computer"};
           for (int i = 0; i < 4; ++i) {
-            rows[i].label = wifi ? (i == 1 ? "A long WiFi SSID that wraps onto the second line" : "Network") : labels[i];
+            rows[i].label =
+                wifi ? (i == 1 ? "A long WiFi SSID that wraps onto the second line" : "Network") : labels[i];
             rows[i].subtitle = wifi ? nullptr : subtitles[i];
             rows[i].value = wifi ? (i == 2 ? "  ||" : "+ * ||||") : nullptr;
             rows[i].actionValue = i;
           }
-          ui::ListNav nav; nav.reset(selected);
+          ui::ListNav nav;
+          nav.reset(selected);
           ui::ListProps props;
-          props.items = rows; props.count = 4; props.action = 1;
+          props.items = rows;
+          props.count = 4;
+          props.action = 1;
           props.inputMask = ui::InputTouch | (wifi ? ui::InputLongPress : 0);
           props.partialTrailingRow = true;
-          props.subtitleText = theme.smallText; props.subtitleText.maxLines = 2;
-          if (wifi) { props.valueInset = 8; props.labelText = theme.bodyText; props.labelText.maxLines = 2; props.balanceWrappedLabelWithValue = false; }
-          screen.syncListViewport(nav, props, 4); screen.list(props);
+          props.subtitleText = theme.smallText;
+          props.subtitleText.maxLines = 2;
+          if (wifi) {
+            props.valueInset = 8;
+            props.labelText = theme.bodyText;
+            props.labelText.maxLines = 2;
+            props.balanceWrappedLabelWithValue = false;
+          }
+          screen.syncListViewport(nav, props, 4);
+          screen.list(props);
           std::printf("nav %d %d %d %d\n", nav.selected.load(), nav.top, nav.drawnRows, nav.inputPageRows());
           for (size_t i = 0; i < hits.count(); ++i) {
-            const auto& hit = hits.data()[i]; Recorder::rect("hit", hit.rect);
+            const auto& hit = hits.data()[i];
+            Recorder::rect("hit", hit.rect);
             std::printf(" %u %d %u\n", hit.action, hit.value, unsigned(hit.inputMask));
           }
         }

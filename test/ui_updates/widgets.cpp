@@ -21,7 +21,9 @@ int main() {
           }
           ui::OptionDialogProps p;
           p.title = message ? "Clear reading cache" : "New update";
-          p.message = message ? "Remove the reading cache while keeping your books and settings. This long synthetic warning wraps across several lines on small displays." : nullptr;
+          p.message = message ? "Remove the reading cache while keeping your books and settings. This long synthetic "
+                                "warning wraps across several lines on small displays."
+                              : nullptr;
           p.messageText.font = 1;
           p.messageText.align = ui::TextAlign::Center;
           p.messageText.maxLines = 6;
@@ -34,7 +36,7 @@ int main() {
           p.titleText.align = ui::TextAlign::Center;
           p.titleText.maxLines = 2;
           p.buttonText.font = 1;
-          p.padding = {16,16,16,16};
+          p.padding = {16, 16, 16, 16};
           p.gap = 8;
           p.buttonHeight = 40;
           p.styles = ui::defaultPopupStyles();
@@ -47,13 +49,17 @@ int main() {
             p.buttonStyles.focused = p.buttonStyles.selected;
             ui::setStyleRadius(p.buttonStyles, radius);
           }
-          const int16_t dialogWidth = width*3/4;
-          const int16_t height = ui::optionDialogHeight(target,p,dialogWidth);
-          const ui::Rect area{int16_t((width-dialogWidth)/2),int16_t((792-height)/2),dialogWidth,height};
-          std::printf("popup %d %d %d %d\n",width,radius,message,selected);
-          frame.hit(area,2,0,ui::InputTouch);
-          ui::optionDialog(frame,area,p);
-          for(size_t n=0;n<hits.count();++n){const auto& h=hits.data()[n];Recorder::rect("hit",h.rect);std::printf(" %u %d\n",h.action,h.value);}
+          const int16_t dialogWidth = width * 3 / 4;
+          const int16_t height = ui::optionDialogHeight(target, p, dialogWidth);
+          const ui::Rect area{int16_t((width - dialogWidth) / 2), int16_t((792 - height) / 2), dialogWidth, height};
+          std::printf("popup %d %d %d %d\n", width, radius, message, selected);
+          frame.hit(area, 2, 0, ui::InputTouch);
+          ui::optionDialog(frame, area, p);
+          for (size_t n = 0; n < hits.count(); ++n) {
+            const auto& h = hits.data()[n];
+            Recorder::rect("hit", h.rect);
+            std::printf(" %u %d\n", h.action, h.value);
+          }
         }
       }
     }

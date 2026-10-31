@@ -1,9 +1,11 @@
 #include <Utf8.h>
+
 #include <array>
 #include <cstdint>
 #include <iostream>
 #include <string>
 #include <vector>
+
 #include "Epub/Epub/CjkBreaks.h"
 #include "Epub/Epub/TokenBoundary.h"
 
@@ -19,13 +21,12 @@ static bool absorbed(uint32_t n, void* p) {
 }
 static bool reject(uint32_t, void*) { return false; }
 static std::array<int64_t, 4> properties(uint32_t cp) {
-  uint32_t flags = utf8IsCjkBreakable(cp) | (utf8IsHangul(cp) << 1) |
-      (utf8IsCombiningMark(cp) << 2) | (TokenBoundary::allowsBreakAfterExplicitHyphen(cp) << 3);
+  uint32_t flags = utf8IsCjkBreakable(cp) | (utf8IsHangul(cp) << 1) | (utf8IsCombiningMark(cp) << 2) |
+                   (TokenBoundary::allowsBreakAfterExplicitHyphen(cp) << 3);
   for (uint32_t other : {0x41u, 0x4e00u, 0xac00u, 0x2du, 0x3008u, 0x3009u, 0x0301u}) {
     flags = (flags << 4) | CjkBreaks::boundaryAllowsBreak(cp, other) |
-        (CjkBreaks::boundaryAllowsBreak(other, cp) << 1) |
-        (CjkBreaks::hasBreakOpportunityBetween(cp, other) << 2) |
-        (CjkBreaks::hasBreakOpportunityBetween(other, cp) << 3);
+            (CjkBreaks::boundaryAllowsBreak(other, cp) << 1) | (CjkBreaks::hasBreakOpportunityBetween(cp, other) << 2) |
+            (CjkBreaks::hasBreakOpportunityBetween(other, cp) << 3);
   }
   return {flags, int64_t(utf8SmallCapsUpper(cp)) - cp, utf8DecomposedBase(cp), 0};
 }
@@ -34,7 +35,7 @@ int main(int argc, char**) {
     uint32_t start = 0;
     auto previous = properties(0);
     for (uint32_t cp = 1; cp <= 0x110000; ++cp) {
-      auto current = cp == 0x110000 ? std::array<int64_t,4>{-1,-1,-1,-1} : properties(cp);
+      auto current = cp == 0x110000 ? std::array<int64_t, 4>{-1, -1, -1, -1} : properties(cp);
       if (current != previous) {
         std::cout << start << ' ' << cp - 1;
         for (auto v : previous) std::cout << ' ' << v;
@@ -45,7 +46,10 @@ int main(int argc, char**) {
     }
     uint64_t hash = 14695981039346656037ULL;
     auto mix = [&](uint32_t value) {
-      for (int i = 0; i < 4; ++i) { hash ^= (value >> (8*i)) & 255; hash *= 1099511628211ULL; }
+      for (int i = 0; i < 4; ++i) {
+        hash ^= (value >> (8 * i)) & 255;
+        hash *= 1099511628211ULL;
+      }
     };
     for (uint32_t cp = 0; cp <= 0x10ffff; ++cp) {
       char bytes[5]{};

@@ -1,6 +1,6 @@
 #include <FreeInkApp.h>
-#include <cassert>
 
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -54,17 +54,25 @@ class Recorder final : public ui::DrawTarget {
   void bitmap(ui::Rect, ui::BitmapRef, ui::BitmapMode, ui::Paint, ui::Rotation) override {}
 };
 
-
-namespace fui=freeink::ui;
+namespace fui = freeink::ui;
 #define tr(x) #x
-struct ThemeMetrics {int topPadding=12,headerHeight=36,buttonHintsHeight=40,contentSidePadding=16;} metrics;
-struct UITheme {static UITheme& getInstance(){static UITheme t;return t;}const ThemeMetrics& getMetrics(){return metrics;}};
-using UiScreen=ui::Screen<24>;
+struct ThemeMetrics {
+  int topPadding = 12, headerHeight = 36, buttonHintsHeight = 40, contentSidePadding = 16;
+} metrics;
+struct UITheme {
+  static UITheme& getInstance() {
+    static UITheme t;
+    return t;
+  }
+  const ThemeMetrics& getMetrics() { return metrics; }
+};
+using UiScreen = ui::Screen<24>;
 struct UsbDriveActivity {
- enum class State : uint8_t {Unsupported,WaitingForHost,Connected,Ejected,Disconnected,IoError};
+  enum class State : uint8_t { Unsupported, WaitingForHost, Connected, Ejected, Disconnected, IoError };
 
- bool preparing=true,startFailed=false;State state=State::Unsupported;
- void buildDriveScreen(UiScreen&)const;
+  bool preparing = true, startFailed = false;
+  State state = State::Unsupported;
+  void buildDriveScreen(UiScreen&) const;
 };
 void UsbDriveActivity::buildDriveScreen(UiScreen& screen) const {
   const char* message = nullptr;
@@ -127,10 +135,28 @@ void UsbDriveActivity::buildDriveScreen(UiScreen& screen) const {
   }
 }
 int main() {
- for(int width:{480,528,792,800})for(int pad:{0,12,20})for(int inset:{0,30})for(int phase=0;phase<6;++phase)for(bool preparing:{false,true})for(bool failed:{false,true}){
-  printf("usb %d %d %d %d %d %d\n",width,pad,inset,phase,preparing,failed);
-  Recorder target;ui::DeviceContext device;device.width=width;device.height=792;device.safeArea={static_cast<int16_t>(inset),static_cast<int16_t>(inset),static_cast<int16_t>(inset),static_cast<int16_t>(inset)};
-  ui::InteractionBuffer<24> hits;ui::Frame<24> frame(target,device,{},hits);auto theme=ui::themeTokensForLineHeight(24);theme.spaceMd=pad;UiScreen screen(frame,theme);
-  UsbDriveActivity a;a.state=static_cast<UsbDriveActivity::State>(phase);a.preparing=preparing;a.startFailed=failed;a.buildDriveScreen(screen);
- }
+  for (int width : {480, 528, 792, 800})
+    for (int pad : {0, 12, 20})
+      for (int inset : {0, 30})
+        for (int phase = 0; phase < 6; ++phase)
+          for (bool preparing : {false, true})
+            for (bool failed : {false, true}) {
+              printf("usb %d %d %d %d %d %d\n", width, pad, inset, phase, preparing, failed);
+              Recorder target;
+              ui::DeviceContext device;
+              device.width = width;
+              device.height = 792;
+              device.safeArea = {static_cast<int16_t>(inset), static_cast<int16_t>(inset), static_cast<int16_t>(inset),
+                                 static_cast<int16_t>(inset)};
+              ui::InteractionBuffer<24> hits;
+              ui::Frame<24> frame(target, device, {}, hits);
+              auto theme = ui::themeTokensForLineHeight(24);
+              theme.spaceMd = pad;
+              UiScreen screen(frame, theme);
+              UsbDriveActivity a;
+              a.state = static_cast<UsbDriveActivity::State>(phase);
+              a.preparing = preparing;
+              a.startFailed = failed;
+              a.buildDriveScreen(screen);
+            }
 }

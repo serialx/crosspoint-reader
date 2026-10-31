@@ -71,7 +71,7 @@ TEST(PngInflate, IdatRowsAndPartialBuffersMatchC) {
             status = mz_inflate(&stream, MZ_NO_FLUSH);
             const auto produced = outputChunk - stream.avail_out;
             std::array<uint32_t, 3> row{static_cast<uint32_t>(status), before - stream.avail_in,
-                                       static_cast<uint32_t>(produced)};
+                                        static_cast<uint32_t>(produced)};
             if (row != previous) {
               flush();
               previous = row;

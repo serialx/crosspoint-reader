@@ -7,7 +7,7 @@
 namespace fixture {
 inline constexpr int FAMILIES = 9;
 inline constexpr int VECTORS = 64;
-}
+}  // namespace fixture
 class HalFile {
  public:
   int family = -2;

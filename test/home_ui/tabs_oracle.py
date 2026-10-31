@@ -1,5 +1,6 @@
 """Pinned native tab-band geometry and SDK label/indicator placements."""
 import gzip
+import re
 import subprocess
 import tempfile
 import unittest
@@ -14,7 +15,8 @@ def record_tabs(mutation=False):
     source += method(original("src/activities/UiTabListActivity.cpp"), "void UiTabListActivity::buildTabBar(")
     source += (HERE / "tabs_cases.cpp").read_text()
     if mutation:
-        source = source.replace("tabPillMaxPad=16", "tabPillMaxPad=17")
+        source, count = re.subn(r"tabPillMaxPad\s*=\s*16", "tabPillMaxPad = 17", source)
+        assert count == 1, "tab pill mutation was not applied"
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory)
         (path / "tabs.cpp").write_text(source)

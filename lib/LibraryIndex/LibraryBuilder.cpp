@@ -141,7 +141,10 @@ uint8_t metadata(void* opaque, const uint8_t* path, uint8_t operation, uint8_t**
     case MetadataOp::Xtc: {
       Xtc xtc(std::string(reinterpret_cast<const char*>(path)), "/.crosspoint");
       ok = xtc.load();
-      if (ok) { ctx.title = xtc.getTitle(); ctx.author = xtc.getAuthor(); }
+      if (ok) {
+        ctx.title = xtc.getTitle();
+        ctx.author = xtc.getAuthor();
+      }
       break;
     }
     case MetadataOp::Release:

@@ -1,8 +1,8 @@
-#include "I18n.h"
-
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
+
+#include "I18n.h"
 
 static void emit(const char* value) {
   const auto size = static_cast<unsigned>(strlen(value));

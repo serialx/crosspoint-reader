@@ -1,4 +1,19 @@
-//! Shared firmware text categories and restricted canonical composition.
+//! Shared text categories, restricted canonical composition, and decimal parsing.
+//!
+//! CSS and OPF share the correctly rounded, allocation-free compact lexical parser
+//! to avoid core's large float power table and a libc dependency. The grammar is
+//! `[+-]?(digits[.digits?]?|.digits)([eE][+-]?digits)?`, with at least one mantissa
+//! digit, or a signed, ASCII case-insensitive `inf`, `infinity`, or `nan`. Input
+//! must be consumed in full; whitespace and hexadecimal floats are rejected.
+//! OPF alone skips leading ASCII whitespace and requires a finite result; CSS
+//! retains its range checks. Compact parsing uses bounded stack big integers on
+//! its slow path and does not allocate.
+
+/// Parse a complete decimal or special value using the grammar above.
+pub fn parse_f32(bytes: &[u8]) -> Option<f32> {
+    use lexical_parse_float::FromLexical;
+    f32::from_lexical(bytes).ok()
+}
 
 pub fn cjk(cp: u32) -> bool {
     matches!(cp, 0x1100..=0x11FF | 0x3000..=0x303F | 0x3040..=0x309F | 0x30A0..=0x30FF | 0x3130..=0x318F | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xAC00..=0xD7AF | 0xD7B0..=0xD7FF | 0xF900..=0xFAFF | 0xFE30..=0xFE4F | 0xFF01..=0xFF60 | 0xFF65..=0xFFEF | 0x20000..=0x2A6DF | 0x2A700..=0x2B73F)

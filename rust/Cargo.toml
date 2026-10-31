@@ -2,7 +2,7 @@
 members = ["crates/xp-ui", "crates/xp-core", "crates/xp-ffi", "crates/xp-display", "crates/xp-core/src/gif/decoder"]
 default-members = ["crates/xp-core"]
 resolver = "2"
-exclude = ["vendor/embedded-graphics-core-0.4.0", "vendor/az-1.2.1", "vendor/byteorder-1.5.0"]
+exclude = ["vendor/embedded-graphics-core-0.4.0", "vendor/az-1.2.1", "vendor/byteorder-1.5.0", "vendor/lexical-parse-float-1.0.6", "vendor/lexical-parse-integer-1.0.6", "vendor/lexical-util-1.0.7"]
 
 [workspace.dependencies]
 embedded-graphics-core = { path = "vendor/embedded-graphics-core-0.4.0", version = "=0.4.0" }

@@ -427,7 +427,7 @@ fn number(v: &[u8]) -> Option<f32> {
     if v.is_empty() || v[0] == b'+' || v.iter().any(|&c| c.is_ascii_whitespace()) {
         return None;
     }
-    let n = core::str::from_utf8(v).ok()?.parse::<f32>().ok()?;
+    let n = crate::text::parse_f32(v)?;
     if !n.is_finite()
         && ![
             b"inf".as_slice(),

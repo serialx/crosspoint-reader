@@ -193,24 +193,17 @@ fn metadata_text(
     }
     Ok(())
 }
-fn float(value: &[u8]) -> Result<Option<f32>> {
-    if value.is_empty() {
-        return Ok(None);
+fn float(mut value: &[u8]) -> Option<f32> {
+    // Preserve C's leading whitespace, including vertical tab; never trim the tail.
+    while let Some((&first, tail)) = value.split_first() {
+        if !matches!(first, b' ' | b'\t'..=b'\r') {
+            break;
+        }
+        value = tail;
     }
-    let mut bytes = Vec::new();
-    append(&mut bytes, value)?;
-    append(&mut bytes, &[0])?;
-    unsafe extern "C" {
-        fn strtof(s: *const core::ffi::c_char, end: *mut *mut core::ffi::c_char) -> f32;
-    }
-    let mut end = core::ptr::null_mut();
-    // Match the firmware C runtime, including hexadecimal floats and full consumption.
-    let parsed = unsafe { strtof(bytes.as_ptr().cast(), &mut end) };
-    let start = bytes.as_ptr().cast::<core::ffi::c_char>();
-    let valid =
-        end != start.cast_mut() && !end.is_null() && unsafe { *end == 0 } && parsed.is_finite();
-    Ok(valid.then_some(parsed))
+    crate::text::parse_f32(value).filter(|n| n.is_finite())
 }
+
 fn property_has(value: &[u8], word: &[u8]) -> bool {
     value == word
         || (value.starts_with(word) && value.get(word.len()) == Some(&b' '))
@@ -468,7 +461,7 @@ impl Semantics {
                         assign(&mut m.calibre, content)?;
                     }
                     if equal_ci(meta_name, b"calibre:series_index") && m.calibre_index.is_none() {
-                        m.calibre_index = float(content)?;
+                        m.calibre_index = float(content);
                     }
                     if m.property != MetaProperty::Unknown {
                         assign(
@@ -634,7 +627,7 @@ impl Semantics {
                         } else if collection_type && equal_ci(&m.meta_text, b"series") {
                             candidate.series = true;
                         } else if position {
-                            candidate.index = float(&m.meta_text)?;
+                            candidate.index = float(&m.meta_text);
                         }
                     }
                 }
@@ -665,5 +658,35 @@ impl Semantics {
             _ => {}
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod float_tests {
+    use super::float;
+
+    #[test]
+    fn series_index_grammar() {
+        for value in [b"1.5".as_slice(), b" 1.5", b"\t\n\x0b\x0c\r +1.5"] {
+            assert_eq!(float(value), Some(1.5));
+        }
+        for value in [
+            b"".as_slice(),
+            b" ",
+            b"1.5 ",
+            b"1\0junk",
+            b"inf",
+            b"nan",
+            b"1e999",
+            b"0x1p0",
+            b"-0X1.8p+1",
+        ] {
+            assert_eq!(float(value), None, "{value:?}");
+        }
+        assert_eq!(float(b"-0").map(f32::to_bits), Some(0x8000_0000));
+        assert_eq!(
+            float(b"1.0000000596046448").map(f32::to_bits),
+            Some(0x3f80_0001)
+        );
     }
 }

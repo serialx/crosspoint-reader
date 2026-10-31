@@ -15,3 +15,4 @@ reader-strips = ["strip-spike"]
 embedded-graphics-core.workspace = true
 miniz_oxide = { path = "src/inflate/miniz" }
 xp-gif = { path = "src/gif/decoder" }
+lexical-parse-float = { path = "../../vendor/lexical-parse-float-1.0.6", version = "=1.0.6", default-features = false, features = ["compact"] }

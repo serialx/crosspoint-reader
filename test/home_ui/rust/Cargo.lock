@@ -32,6 +32,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexical-parse-float"
+version = "1.0.6"
+dependencies = [
+ "lexical-parse-integer",
+ "lexical-util",
+]
+
+[[package]]
+name = "lexical-parse-integer"
+version = "1.0.6"
+dependencies = [
+ "lexical-util",
+]
+
+[[package]]
+name = "lexical-util"
+version = "1.0.7"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.9.1"
 dependencies = [
@@ -43,6 +62,7 @@ name = "xp-core"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics-core",
+ "lexical-parse-float",
  "miniz_oxide",
  "xp-gif",
 ]

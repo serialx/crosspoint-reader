@@ -1,7 +1,7 @@
 add_executable(KoreanLineBreakingTest
   KoreanLineBreakingTest.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
+  ${REPO_ROOT}/test/section_io/SectionTestCodec.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp

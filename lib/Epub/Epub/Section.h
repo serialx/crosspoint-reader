@@ -1,4 +1,6 @@
 #pragma once
+#include <xp_book.h>
+
 #include <deque>
 #include <functional>
 #include <memory>
@@ -54,26 +56,11 @@ class Section {
     bool reusedHtml = false;
     CssParser* cssParser = nullptr;
     // HTML byte progress, for estimating the section's total page count while it's still building.
-    uint32_t bytesConsumed = 0;
-    uint32_t totalBytes = 0;
-    // Exponentially-smoothed page-count estimate (0 = not yet seeded) and the bytesConsumed at its
-    // last update. The raw byte-ratio estimate jitters as the build crosses dense/sparse regions;
-    // the EMA is stepped once per build advance (not per redraw) to damp that wobble.
-    float smoothedEstimate = 0;
-    uint32_t smoothedAtConsumed = 0;
+    XpBookSectionProgress progress{};
   };
   std::unique_ptr<BuildContext> build_;
-  bool buildComplete_ = false;
-  // Pages laid out by the active build (== build_->lut.size()). Distinct from pageCount,
-  // which is the pages *available to read* and also counts a loaded partial file's pages.
-  uint16_t builtPageCount_ = 0;
-  // A partial section file (suspended build from a previous session) is loaded at filePath.
-  // Its pages 0..partialPageCount_-1 are readable while a rebuild extends past them.
-  bool partial_ = false;
-  uint16_t partialPageCount_ = 0;
-  // Parse watermark from the partial's trailer, for estimating the total page count.
-  uint32_t partialBytesConsumed_ = 0;
-  uint32_t partialTotalBytes_ = 0;
+  XpBookSectionControl control_{};
+  XpBookSectionState state() const;
   bool finalizeBuild();
   // Write the LUTs/anchor map (and, for a partial, the watermark trailer), patch the
   // header, stamp the version byte, and swap the tmp .bin over filePath.
@@ -112,7 +99,7 @@ class Section {
   // The next call resumes where this one left off.
   bool buildSomeMore(int maxPages, bool (*yieldNow)() = nullptr);
   bool isBuilding() const { return static_cast<bool>(build_); }
-  bool isBuildComplete() const { return buildComplete_; }
+  bool isBuildComplete() const { return control_.complete; }
   // Best-known total page count: the exact pageCount once finalized, or a smoothed byte-based
   // estimate (pages so far scaled by totalBytes/bytesConsumed, damped by an EMA) while a giant spine
   // is still building, so "page X of Y" / progress don't read off the small build watermark.
@@ -125,7 +112,7 @@ class Section {
   // pre-existing partial when it covers more pages than this build reached.
   void suspendBuild();
   // True when a partial file was loaded: pageCount is a watermark, not the chapter total.
-  bool isPartial() const { return partial_; }
+  bool isPartial() const { return control_.partial; }
 
   // Unified page read: from the active build if it has reached the page, otherwise from
   // the on-disk file (finalized section, or a partial the rebuild hasn't caught up to).

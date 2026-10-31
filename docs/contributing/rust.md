@@ -362,6 +362,29 @@ support are not added by this change.
 
 ## Chapter and section compatibility
 
+Section policy lives in `rust/crates/xp-ffi/src/book_section.rs`, using the
+version-68 wire codec in `rust/crates/xp-core/src/section/mod.rs`.
+`lib/Epub/Epub/SectionPlatform.cpp` owns native files, the parser, Page objects,
+strings and deque storage. Rust drives build transitions, estimates, cache
+transactions, buffered anchor decoding and page-source selection. Header fields
+are copied from `ReaderRenderSpec`; Rust validates and encodes their widths.
+
+`Section.h` embeds `XpBookSectionControl` and `XpBookSectionProgress` in the
+existing resource layout. The call-local `XpBookSectionState` borrows these
+values and the public page count. Its progress pointer expires when the build
+is released. Rust never holds a state reference across a native callback,
+because parser callbacks can append pages. A loaded partial remains readable
+while a rebuild has fewer pages. Committed-page reads use a separate local
+file; active-build reads restore the writer cursor after loading the Page.
+
+The four low-level record/offset exports used by the old native codec are
+available only with the host `section-test` feature. Their declarations and
+fixture helpers live in `test/section_io/SectionTestCodec.h` and `.cpp`.
+Keep the native deque allocation schedule and parser lifetime when changing
+this boundary. The Section I/O oracle checks file operations and diagnostics;
+the supplementary lifecycle, interleaving, short-write and anchor-bound tests
+cover recovery paths beyond the complete-section byte oracle.
+
 The [section byte oracle](../../test/section_golden/README.md) captures the full
 production Section serialization before migrating word storage or layout.
 Its 312 cases cover every XHTML spine item in the 18 checked-in EPUBs under

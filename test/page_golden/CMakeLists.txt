@@ -27,8 +27,8 @@ add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/EpdFont/EpdFont.cpp ${REPO_ROOT}/lib/EpdFont/EpdFontFamily.cpp
   ${REPO_ROOT}/lib/EpdFont/SdCardFont.cpp ${REPO_ROOT}/lib/EpdFont/FontDecompressor.cpp
   ${REPO_ROOT}/lib/EpdFont/TtfEpdFont.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/Section.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/SectionPlatform.cpp
+  ${REPO_ROOT}/test/section_io/SectionTestCodec.cpp
   ${INSTRUMENTED}/Page.cpp
   ${INSTRUMENTED}/TextBlock.cpp
   ${INSTRUMENTED}/ImageBlock.cpp

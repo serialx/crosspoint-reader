@@ -49,11 +49,10 @@ source = source.replace(anchor, """  const auto status =
 (out / 'GfxRenderer.cpp').write_text(source)
 (out / 'Page.cpp').write_text((root / 'lib/Epub/Epub/Page.cpp').read_text())
 
-source = (root / 'lib/Epub/Epub/blocks/TextBlock.cpp').read_text().replace('#include "../SectionCodec.h"', '#include <SectionCodec.h>')
+source = (root / 'lib/Epub/Epub/blocks/TextBlock.cpp').read_text()
 (out / 'TextBlock.cpp').write_text(source)
 
 source = (root / 'lib/Epub/Epub/blocks/ImageBlock.cpp').read_text()
-source = source.replace('#include "../SectionCodec.h"', '#include <SectionCodec.h>')
 source = '#ifdef XP_STRIP_SPIKE\n#include "StripTrace.h"\n#endif\n' + source
 # Select the independent strip writer at the new Rust cache-owner boundary.
 anchor = '*output = imageWriteTarget(*static_cast<Context*>(raw)->renderer);'

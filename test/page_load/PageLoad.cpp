@@ -1,7 +1,6 @@
 #include <Epub.h>
 #include <Epub/Page.h>
 #include <Epub/Section.h>
-#include <Epub/SectionCodec.h>
 #include <GfxRenderer.h>
 #include <unistd.h>
 
@@ -11,6 +10,8 @@
 #include <iostream>
 #include <new>
 #include <vector>
+
+#include "../section_io/SectionTestCodec.h"
 
 template <class T>
 concept HasOwnedPageElements = requires(T page) { page.elements; };

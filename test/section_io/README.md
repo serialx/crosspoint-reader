@@ -8,8 +8,9 @@ successful scenario is then failed individually, including rename and remove.
 
 Configure and build through the main `test/` CMake project. Run
 `ctest --test-dir build/test -R 'SectionIoGolden|BookPolicyGolden' --output-on-failure`.
-`SECTION_IO_SOURCE` can select an exported Section.cpp for a mutation check;
-changing `builtPageCount_++` to `builtPageCount_ += 2` must fail the oracle.
+`SECTION_IO_SOURCE` can select a different `SectionPlatform.cpp` for an adapter
+mutation check. Page-count policy now lives in Rust's `book_section.rs`; changing
+its append increment from one to two must fail the oracle.
 
 The repository golden stores SHA-256 hashes of complete traces and file bytes
 to keep the fixture small. Full baseline records are in the round evidence at
@@ -25,3 +26,17 @@ or mutex contention. Rendering uses the existing Section synthetic font stub;
 real-font page goldens and emulator screenshots remain separate requirements.
 Allocation failures and persistent/repeated filesystem failure require the
 existing page/chapter allocation suites and additional targeted tests.
+
+`SectionBehavior` exercises empty, one-entry and 400-entry LUTs, yielding builds,
+partial rebuilds on either side of the saved page count, and page/anchor reads
+between build steps. It checks that the completed cache matches an uninterrupted
+build. `SectionEveryShortWrite` writes one byte fewer at each reached write point.
+`behavior.py --capture` and `--compare` store and replay those full outcomes in
+external evidence without changing the historical golden. Set
+`SECTION_ALLOCATION_TRACE` to a file path to record native allocation sizes and
+free order, including deque growth; this host trace does not measure ESP heap
+placement or Rust allocations.
+
+`SectionTestCodec.h` and `.cpp` retain the old record helpers solely for host
+fixtures. Their four retired exports require the Rust `section-test` feature,
+which the host CMake project enables. Firmware uses Rust's codec directly.

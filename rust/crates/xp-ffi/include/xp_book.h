@@ -346,21 +346,34 @@ uint8_t xp_book_section_query(const XpBookFileServices* services, uint32_t query
 uint8_t xp_book_section_anchor(const XpBookFileServices* services, const uint8_t* needle, size_t length,
                                uint32_t* output);
 
-typedef struct XpBookSectionEstimate {
-  uint32_t consumed, total, partial_consumed, partial_total, smoothed_at;
+// Embedded values retain the native field order and allocation sizes.
+typedef struct XpBookSectionControl {
+  uint8_t complete;
+  // Active LUT count; readable pages may still include a larger loaded partial.
+  uint16_t built_pages;
+  // A readable partial file can coexist with an active rebuilding parser.
+  uint8_t partial;
+  uint16_t partial_pages;
+  uint32_t consumed, total;
+} XpBookSectionControl;
+typedef struct XpBookSectionProgress {
+  uint32_t consumed, total;
   float smoothed;
-  uint16_t pages, built_pages, partial_pages;
-  uint8_t partial, building;
-} XpBookSectionEstimate;
-uint16_t xp_book_section_estimate(XpBookSectionEstimate* state);
+  uint32_t smoothed_at;
+} XpBookSectionProgress;
+// Call-local borrows; progress is null without a build and expires when it is reset.
+// Callbacks may append pages; Rust must not hold a state reference across a callback.
+typedef struct XpBookSectionState {
+  XpBookSectionControl* control;
+  uint16_t* pages;
+  XpBookSectionProgress* progress;
+} XpBookSectionState;
+uint16_t xp_book_section_estimate(const XpBookSectionState* state);
 
+// Removed state operations leave fixed gaps shared with Rust.
 typedef enum XpBookSectionOperation {
   XP_BOOK_SECTION_OP_HAS_BUILD = 0,
   XP_BOOK_SECTION_OP_HAS_PARSER = 1,
-  XP_BOOK_SECTION_OP_BUILT_PAGES = 2,
-  XP_BOOK_SECTION_OP_PARTIAL = 3,
-  XP_BOOK_SECTION_OP_PARTIAL_PAGES = 4,
-  XP_BOOK_SECTION_OP_TOTAL = 5,
   XP_BOOK_SECTION_OP_REUSED_HTML = 6,
   XP_BOOK_SECTION_OP_PARSER_STEP = 7,
   XP_BOOK_SECTION_OP_PARSER_FINISH = 8,
@@ -379,14 +392,8 @@ typedef enum XpBookSectionOperation {
   XP_BOOK_SECTION_OP_PROMOTE_HTML = 21,
   XP_BOOK_SECTION_OP_COMMIT_FINAL = 22,
   XP_BOOK_SECTION_OP_COMMIT_PARTIAL = 23,
-  XP_BOOK_SECTION_OP_SET_COMPLETE = 24,
-  XP_BOOK_SECTION_OP_SET_PARTIAL = 25,
-  XP_BOOK_SECTION_OP_SET_PARTIAL_PAGES = 26,
-  XP_BOOK_SECTION_OP_SET_PAGES = 27,
-  XP_BOOK_SECTION_OP_SET_BUILT_PAGES = 28,
-  XP_BOOK_SECTION_OP_SET_PARTIAL_CONSUMED = 29,
-  XP_BOOK_SECTION_OP_SET_PARTIAL_TOTAL = 30,
-  XP_BOOK_SECTION_OP_SET_CONSUMED = 31,
+  XP_BOOK_SECTION_OP_START = 32,
+  XP_BOOK_SECTION_OP_BUILD_ALL = 33,
 } XpBookSectionOperation;
 
 typedef enum XpBookSectionEvent {
@@ -402,8 +409,10 @@ typedef enum XpBookSectionTransition {
   XP_BOOK_SECTION_FINISH = 1,
   XP_BOOK_SECTION_SUSPEND = 2,
   XP_BOOK_SECTION_ABANDON = 3,
+  XP_BOOK_SECTION_CREATE = 4,
 } XpBookSectionTransition;
-uint8_t xp_book_section_transition(const XpBookServices* services, uint32_t transition, int32_t argument);
+uint8_t xp_book_section_transition(const XpBookServices* services, const XpBookSectionState* state, uint32_t transition,
+                                   int32_t argument);
 
 typedef struct XpBookAnchor {
   const uint8_t* text;
@@ -429,11 +438,6 @@ typedef enum XpBookLutField {
 typedef enum XpBookSectionStartOperation {
   XP_BOOK_START_HAS_BUILD = 0,
   XP_BOOK_START_RELEASE_FONTS = 1,
-  XP_BOOK_START_SET_COMPLETE = 2,
-  XP_BOOK_START_SET_BUILT_PAGES = 3,
-  XP_BOOK_START_PARTIAL = 4,
-  XP_BOOK_START_PARTIAL_PAGES = 5,
-  XP_BOOK_START_SET_PAGES = 6,
   XP_BOOK_START_TMP_BIN_EXISTS = 7,
   XP_BOOK_START_TMP_BIN_REMOVE = 8,
   XP_BOOK_START_PREPARE_PATHS = 9,
@@ -488,14 +492,10 @@ typedef enum XpBookSectionStartEvent {
   XP_BOOK_START_EVENT_PARSER_OOM = 10,
   XP_BOOK_START_EVENT_BEGIN_FAILED = 11,
 } XpBookSectionStartEvent;
-uint8_t xp_book_section_start(const XpBookServices* services);
+uint8_t xp_book_section_start(const XpBookServices* services, const XpBookSectionState* state);
 
-typedef struct XpBookSectionLoaded {
-  uint32_t consumed, total;
-  uint16_t pages, partial_pages;
-  uint8_t partial;
-} XpBookSectionLoaded;
-uint8_t xp_book_section_load(const XpBookFileServices* io, const uint32_t expected[20], XpBookSectionLoaded* state);
+uint8_t xp_book_section_load(const XpBookFileServices* io, const uint32_t expected[20],
+                             const XpBookSectionState* state);
 uint8_t xp_book_section_clear(const XpBookFileServices* io);
 uint32_t xp_book_section_append(const XpBookFileServices* io, const uint8_t* bytes, size_t length, uint16_t* built,
                                 uint16_t* pages);
@@ -653,7 +653,8 @@ typedef struct XpBookTocServices {
   void* ctx;
   size_t (*operation)(void*, uint32_t operation, size_t argument);
 } XpBookTocServices;
-int32_t xp_book_section_toc(const XpBookTocServices* services, int32_t page);
+// The buffered reader and its destination string are borrowed until return.
+int32_t xp_book_section_toc(const XpBookTocServices* services, const XpBookFileServices* reader, int32_t page);
 
 uint8_t xp_book_section_build_anchor(const XpBookBuildRecords* records, const uint8_t* needle, size_t length,
                                      uint32_t* page);
@@ -664,12 +665,16 @@ uint8_t xp_book_section_visible(const XpBookFileServices* io, const XpBookBuildR
 uint8_t xp_book_section_page_visible(const XpBookFileServices* io, const XpBookBuildRecords* records, uint16_t page,
                                      uint32_t* offset);
 uint8_t xp_book_section_reached(const XpBookBuildRecords* records, uint32_t offset);
-uint8_t xp_book_section_page_source(int32_t page, size_t entries, uint16_t pages, uint16_t partial_pages,
-                                    uint8_t building, uint8_t partial);
+// load receives Rust's chosen source (1: active build, 2: committed file) synchronously.
+void* xp_book_section_page_source(int32_t page, size_t entries, uint16_t pages, uint16_t partial_pages,
+                                  uint8_t building, uint8_t partial, void* ctx,
+                                  void* (*load)(void* ctx, uint8_t source, int32_t page));
+
 typedef struct XpBookPageLoader {
   void* ctx;
   void* (*load)(void* ctx, uint32_t bytes, uint32_t visible);
 } XpBookPageLoader;
+// Null records selects the committed reader; otherwise the writer cursor is restored.
 void* xp_book_section_built_page(const XpBookFileServices* io, const XpBookBuildRecords* records, int32_t page,
                                  const XpBookPageLoader* loader);
 

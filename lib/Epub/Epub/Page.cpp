@@ -6,8 +6,6 @@
 #include <Utf8.h>
 #include <xp_book.h>
 
-#include "SectionCodec.h"
-
 namespace {
 void logPageDiagnostic(const XpPageDiagnostic& detail) {
   [[maybe_unused]] const unsigned a = detail.a, b = detail.b;

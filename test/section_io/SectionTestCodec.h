@@ -6,7 +6,21 @@
 #include <initializer_list>
 #include <string>
 
-#include "ReaderRenderSpec.h"
+#include "Epub/ReaderRenderSpec.h"
+
+typedef struct {
+  const uint8_t* input;
+  size_t len;
+  size_t position;
+  uint32_t kind;
+} XpSecDecoder;
+
+extern "C" {
+size_t xp_sec_record_size(uint32_t kind);
+uint32_t xp_sec_encode_record(const XpSecRecord*, uint8_t*, size_t, size_t*);
+uint32_t xp_sec_decode_next(XpSecDecoder*, XpSecRecord*);
+uint8_t xp_sec_table_entry(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t*);
+}
 
 namespace serialization {
 class BufferedFileReader;

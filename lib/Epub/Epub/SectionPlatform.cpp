@@ -1,5 +1,3 @@
-#include "Section.h"
-
 #include <BufferedFile.h>
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
@@ -9,15 +7,29 @@
 #include <xp_book.h>
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <type_traits>
 
 #include "Epub/css/CssParser.h"
 #include "Page.h"
-#include "SectionCodec.h"
+#include "Section.h"
 #include "hyphenation/Hyphenator.h"
 #include "parsers/ChapterHtmlSlimParser.h"
 
 namespace {
+static_assert(sizeof(XpBookSectionControl) == 16 && alignof(XpBookSectionControl) == 4);
+static_assert(offsetof(XpBookSectionControl, complete) == 0);
+static_assert(offsetof(XpBookSectionControl, built_pages) == 2);
+static_assert(offsetof(XpBookSectionControl, partial) == 4);
+static_assert(offsetof(XpBookSectionControl, partial_pages) == 6);
+static_assert(offsetof(XpBookSectionControl, consumed) == 8);
+static_assert(offsetof(XpBookSectionControl, total) == 12);
+static_assert(sizeof(XpBookSectionProgress) == 16 && alignof(XpBookSectionProgress) == 4);
+static_assert(offsetof(XpBookSectionProgress, consumed) == 0);
+static_assert(offsetof(XpBookSectionProgress, total) == 4);
+static_assert(offsetof(XpBookSectionProgress, smoothed) == 8);
+static_assert(offsetof(XpBookSectionProgress, smoothed_at) == 12);
 // v28: text decoration bits now include line-through in serialized wordStyles.
 // v29: TextBlock word data stored as one flat arena (offset table + NUL-terminated
 // text blob) instead of length-prefixed strings and per-field arrays.
@@ -100,7 +112,7 @@ struct SectionFileContext {
   std::string* text = nullptr;
   static size_t operation(void* raw, uint32_t operation, size_t argument) {
     auto& self = *static_cast<SectionFileContext*>(raw);
-    switch (static_cast<XpBookFileOperation>(operation)) {
+    switch (operation) {
       case XP_BOOK_FILE_EXISTS_FINAL:
         return Storage.exists(self.path.c_str());
       case XP_BOOK_FILE_REMOVE_FINAL:
@@ -133,7 +145,7 @@ struct SectionFileContext {
     return static_cast<SectionFileContext*>(raw)->file.read(bytes, length);
   }
   static void diagnostic(void*, uint32_t event, uint32_t a, uint32_t b) {
-    switch (static_cast<XpBookSectionDiagnostic>(event)) {
+    switch (event) {
       case XP_BOOK_SECTION_TRUNCATED_HEADER:
         LOG_ERR("SCT", "Deserialization failed: truncated section header");
         break;
@@ -208,6 +220,30 @@ struct SectionFileContext {
   }
   XpBookFileServices services() { return {this, operation, read, write, resize, diagnostic}; }
 };
+std::array<uint32_t, 20> headerFields(const ReaderRenderSpec& spec, uint16_t pages) {
+  uint32_t compression;
+  memcpy(&compression, &spec.lineCompression, sizeof(compression));
+  return {0,
+          static_cast<uint32_t>(spec.fontId),
+          compression,
+          spec.extraParagraphSpacing,
+          spec.paragraphIndentSpaces,
+          spec.paragraphAlignment,
+          spec.viewportWidth,
+          spec.viewportHeight,
+          spec.hyphenationEnabled,
+          spec.embeddedStyle,
+          spec.imageRendering,
+          spec.focusReadingEnabled,
+          static_cast<uint8_t>(spec.characterSpacing),
+          spec.wordSpacingPercent,
+          pages,
+          0,
+          0,
+          0,
+          0,
+          0};
+}
 std::optional<uint32_t> sectionQuery(const std::string& path, const XpBookSectionQuery query, const uint32_t index = 0,
                                      const bool first = false) {
   HalFile file;
@@ -225,19 +261,11 @@ struct Section::PolicyContext {
   static uint32_t operation(void* raw, const uint32_t operation, const uint32_t argument) {
     auto& context = *static_cast<PolicyContext*>(raw);
     auto& self = context.section;
-    switch (static_cast<XpBookSectionOperation>(operation)) {
+    switch (operation) {
       case XP_BOOK_SECTION_OP_HAS_BUILD:
         return bool(self.build_);
       case XP_BOOK_SECTION_OP_HAS_PARSER:
         return self.build_ && self.build_->parser;
-      case XP_BOOK_SECTION_OP_BUILT_PAGES:
-        return self.builtPageCount_;
-      case XP_BOOK_SECTION_OP_PARTIAL:
-        return self.partial_;
-      case XP_BOOK_SECTION_OP_PARTIAL_PAGES:
-        return self.partialPageCount_;
-      case XP_BOOK_SECTION_OP_TOTAL:
-        return self.build_->totalBytes;
       case XP_BOOK_SECTION_OP_REUSED_HTML:
         return self.build_->reusedHtml;
       case XP_BOOK_SECTION_OP_PARSER_STEP:
@@ -277,36 +305,12 @@ struct Section::PolicyContext {
       case XP_BOOK_SECTION_OP_COMMIT_FINAL:
         return self.commitBuildFile(SECTION_FILE_VERSION, 0, 0);
       case XP_BOOK_SECTION_OP_COMMIT_PARTIAL:
-        return self.commitBuildFile(SECTION_FILE_PARTIAL_VERSION, argument, self.build_->totalBytes);
-      case XP_BOOK_SECTION_OP_SET_COMPLETE:
-        self.buildComplete_ = argument;
-        break;
-      case XP_BOOK_SECTION_OP_SET_PARTIAL:
-        self.partial_ = argument;
-        break;
-      case XP_BOOK_SECTION_OP_SET_PARTIAL_PAGES:
-        self.partialPageCount_ = argument;
-        break;
-      case XP_BOOK_SECTION_OP_SET_PAGES:
-        self.pageCount = argument;
-        break;
-      case XP_BOOK_SECTION_OP_SET_BUILT_PAGES:
-        self.builtPageCount_ = argument;
-        break;
-      case XP_BOOK_SECTION_OP_SET_PARTIAL_CONSUMED:
-        self.partialBytesConsumed_ = argument;
-        break;
-      case XP_BOOK_SECTION_OP_SET_PARTIAL_TOTAL:
-        self.partialTotalBytes_ = argument;
-        break;
-      case XP_BOOK_SECTION_OP_SET_CONSUMED:
-        self.build_->bytesConsumed = argument;
-        break;
+        return self.commitBuildFile(SECTION_FILE_PARTIAL_VERSION, argument, self.build_->progress.total);
     }
     return 0;
   }
   static void diagnostic(void*, uint32_t event, uint32_t argument) {
-    switch (static_cast<XpBookSectionEvent>(event)) {
+    switch (event) {
       case XP_BOOK_SECTION_EVENT_NO_BUILD:
         LOG_ERR("SCT", "buildSomeMore with no active build");
         break;
@@ -331,7 +335,7 @@ struct Section::CommitContext {
   Section& section;
   static size_t operation(void* raw, uint32_t operation, size_t argument) {
     auto& self = static_cast<CommitContext*>(raw)->section;
-    switch (static_cast<XpBookFileOperation>(operation)) {
+    switch (operation) {
       case XP_BOOK_FILE_SEEK:
         return self.file.seek(argument);
       case XP_BOOK_FILE_SIZE:
@@ -363,7 +367,7 @@ struct Section::CommitContext {
   }
   static uint32_t entry(void* raw, size_t index, uint32_t field) {
     const auto& entry = static_cast<CommitContext*>(raw)->section.build_->lut[index];
-    switch (static_cast<XpBookLutField>(field)) {
+    switch (field) {
       case XP_BOOK_LUT_FILE:
         return entry.fileOffset;
       case XP_BOOK_LUT_PARAGRAPH:
@@ -395,24 +399,11 @@ struct Section::StartContext {
   static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
     auto& c = *static_cast<StartContext*>(raw);
     auto& self = c.section;
-    switch (static_cast<XpBookSectionStartOperation>(operation)) {
+    switch (operation) {
       case XP_BOOK_START_HAS_BUILD:
         return bool(self.build_);
       case XP_BOOK_START_RELEASE_FONTS:
         if (auto* cache = self.renderer.getFontCacheManager()) cache->releaseSdFontCaches();
-        break;
-      case XP_BOOK_START_SET_COMPLETE:
-        self.buildComplete_ = argument;
-        break;
-      case XP_BOOK_START_SET_BUILT_PAGES:
-        self.builtPageCount_ = argument;
-        break;
-      case XP_BOOK_START_PARTIAL:
-        return self.partial_;
-      case XP_BOOK_START_PARTIAL_PAGES:
-        return self.partialPageCount_;
-      case XP_BOOK_START_SET_PAGES:
-        self.pageCount = argument;
         break;
       case XP_BOOK_START_TMP_BIN_EXISTS:
         return Storage.exists(self.binTmpPath().c_str());
@@ -531,14 +522,14 @@ struct Section::StartContext {
         self.abandonBuild();
         break;
       case XP_BOOK_START_SET_TOTAL:
-        self.build_->totalBytes = self.build_->parser->parseTotalBytes();
+        self.build_->progress.total = self.build_->parser->parseTotalBytes();
         break;
     }
     return 0;
   }
   static void diagnostic(void* raw, uint32_t event, uint32_t argument) {
     auto& c = *static_cast<StartContext*>(raw);
-    switch (static_cast<XpBookSectionStartEvent>(event)) {
+    switch (event) {
       case XP_BOOK_START_EVENT_ACTIVE:
         LOG_ERR("SCT", "startBuild called while a build is already active");
         break;
@@ -593,7 +584,7 @@ struct Section::TocContext {
   static size_t operation(void* raw, uint32_t operation, size_t argument) {
     auto& c = *static_cast<TocContext*>(raw);
     const auto& self = c.section;
-    switch (static_cast<XpBookTocOperation>(operation)) {
+    switch (operation) {
       case XP_BOOK_TOC_FIRST: {
         return self.epub->getTocIndexForSpineIndex(self.spineIndex);
       }
@@ -621,10 +612,8 @@ struct Section::TocContext {
         return entry.second;
       }
       case XP_BOOK_TOC_SELECT_DISK: {
-        uint16_t page;
-        if (!sectioncodec::readAnchor(*c.reader, c.file.size(), c.cachedAnchor, page)) return SIZE_MAX;
         c.active = &c.cachedAnchor;
-        return page;
+        break;
       }
       case XP_BOOK_TOC_ACTIVE_HASH: {
         return std::hash<std::string>{}(*c.active);
@@ -661,6 +650,25 @@ struct Section::TocContext {
     }
     return 0;
   }
+  static size_t fileOperation(void* raw, uint32_t operation, size_t) {
+    auto& c = *static_cast<TocContext*>(raw);
+    switch (operation) {
+      case XP_BOOK_FILE_SIZE:
+        return c.file.size();
+      case XP_BOOK_FILE_POSITION:
+        return c.reader->position();
+      default:
+        return 0;
+    }
+  }
+  static size_t read(void* raw, uint8_t* bytes, size_t length) {
+    return static_cast<TocContext*>(raw)->reader->read(bytes, length);
+  }
+  static uint8_t* resize(void* raw, size_t length) {
+    auto& text = static_cast<TocContext*>(raw)->cachedAnchor;
+    text.resize(length);
+    return reinterpret_cast<uint8_t*>(text.data());
+  }
 };
 
 XpBookBuildRecords Section::buildRecords() const {
@@ -682,7 +690,13 @@ Section::Section(const std::shared_ptr<Epub>& epub, const int spineIndex, GfxRen
     : epub(epub),
       spineIndex(spineIndex),
       renderer(renderer),
-      filePath(epub->getCachePath() + "/sections/" + std::to_string(spineIndex) + ".bin") {}
+      filePath(epub->getCachePath() + "/sections/" + std::to_string(spineIndex) + ".bin") {
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32S3)
+  static_assert(sizeof(Section) == 80, "Preserve Section allocation request size");
+  static_assert(sizeof(BuildContext) == 188, "Preserve build allocation request size");
+  static_assert(sizeof(PageLutEntry) == 12, "Preserve deque node allocation request size");
+#endif
+}
 
 // Suspend any in-progress build so every section.reset() / navigation / sleep path
 // persists the pages already laid out as a partial .bin instead of discarding them
@@ -692,28 +706,22 @@ Section::~Section() { suspendBuild(); }
 uint32_t Section::onPageComplete(const uint8_t* bytes, const size_t length) {
   SectionFileContext context{file, filePath};
   const auto io = context.services();
-  return xp_book_section_append(&io, bytes, length, &builtPageCount_, &pageCount);
+  return xp_book_section_append(&io, bytes, length, &control_.built_pages, &pageCount);
 }
 
 void Section::writeSectionFileHeader(const ReaderRenderSpec& spec) {
   SectionFileContext context{file, filePath};
   const auto io = context.services();
-  const auto header = sectioncodec::header(spec, pageCount);
-  xp_book_section_header(&io, header.values);
+  const auto header = headerFields(spec, pageCount);
+  xp_book_section_header(&io, header.data());
 }
 
 bool Section::loadSectionFile(const ReaderRenderSpec& spec) {
   SectionFileContext context{file, filePath};
   const auto io = context.services();
-  const auto expected = sectioncodec::header(spec, 0);
-  XpBookSectionLoaded state{partialBytesConsumed_, partialTotalBytes_, pageCount, partialPageCount_, partial_};
-  const bool ok = xp_book_section_load(&io, expected.values, &state);
-  partialBytesConsumed_ = state.consumed;
-  partialTotalBytes_ = state.total;
-  pageCount = state.pages;
-  partialPageCount_ = state.partial_pages;
-  partial_ = state.partial;
-  return ok;
+  const auto expected = headerFields(spec, 0);
+  const auto borrowed = state();
+  return xp_book_section_load(&io, expected.data(), &borrowed);
 }
 
 bool Section::clearCache() const {
@@ -724,26 +732,40 @@ bool Section::clearCache() const {
 }
 
 bool Section::createSectionFile(const ReaderRenderSpec& spec, const std::function<void()>& popupFn) {
-  // One-shot build: start, then lay out the whole section in a single pass.
-  if (!startBuild(spec, popupFn)) {
-    return false;
-  }
-  if (!buildSomeMore(0)) {  // 0 = build to completion
-    return false;
-  }
-  return buildComplete_;
+  struct Context {
+    Section& section;
+    const ReaderRenderSpec& spec;
+    const std::function<void()>& popup;
+  } context{*this, spec, popupFn};
+  const XpBookServices services{&context,
+                                [](void* raw, uint32_t operation, uint32_t) -> uint32_t {
+                                  auto& c = *static_cast<Context*>(raw);
+                                  switch (operation) {
+                                    case XP_BOOK_SECTION_OP_START:
+                                      return c.section.startBuild(c.spec, c.popup);
+                                    case XP_BOOK_SECTION_OP_BUILD_ALL:
+                                      return c.section.buildSomeMore(0);
+                                    default:
+                                      return 0;
+                                  }
+                                },
+                                nullptr, nullptr};
+  const auto borrowed = state();
+  return xp_book_section_transition(&services, &borrowed, XP_BOOK_SECTION_CREATE, 0);
 }
 
 bool Section::startBuild(const ReaderRenderSpec& spec, const std::function<void()>& popupFn) {
   StartContext context{*this, spec, popupFn};
   const XpBookServices services{&context, StartContext::operation, nullptr, StartContext::diagnostic};
-  return xp_book_section_start(&services);
+  const auto borrowed = state();
+  return xp_book_section_start(&services, &borrowed);
 }
 
 bool Section::buildSomeMore(const int maxPages, bool (*yieldNow)()) {
   PolicyContext context{*this, yieldNow};
   const auto services = context.services();
-  return xp_book_section_transition(&services, XP_BOOK_SECTION_ADVANCE, maxPages);
+  const auto borrowed = state();
+  return xp_book_section_transition(&services, &borrowed, XP_BOOK_SECTION_ADVANCE, maxPages);
 }
 
 bool Section::hasHtmlCache() const {
@@ -775,27 +797,19 @@ std::optional<uint16_t> Section::findAnchor(const std::string& anchor) const {
 int Section::getTocIndexForPage(const int page) const {
   TocContext context{*this};
   const XpBookTocServices io{&context, TocContext::operation};
-  return xp_book_section_toc(&io, page);
+  const XpBookFileServices reader{&context, TocContext::fileOperation, TocContext::read,
+                                  nullptr,  TocContext::resize,        nullptr};
+  return xp_book_section_toc(&io, &reader, page);
+}
+
+XpBookSectionState Section::state() const {
+  return {const_cast<XpBookSectionControl*>(&control_), const_cast<uint16_t*>(&pageCount),
+          build_ ? &build_->progress : nullptr};
 }
 
 uint16_t Section::estimatedTotalPages() const {
-  XpBookSectionEstimate state{build_ ? build_->bytesConsumed : 0,
-                              build_ ? build_->totalBytes : 0,
-                              partialBytesConsumed_,
-                              partialTotalBytes_,
-                              build_ ? build_->smoothedAtConsumed : 0,
-                              build_ ? build_->smoothedEstimate : 0,
-                              pageCount,
-                              builtPageCount_,
-                              partialPageCount_,
-                              partial_,
-                              bool(build_)};
-  const auto result = xp_book_section_estimate(&state);
-  if (build_) {
-    build_->smoothedEstimate = state.smoothed;
-    build_->smoothedAtConsumed = state.smoothed_at;
-  }
-  return result;
+  const auto borrowed = state();
+  return xp_book_section_estimate(&borrowed);
 }
 
 // Write the LUTs and anchor map into the open tmp .bin, patch the header with the built
@@ -810,25 +824,28 @@ bool Section::commitBuildFile(const uint8_t version, const uint32_t bytesConsume
                               nullptr,  SectionFileContext::diagnostic};
   const XpBookBuildRecords records{&context, build_->lut.size(), build_->parser->getAnchors().size(),
                                    CommitContext::entry, CommitContext::anchor};
-  return xp_book_section_commit(&io, &records, version, builtPageCount_, bytesConsumed, totalBytes);
+  return xp_book_section_commit(&io, &records, version, control_.built_pages, bytesConsumed, totalBytes);
 }
 
 bool Section::finalizeBuild() {
   PolicyContext context{*this};
   const auto services = context.services();
-  return xp_book_section_transition(&services, XP_BOOK_SECTION_FINISH, 0);
+  const auto borrowed = state();
+  return xp_book_section_transition(&services, &borrowed, XP_BOOK_SECTION_FINISH, 0);
 }
 
 void Section::suspendBuild() {
   PolicyContext context{*this};
   const auto services = context.services();
-  xp_book_section_transition(&services, XP_BOOK_SECTION_SUSPEND, 0);
+  const auto borrowed = state();
+  xp_book_section_transition(&services, &borrowed, XP_BOOK_SECTION_SUSPEND, 0);
 }
 
 void Section::abandonBuild() {
   PolicyContext context{*this};
   const auto services = context.services();
-  xp_book_section_transition(&services, XP_BOOK_SECTION_ABANDON, 0);
+  const auto borrowed = state();
+  xp_book_section_transition(&services, &borrowed, XP_BOOK_SECTION_ABANDON, 0);
 }
 
 std::unique_ptr<Page> Section::loadPageDuringBuild(const int page) {
@@ -848,23 +865,28 @@ std::unique_ptr<Page> Section::loadPageAt(const int page) const {
   HalFile file;
   SectionFileContext context{file, filePath};
   const auto services = context.services();
-  uint32_t range[3];
-  if (!xp_book_section_query(&services, XP_BOOK_SECTION_PAGE_RANGE, page, false, range)) return nullptr;
-  auto result = Page::load(file, range[1] - range[0], range[2]);
-  if (result) result->visibleTextOffset = range[2];
-  return result;
+  const XpBookPageLoader loader{&file, [](void* raw, uint32_t bytes, uint32_t visible) -> void* {
+                                  auto page = Page::load(*static_cast<HalFile*>(raw), bytes, visible);
+                                  if (page) page->visibleTextOffset = visible;
+                                  return page.release();
+                                }};
+  return std::unique_ptr<Page>(static_cast<Page*>(xp_book_section_built_page(&services, nullptr, page, &loader)));
 }
 
 std::unique_ptr<Page> Section::loadPage(const int page) {
-  switch (xp_book_section_page_source(page, build_ ? build_->lut.size() : 0, pageCount, partialPageCount_, bool(build_),
-                                      partial_)) {
-    case 1:
-      return loadPageDuringBuild(page);
-    case 2:
-      return loadPageAt(page);
-    default:
-      return nullptr;
-  }
+  return std::unique_ptr<Page>(static_cast<Page*>(xp_book_section_page_source(
+      page, build_ ? build_->lut.size() : 0, pageCount, control_.partial_pages, bool(build_), control_.partial, this,
+      [](void* raw, uint8_t source, int32_t index) -> void* {
+        auto& self = *static_cast<Section*>(raw);
+        switch (source) {
+          case 1:
+            return self.loadPageDuringBuild(index).release();
+          case 2:
+            return self.loadPageAt(index).release();
+          default:
+            return nullptr;
+        }
+      })));
 }
 
 std::string Section::getTextFromSectionFile() {

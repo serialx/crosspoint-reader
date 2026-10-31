@@ -1,7 +1,8 @@
 // Legacy C++ serialization is retained only as an independent host oracle.
 #include <Epub/Page.h>
-#include <Epub/SectionCodec.h>
 #include <Logging.h>
+
+#include "../section_io/SectionTestCodec.h"
 
 namespace {
 PageDropCap dropCapView(const XpPageElement& e) {

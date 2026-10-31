@@ -1,11 +1,12 @@
 #include <Epub.h>
 #include <Epub/Section.h>
-#include <Epub/SectionCodec.h>
 #include <GfxRenderer.h>
 
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+
+#include "../section_io/SectionTestCodec.h"
 
 int main(int argc, char** argv) {
   if (argc != 2) return 2;

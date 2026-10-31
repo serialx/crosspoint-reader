@@ -1,7 +1,12 @@
 //! Allocation-free section wire records; buffers and objects stay with C++.
-use core::{ptr, slice};
-use xp_core::section::{self, Error, Kind, Record};
+#[cfg(feature = "section-test")]
+use core::ptr;
+use core::slice;
+#[cfg(feature = "section-test")]
+use xp_core::section::Kind;
+use xp_core::section::{self, Error, Record};
 
+#[cfg(feature = "section-test")]
 #[repr(C)]
 pub struct Decoder {
     input: *const u8,
@@ -20,6 +25,7 @@ unsafe fn bytes<'a>(data: *const u8, len: usize) -> Option<&'a [u8]> {
     }
 }
 
+#[cfg(feature = "section-test")]
 #[no_mangle]
 pub extern "C" fn xp_sec_record_size(kind: u32) -> usize {
     Kind::from_raw(kind).map_or(0, Kind::size)
@@ -28,6 +34,7 @@ pub extern "C" fn xp_sec_record_size(kind: u32) -> usize {
 /// # Safety
 /// Record and required point to valid nonoverlapping objects. Output has
 /// capacity writable bytes and does not alias either object.
+#[cfg(feature = "section-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_sec_encode_record(
     record: *const Record,
@@ -66,6 +73,7 @@ pub unsafe extern "C" fn xp_sec_encode_record(
 /// # Safety
 /// Decoder and record are writable, disjoint objects. Decoder's input points
 /// to len immutable bytes in one live allocation and does not alias them.
+#[cfg(feature = "section-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_sec_decode_next(decoder: *mut Decoder, record: *mut Record) -> u32 {
     if decoder.is_null() || record.is_null() {
@@ -133,6 +141,7 @@ pub unsafe extern "C" fn xp_sec_header_matches(
 
 /// # Safety
 /// Result points to one writable u32.
+#[cfg(feature = "section-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_sec_table_entry(
     offset: u32,

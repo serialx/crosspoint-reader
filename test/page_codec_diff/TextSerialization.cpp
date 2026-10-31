@@ -1,6 +1,7 @@
-#include <Epub/SectionCodec.h>
 #include <Epub/blocks/TextBlock.h>
 #include <Logging.h>
+
+#include "../section_io/SectionTestCodec.h"
 
 bool TextBlock::serialize(HalFile& file) const {
   const auto& blockStyle = getBlockStyle();

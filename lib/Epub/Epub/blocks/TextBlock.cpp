@@ -9,7 +9,6 @@
 #include <string_view>
 
 #include "../../../../src/fontIds.h"
-#include "../SectionCodec.h"
 
 #ifdef XP_PAGE_CODEC_TEST
 size_t TextBlock::arenaSize(const uint16_t wordCount, const bool hasFocus, const uint16_t textBytes) {

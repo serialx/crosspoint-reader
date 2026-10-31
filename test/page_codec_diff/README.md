@@ -110,7 +110,9 @@ preserved rather than silently repaired.
 
 ## Consumer mapping for P2l/R1
 
-Paths and line numbers refer to the task base, `9738db01`.
+Paths and line numbers refer to the task base, `9738db01`. Current Section
+resource methods live in `lib/Epub/Epub/SectionPlatform.cpp`; its cache and
+page-selection policy lives in `rust/crates/xp-ffi/src/book_section.rs`.
 
 | Existing consumer | Record/query replacement |
 | --- | --- |

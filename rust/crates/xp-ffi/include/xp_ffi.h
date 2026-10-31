@@ -741,23 +741,10 @@ typedef struct {
   uint32_t kind;
   uint32_t values[20];
 } XpSecRecord;
-typedef struct {
-  const uint8_t* input;
-  size_t len;
-  size_t position;
-  uint32_t kind;
-} XpSecDecoder;
-size_t xp_sec_record_size(uint32_t kind);
-uint32_t xp_sec_encode_record(const XpSecRecord* record, uint8_t* output, size_t capacity, size_t* required);
-// A decoder walks consecutive records of its declared kind; initialize position
-// to zero. Payload owners use separate arena/font validators after direct reads.
-uint32_t xp_sec_decode_next(XpSecDecoder* decoder, XpSecRecord* record);
 size_t xp_sec_arena_size(uint16_t words, uint8_t focus, uint16_t text_bytes);
 uint8_t xp_sec_validate_arena(uint16_t words, uint8_t focus, uint16_t text_bytes, const uint8_t* data, size_t len);
 uint8_t xp_sec_validate_fonts(uint16_t words, const uint8_t* data, size_t len);
 uint8_t xp_sec_header_matches(const XpSecRecord* header, const XpSecRecord* expected);
-uint8_t xp_sec_table_entry(uint32_t offset, uint32_t index, uint32_t width, uint32_t size, uint32_t minimum,
-                           uint32_t* result);
 uint8_t xp_sec_partial_trailer(const XpSecRecord* header, uint32_t size, uint32_t* result);
 
 uint32_t xp_sec_encode_text_word(size_t previous, const uint8_t* word, size_t len, uint8_t* output, size_t capacity,

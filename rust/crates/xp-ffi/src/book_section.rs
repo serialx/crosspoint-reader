@@ -339,6 +339,77 @@ pub unsafe extern "C" fn xp_book_section_anchor(
 }
 
 #[repr(C)]
+pub struct Control {
+    complete: u8,
+    built_pages: u16,
+    partial: u8,
+    partial_pages: u16,
+    consumed: u32,
+    total: u32,
+}
+#[repr(C)]
+pub struct Progress {
+    consumed: u32,
+    total: u32,
+    smoothed: f32,
+    smoothed_at: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SectionState {
+    control: *mut Control,
+    pages: *mut u16,
+    progress: *mut Progress,
+}
+const _: () = {
+    use core::mem::{align_of, offset_of, size_of};
+    assert!(size_of::<Control>() == 16 && align_of::<Control>() == 4);
+    assert!(offset_of!(Control, complete) == 0);
+    assert!(offset_of!(Control, built_pages) == 2);
+    assert!(offset_of!(Control, partial) == 4);
+    assert!(offset_of!(Control, partial_pages) == 6);
+    assert!(offset_of!(Control, consumed) == 8);
+    assert!(offset_of!(Control, total) == 12);
+    assert!(size_of::<Progress>() == 16 && align_of::<Progress>() == 4);
+    assert!(offset_of!(Progress, consumed) == 0);
+    assert!(offset_of!(Progress, total) == 4);
+    assert!(offset_of!(Progress, smoothed) == 8);
+    assert!(offset_of!(Progress, smoothed_at) == 12);
+};
+impl SectionState {
+    // State references never cross native calls: parser callbacks can publish pages.
+    fn get(&self, op: Op) -> Option<u32> {
+        unsafe {
+            let c = &*self.control;
+            Some(match op {
+                Op::BuiltPages => c.built_pages.into(),
+                Op::Partial => c.partial.into(),
+                Op::PartialPages => c.partial_pages.into(),
+                Op::Total => (*self.progress).total,
+                _ => return None,
+            })
+        }
+    }
+    fn set(&self, op: Op, value: u32) -> bool {
+        unsafe {
+            let c = &mut *self.control;
+            match op {
+                Op::SetComplete => c.complete = u8::from(value != 0),
+                Op::SetPartial => c.partial = u8::from(value != 0),
+                Op::SetPartialPages => c.partial_pages = value as u16,
+                Op::SetPages => *self.pages = value as u16,
+                Op::SetBuiltPages => c.built_pages = value as u16,
+                Op::SetPartialConsumed => c.consumed = value,
+                Op::SetPartialTotal => c.total = value,
+                Op::SetConsumed => (*self.progress).consumed = value,
+                _ => return false,
+            }
+        }
+        true
+    }
+}
+
+#[repr(C)]
 pub struct Estimate {
     consumed: u32,
     total: u32,
@@ -375,11 +446,7 @@ impl Estimate {
 }
 /// # Safety
 /// State is one initialized writable estimate, disjoint from other accesses.
-#[no_mangle]
-pub unsafe extern "C" fn xp_book_section_estimate(state: *mut Estimate) -> u16 {
-    let Some(s) = state.as_mut() else {
-        return 0;
-    };
+fn estimate(s: &mut Estimate) -> u16 {
     if s.building == 0 {
         return if s.partial != 0 {
             s.partial_estimate()
@@ -398,6 +465,36 @@ pub unsafe extern "C" fn xp_book_section_estimate(state: *mut Estimate) -> u16 {
     }
     s.smoothed_at = s.consumed;
     s.clamp((s.smoothed + 0.5) as u64)
+}
+
+/// # Safety
+/// State points to initialized, disjoint values borrowed for this synchronous call.
+#[no_mangle]
+pub unsafe extern "C" fn xp_book_section_estimate(state: *const SectionState) -> u16 {
+    let Some(state) = state.as_ref() else {
+        return 0;
+    };
+    let c = &*state.control;
+    let progress = state.progress.as_mut();
+    let mut value = Estimate {
+        consumed: progress.as_ref().map_or(0, |p| p.consumed),
+        total: progress.as_ref().map_or(0, |p| p.total),
+        partial_consumed: c.consumed,
+        partial_total: c.total,
+        smoothed_at: progress.as_ref().map_or(0, |p| p.smoothed_at),
+        smoothed: progress.as_ref().map_or(0.0, |p| p.smoothed),
+        pages: *state.pages,
+        built_pages: c.built_pages,
+        partial_pages: c.partial_pages,
+        partial: c.partial,
+        building: u8::from(progress.is_some()),
+    };
+    let result = estimate(&mut value);
+    if let Some(p) = progress {
+        p.smoothed = value.smoothed;
+        p.smoothed_at = value.smoothed_at;
+    }
+    result
 }
 
 #[repr(C)]
@@ -443,6 +540,8 @@ enum Op {
     SetPartialConsumed,
     SetPartialTotal,
     SetConsumed,
+    Start,
+    BuildAll,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -453,10 +552,21 @@ enum Event {
     HtmlPromotion,
     Suspended,
 }
-impl Services {
+struct PolicyServices {
+    io: Services,
+    state: SectionState,
+}
+impl PolicyServices {
     fn call(&self, op: Op, argument: u32) -> u32 {
-        self.operation
-            .map_or(0, |call| unsafe { call(self.ctx, op as u32, argument) })
+        if let Some(value) = self.state.get(op) {
+            return value;
+        }
+        if self.state.set(op, argument) {
+            return 0;
+        }
+        self.io
+            .operation
+            .map_or(0, |call| unsafe { call(self.io.ctx, op as u32, argument) })
     }
     fn get(&self, op: Op) -> u32 {
         self.call(op, 0)
@@ -465,12 +575,13 @@ impl Services {
         self.get(op) != 0
     }
     fn log(&self, event: Event, argument: u32) {
-        if let Some(log) = self.diagnostic {
-            unsafe { log(self.ctx, event as u32, argument) };
+        if let Some(log) = self.io.diagnostic {
+            unsafe { log(self.io.ctx, event as u32, argument) };
         }
     }
 }
-fn abandon(s: &Services) {
+
+fn abandon(s: &PolicyServices) {
     if !s.yes(Op::HasBuild) {
         return;
     }
@@ -495,7 +606,7 @@ fn abandon(s: &Services) {
     s.call(Op::SetPages, 0);
     s.call(Op::SetBuiltPages, 0);
 }
-fn suspend(s: &Services) {
+fn suspend(s: &PolicyServices) {
     if !s.yes(Op::HasBuild) {
         return;
     }
@@ -536,7 +647,7 @@ fn suspend(s: &Services) {
     );
     s.call(Op::SetBuiltPages, 0);
 }
-fn finish(s: &Services) -> bool {
+fn finish(s: &PolicyServices) -> bool {
     if !s.yes(Op::ParserFinish) {
         s.log(Event::FinalizeError, 0);
         abandon(s);
@@ -562,7 +673,7 @@ fn finish(s: &Services) -> bool {
     s.call(Op::SetPages, s.get(Op::BuiltPages));
     true
 }
-fn advance(s: &Services, max: i32) -> bool {
+fn advance(s: &PolicyServices, max: i32) -> bool {
     if !s.yes(Op::HasParser) {
         s.log(Event::NoBuild, 0);
         return false;
@@ -586,16 +697,22 @@ fn advance(s: &Services, max: i32) -> bool {
 }
 /// # Safety
 /// Services are readable and callbacks own their context throughout the call.
-/// A callback may call a separate codec/commit operation, never this transition.
+/// Resource callbacks may append/commit. Create callbacks may synchronously start or
+/// advance the build; no state reference is held across those calls.
 #[no_mangle]
 pub unsafe extern "C" fn xp_book_section_transition(
     services: *const Services,
+    state: *const SectionState,
     operation: u32,
     argument: i32,
 ) -> u8 {
     let Some(s) = services.as_ref().copied().filter(|s| s.operation.is_some()) else {
         return 0;
     };
+    let Some(state) = state.as_ref().copied() else {
+        return 0;
+    };
+    let s = PolicyServices { io: s, state };
     match operation {
         0 => advance(&s, argument) as u8,
         1 => finish(&s) as u8,
@@ -606,6 +723,12 @@ pub unsafe extern "C" fn xp_book_section_transition(
         3 => {
             abandon(&s);
             1
+        }
+        4 => {
+            if !s.yes(Op::Start) || !s.yes(Op::BuildAll) {
+                return 0;
+            }
+            (*s.state.control).complete
         }
         _ => 0,
     }
@@ -857,25 +980,37 @@ enum StartEvent {
     BeginFailed,
 }
 
-impl Services {
+impl PolicyServices {
     fn start(&self, op: StartOp, argument: u32) -> u32 {
-        self.operation
-            .map_or(0, |call| unsafe { call(self.ctx, op as u32, argument) })
+        let state_op = match op {
+            StartOp::SetComplete => Some(Op::SetComplete),
+            StartOp::SetBuiltPages => Some(Op::SetBuiltPages),
+            StartOp::Partial => Some(Op::Partial),
+            StartOp::PartialPages => Some(Op::PartialPages),
+            StartOp::SetPages => Some(Op::SetPages),
+            _ => None,
+        };
+        if let Some(op) = state_op {
+            return self.call(op, argument);
+        }
+        self.io
+            .operation
+            .map_or(0, |call| unsafe { call(self.io.ctx, op as u32, argument) })
     }
     fn start_log(&self, event: StartEvent, argument: u32) {
-        if let Some(log) = self.diagnostic {
-            unsafe { log(self.ctx, event as u32, argument) };
+        if let Some(log) = self.io.diagnostic {
+            unsafe { log(self.io.ctx, event as u32, argument) };
         }
     }
 }
-fn start_cleanup(s: &Services, remove_html: bool) {
+fn start_cleanup(s: &PolicyServices, remove_html: bool) {
     s.start(StartOp::FileClose, 0);
     s.start(StartOp::TmpBinRemove, 0);
     if remove_html {
         s.start(StartOp::TmpHtmlRemove, 0);
     }
 }
-fn start_build(s: &Services) -> bool {
+fn start_build(s: &PolicyServices) -> bool {
     use StartOp::*;
     let get = |op| s.start(op, 0);
     if get(HasBuild) != 0 {
@@ -1001,11 +1136,20 @@ fn start_build(s: &Services) -> bool {
 /// # Safety
 /// Services own their context and borrowed settings until this synchronous call returns.
 #[no_mangle]
-pub unsafe extern "C" fn xp_book_section_start(services: *const Services) -> u8 {
+pub unsafe extern "C" fn xp_book_section_start(
+    services: *const Services,
+    state: *const SectionState,
+) -> u8 {
     let Some(services) = services.as_ref().copied().filter(|s| s.operation.is_some()) else {
         return 0;
     };
-    start_build(&services) as u8
+    let Some(state) = state.as_ref().copied() else {
+        return 0;
+    };
+    start_build(&PolicyServices {
+        io: services,
+        state,
+    }) as u8
 }
 
 fn clear_cache(io: &FileServices) -> bool {
@@ -1110,14 +1254,29 @@ fn load(io: &FileServices, expected: &[u32; 20], state: &mut Loaded) -> bool {
 pub unsafe extern "C" fn xp_book_section_load(
     io: *const FileServices,
     expected: *const [u32; 20],
-    state: *mut Loaded,
+    state: *const SectionState,
 ) -> u8 {
-    let (Some(io), Some(expected), Some(state)) = (io.as_ref(), expected.as_ref(), state.as_mut())
+    let (Some(io), Some(expected), Some(state)) = (io.as_ref(), expected.as_ref(), state.as_ref())
     else {
         return 0;
     };
-    load(io, expected, state) as u8
+    let c = &*state.control;
+    let mut loaded = Loaded {
+        consumed: c.consumed,
+        total: c.total,
+        pages: *state.pages,
+        partial_pages: c.partial_pages,
+        partial: c.partial,
+    };
+    let result = load(io, expected, &mut loaded);
+    (*state.control).consumed = loaded.consumed;
+    (*state.control).total = loaded.total;
+    (*state.control).partial_pages = loaded.partial_pages;
+    (*state.control).partial = loaded.partial;
+    *state.pages = loaded.pages;
+    result as u8
 }
+
 /// # Safety
 /// Services and their context remain valid until return.
 #[no_mangle]
@@ -1252,8 +1411,31 @@ fn consider_anchor(
         }
     }
 }
+fn read_toc_anchor(io: &FileServices) -> Option<u16> {
+    let size = io.size();
+    let mut bytes = [0; 4];
+    if !io.read(&mut bytes) {
+        return None;
+    }
+    let length = section::decode(Kind::U32, &bytes).ok()?.0.values[0];
+    section::table_entry(io.op(FileOp::Position, 0) as u32, 0, length, size, 0)?;
+    let pointer = unsafe { io.resize_text?(io.ctx, length as usize) };
+    let text = if length == 0 {
+        &mut []
+    } else {
+        if pointer.is_null() {
+            return None;
+        }
+        unsafe { slice::from_raw_parts_mut(pointer, length as usize) }
+    };
+    if !io.read(text) || !io.read(&mut bytes[..2]) {
+        return None;
+    }
+    Some(section::decode(Kind::U16, &bytes[..2]).ok()?.0.values[0] as u16)
+}
 fn resolve_toc(
     s: &TocServices,
+    reader: &FileServices,
     targets: &[TocTarget],
     selection: &mut TocSelection,
     anchors: usize,
@@ -1265,11 +1447,11 @@ fn resolve_toc(
     }
     if s.get(TocOp::RewindDisk) != 0 {
         for _ in 0..anchors {
-            let page = s.get(TocOp::SelectDisk);
-            if page == usize::MAX {
+            let Some(page) = read_toc_anchor(reader) else {
                 break;
-            }
-            consider_anchor(s, targets, selection, page, true);
+            };
+            s.get(TocOp::SelectDisk);
+            consider_anchor(s, targets, selection, usize::from(page), true);
         }
     }
 }
@@ -1277,9 +1459,16 @@ fn resolve_toc(
 /// Services are valid for the call; Allocate lends 64 writable targets owned until return.
 /// No callback accesses that target allocation while Rust holds it.
 #[no_mangle]
-pub unsafe extern "C" fn xp_book_section_toc(services: *const TocServices, page: i32) -> i32 {
+pub unsafe extern "C" fn xp_book_section_toc(
+    services: *const TocServices,
+    reader: *const FileServices,
+    page: i32,
+) -> i32 {
     use TocOp::*;
     let Some(s) = services.as_ref().copied().filter(|s| s.operation.is_some()) else {
+        return -1;
+    };
+    let Some(reader) = reader.as_ref() else {
         return -1;
     };
     let selected = s.get(First) as i32;
@@ -1311,7 +1500,7 @@ pub unsafe extern "C" fn xp_book_section_toc(services: *const TocServices, page:
                 };
                 count += 1;
                 if count == 64 {
-                    resolve_toc(&s, targets, &mut selection, anchors);
+                    resolve_toc(&s, reader, targets, &mut selection, anchors);
                     count = 0;
                 }
             }
@@ -1320,7 +1509,7 @@ pub unsafe extern "C" fn xp_book_section_toc(services: *const TocServices, page:
         i += 1;
     }
     if count > 0 {
-        resolve_toc(&s, &targets[..count], &mut selection, anchors);
+        resolve_toc(&s, reader, &targets[..count], &mut selection, anchors);
     }
     selection.selected
 }
@@ -1448,8 +1637,7 @@ pub unsafe extern "C" fn xp_book_section_page_visible(
     *offset = out[0];
     1
 }
-#[no_mangle]
-pub extern "C" fn xp_book_section_page_source(
+fn page_source(
     page: i32,
     entries: usize,
     pages: u16,
@@ -1476,6 +1664,27 @@ pub extern "C" fn xp_book_section_page_source(
         0
     }
 }
+/// # Safety
+/// The loader owns its context and transfers one opaque Page; all borrows end at return.
+#[no_mangle]
+pub unsafe extern "C" fn xp_book_section_page_source(
+    page: i32,
+    entries: usize,
+    pages: u16,
+    partial_pages: u16,
+    building: u8,
+    partial: u8,
+    ctx: *mut c_void,
+    load: unsafe extern "C" fn(*mut c_void, u8, i32) -> *mut c_void,
+) -> *mut c_void {
+    let source = page_source(page, entries, pages, partial_pages, building, partial);
+    if source == 0 {
+        core::ptr::null_mut()
+    } else {
+        load(ctx, source, page)
+    }
+}
+
 #[repr(C)]
 pub struct PageLoader {
     ctx: *mut c_void,
@@ -1490,9 +1699,15 @@ pub unsafe extern "C" fn xp_book_section_built_page(
     page: i32,
     loader: *const PageLoader,
 ) -> *mut c_void {
-    let (Some(io), Some(records), Some(loader)) = (io.as_ref(), records.as_ref(), loader.as_ref())
-    else {
+    let (Some(io), Some(loader)) = (io.as_ref(), loader.as_ref()) else {
         return core::ptr::null_mut();
+    };
+    let Some(records) = records.as_ref() else {
+        let mut range = [0; 3];
+        if query(io, 0, page as u32, false, &mut range).is_none() {
+            return core::ptr::null_mut();
+        }
+        return (loader.load)(loader.ctx, range[1] - range[0], range[2]);
     };
     if page < 0 || page >= records.entries as i32 || io.op(FileOp::IsOpen, 0) == 0 {
         return core::ptr::null_mut();

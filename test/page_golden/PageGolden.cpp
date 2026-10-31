@@ -1,7 +1,6 @@
 #include <Epub.h>
 #include <Epub/Page.h>
 #include <Epub/Section.h>
-#include <Epub/SectionCodec.h>
 #include <Epub/css/CssParser.h>
 #include <FontCacheManager.h>
 #include <FontDecompressor.h>
@@ -19,6 +18,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "../section_io/SectionTestCodec.h"
 #include "PageTrace.h"
 #ifdef XP_STRIP_SPIKE
 #include "StripTrace.h"

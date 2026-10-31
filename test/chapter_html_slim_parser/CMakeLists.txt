@@ -6,7 +6,7 @@ add_executable(ChapterHtmlSlimParserTest
   DictionaryHtmlPagesTest.cpp
   ${REPO_ROOT}/src/util/DictHtmlPages.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
+  ${REPO_ROOT}/test/section_io/SectionTestCodec.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp

@@ -1,5 +1,4 @@
 #include <Epub/Page.h>
-#include <Epub/SectionCodec.h>
 #include <GfxRenderer.h>
 #include <xp_ffi.h>
 
@@ -9,6 +8,8 @@
 #include <map>
 #include <new>
 #include <vector>
+
+#include "../section_io/SectionTestCodec.h"
 
 namespace allocation {
 bool enabled = false;

@@ -22,7 +22,6 @@ pub const BEGIN_PASS: u32 = 7;
 pub const END_PASS: u32 = 8;
 pub const BEGIN_BUILD: u32 = 9;
 pub const END_BUILD: u32 = 10;
-pub const BEGIN_SIZES: u32 = 11;
 pub const END_SIZES: u32 = 12;
 
 #[repr(C)]
@@ -47,7 +46,7 @@ pub struct Io {
     pub read: unsafe extern "C" fn(*mut c_void, u32, *mut u8, usize) -> usize,
     pub write: unsafe extern "C" fn(*mut c_void, u32, *const u8, usize) -> usize,
     pub seek: unsafe extern "C" fn(*mut c_void, u32, u32) -> u8,
-    pub item_size: Option<unsafe extern "C" fn(*mut c_void, u16, Span) -> u32>,
+    pub sizes: Option<unsafe extern "C" fn(*mut c_void, u32, u32, *mut c_void) -> u64>,
     // Optional synchronous observations for host oracles; never reenter the writer.
     pub observe: Option<unsafe extern "C" fn(*mut c_void, u32, Span, Span, Span, u8)>,
 }
@@ -223,11 +222,6 @@ impl<T: node_element::Sealed> Nodes<T> {
         }
         Ok(())
     }
-    fn swap(&mut self, a: usize, b: usize) -> Result<()> {
-        let value = self.get(a)?;
-        self.set(a, self.get(b)?)?;
-        self.set(b, value)
-    }
     pub fn lower_bound(&self, value: T, less: fn(T, T) -> bool) -> Result<usize> {
         let (mut first, mut count) = (0, self.len);
         while count != 0 {
@@ -243,142 +237,7 @@ impl<T: node_element::Sealed> Nodes<T> {
         Ok(first)
     }
     pub fn sort(&mut self, less: fn(T, T) -> bool) -> Result<()> {
-        // Frozen parity with the 8f71e528 C++ writer's GCC 14.2 libstdc++ sort:
-        // equal keys select duplicate manifest ids and repeated indexed spine hrefs.
-        // Do not track later library sorts. An explicit tie-break rule needs a
-        // separately approved behavior change and updated package goldens/tie test.
-        #[inline(never)]
-        fn partition<T: node_element::Sealed>(
-            a: &mut Nodes<T>,
-            first: usize,
-            last: usize,
-            less: fn(T, T) -> bool,
-        ) -> Result<usize> {
-            let (left, middle, right) = (first + 1, first + (last - first) / 2, last - 1);
-            let (x, y, z) = (a.get(left)?, a.get(middle)?, a.get(right)?);
-            let median = if less(x, y) {
-                if less(y, z) {
-                    middle
-                } else if less(x, z) {
-                    right
-                } else {
-                    left
-                }
-            } else if less(x, z) {
-                left
-            } else if less(y, z) {
-                right
-            } else {
-                middle
-            };
-            a.swap(first, median)?;
-            let pivot = a.get(first)?;
-            let (mut i, mut j) = (first + 1, last);
-            loop {
-                while less(a.get(i)?, pivot) {
-                    i += 1;
-                }
-                j -= 1;
-                while less(pivot, a.get(j)?) {
-                    j -= 1;
-                }
-                if i >= j {
-                    return Ok(i);
-                }
-                a.swap(i, j)?;
-                i += 1;
-            }
-        }
-        fn adjust<T: node_element::Sealed>(
-            a: &mut Nodes<T>,
-            base: usize,
-            mut hole: usize,
-            len: usize,
-            value: T,
-            less: fn(T, T) -> bool,
-        ) -> Result<()> {
-            let top = hole;
-            let mut child = hole;
-            while child < (len - 1) / 2 {
-                child = 2 * (child + 1);
-                if less(a.get(base + child)?, a.get(base + child - 1)?) {
-                    child -= 1;
-                }
-                a.set(base + hole, a.get(base + child)?)?;
-                hole = child;
-            }
-            if len.is_multiple_of(2) && child == (len - 2) / 2 {
-                child = 2 * (child + 1);
-                a.set(base + hole, a.get(base + child - 1)?)?;
-                hole = child - 1;
-            }
-            while hole > top {
-                let parent = (hole - 1) / 2;
-                if !less(a.get(base + parent)?, value) {
-                    break;
-                }
-                a.set(base + hole, a.get(base + parent)?)?;
-                hole = parent;
-            }
-            a.set(base + hole, value)
-        }
-        fn intro<T: node_element::Sealed>(
-            a: &mut Nodes<T>,
-            mut first: usize,
-            mut last: usize,
-            mut depth: usize,
-            less: fn(T, T) -> bool,
-        ) -> Result<()> {
-            while last - first > 16 {
-                if depth == 0 {
-                    let len = last - first;
-                    for root in (0..len / 2).rev() {
-                        adjust(a, first, root, len, a.get(first + root)?, less)?;
-                    }
-                    for end in (1..len).rev() {
-                        let value = a.get(first + end)?;
-                        a.set(first + end, a.get(first)?)?;
-                        if end > 1 {
-                            adjust(a, first, 0, end, value, less)?;
-                        } else {
-                            a.set(first, value)?;
-                        }
-                    }
-                    return Ok(());
-                }
-                depth -= 1;
-                let cut = partition(a, first, last, less)?;
-                // Recurse into the smaller partition to bound stack depth by log2(len).
-                if cut - first < last - cut {
-                    intro(a, first, cut, depth, less)?;
-                    first = cut;
-                } else {
-                    intro(a, cut, last, depth, less)?;
-                    last = cut;
-                }
-            }
-            Ok(())
-        }
-        if self.len == 0 {
-            return Ok(());
-        }
-        intro(
-            self,
-            0,
-            self.len,
-            2 * (usize::BITS - 1 - self.len.leading_zeros()) as usize,
-            less,
-        )?;
-        for i in 1..self.len {
-            let value = self.get(i)?;
-            let mut j = i;
-            while j > 0 && less(value, self.get(j - 1)?) {
-                self.set(j, self.get(j - 1)?)?;
-                j -= 1;
-            }
-            self.set(j, value)?;
-        }
-        Ok(())
+        sort_storage(self, less)
     }
 }
 impl<T: node_element::Sealed> Drop for Nodes<T> {
@@ -393,6 +252,165 @@ impl<T: node_element::Sealed> Drop for Nodes<T> {
     }
 }
 
+trait SortStorage<T: Copy> {
+    fn len(&self) -> usize;
+    fn get(&self, index: usize) -> Result<T>;
+    fn set(&mut self, index: usize, value: T) -> Result<()>;
+    fn swap(&mut self, a: usize, b: usize) -> Result<()> {
+        let value = self.get(a)?;
+        self.set(a, self.get(b)?)?;
+        self.set(b, value)
+    }
+}
+impl<T: node_element::Sealed> SortStorage<T> for Nodes<T> {
+    fn len(&self) -> usize {
+        self.len
+    }
+    fn get(&self, index: usize) -> Result<T> {
+        Nodes::get(self, index)
+    }
+    fn set(&mut self, index: usize, value: T) -> Result<()> {
+        Nodes::set(self, index, value)
+    }
+}
+fn sort_storage<T: Copy, S: SortStorage<T>>(storage: &mut S, less: fn(T, T) -> bool) -> Result<()> {
+    // Frozen parity with the 8f71e528 C++ writer's GCC 14.2 libstdc++ sort:
+    // equal keys select duplicate manifest ids and repeated indexed spine hrefs.
+    // Do not track later library sorts. An explicit tie-break rule needs a
+    // separately approved behavior change and updated package goldens/tie test.
+    #[inline(never)]
+    fn partition<T: Copy, S: SortStorage<T>>(
+        a: &mut S,
+        first: usize,
+        last: usize,
+        less: fn(T, T) -> bool,
+    ) -> Result<usize> {
+        let (left, middle, right) = (first + 1, first + (last - first) / 2, last - 1);
+        let (x, y, z) = (a.get(left)?, a.get(middle)?, a.get(right)?);
+        let median = if less(x, y) {
+            if less(y, z) {
+                middle
+            } else if less(x, z) {
+                right
+            } else {
+                left
+            }
+        } else if less(x, z) {
+            left
+        } else if less(y, z) {
+            right
+        } else {
+            middle
+        };
+        a.swap(first, median)?;
+        let pivot = a.get(first)?;
+        let (mut i, mut j) = (first + 1, last);
+        loop {
+            while less(a.get(i)?, pivot) {
+                i += 1;
+            }
+            j -= 1;
+            while less(pivot, a.get(j)?) {
+                j -= 1;
+            }
+            if i >= j {
+                return Ok(i);
+            }
+            a.swap(i, j)?;
+            i += 1;
+        }
+    }
+    fn adjust<T: Copy, S: SortStorage<T>>(
+        a: &mut S,
+        base: usize,
+        mut hole: usize,
+        len: usize,
+        value: T,
+        less: fn(T, T) -> bool,
+    ) -> Result<()> {
+        let top = hole;
+        let mut child = hole;
+        while child < (len - 1) / 2 {
+            child = 2 * (child + 1);
+            if less(a.get(base + child)?, a.get(base + child - 1)?) {
+                child -= 1;
+            }
+            a.set(base + hole, a.get(base + child)?)?;
+            hole = child;
+        }
+        if len.is_multiple_of(2) && child == (len - 2) / 2 {
+            child = 2 * (child + 1);
+            a.set(base + hole, a.get(base + child - 1)?)?;
+            hole = child - 1;
+        }
+        while hole > top {
+            let parent = (hole - 1) / 2;
+            if !less(a.get(base + parent)?, value) {
+                break;
+            }
+            a.set(base + hole, a.get(base + parent)?)?;
+            hole = parent;
+        }
+        a.set(base + hole, value)
+    }
+    fn intro<T: Copy, S: SortStorage<T>>(
+        a: &mut S,
+        mut first: usize,
+        mut last: usize,
+        mut depth: usize,
+        less: fn(T, T) -> bool,
+    ) -> Result<()> {
+        while last - first > 16 {
+            if depth == 0 {
+                let len = last - first;
+                for root in (0..len / 2).rev() {
+                    adjust(a, first, root, len, a.get(first + root)?, less)?;
+                }
+                for end in (1..len).rev() {
+                    let value = a.get(first + end)?;
+                    a.set(first + end, a.get(first)?)?;
+                    if end > 1 {
+                        adjust(a, first, 0, end, value, less)?;
+                    } else {
+                        a.set(first, value)?;
+                    }
+                }
+                return Ok(());
+            }
+            depth -= 1;
+            let cut = partition(a, first, last, less)?;
+            // Recurse into the smaller partition to bound stack depth by log2(len).
+            if cut - first < last - cut {
+                intro(a, first, cut, depth, less)?;
+                first = cut;
+            } else {
+                intro(a, cut, last, depth, less)?;
+                last = cut;
+            }
+        }
+        Ok(())
+    }
+    if storage.len() == 0 {
+        return Ok(());
+    }
+    intro(
+        storage,
+        0,
+        storage.len(),
+        2 * (usize::BITS - 1 - storage.len().leading_zeros()) as usize,
+        less,
+    )?;
+    for i in 1..storage.len() {
+        let value = storage.get(i)?;
+        let mut j = i;
+        while j > 0 && less(value, storage.get(j - 1)?) {
+            storage.set(j, storage.get(j - 1)?)?;
+            j -= 1;
+        }
+        storage.set(j, value)?;
+    }
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::{href_less, HrefIndex, Nodes};
@@ -754,9 +772,7 @@ impl Cache {
                 mapping.set(index as usize, j as i16)?;
             }
         }
-        if io.control(SPINE, BEGIN_SIZES) == 0 {
-            return Err(2);
-        }
+        let sizes = SizePlan::begin(io, self.spine_count)?;
         let result: Result<()> = (|| {
             io.seek(SPINE, 0)?;
             let mut cumulative = 0u32;
@@ -766,14 +782,19 @@ impl Cache {
                 read_spine(io, &mut href)?;
                 let mut index = mapping.get(i as usize)?;
                 if index == -1 {
-                    diagnostics.emit(Diagnostic::MissingSpineTitle, u32::from(i), 0, &href, &[]);
+                    if sizes.zip {
+                        diagnostics.emit(
+                            Diagnostic::MissingSpineTitle,
+                            u32::from(i),
+                            0,
+                            &href,
+                            &[],
+                        );
+                    }
                     index = previous;
                 }
                 previous = index;
-                cumulative = cumulative.wrapping_add(unsafe {
-                    io.item_size
-                        .map_or(0, |f| f(io.context, i, Span::new(&href)))
-                });
+                cumulative = cumulative.wrapping_add(sizes.item(io, i, &href));
                 spine(io, BOOK, &href, cumulative, index)?;
             }
             Ok(())
@@ -788,5 +809,172 @@ impl Cache {
             toc(io, BOOK, &title, &href, &anchor, level, index)?;
         }
         Ok(())
+    }
+}
+
+#[repr(u32)]
+#[derive(Clone, Copy)]
+enum SizeOp {
+    Path = 0,
+    RawSize = 1,
+    OpenZip = 2,
+    AllocateTargets = 3,
+    AllocateSizes = 4,
+    BeginEntry = 5,
+    Href = 6,
+    Normalize = 7,
+    Append = 8,
+    EndEntry = 9,
+    Target = 10,
+    SetTarget = 11,
+    Fill = 12,
+    Clear = 13,
+    DropTargets = 14,
+    Cached = 15,
+    Lookup = 16,
+    Error = 17,
+    Batch = 18,
+    Matched = 19,
+}
+impl Io {
+    fn size_storage(&self, op: SizeOp, index: u32, value: *mut c_void) -> u64 {
+        self.sizes.map_or(0, |call| unsafe {
+            call(self.context, op as u32, index, value)
+        })
+    }
+    fn size_op(&self, op: SizeOp, index: u32) -> u64 {
+        self.size_storage(op, index, core::ptr::null_mut())
+    }
+    fn size_span(&self, op: SizeOp, index: u32) -> Span {
+        let mut span = Span::new(&[]);
+        self.size_storage(op, index, (&mut span as *mut Span).cast());
+        span
+    }
+}
+struct SizeTargets<'a> {
+    io: &'a Io,
+    count: usize,
+}
+impl SortStorage<[u64; 3]> for SizeTargets<'_> {
+    fn len(&self) -> usize {
+        self.count
+    }
+    fn get(&self, index: usize) -> Result<[u64; 3]> {
+        let mut value = [0; 3];
+        self.io
+            .size_storage(SizeOp::Target, index as u32, value.as_mut_ptr().cast());
+        Ok(value)
+    }
+    fn set(&mut self, index: usize, mut value: [u64; 3]) -> Result<()> {
+        self.io
+            .size_storage(SizeOp::SetTarget, index as u32, value.as_mut_ptr().cast());
+        Ok(())
+    }
+}
+struct SizePlan {
+    zip: bool,
+    raw: u32,
+}
+impl SizePlan {
+    fn begin(io: &Io, count: u16) -> Result<Self> {
+        let path = io.size_span(SizeOp::Path, 0);
+        let path = if path.len == 0 {
+            &[][..]
+        } else {
+            unsafe { core::slice::from_raw_parts(path.data, path.len) }
+        };
+        let raw = [b".txt".as_slice(), b".md".as_slice()]
+            .iter()
+            .any(|suffix| {
+                path.len()
+                    .checked_sub(suffix.len())
+                    .and_then(|start| path.get(start..))
+                    .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix))
+            });
+        if raw {
+            return Ok(Self {
+                zip: false,
+                raw: io.size_op(SizeOp::RawSize, 0) as u32,
+            });
+        }
+        if io.sizes.is_some() && io.size_op(SizeOp::OpenZip, 0) == 0 {
+            io.size_op(SizeOp::Error, 0);
+            return Err(2);
+        }
+        if count >= 400 && io.sizes.is_some() {
+            io.size_op(SizeOp::Batch, u32::from(count));
+            io.size_op(SizeOp::AllocateTargets, 0);
+            io.size_op(SizeOp::AllocateSizes, u32::from(count));
+            // The original unchecked preparation seek/read outcomes are retained.
+            unsafe {
+                (io.seek)(io.context, SPINE, 0);
+            }
+            let mut targets = SizeTargets { io, count: 0 };
+            let mut matched = 0u32;
+            for i in 0..count {
+                io.size_op(SizeOp::BeginEntry, 0);
+                let mut length = [0; 4];
+                unsafe {
+                    (io.read)(io.context, SPINE, length.as_mut_ptr(), 4);
+                }
+                let href = io.size_span(SizeOp::Href, u32::from_le_bytes(length));
+                if href.len != 0 {
+                    unsafe {
+                        (io.read)(io.context, SPINE, href.data.cast_mut(), href.len);
+                    }
+                }
+                let mut cumulative = [0; 4];
+                let mut toc = [255; 2];
+                unsafe {
+                    (io.read)(io.context, SPINE, cumulative.as_mut_ptr(), 4);
+                    (io.read)(io.context, SPINE, toc.as_mut_ptr(), 2);
+                }
+                let name = io.size_span(SizeOp::Normalize, 0);
+                let bytes = if name.len == 0 {
+                    &[][..]
+                } else {
+                    unsafe { core::slice::from_raw_parts(name.data, name.len) }
+                };
+                let mut value = [
+                    crate::fnv1a64(bytes),
+                    u64::from(name.len as u16),
+                    u64::from(i),
+                ];
+                io.size_storage(SizeOp::Append, 0, value.as_mut_ptr().cast());
+                targets.count += 1;
+                io.size_op(SizeOp::EndEntry, 0);
+                if targets.count >= 2048 || i + 1 >= count {
+                    sort_storage(&mut targets, |a, b| {
+                        a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
+                    })?;
+                    matched = matched.wrapping_add(io.size_op(SizeOp::Fill, 0) as u32);
+                    io.size_op(SizeOp::Clear, 0);
+                    targets.count = 0;
+                }
+            }
+            io.size_op(SizeOp::Matched, matched);
+            io.size_op(SizeOp::DropTargets, 0);
+        }
+        Ok(Self { zip: true, raw: 0 })
+    }
+    fn item(&self, io: &Io, index: u16, href: &[u8]) -> u32 {
+        if !self.zip {
+            return self.raw;
+        }
+        let size = io.size_op(SizeOp::Cached, u32::from(index)) as u32;
+        if size != 0 {
+            return size;
+        }
+        let mut href = Span::new(href);
+        let result = io.size_storage(
+            SizeOp::Lookup,
+            u32::from(index),
+            (&mut href as *mut Span).cast(),
+        );
+        if result >> 32 != 0 {
+            io.size_op(SizeOp::Error, 1);
+        }
+        io.size_op(SizeOp::EndEntry, 0);
+        result as u32
     }
 }

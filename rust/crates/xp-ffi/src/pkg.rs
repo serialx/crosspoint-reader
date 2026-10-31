@@ -325,7 +325,7 @@ pub unsafe extern "C" fn xp_pkg_pass_create(
         return -1;
     };
     let sink = DriverSink {
-        items: items.as_ref().copied(),
+        items: items.as_ref().copied().filter(|_| metadata_only == 0),
         cache,
         cache_io: cache_io.as_ref().copied(),
     };

@@ -5,7 +5,7 @@ package state machines move to Rust. The XML tokenizer already uses Rust.
 The executable uses the production `PackageParser` adapter, Rust document passes
 and book-cache writer, with the existing host HAL and ZIP-size adapters.
 `instrument.py` adds observations to a build-directory copy of
-`BookMetadataCache.cpp`; it does not replace serialization. The expected files
+`PackagePlatform.cpp`; it does not replace serialization. The expected files
 remain C++ captures: the original corpus at `e621694b` and the six Unicode
 boundary cases at `8f71e528` (the last C++ serializer before the Rust writer).
 
@@ -76,10 +76,11 @@ full firmware I/O or establish device timing, stack or allocation behavior.
 `xp-core::epub::facade` owns document feed splitting, metadata-only short counts,
 the manifest index and CSS paths. `xp-core::epub::cache` owns the v10 encodings,
 spine/TOC lookup, NFC title emission, LUTs and cumulative sizes. `PackageParser`
-owns the manifest `HalFile`; `BookMetadataCache` owns the other files and keeps
-its existing reader and SIZE_WINDOW state. The sink retains the 4 KiB pass writer,
-three 4 KiB final-build streams, and ZIP batch-size service (400-spine threshold,
-2,048 targets per batch).
+owns the manifest `HalFile`; `BookMetadataCache` owns the other files and native
+strings, deque and SIZE_WINDOW storage. Both facades live in `PackagePlatform.cpp`.
+Rust chooses record fields, window positions and size lookups. Native leaves keep
+the 4 KiB pass writer, three 4 KiB final-build streams and the existing window lock.
+Batch size lookup still starts at 400 spine items, with 2,048 targets per batch.
 
 The host-only Cargo feature `package-trace` preserves cache-call observations
 at the corresponding Rust emission sites. The instrumenter installs the optional
@@ -171,3 +172,21 @@ python3 test/package_golden/diagnostics.py \
 
 Never record expectations from the candidate or replace checked-in goldens
 without reviewing the differences.
+
+## Cache read and size boundaries
+
+`PackageInitializedReads` compares every truncation of a hand-built v10 cache,
+including embedded NUL and invalid UTF-8 metadata, empty fields, partial PODs and
+reloads into existing destination fields. Its expected output was captured from
+`382c12ae` with `-ftrivial-auto-var-init=zero`, before the reader moved to Rust.
+The Rust reader initializes only previously undefined scratch bytes; partial reads
+into existing fields retain their unread bytes. This does not add error returns
+or retries. The fixture does not claim parity for uninitialized C++ memory.
+
+`PackageSizeBoundaries` covers empty spines, the 399/400-item batch threshold,
+2,048/2,049-item batches, duplicate and normalized hrefs, missing ZIP members,
+and case-insensitive TXT/Markdown size fallback. The host ZIP leaf deliberately
+returns no batch matches, so every member exercises the fallback lookup.
+`BookMetadataCacheSizes.InterleavedEntriesAndWindowReloadsKeepTheirOwnCursors`
+runs two concurrent window readers alongside entry reads; it supplements the
+existing window-boundary and resident-heap tests.

@@ -641,10 +641,9 @@ enum {
   XP_PKG_END_PASS,
   XP_PKG_BEGIN_BUILD,
   XP_PKG_END_BUILD,
-  XP_PKG_BEGIN_SIZES,
-  XP_PKG_END_SIZES
+  XP_PKG_END_SIZES = 12
 };
-// Non-null tables require control/read/write/seek; item_size/observe are optional.
+// Non-null tables require control/read/write/seek; sizes/observe are optional.
 // Pass creation copies tables, but borrows their contexts through pass destruction.
 // Direct cache calls borrow the table/context only until return. A zeroed table is
 // invalid; use a null table pointer to omit an optional pass sink.
@@ -653,12 +652,12 @@ enum {
 // boolean success/state; POSITION/SIZE return byte offsets/lengths. OPEN_WRITE
 // truncates. BEGIN_PASS/END_PASS select/flush a spine or TOC buffered writer;
 // BEGIN_BUILD/END_BUILD on BOOK_FILE select/flush all three build streams;
-// BEGIN_SIZES/END_SIZES on SPINE_FILE acquire/release the ZIP size service.
-// BEGIN_PASS/BEGIN_BUILD results are ignored; END_PASS/END_BUILD and BEGIN_SIZES
-// must report success. Cleanup CLOSE/REMOVE/END_SIZES results are ignored.
+// END_SIZES on SPINE_FILE releases size storage and the ZIP file.
+// BEGIN_PASS/BEGIN_BUILD results are ignored; END_PASS/END_BUILD report success.
+// Cleanup CLOSE/REMOVE/END_SIZES results are ignored.
 // read/write return byte counts, seek returns boolean success. A buffered write
 // may accept all bytes and latch failure, but the matching END must report it.
-// item_size returns uncompressed bytes for a zero-based spine index (absent => 0).
+// sizes borrows path/string/target storage; see XpBookSizeOperation in xp_book.h.
 // observe is host-trace-only: kind 0 spine, 1 TOC, before validation/normalization.
 // Callback spans/buffers expire on return and must not be retained or freed.
 typedef struct {
@@ -667,7 +666,7 @@ typedef struct {
   size_t (*read)(void*, uint32_t file, uint8_t*, size_t);
   size_t (*write)(void*, uint32_t file, const uint8_t*, size_t);
   uint8_t (*seek)(void*, uint32_t file, uint32_t offset);
-  uint32_t (*item_size)(void*, uint16_t index, XpPkgSpan href);
+  uint64_t (*sizes)(void*, uint32_t operation, uint32_t index, void* value);
   void (*observe)(void*, uint32_t kind, XpPkgSpan title, XpPkgSpan href, XpPkgSpan anchor, uint8_t level);
 } XpPkgIo;
 // Creates one document pass: size is the exact XML byte length (unused for

@@ -1,9 +1,5 @@
-#include "BookMetadataCache.h"
-
 #include <BufferedFile.h>
 #include <Logging.h>
-#include <Serialization.h>
-#include <Utf8.h>
 #include <ZipFile.h>
 #include <xp_book.h>
 #include <xp_ffi.h>
@@ -15,6 +11,7 @@
 #include <new>
 #include <optional>
 
+#include "BookMetadataCache.h"
 #include "FsHelpers.h"
 #include "parsers/PackageDiagnostics.h"
 
@@ -29,32 +26,14 @@ constexpr size_t BUILD_IO_BUFFER_SIZE = 4096;
 // The render task and the main loop both ask for sizes.
 std::mutex sizeWindowLock;
 
-template <typename F>
-BookMetadataCache::SpineEntry readSpineEntryFrom(F& file) {
-  BookMetadataCache::SpineEntry entry;
-  serialization::readString(file, entry.href);
-  serialization::readPod(file, entry.cumulativeSize);
-  serialization::readPod(file, entry.tocIndex);
-  return entry;
-}
-
-template <typename F>
-BookMetadataCache::TocEntry readTocEntryFrom(F& file) {
-  BookMetadataCache::TocEntry entry;
-  serialization::readString(file, entry.title);
-  serialization::readString(file, entry.href);
-  serialization::readString(file, entry.anchor);
-  serialization::readPod(file, entry.level);
-  serialization::readPod(file, entry.spineIndex);
-  return entry;
-}
 }  // namespace
 
 struct BookMetadataCache::ReadContext {
   const BookMetadataCache& owner;
   std::optional<std::lock_guard<std::mutex>> lock;
   std::optional<HalFile> input;
-  uint32_t position = 0, hrefLength = 0;
+  std::optional<SpineEntry> spine;
+  TocEntry* toc = nullptr;
   std::string temporary;
   explicit ReadContext(const BookMetadataCache& owner) : owner(owner) {}
   static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
@@ -71,90 +50,35 @@ struct BookMetadataCache::ReadContext {
         return Storage.openFileForRead("BMC", self.cachePath + bookBinFile,
                                        const_cast<BookMetadataCache&>(self).bookFile);
       }
-      case XP_BOOK_CACHE_READ_VERSION: {
-        uint8_t version;
-        serialization::readPod(const_cast<BookMetadataCache&>(self).bookFile, version);
-        return version;
-      }
+
       case XP_BOOK_CACHE_CLOSE: {
         const_cast<BookMetadataCache&>(self).bookFile.close();
         break;
       }
-      case XP_BOOK_CACHE_READ_LUT: {
-        auto& mutableSelf = const_cast<BookMetadataCache&>(self);
-        serialization::readPod(mutableSelf.bookFile, mutableSelf.lutOffset);
-        break;
-      }
-      case XP_BOOK_CACHE_READ_SPINE_COUNT: {
-        auto& mutableSelf = const_cast<BookMetadataCache&>(self);
-        serialization::readPod(mutableSelf.bookFile, mutableSelf.spineCount);
-        break;
-      }
-      case XP_BOOK_CACHE_READ_TOC_COUNT: {
-        auto& mutableSelf = const_cast<BookMetadataCache&>(self);
-        serialization::readPod(mutableSelf.bookFile, mutableSelf.tocCount);
-        break;
-      }
-      case XP_BOOK_CACHE_READ_METADATA: {
-        auto& mutableSelf = const_cast<BookMetadataCache&>(self);
-        auto& m = mutableSelf.coreMetadata;
-        std::string* fields[] = {&m.title, &m.author, &m.language, &m.coverItemHref, &m.textReferenceHref};
-        serialization::readString(mutableSelf.bookFile, *fields[argument]);
-        break;
-      }
+
       case XP_BOOK_CACHE_RESET_WINDOW: {
         auto& mutableSelf = const_cast<BookMetadataCache&>(self);
         mutableSelf.windowStarts.clear();
-        mutableSelf.bookSize = 0;
-        mutableSelf.windowFirst = -1;
         break;
       }
       case XP_BOOK_CACHE_RESERVE_WINDOW: {
         const_cast<BookMetadataCache&>(self).windowStarts.reserve(argument);
         break;
       }
-      case XP_BOOK_CACHE_SEEK_ENTRIES: {
-        const_cast<BookMetadataCache&>(self).bookFile.seek(self.lutOffset + argument);
+      case XP_BOOK_CACHE_SEEK: {
+        const_cast<BookMetadataCache&>(self).bookFile.seek(argument);
         break;
       }
-      case XP_BOOK_CACHE_READ_CUMULATIVE: {
-        auto& mutableSelf = const_cast<BookMetadataCache&>(self);
-        mutableSelf.bookSize = self.readSpineEntry(mutableSelf.bookFile).cumulativeSize;
-        break;
-      }
+
       case XP_BOOK_CACHE_ADD_WINDOW_START: {
-        const_cast<BookMetadataCache&>(self).windowStarts.push_back(self.bookSize);
+        const_cast<BookMetadataCache&>(self).windowStarts.push_back(argument);
         break;
       }
-      case XP_BOOK_CACHE_SET_LOADED: {
-        const_cast<BookMetadataCache&>(self).loaded = argument;
-        break;
-      }
-      case XP_BOOK_CACHE_SPINE_COUNT: {
-        return self.spineCount;
-      }
-      case XP_BOOK_CACHE_TOC_COUNT: {
-        return self.tocCount;
-      }
-      case XP_BOOK_CACHE_BOOK_SIZE: {
-        return self.bookSize;
-      }
-      case XP_BOOK_CACHE_LOADED: {
-        return self.loaded;
-      }
-      case XP_BOOK_CACHE_WINDOW_FIRST: {
-        return self.windowFirst;
-      }
-      case XP_BOOK_CACHE_SET_WINDOW_FIRST: {
-        self.windowFirst = static_cast<int32_t>(argument);
-        break;
-      }
+
       case XP_BOOK_CACHE_WINDOW_START: {
         return self.windowStarts[argument];
       }
-      case XP_BOOK_CACHE_WINDOW_VALUE: {
-        return self.window[argument];
-      }
+
       case XP_BOOK_CACHE_WINDOW_COUNT: {
         return self.windowStarts.size();
       }
@@ -162,32 +86,22 @@ struct BookMetadataCache::ReadContext {
         c.lock.emplace(sizeWindowLock);
         break;
       }
-      case XP_BOOK_CACHE_FILL_OPEN: {
+      case XP_BOOK_CACHE_FILL_FILE: {
+        if (!argument) {
+          c.input.reset();
+          return 1;
+        }
         c.input.emplace();
         return Storage.openFileForRead("BMC", self.cachePath + bookBinFile, *c.input);
       }
-      case XP_BOOK_CACHE_FILL_SEEK_LUT: {
-        return c.input->seek(self.lutOffset + sizeof(uint32_t) * argument);
+      case XP_BOOK_CACHE_FILL_SEEK: {
+        return c.input->seek(argument);
       }
-      case XP_BOOK_CACHE_FILL_READ_POSITION: {
-        return c.input->read(&c.position, sizeof(c.position)) == sizeof(c.position);
+
+      case XP_BOOK_CACHE_FILL_POSITION: {
+        return c.input->position();
       }
-      case XP_BOOK_CACHE_FILL_SEEK_POSITION: {
-        return c.input->seek(c.position);
-      }
-      case XP_BOOK_CACHE_FILL_READ_HREF: {
-        c.hrefLength = 0;
-        return c.input->read(&c.hrefLength, sizeof(c.hrefLength)) == sizeof(c.hrefLength);
-      }
-      case XP_BOOK_CACHE_FILL_SKIP_HREF: {
-        return c.input->seek(c.input->position() + c.hrefLength);
-      }
-      case XP_BOOK_CACHE_FILL_READ_WINDOW: {
-        return c.input->read(&self.window[argument], sizeof(uint32_t)) == sizeof(uint32_t);
-      }
-      case XP_BOOK_CACHE_FILL_SKIP_TOC: {
-        return c.input->seek(c.input->position() + sizeof(int16_t));
-      }
+
       case XP_BOOK_CACHE_PREPARE_TEMPORARY:
         c.temporary = self.cachePath + (argument == 0 ? tmpSpineBinFile : tmpTocBinFile);
         break;
@@ -198,20 +112,13 @@ struct BookMetadataCache::ReadContext {
       case XP_BOOK_CACHE_DROP_TEMPORARY:
         std::string{}.swap(c.temporary);
         break;
-      case XP_BOOK_CACHE_ENTRY_SEEK:
-        const_cast<BookMetadataCache&>(self).bookFile.seek(self.lutOffset + argument);
+
+      case XP_BOOK_CACHE_SPINE_RECORD:
+        if (argument)
+          c.spine.emplace();
+        else
+          c.spine.reset();
         break;
-      case XP_BOOK_CACHE_ENTRY_POSITION: {
-        auto& file = const_cast<BookMetadataCache&>(self).bookFile;
-        uint32_t position;
-        serialization::readPod(file, position);
-        file.seek(position);
-        break;
-      }
-      case XP_BOOK_CACHE_FILL_DROP: {
-        c.input.reset();
-        break;
-      }
     }
     return 0;
   }
@@ -238,7 +145,70 @@ struct BookMetadataCache::ReadContext {
         break;
     }
   }
-  XpBookServices services() { return {this, operation, nullptr, diagnostic}; }
+  static size_t readBytes(void* raw, uint32_t file, uint8_t* bytes, size_t size) {
+    auto& c = *static_cast<ReadContext*>(raw);
+    return file == 0 ? const_cast<BookMetadataCache&>(c.owner).bookFile.read(bytes, size) : c.input->read(bytes, size);
+  }
+  static uint8_t* field(void* raw, uint32_t id, size_t size) {
+    auto& c = *static_cast<ReadContext*>(raw);
+    auto& self = const_cast<BookMetadataCache&>(c.owner);
+    static_assert(sizeof(bool) == 1 && sizeof(int) == 4);
+    std::string* text = nullptr;
+    switch (static_cast<XpBookCacheField>(id)) {
+      case XP_BOOK_FIELD_LUT:
+        return reinterpret_cast<uint8_t*>(&self.lutOffset);
+      case XP_BOOK_FIELD_SPINE_COUNT:
+        return reinterpret_cast<uint8_t*>(&self.spineCount);
+      case XP_BOOK_FIELD_TOC_COUNT:
+        return reinterpret_cast<uint8_t*>(&self.tocCount);
+      case XP_BOOK_FIELD_TITLE:
+        text = &self.coreMetadata.title;
+        break;
+      case XP_BOOK_FIELD_AUTHOR:
+        text = &self.coreMetadata.author;
+        break;
+      case XP_BOOK_FIELD_LANGUAGE:
+        text = &self.coreMetadata.language;
+        break;
+      case XP_BOOK_FIELD_COVER:
+        text = &self.coreMetadata.coverItemHref;
+        break;
+      case XP_BOOK_FIELD_TEXT:
+        text = &self.coreMetadata.textReferenceHref;
+        break;
+      case XP_BOOK_FIELD_HREF:
+        text = &c.spine->href;
+        break;
+      case XP_BOOK_FIELD_CUMULATIVE:
+        return reinterpret_cast<uint8_t*>(&c.spine->cumulativeSize);
+      case XP_BOOK_FIELD_TOC_INDEX:
+        return reinterpret_cast<uint8_t*>(&c.spine->tocIndex);
+      case XP_BOOK_FIELD_TOC_TITLE:
+        text = &c.toc->title;
+        break;
+      case XP_BOOK_FIELD_TOC_HREF:
+        text = &c.toc->href;
+        break;
+      case XP_BOOK_FIELD_TOC_ANCHOR:
+        text = &c.toc->anchor;
+        break;
+      case XP_BOOK_FIELD_LEVEL:
+        return &c.toc->level;
+      case XP_BOOK_FIELD_SPINE_INDEX:
+        return reinterpret_cast<uint8_t*>(&c.toc->spineIndex);
+      case XP_BOOK_FIELD_BOOK_SIZE:
+        return reinterpret_cast<uint8_t*>(&self.bookSize);
+      case XP_BOOK_FIELD_LOADED:
+        return reinterpret_cast<uint8_t*>(&self.loaded);
+      case XP_BOOK_FIELD_WINDOW_FIRST:
+        return reinterpret_cast<uint8_t*>(&self.windowFirst);
+      default:
+        return reinterpret_cast<uint8_t*>(&self.window[id - XP_BOOK_FIELD_WINDOW]);
+    }
+    text->resize(size);
+    return reinterpret_cast<uint8_t*>(text->data());
+  }
+  XpBookCacheServices services() { return {this, operation, readBytes, field, diagnostic}; }
 };
 
 struct BookMetadataCache::BuildStreams {
@@ -250,86 +220,100 @@ struct BookMetadataCache::BuildStreams {
   std::optional<ZipFile> zip;
   std::optional<std::deque<uint32_t>> sizes;
   size_t rawSize = 0;
-  bool isZip;
   bool flushFailed = false;
   bool sizeOpenFailed = false;
-  explicit BuildStreams(BookMetadataCache& owner, const std::string& path)
-      : owner(owner), path(path), isZip(!FsHelpers::hasTxtExtension(path) && !FsHelpers::hasMarkdownExtension(path)) {}
-  struct SizeContext {
-    BuildStreams& streams;
-    std::optional<std::deque<ZipFile::SizeTarget>> targets;
-    explicit SizeContext(BuildStreams& streams) : streams(streams) {}
-    static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
-      auto& c = *static_cast<SizeContext*>(raw);
-      auto& self = c.streams;
-      switch (static_cast<XpBookSizeOperation>(operation)) {
-        case XP_BOOK_SIZE_ZIP:
-          return self.isZip;
-        case XP_BOOK_SIZE_RAW_SIZE: {
-          HalFile raw;
-          if (Storage.openFileForRead("BMC", self.path, raw)) self.rawSize = raw.size();
-          break;
-        }
-        case XP_BOOK_SIZE_OPEN_ZIP:
-          self.zip.emplace(self.path);
-          self.sizeOpenFailed = !self.zip->open();
-          return !self.sizeOpenFailed;
-        case XP_BOOK_SIZE_COUNT:
-          return self.owner.spineCount;
-        case XP_BOOK_SIZE_ALLOCATE_SIZES:
-          c.targets.emplace();
-          self.sizes.emplace(argument, 0);
-          break;
-        case XP_BOOK_SIZE_REWIND:
-          self.spine->seek(0);
-          break;
-        case XP_BOOK_SIZE_APPEND: {
-          const auto entry = readSpineEntryFrom(*self.spine);
-          const auto name = FsHelpers::normalisePath(entry.href);
-          c.targets->push_back({ZipFile::fnvHash64(name.c_str(), name.size()), static_cast<uint16_t>(name.size()),
-                                static_cast<uint16_t>(argument)});
-          break;
-        }
-        case XP_BOOK_SIZE_TARGETS:
-          return c.targets->size();
-        case XP_BOOK_SIZE_SORT:
-          std::sort(c.targets->begin(), c.targets->end(),
-                    [](const auto& a, const auto& b) { return xp_book_size_less(a.hash, a.len, b.hash, b.len); });
-          break;
-        case XP_BOOK_SIZE_FILL:
-          return self.zip->fillUncompressedSizes(*c.targets, *self.sizes);
-        case XP_BOOK_SIZE_CLEAR:
-          c.targets->clear();
-          break;
+  explicit BuildStreams(BookMetadataCache& owner, const std::string& path) : owner(owner), path(path) {}
+  std::optional<std::deque<ZipFile::SizeTarget>> targets;
+  std::optional<SpineEntry> entry;
+  std::optional<std::string> name;
+  static uint64_t sizeStorage(void* raw, uint32_t operation, uint32_t index, void* value) {
+    auto& self = *static_cast<BuildStreams*>(raw);
+    auto* span = static_cast<XpPkgSpan*>(value);
+    // Targets cross as hash/length/index values, without aliasing the native struct.
+    auto* fields = static_cast<uint64_t*>(value);
+    switch (static_cast<XpBookSizeOperation>(operation)) {
+      case XP_BOOK_SIZE_PATH:
+        *span = {reinterpret_cast<const uint8_t*>(self.path.data()), self.path.size()};
+        break;
+      case XP_BOOK_SIZE_RAW_SIZE: {
+        HalFile raw;
+        if (Storage.openFileForRead("BMC", self.path, raw)) self.rawSize = raw.size();
+        return self.rawSize;
       }
-      return 0;
-    }
-    static void diagnostic(void* raw, uint32_t event, uint32_t argument) {
-      auto& self = static_cast<SizeContext*>(raw)->streams;
-      switch (static_cast<XpBookSizeEvent>(event)) {
-        case XP_BOOK_SIZE_EVENT_OPEN_FAILED:
+      case XP_BOOK_SIZE_OPEN_ZIP:
+        self.zip.emplace(self.path);
+        self.sizeOpenFailed = !self.zip->open();
+        return !self.sizeOpenFailed;
+      case XP_BOOK_SIZE_ALLOCATE_TARGETS:
+        self.targets.emplace();
+        break;
+      case XP_BOOK_SIZE_ALLOCATE_SIZES:
+        self.sizes.emplace(index, 0);
+        break;
+      case XP_BOOK_SIZE_BEGIN_ENTRY:
+        self.entry.emplace();
+        break;
+      case XP_BOOK_SIZE_HREF:
+        self.entry->href.resize(index);
+        *span = {reinterpret_cast<const uint8_t*>(self.entry->href.data()), self.entry->href.size()};
+        break;
+      case XP_BOOK_SIZE_NORMALIZE:
+        self.name.emplace(FsHelpers::normalisePath(self.entry->href));
+        *span = {reinterpret_cast<const uint8_t*>(self.name->data()), self.name->size()};
+        break;
+      case XP_BOOK_SIZE_APPEND:
+        self.targets->push_back({fields[0], static_cast<uint16_t>(fields[1]), static_cast<uint16_t>(fields[2])});
+        break;
+      case XP_BOOK_SIZE_END_ENTRY:
+        self.name.reset();
+        self.entry.reset();
+        break;
+      case XP_BOOK_SIZE_TARGET:
+        fields[0] = (*self.targets)[index].hash;
+        fields[1] = (*self.targets)[index].len;
+        fields[2] = (*self.targets)[index].index;
+        break;
+      case XP_BOOK_SIZE_SET_TARGET:
+        (*self.targets)[index] = {fields[0], static_cast<uint16_t>(fields[1]), static_cast<uint16_t>(fields[2])};
+        break;
+      case XP_BOOK_SIZE_FILL:
+        return self.zip->fillUncompressedSizes(*self.targets, *self.sizes);
+      case XP_BOOK_SIZE_CLEAR:
+        self.targets->clear();
+        break;
+      case XP_BOOK_SIZE_DROP_TARGETS:
+        self.targets.reset();
+        break;
+      case XP_BOOK_SIZE_CACHED:
+        return self.sizes ? (*self.sizes)[index] : 0;
+      case XP_BOOK_SIZE_LOOKUP: {
+        size_t size = 0;
+        self.name.emplace(
+            FsHelpers::normalisePath(std::string_view(reinterpret_cast<const char*>(span->data), span->len)));
+        const bool found = self.zip->getInflatedFileSize(self.name->c_str(), &size);
+        // The high word reports failure; the low word is the ZIP size.
+        return static_cast<uint32_t>(size) | (static_cast<uint64_t>(!found) << 32);
+      }
+      case XP_BOOK_SIZE_ERROR:
+        if (index == 0)
           LOG_ERR("BMC", "Could not open EPUB zip for size calculations");
-          break;
-        case XP_BOOK_SIZE_EVENT_BATCH:
-          LOG_DBG("BMC", "Using batch size lookup for %d spine items", self.owner.spineCount);
-          break;
-        case XP_BOOK_SIZE_EVENT_MATCHED:
-          LOG_DBG("BMC", "Batch lookup matched %d/%d spine items", argument, self.owner.spineCount);
-          break;
-      }
+        else
+          LOG_ERR("BMC", "Warning: Could not get size for spine item: %s", self.name->c_str());
+        break;
+      case XP_BOOK_SIZE_BATCH:
+        LOG_DBG("BMC", "Using batch size lookup for %d spine items", index);
+        break;
+      case XP_BOOK_SIZE_MATCHED:
+        LOG_DBG("BMC", "Batch lookup matched %d/%d spine items", index, self.owner.spineCount);
+        break;
     }
-  };
-  bool beginSizes() {
-    SizeContext context{*this};
-    const XpBookServices io{&context, SizeContext::operation, nullptr, SizeContext::diagnostic};
-    return xp_book_sizes(&io);
+    return 0;
   }
-  static void diagnostic(void* context, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d,
-                         const uint8_t* text, uint32_t size, const uint8_t* other, uint32_t otherSize) {
-    if (event == XP_PKG_DIAG_MISSING_SPINE_TITLE && !static_cast<BuildStreams*>(context)->isZip) return;
+  static void diagnostic(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t* text,
+                         uint32_t size, const uint8_t* other, uint32_t otherSize) {
     packageDiagnostic(nullptr, event, a, b, c, d, text, size, other, otherSize);
   }
-  XpPkgIo sink() { return {this, control, read, write, seek, itemSize, nullptr}; }
+  XpPkgIo sink() { return {this, control, read, write, seek, sizeStorage, nullptr}; }
   static uint32_t control(void* context, uint32_t id, uint32_t operation) {
     auto& self = *static_cast<BuildStreams*>(context);
     switch (operation) {
@@ -341,8 +325,6 @@ struct BookMetadataCache::BuildStreams {
       case XP_PKG_END_BUILD:
         self.flushFailed = !self.book->flush();
         return !self.flushFailed;
-      case XP_PKG_BEGIN_SIZES:
-        return self.beginSizes();
       case XP_PKG_END_SIZES:
         self.sizes.reset();
         if (self.zip) self.zip->close();
@@ -366,34 +348,6 @@ struct BookMetadataCache::BuildStreams {
   static uint8_t seek(void* context, uint32_t id, uint32_t offset) {
     auto& self = *static_cast<BuildStreams*>(context);
     return id == XP_PKG_SPINE_FILE ? self.spine->seek(offset) : self.toc->seek(offset);
-  }
-  static uint32_t itemSize(void* context, uint16_t index, XpPkgSpan href) {
-    auto& state = *static_cast<BuildStreams*>(context);
-    struct Context {
-      BuildStreams& state;
-      XpPkgSpan href;
-    } c{state, href};
-    const XpBookItemSizeServices services{
-        &c, [](void* raw, uint32_t operation, size_t index) -> size_t {
-          auto& c = *static_cast<Context*>(raw);
-          auto& state = c.state;
-          switch (operation) {
-            case 0:
-              return state.rawSize;
-            case 1:
-              return state.sizes ? (*state.sizes)[index] : 0;
-            case 2: {
-              size_t size = 0;
-              const auto path =
-                  FsHelpers::normalisePath(std::string_view(reinterpret_cast<const char*>(c.href.data), c.href.len));
-              if (!state.zip->getInflatedFileSize(path.c_str(), &size))
-                LOG_ERR("BMC", "Warning: Could not get size for spine item: %s", path.c_str());
-              return size;
-            }
-          }
-          return 0;
-        }};
-    return xp_book_cache_item_size(&services, index, state.isZip);
   }
 };
 
@@ -577,18 +531,164 @@ BookMetadataCache::SpineEntry BookMetadataCache::getSpineEntry(const int index) 
   ReadContext context{*this};
   const auto io = context.services();
   if (!xp_book_metadata_entry(&io, index, false)) return {};
-  return readSpineEntry(bookFile);
+  return std::move(*context.spine);
 }
 
 BookMetadataCache::TocEntry BookMetadataCache::getTocEntry(const int index) {
   ReadContext context{*this};
+  TocEntry entry;
+  context.toc = &entry;
   const auto io = context.services();
   if (!xp_book_metadata_entry(&io, index, true)) return {};
-  return readTocEntry(bookFile);
+  return entry;
 }
 
-BookMetadataCache::SpineEntry BookMetadataCache::readSpineEntry(HalFile& file) const {
-  return readSpineEntryFrom(file);
-}
+#include <Logging.h>
+#include <expat.h>
 
-BookMetadataCache::TocEntry BookMetadataCache::readTocEntry(HalFile& file) const { return readTocEntryFrom(file); }
+#include "Epub/BookMetadataCache.h"
+#include "parsers/PackageDiagnostics.h"
+#include "parsers/PackageParser.h"
+
+PackageParser::~PackageParser() { xp_pkg_pass_destroy(pass); }
+bool PackageParser::setup() {
+  xp_pkg_pass_destroy(pass);
+  pass = nullptr;
+  const XpPkgIo itemIo{this, control, read, write, seek, nullptr, nullptr};
+  const auto cacheIo = cache ? cache->sink() : XpPkgIo{};
+  if (xp_pkg_pass_create(kind, {reinterpret_cast<const uint8_t*>(base.data()), base.size()}, size, metadataOnly,
+                         cache ? &itemIo : nullptr, cache ? cache->writer() : nullptr, cache ? &cacheIo : nullptr,
+                         &pass) != 0) {
+    switch (kind) {
+      case XP_PKG_CONTAINER:
+        LOG_ERR("CTR", "Couldn't allocate memory for parser");
+        break;
+      case XP_PKG_OPF_PASS:
+        LOG_DBG("COF", "Couldn't allocate memory for parser");
+        break;
+      case XP_PKG_NAV_PASS:
+        LOG_DBG("NAV", "Couldn't allocate memory for parser");
+        break;
+      case XP_PKG_NCX_PASS:
+        LOG_DBG("TOC", "Couldn't allocate memory for parser");
+        break;
+      default:
+        LOG_ERR("PKG", "Could not allocate package pass");
+        break;
+    }
+    return false;
+  }
+  return true;
+}
+void PackageParser::logError(const XpPkgError& error) const {
+  if (!error.code) return;
+  if (error.buffer) {
+    switch (kind) {
+      case XP_PKG_CONTAINER:
+        LOG_DBG("CTR", "Couldn't allocate buffer");
+        break;
+      case XP_PKG_OPF_PASS:
+        LOG_ERR("COF", "Couldn't allocate memory for buffer");
+        break;
+      case XP_PKG_NAV_PASS:
+        LOG_DBG("NAV", "Couldn't allocate memory for buffer");
+        break;
+      case XP_PKG_NCX_PASS:
+        LOG_DBG("TOC", "Couldn't allocate memory for buffer");
+        break;
+      default:
+        break;
+    }
+    return;
+  }
+  const char* message = XML_ErrorString(static_cast<XML_Error>(error.code));
+  const auto line = static_cast<unsigned long>(error.line);
+  switch (kind) {
+    case XP_PKG_CONTAINER:
+      LOG_ERR("CTR", "Parse error: %s", message);
+      break;
+    case XP_PKG_OPF_PASS:
+      LOG_DBG("COF", "Parse error at line %lu: %s", line, message);
+      break;
+    case XP_PKG_NAV_PASS:
+      LOG_DBG("NAV", "Parse error at line %lu: %s", line, message);
+      break;
+    case XP_PKG_NCX_PASS:
+      LOG_DBG("TOC", "Parse error at line %lu: %s", line, message);
+      break;
+    default:
+      break;
+  }
+}
+size_t PackageParser::write(const uint8_t* bytes, size_t len) {
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  XpPkgError error{};
+  const auto count = xp_pkg_pass_write(pass, {bytes, len}, &diagnostics, &error);
+  logError(error);
+  return count;
+}
+bool PackageParser::finish() {
+  const XpPkgDiagnostics diagnostics{nullptr, packageDiagnostic};
+  XpPkgError error{};
+  const bool ok = xp_pkg_pass_finish(pass, &diagnostics, &error);
+  logError(error);
+  return ok;
+}
+std::string_view PackageParser::view(uint32_t field) const {
+  const auto value = xp_pkg_pass_value(pass, field);
+  return {reinterpret_cast<const char*>(value.data), value.len};
+}
+std::string PackageParser::value(uint32_t field) const { return std::string(view(field)); }
+std::optional<float> PackageParser::seriesIndex() const {
+  float value;
+  if (xp_pkg_pass_index(pass, &value)) return value;
+  return std::nullopt;
+}
+std::vector<std::string> PackageParser::cssFiles() const {
+  std::vector<std::string> result;
+  const size_t count = xp_pkg_pass_count(pass);
+  result.reserve(count);
+  for (size_t i = 0; i < count; ++i) result.push_back(value(32 + i));
+  return result;
+}
+uint32_t PackageParser::control(void* context, uint32_t, uint32_t operation) {
+  auto& self = *static_cast<PackageParser*>(context);
+  auto& file = self.items;
+  switch (operation) {
+    case XP_PKG_OPEN_READ: {
+      const bool ok = Storage.openFileForRead("COF", std::string(self.cachePath) + "/.items.bin", file);
+      if (!ok) LOG_ERR("COF", "Couldn't open temp items file for reading. This is probably going to be a fatal error.");
+      return ok;
+    }
+    case XP_PKG_OPEN_WRITE: {
+      const bool ok = Storage.openFileForWrite("COF", std::string(self.cachePath) + "/.items.bin", file);
+      if (!ok) LOG_ERR("COF", "Couldn't open temp items file for writing. This is probably going to be a fatal error.");
+      return ok;
+    }
+    case XP_PKG_CLOSE:
+      file.close();
+      return 1;
+    case XP_PKG_REMOVE: {
+      const auto path = std::string(self.cachePath) + "/.items.bin";
+      return !Storage.exists(path.c_str()) || Storage.remove(path.c_str());
+    }
+    case XP_PKG_IS_OPEN:
+      return static_cast<bool>(file);
+    case XP_PKG_POSITION:
+      return file.position();
+    case XP_PKG_SIZE:
+      return file.size();
+    default:
+      return 0;
+  }
+}
+size_t PackageParser::read(void* context, uint32_t, uint8_t* bytes, size_t size) {
+  const int read = static_cast<PackageParser*>(context)->items.read(bytes, size);
+  return read < 0 ? 0 : static_cast<size_t>(read);
+}
+size_t PackageParser::write(void* context, uint32_t, const uint8_t* bytes, size_t size) {
+  return static_cast<PackageParser*>(context)->items.write(bytes, size);
+}
+uint8_t PackageParser::seek(void* context, uint32_t, uint32_t offset) {
+  return static_cast<PackageParser*>(context)->items.seek(offset);
+}

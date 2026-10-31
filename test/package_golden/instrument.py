@@ -25,5 +25,7 @@ source = source.replace('void BookMetadataCache::observe(void*, uint32_t, XpPkgS
   else { packageCalls << "createTocEntry "; field(title); field(href); field(anchor); packageCalls << unsigned(level); }
   packageCalls << '\n';
 }''')
-source = source.replace('seek, nullptr, nullptr};', 'seek, nullptr, observe};')
+source = source.replace(
+    'XpPkgIo BookMetadataCache::sink() { return {this, control, read, write, seek, nullptr, nullptr}; }',
+    'XpPkgIo BookMetadataCache::sink() { return {this, control, read, write, seek, nullptr, observe}; }')
 Path(sys.argv[2]).write_text(prefix + re.sub(pattern, observe, source))

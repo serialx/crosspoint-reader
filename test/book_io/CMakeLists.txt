@@ -7,8 +7,7 @@ include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
 set(BOOK_IO_EPUB_SOURCE "${REPO_ROOT}/lib/Epub/Epub.cpp" CACHE FILEPATH "EPUB source for differential captures")
 add_executable(BookOracle BookOracle.cpp
  ${BOOK_IO_EPUB_SOURCE}
- ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
- ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
+ ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
  ${REPO_ROOT}/lib/Epub/Epub/css/CssPlatform.cpp
  ${REPO_ROOT}/lib/ZipFile/ZipPlatform.cpp
  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp

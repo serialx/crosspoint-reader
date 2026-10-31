@@ -318,7 +318,7 @@ TEST(ContentOpfParserCover, ReadingParserStillOpensManifestCache) {
     <spine/></package>)";
   const std::string cachePath = "/reading-cache";
   const std::string basePath = "OPS/";
-  BookMetadataCache cache;
+  BookMetadataCache cache("");
   Storage = {};
   {
     PackageParser parser(XP_PKG_OPF_PASS, basePath, xml.size(), cachePath, &cache);

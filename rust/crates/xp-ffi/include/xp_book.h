@@ -513,47 +513,57 @@ uint8_t xp_book_image_yield(uint32_t* last, uint32_t now);
 typedef enum XpBookCacheOperation {
   XP_BOOK_CACHE_RESET_WRITER = 0,
   XP_BOOK_CACHE_OPEN = 1,
-  XP_BOOK_CACHE_READ_VERSION = 2,
   XP_BOOK_CACHE_CLOSE = 3,
-  XP_BOOK_CACHE_READ_LUT = 4,
-  XP_BOOK_CACHE_READ_SPINE_COUNT = 5,
-  XP_BOOK_CACHE_READ_TOC_COUNT = 6,
-  XP_BOOK_CACHE_READ_METADATA = 7,
   XP_BOOK_CACHE_RESET_WINDOW = 8,
   XP_BOOK_CACHE_RESERVE_WINDOW = 9,
-  XP_BOOK_CACHE_SEEK_ENTRIES = 10,
-  XP_BOOK_CACHE_READ_CUMULATIVE = 11,
+  XP_BOOK_CACHE_SEEK = 10,
   XP_BOOK_CACHE_ADD_WINDOW_START = 12,
-  XP_BOOK_CACHE_SET_LOADED = 13,
-  XP_BOOK_CACHE_SPINE_COUNT = 14,
-  XP_BOOK_CACHE_TOC_COUNT = 15,
-  XP_BOOK_CACHE_BOOK_SIZE = 16,
-  XP_BOOK_CACHE_LOADED = 17,
-  XP_BOOK_CACHE_WINDOW_FIRST = 18,
-  XP_BOOK_CACHE_SET_WINDOW_FIRST = 19,
   XP_BOOK_CACHE_WINDOW_START = 20,
-  XP_BOOK_CACHE_WINDOW_VALUE = 21,
   XP_BOOK_CACHE_WINDOW_COUNT = 22,
   XP_BOOK_CACHE_LOCK = 23,
-  XP_BOOK_CACHE_FILL_OPEN = 24,
-  XP_BOOK_CACHE_FILL_SEEK_LUT = 25,
-  XP_BOOK_CACHE_FILL_READ_POSITION = 26,
-  XP_BOOK_CACHE_FILL_SEEK_POSITION = 27,
-  XP_BOOK_CACHE_FILL_READ_HREF = 28,
-  XP_BOOK_CACHE_FILL_SKIP_HREF = 29,
-  XP_BOOK_CACHE_FILL_READ_WINDOW = 30,
-  XP_BOOK_CACHE_FILL_SKIP_TOC = 31,
-  XP_BOOK_CACHE_FILL_DROP = 32,
-  XP_BOOK_CACHE_ENTRY_SEEK = 33,
-  XP_BOOK_CACHE_ENTRY_POSITION = 34,
+  XP_BOOK_CACHE_FILL_FILE = 24,
+  XP_BOOK_CACHE_FILL_SEEK = 25,
+  XP_BOOK_CACHE_FILL_POSITION = 29,
   XP_BOOK_CACHE_PREPARE_TEMPORARY = 35,
   XP_BOOK_CACHE_TEMPORARY_EXISTS = 36,
   XP_BOOK_CACHE_TEMPORARY_REMOVE = 37,
   XP_BOOK_CACHE_DROP_TEMPORARY = 38,
+  XP_BOOK_CACHE_SPINE_RECORD = 39,
 } XpBookCacheOperation;
-uint8_t xp_book_metadata_load(const XpBookServices* services);
-uint32_t xp_book_metadata_cumulative(const XpBookServices* services, int32_t index);
-int32_t xp_book_metadata_spine(const XpBookServices* services, uint32_t size);
+typedef enum XpBookCacheField {
+  XP_BOOK_FIELD_LUT,
+  XP_BOOK_FIELD_SPINE_COUNT,
+  XP_BOOK_FIELD_TOC_COUNT,
+  XP_BOOK_FIELD_TITLE,
+  XP_BOOK_FIELD_AUTHOR,
+  XP_BOOK_FIELD_LANGUAGE,
+  XP_BOOK_FIELD_COVER,
+  XP_BOOK_FIELD_TEXT,
+  XP_BOOK_FIELD_HREF,
+  XP_BOOK_FIELD_CUMULATIVE,
+  XP_BOOK_FIELD_TOC_INDEX,
+  XP_BOOK_FIELD_TOC_TITLE,
+  XP_BOOK_FIELD_TOC_HREF,
+  XP_BOOK_FIELD_TOC_ANCHOR,
+  XP_BOOK_FIELD_LEVEL,
+  XP_BOOK_FIELD_SPINE_INDEX,
+  XP_BOOK_FIELD_BOOK_SIZE,
+  XP_BOOK_FIELD_LOADED,
+  XP_BOOK_FIELD_WINDOW_FIRST,
+  XP_BOOK_FIELD_WINDOW,
+} XpBookCacheField;
+// field lends initialized little-endian POD or a resized string.
+// WINDOW + index lends a u32; strings live until resized.
+typedef struct XpBookCacheServices {
+  void* ctx;
+  uint32_t (*operation)(void*, uint32_t, uint32_t);
+  size_t (*read)(void*, uint32_t file, uint8_t*, size_t);
+  uint8_t* (*field)(void*, uint32_t field, size_t size);
+  void (*diagnostic)(void*, uint32_t event, uint32_t argument);
+} XpBookCacheServices;
+uint8_t xp_book_metadata_load(const XpBookCacheServices* services);
+uint32_t xp_book_metadata_cumulative(const XpBookCacheServices* services, int32_t index);
+int32_t xp_book_metadata_spine(const XpBookCacheServices* services, uint32_t size);
 
 typedef enum XpBookCssOperation {
   XP_BOOK_CSS_IO_EMPTY_PATH = 0,
@@ -791,34 +801,30 @@ size_t xp_book_page_allocation(size_t header, size_t arena, size_t alignment, si
 uint8_t xp_book_page_images(const uint8_t* arena, size_t length, void* ctx, uint8_t (*needs_decode)(void*, uint16_t));
 
 typedef enum XpBookSizeOperation {
-  XP_BOOK_SIZE_ZIP = 0,
+  XP_BOOK_SIZE_PATH = 0,
   XP_BOOK_SIZE_RAW_SIZE = 1,
   XP_BOOK_SIZE_OPEN_ZIP = 2,
-  XP_BOOK_SIZE_COUNT = 3,
+  XP_BOOK_SIZE_ALLOCATE_TARGETS = 3,
   XP_BOOK_SIZE_ALLOCATE_SIZES = 4,
-  XP_BOOK_SIZE_REWIND = 5,
-  XP_BOOK_SIZE_APPEND = 6,
-  XP_BOOK_SIZE_TARGETS = 7,
-  XP_BOOK_SIZE_SORT = 8,
-  XP_BOOK_SIZE_FILL = 9,
-  XP_BOOK_SIZE_CLEAR = 10,
+  XP_BOOK_SIZE_BEGIN_ENTRY = 5,
+  XP_BOOK_SIZE_HREF = 6,
+  XP_BOOK_SIZE_NORMALIZE = 7,
+  XP_BOOK_SIZE_APPEND = 8,
+  XP_BOOK_SIZE_END_ENTRY = 9,
+  XP_BOOK_SIZE_TARGET = 10,
+  XP_BOOK_SIZE_SET_TARGET = 11,
+  XP_BOOK_SIZE_FILL = 12,
+  XP_BOOK_SIZE_CLEAR = 13,
+  XP_BOOK_SIZE_DROP_TARGETS = 14,
+  XP_BOOK_SIZE_CACHED = 15,
+  XP_BOOK_SIZE_LOOKUP = 16,
+  XP_BOOK_SIZE_ERROR = 17,
+  XP_BOOK_SIZE_BATCH = 18,
+  XP_BOOK_SIZE_MATCHED = 19,
 } XpBookSizeOperation;
-typedef enum XpBookSizeEvent {
-  XP_BOOK_SIZE_EVENT_OPEN_FAILED = 0,
-  XP_BOOK_SIZE_EVENT_BATCH = 1,
-  XP_BOOK_SIZE_EVENT_MATCHED = 2,
-} XpBookSizeEvent;
-uint8_t xp_book_sizes(const XpBookServices* services);
-uint8_t xp_book_size_less(uint64_t a_hash, uint16_t a_length, uint64_t b_hash, uint16_t b_length);
 
-uint8_t xp_book_metadata_entry(const XpBookServices* services, int32_t index, uint8_t toc);
-typedef struct XpBookItemSizeServices {
-  void* ctx;
-  size_t (*operation)(void*, uint32_t operation, size_t index);
-} XpBookItemSizeServices;
-size_t xp_book_cache_item_size(const XpBookItemSizeServices* services, uint16_t index, uint8_t zip);
-
-uint8_t xp_book_metadata_cleanup(const XpBookServices* services);
+uint8_t xp_book_metadata_entry(const XpBookCacheServices* services, int32_t index, uint8_t toc);
+uint8_t xp_book_metadata_cleanup(const XpBookCacheServices* services);
 
 #ifdef __cplusplus
 }

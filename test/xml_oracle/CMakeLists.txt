@@ -18,8 +18,7 @@ add_test(NAME XmlOracleGoldens COMMAND ${Python3_EXECUTABLE}
 
 add_executable(XmlConsumerOracle
   XmlConsumerOracle.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
 )

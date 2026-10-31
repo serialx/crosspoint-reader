@@ -5,11 +5,10 @@ set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 enable_testing()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument.py
-  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp ${CMAKE_CURRENT_BINARY_DIR}/BookMetadataCache.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp ${CMAKE_CURRENT_BINARY_DIR}/BookMetadataCache.cpp
   COMMAND_ERROR_IS_FATAL ANY)
 add_executable(PackageOracle
   PackageOracle.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/BookMetadataCache.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
@@ -40,9 +39,8 @@ target_compile_options(PackageAbiTest PRIVATE -UNDEBUG)
 add_test(NAME PackageAllocationFailure COMMAND PackageAbiTest)
 
 add_executable(TocBoundaryTest TocBoundaryTest.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
 get_target_property(PACKAGE_INCLUDES PackageOracle INCLUDE_DIRECTORIES)
 target_include_directories(TocBoundaryTest PRIVATE ${PACKAGE_INCLUDES}
@@ -65,8 +63,7 @@ endforeach()
 add_test(NAME PackageDiagnosticGoldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/diagnostics.py --oracle $<TARGET_FILE:PackageOracle>)
 
 add_executable(PackageDiagnosticsTest PackageDiagnosticsTest.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/BookMetadataCache.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
   ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
@@ -88,3 +85,28 @@ target_include_directories(ZipDiagnosticsTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR
 target_link_libraries(ZipDiagnosticsTest PRIVATE xp_ffi_host)
 target_compile_options(ZipDiagnosticsTest PRIVATE -UNDEBUG -fno-access-control)
 add_test(NAME ZipDiagnosticFailures COMMAND ZipDiagnosticsTest)
+
+# Pin unchecked native read outcomes using initialized scratch bytes.
+add_executable(PackageReadOracle PackageReadOracle.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+target_include_directories(PackageReadOracle PRIVATE ${PACKAGE_INCLUDES})
+target_link_libraries(PackageReadOracle PRIVATE xp_ffi_host)
+target_compile_options(PackageReadOracle PRIVATE -ftrivial-auto-var-init=zero -UNDEBUG)
+add_test(NAME PackageInitializedReads COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/read_oracle.py $<TARGET_FILE:PackageReadOracle>)
+
+add_executable(PackageSizeBoundaryTest PackageSizeBoundaryTest.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+target_include_directories(PackageSizeBoundaryTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/logging ${PACKAGE_INCLUDES})
+target_link_libraries(PackageSizeBoundaryTest PRIVATE xp_ffi_host)
+target_compile_options(PackageSizeBoundaryTest PRIVATE -UNDEBUG)
+add_test(NAME PackageSizeBoundaries COMMAND PackageSizeBoundaryTest ${CMAKE_CURRENT_BINARY_DIR}/size-boundaries)
+
+foreach(target PackageReadOracle PackageSizeBoundaryTest)
+  target_sources(${target} PRIVATE ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
+  target_include_directories(${target} PRIVATE ${REPO_ROOT}/lib/expat)
+endforeach()

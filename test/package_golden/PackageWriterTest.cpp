@@ -1,9 +1,11 @@
+#include <xp_book.h>
 #include <xp_ffi.h>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstring>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -22,6 +24,8 @@ struct Storage {
   bool shortWrite = false;
   bool failFlush = false;
   size_t sizeLookups = 0;
+  std::deque<std::array<uint64_t, 3>> targets;
+  std::string href;
   XpPkgIo io() { return {this, control, read, write, seek, itemSize, nullptr}; }
   static uint32_t control(void* ptr, uint32_t id, uint32_t op) {
     auto& self = *static_cast<Storage*>(ptr);
@@ -74,9 +78,42 @@ struct Storage {
     file.pos = pos;
     return 1;
   }
-  static uint32_t itemSize(void* ptr, uint16_t index, XpPkgSpan) {
-    ++static_cast<Storage*>(ptr)->sizeLookups;
-    return index + 10;
+  static uint64_t itemSize(void* ptr, uint32_t operation, uint32_t index, void* value) {
+    auto& self = *static_cast<Storage*>(ptr);
+    auto* span = static_cast<XpPkgSpan*>(value);
+    auto* fields = static_cast<uint64_t*>(value);
+    switch (static_cast<XpBookSizeOperation>(operation)) {
+      case XP_BOOK_SIZE_PATH:
+        *span = {reinterpret_cast<const uint8_t*>("book.epub"), 9};
+        break;
+      case XP_BOOK_SIZE_OPEN_ZIP:
+        return 1;
+      case XP_BOOK_SIZE_HREF:
+        self.href.resize(index);
+        *span = {reinterpret_cast<const uint8_t*>(self.href.data()), self.href.size()};
+        break;
+      case XP_BOOK_SIZE_NORMALIZE:
+        *span = {reinterpret_cast<const uint8_t*>(self.href.data()), self.href.size()};
+        break;
+      case XP_BOOK_SIZE_APPEND:
+        self.targets.push_back({fields[0], fields[1], fields[2]});
+        break;
+      case XP_BOOK_SIZE_TARGET:
+        std::copy(self.targets[index].begin(), self.targets[index].end(), fields);
+        break;
+      case XP_BOOK_SIZE_SET_TARGET:
+        std::copy(fields, fields + 3, self.targets[index].begin());
+        break;
+      case XP_BOOK_SIZE_CLEAR:
+        self.targets.clear();
+        break;
+      case XP_BOOK_SIZE_LOOKUP:
+        ++self.sizeLookups;
+        return index + 10;
+      default:
+        break;
+    }
+    return 0;
   }
 };
 XpPkgSpan span(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }

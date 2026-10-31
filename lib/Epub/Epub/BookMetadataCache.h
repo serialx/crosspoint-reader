@@ -5,8 +5,6 @@
 #include <xp_book.h>
 #include <xp_ffi.h>
 
-#include <algorithm>
-#include <deque>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -81,9 +79,6 @@ class BookMetadataCache {
   mutable int windowFirst = -1;
   mutable uint32_t window[SIZE_WINDOW] = {};
   static_assert(sizeof(window) / sizeof(window[0]) == XP_BOOK_METADATA_WINDOW);
-
-  SpineEntry readSpineEntry(HalFile& file) const;
-  TocEntry readTocEntry(HalFile& file) const;
 
  public:
   BookMetadata coreMetadata;

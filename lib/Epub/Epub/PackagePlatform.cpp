@@ -154,53 +154,53 @@ struct BookMetadataCache::ReadContext {
     auto& self = const_cast<BookMetadataCache&>(c.owner);
     static_assert(sizeof(bool) == 1 && sizeof(int) == 4);
     std::string* text = nullptr;
-    switch (static_cast<XpBookCacheField>(id)) {
-      case XP_BOOK_FIELD_LUT:
+    switch (id) {
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_LUT):
         return reinterpret_cast<uint8_t*>(&self.lutOffset);
-      case XP_BOOK_FIELD_SPINE_COUNT:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_SPINE_COUNT):
         return reinterpret_cast<uint8_t*>(&self.spineCount);
-      case XP_BOOK_FIELD_TOC_COUNT:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_TOC_COUNT):
         return reinterpret_cast<uint8_t*>(&self.tocCount);
-      case XP_BOOK_FIELD_TITLE:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_TITLE):
         text = &self.coreMetadata.title;
         break;
-      case XP_BOOK_FIELD_AUTHOR:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_AUTHOR):
         text = &self.coreMetadata.author;
         break;
-      case XP_BOOK_FIELD_LANGUAGE:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_LANGUAGE):
         text = &self.coreMetadata.language;
         break;
-      case XP_BOOK_FIELD_COVER:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_COVER):
         text = &self.coreMetadata.coverItemHref;
         break;
-      case XP_BOOK_FIELD_TEXT:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_TEXT):
         text = &self.coreMetadata.textReferenceHref;
         break;
-      case XP_BOOK_FIELD_HREF:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_HREF):
         text = &c.spine->href;
         break;
-      case XP_BOOK_FIELD_CUMULATIVE:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_CUMULATIVE):
         return reinterpret_cast<uint8_t*>(&c.spine->cumulativeSize);
-      case XP_BOOK_FIELD_TOC_INDEX:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_TOC_INDEX):
         return reinterpret_cast<uint8_t*>(&c.spine->tocIndex);
-      case XP_BOOK_FIELD_TOC_TITLE:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_TOC_TITLE):
         text = &c.toc->title;
         break;
-      case XP_BOOK_FIELD_TOC_HREF:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_TOC_HREF):
         text = &c.toc->href;
         break;
-      case XP_BOOK_FIELD_TOC_ANCHOR:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_TOC_ANCHOR):
         text = &c.toc->anchor;
         break;
-      case XP_BOOK_FIELD_LEVEL:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_LEVEL):
         return &c.toc->level;
-      case XP_BOOK_FIELD_SPINE_INDEX:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_SPINE_INDEX):
         return reinterpret_cast<uint8_t*>(&c.toc->spineIndex);
-      case XP_BOOK_FIELD_BOOK_SIZE:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_BOOK_SIZE):
         return reinterpret_cast<uint8_t*>(&self.bookSize);
-      case XP_BOOK_FIELD_LOADED:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_LOADED):
         return reinterpret_cast<uint8_t*>(&self.loaded);
-      case XP_BOOK_FIELD_WINDOW_FIRST:
+      case static_cast<uint32_t>(XpBookCacheField::XP_BOOK_FIELD_WINDOW_FIRST):
         return reinterpret_cast<uint8_t*>(&self.windowFirst);
       default:
         return reinterpret_cast<uint8_t*>(&self.window[id - XP_BOOK_FIELD_WINDOW]);

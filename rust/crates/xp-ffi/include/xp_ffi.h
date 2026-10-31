@@ -659,7 +659,8 @@ enum {
 // may accept all bytes and latch failure, but the matching END must report it.
 // sizes borrows path/string/target storage; see XpBookSizeOperation in xp_book.h.
 // observe is host-trace-only: kind 0 spine, 1 TOC, before validation/normalization.
-// Callback spans/buffers expire on return and must not be retained or freed.
+// Input spans/buffers expire on return; never retain or free them. Returned
+// sizes spans borrow native storage for the lifetime in XpBookSizeOperation.
 typedef struct {
   void* context;
   uint32_t (*control)(void*, uint32_t file, uint32_t operation);

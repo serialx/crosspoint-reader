@@ -106,7 +106,16 @@ target_link_libraries(PackageSizeBoundaryTest PRIVATE xp_ffi_host)
 target_compile_options(PackageSizeBoundaryTest PRIVATE -UNDEBUG)
 add_test(NAME PackageSizeBoundaries COMMAND PackageSizeBoundaryTest ${CMAKE_CURRENT_BINARY_DIR}/size-boundaries)
 
-foreach(target PackageReadOracle PackageSizeBoundaryTest)
+add_executable(PackageWindowTest PackageWindowTest.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp)
+target_include_directories(PackageWindowTest PRIVATE ${PACKAGE_INCLUDES})
+target_link_libraries(PackageWindowTest PRIVATE xp_ffi_host)
+target_compile_options(PackageWindowTest PRIVATE -UNDEBUG)
+add_test(NAME PackageWindowDestinations COMMAND PackageWindowTest ${CMAKE_CURRENT_BINARY_DIR}/window-destinations)
+
+foreach(target PackageReadOracle PackageSizeBoundaryTest PackageWindowTest)
   target_sources(${target} PRIVATE ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
   target_include_directories(${target} PRIVATE ${REPO_ROOT}/lib/expat)
 endforeach()

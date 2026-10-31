@@ -442,10 +442,12 @@ through `xp_xml_*`; the header documents span and handle lifetimes.
 Container, encryption, OPF, nav and NCX use the C++ `PackageParser` Print adapter,
 which feeds `xp_pkg_pass_*` document handles. Rust `epub::facade` drives the
 parsers, manifest lookup and CSS paths; `epub::cache` owns the cache build state,
-spine/TOC record serialization, book.bin v10 layout, LUTs and cumulative sizes.
+spine/TOC record serialization, book.bin v10 layout, LUTs, cumulative sizes and
+ZIP size preparation. `xp-ffi::book_cache` owns cache reads and size windows.
 `BookMetadataCache` owns the Rust cache handle; document passes borrow it and
-must be destroyed first. C++ retains Epub orchestration, HalFile ownership,
-buffered I/O and ZIP size callbacks, plus BookMetadataCache reads and size windows.
+must be destroyed first. `PackagePlatform.cpp` implements the shared native
+facades and resource adapter, retaining HalFile ownership, buffered I/O, ZIP
+access, string/deque storage and the size-window lock. C++ retains Epub orchestration.
 See the [package oracle](../../test/package_golden/README.md) for parity checks
 and their limits.
 

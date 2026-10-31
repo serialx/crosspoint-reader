@@ -552,8 +552,10 @@ typedef enum XpBookCacheField {
   XP_BOOK_FIELD_WINDOW_FIRST,
   XP_BOOK_FIELD_WINDOW,
 } XpBookCacheField;
-// field lends initialized little-endian POD or a resized string.
-// WINDOW + index lends a u32; strings live until resized.
+// Native storage backs field results: initialized little-endian POD or a string
+// resized to size bytes. WINDOW + index (0..XP_BOOK_METADATA_WINDOW-1) lends a u32.
+// Rust borrows these bytes within the service call; it must not retain or free
+// them. Strings remain valid until resized or their native record is released.
 typedef struct XpBookCacheServices {
   void* ctx;
   uint32_t (*operation)(void*, uint32_t, uint32_t);
@@ -800,6 +802,16 @@ uint8_t xp_book_jpeg(const XpBookServices* services, uint8_t render);
 size_t xp_book_page_allocation(size_t header, size_t arena, size_t alignment, size_t elements, size_t element_bytes);
 uint8_t xp_book_page_images(const uint8_t* arena, size_t length, void* ctx, uint8_t (*needs_decode)(void*, uint16_t));
 
+// sizes value is callback-local: PATH/HREF/NORMALIZE write XpPkgSpan; LOOKUP
+// reads XpPkgSpan. APPEND/SET_TARGET read three u64s (hash, length, spine index);
+// TARGET writes that triple. Other operations use null. Native owns returned
+// span storage: PATH lasts through the build; HREF until resized or END_ENTRY;
+// NORMALIZE until replaced or END_ENTRY. Rust must not free or retain it longer.
+// index is the size count, href byte length, target/cached index, or diagnostic
+// argument. RAW_SIZE/CACHED return bytes, OPEN_ZIP success, FILL matched count;
+// LOOKUP returns size in bits 0..31 and failure in bits 32..63. Others return 0.
+// BEGIN/END_ENTRY own entry strings; ALLOCATE/CLEAR/DROP_TARGETS own targets;
+// ALLOCATE_SIZES owns sizes until XP_PKG_END_SIZES also releases the ZIP.
 typedef enum XpBookSizeOperation {
   XP_BOOK_SIZE_PATH = 0,
   XP_BOOK_SIZE_RAW_SIZE = 1,

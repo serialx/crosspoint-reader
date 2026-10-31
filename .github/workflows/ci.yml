@@ -204,10 +204,28 @@ jobs:
           # Differential tests compile frozen implementations from Git history.
           fetch-depth: 0
 
+      # Native oracles use the same library sources as platformio.ini.
+      - name: Check out QRCode
+        uses: actions/checkout@v6
+        with:
+          repository: ricmoo/QRCode
+          ref: 5ba5d5bf2790f4a885b0db823cf218e4fa718061 # v0.0.1
+          path: .pio/libdeps/default/QRCode
+
+      - name: Check out ArduinoJson
+        uses: actions/checkout@v6
+        with:
+          repository: bblanchon/ArduinoJson
+          ref: 733bc4ee82630c88c0a619a883cd3a206efae977 # v7.4.2
+          path: .pio/libdeps/default/ArduinoJson
+
       - name: Install build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build
+
+      - name: Generate web assets
+        run: python3 scripts/build_html.py
 
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-esp

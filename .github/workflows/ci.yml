@@ -210,6 +210,10 @@ jobs:
           # Differential tests compile frozen implementations from Git history.
           fetch-depth: 0
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
       # Native oracles use the same library sources as platformio.ini.
       - name: Check out QRCode
         uses: actions/checkout@v6

@@ -155,6 +155,5 @@ class CssParser {
   XpCss* handle = nullptr;
   std::string cachePath;
 
-  bool ensureHandle();
   bool restoreCacheBackupIfNeeded() const;
 };

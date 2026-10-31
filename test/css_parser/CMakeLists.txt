@@ -15,7 +15,7 @@ add_executable(CssParserTest
   CssParserTest.cpp
   CssGoldenTest.cpp
   CssAllocationTest.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/css/CssParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/css/CssPlatform.cpp
 )
 
 target_include_directories(CssParserTest PRIVATE

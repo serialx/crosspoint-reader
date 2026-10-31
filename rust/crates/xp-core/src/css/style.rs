@@ -3,6 +3,40 @@ use super::WIRE_BYTES;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Style(pub [u8; WIRE_BYTES]);
 
+/// Validated scalar projection; no native bitfield layout is shared.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StyleView {
+    pub lengths: [f32; 12],
+    pub defined_bits: u32,
+    pub units: [u8; 12],
+    pub text_align: u8,
+    pub font_style: u8,
+    pub font_weight: u8,
+    pub text_decoration: u8,
+    pub direction: u8,
+    pub display: u8,
+    pub vertical_align: u8,
+    pub list_style_type: u8,
+    pub small_caps: u8,
+    pub page_break_before: u8,
+    pub page_break_after: u8,
+    pub borders: [u8; 8],
+    pub border_components: u8,
+    pub shaded: u8,
+    pub float_left: u8,
+    pub initial_letter: u8,
+    pub preserve_whitespace: u8,
+}
+const _: () = {
+    assert!(core::mem::size_of::<StyleView>() == 88);
+    assert!(core::mem::align_of::<StyleView>() == 4);
+    assert!(core::mem::offset_of!(StyleView, defined_bits) == 48);
+    assert!(core::mem::offset_of!(StyleView, units) == 52);
+    assert!(core::mem::offset_of!(StyleView, text_align) == 64);
+    assert!(core::mem::offset_of!(StyleView, borders) == 75);
+};
+
 // (wire offset, byte count) for each defined-property bit.
 const FIELDS: [(usize, usize); 31] = [
     (0, 1),
@@ -45,6 +79,36 @@ impl Default for Style {
     }
 }
 impl Style {
+    pub fn view(&self) -> Option<StyleView> {
+        if !self.valid() {
+            return None;
+        }
+        Some(StyleView {
+            lengths: core::array::from_fn(|i| {
+                let o = 5 + i * 5;
+                f32::from_le_bytes(self.0[o..o + 4].try_into().unwrap())
+            }),
+            defined_bits: self.flags(),
+            units: core::array::from_fn(|i| self.0[9 + i * 5]),
+            text_align: self.0[0],
+            font_style: self.0[1],
+            font_weight: self.0[2],
+            text_decoration: self.0[3],
+            direction: self.0[4],
+            display: self.0[65],
+            vertical_align: self.0[66],
+            list_style_type: self.0[67],
+            small_caps: self.0[68],
+            page_break_before: self.0[69],
+            page_break_after: self.0[70],
+            borders: self.0[71..79].try_into().unwrap(),
+            border_components: self.0[79],
+            shaded: self.0[80],
+            float_left: self.0[81],
+            initial_letter: self.0[82],
+            preserve_whitespace: self.0[83],
+        })
+    }
     pub fn flags(&self) -> u32 {
         u32::from_le_bytes([self.0[84], self.0[85], self.0[86], self.0[87]])
     }

@@ -8,7 +8,7 @@ use core::cmp::Ordering;
 pub use limits::*;
 pub use selector::{ancestor, Ancestor};
 use selector::{Key, CONTEXT, FIRST_LETTER};
-pub use style::{inline, Style};
+pub use style::{inline, Style, StyleView};
 use style::{tokens, trim, whitespace};
 const MAX_STYLES: usize = 256;
 

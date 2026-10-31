@@ -1,5 +1,7 @@
 //! CSS file transactions and streaming policy; codec and owner stay borrowed.
-use core::ffi::c_void;
+use crate::css::{self, CacheDiagnostic, Css};
+use core::{ffi::c_void, ptr};
+use xp_core::css::Diagnostics;
 use xp_core::css::{
     CACHE_BUFFER_BYTES, CACHE_VERSION, MAX_CACHE_KEY_BYTES, MAX_RULES, READ_BUFFER_BYTES,
     SELECTOR_CAP, WIRE_BYTES,
@@ -15,44 +17,30 @@ pub struct Services {
 #[repr(u32)]
 #[derive(Clone, Copy)]
 enum Op {
-    EmptyPath,
-    PreparePaths,
-    ExistsFinal,
-    ExistsBackup,
-    RenameBackupFinal,
-    RemoveFinal,
-    RemoveTemporary,
-    RemoveBackup,
-    RenameFinalBackup,
-    RenameTemporaryFinal,
-    OpenFinal,
-    OpenTemporary,
-    Close,
-    ReadWord,
-    Word,
-    Available,
-    Skip,
-    Ensure,
-    Clear,
-    AllocateBuffer,
-    ReadBuffer,
-    FirstByte,
-    ReadCacheVersion,
-    ReadCacheBuffer,
-    ReadCacheEnd,
-    RuleCount,
-    HasHandle,
-    AllocateOrder,
-    PrepareOrder,
-    WriteNext,
-    Written,
-    WriteBuffer,
-    WriteWord,
-    DropOrder,
-    SourceValid,
-    FeedBuffer,
-    FeedEnd,
-    Restore,
+    EmptyPath = 0,
+    PreparePaths = 1,
+    ExistsFinal = 2,
+    ExistsBackup = 3,
+    RenameBackupFinal = 4,
+    RemoveFinal = 5,
+    RemoveTemporary = 6,
+    RemoveBackup = 7,
+    RenameFinalBackup = 8,
+    RenameTemporaryFinal = 9,
+    OpenFinal = 10,
+    OpenTemporary = 11,
+    Close = 12,
+    ReadWord = 13,
+    Available = 15,
+    Skip = 16,
+    AllocateBuffer = 19,
+    ReadBuffer = 20,
+    AllocateOrder = 27,
+    WriteBuffer = 31,
+    WriteWord = 32,
+    DropOrder = 33,
+    SourceValid = 34,
+    Restore = 37,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -75,25 +63,107 @@ enum Event {
     InvalidSource,
     SourceOom,
     Parsed,
+    HandleOom,
 }
-impl Services {
+#[repr(C)]
+pub struct Io {
+    owner: *mut *mut Css,
+    buffer: *mut u8,
+    order: *mut u16,
+    word: [u8; 4],
+    capacity: usize,
+}
+const _: () = {
+    let pointer = core::mem::size_of::<*mut Css>();
+    assert!(core::mem::size_of::<Io>() == pointer * 5);
+    assert!(core::mem::align_of::<Io>() == pointer);
+    assert!(core::mem::offset_of!(Io, buffer) == pointer);
+    assert!(core::mem::offset_of!(Io, order) == pointer * 2);
+    assert!(core::mem::offset_of!(Io, word) == pointer * 3);
+    assert!(core::mem::offset_of!(Io, capacity) == pointer * 4);
+};
+struct Driver {
+    services: Services,
+    io: *mut Io,
+    diagnostics: Diagnostics,
+}
+impl Driver {
     fn call(&self, op: Op, arg: u32) -> u32 {
-        self.operation
-            .map_or(0, |call| unsafe { call(self.ctx, op as u32, arg) })
+        self.services
+            .operation
+            .map_or(0, |call| unsafe { call(self.services.ctx, op as u32, arg) })
     }
     fn get(&self, op: Op) -> u32 {
         self.call(op, 0)
     }
     fn log(&self, event: Event, arg: u32) {
-        if let Some(log) = self.diagnostic {
-            unsafe { log(self.ctx, event as u32, arg) };
+        if let Some(log) = self.services.diagnostic {
+            unsafe { log(self.services.ctx, event as u32, arg) };
         }
     }
+    fn value(&self) -> u32 {
+        unsafe { u32::from_le_bytes((*self.io).word) }
+    }
     fn word(&self, width: u32) -> Option<u32> {
-        (self.call(Op::ReadWord, width) == width).then(|| self.get(Op::Word))
+        unsafe {
+            (*self.io).word = [0; 4];
+        }
+        (self.call(Op::ReadWord, width) == width).then(|| self.value())
+    }
+    fn handle(&self) -> *mut Css {
+        unsafe { *(*self.io).owner }
+    }
+    fn count(&self) -> usize {
+        let handle = self.handle();
+        if handle.is_null() {
+            0
+        } else {
+            unsafe { (*handle).store.rule_count() }
+        }
+    }
+    fn clear(&self) {
+        unsafe {
+            css::xp_css_destroy(self.handle());
+            *(*self.io).owner = ptr::null_mut();
+        }
+    }
+    fn ensure(&self) -> bool {
+        if self.handle().is_null() {
+            unsafe {
+                *(*self.io).owner = css::xp_css_create();
+            }
+        }
+        if self.handle().is_null() {
+            self.log(Event::HandleOom, 0);
+            false
+        } else {
+            true
+        }
+    }
+    fn read_cache(&self, data: *const u8, len: usize, end: bool) -> u32 {
+        let mut detail = CacheDiagnostic::default();
+        let status = unsafe { css::cache_read(self.handle(), data, len, end as u8, &mut detail) };
+        if detail.event != 0 {
+            if let Some(log) = self.diagnostics.diagnostic {
+                log(self.diagnostics.ctx, detail.event, detail.a, detail.b, 0, 0);
+            }
+        }
+        status as u32
+    }
+    fn feed(&self, count: usize, end: bool) -> u32 {
+        unsafe {
+            css::feed(
+                self.handle(),
+                if end { ptr::null() } else { (*self.io).buffer },
+                count,
+                end as u8,
+                &self.diagnostics,
+            ) as u32
+        }
     }
 }
-fn restore(s: &Services) -> bool {
+
+fn restore(s: &Driver) -> bool {
     use Op::*;
     if s.get(EmptyPath) != 0 {
         return false;
@@ -113,7 +183,7 @@ fn restore(s: &Services) -> bool {
     s.log(Event::Restored, 0);
     true
 }
-fn inspect(s: &Services) -> Option<bool> {
+fn inspect(s: &Driver) -> Option<bool> {
     use Op::*;
     if s.get(OpenFinal) == 0 {
         return None;
@@ -149,11 +219,11 @@ fn inspect(s: &Services) -> Option<bool> {
     }
     Some(true)
 }
-fn cleanup(s: &Services) {
+fn cleanup(s: &Driver) {
     s.get(Op::Close);
     s.get(Op::RemoveTemporary);
 }
-fn save(s: &Services, complete: bool) -> bool {
+fn save(s: &Driver, complete: bool) -> bool {
     use Op::*;
     if s.get(EmptyPath) != 0 {
         return false;
@@ -168,11 +238,15 @@ fn save(s: &Services, complete: bool) -> bool {
         cleanup(s);
         return false;
     }
-    let count = s.get(RuleCount) as u16 as u32;
+    let count = s.count() as u16 as u32;
     let mut ok = true;
-    if s.get(HasHandle) != 0 {
+    if !s.handle().is_null() {
         let order = s.call(AllocateOrder, count) != 0;
-        if !order || s.call(PrepareOrder, complete as u32) != 0 {
+        if !order
+            || unsafe {
+                css::cache_write_begin(s.handle(), complete as u8, (*s.io).order, s.count())
+            } != 0
+        {
             s.log(
                 if order {
                     Event::OrderFailed
@@ -186,21 +260,32 @@ fn save(s: &Services, complete: bool) -> bool {
             return false;
         }
         while ok {
-            if s.get(WriteNext) != 0 {
+            let mut written = 0;
+            if unsafe {
+                css::cache_write(
+                    s.handle(),
+                    (*s.io).order,
+                    s.count(),
+                    (*s.io).buffer,
+                    (*s.io).capacity,
+                    &mut written,
+                )
+            } != 0
+            {
                 ok = false;
                 break;
             }
-            if s.get(Written) == 0 {
+            if written == 0 {
                 break;
             }
-            ok = s.get(WriteBuffer) != 0;
+            ok = s.call(WriteBuffer, written as u32) == written as u32;
         }
         s.get(DropOrder);
     } else {
-        ok = s.call(
-            WriteWord,
-            u32::from(CACHE_VERSION) | ((!complete as u32) << 8),
-        ) != 0;
+        unsafe {
+            (*s.io).word = [CACHE_VERSION, u8::from(!complete), 0, 0];
+        }
+        ok = s.get(WriteWord) == 4;
     }
     if !ok || s.get(Close) == 0 {
         s.log(Event::WriteFailed, 0);
@@ -234,7 +319,7 @@ fn save(s: &Services, complete: bool) -> bool {
     );
     true
 }
-fn load(s: &Services) -> u32 {
+fn load(s: &Driver) -> u32 {
     use Op::*;
     if s.get(EmptyPath) != 0 {
         return 2;
@@ -242,40 +327,42 @@ fn load(s: &Services) -> u32 {
     if s.get(OpenFinal) == 0 && (s.get(Restore) == 0 || s.get(OpenFinal) == 0) {
         return 2;
     }
-    s.get(Clear);
+    s.clear();
     if s.word(1) != Some(u32::from(CACHE_VERSION)) {
-        s.log(Event::Version, s.get(Word));
+        s.log(Event::Version, s.value());
         s.get(Close);
         s.get(RemoveFinal);
         return 2;
     }
-    if s.get(Ensure) == 0 {
+    if !s.ensure() {
         return 1;
     }
     if s.call(AllocateBuffer, READ_BUFFER_BYTES as u32) == 0 {
         s.log(Event::InputOom, 0);
-        s.get(Clear);
+        s.clear();
         return 1;
     }
     let mut flags = 0;
     let mut first = true;
-    let mut status = s.get(ReadCacheVersion);
+    let version = [CACHE_VERSION];
+    let mut status = s.read_cache(version.as_ptr(), 1, false);
     while status == 0 && s.get(Available) != 0 {
-        if s.get(ReadBuffer) as i32 <= 0 {
+        let count = s.get(ReadBuffer) as i32;
+        if count <= 0 {
             status = 2;
             break;
         }
         if first {
-            flags = s.get(FirstByte);
+            flags = unsafe { *(*s.io).buffer } as u32;
             first = false;
         }
-        status = s.get(ReadCacheBuffer);
+        status = s.read_cache(unsafe { (*s.io).buffer }, count as usize, false);
     }
     if status == 0 {
-        status = s.get(ReadCacheEnd);
+        status = s.read_cache(ptr::null(), 0, true);
     }
     if status != 0 {
-        s.get(Clear);
+        s.clear();
         return if status == 1 { 1 } else { 2 };
     }
     s.log(
@@ -284,17 +371,17 @@ fn load(s: &Services) -> u32 {
         } else {
             Event::LoadedComplete
         },
-        s.get(RuleCount),
+        s.count() as u32,
     );
     0
 }
-fn stream(s: &Services) -> u32 {
+fn stream(s: &Driver) -> u32 {
     use Op::*;
     if s.get(SourceValid) == 0 {
         s.log(Event::InvalidSource, 0);
         return 2;
     }
-    if s.get(Ensure) == 0 {
+    if !s.ensure() {
         return 1;
     }
     if s.call(AllocateBuffer, READ_BUFFER_BYTES as u32) == 0 {
@@ -309,9 +396,9 @@ fn stream(s: &Services) -> u32 {
             break;
         }
         total = total.wrapping_add(count as u32);
-        partial |= s.get(FeedBuffer) != 0;
+        partial |= s.feed(count as usize, false) != 0;
     }
-    let result = s.get(FeedEnd);
+    let result = s.feed(0, true);
     s.log(Event::Parsed, total);
     if partial || result == 1 {
         1
@@ -320,12 +407,25 @@ fn stream(s: &Services) -> u32 {
     }
 }
 /// # Safety
-/// Services own all file/buffer/codec objects until return; no same-operation reentry.
+/// Services and io own valid disjoint file/buffer/owner slots until return.
+/// Callbacks can update io buffer/order, but cannot mutate CSS or retain pointers.
+/// Restore uses a separate native file/path scope with its own io slot.
 #[no_mangle]
-pub unsafe extern "C" fn xp_book_css(services: *const Services, action: u32, complete: u8) -> u32 {
+pub unsafe extern "C" fn xp_book_css(
+    services: *const Services,
+    io: *mut Io,
+    diagnostics: *const Diagnostics,
+    action: u32,
+    complete: u8,
+) -> u32 {
     use Op::*;
     let Some(s) = services.as_ref().copied().filter(|s| s.operation.is_some()) else {
         return 0;
+    };
+    let s = Driver {
+        services: s,
+        io,
+        diagnostics: diagnostics.as_ref().copied().unwrap_or_default(),
     };
     match action {
         0 => restore(&s) as u32,

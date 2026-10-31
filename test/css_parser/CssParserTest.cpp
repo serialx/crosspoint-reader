@@ -60,10 +60,12 @@ class CssParserTest : public ::testing::Test {
     fs::remove_all(directory_);
     fs::create_directories(directory_);
     Storage.clearFailures();
+    css_io_test::reset();
   }
 
   void TearDown() override {
     Storage.clearFailures();
+    css_io_test::reset();
     fs::remove_all(directory_);
   }
 
@@ -852,5 +854,161 @@ TEST_F(CssParserTest, DiagnosticsReportEachPoolOomBeforeStoreFailure) {
     ASSERT_GE(logs.lines.size(), 2u);
     EXPECT_EQ(logs.lines[0], std::string("ERR\tCSS\tOOM: ") + pool[i]);
     EXPECT_EQ(logs.lines[1], "ERR\tCSS\tOOM while growing CSS rule store at 0 rules");
+  }
+}
+
+TEST_F(CssParserTest, ShortSourceReadsAndEarlyStopKeepExistingResult) {
+  CssParser parser(cachePath());
+  css_io_test::readLimit = 3;
+  EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}.b{font-style:italic}"), CssParser::ParseResult::Complete);
+  EXPECT_EQ(parser.ruleCount(), 2u);
+  parser.clear();
+  css_io_test::readLimit = 20;
+  css_io_test::readsBeforeStop = 1;
+  logging_stub::Capture logs;
+  EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}.b{font-style:italic}"), CssParser::ParseResult::Complete);
+  EXPECT_EQ(parser.ruleCount(), 1u);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tParsed 1 rules from 20 bytes"}));
+}
+
+TEST_F(CssParserTest, CacheReadChunksAndEarlyStopPreserveDiagnostics) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(false));
+  css_io_test::readLimit = 1;
+  CssParser reader(cachePath());
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.ruleCount(), 1u);
+  css_io_test::readsBeforeStop = 2;
+  logging_stub::Capture logs;
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Invalid);
+  EXPECT_TRUE(reader.empty());
+  EXPECT_TRUE(logs.lines.empty());
+}
+
+TEST_F(CssParserTest, CacheShortWriteClosesAndRemovesOnlyTemporary) {
+  CssParser parser(cachePath());
+  ASSERT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(parser.saveToCache(true));
+  const auto previous = readCache();
+  css_io_test::writeLimit = 3;
+  css_io_test::Trace trace;
+  logging_stub::Capture logs;
+  EXPECT_FALSE(parser.saveToCache(true));
+  EXPECT_EQ(readCache(), previous);
+  EXPECT_FALSE(fs::exists(cacheTempFile()));
+  EXPECT_EQ(trace.events, (std::vector<std::string>{"remove:" + cacheTempFile().string(), "open:wb", "write:4", "close",
+                                                    "remove:" + cacheTempFile().string()}));
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"ERR\tCSS\tFailed to write temporary CSS cache"}));
+}
+
+TEST_F(CssParserTest, CacheBackupFailureLeavesPreviousBytesAndOperationOrder) {
+  CssParser parser(cachePath());
+  ASSERT_TRUE(parser.saveToCache(true));
+  const auto previous = readCache();
+  css_io_test::failedRenames.emplace_back(cacheFile().string(), cacheBackupFile().string());
+  css_io_test::Trace trace;
+  logging_stub::Capture logs;
+  EXPECT_FALSE(parser.saveToCache(false));
+  EXPECT_EQ(readCache(), previous);
+  EXPECT_EQ(trace.events,
+            (std::vector<std::string>{"remove:" + cacheTempFile().string(), "open:wb", "write:4", "close",
+                                      "exists:" + cacheFile().string(), "remove:" + cacheBackupFile().string(),
+                                      "rename:" + cacheFile().string() + ":" + cacheBackupFile().string(),
+                                      "remove:" + cacheTempFile().string()}));
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"ERR\tCSS\tFailed to back up existing CSS cache"}));
+}
+
+TEST_F(CssParserTest, PromotionAndRollbackFailuresKeepBackupAndDiagnosticOrder) {
+  CssParser parser(cachePath());
+  ASSERT_TRUE(parser.saveToCache(true));
+  css_io_test::failedRenames = {{cacheTempFile().string(), cacheFile().string()},
+                                {cacheBackupFile().string(), cacheFile().string()}};
+  logging_stub::Capture logs;
+  EXPECT_FALSE(parser.saveToCache(false));
+  EXPECT_FALSE(fs::exists(cacheFile()));
+  EXPECT_FALSE(fs::exists(cacheTempFile()));
+  EXPECT_TRUE(fs::exists(cacheBackupFile()));
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"ERR\tCSS\tFailed to promote temporary CSS cache",
+                                                  "ERR\tCSS\tFailed to restore previous CSS cache"}));
+  logs.lines.clear();
+  css_io_test::failedRenames.emplace_back(cacheBackupFile().string(), cacheFile().string());
+  EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Invalid);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"ERR\tCSS\tFailed to restore CSS cache backup"}));
+  logs.lines.clear();
+  EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tRestored CSS cache backup after interrupted replacement",
+                                                  "DBG\tCSS\tLoaded 0 rules from complete cache"}));
+}
+
+TEST_F(CssParserTest, EveryInvalidStyleFieldRejectsCacheWithoutChangingDefaults) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(true));
+  const auto valid = readCache();
+  const size_t start = 6 + valid[4] + (static_cast<size_t>(valid[5]) << 8);
+  std::vector<std::pair<size_t, uint8_t>> invalid = {{0, 5},  {1, 3},  {2, 3},  {3, 4},  {4, 2},  {65, 2},  {66, 3},
+                                                     {67, 2}, {68, 2}, {69, 2}, {70, 2}, {72, 5}, {74, 5},  {76, 5},
+                                                     {78, 5}, {80, 2}, {81, 2}, {82, 7}, {83, 2}, {87, 128}};
+  for (size_t i = 0; i < 12; ++i) invalid.emplace_back(9 + 5 * i, 5);
+  for (auto [offset, value] : invalid) {
+    SCOPED_TRACE(offset);
+    auto bytes = valid;
+    bytes[start + offset] = value;
+    writeCache(bytes);
+    CssParser reader(cachePath());
+    EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Invalid);
+    EXPECT_EQ(reader.ruleCount(), 0u);
+    const auto style = reader.resolveStyle("p", "a");
+    EXPECT_FALSE(style.hasFontWeight());
+    EXPECT_EQ(style.fontWeight, CssFontWeight::Normal);
+    EXPECT_EQ(style.textAlign, CssTextAlign::Left);
+  }
+}
+
+extern "C" size_t cssTestAllocationAttempts();
+
+TEST_F(CssParserTest, EveryRustAllocationFailureThroughFacadeCanRetry) {
+  const std::string css = [] {
+    std::string result;
+    for (size_t i = 0; i < 1500; ++i)
+      result += ".class-" + std::to_string(i) + "{margin-top:" + std::to_string(i % 256) + "px}";
+    return result;
+  }();
+  cssTestFailAllocation(SIZE_MAX);
+  size_t attempts = 0;
+  {
+    CssParser parser(cachePath());
+    EXPECT_EQ(loadCss(parser, css), CssParser::ParseResult::Complete);
+    attempts = cssTestAllocationAttempts();
+    ASSERT_TRUE(parser.saveToCache(true));
+  }
+  for (size_t failAt = 0; failAt < attempts; ++failAt) {
+    SCOPED_TRACE(failAt);
+    CssParser parser(cachePath());
+    cssTestFailAllocation(failAt);
+    const auto result = loadCss(parser, css);
+    cssTestFailAllocation(SIZE_MAX);
+    EXPECT_EQ(result, CssParser::ParseResult::Partial);
+    parser.clear();
+    EXPECT_EQ(loadCss(parser, ".valid{font-weight:bold}"), CssParser::ParseResult::Complete);
+    EXPECT_EQ(parser.ruleCount(), 1u);
+  }
+  {
+    CssParser parser(cachePath());
+    cssTestFailAllocation(SIZE_MAX);
+    EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Complete);
+    attempts = cssTestAllocationAttempts();
+  }
+  for (size_t failAt = 0; failAt < attempts; ++failAt) {
+    SCOPED_TRACE(failAt);
+    CssParser parser(cachePath());
+    cssTestFailAllocation(failAt);
+    const auto result = parser.loadFromCache();
+    cssTestFailAllocation(SIZE_MAX);
+    EXPECT_EQ(result, CssParser::CacheLoadResult::LowMemory);
+    EXPECT_TRUE(parser.empty());
+    EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Complete);
+    EXPECT_EQ(parser.ruleCount(), 1500u);
   }
 }

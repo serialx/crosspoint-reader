@@ -1,14 +1,13 @@
-#include "CssParser.h"
-
 #include <Logging.h>
 #include <Memory.h>
 #include <xp_book.h>
 #include <xp_ffi.h>
 
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstring>
+
+#include "CssParser.h"
 
 namespace {
 void cssDiagnostic(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t, uint32_t) {
@@ -54,99 +53,41 @@ void cssDiagnostic(void*, uint32_t event, uint32_t a, uint32_t b, uint32_t, uint
       break;
   }
 }
-constexpr XpCssDiagnostics CSS_DIAGNOSTICS = {nullptr, cssDiagnostic};
-int32_t readCssCache(XpCss* handle, const uint8_t* data, size_t len, bool end) {
-  XpCssCacheDiagnostic detail{};
-  const auto status = xp_css_cache_read_with_diagnostic(handle, data, len, end, &detail);
-  if (detail.event != 0) cssDiagnostic(nullptr, detail.event, detail.a, detail.b, 0, 0);
-  return status;
-}
 constexpr size_t READ_BUFFER_SIZE = XP_CSS_READ_BUFFER_BYTES;
 constexpr std::array STYLE_LENGTH_FIELDS = {
     &CssStyle::textIndent,   &CssStyle::marginTop,   &CssStyle::marginBottom,  &CssStyle::marginLeft,
     &CssStyle::marginRight,  &CssStyle::paddingTop,  &CssStyle::paddingBottom, &CssStyle::paddingLeft,
     &CssStyle::paddingRight, &CssStyle::imageHeight, &CssStyle::imageWidth,    &CssStyle::fontSize,
 };
-constexpr size_t STYLE_LENGTH_FIELD_COUNT = STYLE_LENGTH_FIELDS.size();
-constexpr size_t STYLE_WIRE_BYTES =
-    5 + STYLE_LENGTH_FIELD_COUNT * (sizeof(decltype(CssLength::value)) + 1) + 6 + 13 + sizeof(uint32_t);
-constexpr uint32_t CSS_DEFINED_BITS_MASK = (1u << 31) - 1;
-constexpr uint8_t MAX_INITIAL_LETTER = 6;
-
-bool decodeStyleWire(const uint8_t (&in)[STYLE_WIRE_BYTES], CssStyle& style) {
-  size_t offset = 0;
-  const uint8_t textAlign = in[offset++];
-  const uint8_t fontStyle = in[offset++];
-  const uint8_t fontWeight = in[offset++];
-  const uint8_t textDecoration = in[offset++];
-  const uint8_t direction = in[offset++];
-  if (textAlign > static_cast<uint8_t>(CssTextAlign::None) || fontStyle > static_cast<uint8_t>(CssFontStyle::Inherit) ||
-      fontWeight > static_cast<uint8_t>(CssFontWeight::Inherit) || (textDecoration & ~CSS_TEXT_DECORATION_MASK) != 0 ||
-      direction > static_cast<uint8_t>(CssTextDirection::Rtl)) {
-    return false;
+void copyStyle(const XpCssStyleView& view, CssStyle& style) {
+  style.textAlign = static_cast<CssTextAlign>(view.text_align);
+  style.fontStyle = static_cast<CssFontStyle>(view.font_style);
+  style.fontWeight = static_cast<CssFontWeight>(view.font_weight);
+  style.textDecoration = static_cast<CssTextDecoration>(view.text_decoration);
+  style.direction = static_cast<CssTextDirection>(view.direction);
+  for (size_t i = 0; i < STYLE_LENGTH_FIELDS.size(); ++i) {
+    auto& length = style.*STYLE_LENGTH_FIELDS[i];
+    length.value = view.lengths[i];
+    length.unit = static_cast<CssUnit>(view.units[i]);
   }
-  style.textAlign = static_cast<CssTextAlign>(textAlign);
-  style.fontStyle = static_cast<CssFontStyle>(fontStyle);
-  style.fontWeight = static_cast<CssFontWeight>(fontWeight);
-  style.textDecoration = static_cast<CssTextDecoration>(textDecoration);
-  style.direction = static_cast<CssTextDirection>(direction);
-
-  const auto getLength = [&in, &offset](CssLength& length) {
-    decltype(CssLength::value) value = 0;
-    memcpy(&value, in + offset, sizeof(value));
-    offset += sizeof(length.value);
-    const uint8_t unit = in[offset++];
-    if (!std::isfinite(value) || unit > static_cast<uint8_t>(CssUnit::Percent)) return false;
-    length.value = value;
-    length.unit = static_cast<CssUnit>(unit);
-    return true;
-  };
-  for (const auto field : STYLE_LENGTH_FIELDS) {
-    if (!getLength(style.*field)) return false;
-  }
-
-  const uint8_t display = in[offset++];
-  const uint8_t verticalAlign = in[offset++];
-  const uint8_t listStyleType = in[offset++];
-  if (display > static_cast<uint8_t>(CssDisplay::None) || verticalAlign > static_cast<uint8_t>(CssVerticalAlign::Sub) ||
-      listStyleType > static_cast<uint8_t>(CssListStyleType::None)) {
-    return false;
-  }
-  style.display = static_cast<CssDisplay>(display);
-  style.verticalAlign = static_cast<CssVerticalAlign>(verticalAlign);
-  style.listStyleType = static_cast<CssListStyleType>(listStyleType);
-
-  const uint8_t smallCaps = in[offset++];
-  const uint8_t pageBreakBefore = in[offset++];
-  const uint8_t pageBreakAfter = in[offset++];
-  if (smallCaps > 1 || pageBreakBefore > 1 || pageBreakAfter > 1) return false;
-  style.smallCaps = smallCaps != 0;
-  style.pageBreakBefore = pageBreakBefore != 0;
-  style.pageBreakAfter = pageBreakAfter != 0;
-
+  style.display = static_cast<CssDisplay>(view.display);
+  style.verticalAlign = static_cast<CssVerticalAlign>(view.vertical_align);
+  style.listStyleType = static_cast<CssListStyleType>(view.list_style_type);
+  style.smallCaps = view.small_caps;
+  style.pageBreakBefore = view.page_break_before;
+  style.pageBreakAfter = view.page_break_after;
+  size_t i = 0;
   for (CssBorderSide* side : {&style.borderTop, &style.borderRight, &style.borderBottom, &style.borderLeft}) {
-    side->width = in[offset++];
-    const uint8_t borderStyle = in[offset++];
-    if (borderStyle > static_cast<uint8_t>(CssBorderStyle::Dashed)) return false;
-    side->style = static_cast<CssBorderStyle>(borderStyle);
+    side->width = view.borders[i++];
+    side->style = static_cast<CssBorderStyle>(view.borders[i++]);
   }
-  const uint8_t borderComponents = in[offset++];
-  style.borderWidthsDefined = borderComponents & 0x0f;
-  style.borderStylesDefined = borderComponents >> 4;
-  const uint8_t shaded = in[offset++];
-  const uint8_t floatLeft = in[offset++];
-  const uint8_t initialLetter = in[offset++];
-  if (shaded > 1 || floatLeft > 1 || initialLetter > MAX_INITIAL_LETTER) return false;
-  style.shaded = shaded != 0;
-  style.floatLeft = floatLeft != 0;
-  style.initialLetter = initialLetter;
-  const uint8_t preserveWhitespace = in[offset++];
-  if (preserveWhitespace > 1) return false;
-  style.preserveWhitespace = preserveWhitespace != 0;
-
-  uint32_t definedBits = 0;
-  memcpy(&definedBits, in + offset, sizeof(definedBits));
-  if ((definedBits & ~CSS_DEFINED_BITS_MASK) != 0) return false;
+  style.borderWidthsDefined = view.border_components & 0x0f;
+  style.borderStylesDefined = view.border_components >> 4;
+  style.shaded = view.shaded;
+  style.floatLeft = view.float_left;
+  style.initialLetter = view.initial_letter;
+  style.preserveWhitespace = view.preserve_whitespace;
+  const auto definedBits = view.defined_bits;
   style.defined.textAlign = (definedBits & 1 << 0) != 0;
   style.defined.fontStyle = (definedBits & 1 << 1) != 0;
   style.defined.fontWeight = (definedBits & 1 << 2) != 0;
@@ -178,12 +119,17 @@ bool decodeStyleWire(const uint8_t (&in)[STYLE_WIRE_BYTES], CssStyle& style) {
   style.defined.floatLeft = (definedBits & 1 << 28) != 0;
   style.defined.initialLetter = (definedBits & 1 << 29) != 0;
   style.defined.whiteSpace = (definedBits & 1u << 30) != 0;
-  return true;
 }
-
-static_assert(STYLE_WIRE_BYTES == XP_CSS_WIRE_BYTES);
-static_assert(XP_CSS_MAX_CACHE_KEY_BYTES == XP_CSS_MAX_SELECTOR_BYTES + 1);
-static_assert(XP_CSS_CACHE_BUFFER_BYTES == sizeof(uint16_t) + XP_CSS_MAX_CACHE_KEY_BYTES + STYLE_WIRE_BYTES);
+static_assert(sizeof(XpBookCssIo) == sizeof(void*) * 5 && alignof(XpBookCssIo) == alignof(void*));
+static_assert(offsetof(XpBookCssIo, buffer) == sizeof(void*));
+static_assert(offsetof(XpBookCssIo, order) == sizeof(void*) * 2);
+static_assert(offsetof(XpBookCssIo, word) == sizeof(void*) * 3);
+static_assert(offsetof(XpBookCssIo, capacity) == sizeof(void*) * 4);
+static_assert(sizeof(XpCssStyleView) == 88 && alignof(XpCssStyleView) == 4);
+static_assert(offsetof(XpCssStyleView, defined_bits) == 48);
+static_assert(offsetof(XpCssStyleView, units) == 52);
+static_assert(offsetof(XpCssStyleView, text_align) == 64);
+static_assert(offsetof(XpCssStyleView, borders) == 75);
 static_assert(sizeof(CssAncestor) == sizeof(XpCssAncestor));
 static_assert(alignof(CssAncestor) == alignof(XpCssAncestor));
 static_assert(offsetof(CssAncestor, tagHash) == offsetof(XpCssAncestor, tag_hash));
@@ -194,12 +140,6 @@ XpCssSlice slice(std::string_view view) { return {reinterpret_cast<const uint8_t
 }  // namespace
 
 CssParser::~CssParser() { clear(); }
-
-bool CssParser::ensureHandle() {
-  if (!handle) handle = xp_css_create();
-  if (!handle) LOG_ERR("CSS", "OOM: CSS handle");
-  return handle != nullptr;
-}
 
 void CssParser::clear() {
   xp_css_destroy(handle);
@@ -221,18 +161,22 @@ CssStyle CssParser::resolveStyle(std::string_view tag, std::string_view classes,
                                  const CssAncestor* ancestors, size_t count, bool firstLetter) const {
   CssStyle style;
   if (!handle) return style;
-  uint8_t wire[STYLE_WIRE_BYTES];
-  xp_css_resolve(handle, slice(tag), slice(classes), slice(id), reinterpret_cast<const XpCssAncestor*>(ancestors),
-                 count, firstLetter, wire);
-  if (!decodeStyleWire(wire, style)) LOG_ERR("CSS", "Invalid style from CSS core");
+  XpCssStyleView view;
+  if (xp_css_resolve(handle, slice(tag), slice(classes), slice(id), reinterpret_cast<const XpCssAncestor*>(ancestors),
+                     count, firstLetter, &view))
+    copyStyle(view, style);
+  else
+    LOG_ERR("CSS", "Invalid style from CSS core");
   return style;
 }
 
 CssStyle CssParser::parseInlineStyle(std::string_view value) {
-  uint8_t wire[STYLE_WIRE_BYTES];
-  xp_css_inline(reinterpret_cast<const uint8_t*>(value.data()), value.size(), wire);
+  XpCssStyleView view;
   CssStyle style;
-  if (!decodeStyleWire(wire, style)) LOG_ERR("CSS", "Invalid inline style from CSS core");
+  if (xp_css_inline(reinterpret_cast<const uint8_t*>(value.data()), value.size(), &view))
+    copyStyle(view, style);
+  else
+    LOG_ERR("CSS", "Invalid inline style from CSS core");
   return style;
 }
 
@@ -250,10 +194,9 @@ struct CssParser::IoContext {
   std::string finalPath, temporaryPath, backupPath;
   std::unique_ptr<uint8_t[]> buffer;
   std::unique_ptr<uint16_t[]> order;
-  uint32_t word = 0;
-  size_t capacity = 0, count = 0;
-  explicit IoContext(CssParser& owner) : owner(owner), file(owned) {}
-  IoContext(CssParser& owner, HalFile& source) : owner(owner), file(source) {}
+  XpBookCssIo io{};
+  explicit IoContext(CssParser& owner) : owner(owner), file(owned) { io.owner = &owner.handle; }
+  IoContext(CssParser& owner, HalFile& source) : owner(owner), file(source) { io.owner = &owner.handle; }
   const std::string& path(const unsigned index, std::string& scratch) const {
     const std::string* paths[] = {&finalPath, &temporaryPath, &backupPath};
     const char* suffixes[] = {rulesCache, rulesCacheTmp, rulesCacheBackup};
@@ -309,11 +252,7 @@ struct CssParser::IoContext {
         return c.file.close();
       }
       case XP_BOOK_CSS_IO_READ_WORD: {
-        c.word = 0;
-        return c.file.read(&c.word, argument);
-      }
-      case XP_BOOK_CSS_IO_WORD: {
-        return c.word;
+        return c.file.read(c.io.word, argument);
       }
       case XP_BOOK_CSS_IO_AVAILABLE: {
         return c.file.available();
@@ -321,75 +260,36 @@ struct CssParser::IoContext {
       case XP_BOOK_CSS_IO_SKIP: {
         return c.file.seekCur(argument);
       }
-      case XP_BOOK_CSS_IO_ENSURE: {
-        return self.ensureHandle();
-      }
-      case XP_BOOK_CSS_IO_CLEAR: {
-        self.clear();
-        break;
-      }
       case XP_BOOK_CSS_IO_ALLOCATE_BUFFER: {
         c.buffer = makeUniqueNoThrow<uint8_t[]>(argument);
-        c.capacity = argument;
+        c.io.buffer = c.buffer.get();
+        c.io.capacity = argument;
         return bool(c.buffer);
       }
       case XP_BOOK_CSS_IO_READ_BUFFER: {
-        const int count = c.file.read(c.buffer.get(), c.capacity);
-        c.count = count > 0 ? count : 0;
-        return count;
-      }
-      case XP_BOOK_CSS_IO_FIRST_BYTE: {
-        return c.buffer[0];
-      }
-      case XP_BOOK_CSS_IO_READ_CACHE_VERSION: {
-        return readCssCache(self.handle, reinterpret_cast<const uint8_t*>(&c.word), 1, false);
-      }
-      case XP_BOOK_CSS_IO_READ_CACHE_BUFFER: {
-        return readCssCache(self.handle, c.buffer.get(), c.count, false);
-      }
-      case XP_BOOK_CSS_IO_READ_CACHE_END: {
-        return readCssCache(self.handle, nullptr, 0, true);
-      }
-      case XP_BOOK_CSS_IO_RULE_COUNT: {
-        return self.ruleCount();
-      }
-      case XP_BOOK_CSS_IO_HAS_HANDLE: {
-        return self.handle != nullptr;
+        return c.file.read(c.buffer.get(), c.io.capacity);
       }
       case XP_BOOK_CSS_IO_ALLOCATE_ORDER: {
         c.order = makeUniqueNoThrow<uint16_t[]>(argument);
+        c.io.order = c.order.get();
         return bool(c.order);
       }
-      case XP_BOOK_CSS_IO_PREPARE_ORDER: {
-        return xp_css_cache_write_begin(self.handle, argument, c.order.get(), self.ruleCount());
-      }
-      case XP_BOOK_CSS_IO_WRITE_NEXT: {
-        c.count = 0;
-        return xp_css_cache_write(self.handle, c.order.get(), self.ruleCount(), c.buffer.get(), c.capacity, &c.count);
-      }
-      case XP_BOOK_CSS_IO_WRITTEN: {
-        return c.count;
-      }
       case XP_BOOK_CSS_IO_WRITE_BUFFER: {
-        return c.file.write(c.buffer.get(), c.count) == c.count;
+        return c.file.write(c.buffer.get(), argument);
       }
       case XP_BOOK_CSS_IO_WRITE_WORD: {
-        return c.file.write(&argument, sizeof(argument)) == sizeof(argument);
+        return c.file.write(c.io.word, sizeof(c.io.word));
       }
       case XP_BOOK_CSS_IO_DROP_ORDER: {
         c.order.reset();
+        c.io.order = nullptr;
         break;
       }
       case XP_BOOK_CSS_IO_SOURCE_VALID: {
         return bool(c.file);
       }
-      case XP_BOOK_CSS_IO_FEED_BUFFER: {
-        return xp_css_feed_with_diagnostics(self.handle, c.buffer.get(), c.count, false, &CSS_DIAGNOSTICS);
-      }
-      case XP_BOOK_CSS_IO_FEED_END: {
-        return xp_css_feed_with_diagnostics(self.handle, nullptr, 0, true, &CSS_DIAGNOSTICS);
-      }
       case XP_BOOK_CSS_IO_RESTORE: {
+        // Keep restore paths and its file in a separate native lifetime.
         return self.restoreCacheBackupIfNeeded();
       }
     }
@@ -398,6 +298,9 @@ struct CssParser::IoContext {
   static void diagnostic(void* raw, uint32_t event, uint32_t argument) {
     auto& c = *static_cast<IoContext*>(raw);
     switch (static_cast<XpBookCssEvent>(event)) {
+      case XP_BOOK_CSS_IO_EVENT_HANDLE_OOM:
+        LOG_ERR("CSS", "OOM: CSS handle");
+        break;
       case XP_BOOK_CSS_IO_EVENT_RESTORE_FAILED:
         LOG_ERR("CSS", "Failed to restore CSS cache backup");
         break;
@@ -463,7 +366,8 @@ bool CssParser::hasCache() const { return Storage.exists((cachePath + rulesCache
 uint32_t CssParser::cacheOperation(const uint32_t action, const bool complete) const {
   IoContext context{const_cast<CssParser&>(*this)};
   const auto io = context.services();
-  return xp_book_css(&io, action, complete);
+  const XpCssDiagnostics diagnostics{nullptr, cssDiagnostic};
+  return xp_book_css(&io, &context.io, &diagnostics, action, complete);
 }
 bool CssParser::restoreCacheBackupIfNeeded() const { return cacheOperation(0); }
 void CssParser::deleteCache() const { cacheOperation(1); }
@@ -473,5 +377,6 @@ CssParser::CacheLoadResult CssParser::loadFromCache() { return static_cast<Cache
 CssParser::ParseResult CssParser::loadFromStream(HalFile& source) {
   IoContext context{*this, source};
   const auto io = context.services();
-  return static_cast<ParseResult>(xp_book_css(&io, 5, false));
+  const XpCssDiagnostics diagnostics{nullptr, cssDiagnostic};
+  return static_cast<ParseResult>(xp_book_css(&io, &context.io, &diagnostics, 5, false));
 }

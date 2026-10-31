@@ -19,9 +19,9 @@ pub struct Css {
 #[repr(C)]
 #[derive(Default)]
 pub struct CacheDiagnostic {
-    event: u32,
-    a: u32,
-    b: u32,
+    pub(crate) event: u32,
+    pub(crate) a: u32,
+    pub(crate) b: u32,
 }
 extern "C" fn record_cache_diagnostic(
     ctx: *mut core::ffi::c_void,
@@ -116,13 +116,12 @@ pub unsafe extern "C" fn xp_css_clear(handle: *mut Css) {
 /// end marks the stylesheet boundary; 0/1/2 are Complete/Partial/Error.
 #[no_mangle]
 pub unsafe extern "C" fn xp_css_feed(handle: *mut Css, data: *const u8, len: usize, end: u8) -> u8 {
-    xp_css_feed_with_diagnostics(handle, data, len, end, ptr::null())
+    feed(handle, data, len, end, ptr::null())
 }
 /// # Safety
 /// Same as xp_css_feed; diagnostics is null or borrowed for this call only.
 /// Its callback must not reenter Rust or retain borrowed pointers.
-#[no_mangle]
-pub unsafe extern "C" fn xp_css_feed_with_diagnostics(
+pub(crate) unsafe fn feed(
     handle: *mut Css,
     data: *const u8,
     len: usize,
@@ -164,7 +163,7 @@ pub unsafe extern "C" fn xp_css_feed_with_diagnostics(
 }
 /// # Safety
 /// Handle and all slices are borrowed for the call. Ancestors point to count valid records.
-/// out points to WIRE_BYTES writable bytes, disjoint from all inputs and the handle.
+/// out points to a writable StyleView, disjoint from all inputs and the handle.
 #[no_mangle]
 pub unsafe extern "C" fn xp_css_resolve(
     handle: *const Css,
@@ -174,8 +173,8 @@ pub unsafe extern "C" fn xp_css_resolve(
     ancestors: *const css::Ancestor,
     count: usize,
     first: u8,
-    out: *mut u8,
-) {
+    out: *mut css::StyleView,
+) -> u8 {
     let ancestors = if count == 0 {
         &[]
     } else {
@@ -188,14 +187,24 @@ pub unsafe extern "C" fn xp_css_resolve(
         ancestors,
         first != 0,
     );
-    ptr::copy_nonoverlapping(style.0.as_ptr(), out, WIRE_BYTES);
+    write_view(style, out)
 }
 /// # Safety
-/// The input slice is readable and output has WIRE_BYTES writable, disjoint bytes.
+/// The input slice is readable and output is a writable, disjoint StyleView.
 #[no_mangle]
-pub unsafe extern "C" fn xp_css_inline(data: *const u8, len: usize, out: *mut u8) {
-    let s = css::inline(bytes(data, len));
-    ptr::copy_nonoverlapping(s.0.as_ptr(), out, WIRE_BYTES);
+pub unsafe extern "C" fn xp_css_inline(
+    data: *const u8,
+    len: usize,
+    out: *mut css::StyleView,
+) -> u8 {
+    write_view(css::inline(bytes(data, len)), out)
+}
+unsafe fn write_view(style: css::Style, out: *mut css::StyleView) -> u8 {
+    let Some(view) = style.view() else {
+        return 0;
+    };
+    out.write(view);
+    1
 }
 /// # Safety
 /// Slices are readable and out points to a writable Ancestor disjoint from them.
@@ -223,8 +232,7 @@ pub unsafe extern "C" fn xp_css_has_first_letter(handle: *const Css) -> u8 {
 /// # Safety
 /// Handle is live/exclusive. order has count writable u16s, disjoint from the handle.
 /// count equals rule_count; no store mutation until serialization ends.
-#[no_mangle]
-pub unsafe extern "C" fn xp_css_cache_write_begin(
+pub(crate) unsafe fn cache_write_begin(
     handle: *mut Css,
     complete: u8,
     order: *mut u16,
@@ -245,8 +253,7 @@ pub unsafe extern "C" fn xp_css_cache_write_begin(
 /// Handle is live/exclusive; out has cap writable bytes; written points to usize.
 /// Outputs must not overlap each other, order, or the handle. cap >= CACHE_BUFFER_BYTES.
 /// order has count readable u16s from write_begin, unchanged. Zero written means done.
-#[no_mangle]
-pub unsafe extern "C" fn xp_css_cache_write(
+pub(crate) unsafe fn cache_write(
     handle: *mut Css,
     order: *const u16,
     count: usize,
@@ -349,13 +356,12 @@ pub unsafe extern "C" fn xp_css_cache_read(
     len: usize,
     end: u8,
 ) -> i32 {
-    xp_css_cache_read_with_diagnostic(handle, data, len, end, ptr::null_mut())
+    cache_read(handle, data, len, end, ptr::null_mut())
 }
 /// # Safety
 /// Same as xp_css_cache_read; diagnostic is null or writable, aligned and disjoint.
 /// Returns one failure detail (event zero when none); no callback crosses into C++.
-#[no_mangle]
-pub unsafe extern "C" fn xp_css_cache_read_with_diagnostic(
+pub(crate) unsafe fn cache_read(
     handle: *mut Css,
     data: *const u8,
     len: usize,
@@ -406,4 +412,28 @@ pub unsafe extern "C" fn xp_css_cache_read_with_diagnostic(
             error(e)
         }
     }
+}
+
+// Host oracles retain direct codec access without a firmware ABI.
+#[cfg(not(target_os = "none"))]
+#[no_mangle]
+pub unsafe extern "C" fn xp_css_test_cache_write_begin(
+    h: *mut Css,
+    complete: u8,
+    order: *mut u16,
+    count: usize,
+) -> i32 {
+    cache_write_begin(h, complete, order, count)
+}
+#[cfg(not(target_os = "none"))]
+#[no_mangle]
+pub unsafe extern "C" fn xp_css_test_cache_write(
+    h: *mut Css,
+    order: *const u16,
+    count: usize,
+    out: *mut u8,
+    cap: usize,
+    written: *mut usize,
+) -> i32 {
+    cache_write(h, order, count, out, cap, written)
 }

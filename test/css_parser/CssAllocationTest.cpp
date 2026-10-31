@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "CssTestApi.h"
+
 extern "C" void cssTestFailAllocation(size_t index);
 extern "C" size_t cssTestAllocationAttempts();
 
@@ -28,10 +30,10 @@ std::vector<uint8_t> cache(XpCss* handle) {
   std::vector<uint8_t> bytes;
   std::array<uint8_t, XP_CSS_CACHE_BUFFER_BYTES> record{};
   std::vector<uint16_t> order(xp_css_rule_count(handle));
-  EXPECT_EQ(xp_css_cache_write_begin(handle, true, order.data(), order.size()), 0);
+  EXPECT_EQ(xp_css_test_cache_write_begin(handle, true, order.data(), order.size()), 0);
   while (true) {
     size_t written = 0;
-    EXPECT_EQ(xp_css_cache_write(handle, order.data(), order.size(), record.data(), record.size(), &written), 0);
+    EXPECT_EQ(xp_css_test_cache_write(handle, order.data(), order.size(), record.data(), record.size(), &written), 0);
     if (written == 0) break;
     bytes.insert(bytes.end(), record.begin(), record.begin() + written);
   }
@@ -101,12 +103,12 @@ TEST(CssAllocationTest, ResolveAndInlineDoNotAllocate) {
   const uint8_t tag[] = {'p'};
   const uint8_t classes[] = {'a'};
   const std::string declarations = "font-size:1.000000059604644775390625em;border:2pt solid";
-  uint8_t wire[XP_CSS_WIRE_BYTES];
+  XpCssStyleView view;
   cssTestFailAllocation(0);
   for (size_t i = 0; i < 100; ++i) {
-    xp_css_resolve(handle, {tag, sizeof(tag)}, {classes, sizeof(classes)}, {nullptr, 0}, nullptr, 0, false, wire);
-    EXPECT_EQ(wire[2], 1);
-    xp_css_inline(reinterpret_cast<const uint8_t*>(declarations.data()), declarations.size(), wire);
+    xp_css_resolve(handle, {tag, sizeof(tag)}, {classes, sizeof(classes)}, {nullptr, 0}, nullptr, 0, false, &view);
+    EXPECT_EQ(view.font_weight, 1);
+    xp_css_inline(reinterpret_cast<const uint8_t*>(declarations.data()), declarations.size(), &view);
   }
   EXPECT_EQ(cssTestAllocationAttempts(), 0u);
   cssTestFailAllocation(SIZE_MAX);

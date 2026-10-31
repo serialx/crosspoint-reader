@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <xp_ffi.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -105,3 +106,42 @@ TEST(CssGoldenTest, CurrentCppOracle) {
   fs::remove_all(scratch);
 }
 }  // namespace
+
+TEST(CssGoldenTest, ValidatedInlineViewMatchesNativeFields) {
+  const std::string text =
+      "text-align:right;font-style:italic;font-weight:bold;text-decoration:underline line-through;"
+      "direction:rtl;text-indent:2px;margin:1px 2em 3rem 4pt;padding:5px 6em 7rem 8pt;"
+      "height:12px;width:25%;font-size:2em;display:none;vertical-align:sub;list-style-type:none;"
+      "font-variant:small-caps;page-break-before:always;page-break-after:always;border:2px dashed;"
+      "background-color:gray;float:left;initial-letter:3;white-space:pre-wrap";
+  XpCssStyleView view{};
+  ASSERT_EQ(xp_css_inline(reinterpret_cast<const uint8_t*>(text.data()), text.size(), &view), 1);
+  const auto native = CssParser::parseInlineStyle(text);
+  uint8_t wire[css_oracle::STYLE_WIRE_BYTES];
+  css_oracle::encodeStyleWire(native, wire);
+  uint32_t flags;
+  memcpy(&flags, wire + 84, sizeof(flags));
+  EXPECT_EQ(view.defined_bits, flags);
+  for (size_t i = 0; i < css_oracle::STYLE_LENGTH_FIELDS.size(); ++i) {
+    const auto& length = native.*css_oracle::STYLE_LENGTH_FIELDS[i];
+    EXPECT_EQ(view.lengths[i], length.value);
+    EXPECT_EQ(view.units[i], static_cast<uint8_t>(length.unit));
+  }
+  EXPECT_EQ(view.text_align, static_cast<uint8_t>(native.textAlign));
+  EXPECT_EQ(view.font_style, static_cast<uint8_t>(native.fontStyle));
+  EXPECT_EQ(view.font_weight, static_cast<uint8_t>(native.fontWeight));
+  EXPECT_EQ(view.text_decoration, static_cast<uint8_t>(native.textDecoration));
+  EXPECT_EQ(view.direction, static_cast<uint8_t>(native.direction));
+  EXPECT_EQ(view.display, static_cast<uint8_t>(native.display));
+  EXPECT_EQ(view.vertical_align, static_cast<uint8_t>(native.verticalAlign));
+  EXPECT_EQ(view.list_style_type, static_cast<uint8_t>(native.listStyleType));
+  EXPECT_EQ(view.small_caps, native.smallCaps);
+  EXPECT_EQ(view.page_break_before, native.pageBreakBefore);
+  EXPECT_EQ(view.page_break_after, native.pageBreakAfter);
+  for (size_t i = 0; i < 8; ++i) EXPECT_EQ(view.borders[i], wire[71 + i]);
+  EXPECT_EQ(view.border_components, wire[79]);
+  EXPECT_EQ(view.shaded, native.shaded);
+  EXPECT_EQ(view.float_left, native.floatLeft);
+  EXPECT_EQ(view.initial_letter, native.initialLetter);
+  EXPECT_EQ(view.preserve_whitespace, native.preserveWhitespace);
+}

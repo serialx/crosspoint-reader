@@ -570,29 +570,15 @@ typedef enum XpBookCssOperation {
   XP_BOOK_CSS_IO_OPEN_TEMPORARY = 11,
   XP_BOOK_CSS_IO_CLOSE = 12,
   XP_BOOK_CSS_IO_READ_WORD = 13,
-  XP_BOOK_CSS_IO_WORD = 14,
   XP_BOOK_CSS_IO_AVAILABLE = 15,
   XP_BOOK_CSS_IO_SKIP = 16,
-  XP_BOOK_CSS_IO_ENSURE = 17,
-  XP_BOOK_CSS_IO_CLEAR = 18,
   XP_BOOK_CSS_IO_ALLOCATE_BUFFER = 19,
   XP_BOOK_CSS_IO_READ_BUFFER = 20,
-  XP_BOOK_CSS_IO_FIRST_BYTE = 21,
-  XP_BOOK_CSS_IO_READ_CACHE_VERSION = 22,
-  XP_BOOK_CSS_IO_READ_CACHE_BUFFER = 23,
-  XP_BOOK_CSS_IO_READ_CACHE_END = 24,
-  XP_BOOK_CSS_IO_RULE_COUNT = 25,
-  XP_BOOK_CSS_IO_HAS_HANDLE = 26,
   XP_BOOK_CSS_IO_ALLOCATE_ORDER = 27,
-  XP_BOOK_CSS_IO_PREPARE_ORDER = 28,
-  XP_BOOK_CSS_IO_WRITE_NEXT = 29,
-  XP_BOOK_CSS_IO_WRITTEN = 30,
   XP_BOOK_CSS_IO_WRITE_BUFFER = 31,
   XP_BOOK_CSS_IO_WRITE_WORD = 32,
   XP_BOOK_CSS_IO_DROP_ORDER = 33,
   XP_BOOK_CSS_IO_SOURCE_VALID = 34,
-  XP_BOOK_CSS_IO_FEED_BUFFER = 35,
-  XP_BOOK_CSS_IO_FEED_END = 36,
   XP_BOOK_CSS_IO_RESTORE = 37,
 } XpBookCssOperation;
 typedef enum XpBookCssEvent {
@@ -614,8 +600,19 @@ typedef enum XpBookCssEvent {
   XP_BOOK_CSS_IO_EVENT_INVALID_SOURCE = 15,
   XP_BOOK_CSS_IO_EVENT_SOURCE_OOM = 16,
   XP_BOOK_CSS_IO_EVENT_PARSED = 17,
+  XP_BOOK_CSS_IO_EVENT_HANDLE_OOM = 18,
 } XpBookCssEvent;
-uint32_t xp_book_css(const XpBookServices* services, uint32_t action, uint8_t complete);
+typedef struct XpCss XpCss;
+typedef struct XpCssDiagnostics XpCssDiagnostics;
+// Borrowed slot and native-owned buffers; callbacks only replace buffer/order pointers.
+typedef struct {
+  XpCss** owner;
+  uint8_t* buffer;
+  uint16_t* order;
+  uint8_t word[4];
+  size_t capacity;
+} XpBookCssIo;
+uint32_t xp_book_css(const XpBookServices*, XpBookCssIo*, const XpCssDiagnostics*, uint32_t action, uint8_t complete);
 
 typedef enum XpBookTocOperation {
   XP_BOOK_TOC_FIRST = 0,

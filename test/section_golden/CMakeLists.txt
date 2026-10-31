@@ -25,7 +25,7 @@ add_executable(SectionGoldenDump
   ${CMAKE_CURRENT_BINARY_DIR}/ParagraphTrace.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/css/CssParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/css/CssPlatform.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
   ${REPO_ROOT}/lib/Epub/Epub/htmlEntities.cpp

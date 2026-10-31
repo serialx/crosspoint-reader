@@ -50,7 +50,16 @@ impl State {
         unsafe { ((*self.callbacks).entity_lookup)(self.ctx, spelling) }
     }
     pub fn entity_buffer(&mut self, length: u32) -> *mut u8 {
-        unsafe { ((*self.callbacks).entity_buffer)(self.ctx, length) }
+        unsafe {
+            let buffer = ((*self.callbacks).entity_buffer)(self.ctx, 0);
+            if length <= buffer.len {
+                buffer.data.cast_mut()
+            } else {
+                ((*self.callbacks).entity_buffer)(self.ctx, length)
+                    .data
+                    .cast_mut()
+            }
+        }
     }
 
     pub(super) fn call_list_marker(&mut self, text: Span, offset: u32) {

@@ -6,12 +6,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ParagraphTrace.cpp
   VERBATIM)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/instrument_chapter.py
-    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
-    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
-    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp
-  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
-    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
-    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp instrument_chapter.py
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPlatform.cpp ${CMAKE_CURRENT_BINARY_DIR}/ChapterTrace.cpp
+  DEPENDS ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPlatform.cpp
+    instrument_chapter.py
   VERBATIM)
 add_executable(SectionGoldenDump
   ${REPO_ROOT}/lib/expat/ExpatErrors.cpp

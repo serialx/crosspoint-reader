@@ -1518,8 +1518,8 @@ pub unsafe extern "C" fn xp_book_section_built_page(
 
 #[repr(C)]
 pub struct TextSpan {
-    data: *const u8,
-    length: usize,
+    pub(crate) data: *const u8,
+    pub(crate) length: usize,
 }
 #[repr(C)]
 pub struct PageText {

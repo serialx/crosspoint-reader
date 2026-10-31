@@ -307,3 +307,18 @@ TEST_F(ChapterDiagnostics, TokenChunkKeepsGenericStorageError) {
                            [](const auto& line) { return line.starts_with("ERR:PTX:OOM: NFC source offsets"); }));
   parser.abortParse();
 }
+
+TEST_F(ChapterDiagnostics, TrailingDiagnosticOrderAcrossReadBoundaries) {
+  const std::string html = "<html>\n<body><p>one &amp; two</p></body></html>junk";
+  ASSERT_TRUE(parse(html));
+  const auto expected = ChapterLogs::lines;
+  for (size_t chunk : {1u, 2u, 13u, 1024u}) {
+    static size_t limit;
+    limit = chunk;
+    HalFileTest::readLimit = [](const char*, size_t, size_t requested) { return std::min(requested, limit); };
+    ChapterLogs::lines.clear();
+    EXPECT_TRUE(parse(html));
+    HalFileTest::readLimit = nullptr;
+    EXPECT_EQ(ChapterLogs::lines, expected);
+  }
+}

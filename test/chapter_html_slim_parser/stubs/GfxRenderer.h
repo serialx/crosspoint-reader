@@ -28,11 +28,21 @@ class GfxRenderer {
   mutable size_t fontPreparations = 0;
   std::function<void()> onFontPrepare;
   enum class TextMeasureMode { Layout, Rendered };
-  // The fixture has no framebuffer to lend; image probes run as without a loan.
+  size_t loanDepth = 0;
+  // Track loan scope without allocating a framebuffer in this fixture.
   class FrameBufferLoan {
    public:
-    explicit FrameBufferLoan(GfxRenderer&) {}
-    void end() {}
+    explicit FrameBufferLoan(GfxRenderer& renderer) : owner(&renderer) { ++owner->loanDepth; }
+    ~FrameBufferLoan() { end(); }
+    void end() {
+      if (owner) {
+        --owner->loanDepth;
+        owner = nullptr;
+      }
+    }
+
+   private:
+    GfxRenderer* owner;
   };
   // Fixture metrics: every glyph is 8 px wide, a space is 4 px, kerning is zero.
   static int trackingBetween(uint32_t left, uint32_t right, int8_t tracking) {

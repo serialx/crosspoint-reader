@@ -9,7 +9,7 @@ use xp_core::{
         assembly::{self, runtime::Callbacks},
         feedback::{Notify, Query},
         style::{Block, DropCap},
-        Measure, State,
+        State,
     },
     xml::{Kind, Parser},
 };
@@ -30,7 +30,7 @@ pub struct Options {
 /// # Safety
 /// out is writable; callbacks/context and css (if non-null) outlive the handle.
 /// All callbacks are populated and synchronous. No callback may destroy/feed this
-/// handle. Only measure_table may use its supplied state reborrow for table feedback.
+/// handle. Only table_file may pass its state reborrow to the supplied Rust visitor.
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_create(
     out: *mut *mut Chapter,
@@ -124,13 +124,12 @@ pub unsafe extern "C" fn xp_chapter_feed(
     len: u32,
     final_input: u8,
 ) -> u8 {
-    xp_chapter_feed_diagnostic(handle, data, len, final_input) as u8
+    feed_diagnostic(handle, data, len, final_input) as u8
 }
 /// # Safety
 /// Same contract as xp_chapter_feed. Returns status in bits 0..7,
 /// Expat error in bits 8..31, and one-based line in bits 32..63.
-#[no_mangle]
-pub unsafe extern "C" fn xp_chapter_feed_diagnostic(
+pub(crate) unsafe fn feed_diagnostic(
     handle: *mut Chapter,
     data: *const u8,
     len: u32,
@@ -246,24 +245,15 @@ pub unsafe extern "C" fn xp_chapter_drop_cap(state: *const State, out: *mut Drop
     }
 }
 /// # Safety
-/// state is live during the callback.
-#[no_mangle]
-pub unsafe extern "C" fn xp_chapter_byte(state: *const State) -> u64 {
-    if state.is_null() {
-        0
-    } else {
-        (*state).byte
-    }
-}
-/// # Safety
 /// state is the current reborrow, read writes at most capacity synchronously,
 /// context remains live until return, and out is writable/disjoint from state.
+#[cfg(feature = "chapter-test")]
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_measure_table(
     state: *mut State,
     ctx: *mut c_void,
     read: chapter::table::Read,
-    out: *mut Measure,
+    out: *mut chapter::Measure,
 ) -> u8 {
     if state.is_null() || out.is_null() {
         return 0;
@@ -278,8 +268,12 @@ pub unsafe extern "C" fn xp_chapter_measure_table(
 }
 /// # Safety
 /// state is the current reborrow; measure is readable for the call.
+#[cfg(feature = "chapter-test")]
 #[no_mangle]
-pub unsafe extern "C" fn xp_chapter_plan_columns(state: *mut State, measure: *const Measure) {
+pub unsafe extern "C" fn xp_chapter_plan_columns(
+    state: *mut State,
+    measure: *const chapter::Measure,
+) {
     if !state.is_null() && !measure.is_null() {
         (*state).plan_columns(*measure);
     }

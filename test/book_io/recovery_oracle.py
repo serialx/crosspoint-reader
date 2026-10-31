@@ -8,7 +8,7 @@ source = (root / 'lib/Epub/Epub/Paragraph.cpp').read_text()
 start = source.index('namespace {')
 end = source.index('\nnamespace {', start + 1)
 source = source[start:end]
-chapter = (root / 'lib/Epub/Epub/parsers/ChapterPageServices.cpp').read_text()
+chapter = (root / 'lib/Epub/Epub/parsers/ChapterPlatform.cpp').read_text()
 callback = chapter.split('const XpChapterSink ChapterPageAssembler::sink_ = {', 1)[1].split(',', 1)[0].strip()
 output.write_text(r'''
 #include <xp_ffi.h>

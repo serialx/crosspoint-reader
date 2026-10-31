@@ -45,22 +45,26 @@ pub struct Callbacks {
     pub language: unsafe extern "C" fn() -> i32,
     pub reclaim_paragraph_memory: unsafe extern "C" fn(),
     pub entity_lookup: unsafe extern "C" fn(*mut c_void, Span) -> Span,
-    pub entity_buffer: unsafe extern "C" fn(*mut c_void, u32) -> *mut u8,
+    pub entity_buffer: unsafe extern "C" fn(*mut c_void, u32) -> Span,
     pub font_variant: unsafe extern "C" fn(*mut c_void, i32, f32) -> i32,
     pub line_height: unsafe extern "C" fn(*mut c_void, i32, f32) -> i32,
     pub codepoint:
         Option<unsafe extern "C" fn(*mut c_void, i32, u32, u8, *mut i32, *mut i32) -> u8>,
     pub font_ready: unsafe extern "C" fn(*mut c_void, i32, i32) -> i32,
-    pub complete: unsafe extern "C" fn(*mut c_void, Span, Position) -> u8,
+    pub complete: unsafe extern "C" fn(*mut c_void, u32, Span, Position) -> u8,
     pub probe_image:
         unsafe extern "C" fn(*mut c_void, Span, *mut i32, *mut bool, *mut u16, *mut u16) -> u8,
     pub image_paths: unsafe extern "C" fn(*mut c_void, *mut Span, *mut Span),
     pub pending_anchor: unsafe extern "C" fn(*mut c_void) -> Span,
     pub defer_anchor: unsafe extern "C" fn(*mut c_void, Span),
-    pub anchor_is_toc: unsafe extern "C" fn(*mut c_void, Span) -> u8,
+    pub toc_anchor: unsafe extern "C" fn(*mut c_void, u32) -> Span,
     pub anchor_count: unsafe extern "C" fn(*mut c_void) -> u32,
     pub record_anchor: unsafe extern "C" fn(*mut c_void, u16),
-    pub measure_table: unsafe extern "C" fn(*mut c_void, *mut crate::chapter::State),
+    pub table_file: unsafe extern "C" fn(
+        *mut c_void,
+        *mut crate::chapter::State,
+        crate::chapter::table::UseReader,
+    ),
     pub trace: unsafe extern "C" fn(*mut c_void, *const Trace),
     pub trace_bytes: unsafe extern "C" fn(*mut c_void, Span),
     pub diagnostic:
@@ -76,6 +80,20 @@ pub struct PageSink {
     pub(in crate::chapter) engine: *const crate::textm::native::Engine,
 }
 impl PageSink {
+    pub(in crate::chapter) fn anchor_is_toc(&self, pending: &[u8]) -> bool {
+        let mut index = 0;
+        loop {
+            let span = unsafe { (self.api().toc_anchor)(self.context, index) };
+            if span.data.is_null() {
+                return false;
+            }
+            if pending == unsafe { core::slice::from_raw_parts(span.data, span.len as usize) } {
+                return true;
+            }
+            index += 1;
+        }
+    }
+
     pub fn api(&self) -> &Callbacks {
         unsafe { &*self.callbacks }
     }
@@ -136,6 +154,12 @@ impl PageSink {
             ruby_shift,
         }
     }
+}
+#[repr(u32)]
+enum Output {
+    HasByteSink,
+    Bytes,
+    Page,
 }
 impl Sink for PageSink {
     type Payload = Payload;
@@ -205,7 +229,7 @@ impl Sink for PageSink {
         Ok(())
     }
     fn anchor_starts_chapter(&self) -> bool {
-        unsafe { (self.api().anchor_is_toc)(self.context, Span::new(self.pending_anchor())) != 0 }
+        self.anchor_is_toc(self.pending_anchor())
     }
     fn record_anchor(&mut self, page: u16) -> Result {
         unsafe {
@@ -299,7 +323,21 @@ impl Sink for PageSink {
     fn complete(&mut self, page: Page<Payload>, position: Position) -> Result {
         let bytes = unsafe { (*self.storage).encode(&page, self.api().reclaim_paragraph_memory)? };
         let length = bytes.len();
-        let status = unsafe { (self.api().complete)(self.context, Span::new(bytes), position) };
+        let status = unsafe {
+            let complete = self.api().complete;
+            let output = if complete(
+                self.context,
+                Output::HasByteSink as u32,
+                Span::new(&[]),
+                position,
+            ) != 0
+            {
+                Output::Bytes
+            } else {
+                Output::Page
+            };
+            complete(self.context, output as u32, Span::new(bytes), position)
+        };
         unsafe {
             (*self.storage).retire_page(length);
         }

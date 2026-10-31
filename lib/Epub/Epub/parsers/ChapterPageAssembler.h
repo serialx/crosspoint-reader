@@ -18,12 +18,10 @@ class GfxRenderer;
 class ChapterPageAssembler {
   friend class ChapterHtmlSlimParser;
 
- public:
-  using TableColumnMeasure = XpChapterMeasure;
-
  private:
   XpChapter* chapter_ = nullptr;
-  XpChapterState* activeSemantics_ = nullptr;
+  // Retained for parser allocation-size parity; removing this slot needs separate qualification.
+  XpChapterState* reservedSemantics_ = nullptr;
   static const XpParaMetrics metrics_;
   static const XpChapterSink sink_;
   static const GfxRenderer& metricRenderer(void* context) {
@@ -61,7 +59,7 @@ class ChapterPageAssembler {
 
   bool ensureSemantics();
   XpChapterOptions chapterOptions() const;
-  XpChapterState* semanticState() const { return activeSemantics_ ? activeSemantics_ : xp_chapter_state(chapter_); }
+  XpChapterState* semanticState() const { return xp_chapter_state(chapter_); }
   uint32_t semanticQuery(XpChapterQuery query) const { return xp_chapter_query(semanticState(), query); }
   bool semanticOom() const { return semanticQuery(XP_CHAPTER_QUERY_OOM); }
   void beginAssembly() {
@@ -69,11 +67,11 @@ class ChapterPageAssembler {
     xp_chapter_begin(chapter_);
   }
   bool finishAssembly() { return xp_chapter_finish(chapter_) != 0; }
-  virtual void measureTableAtCurrentPosition() = 0;
-  virtual uint8_t* entityBuffer(uint32_t length) = 0;
+  virtual void withTableFile(XpChapterState*, XpChapterUseReader) = 0;
+  virtual XpChapterSpan entityBuffer(uint32_t length) = 0;
   struct ProbeContext;
   uint8_t probeImage(XpChapterSpan src, int32_t& counter, bool& popup, uint16_t& width, uint16_t& height);
-  uint8_t completeBytes(XpChapterSpan bytes, XpChapterPosition position);
+  uint8_t completeBytes(uint32_t operation, XpChapterSpan bytes, XpChapterPosition position);
   explicit ChapterPageAssembler(
       std::shared_ptr<Epub> epub, GfxRenderer& renderer, const int fontId, const float lineCompression,
       const bool extraParagraphSpacing, const uint8_t paragraphAlignment, const uint16_t viewportWidth,

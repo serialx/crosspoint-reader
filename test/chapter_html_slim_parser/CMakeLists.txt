@@ -11,9 +11,7 @@ add_executable(ChapterHtmlSlimParserTest
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
 
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPlatform.cpp
   ${REPO_ROOT}/lib/Epub/Epub/css/CssPlatform.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp

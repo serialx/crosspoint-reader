@@ -278,7 +278,7 @@ impl State {
     }
     pub(super) fn call_measure_table(&mut self) {
         unsafe {
-            ((*self.callbacks).measure_table)(self.ctx, self);
+            ((*self.callbacks).table_file)(self.ctx, self, super::table::use_reader);
         }
     }
     pub(super) fn call_start_block(&mut self, style: *const Block, end: u8) {
@@ -345,7 +345,12 @@ impl State {
         self.assembly.direction(defined != 0, rtl != 0);
     }
     pub(super) fn call_anchor_is_toc(&mut self, id: Span) -> u8 {
-        unsafe { ((*self.callbacks).anchor_is_toc)(self.ctx, id) }
+        let id = if id.len == 0 {
+            &[]
+        } else {
+            unsafe { core::slice::from_raw_parts(id.data, id.len as usize) }
+        };
+        self.sink().anchor_is_toc(id).into()
     }
     pub(super) fn call_anchor_count(&mut self) -> u32 {
         unsafe { ((*self.callbacks).anchor_count)(self.ctx) }

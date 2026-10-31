@@ -764,8 +764,8 @@ uint32_t xp_sec_encode_text_word(size_t previous, const uint8_t* word, size_t le
                                  size_t* required);
 
 /* Chapter semantics: synchronous borrowed spans, one fallible owning handle.
- * CSS and sink/metrics/context outlive the handle. Only measure_table may use
- * its supplied state reborrow for table feedback; no other callback may access
+ * CSS and sink/metrics/context outlive the handle. Only table_file may pass
+ * its state reborrow to the supplied reader visitor; no other callback may access
  * chapter state, feed, finish or destroy the handle. No state/span pointer may
  * be retained after its synchronous operation. */
 typedef struct XpChapter XpChapter;
@@ -819,10 +819,6 @@ typedef struct {
   uint8_t number[32], href[256];
 } XpChapterFootnote;
 typedef struct {
-  uint16_t min[4], preferred[4];
-  uint8_t columns;
-} XpChapterMeasure;
-typedef struct {
   uint32_t kind, words[10];
   XpChapterSpan first, second;
   const XpChapterBlock* block;
@@ -865,32 +861,44 @@ enum class XpChapterDiagnostic : uint32_t {
   DroppedLink = 20,
 };
 #endif
+typedef uint32_t (*XpChapterRead)(void* ctx, uint8_t* bytes, uint32_t capacity);
+typedef struct {
+  void* ctx;
+  uint8_t (*open)(void*);
+  uint8_t (*seek)(void*, uint64_t);
+  XpChapterRead read;
+} XpChapterReader;
+typedef void (*XpChapterUseReader)(XpChapterState*, const XpChapterReader*);
+enum { XP_CHAPTER_HAS_BYTE_SINK, XP_CHAPTER_BYTE_SINK, XP_CHAPTER_PAGE_SINK };
 /* Borrowed sink/metrics/context outlive the chapter. All spans are borrowed
- * synchronously. Only measure_table may use its supplied state pointer. */
+ * synchronously. table_file calls use once before its local reader expires;
+ * native code never accesses state. toc_anchor returns null past the vector,
+ * otherwise a span valid until vector mutation. No callback mutates that vector. */
 typedef struct {
   const XpParaAllocator* (*allocator)(void);
   const XpParaMetrics* metrics;
   int32_t (*language)(void);
   void (*reclaim_paragraph_memory)(void);
   XpChapterSpan (*entity_lookup)(void* context, XpChapterSpan name);
-  uint8_t* (*entity_buffer)(void* context, uint32_t length);
+  /* Zero length borrows capacity; nonzero replaces storage on allocation success. */
+  XpChapterSpan (*entity_buffer)(void* context, uint32_t length);
   int32_t (*font_variant)(void* context, int32_t font, float scale);
   int32_t (*line_height)(void* context, int32_t font, float compression);
   uint8_t (*codepoint)(void* context, int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top);
   int32_t (*font_ready)(void* context, int32_t font, int32_t fallback);
-  /* One complete encoded page. 0 = success, 1 = stop, other = failure.
-   * The callback may set its stop latch, but cannot reenter/destroy the parser. */
-  uint8_t (*complete)(void* context, XpChapterSpan page, XpChapterPosition position);
+  /* HAS_BYTE_SINK returns presence. BYTE_SINK/PAGE_SINK return 0 = success, 1 = stop, other = failure.
+   * The callback borrows the page and may set its stop latch; it cannot reenter/destroy the parser. */
+  uint8_t (*complete)(void* context, uint32_t operation, XpChapterSpan page, XpChapterPosition position);
   /* Ready paths are borrowed by image_paths after the intervening text flush. */
   uint8_t (*probe_image)(void* context, XpChapterSpan source, int32_t* counter, bool* popup_shown, uint16_t* width,
                          uint16_t* height);
   void (*image_paths)(void* context, XpChapterSpan* cache, XpChapterSpan* source);
   XpChapterSpan (*pending_anchor)(void* context);
   void (*defer_anchor)(void* context, XpChapterSpan id);
-  uint8_t (*anchor_is_toc)(void* context, XpChapterSpan id);
+  XpChapterSpan (*toc_anchor)(void* context, uint32_t index);
   uint32_t (*anchor_count)(void* context);
   void (*record_anchor)(void* context, uint16_t page);
-  void (*measure_table)(void* context, XpChapterState* state);
+  void (*table_file)(void* context, XpChapterState* state, XpChapterUseReader use);
   void (*trace)(void* context, const XpChapterTrace* observation);
   void (*trace_bytes)(void* context, XpChapterSpan bytes);
   void (*diagnostic)(void* context, uint32_t event, uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t* text,
@@ -935,9 +943,6 @@ typedef enum {
   XP_CHAPTER_NOTIFY_BEGIN_BLOCKS = 10,
   XP_CHAPTER_NOTIFY_BEGIN_LISTS = 11,
 } XpChapterNotify;
-/* Packed feed result: bits 0..7 = More/Done/Error, 8..31 = Expat error,
- * 32..63 = one-based line. Error/line are zero without an XML error. */
-uint64_t xp_chapter_feed_diagnostic(XpChapter*, const uint8_t*, uint32_t, uint8_t);
 int32_t xp_chapter_create(XpChapter** out, const XpChapterSink* sink, void* ctx, const XpCss* css,
                           const XpChapterOptions* options);
 void xp_chapter_destroy(XpChapter* handle);
@@ -950,10 +955,6 @@ uint32_t xp_chapter_query(const XpChapterState* state, uint32_t query);
 uint32_t xp_chapter_notify(XpChapterState* state, uint32_t notification);
 void xp_chapter_block(const XpChapterState* state, XpChapterBlock* out);
 void xp_chapter_drop_cap(const XpChapterState* state, XpChapterDropCap* out);
-uint64_t xp_chapter_byte(const XpChapterState* state);
-typedef uint32_t (*XpChapterRead)(void* ctx, uint8_t* bytes, uint32_t capacity);
-uint8_t xp_chapter_measure_table(XpChapterState* state, void* ctx, XpChapterRead read, XpChapterMeasure* out);
-void xp_chapter_plan_columns(XpChapterState* state, const XpChapterMeasure* measure);
 uint32_t xp_chapter_handle_size(void);
 
 // Image pipeline: caller-owned opaque storage; init/prepare/rows/finish/destroy

@@ -13,9 +13,8 @@ class ChapterHtmlSlimParser final : private ChapterPageAssembler {
   size_t parseBufferCapacity_ = 0;
   HalFile parseFile_;
   uint32_t parseStartTime_ = 0;
-  bool measureTableColumns(HalFile& file, TableColumnMeasure& out) const;
-  void measureTableAtCurrentPosition() override;
-  uint8_t* entityBuffer(uint32_t length) override;
+  void withTableFile(XpChapterState*, XpChapterUseReader) override;
+  XpChapterSpan entityBuffer(uint32_t length) override;
 
  public:
   explicit ChapterHtmlSlimParser(
@@ -67,3 +66,7 @@ class ChapterHtmlSlimParser final : private ChapterPageAssembler {
   size_t parseBytesConsumed() { return parseFile_ ? parseFile_.position() : 0; }
   size_t parseTotalBytes() { return parseFile_ ? parseFile_.size() : 0; }
 };
+
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32S3)
+static_assert(sizeof(ChapterHtmlSlimParser) == 300, "Preserve parser allocation request size");
+#endif

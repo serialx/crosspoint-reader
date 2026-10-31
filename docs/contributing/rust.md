@@ -193,7 +193,7 @@ for the same workloads, checking message text, values and occurrence counts.
 
 Event tables and payload contracts live beside each relevant ABI block in
 `rust/crates/xp-ffi/include/xp_ffi.h`; C++ mapping functions define the log lines.
-Examples are `lib/Epub/Epub/parsers/ChapterPageServices.cpp`,
+Examples are `lib/Epub/Epub/parsers/ChapterPlatform.cpp`,
 `lib/Epub/Epub/parsers/PackageDiagnostics.h`, `lib/Epub/Epub/css/CssPlatform.cpp`,
 `lib/Epub/Epub/Page.cpp`, `lib/Epub/Epub/converters/ImageDiagnostics.h`,
 `lib/PngDiagnostics/PngDiagnostics.h`, `lib/GifSupport/GifCommon.h` and
@@ -490,10 +490,25 @@ access, string/deque storage and the size-window lock. C++ retains Epub orchestr
 See the [package oracle](../../test/package_golden/README.md) for parity checks
 and their limits.
 
-The chapter driver consumes `xp_xml_*` events directly in
-1,024-byte steps, passes original byte positions to table prescan, and honors
-cancellation after the active handler returns. It restores `&name;` for the
-existing HTML entity lookup in text only, reusing a checked read buffer.
+The chapter driver in `xp-ffi/src/book_parser.rs` borrows the existing chapter
+handle and read buffer through `xp_book_parse`. It calls the Rust XML parser in
+1,024-byte steps, owns finalization and stop checks, and returns the existing
+packed diagnostic result. `xp-core/src/chapter/table.rs` opens, seeks and measures
+through a synchronous borrowed native reader; only Rust accesses the active
+semantic state. Anchor membership and commit decisions, entity-buffer growth,
+image-cache suffix/counter selection and byte-versus-Page output selection also
+live in Rust. It restores `&name;` for the existing HTML entity lookup in text
+only, reusing the checked read buffer.
+
+`ChapterPlatform.cpp` implements the parser facade and native leaves: HalFile,
+renderer and framebuffer loans, buffer allocation, native string/vector/deque
+storage, Page decoding and diagnostic formatting. The private resource base and
+reserved semantic-pointer slot preserve the 300-byte parser allocation on C3
+and S3; they do not own a second allocation. Section's build/parser lifetime is
+unchanged. Direct table measurement helpers are declared only in
+`test/chapter_html_slim_parser/ChapterTestAbi.h` and linked with `chapter-test`;
+shipping code uses the internal table driver. The separate `xp_book_jpeg` path
+retains its existing boundary.
 KOReader XPath resolution uses `xp_sync_xpath_*`. Its Rust state consumes XML
 events directly in a local pull loop so it can stop dispatch
 immediately at a match and retain comment, PI and CDATA text-node boundaries.
@@ -660,7 +675,7 @@ platform callbacks. [`GfxRenderer::textProvider`](../../lib/GfxRenderer/GfxRende
 supplies resolved style descriptors and dynamic handlers; SD glyphs that are
 not resident and TTF glyph/coverage/kerning work still use those handlers.
 The [paragraph binding](../../lib/Epub/Epub/Paragraph.cpp) and
-[chapter sink](../../lib/Epub/Epub/parsers/ChapterPageServices.cpp) leave the
+[chapter sink](../../lib/Epub/Epub/parsers/ChapterPlatform.cpp) leave the
 production per-word metric callbacks null. Host synthetic renderers and
 differential tests retain the callback backend.
 

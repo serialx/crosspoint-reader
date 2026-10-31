@@ -686,10 +686,10 @@ typedef struct XpBookPageText {
 } XpBookPageText;
 uint8_t xp_book_section_text(const XpBookPageText* page);
 
+typedef struct XpChapter XpChapter;
 typedef enum XpBookParseOperation {
   XP_BOOK_PARSE_ENSURE = 0,
-  XP_BOOK_PARSE_BEGIN_ASSEMBLY = 1,
-  XP_BOOK_PARSE_OOM = 2,
+  XP_BOOK_PARSE_RESET_STOP = 1,
   XP_BOOK_PARSE_ALLOCATE_BUFFER = 3,
   XP_BOOK_PARSE_SET_CAPACITY = 4,
   XP_BOOK_PARSE_OPEN = 5,
@@ -700,14 +700,9 @@ typedef enum XpBookParseOperation {
   XP_BOOK_PARSE_STOPPED = 10,
   XP_BOOK_PARSE_READ = 11,
   XP_BOOK_PARSE_AVAILABLE = 12,
-  XP_BOOK_PARSE_FEED = 13,
-  XP_BOOK_PARSE_FEED_ERROR = 14,
-  XP_BOOK_PARSE_DESTROY = 15,
   XP_BOOK_PARSE_RELEASE_BUFFER = 16,
   XP_BOOK_PARSE_IS_OPEN = 17,
   XP_BOOK_PARSE_CLOSE = 18,
-  XP_BOOK_PARSE_HAS_CHAPTER = 19,
-  XP_BOOK_PARSE_FINISH_ASSEMBLY = 20,
 } XpBookParseOperation;
 typedef enum XpBookParseEvent {
   XP_BOOK_PARSE_EVENT_PARSER_OOM = 0,
@@ -720,7 +715,11 @@ typedef enum XpBookParseEvent {
   XP_BOOK_PARSE_EVENT_LAYOUT_BEFORE_FINISH = 7,
   XP_BOOK_PARSE_EVENT_LAYOUT_AFTER_FINISH = 8,
 } XpBookParseEvent;
-uint32_t xp_book_parse(const XpBookServices* services, uint32_t action);
+/* Handle/buffer/result are borrowed only for this call. The buffer view expires on
+ * buffer mutation; feed copies it before callbacks. result packs status/error/line
+ * in bits 0..7/8..31/32..63 and is set before the diagnostic callback. */
+uint32_t xp_book_parse(const XpBookServices* services, XpChapter** chapter, const uint8_t* (*buffer)(void*),
+                       uint64_t* result, uint32_t action);
 
 typedef struct XpBookMutableSpan {
   uint8_t* data;
@@ -762,7 +761,9 @@ typedef enum XpBookProbeEvent {
   XP_BOOK_PROBE_EVENT_DIMENSIONS = 2,
   XP_BOOK_PROBE_EVENT_DIMENSIONS_FAILED = 3,
 } XpBookProbeEvent;
-uint8_t xp_book_probe_image(const XpBookServices* services);
+/* resolved is updated by RESOLVE and stays valid until ACCEPT; counter is exclusive.
+ * PREPARE_CACHE receives the suffix offset, including length for an empty suffix. */
+uint8_t xp_book_probe_image(const XpBookServices* services, const XpBookTextSpan* resolved, int32_t* counter);
 
 typedef enum XpBookJpegOperation {
   XP_BOOK_JPEG_HEAP = 0,

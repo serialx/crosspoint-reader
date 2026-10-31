@@ -29,6 +29,7 @@
 #include "../../src/fontIds.h"
 
 extern "C" void xp_test_fail_allocation_after(size_t);
+#include "ChapterTestAbi.h"
 extern "C" size_t xp_test_live_allocations();
 extern "C" size_t xp_test_allocation_attempts();
 
@@ -1617,9 +1618,14 @@ TEST_F(ChapterTableBorderTest, ScansColumnWidthsFromMarkup) {
   }
   HalFile input;
   ASSERT_TRUE(input.open(path.c_str(), "rb"));
-  ChapterHtmlSlimParser::TableColumnMeasure measure;
+  XpChapterMeasure measure;
   ChapterTestAccess::state(parser);
-  ASSERT_TRUE(parser.measureTableColumns(input, measure));
+  ASSERT_TRUE(xp_chapter_measure_table(
+      parser.semanticState(), &input,
+      [](void* ctx, uint8_t* bytes, uint32_t size) -> uint32_t {
+        return static_cast<HalFile*>(ctx)->read(bytes, size);
+      },
+      &measure));
   EXPECT_EQ(renderer.coldMeasurements, 0u);
   EXPECT_EQ(measure.columns, 2);
   EXPECT_EQ(measure.min[0], 16);  // "ID"
@@ -2535,7 +2541,8 @@ struct CompletionAudit {
 XpChapterSink auditedSink(const XpChapterSink& original) {
   completionAudit.original = original;
   auto sink = original;
-  sink.complete = [](void* ctx, XpChapterSpan page, XpChapterPosition position) -> uint8_t {
+  sink.complete = [](void* ctx, uint32_t operation, XpChapterSpan page, XpChapterPosition position) -> uint8_t {
+    if (operation == XP_CHAPTER_HAS_BYTE_SINK) return completionAudit.original.complete(ctx, operation, page, position);
     XpPageInfo info{};
     EXPECT_EQ(xp_page_arena_size(page.data, page.len, &info), 0u);
     EXPECT_EQ(info.consumed, page.len);
@@ -2543,7 +2550,7 @@ XpChapterSink auditedSink(const XpChapterSink& original) {
     completionAudit.links = info.links;
     completionAudit.notes = info.footnotes;
     completionAudit.beforeComplete = xp_test_live_bytes();
-    return completionAudit.original.complete(ctx, page, position);
+    return completionAudit.original.complete(ctx, operation, page, position);
   };
   return sink;
 }
@@ -2631,7 +2638,8 @@ TEST_F(ChapterHtmlSlimParserTest, CompletionObjectFailuresConsumeEveryPayloadExa
 
 TEST_F(ChapterHtmlSlimParserTest, ByteSinkFailureRejectsChapter) {
   auto sink = parser.sink_;
-  sink.complete = [](void*, XpChapterSpan bytes, XpChapterPosition) -> uint8_t {
+  sink.complete = [](void*, uint32_t operation, XpChapterSpan bytes, XpChapterPosition) -> uint8_t {
+    if (operation == XP_CHAPTER_HAS_BYTE_SINK) return 1;
     EXPECT_GT(bytes.len, 6u);
     return 2;
   };
@@ -2736,4 +2744,154 @@ TEST_F(ChapterHtmlSlimParserTest, EncodedLineLinksSurviveCarryAndReleaseAtAbort)
   EXPECT_EQ(links, 3u);
   parser.abortParse();
   EXPECT_EQ(xp_test_live_allocations(), 0u);
+}
+
+namespace {
+size_t chapterReadLimit = 1024;
+size_t limitedChapterRead(const char*, size_t, size_t requested) { return std::min(requested, chapterReadLimit); }
+struct ChapterReadGuard {
+  ChapterReadGuard() { HalFileTest::readLimit = limitedChapterRead; }
+  ~ChapterReadGuard() { HalFileTest::readLimit = nullptr; }
+};
+}  // namespace
+
+TEST_F(ChapterHtmlSlimParserTest, EveryReadChunkSizePreservesPageBytes) {
+  const std::string html = "<!DOCTYPE html SYSTEM 'unused'><html><body><p id='first'>before &copy; 한글 " +
+                           std::string(1100, 'x') +
+                           "</p><table><tr><td>outer<table><tr><td>inner</td></tr></table></td>"
+                           "<td>right</td></tr></table><p id='last'>after</p></body></html>junk";
+  filepath = (std::filesystem::temp_directory_path() / "chapter-all-chunks.xhtml").string();
+  {
+    HalFile file;
+    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
+    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
+  }
+  std::vector<std::vector<uint8_t>> pages;
+  parser.setPageBytesCallback(
+      [&](XpChapterSpan bytes, auto, auto, auto) { pages.emplace_back(bytes.data, bytes.data + bytes.len); });
+  ASSERT_TRUE(parser.parseAndBuildPages());
+  const auto expected = pages;
+  ASSERT_FALSE(expected.empty());
+  ChapterReadGuard guard;
+  for (chapterReadLimit = 1; chapterReadLimit <= 1024; ++chapterReadLimit) {
+    SCOPED_TRACE(chapterReadLimit);
+    pages.clear();
+    ASSERT_TRUE(parser.parseAndBuildPages());
+    EXPECT_EQ(pages, expected);
+  }
+  std::filesystem::remove(filepath);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, ZeroReadAndStopBetweenStepsLeaveCleanupToAbort) {
+  const std::string html = "<html><body><p>" + std::string(3000, 'x') + "</p></body></html>";
+  filepath = (std::filesystem::temp_directory_path() / "chapter-zero-stop.xhtml").string();
+  {
+    HalFile file;
+    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
+    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
+  }
+  parser.completePageFn = [](auto, auto, auto, auto) {};
+  ASSERT_TRUE(parser.beginParse());
+  {
+    ChapterReadGuard guard;
+    chapterReadLimit = 0;
+    EXPECT_EQ(parser.parseStep(), ChapterHtmlSlimParser::ParseStatus::Error);
+    EXPECT_TRUE(parser.parseFile_.isOpen());
+  }
+  parser.abortParse();
+  EXPECT_FALSE(parser.parseFile_.isOpen());
+  EXPECT_EQ(parser.parseBuffer_, nullptr);
+  EXPECT_EQ(parser.chapter_, nullptr);
+  ASSERT_TRUE(parser.beginParse());
+  EXPECT_EQ(parser.parseStep(), ChapterHtmlSlimParser::ParseStatus::More);
+  const auto consumed = parser.parseBytesConsumed();
+  parser.requestStop();
+  EXPECT_EQ(parser.parseStep(), ChapterHtmlSlimParser::ParseStatus::Error);
+  EXPECT_EQ(parser.parseBytesConsumed(), consumed);
+  EXPECT_FALSE(parser.finishParse());
+  parser.abortParse();
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
+  std::filesystem::remove(filepath);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, AnchorStorageKeepsDuplicatesAndIgnoresEmptyIds) {
+  parser.tocAnchors = {"toc", "other"};
+  EXPECT_EQ(parseToParagraphText("<p id=''>empty</p><p id='dup'>first</p><p id='dup'>second</p><p id='toc'>third</p>"),
+            "empty\nfirst\nsecond\nthird");
+  const auto& anchors = parser.getAnchors();
+  ASSERT_EQ(anchors.size(), 3u);
+  EXPECT_EQ(anchors[0].first, "dup");
+  EXPECT_EQ(anchors[1].first, "dup");
+  EXPECT_EQ(anchors[2].first, "toc");
+}
+
+TEST_F(ChapterHtmlSlimParserTest, TableSeekFailureLeavesTheMainReaderUsable) {
+  HalFileTest::allowSeek = [](const char* path, size_t) { return !std::string_view(path).ends_with(".xhtml"); };
+  EXPECT_EQ(parseToParagraphText("<table><tr><td>left</td><td>right</td></tr></table><p>after</p>"),
+            "left\nright\nafter");
+  HalFileTest::allowSeek = nullptr;
+  EXPECT_EQ(parseToParagraphText("<p>next parse</p>"), "next parse");
+}
+
+TEST_F(ChapterHtmlSlimParserTest, ProbeRetryAndExtractionReleaseLoanBeforePopup) {
+  parser.epub = std::make_shared<Epub>();
+  Epub::enableGifProbeForTest = true;
+  parser.epub->imageBytes = {'G', 'I', 'F', '8', '9', 'a', 8, 0, 4, 0};
+  parser.epub->onRead = [&](bool) { EXPECT_EQ(renderer.loanDepth, parser.epub->headerProbes == 1 ? 0u : 1u); };
+  parser.epub->failedProbes = 1;
+  const std::string image = "probe.gif";
+  int32_t counter = 0;
+  bool popup = false;
+  uint16_t width = 0, height = 0;
+  EXPECT_EQ(parser.probeImage({reinterpret_cast<const uint8_t*>(image.data()), static_cast<uint32_t>(image.size())},
+                              counter, popup, width, height),
+            2);
+  EXPECT_EQ(counter, 1);
+  EXPECT_EQ(renderer.loanDepth, 0u);
+  EXPECT_EQ(width, 8u);
+  EXPECT_EQ(height, 4u);
+  parser.epub->headerProbes = 0;
+  parser.epub->failedProbes = 2;
+  parser.imageBasePath = (std::filesystem::temp_directory_path() / "chapter-probe-").string();
+  unsigned popups = 0;
+  parser.popupFn = [&] {
+    EXPECT_EQ(renderer.loanDepth, 0u);
+    ++popups;
+  };
+  EXPECT_EQ(parser.probeImage({reinterpret_cast<const uint8_t*>(image.data()), static_cast<uint32_t>(image.size())},
+                              counter, popup, width, height),
+            1);
+  EXPECT_EQ(popups, 1u);
+  EXPECT_TRUE(popup);
+  EXPECT_EQ(renderer.loanDepth, 0u);
+  EXPECT_EQ(parser.epub->fullExtractions, 1u);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, EntityGrowthFailureFailsWithoutReplacingTheReadBuffer) {
+  const std::string html =
+      "<!DOCTYPE html SYSTEM 'unused'><html><body><p>&" + std::string(2000, 'x') + ";</p></body></html>";
+  filepath = (std::filesystem::temp_directory_path() / "chapter-entity-growth.xhtml").string();
+  {
+    HalFile file;
+    ASSERT_TRUE(file.open(filepath.c_str(), "wb"));
+    ASSERT_EQ(file.write(html.data(), html.size()), html.size());
+  }
+  auto sink = parser.sink_;
+  sink.entity_buffer = [](void* ctx, uint32_t length) -> XpChapterSpan {
+    auto& owner = *static_cast<ChapterHtmlSlimParser*>(ctx);
+    if (length > 1024) return {nullptr, 0};
+    return owner.entityBuffer(length);
+  };
+  const auto options = parser.chapterOptions();
+  ASSERT_EQ(xp_chapter_create(&parser.chapter_, &sink, &parser, cssParser.rustHandle(), &options), 0);
+  ASSERT_TRUE(parser.beginParse());
+  auto* original = parser.parseBuffer_.get();
+  auto status = parser.parseStep();
+  while (status == ChapterHtmlSlimParser::ParseStatus::More) status = parser.parseStep();
+  EXPECT_EQ(status, ChapterHtmlSlimParser::ParseStatus::Error);
+  EXPECT_EQ(parser.parseBuffer_.get(), original);
+  EXPECT_EQ(parser.parseBufferCapacity_, 1024u);
+  parser.abortParse();
+  EXPECT_EQ(xp_test_live_allocations(), 0u);
+  std::filesystem::remove(filepath);
 }

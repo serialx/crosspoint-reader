@@ -2,6 +2,24 @@ use super::{services::Span, whitespace, Measure, State};
 use core::ffi::c_void;
 
 pub type Read = unsafe extern "C" fn(*mut c_void, *mut u8, u32) -> u32;
+#[repr(C)]
+pub struct Reader {
+    pub ctx: *mut c_void,
+    pub open: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub seek: unsafe extern "C" fn(*mut c_void, u64) -> u8,
+    pub read: Read,
+}
+pub type UseReader = unsafe extern "C" fn(*mut State, *const Reader);
+// The native visitor lends only its file; this reborrow is the sole state access.
+pub(super) unsafe extern "C" fn use_reader(state: *mut State, reader: *const Reader) {
+    let reader = &*reader;
+    let state = &mut *state;
+    if (reader.open)(reader.ctx) != 0 && (reader.seek)(reader.ctx, state.byte) != 0 {
+        if let Some(measure) = state.measure_table(reader.ctx, reader.read) {
+            state.plan_columns(measure);
+        }
+    }
+}
 struct Scan {
     word: [u8; 40],
     word_len: usize,

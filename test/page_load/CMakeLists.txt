@@ -9,9 +9,7 @@ add_executable(PageLoad
   ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPlatform.cpp
   ${REPO_ROOT}/lib/Epub/Epub/css/CssPlatform.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp

@@ -80,7 +80,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/RecoveryOracle.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/recovery_oracle.py
     ${REPO_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/RecoveryOracle.cpp
   DEPENDS recovery_oracle.py ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
-    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp VERBATIM)
+    ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPlatform.cpp VERBATIM)
 add_executable(BookRecoveryOracle ${CMAKE_CURRENT_BINARY_DIR}/RecoveryOracle.cpp)
 target_include_directories(BookRecoveryOracle PRIVATE ${REPO_ROOT}/lib/Memory)
 target_link_libraries(BookRecoveryOracle PRIVATE xp_ffi_host)

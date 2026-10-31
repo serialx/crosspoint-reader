@@ -8,13 +8,35 @@ pub struct Services {
     millis: Option<unsafe extern "C" fn(*mut c_void) -> u32>,
     diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32)>,
 }
+struct ParseServices {
+    io: Services,
+    chapter: *mut *mut crate::chapter::Chapter,
+    buffer: unsafe extern "C" fn(*mut c_void) -> *const u8,
+    result: *mut u64,
+}
+impl ParseServices {
+    fn handle(&self) -> *mut crate::chapter::Chapter {
+        unsafe { *self.chapter }
+    }
+    fn oom(&self) -> bool {
+        unsafe {
+            crate::chapter::xp_chapter_query(crate::chapter::xp_chapter_state(self.handle()), 1)
+                != 0
+        }
+    }
+    fn destroy(&self) {
+        unsafe {
+            crate::chapter::xp_chapter_destroy(self.handle());
+            *self.chapter = core::ptr::null_mut();
+        }
+    }
+}
 #[repr(u32)]
 #[derive(Clone, Copy)]
 enum Op {
     Ensure,
-    BeginAssembly,
-    Oom,
-    AllocateBuffer,
+    ResetStop = 1,
+    AllocateBuffer = 3,
     SetCapacity,
     Open,
     HasPopup,
@@ -24,14 +46,9 @@ enum Op {
     Stopped,
     Read,
     Available,
-    Feed,
-    FeedError,
-    Destroy,
-    ReleaseBuffer,
+    ReleaseBuffer = 16,
     IsOpen,
     Close,
-    HasChapter,
-    FinishAssembly,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
@@ -46,24 +63,25 @@ enum Event {
     LayoutBeforeFinish,
     LayoutAfterFinish,
 }
-impl Services {
+impl ParseServices {
     fn call(&self, op: Op, arg: u32) -> u32 {
-        self.operation
-            .map_or(0, |call| unsafe { call(self.ctx, op as u32, arg) })
+        self.io
+            .operation
+            .map_or(0, |call| unsafe { call(self.io.ctx, op as u32, arg) })
     }
     fn get(&self, op: Op) -> u32 {
         self.call(op, 0)
     }
     fn log(&self, event: Event) {
-        if let Some(log) = self.diagnostic {
-            unsafe { log(self.ctx, event as u32, 0) };
+        if let Some(log) = self.io.diagnostic {
+            unsafe { log(self.io.ctx, event as u32, 0) };
         }
     }
 }
-fn abort(s: &Services) {
+fn abort(s: &ParseServices) {
     use Op::*;
-    if s.get(HasChapter) != 0 {
-        s.get(Destroy);
+    if !s.handle().is_null() {
+        s.destroy();
     }
     s.get(ReleaseBuffer);
     s.call(SetCapacity, 0);
@@ -71,14 +89,15 @@ fn abort(s: &Services) {
         s.get(Close);
     }
 }
-fn begin(s: &Services) -> bool {
+fn begin(s: &ParseServices) -> bool {
     use Op::*;
     if s.get(Ensure) == 0 {
         s.log(Event::ParserOom);
         return false;
     }
-    s.get(BeginAssembly);
-    if s.get(Oom) != 0 {
+    s.get(ResetStop);
+    unsafe { crate::chapter::xp_chapter_begin(s.handle()) };
+    if s.oom() {
         abort(s);
         return false;
     }
@@ -98,24 +117,29 @@ fn begin(s: &Services) -> bool {
     s.get(StartClock);
     true
 }
-fn step(s: &Services) -> u32 {
+fn step(s: &ParseServices) -> u32 {
     use Op::*;
     if s.get(Stopped) != 0 {
         return 2;
     }
-    if s.get(Oom) != 0 {
+    if s.oom() {
         s.log(Event::LayoutOom);
         return 2;
     }
-    if s.call(Read, 1024) == 0 && s.get(Available) > 0 {
+    let count = s.call(Read, 1024);
+    if count == 0 && s.get(Available) > 0 {
         s.log(Event::ReadError);
         return 2;
     }
     let done = s.get(Available) == 0;
-    let status = s.call(Feed, done as u32);
-    if s.get(FeedError) != 0 {
+    let result = unsafe {
+        crate::chapter::feed_diagnostic(s.handle(), (s.buffer)(s.io.ctx), count, done as u8)
+    };
+    unsafe { *s.result = result };
+    let status = result as u8 as u32;
+    if (result as u32 >> 8) != 0 {
         s.log(Event::ParseError);
-    } else if status == 2 && s.get(Oom) != 0 {
+    } else if status == 2 && s.oom() {
         s.log(Event::LayoutAfterFeed);
     }
     match status {
@@ -123,35 +147,53 @@ fn step(s: &Services) -> u32 {
         _ => 2,
     }
 }
-fn finish(s: &Services) -> bool {
+fn finish(s: &ParseServices) -> bool {
     use Op::*;
     if s.get(Stopped) != 0 {
         return false;
     }
-    if s.get(Oom) != 0 {
+    if s.oom() {
         s.log(Event::LayoutBeforeFinish);
         return false;
     }
-    if s.get(HasChapter) != 0 {
+    if !s.handle().is_null() {
         s.log(Event::Time);
     }
     s.get(ReleaseBuffer);
     s.call(SetCapacity, 0);
     s.get(Close);
-    let success = s.get(FinishAssembly) != 0;
-    if s.get(Stopped) == 0 && s.get(Oom) != 0 {
+    let success = unsafe { crate::chapter::xp_chapter_finish(s.handle()) != 0 };
+    if s.get(Stopped) == 0 && s.oom() {
         s.log(Event::LayoutAfterFinish);
     }
-    s.get(Destroy);
+    s.destroy();
     success
 }
 /// # Safety
 /// Services own their context and all parser state for the synchronous call.
 /// Feed may invoke separate callbacks; none may reenter this lifecycle.
 #[no_mangle]
-pub unsafe extern "C" fn xp_book_parse(services: *const Services, action: u32) -> u32 {
+pub unsafe extern "C" fn xp_book_parse(
+    services: *const Services,
+    chapter: *mut *mut crate::chapter::Chapter,
+    buffer: Option<unsafe extern "C" fn(*mut c_void) -> *const u8>,
+    result: *mut u64,
+    action: u32,
+) -> u32 {
     let Some(s) = services.as_ref().copied().filter(|s| s.operation.is_some()) else {
         return 0;
+    };
+    let Some(buffer) = buffer else {
+        return 0;
+    };
+    if chapter.is_null() || result.is_null() {
+        return 0;
+    }
+    let s = ParseServices {
+        io: s,
+        chapter,
+        buffer,
+        result,
     };
     match action {
         0 => begin(&s) as u32,
@@ -226,7 +268,11 @@ impl Services {
 /// # Safety
 /// Services exclusively own the temporary probes/file/renderer loans until return.
 #[no_mangle]
-pub unsafe extern "C" fn xp_book_probe_image(services: *const Services) -> u8 {
+pub unsafe extern "C" fn xp_book_probe_image(
+    services: *const Services,
+    resolved: *const crate::book_section::TextSpan,
+    counter: *mut i32,
+) -> u8 {
     use ProbeOp::*;
     let Some(s) = services.as_ref().copied().filter(|s| s.operation.is_some()) else {
         return 0;
@@ -237,7 +283,23 @@ pub unsafe extern "C" fn xp_book_probe_image(services: *const Services) -> u8 {
     if get(Supported) == 0 {
         return 0;
     }
-    get(PrepareCache);
+    let Some(resolved) = resolved.as_ref() else {
+        return 0;
+    };
+    if counter.is_null() {
+        return 0;
+    }
+    let path = if resolved.length == 0 {
+        &[]
+    } else {
+        core::slice::from_raw_parts(resolved.data, resolved.length)
+    };
+    let suffix = path
+        .iter()
+        .rposition(|&byte| byte == b'.')
+        .unwrap_or(path.len());
+    s.probe(PrepareCache, suffix as u32);
+    *counter = (*counter).wrapping_add(1);
     let mut dimensions = get(Probe) != 0;
     if !dimensions {
         dimensions = get(RetryProbe) != 0;

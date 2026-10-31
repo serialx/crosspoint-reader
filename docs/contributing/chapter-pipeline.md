@@ -23,12 +23,13 @@ The remaining C boundary is a synchronous page sink:
 
 | Sink operation | Contract |
 | --- | --- |
-| Process image | Keep path resolution, format checks, header probing, framebuffer loans, extraction, decoder retries and failed-cache removal in C++; return intrinsic dimensions and retain resolved paths in the sink context until the next probe. Rust computes CSS sizing and placement in the original order. |
+| Process image | Rust selects cache suffixes/counters, probe/extraction retries and failed-cache removal. `ChapterPlatform.cpp` supplies native path storage, decoder and file operations, framebuffer loans and intrinsic dimensions. Resolved paths remain in the sink context until the next probe. Rust computes CSS sizing and placement in the original order. |
 | Reclaim paragraph memory | Preserve the cache-reclamation retry on paragraph allocation failure; request 4 KiB of free memory, then retry once. |
 | Font provider and preparation | C++ resolves scale to font ID, prepares fonts and supplies native descriptors and dynamic handlers. Rust reads line metrics and computes advances, spaces, kerning, codepoint metrics and SD-font status. Host callback adapters retain the metric query slots. |
-| Complete page | Borrow one complete encoded page through one callback, with u16 paragraph/list indices and u32 visible offset. Section performs one `HalFile::write` and records the same LUT entry. The callback reports success, stop or failure; it retains no byte pointer. |
+| Complete page | Rust queries whether a byte sink is installed, then selects it or the native Page decoder. The selected sink borrows one complete encoded page, with u16 paragraph/list indices and u32 visible offset. Section performs one `HalFile::write` and records the same LUT entry. The callback reports success, stop or failure; it retains no byte pointer. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
-| Anchors | Keep pending/TOC IDs and completed anchor storage in C++; query pending ID and TOC membership, defer an ID, and record its u16 page at the original Rust-controlled transition. |
+| Anchors | C++ retains pending/TOC IDs and completed anchor storage. Rust compares borrowed TOC entries, selects pending anchors and commits their u16 page at the original transition. Native storage operations preserve string moves and container growth. |
+| Table prescan | C++ lends a local `XpChapterReader` to the supplied Rust visitor. Rust owns open/seek/measure/plan sequencing and exclusively reborrows the active state; the native file closes when the visitor returns. |
 
 Rust consumes each packed `XpParaLine` synchronously and encodes its text, style,
 font slots and ruby through the page builder. Metrics use native font descriptors;
@@ -50,8 +51,9 @@ until defer/record.
 Stored page links own their bytes. The C++ anchor store remains outside the Rust handle because `Section`
 reads it after `finishParse` and consumes `std::string` references. This preserves
 `getAnchors`, avoids a second string copy and keeps IDs at their existing length
-limit; no new 256-byte truncation is introduced. Anchor crossings occur once per
-anchor, while paragraph and assembly calls become direct Rust calls. Widths
+limit; no new 256-byte truncation is introduced. TOC membership reads native vector
+entries through borrowed spans; paragraph and assembly operations remain direct
+Rust calls. Widths
 remain those listed below: u8 flags/kinds, i16 coordinates,
 i32 font metrics/IDs, f32 scales/compression, and u32 counts. A record never
 transfers a Rust allocation to C++. A callback may set the separate C++ stop latch but cannot feed,
@@ -112,10 +114,14 @@ access, fonts and their preparation, image I/O and pending/TOC/completed anchor
 strings. Section consumes encoded bytes directly. Styled dictionary definitions
 and host tests retain the owned-`Page` callback. `Page::fromBytes` validates and
 copies the encoded page into its single allocation. Its views outlive the parser
-and preserve the dictionary page limits. The driver owns the
-fallibly allocated Rust chapter handle, 1,024-byte input buffer, chapter file,
-and incremental parsing lifecycle. The handle contains semantics, assembly and
-the XML pull parser; XML events and CSS resolution stay inside Rust.
+and preserve the dictionary page limits. `xp_book_parse` owns incremental lifecycle
+decisions over the native facade's fallibly allocated Rust handle, 1,024-byte input
+buffer and chapter file. Entity growth reuses that buffer; Rust requests a native
+replacement only when capacity is insufficient. The handle contains semantics,
+assembly and the XML pull parser; XML events and CSS resolution stay inside Rust.
+The private resource base and reserved semantic-pointer slot preserve the existing
+300-byte parser allocation on C3 and S3. Removing them is a separate resource
+change; Section's parser/build lifetime is unchanged.
 
 Production measurement and bidi execute in Rust. The synchronous engine borrows
 font tables through a two-family descriptor cache. Chapter metrics borrow the

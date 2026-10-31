@@ -6,6 +6,7 @@
 #include <string>
 
 namespace HalFileTest {
+inline bool (*allowSeek)(const char*, size_t) = nullptr;
 inline bool failNextWrite = false;
 inline bool failNextClose = false;
 // Optional host fault hooks. Null hooks preserve ordinary filesystem behavior.
@@ -51,7 +52,10 @@ class HalFile {
   }
   size_t write(uint8_t byte) { return write(&byte, 1); }
   bool flush() { return file_ && std::fflush(file_) == 0; }
-  bool seek(size_t pos) { return file_ && std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0; }
+  bool seek(size_t pos) {
+    return (!HalFileTest::allowSeek || HalFileTest::allowSeek(path_.c_str(), pos)) && file_ &&
+           std::fseek(file_, static_cast<long>(pos), SEEK_SET) == 0;
+  }
   bool seekCur(size_t offset) { return file_ && std::fseek(file_, static_cast<long>(offset), SEEK_CUR) == 0; }
   bool close() {
     if (!file_) return false;

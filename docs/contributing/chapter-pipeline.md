@@ -263,11 +263,14 @@ handling separates probing/sizing from placement so pending text is flushed at
 the original point without reborrowing active assembly storage.
 
 `XpChapterSink` and its metrics/context remain alive until chapter destruction.
-`ChapterHtmlSlimParser` drives `xp_chapter_begin`, `xp_chapter_feed` and
-`xp_chapter_finish`. Table pre-scan is the only callback that receives a fresh
-semantic-state pointer: it synchronously reads a stack-local `HalFile` and sets
-the column plan. It cannot retain the state, file or read buffer. Other callbacks
-cannot reenter, feed or destroy the handle. Required transitions are:
+The `ChapterHtmlSlimParser` facade operations only forward to `xp_book_parse`,
+which drives the `xp_chapter_begin` / `xp_chapter_feed` / `xp_chapter_finish`
+lifecycle. Table pre-scan is the only callback that receives the semantic-state
+pointer: `table_file` lends a local `XpChapterReader` whose lifetime ends at
+return, and Rust's `use_reader` in `chapter/table.rs` runs open, seek, measure
+and column planning as the only reader of the active state. Neither the state,
+the reader nor the read buffer may outlive that call. Other callbacks cannot
+reenter, feed or destroy the handle. Required transitions are:
 
 | Operation | State changed before return |
 | --- | --- |

@@ -490,15 +490,16 @@ access, string/deque storage and the size-window lock. C++ retains Epub orchestr
 See the [package oracle](../../test/package_golden/README.md) for parity checks
 and their limits.
 
-The chapter driver in `xp-ffi/src/book_parser.rs` borrows the existing chapter
-handle and read buffer through `xp_book_parse`. It calls the Rust XML parser in
-1,024-byte steps, owns finalization and stop checks, and returns the existing
-packed diagnostic result. `xp-core/src/chapter/table.rs` opens, seeks and measures
-through a synchronous borrowed native reader; only Rust accesses the active
-semantic state. Anchor membership and commit decisions, entity-buffer growth,
-image-cache suffix/counter selection and byte-versus-Page output selection also
-live in Rust. It restores `&name;` for the existing HTML entity lookup in text
-only, reusing the checked read buffer.
+The chapter driver in `rust/crates/xp-ffi/src/book_parser.rs` borrows the existing
+chapter handle and read buffer through `xp_book_parse`. It calls the Rust XML
+parser in 1,024-byte steps, owns finalization and stop checks, and writes the
+packed status/error/line result through `result`.
+`rust/crates/xp-core/src/chapter/table.rs` opens, seeks and measures through a
+synchronous borrowed native reader; only Rust accesses the active semantic state.
+Anchor membership and commit decisions, entity-buffer growth, image-cache
+suffix/counter selection and byte-versus-Page output selection also live in Rust.
+It restores `&name;` for the existing HTML entity lookup in text only, reusing
+the checked read buffer.
 
 `ChapterPlatform.cpp` implements the parser facade and native leaves: HalFile,
 renderer and framebuffer loans, buffer allocation, native string/vector/deque

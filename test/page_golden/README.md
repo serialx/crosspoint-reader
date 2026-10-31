@@ -44,10 +44,11 @@ a temporary directory is removed at exit.
 ## Production boundary
 
 The executable compiles production Section, Page, TextBlock, ImageBlock,
-ChapterHtmlSlimParser, ChapterPageAssembler/Services, Paragraph and CSS code,
-linked to the normal Rust host archive. Measurement and rasterization use real
-GfxRenderer, EpdFont, EpdFontFamily, SdCardFont, FontDecompressor,
-FontCacheManager and TtfEpdFont/SDK FreeType code. No text measurement is stubbed.
+`ChapterPlatform.cpp` (chapter facade, page assembler and native sink), Paragraph
+and CSS code, linked to the normal Rust host archive. Measurement and
+rasterization use real GfxRenderer, EpdFont, EpdFontFamily, SdCardFont,
+FontDecompressor, FontCacheManager and TtfEpdFont/SDK FreeType code. No text
+measurement is stubbed.
 
 The host storage adapter reads/writes ordinary files. OPF/ZIP discovery reuses
 `section_golden.run.prepare`; the Epub stub supplies those extracted spine, TOC,

@@ -194,7 +194,7 @@ for the same workloads, checking message text, values and occurrence counts.
 Event tables and payload contracts live beside each relevant ABI block in
 `rust/crates/xp-ffi/include/xp_ffi.h`; C++ mapping functions define the log lines.
 Examples are `lib/Epub/Epub/parsers/ChapterPageServices.cpp`,
-`lib/Epub/Epub/parsers/PackageDiagnostics.h`, `lib/Epub/Epub/css/CssParser.cpp`,
+`lib/Epub/Epub/parsers/PackageDiagnostics.h`, `lib/Epub/Epub/css/CssPlatform.cpp`,
 `lib/Epub/Epub/Page.cpp`, `lib/Epub/Epub/converters/ImageDiagnostics.h`,
 `lib/PngDiagnostics/PngDiagnostics.h`, `lib/GifSupport/GifCommon.h` and
 `lib/EpdFont/SdCardFont.cpp`.
@@ -267,8 +267,11 @@ wire-byte checks, and allocation-failure coverage. The cache version remains 19.
 
 ## ZIP directory boundary
 
-`ZipFile` keeps HalFile I/O, cached slim stats, sequential lookup position, and
-last-lookup caching. `xp-core::zip` parses the directory without allocation.
+`ZipFile` keeps the native interface and storage for HalFile I/O, cached slim
+stats, the sequential lookup position, and the last lookup. Its adapter is
+`lib/ZipFile/ZipPlatform.cpp`. `xp-core::book_io::zip_index` owns lookup,
+enumeration, cache population, and batch matching; `xp-core::zip` parses ZIP
+records without allocation.
 ZIP entries use `InflateStream`, backed by `xp-core::inflate`. SDK
 ContentProtection reaches it through the `mz_*` compatibility adapter in
 `lib/miniz`; the Rust PNG decoder calls it directly. The vendored
@@ -284,21 +287,28 @@ The facade's size and alignment are guarded because changing its footprint can
 shift heap boundaries. See the [compact inflater checks](../../test/inflate_small/README.md)
 for frozen outputs, malformed-input differences and recovery tests.
 
-The caller initializes a 16-byte `XpZipWalker` with the central-directory and
-starting offsets. `xp_zip_request` returns a 46-byte absolute header read;
-`xp_zip_next` consumes its reply and returns an entry, a wrap request, or end.
-Each entry contains an absolute filename read request and the next record offset.
-The caller can skip names that cannot match, and copies a name only when retained
-in an existing C++ cache. Input pointers are never retained. A scan starting in
-the middle wraps once and stops on reaching its original starting offset.
+`ZipFile::indexServices` supplies synchronous seek, read, cache, and diagnostic
+callbacks through `XpBookZipIndexServices`. `xp_book_zip_index`,
+`xp_book_zip_populate`, and `xp_book_zip_batch` dispatch to Rust. In
+`rust/crates/xp-core/src/book_io/zip_index.rs`, `Services::next` drives `Walker`
+and the 46-byte central-directory reads; `Services::data_offset` drives the
+30-byte local-header read. Rust skips names that cannot match, and the native
+cache copies retained names. Input pointers are never retained. A scan starting
+in the middle wraps once and stops on reaching its original starting offset.
 
-EOCD scanning keeps the last-1-KiB limit and searches backwards for the final
+`xp_zip_begin`, `xp_zip_request`, `xp_zip_next`, `xp_zip_local_request`, and
+`xp_zip_data_offset` in `rust/crates/xp-ffi/src/zip.rs` are host-only test wrappers.
+They are excluded from firmware builds and are not the production I/O boundary.
+
+`xp_book_zip_details` drives EOCD scanning through the adapter's resource
+callbacks. It keeps the last-1-KiB limit and searches backwards for the final
 signature with room for the 22-byte record. The C++ adapter owns one checked
-buffer of at most 1,024 bytes until parsing returns. Directory operations reuse
-the existing 256-byte name buffer; header parsing uses 46 bytes in a helper frame.
-Names of 256 bytes or more are skipped. Names match raw bytes: normalization
-remains with callers. Batch hashes use the shared Rust FNV-1a function, while
-C++ retains deque indexing and duplicate-target counting.
+buffer of at most 1,024 bytes until parsing returns. Directory operations borrow
+`ZipFile::IndexContext`'s 256-byte name buffer. Names of 256 bytes or more are
+skipped. Names match raw bytes: normalization remains with callers. Rust
+`batch_match` computes the shared FNV-1a hash, searches the sorted targets, and
+counts matches, including duplicate targets; C++ supplies deque access and
+size-storage callbacks.
 
 `test/zip_file/directory-golden.txt` was recorded from the C++ scanner at
 `194016e7`, before replacement, using `RECORD_ZIP_GOLDENS=1` with `ZipFileTest`.

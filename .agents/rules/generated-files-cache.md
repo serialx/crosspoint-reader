@@ -71,8 +71,14 @@ also deletes settings, credentials, and application state.
 
 ### Cache File Format Versioning
 
-Read `BOOK_CACHE_VERSION` and `SECTION_FILE_VERSION` from
-`BookMetadataCache.cpp` and `Section.cpp`; layouts/history are in
+Read `BOOK_CACHE_VERSION` from `lib/Epub/Epub/PackagePlatform.cpp`. The section
+format version is `SECTION_FILE_VERSION` / `SECTION_FILE_PARTIAL_VERSION` in
+`lib/Epub/Epub/SectionPlatform.cpp`; both take their value from
+`XP_SEC_VERSION` / `XP_SEC_PARTIAL_VERSION` in
+`rust/crates/xp-ffi/include/xp_ffi.h`, which mirror
+`xp_core::section::VERSION` / `PARTIAL_VERSION` in
+`rust/crates/xp-core/src/section/mod.rs`. Bump the Rust and header values
+together. Layouts/history are in
 [file-formats.md](../../docs/file-formats.md).
 Increment the relevant version before changing serialized structure or layout
 behavior that changes cached line breaks, widths, or word positions, and document

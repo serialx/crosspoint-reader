@@ -382,8 +382,10 @@ available only with the host `section-test` feature. Their declarations and
 fixture helpers live in `test/section_io/SectionTestCodec.h` and `.cpp`.
 Keep the native deque allocation schedule and parser lifetime when changing
 this boundary. The Section I/O oracle checks file operations and diagnostics;
-the supplementary lifecycle, interleaving, short-write and anchor-bound tests
-cover recovery paths beyond the complete-section byte oracle.
+the supplementary lifecycle, interleaving and short-write tests in
+[`test/section_io`](../../test/section_io/README.md) and the anchor-bound cases in
+[`test/section_golden`](../../test/section_golden/README.md) cover recovery paths
+beyond the complete-section byte oracle.
 
 The [section byte oracle](../../test/section_golden/README.md) captures the full
 production Section serialization before migrating word storage or layout.

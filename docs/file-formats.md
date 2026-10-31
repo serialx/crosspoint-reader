@@ -100,10 +100,11 @@ Book metadata and saved progress are kept.
 The 44-byte header uses little-endian fields without padding. The page count
 is at byte 22; the five 32-bit table offsets begin at byte 24. Page bodies
 start at byte 44. The page-offset table gives each page's start; the next entry
-(or the page-table offset for the last page) gives its end. The current C++
-reader seeks to the start and decodes the counted records without enforcing
-that end boundary. `visibleTextOffset` lives in its separate table, not in the
-page body.
+(or the page-table offset for the last page) gives its end.
+`rust/crates/xp-ffi/src/book_section.rs` derives that span, rejects an end that
+is not above the start or lies past the written bytes, seeks to the start and
+passes only the bounded span to the page decoder. `visibleTextOffset` lives in
+its separate table, not in the page body.
 
 A build starts with version 0. Committing patches the page count and table
 offsets, then writes version 68 last. A suspended build uses

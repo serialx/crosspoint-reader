@@ -7,7 +7,7 @@ and every resulting cache byte. Each filesystem operation reached by each
 successful scenario is then failed individually, including rename and remove.
 
 Configure and build through the main `test/` CMake project. Run
-`ctest --test-dir build/test -R 'SectionIoGolden|BookPolicyGolden' --output-on-failure`.
+`ctest --test-dir build/test -R 'SectionIoGolden|BookPolicyGolden|SectionLutBoundaries|SectionBuildLifecycle|SectionReadBuildInterleaving|SectionEveryShortWrite' --output-on-failure`.
 `SECTION_IO_SOURCE` can select a different `SectionPlatform.cpp` for an adapter
 mutation check. Page-count policy now lives in Rust's `book_section.rs`; changing
 its append increment from one to two must fail the oracle.
@@ -27,15 +27,20 @@ real-font page goldens and emulator screenshots remain separate requirements.
 Allocation failures and persistent/repeated filesystem failure require the
 existing page/chapter allocation suites and additional targeted tests.
 
-`SectionBehavior` exercises empty, one-entry and 400-entry LUTs, yielding builds,
-partial rebuilds on either side of the saved page count, and page/anchor reads
-between build steps. It checks that the completed cache matches an uninterrupted
-build. `SectionEveryShortWrite` writes one byte fewer at each reached write point.
-`behavior.py --capture` and `--compare` store and replay those full outcomes in
-external evidence without changing the historical golden. Set
-`SECTION_ALLOCATION_TRACE` to a file path to record native allocation sizes and
-free order, including deque growth; this host trace does not measure ESP heap
+The four behavior tests above run the same host binary. `SectionLutBoundaries`
+loads empty, one-entry and 400-entry LUTs. `SectionBuildLifecycle` covers
+yielding builds, duplicate starts, suspended builds, and partial rebuilds on
+either side of the saved page count. `SectionReadBuildInterleaving` reads pages
+and anchors between build steps and checks that the resulting cache matches an
+uninterrupted build. `SectionEveryShortWrite` writes one byte fewer at each
+reached write point. `behavior.py --capture` and `--compare` store and replay
+those full outcomes in external evidence without changing the historical golden.
+Set `SECTION_ALLOCATION_TRACE` to a file path to record native allocation sizes
+and free order, including deque growth; this host trace does not measure ESP heap
 placement or Rust allocations.
+
+Buffered TOC and direct anchor reads over truncated and version-mutated sections
+are checked by `SectionAnchorBounds` in `test/section_golden`.
 
 `SectionTestCodec.h` and `.cpp` retain the old record helpers solely for host
 fixtures. Their four retired exports require the Rust `section-test` feature,

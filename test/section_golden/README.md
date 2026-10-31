@@ -366,10 +366,18 @@ a short watermark, and zero-page partials. Run with `--partial --verify --output
   compared directly with C++ results. Explicit assertions also check first/last
   duplicate selection and rejection beyond the partial watermark.
 
+`SectionAnchorBounds` drives the buffered TOC reader and the direct anchor reader
+over the same synthetic section. It cuts the file at every byte from the start of
+the anchor table up to the paragraph table, sets the first anchor-name length to
+0, 1, 255, 65535, `0x7fffffff` and `0xffffffff`, and sets seven version bytes (0,
+1, 67, 69, 213, 215, 255) that must each be rejected as an absent cache. A
+complete section must still map page 3 to TOC index 4; an oversized name length
+must leave every `toc` lookup at index 0 and every `direct`/`find` query empty.
+
 Run these focused checks with:
 
 ```sh
-ctest --test-dir build/test -R '^SectionCodecCoverage$|^SectionMutationRules$' --output-on-failure
+ctest --test-dir build/test -R '^SectionCodecCoverage$|^SectionMutationRules$|^SectionAnchorBounds$' --output-on-failure
 ```
 
 ### Expanded M7b C++ baseline

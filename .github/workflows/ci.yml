@@ -197,6 +197,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTUP_TOOLCHAIN: '1.99.0'
+      CC: clang-22
+      CXX: c++
     steps:
       - uses: actions/checkout@v6
         with:
@@ -221,8 +223,20 @@ jobs:
 
       - name: Install build tools
         run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build
+          sudo apt-get install -y cmake ninja-build clang-22 libc++-22-dev libc++abi-22-dev libunwind-22-dev
+
+      - name: Select native C++ toolchain
+        run: |
+          # Frozen allocation traces use libc++; Python oracles also invoke c++.
+          mkdir -p "$RUNNER_TEMP/native-bin"
+          printf '%s\n' '#!/bin/sh' 'exec clang++-22 -stdlib=libc++ "$@"' > "$RUNNER_TEMP/native-bin/c++"
+          chmod +x "$RUNNER_TEMP/native-bin/c++"
+          echo "$RUNNER_TEMP/native-bin" >> "$GITHUB_PATH"
+          clang++-22 --version
 
       - name: Generate web assets
         run: python3 scripts/build_html.py

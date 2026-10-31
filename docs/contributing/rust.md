@@ -267,11 +267,11 @@ wire-byte checks, and allocation-failure coverage. The cache version remains 19.
 
 ## ZIP directory boundary
 
-`ZipFile` keeps the native interface and storage for HalFile I/O, cached slim
-stats, the sequential lookup position, and the last lookup. Its adapter is
-`lib/ZipFile/ZipPlatform.cpp`. `xp-core::book_io::zip_index` owns lookup,
-enumeration, cache population, and batch matching; `xp-core::zip` parses ZIP
-records without allocation.
+`ZipFile` keeps its native interface and the state behind it: the `HalFile`,
+the cached slim stats, the sequential scan position, and the last lookup. Its
+adapter is `lib/ZipFile/ZipPlatform.cpp`. `xp-core::book_io::zip_index` owns
+lookup, enumeration, cache population, and batch matching; `xp-core::zip` parses
+ZIP records without allocation.
 ZIP entries use `InflateStream`, backed by `xp-core::inflate`. SDK
 ContentProtection reaches it through the `mz_*` compatibility adapter in
 `lib/miniz`; the Rust PNG decoder calls it directly. The vendored
@@ -292,18 +292,31 @@ callbacks through `XpBookZipIndexServices`. `xp_book_zip_index`,
 `xp_book_zip_populate`, and `xp_book_zip_batch` dispatch to Rust. In
 `rust/crates/xp-core/src/book_io/zip_index.rs`, `Services::next` drives `Walker`
 and the 46-byte central-directory reads; `Services::data_offset` drives the
-30-byte local-header read. Rust skips names that cannot match, and the native
-cache copies retained names. Input pointers are never retained. A scan starting
-in the middle wraps once and stops on reaching its original starting offset.
+30-byte local-header read; `Services::name` issues the entry-name reads. Rust
+skips names that cannot match, and the native cache copies retained names. Input
+pointers are never retained. A scan starting in the middle wraps once and stops
+on reaching its original starting offset.
+
+Extraction is Rust-owned as well. `xp_book_zip_memory` and
+`xp_book_zip_stream` (`rust/crates/xp-ffi/src/book_io.rs:273,302`) dispatch to
+`xp-core::book_io::zip_read` (`rust/crates/xp-core/src/book_io/zip_read.rs:74-276`),
+which sequences the lookup, the seek to the entry's data offset whose result it
+ignores, the stored copy, the method-8 deflate read, output allocation and
+release, and the streaming early stop. The memory path reads deflate input
+through a 1,024-byte buffer. `ZipFile::readFileToMemory` and
+`ZipFile::readFileToStream` (`lib/ZipFile/ZipPlatform.cpp:387-405`) only build
+the service records and forward those two calls.
 
 `xp_zip_begin`, `xp_zip_request`, `xp_zip_next`, `xp_zip_local_request`, and
 `xp_zip_data_offset` in `rust/crates/xp-ffi/src/zip.rs` are host-only test wrappers.
 They are excluded from firmware builds and are not the production I/O boundary.
 
-`xp_book_zip_details` drives EOCD scanning through the adapter's resource
-callbacks. It keeps the last-1-KiB limit and searches backwards for the final
-signature with room for the 22-byte record. The C++ adapter owns one checked
-buffer of at most 1,024 bytes until parsing returns. Directory operations borrow
+`xp_book_zip_details` drives EOCD scanning through `XpBookZipDetailServices`
+(`rust/crates/xp-ffi/include/xp_book_residual.h:218-229`): `open`, `size`,
+`allocate`, `read`, `save` (which stores the parsed EOCD), and `diagnostic`. It
+keeps the last-1-KiB limit and searches backwards for the final signature with
+room for the 22-byte record. The C++ adapter owns one checked buffer of at most
+1,024 bytes until parsing returns. Directory operations borrow
 `ZipFile::IndexContext`'s 256-byte name buffer. Names of 256 bytes or more are
 skipped. Names match raw bytes: normalization remains with callers. Rust
 `batch_match` computes the shared FNV-1a hash, searches the sorted targets, and
@@ -326,10 +339,17 @@ cmake --build build/test --target ZipFileTest
 build/test/zip_file/ZipFileTest
 ```
 
-The ABI rejects invalid null/alignment/length arguments and offset overflow;
-short local headers and failed seeks/reads fail without parsing uninitialized
-bytes. The compatibility corpus does not define results for the old scanner's
-unchecked short reads. ZIP64 and multi-disk support are not added by this change.
+The host-only wrappers in `rust/crates/xp-ffi/src/zip.rs` (`xp_zip_eocd_request`,
+`xp_zip_eocd`, `xp_zip_begin`, `xp_zip_request`, `xp_zip_next`,
+`xp_zip_local_request`, `xp_zip_data_offset`) reject invalid null/alignment/length
+arguments and offset overflow. The shipping callback ABI leaves pointer validity
+to the caller: `xp_book_zip_index` (`rust/crates/xp-ffi/src/book_residual.rs:98-112`)
+null-checks only the services record, then writes `output` unguarded, and
+`Span::bytes` (`rust/crates/xp-core/src/book/residual.rs:94-100`) checks nothing,
+so callers must pass valid aligned storage. Short local headers and failed
+seeks/reads fail without parsing uninitialized bytes. The compatibility corpus
+does not define results for the old scanner's unchecked short reads. ZIP64 and
+multi-disk support are not added by this change.
 
 ## Chapter and section compatibility
 

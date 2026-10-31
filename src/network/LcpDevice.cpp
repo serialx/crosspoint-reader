@@ -9,6 +9,7 @@
 #include <Util.h>
 #include <WolfsslCrypto.h>
 #include <base64.h>
+#include <xp_ffi.h>
 
 #include <cstring>
 
@@ -26,6 +27,7 @@ namespace lcpdevice {
 
 namespace {
 
+constexpr char RELEASE_KEY[] = FREEINK_LCP_RELEASE_KEY;
 constexpr const char* LCP_ENROLL_URL = "https://lcp.freeink.org/enroll";
 
 // One enrolled identity per device, persisted like the other credential
@@ -51,38 +53,87 @@ class LcpDeviceStore : public PersistableStore<LcpDeviceStore> {
     privHex = obfuscation::deobfuscateFromBase64(doc["priv_obf"] | "", 64, &ok, &tooLong);
     return true;
   }
-  bool valid() const { return !deviceId.empty() && privHex.size() == 64; }
 };
 
 #define LCP_DEVICE LcpDeviceStore::getInstance()
 
-bool hexToBytes32(const std::string& hex, uint8_t out[32]) {
-  if (hex.size() != 64) return false;
-  for (int i = 0; i < 32; i++) {
-    unsigned v = 0;
-    if (sscanf(hex.c_str() + i * 2, "%02x", &v) != 1) return false;
-    out[i] = static_cast<uint8_t>(v);
+bool loaded = false;
+struct Context {
+  std::string* id = nullptr;
+  const std::string* encoded[4]{};
+  std::string request;
+  std::string response;
+  int status = 0;
+};
+size_t operation(void* opaque, uint32_t op, size_t n, uint8_t* bytes) {
+  auto& c = *static_cast<Context*>(opaque);
+  switch (op) {
+    case XP_LCP_LOAD:
+      return LCP_DEVICE.loadFromFile();
+    case XP_LCP_ID_LEN:
+      return LCP_DEVICE.deviceId.size();
+    case XP_LCP_PRIVATE_LEN:
+      return LCP_DEVICE.privHex.size();
+    case XP_LCP_EXPORT_ID:
+      *c.id = LCP_DEVICE.deviceId;
+      return 0;
+    case XP_LCP_KEYGEN: {
+      if constexpr (sizeof(RELEASE_KEY) == 1) return 0;
+      freeink::content::WolfsslCrypto crypto;
+      return crypto.x25519MakeKey(bytes, bytes + 32);
+    }
+    case XP_LCP_APPEND_REQUEST:
+      if constexpr (sizeof(RELEASE_KEY) == 1) return 0;
+      c.request.append(reinterpret_cast<const char*>(bytes), n);
+      return 0;
+    case XP_LCP_APPEND_PUBLIC:
+      if constexpr (sizeof(RELEASE_KEY) == 1) return 0;
+      c.request += base64::encode(bytes, n).c_str();
+      return 0;
+    case XP_LCP_POST:
+      if constexpr (sizeof(RELEASE_KEY) == 1) return 0;
+      return HttpDownloader::postForm(LCP_ENROLL_URL, c.request, c.response, &c.status);
+    case XP_LCP_SET_ID:
+      if constexpr (sizeof(RELEASE_KEY) == 1) return 0;
+      c.id->assign(reinterpret_cast<const char*>(bytes), n);
+      LCP_DEVICE.deviceId = *c.id;
+      return 0;
+    case XP_LCP_SET_PRIVATE:
+      if constexpr (sizeof(RELEASE_KEY) == 1) return 0;
+      LCP_DEVICE.privHex.assign(reinterpret_cast<const char*>(bytes), n);
+      return 0;
+    case XP_LCP_SAVE:
+      return LCP_DEVICE.saveToFile();
+    case XP_LCP_FORGET:
+      LCP_DEVICE.deviceId.clear();
+      LCP_DEVICE.privHex.clear();
+      return 0;
+    case XP_LCP_PRIVATE:
+      memcpy(bytes, LCP_DEVICE.privHex.data(), n);
+      return 0;
+    case XP_LCP_DECODE: {
+      constexpr size_t capacities[] = {32, 12, 32, 16};
+      return freeink::content::base64Decode(c.encoded[n]->data(), c.encoded[n]->size(), bytes, capacities[n]);
+    }
+    case XP_LCP_UNWRAP: {
+      auto** args = reinterpret_cast<uint8_t**>(bytes);
+      freeink::content::WolfsslCrypto crypto;
+      return freeink::content::lcpUnwrapContentKey(crypto, args[0], args[1], args[1] + 32, args[1] + 44, args[1] + 76,
+                                                   args[2]);
+    }
   }
-  return true;
+  return 0;
 }
-
-// {device_id: "..."} from /enroll.
-bool parseEnrollResponse(const std::string& response, std::string* deviceId) {
-  struct Ctx {
-    char pending[16] = {0};
-    std::string id;
-  } ctx;
-  JsonCallbacks callbacks = {};
-  callbacks.ctx = &ctx;
-  callbacks.onKey = [](void* ud, const char* key, size_t len) {
-    auto& c = *static_cast<Ctx*>(ud);
-    const size_t n = len < sizeof(c.pending) - 1 ? len : sizeof(c.pending) - 1;
-    memcpy(c.pending, key, n);
-    c.pending[n] = '\0';
+bool parse(void* opaque, XpLcpParse* state) {
+  if constexpr (sizeof(RELEASE_KEY) == 1) return false;
+  auto& c = *static_cast<Context*>(opaque);
+  JsonCallbacks callbacks{};
+  callbacks.ctx = state;
+  callbacks.onKey = [](void* p, const char* s, size_t n) {
+    xp_lcp_json(static_cast<XpLcpParse*>(p), true, reinterpret_cast<const uint8_t*>(s), n);
   };
-  callbacks.onString = [](void* ud, const char* value, size_t len) {
-    auto& c = *static_cast<Ctx*>(ud);
-    if (strcmp(c.pending, "device_id") == 0) c.id.assign(value, len < 64 ? len : 64);
+  callbacks.onString = [](void* p, const char* s, size_t n) {
+    xp_lcp_json(static_cast<XpLcpParse*>(p), false, reinterpret_cast<const uint8_t*>(s), n);
   };
   callbacks.onNumber = [](void*, const char*, size_t) {};
   callbacks.onBool = [](void*, bool) {};
@@ -92,96 +143,56 @@ bool parseEnrollResponse(const std::string& response, std::string* deviceId) {
   callbacks.onArrayStart = [](void*) {};
   callbacks.onArrayEnd = [](void*) {};
   StreamingJsonParser parser(callbacks);
-  parser.feed(response.data(), response.size());
-  if (parser.hasError() || ctx.id.empty()) return false;
-  *deviceId = std::move(ctx.id);
-  return true;
+  parser.feed(c.response.data(), c.response.size());
+  return !parser.hasError();
 }
-
+void diagnostic(void* opaque, uint32_t event) {
+  auto& c = *static_cast<Context*>(opaque);
+  switch (event) {
+    case 0:
+      LOG_ERR("LCPDEV", "Keygen failed");
+      break;
+    case 1:
+      LOG_ERR("LCPDEV", "Enroll failed (status %d)", c.status);
+      break;
+    case 2:
+      LOG_ERR("LCPDEV", "Cannot persist device identity");
+      break;
+    case 3:
+      LOG_INF("LCPDEV", "Enrolled as %s", c.id->c_str());
+      break;
+  }
+}
+XpLcpServices services(Context& c) {
+  return {&c,
+          operation,
+          parse,
+          sizeof(RELEASE_KEY) == 1 ? nullptr : diagnostic,
+          &loaded,
+          reinterpret_cast<const uint8_t*>(RELEASE_KEY),
+          strlen(RELEASE_KEY)};
+}
 }  // namespace
-
-// getInstance() does not read the file; load once on first use.
-void loadOnce() {
-  static bool loaded = false;
-  if (!loaded) {
-    LCP_DEVICE.loadFromFile();
-    loaded = true;
-  }
-}
-
 bool ensureEnrolled(std::string& deviceId, bool& notEnrollable) {
-  loadOnce();
-  notEnrollable = false;
-  if (LCP_DEVICE.valid()) {
-    deviceId = LCP_DEVICE.deviceId;
-    return true;
-  }
-  static constexpr char RELEASE_KEY[] = FREEINK_LCP_RELEASE_KEY;
-  if (RELEASE_KEY[0] == '\0') {
-    notEnrollable = true;
-    return false;
-  }
-
-  freeink::content::WolfsslCrypto crypto;
-  uint8_t priv[32];
-  uint8_t pub[32];
-  if (!crypto.x25519MakeKey(priv, pub)) {
-    LOG_ERR("LCPDEV", "Keygen failed");
-    return false;
-  }
-
-  std::string request = "{\"release_key\":\"";
-  request += RELEASE_KEY;
-  request += "\",\"pubkey\":\"";
-  request += base64::encode(pub, sizeof(pub)).c_str();
-  request += "\"}";
-
-  std::string response;
-  int status = 0;
-  if (!HttpDownloader::postForm(LCP_ENROLL_URL, request, response, &status) ||
-      !parseEnrollResponse(response, &deviceId)) {
-    LOG_ERR("LCPDEV", "Enroll failed (status %d)", status);
-    return false;
-  }
-
-  char privHex[65];
-  for (int i = 0; i < 32; i++) snprintf(privHex + i * 2, 3, "%02x", priv[i]);
-  LCP_DEVICE.deviceId = deviceId;
-  LCP_DEVICE.privHex = privHex;
-  if (!LCP_DEVICE.saveToFile()) {
-    LOG_ERR("LCPDEV", "Cannot persist device identity");
-    return false;
-  }
-  LOG_INF("LCPDEV", "Enrolled as %s", deviceId.c_str());
-  return true;
+  Context c;
+  c.id = &deviceId;
+  const auto api = services(c);
+  if constexpr (sizeof(RELEASE_KEY) == 1) return xp_lcp_existing(&api, &notEnrollable);
+  return xp_lcp_ensure(&api, &notEnrollable);
 }
-
 void forget() {
-  loadOnce();
-  LCP_DEVICE.deviceId.clear();
-  LCP_DEVICE.privHex.clear();
-  LCP_DEVICE.saveToFile();
+  Context c;
+  const auto api = services(c);
+  xp_lcp_forget(&api);
 }
-
-bool unwrapContentKey(const std::string& epkB64, const std::string& ivB64, const std::string& ctB64,
-                      const std::string& tagB64, uint8_t out[32]) {
-  using freeink::content::base64Decode;
-  uint8_t epk[32];
-  uint8_t iv[12];
-  uint8_t ct[32];
-  uint8_t tag[16];
-  if (base64Decode(epkB64.data(), epkB64.size(), epk, sizeof(epk)) != sizeof(epk) ||
-      base64Decode(ivB64.data(), ivB64.size(), iv, sizeof(iv)) != sizeof(iv) ||
-      base64Decode(ctB64.data(), ctB64.size(), ct, sizeof(ct)) != sizeof(ct) ||
-      base64Decode(tagB64.data(), tagB64.size(), tag, sizeof(tag)) != sizeof(tag)) {
-    return false;
-  }
-  loadOnce();
-  uint8_t priv[32];
-  if (!LCP_DEVICE.valid() || !hexToBytes32(LCP_DEVICE.privHex, priv)) return false;
-
-  freeink::content::WolfsslCrypto crypto;
-  return freeink::content::lcpUnwrapContentKey(crypto, priv, epk, iv, ct, tag, out);
+bool unwrapContentKey(const std::string& epk, const std::string& iv, const std::string& ct, const std::string& tag,
+                      uint8_t out[32]) {
+  Context c;
+  c.encoded[0] = &epk;
+  c.encoded[1] = &iv;
+  c.encoded[2] = &ct;
+  c.encoded[3] = &tag;
+  const auto api = services(c);
+  return xp_lcp_unwrap(&api, out);
 }
-
 }  // namespace lcpdevice

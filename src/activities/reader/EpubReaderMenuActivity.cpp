@@ -11,31 +11,44 @@
 #include "components/UITheme.h"
 #include "util/SlideSwitch.h"
 
-namespace fui = freeink::ui;
+static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::NIGHT_MODE) == XP_UI_READER_MENU_NIGHT);
+static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::FRONTLIGHT) == XP_UI_READER_MENU_FRONTLIGHT);
+static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::BLUETOOTH) == XP_UI_READER_MENU_BLUETOOTH);
+static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::AUTO_PAGE_TURN) == XP_UI_READER_MENU_AUTO_TURN);
+static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::ROTATE_SCREEN) == XP_UI_READER_MENU_ORIENTATION);
+static_assert(static_cast<int>(EpubReaderMenuActivity::MenuAction::DICTIONARY) == XP_UI_READER_MENU_LAST_ACTION);
+static_assert(XP_UI_READER_MENU_NONE == 0 && XP_UI_READER_MENU_SHOW_ORIENTATION == 1 &&
+              XP_UI_READER_MENU_SHOW_AUTO_TURN == 2 && XP_UI_READER_MENU_TOGGLE_NIGHT == 3 &&
+              XP_UI_READER_MENU_TOGGLE_BLUETOOTH == 4 && XP_UI_READER_MENU_TOGGLE_FRONTLIGHT == 5 &&
+              XP_UI_READER_MENU_FINISH == 6 && XP_UI_READER_MENU_APPLY_ORIENTATION == 7 &&
+              XP_UI_READER_MENU_REDRAW == 8);
 
 EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
                                                const bool hasFootnotes, const bool hasBookmarks,
                                                const bool hasClippings)
-    : UiListActivity("EpubReaderMenu", renderer, mappedInput),
+    : ReaderChromeListActivity("EpubReaderMenu", renderer, mappedInput, XP_UI_READER_MENU, MAX_MENU_ITEMS),
       title(title),
-      pendingOrientation(currentOrientation),
       currentPage(currentPage),
       totalPages(totalPages),
       bookProgressPercent(bookProgressPercent) {
+  xp_ui_reader_menu_init(&menuState, currentOrientation);
   buildMenuItems(menuItems, hasFootnotes, hasBookmarks, hasClippings);
   buildMenuRowItems();
+  if (totalPages > 0) {
+    progressLine = std::string(tr(STR_CHAPTER_PREFIX)) + std::to_string(currentPage) + "/" +
+                   std::to_string(totalPages) + std::string(tr(STR_PAGES_SEPARATOR));
+  }
+  progressLine += std::string(tr(STR_BOOK_PREFIX)) + std::to_string(bookProgressPercent) + "%";
 }
 
-// Populates menuRowItems's labels/actionValue from menuItems. Called once
-// here since menuItems (and thus which rows exist) never changes after
-// construction; buildScreen() only touches the two rows with a live value.
+// Labels borrow the immutable translation table for this visit.
 void EpubReaderMenuActivity::buildMenuRowItems() {
   for (size_t i = 0; i < menuItems.size() && i < MAX_MENU_ITEMS; i++) {
-    fui::ListItem item;
+    ReaderChromeRow item;
     item.label = I18N.get(menuItems[i].labelId);
-    item.actionValue = static_cast<int16_t>(i);
+
     menuRowItems[i] = item;
   }
 }
@@ -87,11 +100,12 @@ void EpubReaderMenuActivity::toggleBluetooth() {
 }
 
 void EpubReaderMenuActivity::closeCancelled() {
-  ActivityResult result;
-  result.isCancelled = true;
-  result.data = MenuResult{-1, pendingOrientation, selectedPageTurnOption};
-  setResult(std::move(result));
-  finish();
+  XpUiReaderMenuResult effect{};
+  {
+    ModelLock lock(*this);
+    effect = xp_ui_reader_menu_cancel(&menuState);
+  }
+  applyMenuEffect(effect);
 }
 
 bool EpubReaderMenuActivity::handleHomeGesture() {
@@ -100,148 +114,120 @@ bool EpubReaderMenuActivity::handleHomeGesture() {
 }
 
 void EpubReaderMenuActivity::activateIndex(const int index) {
-  if (optionPopup.isActive()) return;
-  // The activated row leaves this screen (popup or finish); a lingering flash
-  // would gray an unrelated element on the next render.
-  app.clearTapFlash();
-  nav.selected = index;
-
-  const auto selectedAction = menuItems[index].action;
-  if (selectedAction == MenuAction::ROTATE_SCREEN) {
-    optionPopup.show(StrId::STR_ORIENTATION, orientationLabels.data(), static_cast<int>(orientationLabels.size()),
-                     pendingOrientation, [this](int idx) {
-                       pendingOrientation = idx;
-                       // Rotate the menu immediately. Only the renderer turns;
-                       // SETTINGS.orientation stays unchanged so the reader's
-                       // result handler still detects the change and reflows.
-                       ReaderUtils::applyOrientation(renderer, pendingOrientation);
-                       app.setDevice(uiTarget.deviceContext());  // hit rects follow the new frame
-                       requestUpdate(true);
-                     });
-    requestUpdate();
-    return;
+  if (optionPopup.isActive() || index < 0 || index >= listCount()) return;
+  selectIndex(index);
+  XpUiReaderMenuResult effect{};
+  {
+    ModelLock lock(*this);
+    effect = xp_ui_reader_menu_activate(&menuState, static_cast<int>(menuItems[index].action));
   }
+  applyMenuEffect(effect);
+}
 
-  if (selectedAction == MenuAction::AUTO_PAGE_TURN) {
-    optionPopup.show(I18N.get(StrId::STR_AUTO_TURN_PAGES_PER_MIN), pageTurnLabels.data(),
-                     static_cast<int>(pageTurnLabels.size()), selectedPageTurnOption, [this](int idx) {
-                       selectedPageTurnOption = idx;
-                       requestUpdate();
-                     });
-    requestUpdate();
-    return;
+void EpubReaderMenuActivity::chooseOption(uint8_t option, int index) {
+  XpUiReaderMenuResult effect{};
+  {
+    ModelLock lock(*this);
+    effect = xp_ui_reader_menu_choose(&menuState, option, index);
   }
+  applyMenuEffect(effect);
+}
 
-  if (selectedAction == MenuAction::NIGHT_MODE) {
-    SETTINGS.screenInverted = SETTINGS.screenInverted == 0 ? 1 : 0;
-    SETTINGS.saveToFile();
-    requestUpdate();
-    return;
+void EpubReaderMenuActivity::applyMenuEffect(const XpUiReaderMenuResult& effect) {
+  switch (static_cast<XpUiReaderMenuEffect>(effect.effect)) {
+    case XP_UI_READER_MENU_NONE:
+      break;
+    case XP_UI_READER_MENU_SHOW_ORIENTATION:
+      optionPopup.show(StrId::STR_ORIENTATION, orientationLabels.data(), static_cast<int>(orientationLabels.size()),
+                       effect.orientation,
+                       [this](int index) { chooseOption(XP_UI_READER_MENU_CHOOSE_ORIENTATION, index); });
+      requestUpdate();
+      break;
+    case XP_UI_READER_MENU_SHOW_AUTO_TURN:
+      optionPopup.show(I18N.get(StrId::STR_AUTO_TURN_PAGES_PER_MIN), pageTurnLabels.data(),
+                       static_cast<int>(pageTurnLabels.size()), effect.page_turn,
+                       [this](int index) { chooseOption(XP_UI_READER_MENU_CHOOSE_AUTO_TURN, index); });
+      requestUpdate();
+      break;
+    case XP_UI_READER_MENU_TOGGLE_NIGHT:
+      SETTINGS.screenInverted = SETTINGS.screenInverted == 0 ? 1 : 0;
+      SETTINGS.saveToFile();
+      requestUpdate();
+      break;
+    case XP_UI_READER_MENU_TOGGLE_BLUETOOTH:
+      toggleBluetooth();
+      requestUpdate();
+      break;
+    case XP_UI_READER_MENU_TOGGLE_FRONTLIGHT: {
+      const bool lightOn = !Frontlight.isOn();
+      Frontlight.setOn(lightOn);
+      SETTINGS.frontlightOn = lightOn ? 1 : 0;
+      SETTINGS.saveToFile();
+      requestUpdate();
+      break;
+    }
+    case XP_UI_READER_MENU_FINISH: {
+      ActivityResult result;
+      result.isCancelled = effect.cancelled;
+      result.data = MenuResult{static_cast<int>(effect.action), effect.orientation, effect.page_turn};
+      setResult(std::move(result));
+      finish();
+      break;
+    }
+    case XP_UI_READER_MENU_APPLY_ORIENTATION: {
+      RenderLock lock(*this);
+      ReaderUtils::applyOrientation(renderer, effect.orientation);
+      requestUpdate(true);
+      break;
+    }
+    case XP_UI_READER_MENU_REDRAW:
+      requestUpdate();
+      break;
   }
-
-  if (selectedAction == MenuAction::BLUETOOTH) {
-    toggleBluetooth();
-    requestUpdate();
-    return;
-  }
-
-  if (selectedAction == MenuAction::FRONTLIGHT) {
-    const bool lightOn = !Frontlight.isOn();
-    Frontlight.setOn(lightOn);
-    SETTINGS.frontlightOn = lightOn ? 1 : 0;
-    SETTINGS.saveToFile();
-    requestUpdate();
-    return;
-  }
-
-  setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption});
-  finish();
 }
 
 bool EpubReaderMenuActivity::handleCustomInput() {
   return optionPopup.handleInput(mappedInput, [this] { requestUpdate(); });
 }
 
-bool EpubReaderMenuActivity::handleButtons() {
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    closeCancelled();
-    return true;
-  }
-
-  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    activateIndex(nav.selected);
-    return true;
-  }
-
-  return false;
-}
-
-void EpubReaderMenuActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const Rect safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  // Content: the safe area minus the header band GUI.drawHeader paints.
-  screen.setContentMarginFromScreen(fui::Insets{
-      static_cast<int16_t>(safe.y + metrics.topPadding + metrics.headerHeight),
-      static_cast<int16_t>(renderer.getScreenWidth() - (safe.x + safe.width)),
-      static_cast<int16_t>(renderer.getScreenHeight() - (safe.y + safe.height)), static_cast<int16_t>(safe.x)});
-
-  // Progress summary where the old sub-header band sat.
-  std::string progressLine;
-  if (totalPages > 0) {
-    progressLine = std::string(tr(STR_CHAPTER_PREFIX)) + std::to_string(currentPage) + "/" +
-                   std::to_string(totalPages) + std::string(tr(STR_PAGES_SEPARATOR));
-  }
-  progressLine += std::string(tr(STR_BOOK_PREFIX)) + std::to_string(bookProgressPercent) + "%";
-  const fui::Rect band = screen.takeTop(static_cast<int16_t>(metrics.tabBarHeight));
-  const int16_t pad = screen.theme().headerSidePadding;
-  screen.target().text(band.inset(fui::Insets{0, pad, 0, pad}), progressLine.c_str(), screen.theme().smallText);
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-
-  // menuRowItems's labels/actionValue were set once in the constructor (see
-  // buildMenuRowItems()); only rows with live values need refreshing here.
-  for (size_t i = 0; i < menuItems.size(); i++) {
-    const auto action = menuItems[i].action;
-    if (action == MenuAction::ROTATE_SCREEN) {
-      menuRowItems[i].value = I18N.get(orientationLabels[pendingOrientation]);
-    } else if (action == MenuAction::AUTO_PAGE_TURN) {
-      menuRowItems[i].value = pageTurnLabels[selectedPageTurnOption];
-    } else if (action == MenuAction::NIGHT_MODE) {
-      GUI.setCheckboxRow(menuRowItems[i], SETTINGS.screenInverted);
-    } else if (action == MenuAction::BLUETOOTH) {
-      GUI.setCheckboxRow(menuRowItems[i], SETTINGS.ble.enabled);
-    } else if (action == MenuAction::FRONTLIGHT) {
-      GUI.setCheckboxRow(menuRowItems[i], Frontlight.isOn());
-    }
-  }
-
-  fui::ListProps props;
-  props.items = menuRowItems;
-  props.count = static_cast<uint16_t>(menuItems.size());
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
-  props.valueInset = 8;               // air between the value and the row edge
-  // Label at the value's font size: both sides of the row read as one unit.
-  // maxLines=2 also marks the style caller-owned (see textStyleUnset).
-  props.labelText = screen.theme().smallText;
-  props.labelText.maxLines = 2;
-  syncListViewport(screen, props);
-  screen.list(props);
-}
-
-void EpubReaderMenuActivity::drawChrome() {
-  // Header via GUI.drawHeader (already FreeInkUI-themed) for the battery
-  // indicator; the rest of the screen renders through the app.
-  GUI.drawHeader(renderer, UITheme::getInstance().getHeaderRect(renderer, true, false), title.c_str());
-}
-
 void EpubReaderMenuActivity::render(RenderLock&&) {
   if (optionPopup.processRender(renderer, mappedInput)) return;
 
-  renderer.clearScreen();
-  drawChrome();
+  renderList();
+}
 
-  renderUi();
-
-  drawFooter();
-  renderer.displayBuffer();
+void EpubReaderMenuActivity::prepareRows(int) {
+  XpUiReaderMenuState snapshot{};
+  {
+    ModelLock lock(*this);
+    snapshot = menuState;
+  }
+  for (size_t i = 0; i < menuItems.size(); ++i) {
+    auto& row = menuRowItems[i];
+    switch (menuItems[i].action) {
+      case MenuAction::ROTATE_SCREEN:
+        row.value = I18N.get(orientationLabels[snapshot.orientation]);
+        break;
+      case MenuAction::AUTO_PAGE_TURN:
+        row.value = pageTurnLabels[snapshot.page_turn];
+        break;
+      case MenuAction::NIGHT_MODE:
+        row.toggle = true;
+        row.checked = SETTINGS.screenInverted;
+        break;
+      case MenuAction::BLUETOOTH:
+        row.toggle = true;
+        row.checked = SETTINGS.ble.enabled;
+        break;
+      case MenuAction::FRONTLIGHT:
+        row.toggle = true;
+        row.checked = Frontlight.isOn();
+        break;
+      default:
+        break;
+    }
+  }
+}
+const ReaderChromeRow* EpubReaderMenuActivity::rowAt(int index) const {
+  return index >= 0 && index < listCount() ? &menuRowItems[index] : nullptr;
 }

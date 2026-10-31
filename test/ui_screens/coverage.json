@@ -1,0 +1,758 @@
+{
+  "schema": 1,
+  "baseline": "539ebafcadd233bf11c68cdeb05c24454bdab22a",
+  "scope": "Finite offline state families declared in screens.json; not an exhaustive product of settings, content, languages, and injected failures.",
+  "sources": [
+    {
+      "source": "src/activities/boot_sleep/BootUiActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "boot",
+        "crash",
+        "image",
+        "image-navigation",
+        "sleep-0",
+        "sleep-1",
+        "sleep-5",
+        "sleep-6"
+      ],
+      "reason": "Borrowed resources and bounded stack scenes shared by boot, sleep, crash, and image activities."
+    },
+    {
+      "source": "src/activities/RustActivityAdapter.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "sd-error",
+        "xtc"
+      ],
+      "reason": "Mixed C++/Rust activity boundary; exercised through the message and XTC chapter screens."
+    },
+    {
+      "source": "src/activities/Activity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/ActivityManager.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/CatalogActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
+      "groups": [
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
+      ]
+    },
+    {
+      "source": "src/activities/UiListActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/UiTabListActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/boot_sleep/BootActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "boot"
+      ],
+      "activity": "Boot"
+    },
+    {
+      "source": "src/activities/boot_sleep/SleepActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "sleep-0",
+        "sleep-1",
+        "sleep-2",
+        "sleep-3",
+        "sleep-4",
+        "sleep-5",
+        "sleep-6",
+        "sleep-7",
+        "sleep-8",
+        "sleep-cover-3",
+        "sleep-cover-4",
+        "sleep-cover-8",
+        "sleep-custom-image",
+        "sleep-overlay-image"
+      ],
+      "activity": "Sleep"
+    },
+    {
+      "source": "src/activities/browser/OpdsBookBrowserActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "opds-offline",
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
+      ],
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
+      "contract": "src/activities/CatalogActivity.cpp:52"
+    },
+    {
+      "source": "src/activities/home/CrashActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "crash"
+      ],
+      "activity": "Crash"
+    },
+    {
+      "source": "src/activities/home/FileBrowserActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "empty-files",
+        "files",
+        "firmware-error"
+      ],
+      "activity": "FileBrowser"
+    },
+    {
+      "source": "src/activities/home/HomeActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "broken-book",
+        "general",
+        "home-theme-0",
+        "home-theme-1",
+        "home-theme-2",
+        "home-theme-3",
+        "home-theme-4",
+        "plugins"
+      ],
+      "activity": "Home"
+    },
+    {
+      "source": "src/activities/library/LibraryListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "library",
+        "library-actions",
+        "library-search"
+      ],
+      "activity": "Library"
+    },
+    {
+      "source": "src/activities/network/CalibreConnectActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "calibre"
+      ],
+      "reason": "Wi-Fi gate captured; discovery, pairing, transfer, and server errors require a reachable Calibre server.",
+      "contract": "src/activities/network/CalibreConnectActivity.cpp:37"
+    },
+    {
+      "source": "src/activities/network/CrossPointWebServerActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "hotspot"
+      ],
+      "activity": "CrossPointWebServer"
+    },
+    {
+      "source": "src/activities/network/NetworkModeSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "transfer"
+      ],
+      "activity": "NetworkModeSelection"
+    },
+    {
+      "source": "src/activities/network/NetworkUiBinding.cpp",
+      "status": "shared-implementation",
+      "reason": "Native header, footer and text painting for Rust network scenes.",
+      "groups": [
+        "calibre",
+        "hotspot",
+        "wifi"
+      ]
+    },
+    {
+      "source": "src/activities/network/UsbDriveActivity.cpp",
+      "status": "unsupported-profile",
+      "reason": "X3/X4 ESP32-C3 profiles compile FREEINK_CAP_USB_MSC=0; network/NetworkModeSelectionActivity.cpp:17."
+    },
+    {
+      "source": "src/activities/network/WifiSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "calibre",
+        "clock",
+        "font-download",
+        "koreader-auth",
+        "opds-offline",
+        "ota",
+        "plugins",
+        "reader-sync",
+        "transfer",
+        "wifi"
+      ],
+      "activity": "WifiSelection"
+    },
+    {
+      "source": "src/activities/plugins/PluginCatalogActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "plugin-readme",
+        "plugins",
+        "fixture-plugin-browse",
+        "fixture-plugin-xml",
+        "fixture-plugin-lists",
+        "fixture-plugin-empty",
+        "fixture-plugin-error",
+        "fixture-plugin-loading",
+        "fixture-plugin-wifi",
+        "fixture-plugin-search",
+        "fixture-plugin-download",
+        "fixture-plugin-done",
+        "fixture-plugin-no-token",
+        "fixture-plugin-auth"
+      ],
+      "activity": "PluginCatalog"
+    },
+    {
+      "source": "src/activities/reader/ClipSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clip",
+        "dictionary"
+      ],
+      "activity": "ClipSelection"
+    },
+    {
+      "source": "src/activities/reader/DictionaryDefinitionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "dictionary",
+        "plugin-readme"
+      ],
+      "activity": "DictionaryDefinition"
+    },
+    {
+      "source": "src/activities/reader/DictionaryUiBindings.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "clip",
+        "dictionary",
+        "plugin-readme"
+      ],
+      "reason": "Native input, font metrics and translated popup resources for the Rust dictionary screen family."
+    },
+    {
+      "source": "src/activities/reader/DictionaryWordSelectActivity.cpp",
+      "status": "transient-route",
+      "groups": [
+        "dictionary"
+      ],
+      "reason": "Lookup/index busy popup is traversed before DictionaryDefinition; the settled screenshot is the definition. Lookup misses and I/O/OOM popups are not captured.",
+      "contract": "src/activities/reader/DictionaryWordSelectActivity.cpp:30"
+    },
+    {
+      "source": "src/activities/reader/EndOfBookOptions.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/EpubReaderActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bookmarks",
+        "clippings",
+        "end-book",
+        "end-book-next",
+        "footnotes",
+        "reader",
+        "toolbar"
+      ],
+      "activity": "EpubReader"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderBookmarksActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bookmarks"
+      ],
+      "activity": "EpubReaderBookmarks"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderChapterSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "reader"
+      ],
+      "activity": "EpubReaderChapterSelection"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderClippingListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clippings"
+      ],
+      "activity": "EpubReaderClippings"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderFootnoteSelectActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "footnotes"
+      ],
+      "activity": "EpubReaderFootnoteSelect"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderMenuActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "reader",
+        "reader-popups"
+      ],
+      "activity": "EpubReaderMenu"
+    },
+    {
+      "source": "src/activities/reader/EpubReaderPercentSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "percent"
+      ],
+      "activity": "EpubReaderPercentSelection"
+    },
+    {
+      "source": "src/activities/reader/KOReaderSyncActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "reader-sync"
+      ],
+      "reason": "Wi-Fi gate captured; fetch/upload, remote progress confirmation, and service errors require a reachable sync service.",
+      "contract": "src/activities/reader/KOReaderSyncActivity.cpp:474"
+    },
+    {
+      "source": "src/activities/reader/KOReaderUiActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "fixture-kosync-result",
+        "fixture-kosync-missing"
+      ],
+      "reason": "Shared KOReader scene binding, exercised by the canned sync result and missing-progress fixtures."
+    },
+    {
+      "source": "src/activities/reader/QrDisplayActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "qr"
+      ],
+      "activity": "QrDisplay"
+    },
+    {
+      "source": "src/activities/reader/ReaderActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/ReaderSession.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/ReaderToolbarUi.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/reader/XtcReaderActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "xtc",
+        "xtc-gray",
+        "xtc-visits"
+      ],
+      "activity": "XtcReader"
+    },
+    {
+      "source": "src/activities/reader/XtcReaderChapterSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "xtc"
+      ],
+      "activity": "XtcReaderChapterSelection"
+    },
+    {
+      "source": "src/activities/settings/AboutActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "About"
+    },
+    {
+      "source": "src/activities/settings/BleSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bluetooth"
+      ],
+      "activity": "BleSettings"
+    },
+    {
+      "source": "src/activities/settings/ButtonRemapActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "controls"
+      ],
+      "activity": "ButtonRemap"
+    },
+    {
+      "source": "src/activities/settings/ClearCacheActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "status-cache"
+      ],
+      "activity": "ClearCache"
+    },
+    {
+      "source": "src/activities/settings/ClockSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clock"
+      ],
+      "activity": "ClockSettings"
+    },
+    {
+      "source": "src/activities/settings/ClockSyncActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "clock"
+      ],
+      "reason": "X3 Wi-Fi gate captured; NTP success/failure states require connection; X4 has no RTC settings entry.",
+      "contract": "src/activities/settings/ClockSyncActivity.cpp:44"
+    },
+    {
+      "source": "src/activities/settings/FontDownloadActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "font-download"
+      ],
+      "reason": "Wi-Fi gate captured; font catalog, downloads, and service errors require network access.",
+      "contract": "src/activities/settings/FontDownloadActivity.cpp:76"
+    },
+    {
+      "source": "src/activities/settings/HomeButtonSettingsActivity.cpp",
+      "status": "captured",
+      "reason": "Test-only direct entry bypasses the parent Home-key capability gate; physical Home gestures still need hardware.",
+      "groups": [
+        "fixture-settings-home-button"
+      ],
+      "activity": "HomeButtonSettings"
+    },
+    {
+      "source": "src/activities/settings/KOReaderAuthActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "koreader-auth"
+      ],
+      "reason": "Wi-Fi gate captured with synthetic credentials; login/register responses require a service.",
+      "contract": "src/activities/settings/KOReaderAuthActivity.cpp:66"
+    },
+    {
+      "source": "src/activities/settings/KOReaderSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "koreader"
+      ],
+      "activity": "KOReaderSettings"
+    },
+    {
+      "source": "src/activities/settings/KeyboardLayoutsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "KeyboardLayouts"
+    },
+    {
+      "source": "src/activities/settings/LanguageSelectActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "LanguageSelect"
+    },
+    {
+      "source": "src/activities/settings/OpdsServerListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "opds"
+      ],
+      "activity": "OpdsServerList"
+    },
+    {
+      "source": "src/activities/settings/OpdsSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "opds"
+      ],
+      "activity": "OpdsSettings"
+    },
+    {
+      "source": "src/activities/settings/OtaUpdateActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "ota"
+      ],
+      "reason": "Wi-Fi gate captured; update check/download/install states require a release service and valid firmware.",
+      "contract": "src/activities/settings/OtaUpdateActivity.cpp:84"
+    },
+    {
+      "source": "src/activities/settings/PluginHubInstallActivity.cpp",
+      "status": "offline-gate",
+      "groups": [
+        "plugins",
+        "fixture-hub-download",
+        "fixture-hub-done",
+        "fixture-hub-error",
+        "fixture-hub-loading"
+      ],
+      "reason": "Wi-Fi gate captured; remote plugin catalog/download/install states require the hub.",
+      "contract": "src/activities/settings/PluginHubInstallActivity.cpp:39"
+    },
+    {
+      "source": "src/activities/settings/SdFirmwareUpdateActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "firmware-error"
+      ],
+      "activity": "SdFirmwareUpdate"
+    },
+    {
+      "source": "src/activities/settings/SettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "controls",
+        "display",
+        "general",
+        "koreader",
+        "library-settings",
+        "reader-settings"
+      ],
+      "activity": "Settings"
+    },
+    {
+      "source": "src/activities/settings/SettingsListActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "general"
+      ],
+      "activity": "SettingsList"
+    },
+    {
+      "source": "src/activities/settings/StatusBarSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "status-cache"
+      ],
+      "activity": "StatusBarSettings"
+    },
+    {
+      "source": "src/activities/settings/TextSettingsActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "reader-settings",
+        "reader-text"
+      ],
+      "activity": "TextSettings"
+    },
+    {
+      "source": "src/activities/settings/TextSettingsPreview.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/settings/TimezonePickerActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "clock"
+      ],
+      "activity": "TimezonePicker"
+    },
+    {
+      "source": "src/activities/util/BmpViewerActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "image",
+        "image-navigation"
+      ],
+      "activity": "BmpViewer"
+    },
+    {
+      "source": "src/activities/util/ConfirmationActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "files",
+        "image",
+        "library-actions",
+        "plugin-readme"
+      ],
+      "activity": "Confirmation"
+    },
+    {
+      "source": "src/activities/util/DetailsActivity.cpp",
+      "status": "fixture-entry",
+      "groups": [
+        "fixture-details-plain",
+        "fixture-details-html",
+        "fixture-details-cover"
+      ],
+      "reason": "Local ui_oracle fixture supplies public DetailsSpec; captures plain/HTML description, placeholder/PNG cover, More, confirm and cancel. Online acquisition and real service responses remain untested.",
+      "contract": "test/ui_screens/firmware/UiOracleEntry.cpp"
+    },
+    {
+      "source": "src/activities/util/FrontlightPanelActivity.cpp",
+      "status": "fixture-entry",
+      "reason": "Local ui_oracle fixture supplies an inert frontlight facade for mono/warm panels; captures on/off, brightness adjustment and close. No physical frontlight, touch, slide switch, or quick tiles are qualified.",
+      "groups": [
+        "fixture-frontlight-mono",
+        "fixture-frontlight-warm"
+      ],
+      "contract": "test/ui_screens/firmware/UiOracleFrontlight.h"
+    },
+    {
+      "source": "src/activities/util/FullScreenMessageActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "sd-error"
+      ],
+      "activity": "FullScreenMessage"
+    },
+    {
+      "source": "src/activities/util/IntervalSelectionActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "display"
+      ],
+      "activity": "SleepTimeoutInterval"
+    },
+    {
+      "source": "src/activities/util/KeyboardEntryActivity.cpp",
+      "status": "captured",
+      "groups": [
+        "bookmarks",
+        "files",
+        "keyboard-layers",
+        "koreader",
+        "library-search",
+        "opds",
+        "wifi"
+      ],
+      "activity": "KeyboardEntry"
+    },
+    {
+      "source": "src/activities/util/KeyboardLayoutSet.cpp",
+      "status": "shared-implementation",
+      "reason": "No separate activity entry; exercised through its concrete callers."
+    },
+    {
+      "source": "src/activities/util/UtilityActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "files",
+        "image",
+        "library-actions",
+        "plugin-readme",
+        "display",
+        "qr"
+      ],
+      "reason": "Rust utility scene storage, publication and platform resource bindings; exercised through concrete dialogs."
+    },
+    {
+      "source": "src/activities/reader/ReaderChromeListActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "reader",
+        "toolbar"
+      ],
+      "reason": "Existing Rust reader-list adapter; inventory entry restored after the U2a port."
+    },
+    {
+      "source": "src/activities/settings/SettingsUiActivity.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "bluetooth",
+        "clock",
+        "controls",
+        "display",
+        "fixture-settings-home-button",
+        "general",
+        "koreader",
+        "library-settings",
+        "reader-settings",
+        "status-cache"
+      ],
+      "reason": "Shared settings-family Rust scene binding and ABI layout checks."
+    },
+    {
+      "source": "src/activities/settings/SettingsUiAbi.cpp",
+      "status": "shared-implementation",
+      "groups": [
+        "bluetooth",
+        "clock",
+        "controls",
+        "display",
+        "fixture-settings-home-button",
+        "general",
+        "koreader",
+        "library-settings",
+        "reader-settings",
+        "status-cache"
+      ],
+      "reason": "Shared settings-family Rust scene binding and ABI layout checks."
+    },
+    {
+      "source": "src/activities/CatalogUiActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "Offline gate plus canned catalog, error, loading and transfer views; network transactions are not exercised.",
+      "groups": [
+        "fixture-opds-browse",
+        "fixture-opds-empty",
+        "fixture-opds-error",
+        "fixture-opds-loading",
+        "fixture-opds-download",
+        "fixture-opds-bytes",
+        "fixture-opds-auth"
+      ]
+    },
+    {
+      "source": "src/activities/settings/UpdateUiActivity.cpp",
+      "status": "shared-implementation",
+      "reason": "Shared update-family Rust scenes with synthetic service states.",
+      "groups": [
+        "fixture-upd-ota-2-theme0",
+        "fixture-upd-sd-3-theme0",
+        "fixture-upd-cache-0-theme0",
+        "fixture-upd-font-3-theme0"
+      ]
+    }
+  ],
+  "additional_limits": [
+    "Wi-Fi uses no access points. Empty scan, hidden SSID/password, and failed connection are captured; real AP lists, saved credentials, forget/save prompts, successful connections, and downstream network responses are not.",
+    "BLE menu, enable, scan/no peers, and empty paired list are captured. Pairing, remote mapping/learning, disconnect/failure, and persisted peer states need an emulated or physical BLE peer.",
+    "Crash is a GDB-forced second isRebootFromPanic return, not a real crash; SD error is an emulated SD-card eject before mount. Neither proves recovery or hardware fault behavior.",
+    "Stock English text and built-in fonts only. Arbitrary translations, installed fonts, books, library sizes, content layout variants, and every setting combination are outside this finite matrix.",
+    "OOM, corrupted cache, failing writes, update success, intermediate loading paints, every popup selection, and every touch/remapping path are not exhaustively injected. Reader and sleep images cover representative grayscale paths.",
+    "Nonreader screens are portrait; EPUB and its children use all four orientations. XTC explicitly forces portrait. Sleep ignores inversion by design; both requested polarities are retained.",
+    "Details and Frontlight fixture-entry groups require the local instrumented ui_oracle build. They prove activity pixels and refresh policy with synthetic data/capabilities, not network or hardware behavior. fixture-unknown and fixture-oversized prove rejected selectors preserve Home. See FIXTURE-GAPS.md for remaining state families and proposed seams."
+  ]
+}

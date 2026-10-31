@@ -2,11 +2,16 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 
 namespace HalFileTest {
 inline bool failNextWrite = false;
 inline bool failNextClose = false;
+// Optional host fault hooks. Null hooks preserve ordinary filesystem behavior.
+inline bool (*allowOpen)(const char*, const char*) = nullptr;
+inline size_t (*readLimit)(const char*, size_t, size_t) = nullptr;
+inline size_t (*writeLimit)(const char*, size_t, size_t) = nullptr;
 }  // namespace HalFileTest
 
 constexpr int O_WRITE = 1;
@@ -23,16 +28,22 @@ class HalFile {
 
   bool open(const char* path, const char* mode) {
     close();
+    path_ = path;
+    if (HalFileTest::allowOpen && !HalFileTest::allowOpen(path, mode)) return false;
     file_ = std::fopen(path, mode);
     return file_ != nullptr;
   }
   int available() const { return file_ ? static_cast<int>(size() - position()) : 0; }
-  size_t read(void* buffer, size_t count) { return file_ ? std::fread(buffer, 1, count, file_) : 0; }
+  size_t read(void* buffer, size_t count) {
+    if (HalFileTest::readLimit) count = HalFileTest::readLimit(path_.c_str(), position(), count);
+    return file_ ? std::fread(buffer, 1, count, file_) : 0;
+  }
   size_t write(const void* buffer, size_t count) {
     if (HalFileTest::failNextWrite) {
       HalFileTest::failNextWrite = false;
       return 0;
     }
+    if (HalFileTest::writeLimit) count = HalFileTest::writeLimit(path_.c_str(), position(), count);
     const size_t allowed = count < writeBytesLeft_ ? count : writeBytesLeft_;
     const size_t written = file_ ? std::fwrite(buffer, 1, allowed, file_) : 0;
     writeBytesLeft_ -= written;
@@ -69,6 +80,7 @@ class HalFile {
 
  private:
   std::FILE* file_ = nullptr;
+  std::string path_;
   size_t writeBytesLeft_ = SIZE_MAX;
 };
 
@@ -97,6 +109,9 @@ class HalStorage {
   }
   bool remove(const std::string& path) { return std::remove(resolvePath(path).c_str()) == 0; }
   bool rename(const char* from, const char* to) { return std::rename(from, to) == 0; }
+  bool mkdir(const char* path) {
+    return std::filesystem::create_directories(path) || std::filesystem::is_directory(path);
+  }
 };
 
 #define Storage HalStorage::getInstance()

@@ -1,0 +1,34 @@
+[package]
+name = "xp-ffi"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+bench = false
+
+[dependencies]
+xp-ui = { path = "../xp-ui" }
+embedded-graphics-core = { workspace = true, optional = true }
+xp-core = { path = "../xp-core" }
+
+xp-display = { path = "../xp-display", optional = true, default-features = false }
+
+[features]
+reader-strips = ["strip-spike", "display-api", "xp-core/reader-strips"]
+strip-spike = ["xp-core/strip-spike", "dep:embedded-graphics-core"]
+display-api = ["dep:xp-display"]
+display-panel = ["display-uc8253", "display-ssd1677", "display-uc8179", "display-uc8279-x3", "display-uc8279-x4", "display-uc8279c-a4", "display-ssd2677", "display-paper-mono"]
+display-uc8253 = ["display-api", "xp-display/uc8253"]
+display-ssd1677 = ["display-api", "xp-display/ssd1677"]
+display-uc8179 = ["display-api", "xp-display/uc8179"]
+display-uc8279-x3 = ["display-api", "xp-display/uc8279-x3"]
+display-uc8279-x4 = ["display-api", "xp-display/uc8279-x4"]
+display-uc8279c-a4 = ["display-api", "xp-display/uc8279c-a4"]
+display-ssd2677 = ["display-api", "xp-display/ssd2677"]
+display-paper-mono = ["display-api", "xp-display/paper-mono"]
+package-trace = ["xp-core/package-trace"]
+chapter-trace = ["xp-core/chapter-trace"]
+chapter-test = ["xp-core/chapter-test"]

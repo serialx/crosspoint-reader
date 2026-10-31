@@ -1,15 +1,13 @@
 add_executable(KoreanLineBreakingTest
   KoreanLineBreakingTest.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/WordStore.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/LanguageRegistry.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/LiangHyphenation.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/HyphenationCommon.cpp
-  ${REPO_ROOT}/lib/MiniBidi/BidiUtils.cpp
-  ${REPO_ROOT}/lib/MiniBidi/minibidi.c
+  ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
+
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
 )
 
@@ -27,8 +25,12 @@ target_include_directories(KoreanLineBreakingTest PRIVATE
 )
 
 target_link_libraries(KoreanLineBreakingTest PRIVATE
+  xp_ffi_host
   crosspoint_test_common
   GTest::gtest_main
 )
 
 gtest_discover_tests(KoreanLineBreakingTest)
+
+target_sources(KoreanLineBreakingTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)
+target_compile_definitions(KoreanLineBreakingTest PRIVATE XP_PAGE_CODEC_TEST=1)

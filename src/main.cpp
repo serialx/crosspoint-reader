@@ -21,10 +21,13 @@
 #include <VectorFontSupport.h>
 #include <WiFi.h>
 #include <XteinkDetect.h>
+#include <ZipFile.h>
 #include <builtinFonts/all.h>
 #include <esp_heap_caps.h>
 #include <esp_wifi.h>
+#include <miniz.h>
 #include <time.h>
+#include <xp_ffi.h>
 
 #include <atomic>
 #include <cstdarg>
@@ -573,6 +576,13 @@ void setup() {
 #endif
 
   HalSystem::begin();
+  constexpr char RUST_CHECK[] = "123456789";
+  const auto* rustCheck = reinterpret_cast<const uint8_t*>(RUST_CHECK);
+  const bool rustOk =
+      xp_fnv1a64(rustCheck, sizeof(RUST_CHECK) - 1) == ZipFile::fnvHash64(RUST_CHECK, sizeof(RUST_CHECK) - 1) &&
+      xp_crc32(rustCheck, sizeof(RUST_CHECK) - 1) == mz_crc32(0, rustCheck, sizeof(RUST_CHECK) - 1);
+  LOG_INF("RUST", "ABI version %lu; self-check %s", static_cast<unsigned long>(xp_abi_version()),
+          rustOk ? "OK" : "MISMATCH");
   // checkPanic() clears the watchdog capture marker after a successful SD
   // dump, so retain the boot classification for the later activity route.
   const bool rebootedFromPanic = HalSystem::isRebootFromPanic();
@@ -831,6 +841,9 @@ void setup() {
   }
 
   allowSleepAt = millis() + 2000;
+#ifdef CROSSPOINT_UI_ORACLE
+  uiOracleEnter(renderer, mappedInputManager);  // Test-only activity fixtures.
+#endif
 }
 
 void loop() {

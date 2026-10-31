@@ -2,63 +2,58 @@
 
 #include <HalStorage.h>
 #include <Logging.h>
+#include <xp_ui_reader.h>
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace ProgressFile {
 
-// Writes `len` bytes of reader progress to `<cachePath>/progress.bin` without
-// ever leaving the canonical file half-written.
-//
-// The bytes go to a temporary `progress.bin.tmp` first; only once that is fully
-// written and closed is it renamed over progress.bin. An interrupted write
-// (power loss or a crash mid-SPI) therefore damages only the throwaway temp file.
-// Previously a truncate-in-place write that was cut short left progress.bin with
-// a broken FAT cluster chain that the firmware could neither rewrite nor clear,
-// stranding the book on an old page (issue #2275).
-//
-// This is crash-safe, not metadata-atomic: on FAT the replace is remove + rename,
-// two separate directory operations, so a crash between them can leave neither
-// file -- which simply reads as "no saved progress" on next launch, never a
-// corrupt or unclearable file. The point is that progress.bin is never torn.
-//
-// Note: this prevents corruption on a healthy card going forward. It cannot
-// repair an already-corrupted progress.bin -- removing the stale file may itself
-// fail at the FAT level, in which case recovery still requires fsck on a host.
-//
-// Returns true only if the new progress.bin is fully in place.
+// The temporary file is closed before remove/rename. A failed write leaves the
+// old progress intact; FAT remove+rename can still lose it during power failure.
 inline bool writeAtomic(const std::string& cachePath, const uint8_t* data, size_t len) {
   const std::string finalPath = cachePath + "/progress.bin";
   const std::string tmpPath = cachePath + "/progress.bin.tmp";
-
-  {
-    HalFile f;
-    if (!Storage.openFileForWrite("PRG", tmpPath, f)) {
+  struct Context {
+    const std::string& finalPath;
+    const std::string& tmpPath;
+    std::optional<HalFile> file{std::in_place};
+  } context{finalPath, tmpPath};
+  const XpUiReaderProgressIo io{&context,
+                                [](void* p) -> uint8_t {
+                                  auto& c = *static_cast<Context*>(p);
+                                  return Storage.openFileForWrite("PRG", c.tmpPath, *c.file);
+                                },
+                                [](void* p, const uint8_t* bytes, uint32_t size) -> uint32_t {
+                                  return static_cast<Context*>(p)->file->write(bytes, size);
+                                },
+                                [](void* p) { static_cast<Context*>(p)->file->flush(); },
+                                [](void* p) { static_cast<Context*>(p)->file.reset(); },
+                                [](void* p) { Storage.remove(static_cast<Context*>(p)->finalPath.c_str()); },
+                                [](void* p) -> uint8_t {
+                                  const auto& c = *static_cast<Context*>(p);
+                                  return Storage.rename(c.tmpPath.c_str(), c.finalPath.c_str());
+                                }};
+  uint32_t written = 0;
+  switch (static_cast<XpUiReaderProgressStatus>(xp_ui_reader_write_progress(&io, data, len, &written))) {
+    case XP_UI_READER_PROGRESS_OK:
+      return true;
+    case XP_UI_READER_PROGRESS_OPEN_FAILED:
       LOG_ERR("PRG", "Could not open temp progress file for write: %s", tmpPath.c_str());
       return false;
-    }
-    const size_t written = f.write(data, len);
-    if (written != len) {
+    case XP_UI_READER_PROGRESS_SHORT_WRITE:
       LOG_ERR("PRG", "Short write saving progress to %s: %u/%u bytes", tmpPath.c_str(), (unsigned)written,
               (unsigned)len);
       return false;
-    }
-    f.flush();
-    // f (the temp file) is closed at scope exit (DESTRUCTOR_CLOSES_FILE=1) before
-    // the rename below -- SdFat must not rename a path that still has an open FsFile.
+    case XP_UI_READER_PROGRESS_RENAME_FAILED:
+      LOG_ERR("PRG", "Failed to rename temp progress into place: %s", finalPath.c_str());
+      return false;
+    case XP_UI_READER_PROGRESS_INVALID:
+      LOG_ERR("PRG", "Invalid progress write");
+      return false;
   }
-
-  // SdFat's rename does not overwrite an existing destination, so drop the old
-  // canonical file first. The brief window where neither file exists reads as
-  // "no saved progress" on next launch -- never a corrupt, unclearable file.
-  Storage.remove(finalPath.c_str());
-  if (!Storage.rename(tmpPath.c_str(), finalPath.c_str())) {
-    LOG_ERR("PRG", "Failed to rename temp progress into place: %s", finalPath.c_str());
-    return false;
-  }
-  return true;
+  return false;
 }
-
 }  // namespace ProgressFile

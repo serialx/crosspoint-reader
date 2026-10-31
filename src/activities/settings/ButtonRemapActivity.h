@@ -1,38 +1,28 @@
 #pragma once
+#include <I18n.h>
 
-#include <string>
+#include "SettingsUiActivity.h"
 
-#include "activities/Activity.h"
-#include "components/UiAppHost.h"
-
-class ButtonRemapActivity final : public Activity, private UiAppHost {
+class ButtonRemapActivity final : public SettingsUiActivity {
  public:
-  explicit ButtonRemapActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : Activity("ButtonRemap", renderer, mappedInput), UiAppHost(renderer) {}
-
+  ButtonRemapActivity(GfxRenderer& renderer, MappedInputManager& input)
+      : SettingsUiActivity("ButtonRemap", renderer, input, XP_UI_SETTINGS_REMAP) {}
   void onEnter() override;
   void loop() override;
-  void render(RenderLock&&) override;
+  void cancelRejectedInput(const XpUiInput& input) override {
+    if (input.pressed & XP_UI_DOWN) finish();
+  }
 
  private:
-  // Rendering task state.
-
-  // Index of the logical role currently awaiting input.
-  uint8_t currentStep = 0;
-  // Temporary mapping from logical role -> hardware button index.
-  uint8_t tempMapping[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-  // Error banner timing (used when reassigning duplicate buttons).
-  unsigned long errorUntil = 0;
-  std::string errorMessage;
-  freeink::ui::ListItem rowItems[4]{};
-
-  static void screenTrampoline(UiScreen& screen, void* user);
-  void buildScreen(UiScreen& screen);
-  // Commit temporary mapping to settings.
-  void applyTempMapping();
-  // Returns false if a hardware button is already assigned to a different role.
-  bool validateUnassigned(uint8_t pressedButton);
-  // Labels for UI display.
-  static const char* getRoleName(uint8_t roleIndex);
-  const char* getHardwareName(uint8_t buttonIndex) const;
+  XpUiSettingsRemap remap{};
+  mutable SettingsUiRow row{};
+  int listCount() const override { return 4; }
+  void activateIndex(int) override {}
+  const char* headerTitle() const override { return tr(STR_REMAP_FRONT_BUTTONS); }
+  const SettingsUiRow* rowAt(int) const override;
+  uint8_t screenFlags() const override { return remap.error; }
+  const char* specialText(uint32_t) const override;
+  void drawFooter() override;
+  static const char* roleName(uint8_t);
+  static const char* hardwareName(uint8_t);
 };

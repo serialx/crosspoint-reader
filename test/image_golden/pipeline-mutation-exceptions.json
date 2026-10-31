@@ -1,0 +1,87 @@
+{
+  "approval": "Coordinator approved on 2026-10-28: preserve the 283256eb cache-before-decoder-validation order; verify the GIF failure follows the cache-start message and partial cache cleanup is unchanged.",
+  "reason": "The Rust consumer begins the cache before gif::decode validates supported extensions; upstream began it after AnimatedGIF::open succeeded.",
+  "cases": {
+    "flip-026-0": {
+      "sha256": "0112662fd7809387f8dd94b892127c472f02338390c171424ae6cf22dae67af5",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "flip-026-1": {
+      "sha256": "6b8bbce7acc78ed8ba75e377707e1bcd8e6f2b6d32f39e6d9daad7a01a3ce9f9",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "flip-026-2": {
+      "sha256": "820e0e5c3ebb2af41736f62b3966d7b212a659b7500f2ac6f523e1f579fc7877",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "flip-026-3": {
+      "sha256": "042b87044fa2ca29ffc12b46d7211c08d806e560ca542a0fccab1c755c6bebe9",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "flip-026-4": {
+      "sha256": "812111e9adc643e4ce23f1b3d5f97937e455db43926322dc9614bb757d9c16ff",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "flip-026-5": {
+      "sha256": "3da32b2c3156f2f705e2cadc7f7b02cdba2012a270618de69ec6b3ff10d2a5b7",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "flip-026-6": {
+      "sha256": "e85eefe826545967051faeee356c6c2874aa8a840a6172ad44e11c9b68ecc1ad",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "flip-026-7": {
+      "sha256": "ad22b07f8b53efa4d7bc4d078845076b14e8a1691c76c3abf75eef1ce098bdbf",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    },
+    "extension-66": {
+      "sha256": "7f8fe54cb07dadd4253c3e9cda1538ac0affc929451f89a63a873f614ead5075",
+      "logs": [
+        "DBG GIF Decoding GIF: <input>",
+        "DBG GIF GIF header: canvas=8x4 frame=8x4 frameOffset=0,0 interlaced=no renderTarget=137x173 MAX_WIDTH=3072 freeHeap=4294967295 file=<input>",
+        "DBG IMG Cache stream started: <cache> (137x173, band 16 rows)",
+        "ERR GIF AnimatedGIF open failed: canvas=8x4 MAX_WIDTH=3072 file=<input>"
+      ]
+    }
+  }
+}

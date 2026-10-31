@@ -1,0 +1,17 @@
+P			
+P		INHERITED	
+P	INHERITED		
+P	LAST		
+P	NORMAL		
+div	a b c d e f g h i	id	
+p			
+p		inherited	
+p	 unrelated		
+p	 unrelated	inherited	
+p	inherited		
+p	inherited unrelated		
+p	last		
+p	last unrelated		
+p	normal		
+p	normal unrelated		
+span	note	target	

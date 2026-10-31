@@ -11,9 +11,9 @@ process() {
   mkdir -p "build"
   wget -O "build/$lang.bin" "https://github.com/typst/hypher/raw/refs/heads/main/tries/$lang.bin"
 
-  python scripts/generate_hyphenation_trie.py \
+  python3 scripts/generate_hyphenation_trie.py \
     --input "build/$lang.bin" \
-    --output "lib/Epub/Epub/hyphenation/generated/hyph-${lang}.trie.h"
+    --output "rust/crates/xp-core/data/hyph/${lang}.bin"
 }
 
 process en

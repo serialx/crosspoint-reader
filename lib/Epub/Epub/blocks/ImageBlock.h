@@ -3,15 +3,22 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "Block.h"
 
 class ImageBlock final : public Block {
  public:
   ImageBlock(const std::string& imagePath, const std::string& srcPath, int16_t width, int16_t height);
+  struct View {};
+  // Borrowed paths must be NUL-terminated and outlive this view.
+  ImageBlock(View, std::string_view imagePath, std::string_view srcPath, int16_t width, int16_t height)
+      : imagePath(imagePath), srcPath(srcPath), width(width), height(height) {}
+  ImageBlock(View, const ImageBlock& source)
+      : ImageBlock(View{}, source.imagePath, source.srcPath, source.width, source.height) {}
   ~ImageBlock() override = default;
 
-  const std::string& getImagePath() const { return imagePath; }
+  std::string_view getImagePath() const { return imagePath; }
   int16_t getWidth() const { return width; }
   int16_t getHeight() const { return height; }
 
@@ -26,6 +33,9 @@ class ImageBlock final : public Block {
   // to streaming when it doesn't fit); the reader calls this when the page
   // render completes so nothing stays resident between pages.
   static void releaseRenderCache();
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  static void setRenderReadWindow(uint8_t* data, size_t size);
+#endif
 
   // Lazy extraction hook: the section build only header-probes images for their
   // dimensions; the file at imagePath is extracted out of the book on first
@@ -39,12 +49,15 @@ class ImageBlock final : public Block {
   bool isEmpty() override { return false; }
 
   void render(GfxRenderer& renderer, const int x, const int y);
+#ifdef XP_PAGE_CODEC_TEST
   bool serialize(HalFile& file);
-  static std::unique_ptr<ImageBlock> deserialize(HalFile& file);
+#endif
 
  private:
-  std::string imagePath;
-  std::string srcPath;  // book-internal source href; empty once known-extracted
+  std::string ownedImagePath;
+  std::string ownedSrcPath;
+  std::string_view imagePath;
+  std::string_view srcPath;  // book-internal source href; empty once known-extracted
   int16_t width;
   int16_t height;
 

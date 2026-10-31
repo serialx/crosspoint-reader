@@ -1,5 +1,6 @@
 #pragma once
 #include <Print.h>
+#include <xp_ffi.h>
 
 #include "ImageToFramebufferDecoder.h"
 
@@ -16,6 +17,7 @@
 // GIF: validates GIF87a/GIF89a and reads the logical screen size (bytes 6..9).
 class ImageDimsProbe : public Print {
  public:
+  ImageDimsProbe() { xp_image_probe_init(&probe); }
   size_t write(uint8_t b) override;
   size_t write(const uint8_t* data, size_t len) override;
 
@@ -23,32 +25,5 @@ class ImageDimsProbe : public Print {
   bool getDimensions(ImageDimensions& out) const;
 
  private:
-  bool feed(uint8_t b);  // returns false once parsing is finished (found or failed)
-
-  enum class State : uint8_t {
-    Sniff,       // first byte decides the format
-    PngHeader,   // PNG signature + IHDR at fixed offsets
-    GifHeader,   // GIF signature + little-endian logical screen dimensions
-    JpegSoi,     // second SOI byte (0xD8)
-    JpegFf,      // expect a 0xFF marker prefix
-    JpegMarker,  // marker type byte (0xFF padding allowed)
-    JpegLenHi,   // segment length, high byte
-    JpegLenLo,   // segment length, low byte
-    JpegSkip,    // skipping a non-SOF segment body
-    JpegSof,     // collecting the 5 SOF bytes: precision, height(2), width(2)
-    Done,
-    Failed,
-  };
-  State state = State::Sniff;
-  uint32_t pos = 0;       // absolute stream offset (PNG fixed-offset parsing)
-  uint32_t skipLeft = 0;  // remaining segment bytes to skip
-  uint16_t segLen = 0;
-  bool sofPending = false;  // current segment is a SOF frame header
-  uint8_t sofBuf[5] = {0};
-  uint8_t sofFill = 0;
-  // 32-bit: PNG IHDR width/height are 4-byte fields. Accumulating them in a
-  // uint16_t silently truncates an oversized image to a plausible small value
-  // that passes the INT16_MAX sanity check in getDimensions().
-  uint32_t width = 0;
-  uint32_t height = 0;
+  XpImageProbe probe;
 };

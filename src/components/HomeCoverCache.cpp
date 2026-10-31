@@ -11,42 +11,34 @@ namespace fui = freeink::ui;
 
 void HomeCoverCache::begin() {
   // Cover regions do not overlap. Each may widen by one physical byte per row.
-  coverCacheCapacity = renderer.getRegionByteSize(0, 0, renderer.getScreenWidth(), renderer.getScreenHeight()) +
-                       MAX_COVERS * std::max(renderer.getScreenWidth(), renderer.getScreenHeight());
-  coverCache = HalMemory::allocatePsram(coverCacheCapacity);
+  const auto capacity = xp_ui_home_cache_init(
+      &cacheState, renderer.getRegionByteSize(0, 0, renderer.getScreenWidth(), renderer.getScreenHeight()),
+      renderer.getScreenWidth(), renderer.getScreenHeight());
+  coverCache = HalMemory::allocatePsram(capacity);
+  xp_ui_home_cache_allocated(&cacheState, coverCache != nullptr);
   if (!coverCache) {
-    LOG_ERR("HOME", "PSRAM cover cache unavailable (%u bytes); rendering uncached", unsigned(coverCacheCapacity));
-    coverCacheCapacity = 0;
+    LOG_ERR("HOME", "PSRAM cover cache unavailable (%u bytes); rendering uncached", unsigned(capacity));
   }
 }
 
-void HomeCoverCache::invalidate() {
-  coverCacheUsed = 0;
-  cachedCovers.fill(CachedCover{});
-}
+void HomeCoverCache::invalidate() { xp_ui_home_cache_invalidate(&cacheState); }
 
 void HomeCoverCache::invalidate(size_t index) {
-  if (index < cachedCovers.size()) cachedCovers[index].valid = false;
+  if (index < MAX_COVERS) xp_ui_home_cache_invalidate_slot(&cacheState, index);
 }
 
-void HomeCoverCache::prepare() {
-  const int orientation = static_cast<int>(renderer.getOrientation());
-  if (coverCacheOrientation != orientation) {
-    invalidate();
-    coverCacheOrientation = orientation;
-  }
-}
+void HomeCoverCache::prepare() { xp_ui_home_cache_prepare(&cacheState, static_cast<int>(renderer.getOrientation())); }
 
 bool HomeCoverCache::paint(fui::Rect rect, size_t index, const std::string& path) {
-  if (index >= cachedCovers.size()) return false;
-  auto& cached = cachedCovers[index];
+  if (index >= MAX_COVERS) return false;
+  const XpUiRect region{rect.x, rect.y, rect.width, rect.height};
+  const auto cached = xp_ui_home_cache_lookup(&cacheState, index, region);
   uint8_t* const cacheData = coverCache.get();
-  if (coverCache && cached.valid && cached.rect.x == rect.x && cached.rect.y == rect.y &&
-      cached.rect.width == rect.width && cached.rect.height == rect.height &&
+  if (cached.bytes != 0 &&
       renderer.copyBufferToRegion(rect.x, rect.y, rect.width, rect.height, cacheData + cached.offset, cached.bytes)) {
     return true;
   }
-  cached.valid = false;
+  xp_ui_home_cache_invalidate_slot(&cacheState, index);
   bool drawn = false;
   if (!path.empty() && Storage.openFileForRead("HOME", path, coverFile)) {
     if (coverBitmap.parseHeaders() == BmpReaderError::Ok && coverBitmap.getWidth() > 0 && coverBitmap.getHeight() > 0) {
@@ -73,15 +65,11 @@ bool HomeCoverCache::paint(fui::Rect rect, size_t index, const std::string& path
   }
   if (coverCache) {
     const size_t needed = renderer.getRegionByteSize(rect.x, rect.y, rect.width, rect.height);
-    if (needed > cached.bytes && needed <= coverCacheCapacity - coverCacheUsed) {
-      cached.offset = coverCacheUsed;
-      cached.bytes = needed;
-      coverCacheUsed += needed;
-    }
-    if (needed > 0 && needed <= cached.bytes) {
-      cached.rect = rect;
-      cached.valid =
-          renderer.copyRegionToBuffer(rect.x, rect.y, rect.width, rect.height, cacheData + cached.offset, cached.bytes);
+    const auto slot = xp_ui_home_cache_reserve(&cacheState, index, region, needed);
+    if (slot.bytes != 0) {
+      const bool copied =
+          renderer.copyRegionToBuffer(rect.x, rect.y, rect.width, rect.height, cacheData + slot.offset, slot.bytes);
+      xp_ui_home_cache_copied(&cacheState, index, copied);
     }
   }
   return true;  // The cover slot is painted, including fallback art.

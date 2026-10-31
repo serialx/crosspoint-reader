@@ -1,31 +1,17 @@
 #pragma once
-
-#include <functional>
-
-#include "activities/Activity.h"
-#include "components/OptionPopup.h"
-
-class ClearCacheActivity final : public Activity {
+#include "UpdateUiActivity.h"
+class ClearCacheActivity final : public UpdateUiActivity {
  public:
-  explicit ClearCacheActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : Activity("ClearCache", renderer, mappedInput) {}
-
+  ClearCacheActivity(GfxRenderer& renderer, MappedInputManager& input)
+      : UpdateUiActivity("ClearCache", renderer, input, XP_UI_UPDATE_CACHE) {}
   void onEnter() override;
-  void onExit() override;
-  void loop() override;
-  bool skipLoopDelay() override { return true; }  // Prevent power-saving mode
-  void render(RenderLock&&) override;
 
  private:
-  enum State { WARNING, CLEARING, SUCCESS, FAILED };
-
-  State state = WARNING;
-
-  void goBack() { finish(); }
-
-  int clearedCount = 0;
-  int failedCount = 0;
-  OptionPopup confirmPopup;
+  int clearedCount = 0, failedCount = 0;
+  std::string resultText;
   void beginClear();
   void clearCache();
+  void performAction(XpUiUpdateAction, int32_t) override;
+  void prepareText() override;
+  const char* dynamicText(uint32_t) const override;
 };

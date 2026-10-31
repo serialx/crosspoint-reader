@@ -2,30 +2,31 @@
 
 #include <iomanip>
 
+#include "../legacy_book_policy.h"
 #include "lib/Epub/Epub/TokenBoundary.h"
 
 TEST(TokenBoundary, OrdinaryWordGapIsBreakableAndJustifiable) {
-  EXPECT_TRUE(TokenBoundary::allowsBreak(/*continues=*/false, /*noSpaceBefore=*/false));
-  EXPECT_TRUE(TokenBoundary::isJustifiableGap(/*continues=*/false, /*isStretchableSpace=*/false));
+  EXPECT_TRUE(legacy_book_policy::allowsBreak(/*continues=*/false, /*noSpaceBefore=*/false));
+  EXPECT_TRUE(legacy_book_policy::isJustifiableGap(/*continues=*/false, /*isStretchableSpace=*/false));
 }
 
 TEST(TokenBoundary, CjkZeroWidthGapIsBreakableAndJustifiable) {
-  EXPECT_TRUE(TokenBoundary::allowsBreak(/*continues=*/false, /*noSpaceBefore=*/true));
-  EXPECT_TRUE(TokenBoundary::isJustifiableGap(/*continues=*/false, /*isStretchableSpace=*/false));
+  EXPECT_TRUE(legacy_book_policy::allowsBreak(/*continues=*/false, /*noSpaceBefore=*/true));
+  EXPECT_TRUE(legacy_book_policy::isJustifiableGap(/*continues=*/false, /*isStretchableSpace=*/false));
 }
 
 TEST(TokenBoundary, AttachedTextIsNeitherBreakableNorJustifiable) {
-  EXPECT_FALSE(TokenBoundary::allowsBreak(/*continues=*/true, /*noSpaceBefore=*/false));
-  EXPECT_FALSE(TokenBoundary::isJustifiableGap(/*continues=*/true, /*isStretchableSpace=*/false));
+  EXPECT_FALSE(legacy_book_policy::allowsBreak(/*continues=*/true, /*noSpaceBefore=*/false));
+  EXPECT_FALSE(legacy_book_policy::isJustifiableGap(/*continues=*/true, /*isStretchableSpace=*/false));
 }
 
 TEST(TokenBoundary, ExplicitHyphenBoundaryIsBreakableButNotJustifiable) {
-  EXPECT_TRUE(TokenBoundary::allowsBreak(/*continues=*/true, /*noSpaceBefore=*/true));
-  EXPECT_FALSE(TokenBoundary::isJustifiableGap(/*continues=*/true, /*isStretchableSpace=*/false));
+  EXPECT_TRUE(legacy_book_policy::allowsBreak(/*continues=*/true, /*noSpaceBefore=*/true));
+  EXPECT_FALSE(legacy_book_policy::isJustifiableGap(/*continues=*/true, /*isStretchableSpace=*/false));
 }
 
 TEST(TokenBoundary, LiteralAttachedSpaceRemainsJustifiable) {
-  EXPECT_TRUE(TokenBoundary::isJustifiableGap(/*continues=*/true, /*isStretchableSpace=*/true));
+  EXPECT_TRUE(legacy_book_policy::isJustifiableGap(/*continues=*/true, /*isStretchableSpace=*/true));
 }
 
 TEST(TokenBoundary, VisibleExplicitHyphensAllowBreaks) {

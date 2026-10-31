@@ -1,3 +1,4 @@
+#include <Logging.h>
 #include <gtest/gtest.h>
 
 #include <cstring>
@@ -5,10 +6,40 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <new>
 #include <string>
 #include <vector>
 
+#include "../legacy_book_policy.h"
 #include "CssParser.h"
+
+namespace {
+thread_local size_t failScratchSize = 0;
+thread_local bool scratchFailureHit = false;
+
+class FailScratchAllocation {
+ public:
+  explicit FailScratchAllocation(size_t size) {
+    failScratchSize = size;
+    scratchFailureHit = false;
+  }
+  ~FailScratchAllocation() { failScratchSize = 0; }
+};
+}  // namespace
+
+// Only the facade's nothrow array allocation is injected; Rust has its own shim.
+void* operator new[](size_t size, const std::nothrow_t&) noexcept {
+  if (failScratchSize != 0 && size == failScratchSize) {
+    failScratchSize = 0;
+    scratchFailureHit = true;
+    return nullptr;
+  }
+  try {
+    return ::operator new[](size);
+  } catch (...) {
+    return nullptr;
+  }
+}
 
 namespace fs = std::filesystem;
 
@@ -64,6 +95,81 @@ class CssParserTest : public ::testing::Test {
 
   fs::path directory_;
 };
+
+TEST_F(CssParserTest, SourceScratchFailureReturnsPartialAndCanRetry) {
+  CssParser parser(cachePath());
+  {
+    FailScratchAllocation failure(512);
+    EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Partial);
+    EXPECT_TRUE(scratchFailureHit);
+    EXPECT_EQ(parser.ruleCount(), 0u);
+  }
+  parser.clear();
+  EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  EXPECT_EQ(parser.ruleCount(), 1u);
+}
+
+TEST_F(CssParserTest, CacheInputScratchFailureReturnsLowMemoryAndCanRetry) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(true));
+  const auto previous = readCache();
+  CssParser reader(cachePath());
+  {
+    FailScratchAllocation failure(512);
+    EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::LowMemory);
+    EXPECT_TRUE(scratchFailureHit);
+    EXPECT_EQ(reader.ruleCount(), 0u);
+  }
+  EXPECT_EQ(readCache(), previous);
+  reader.clear();
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.resolveStyle("p", "a").fontWeight, CssFontWeight::Bold);
+}
+
+TEST_F(CssParserTest, CacheOutputScratchFailurePreservesPreviousCache) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(true));
+  const auto previous = readCache();
+  ASSERT_EQ(loadCss(writer, ".b{font-style:italic}"), CssParser::ParseResult::Complete);
+  {
+    FailScratchAllocation failure(347);
+    EXPECT_FALSE(writer.saveToCache(true));
+    EXPECT_TRUE(scratchFailureHit);
+  }
+  EXPECT_EQ(readCache(), previous);
+  EXPECT_FALSE(fs::exists(cacheTempFile()));
+  CssParser reader(cachePath());
+  ASSERT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.ruleCount(), 1u);
+  EXPECT_EQ(reader.resolveStyle("p", "a").fontWeight, CssFontWeight::Bold);
+  EXPECT_TRUE(writer.saveToCache(true));
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.ruleCount(), 2u);
+}
+
+TEST_F(CssParserTest, CacheOrderScratchFailurePreservesPreviousCache) {
+  CssParser writer(cachePath());
+  ASSERT_EQ(loadCss(writer, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(writer.saveToCache(true));
+  const auto previous = readCache();
+  std::string css;
+  for (size_t i = 1; i < 1500; ++i) css += ".a" + std::to_string(i) + "{font-weight:bold}";
+  ASSERT_EQ(loadCss(writer, css), CssParser::ParseResult::Complete);
+  ASSERT_EQ(writer.ruleCount(), 1500u);
+  {
+    FailScratchAllocation failure(3000);
+    EXPECT_FALSE(writer.saveToCache(true));
+    EXPECT_TRUE(scratchFailureHit);
+  }
+  EXPECT_EQ(readCache(), previous);
+  EXPECT_FALSE(fs::exists(cacheTempFile()));
+  EXPECT_TRUE(writer.saveToCache(true));
+  CssParser reader(cachePath());
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(reader.ruleCount(), 1500u);
+}
 
 TEST_F(CssParserTest, ResolvesCaseInsensitiveCascadeAndRepeatedSelectors) {
   CssParser parser(cachePath());
@@ -502,22 +608,22 @@ TEST_F(CssParserTest, ParsesBordersAndBackgroundShade) {
   CssParser reader(cachePath());
   ASSERT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
   const CssStyle all = reader.resolveStyle("div", "all");
-  EXPECT_TRUE(all.borderTop.visible() && all.borderRight.visible() && all.borderBottom.visible() &&
-              all.borderLeft.visible());
+  EXPECT_TRUE(legacy_book_policy::visible(all.borderTop) && legacy_book_policy::visible(all.borderRight) &&
+              legacy_book_policy::visible(all.borderBottom) && legacy_book_policy::visible(all.borderLeft));
   EXPECT_EQ(all.borderLeft.width, 1);
   EXPECT_EQ(all.borderLeft.style, CssBorderStyle::Solid);
 
   const CssStyle top = reader.resolveStyle("div", "top");
   EXPECT_EQ(top.borderTop.width, 3);
   EXPECT_EQ(top.borderTop.style, CssBorderStyle::Double);
-  EXPECT_FALSE(top.borderBottom.visible());
+  EXPECT_FALSE(legacy_book_policy::visible(top.borderBottom));
 
   const CssStyle edges = reader.resolveStyle("div", "edges");
-  EXPECT_TRUE(edges.borderTop.visible());
-  EXPECT_TRUE(edges.borderBottom.visible());
-  EXPECT_FALSE(edges.borderLeft.visible());
+  EXPECT_TRUE(legacy_book_policy::visible(edges.borderTop));
+  EXPECT_TRUE(legacy_book_policy::visible(edges.borderBottom));
+  EXPECT_FALSE(legacy_book_policy::visible(edges.borderLeft));
 
-  EXPECT_FALSE(reader.resolveStyle("div", "nostyle").hasVisibleBorder());
+  EXPECT_FALSE(legacy_book_policy::hasVisibleBorder(reader.resolveStyle("div", "nostyle")));
   const CssStyle dashed = reader.resolveStyle("div", "long");
   EXPECT_EQ(dashed.borderLeft.width, 4);
   EXPECT_EQ(dashed.borderLeft.style, CssBorderStyle::Dashed);
@@ -595,7 +701,7 @@ TEST_F(CssParserTest, PreservedWhitespaceSurvivesCacheAndNormalOverridesIt) {
   auto style = reader.resolveStyle("p", "mono");
   ASSERT_TRUE(style.defined.whiteSpace);
   EXPECT_TRUE(style.preserveWhitespace);
-  style.applyOver(reader.resolveStyle("span", "normal"));
+  legacy_book_policy::applyOver(style, reader.resolveStyle("span", "normal"));
   EXPECT_FALSE(style.preserveWhitespace);
 }
 
@@ -605,7 +711,7 @@ TEST_F(CssParserTest, WhiteSpacePreservationValuesAndUnsupportedOverrides) {
     auto style = CssParser::parseInlineStyle(declaration);
     EXPECT_TRUE(style.defined.whiteSpace) << value;
     EXPECT_TRUE(style.preserveWhitespace) << value;
-    style.applyOver(CssParser::parseInlineStyle("white-space: normal"));
+    legacy_book_policy::applyOver(style, CssParser::parseInlineStyle("white-space: normal"));
     EXPECT_TRUE(style.defined.whiteSpace);
     EXPECT_FALSE(style.preserveWhitespace);
   }
@@ -614,7 +720,7 @@ TEST_F(CssParserTest, WhiteSpacePreservationValuesAndUnsupportedOverrides) {
   auto style = CssParser::parseInlineStyle("white-space: pre; white-space: nowrap");
   EXPECT_TRUE(style.defined.whiteSpace);
   EXPECT_TRUE(style.preserveWhitespace);
-  style.applyOver(unsupported);
+  legacy_book_policy::applyOver(style, unsupported);
   EXPECT_TRUE(style.preserveWhitespace);
 }
 
@@ -631,21 +737,21 @@ TEST_F(CssParserTest, BorderComponentsCascadeIndependentlyAndSurviveCache) {
   ASSERT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Complete);
   for (const CssParser* parser : {&writer, &reader}) {
     const auto wide = parser->resolveStyle("p", "wide");
-    EXPECT_TRUE(wide.hasVisibleBorder());
+    EXPECT_TRUE(legacy_book_policy::hasVisibleBorder(wide));
     EXPECT_EQ(wide.borderTop.width, 2);
     EXPECT_EQ(wide.borderTop.style, CssBorderStyle::Solid);
     const auto solid = parser->resolveStyle("div", "solid");
-    EXPECT_TRUE(solid.hasVisibleBorder());
+    EXPECT_TRUE(legacy_book_policy::hasVisibleBorder(solid));
     EXPECT_EQ(solid.borderLeft.width, 3);
     const auto top = parser->resolveStyle("p", "top");
     EXPECT_EQ(top.borderTop.width, 4);
     EXPECT_EQ(top.borderTop.style, CssBorderStyle::Solid);
     EXPECT_EQ(top.borderLeft.width, 1);
     EXPECT_EQ(top.borderLeft.style, CssBorderStyle::Dashed);
-    EXPECT_FALSE(parser->resolveStyle("p", "none").hasVisibleBorder());
+    EXPECT_FALSE(legacy_book_policy::hasVisibleBorder(parser->resolveStyle("p", "none")));
   }
   const auto inlineStyle = CssParser::parseInlineStyle("border-style: solid; border-width: 2px");
-  EXPECT_TRUE(inlineStyle.hasVisibleBorder());
+  EXPECT_TRUE(legacy_book_policy::hasVisibleBorder(inlineStyle));
   EXPECT_EQ(inlineStyle.borderTop.width, 2);
 }
 
@@ -658,4 +764,93 @@ TEST_F(CssParserTest, DescendantRetriesWholeChildChain) {
   const auto style = parser.resolveStyle("p", "", "", ancestors, 3);
   EXPECT_EQ(style.fontWeight, CssFontWeight::Bold);
   EXPECT_FALSE(style.hasFontStyle());
+}
+
+TEST_F(CssParserTest, DiagnosticsPreserveParseAndCacheMilestones) {
+  logging_stub::Capture logs;
+  CssParser parser(cachePath());
+  EXPECT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(parser.saveToCache(false));
+  EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Complete);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tParsed 1 rules from 20 bytes",
+                                                  "DBG\tCSS\tSaved 1 rules to partial cache",
+                                                  "DBG\tCSS\tLoaded 1 rules from partial cache"}));
+}
+TEST_F(CssParserTest, DiagnosticsDistinguishTruncationFromIncompleteSyntax) {
+  logging_stub::Capture logs;
+  CssParser parser(cachePath());
+  EXPECT_EQ(loadCss(parser, "/*unfinished"), CssParser::ParseResult::Partial);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tParsed 0 rules from 12 bytes"}));
+  logs.lines.clear();
+  const std::string source = "." + std::string(1100, 'a') + "{font-weight:bold}";
+  EXPECT_EQ(loadCss(parser, source), CssParser::ParseResult::Partial);
+  ASSERT_EQ(logs.lines.size(), 2u);
+  EXPECT_EQ(logs.lines[0], "ERR\tCSS\tCSS input exceeded parser buffer; cache will remain partial");
+}
+TEST_F(CssParserTest, DiagnosticsReportSelectorAndStoreLimits) {
+  logging_stub::Capture logs;
+  CssParser parser(cachePath());
+  EXPECT_EQ(loadCss(parser, "." + std::string(256, 'a') + "{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_FALSE(logs.lines.empty());
+  EXPECT_EQ(logs.lines.front(), "DBG\tCSS\tSelector too long (257 > 256), skipping");
+  logs.lines.clear();
+  std::string css;
+  for (int i = 0; i < 1501; ++i) css += ".r" + std::to_string(i) + "{font-weight:bold}";
+  EXPECT_EQ(loadCss(parser, css), CssParser::ParseResult::Partial);
+  ASSERT_FALSE(logs.lines.empty());
+  EXPECT_EQ(logs.lines.front(), "ERR\tCSS\tCSS rule store limit reached at 1500 rules");
+}
+TEST_F(CssParserTest, DiagnosticsReportCacheValidation) {
+  const std::vector<std::pair<std::vector<uint8_t>, std::string>> cases = {
+      {{}, "Cache version mismatch (got 0, expected 19), removing stale cache for rebuild"},
+      {{18}, "Cache version mismatch (got 18, expected 19), removing stale cache for rebuild"},
+      {{19}, "Invalid CSS cache flags: 0"},
+      {{19, 2, 0, 0}, "Invalid CSS cache flags: 2"},
+      {{19, 0, 221, 5}, "Invalid cache rule count (1501 > 1500)"},
+      {{19, 0, 1, 0, 0, 0}, "Invalid selector length in cache: 0"},
+      {{19, 0, 1, 0, 2, 1}, "Invalid selector length in cache: 258"},
+  };
+  for (const auto& [bytes, text] : cases) {
+    SCOPED_TRACE(text);
+    writeCache(bytes);
+    logging_stub::Capture logs;
+    CssParser parser(cachePath());
+    EXPECT_EQ(parser.loadFromCache(), CssParser::CacheLoadResult::Invalid);
+    EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\t" + text}));
+  }
+}
+TEST_F(CssParserTest, DiagnosticsReportDuplicateAndSortFailure) {
+  CssParser parser(cachePath());
+  ASSERT_EQ(loadCss(parser, ".a{font-weight:bold}"), CssParser::ParseResult::Complete);
+  ASSERT_TRUE(parser.saveToCache(true));
+  auto bytes = readCache();
+  const std::vector<uint8_t> record(bytes.begin() + 4, bytes.end());
+  bytes[2] = 2;
+  bytes.insert(bytes.end(), record.begin(), record.end());
+  writeCache(bytes);
+  logging_stub::Capture logs;
+  CssParser reader(cachePath());
+  EXPECT_EQ(reader.loadFromCache(), CssParser::CacheLoadResult::Invalid);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"DBG\tCSS\tDuplicate selector in CSS cache"}));
+  logs.lines.clear();
+  FailScratchAllocation fail(sizeof(uint16_t));
+  EXPECT_FALSE(parser.saveToCache(true));
+  EXPECT_TRUE(scratchFailureHit);
+  EXPECT_EQ(logs.lines, (std::vector<std::string>{"ERR\tCSS\tOOM sorting CSS cache rules"}));
+}
+extern "C" void cssTestFailAllocation(size_t);
+TEST_F(CssParserTest, DiagnosticsReportEachPoolOomBeforeStoreFailure) {
+  // Handle, stream box, two token vectors, then the index/selector/style pools.
+  const char* pool[] = {"selector index (32 entries)", "selector pool (512 bytes)", "style pool (16 styles)"};
+  for (size_t i = 0; i < 3; ++i) {
+    logging_stub::Capture logs;
+    CssParser parser(cachePath());
+    cssTestFailAllocation(4 + i);
+    const auto result = loadCss(parser, ".a{font-weight:bold}");
+    cssTestFailAllocation(SIZE_MAX);
+    EXPECT_EQ(result, CssParser::ParseResult::Partial);
+    ASSERT_GE(logs.lines.size(), 2u);
+    EXPECT_EQ(logs.lines[0], std::string("ERR\tCSS\tOOM: ") + pool[i]);
+    EXPECT_EQ(logs.lines[1], "ERR\tCSS\tOOM while growing CSS rule store at 0 rules");
+  }
 }

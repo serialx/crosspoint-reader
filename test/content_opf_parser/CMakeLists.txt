@@ -1,9 +1,7 @@
-find_package(EXPAT REQUIRED)
-
 add_executable(ContentOpfParserTest
   ContentOpfParserTest.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/PackageParser.cpp
   EncryptionManifestProbeTest.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/parsers/ContentOpfParser.cpp
 )
 
 target_include_directories(ContentOpfParserTest PRIVATE
@@ -14,8 +12,13 @@ target_include_directories(ContentOpfParserTest PRIVATE
 
 target_link_libraries(ContentOpfParserTest PRIVATE
   crosspoint_test_common
-  EXPAT::EXPAT
   GTest::gtest_main
 )
 
 gtest_discover_tests(ContentOpfParserTest)
+
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+target_link_libraries(ContentOpfParserTest PRIVATE xp_ffi_host)
+
+target_sources(ContentOpfParserTest PRIVATE ${REPO_ROOT}/lib/expat/ExpatErrors.cpp)
+target_include_directories(ContentOpfParserTest PRIVATE ${REPO_ROOT}/lib/expat)

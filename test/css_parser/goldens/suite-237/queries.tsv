@@ -1,0 +1,20 @@
+DIV			
+P			
+P	NONE		
+P	SOLID		
+P	TOP		
+P	WIDE		
+div			
+div	 unrelated		
+div	a b c d e f g h i	id	
+p			
+p	 unrelated		
+p	none		
+p	none unrelated		
+p	solid		
+p	solid unrelated		
+p	top		
+p	top unrelated		
+p	wide		
+p	wide unrelated		
+span	note	target	

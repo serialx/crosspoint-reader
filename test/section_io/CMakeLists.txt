@@ -1,0 +1,15 @@
+get_target_property(SECTION_IO_SOURCES PageLoad SOURCES)
+list(REMOVE_ITEM SECTION_IO_SOURCES PageLoad.cpp)
+set(SECTION_IO_SOURCE "${REPO_ROOT}/lib/Epub/Epub/Section.cpp" CACHE FILEPATH "Section source for oracle sensitivity checks")
+list(FILTER SECTION_IO_SOURCES EXCLUDE REGEX "/Epub/Section.cpp$")
+add_executable(SectionIoOracle SectionIoOracle.cpp ${SECTION_IO_SOURCE} ${SECTION_IO_SOURCES})
+get_target_property(SECTION_IO_INCLUDES SectionGoldenDump INCLUDE_DIRECTORIES)
+target_include_directories(SectionIoOracle PRIVATE stubs ${REPO_ROOT}/test/book_io/epub-stubs ${SECTION_IO_INCLUDES})
+target_link_libraries(SectionIoOracle PRIVATE crosspoint_test_common xp_ffi_host)
+add_test(NAME SectionIoGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run.py --oracle $<TARGET_FILE:SectionIoOracle>)
+add_executable(BookPolicyOracle BookPolicyOracle.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/htmlEntities.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp)
+target_include_directories(BookPolicyOracle PRIVATE stubs ${REPO_ROOT}/test/book_io/epub-stubs ${SECTION_IO_INCLUDES})
+target_link_libraries(BookPolicyOracle PRIVATE crosspoint_test_common xp_ffi_host)
+add_test(NAME BookPolicyGolden COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/policy.py $<TARGET_FILE:BookPolicyOracle>)

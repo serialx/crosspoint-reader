@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -333,3 +337,246 @@ TEST_F(ZipFileTest, RejectsArchivesWithoutAnEndOfCentralDirectoryRecord) {
 }
 
 }  // namespace
+
+namespace {
+std::string hexName(std::string_view name) {
+  std::ostringstream out;
+  for (unsigned char c : name) out << std::hex << std::setw(2) << std::setfill('0') << unsigned(c);
+  return name.empty() ? "-" : out.str();
+}
+
+std::string directoryOracle(const std::vector<uint8_t>& bytes) {
+  const std::string path = "/oracle.epub";
+  Storage.setFile(path, bytes);
+  ZipFile zip(path);
+  std::ostringstream out;
+  zip.open();
+  out << "details " << zip.loadZipDetails() << ' ' << zip.zipDetails.centralDirOffset << ' '
+      << zip.zipDetails.totalEntries << '\n';
+  std::vector<std::string> names;
+  const bool entries = zip.enumerateFileEntries([&](std::string_view name, uint32_t crc, uint32_t compressed) {
+    names.emplace_back(name);
+    out << "entry " << hexName(name) << ' ' << crc << ' ' << compressed << '\n';
+  });
+  out << "entries " << entries << '\n';
+  out << "paths";
+  const bool paths = zip.enumerateFilePaths([&](std::string_view name) { out << ' ' << hexName(name); });
+  out << ' ' << paths << '\n';
+  // Repetition checks the last-lookup cache; reverse order forces cursor wraps.
+  names.push_back("missing-entry");
+  names.push_back("./mimetype");
+  names.push_back("/mimetype");
+  names.push_back(std::string(256, 'n'));
+  for (int pass = 0; pass < 2; ++pass) {
+    if (pass) std::reverse(names.begin(), names.end());
+    for (const auto& name : names) {
+      ZipFile::FileStatSlim stat{};
+      const bool found = zip.loadFileStatSlim(name.c_str(), &stat);
+      size_t size = 0;
+      const bool sized = zip.getInflatedFileSize(name.c_str(), &size);
+      out << "lookup " << found << ' ' << sized << ' ' << size << ' ' << stat.method << ' ' << stat.compressedSize
+          << ' ' << stat.uncompressedSize << ' ' << stat.localHeaderOffset << ' '
+          << (found ? zip.getDataOffset(stat) : -1) << ' ' << zip.lastCentralDirPos << '\n';
+    }
+  }
+  std::deque<ZipFile::SizeTarget> targets;
+  std::deque<uint32_t> sizes(names.size() + 1, 0xffffffff);
+  for (size_t i = 0; i < names.size(); ++i) {
+    targets.push_back({ZipFile::fnvHash64(names[i].data(), names[i].size()), uint16_t(names[i].size()), uint16_t(i)});
+  }
+  // A duplicate and an out-of-range index preserve the batch's counting policy.
+  if (!targets.empty()) {
+    auto duplicate = targets.front();
+    duplicate.index = uint16_t(names.size());
+    targets.push_back(duplicate);
+    duplicate.index = 65535;
+    targets.push_back(duplicate);
+  }
+  std::sort(targets.begin(), targets.end(),
+            [](const auto& a, const auto& b) { return a.hash < b.hash || (a.hash == b.hash && a.len < b.len); });
+  out << "batch " << zip.fillUncompressedSizes(targets, sizes);
+  for (auto size : sizes) out << ' ' << size;
+  out << '\n';
+  out << "preload " << zip.loadAllFileStatSlims() << '\n';
+  std::vector<std::string> cachedPaths;
+  zip.enumerateFilePaths([&](std::string_view name) { cachedPaths.emplace_back(name); });
+  if (!zip.fileStatSlimCache.empty()) {
+    std::vector<std::string> mapPaths;
+    for (const auto& item : zip.fileStatSlimCache) mapPaths.push_back(item.first);
+    EXPECT_EQ(cachedPaths, mapPaths);
+  }
+  // unordered_map order differs between libc++ and libstdc++; compare its native
+  // iteration above, and store a portable canonical list in the transcript.
+  std::sort(cachedPaths.begin(), cachedPaths.end());
+  out << "cached-paths";
+  for (const auto& name : cachedPaths) out << ' ' << hexName(name);
+  out << '\n';
+  zip.close();
+  for (const auto& name : names) {
+    ZipFile::FileStatSlim stat{};
+    const bool found = zip.loadFileStatSlim(name.c_str(), &stat);
+    out << "cached " << found << ' ' << stat.method << ' ' << stat.compressedSize << ' ' << stat.uncompressedSize << ' '
+        << stat.localHeaderOffset << '\n';
+  }
+  return out.str();
+}
+
+TEST(ZipDirectoryOracle, CurrentCppCorpus) {
+  std::vector<std::pair<std::string, std::vector<uint8_t>>> cases;
+  std::vector<std::filesystem::path> epubs;
+  for (const auto& item : std::filesystem::directory_iterator(ZIP_EPUB_DIR)) {
+    if (item.path().extension() == ".epub") epubs.push_back(item.path());
+  }
+  std::sort(epubs.begin(), epubs.end());
+  for (const auto& path : epubs) {
+    std::ifstream input(path, std::ios::binary);
+    ASSERT_TRUE(input.good());
+    cases.emplace_back(path.filename().string(), std::vector<uint8_t>(std::istreambuf_iterator<char>(input), {}));
+  }
+  ZipBuilder basic;
+  basic.addStored("mimetype", "application/epub+zip")
+      .addDeflated("OEBPS/chapter.xhtml", DEFLATED_BYTES, uint32_t(DEFLATED_TEXT.size()))
+      .addStored("a.txt", "aaaa")
+      .addStored("b.txt", "bb")
+      .addStored("c.txt", "c")
+      .addStored("one", "1")
+      .addStored("two", "22")
+      .addStored("three", "333")
+      .addStored("four", "4444")
+      .addStored(std::string(300, 'n'), "long")
+      .addStored(std::string(255, 'n'), "boundary")
+      .addStored(std::string(256, 'n'), "too-long")
+      .addStored("with-extra", "extra", std::string(12, 'x'), "a comment")
+      .addStored("plain", "plain!")
+      .addStored("./raw/../path", "raw")
+      .addStored("duplicate", "first")
+      .addStored("duplicate", "second-longer");
+  cases.emplace_back("generated", basic.build());
+  for (size_t comment : {size_t(1002), size_t(1003), size_t(65535)}) {
+    auto bytes = basic.build();
+    bytes[bytes.size() - 2] = uint8_t(comment);
+    bytes[bytes.size() - 1] = uint8_t(comment >> 8);
+    bytes.resize(bytes.size() + comment, 'x');
+    cases.emplace_back("comment-" + std::to_string(comment), std::move(bytes));
+  }
+  ZipBuilder large;
+  for (int i = 0; i < 1100; ++i) large.addStored("directory/entry-" + std::to_string(i), "x", "extra", "comment");
+  auto largeBytes = large.build();
+  ASSERT_GT(largeBytes.size() - large.centralDirOffset - 22, 65536u);
+  cases.emplace_back("large-directory", std::move(largeBytes));
+  cases.emplace_back("missing-eocd", std::vector<uint8_t>(64, 0));
+  cases.emplace_back("too-small", std::vector<uint8_t>(8, 'P'));
+  std::ostringstream actual;
+  for (const auto& [name, bytes] : cases) actual << "archive " << name << '\n' << directoryOracle(bytes);
+  const std::string golden = std::string(ZIP_GOLDEN_DIR) + "/directory-golden.txt";
+  if (std::getenv("RECORD_ZIP_GOLDENS")) {
+    std::ofstream output(golden, std::ios::binary);
+    ASSERT_TRUE(output.good());
+    output << actual.str();
+  } else {
+    std::ifstream input(golden, std::ios::binary);
+    ASSERT_TRUE(input.good());
+    const std::string expected(std::istreambuf_iterator<char>(input), {});
+    EXPECT_EQ(expected, actual.str());
+  }
+}
+}  // namespace
+
+TEST(ZipDirectoryAbi, InvalidArgumentsLeaveOutputsUntouched) {
+  XpZipRead request{123, 456};
+  EXPECT_EQ(xp_zip_eocd_request(21, &request), -1);
+  EXPECT_EQ(request.offset, 123u);
+  EXPECT_EQ(request.length, 456u);
+  EXPECT_EQ(xp_zip_eocd_request(22, nullptr), -1);
+  XpZipDetails details{123, 45};
+  EXPECT_EQ(xp_zip_eocd(nullptr, 22, &details), -1);
+  EXPECT_EQ(xp_zip_eocd(nullptr, 0, &details), -1);
+  EXPECT_EQ(details.central_offset, 123u);
+  EXPECT_EQ(details.entries, 45);
+  alignas(XpZipDetails) uint8_t unaligned[sizeof(XpZipDetails) + 1]{};
+  EXPECT_EQ(xp_zip_eocd(nullptr, 0, reinterpret_cast<XpZipDetails*>(unaligned + 1)), -1);
+  XpZipWalker walker;
+  ASSERT_EQ(xp_zip_begin(0, 0, &walker), 0);
+  XpZipEntry entry{};
+  entry.crc32 = 123;
+  EXPECT_EQ(xp_zip_next(&walker, nullptr, 1, &entry), -1);
+  EXPECT_EQ(entry.crc32, 123u);
+  EXPECT_EQ(xp_zip_request(nullptr, &request), -1);
+  uint64_t offset = 987;
+  EXPECT_EQ(xp_zip_data_offset(0, nullptr, 30, &offset), -1);
+  EXPECT_EQ(offset, 987u);
+  EXPECT_EQ(xp_zip_name_matches(nullptr, 1, nullptr, 0), -1);
+  EXPECT_EQ(xp_zip_name_matches(nullptr, 0, nullptr, 0), 1);
+}
+
+TEST(ZipDirectoryAbi, ShortAndOverflowingRecordsStopWithoutAnEntry) {
+  std::vector<uint8_t> header(46, 0);
+  header[0] = 0x50;
+  header[1] = 0x4b;
+  header[2] = 1;
+  header[3] = 2;
+  for (size_t length = 0; length < header.size(); ++length) {
+    XpZipWalker walker;
+    ASSERT_EQ(xp_zip_begin(0, 0, &walker), 0);
+    XpZipEntry entry{};
+    entry.crc32 = 123;
+    EXPECT_EQ(xp_zip_next(&walker, header.data(), length, &entry), 0);
+    EXPECT_EQ(entry.crc32, 123u);
+  }
+  XpZipWalker walker;
+  ASSERT_EQ(xp_zip_begin(UINT32_MAX - 45, UINT32_MAX - 45, &walker), 0);
+  XpZipEntry entry{};
+  EXPECT_EQ(xp_zip_next(&walker, header.data(), header.size(), &entry), -1);
+}
+
+TEST(ZipDirectoryIo, FailedReadsDoNotCacheAnEntry) {
+  ZipBuilder builder;
+  builder.addStored("entry", "value");
+  const std::string path = "/failure.zip";
+  const auto bytes = builder.build();
+  for (size_t offset : {size_t(0), size_t(builder.centralDirOffset), size_t(builder.centralDirOffset + 46)}) {
+    Storage.setFile(path, bytes);
+    ZipFile zip(path);
+    ASSERT_TRUE(zip.open());
+    HalFile::failReadOffset = offset;
+    size_t size = 999;
+    EXPECT_FALSE(zip.getInflatedFileSize("entry", &size));
+    EXPECT_EQ(size, 999u);
+    EXPECT_FALSE(zip.lastLookupValid);
+    HalFile::failReadOffset = SIZE_MAX;
+    EXPECT_TRUE(zip.getInflatedFileSize("entry", &size));
+    EXPECT_EQ(size, 5u);
+  }
+}
+
+TEST_F(ZipFileTest, NegativeStoredReadNeverReachesTheSink) {
+  ZipBuilder builder;
+  builder.addStored("entry", "value");
+  install(builder);
+  ZipFile zip(path);
+  HalFile::failReadOffset = 30 + 5;
+  class RejectOversize : public Print {
+   public:
+    bool called = false;
+    size_t write(uint8_t) override {
+      called = true;
+      return 1;
+    }
+    size_t write(const uint8_t*, size_t) override {
+      called = true;
+      return 0;
+    }
+  } sink;
+  EXPECT_FALSE(zip.readFileToStream("entry", sink, 8, true));
+  EXPECT_FALSE(sink.called);
+}
+
+TEST_F(ZipFileTest, TrailingNulSizeOverflowDoesNotAllocateOutput) {
+  ZipBuilder builder;
+  builder.addDeflated("entry", DEFLATED_BYTES, UINT32_MAX);
+  install(builder);
+  ZipFile zip(path);
+  size_t size = 777;
+  EXPECT_EQ(zip.readFileToMemory("entry", &size, true), nullptr);
+  EXPECT_EQ(size, 777u);
+}

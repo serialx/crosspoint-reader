@@ -4,6 +4,7 @@
 #include <base64.h>
 #include <esp_mac.h>
 #include <mbedtls/base64.h>
+#include <xp_settings.h>
 
 #include <array>
 #include <cstring>
@@ -28,17 +29,11 @@ const uint8_t* getHwKey() {
 }  // namespace
 
 void xorTransform(std::string& data) {
-  const uint8_t* key = getHwKey();
-  for (size_t i = 0; i < data.size(); i++) {
-    data[i] ^= key[i % HW_KEY_LEN];
-  }
+  xp_store_xor(reinterpret_cast<uint8_t*>(data.data()), data.size(), getHwKey(), HW_KEY_LEN);
 }
 
 void xorTransform(std::string& data, const uint8_t* key, size_t keyLen) {
-  if (keyLen == 0 || key == nullptr) return;
-  for (size_t i = 0; i < data.size(); i++) {
-    data[i] ^= key[i % keyLen];
-  }
+  xp_store_xor(reinterpret_cast<uint8_t*>(data.data()), data.size(), key, keyLen);
 }
 
 String obfuscateToBase64(const std::string& plaintext) {
@@ -53,36 +48,25 @@ std::string deobfuscateFromBase64(const char* encoded, bool* ok) {
 }
 
 std::string deobfuscateFromBase64(const char* encoded, const size_t maxDecodedLength, bool* ok, bool* tooLong) {
-  if (tooLong) *tooLong = false;
-  if (encoded == nullptr || encoded[0] == '\0') {
-    if (ok) *ok = false;
-    return "";
-  }
-  if (ok) *ok = true;
-  size_t encodedLen = strlen(encoded);
-  // First call: get required output buffer size
-  size_t decodedLen = 0;
-  int ret = mbedtls_base64_decode(nullptr, 0, &decodedLen, reinterpret_cast<const unsigned char*>(encoded), encodedLen);
-  if (ret != 0 && ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL) {
-    LOG_ERR("OBF", "Base64 decode size query failed (ret=%d)", ret);
-    if (ok) *ok = false;
-    return "";
-  }
-  if (decodedLen > maxDecodedLength) {
-    if (ok) *ok = false;
-    if (tooLong) *tooLong = true;
-    return "";
-  }
-  std::string result(decodedLen, '\0');
-  ret = mbedtls_base64_decode(reinterpret_cast<unsigned char*>(&result[0]), decodedLen, &decodedLen,
-                              reinterpret_cast<const unsigned char*>(encoded), encodedLen);
-  if (ret != 0) {
-    LOG_ERR("OBF", "Base64 decode failed (ret=%d)", ret);
-    if (ok) *ok = false;
-    return "";
-  }
-  result.resize(decodedLen);
-  xorTransform(result);
+  std::string result;
+  const XpStoreDecodeOps ops{
+      &result, getHwKey,
+      [](void* ctx, size_t size) {
+        auto& value = *static_cast<std::string*>(ctx);
+        value.resize(size);
+        return reinterpret_cast<uint8_t*>(value.data());
+      },
+      [](uint8_t* dst, size_t capacity, size_t* size, const uint8_t* src, size_t len) -> int32_t {
+        return mbedtls_base64_decode(dst, capacity, size, src, len);
+      }};
+  int32_t error = 0;
+  const auto status = xp_store_decode(reinterpret_cast<const uint8_t*>(encoded), encoded ? strlen(encoded) : 0,
+                                      maxDecodedLength, &ops, &error);
+  if (ok) *ok = status == 0;
+  if (tooLong) *tooLong = status == 3;
+  if (status == 2) LOG_ERR("OBF", "Base64 decode size query failed (ret=%d)", static_cast<int>(error));
+  if (status == 4) LOG_ERR("OBF", "Base64 decode failed (ret=%d)", static_cast<int>(error));
+  if (status != 0) return {};
   return result;
 }
 

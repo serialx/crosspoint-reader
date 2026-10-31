@@ -1,0 +1,3 @@
+ break-after: page; 
+ margin: 0; padding: 0; 
+ margin: 0; padding: 0; text-indent: 0; 

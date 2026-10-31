@@ -1,0 +1,38 @@
+#![no_std]
+
+//! Bounded scenes. Owners lend storage; a failed build never becomes paintable.
+pub mod draw;
+pub mod scene;
+
+#[cfg(test)]
+mod tests;
+
+pub mod model;
+
+pub mod ffi;
+
+pub mod list;
+
+pub mod xtc;
+
+pub mod dictionary;
+pub mod home;
+pub mod keyboard;
+pub mod keyboard_view;
+pub mod reader_chrome;
+pub mod reader_chrome_ffi;
+pub mod utility;
+
+pub mod settings;
+pub mod text_settings;
+
+pub mod boot;
+
+pub mod catalog;
+
+pub mod koreader;
+pub mod updates;
+
+pub mod network;
+
+pub mod reader;

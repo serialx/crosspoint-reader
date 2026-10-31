@@ -1,0 +1,5 @@
+#title { text-align: center; }
+h1#title { font-weight: bold; }
+.first.noindent { text-indent: 0; }
+p.b.a { font-style: italic; }
+*.star { text-align: right; }

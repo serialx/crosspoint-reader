@@ -17,6 +17,12 @@ enum class BidiBaseDir : signed char { AUTO = -1, LTR = 0, RTL = 1 };
 
 enum Color : uint8_t { Clear = 0x00, White = 0x01, LightGray = 0x05, DarkGray = 0x0A, Black = 0x10 };
 
+extern "C" void xp_page_render_rects(const uint8_t*, size_t, void*,
+                                     void (*)(void*, int32_t, int32_t, int32_t, int32_t, uint8_t), int32_t, int32_t,
+                                     uint8_t);
+
+enum class PageRenderMode : uint8_t { All, Images, Placeholders };
+
 class GfxRenderer {
  public:
   mutable size_t fontPreparations = 0;
@@ -32,7 +38,19 @@ class GfxRenderer {
   static int trackingBetween(uint32_t left, uint32_t right, int8_t tracking) {
     return left == 0 || left == ' ' || right == ' ' ? 0 : tracking;
   }
-  bool isFontCacheScanning() const { return false; }
+  void drawPage(const uint8_t* arena, size_t size, int, int x, int y, PageRenderMode mode, void*,
+                void (*)(void*, uint16_t, int32_t, int32_t, uint8_t)) const {
+    xp_page_render_rects(
+        arena, size, const_cast<GfxRenderer*>(this),
+        [](void* raw, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t shade) {
+          const auto& self = *static_cast<GfxRenderer*>(raw);
+          if (shade)
+            self.fillRectDither(x, y, w, h, Color::LightGray);
+          else
+            self.fillRect(x, y, w, h);
+        },
+        x, y, static_cast<uint8_t>(mode));
+  }
   mutable int lastLineY = -1;
   mutable int drawnLineCount = 0;
   void drawLine(int, int y, int, int, int, bool) const {
@@ -40,7 +58,13 @@ class GfxRenderer {
     ++drawnLineCount;
   }
   mutable std::string boxPaints;
-  void fillRect(int, int, int, int, bool = true) const { boxPaints += 'b'; }
+  void fillRect(int, int y, int, int h, bool = true) const {
+    boxPaints += 'b';
+    if (h == 2) {
+      lastLineY = y;
+      ++drawnLineCount;
+    }
+  }
   void fillRectDither(int, int, int, int, Color) const { boxPaints += 's'; }
   // Fixture glyphs: 8 px advance, capitals 10 px tall.
   int drawScaledCodepoint(int, uint32_t, EpdFontFamily::Style, int, int, int scale256) const {

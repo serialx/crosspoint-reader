@@ -1,0 +1,13 @@
+// Shared event IDs, wire names and storage limits.
+// IDs are persisted as mask bits; append events without reordering them.
+XP_PLUGIN_EVENT(ReaderOpen, 0, "reader.open")
+XP_PLUGIN_EVENT(ReaderExit, 1, "reader.exit")
+XP_PLUGIN_EVENT(ReaderSession, 2, "reader.session")
+XP_PLUGIN_EVENT(BookDownloaded, 3, "book.downloaded")
+XP_PLUGIN_EVENT(SleepEnter, 4, "sleep.enter")
+XP_PLUGIN_LIMIT(MAX_OUTBOX_BYTES, 4096)
+XP_PLUGIN_LIMIT(MAX_EVENT_LINE, 512)
+XP_PLUGIN_LIMIT(MAX_EVENT_PLUGINS, 8)
+XP_PLUGIN_LIMIT(SUB_NAME_BYTES, 24)
+XP_PLUGIN_LIMIT(SUB_DIR_BYTES, 64)
+XP_PLUGIN_LIMIT(JSON_SLOTS, 4)

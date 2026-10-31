@@ -1,0 +1,18 @@
+P	A		
+P	A		div~~
+P	A		div~~|section~~
+P	A B	ID	
+P	B		
+div	a b c d e f g h i	id	
+p			
+p	a		
+p	a		div~~
+p	a		div~~|section~~
+p	a b	id	
+p	a b unrelated	id	
+p	a unrelated		
+p	a unrelated		div~~
+p	a unrelated		div~~|section~~
+p	b		
+p	b unrelated		
+span	note	target	

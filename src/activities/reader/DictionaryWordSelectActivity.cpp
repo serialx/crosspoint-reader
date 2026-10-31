@@ -8,11 +8,10 @@
 
 #include "CrossPointSettings.h"
 #include "DictionaryDefinitionActivity.h"
+#include "DictionaryUiBindings.h"
 #include "components/UITheme.h"
 
 namespace {
-
-constexpr unsigned long POPUP_DURATION_MS = 1500;
 
 void indexBuildYield(void*) { vTaskDelay(1); }
 
@@ -21,9 +20,9 @@ void indexBuildYield(void*) { vTaskDelay(1); }
 void DictionaryWordSelectActivity::onEnter() {
   Activity::onEnter();
   fontId = SETTINGS.getReaderFontId();
-  lookupPending = true;
+  xp_ui_lookup_init(&state);
   popupMsg = StrId::STR_DICT_LOOKING_UP;
-  popup = Popup::Busy;
+  state.popup = 1;
   requestUpdate();
 }
 
@@ -31,7 +30,7 @@ void DictionaryWordSelectActivity::performLookup() {
   {
     RenderLock lock;
     popupMsg = StrId::STR_DICT_LOOKING_UP;
-    popup = Popup::Busy;
+    state.popup = 1;
   }
   if (!dictOpenAttempted) {
     dictOpenAttempted = true;
@@ -62,16 +61,16 @@ void DictionaryWordSelectActivity::performLookup() {
   if (found) {
     {
       RenderLock lock;
-      popup = Popup::None;
+      state.popup = 0;
       page.reset();
     }
     auto activity = makeUniqueNoThrow<DictionaryDefinitionActivity>(renderer, mappedInput, std::move(headword),
                                                                     std::move(definition), dict.definitionsAreHtml());
     if (!activity || !activity->enableLookup(dict, std::move(lookupText))) {
       LOG_ERR("DICT", "OOM: definition activity");
-      popup = Popup::Error;
+      state.popup = 3;
       popupMsg = StrId::STR_DICT_LOW_MEMORY;
-      popupTime = millis();
+      state.since = millis();
       requestUpdate();
       return;
     }
@@ -81,75 +80,58 @@ void DictionaryWordSelectActivity::performLookup() {
     });
     return;
   }
-  // Name the failure: a genuine miss is "Not found"; a word that WAS found but
-  // couldn't be read is a real error — and we distinguish decompression from a
-  // low-memory allocation from a generic read error.
-  if (!ok) {
-    popup = Popup::Error;
-    // An index build allocates a scan buffer, so it fails the same way lookups
-    // do on a fragmented heap — name that rather than a generic error.
-    switch (indexResult) {
-      case Dictionary::IndexResult::LowMemory:
-        popupMsg = StrId::STR_DICT_LOW_MEMORY;
-        break;
-      case Dictionary::IndexResult::ReadError:
-        popupMsg = StrId::STR_DICT_READ_FAILED;
-        break;
-      case Dictionary::IndexResult::Ok:
-      default:
-        popupMsg = StrId::STR_DICT_ERROR;  // dict.open() failed, not the index
-        break;
-    }
-  } else {
-    switch (result) {
-      case Dictionary::LookupResult::Decompress:
-        popup = Popup::Error;
-        popupMsg = StrId::STR_DICT_DECOMPRESS_ERROR;
-        break;
-      case Dictionary::LookupResult::LowMemory:
-        popup = Popup::Error;
-        popupMsg = StrId::STR_DICT_LOW_MEMORY;
-        break;
-      case Dictionary::LookupResult::ReadError:
-        popup = Popup::Error;
-        popupMsg = StrId::STR_DICT_READ_FAILED;
-        break;
-      case Dictionary::LookupResult::NotFound:
-      default:
-        popup = Popup::NotFound;
-        popupMsg = StrId::STR_DICT_NOT_FOUND;
-        break;
-    }
-  }
-  popupTime = millis();
+  xp_ui_lookup_result(&state, ok, static_cast<uint8_t>(indexResult), static_cast<uint8_t>(result), found, millis());
+  static constexpr StrId MESSAGES[] = {StrId::STR_DICT_LOOKING_UP,  StrId::STR_DICT_INDEXING,
+                                       StrId::STR_DICT_NOT_FOUND,   StrId::STR_DICT_LOW_MEMORY,
+                                       StrId::STR_DICT_READ_FAILED, StrId::STR_DICT_DECOMPRESS_ERROR,
+                                       StrId::STR_DICT_ERROR};
+  popupMsg = MESSAGES[state.message];
   requestUpdate();
 }
 
 void DictionaryWordSelectActivity::loop() {
-  if (lookupPending) {
-    lookupPending = false;
+  if (rustSceneRejected()) requestUpdate();
+  if (state.pending) {
+    state.pending = 0;
     performLookup();
     return;
   }
-  if (popup == Popup::NotFound || popup == Popup::Error) {
-    if (millis() - popupTime >= POPUP_DURATION_MS) {
-      finish();
-    }
-  }
+  if (xp_ui_lookup_expired(&state, millis())) finish();
 }
 
 void DictionaryWordSelectActivity::render(RenderLock&&) {
-  renderer.clearScreen();
-
-  auto* fcm = renderer.getFontCacheManager();
-  auto scope = fcm->createPrewarmScope();
-  if (page) page->render(renderer, fontId, marginLeft, marginTop);
-  scope.endScanAndPrewarm();
-  if (page) page->render(renderer, fontId, marginLeft, marginTop);
-
-  if (popup != Popup::None) {
-    GUI.drawPopup(renderer, I18N.get(popupMsg));
+  const XpUiBuffer buffer{commands, nullptr, 3, 0};
+  XpUiScene scene{};
+  const XpUiRect screen{0, 0, static_cast<int16_t>(renderer.getScreenWidth()),
+                        static_cast<int16_t>(renderer.getScreenHeight())};
+  if (xp_ui_lookup_view(&state, screen, &buffer, &scene) != 1) {
+    rejectRustScene();
     return;
   }
-  renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+  const bool complete = paintRustScene(scene, !state.popup);
+  if (complete && state.popup) {
+    if (dictionaryUiPopup(renderer, I18N.get(popupMsg), commands, 3, scene))
+      paintRustScene(scene);
+    else
+      rejectRustScene();
+  }
+  framePrewarm.reset();
+}
+
+XpUiPaint DictionaryWordSelectActivity::rustResources() {
+  return {this, nullptr, nullptr,
+          [](void*, uint32_t handle, uint32_t generation) -> uint8_t {
+            return generation == 1 && (handle == XP_UI_DICT_PAGE || handle == XP_UI_DICT_MESSAGE);
+          },
+          [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
+            auto& self = *static_cast<DictionaryWordSelectActivity*>(context);
+            if (command->resource == XP_UI_DICT_MESSAGE) {
+              self.renderer.drawUiText(*command, clip, I18N.get(self.popupMsg));
+              return;
+            }
+            self.framePrewarm.emplace(*self.renderer.getFontCacheManager());
+            if (self.page) self.page->render(self.renderer, self.fontId, self.marginLeft, self.marginTop);
+            self.framePrewarm->endScanAndPrewarm();
+            if (self.page) self.page->render(self.renderer, self.fontId, self.marginLeft, self.marginTop);
+          }};
 }

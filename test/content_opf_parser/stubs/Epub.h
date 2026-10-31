@@ -19,6 +19,12 @@ class HalFile {
   }
   size_t position() const { return position_; }
   int available() const { return 0; }
+  size_t size() const { return position_; }
+  size_t write(const uint8_t*, size_t size) {
+    position_ += size;
+    return size;
+  }
+  int read(uint8_t*, size_t) { return 0; }
   void markOpen() {
     initialized_ = true;
     open_ = true;

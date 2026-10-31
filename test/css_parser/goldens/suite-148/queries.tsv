@@ -1,0 +1,12 @@
+P			body~~
+P			div~~
+P	Z		
+div	a b c d e f g h i	id	
+p			
+p			body~~
+p			div~~
+p	 unrelated		body~~
+p	 unrelated		div~~
+p	z		
+p	z unrelated		
+span	note	target	

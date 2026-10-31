@@ -1,10 +1,9 @@
 add_executable(KOReaderXPathResolverTest
   KOReaderXPathResolverTest.cpp
+  XPathParserFailureTest.cpp
   ${REPO_ROOT}/lib/KOReaderSync/ChapterXPathResolver.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
-  ${REPO_ROOT}/lib/expat/xmlparse.c
-  ${REPO_ROOT}/lib/expat/xmlrole.c
-  ${REPO_ROOT}/lib/expat/xmltok.c
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
 )
 
 target_include_directories(KOReaderXPathResolverTest PRIVATE
@@ -12,18 +11,30 @@ target_include_directories(KOReaderXPathResolverTest PRIVATE
   ${REPO_ROOT}/lib/KOReaderSync
   ${REPO_ROOT}/lib/Epub
   ${REPO_ROOT}/lib/Utf8
-  ${REPO_ROOT}/lib/XmlParserUtils
   ${REPO_ROOT}/lib/expat
 )
 
-target_compile_definitions(KOReaderXPathResolverTest PRIVATE
-  XML_CONTEXT_BYTES=0
-  XML_GE=0
-)
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
 
 target_link_libraries(KOReaderXPathResolverTest PRIVATE
   crosspoint_test_common
+  xp_ffi_host
   GTest::gtest_main
 )
 
+target_compile_definitions(KOReaderXPathResolverTest PRIVATE XP_FFI_HOST_FAULT_INJECTION)
+
 gtest_discover_tests(KOReaderXPathResolverTest)
+
+add_executable(XPathOracle
+  XPathOracle.cpp
+  ${REPO_ROOT}/lib/KOReaderSync/ChapterXPathResolver.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
+)
+get_target_property(XPATH_INCLUDES KOReaderXPathResolverTest INCLUDE_DIRECTORIES)
+target_include_directories(XPathOracle PRIVATE ${XPATH_INCLUDES})
+target_link_libraries(XPathOracle PRIVATE crosspoint_test_common xp_ffi_host)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME XPathGoldens COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/oracle.py --oracle $<TARGET_FILE:XPathOracle> verify)

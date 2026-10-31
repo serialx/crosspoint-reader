@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import subprocess
+import os
 import tempfile
 
 
@@ -149,10 +150,18 @@ if __name__ == "__main__":
         for name, content in STUBS.items():
             (work / name).write_text(content)
         (work / "check.cpp").write_text(CHECK)
+        archive = os.environ.get("XP_TEST_RUST_ARCHIVE")
+        if not archive:
+            host = subprocess.check_output(["rustc", "-vV"], text=True).split("host: ")[1].splitlines()[0]
+            subprocess.run(["cargo", "build", "--manifest-path", str(ROOT / "rust/Cargo.toml"),
+                            "-p", "xp-ffi", "--release", "--target", host], check=True)
+            archive = str(ROOT / "rust/target" / host / "release/libxp_ffi.a")
         subprocess.run([
             "c++", "-std=c++17", "-Wall", "-Wextra", "-Werror",
             f"-I{work}", f"-I{ROOT / 'lib/TrustedTime'}",
+            f"-I{ROOT / 'rust/crates/xp-ffi/include'}",
             str(ROOT / "lib/TrustedTime/TrustedTime.cpp"), str(work / "check.cpp"),
+            str(ROOT / "test/cmake/xp_ffi_host.cpp"), archive,
             "-o", str(work / "check"),
         ], check=True)
         subprocess.run([str(work / "check")], check=True)

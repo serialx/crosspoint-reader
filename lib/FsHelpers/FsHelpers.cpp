@@ -39,7 +39,7 @@ std::string decodeUriEscapes(const std::string& path) {
   return decoded;
 }
 
-std::string normalisePath(const std::string& path) {
+std::string normalisePath(std::string_view path) {
   std::vector<std::string_view> components;
   components.reserve(8);  // Eight nested folders is more than we might expect
 

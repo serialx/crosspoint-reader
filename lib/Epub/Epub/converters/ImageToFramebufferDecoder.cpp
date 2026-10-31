@@ -2,15 +2,17 @@
 
 #include <Arduino.h>
 #include <Logging.h>
+#include <xp_book.h>
 
 bool ImageToFramebufferDecoder::validateAndStoreDimensions(const int64_t width, const int64_t height,
                                                            ImageDimensions& out, const char* format) {
-  if (width <= 0 || height <= 0) {
+  const auto status = xp_book_image_dimensions(width, height);
+  if (status == 1) {
     LOG_ERR("IMG", "Invalid %s dimensions: %lldx%lld", format, static_cast<long long>(width),
             static_cast<long long>(height));
     return false;
   }
-  if (width > MAX_SOURCE_DIMENSION || height > MAX_SOURCE_DIMENSION) {
+  if (status == 2) {
     LOG_ERR("IMG", "%s dimensions exceed supported limit: %lldx%lld (max %lld per dimension)", format,
             static_cast<long long>(width), static_cast<long long>(height),
             static_cast<long long>(MAX_SOURCE_DIMENSION));
@@ -18,7 +20,7 @@ bool ImageToFramebufferDecoder::validateAndStoreDimensions(const int64_t width, 
   }
 
   const int64_t pixels = width * height;
-  if (pixels > MAX_SOURCE_PIXELS) {
+  if (status == 3) {
     LOG_ERR("IMG", "%s too large (%lldx%lld = %lld pixels), max supported: %lld pixels", format,
             static_cast<long long>(width), static_cast<long long>(height), static_cast<long long>(pixels),
             static_cast<long long>(MAX_SOURCE_PIXELS));
@@ -32,8 +34,7 @@ bool ImageToFramebufferDecoder::validateAndStoreDimensions(const int64_t width, 
 
 void ImageToFramebufferDecoder::yieldDuringDecode(uint32_t& lastYieldMs) {
   const uint32_t now = millis();
-  if (now - lastYieldMs >= 250) {
-    lastYieldMs = now;
+  if (xp_book_image_yield(&lastYieldMs, now)) {
     vTaskDelay(1);
   }
 }

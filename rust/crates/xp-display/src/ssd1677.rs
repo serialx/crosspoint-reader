@@ -1,0 +1,879 @@
+//! SSD1677 controller policy, ported from FreeInk SDK 08effe64 Ssd1677Driver.
+//! Framebuffers are borrowed for each call; controller RED RAM owns the baseline.
+use crate::{constants::*, frame::Frame, ssd1677_luts::*, Bus};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Refresh {
+    Full,
+    Half,
+    Fast,
+}
+
+// Allocations stay on the SDK heap; each returned owner must free its own block.
+pub trait WindowAllocator {
+    type Buffer: AsRef<[u8]> + AsMut<[u8]>;
+    fn allocate(&self, size: usize) -> Option<Self::Buffer>;
+}
+
+#[derive(Debug)]
+pub struct WindowAllocationFailed {
+    pub bytes: usize,
+}
+
+#[derive(Clone, Copy)]
+pub struct Window {
+    pub x: u16,
+    pub y: u16,
+    pub width: u16,
+    pub height: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Lut {
+    pub data: *const u8,
+    pub len: u32,
+}
+impl Lut {
+    const fn new(bytes: &'static [u8]) -> Self {
+        assert!(bytes.len() >= 110);
+        Self {
+            data: bytes.as_ptr(),
+            len: 110,
+        }
+    }
+    const fn none() -> Self {
+        Self {
+            data: core::ptr::null(),
+            len: 0,
+        }
+    }
+    fn valid(&self) -> bool {
+        if self.data.is_null() {
+            self.len == 0
+        } else {
+            self.len == 110
+        }
+    }
+    fn bytes(&self) -> Option<&[u8]> {
+        if self.data.is_null() {
+            None
+        } else {
+            // Initialization validates the span; its owner keeps it immutable until drop.
+            Some(unsafe { core::slice::from_raw_parts(self.data, self.len as usize) })
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Config {
+    pub version: u32,
+    pub struct_size: u32,
+    pub booster: [u8; 5],
+    pub scan: u8,
+    pub border_init: u8,
+    pub half_temp: u8,
+    pub full_seq: u8,
+    pub fast_seq: u8,
+    pub half_seq: u8,
+    pub border_full: u8,
+    pub border_fast: u8,
+    pub border_half: u8,
+    pub border_gray: u8,
+    pub gray_power_first: u8,
+    pub absolute: u8,
+    pub overlay: u8,
+    pub second_control: u8,
+    pub restore_temp: u8,
+    pub black_pulse: u8,
+    pub gray: Lut,
+    pub factory: Lut,
+    pub fast_lut: Lut,
+    pub full_lut: Lut,
+    pub half_lut: Lut,
+}
+// Configurations borrow immutable waveform data for the controller's lifetime.
+unsafe impl Sync for Config {}
+impl Config {
+    pub fn valid(&self) -> bool {
+        self.version == 1
+            && self.struct_size as usize == core::mem::size_of::<Self>()
+            && [
+                self.gray_power_first,
+                self.absolute,
+                self.overlay,
+                self.second_control,
+                self.restore_temp,
+                self.black_pulse,
+            ]
+            .into_iter()
+            .all(|v| v <= 1)
+            && [
+                self.gray,
+                self.factory,
+                self.fast_lut,
+                self.full_lut,
+                self.half_lut,
+            ]
+            .into_iter()
+            .all(|lut| lut.valid())
+            && (!self.gray.data.is_null() || (self.absolute == 0 && self.overlay == 0))
+    }
+}
+pub fn default_config() -> &'static Config {
+    &X4
+}
+const X4: Config = Config {
+    version: 1,
+    struct_size: core::mem::size_of::<Config>() as u32,
+    booster: [0xae, 0xc7, 0xc3, 0xc0, 0x80],
+    absolute: 1,
+    overlay: 1,
+    scan: 2,
+    border_init: 0x80,
+    half_temp: 0x5a,
+    gray: Lut::new(&LUT_GRAYSCALE),
+    factory: Lut::new(&LUT_FACTORY_QUALITY),
+    full_seq: 0xf7,
+    fast_seq: 0xfc,
+    half_seq: 0xd7,
+    border_full: 0xc0,
+    border_fast: 0xc0,
+    border_half: 0xc0,
+    border_gray: 0xc0,
+    gray_power_first: 0,
+    second_control: 0,
+    restore_temp: 0,
+    black_pulse: 0,
+    fast_lut: Lut::none(),
+    full_lut: Lut::none(),
+    half_lut: Lut::none(),
+};
+static STICKY: Config = Config {
+    border_init: 1,
+    gray: Lut::new(&LUT_GRAYSCALE_STICKY),
+    fast_seq: 0xff,
+    half_seq: 0,
+    border_full: 1,
+    border_fast: 0x80,
+    border_half: 0,
+    border_gray: 0x80,
+    gray_power_first: 1,
+    ..X4
+};
+static METALIO: Config = Config {
+    border_init: 1,
+    half_temp: 0x6a,
+    gray: Lut::new(&LUT_GRAYSCALE_METALIO),
+    factory: Lut::new(&LUT_FACTORY_QUALITY_METALIO),
+    border_full: 1,
+    border_fast: 0x80,
+    border_half: 1,
+    second_control: 1,
+    restore_temp: 1,
+    black_pulse: 1,
+    fast_lut: Lut::new(&LUT_FAST_METALIO),
+    ..X4
+};
+const PICCO: Config = Config {
+    border_init: 1,
+    gray: Lut::new(&LUT_GRAYSCALE_STICKY),
+    fast_seq: 0xdc,
+    border_full: 0,
+    border_fast: 0,
+    border_half: 0,
+    border_gray: 0x80,
+    gray_power_first: 1,
+    fast_lut: Lut::new(&LUT_PICCO_FAST),
+    ..X4
+};
+static YRD: Config = PICCO;
+static DEPG: Config = Config {
+    fast_lut: Lut::new(&LUT_PICCO_DEPG_FAST),
+    full_lut: Lut::new(&LUT_PICCO_DEPG_FULL),
+    half_lut: Lut::new(&LUT_PICCO_DEPG_FULL),
+    ..PICCO
+};
+static OPM: Config = Config {
+    border_init: 3,
+    ..PICCO
+};
+
+// Only scalar state is retained. The static config and LUTs live in flash.
+const STATE_MIRROR_X: u16 = 1 << 0;
+const STATE_MIRROR_Y: u16 = 1 << 1;
+const STATE_FAST_DU: u16 = 1 << 2;
+const STATE_PENDING_SYNC: u16 = 1 << 3;
+const STATE_NEEDS_GRAY_CLEAR: u16 = 1 << 4;
+const STATE_ABSOLUTE_INPUT: u16 = 1 << 5;
+const STATE_SCREEN_ON: u16 = 1 << 6;
+const STATE_IN_GRAY: u16 = 1 << 7;
+const STATE_CUSTOM_LUT: u16 = 1 << 8;
+const STATE_PENDING_OFF: u16 = 1 << 9;
+const STATE_INITIAL_FULL: u16 = 1 << 10;
+const STATE_DIAGNOSTICS: u16 = 1 << 11;
+
+pub struct Ssd1677 {
+    cfg: &'static Config,
+    pub width: u16,
+    pub height: u16,
+    state_flags: u16,
+}
+impl Ssd1677 {
+    fn has(&self, flag: u16) -> bool {
+        self.state_flags & flag != 0
+    }
+    fn set(&mut self, flag: u16, value: bool) {
+        if value {
+            self.state_flags |= flag;
+        } else {
+            self.state_flags &= !flag;
+        }
+    }
+
+    pub fn new(width: u16, height: u16, variant: u32, flags: u32) -> Option<Self> {
+        if width == 0
+            || !width.is_multiple_of(8)
+            || height == 0
+            || u32::from(width / 8) * u32::from(height) > u16::MAX as u32
+            || flags & !15 != 0
+        {
+            return None;
+        }
+        let cfg = match variant {
+            SSD1677_X4 => &X4,
+            SSD1677_STICKY => &STICKY,
+            SSD1677_METALIO => &METALIO,
+            SSD1677_PICCO_YRD => &YRD,
+            SSD1677_PICCO_DEPG => &DEPG,
+            SSD1677_PICCO_OPM => &OPM,
+            _ => return None,
+        };
+        Some(Self {
+            state_flags: if flags & SSD1677_MIRROR_X != 0 {
+                STATE_MIRROR_X
+            } else {
+                0
+            } | if flags & SSD1677_MIRROR_Y != 0 {
+                STATE_MIRROR_Y
+            } else {
+                0
+            } | if flags & SSD1677_DIAGNOSTICS != 0 {
+                STATE_DIAGNOSTICS
+            } else {
+                0
+            } | if flags & SSD1677_FAST_DU != 0 {
+                STATE_FAST_DU
+            } else {
+                0
+            },
+            cfg,
+            width,
+            height,
+        })
+    }
+    /// # Safety
+    /// The descriptor and every non-null LUT must remain readable and immutable until drop.
+    pub unsafe fn with_config(mut self, cfg: &'static Config) -> Option<Self> {
+        if !cfg.valid() {
+            return None;
+        }
+        self.cfg = cfg;
+        self.set(STATE_FAST_DU, false);
+        Some(self)
+    }
+    pub fn gray_fallback(&self) -> bool {
+        self.cfg.overlay == 0 && self.cfg.absolute == 0
+    }
+    pub fn frame_size(&self) -> usize {
+        usize::from(self.width / 8) * usize::from(self.height)
+    }
+    pub fn capabilities(&self, mode: u32) -> u32 {
+        CAP_ASYNC_DISPLAY
+            | match mode {
+                0 if self.cfg.overlay != 0 => CAP_OVERLAY | CAP_STRIPS | CAP_ASYNC_BASE,
+                1 if self.cfg.absolute != 0 => CAP_ABSOLUTE | CAP_COMBINED | CAP_STRIPS,
+                _ => 0,
+            }
+    }
+    pub fn begin(&mut self, bus: &mut impl Bus) {
+        bus.reset(0);
+        bus.cmd(0x12);
+        bus.delay_ms(10);
+        bus.busy_wait(0, TAG_SSD_SOFT_RESET);
+        Self::reg(bus, 0x18, 0x80);
+        bus.cmd(0x0c);
+        for b in self.cfg.booster {
+            bus.data8(b);
+        }
+        bus.cmd(0x01);
+        Self::word(bus, self.height - 1);
+        bus.data8(self.cfg.scan | u8::from(self.has(STATE_MIRROR_Y)));
+        Self::reg(bus, 0x3c, self.cfg.border_init);
+        self.area(bus, 0, 0, self.width, self.height);
+        Self::reg(bus, 0x46, 0xf7);
+        bus.busy_wait(0, TAG_SSD_AUTO_BW);
+        Self::reg(bus, 0x47, 0xf7);
+        bus.busy_wait(0, TAG_SSD_AUTO_RED);
+        self.set(STATE_SCREEN_ON, false);
+        self.set(STATE_INITIAL_FULL, self.cfg.full_seq != 0);
+    }
+    fn reg(bus: &mut impl Bus, command: u8, value: u8) {
+        bus.cmd(command);
+        bus.data8(value);
+    }
+    fn word(bus: &mut impl Bus, v: u16) {
+        bus.data8(v as u8);
+        bus.data8((v >> 8) as u8);
+    }
+    fn area(&self, bus: &mut impl Bus, x: u16, y: u16, width: u16, height: u16) {
+        let hi = x.wrapping_add(width).wrapping_sub(1);
+        let (start, end) = if self.has(STATE_MIRROR_X) {
+            (hi, x)
+        } else {
+            (x, hi)
+        };
+        let y = self.height.wrapping_sub(y).wrapping_sub(height);
+        let top = y.wrapping_add(height).wrapping_sub(1);
+        Self::reg(bus, 0x11, u8::from(!self.has(STATE_MIRROR_X)));
+        bus.cmd(0x44);
+        Self::word(bus, start);
+        Self::word(bus, end);
+        bus.cmd(0x45);
+        Self::word(bus, top);
+        Self::word(bus, y);
+        bus.cmd(0x4e);
+        Self::word(bus, start);
+        bus.cmd(0x4f);
+        Self::word(bus, top);
+    }
+    fn write(bus: &mut impl Bus, command: u8, data: &[u8]) {
+        bus.cmd(command);
+        bus.data_span(data);
+    }
+    fn write_frame(
+        &self,
+        bus: &mut impl Bus,
+        command: u8,
+        frame: &mut Frame<'_>,
+    ) -> Result<(), u32> {
+        let Some(source) = frame.source() else {
+            Self::write(bus, command, frame.bytes());
+            return Ok(());
+        };
+        let stride = usize::from(self.width / 8);
+        let mut y = 0;
+        while y < self.height {
+            let rows = source.rows().min(self.height - y);
+            if rows == 0 {
+                return Err(INVALID);
+            }
+            let data = source.paint(y, rows)?;
+            if data.len() != stride * usize::from(rows) {
+                return Err(INVALID);
+            }
+            self.area(bus, 0, y, self.width, rows);
+            bus.cmd(command);
+            bus.txn_begin();
+            bus.txn_write(data);
+            bus.txn_end();
+            y += rows;
+        }
+        self.area(bus, 0, 0, self.width, self.height);
+        Ok(())
+    }
+    fn fill(&self, bus: &mut impl Bus, command: u8, byte: u8) {
+        let chunk = [byte; 128];
+        bus.cmd(command);
+        bus.txn_begin();
+        for _ in 0..self.height {
+            let mut remaining = usize::from(self.width / 8);
+            while remaining != 0 {
+                let n = remaining.min(chunk.len());
+                bus.txn_write(&chunk[..n]);
+                remaining -= n;
+            }
+        }
+        bus.txn_end();
+    }
+    pub fn set_lut(&mut self, bus: &mut impl Bus, data: Option<&[u8]>) {
+        let Some(data) = data else {
+            self.set(STATE_CUSTOM_LUT, false);
+            return;
+        };
+        if data.len() < 110 {
+            return;
+        }
+        bus.cmd(0x32);
+        for b in &data[..105] {
+            bus.data8(*b);
+        }
+        Self::reg(bus, 0x03, data[105]);
+        bus.cmd(0x04);
+        for b in &data[106..109] {
+            bus.data8(*b);
+        }
+        Self::reg(bus, 0x2c, data[109]);
+        if self.cfg.border_gray != 0 {
+            Self::reg(bus, 0x3c, self.cfg.border_gray);
+        }
+        self.set(STATE_CUSTOM_LUT, true);
+    }
+    fn refresh(&mut self, bus: &mut impl Bus, mode: Refresh, turn_off: bool, deferred: bool) {
+        self.set(STATE_PENDING_OFF, false);
+        let start = if self.has(STATE_DIAGNOSTICS) {
+            bus.clock_ms()
+        } else {
+            0
+        };
+        Self::reg(bus, 0x21, if mode == Refresh::Fast { 0 } else { 0x40 });
+        if self.cfg.second_control != 0 {
+            bus.data8(0);
+        }
+        if (self.cfg.restore_temp != 0) && mode != Refresh::Half {
+            Self::reg(bus, 0x18, 0x80);
+        }
+        let lut = match mode {
+            Refresh::Fast => self.cfg.fast_lut.bytes(),
+            Refresh::Half => self.cfg.half_lut.bytes(),
+            Refresh::Full => self.cfg.full_lut.bytes(),
+        };
+        let board_lut = lut.is_some() && !self.has(STATE_CUSTOM_LUT);
+        if board_lut {
+            self.set_lut(bus, lut);
+            if mode == Refresh::Fast && self.cfg.border_fast != 0 {
+                Self::reg(bus, 0x3c, self.cfg.border_fast);
+            }
+        }
+        let seq = match mode {
+            Refresh::Fast if self.has(STATE_FAST_DU) => 0,
+            Refresh::Fast => self.cfg.fast_seq,
+            Refresh::Half if self.cfg.half_seq != 0 => self.cfg.half_seq,
+            _ => self.cfg.full_seq,
+        };
+        if seq != 0 && !self.has(STATE_CUSTOM_LUT) {
+            let border = match mode {
+                Refresh::Fast => self.cfg.border_fast,
+                Refresh::Half if self.cfg.border_half != 0 => self.cfg.border_half,
+                _ => self.cfg.border_full,
+            };
+            if border != 0 {
+                Self::reg(bus, 0x3c, border);
+            }
+            if mode == Refresh::Half {
+                Self::reg(bus, 0x1a, self.cfg.half_temp);
+            }
+            Self::reg(bus, 0x22, seq);
+            bus.cmd(0x20);
+            if !deferred {
+                bus.refresh_wait(63);
+            }
+            self.set(STATE_SCREEN_ON, seq & 3 == 0);
+            self.set(STATE_PENDING_OFF, turn_off && self.has(STATE_SCREEN_ON));
+            self.refresh_diagnostic(bus, mode, start, seq, true);
+            return;
+        }
+        if board_lut && mode != Refresh::Fast {
+            let mut control = 0xe4;
+            if mode == Refresh::Half {
+                Self::reg(bus, 0x1a, self.cfg.half_temp);
+                control = 0xc4;
+            }
+            if turn_off {
+                control |= 3;
+            }
+            self.set(STATE_SCREEN_ON, !turn_off);
+            Self::reg(bus, 0x22, control);
+            bus.cmd(0x20);
+            if !deferred {
+                bus.refresh_wait(63);
+            }
+            self.set_lut(bus, None);
+            return;
+        }
+        let mut control = if self.has(STATE_SCREEN_ON) { 0 } else { 0xc0 };
+        self.set(STATE_SCREEN_ON, !turn_off);
+        if turn_off {
+            control |= 3;
+        }
+        match mode {
+            Refresh::Full => control |= 0x34,
+            Refresh::Half => {
+                Self::reg(bus, 0x1a, self.cfg.half_temp);
+                control |= 0xd4;
+            }
+            Refresh::Fast if self.has(STATE_CUSTOM_LUT) => {
+                control = 0xcc | if turn_off { 3 } else { 0 }
+            }
+            Refresh::Fast => control |= 0x1c,
+        }
+        Self::reg(bus, 0x22, control);
+        bus.cmd(0x20);
+        if !deferred {
+            bus.refresh_wait(63);
+        }
+        if board_lut {
+            self.set_lut(bus, None);
+        }
+        self.refresh_diagnostic(bus, mode, start, control, false);
+    }
+    fn refresh_diagnostic(
+        &self,
+        bus: &mut impl Bus,
+        mode: Refresh,
+        start: u32,
+        control: u8,
+        sequence: bool,
+    ) {
+        if self.has(STATE_DIAGNOSTICS) {
+            let elapsed = bus.clock_ms().wrapping_sub(start);
+            bus.diagnostic(
+                DIAG_SSD_REFRESH,
+                mode as u32,
+                elapsed,
+                u32::from(control),
+                u32::from(sequence),
+            );
+        }
+    }
+    fn power_on(&mut self, bus: &mut impl Bus) {
+        if self.has(STATE_SCREEN_ON) {
+            return;
+        }
+        Self::reg(bus, 0x22, 0xc0);
+        bus.cmd(0x20);
+        bus.busy_wait(0, TAG_SSD_GRAY_POWER_ON);
+        self.set(STATE_SCREEN_ON, true);
+    }
+    fn power_off(&mut self, bus: &mut impl Bus) {
+        if !self.has(STATE_SCREEN_ON) {
+            return;
+        }
+        Self::reg(bus, 0x3c, self.cfg.border_init);
+        Self::reg(bus, 0x22, 3);
+        bus.cmd(0x20);
+        bus.delay_ms(200);
+        bus.busy_wait(0, TAG_SSD_POWER_DOWN);
+        self.set(STATE_SCREEN_ON, false);
+    }
+    pub fn sleep(&mut self, bus: &mut impl Bus) {
+        self.power_off(bus);
+        Self::reg(bus, 0x10, 3);
+    }
+    fn clean_mode(&self) -> Refresh {
+        if self.cfg.half_seq != 0 {
+            Refresh::Half
+        } else {
+            Refresh::Full
+        }
+    }
+    pub fn display(
+        &mut self,
+        bus: &mut impl Bus,
+        frame: &[u8],
+        previous: Option<&[u8]>,
+        mode: Refresh,
+        turn_off: bool,
+        deferred: bool,
+    ) {
+        let _ = self.display_frame(
+            bus,
+            &mut Frame::buffered(frame),
+            previous,
+            mode,
+            turn_off,
+            deferred,
+        );
+    }
+    pub fn display_frame(
+        &mut self,
+        bus: &mut impl Bus,
+        frame: &mut Frame<'_>,
+        previous: Option<&[u8]>,
+        mut mode: Refresh,
+        turn_off: bool,
+        deferred: bool,
+    ) -> Result<(), u32> {
+        let cold = self.has(STATE_INITIAL_FULL);
+        self.set(STATE_PENDING_SYNC, (self.cfg.black_pulse != 0) && deferred);
+        if self.has(STATE_NEEDS_GRAY_CLEAR) {
+            if mode == Refresh::Fast {
+                mode = self.clean_mode();
+            }
+            self.set(STATE_NEEDS_GRAY_CLEAR, false);
+        }
+        if self.has(STATE_INITIAL_FULL) {
+            if mode == Refresh::Fast {
+                mode = self.clean_mode();
+            }
+            self.set(STATE_INITIAL_FULL, false);
+        } else if !turn_off && !self.has(STATE_SCREEN_ON) && self.cfg.full_seq == 0 {
+            mode = Refresh::Half;
+        }
+        if self.has(STATE_IN_GRAY) {
+            self.set(STATE_IN_GRAY, false);
+            if mode == Refresh::Fast {
+                mode = Refresh::Half;
+            }
+        }
+        self.area(bus, 0, 0, self.width, self.height);
+        if (self.cfg.black_pulse != 0) && mode == Refresh::Half {
+            if cold {
+                self.fill(bus, 0x26, 0xff);
+            } else if let Some(previous) = previous {
+                Self::write(bus, 0x26, previous);
+            }
+            self.fill(bus, 0x24, 0);
+            self.refresh(bus, Refresh::Fast, false, false);
+            self.area(bus, 0, 0, self.width, self.height);
+            self.fill(bus, 0x24, 0);
+            self.fill(bus, 0x26, 0);
+            self.write_frame(bus, 0x24, frame)?;
+            self.refresh(bus, Refresh::Fast, turn_off, deferred);
+        } else {
+            self.write_frame(bus, 0x24, frame)?;
+            if mode != Refresh::Fast {
+                self.write_frame(bus, 0x26, frame)?;
+            } else if let Some(previous) = previous {
+                Self::write(bus, 0x26, previous);
+            }
+            self.refresh(bus, mode, turn_off, deferred);
+        }
+        if (previous.is_none() || (self.cfg.black_pulse != 0)) && !deferred {
+            self.sync_frame(bus, frame)?;
+        }
+        if !deferred {
+            self.finish_power_off(bus);
+        }
+        Ok(())
+    }
+    fn sync(&self, bus: &mut impl Bus, frame: &[u8]) {
+        let _ = self.sync_frame(bus, &mut Frame::buffered(frame));
+    }
+    fn sync_frame(&self, bus: &mut impl Bus, frame: &mut Frame<'_>) -> Result<(), u32> {
+        self.area(bus, 0, 0, self.width, self.height);
+        self.write_frame(bus, 0x24, frame)?;
+        self.write_frame(bus, 0x26, frame)
+    }
+    fn finish_power_off(&mut self, bus: &mut impl Bus) {
+        if self.has(STATE_PENDING_OFF) {
+            self.set(STATE_PENDING_OFF, false);
+            self.power_off(bus);
+        }
+    }
+    pub fn finish(&mut self, bus: &mut impl Bus, frame: Option<&[u8]>) {
+        bus.refresh_wait(63);
+        if self.has(STATE_PENDING_SYNC) {
+            if let Some(frame) = frame {
+                self.sync(bus, frame);
+            }
+        }
+        self.set(STATE_PENDING_SYNC, false);
+        self.finish_power_off(bus);
+    }
+    pub fn finish_frame(&mut self, bus: &mut impl Bus, frame: &mut Frame<'_>) -> Result<(), u32> {
+        bus.refresh_wait(63);
+        if self.has(STATE_PENDING_SYNC) {
+            self.sync_frame(bus, frame)?;
+        }
+        self.set(STATE_PENDING_SYNC, false);
+        self.finish_power_off(bus);
+        Ok(())
+    }
+    pub fn cleanup_frame(&mut self, bus: &mut impl Bus, frame: &mut Frame<'_>) -> Result<(), u32> {
+        self.area(bus, 0, 0, self.width, self.height);
+        self.write_frame(bus, 0x26, frame)?;
+        self.set(STATE_IN_GRAY, false);
+        Ok(())
+    }
+    pub fn display_window(
+        &mut self,
+        bus: &mut impl Bus,
+        allocator: &impl WindowAllocator,
+        frame: &[u8],
+        previous: Option<&[u8]>,
+        rect: Window,
+        turn_off: bool,
+    ) -> Result<(), WindowAllocationFailed> {
+        let Window {
+            x,
+            y,
+            width,
+            height,
+        } = rect;
+        if u32::from(x) + u32::from(width) > u32::from(self.width)
+            || u32::from(y) + u32::from(height) > u32::from(self.height)
+            || !x.is_multiple_of(8)
+            || !width.is_multiple_of(8)
+        {
+            return Ok(());
+        }
+        if self.has(STATE_IN_GRAY) || self.has(STATE_NEEDS_GRAY_CLEAR) {
+            self.display(bus, frame, None, self.clean_mode(), turn_off, false);
+            return Ok(());
+        }
+        let size = usize::from(width / 8) * usize::from(height);
+        // The C++ window path retains the current packed window through refresh,
+        // but releases the previous packed window immediately after its upload.
+        let mut current = allocator
+            .allocate(size)
+            .ok_or(WindowAllocationFailed { bytes: size })?;
+        self.pack_window(frame, current.as_mut(), rect);
+        self.area(bus, x, y, width, height);
+        Self::write(bus, 0x24, current.as_ref());
+        if let Some(previous) = previous {
+            let mut old = allocator
+                .allocate(size)
+                .ok_or(WindowAllocationFailed { bytes: size })?;
+            self.pack_window(previous, old.as_mut(), rect);
+            Self::write(bus, 0x26, old.as_ref());
+        }
+        self.refresh(bus, Refresh::Fast, turn_off, false);
+        if previous.is_none() {
+            self.area(bus, x, y, width, height);
+            Self::write(bus, 0x24, current.as_ref());
+            Self::write(bus, 0x26, current.as_ref());
+        }
+        self.finish_power_off(bus);
+        Ok(())
+    }
+    fn pack_window(&self, frame: &[u8], output: &mut [u8], rect: Window) {
+        let row_bytes = usize::from(rect.width / 8);
+        let stride = usize::from(self.width / 8);
+        for row in 0..usize::from(rect.height) {
+            let source = (usize::from(rect.y) + row) * stride + usize::from(rect.x / 8);
+            output[row * row_bytes..(row + 1) * row_bytes]
+                .copy_from_slice(&frame[source..source + row_bytes]);
+        }
+    }
+    pub fn seed(&self, bus: &mut impl Bus, frame: &[u8]) {
+        self.area(bus, 0, 0, self.width, self.height);
+        Self::write(bus, 0x26, frame);
+    }
+    pub fn begin_gray(
+        &mut self,
+        bus: &mut impl Bus,
+        frame: &[u8],
+        mode: u32,
+        fallback: Refresh,
+        turn_off: bool,
+    ) {
+        self.set(STATE_ABSOLUTE_INPUT, mode == 1);
+        if !self.has(STATE_ABSOLUTE_INPUT) {
+            self.display(bus, frame, None, fallback, turn_off, false);
+        }
+    }
+    pub fn begin_overlay_frame(
+        &mut self,
+        bus: &mut impl Bus,
+        frame: &mut Frame<'_>,
+        fallback: Refresh,
+        turn_off: bool,
+    ) -> Result<(), u32> {
+        self.set(STATE_ABSOLUTE_INPUT, false);
+        self.display_frame(bus, frame, None, fallback, turn_off, false)
+    }
+    pub fn gray_strip(&self, bus: &mut impl Bus, msb: bool, rows: &[u8], y: u16, height: u16) {
+        if height == 0 {
+            return;
+        }
+        self.area(bus, 0, y, self.width, height);
+        let cmd = if msb { 0x26 } else { 0x24 };
+        if !self.has(STATE_ABSOLUTE_INPUT) {
+            Self::write(bus, cmd, rows);
+            return;
+        }
+        let mut chunk = [0u8; 128];
+        bus.cmd(cmd);
+        bus.txn_begin();
+        for input in rows.chunks(128) {
+            for (dst, src) in chunk.iter_mut().zip(input) {
+                *dst = !src;
+            }
+            bus.txn_write(&chunk[..input.len()]);
+        }
+        bus.txn_end();
+    }
+    pub fn restore_full_window(&self, bus: &mut impl Bus) {
+        self.area(bus, 0, 0, self.width, self.height);
+    }
+    pub fn gray_display(
+        &mut self,
+        bus: &mut impl Bus,
+        turn_off: bool,
+        lut: Option<&[u8]>,
+        factory: bool,
+    ) {
+        self.set(STATE_IN_GRAY, !factory);
+        self.set_lut(
+            bus,
+            lut.or_else(|| {
+                if factory {
+                    Some(self.cfg.factory.bytes().unwrap_or(&LUT_FACTORY_QUALITY))
+                } else {
+                    self.cfg.gray.bytes()
+                }
+            }),
+        );
+        if factory {
+            Self::reg(bus, 0x21, 0);
+            Self::reg(bus, 0x22, 0xcc);
+            bus.cmd(0x20);
+            bus.refresh_wait(66);
+            self.set(STATE_SCREEN_ON, true);
+            if turn_off {
+                self.power_off(bus);
+            }
+            self.set(STATE_NEEDS_GRAY_CLEAR, true);
+        } else {
+            if self.cfg.gray_power_first != 0 {
+                self.power_on(bus);
+            }
+            self.refresh(bus, Refresh::Fast, turn_off, false);
+        }
+        self.set_lut(bus, None);
+        self.set(STATE_ABSOLUTE_INPUT, false);
+    }
+    pub fn cleanup_gray(&mut self, bus: &mut impl Bus, frame: &[u8]) {
+        self.seed(bus, frame);
+        self.set(STATE_IN_GRAY, false);
+    }
+    pub fn resync(&mut self) {
+        self.set(STATE_NEEDS_GRAY_CLEAR, true);
+        self.set(STATE_ABSOLUTE_INPUT, false);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn rejects_invalid_geometry_and_configuration() {
+        for (w, h, v, f) in [
+            (0, 480, 0, 0),
+            (799, 480, 0, 0),
+            (800, 0, 0, 0),
+            (800, 656, 0, 0),
+            (800, 480, 6, 0),
+            (800, 480, 0, 16),
+        ] {
+            assert!(Ssd1677::new(w, h, v, f).is_none());
+        }
+        for variant in 0..6 {
+            for flags in 0..8 {
+                let panel = Ssd1677::new(800, 480, variant, flags).unwrap();
+                assert_eq!(panel.frame_size(), 48_000);
+                assert_eq!(
+                    panel.capabilities(0),
+                    CAP_ASYNC_DISPLAY | CAP_OVERLAY | CAP_STRIPS | CAP_ASYNC_BASE
+                );
+                assert_eq!(
+                    panel.capabilities(1),
+                    CAP_ASYNC_DISPLAY | CAP_ABSOLUTE | CAP_COMBINED | CAP_STRIPS
+                );
+                assert_eq!(panel.capabilities(2), CAP_ASYNC_DISPLAY);
+            }
+        }
+    }
+}

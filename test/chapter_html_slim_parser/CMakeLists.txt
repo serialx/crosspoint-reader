@@ -1,20 +1,25 @@
 add_executable(ChapterHtmlSlimParserTest
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
   ChapterHtmlSlimParserTest.cpp
   ParserLinkStubs.cpp
   DictionaryHtmlPagesTest.cpp
   ${REPO_ROOT}/src/util/DictHtmlPages.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
   ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
   ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
-  ${REPO_ROOT}/lib/MiniBidi/BidiUtils.cpp
-  ${REPO_ROOT}/lib/MiniBidi/minibidi.c
+  ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
+
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp
   ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
   ${REPO_ROOT}/lib/Epub/Epub/css/CssParser.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/ParsedText.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/WordStore.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/htmlEntities.cpp
 )
 
 target_include_directories(ChapterHtmlSlimParserTest PRIVATE
@@ -37,8 +42,18 @@ target_include_directories(ChapterHtmlSlimParserTest PRIVATE
 
 target_link_libraries(ChapterHtmlSlimParserTest PRIVATE
   crosspoint_test_common
+  xp_ffi_host
   GTest::gtest_main
-  expat
 )
 
 gtest_discover_tests(ChapterHtmlSlimParserTest)
+
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+target_link_libraries(ChapterHtmlSlimParserTest PRIVATE xp_ffi_host)
+target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_FFI_HOST_FAULT_INJECTION XP_PARA_LINK_FAULT_INJECTION XP_CHAPTER_SINK_FAULT_INJECTION)
+
+target_sources(ChapterHtmlSlimParserTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)
+target_sources(ChapterHtmlSlimParserTest PRIVATE ${REPO_ROOT}/test/page_codec_diff/Serialization.cpp)
+target_compile_definitions(ChapterHtmlSlimParserTest PRIVATE XP_PAGE_CODEC_TEST=1)
+
+target_sources(ChapterHtmlSlimParserTest PRIVATE ChapterStorageRetryTest.cpp)

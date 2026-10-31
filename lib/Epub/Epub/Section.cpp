@@ -6,12 +6,14 @@
 #include <HalStorage.h>
 #include <Logging.h>
 #include <Memory.h>
-#include <Serialization.h>
+#include <xp_book.h>
 
 #include <algorithm>
+#include <type_traits>
 
 #include "Epub/css/CssParser.h"
 #include "Page.h"
+#include "SectionCodec.h"
 #include "hyphenation/Hyphenator.h"
 #include "parsers/ChapterHtmlSlimParser.h"
 
@@ -76,15 +78,10 @@ namespace {
 // v66: Omit carried no-break spaces at the start of wrapped lines.
 // v67: Count only stretchable literal spaces after visual text reordering.
 // v68: Leave text below drop caps unsplit until it is laid out at full width.
-constexpr uint8_t SECTION_FILE_VERSION = 68;
-// Written into the version field while a build is in progress; patched to
-// SECTION_FILE_VERSION only when the build is finalized. An abandoned /
-// crash-interrupted .bin therefore carries version 0, which loadSectionFile rejects
-// as unknown and clears -- so an incomplete file is never mistaken for a valid one.
-constexpr uint8_t SECTION_FILE_INCOMPLETE_VERSION = 0;
+constexpr uint8_t SECTION_FILE_VERSION = XP_SEC_VERSION;
 // Written when a build is suspended partway (reader exited or device slept mid-build).
 // The file carries valid pages 0..pageCount-1, all LUTs, and a trailer with the parse
-// watermark (bytesConsumed, totalBytes) appended after the li LUT. loadSectionFile
+// watermark (bytesConsumed, totalBytes) appended after the visible-offset LUT. loadSectionFile
 // accepts it so a resume shows those pages instantly; the reader extends it by
 // rebuilding in the background. Uses the same header layout as SECTION_FILE_VERSION,
 // so finalized files are untouched by this feature; older firmware treats the sentinel
@@ -92,14 +89,592 @@ constexpr uint8_t SECTION_FILE_INCOMPLETE_VERSION = 0;
 // MUST change in lockstep with SECTION_FILE_VERSION: the sentinel IS the partial's
 // format version, so a stale-format partial otherwise passes the header check and
 // only fails (noisily, via the block-decode error path) when a page is loaded.
-// Derived so the pairing can't be forgotten: 0xFE for v28, 0xFD for v29, ...
-constexpr uint8_t SECTION_FILE_PARTIAL_VERSION = 0xFE - (SECTION_FILE_VERSION - 28);
-constexpr uint32_t HEADER_SIZE = sizeof(uint8_t) + sizeof(int) + sizeof(float) + sizeof(bool) + sizeof(uint8_t) +
-                                 sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(bool) + sizeof(bool) +
-                                 sizeof(uint8_t) + sizeof(bool) + sizeof(uint32_t) + sizeof(uint32_t) +
-                                 sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(int8_t) +
-                                 sizeof(uint8_t) + sizeof(uint8_t);
+// The Rust codec derives the partial version from the final version.
+constexpr uint8_t SECTION_FILE_PARTIAL_VERSION = XP_SEC_PARTIAL_VERSION;
 }  // namespace
+
+namespace {
+struct SectionFileContext {
+  HalFile& file;
+  const std::string& path;
+  std::string* text = nullptr;
+  static size_t operation(void* raw, uint32_t operation, size_t argument) {
+    auto& self = *static_cast<SectionFileContext*>(raw);
+    switch (static_cast<XpBookFileOperation>(operation)) {
+      case XP_BOOK_FILE_EXISTS_FINAL:
+        return Storage.exists(self.path.c_str());
+      case XP_BOOK_FILE_REMOVE_FINAL:
+        return Storage.remove(self.path.c_str());
+      case XP_BOOK_FILE_REMOVE_TEMPORARY:
+        return Storage.remove((self.path + ".part").c_str());
+      case XP_BOOK_FILE_EXISTS_TEMPORARY:
+        return Storage.exists((self.path + ".part").c_str());
+      case XP_BOOK_FILE_IS_OPEN:
+        return bool(self.file);
+      case XP_BOOK_FILE_PROMOTE_TEMPORARY:
+        return 0;
+      case XP_BOOK_FILE_OPEN_READ:
+        return Storage.openFileForRead("SCT", self.path, self.file);
+      case XP_BOOK_FILE_SEEK:
+        return self.file.seek(argument);
+      case XP_BOOK_FILE_SIZE:
+        return self.file.size();
+      case XP_BOOK_FILE_POSITION:
+        return self.file.position();
+      case XP_BOOK_FILE_CLOSE:
+        return self.file.close();
+      case XP_BOOK_FILE_RELEASE_TEXT:
+        if (self.text) std::string{}.swap(*self.text);
+        return 0;
+    }
+    return 0;
+  }
+  static size_t read(void* raw, uint8_t* bytes, size_t length) {
+    return static_cast<SectionFileContext*>(raw)->file.read(bytes, length);
+  }
+  static void diagnostic(void*, uint32_t event, uint32_t a, uint32_t b) {
+    switch (static_cast<XpBookSectionDiagnostic>(event)) {
+      case XP_BOOK_SECTION_TRUNCATED_HEADER:
+        LOG_ERR("SCT", "Deserialization failed: truncated section header");
+        break;
+      case XP_BOOK_SECTION_UNKNOWN_VERSION:
+        LOG_ERR("SCT", "Deserialization failed: Unknown version %u", a);
+        break;
+      case XP_BOOK_SECTION_PARAMETERS:
+        LOG_ERR("SCT", "Deserialization failed: Parameters do not match");
+        break;
+      case XP_BOOK_SECTION_MALFORMED_PARTIAL:
+        LOG_ERR("SCT", "Deserialization failed: malformed partial section");
+        break;
+      case XP_BOOK_SECTION_LOADED:
+        LOG_DBG("SCT", "Deserialization succeeded: %d pages%s", a, b ? " (partial)" : "");
+        break;
+      case XP_BOOK_SECTION_CACHE_MISSING:
+        LOG_DBG("SCT", "Cache does not exist, no action needed");
+        break;
+      case XP_BOOK_SECTION_CACHE_CLEAR_FAILED:
+        LOG_ERR("SCT", "Failed to clear cache");
+        break;
+      case XP_BOOK_SECTION_CACHE_CLEARED:
+        LOG_DBG("SCT", "Cache cleared successfully");
+        break;
+      case XP_BOOK_SECTION_PAGE_FILE_CLOSED:
+        LOG_ERR("SCT", "File not open for writing page %d", a);
+        break;
+      case XP_BOOK_SECTION_PAGE_WRITE_FAILED:
+        LOG_ERR("SCT", "Failed to serialize page %d", a);
+        break;
+      case XP_BOOK_SECTION_PAGE_PROCESSED:
+        LOG_DBG("SCT", "Page %d processed", a);
+        break;
+      case XP_BOOK_SECTION_HEADER_FILE_CLOSED:
+        LOG_DBG("SCT", "File not open for writing header");
+        break;
+
+      case XP_BOOK_SECTION_WRITE_RECORD:
+        LOG_ERR("SCT", "Failed to encode/write cache record %u", a);
+        break;
+      case XP_BOOK_SECTION_INVALID_LUT:
+        LOG_ERR("SCT", "Failed to write LUT due to invalid page positions");
+        break;
+      case XP_BOOK_SECTION_PROMOTE:
+        LOG_ERR("SCT", "Failed to move built section into place");
+        break;
+      case XP_BOOK_SECTION_SHORT_RECORD:
+        LOG_ERR("SCT", "Short cache record %u", a);
+        break;
+      case XP_BOOK_SECTION_INVALID_RECORD:
+        LOG_ERR("SCT", "Invalid cache record %u", a);
+        break;
+      case XP_BOOK_SECTION_INVALID_STRING:
+        LOG_ERR("SCT", "Invalid cache string length %u", a);
+        break;
+      case XP_BOOK_SECTION_VISIBLE_SEEK:
+        LOG_ERR("SCT", "Failed to seek visible-text LUT");
+        break;
+      case XP_BOOK_SECTION_VISIBLE_READ:
+        LOG_ERR("SCT", "Failed to read visible-text LUT batch");
+        break;
+    }
+  }
+  static uint8_t* resize(void* raw, size_t length) {
+    auto* text = static_cast<SectionFileContext*>(raw)->text;
+    if (!text) return nullptr;
+    text->resize(length);
+    return reinterpret_cast<uint8_t*>(text->data());
+  }
+  static size_t write(void* raw, const uint8_t* bytes, size_t length) {
+    return static_cast<SectionFileContext*>(raw)->file.write(bytes, length);
+  }
+  XpBookFileServices services() { return {this, operation, read, write, resize, diagnostic}; }
+};
+std::optional<uint32_t> sectionQuery(const std::string& path, const XpBookSectionQuery query, const uint32_t index = 0,
+                                     const bool first = false) {
+  HalFile file;
+  SectionFileContext context{file, path};
+  const auto services = context.services();
+  uint32_t output[3];
+  if (!xp_book_section_query(&services, query, index, first, output)) return std::nullopt;
+  return output[0];
+}
+}  // namespace
+
+struct Section::PolicyContext {
+  Section& section;
+  bool (*yieldNow)() = nullptr;
+  static uint32_t operation(void* raw, const uint32_t operation, const uint32_t argument) {
+    auto& context = *static_cast<PolicyContext*>(raw);
+    auto& self = context.section;
+    switch (static_cast<XpBookSectionOperation>(operation)) {
+      case XP_BOOK_SECTION_OP_HAS_BUILD:
+        return bool(self.build_);
+      case XP_BOOK_SECTION_OP_HAS_PARSER:
+        return self.build_ && self.build_->parser;
+      case XP_BOOK_SECTION_OP_BUILT_PAGES:
+        return self.builtPageCount_;
+      case XP_BOOK_SECTION_OP_PARTIAL:
+        return self.partial_;
+      case XP_BOOK_SECTION_OP_PARTIAL_PAGES:
+        return self.partialPageCount_;
+      case XP_BOOK_SECTION_OP_TOTAL:
+        return self.build_->totalBytes;
+      case XP_BOOK_SECTION_OP_REUSED_HTML:
+        return self.build_->reusedHtml;
+      case XP_BOOK_SECTION_OP_PARSER_STEP:
+        return static_cast<uint32_t>(self.build_->parser->parseStep());
+      case XP_BOOK_SECTION_OP_PARSER_FINISH:
+        return self.build_->parser->finishParse();
+      case XP_BOOK_SECTION_OP_PARSER_ABORT:
+        self.build_->parser->abortParse();
+        break;
+      case XP_BOOK_SECTION_OP_PARSER_CONSUMED:
+        return self.build_->parser->parseBytesConsumed();
+      case XP_BOOK_SECTION_OP_YIELD:
+        return context.yieldNow && context.yieldNow();
+      case XP_BOOK_SECTION_OP_CSS_CLEAR:
+        if (self.build_->cssParser) self.build_->cssParser->clear();
+        break;
+      case XP_BOOK_SECTION_OP_RESET_BUILD:
+        self.build_.reset();
+        break;
+      case XP_BOOK_SECTION_OP_FILE_OPEN:
+        return bool(self.file);
+      case XP_BOOK_SECTION_OP_FILE_CLOSE:
+        self.file.close();
+        break;
+      case XP_BOOK_SECTION_OP_TMP_BIN_REMOVE:
+        return Storage.remove(self.binTmpPath().c_str());
+      case XP_BOOK_SECTION_OP_FINAL_EXISTS:
+        return Storage.exists(self.filePath.c_str());
+      case XP_BOOK_SECTION_OP_FINAL_REMOVE:
+        return Storage.remove(self.filePath.c_str());
+      case XP_BOOK_SECTION_OP_TMP_HTML_EXISTS:
+        return Storage.exists(self.build_->tmpHtmlPath.c_str());
+      case XP_BOOK_SECTION_OP_TMP_HTML_REMOVE:
+        return Storage.remove(self.build_->tmpHtmlPath.c_str());
+      case XP_BOOK_SECTION_OP_PROMOTE_HTML:
+        return Storage.rename(self.build_->tmpHtmlPath.c_str(), self.build_->htmlPath.c_str());
+      case XP_BOOK_SECTION_OP_COMMIT_FINAL:
+        return self.commitBuildFile(SECTION_FILE_VERSION, 0, 0);
+      case XP_BOOK_SECTION_OP_COMMIT_PARTIAL:
+        return self.commitBuildFile(SECTION_FILE_PARTIAL_VERSION, argument, self.build_->totalBytes);
+      case XP_BOOK_SECTION_OP_SET_COMPLETE:
+        self.buildComplete_ = argument;
+        break;
+      case XP_BOOK_SECTION_OP_SET_PARTIAL:
+        self.partial_ = argument;
+        break;
+      case XP_BOOK_SECTION_OP_SET_PARTIAL_PAGES:
+        self.partialPageCount_ = argument;
+        break;
+      case XP_BOOK_SECTION_OP_SET_PAGES:
+        self.pageCount = argument;
+        break;
+      case XP_BOOK_SECTION_OP_SET_BUILT_PAGES:
+        self.builtPageCount_ = argument;
+        break;
+      case XP_BOOK_SECTION_OP_SET_PARTIAL_CONSUMED:
+        self.partialBytesConsumed_ = argument;
+        break;
+      case XP_BOOK_SECTION_OP_SET_PARTIAL_TOTAL:
+        self.partialTotalBytes_ = argument;
+        break;
+      case XP_BOOK_SECTION_OP_SET_CONSUMED:
+        self.build_->bytesConsumed = argument;
+        break;
+    }
+    return 0;
+  }
+  static void diagnostic(void*, uint32_t event, uint32_t argument) {
+    switch (static_cast<XpBookSectionEvent>(event)) {
+      case XP_BOOK_SECTION_EVENT_NO_BUILD:
+        LOG_ERR("SCT", "buildSomeMore with no active build");
+        break;
+      case XP_BOOK_SECTION_EVENT_PARSE_ERROR:
+        LOG_ERR("SCT", "Parse error during incremental build");
+        break;
+      case XP_BOOK_SECTION_EVENT_FINALIZE_ERROR:
+        LOG_ERR("SCT", "Parse finalize failed; abandoning section build");
+        break;
+      case XP_BOOK_SECTION_EVENT_HTML_PROMOTION:
+        LOG_DBG("SCT", "Failed to promote HTML cache, removing temp");
+        break;
+      case XP_BOOK_SECTION_EVENT_SUSPENDED:
+        LOG_INF("SCT", "Suspended build: %u pages persisted", argument);
+        break;
+    }
+  }
+  XpBookServices services() { return {this, operation, nullptr, diagnostic}; }
+};
+
+struct Section::CommitContext {
+  Section& section;
+  static size_t operation(void* raw, uint32_t operation, size_t argument) {
+    auto& self = static_cast<CommitContext*>(raw)->section;
+    switch (static_cast<XpBookFileOperation>(operation)) {
+      case XP_BOOK_FILE_SEEK:
+        return self.file.seek(argument);
+      case XP_BOOK_FILE_SIZE:
+        return self.file.size();
+      case XP_BOOK_FILE_POSITION:
+        return self.file.position();
+      case XP_BOOK_FILE_CLOSE:
+        return self.file.close();
+      case XP_BOOK_FILE_EXISTS_FINAL:
+        return Storage.exists(self.filePath.c_str());
+      case XP_BOOK_FILE_REMOVE_FINAL:
+        return Storage.remove(self.filePath.c_str());
+      case XP_BOOK_FILE_REMOVE_TEMPORARY:
+        return Storage.remove(self.binTmpPath().c_str());
+      case XP_BOOK_FILE_PROMOTE_TEMPORARY:
+        return Storage.rename(self.binTmpPath().c_str(), self.filePath.c_str());
+      case XP_BOOK_FILE_IS_OPEN:
+        return bool(self.file);
+      case XP_BOOK_FILE_EXISTS_TEMPORARY:
+        return Storage.exists(self.binTmpPath().c_str());
+      case XP_BOOK_FILE_OPEN_READ:
+      case XP_BOOK_FILE_RELEASE_TEXT:
+        return 0;
+    }
+    return 0;
+  }
+  static size_t write(void* raw, const uint8_t* bytes, size_t length) {
+    return static_cast<CommitContext*>(raw)->section.file.write(bytes, length);
+  }
+  static uint32_t entry(void* raw, size_t index, uint32_t field) {
+    const auto& entry = static_cast<CommitContext*>(raw)->section.build_->lut[index];
+    switch (static_cast<XpBookLutField>(field)) {
+      case XP_BOOK_LUT_FILE:
+        return entry.fileOffset;
+      case XP_BOOK_LUT_PARAGRAPH:
+        return entry.paragraphIndex;
+      case XP_BOOK_LUT_LIST:
+        return entry.listItemIndex;
+      case XP_BOOK_LUT_VISIBLE:
+        return entry.visibleTextOffset;
+    }
+    return 0;
+  }
+  static void anchor(void* raw, size_t index, XpBookAnchor* out) {
+    const auto& anchor = static_cast<CommitContext*>(raw)->section.build_->parser->getAnchors()[index];
+    *out = {reinterpret_cast<const uint8_t*>(anchor.first.data()), anchor.first.size(), anchor.second};
+  }
+};
+
+struct Section::StartContext {
+  Section& section;
+  const ReaderRenderSpec& spec;
+  const std::function<void()>& popupFn;
+  std::string localPath, htmlDir, htmlPath, tmpHtmlPath;
+  std::optional<HalFile> tmpHtml;
+  std::unique_ptr<BuildContext> build;
+  std::vector<std::string> tocAnchors;
+  std::optional<std::decay_t<decltype(section.epub->getTocItem(0))>> tocItem;
+  StartContext(Section& section, const ReaderRenderSpec& spec, const std::function<void()>& popupFn)
+      : section(section), spec(spec), popupFn(popupFn) {}
+  static uint32_t operation(void* raw, uint32_t operation, uint32_t argument) {
+    auto& c = *static_cast<StartContext*>(raw);
+    auto& self = c.section;
+    switch (static_cast<XpBookSectionStartOperation>(operation)) {
+      case XP_BOOK_START_HAS_BUILD:
+        return bool(self.build_);
+      case XP_BOOK_START_RELEASE_FONTS:
+        if (auto* cache = self.renderer.getFontCacheManager()) cache->releaseSdFontCaches();
+        break;
+      case XP_BOOK_START_SET_COMPLETE:
+        self.buildComplete_ = argument;
+        break;
+      case XP_BOOK_START_SET_BUILT_PAGES:
+        self.builtPageCount_ = argument;
+        break;
+      case XP_BOOK_START_PARTIAL:
+        return self.partial_;
+      case XP_BOOK_START_PARTIAL_PAGES:
+        return self.partialPageCount_;
+      case XP_BOOK_START_SET_PAGES:
+        self.pageCount = argument;
+        break;
+      case XP_BOOK_START_TMP_BIN_EXISTS:
+        return Storage.exists(self.binTmpPath().c_str());
+      case XP_BOOK_START_TMP_BIN_REMOVE:
+        return Storage.remove(self.binTmpPath().c_str());
+      case XP_BOOK_START_PREPARE_PATHS:
+        c.localPath = self.epub->getSpineItem(self.spineIndex).href;
+        c.htmlDir = self.epub->getCachePath() + "/html";
+        c.htmlPath = c.htmlDir + "/" + std::to_string(self.spineIndex) + ".html";
+        c.tmpHtmlPath = c.htmlDir + "/.tmp_" + std::to_string(self.spineIndex) + ".html";
+        break;
+      case XP_BOOK_START_MKDIR_SECTIONS:
+        return Storage.mkdir((self.epub->getCachePath() + "/sections").c_str());
+      case XP_BOOK_START_HTML_EXISTS:
+        return Storage.exists(c.htmlPath.c_str());
+      case XP_BOOK_START_MKDIR_HTML:
+        return Storage.mkdir(c.htmlDir.c_str());
+      case XP_BOOK_START_DELAY:
+        delay(argument);
+        break;
+      case XP_BOOK_START_TMP_HTML_EXISTS:
+        return Storage.exists(c.tmpHtmlPath.c_str());
+      case XP_BOOK_START_TMP_HTML_REMOVE:
+        return Storage.remove(c.tmpHtmlPath.c_str());
+      case XP_BOOK_START_TMP_HTML_OPEN:
+        c.tmpHtml.emplace();
+        return Storage.openFileForWrite("SCT", c.tmpHtmlPath, *c.tmpHtml);
+      case XP_BOOK_START_STREAM:
+        return self.epub->readItemContentsToStream(c.localPath, *c.tmpHtml, argument);
+      case XP_BOOK_START_TMP_HTML_SIZE:
+        return c.tmpHtml->size();
+      case XP_BOOK_START_TMP_HTML_CLOSE:
+        return c.tmpHtml->close();
+      case XP_BOOK_START_TMP_HTML_DROP:
+        c.tmpHtml.reset();
+        break;
+      case XP_BOOK_START_PROMOTE_HTML:
+        return Storage.rename(c.tmpHtmlPath.c_str(), c.htmlPath.c_str());
+      case XP_BOOK_START_BIN_OPEN:
+        return Storage.openFileForWrite("SCT", self.binTmpPath(), self.file);
+      case XP_BOOK_START_WRITE_HEADER:
+        self.writeSectionFileHeader(c.spec);
+        break;
+      case XP_BOOK_START_ALLOCATE_CONTEXT:
+        c.build = makeUniqueNoThrow<BuildContext>();
+        return bool(c.build);
+      case XP_BOOK_START_CONFIGURE_CONTEXT:
+        c.build->reusedHtml = argument;
+        c.build->htmlPath = c.htmlPath;
+        c.build->tmpHtmlPath = c.tmpHtmlPath;
+        c.build->parsePath = argument ? c.htmlPath : c.tmpHtmlPath;
+        {
+          const size_t lastSlash = c.localPath.find_last_of('/');
+          c.build->contentBase = lastSlash != std::string::npos ? c.localPath.substr(0, lastSlash + 1) : "";
+        }
+        c.build->imageBasePath = self.epub->getCachePath() + "/img_" + std::to_string(self.spineIndex) + "_";
+        break;
+      case XP_BOOK_START_EMBEDDED_STYLE:
+        return c.spec.embeddedStyle;
+      case XP_BOOK_START_GET_CSS:
+        c.build->cssParser = self.epub->getCssParser();
+        return c.build->cssParser != nullptr;
+      case XP_BOOK_START_LOAD_CSS:
+        return static_cast<uint32_t>(c.build->cssParser->loadFromCache());
+      case XP_BOOK_START_CLEAR_CSS:
+        if (c.build->cssParser) c.build->cssParser->clear();
+        break;
+      case XP_BOOK_START_FILE_CLOSE:
+        return self.file.close();
+      case XP_BOOK_START_CONTEXT_REUSED:
+        return c.build->reusedHtml;
+      case XP_BOOK_START_TOC_FIRST:
+        return self.epub->getTocIndexForSpineIndex(self.spineIndex);
+      case XP_BOOK_START_TOC_COUNT:
+        return self.epub->getTocItemsCount();
+      case XP_BOOK_START_TOC_READ:
+        c.tocItem.emplace(self.epub->getTocItem(argument));
+        break;
+      case XP_BOOK_START_TOC_SPINE:
+        return c.tocItem->spineIndex;
+      case XP_BOOK_START_SPINE:
+        return self.spineIndex;
+      case XP_BOOK_START_TOC_LENGTH:
+        return c.tocItem->anchor.size();
+      case XP_BOOK_START_TOC_MOVE:
+        c.tocAnchors.push_back(std::move(c.tocItem->anchor));
+        break;
+      case XP_BOOK_START_TOC_DROP:
+        c.tocItem.reset();
+        break;
+      case XP_BOOK_START_ALLOCATE_PARSER:
+        c.build->parser = makeUniqueNoThrow<ChapterHtmlSlimParser>(
+            self.epub, c.build->parsePath, self.renderer, c.spec.fontId, c.spec.lineCompression,
+            c.spec.extraParagraphSpacing, c.spec.paragraphAlignment, c.spec.viewportWidth, c.spec.viewportHeight,
+            c.spec.hyphenationEnabled, c.spec.focusReadingEnabled, nullptr, c.spec.embeddedStyle, c.build->contentBase,
+            c.build->imageBasePath, c.spec.imageRendering, std::move(c.tocAnchors), c.popupFn, c.build->cssParser);
+        return bool(c.build->parser);
+      case XP_BOOK_START_CONFIGURE_PARSER: {
+        auto* ctx = c.build.get();
+        auto* section = &self;
+        ctx->parser->setPageBytesCallback(
+            [section, ctx](XpChapterSpan bytes, uint16_t paragraph, uint16_t list, uint32_t visible) {
+              ctx->lut.push_back({section->onPageComplete(bytes.data, bytes.len), paragraph, list, visible});
+            });
+        ctx->parser->setTextSpacing(c.spec.characterSpacing, c.spec.wordSpacingPercent);
+        ctx->parser->setParagraphIndentSpaces(c.spec.paragraphIndentSpaces);
+        Hyphenator::setPreferredLanguage(self.epub->getLanguage());
+        break;
+      }
+      case XP_BOOK_START_ACTIVATE:
+        self.build_ = std::move(c.build);
+        break;
+      case XP_BOOK_START_BEGIN_PARSE:
+        return self.build_->parser->beginParse();
+      case XP_BOOK_START_ABANDON:
+        self.abandonBuild();
+        break;
+      case XP_BOOK_START_SET_TOTAL:
+        self.build_->totalBytes = self.build_->parser->parseTotalBytes();
+        break;
+    }
+    return 0;
+  }
+  static void diagnostic(void* raw, uint32_t event, uint32_t argument) {
+    auto& c = *static_cast<StartContext*>(raw);
+    switch (static_cast<XpBookSectionStartEvent>(event)) {
+      case XP_BOOK_START_EVENT_ACTIVE:
+        LOG_ERR("SCT", "startBuild called while a build is already active");
+        break;
+      case XP_BOOK_START_EVENT_REUSED:
+        LOG_DBG("SCT", "Reusing cached HTML %s", c.htmlPath.c_str());
+        break;
+      case XP_BOOK_START_EVENT_RETRY:
+        LOG_DBG("SCT", "Retrying stream (attempt %d)...", argument);
+        break;
+      case XP_BOOK_START_EVENT_REMOVED_INCOMPLETE:
+        LOG_DBG("SCT", "Removed incomplete temp file after failed attempt");
+        break;
+      case XP_BOOK_START_EVENT_STREAM_FAILED:
+        LOG_ERR("SCT", "Failed to stream item contents to temp file after retries");
+        break;
+      case XP_BOOK_START_EVENT_STREAMED:
+        LOG_DBG("SCT", "Streamed temp HTML to %s (%d bytes)", c.tmpHtmlPath.c_str(), argument);
+        break;
+      case XP_BOOK_START_EVENT_PROMOTION:
+        LOG_DBG("SCT", "Failed to promote HTML cache; parsing from temp");
+        break;
+      case XP_BOOK_START_EVENT_CONTEXT_OOM:
+        LOG_ERR("SCT", "OOM: BuildContext");
+        break;
+      case XP_BOOK_START_EVENT_CSS_LOW:
+        LOG_ERR("SCT", "Insufficient heap to hydrate CSS; section build deferred");
+        break;
+      case XP_BOOK_START_EVENT_CSS_INVALID:
+        LOG_ERR("SCT", "Failed to load CSS from cache");
+        break;
+      case XP_BOOK_START_EVENT_PARSER_OOM:
+        LOG_ERR("SCT", "OOM: ChapterHtmlSlimParser");
+        break;
+      case XP_BOOK_START_EVENT_BEGIN_FAILED:
+        LOG_ERR("SCT", "Failed to begin parse");
+        break;
+    }
+  }
+};
+
+struct Section::TocContext {
+  const Section& section;
+  std::unique_ptr<XpBookTocTarget[]> targets;
+  HalFile file;
+  std::optional<serialization::BufferedFileReader> reader;
+  uint32_t start = 0;
+  uint16_t count = 0;
+  std::string cachedAnchor;
+  const std::string* active = nullptr;
+  std::optional<std::decay_t<decltype(section.epub->getTocItem(0))>> item;
+  explicit TocContext(const Section& section) : section(section) {}
+  static size_t operation(void* raw, uint32_t operation, size_t argument) {
+    auto& c = *static_cast<TocContext*>(raw);
+    const auto& self = c.section;
+    switch (static_cast<XpBookTocOperation>(operation)) {
+      case XP_BOOK_TOC_FIRST: {
+        return self.epub->getTocIndexForSpineIndex(self.spineIndex);
+      }
+      case XP_BOOK_TOC_COUNT: {
+        return self.epub->getTocItemsCount();
+      }
+      case XP_BOOK_TOC_ALLOCATE: {
+        c.targets = makeUniqueNoThrow<XpBookTocTarget[]>(argument);
+        if (!c.targets) LOG_ERR("SCT", "OOM: TOC anchor lookup");
+        return reinterpret_cast<size_t>(c.targets.get());
+      }
+      case XP_BOOK_TOC_OPEN_ANCHORS: {
+        if (self.openAnchorMap(c.file, c.count)) {
+          c.start = c.file.position();
+          c.reader.emplace(c.file, 1024);
+        }
+        return c.count;
+      }
+      case XP_BOOK_TOC_BUILD_ANCHORS: {
+        return self.build_ && self.build_->parser ? self.build_->parser->getAnchors().size() : 0;
+      }
+      case XP_BOOK_TOC_SELECT_BUILD: {
+        const auto& entry = self.build_->parser->getAnchors()[argument];
+        c.active = &entry.first;
+        return entry.second;
+      }
+      case XP_BOOK_TOC_SELECT_DISK: {
+        uint16_t page;
+        if (!sectioncodec::readAnchor(*c.reader, c.file.size(), c.cachedAnchor, page)) return SIZE_MAX;
+        c.active = &c.cachedAnchor;
+        return page;
+      }
+      case XP_BOOK_TOC_ACTIVE_HASH: {
+        return std::hash<std::string>{}(*c.active);
+      }
+      case XP_BOOK_TOC_TOC_MATCHES: {
+        return self.epub->getTocItem(argument).anchor == *c.active;
+      }
+      case XP_BOOK_TOC_BUILD_OVERRIDE: {
+        return self.findAnchorDuringBuild(*c.active).value_or(argument);
+      }
+      case XP_BOOK_TOC_REWIND_DISK: {
+        return c.reader && c.reader->seek(c.start);
+      }
+      case XP_BOOK_TOC_READ_TOC: {
+        c.item.emplace(self.epub->getTocItem(argument));
+        break;
+      }
+      case XP_BOOK_TOC_TOC_SPINE: {
+        return c.item->spineIndex;
+      }
+      case XP_BOOK_TOC_SPINE: {
+        return self.spineIndex;
+      }
+      case XP_BOOK_TOC_TOC_LENGTH: {
+        return c.item->anchor.size();
+      }
+      case XP_BOOK_TOC_TOC_HASH: {
+        return std::hash<std::string>{}(c.item->anchor);
+      }
+      case XP_BOOK_TOC_DROP_TOC: {
+        c.item.reset();
+        break;
+      }
+    }
+    return 0;
+  }
+};
+
+XpBookBuildRecords Section::buildRecords() const {
+  return {const_cast<Section*>(this), build_ ? build_->lut.size() : 0,
+          build_ && build_->parser ? build_->parser->getAnchors().size() : 0,
+          [](void* raw, size_t index, uint32_t field) -> uint32_t {
+            CommitContext context{*static_cast<Section*>(raw)};
+            return CommitContext::entry(&context, index, field);
+          },
+          [](void* raw, size_t index, XpBookAnchor* out) {
+            CommitContext context{*static_cast<Section*>(raw)};
+            CommitContext::anchor(&context, index, out);
+          }};
+}
 
 // Out-of-line so the unique_ptr<ChapterHtmlSlimParser> in BuildContext can be
 // constructed/destroyed where the parser's full definition is visible.
@@ -114,177 +689,38 @@ Section::Section(const std::shared_ptr<Epub>& epub, const int spineIndex, GfxRen
 // (no-op once a build has completed or never started).
 Section::~Section() { suspendBuild(); }
 
-uint32_t Section::onPageComplete(std::unique_ptr<Page> page) {
-  if (!file) {
-    LOG_ERR("SCT", "File not open for writing page %d", builtPageCount_);
-    return 0;
-  }
-
-  const uint32_t position = file.position();
-  if (!page->serialize(file)) {
-    LOG_ERR("SCT", "Failed to serialize page %d", builtPageCount_);
-    return 0;
-  }
-  LOG_DBG("SCT", "Page %d processed", builtPageCount_);
-
-  builtPageCount_++;
-  // pageCount is the pages available to read: a rebuild over a partial only raises it
-  // once it has laid out more pages than the partial already covers.
-  if (builtPageCount_ > pageCount) {
-    pageCount = builtPageCount_;
-  }
-  return position;
+uint32_t Section::onPageComplete(const uint8_t* bytes, const size_t length) {
+  SectionFileContext context{file, filePath};
+  const auto io = context.services();
+  return xp_book_section_append(&io, bytes, length, &builtPageCount_, &pageCount);
 }
 
 void Section::writeSectionFileHeader(const ReaderRenderSpec& spec) {
-  if (!file) {
-    LOG_DBG("SCT", "File not open for writing header");
-    return;
-  }
-  static_assert(HEADER_SIZE == sizeof(SECTION_FILE_VERSION) + sizeof(spec.fontId) + sizeof(spec.lineCompression) +
-                                   sizeof(spec.extraParagraphSpacing) + sizeof(spec.paragraphIndentSpaces) +
-                                   sizeof(spec.paragraphAlignment) + sizeof(spec.viewportWidth) +
-                                   sizeof(spec.viewportHeight) + sizeof(pageCount) + sizeof(spec.hyphenationEnabled) +
-                                   sizeof(spec.embeddedStyle) + sizeof(spec.imageRendering) +
-                                   sizeof(spec.focusReadingEnabled) + sizeof(spec.characterSpacing) +
-                                   sizeof(spec.wordSpacingPercent) + sizeof(uint32_t) + sizeof(uint32_t) +
-                                   sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t),
-                "Header size mismatch");
-  // Written as the incomplete sentinel; finalizeBuild() patches it to
-  // SECTION_FILE_VERSION as the last step, committing the file.
-  serialization::writePod(file, SECTION_FILE_INCOMPLETE_VERSION);
-  serialization::writePod(file, spec.fontId);
-  serialization::writePod(file, spec.lineCompression);
-  serialization::writePod(file, spec.extraParagraphSpacing);
-  serialization::writePod(file, spec.paragraphIndentSpaces);
-  serialization::writePod(file, spec.paragraphAlignment);
-  serialization::writePod(file, spec.viewportWidth);
-  serialization::writePod(file, spec.viewportHeight);
-  serialization::writePod(file, spec.hyphenationEnabled);
-  serialization::writePod(file, spec.embeddedStyle);
-  serialization::writePod(file, spec.imageRendering);
-  serialization::writePod(file, spec.focusReadingEnabled);
-  serialization::writePod(file, spec.characterSpacing);
-  serialization::writePod(file, spec.wordSpacingPercent);
-  serialization::writePod(file, pageCount);  // Placeholder for page count (will be initially 0, patched later)
-  serialization::writePod(file, static_cast<uint32_t>(0));  // Placeholder for LUT offset (patched later)
-  serialization::writePod(file, static_cast<uint32_t>(0));  // Placeholder for anchor map offset (patched later)
-  serialization::writePod(file, static_cast<uint32_t>(0));  // Placeholder for paragraph LUT offset (patched later)
-  serialization::writePod(file, static_cast<uint32_t>(0));  // Placeholder for li LUT offset (patched later)
-  serialization::writePod(file, static_cast<uint32_t>(0));  // Placeholder for visible-offset LUT (patched later)
+  SectionFileContext context{file, filePath};
+  const auto io = context.services();
+  const auto header = sectioncodec::header(spec, pageCount);
+  xp_book_section_header(&io, header.values);
 }
 
 bool Section::loadSectionFile(const ReaderRenderSpec& spec) {
-  if (!Storage.openFileForRead("SCT", filePath, file)) {
-    return false;
-  }
-
-  // Match parameters
-  bool filePartial = false;
-  {
-    uint8_t version;
-    serialization::readPod(file, version);
-    if (version != SECTION_FILE_VERSION && version != SECTION_FILE_PARTIAL_VERSION) {
-      // Explicit close() required: member variable persists beyond function scope
-      file.close();
-      LOG_ERR("SCT", "Deserialization failed: Unknown version %u", version);
-      clearCache();
-      return false;
-    }
-    filePartial = (version == SECTION_FILE_PARTIAL_VERSION);
-
-    int fileFontId;
-    uint16_t fileViewportWidth, fileViewportHeight;
-    float fileLineCompression;
-    bool fileExtraParagraphSpacing;
-    uint8_t fileParagraphIndentSpaces;
-    uint8_t fileParagraphAlignment;
-    bool fileHyphenationEnabled;
-    bool fileEmbeddedStyle;
-    uint8_t fileImageRendering;
-    bool fileFocusReadingEnabled;
-    int8_t fileCharacterSpacing;
-    uint8_t fileWordSpacingPercent;
-    serialization::readPod(file, fileFontId);
-    serialization::readPod(file, fileLineCompression);
-    serialization::readPod(file, fileExtraParagraphSpacing);
-    serialization::readPod(file, fileParagraphIndentSpaces);
-    serialization::readPod(file, fileParagraphAlignment);
-    serialization::readPod(file, fileViewportWidth);
-    serialization::readPod(file, fileViewportHeight);
-    serialization::readPod(file, fileHyphenationEnabled);
-    serialization::readPod(file, fileEmbeddedStyle);
-    serialization::readPod(file, fileImageRendering);
-    serialization::readPod(file, fileFocusReadingEnabled);
-    serialization::readPod(file, fileCharacterSpacing);
-    serialization::readPod(file, fileWordSpacingPercent);
-
-    if (spec.fontId != fileFontId || spec.lineCompression != fileLineCompression ||
-        spec.extraParagraphSpacing != fileExtraParagraphSpacing ||
-        spec.paragraphIndentSpaces != fileParagraphIndentSpaces || spec.paragraphAlignment != fileParagraphAlignment ||
-        spec.viewportWidth != fileViewportWidth || spec.viewportHeight != fileViewportHeight ||
-        spec.hyphenationEnabled != fileHyphenationEnabled || spec.embeddedStyle != fileEmbeddedStyle ||
-        spec.imageRendering != fileImageRendering || spec.focusReadingEnabled != fileFocusReadingEnabled ||
-        spec.characterSpacing != fileCharacterSpacing || spec.wordSpacingPercent != fileWordSpacingPercent) {
-      file.close();
-      LOG_ERR("SCT", "Deserialization failed: Parameters do not match");
-      clearCache();
-      return false;
-    }
-  }
-
-  serialization::readPod(file, pageCount);
-
-  if (filePartial) {
-    // A partial's pageCount is the watermark of a suspended build. Read the watermark
-    // trailer (appended after the visible-offset LUT) so estimatedTotalPages can extrapolate.
-    uint32_t liLutOffset = 0;
-    file.seek(HEADER_SIZE - sizeof(uint32_t) * 2);
-    serialization::readPod(file, liLutOffset);
-    uint32_t visibleLutOffset = 0;
-    file.seek(HEADER_SIZE - sizeof(uint32_t));
-    serialization::readPod(file, visibleLutOffset);
-    const uint32_t trailerOffset = visibleLutOffset + static_cast<uint32_t>(pageCount) * sizeof(uint32_t);
-    const bool trailerValid = pageCount > 0 && liLutOffset >= HEADER_SIZE && visibleLutOffset > liLutOffset &&
-                              trailerOffset + 2 * sizeof(uint32_t) <= file.size();
-    if (!trailerValid) {
-      file.close();
-      LOG_ERR("SCT", "Deserialization failed: malformed partial section");
-      clearCache();
-      pageCount = 0;
-      return false;
-    }
-    file.seek(trailerOffset);
-    serialization::readPod(file, partialBytesConsumed_);
-    serialization::readPod(file, partialTotalBytes_);
-    partial_ = true;
-    partialPageCount_ = pageCount;
-  }
-
-  // Explicit close() required: member variable persists beyond function scope
-  file.close();
-  LOG_DBG("SCT", "Deserialization succeeded: %d pages%s", pageCount, filePartial ? " (partial)" : "");
-  return true;
+  SectionFileContext context{file, filePath};
+  const auto io = context.services();
+  const auto expected = sectioncodec::header(spec, 0);
+  XpBookSectionLoaded state{partialBytesConsumed_, partialTotalBytes_, pageCount, partialPageCount_, partial_};
+  const bool ok = xp_book_section_load(&io, expected.values, &state);
+  partialBytesConsumed_ = state.consumed;
+  partialTotalBytes_ = state.total;
+  pageCount = state.pages;
+  partialPageCount_ = state.partial_pages;
+  partial_ = state.partial;
+  return ok;
 }
 
-// Your updated class method (assuming you are using the 'SD' object, which is a wrapper for a specific filesystem)
 bool Section::clearCache() const {
-  const std::string tmpBin = binTmpPath();
-  if (Storage.exists(tmpBin.c_str())) {
-    Storage.remove(tmpBin.c_str());
-  }
-  if (!Storage.exists(filePath.c_str())) {
-    LOG_DBG("SCT", "Cache does not exist, no action needed");
-    return true;
-  }
-
-  if (!Storage.remove(filePath.c_str())) {
-    LOG_ERR("SCT", "Failed to clear cache");
-    return false;
-  }
-
-  LOG_DBG("SCT", "Cache cleared successfully");
-  return true;
+  HalFile unused;
+  SectionFileContext context{unused, filePath};
+  const auto io = context.services();
+  return xp_book_section_clear(&io);
 }
 
 bool Section::createSectionFile(const ReaderRenderSpec& spec, const std::function<void()>& popupFn) {
@@ -299,225 +735,15 @@ bool Section::createSectionFile(const ReaderRenderSpec& spec, const std::functio
 }
 
 bool Section::startBuild(const ReaderRenderSpec& spec, const std::function<void()>& popupFn) {
-  if (build_) {
-    LOG_ERR("SCT", "startBuild called while a build is already active");
-    return false;
-  }
-  // Reclaim rebuildable font caches before CSS and layout allocations.
-  if (auto* fontCache = renderer.getFontCacheManager()) {
-    fontCache->releaseSdFontCaches();
-  }
-  buildComplete_ = false;
-  builtPageCount_ = 0;
-  // Pages from a loaded partial stay readable (from filePath) while this build writes
-  // to the tmp .bin, so availability never drops below the partial's watermark.
-  pageCount = partial_ ? partialPageCount_ : 0;
-
-  // Remove a stale tmp .bin from a crash-interrupted build; this build recreates it.
-  {
-    const std::string staleTmp = binTmpPath();
-    if (Storage.exists(staleTmp.c_str())) {
-      Storage.remove(staleTmp.c_str());
-    }
-  }
-
-  const auto localPath = epub->getSpineItem(spineIndex).href;
-  const auto htmlDir = epub->getCachePath() + "/html";
-  const auto htmlPath = htmlDir + "/" + std::to_string(spineIndex) + ".html";
-  const auto tmpHtmlPath = htmlDir + "/.tmp_" + std::to_string(spineIndex) + ".html";
-
-  // Create cache directory if it doesn't exist
-  {
-    const auto sectionsDir = epub->getCachePath() + "/sections";
-    Storage.mkdir(sectionsDir.c_str());
-  }
-
-  // Reuse the previously unzipped HTML if we already have it. The unzipped HTML is keyed only on the
-  // book (it lives in the per-book cache dir), not on render settings, so it survives the invalidation
-  // that wipes the layout (.bin) caches when font/margin/orientation change -- rebuilds then skip zip
-  // inflation entirely. It's promoted by an atomic rename as soon as the inflate succeeds (below), so
-  // even a window-only giant spine -- whose .bin never finalizes -- still caches its HTML, letting a
-  // reopen skip the multi-second inflate. If htmlPath exists it is known-complete.
-  const bool reusedHtml = Storage.exists(htmlPath.c_str());
-  bool htmlCached = reusedHtml;
-  if (reusedHtml) {
-    LOG_DBG("SCT", "Reusing cached HTML %s", htmlPath.c_str());
-  } else {
-    Storage.mkdir(htmlDir.c_str());
-
-    // Retry logic for SD card timing issues
-    bool streamed = false;
-    uint32_t fileSize = 0;
-    for (int attempt = 0; attempt < 3 && !streamed; attempt++) {
-      if (attempt > 0) {
-        LOG_DBG("SCT", "Retrying stream (attempt %d)...", attempt + 1);
-        delay(50);  // Brief delay before retry
-      }
-
-      // Remove any incomplete file from previous attempt before retrying
-      if (Storage.exists(tmpHtmlPath.c_str())) {
-        Storage.remove(tmpHtmlPath.c_str());
-      }
-
-      HalFile tmpHtml;
-      if (!Storage.openFileForWrite("SCT", tmpHtmlPath, tmpHtml)) {
-        continue;
-      }
-      // Larger chunks mean far fewer SD writes inflating the HTML; a 1KB chunk turned a 584KB
-      // single-spine novel into ~570 tiny writes (multi-second). 8KB keeps the transient buffers
-      // small while cutting the write count 8x.
-      streamed = epub->readItemContentsToStream(localPath, tmpHtml, 8192);
-      fileSize = tmpHtml.size();
-      // Explicitly close() file before calling Storage.remove()
-      tmpHtml.close();
-
-      // If streaming failed, remove the incomplete file immediately
-      if (!streamed && Storage.exists(tmpHtmlPath.c_str())) {
-        Storage.remove(tmpHtmlPath.c_str());
-        LOG_DBG("SCT", "Removed incomplete temp file after failed attempt");
-      }
-    }
-
-    if (!streamed) {
-      LOG_ERR("SCT", "Failed to stream item contents to temp file after retries");
-      return false;
-    }
-
-    LOG_DBG("SCT", "Streamed temp HTML to %s (%d bytes)", tmpHtmlPath.c_str(), fileSize);
-
-    // Promote to the persistent HTML cache immediately -- the inflate is complete and the bytes are
-    // valid regardless of whether the layout build finishes, so reopening (even a window-only spine
-    // that never finalizes its .bin) skips re-inflation. If the rename fails we just parse the temp.
-    if (Storage.rename(tmpHtmlPath.c_str(), htmlPath.c_str())) {
-      htmlCached = true;
-    } else {
-      LOG_DBG("SCT", "Failed to promote HTML cache; parsing from temp");
-    }
-  }
-
-  if (!Storage.openFileForWrite("SCT", binTmpPath(), file)) {
-    if (!reusedHtml) Storage.remove(tmpHtmlPath.c_str());
-    return false;
-  }
-  // Header is written with the incomplete-version sentinel; finalizeBuild() commits it.
-  writeSectionFileHeader(spec);
-
-  auto ctx = makeUniqueNoThrow<BuildContext>();
-  if (!ctx) {
-    LOG_ERR("SCT", "OOM: BuildContext");
-    file.close();
-    Storage.remove(binTmpPath().c_str());
-    if (!reusedHtml) Storage.remove(tmpHtmlPath.c_str());
-    return false;
-  }
-  // htmlCached == "htmlPath is the live cache" (reused, or just promoted). finalizeBuild/abandonBuild
-  // then leave the cached HTML alone; only an un-promoted temp (rename failed) is theirs to clean up.
-  ctx->reusedHtml = htmlCached;
-  ctx->htmlPath = htmlPath;
-  ctx->tmpHtmlPath = tmpHtmlPath;
-  ctx->parsePath = htmlCached ? htmlPath : tmpHtmlPath;
-
-  // Derive the content base directory and image cache path prefix for the parser
-  const size_t lastSlash = localPath.find_last_of('/');
-  ctx->contentBase = (lastSlash != std::string::npos) ? localPath.substr(0, lastSlash + 1) : "";
-  ctx->imageBasePath = epub->getCachePath() + "/img_" + std::to_string(spineIndex) + "_";
-
-  if (spec.embeddedStyle) {
-    ctx->cssParser = epub->getCssParser();
-    if (ctx->cssParser) {
-      const CssParser::CacheLoadResult cacheResult = ctx->cssParser->loadFromCache();
-      if (cacheResult == CssParser::CacheLoadResult::LowMemory) {
-        LOG_ERR("SCT", "Insufficient heap to hydrate CSS; section build deferred");
-        ctx->cssParser->clear();
-        file.close();
-        Storage.remove(binTmpPath().c_str());
-        if (!ctx->reusedHtml) Storage.remove(ctx->tmpHtmlPath.c_str());
-        return false;
-      }
-      if (cacheResult == CssParser::CacheLoadResult::Invalid) {
-        LOG_ERR("SCT", "Failed to load CSS from cache");
-      }
-    }
-  }
-
-  // Collect TOC anchors for this spine so the parser can insert page breaks at chapter boundaries
-  std::vector<std::string> tocAnchors;
-  const int startTocIndex = epub->getTocIndexForSpineIndex(spineIndex);
-  if (startTocIndex >= 0) {
-    for (int i = startTocIndex; i < epub->getTocItemsCount(); i++) {
-      auto entry = epub->getTocItem(i);
-      if (entry.spineIndex != spineIndex) break;
-      if (!entry.anchor.empty()) {
-        tocAnchors.push_back(std::move(entry.anchor));
-      }
-    }
-  }
-
-  // The parser stores the path/contentBase/imageBasePath by reference, so they must
-  // live in the BuildContext (which outlives the parser). The page-complete callback
-  // captures the BuildContext pointer to append to its in-RAM LUT; build_ owns the
-  // context for the parser's whole lifetime.
-  BuildContext* ctxPtr = ctx.get();
-  ctx->parser = makeUniqueNoThrow<ChapterHtmlSlimParser>(
-      epub, ctxPtr->parsePath, renderer, spec.fontId, spec.lineCompression, spec.extraParagraphSpacing,
-      spec.paragraphAlignment, spec.viewportWidth, spec.viewportHeight, spec.hyphenationEnabled,
-      spec.focusReadingEnabled,
-      [this, ctxPtr](std::unique_ptr<Page> page, const uint16_t paragraphIndex, const uint16_t listItemIndex,
-                     const uint32_t visibleTextOffset) {
-        ctxPtr->lut.push_back(
-            {this->onPageComplete(std::move(page)), paragraphIndex, listItemIndex, visibleTextOffset});
-      },
-      spec.embeddedStyle, ctxPtr->contentBase, ctxPtr->imageBasePath, spec.imageRendering, std::move(tocAnchors),
-      popupFn, ctxPtr->cssParser);
-  if (!ctx->parser) {
-    LOG_ERR("SCT", "OOM: ChapterHtmlSlimParser");
-    if (ctx->cssParser) ctx->cssParser->clear();
-    file.close();
-    Storage.remove(binTmpPath().c_str());
-    if (!reusedHtml) Storage.remove(tmpHtmlPath.c_str());
-    return false;
-  }
-
-  ctx->parser->setTextSpacing(spec.characterSpacing, spec.wordSpacingPercent);
-  ctx->parser->setParagraphIndentSpaces(spec.paragraphIndentSpaces);
-  Hyphenator::setPreferredLanguage(epub->getLanguage());
-  build_ = std::move(ctx);
-
-  if (!build_->parser->beginParse()) {
-    LOG_ERR("SCT", "Failed to begin parse");
-    abandonBuild();
-    return false;
-  }
-  build_->totalBytes = build_->parser->parseTotalBytes();
-  return true;
+  StartContext context{*this, spec, popupFn};
+  const XpBookServices services{&context, StartContext::operation, nullptr, StartContext::diagnostic};
+  return xp_book_section_start(&services);
 }
 
 bool Section::buildSomeMore(const int maxPages, bool (*yieldNow)()) {
-  if (!build_ || !build_->parser) {
-    LOG_ERR("SCT", "buildSomeMore with no active build");
-    return false;
-  }
-  // Pace on pages laid out by THIS build, not pageCount: during a rebuild over a partial,
-  // pageCount stays pinned at the partial's watermark until the build passes it, which
-  // would otherwise turn one "small" chunk into a blocking rebuild of the whole watermark.
-  const int startCount = builtPageCount_;
-  for (;;) {
-    const auto status = build_->parser->parseStep();
-    if (status == ChapterHtmlSlimParser::ParseStatus::Error) {
-      LOG_ERR("SCT", "Parse error during incremental build");
-      abandonBuild();
-      return false;
-    }
-    if (status == ChapterHtmlSlimParser::ParseStatus::Done) {
-      return finalizeBuild();
-    }
-    // ParseStatus::More: yield once we've laid out the requested number of pages, or as soon
-    // as the caller has something more urgent to do.
-    if ((maxPages > 0 && (builtPageCount_ - startCount) >= maxPages) || (yieldNow && yieldNow())) {
-      build_->bytesConsumed = build_->parser->parseBytesConsumed();
-      return true;
-    }
-  }
+  PolicyContext context{*this, yieldNow};
+  const auto services = context.services();
+  return xp_book_section_transition(&services, XP_BOOK_SECTION_ADVANCE, maxPages);
 }
 
 bool Section::hasHtmlCache() const {
@@ -526,711 +752,214 @@ bool Section::hasHtmlCache() const {
 }
 
 std::optional<uint16_t> Section::findAnchorDuringBuild(const std::string& anchor) const {
-  if (!build_ || !build_->parser) return std::nullopt;
-  for (const auto& [key, page] : build_->parser->getAnchors()) {
-    if (key == anchor) return page;
-  }
-  return std::nullopt;
+  const auto records = buildRecords();
+  uint32_t page;
+  if (!xp_book_section_build_anchor(&records, reinterpret_cast<const uint8_t*>(anchor.data()), anchor.size(), &page))
+    return std::nullopt;
+  return page;
 }
 
 std::optional<uint16_t> Section::findAnchor(const std::string& anchor) const {
-  if (const auto page = findAnchorDuringBuild(anchor)) {
-    return page;
-  }
-  // Fall back to the on-disk anchor map: a finalized section, or a partial whose map
-  // covers everything up to its watermark (nullopt past it -- build further and retry).
-  return getPageForAnchor(anchor);
+  HalFile file;
+  std::string key;
+  SectionFileContext context{file, filePath, &key};
+  const auto io = context.services();
+  const auto records = buildRecords();
+  uint32_t page;
+  if (!xp_book_section_find_anchor(&io, &records, reinterpret_cast<const uint8_t*>(anchor.data()), anchor.size(),
+                                   &page))
+    return std::nullopt;
+  return page;
 }
 
 int Section::getTocIndexForPage(const int page) const {
-  int selected = epub->getTocIndexForSpineIndex(spineIndex);
-  int latestPage = -1;
-  struct TocAnchor {
-    size_t hash;
-    int index;
-  };
-  // Bound scratch space to 512 bytes on C3; anchor text stays in the existing caches.
-  constexpr size_t BATCH_SIZE = 64;
-  auto targets = makeUniqueNoThrow<TocAnchor[]>(BATCH_SIZE);
-  if (!targets) {
-    LOG_ERR("SCT", "OOM: TOC anchor lookup");
-    return selected;
-  }
-  HalFile anchorFile;
-  uint16_t anchorCount = 0;
-  std::optional<serialization::BufferedFileReader> anchorReader;
-  uint32_t anchorStart = 0;
-  if (openAnchorMap(anchorFile, anchorCount)) {
-    anchorStart = anchorFile.position();
-    // Reuse one 1 KB buffer across batches and interleaved TOC metadata reads.
-    anchorReader.emplace(anchorFile, 1024);
-  }
-  std::string cachedAnchor;
-  size_t count = 0;
-  const auto considerAnchor = [&](const std::string& anchor, const uint16_t anchorPage, const bool fromDisk) {
-    const size_t hash = std::hash<std::string>{}(anchor);
-    for (size_t i = 0; i < count; ++i) {
-      if (targets[i].hash != hash || epub->getTocItem(targets[i].index).anchor != anchor) continue;
-      const int resolvedPage = fromDisk ? findAnchorDuringBuild(anchor).value_or(anchorPage) : anchorPage;
-      if (resolvedPage <= page &&
-          (resolvedPage > latestPage || (resolvedPage == latestPage && targets[i].index > selected))) {
-        selected = targets[i].index;
-        latestPage = resolvedPage;
-      }
-    }
-  };
-  const auto resolveBatch = [&]() {
-    if (build_ && build_->parser) {
-      for (const auto& [anchor, anchorPage] : build_->parser->getAnchors()) {
-        considerAnchor(anchor, anchorPage, false);
-      }
-    }
-    if (anchorReader && anchorReader->seek(anchorStart)) {
-      for (uint16_t i = 0; i < anchorCount; ++i) {
-        uint16_t anchorPage;
-        serialization::readString(*anchorReader, cachedAnchor);
-        serialization::readPod(*anchorReader, anchorPage);
-        considerAnchor(cachedAnchor, anchorPage, true);
-      }
-    }
-    count = 0;
-  };
-  const int first = std::max(0, selected);
-  for (int i = first; i < epub->getTocItemsCount(); ++i) {
-    const auto item = epub->getTocItem(i);
-    if (item.spineIndex != spineIndex) continue;
-    if (item.anchor.empty()) {
-      if (page >= 0 && latestPage <= 0) {
-        selected = i;
-        latestPage = 0;
-      }
-    } else {
-      targets[count++] = {std::hash<std::string>{}(item.anchor), i};
-      if (count == BATCH_SIZE) resolveBatch();
-    }
-  }
-  if (count > 0) resolveBatch();
-  return selected;
+  TocContext context{*this};
+  const XpBookTocServices io{&context, TocContext::operation};
+  return xp_book_section_toc(&io, page);
 }
 
 uint16_t Section::estimatedTotalPages() const {
-  // Extrapolation from a suspended session's watermark trailer. A static snapshot, so no EMA
-  // damping is needed. Also the best guess while a rebuild is running but hasn't laid out
-  // enough pages yet to extrapolate from its own progress.
-  const auto partialEstimate = [this]() -> uint16_t {
-    if (!partial_ || partialBytesConsumed_ == 0 || partialTotalBytes_ <= partialBytesConsumed_) {
-      return pageCount;
-    }
-    const uint64_t est = static_cast<uint64_t>(partialPageCount_) * partialTotalBytes_ / partialBytesConsumed_;
-    if (est <= pageCount) return pageCount;
-    return est > 60000 ? 60000 : static_cast<uint16_t>(est);
-  };
-
-  if (!build_) {
-    return partial_ ? partialEstimate() : pageCount;  // partial -> extrapolate, finalized -> exact
+  XpBookSectionEstimate state{build_ ? build_->bytesConsumed : 0,
+                              build_ ? build_->totalBytes : 0,
+                              partialBytesConsumed_,
+                              partialTotalBytes_,
+                              build_ ? build_->smoothedAtConsumed : 0,
+                              build_ ? build_->smoothedEstimate : 0,
+                              pageCount,
+                              builtPageCount_,
+                              partialPageCount_,
+                              partial_,
+                              bool(build_)};
+  const auto result = xp_book_section_estimate(&state);
+  if (build_) {
+    build_->smoothedEstimate = state.smoothed;
+    build_->smoothedAtConsumed = state.smoothed_at;
   }
-  const uint32_t consumed = build_->bytesConsumed;
-  const uint32_t total = build_->totalBytes;
-  if (builtPageCount_ == 0 || consumed == 0 || total <= consumed) return partialEstimate();
-
-  // Raw extrapolation: scale the pages built so far by the fraction of HTML still unparsed. This
-  // re-derives from a growing, non-uniform sample, so it jitters up and down as the build crosses
-  // dense vs sparse regions of the chapter.
-  const uint64_t raw = static_cast<uint64_t>(builtPageCount_) * total / consumed;
-
-  // Damp that jitter with an exponential moving average. Step it once per build advance (keyed on
-  // bytesConsumed) rather than per status-bar redraw, so the smoothing rate doesn't depend on how
-  // often we repaint. As the build nears the end, consumed -> total and raw -> the built count, so
-  // the average settles onto the true count (and finalizeBuild then returns the exact pageCount).
-  constexpr float ALPHA = 0.25f;  // weight of each new sample; lower = steadier but slower to settle
-  if (build_->smoothedEstimate <= 0) {
-    build_->smoothedEstimate = static_cast<float>(raw);  // seed on the first estimate
-  } else if (consumed != build_->smoothedAtConsumed) {
-    build_->smoothedEstimate += ALPHA * (static_cast<float>(raw) - build_->smoothedEstimate);
-  }
-  build_->smoothedAtConsumed = consumed;
-
-  const uint64_t est = static_cast<uint64_t>(build_->smoothedEstimate + 0.5f);
-  if (est <= pageCount) return pageCount;  // never fewer than the pages already available
-  return est > 60000 ? 60000 : static_cast<uint16_t>(est);
+  return result;
 }
 
 // Write the LUTs and anchor map into the open tmp .bin, patch the header with the built
 // page count and table offsets, stamp `version` as the commit point, then swap the tmp
 // file over filePath. For SECTION_FILE_PARTIAL_VERSION a watermark trailer
-// (bytesConsumed, totalBytes) is appended after the li LUT so a later open can estimate
+// (bytesConsumed, totalBytes) is appended after the visible-offset LUT so a later open can estimate
 // the total page count. The parser must still be alive (anchors are read from it).
 // On failure the tmp is removed and any pre-existing file at filePath is left intact.
 bool Section::commitBuildFile(const uint8_t version, const uint32_t bytesConsumed, const uint32_t totalBytes) {
-  const bool asPartial = (version == SECTION_FILE_PARTIAL_VERSION);
-
-  const auto failCommit = [this]() {
-    // Explicit close() required before remove (member variable, O_RDWR handle).
-    file.close();
-    Storage.remove(binTmpPath().c_str());
-    return false;
-  };
-
-  const uint32_t lutOffset = file.position();
-  for (const auto& entry : build_->lut) {
-    if (entry.fileOffset == 0) {
-      LOG_ERR("SCT", "Failed to write LUT due to invalid page positions");
-      return failCommit();
-    }
-    serialization::writePod(file, entry.fileOffset);
-  }
-
-  // Write anchor-to-page map for fragment navigation (e.g. footnote targets). For a
-  // partial, skip anchors that landed on the incomplete trailing page the suspend drops.
-  const uint32_t anchorMapOffset = file.position();
-  const auto& anchors = build_->parser->getAnchors();
-  uint16_t anchorCount = 0;
-  for (const auto& [anchor, page] : anchors) {
-    if (!asPartial || page < builtPageCount_) anchorCount++;
-  }
-  serialization::writePod(file, anchorCount);
-  for (const auto& [anchor, page] : anchors) {
-    if (asPartial && page >= builtPageCount_) continue;
-    serialization::writeString(file, anchor);
-    serialization::writePod(file, page);
-  }
-
-  const uint32_t paragraphLutOffset = file.position();
-  serialization::writePod(file, static_cast<uint16_t>(build_->lut.size()));
-  for (const auto& entry : build_->lut) {
-    serialization::writePod(file, entry.paragraphIndex);
-  }
-
-  const uint32_t liLutFileOffset = static_cast<uint32_t>(file.position());
-  for (const auto& entry : build_->lut) {
-    serialization::writePod(file, entry.listItemIndex);
-  }
-
-  const uint32_t visibleLutFileOffset = static_cast<uint32_t>(file.position());
-  for (const auto& entry : build_->lut) {
-    serialization::writePod(file, entry.visibleTextOffset);
-  }
-
-  if (asPartial) {
-    // Watermark trailer, located on load immediately after the visible-offset LUT.
-    serialization::writePod(file, bytesConsumed);
-    serialization::writePod(file, totalBytes);
-  }
-
-  // Patch header with the built page count and section offsets...
-  file.seek(HEADER_SIZE - sizeof(uint32_t) * 5 - sizeof(builtPageCount_));
-  serialization::writePod(file, builtPageCount_);
-  serialization::writePod(file, lutOffset);
-  serialization::writePod(file, anchorMapOffset);
-  serialization::writePod(file, paragraphLutOffset);
-  serialization::writePod(file, liLutFileOffset);
-  serialization::writePod(file, visibleLutFileOffset);
-  // ...then commit by overwriting the sentinel version with the real one. Writing the
-  // version last makes it the commit point: a crash before here leaves version 0.
-  file.seek(0);
-  serialization::writePod(file, version);
-  // Explicit close() required: member variable persists beyond function scope
-  file.close();
-
-  // Swap into place. A crash between remove and rename loses the old file but keeps a
-  // fully-committed tmp; the next build just removes it and rebuilds.
-  if (Storage.exists(filePath.c_str())) {
-    Storage.remove(filePath.c_str());
-  }
-  if (!Storage.rename(binTmpPath().c_str(), filePath.c_str())) {
-    LOG_ERR("SCT", "Failed to move built section into place");
-    Storage.remove(binTmpPath().c_str());
-    return false;
-  }
-  return true;
+  CommitContext context{*this};
+  const XpBookFileServices io{&context, CommitContext::operation,      nullptr, CommitContext::write,
+                              nullptr,  SectionFileContext::diagnostic};
+  const XpBookBuildRecords records{&context, build_->lut.size(), build_->parser->getAnchors().size(),
+                                   CommitContext::entry, CommitContext::anchor};
+  return xp_book_section_commit(&io, &records, version, builtPageCount_, bytesConsumed, totalBytes);
 }
 
 bool Section::finalizeBuild() {
-  // Flush the trailing page (emits the last page via the completePageFn into the LUT).
-  // A false return means layout dropped content (OOM); committing would persist a
-  // section cache with holes in the text, so abandon the build instead.
-  if (!build_->parser->finishParse()) {
-    LOG_ERR("SCT", "Parse finalize failed; abandoning section build");
-    abandonBuild();
-    return false;
-  }
-
-  if (!build_->reusedHtml) {
-    // Parse succeeded: promote the freshly unzipped HTML to the persistent cache so future
-    // rebuilds skip zip inflation. If promotion fails, drop the temp -- the build still succeeded.
-    if (!Storage.rename(build_->tmpHtmlPath.c_str(), build_->htmlPath.c_str())) {
-      LOG_DBG("SCT", "Failed to promote HTML cache, removing temp");
-      Storage.remove(build_->tmpHtmlPath.c_str());
-    }
-  }
-
-  const bool committed = commitBuildFile(SECTION_FILE_VERSION, 0, 0);
-  if (build_->cssParser) build_->cssParser->clear();
-  build_.reset();
-  if (!committed) {
-    // commitBuildFile removed filePath before the failed swap, so nothing valid remains.
-    partial_ = false;
-    partialPageCount_ = 0;
-    pageCount = 0;
-    builtPageCount_ = 0;
-    return false;
-  }
-  buildComplete_ = true;
-  partial_ = false;
-  partialPageCount_ = 0;
-  pageCount = builtPageCount_;
-  return true;
+  PolicyContext context{*this};
+  const auto services = context.services();
+  return xp_book_section_transition(&services, XP_BOOK_SECTION_FINISH, 0);
 }
 
 void Section::suspendBuild() {
-  if (!build_) return;
-
-  // Only worth persisting if this build produced pages a pre-existing partial doesn't
-  // already cover; otherwise keep the older (bigger) partial and just drop the tmp.
-  const bool worthKeeping = builtPageCount_ > 0 && (!partial_ || builtPageCount_ > partialPageCount_);
-
-  bool committed = false;
-  if (worthKeeping) {
-    // Capture the parse watermark and commit before tearing the parser down (the anchor
-    // map is read from it). The incomplete trailing page is intentionally not flushed:
-    // only fully laid-out pages are persisted, and the rebuild re-derives the rest.
-    const uint32_t consumed = static_cast<uint32_t>(build_->parser->parseBytesConsumed());
-    committed = commitBuildFile(SECTION_FILE_PARTIAL_VERSION, consumed, build_->totalBytes);
-    if (committed) {
-      partial_ = true;
-      partialPageCount_ = builtPageCount_;
-      partialBytesConsumed_ = consumed;
-      partialTotalBytes_ = build_->totalBytes;
-      LOG_INF("SCT", "Suspended build: %u pages persisted", builtPageCount_);
-    }
-  }
-
-  if (build_->parser) build_->parser->abortParse();
-  if (build_->cssParser) build_->cssParser->clear();
-  if (!committed && file) {
-    // Explicit close() required before remove (member variable, O_RDWR handle).
-    file.close();
-    Storage.remove(binTmpPath().c_str());
-  }
-  if (!build_->reusedHtml && Storage.exists(build_->tmpHtmlPath.c_str())) {
-    Storage.remove(build_->tmpHtmlPath.c_str());
-  }
-  build_.reset();
-  buildComplete_ = false;
-  pageCount = partial_ ? partialPageCount_ : 0;
-  builtPageCount_ = 0;
+  PolicyContext context{*this};
+  const auto services = context.services();
+  xp_book_section_transition(&services, XP_BOOK_SECTION_SUSPEND, 0);
 }
 
 void Section::abandonBuild() {
-  if (!build_) return;
-  if (build_->parser) build_->parser->abortParse();
-  if (build_->cssParser) build_->cssParser->clear();
-  if (file) {
-    // Explicit close() required before remove (member variable, O_RDWR handle).
-    file.close();
-    Storage.remove(binTmpPath().c_str());
-  }
-  // A parse error would recur against the same HTML, so drop any partial too -- resuming
-  // from it would just re-enter the failing build every open.
-  if (Storage.exists(filePath.c_str())) {
-    Storage.remove(filePath.c_str());
-  }
-  if (!build_->reusedHtml && Storage.exists(build_->tmpHtmlPath.c_str())) {
-    Storage.remove(build_->tmpHtmlPath.c_str());
-  }
-  build_.reset();
-  buildComplete_ = false;
-  partial_ = false;
-  partialPageCount_ = 0;
-  pageCount = 0;
-  builtPageCount_ = 0;
+  PolicyContext context{*this};
+  const auto services = context.services();
+  xp_book_section_transition(&services, XP_BOOK_SECTION_ABANDON, 0);
 }
 
 std::unique_ptr<Page> Section::loadPageDuringBuild(const int page) {
-  if (!build_ || page < 0 || page >= static_cast<int>(build_->lut.size()) || !file) {
-    return nullptr;
-  }
-  const uint32_t pos = build_->lut[page].fileOffset;
-  if (pos == 0) {
-    return nullptr;
-  }
-  // The .bin is open O_RDWR for the build. Read the already-written page, then restore
-  // the write cursor so the next onPageComplete keeps appending where it left off.
-  const uint32_t writePos = file.position();
-  file.seek(pos);
-  auto p = Page::deserialize(file);
-  file.seek(writePos);
-  if (p) {
-    p->visibleTextOffset = build_->lut[page].visibleTextOffset;
-  }
-  return p;
+  SectionFileContext context{file, filePath};
+  const auto io = context.services();
+  const auto records = buildRecords();
+  const XpBookPageLoader loader{&file, [](void* raw, uint32_t bytes, uint32_t visible) -> void* {
+                                  return Page::load(*static_cast<HalFile*>(raw), bytes, visible).release();
+                                }};
+  return std::unique_ptr<Page>(static_cast<Page*>(xp_book_section_built_page(&io, &records, page, &loader)));
 }
 
 // Read a page from the committed file at filePath (finalized section or partial from a
 // previous session). Uses a local handle so it is safe while a build holds the member
 // `file` open on the tmp .bin.
 std::unique_ptr<Page> Section::loadPageAt(const int page) const {
-  HalFile f;
-  if (!Storage.openFileForRead("SCT", filePath, f)) {
-    return nullptr;
-  }
-
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 5);
-  uint32_t lutOffset;
-  serialization::readPod(f, lutOffset);
-  f.seek(lutOffset + sizeof(uint32_t) * page);
-  uint32_t pagePos;
-  serialization::readPod(f, pagePos);
-
-  // Read this page's visible-codepoint start offset from the visible-offset LUT (last header slot)
-  // in the same open handle, so the reader can persist progress without reopening the section file
-  // on every page turn (see Page::visibleTextOffset). A malformed/old file leaves it at 0.
-  f.seek(HEADER_SIZE - sizeof(uint32_t));
-  uint32_t visibleLutOffset;
-  serialization::readPod(f, visibleLutOffset);
-  uint32_t visibleTextOffset = 0;
-  const uint32_t visibleEntry = visibleLutOffset + sizeof(uint32_t) * page;
-  if (visibleLutOffset >= HEADER_SIZE && visibleEntry + sizeof(uint32_t) <= f.size()) {
-    f.seek(visibleEntry);
-    serialization::readPod(f, visibleTextOffset);
-  }
-
-  f.seek(pagePos);
-  auto p = Page::deserialize(f);
-  if (p) {
-    p->visibleTextOffset = visibleTextOffset;
-  }
-  return p;
-  // No f.close() needed -- DESTRUCTOR_CLOSES_FILE=1 handles it at scope exit
+  HalFile file;
+  SectionFileContext context{file, filePath};
+  const auto services = context.services();
+  uint32_t range[3];
+  if (!xp_book_section_query(&services, XP_BOOK_SECTION_PAGE_RANGE, page, false, range)) return nullptr;
+  auto result = Page::load(file, range[1] - range[0], range[2]);
+  if (result) result->visibleTextOffset = range[2];
+  return result;
 }
 
 std::unique_ptr<Page> Section::loadPage(const int page) {
-  if (page < 0) {
-    return nullptr;
+  switch (xp_book_section_page_source(page, build_ ? build_->lut.size() : 0, pageCount, partialPageCount_, bool(build_),
+                                      partial_)) {
+    case 1:
+      return loadPageDuringBuild(page);
+    case 2:
+      return loadPageAt(page);
+    default:
+      return nullptr;
   }
-  if (build_ && page < static_cast<int>(build_->lut.size())) {
-    return loadPageDuringBuild(page);
-  }
-  // Not (yet) in the active build: serve from the file on disk -- a finalized section,
-  // or a partial from a previous session whose pages the rebuild hasn't reached again.
-  const int onDisk = partial_ ? partialPageCount_ : (build_ ? 0 : pageCount);
-  if (page >= onDisk) {
-    return nullptr;
-  }
-  return loadPageAt(page);
 }
 
 std::string Section::getTextFromSectionFile() {
-  std::string fullText;
-  auto p = loadPage(currentPage);
-  if (p) {
-    for (const auto& el : p->elements) {
-      if (el->getTag() == TAG_PageLine) {
-        const auto& line = static_cast<const PageLine&>(*el);
-        if (line.getBlock()) {
-          const auto& block = *line.getBlock();
-          for (uint16_t i = 0; i < block.wordCount(); i++) {
-            if (!fullText.empty()) fullText += " ";
-            fullText += block.wordText(i);
-          }
-        }
-      }
-    }
-  }
-  return fullText;
+  std::string text;
+  auto page = loadPage(currentPage);
+  if (!page) return text;
+  struct Context {
+    Page& page;
+    std::string& text;
+  } context{*page, text};
+  const XpBookPageText source{&context, static_cast<uint16_t>(page->elementCount()),
+                              [](void* raw, uint16_t index, uint32_t field) -> uint32_t {
+                                const auto line = static_cast<Context*>(raw)->page.element(index);
+                                switch (field) {
+                                  case 0:
+                                    return line.getTag();
+                                  case 1:
+                                    return line.textBlock().valid();
+                                  case 2:
+                                    return line.textBlock().wordCount();
+                                  default:
+                                    return 0;
+                                }
+                              },
+                              [](void* raw, uint16_t element, uint16_t index) -> XpBookTextSpan {
+                                const char* word =
+                                    static_cast<Context*>(raw)->page.element(element).textBlock().wordText(index);
+                                return {reinterpret_cast<const uint8_t*>(word), strlen(word)};
+                              },
+                              [](void* raw, size_t length) -> uint8_t* {
+                                auto& text = static_cast<Context*>(raw)->text;
+                                text.resize(length);
+                                return reinterpret_cast<uint8_t*>(text.data());
+                              }};
+  if (!xp_book_section_text(&source)) return {};
+  return text;
 }
 
 std::optional<uint16_t> Section::getCachedPageCount() const {
-  HalFile f;
-  if (!Storage.openFileForRead("SCT", filePath, f)) {
-    return std::nullopt;
-  }
-
-  const uint32_t fileSize = f.size();
-  if (fileSize < HEADER_SIZE) {
-    return std::nullopt;
-  }
-
-  // Only a finalized section's count is the chapter total; a partial's count is just the
-  // suspended build's watermark, which would skew progress mapping. Callers fall back to
-  // their own estimates.
-  uint8_t version;
-  serialization::readPod(f, version);
-  if (version != SECTION_FILE_VERSION) {
-    return std::nullopt;
-  }
-
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 5 - sizeof(uint16_t));
-  uint16_t count;
-  serialization::readPod(f, count);
-  return count;
+  return sectionQuery(filePath, XP_BOOK_SECTION_PAGE_COUNT);
 }
 
 bool Section::openAnchorMap(HalFile& f, uint16_t& count) const {
-  if (!Storage.openFileForRead("SCT", filePath, f)) {
-    return false;
-  }
-
-  const uint32_t fileSize = f.size();
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 4);
-  uint32_t anchorMapOffset;
-  serialization::readPod(f, anchorMapOffset);
-  if (anchorMapOffset == 0 || anchorMapOffset >= fileSize) {
-    return false;
-  }
-
-  f.seek(anchorMapOffset);
-  serialization::readPod(f, count);
+  SectionFileContext context{f, filePath};
+  const auto services = context.services();
+  uint32_t output[3];
+  if (!xp_book_section_query(&services, XP_BOOK_SECTION_ANCHOR_MAP, 0, false, output)) return false;
+  count = output[0];
   return true;
 }
 
 std::optional<uint16_t> Section::getPageForAnchor(const std::string& anchor) const {
-  HalFile f;
-  uint16_t count;
-  if (!openAnchorMap(f, count)) return std::nullopt;
-  for (uint16_t i = 0; i < count; i++) {
-    std::string key;
-    uint16_t page;
-    serialization::readString(f, key);
-    serialization::readPod(f, page);
-    if (key == anchor) {
-      return page;
-    }
-  }
-
-  return std::nullopt;
+  HalFile file;
+  std::string key;
+  SectionFileContext context{file, filePath, &key};
+  const auto services = context.services();
+  uint32_t page;
+  if (!xp_book_section_anchor(&services, reinterpret_cast<const uint8_t*>(anchor.data()), anchor.size(), &page))
+    return std::nullopt;
+  return static_cast<uint16_t>(page);
 }
 
 std::optional<uint16_t> Section::getPageForParagraphIndex(const uint16_t pIndex) const {
-  HalFile f;
-  if (!Storage.openFileForRead("SCT", filePath, f)) {
-    return std::nullopt;
-  }
-
-  const uint32_t fileSize = f.size();
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 3);
-  uint32_t paragraphLutOffset;
-  serialization::readPod(f, paragraphLutOffset);
-  if (paragraphLutOffset == 0 || paragraphLutOffset >= fileSize) {
-    return std::nullopt;
-  }
-
-  f.seek(paragraphLutOffset);
-  uint16_t count;
-  serialization::readPod(f, count);
-  if (count == 0) {
-    return std::nullopt;
-  }
-
-  const uint32_t lutEnd = paragraphLutOffset + sizeof(uint16_t) + count * sizeof(uint16_t);
-  if (lutEnd > fileSize) {
-    return std::nullopt;
-  }
-
-  uint16_t resultPage = count - 1;
-  for (uint16_t i = 0; i < count; i++) {
-    uint16_t pagePIdx;
-    serialization::readPod(f, pagePIdx);
-    if (pagePIdx >= pIndex) {
-      resultPage = i;
-      break;
-    }
-  }
-
-  return resultPage;
+  return sectionQuery(filePath, XP_BOOK_SECTION_PARAGRAPH_PAGE, pIndex);
 }
 
 std::optional<uint16_t> Section::getParagraphIndexForPage(const uint16_t page) const {
-  HalFile f;
-  if (!Storage.openFileForRead("SCT", filePath, f)) {
-    return std::nullopt;
-  }
-
-  const uint32_t fileSize = f.size();
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 3);
-  uint32_t paragraphLutOffset;
-  serialization::readPod(f, paragraphLutOffset);
-  if (paragraphLutOffset == 0 || paragraphLutOffset >= fileSize) {
-    return std::nullopt;
-  }
-
-  f.seek(paragraphLutOffset);
-  uint16_t count;
-  serialization::readPod(f, count);
-  if (count == 0 || page >= count) {
-    return std::nullopt;
-  }
-
-  const uint32_t entryEnd = paragraphLutOffset + sizeof(uint16_t) + (page + 1) * sizeof(uint16_t);
-  if (entryEnd > fileSize) {
-    return std::nullopt;
-  }
-
-  f.seek(paragraphLutOffset + sizeof(uint16_t) + page * sizeof(uint16_t));
-  uint16_t pIdx;
-  serialization::readPod(f, pIdx);
-  return pIdx;
+  return sectionQuery(filePath, XP_BOOK_SECTION_PAGE_PARAGRAPH, page);
 }
 
 std::optional<uint16_t> Section::getPageForListItemIndex(const uint16_t liIndex) const {
-  HalFile f;
-  if (!Storage.openFileForRead("SCT", filePath, f)) {
-    return std::nullopt;
-  }
-
-  const uint32_t fileSize = f.size();
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 2);
-  uint32_t liLutOffset;
-  serialization::readPod(f, liLutOffset);
-  if (liLutOffset == 0 || liLutOffset >= fileSize) {
-    return std::nullopt;
-  }
-
-  // The li LUT shares count with the paragraph LUT; read count from paragraphLutOffset
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 3);
-  uint32_t paragraphLutOffset;
-  serialization::readPod(f, paragraphLutOffset);
-  if (paragraphLutOffset == 0 || paragraphLutOffset >= fileSize) {
-    return std::nullopt;
-  }
-
-  f.seek(paragraphLutOffset);
-  uint16_t count;
-  serialization::readPod(f, count);
-  if (count == 0) {
-    return std::nullopt;
-  }
-
-  const uint32_t lutEnd = liLutOffset + count * sizeof(uint16_t);
-  if (lutEnd > fileSize) {
-    return std::nullopt;
-  }
-
-  f.seek(liLutOffset);
-  uint16_t resultPage = count - 1;
-  for (uint16_t i = 0; i < count; i++) {
-    uint16_t pageLiIdx;
-    serialization::readPod(f, pageLiIdx);
-    if (pageLiIdx >= liIndex) {
-      resultPage = i;
-      break;
-    }
-  }
-
-  return resultPage;
+  return sectionQuery(filePath, XP_BOOK_SECTION_LIST_PAGE, liIndex);
 }
 
 std::optional<uint32_t> Section::getVisibleTextOffsetForPage(const uint16_t page) const {
-  if (build_ && page < build_->lut.size()) {
-    return build_->lut[page].visibleTextOffset;
-  }
-
-  HalFile f;
-  if (!Storage.openFileForRead("SCT", filePath, f) || f.size() < HEADER_SIZE) {
-    return std::nullopt;
-  }
-
-  uint8_t version;
-  serialization::readPod(f, version);
-  if (version != SECTION_FILE_VERSION && version != SECTION_FILE_PARTIAL_VERSION) {
-    return std::nullopt;
-  }
-
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 5 - sizeof(uint16_t));
-  uint16_t count;
-  serialization::readPod(f, count);
-  if (page >= count) {
-    return std::nullopt;
-  }
-
-  f.seek(HEADER_SIZE - sizeof(uint32_t));
-  uint32_t visibleLutOffset;
-  serialization::readPod(f, visibleLutOffset);
-  const uint32_t entryOffset = visibleLutOffset + static_cast<uint32_t>(page) * sizeof(uint32_t);
-  if (visibleLutOffset < HEADER_SIZE || entryOffset + sizeof(uint32_t) > f.size()) {
-    return std::nullopt;
-  }
-
-  f.seek(entryOffset);
-  uint32_t result;
-  serialization::readPod(f, result);
-  return result;
+  HalFile file;
+  SectionFileContext context{file, filePath};
+  const auto io = context.services();
+  const auto records = buildRecords();
+  uint32_t offset;
+  if (!xp_book_section_page_visible(&io, &records, page, &offset)) return std::nullopt;
+  return offset;
 }
 
-std::optional<uint16_t> Section::getPageForVisibleTextOffset(const uint32_t offset,
-                                                             const bool preferFirstAtOffset) const {
-  const auto findInEntries = [offset, preferFirstAtOffset](const auto& entries) -> std::optional<uint16_t> {
-    if (entries.empty()) return std::nullopt;
-    uint16_t result = 0;
-    for (size_t i = 0; i < entries.size(); i++) {
-      const uint32_t pageStart = entries[i].visibleTextOffset;
-      if (preferFirstAtOffset && pageStart == offset) {
-        return static_cast<uint16_t>(i);
-      }
-      if (pageStart > offset) break;
-      result = static_cast<uint16_t>(i);
-    }
-    return result;
-  };
+std::optional<uint16_t> Section::getPageForVisibleTextOffset(const uint32_t offset, const bool first) const {
+  HalFile file;
+  SectionFileContext context{file, filePath};
+  const auto io = context.services();
+  const auto records = buildRecords();
+  uint32_t page;
+  if (!xp_book_section_visible(&io, &records, offset, first, &page)) return std::nullopt;
+  return page;
+}
 
-  if (build_ && !build_->lut.empty()) {
-    // Resolve within the active build's known range. Later offsets may still be
-    // covered by an on-disk partial that the resumed build has not reached yet.
-    if (offset <= build_->lut.back().visibleTextOffset) {
-      return findInEntries(build_->lut);
-    }
-  }
-
-  HalFile f;
-  if (!Storage.openFileForRead("SCT", filePath, f) || f.size() < HEADER_SIZE) {
-    return std::nullopt;
-  }
-
-  uint8_t version;
-  serialization::readPod(f, version);
-  if (version != SECTION_FILE_VERSION && version != SECTION_FILE_PARTIAL_VERSION) {
-    return std::nullopt;
-  }
-  const bool partial = version == SECTION_FILE_PARTIAL_VERSION;
-
-  f.seek(HEADER_SIZE - sizeof(uint32_t) * 5 - sizeof(uint16_t));
-  uint16_t count;
-  serialization::readPod(f, count);
-  if (count == 0) {
-    return std::nullopt;
-  }
-
-  f.seek(HEADER_SIZE - sizeof(uint32_t));
-  uint32_t visibleLutOffset;
-  serialization::readPod(f, visibleLutOffset);
-  if (visibleLutOffset < HEADER_SIZE || visibleLutOffset + static_cast<uint32_t>(count) * sizeof(uint32_t) > f.size()) {
-    return std::nullopt;
-  }
-
-  if (!f.seek(visibleLutOffset)) {
-    LOG_ERR("SCT", "Failed to seek visible-text LUT");
-    return std::nullopt;
-  }
-  uint16_t result = 0;
-  uint32_t lastPageStart = 0;
-  constexpr uint32_t BATCH_PAGE_COUNT = 32;
-  uint32_t starts[BATCH_PAGE_COUNT];  // 128-byte stack buffer; offsets stay in file order for ties.
-  for (uint32_t base = 0; base < count; base += BATCH_PAGE_COUNT) {
-    const uint32_t batch = std::min<uint32_t>(BATCH_PAGE_COUNT, count - base);
-    const size_t bytes = batch * sizeof(uint32_t);
-    if (f.read(starts, bytes) != static_cast<int>(bytes)) {
-      LOG_ERR("SCT", "Failed to read visible-text LUT batch");
-      return std::nullopt;
-    }
-    for (uint32_t i = 0; i < batch; ++i) {
-      lastPageStart = starts[i];
-      if (lastPageStart > offset) return result;
-      result = static_cast<uint16_t>(base + i);
-      if (preferFirstAtOffset && lastPageStart == offset) return result;
-    }
-  }
-  if (partial && offset > lastPageStart) {
-    return std::nullopt;
-  }
-  return result;
+bool Section::buildReachedVisibleTextOffset(const uint32_t offset) const {
+  const auto records = buildRecords();
+  return xp_book_section_reached(&records, offset);
 }

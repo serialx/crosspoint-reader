@@ -17,33 +17,6 @@ struct CssLength {
 
   // Convenience constructor for pixel values (most common case)
   explicit CssLength(const float pixels) : value(pixels) {}
-
-  // Returns true if this length can be resolved to pixels with the given context.
-  // Percentage units require a non-zero containerWidth to resolve.
-  [[nodiscard]] bool isResolvable(const float containerWidth = 0) const {
-    return unit != CssUnit::Percent || containerWidth > 0;
-  }
-
-  // Resolve to pixels given the current em size (font line height)
-  // containerWidth is needed for percentage units (e.g. viewport width)
-  [[nodiscard]] float toPixels(const float emSize, const float containerWidth = 0) const {
-    switch (unit) {
-      case CssUnit::Em:
-      case CssUnit::Rem:
-        return value * emSize;
-      case CssUnit::Points:
-        return value * 1.33f;  // Approximate pt to px conversion
-      case CssUnit::Percent:
-        return value * containerWidth / 100.0f;
-      default:
-        return value;
-    }
-  }
-
-  // Resolve to int16_t pixels (for BlockStyle fields)
-  [[nodiscard]] int16_t toPixelsInt16(const float emSize, const float containerWidth = 0) const {
-    return static_cast<int16_t>(toPixels(emSize, containerWidth));
-  }
 };
 
 // Font style options matching CSS font-style property
@@ -81,8 +54,6 @@ enum class CssBorderStyle : uint8_t { None = 0, Solid = 1, Double = 2, Dotted = 
 struct CssBorderSide {
   uint8_t width = 0;
   CssBorderStyle style = CssBorderStyle::None;
-
-  [[nodiscard]] bool visible() const { return width > 0 && style != CssBorderStyle::None; }
 };
 
 // Bitmask for tracking which properties have been explicitly set
@@ -206,141 +177,6 @@ struct CssStyle {
 
   CssPropertyFlags defined;  // Tracks which properties were explicitly set
 
-  // Apply properties from another style, only overwriting if the other style
-  // has that property explicitly defined
-  void applyOver(const CssStyle& base) {
-    if (base.hasTextAlign()) {
-      textAlign = base.textAlign;
-      defined.textAlign = 1;
-    }
-    if (base.hasFontStyle()) {
-      fontStyle = base.fontStyle;
-      defined.fontStyle = 1;
-    }
-    if (base.hasFontWeight()) {
-      fontWeight = base.fontWeight;
-      defined.fontWeight = 1;
-    }
-    if (base.hasTextDecoration()) {
-      textDecoration = base.textDecoration;
-      defined.textDecoration = 1;
-    }
-    if (base.hasTextIndent()) {
-      textIndent = base.textIndent;
-      defined.textIndent = 1;
-    }
-    if (base.hasMarginTop()) {
-      marginTop = base.marginTop;
-      defined.marginTop = 1;
-    }
-    if (base.hasMarginBottom()) {
-      marginBottom = base.marginBottom;
-      defined.marginBottom = 1;
-    }
-    if (base.hasMarginLeft()) {
-      marginLeft = base.marginLeft;
-      defined.marginLeft = 1;
-    }
-    if (base.hasMarginRight()) {
-      marginRight = base.marginRight;
-      defined.marginRight = 1;
-    }
-    if (base.hasPaddingTop()) {
-      paddingTop = base.paddingTop;
-      defined.paddingTop = 1;
-    }
-    if (base.hasPaddingBottom()) {
-      paddingBottom = base.paddingBottom;
-      defined.paddingBottom = 1;
-    }
-    if (base.hasPaddingLeft()) {
-      paddingLeft = base.paddingLeft;
-      defined.paddingLeft = 1;
-    }
-    if (base.hasPaddingRight()) {
-      paddingRight = base.paddingRight;
-      defined.paddingRight = 1;
-    }
-    if (base.hasImageHeight()) {
-      imageHeight = base.imageHeight;
-      defined.imageHeight = 1;
-    }
-    if (base.hasImageWidth()) {
-      imageWidth = base.imageWidth;
-      defined.imageWidth = 1;
-    }
-    if (base.hasDisplay()) {
-      display = base.display;
-      defined.display = 1;
-    }
-    if (base.hasDirection()) {
-      direction = base.direction;
-      defined.direction = 1;
-    }
-    if (base.hasVerticalAlign()) {
-      verticalAlign = base.verticalAlign;
-      defined.verticalAlign = 1;
-    }
-    if (base.hasListStyleType()) {
-      listStyleType = base.listStyleType;
-      defined.listStyleType = 1;
-    }
-    if (base.hasFontSize()) {
-      fontSize = base.fontSize;
-      defined.fontSize = 1;
-    }
-    if (base.hasSmallCaps()) {
-      smallCaps = base.smallCaps;
-      defined.smallCaps = 1;
-    }
-    if (base.hasPageBreakBefore()) {
-      pageBreakBefore = base.pageBreakBefore;
-      defined.pageBreakBefore = 1;
-    }
-    if (base.hasPageBreakAfter()) {
-      pageBreakAfter = base.pageBreakAfter;
-      defined.pageBreakAfter = 1;
-    }
-    const auto applyBorder = [&](CssBorderSide& side, const CssBorderSide& incoming, const uint8_t bit) {
-      if (base.borderWidthsDefined & bit) side.width = incoming.width;
-      if (base.borderStylesDefined & bit) side.style = incoming.style;
-    };
-    borderWidthsDefined |= base.borderWidthsDefined;
-    borderStylesDefined |= base.borderStylesDefined;
-    if (base.defined.borderTop) {
-      applyBorder(borderTop, base.borderTop, 1);
-      defined.borderTop = 1;
-    }
-    if (base.defined.borderRight) {
-      applyBorder(borderRight, base.borderRight, 2);
-      defined.borderRight = 1;
-    }
-    if (base.defined.borderBottom) {
-      applyBorder(borderBottom, base.borderBottom, 4);
-      defined.borderBottom = 1;
-    }
-    if (base.defined.borderLeft) {
-      applyBorder(borderLeft, base.borderLeft, 8);
-      defined.borderLeft = 1;
-    }
-    if (base.defined.shaded) {
-      shaded = base.shaded;
-      defined.shaded = 1;
-    }
-    if (base.defined.floatLeft) {
-      floatLeft = base.floatLeft;
-      defined.floatLeft = 1;
-    }
-    if (base.defined.whiteSpace) {
-      preserveWhitespace = base.preserveWhitespace;
-      defined.whiteSpace = 1;
-    }
-    if (base.defined.initialLetter) {
-      initialLetter = base.initialLetter;
-      defined.initialLetter = 1;
-    }
-  }
-
   [[nodiscard]] bool hasTextAlign() const { return defined.textAlign; }
   [[nodiscard]] bool hasFontStyle() const { return defined.fontStyle; }
   [[nodiscard]] bool hasFontWeight() const { return defined.fontWeight; }
@@ -364,9 +200,6 @@ struct CssStyle {
   [[nodiscard]] bool hasSmallCaps() const { return defined.smallCaps; }
   [[nodiscard]] bool hasPageBreakBefore() const { return defined.pageBreakBefore; }
   [[nodiscard]] bool hasPageBreakAfter() const { return defined.pageBreakAfter; }
-  [[nodiscard]] bool hasVisibleBorder() const {
-    return borderTop.visible() || borderRight.visible() || borderBottom.visible() || borderLeft.visible();
-  }
 
   void reset() { *this = CssStyle{}; }
 };

@@ -1,0 +1,46 @@
+[package]
+name = "home-ui-oracle"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+xp-ui = { path = "../../../rust/crates/xp-ui" }
+
+[[bin]]
+name = "home-input"
+path = "main.rs"
+
+[[bin]]
+name = "home-view"
+path = "view.rs"
+
+[[bin]]
+name = "file-input"
+path = "file.rs"
+
+[[bin]]
+name = "library-input"
+path = "library.rs"
+
+[[bin]]
+name = "cover-cache"
+path = "cache.rs"
+
+[[bin]]
+name = "home-grid"
+path = "grid.rs"
+
+[[bin]]
+name = "home-rows"
+path = "rows.rs"
+
+[[bin]]
+name = "home-tabs"
+path = "tabs.rs"
+
+[[bin]]
+name = "home-touch"
+path = "touch.rs"

@@ -27,7 +27,7 @@ inline constexpr LayoutInfo ALL[] = {
     {freeink::ui::KeyboardLayoutId::ArabicAr, Language::AR},
 };
 inline constexpr uint8_t COUNT = sizeof(ALL) / sizeof(ALL[0]);
-static_assert(COUNT <= 16, "keyboard layout mask is uint16_t");
+static_assert(COUNT == 10, "Update the Rust keyboard layout count and language-order contract together");
 
 inline constexpr uint16_t bitAt(const uint8_t i) { return static_cast<uint16_t>(1u << i); }
 // Symbol layers have no Latin letters, so credentials and URLs require at

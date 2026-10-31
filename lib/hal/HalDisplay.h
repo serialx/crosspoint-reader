@@ -2,11 +2,15 @@
 #include <Arduino.h>
 #include <BoardConfig.h>
 #include <EInkDisplay.h>
+#include <xp_hal.h>
 
 class HalDisplay {
  public:
   using Controller = BoardConfig::DisplayController;
   Controller getController() const;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  bool setFrameSource(XpDisplaySource* source);
+#endif
 
   using GrayscaleMode = freeink::GrayscaleMode;
   using GrayscaleCapabilities = freeink::GrayscaleCapabilities;
@@ -128,6 +132,7 @@ class HalDisplay {
 
  private:
   EInkDisplay einkDisplay;
+  static uint32_t dispatch(void* ctx, XpHalDisplayOp op, uint32_t refresh, bool off, uint32_t gray);
 };
 
 extern HalDisplay display;

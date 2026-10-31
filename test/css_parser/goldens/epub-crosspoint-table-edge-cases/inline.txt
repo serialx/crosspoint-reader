@@ -1,0 +1,11 @@
+   direction: ltr;   text-align: left; 
+   direction: rtl;   text-align: right; 
+   font-style: italic; 
+   font-weight: bold; 
+   line-height: 1.2; 
+   margin-top: 0.45em;   margin-bottom: 0.45em; 
+   margin: 8px; 
+   padding: 0.15em; 
+   text-align: center; 
+   text-align: right; 
+   width: 100%; 

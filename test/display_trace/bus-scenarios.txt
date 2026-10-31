@@ -1,0 +1,5 @@
+# BUSY polarity enum: ActiveHigh, ActiveLow, X3TwoPhase, UcIdleHigh.
+bus-probe 0
+bus-probe 1
+bus-probe 2
+bus-probe 3

@@ -65,7 +65,15 @@ Top-level activity groups:
 ## Reader and content pipeline
 
 Reader orchestration starts in `src/activities/reader/ReaderActivity.h` and dispatches to format-specific readers.
-EPUB processing is implemented in `lib/Epub/`.
+The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust policy ownership and native resource lifetimes.
+EPUB processing is implemented in `lib/Epub/`. Its XML consumers use the
+streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
+Rust owns the parser and XPath state and consumes XML events directly. The pinned SDK's
+OPDS, OpenSearch and XML catalog consumers retain their interfaces through the
+small Expat API adapter in `lib/expat`; the firmware does not link Expat's C
+parser. The original parser lives in `test/vendor/expat` as a host oracle.
+See [Rust integration](rust.md#sdk-xml-compatibility) for the supported API and
+allocation ownership.
 
 ```mermaid
 flowchart LR
@@ -188,7 +196,10 @@ Some sources are generated and should not be edited manually.
 
 - `scripts/build_html.py` generates `src/network/html/*.generated.h` from HTML files
 - `scripts/gen_i18n.py` generates `lib/I18n/I18nKeys.h`, `I18nStrings.h`, and `I18nStrings.cpp`
-- `scripts/generate_hyphenation_trie.py` generates hyphenation headers under `lib/Epub/Epub/hyphenation/generated/`
+- `scripts/generate_hyphenation_trie.py` validates and copies raw hyphenation
+  `.bin` files into `rust/crates/xp-core/data/hyph/`. Refresh them explicitly with
+  `./scripts/update_hyphenation.sh`; normal firmware builds embed the checked-in
+  files. See the [trie format and refresh workflow](../hyphenation-trie-format.md).
 
 When editing related source assets, regenerate via normal build steps/scripts.
 

@@ -1,0 +1,50 @@
+@page {
+  margin: 8px;
+}
+
+body {
+  line-height: 1.2;
+}
+
+h1, h2, h3, p {
+  margin-top: 0.45em;
+  margin-bottom: 0.45em;
+}
+
+table {
+  width: 100%;
+}
+
+th, td {
+  padding: 0.15em;
+}
+
+.right {
+  text-align: right;
+}
+
+.center {
+  text-align: center;
+}
+
+.ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.bold-block {
+  font-weight: bold;
+}
+
+.italic-block {
+  font-style: italic;
+}
+
+.small-note {
+  font-style: italic;
+}

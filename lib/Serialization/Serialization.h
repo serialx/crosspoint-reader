@@ -1,5 +1,6 @@
 #pragma once
 #include <HalStorage.h>
+#include <xp_settings.h>
 
 #include <iostream>
 #include <limits>
@@ -70,11 +71,7 @@ inline bool tryReadString(HalFile& file, std::string& s, const size_t maxLength)
   uint32_t len = 0;
   if (!tryReadPod(file, len)) return false;
   const int remaining = file.available();
-  if (static_cast<size_t>(len) > maxLength || static_cast<size_t>(len) > s.max_size() ||
-      len > static_cast<uint32_t>(std::numeric_limits<int>::max()) || remaining < 0 ||
-      len > static_cast<uint32_t>(remaining)) {
-    return false;
-  }
+  if (!xp_store_string_length(len, maxLength, s.max_size(), remaining)) return false;
   s.resize(len);
   return len == 0 || file.read(&s[0], len) == static_cast<int>(len);
 }

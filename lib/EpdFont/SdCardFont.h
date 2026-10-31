@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_ffi.h>
+
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -23,7 +25,7 @@
 class SdCardFont {
  public:
   static constexpr uint16_t MAX_PAGE_GLYPHS = 512;
-  // prewarmStyle: the bitmap arena did not fit the largest free block.
+  // Rust prewarm: the bitmap arena did not fit the largest free block.
   // Distinct from a missed-glyph count so the caller can retry smaller.
   static constexpr int PREWARM_ARENA_TOO_LARGE = -2;
   static constexpr uint8_t MAX_STYLES = 4;
@@ -86,6 +88,7 @@ class SdCardFont {
 
   // Returns true if advance table is populated for at least one style.
   bool hasAdvanceTable() const;
+  void metricViews(XpNativeFamily& family) const;
 
   // Free mini data for all styles and restore stub EpdFontData.
   // Preserves the persistent advance cache so repeated layout passes can reuse
@@ -122,6 +125,8 @@ class SdCardFont {
   // Number of styles present in this font file.
   uint8_t styleCount() const { return styleCount_; }
 
+  void bitmapView(const EpdFontData* font, XpGlyphSource& source) const;
+
   // Returns true if the glyph pointer points into the overflow buffer.
   bool isOverflowGlyph(const EpdGlyph* glyph) const;
 
@@ -152,21 +157,10 @@ class SdCardFont {
 
  private:
   // Per-style metadata (parsed from file header/TOC)
-  struct CpFontHeader {
-    uint32_t intervalCount = 0;
-    uint32_t glyphCount = 0;
-    uint8_t advanceY = 0;
-    int16_t ascender = 0;
-    int16_t descender = 0;
-    bool is2Bit = false;
-    uint16_t kernLeftEntryCount = 0;
-    uint16_t kernRightEntryCount = 0;
-    uint8_t kernLeftClassCount = 0;
-    uint8_t kernRightClassCount = 0;
-    uint8_t ligaturePairCount = 0;
-  };
+  using CpFontHeader = XpSdfontHeader;
 
-  // All per-style data: file offsets, intervals, kern/lig, prewarm cache, EpdFont
+  // Stable slots borrowed by Rust sdfont::pool::Resident; layout is ABI-tested.
+  // C++ loads file metadata; Rust owns cache mutations and buffer lifetimes.
   struct PerStyle {
     CpFontHeader header{};
 
@@ -191,10 +185,10 @@ class SdCardFont {
     static_assert(sizeof(BmpInterval16) == 6, "BmpInterval16 must remain compact");
     BmpInterval16* bmpIntervals = nullptr;
     bool intervalsAreBmp16 = false;
-    // The table may be shared with other styles and other loaded fonts; see releaseIntervals().
+    // The table may be shared with other styles and other loaded fonts; released by the Rust loader.
 
     // Ligature table (lazy-loaded on first prewarm). No kern table is resident:
-    // buildMiniKernMatrix reads the class-table blocks (~3KB per side per style
+    // the Rust kern builder reads the class-table blocks (~3KB per side per style
     // in total) and the matrix rows it needs from SD for each page.
     EpdLigaturePair* ligaturePairs = nullptr;
     bool ligaturesLoaded = false;
@@ -208,22 +202,9 @@ class SdCardFont {
     // Stub EpdFontData returned when not prewarmed
     EpdFontData stubData{};
 
-    // Mini EpdFontData built during prewarm. Buffers are kept-if-fits across pages
-    // (capacities below track allocated sizes): freeing and reallocating slightly
-    // different sizes on every page turn was a primary heap fragmenter — each page's
-    // freed hole rarely fit the next page's need, so maxAlloc eroded all session.
-    // The per-render PrewarmScope calls clearCache() -> resetStyleMiniData(), which
-    // keeps both the allocations AND the loaded data. Buffers: reuse means
-    // ensureArrayCapacity early-returns once capacities converge on the book's
-    // max, so page turns stop touching the allocator (the free/realloc-per-page
-    // pattern was a primary heap fragmenter). Data: the next prewarm
-    // subset-checks against the resident tables (see prewarmStyle), so the idle
-    // prewarm of page N+1 serves the actual turn with zero SD reads. Retention
-    // is bounded two ways in resetStyleMiniData(): a heap floor frees outright
-    // under pressure, and sustained underuse (an outlier page's oversized bitmap
-    // arena) frees after a few consecutive low-use rebuilds. freeStyleMiniData()
-    // remains the full teardown (zeroes capacities) for style eviction / font
-    // unload.
+    // Rust retains buffers and loaded data across scopes, so idle prewarm can
+    // serve the next turn without I/O. Buffers grow only when capacity is short;
+    // heap pressure and three underused rebuilds release oversized arenas.
     EpdFontData miniData{};
     EpdUnicodeInterval* miniIntervals = nullptr;
     EpdGlyph* miniGlyphs = nullptr;
@@ -233,7 +214,7 @@ class SdCardFont {
     uint32_t miniIntervalCapacity = 0;
     uint32_t miniGlyphCapacity = 0;
     uint32_t miniBitmapCapacity = 0;
-    // Bitmap bytes the current page actually used (set by prewarmStyle), the
+    // Bitmap bytes the current page actually used (set by Rust prewarm), the
     // underuse-hysteresis signal; 0 = no bitmap built this scope (metadata-only
     // prewarm), which leaves the hysteresis counter untouched.
     uint32_t miniBitmapUsed = 0;
@@ -243,12 +224,10 @@ class SdCardFont {
     // True when the resident mini was built metadata-only (no bitmaps): it can
     // serve metadata requests but a full render request must rebuild.
     bool miniMetadataOnly = false;
-    // Set by a rebuild, consumed by resetStyleMiniData: gates the underuse
-    // hysteresis to one evaluation per rebuild (scopes reset twice, and subset
-    // hits load nothing new to judge).
+    // Only a rebuild contributes an underuse sample; subset hits retain it.
     bool miniHysteresisPending = false;
 
-    // Per-page mini kern matrix (built by buildMiniKernMatrix on each full
+    // Per-page mini kern matrix (built by the Rust kern builder on each full
     // prewarm). miniKernLeftClasses/miniKernRightClasses map ONLY the codepoints
     // used on the current page to renumbered class IDs (1..miniKern*ClassCount).
     // miniKernMatrix is a small miniKernLeftClassCount × miniKernRightClassCount
@@ -318,48 +297,28 @@ class SdCardFont {
   // Allocated entries. Merges fill spare capacity in place, and growth doubles it,
   // so a table moves a few times per section instead of on every layout pass.
   uint32_t advanceTableCapacity_[MAX_STYLES] = {};
-  bool advanceTableLookup(uint8_t styleIdx, uint32_t codepoint, uint16_t* outAdvance) const;
-  // Merge sortedNew (sorted by codepoint, no overlap with existing) into the
-  // advance table for styleIdx, preserving sort order; cap-truncates the tail.
-  // Grows the table only when the merge exceeds its capacity.
-  void mergeIntoAdvanceTable(uint8_t styleIdx, const AdvanceEntry* sortedNew, uint32_t newCount);
-  // Ensures room for `needed` entries, at least doubling the capacity when it grows.
-  bool growAdvanceTable(uint8_t styleIdx, uint32_t needed);
+
+  bool advanceTableLookup(uint8_t style, uint32_t cp, uint16_t* outAdvance) const;
 
   Stats stats_;
   uint32_t contentHash_ = 0;
-  uint32_t fileSize_ = 0;  // bounds glyph bitmap offsets (glyphEntryValid)
+  uint32_t fileSize_ = 0;  // bounds glyph bitmap offsets in the Rust cache
   uint8_t corruptGlyphsLogged_ = 0;
   static inline std::atomic<bool> corruptGlyphNotice_{false};
   bool loaded_ = false;
 
+  struct LoadIo;
+  static XpSdfontLoadServices loadServices(LoadIo*);
+  struct PoolIo;
+  XpSdfontPool cacheView(const XpSdfontServices* services = nullptr) const;
+  static XpSdfontServices cacheServices(PoolIo* io);
+
   // Per-style helpers
-  void freeStyleMiniData(PerStyle& s);
-  // Per-scope variant: drop the page's data, keep the allocations (see the
-  // PerStyle comment). May escalate to freeStyleMiniData under heap pressure
-  // or sustained underuse.
-  void resetStyleMiniData(PerStyle& s);
-  void freeStyleAll(PerStyle& s);
-  void freeStyleLigatures(PerStyle& s);
-  void freeStyleMiniKern(PerStyle& s);
-  bool loadStyleLigatures(PerStyle& s);
-  bool buildMiniKernMatrix(PerStyle& s, const uint32_t* codepoints, uint32_t cpCount);
-  void applyKernLigaturePointers(PerStyle& s, EpdFontData& data) const;
+
   void applyGlyphMissCallback(uint8_t styleIdx);
-  int32_t findGlobalGlyphIndex(const PerStyle& s, uint32_t codepoint) const;
-  // Drops this style's reference to its interval table and frees the table with the last one.
-  static void releaseIntervals(PerStyle& s);
-  // False for a glyph entry the file cannot back (a corrupt .cpfont): its data length must be the
-  // packed size of its pixels and its bitmap must lie inside the file. Logs the first few per font.
-  bool glyphEntryValid(const PerStyle& s, const EpdGlyph& glyph, uint32_t codepoint);
-  int fetchAdvancesForCodepoints(uint32_t* codepoints, uint32_t cpCount, uint8_t styleMask);
-  int prewarmStyle(uint8_t styleIdx, const uint32_t* codepoints, uint32_t cpCount, bool metadataOnly, bool loadKernLig,
-                   bool accumulate);
 
   // Global helpers
   void freeAll();
-  void clearOverflow();
-  static void computeStyleFileOffsets(PerStyle& s, uint32_t baseOffset);
 
   // Static callback for EpdFontData::glyphMissHandler (per-style via OverflowContext)
   static const EpdGlyph* onGlyphMiss(void* ctx, uint32_t codepoint);

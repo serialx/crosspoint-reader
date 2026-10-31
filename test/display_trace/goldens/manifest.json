@@ -1,0 +1,372 @@
+{
+  "format": 1,
+  "script_sha256": "dae4ca322e1794936a05247310b90488de8ae070a67800576b479a13b57b589f",
+  "cases": {
+    "c3-bus-single": {
+      "sha256": "9dec225e6656a2b5c8ab76599918d9e33aa3e32872ce1fd446701a78d5f94242",
+      "bytes": 1555340,
+      "lines": 129107,
+      "deterministic": true
+    },
+    "c3-ssd1677-single": {
+      "sha256": "fbea259f4526f2132c1da721c0ed26b1d913777d6bfb1022f2bafc7448b28cd5",
+      "bytes": 564530,
+      "lines": 27317,
+      "deterministic": true
+    },
+    "c3-ssd1677-dual": {
+      "sha256": "9b1502687b1257d436d406d60b159d14904953a39b21a165568b16158dd77ff4",
+      "bytes": 537298,
+      "lines": 25949,
+      "deterministic": true
+    },
+    "c3-uc8253-single": {
+      "sha256": "b9e1bd87b736f163dbc9435accbe748c786d9578633b2aa526f47857dcbdae5b",
+      "bytes": 3078625,
+      "lines": 117568,
+      "deterministic": true
+    },
+    "c3-uc8253-dual": {
+      "sha256": "3a1d0d58f5f76b19e9e90d5196a3ffc2c54cf8f6030a2be76a48f6120269eb0c",
+      "bytes": 3078625,
+      "lines": 117568,
+      "deterministic": true
+    },
+    "c3-uc8279-x3-single": {
+      "sha256": "9552273d569a146549f97e29c2334e07bddd1158437a4de664204ddd12b62fbb",
+      "bytes": 2508378,
+      "lines": 96833,
+      "deterministic": true
+    },
+    "c3-uc8279-x3-dual": {
+      "sha256": "40b4eb6d49e48dab83cea023f3b010933064b938d2950ad3049d9770b7f671ff",
+      "bytes": 2508378,
+      "lines": 96833,
+      "deterministic": true
+    },
+    "c3-uc8179-single": {
+      "sha256": "121a59aed2b0512f630be4bd2fb26de4605fcb43aaa64618ecf115a8be62bbbf",
+      "bytes": 3083515,
+      "lines": 115470,
+      "deterministic": true
+    },
+    "c3-uc8179-dual": {
+      "sha256": "d309efe429216647aadeb915c64bd9eb89518a93ae8d9e5ab0ed96026505584b",
+      "bytes": 3083515,
+      "lines": 115470,
+      "deterministic": true
+    },
+    "c3-uc8279-02-single": {
+      "sha256": "9fc6fd9d1d605fc589ae835227a91839174f61c788f8b95fb3bbe51b2e55ad85",
+      "bytes": 3217744,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "c3-uc8279-02-dual": {
+      "sha256": "952380ec45c212fc902724e866f098f8f59f10bab78aedb36466f200f2bcd53a",
+      "bytes": 3217744,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "c3-uc8279-03-single": {
+      "sha256": "e6b8d927f6c5c55be4aef08c5a3b0e371adc3706a1b6c480f38178e1cbc21087",
+      "bytes": 3217744,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "c3-uc8279-03-dual": {
+      "sha256": "f9b1295ea4fc6ac88221da30351b0cab49a834948761ce6f8666629a05370d76",
+      "bytes": 3217744,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "c3-uc8279-67-single": {
+      "sha256": "96a7fd7375054a07ba79099373b7a8f2db9c86979bd910dda33ca24bb83f7930",
+      "bytes": 2609216,
+      "lines": 97874,
+      "deterministic": true
+    },
+    "c3-uc8279-67-dual": {
+      "sha256": "1354295631d169f16fc5a49bc57f9ddc1770c6b32466a9007c888f3eccf82817",
+      "bytes": 2609216,
+      "lines": 97874,
+      "deterministic": true
+    },
+    "c3-uc8279-68-single": {
+      "sha256": "fb793e736937acbe00e8539d4b4ab09254bfa932d3cd445ac2fd76af5e865912",
+      "bytes": 3217744,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "c3-uc8279-68-dual": {
+      "sha256": "92edf53cda21ed7c8a24e6909182cfbeb69793c89f4d73b19baeaa328787cac3",
+      "bytes": 3217744,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "x4pro-ssd1677-single": {
+      "sha256": "a992264948180c87f684d3cbf0778cb96e1a2b9b1434c898ecdfc328b38e3293",
+      "bytes": 569985,
+      "lines": 27317,
+      "deterministic": true
+    },
+    "x4pro-ssd1677-dual": {
+      "sha256": "6feaa37859af97027b8e0e141112221e64f1813fed380373fa4a6707d2cdc362",
+      "bytes": 542525,
+      "lines": 25949,
+      "deterministic": true
+    },
+    "x4pro-uc8179-single": {
+      "sha256": "d6d2e4daee5d996fe1665890c25ad558030a09bfb710aba47bc209d52c92d1d5",
+      "bytes": 3137679,
+      "lines": 115470,
+      "deterministic": true
+    },
+    "x4pro-uc8179-dual": {
+      "sha256": "ce4ec117666ca7e1ddeb43d422eaca834ff46a41155e7b2c1f9fe01baa58a86d",
+      "bytes": 3137679,
+      "lines": 115470,
+      "deterministic": true
+    },
+    "x4pro-uc8279-02-single": {
+      "sha256": "6bd074989930bd0e14ea0c89f19f5d01ac3790bb1335b22c525a5837f4ba79ae",
+      "bytes": 3274338,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "x4pro-uc8279-02-dual": {
+      "sha256": "a8d2812711d0d6e6aaa2bd74519010711148fa982565ad294fa430d295ba5ad5",
+      "bytes": 3274338,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "x4pro-uc8279-03-single": {
+      "sha256": "27f43d5aafc509e39086e46ff3af59fe583a80776535fb252d32e19566aaca01",
+      "bytes": 3274338,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "x4pro-uc8279-03-dual": {
+      "sha256": "caa95375cf0e7894af6df60e7808d3f26e1f8422cdac6895f4c47cecf255c9e8",
+      "bytes": 3274338,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "x4pro-uc8279-67-single": {
+      "sha256": "bc9dcd57e73234b90229bd70d1022bc5dda10b94c69a6fdd678d43f3d4010545",
+      "bytes": 2654952,
+      "lines": 97874,
+      "deterministic": true
+    },
+    "x4pro-uc8279-67-dual": {
+      "sha256": "238b75d9765fa78990485a6460bcee27ba25d43a148ae1f8cd292edf41147ce1",
+      "bytes": 2654952,
+      "lines": 97874,
+      "deterministic": true
+    },
+    "x4pro-uc8279-68-single": {
+      "sha256": "ed370523605bba573ab745c20010e7d0b9eb2e21c3f8fdfe9f3e2793ba9955fb",
+      "bytes": 3274338,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "x4pro-uc8279-68-dual": {
+      "sha256": "21741ea56bcecb4d9f64d4520109e1a99f1dc4f6ad946e3cdbc7b321b4b70a9b",
+      "bytes": 3274338,
+      "lines": 120366,
+      "deterministic": true
+    },
+    "x4c-ssd1677-single": {
+      "sha256": "574f0256d4f023a5c3b0697230a3aea3b47e814dfc67d2f6f7495f03c53303e0",
+      "bytes": 570151,
+      "lines": 27317,
+      "deterministic": true
+    },
+    "x4c-ssd1677-dual": {
+      "sha256": "713f4c9eef6871c736ee7448b7d5adc6fd9999e21e0bb3c7d6094f5a211ac75c",
+      "bytes": 542691,
+      "lines": 25949,
+      "deterministic": true
+    },
+    "x4c-uc8179-single": {
+      "sha256": "a741ba42db0c62e3031c3261f3a5807cc541723b52e77bbd7b44214e38e66e57",
+      "bytes": 3139463,
+      "lines": 115470,
+      "deterministic": true
+    },
+    "x4c-uc8179-dual": {
+      "sha256": "2265e7e6744d91afad0ba539683f1f34d16dc46704c31a308d5beeab61991f5d",
+      "bytes": 3139463,
+      "lines": 115470,
+      "deterministic": true
+    },
+    "x4c-uc8279-02-single": {
+      "sha256": "81ad25e4500186d44a73ed5e5f4be13b6744e4db109a5ab1bc98c7f200b44df3",
+      "bytes": 3275606,
+      "lines": 120342,
+      "deterministic": true
+    },
+    "x4c-uc8279-02-dual": {
+      "sha256": "e79272bf63eae60996732e248e24986bc87470ed20032895acebdd6843a98ec5",
+      "bytes": 3275606,
+      "lines": 120342,
+      "deterministic": true
+    },
+    "x4c-uc8279-03-single": {
+      "sha256": "70e44d65cef87b2c3d1eff1197199c147e82590894687723ae3ff83c7a508831",
+      "bytes": 3275606,
+      "lines": 120342,
+      "deterministic": true
+    },
+    "x4c-uc8279-03-dual": {
+      "sha256": "88574b14a0f678494bee62a78e3a46435e64d661b623fd0b4e09fe1576b018b1",
+      "bytes": 3275606,
+      "lines": 120342,
+      "deterministic": true
+    },
+    "x4c-uc8279-67-single": {
+      "sha256": "88ddb2a61808488f70b16f829de54b2f3427f3a1368a7e3a54dac2bcbc7025ac",
+      "bytes": 2655992,
+      "lines": 97850,
+      "deterministic": true
+    },
+    "x4c-uc8279-67-dual": {
+      "sha256": "6a71a0e909b7b61faed05c55e3abe56748ab1fd04cf794aea5b1c26a28603abe",
+      "bytes": 2655992,
+      "lines": 97850,
+      "deterministic": true
+    },
+    "x4c-uc8279-68-single": {
+      "sha256": "482131fe5b49adb4dc8a5fa8bbbc8d2a1c450c214d64b70b5fccd554139e0181",
+      "bytes": 3275606,
+      "lines": 120342,
+      "deterministic": true
+    },
+    "x4c-uc8279-68-dual": {
+      "sha256": "c58670f49aecb4a7930289d82045831ca798b9ed47afed1a90befb106516cdbb",
+      "bytes": 3275606,
+      "lines": 120342,
+      "deterministic": true
+    },
+    "sticky-ssd1677-single": {
+      "sha256": "8dbd0f0cc7ff7f949efe5d948a2c73fbbce6e28104cce776c1e63a014653b1e5",
+      "bytes": 571898,
+      "lines": 27445,
+      "deterministic": true
+    },
+    "sticky-ssd1677-dual": {
+      "sha256": "79957f09e0e7e371c6ef51412f505dad385acf8017000cee435c510504abf38f",
+      "bytes": 544438,
+      "lines": 26077,
+      "deterministic": true
+    },
+    "sticky-ssd2677-single": {
+      "sha256": "eb892ffebed5a5852e05cf602ff93250fafffa2a5098832af794f901df1ed834",
+      "bytes": 273984,
+      "lines": 11134,
+      "deterministic": true
+    },
+    "sticky-ssd2677-dual": {
+      "sha256": "5074b42d2d1494e27dc04237e89898be964807c06b4207a9f4157ed32c59f05f",
+      "bytes": 273984,
+      "lines": 11134,
+      "deterministic": true
+    },
+    "metalio-ssd1677-single": {
+      "sha256": "4c25d57e85cb3cfef56a366d018cc3045fb2de46ad3473ba4d000c6b689e9dc3",
+      "bytes": 1823710,
+      "lines": 79818,
+      "deterministic": true
+    },
+    "metalio-ssd1677-dual": {
+      "sha256": "0bc1eb2036c7779c1bcdf7150c41b187190e796c7abcdc8c29a6a4ad0780242e",
+      "bytes": 1829754,
+      "lines": 80106,
+      "deterministic": true
+    },
+    "papermono-ssd1683-single": {
+      "sha256": "a9cf844fdc833f4b720ee1b813e9a11a64a215d65c3be227ee70e3f12838b414",
+      "bytes": 86349,
+      "lines": 4179,
+      "deterministic": true
+    },
+    "papermono-ssd1683-dual": {
+      "sha256": "cf92b58eecc63c184813febb71c097b95539929c267b318ad3e4dd30cff56204",
+      "bytes": 123203,
+      "lines": 5962,
+      "deterministic": true
+    },
+    "a4-uc8279c-single": {
+      "sha256": "c3514ed9f77b9b0bad71e1e1bd0294fa6d97fd96b5ec0e2df91baedc2e5ed7fe",
+      "bytes": 2677268,
+      "lines": 98214,
+      "deterministic": true
+    },
+    "a4-uc8279c-dual": {
+      "sha256": "495b8008a2bb8ba5bad614cbeb18e8d0f40592b2bf0499928a3d0c0a10e8c1b3",
+      "bytes": 2677268,
+      "lines": 98214,
+      "deterministic": true
+    },
+    "picco-yrd-single": {
+      "sha256": "71cf2e1afca121ecea5b0abe219425f4d5af6ed42467c7726b1e82404b77fae6",
+      "bytes": 777037,
+      "lines": 37904,
+      "deterministic": true
+    },
+    "picco-yrd-dual": {
+      "sha256": "86026f4079495cf34e6021d738dc2f7eab23a27e84b694f7cc91f8c5d3d18583",
+      "bytes": 749577,
+      "lines": 36536,
+      "deterministic": true
+    },
+    "picco-depg-single": {
+      "sha256": "721c41269678728d136749efee99f0a8763980b27c46a711ae74789d4d315368",
+      "bytes": 955398,
+      "lines": 46894,
+      "deterministic": true
+    },
+    "picco-depg-dual": {
+      "sha256": "792a4f82daec0520afb1d6af8c27d60d5cb38d770766b12917effa75f84af8fc",
+      "bytes": 927938,
+      "lines": 45526,
+      "deterministic": true
+    },
+    "picco-opm-single": {
+      "sha256": "5408c1e4e32ce36734f916eb67942b53481ee5bd889d1c1f28916ccf93c60d26",
+      "bytes": 777037,
+      "lines": 37904,
+      "deterministic": true
+    },
+    "picco-opm-dual": {
+      "sha256": "586b578ff61ada815a282a6d64bc31ed92bb440e5a21336dd8ea78530ab62324",
+      "bytes": 749577,
+      "lines": 36536,
+      "deterministic": true
+    },
+    "picco-ssd2677-single": {
+      "sha256": "825ceeeded38ec14d6b3fc847a80a6166790c4de6dd394e2eafe873e2f7446a3",
+      "bytes": 214085,
+      "lines": 8372,
+      "deterministic": true
+    },
+    "picco-ssd2677-dual": {
+      "sha256": "e163a7f3586c22c36081217ad03b90a11d0271db09c0e7740b24a01ebce91ccb",
+      "bytes": 214085,
+      "lines": 8372,
+      "deterministic": true
+    },
+    "picco-unknown-single": {
+      "sha256": "5a8623a2817b282113b64ff7c4bd820591c7acabceb02313b39ac55298caf56e",
+      "bytes": 578916,
+      "lines": 27975,
+      "deterministic": true
+    },
+    "picco-unknown-dual": {
+      "sha256": "422768ae8da2140b8b781447967c5c978ea56e0c0259939aeeea89c9ac2d09ef",
+      "bytes": 551456,
+      "lines": 26607,
+      "deterministic": true
+    }
+  }
+}

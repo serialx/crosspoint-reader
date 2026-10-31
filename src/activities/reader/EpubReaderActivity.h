@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Epub.h>
-#include <Epub/FootnoteEntry.h>
+#include <Epub/Page.h>
 #include <Epub/PageLink.h>
 #include <Epub/Section.h>
 
@@ -20,7 +20,16 @@
 #include "ReaderToolbarUi.h"
 #include "components/OptionPopup.h"
 
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+#include "ReaderStripBuffers.h"
+#endif
+
+struct ReaderChildCapture;
 class EpubReaderActivity final : public ReaderActivity {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  ReaderStripBuffers stripBuffers;
+#endif
+
   std::shared_ptr<Epub> epub;
   std::unique_ptr<Section> section = nullptr;
   int currentSpineIndex = 0;
@@ -104,8 +113,7 @@ class EpubReaderActivity final : public ReaderActivity {
   std::vector<EpubReaderMenuActivity::MenuItem> moreItems;
 
   // Footnote support
-  std::vector<FootnoteEntry> currentPageFootnotes;
-  std::vector<PageLink> currentPageLinks;
+  PageMetadata currentPageMetadata;
   int currentPageLinkMarginLeft = 0;
   int currentPageLinkMarginTop = 0;
   struct SavedPosition {
@@ -130,8 +138,6 @@ class EpubReaderActivity final : public ReaderActivity {
 
   static constexpr int BUILD_PAGES_PER_CHUNK = 8;
   static constexpr int BACKGROUND_BUILD_PAGES_PER_TICK = 2;
-  static constexpr size_t BACKGROUND_BUILD_MIN_FREE_HEAP = 32 * 1024;
-  static constexpr size_t BACKGROUND_BUILD_MIN_MAX_ALLOC = 16 * 1024;
   // Requires the render lock; heap admission is checked separately by the build tick.
   bool backgroundBuildWanted() const;
   bool buildTickHeapGate();
@@ -141,36 +147,35 @@ class EpubReaderActivity final : public ReaderActivity {
   // back as soon as a button is down, so a short press is seen before more pages are built.
   void backgroundBuildTick();
   bool anyButtonPressed() const;
+  bool tryIdleLoop();
   // A background build failed in this spine. The error would likely recur, so from then on the
   // spine is built only as far as the reader goes; pages from earlier build steps stay readable.
   int backgroundBuildFailedSpine = -1;
   // Bluetooth page turner: every chapter build stops the radio until the chapter is built and its
   // page is shown. False: the radio still holds or is taking the heap, and the build must not run.
   std::atomic<bool> radioReleasedForBuild{false};
+  bool runBuildPolicy(uint8_t operation) const;
   bool makeRoomForChapterBuild();
-  static constexpr uint32_t BUILD_ROOM_WAIT_MS = 5000;
-  static constexpr uint32_t BUILD_ROOM_STEP_MS = 50;
-  bool inputOverPage() const override { return overlay != Overlay::None || ReaderActivity::inputOverPage(); }
+  bool inputOverPage() const override;
   // "Connecting Bluetooth…" or "Bluetooth failed" in place of the status bar title.
   mutable LinkNoteTitle linkNoteTitle;
-  static constexpr size_t RENDER_MIN_FREE_HEAP = 24 * 1024;
-  static constexpr int PARTIAL_REBUILD_START_MARGIN = 15;
-  static constexpr int BUILD_POPUP_PAGE_THRESHOLD = 20;
-  static constexpr size_t BUILD_POPUP_BYTE_THRESHOLD = 96 * 1024;
-  static constexpr unsigned long BUILD_POPUP_DEADLINE_MS = 1000;
   bool buildPopupPending = false;
-  void showBuildPopup(GfxRenderer& renderer, int& pagesUntilFullRefresh);
+  void showBuildPopup();
   bool applyDeferredReposition();
   void clearDeferredReposition();
   void rememberCurrentContentOffset();
   bool saveProgress(int spineIndex, int currentPage, int pageCount);
+  bool runNavigationPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0, int32_t c = 0,
+                           const std::string* href = nullptr, const ProgressChangeResult* sync = nullptr);
   void jumpToPercent(int percent);
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   int currentTocIndex() const;
   // Live section position, or the values cached before a child screen
   // released the section.
+  uint32_t runProjection(uint8_t operation, int32_t a = 0, int32_t b = 0, uint8_t c = 0, void* output = nullptr) const;
   ChapterPosition chapterPosition() const;
   int bookPercentFor(const ChapterPosition& position) const;
+  void runMenuPolicy(uint8_t operation, int32_t argument = 0, const ActivityResult* result = nullptr);
   void openReaderMenu();
   // Toolbar reader menu (see Overlay above).
   bool usesToolbarMenu() const;
@@ -178,6 +183,9 @@ class EpubReaderActivity final : public ReaderActivity {
   void closeOverlayToPage();
   void discardOverlayPage();
   void handleOverlayInput();
+  void cancelRejectedInput(const XpUiInput& input) override;
+  void rustSceneFailed() override { panelHoldJumped = false; }
+  void runOverlayPolicy(uint8_t operation);
   void renderOverlay();
   std::string currentChapterTitle() const;
   // Text panel rows (font, size, line spacing, alignment, focus reading).
@@ -189,6 +197,7 @@ class EpubReaderActivity final : public ReaderActivity {
   void paintOverlayPopup();
   // Persist the reader text settings, (re)load the selected SD font, and
   // re-paginate the current chapter so changes apply without re-opening the book.
+  void runSettingsPolicy(uint8_t operation, int32_t argument = 0, const std::vector<uint8_t>* resultSizes = nullptr);
   void applyReaderTextSettings();
   // More panel rows.
   void buildMoreActions();
@@ -199,12 +208,18 @@ class EpubReaderActivity final : public ReaderActivity {
   void openDictionaryWordSelect();
   void startClipSelection(int initialX = -1, int initialY = -1,
                           ClipSelectionActivity::Mode mode = ClipSelectionActivity::Mode::Clip);
+  int runClippingPolicy(uint8_t operation, const Page& page, const XpUiReaderClipInput& input) const;
   int clippingAtPoint(const Page& page, int x, int y) const;
   void openClippings();
   void applyProgressChange(const ProgressChangeResult& progress);
   bool launchKOReaderSync();
+  bool runChildPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0,
+                      ClipSelectionActivity::Mode mode = ClipSelectionActivity::Mode::Clip,
+                      const ActivityResult* result = nullptr, const ReaderChildCapture* capture = nullptr);
   unsigned long confirmLongPressThreshold() const;
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
+  void runBookmarkPolicy(uint8_t operation, void* resources = nullptr);
+  void runLinkPersistence(uint8_t load) const;
   void loadCachedBookmarks();
   void addBookmark();
   void updateBookmarkFlag();
@@ -216,6 +231,7 @@ class EpubReaderActivity final : public ReaderActivity {
                       int orientedMarginBottom, int orientedMarginLeft);
   void drawClippingHighlights(const Page& page, int fontId, int orientedMarginTop, int orientedMarginLeft) const;
   void renderStatusBar() const;
+  std::string readerViewValue(uint8_t operation, int32_t row = 0) const;
   void applyOrientation(uint8_t orientation);
   void applyInitialOrientation() override;
   // The orientation the current layout was built for. The control center's
@@ -232,7 +248,9 @@ class EpubReaderActivity final : public ReaderActivity {
   // failed Epub itself does not outlive loadBook().
   std::string loadProtectionError;
 
+  bool runBookLifetime(uint8_t operation);
   bool loadBook() override;
+  bool runRecoveryPolicy(uint8_t operation, int32_t a = 0, int32_t b = 0, const ActivityResult* result = nullptr);
   bool handleLoadFailure() override;
   // Wi-Fi join + SNTP for a loan whose date could not be verified, then a
   // clean re-open of the book.

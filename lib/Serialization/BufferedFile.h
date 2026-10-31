@@ -1,6 +1,7 @@
 #pragma once
 #include <HalStorage.h>
 #include <Memory.h>
+#include <xp_settings.h>
 
 #include <algorithm>
 #include <cstring>
@@ -23,113 +24,64 @@ namespace serialization {
 // Constraint: the wrapper must be the file's ONLY accessor while alive (it tracks
 // the underlying position itself); mixing direct HalFile calls in desynchronizes it.
 
+inline XpStoreFileOps fileOps(HalFile& file) {
+  return {&file,
+          [](void* ctx, uint8_t* dst, size_t len) -> int32_t { return static_cast<HalFile*>(ctx)->read(dst, len); },
+          [](void* ctx, const uint8_t* src, size_t len) { return static_cast<HalFile*>(ctx)->write(src, len); },
+          [](void* ctx, size_t pos) { return static_cast<HalFile*>(ctx)->seek(pos); }};
+}
+
 class BufferedFileWriter {
  public:
   BufferedFileWriter(HalFile& file, const size_t capacity)
-      : file(file), buf(makeUniqueNoThrow<uint8_t[]>(capacity)), cap(buf ? capacity : 0), pos(file.position()) {}
+      : file(file),
+        buf(makeUniqueNoThrow<uint8_t[]>(capacity)),
+        cap(buf ? capacity : 0),
+        state{0, file.position(), true} {}
   ~BufferedFileWriter() { flush(); }
   BufferedFileWriter(const BufferedFileWriter&) = delete;
   BufferedFileWriter& operator=(const BufferedFileWriter&) = delete;
-
-  void write(const void* src, const size_t len) {
-    pos += len;
-    const auto* p = static_cast<const uint8_t*>(src);
-    if (fill + len > cap) {
-      flushBuffer();
-    }
-    if (len >= cap) {  // also the cap == 0 passthrough
-      okFlag &= file.write(p, len) == len;
-      return;
-    }
-    // Typed local: cppcheck misreads unique_ptr<uint8_t[]>::get() arithmetic as void*.
-    uint8_t* const data = buf.get();
-    memcpy(data + fill, p, len);
-    fill += len;
+  void write(const void* src, size_t len) {
+    const auto ops = fileOps(file);
+    xp_store_buffer_write(&state, buf.get(), cap, &ops, static_cast<const uint8_t*>(src), len);
   }
-
-  // Logical write position (bytes written since the file was opened).
-  size_t position() const { return pos; }
-
-  // Flush buffered bytes; returns false if any write so far has failed short.
+  size_t position() const { return state.pos; }
   bool flush() {
-    flushBuffer();
-    return okFlag;
+    const auto ops = fileOps(file);
+    return xp_store_buffer_flush(&state, buf.get(), &ops);
   }
 
  private:
-  void flushBuffer() {
-    if (fill == 0) return;
-    okFlag &= file.write(buf.get(), fill) == fill;
-    fill = 0;
-  }
-
   HalFile& file;
   std::unique_ptr<uint8_t[]> buf;
   const size_t cap;
-  size_t fill = 0;
-  size_t pos;
-  bool okFlag = true;
+  XpStoreWriter state;
 };
 
 class BufferedFileReader {
  public:
   BufferedFileReader(HalFile& file, const size_t capacity)
-      : file(file), buf(makeUniqueNoThrow<uint8_t[]>(capacity)), cap(buf ? capacity : 0), bufStart(file.position()) {}
+      : file(file),
+        buf(makeUniqueNoThrow<uint8_t[]>(capacity)),
+        cap(buf ? capacity : 0),
+        state{0, 0, file.position()} {}
   BufferedFileReader(const BufferedFileReader&) = delete;
   BufferedFileReader& operator=(const BufferedFileReader&) = delete;
-
   size_t read(void* dst, size_t len) {
-    auto* p = static_cast<uint8_t*>(dst);
-    if (cap == 0) {  // passthrough
-      const int n = file.read(p, len);
-      const size_t got = n < 0 ? 0 : static_cast<size_t>(n);
-      bufStart += got;
-      return got;
-    }
-    size_t total = 0;
-    while (len > 0) {
-      if (off == fill) {
-        bufStart += fill;
-        off = 0;
-        const int n = file.read(buf.get(), cap);
-        fill = n < 0 ? 0 : static_cast<size_t>(n);
-        if (fill == 0) break;  // EOF or error
-      }
-      const size_t chunk = std::min(len, fill - off);
-      // Typed local: cppcheck misreads unique_ptr<uint8_t[]>::get() arithmetic as void*.
-      const uint8_t* const data = buf.get();
-      memcpy(p, data + off, chunk);
-      p += chunk;
-      off += chunk;
-      len -= chunk;
-      total += chunk;
-    }
-    return total;
+    const auto ops = fileOps(file);
+    return xp_store_buffer_read(&state, buf.get(), cap, &ops, static_cast<uint8_t*>(dst), len);
   }
-
-  // Logical read position.
-  size_t position() const { return bufStart + off; }
-
-  bool seek(const size_t target) {
-    // Within the buffered window: just move the cursor.
-    if (cap != 0 && target >= bufStart && target < bufStart + fill) {
-      off = target - bufStart;
-      return true;
-    }
-    if (!file.seek(target)) return false;
-    bufStart = target;
-    fill = 0;
-    off = 0;
-    return true;
+  size_t position() const { return state.start + state.off; }
+  bool seek(size_t target) {
+    const auto ops = fileOps(file);
+    return xp_store_buffer_seek(&state, cap, &ops, target);
   }
 
  private:
   HalFile& file;
   std::unique_ptr<uint8_t[]> buf;
   const size_t cap;
-  size_t fill = 0;
-  size_t off = 0;
-  size_t bufStart;
+  XpStoreReader state;
 };
 
 // serialization:: overloads mirroring the HalFile ones in Serialization.h.

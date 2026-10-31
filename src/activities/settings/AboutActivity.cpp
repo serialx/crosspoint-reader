@@ -80,12 +80,13 @@ const char* touchControllerName(const BoardConfig::TouchController c) {
 }  // namespace
 
 AboutActivity::AboutActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-    : UiListActivity("About", renderer, mappedInput) {}
+    : SettingsUiActivity("About", renderer, mappedInput, XP_UI_SETTINGS_ABOUT) {}
 
 const char* AboutActivity::headerTitle() const { return "About"; }
 
 void AboutActivity::onEnter() {
-  UiListActivity::onEnter();
+  SettingsUiActivity::onEnter();
+  if (!hasUiStorage()) return;
   for (int i = 0; i < ITEM_COUNT; i++) {
     rowItems_[i].label = menuNames[i];
     rowItems_[i].actionValue = static_cast<int16_t>(i);
@@ -117,24 +118,8 @@ void AboutActivity::onEnter() {
   rowValues_[ITEM_MAC] = buf;
 }
 
-void AboutActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(metrics.topPadding + metrics.headerHeight), 0,
-                                                static_cast<int16_t>(metrics.buttonHintsHeight), 0});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-
+void AboutActivity::prepareRows() {
   for (int i = 0; i < ITEM_COUNT; i++) {
     rowItems_[i].value = rowValues_[i].c_str();
   }
-
-  fui::ListProps props;
-  props.items = rowItems_;
-  props.count = ITEM_COUNT;
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;  // physical buttons stay in loop()
-  props.valueInset = 8;
-  props.labelText = screen.theme().smallText;
-  props.labelText.maxLines = 1;
-  syncListViewport(screen, props);
-  screen.list(props);
 }

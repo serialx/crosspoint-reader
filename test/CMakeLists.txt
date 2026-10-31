@@ -1,9 +1,15 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 project(crosspoint_reader_tests C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(CROSSPOINT_TEST_ASAN "Instrument C/C++ host tests with AddressSanitizer" OFF)
+if(CROSSPOINT_TEST_ASAN)
+  add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -24,7 +30,17 @@ FetchContent_MakeAvailable(googletest)
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
+set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,display-panel" CACHE STRING "Cargo features for host tests")
+if(NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)display-panel(,|$)")
+  set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},display-panel" CACHE STRING "Cargo features for host tests" FORCE)
+endif()
+if(DISPLAY_TRACE_STRIPS AND NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)reader-strips(,|$)")
+  set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},reader-strips" CACHE STRING "Cargo features for host tests" FORCE)
+endif()
+include(${REPO_ROOT}/test/cmake/xp_ffi_host.cmake)
+
 add_library(crosspoint_test_common INTERFACE)
+target_link_libraries(crosspoint_test_common INTERFACE xp_ffi_host)
 target_include_directories(crosspoint_test_common INTERFACE
   ${REPO_ROOT}
   ${REPO_ROOT}/lib
@@ -51,6 +67,7 @@ add_subdirectory(library_format)
 add_subdirectory(library_index_file)
 add_subdirectory(library_builder)
 add_subdirectory(minibidi_arabic)
+add_subdirectory(bidi_diff)
 add_subdirectory(combining_marks)
 add_subdirectory(credential_integrity)
 add_subdirectory(xml_parser_utils)
@@ -60,12 +77,16 @@ add_subdirectory(progress_comparison)
 add_subdirectory(font_cache_manager)
 add_subdirectory(css_parser)
 add_subdirectory(chapter_html_slim_parser)
+add_subdirectory(section_golden)
+add_subdirectory(page_codec_diff)
+add_subdirectory(page_load)
 add_subdirectory(korean_line_breaking)
 add_subdirectory(em_dash_line_breaking)
 add_subdirectory(ligature_guard)
 add_subdirectory(page_link)
 add_subdirectory(content_opf_parser)
 add_subdirectory(chapter_position)
+add_subdirectory(reader_lifecycle)
 add_subdirectory(book_metadata_cache)
 add_subdirectory(home_button)
 add_subdirectory(button_press_navigation)
@@ -74,6 +95,7 @@ add_subdirectory(inflate_stream)
 add_subdirectory(zip_file)
 add_subdirectory(fs_helpers)
 add_subdirectory(http_header)
+add_subdirectory(web_server)
 add_subdirectory(txt_to_html)
 
 add_subdirectory(absolute_grayscale)
@@ -81,21 +103,25 @@ add_subdirectory(absolute_grayscale)
 add_subdirectory(gif_support)
 
 add_subdirectory(sd_card_font)
+add_subdirectory(sdfont_diff)
 add_subdirectory(sd_font_registry)
+add_subdirectory(font_registry)
 add_subdirectory(clipping_preview)
 add_subdirectory(glyph_bitmap)
 
 add_subdirectory(clipping_store)
 add_subdirectory(reader_session)
+add_subdirectory(reader_strip_buffers)
 add_subdirectory(plugin_manifest_classification)
 add_subdirectory(plugin_picker_layout)
 add_subdirectory(protected_paths)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME rust_display_features COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_rust_display_features.py)
 add_test(NAME TrustedTimeTimezone COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_trusted_time.py)
 add_test(NAME RemoteButtonInputIntegration COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_remote_button_input.py)
 add_test(NAME confirmation_translations COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_confirmation_translations.py)
-add_test(NAME BleLearning COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_ble_learning.py)
+add_test(NAME BleLearning COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_ble_learning.py ${XP_FFI_HOST_ARCHIVE})
 add_subdirectory(ble_link_note_title)
 add_subdirectory(ble_chapter_build_gate)
 add_subdirectory(ble_remote_turn_gate)
@@ -108,3 +134,69 @@ add_test(NAME clipping_highlight_planes COMMAND ${Python3_EXECUTABLE} ${CMAKE_CU
 add_test(NAME clipping_selection_text COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_clipping_selection_text.py)
 
 add_test(NAME recursive_dictionary COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_recursive_dictionary.py)
+
+add_subdirectory(expat_compat)
+set_tests_properties(clipping_selection_text recursive_dictionary PROPERTIES
+  ENVIRONMENT "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}")
+add_subdirectory(text_golden)
+add_subdirectory(textm_diff)
+add_subdirectory(font_diff)
+
+add_subdirectory(page_golden)
+add_subdirectory(line_render_golden)
+add_subdirectory(glyph_diff)
+add_subdirectory(xtc_diff)
+
+add_subdirectory(inflate_small)
+add_subdirectory(sdfont_pool_diff)
+
+add_subdirectory(h6_diagnostics)
+add_subdirectory(page_diagnostics)
+add_subdirectory(chapter_diagnostics)
+
+add_subdirectory(display_trace)
+add_test(NAME i18n_oracle COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/i18n_oracle/run.py)
+add_subdirectory(settings_store)
+add_subdirectory(library_oracle)
+
+add_subdirectory(ui_runtime)
+add_subdirectory(reader_chrome)
+
+
+add_subdirectory(sync_golden)
+
+add_subdirectory(font_cache)
+
+add_subdirectory(font_manager)
+
+add_subdirectory(vector_font)
+add_subdirectory(web_jobs)
+add_subdirectory(ota_policy)
+add_subdirectory(ui_utility)
+add_subdirectory(keyboard_oracle)
+
+add_subdirectory(plugin_policy)
+
+add_subdirectory(hal_policy)
+set_tests_properties(TrustedTimeTimezone RemoteButtonInputIntegration PROPERTIES
+  ENVIRONMENT "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}")
+
+add_subdirectory(book_io)
+add_subdirectory(ui_settings)
+add_subdirectory(ui_network)
+add_subdirectory(section_io)
+add_subdirectory(text_settings)
+add_test(NAME i18n_rust_ids COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/i18n_oracle/test_ids.py)
+add_subdirectory(dictionary_ui)
+add_subdirectory(home_ui)
+
+add_subdirectory(boot_ui)
+
+add_subdirectory(dictionary_engine)
+add_subdirectory(ui_catalog)
+
+add_subdirectory(koreader_ui)
+
+add_subdirectory(ui_updates)
+
+add_subdirectory(ui_header)

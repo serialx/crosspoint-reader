@@ -1,0 +1,57 @@
+get_target_property(PAGE_LOAD_INCLUDES SectionGoldenDump INCLUDE_DIRECTORIES)
+add_executable(PageLoad
+  ${REPO_ROOT}/lib/expat/ExpatErrors.cpp
+  PageLoad.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/Section.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/SectionCodec.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/Page.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/blocks/TextBlock.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/blocks/ImageBlock.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/Paragraph.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/CjkBreaks.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterHtmlSlimParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageAssembler.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/parsers/ChapterPageServices.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/css/CssParser.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageDimsProbe.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/htmlEntities.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
+  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/HyphenationCommon.cpp
+  ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
+  ${REPO_ROOT}/lib/Utf8/Utf8.cpp
+  ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
+  ${REPO_ROOT}/test/section_golden/ImageDecoderStub.cpp)
+target_include_directories(PageLoad PRIVATE ${PAGE_LOAD_INCLUDES})
+target_link_libraries(PageLoad PRIVATE crosspoint_test_common xp_ffi_host)
+add_test(NAME PageLoadMalformed COMMAND PageLoad malformed)
+add_test(NAME PageLoadOom COMMAND PageLoad oom)
+add_test(NAME PageLoadPartial COMMAND PageLoad partial)
+
+target_compile_definitions(PageLoad PRIVATE XP_FFI_HOST_FAULT_INJECTION=1)
+add_test(NAME PageAllocator COMMAND PageLoad allocator)
+
+add_test(NAME PageReaderMetadata COMMAND PageLoad metadata)
+
+get_target_property(PAGE_LOAD_SOURCES PageLoad SOURCES)
+list(REMOVE_ITEM PAGE_LOAD_SOURCES PageLoad.cpp)
+add_executable(FootnoteSelect FootnoteSelect.cpp ${PAGE_LOAD_SOURCES}
+  ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp)
+target_include_directories(FootnoteSelect PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_LOAD_INCLUDES})
+target_link_libraries(FootnoteSelect PRIVATE crosspoint_test_common xp_ffi_host)
+add_test(NAME PageFootnoteSelect COMMAND FootnoteSelect)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_footnote_entry.py
+    ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
+    ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
+  DEPENDS extract_footnote_entry.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+    ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
+  VERBATIM)
+target_sources(FootnoteSelect PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp)
+target_include_directories(FootnoteSelect PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(FootnoteSelect PRIVATE XP_FOOTNOTE_SELECT_TEST=1)

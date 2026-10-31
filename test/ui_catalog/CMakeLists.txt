@@ -1,0 +1,16 @@
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME ui_catalog_cpp_goldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_oracle.py)
+
+get_target_property(CATALOG_RENDER_SOURCES UiSceneTarget SOURCES)
+list(REMOVE_ITEM CATALOG_RENDER_SOURCES UiSceneTarget.cpp)
+list(TRANSFORM CATALOG_RENDER_SOURCES PREPEND "${REPO_ROOT}/test/text_golden/" REGEX "^[^/]")
+add_executable(CatalogTarget CatalogTarget.cpp ${CATALOG_RENDER_SOURCES})
+target_include_directories(CatalogTarget PRIVATE ${REPO_ROOT}/freeink-sdk/libs/assets/Icons/include ${REPO_ROOT}/test/text_golden $<TARGET_PROPERTY:UiSceneTarget,INCLUDE_DIRECTORIES>)
+target_compile_definitions(CatalogTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_DEFINITIONS>)
+target_compile_options(CatalogTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,COMPILE_OPTIONS> -UNDEBUG)
+target_link_options(CatalogTarget PRIVATE $<TARGET_PROPERTY:UiSceneTarget,LINK_OPTIONS>)
+target_link_libraries(CatalogTarget PRIVATE xp_ffi_host)
+add_test(NAME ui_catalog_pixels COMMAND CatalogTarget)
+
+add_test(NAME ui_catalog_adapter COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_adapter.py)
+add_test(NAME ui_catalog_review COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_review.py ${XP_FFI_HOST_ARCHIVE})

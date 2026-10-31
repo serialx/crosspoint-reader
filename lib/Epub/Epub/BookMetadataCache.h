@@ -2,11 +2,14 @@
 
 #include <BufferedFile.h>
 #include <HalStorage.h>
+#include <xp_book.h>
+#include <xp_ffi.h>
 
 #include <algorithm>
 #include <deque>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class BookMetadataCache {
@@ -51,7 +54,15 @@ class BookMetadataCache {
   uint16_t spineCount;
   uint16_t tocCount;
   bool loaded;
-  bool buildMode;
+  XpPkgCache* build = nullptr;
+  struct BuildStreams;
+  struct ReadContext;
+  HalFile& fileFor(uint32_t file);
+  static uint32_t control(void*, uint32_t, uint32_t);
+  static size_t read(void*, uint32_t, uint8_t*, size_t);
+  static size_t write(void*, uint32_t, const uint8_t*, size_t);
+  static uint8_t seek(void*, uint32_t, uint32_t);
+  static void observe(void*, uint32_t, XpPkgSpan, XpPkgSpan, XpPkgSpan, uint8_t);
 
   HalFile bookFile;
   // Temp file handles during build
@@ -64,36 +75,13 @@ class BookMetadataCache {
   std::unique_ptr<serialization::BufferedFileWriter> passOut;
 
   // Cumulative spine sizes stay in book.bin; RAM holds every SIZE_WINDOW-th one and one window.
-  static constexpr int SIZE_WINDOW = 32;
+  static constexpr int SIZE_WINDOW = XP_BOOK_METADATA_WINDOW;
   std::vector<uint32_t> windowStarts;  // total before item w * SIZE_WINDOW
   uint32_t bookSize = 0;
   mutable int windowFirst = -1;
   mutable uint32_t window[SIZE_WINDOW] = {};
-  bool fillWindow(int first) const;  // caller holds sizeWindowLock
+  static_assert(sizeof(window) / sizeof(window[0]) == XP_BOOK_METADATA_WINDOW);
 
-  // Index for fast href→spineIndex lookup. Exists only during a large EPUB's
-  // TOC pass; a bare deque member would hold its first node for every open book.
-  struct SpineHrefIndexEntry {
-    uint64_t hrefHash;  // FNV-1a 64-bit hash
-    uint16_t hrefLen;   // length for collision reduction
-    int16_t spineIndex;
-  };
-  std::unique_ptr<std::deque<SpineHrefIndexEntry>> spineHrefIndex;
-
-  static constexpr uint16_t LARGE_SPINE_THRESHOLD = 400;
-
-  // FNV-1a 64-bit hash function
-  static uint64_t fnvHash64(const std::string& s) {
-    uint64_t hash = 14695981039346656037ull;
-    for (char c : s) {
-      hash ^= static_cast<uint8_t>(c);
-      hash *= 1099511628211ull;
-    }
-    return hash;
-  }
-
-  uint32_t writeSpineEntry(HalFile& file, const SpineEntry& entry) const;
-  uint32_t writeTocEntry(HalFile& file, const TocEntry& entry) const;
   SpineEntry readSpineEntry(HalFile& file) const;
   TocEntry readTocEntry(HalFile& file) const;
 
@@ -101,8 +89,10 @@ class BookMetadataCache {
   BookMetadata coreMetadata;
 
   explicit BookMetadataCache(std::string cachePath)
-      : cachePath(std::move(cachePath)), lutOffset(0), spineCount(0), tocCount(0), loaded(false), buildMode(false) {}
-  ~BookMetadataCache() = default;
+      : cachePath(std::move(cachePath)), lutOffset(0), spineCount(0), tocCount(0), loaded(false) {}
+  ~BookMetadataCache();
+  XpPkgCache* writer() const { return build; }
+  XpPkgIo sink();
 
   // Building phase (stream to disk immediately)
   bool beginWrite();
@@ -110,7 +100,7 @@ class BookMetadataCache {
   void createSpineEntry(const std::string& href);
   bool endContentOpfPass();
   bool beginTocPass();
-  void createTocEntry(const std::string& title, const std::string& href, const std::string& anchor, uint8_t level);
+  bool createTocEntry(std::string_view title, std::string_view href, std::string_view anchor, uint8_t level);
   bool endTocPass();
   bool endWrite();
   bool cleanupTmpFiles() const;
@@ -127,7 +117,7 @@ class BookMetadataCache {
   uint32_t getCumulativeSize(int index) const;
   // First spine index whose cumulative size reaches `size` (-1 past the end or not loaded). Reads at most one window.
   int getSpineIndexForSize(uint32_t size) const;
-  int getSpineCount() const { return spineCount; }
-  int getTocCount() const { return tocCount; }
+  int getSpineCount() const { return build ? xp_pkg_cache_count(build, 0) : spineCount; }
+  int getTocCount() const { return build ? xp_pkg_cache_count(build, 1) : tocCount; }
   bool isLoaded() const { return loaded; }
 };

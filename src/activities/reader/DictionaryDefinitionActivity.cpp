@@ -15,6 +15,7 @@
 #include <cstdio>
 
 #include "CrossPointSettings.h"
+#include "DictionaryUiBindings.h"
 #include "HapticFeedback.h"
 #include "ReaderUtils.h"
 #include "components/HeaderBackTapTarget.h"
@@ -29,7 +30,6 @@ namespace {
 constexpr size_t MAX_LINE_BYTES = 191;
 constexpr float PLAIN_TEXT_LINE_SPACING = 1.5f;
 constexpr size_t HEAP_HEADROOM = 8 * 1024;
-constexpr unsigned long MESSAGE_DURATION_MS = 1500;
 constexpr size_t SELECTION_PAGE_WINDOW = 3;
 // ASCII tokens need separators; Han/Kana tokens take at least three bytes.
 constexpr size_t MAX_PLAIN_WORDS = (MAX_LINE_BYTES + 1) / 2;
@@ -48,44 +48,62 @@ struct DictionaryDefinitionActivity::PlainSelectionLine {
   std::string text;
   std::vector<std::string> words;
   std::vector<int16_t> positions;
-  std::vector<EpdFontFamily::Style> styles;
   std::vector<TextBlock::SourceRange> ranges;
   std::vector<uint16_t> visualOrder;
   std::vector<std::string> visualWords;
   std::vector<TextBlock::SourceRange> visualRanges;
   BlockStyle style;
 
+  static bool separator(const char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == DICTIONARY_PLAIN_HEADWORD_MARKER;
+  }
+
+  static size_t wordEnd(const char* bytes, const size_t length, size_t i) {
+    auto* ptr = reinterpret_cast<const unsigned char*>(bytes + i);
+    uint32_t previous = utf8NextCodepoint(&ptr);
+    i = ptr - reinterpret_cast<const unsigned char*>(bytes);
+    while (i < length && !separator(bytes[i])) {
+      ptr = reinterpret_cast<const unsigned char*>(bytes + i);
+      const uint32_t cp = utf8NextCodepoint(&ptr);
+      if (!utf8IsHangul(previous) && !utf8IsHangul(cp) && (utf8IsCjkBreakable(previous) || utf8IsCjkBreakable(cp)) &&
+          !utf8IsCombiningMark(cp))
+        break;
+      previous = cp;
+      i = ptr - reinterpret_cast<const unsigned char*>(bytes);
+    }
+    return i;
+  }
+
+  static void countWords(const char* bytes, const size_t length, size_t& words, size_t& textBytes) {
+    for (size_t i = 0; i < length;) {
+      if (separator(bytes[i])) {
+        ++i;
+        continue;
+      }
+      const size_t end = wordEnd(bytes, length, i);
+      ++words;
+      textBytes += end - i + 1;
+      i = end;
+    }
+  }
+
   void layout(const DictionaryDefinitionActivity& owner, const int fontId, const uint32_t offset) {
     const char* bytes = text.c_str();
     const size_t length = text.size();
     words.clear();
     positions.clear();
-    styles.clear();
     ranges.clear();
     size_t i = 0;
     while (i < length) {
       // The headword label marker is a control byte, not text: it must not
       // end up inside a selected word.
-      if (bytes[i] == ' ' || bytes[i] == '\t' || bytes[i] == '\r' || bytes[i] == DICTIONARY_PLAIN_HEADWORD_MARKER) {
+      if (separator(bytes[i])) {
         ++i;
         continue;
       }
       const size_t start = i;
-      auto* ptr = reinterpret_cast<const unsigned char*>(bytes + i);
-      uint32_t previous = utf8NextCodepoint(&ptr);
-      i = ptr - reinterpret_cast<const unsigned char*>(bytes);
-      while (i < length && bytes[i] != ' ' && bytes[i] != '\t' && bytes[i] != '\r' &&
-             bytes[i] != DICTIONARY_PLAIN_HEADWORD_MARKER) {
-        ptr = reinterpret_cast<const unsigned char*>(bytes + i);
-        const uint32_t cp = utf8NextCodepoint(&ptr);
-        if (!utf8IsHangul(previous) && !utf8IsHangul(cp) && (utf8IsCjkBreakable(previous) || utf8IsCjkBreakable(cp)) &&
-            !utf8IsCombiningMark(cp))
-          break;
-        previous = cp;
-        i = ptr - reinterpret_cast<const unsigned char*>(bytes);
-      }
+      i = wordEnd(bytes, length, i);
       words.emplace_back(bytes + start, i - start);
-      styles.push_back(EpdFontFamily::REGULAR);
       ranges.push_back({static_cast<uint32_t>(offset + start), static_cast<uint32_t>(offset + i)});
     }
     style.isRtl = BidiUtils::detectParagraphLevel(bytes) == 1;
@@ -116,9 +134,29 @@ struct DictionaryDefinitionActivity::PlainSelectionLine {
     }
   }
 
-  std::unique_ptr<TextBlock> pack() const {
-    return makeUniqueNoThrow<TextBlock>(words, positions, styles, std::vector<uint8_t>{}, std::vector<uint16_t>{},
-                                        style, std::vector<std::string>{}, std::vector<TextBlock::LinkSpan>{}, ranges);
+  bool append(LinePageBuilder& builder, const int16_t y) {
+    if (words.size() > MAX_PLAIN_WORDS) return false;
+    text.clear();
+    visualOrder.clear();
+    for (const auto& word : words) {
+      if (word.size() + 1 > MAX_LINE_BYTES + MAX_PLAIN_WORDS - text.size()) return false;
+      visualOrder.push_back(text.size());
+      text.append(word);
+      text.push_back('\0');
+    }
+    static constexpr uint8_t STYLES[MAX_PLAIN_WORDS] = {};
+    XpParaBlock block{};
+    block.rtl = style.isRtl;
+    XpParaLine line{};
+    line.text = {reinterpret_cast<const uint8_t*>(text.data()), static_cast<uint32_t>(text.size())};
+    line.offsets = visualOrder.data();
+    line.count = words.size();
+    line.positions = positions.data();
+    line.styles = STYLES;
+    line.sources = reinterpret_cast<const uint32_t*>(ranges.data());
+    line.block = &block;
+    line.paragraph_start = UINT16_MAX;
+    return builder.addLine(line, 0, y);
   }
 };
 
@@ -163,24 +201,9 @@ void DictionaryDefinitionActivity::onExit() {
 }
 
 DictionaryDefinitionActivity::BodyArea DictionaryDefinitionActivity::bodyArea() const {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto orientation = renderer.getOrientation();
-  const bool isLandscape = orientation == GfxRenderer::Orientation::LandscapeClockwise ||
-                           orientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
-  const bool isInverted = orientation == GfxRenderer::Orientation::PortraitInverted;
-  const int hintGutterWidth = isLandscape ? metrics.sideButtonHintsWidth : 0;
-  int top, right, bottom, left;
-  renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
-  const int contentLeft =
-      std::max(left, orientation == GfxRenderer::Orientation::LandscapeClockwise ? hintGutterWidth : 0);
-  const int contentRight =
-      std::max(right, orientation == GfxRenderer::Orientation::LandscapeCounterClockwise ? hintGutterWidth : 0);
-  const int x = contentLeft + metrics.contentSidePadding;
-  const int y = std::max(top, isInverted ? metrics.buttonHintsHeight : 0) + metrics.topPadding + metrics.headerHeight +
-                metrics.verticalSpacing;
-  const int bottomArea = std::max(bottom, metrics.buttonHintsHeight) + metrics.verticalSpacing;
-  return {x, y, renderer.getScreenWidth() - contentLeft - contentRight - 2 * metrics.contentSidePadding,
-          renderer.getScreenHeight() - y - bottomArea};
+  const auto layout = dictionaryUiDefinitionLayout(renderer);
+  const auto body = xp_ui_definition_body(&layout);
+  return {body.x, body.y, body.w, body.h};
 }
 
 // Styled path: lay the HTML definition out through the EPUB chapter parser
@@ -373,11 +396,21 @@ bool DictionaryDefinitionActivity::restoreCurrentDefinition(const bool styled) {
 void DictionaryDefinitionActivity::navigateDefinition(const bool back) {
   {
     RenderLock lock;
+    if (!back && rustSceneRejected()) {
+      lookup->pendingWord.clear();
+      requestUpdate();
+      return;
+    }
     showMessage(StrId::STR_DICT_LOOKING_UP);
   }
   requestUpdateAndWait();
 
   RenderLock lock;
+  if (!back && rustSceneRejected()) {
+    lookup->pendingWord.clear();
+    requestUpdate();
+    return;
+  }
   messageVisible = false;
   const bool styled = !content.pages.empty();
   // Keep only navigation metadata while inflating and laying out another entry.
@@ -456,10 +489,9 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
   const int fontId = SETTINGS.getReaderFontId();
   const int lineHeight = renderer.getLineHeight(fontId, PLAIN_TEXT_LINE_SPACING);
   const int pageCount = std::min<int>(SELECTION_PAGE_WINDOW, content.totalPages - content.selectionPage);
-  const size_t scratchBytes =
-      sizeof(PlainSelectionLine) + MAX_LINE_BYTES + 1 +
-      MAX_PLAIN_WORDS * (2 * sizeof(std::string) + sizeof(int16_t) + sizeof(EpdFontFamily::Style) +
-                         2 * sizeof(TextBlock::SourceRange) + sizeof(uint16_t) + 4);
+  const size_t scratchBytes = sizeof(PlainSelectionLine) + MAX_LINE_BYTES + MAX_PLAIN_WORDS + 1 +
+                              MAX_PLAIN_WORDS * (2 * sizeof(std::string) + sizeof(int16_t) +
+                                                 2 * sizeof(TextBlock::SourceRange) + sizeof(uint16_t) + 4);
   auto heap = HalMemory::getDefaultHeap();
   if (heap.freeBytes < scratchBytes + HEAP_HEADROOM || heap.largestBlockBytes < scratchBytes) return false;
   auto scratch = makeUniqueNoThrow<PlainSelectionLine>();
@@ -467,27 +499,43 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
     LOG_ERR("DICT", "OOM: selection scratch (%u bytes)", static_cast<unsigned>(sizeof(PlainSelectionLine)));
     return false;
   }
-  scratch->text.reserve(MAX_LINE_BYTES);
+  scratch->text.reserve(MAX_LINE_BYTES + MAX_PLAIN_WORDS);
   scratch->words.reserve(MAX_PLAIN_WORDS);
   scratch->positions.reserve(MAX_PLAIN_WORDS);
-  scratch->styles.reserve(MAX_PLAIN_WORDS);
   scratch->ranges.reserve(MAX_PLAIN_WORDS);
   scratch->visualOrder.reserve(MAX_PLAIN_WORDS);
   scratch->visualWords.reserve(MAX_PLAIN_WORDS);
   scratch->visualRanges.reserve(MAX_PLAIN_WORDS);
   lookup->selectionPages.reserve(SELECTION_PAGE_WINDOW);
+  size_t capacity = LinePageBuilder::capacityForLines(0, 0, 0);
   for (int p = 0; p < pageCount; ++p) {
-    auto page = makeUniqueNoThrow<Page>();
-    if (!page) {
-      LOG_ERR("DICT", "OOM: selection page (%u bytes)", static_cast<unsigned>(sizeof(Page)));
-      return false;
+    size_t lines = 0, words = 0, textBytes = 0;
+    const int first = (content.selectionPage + p) * content.linesPerPage;
+    const int last = std::min(first + content.linesPerPage, static_cast<int>(content.lines.size()));
+    for (int row = first; row < last; ++row) {
+      const auto& line = content.lines[row];
+      const char* text = content.text.c_str() + line.start;
+      const size_t length = utf8SafeTruncateBuffer(text, std::min<size_t>(line.len, MAX_LINE_BYTES));
+      scratch->text.assign(text, length);
+      if (length) {
+        ++lines;
+        PlainSelectionLine::countWords(scratch->text.c_str(), length, words, textBytes);
+      }
     }
+    capacity = std::max(capacity, LinePageBuilder::capacityForLines(lines, words, textBytes));
+  }
+  if (capacity > SIZE_MAX - HEAP_HEADROOM) return false;
+  heap = HalMemory::getDefaultHeap();
+  if (heap.freeBytes < capacity + HEAP_HEADROOM || heap.largestBlockBytes < capacity) return false;
+  LinePageBuilder builder(capacity);
+  for (int p = 0; p < pageCount; ++p) {
+    if (!builder.reset()) return false;
     const int firstLine = (content.selectionPage + p) * content.linesPerPage;
     const int lastLine = std::min(firstLine + content.linesPerPage, static_cast<int>(content.lines.size()));
     heap = HalMemory::getDefaultHeap();
-    const size_t pageBytes = (lastLine - firstLine) * (sizeof(PageLine) + sizeof(std::unique_ptr<PageElement>));
+    const size_t pageBytes = Page::plainLineAllocationSize(capacity, lastLine - firstLine);
+    if (pageBytes > SIZE_MAX - HEAP_HEADROOM) return false;
     if (heap.freeBytes < pageBytes + HEAP_HEADROOM || heap.largestBlockBytes < pageBytes) return false;
-    page->elements.reserve(lastLine - firstLine);
     for (int row = firstLine; row < lastLine; ++row) {
       const auto& line = content.lines[row];
       if (!line.len) continue;
@@ -498,17 +546,15 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
       const size_t lineBytes = length * (sizeof(TextBlock::SourceRange) + 12) + sizeof(TextBlock) + 1024;
       if (heap.freeBytes < lineBytes + HEAP_HEADROOM || heap.largestBlockBytes < lineBytes) return false;
       scratch->layout(*this, fontId, line.start);
-      auto block = scratch->pack();
-      if (!block || !block->valid()) {
+      if (!scratch->append(builder, (row - firstLine) * lineHeight)) {
         LOG_ERR("DICT", "OOM: selection line (%u byte budget)", static_cast<unsigned>(lineBytes));
         return false;
       }
-      auto element = makeUniqueNoThrow<PageLine>(std::move(block), 0, (row - firstLine) * lineHeight);
-      if (!element) {
-        LOG_ERR("DICT", "OOM: selection element (%u bytes)", static_cast<unsigned>(sizeof(PageLine)));
-        return false;
-      }
-      page->elements.push_back(std::move(element));
+    }
+    auto page = builder.finish();
+    if (!page) {
+      LOG_ERR("DICT", "OOM: selection page (%u bytes)", static_cast<unsigned>(sizeof(Page)));
+      return false;
     }
     lookup->selectionPages.push_back(std::move(page));
   }
@@ -517,6 +563,10 @@ bool DictionaryDefinitionActivity::buildPlainSelectionPages() {
 
 void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
   RenderLock lock;
+  if (rustSceneRejected()) {
+    requestUpdate();
+    return;
+  }
   if (!content.selection.valid || x >= 0) {
     content.selectionPage = content.currentPage;
     content.selection.valid = false;
@@ -567,85 +617,82 @@ void DictionaryDefinitionActivity::startSelection(const int x, const int y) {
 }
 
 void DictionaryDefinitionActivity::loop() {
-  if (initialLayoutFailed) {
-    if (millis() - messageTime >= MESSAGE_DURATION_MS) finish();
+  bool discard;
+  {
+    ModelLock lock(*this);
+    discard = discardPendingLookup;
+    discardPendingLookup = false;
+  }
+  if (discard && lookup) lookup->pendingWord.clear();
+  if (initialLayoutFailed && millis() - messageTime >= 1500) {
+    finish();
     return;
   }
-  if (lookup && !lookup->pendingWord.empty()) {
+  if (consumeRejectedInput()) return;
+  if (lookup && !lookup->pendingWord.empty() && !initialLayoutFailed) {
     navigateDefinition(false);
     return;
   }
-  if (messageVisible && millis() - messageTime >= MESSAGE_DURATION_MS) {
-    RenderLock lock(RenderLock::Mode::Try);
-    if (lock.ownsLock()) {
-      messageVisible = false;
-      requestUpdate();
-    }
+  int x = 0, y = 0;
+  const bool longPress = !initialLayoutFailed && lookup && mappedInput.wasScreenLongPress(x, y);
+  const bool headerLongPress = longPress && HeaderBackTapTarget::contains(x, y);
+  auto input = dictionaryUiInput(mappedInput);
+  int tx = 0, ty = 0;
+  const bool tap = !initialLayoutFailed && mappedInput.wasScreenTapped(tx, ty);
+  input.touch_x = tap ? tx : x;
+  input.touch_y = tap ? ty : y;
+  XpUiEffect effect;
+  {
+    ModelLock lock(*this);
+    state.page = std::atomic_ref(content.currentPage).load();
+    state.pages = content.totalPages;
+    state.lookup = lookup != nullptr;
+    state.history_depth = lookup ? lookup->depth : 0;
+    state.failed = initialLayoutFailed;
+    state.message_visible = messageVisible;
+    state.message_time = messageTime;
+    effect = xp_ui_definition_update(&state, &input, tap, longPress, headerLongPress, renderer.getScreenWidth(),
+                                     SETTINGS.touchReaderControls);
+    std::atomic_ref(content.currentPage).store(state.page);
+    if (effect.value) content.selection.valid = false;
   }
-  const int totalPages = content.totalPages;
-  int sx = 0;
-  int sy = 0;
-  const bool longPress = lookup && mappedInput.wasScreenLongPress(sx, sy);
-  const bool headerLongPress = longPress && HeaderBackTapTarget::contains(sx, sy);
-  if (headerLongPress || mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    if (lookup && (headerLongPress || mappedInput.getHeldTime() >= ReaderUtils::GO_BACK_OR_HOME_MS)) {
+  // Message dismissal still waits for the current paint to finish.
+  if (messageVisible && !state.message_visible) {
+    RenderLock lock(RenderLock::Mode::Try);
+    if (lock.ownsLock())
+      messageVisible = false;
+    else
+      effect.invalidate = effect.value != 0;
+  }
+  if (effect.invalidate) requestUpdate();
+  if (tap && effect.value) haptic_feedback::touchAction();
+  applyNavigation(effect, x, y);
+}
+
+void DictionaryDefinitionActivity::applyNavigation(const XpUiEffect& effect, int x, int y) {
+  switch (static_cast<XpUiDefinitionEffect>(effect.kind)) {
+    case XP_UI_DEFINITION_IDLE:
+      break;
+    case XP_UI_DEFINITION_FINISH:
+      finish();
+      break;
+    case XP_UI_DEFINITION_CANCEL: {
       ActivityResult result;
       result.isCancelled = true;
       setResult(std::move(result));
       finish();
-    } else if (lookup && lookup->depth > 0)
+      break;
+    }
+    case XP_UI_DEFINITION_BACK:
       navigateDefinition(true);
-    else
-      finish();
-    return;
+      break;
+    case XP_UI_DEFINITION_SELECT:
+      startSelection();
+      break;
+    case XP_UI_DEFINITION_TOUCH_SELECT:
+      startSelection(x, y);
+      break;
   }
-  if (longPress && SETTINGS.touchReaderControls) {
-    startSelection(sx, sy);
-    return;
-  }
-  if (lookup && mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    startSelection();
-    return;
-  }
-
-  // Page navigation must keep polling input while the render task refreshes the display.
-  auto currentPage = std::atomic_ref(content.currentPage);
-  // Same tap zones as the reader page turns: left third = previous page,
-  // the rest = next. Back is the usual left-edge swipe.
-  int tx = 0;
-  int ty = 0;
-  if (mappedInput.wasScreenTapped(tx, ty)) {
-    if (tx < renderer.getScreenWidth() / 3) {
-      if (currentPage > 0) {
-        haptic_feedback::touchAction();
-        currentPage--;
-        content.selection.valid = false;
-        requestUpdate();
-      }
-    } else if (currentPage + 1 < totalPages) {
-      haptic_feedback::touchAction();
-      currentPage++;
-      content.selection.valid = false;
-      requestUpdate();
-    }
-    return;
-  }
-
-  buttonNavigator.onNext([this, &currentPage] {
-    if (currentPage + 1 < content.totalPages) {
-      currentPage++;
-      content.selection.valid = false;
-      requestUpdate();
-    }
-  });
-
-  buttonNavigator.onPrevious([this, &currentPage] {
-    if (currentPage > 0) {
-      currentPage--;
-      content.selection.valid = false;
-      requestUpdate();
-    }
-  });
 }
 
 // Draws the current page: a styled Page when the HTML layout succeeded,
@@ -678,44 +725,74 @@ void DictionaryDefinitionActivity::drawBody(const int fontId, const int x, const
 }
 
 void DictionaryDefinitionActivity::render(RenderLock&&) {
-  const int currentPage = std::atomic_ref(content.currentPage).load();
-  const int totalPages = content.totalPages;
-  renderer.clearScreen();
-
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto orientation = renderer.getOrientation();
-  const bool isLandscapeCw = orientation == GfxRenderer::Orientation::LandscapeClockwise;
-  const bool isLandscapeCcw = orientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
-  const bool isInverted = orientation == GfxRenderer::Orientation::PortraitInverted;
-  const int hintGutterWidth = (isLandscapeCw || isLandscapeCcw) ? metrics.sideButtonHintsWidth : 0;
-  const int contentX = isLandscapeCw ? hintGutterWidth : 0;
-  const int contentWidth = renderer.getScreenWidth() - hintGutterWidth;
-  const int contentY = isInverted ? metrics.buttonHintsHeight : 0;
-
-  char counter[16] = {};
-  if (totalPages > 1) {
-    snprintf(counter, sizeof(counter), "%d/%d", currentPage + 1, totalPages);
-  }
-  GUI.drawHeader(renderer, Rect{contentX, contentY + metrics.topPadding, contentWidth, metrics.headerHeight},
-                 content.headword.c_str(), counter[0] ? counter : nullptr);
-
-  // Body: two-pass draw inside a prewarm scope (same pattern as the reader's
-  // renderContents) so SD-card font glyphs load from SD in one batch instead
-  // of one on-demand overflow read per character on every page turn.
-  const int fontId = SETTINGS.getReaderFontId();
-  const BodyArea body = bodyArea();
-  auto* fcm = renderer.getFontCacheManager();
-  auto scope = fcm->createPrewarmScope();
-  drawBody(fontId, body.x, body.y, currentPage);  // scan pass: records codepoints only
-  scope.endScanAndPrewarm();
-  drawBody(fontId, body.x, body.y, currentPage);
-
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), lookup ? tr(STR_LOOKUP) : "", (currentPage > 0 ? "<" : ""),
-                                            (currentPage + 1 < totalPages ? ">" : ""));
-  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-  if (messageVisible) {
-    GUI.drawPopup(renderer, I18N.get(message));
+  rendered.page = std::atomic_ref(content.currentPage).load();
+  rendered.pages = content.totalPages;
+  rendered.lookup = lookup != nullptr;
+  rendered.message_visible = messageVisible;
+  const auto layout = dictionaryUiDefinitionLayout(renderer);
+  const XpUiBuffer buffer{commands, nullptr, 4, 0};
+  XpUiScene scene{};
+  if (xp_ui_definition_view(&rendered, &layout, &buffer, &scene) != 1) {
+    rejectRustScene();
     return;
   }
-  renderer.displayBuffer();
+  const bool complete = paintRustScene(scene, !rendered.message_visible);
+  if (complete && rendered.message_visible) {
+    if (dictionaryUiPopup(renderer, I18N.get(message), commands, 4, scene))
+      paintRustScene(scene);
+    else
+      rejectRustScene();
+  }
+  framePrewarm.reset();
+}
+
+XpUiPaint DictionaryDefinitionActivity::rustResources() {
+  return {this, nullptr, nullptr,
+          [](void*, uint32_t handle, uint32_t generation) -> uint8_t {
+            return generation == 1 && handle >= XP_UI_DICT_FOOTER && handle <= XP_UI_DICT_MESSAGE;
+          },
+          [](void* context, const XpGlyphTarget*, const XpUiCommand* command, XpUiRect clip) {
+            auto& self = *static_cast<DictionaryDefinitionActivity*>(context);
+            auto& renderer = self.renderer;
+            switch (command->resource) {
+              case XP_UI_DICT_HEADER: {
+                char counter[16]{};
+                if (self.rendered.pages > 1)
+                  snprintf(counter, sizeof(counter), "%d/%d", static_cast<int>(self.rendered.page + 1),
+                           static_cast<int>(self.rendered.pages));
+                const auto& r = command->rect;
+                GUI.drawHeader(renderer, Rect{r.x, r.y, r.w, r.h}, self.content.headword.c_str(),
+                               counter[0] ? counter : nullptr);
+                break;
+              }
+              case XP_UI_DICT_BODY: {
+                self.framePrewarm.emplace(*renderer.getFontCacheManager());
+                self.drawBody(SETTINGS.getReaderFontId(), command->rect.x, command->rect.y, self.rendered.page);
+                self.framePrewarm->endScanAndPrewarm();
+                self.drawBody(SETTINGS.getReaderFontId(), command->rect.x, command->rect.y, self.rendered.page);
+                break;
+              }
+              case XP_UI_DICT_FOOTER: {
+                const auto labels = self.mappedInput.mapLabels(tr(STR_BACK), self.lookup ? tr(STR_LOOKUP) : "",
+                                                               self.rendered.page > 0 ? "<" : "",
+                                                               self.rendered.page + 1 < self.rendered.pages ? ">" : "");
+                GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+                break;
+              }
+              case XP_UI_DICT_MESSAGE:
+                renderer.drawUiText(*command, clip, I18N.get(self.message));
+                break;
+              default:
+                break;
+            }
+          }};
+}
+
+void DictionaryDefinitionActivity::cancelRejectedInput(const XpUiInput& input) {
+  if (initialLayoutFailed || !(input.released & XP_UI_BACK)) return;
+  XpUiEffect effect{};
+  effect.kind = lookup && input.held_ms >= 1000 ? XP_UI_DEFINITION_CANCEL
+                : lookup && lookup->depth > 0   ? XP_UI_DEFINITION_BACK
+                                                : XP_UI_DEFINITION_FINISH;
+  applyNavigation(effect, 0, 0);
 }

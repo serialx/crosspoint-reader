@@ -15,19 +15,12 @@
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
 
-namespace fui = freeink::ui;
-
-namespace {
-
-constexpr int ENTER_DELETE_MODE_MS = 700;
-
-}  // namespace
-
 EpubReaderClippingListActivity::EpubReaderClippingListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
-    : UiListActivity("EpubReaderClippings", renderer, mappedInput, /*wantsTouchLongPress=*/true) {}
+    : ReaderChromeListActivity("EpubReaderClippings", renderer, mappedInput, XP_UI_READER_CLIPPINGS, ROW_WINDOW) {}
 
 void EpubReaderClippingListActivity::onEnter() {
-  UiListActivity::onEnter();
+  ReaderChromeListActivity::onEnter();
+  if (!resourcesReady()) return;
   initialListRender = true;
   rebuildRows();
 }
@@ -58,19 +51,19 @@ void EpubReaderClippingListActivity::refreshRowWindow(const int start) {
       LOG_ERR("CLIP", "Failed to read clipping %u", static_cast<unsigned>(clippingIndex));
     }
 
-    fui::ListItem item;
+    ReaderChromeRow item;
     item.label = clipping && clipping->chapterTitle[0] != '\0' ? clipping->chapterTitle : tr(STR_CLIPPINGS);
     item.subtitle = previews[slot].data();
-    item.icon = listIconFor(UIIcon::Bookmark, 32);
-    item.actionValue = static_cast<int16_t>(clippingIndex);
+    item.bookmarkIcon = true;
+
     rowItems[slot] = item;
   }
   windowStart = clamped;
 }
 
 void EpubReaderClippingListActivity::openSelected() {
-  if (confirmPopup.isActive() || nav.selected < 0 || nav.selected >= listCount()) return;
-  const Clipping* clipping = CLIPPINGS.clippingAt(static_cast<size_t>(nav.selected));
+  if (confirmPopup.isActive() || selectedIndex() < 0 || selectedIndex() >= listCount()) return;
+  const Clipping* clipping = CLIPPINGS.clippingAt(static_cast<size_t>(selectedIndex()));
   if (!clipping) return;
   static constexpr StrId OPTIONS[] = {StrId::STR_OPEN, StrId::STR_GO_TO_PASSAGE};
   const bool anchored = clipping->startOffset != UINT32_MAX && clipping->endOffset != UINT32_MAX;
@@ -79,7 +72,7 @@ void EpubReaderClippingListActivity::openSelected() {
       readSelected();
       return;
     }
-    const Clipping* selectedClipping = CLIPPINGS.clippingAt(static_cast<size_t>(nav.selected));
+    const Clipping* selectedClipping = CLIPPINGS.clippingAt(static_cast<size_t>(selectedIndex()));
     if (!selectedClipping) return;
     ProgressChangeResult result;
     result.spineIndex = selectedClipping->spineIndex;
@@ -93,10 +86,10 @@ void EpubReaderClippingListActivity::openSelected() {
 }
 
 void EpubReaderClippingListActivity::readSelected() {
-  if (nav.selected < 0 || nav.selected >= listCount()) return;
-  const Clipping* clipping = CLIPPINGS.clippingAt(static_cast<size_t>(nav.selected));
+  if (selectedIndex() < 0 || selectedIndex() >= listCount()) return;
+  const Clipping* clipping = CLIPPINGS.clippingAt(static_cast<size_t>(selectedIndex()));
   std::string text;
-  if (!clipping || !CLIPPINGS.readClippingText(static_cast<size_t>(nav.selected), text)) return;
+  if (!clipping || !CLIPPINGS.readClippingText(static_cast<size_t>(selectedIndex()), text)) return;
   const std::string title = clipping->chapterTitle[0] != '\0' ? clipping->chapterTitle : tr(STR_CLIPPINGS);
   auto detail = makeUniqueNoThrow<DictionaryDefinitionActivity>(renderer, mappedInput, title, std::move(text));
   if (!detail) {
@@ -108,15 +101,13 @@ void EpubReaderClippingListActivity::readSelected() {
 
 void EpubReaderClippingListActivity::activateIndex(const int index) {
   if (confirmPopup.isActive() || index < 0 || index >= listCount()) return;
-  app.clearTapFlash();
-  nav.selected = index;
+  selectIndex(index);
   openSelected();
 }
 
 void EpubReaderClippingListActivity::onRowLongPress(const int index) {
   if (confirmPopup.isActive() || index < 0 || index >= listCount()) return;
-  app.clearTapFlash();
-  nav.selected = index;
+  selectIndex(index);
   showDeleteConfirmation();
 }
 
@@ -133,9 +124,10 @@ void EpubReaderClippingListActivity::showDeleteConfirmation() {
 }
 
 void EpubReaderClippingListActivity::deleteSelected() {
-  if (nav.selected < 0 || nav.selected >= listCount()) return;
-  if (!CLIPPINGS.removeClippingAt(static_cast<size_t>(nav.selected))) {
-    LOG_ERR("CLIP", "Failed to delete clipping %d", static_cast<int>(nav.selected));
+  RenderLock lock(*this);
+  if (selectedIndex() < 0 || selectedIndex() >= listCount()) return;
+  if (!CLIPPINGS.removeClippingAt(static_cast<size_t>(selectedIndex()))) {
+    LOG_ERR("CLIP", "Failed to delete clipping %d", static_cast<int>(selectedIndex()));
     return;
   }
   rebuildRows();
@@ -143,8 +135,8 @@ void EpubReaderClippingListActivity::deleteSelected() {
     finish();
     return;
   }
-  if (nav.selected >= listCount()) nav.selected = listCount() - 1;
-  nav.follow(listCount());
+  if (selectedIndex() >= listCount()) selectIndex(listCount() - 1);
+  selectIndex(selectedIndex());
 }
 
 bool EpubReaderClippingListActivity::handleCustomInput() {
@@ -157,54 +149,6 @@ bool EpubReaderClippingListActivity::handleCustomInput() {
   return false;
 }
 
-bool EpubReaderClippingListActivity::handleButtons() {
-  if (mappedInput.wasLongPressed(MappedInputManager::Button::Confirm, ENTER_DELETE_MODE_MS)) {
-    showDeleteConfirmation();
-    return true;
-  }
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    finish();
-    return true;
-  }
-  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    openSelected();
-    return true;
-  }
-  return false;
-}
-
-void EpubReaderClippingListActivity::buildScreen(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const Rect safe = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
-  screen.setContentMarginFromScreen(fui::Insets{
-      static_cast<int16_t>(safe.y + metrics.topPadding + metrics.headerHeight),
-      static_cast<int16_t>(renderer.getScreenWidth() - (safe.x + safe.width)),
-      static_cast<int16_t>(renderer.getScreenHeight() - (safe.y + safe.height)), static_cast<int16_t>(safe.x)});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-  if (listCount() == 0) {
-    screen.centeredText(tr(STR_NO_CLIPPINGS), screen.theme().bodyText);
-    return;
-  }
-
-  if (!mappedInput.hasTouch()) {
-    const int helpHeight = renderer.getLineHeight(UI_10_FONT_ID);
-    const fui::Rect band = screen.takeBottom(static_cast<int16_t>(helpHeight + metrics.verticalSpacing));
-    GUI.drawHelpText(renderer, Rect{band.x, band.y + metrics.verticalSpacing, band.width, helpHeight},
-                     tr(STR_HOLD_SELECT_TO_DELETE));
-  }
-
-  fui::ListProps props;
-  props.count = static_cast<uint16_t>(listCount());
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch | fui::InputLongPress;
-  syncListViewport(screen, props);
-  refreshRowWindow(nav.top);
-  props.items = rowItems.data();
-  props.itemsWindowFirst = static_cast<uint16_t>(windowStart);
-  props.itemsWindowCount = static_cast<uint16_t>(windowCount);
-  screen.list(props);
-}
-
 void EpubReaderClippingListActivity::render(RenderLock&& lock) {
   if (confirmPopup.processRender(renderer, mappedInput)) return;
   if (initialListRender && listCount() > 0) {
@@ -212,5 +156,9 @@ void EpubReaderClippingListActivity::render(RenderLock&& lock) {
     GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
   }
   initialListRender = false;
-  UiListActivity::render(std::move(lock));
+  renderList();
+}
+
+const ReaderChromeRow* EpubReaderClippingListActivity::rowAt(int index) const {
+  return index >= windowStart && index < windowStart + windowCount ? &rowItems[index - windowStart] : nullptr;
 }

@@ -5,7 +5,7 @@
 
 namespace FsHelpers {
 inline std::string decodeUriEscapes(const std::string& path) { return path; }
-inline std::string normalisePath(const std::string& path) { return path; }
+inline std::string normalisePath(std::string_view path) { return std::string(path); }
 inline bool hasTxtExtension(std::string_view name) { return name.ends_with(".txt"); }
 inline bool hasMarkdownExtension(std::string_view name) { return name.ends_with(".md"); }
 }  // namespace FsHelpers

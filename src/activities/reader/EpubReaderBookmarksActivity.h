@@ -6,11 +6,11 @@
 #include <vector>
 
 #include "../../BookmarkEntry.h"
-#include "activities/UiListActivity.h"
+#include "ReaderChromeListActivity.h"
 #include "components/OptionPopup.h"
 
-class EpubReaderBookmarksActivity final : public UiListActivity {
-  // The list rides the UiListActivity scaffold (themed rows, touch routing);
+class EpubReaderBookmarksActivity final : public ReaderChromeListActivity {
+  // The list rides the ReaderChromeListActivity scaffold (themed rows, touch routing);
   // the title keeps its legacy draw, and OptionPopup keeps its legacy overlay
   // rendering for the delete confirmation.
   std::shared_ptr<Epub> epub;
@@ -21,7 +21,7 @@ class EpubReaderBookmarksActivity final : public UiListActivity {
   // used to re-compose a percentage/chapter/TOC-title subtitle string per
   // bookmark on every render (cursor move, tap flash, ...).
   std::vector<std::string> bookmarkSubtitles;
-  std::vector<freeink::ui::ListItem> bookmarkRowItems;
+  std::vector<ReaderChromeRow> bookmarkRowItems;
   void rebuildBookmarkRowItems();
   bool confirmingDelete = false;
   OptionPopup confirmPopup;
@@ -34,17 +34,20 @@ class EpubReaderBookmarksActivity final : public UiListActivity {
 
  private:
   int listCount() const override { return static_cast<int>(bookmarks.size()); }
-  void buildScreen(UiScreen& screen) override;
+  const ReaderChromeRow* rowAt(int index) const override;
+  const char* headerTitle() const override { return tr(STR_BOOKMARKS); }
+  const char* emptyText() const override { return tr(STR_NO_BOOKMARKS); }
+  const char* helpText() const override { return tr(STR_HOLD_OPEN_FOR_ACTIONS); }
+  void drawFooter() override;
   void activateIndex(int index) override;
   void onRowLongPress(int index) override;
 #if FREEINK_CAP_TOUCH
-  bool canSwipeDelete(int index) const override { return index >= 0 && index < listCount(); }
+
   void swipeDelete(int index) override;
 #endif
   // Popup handling runs before everything else each pass.
   bool handleCustomInput() override;
   // Back cancels with a result; Confirm opens on release and a hold shows actions.
-  bool handleButtons() override;
 
   // Open the selected bookmark: finishes with a ProgressChangeResult for the reader.
   void openSelectedBookmark();

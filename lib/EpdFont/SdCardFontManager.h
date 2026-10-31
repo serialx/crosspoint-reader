@@ -1,5 +1,7 @@
 #pragma once
 
+#include <xp_ffi.h>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -57,12 +59,8 @@ class SdCardFontManager {
     int fontId;
     uint8_t size;
   };
-  static int computeFontId(uint32_t contentHash, const char* familyName, uint8_t pointSize);
-
-  // Load+register one .cpfont of `family` and append it to loaded_.
-  // Returns the font id, or 0 on failure (allocation, read, or id collision).
-  int loadFile(const SdCardFontFamilyInfo& family, const SdCardFontFileInfo& file, GfxRenderer& renderer,
-               int fontIdOverride = 0);
+  struct Call;
+  static XpFontManagerServices services(Call*);
 
   std::string loadedFamilyName_;
   uint8_t loadedPointSize_ = 0;

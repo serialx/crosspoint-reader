@@ -1,0 +1,18 @@
+[package]
+name = "xp-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+package-trace = []
+chapter-trace = []
+chapter-test = []
+strip-spike = []
+reader-strips = ["strip-spike"]
+
+[dependencies]
+embedded-graphics-core.workspace = true
+miniz_oxide = { path = "src/inflate/miniz" }
+xp-gif = { path = "src/gif/decoder" }
+lexical-parse-float = { path = "../../vendor/lexical-parse-float-1.0.6", version = "=1.0.6", default-features = false, features = ["compact"] }

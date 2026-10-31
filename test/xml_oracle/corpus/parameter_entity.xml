@@ -1,0 +1,1 @@
+<!DOCTYPE r [<!ENTITY % p SYSTEM "not-read">%p;]><r a="x&nbsp;y">&nbsp;</r>

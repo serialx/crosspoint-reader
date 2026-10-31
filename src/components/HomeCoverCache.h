@@ -4,8 +4,8 @@
 #include <FreeInkUICore.h>
 #include <HalMemory.h>
 #include <HalStorage.h>
+#include <xp_ui_home.h>
 
-#include <array>
 #include <string>
 
 class GfxRenderer;
@@ -22,17 +22,8 @@ class HomeCoverCache {
   bool paint(freeink::ui::Rect rect, size_t index, const std::string& path);
 
  private:
-  struct CachedCover {
-    freeink::ui::Rect rect{};
-    size_t offset = 0;
-    size_t bytes = 0;
-    bool valid = false;
-  };
   HalMemory::PsramBuffer coverCache;
-  std::array<CachedCover, MAX_COVERS> cachedCovers{};
-  size_t coverCacheCapacity = 0;
-  size_t coverCacheUsed = 0;
-  int coverCacheOrientation = -1;
+  XpUiHomeCache cacheState{};
 
   HalFile coverFile;
   Bitmap coverBitmap{coverFile};

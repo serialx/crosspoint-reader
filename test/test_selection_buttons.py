@@ -3,6 +3,7 @@
 from pathlib import Path
 import subprocess
 import tempfile
+from rust_host import rust_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / "src/activities/reader/ClipSelectionActivity.cpp").read_text()
@@ -12,16 +13,15 @@ shared = (ROOT / "src/util/WordSelectionInput.h").read_text()
 helpers = "class WordSelectionInput" + shared.split("class WordSelectionInput", 1)[1] + "\nusing Input = WordSelectionInput;\n"
 method = "void ClipSelectionActivity::loopButtons()" + source.split(
     "void ClipSelectionActivity::loopButtons()", 1
-)[1].split("void ClipSelectionActivity::loop()", 1)[0]
-members = "std::array<uint8_t, 16> pendingButtons" + header.split(
-    "std::array<uint8_t, 16> pendingButtons", 1
-)[1].split("  int fontId", 1)[0]
+)[1].split("void ClipSelectionActivity::drainRejectedTouch()", 1)[0]
+members = "XpUiSelectionState state{};\n"
 harness = r"""
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <xp_ui_dictionary.h>
 uint32_t clockMs = 0;
 uint32_t millis() { return clockMs; }
 int overflows = 0;
@@ -39,8 +39,22 @@ struct MappedInputManager {
   bool wasReleased(Button b) const { return released & (1 << static_cast<int>(b)); }
   bool isPressed(Button b) const { return held & (1 << static_cast<int>(b)); }
 };
+struct ModelLock { template<typename T> explicit ModelLock(T&) {} };
+XpUiInput dictionaryUiInput(const MappedInputManager& input) {
+  XpUiInput result{}; result.now_ms = clockMs;
+  constexpr unsigned bits[] = {XP_UI_SCREEN_LEFT, XP_UI_SCREEN_RIGHT, XP_UI_SCREEN_UP, XP_UI_SCREEN_DOWN,
+                               XP_UI_CONFIRM, XP_UI_BACK, XP_UI_NAV_PREVIOUS, XP_UI_NAV_NEXT};
+  for (int i = 0; i < 8; ++i) {
+    if (input.pressed & (1 << i)) result.pressed |= bits[i];
+    if (input.released & (1 << i)) result.released |= bits[i];
+    if (input.held & (1 << i)) result.held |= bits[i];
+  }
+  return result;
+}
 """ + helpers + r"""
 struct ClipSelectionActivity {
+  bool rustSceneRejected() const { return false; }
+  bool consumeRejectedInput() { return false; }
   MappedInputManager mappedInput;
   int selected = 5, confirmed = -1;
   bool handleButtons(uint8_t buttons) {
@@ -65,24 +79,24 @@ int main() {
   poll(180, 0, 0, Input::INPUT_CONFIRM);
   poll(220, Input::INPUT_LEFT, Input::INPUT_LEFT);
   poll(250, 0, 0);
-  assert(activity.selected == 5 && activity.pendingButtonCount == 4);
+  assert(activity.selected == 5 && activity.state.pending_count == 4);
   RenderLock::busy = false;
   poll(700, 0, 0);
   assert(activity.selected == 7 && activity.confirmed == 7);
-  assert(activity.pendingButtonCount == 1);
+  assert(activity.state.pending_count == 1);
   poll(710, 0, 0);
-  assert(activity.selected == 6 && activity.pendingButtonCount == 0);
+  assert(activity.selected == 6 && activity.state.pending_count == 0);
   // Hold repeats are captured during refresh, then stop upon release.
   RenderLock::busy = true;
   poll(1000, Input::INPUT_RIGHT, Input::INPUT_RIGHT);
   poll(1499, 0, Input::INPUT_RIGHT);
-  assert(activity.pendingButtonCount == 1);
+  assert(activity.state.pending_count == 1);
   poll(1500, 0, Input::INPUT_RIGHT);
   poll(2000, 0, Input::INPUT_RIGHT);
   poll(2010, 0, 0);
   RenderLock::busy = false;
   poll(3000, 0, 0);
-  assert(activity.selected == 9 && activity.pendingButtonCount == 0);
+  assert(activity.selected == 9 && activity.state.pending_count == 0);
   // A new press resets the repeat delay; unsigned elapsed time survives wrap.
   poll(UINT32_MAX - 100, Input::INPUT_LEFT, Input::INPUT_LEFT);
   poll(398, 0, Input::INPUT_LEFT);
@@ -93,16 +107,16 @@ int main() {
   // Overflow preserves the queued prefix and reports failure instead of overwriting it.
   RenderLock::busy = true;
   for (int i = 0; i < 17; ++i) poll(500 + i, Input::INPUT_RIGHT, 0);
-  assert(activity.pendingButtonCount == 16 && overflows == 1);
+  assert(activity.state.pending_count == 16 && overflows == 1);
   RenderLock::busy = false;
   poll(600, 0, 0);
-  assert(activity.selected == 23 && activity.pendingButtonCount == 0);
+  assert(activity.selected == 23 && activity.state.pending_count == 0);
 }
 """
 # Exercise the empty selector's production popup path, including dismissal without a callback.
 loop_prefix = "void ClipSelectionActivity::loop() {" + source.split(
     "void ClipSelectionActivity::loop() {", 1
-)[1].split("  int touchX = 0;", 1)[0] + "}\n"
+)[1].split("  XpUiSelectionInput input{};", 1)[0] + "}\n"
 popup_source = (ROOT / "src/components/OptionPopup.h").read_text()
 popup_buttons = "  bool handleButtons(" + popup_source.split("  bool handleButtons(", 1)[1].split(
     "  bool processRender(", 1
@@ -114,8 +128,10 @@ popup_harness = r"""
 #include <functional>
 #include <vector>
 struct RenderLock { ~RenderLock() {} };
+struct ModelLock { template<typename T> explicit ModelLock(T&) {} };
 struct Input { bool touch = false, back = false, confirm = false, outsideTap = false;
   bool hasTouch() const { return touch; }
+  bool isScreenTouchHeld(int&, int&) const { return false; }
 };
 struct Popup {
   static constexpr int MAX_OPTIONS = 16;
@@ -132,6 +148,9 @@ struct Popup {
   }
 };
 struct ClipSelectionActivity {
+  bool consumeRejectedInput() { return false; }
+  bool rustSceneRejected() const { return false; }
+  struct { int ignore_touch=0; } state;
   size_t wordCount = 0;  // extractWords() could not allocate its array.
   Popup actionPopup;
   Input mappedInput;
@@ -141,9 +160,10 @@ struct ClipSelectionActivity {
   void loopButtons() {
     actionPopup.handleButtons(false, false, mappedInput.confirm, mappedInput.back, [this] { requestUpdate(); });
   }
+  void drainRejectedTouch();
   void loop();
 };
-""" + loop_prefix + r"""
+""" + "void ClipSelectionActivity::drainRejectedTouch()" + source.split("void ClipSelectionActivity::drainRejectedTouch()", 1)[1].split("void ClipSelectionActivity::loop()", 1)[0] + loop_prefix + r"""
 int main() {
   for (const bool touch : {false, true}) {
     ClipSelectionActivity selection;
@@ -177,9 +197,9 @@ with tempfile.TemporaryDirectory() as directory:
     cpp = Path(directory) / "selection.cpp"
     executable = Path(directory) / "selection"
     cpp.write_text(harness)
-    subprocess.run(["c++", "-std=c++20", str(cpp), "-o", str(executable)], check=True)
+    subprocess.run(["c++", "-std=c++20", str(cpp), *rust_link_flags(), "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)
     cpp.write_text(popup_harness)
-    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", str(cpp), "-o", str(executable)], check=True)
+    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", str(cpp), *rust_link_flags(), "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)
 print("Selection button and popup regression checks passed")

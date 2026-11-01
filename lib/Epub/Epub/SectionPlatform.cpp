@@ -827,13 +827,6 @@ bool Section::commitBuildFile(const uint8_t version, const uint32_t bytesConsume
   return xp_book_section_commit(&io, &records, version, control_.built_pages, bytesConsumed, totalBytes);
 }
 
-bool Section::finalizeBuild() {
-  PolicyContext context{*this};
-  const auto services = context.services();
-  const auto borrowed = state();
-  return xp_book_section_transition(&services, &borrowed, XP_BOOK_SECTION_FINISH, 0);
-}
-
 void Section::suspendBuild() {
   PolicyContext context{*this};
   const auto services = context.services();

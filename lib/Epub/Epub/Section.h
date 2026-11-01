@@ -61,7 +61,6 @@ class Section {
   std::unique_ptr<BuildContext> build_;
   XpBookSectionControl control_{};
   XpBookSectionState state() const;
-  bool finalizeBuild();
   // Write the LUTs/anchor map (and, for a partial, the watermark trailer), patch the
   // header, stamp the version byte, and swap the tmp .bin over filePath.
   bool commitBuildFile(uint8_t version, uint32_t bytesConsumed, uint32_t totalBytes);

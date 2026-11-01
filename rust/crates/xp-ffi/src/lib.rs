@@ -1,5 +1,7 @@
 #![no_std]
 
+mod app;
+
 #[cfg(feature = "display-api")]
 mod display;
 

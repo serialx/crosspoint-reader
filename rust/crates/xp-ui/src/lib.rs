@@ -1,6 +1,7 @@
 #![no_std]
 
 //! Bounded scenes. Owners lend storage; a failed build never becomes paintable.
+pub mod app;
 pub mod draw;
 pub mod scene;
 

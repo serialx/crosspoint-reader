@@ -331,6 +331,7 @@ impl HomeState {
     }
 }
 
+pub mod activity;
 pub mod cache;
 pub mod ffi;
 pub mod file;

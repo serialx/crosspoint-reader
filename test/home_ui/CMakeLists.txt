@@ -14,3 +14,8 @@ add_test(NAME home_ui_facade_routes COMMAND ${CMAKE_COMMAND} -E env
 
 add_test(NAME home_app_owners COMMAND cargo test --manifest-path
   ${CMAKE_CURRENT_SOURCE_DIR}/app_owner/Cargo.toml --locked)
+
+add_test(NAME home_app_factory COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/app_bridge.py ${XP_FFI_HOST_ARCHIVE} factory)
+add_test(NAME app_result_slots COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/app_bridge.py ${XP_FFI_HOST_ARCHIVE} results)

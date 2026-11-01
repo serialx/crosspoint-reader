@@ -8,7 +8,7 @@ source = (ROOT / "src/main.cpp").read_text()
 start = source.index("void mappedSnapshot(")
 body = source[start:source.index("\nconst XpAppRuntime& appRuntime()", start)]
 manager = (ROOT / "src/activities/ActivityManager.cpp").read_text()
-facts = manager.split(".facts = ", 1)[1].split(",\n      .take_result", 1)[0]
+facts = manager.split(".facts = ", 1)[1].split(",\n      .with_result", 1)[0]
 helpers = 'struct OwnedLegacyActivity' + manager.split('struct OwnedLegacyActivity', 1)[1].split('XpAppText text', 1)[0]
 settings = source.split('.loop_settings =', 1)[1].split(',\n      .display_geometry', 1)[0]
 harness = r'''

@@ -110,10 +110,10 @@ impl Services<Owner> for Host<'_> {
         assert!(self.app.current().is_some() || self.app.parent_count() != 0);
         self.record(Event::Exit(target));
     }
-    fn take_result(&self, target: u8) -> u8 {
+    fn with_result(&self, target: u8, consume: impl FnOnce(u8)) {
         assert!(self.locked.get());
         self.record(Event::Result(target));
-        target
+        consume(target);
     }
     fn deliver_result(&self, parent: u8, result: u8) {
         assert!(!self.locked.get());

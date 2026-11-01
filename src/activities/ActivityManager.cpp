@@ -17,7 +17,6 @@
 #include "HapticFeedback.h"
 #include "OpdsServerStore.h"
 #include "RustAppResources.h"
-#include "RustAppResult.h"
 #include "boot_sleep/BootActivity.h"
 #include "boot_sleep/SleepActivity.h"
 #include "browser/OpdsBookBrowserActivity.h"
@@ -185,16 +184,25 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
                 static_cast<uint8_t>(delay && activity->skipLoopDelay()),
                 static_cast<uint8_t>(input && owner.reader && static_cast<ReaderActivity*>(activity)->inputOverPage())};
       },
-      .take_result = [](void* activity, XpAppResultSink sink, void* context) -> uint8_t {
-        const auto view = rustAppResultView(nativeActivity(activity)->result);
-        return sink(context, &view);
-      },
+      .with_result =
+          [](void* activity, XpAppResultSink sink, void* context) {
+            static_assert(std::is_nothrow_move_constructible_v<ActivityResult>);
+            // The continuation destroys the child before delivering this stack-owned result.
+            auto result = std::move(nativeActivity(activity)->result);
+            sink(context, &result);
+          },
       .deliver_result =
-          [](void* parent, const XpAppResultView* view) {
+          [](void* parent, const void* result) {
             auto* activity = nativeActivity(parent);
             auto handler = std::move(activity->resultHandler);
             activity->resultHandler = nullptr;
-            if (handler) handler(nativeAppResult(*view));
+            if (handler) {
+              if (result) {
+                handler(*static_cast<const ActivityResult*>(result));
+              } else {
+                handler(ActivityResult{});
+              }
+            }
           },
       .prepare_sleep = [](void* activity) { nativeActivity(activity)->prepareForSleep(); },
       .home_gesture = [](void* activity) -> uint8_t { return nativeActivity(activity)->handleHomeGesture(); },

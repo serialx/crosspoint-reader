@@ -113,69 +113,9 @@ typedef struct {
   } value;
 } XpAppEvent;
 
-// Result tags follow semantic variants, not std::variant's object layout.
-typedef uint8_t XpAppResultKind;
-enum {
-  XP_APP_RESULT_NONE,
-  XP_APP_RESULT_WIFI,
-  XP_APP_RESULT_KEYBOARD,
-  XP_APP_RESULT_MENU,
-  XP_APP_RESULT_CHAPTER,
-  XP_APP_RESULT_PERCENT,
-  XP_APP_RESULT_INTERVAL,
-  XP_APP_RESULT_PAGE,
-  XP_APP_RESULT_CLIPPING,
-  XP_APP_RESULT_PROGRESS,
-  XP_APP_RESULT_NETWORK_MODE,
-  XP_APP_RESULT_FOOTNOTE,
-  XP_APP_RESULT_FILE_PATH,
-  XP_APP_RESULT_TRANSFER_FAILED
-};
-typedef struct {
-  XpAppText ssid, ip;
-  uint8_t connected;
-} XpAppWifiResult;
-typedef struct {
-  int32_t action;
-  uint8_t orientation, page_turn;
-} XpAppMenuResult;
-typedef struct {
-  XpAppText anchor;
-  int32_t spine;
-} XpAppChapterResult;
-typedef struct {
-  XpAppText text;
-  uint32_t start_offset, end_offset;
-  uint16_t start_page, end_page, start_word, end_word, word_count;
-  uint8_t action;
-} XpAppClippingResult;
-typedef struct {
-  XpAppText xpath;
-  int32_t spine, page, total_pages;
-  float percentage;
-  uint32_t visible_offset;
-  uint8_t saved, has_visible_offset;
-} XpAppProgressResult;
-typedef struct {
-  XpAppResultKind kind;
-  uint8_t cancelled;
-  union {
-    XpAppWifiResult wifi;
-    XpAppText keyboard;
-    XpAppMenuResult menu;
-    XpAppChapterResult chapter;
-    int32_t percent;
-    uint32_t interval;
-    uint32_t page;
-    XpAppClippingResult clipping;
-    XpAppProgressResult progress;
-    int32_t network_mode;
-    XpAppText footnote;
-    XpAppText file_path;
-    XpAppResultKind failed_kind;
-  } value;
-} XpAppResultView;
-typedef uint8_t (*XpAppResultSink)(void* context, const XpAppResultView* result);
+// The native result slot is borrowed only during this synchronous continuation.
+// It must run exactly once; it may destroy the child and enqueue navigation.
+typedef void (*XpAppResultSink)(void* context, const void* result);
 typedef struct {
   uint8_t reader_type;
   char title[64];
@@ -203,8 +143,8 @@ typedef struct {
   void (*exit)(void* activity);
   void (*render)(void* activity, XpAppRenderToken* token);
   XpAppLegacyFacts (*facts)(const void* activity, uint8_t delay, uint8_t input);
-  uint8_t (*take_result)(void* activity, XpAppResultSink sink, void* context);
-  void (*deliver_result)(void* parent, const XpAppResultView* result);
+  void (*with_result)(void* activity, XpAppResultSink sink, void* context);
+  void (*deliver_result)(void* parent, const void* result);
   void (*prepare_sleep)(void* activity);
   uint8_t (*home_gesture)(void* activity);
   uint8_t (*forced_refresh)(void* activity);
@@ -377,8 +317,6 @@ static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
 static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void*));
 static_assert(sizeof(XpAppPlatform) == 3 * sizeof(void*));
 static_assert(offsetof(XpAppEvent, kind) == 0);
-static_assert(offsetof(XpAppResultView, kind) == 0);
-static_assert(offsetof(XpAppResultView, cancelled) == 1);
 static_assert(sizeof(XpAppSettings) == 28);
 static_assert(sizeof(XpAppDisplayGeometry) == 16);
 static_assert(sizeof(XpAppBleScene) == 8);

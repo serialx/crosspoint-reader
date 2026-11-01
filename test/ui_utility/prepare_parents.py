@@ -38,10 +38,9 @@ effects='\n'.join(method(p,sig) for p,sig in [
  ('src/MappedInputManager.cpp','bool MappedInputManager::consumeSuppressedRelease(')])
 s=s.replace('// PRODUCTION_EFFECTS',effects)
 manager=(repo/'src/activities/ActivityManager.cpp').read_text()
-delivery=method('src/activities/ActivityManager.cpp', '[](void* parent, const XpAppResultView* view)')
-bridge=(repo/'src/activities/RustAppResult.cpp').read_text().replace('#include "RustAppResult.h"', '')
+delivery=method('src/activities/ActivityManager.cpp', '[](void* parent, const void* result)')
 owner = 'struct OwnedLegacyActivity' + manager.split('struct OwnedLegacyActivity', 1)[1].split('std::unique_ptr<OwnedLegacyActivity> ownLegacy', 1)[0]
 unwrap = method('src/activities/ActivityManager.cpp', 'Activity* nativeActivity(')
-s=s.replace('// RESULT_BRIDGE', bridge + '\n' + owner + unwrap)
-s=s.replace('// PRODUCTION_DELIVERY', 'const auto view = rustAppResultView(pendingResult);\n  auto callback = ' + delivery + ';\n  OwnedLegacyActivity owner{std::unique_ptr<Activity>(currentActivity)};\n  callback(&owner, &view);\n  owner.activity.release();')
+s=s.replace('// RESULT_BRIDGE', owner + unwrap)
+s=s.replace('// PRODUCTION_DELIVERY', 'auto callback = ' + delivery + ';\n  OwnedLegacyActivity owner{std::unique_ptr<Activity>(currentActivity)};\n  callback(&owner, &pendingResult);\n  owner.activity.release();')
 (out/'parents.cpp').write_text(s)

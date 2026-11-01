@@ -100,10 +100,7 @@ class ActivityManager {
       facts.prevent_sleep = activity->preventAutoSleep();
       return facts;
     };
-    legacy.take_result = [](void*, XpAppResultSink sink, void* context) -> uint8_t {
-      XpAppResultView result{};
-      return sink(context, &result);
-    };
+    legacy.with_result = [](void*, XpAppResultSink sink, void* context) { sink(context, nullptr); };
     legacy.home_gesture = [](void* object) -> uint8_t { return nativeActivity(object)->handleHomeGesture(); };
     runtime.input_mapped_snapshot = [](uint8_t, uint8_t full, uint8_t, XpAppMappedSnapshot* snapshot) {
       *snapshot = {};

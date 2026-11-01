@@ -24,7 +24,6 @@ use sync::ModelCell;
 use xp_ui::{
     app::{
         input::{Feedback, HomeAction, HomeBindings, HomeContact, HomeInput},
-        result::OwnedResult,
         Activity, Application, Services, Transition, TransitionKind,
     },
     home::activity::InputResult,
@@ -464,7 +463,7 @@ fn image_path(path: &[u8]) -> bool {
 
 impl Services<Owner> for App {
     type RenderGuard = RenderGuard;
-    type Result = OwnedResult;
+    type Result = *const c_void;
     fn render_lock(&self) -> RenderGuard {
         RenderGuard {
             token: unsafe { (self.runtime.render_lock)() },
@@ -495,32 +494,33 @@ impl Services<Owner> for App {
             Target::Legacy(target) => unsafe { (self.legacy.exit)(target.as_ptr()) },
         }
     }
-    fn take_result(&self, target: Target) -> OwnedResult {
-        match target {
-            Target::Home(_) => xp_ui::app::result::ActivityResult {
-                cancelled: false,
-                data: xp_ui::app::result::Data::None,
-            },
-            Target::Legacy(target) => {
-                let mut transfer = result::Transfer::new();
-                let accepted = unsafe {
-                    (self.legacy.take_result)(
-                        target.as_ptr(),
-                        result::Transfer::receive,
-                        (&mut transfer as *mut result::Transfer).cast(),
-                    )
-                } != 0;
-                let (result, failure) = transfer.finish(accepted);
-                if let Some(kind) = failure {
-                    unsafe { (self.runtime.diagnostic)(10, kind.into(), 0) };
-                }
-                result
+    fn with_result(&self, target: Target, consume: impl FnOnce(*const c_void)) {
+        unsafe extern "C" fn receive<F: FnOnce(*const c_void)>(
+            context: *mut c_void,
+            result: *const c_void,
+        ) {
+            let consume = unsafe { &mut *context.cast::<Option<F>>() };
+            consume.take().expect("result continuation called twice")(result);
+        }
+        fn invoke<F: FnOnce(*const c_void)>(app: &App, target: NonNull<c_void>, consume: F) {
+            let mut consume = Some(consume);
+            unsafe {
+                (app.legacy.with_result)(
+                    target.as_ptr(),
+                    receive::<F>,
+                    (&mut consume as *mut Option<F>).cast(),
+                );
             }
+            assert!(consume.is_none(), "missing result continuation");
+        }
+        match target {
+            Target::Home(_) => consume(core::ptr::null()),
+            Target::Legacy(target) => invoke(self, target, consume),
         }
     }
-    fn deliver_result(&self, parent: Target, result: OwnedResult) {
+    fn deliver_result(&self, parent: Target, result: *const c_void) {
         if let Target::Legacy(parent) = parent {
-            unsafe { (self.legacy.deliver_result)(parent.as_ptr(), &result::view(&result)) };
+            unsafe { (self.legacy.deliver_result)(parent.as_ptr(), result) };
         }
     }
     fn home(&self) -> Option<Owner> {

@@ -55,7 +55,7 @@ pub trait Services<A: Activity> {
     fn clear_header(&self);
     fn enter(&self, target: A::Target);
     fn exit(&self, target: A::Target);
-    fn take_result(&self, target: A::Target) -> Self::Result;
+    fn with_result(&self, target: A::Target, consume: impl FnOnce(Self::Result));
     fn deliver_result(&self, parent: A::Target, result: Self::Result);
     fn home(&self) -> Option<A>;
     fn request_update(&self);
@@ -180,24 +180,25 @@ impl<A: Activity> Application<A> {
             return;
         };
         let visit = self.next_visit();
-        let result = services.take_result(target);
-        self.exit_current(services);
-        let parent = {
-            let mut navigation = self.navigation.borrow_mut();
-            navigation.current = navigation.parents.pop();
-            navigation.current.as_ref().map(A::target)
-        };
-        services.publish(parent, visit);
-        drop(guard);
-        if let Some(parent) = parent {
-            services.deliver_result(parent, result);
-            if self.pending_kind() == TransitionKind::None {
-                services.request_update();
+        services.with_result(target, |result| {
+            self.exit_current(services);
+            let parent = {
+                let mut navigation = self.navigation.borrow_mut();
+                navigation.current = navigation.parents.pop();
+                navigation.current.as_ref().map(A::target)
+            };
+            services.publish(parent, visit);
+            drop(guard);
+            if let Some(parent) = parent {
+                services.deliver_result(parent, result);
+                if self.pending_kind() == TransitionKind::None {
+                    services.request_update();
+                }
+            } else if let Some(home) = services.home() {
+                // With no current screen, native goHome enters immediately at this visit.
+                self.replace(home, services);
             }
-        } else if let Some(home) = services.home() {
-            // With no current screen, native goHome enters immediately at this visit.
-            self.replace(home, services);
-        }
+        });
     }
 
     fn install(&self, activity: A, push: bool, services: &impl Services<A>) {

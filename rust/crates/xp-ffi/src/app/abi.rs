@@ -159,84 +159,7 @@ pub struct Event {
     pub value: EventValue,
 }
 
-pub type ResultKind = u8;
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct WifiResult {
-    pub ssid: Text,
-    pub ip: Text,
-    pub connected: u8,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct MenuResult {
-    pub action: i32,
-    pub orientation: u8,
-    pub page_turn: u8,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ChapterResult {
-    pub anchor: Text,
-    pub spine: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ClippingResult {
-    pub text: Text,
-    pub start_offset: u32,
-    pub end_offset: u32,
-    pub start_page: u16,
-    pub end_page: u16,
-    pub start_word: u16,
-    pub end_word: u16,
-    pub word_count: u16,
-    pub action: u8,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ProgressResult {
-    pub xpath: Text,
-    pub spine: i32,
-    pub page: i32,
-    pub total_pages: i32,
-    pub percentage: f32,
-    pub visible_offset: u32,
-    pub saved: u8,
-    pub has_visible_offset: u8,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub union ResultViewValue {
-    pub wifi: WifiResult,
-    pub keyboard: Text,
-    pub menu: MenuResult,
-    pub chapter: ChapterResult,
-    pub percent: i32,
-    pub interval: u32,
-    pub page: u32,
-    pub clipping: ClippingResult,
-    pub progress: ProgressResult,
-    pub network_mode: i32,
-    pub footnote: Text,
-    pub file_path: Text,
-    pub failed_kind: ResultKind,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ResultView {
-    pub kind: ResultKind,
-    pub cancelled: u8,
-    pub value: ResultViewValue,
-}
-
-pub type ResultSink = unsafe extern "C" fn(*mut core::ffi::c_void, *const ResultView) -> u8;
+pub type ResultSink = unsafe extern "C" fn(*mut core::ffi::c_void, *const core::ffi::c_void);
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Screenshot {
@@ -292,9 +215,9 @@ pub struct Legacy {
     pub exit: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub render: unsafe extern "C" fn(*mut core::ffi::c_void, *mut RenderToken),
     pub facts: unsafe extern "C" fn(*const core::ffi::c_void, u8, u8) -> LegacyFacts,
-    pub take_result:
-        unsafe extern "C" fn(*mut core::ffi::c_void, ResultSink, *mut core::ffi::c_void) -> u8,
-    pub deliver_result: unsafe extern "C" fn(*mut core::ffi::c_void, *const ResultView),
+    pub with_result:
+        unsafe extern "C" fn(*mut core::ffi::c_void, ResultSink, *mut core::ffi::c_void),
+    pub deliver_result: unsafe extern "C" fn(*mut core::ffi::c_void, *const core::ffi::c_void),
     pub prepare_sleep: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub home_gesture: unsafe extern "C" fn(*mut core::ffi::c_void) -> u8,
     pub forced_refresh: unsafe extern "C" fn(*mut core::ffi::c_void) -> u8,
@@ -588,20 +511,6 @@ pub const FORCED_REFRESH: u8 = 11;
 pub const INPUT_POLLED: u8 = 12;
 pub const RESET_HOME_INPUT: u8 = 13;
 pub const BOOT_INPUT_STATE: u8 = 14;
-pub const RESULT_NONE: u8 = 0;
-pub const RESULT_WIFI: u8 = 1;
-pub const RESULT_KEYBOARD: u8 = 2;
-pub const RESULT_MENU: u8 = 3;
-pub const RESULT_CHAPTER: u8 = 4;
-pub const RESULT_PERCENT: u8 = 5;
-pub const RESULT_INTERVAL: u8 = 6;
-pub const RESULT_PAGE: u8 = 7;
-pub const RESULT_CLIPPING: u8 = 8;
-pub const RESULT_PROGRESS: u8 = 9;
-pub const RESULT_NETWORK_MODE: u8 = 10;
-pub const RESULT_FOOTNOTE: u8 = 11;
-pub const RESULT_FILE_PATH: u8 = 12;
-pub const RESULT_TRANSFER_FAILED: u8 = 13;
 pub const MEMORY_DEFAULT: u8 = 0;
 pub const MEMORY_PSRAM_ONLY: u8 = 1;
 pub const BOOK_REFLOWABLE: u8 = 0;

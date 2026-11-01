@@ -147,7 +147,6 @@ class SdCardFont {
     uint32_t uniqueGlyphs = 0;
     uint32_t bitmapBytes = 0;
   };
-  void logStats(const char* label = "SDCF");
   void resetStats();
   const Stats& getStats() const { return stats_; }
 

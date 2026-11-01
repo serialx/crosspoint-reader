@@ -32,7 +32,6 @@ class FontDecompressor {
   uint32_t pageSlotViewCount() const { return cache.pageSlotCount; }
 
   using Stats = XpFontCacheStats;
-  void logStats(const char* label = "FDC");
   void resetStats();
   const Stats& getStats() const { return cache.stats; }
 

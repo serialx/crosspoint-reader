@@ -84,17 +84,3 @@ int FontDecompressor::prewarmCache(const EpdFontData* fontData, const char* utf8
                                utf8Text ? strlen(utf8Text) : 0, &io);
 }
 void FontDecompressor::resetStats() { cache.stats = {}; }
-void FontDecompressor::logStats(const char* label) {
-  const uint32_t total = cache.stats.cacheHits + cache.stats.cacheMisses;
-  LOG_DBG("FDC", "[%s] hits=%lu misses=%lu (%.1f%% hit rate)", label, cache.stats.cacheHits, cache.stats.cacheMisses,
-          total > 0 ? 100.0f * cache.stats.cacheHits / total : 0.0f);
-  LOG_DBG("FDC", "[%s] decompress=%lums groups_accessed=%u", label, cache.stats.decompressTimeMs,
-          cache.stats.uniqueGroupsAccessed);
-  LOG_DBG("FDC", "[%s] mem: pageBuf=%lu pageGlyphs=%lu hotGroup=%lu peakTemp=%lu", label, cache.stats.pageBufferBytes,
-          cache.stats.pageGlyphsBytes, cache.stats.hotGroupBytes, cache.stats.peakTempBytes);
-  if (cache.stats.getBitmapCalls > 0) {
-    LOG_DBG("FDC", "[%s] getBitmap: %lu calls, %luus total, %luus/call avg", label, cache.stats.getBitmapCalls,
-            cache.stats.getBitmapTimeUs, cache.stats.getBitmapTimeUs / cache.stats.getBitmapCalls);
-  }
-  resetStats();
-}

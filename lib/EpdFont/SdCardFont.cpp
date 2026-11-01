@@ -529,11 +529,6 @@ int SdCardFont::buildAdvanceTable(const char* utf8Text, uint8_t styleMask, const
 
 // --- Stats ---
 
-void SdCardFont::logStats(const char* label) {
-  LOG_DBG("SDCF", "[%s] total=%ums sd_read=%ums seeks=%u glyphs=%u bitmap=%u bytes", label, stats_.prewarmTotalMs,
-          stats_.sdReadTimeMs, stats_.seekCount, stats_.uniqueGlyphs, stats_.bitmapBytes);
-}
-
 void SdCardFont::resetStats() { stats_ = Stats{}; }
 
 // --- Public accessors ---

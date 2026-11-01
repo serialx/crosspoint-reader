@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 
 pub mod input;
-pub mod result;
+// Result payloads stay with their producers and consumers through Services.
 
 /// A small, stable dispatch target. Copying a target does not transfer ownership.
 pub trait Activity {

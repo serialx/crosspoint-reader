@@ -38,8 +38,3 @@ void ImageToFramebufferDecoder::yieldDuringDecode(uint32_t& lastYieldMs) {
     vTaskDelay(1);
   }
 }
-
-void ImageToFramebufferDecoder::warnUnsupportedFeature(const std::string& feature, const std::string& imagePath) {
-  LOG_ERR("IMG", "Warning: Unsupported feature '%s' in image '%s'. Image may not display correctly.", feature.c_str(),
-          imagePath.c_str());
-}

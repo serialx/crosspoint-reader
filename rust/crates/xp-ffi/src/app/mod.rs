@@ -322,7 +322,8 @@ impl App {
     }
 
     fn activity_loop(&self) {
-        let frame = self.snapshot(false, true, true);
+        let full_buttons = matches!(self.navigation.current(), Some(Target::Home(_)));
+        let frame = self.snapshot(false, full_buttons, true);
         if frame.suppressed_release != 0 {
             return;
         }

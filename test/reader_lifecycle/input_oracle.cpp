@@ -147,6 +147,9 @@ struct BackNavCallback {
 };
 }  // namespace ReaderUtils
 #include "input_methods.inc"
+#ifdef XP_INPUT_SESSION
+#include "input_session_rust.inc"
+#endif
 static void buttons() {
   using B = MappedInputManager::Button;
   constexpr B buttons[] = {B::Left, B::Right, B::PageBack, B::PageForward, B::Power};
@@ -171,7 +174,11 @@ static void buttons() {
                 input.held = input.released = input.pressed;
                 std::printf("buttons %d %d %d %d %d %d %d\n", behavior, mask, swap, tilt, home, power, time);
                 for (int call = 0; call < 2; ++call) {
+#ifdef XP_INPUT_SESSION
+                  auto r = ownerButtons(input);
+#else
                   auto r = ReaderUtils::detectPageTurn(input);
+#endif
                   std::printf("turn %d %d %d %u %u\n", r.prev, r.next, r.fromTilt, input.fired, input.suppressed);
                 }
               }
@@ -198,7 +205,11 @@ static void touch() {
                 input.menuGesture = point == 1;
                 input.menuSwipeUp = point == 2;
                 std::printf("touch-case %d %d %d %d %d %d %d\n", enabled, next, prev, swipe, rtl, menu, point);
+#ifdef XP_INPUT_SESSION
+                auto r = rtl ? ReaderUtils::detectTouchPageTurn(renderer, input, rtl) : ownerTouch(input);
+#else
                 auto r = ReaderUtils::detectTouchPageTurn(renderer, input, rtl);
+#endif
                 std::printf("touch-turn %d %d %lu %d\n", r.prev, r.next, r.heldMs, input.touchOverride);
                 const bool open = ReaderUtils::isTouchMenuGesture(renderer, input);
                 std::printf("menu-result %d %d\n", open, input.touchOverride);
@@ -223,6 +234,9 @@ static void back() {
         }
 }
 int main() {
+#ifdef XP_INPUT_SESSION
+  createInputOwner();
+#endif
   buttons();
   touch();
   back();
@@ -238,4 +252,7 @@ int main() {
       std::printf("chapter %d %d %d %d %08x\n", page, total, p.displayPage(), p.hasTotal(),
                   std::bit_cast<uint32_t>(p.chapterFraction()));
     }
+#ifdef XP_INPUT_SESSION
+  destroyInputOwner();
+#endif
 }

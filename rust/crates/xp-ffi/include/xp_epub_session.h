@@ -504,6 +504,7 @@ typedef struct XpEpubLeaves {
   int32_t (*font_text_advance)(XpAppText text, int32_t font, uint8_t style, int8_t character_spacing);
   uint8_t (*log_enabled)(uint8_t severity);
   void (*toolbar_reset_navigation)(void* toolbar, int32_t selected, int32_t top);
+  void (*input_snapshot)(XpUiInput* out);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -555,7 +556,7 @@ XP_EPUB_ASSERT(sizeof(XpEpubToolbarRow) == 2 * sizeof(XpAppText) + 8, "XpEpubToo
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, label_spaces) == 2 * sizeof(XpAppText), "XpEpubToolbarRow.label_spaces");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, toggle) == 2 * sizeof(XpAppText) + 4, "XpEpubToolbarRow.toggle");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, checked) == 2 * sizeof(XpAppText) + 5, "XpEpubToolbarRow.checked");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(resources_open, 0);
@@ -763,6 +764,7 @@ XP_EPUB_LEAF_OFFSET(page_line_ruby_shift, 201);
 XP_EPUB_LEAF_OFFSET(font_text_advance, 202);
 XP_EPUB_LEAF_OFFSET(log_enabled, 203);
 XP_EPUB_LEAF_OFFSET(toolbar_reset_navigation, 204);
+XP_EPUB_LEAF_OFFSET(input_snapshot, 205);
 #undef XP_EPUB_LEAF_OFFSET
 #undef XP_EPUB_ASSERT
 
@@ -803,6 +805,8 @@ _Static_assert(_Generic(((XpEpubLeaves*)0)->log_enabled, uint8_t (*)(uint8_t): 1
 #ifndef __cplusplus
 _Static_assert(_Generic(((XpEpubLeaves*)0)->toolbar_reset_navigation, void (*)(void*, int32_t, int32_t): 1, default: 0),
                "XpEpubLeaves.toolbar_reset_navigation signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->input_snapshot, void (*)(XpUiInput*): 1, default: 0),
+               "XpEpubLeaves.input_snapshot signature");
 #endif
 
 #ifndef __cplusplus

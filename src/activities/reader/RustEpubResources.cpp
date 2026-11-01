@@ -56,6 +56,7 @@
 #include "activities/settings/TextSettingsActivity.h"
 #include "clippings/ClippingsManager.h"
 #include "components/OptionPopup.h"
+#include "components/RustInputSnapshot.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/BookmarkFile.h"
@@ -1394,6 +1395,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
           [](void* handle, int32_t selected, int32_t top) {
             static_cast<ReaderToolbarUi*>(handle)->resetNavigation(selected, top);
           },
+      .input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); },
   };
   return leaves;
 }

@@ -811,6 +811,7 @@ pub struct XpEpubLeaves {
     pub log_enabled: unsafe extern "C" fn(severity: u8) -> u8,
     pub toolbar_reset_navigation:
         unsafe extern "C" fn(toolbar: *mut core::ffi::c_void, selected: i32, top: i32),
+    pub input_snapshot: unsafe extern "C" fn(out: *mut xp_ui::model::Input),
 }
 
 const _: () = {
@@ -832,7 +833,7 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 205 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 206 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
@@ -953,4 +954,14 @@ const _: () = {
         core::mem::offset_of!(XpEpubToolbarRow, checked)
             == 2 * core::mem::size_of::<XpAppText>() + 5
     );
+};
+
+const _: () = {
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, input_snapshot)
+            == 205 * core::mem::size_of::<unsafe extern "C" fn()>()
+    );
+};
+const _: fn(&XpEpubLeaves) = |leaves| {
+    let _: unsafe extern "C" fn(*mut xp_ui::model::Input) = leaves.input_snapshot;
 };

@@ -19,7 +19,7 @@ fn header(file: &File, magic: u32, interval: u32) -> Header {
         return out;
     }
     let mut words = [0; 6];
-    for (word, b) in words.iter_mut().zip(raw.chunks_exact(4)) {
+    for (word, b) in words.iter_mut().zip(raw.as_chunks::<4>().0.iter()) {
         *word = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
     }
     if words[0] != magic || words[1] != 2 || words[2] != interval {
@@ -183,7 +183,7 @@ pub unsafe extern "C" fn xp_dictionary_scan(
     }
     if ok {
         let mut raw = [0; 24];
-        for (dst, value) in raw.chunks_exact_mut(4).zip([
+        for (dst, value) in raw.as_chunks_mut::<4>().0.iter_mut().zip([
             magic,
             2,
             XP_DICTIONARY_SAMPLE_INTERVAL,

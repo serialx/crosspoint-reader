@@ -243,7 +243,7 @@ fn query(
                     io.log(Diagnostic::VisibleRead, 0, 0);
                     return None;
                 }
-                for (i, word) in bytes.chunks_exact(4).enumerate() {
+                for (i, word) in bytes.as_chunks::<4>().0.iter().enumerate() {
                     let (record, _) = section::decode(Kind::U32, word).ok()?;
                     last = record.values[0];
                     if last > index {

@@ -11,7 +11,8 @@ impl EpubSession {
         unsafe { services.execute.expect("reader renderer")(services.context, &operation) }
     }
 
-    pub(super) fn discard_overlay_page(&self) {
+    pub(super) fn discard_overlay_page(&self, access: &ResourceAccess<'_>) {
+        self.guarded(access);
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.settings_overrides {
             unsafe { (hook.discard)(hook.context) };
@@ -20,6 +21,7 @@ impl EpubSession {
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.lifetime_overrides {
             unsafe { (hook.discard_overlay)(hook.context) };
+            self.model(|state| state.page_stored = false);
             return;
         }
         if !self.model(|state| state.page_stored) {
@@ -30,6 +32,11 @@ impl EpubSession {
     }
 
     pub(super) fn push_overlay_refresh(&self, access: &ResourceAccess<'_>) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_hooks {
+            unsafe { (hooks.push)(hooks.context) };
+            return;
+        }
         let mut geometry = MaybeUninit::<abi::XpEpubGeometry>::uninit();
         unsafe { (self.leaves.render_geometry)(geometry.as_mut_ptr()) };
         let asynchronous = unsafe { geometry.assume_init() }.async_refresh != 0;

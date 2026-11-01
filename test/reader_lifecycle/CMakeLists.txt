@@ -47,6 +47,26 @@ foreach(mode blocked failed)
       ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_render_entry_gate.py --mode ${mode})
 endforeach()
 
+add_test(NAME reader_overlay_backup_concurrency
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_overlay_backup_concurrency.py)
+
+add_test(NAME reader_popup_concurrency
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_popup_concurrency.py)
+
+add_test(NAME reader_overlay_install_rejection
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_overlay_install_rejection.py)
+
+add_test(NAME reader_rejected_input_session
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_rejected_input_session.py)
+
+add_test(NAME reader_more_actions_session
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_more_actions_session.py)
+
 set(INPUT_METHODS ${CMAKE_CURRENT_BINARY_DIR}/input_methods.inc)
 add_custom_command(OUTPUT ${INPUT_METHODS}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_input.py ${REPO_ROOT} ${INPUT_METHODS}
@@ -58,6 +78,10 @@ target_link_libraries(ReaderInputOracle PRIVATE crosspoint_test_common)
 add_test(NAME reader_input_oracle
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
     $<TARGET_FILE:ReaderInputOracle> ${CMAKE_CURRENT_SOURCE_DIR}/input.golden.gz)
+
+add_test(NAME reader_base_input_wrappers
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_input_session.py $<TARGET_FILE:ReaderInputOracle>)
 
 add_executable(ReaderNavOracle nav_oracle.cpp)
 target_compile_definitions(ReaderNavOracle PRIVATE READER_NAV_RUST=1)

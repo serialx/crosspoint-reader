@@ -182,7 +182,10 @@ impl EpubSession {
 
     pub(super) fn apply_text_setting_live(&self) {
         self.apply_text_settings();
-        self.discard_overlay_page();
+        {
+            let access = self.lock_resources();
+            self.discard_overlay_page(&access);
+        }
         unsafe { (self.runtime.notify_render)() };
     }
 
@@ -203,7 +206,13 @@ impl EpubSession {
         (loaded != 0).then_some(sizes)
     }
 
-    fn show_text_choices(&self, title: u16, selected: i32, labels: Labels<'_>) {
+    fn show_text_choices(
+        &self,
+        access: &ResourceAccess<'_>,
+        title: u16,
+        selected: i32,
+        labels: Labels<'_>,
+    ) {
         let count = match labels {
             Labels::Sizes(rows) => rows.len(),
             Labels::Translated(rows) => rows.len(),
@@ -213,8 +222,11 @@ impl EpubSession {
             owner: self,
             labels,
         };
-        // The loop owns popup replacement; native render uses its publication gate.
-        let popup = unsafe { (*self.guarded.get()).overlay_popup.expect("overlay popup") };
+        let popup = unsafe {
+            (*self.guarded(access))
+                .overlay_popup
+                .expect("overlay popup")
+        };
         unsafe {
             (self.leaves.popup_show)(
                 popup.as_ptr(),
@@ -228,6 +240,16 @@ impl EpubSession {
                 (self as *const Self).cast_mut().cast(),
             );
         }
+    }
+
+    fn text_popup_access(&self) -> Option<ResourceAccess<'_>> {
+        let access = self.lock_resources();
+        if self.model(|state| state.scene_gate.failed) {
+            drop(access);
+            self.request_update();
+            return None;
+        }
+        Some(access)
     }
 
     pub(super) fn show_text_row_popup(&self, row: i32) {
@@ -251,30 +273,48 @@ impl EpubSession {
                         selected = index as i32;
                     }
                 }
-                self.model(|state| state.popup = PopupIntent::FontSize);
-                self.show_text_choices(ids::STR_FONT_SIZE, selected, Labels::Sizes(&sizes));
-                // Only the loop reads or replaces this retained callback payload.
-                unsafe { (*self.guarded.get()).font_sizes = sizes };
+                {
+                    let Some(access) = self.text_popup_access() else {
+                        return;
+                    };
+                    self.model(|state| state.popup = PopupIntent::FontSize);
+                    self.show_text_choices(
+                        &access,
+                        ids::STR_FONT_SIZE,
+                        selected,
+                        Labels::Sizes(&sizes),
+                    );
+                    // Only the loop reads or replaces this retained callback payload.
+                    unsafe { (*self.guarded(&access)).font_sizes = sizes };
+                }
             }
             2 => {
                 let selected = usize::from(self.settings(false).line_spacing) % SPACING_IDS.len();
+                let Some(access) = self.text_popup_access() else {
+                    return;
+                };
                 self.model(|state| state.popup = PopupIntent::Spacing);
                 self.show_text_choices(
+                    &access,
                     ids::STR_LINE_SPACING,
                     selected as i32,
                     Labels::Translated(&SPACING_IDS),
                 );
-                unsafe { (*self.guarded.get()).font_sizes = Vec::new() };
+                unsafe { (*self.guarded(&access)).font_sizes = Vec::new() };
             }
             3 => {
                 let selected = usize::from(self.settings(false).alignment) % ALIGNMENT_IDS.len();
+                let Some(access) = self.text_popup_access() else {
+                    return;
+                };
                 self.model(|state| state.popup = PopupIntent::Alignment);
                 self.show_text_choices(
+                    &access,
                     ids::STR_PARA_ALIGNMENT,
                     selected as i32,
                     Labels::Translated(&ALIGNMENT_IDS),
                 );
-                unsafe { (*self.guarded.get()).font_sizes = Vec::new() };
+                unsafe { (*self.guarded(&access)).font_sizes = Vec::new() };
             }
             _ => return,
         }
@@ -285,7 +325,8 @@ impl EpubSession {
         match self.model(|state| state.popup) {
             PopupIntent::FontSize => {
                 let size = usize::try_from(index).ok().and_then(|index| unsafe {
-                    (&(*self.guarded.get()).font_sizes).get(index).copied()
+                    let sizes = &(*self.guarded.get()).font_sizes;
+                    sizes.get(index).copied()
                 });
                 let Some(size) = size else { return };
                 unsafe { (self.leaves.settings_font_size)(size) };

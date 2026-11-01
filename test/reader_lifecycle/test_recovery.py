@@ -76,21 +76,49 @@ def freeze_original():
         print(f'recovery: {len(actual.splitlines())} original trace lines')
 
 
+def project(raw):
+    """Lock each message and its option rows without changing original events."""
+    lines = raw.splitlines(keepends=True)
+    output = []
+    groups = 0
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.startswith(b'message '):
+            groups += 1
+            output.extend((b'lock 1\n', line))
+            index += 1
+            first = index
+            while index < len(lines) and lines[index].startswith(b'option '):
+                output.append(lines[index])
+                index += 1
+            assert 1 <= index - first <= 2, ('unexpected message options', line)
+            output.append(b'unlock 1\n')
+        else:
+            output.append(line)
+            index += 1
+    assert groups == 1156
+    projected = b''.join(output)
+    assert len(projected.splitlines()) == 16972 and len(projected) == 229978
+    return projected, dict(message_groups=groups)
+
+
 def main():
     if '--freeze-original' in sys.argv:
         freeze_original()
         return
     golden = HERE / 'recovery.golden.gz'
     compressed = golden.read_bytes()
-    expected = gzip.decompress(compressed)
-    assert digest(compressed) == GZIP_SHA and digest(expected) == TRACE_SHA
-    assert len(expected) == 211482 and len(expected.splitlines()) == 14660
-    counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in expected.splitlines())
+    raw = gzip.decompress(compressed)
+    assert digest(compressed) == GZIP_SHA and digest(raw) == TRACE_SHA
+    assert len(raw) == 211482 and len(raw.splitlines()) == 14660
+    counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in raw.splitlines())
     assert counts['case'] == counts['handled'] == counts['state'] == 1536
     assert counts['translation'] == 3476 and counts['message'] == counts['update'] == 1156
     assert counts['wifi-new'] == counts['wifi-drop'] == counts['start-child'] == 49
     assert counts['child-dismiss'] == 48 and counts['save'] == counts['restart'] == counts['go'] == 4
     assert counts['lock'] == counts['unlock'] == 2 and counts['base-render'] == 1
+    expected, projections = project(raw)
     native_source = ROOT / 'src/activities/reader/EpubReaderActivity.cpp'
     wrapper = definition(native_source.read_text(), 'void EpubReaderActivity::render(')
     wrapper = replace_once(wrapper, 'runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_RENDER)',
@@ -122,15 +150,21 @@ def main():
 
             baseline = run('recovery')
             assert baseline.returncode == 0, baseline.stderr.decode(errors='replace')
-            assert baseline.stdout == expected, (digest(baseline.stdout), TRACE_SHA)
+            assert baseline.stdout == expected, (digest(baseline.stdout), digest(expected))
             print(json.dumps({
                 'test_name': TEST_NAME, 'cases': 1536, 'trace_lines': 14660, 'trace_bytes': 211482,
                 'original_gzip_sha256': GZIP_SHA, 'original_trace_sha256': TRACE_SHA,
                 'actual_trace_sha256': digest(baseline.stdout), 'event_counts': counts,
+                'projected_trace_sha256': digest(expected), 'projection_counts': projections,
+                'projected_trace_lines': len(expected.splitlines()), 'projected_trace_bytes': len(expected),
+                'projected_event_counts': collections.Counter(
+                    line.split(b' ', 1)[0].decode() for line in expected.splitlines()),
                 'candidate_source_sha256': digest(production), 'fixture_sha256': fixture_hashes,
                 'native_render_wrapper_sha256': digest(wrapper.encode()),
                 'render_scope': 'direct Rust recovery helper under historical caller lock; native fallback wrapper retained',
                 'policy_replacements': [], 'physical_navigation_hooks': ['finish', 'push', 'reopen', 'update'],
+                'resource_lock_contract': '1156 message/option groups now hold ResourceAccess; '
+                    'label sink locked, retained choice unlocked; all original events preserved',
             }), flush=True)
             copied_repo = work / 'source'
             copied_rust = copied_repo / 'rust'
@@ -157,7 +191,8 @@ def main():
     finally:
         assert golden.read_bytes() == compressed, 'immutable original golden changed'
         assert production_file.read_bytes() == production, 'real production source changed'
-    print(f'{TEST_NAME}: 1536 cases / 14660 exact lines; three actual Rust mutants rejected')
+    print(f'{TEST_NAME}: 1536 cases / 14660 original lines / 16972 projected lines; '
+          '1156 message lock scopes; three actual Rust mutants rejected')
 
 
 if __name__ == '__main__':

@@ -3,12 +3,27 @@ mod book_render;
 pub(super) use book_render::BookRenderHooks;
 mod clipping;
 mod entry_gate;
+mod input;
+mod overlay_actions;
 pub(super) mod overlay_view;
+mod popup_concurrency;
 mod render;
 mod view_values;
 
 use super::app_abi;
 use core::ffi::c_void;
+
+#[derive(Clone, Copy)]
+pub(super) struct OverlayHooks {
+    pub context: *mut c_void,
+    pub home_reset: unsafe extern "C" fn(*mut c_void),
+    pub current_toc: unsafe extern "C" fn(*mut c_void) -> i32,
+    pub build_more: unsafe extern "C" fn(*mut c_void),
+    pub paint: unsafe extern "C" fn(*mut c_void),
+    pub push: unsafe extern "C" fn(*mut c_void),
+    pub a4: unsafe extern "C" fn(*mut c_void, u8),
+    pub xteink: unsafe extern "C" fn(*mut c_void, u8),
+}
 
 #[derive(Clone, Copy)]
 pub(super) struct OverlayViewHooks {

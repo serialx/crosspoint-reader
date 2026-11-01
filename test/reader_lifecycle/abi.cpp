@@ -59,6 +59,8 @@ static_assert(sizeof(XpEpubSettings) == (sizeof(void*) == 8 ? 48 : 36));
 
 static_assert(std::is_same_v<decltype(XpEpubLeaves::toolbar_reset_navigation), void (*)(void*, int32_t, int32_t)>);
 static_assert(offsetof(XpEpubLeaves, toolbar_reset_navigation) == 204 * sizeof(void (*)(void)));
+static_assert(std::is_same_v<decltype(XpEpubLeaves::input_snapshot), void (*)(XpUiInput*)>);
+static_assert(offsetof(XpEpubLeaves, input_snapshot) == 205 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::log_enabled), uint8_t (*)(uint8_t)>);
 static_assert(offsetof(XpEpubLeaves, log_enabled) == 203 * sizeof(void (*)(void)));
 static_assert(XP_UI_READER_RENDER_NOW == 0);

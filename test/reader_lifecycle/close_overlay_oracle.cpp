@@ -1,4 +1,7 @@
 #include <xp_ui_reader.h>
+#ifdef XP_OVERLAY_SESSION
+#include "overlay_actions_session_fixture.h"
+#endif
 
 #include <cassert>
 #include <cstdio>
@@ -88,6 +91,12 @@ struct EpubReaderActivity {
     xp_ui_reader_base_model_write(&baseModel, XP_UI_READER_BASE_FIELD_COUNTER, static_cast<uint32_t>(value));
   }
   void closeOverlayToPage();
+#ifdef XP_OVERLAY_SESSION
+  void* owner = nullptr;
+  void initialize();
+  void observe();
+  ~EpubReaderActivity();
+#endif
 };
 using ReaderToolbarUi = EpubReaderActivity::Toolbar;
 // CLOSE_OVERLAY_METHOD

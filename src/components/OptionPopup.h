@@ -86,7 +86,7 @@ class OptionPopup {
   }
 
   bool handleInput(MappedInputManager& input, const std::function<void()>& requestUpdate) {
-    if (!active) return false;
+    if (!active.load()) return false;
 
     const freeink::ui::InputSnapshot snap = touchSnapshotFrom(input);
     if (snap.touchPressed || snap.touchReleased || snap.touchHeld) {
@@ -96,9 +96,9 @@ class OptionPopup {
         const freeink::ui::ActionEvent event = interactions.routePublished(snap);
         if (event && event.action == ACTION_OPTION) {
           // Tap released on an option: select it, fire, dismiss.
-          selectedIndex = event.value;
-          active = false;
-          if (onSelectCallback) onSelectCallback(selectedIndex);
+          selectedIndex.store(event.value);
+          active.store(false);
+          if (onSelectCallback) onSelectCallback(selectedIndex.load());
           haptic_feedback::touchAction();
           requestUpdate();
           return true;
@@ -110,7 +110,7 @@ class OptionPopup {
         if (snap.touchReleased && snap.touchX >= 0) {
           // Tap released outside the dialog: dismiss without firing. Swipe-end
           // releases arrive with -1,-1 coords and fall through (no dismiss).
-          active = false;
+          active.store(false);
           haptic_feedback::touchAction();
           requestUpdate();
           return true;
@@ -121,8 +121,8 @@ class OptionPopup {
           const int16_t idx = interactions.activeIndex();
           if (idx >= 0) {
             const freeink::ui::Interaction& hit = interactions.publishedData()[idx];
-            if (hit.action == ACTION_OPTION && selectedIndex != hit.value) {
-              selectedIndex = hit.value;
+            if (hit.action == ACTION_OPTION && selectedIndex.load() != hit.value) {
+              selectedIndex.store(hit.value);
               requestUpdate();
             }
           }
@@ -139,23 +139,23 @@ class OptionPopup {
 
   bool handleButtons(const bool previous, const bool next, const bool confirm, const bool back,
                      const std::function<void()>& requestUpdate) {
-    if (!active) return false;
+    if (!active.load()) return false;
     const int count = std::min<int>(ownedStrings.size(), MAX_OPTIONS);
     if (previous) {
-      selectedIndex = (selectedIndex - 1 + count) % count;
+      selectedIndex.store((selectedIndex.load() - 1 + count) % count);
       requestUpdate();
       return true;
     } else if (next) {
-      selectedIndex = (selectedIndex + 1) % count;
+      selectedIndex.store((selectedIndex.load() + 1) % count);
       requestUpdate();
       return true;
     } else if (confirm) {
-      active = false;
-      if (onSelectCallback) onSelectCallback(selectedIndex);
+      active.store(false);
+      if (onSelectCallback) onSelectCallback(selectedIndex.load());
       requestUpdate();
       return true;
     } else if (back) {
-      active = false;
+      active.store(false);
       requestUpdate();
       return true;
     }
@@ -163,7 +163,7 @@ class OptionPopup {
   }
 
   bool processRender(GfxRenderer& renderer, const MappedInputManager& input) const {
-    if (!active) return false;
+    if (!active.load()) return false;
     const auto popupLabels = input.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
     GUI.drawButtonHints(renderer, popupLabels.btn1, popupLabels.btn2, popupLabels.btn3, popupLabels.btn4);
     render(renderer);
@@ -172,7 +172,7 @@ class OptionPopup {
   }
 
   void render(const GfxRenderer& renderer) const {
-    if (!active) return;
+    if (!active.load()) return;
     namespace fui = freeink::ui;
 
     // Per-render target: a GfxRendererTarget is a renderer reference plus
@@ -204,7 +204,7 @@ class OptionPopup {
       options[i].label = ownedStrings[i].c_str();
       options[i].action = ACTION_OPTION;
       options[i].value = static_cast<int16_t>(i);
-      options[i].state = (i == selectedIndex) ? fui::StateFocused : fui::StateNormal;
+      options[i].state = (i == selectedIndex.load()) ? fui::StateFocused : fui::StateNormal;
     }
 
     fui::OptionDialogProps props;
@@ -271,12 +271,12 @@ class OptionPopup {
     uiReady = true;
   }
 
-  bool isActive() const { return active; }
+  bool isActive() const { return active.load(); }
 
   // Close without firing the callback (the surface under the popup is going
   // away, e.g. its host screen closes from outside the popup's own input).
   void dismiss() {
-    active = false;
+    active.store(false);
     onSelectCallback = nullptr;
   }
 
@@ -291,19 +291,19 @@ class OptionPopup {
 
   void activate(int currentIndex, std::function<void(int)> onSelect) {
     const int count = std::min<int>(ownedStrings.size(), MAX_OPTIONS);
-    selectedIndex = currentIndex >= 0 && currentIndex < count ? currentIndex : 0;
+    selectedIndex.store(currentIndex >= 0 && currentIndex < count ? currentIndex : 0);
     onSelectCallback = std::move(onSelect);
     message.clear();
     uiReady = false;
-    active = count > 0;
+    active.store(count > 0);
   }
 
-  bool active = false;
+  std::atomic<bool> active{false};
   std::string title;
   std::string headline;
   std::string message;
   std::vector<std::string> ownedStrings;
-  int selectedIndex = 0;
+  std::atomic<int> selectedIndex{0};
   std::function<void(int)> onSelectCallback;
   // Written by the render task (frame registration), routed by the loop task;
   // uiReady gates routing until the current popup data has been published.

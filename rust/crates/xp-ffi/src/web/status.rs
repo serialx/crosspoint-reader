@@ -70,7 +70,7 @@ impl Status<'_> {
             return;
         }
         let mut hex = [0u8; 64];
-        for (pair, byte) in hex.chunks_exact_mut(2).zip(hash) {
+        for (pair, byte) in hex.as_chunks_mut::<2>().0.iter_mut().zip(hash) {
             for (out, n) in pair.iter_mut().zip([byte >> 4, byte & 15]) {
                 *out = if n < 10 { b'0' + n } else { b'a' + n - 10 };
             }

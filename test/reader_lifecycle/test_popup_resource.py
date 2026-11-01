@@ -149,8 +149,8 @@ def exercise(output, compiler):
         (output / 'results.json').write_text(json.dumps(manifest, indent=2) + '\n')
     execute('baseline', popup, native)
     # Alter the actual button-confirm ordering, not the test's expected event list.
-    old = '      if (onSelectCallback) onSelectCallback(selectedIndex);\n      requestUpdate();'
-    reordered = replace_once(popup, old, '      requestUpdate();\n      if (onSelectCallback) onSelectCallback(selectedIndex);')
+    old = '      if (onSelectCallback) onSelectCallback(selectedIndex.load());\n      requestUpdate();'
+    reordered = replace_once(popup, old, '      requestUpdate();\n      if (onSelectCallback) onSelectCallback(selectedIndex.load());')
     execute('choice-after-update', reordered, native, 'choice must precede requestUpdate')
     # Native truncation would lose labels beyond the widget's displayed cap.
     clipped = replace_once(native, 'pathText(title), pathText(message), static_cast<int>(count), selected,',

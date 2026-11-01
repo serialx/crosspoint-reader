@@ -40,8 +40,9 @@ baseline = '\n'.join(method('src/activities/UiListActivity.cpp', signature, revi
     'void UiListActivity::loop()',
 ])
 snapshot = method('src/components/UiAppHelpers.h', 'inline freeink::ui::InputSnapshot touchSnapshotFrom(')
+snapshot += '\n' + method('src/components/RustInputSnapshot.h', 'inline XpUiInput rustInputSnapshot(')
 adapter = method('src/activities/RustActivityAdapter.cpp', 'XpUiInput RustActivityAdapter::sampleRustInput() const')
-adapter = adapter[adapter.index('  XpUiInput input{};'):adapter.index('  return input;')]
+adapter = adapter[adapter.index('{') + 1:adapter.rindex('}')]
 bridge = method('src/activities/reader/ReaderChromeListActivity.cpp', 'XpUiEffect ReaderChromeListActivity::updateRust(')
 fixture = (Path(__file__).parent / 'bookmark_input.cpp').read_text()
 fixture = fixture.replace('// SNAPSHOT', snapshot).replace('// BASELINE', baseline)

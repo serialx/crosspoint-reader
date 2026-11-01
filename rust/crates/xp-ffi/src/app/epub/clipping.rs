@@ -61,6 +61,8 @@ impl ClipPage<'_, '_> {
         }
     }
 
+    // Keep the lazy Page metric inputs explicit and in their physical query order.
+    #[allow(clippy::too_many_arguments)]
     fn rect(
         &self,
         element: u16,
@@ -206,7 +208,7 @@ impl EpubSession {
             let (spine, count) = self.model(|state| {
                 (
                     state.current.spine as u16,
-                    state.facts.section.map_or(0, |facts| facts.pages) as u16,
+                    state.facts.section.map_or(0, |facts| facts.pages),
                 )
             });
             let matched = if row.spine != spine {

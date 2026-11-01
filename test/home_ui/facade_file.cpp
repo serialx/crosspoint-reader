@@ -1,6 +1,7 @@
 #include <xp_ui_home.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <functional>
 #include <string>
@@ -26,10 +27,10 @@ struct MappedInputManager {
 class OptionPopup {
  public:
   static constexpr int MAX_OPTIONS = 16;
-  bool active = false, uiReady = false;
+  std::atomic<bool> active{false}, uiReady{false};
   std::string title, headline, message;
   std::vector<std::string> ownedStrings;
-  int selectedIndex = 0;
+  std::atomic<int> selectedIndex{0};
   std::function<void(int)> onSelectCallback;
   bool isActive() const { return active; }
   bool handleInput(MappedInputManager& i, const std::function<void()>& redraw) {

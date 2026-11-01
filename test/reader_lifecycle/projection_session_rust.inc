@@ -132,7 +132,7 @@ static const XpAppRuntime runtime = [] {
 }();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -338,6 +338,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
+  UNUSED_LEAF(input_snapshot);
   table.section_page_count = [](void* section) -> uint16_t { publication(section, 0); return liveSection->pageCount; };
   table.section_estimated_pages = [](void* section) -> int32_t { publication(section, 1); return liveSection->estimated; };
   table.section_building = [](void* section) -> uint8_t { publication(section, 2); return liveSection->isBuilding(); };

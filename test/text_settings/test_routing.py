@@ -52,6 +52,8 @@ def run():
         stub = stub.replace('void requestUpdate() {}', 'unsigned requests=0; bool finished=false; void requestUpdate() { ++requests; } void finish() { finished=true; } virtual void onExit() {}')
         (work / 'Activity.h').write_text(stub)
         (work / 'components').mkdir()
+        (work / 'components/RustInputSnapshot.h').write_text(
+            (ROOT / 'src/components/RustInputSnapshot.h').read_text())
         helpers = (ROOT / 'test/ui_runtime/stubs/components/UiAppHelpers.h').read_text()
         helpers = helpers.replace('return {10, 10,', 'return {input.touchX, input.touchY,')
         helpers = helpers.replace('inline void touchAction(bool) {}', 'inline unsigned count=0; inline void touchAction(bool=true) { ++count; }')

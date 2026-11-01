@@ -1,107 +1,97 @@
-#include <xp_ui_reader.h>
-
-#include <cassert>
+#include <atomic>
 #include <future>
+#include <mutex>
 
-#include "RustActivityAdapter.h"
+#include "overlay_actions_session_fixture.h"
 
-static std::atomic<bool> finishing = false, proceed = false, checking = false, attempted = false;
-static std::atomic<bool> crossing = false, published = false, writerDone = false;
-static thread_local bool renderThread = false;
-void afterModelUnlock() {
-  if (renderThread && criticalDepth == 0 && crossing && checking && !published) {
-    while (!writerDone) std::this_thread::yield();
-  }
-}
-class ReaderActivity : public RustActivityAdapter {
- public:
-  using RustActivityAdapter::RustActivityAdapter;
-  void render(RenderLock&&) override {
-    assert(criticalDepth == 0);
-    finishing = true;
-    while (!proceed) std::this_thread::yield();
-  }
-};
-class EpubReaderActivity : public ReaderActivity {
- public:
-  enum class Overlay { None, Toolbar, Text };
-  struct ObservedOverlay {
-    Overlay value = Overlay::Toolbar;
-    bool crossing = false;
-    bool operator==(Overlay other) const {
-      assert(criticalDepth > 0);  // The production completion must synchronize the read.
-      if (crossing) {
-        checking = true;
-        while (!attempted) std::this_thread::yield();
-      }
-      return value == other;
+extern "C" void xp_epub_test_overlay_complete_render(void*);
+extern "C" void xp_epub_test_overlay_set_mode(void*, uint8_t);
+static std::mutex modelMutex;
+static thread_local unsigned modelDepth, completionLocks, completionUnlocks;
+static thread_local bool completing;
+static std::atomic<bool> crossing, checking, attempted, writerDone;
+static const XpAppRuntime runtime = [] {
+  auto value = overlayUnexpectedRuntime();
+  value.model_lock = [] {
+    assert(!modelDepth);
+    modelMutex.lock();
+    ++modelDepth;
+    if (completing && crossing && ++completionLocks == 1) {
+      checking = true;
+      while (!attempted) std::this_thread::yield();
     }
-  } overlay;
-  unsigned publications = 0;
-  using ReaderActivity::ReaderActivity;
-  bool runRecoveryPolicy(uint8_t) { return false; }
-  void render(RenderLock&&) override;
-  void fail() { rejectRustScene(); }
-  bool rejected() const { return rustSceneRejected(); }
-  void setOverlay(Overlay value) {
-    ModelLock lock(*this);
-    overlay.value = value;
+  };
+  value.model_unlock = [] {
+    assert(modelDepth == 1);
+    --modelDepth;
+    modelMutex.unlock();
+    if (completing && crossing && ++completionUnlocks == 1) {
+      while (!writerDone) std::this_thread::yield();
+    }
+  };
+  return value;
+}();
+static const XpEpubLeaves leaves = overlayUnexpectedLeaves();
+static const XpAppResources resources = overlayUnexpectedResources();
+static void* create() {
+  XpEpubTestOverlaySeed seed{};
+  seed.overlay = 1;
+  seed.failed = 1;
+  seed.home_reset = &OverlayUnexpected<decltype(seed.home_reset)>::call;
+  seed.current_toc = &OverlayUnexpected<decltype(seed.current_toc)>::call;
+  seed.build_more = &OverlayUnexpected<decltype(seed.build_more)>::call;
+  seed.paint = &OverlayUnexpected<decltype(seed.paint)>::call;
+  seed.push = &OverlayUnexpected<decltype(seed.push)>::call;
+  seed.a4 = &OverlayUnexpected<decltype(seed.a4)>::call;
+  seed.xteink = &OverlayUnexpected<decltype(seed.xteink)>::call;
+  seed.settle = &OverlayUnexpected<decltype(seed.settle)>::call;
+  seed.discard = &OverlayUnexpected<decltype(seed.discard)>::call;
+  seed.update = &OverlayUnexpected<decltype(seed.update)>::call;
+  return xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+}
+static XpEpubTestOverlayObservation observe(void* owner) {
+  XpEpubTestOverlayObservation value{};
+  xp_epub_test_overlay_observe(owner, &value);
+  return value;
+}
+int main() {
+  for (uint8_t target : {0, 1, 3}) {
+    void* owner = create();
+    assert(owner);
+    std::promise<void> finishing, proceed;
+    auto resume = proceed.get_future();
+    auto render = std::async(std::launch::async, [&] {
+      finishing.set_value();
+      resume.wait();
+      xp_epub_test_overlay_complete_render(owner);
+    });
+    finishing.get_future().wait();
+    xp_epub_test_overlay_set_mode(owner, target);
+    proceed.set_value();
+    render.get();
+    const auto result = observe(owner);
+    assert(result.failed == (target != 0) && result.overlay == target);
+    xp_epub_test_overlay_destroy(owner);
   }
-  void rustPublished() override {
-    assert(criticalDepth > 0 && overlay.value == Overlay::None);
-    ++publications;
-    published = true;
-  }
-  void changeDuringCompletion() {
+  void* owner = create();
+  assert(owner);
+  xp_epub_test_overlay_set_mode(owner, 0);
+  crossing = true;
+  auto writer = std::async(std::launch::async, [&] {
     while (!checking) std::this_thread::yield();
     const bool acquired = modelMutex.try_lock();
-    assert(!acquired);  // Read and publication must exclude the transition.
+    assert(!acquired);  // A transition cannot enter between the decision and publication.
     attempted = true;
-    setOverlay(Overlay::Text);
+    xp_epub_test_overlay_set_mode(owner, 3);
+    assert(!observe(owner).failed && "completion must publish before model unlock");
     writerDone = true;
-  }
-};
-// PARENT_RENDER
-int main() {
-  for (auto target :
-       {EpubReaderActivity::Overlay::None, EpubReaderActivity::Overlay::Toolbar, EpubReaderActivity::Overlay::Text}) {
-    GfxRenderer renderer;
-    MappedInputManager input;
-    EpubReaderActivity reader("reader", renderer, input);
-    reader.fail();
-    finishing = false;
-    proceed = false;
-    auto render = std::async(std::launch::async, [&] {
-      RenderLock lock;
-      reader.render(std::move(lock));
-    });
-    while (!finishing) std::this_thread::yield();
-    reader.setOverlay(target);  // Back closes, or input opens/changes the overlay, before completion.
-    proceed = true;
-    render.get();
-    assert(reader.rejected() == (target != EpubReaderActivity::Overlay::None));
-    assert(reader.publications == (target == EpubReaderActivity::Overlay::None ? 1u : 0u));
-  }
-  GfxRenderer renderer;
-  MappedInputManager input;
-  EpubReaderActivity reader("reader", renderer, input);
-  reader.fail();
-  reader.setOverlay(EpubReaderActivity::Overlay::None);
-  reader.overlay.crossing = true;
-  crossing = true;
-  published = false;
-  writerDone = false;
-  renderThread = true;
-  finishing = false;
-  proceed = true;
-  checking = false;
-  attempted = false;
-  auto writer = std::async(std::launch::async, [&] { reader.changeDuringCompletion(); });
-  {
-    RenderLock lock;
-    reader.render(std::move(lock));
-  }
+  });
+  completing = true;
+  xp_epub_test_overlay_complete_render(owner);
+  completing = false;
   writer.get();
-  assert(reader.publications == 1 && !reader.rejected());
-  assert(reader.overlay.value == EpubReaderActivity::Overlay::Text);
+  const auto result = observe(owner);
+  assert(!result.failed && result.overlay == 3);
+  assert(completionLocks == 1 && completionUnlocks == 1);
+  xp_epub_test_overlay_destroy(owner);
 }

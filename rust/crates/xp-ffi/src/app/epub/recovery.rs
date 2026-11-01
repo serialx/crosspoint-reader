@@ -65,13 +65,21 @@ impl EpubSession {
         ));
     }
 
-    fn show_failure_choices(&self, message: app_abi::Text, labels: &[app_abi::Text]) {
+    fn show_failure_choices(
+        &self,
+        access: &ResourceAccess<'_>,
+        message: app_abi::Text,
+        labels: &[app_abi::Text],
+    ) {
         let mut source = LabelSource {
             owner: self,
             labels: Labels::Borrowed(labels),
         };
-        // Popup replacement is loop-owned; the component publishes to render.
-        let popup = unsafe { (*self.guarded.get()).failure_popup.expect("failure popup") };
+        let popup = unsafe {
+            (*self.guarded(access))
+                .failure_popup
+                .expect("failure popup")
+        };
         unsafe {
             (self.leaves.popup_show)(
                 popup.as_ptr(),
@@ -109,7 +117,8 @@ impl EpubSession {
                 (self.resources.translate)(ids::STR_OK_BUTTON),
             ];
             let message = (self.resources.translate)(message);
-            self.show_failure_choices(message, &labels[..if offer_sync { 2 } else { 1 }]);
+            let access = self.lock_resources();
+            self.show_failure_choices(&access, message, &labels[..if offer_sync { 2 } else { 1 }]);
         }
         self.request_update();
         true
@@ -165,7 +174,8 @@ impl EpubSession {
                     (self.resources.translate)(ids::STR_OK_BUTTON),
                 ];
                 let message = (self.resources.translate)(ids::STR_CLOCK_SYNC_FAIL);
-                self.show_failure_choices(message, &labels);
+                let access = self.lock_resources();
+                self.show_failure_choices(&access, message, &labels);
             }
             self.request_update();
             return;

@@ -92,7 +92,7 @@ static const XpAppResources resources = [] {
   UNUSED_LEAF(buffer_allocate);
   UNUSED_LEAF(buffer_release);
   table.translate = [](uint16_t key) -> XpAppText {
-    unlocked();
+    locked();
     for (size_t i = 0; i < std::size(nativeKeys); ++i)
       if (key == static_cast<uint16_t>(nativeKeys[i])) return wire(translatedKeys[i]);
     assert(false && "unexpected settings translation"); std::abort();
@@ -157,7 +157,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -363,6 +363,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
+  UNUSED_LEAF(input_snapshot);
   table.section_page_count = [](void* section) -> uint16_t {
     locked(); assert(section == liveSection && liveSection);
     if (publishing) publication(section, 0);
@@ -414,7 +415,7 @@ static const XpEpubLeaves leaves = [] {
   table.popup_show = [](void* popup, XpAppText title, XpAppText message, uint32_t count, int32_t selected,
                         uint8_t (*label)(void*, uint32_t, XpAppTextSink, void*), void* labelContext,
                         void (*choose)(void*, int32_t), void* choiceContext) {
-    unlocked(); assert(activeFixture && popup == &activeFixture->overlayPopup && message.len == 0);
+    locked(); assert(activeFixture && popup == &activeFixture->overlayPopup && message.len == 0);
     assert(label && choose && choiceContext == activeFixture->owner);
     const auto titleId = fixtureId(nativeText(title));
     std::vector<std::string> labels;
@@ -422,10 +423,10 @@ static const XpEpubLeaves leaves = [] {
     for (uint32_t index = 0; index < count; ++index) {
       struct Label { std::string value; unsigned calls = 0; } result;
       const auto accepted = label(labelContext, index, [](void* opaque, XpAppText text) -> uint8_t {
-        unlocked(); auto& result = *static_cast<Label*>(opaque);
+        locked(); auto& result = *static_cast<Label*>(opaque);
         assert(result.calls++ == 0); result.value = nativeText(text); return 1;
       }, &result);
-      unlocked(); assert(accepted == 1 && result.calls == 1);
+      locked(); assert(accepted == 1 && result.calls == 1);
       labels.push_back(std::move(result.value));
     }
     // Retain only the production choice continuation; labels are copied now.
@@ -449,7 +450,7 @@ static const XpEpubLeaves leaves = [] {
 
 static void initial(void* value) { context(value); unlocked(); activeFixture->ReaderActivity::applyInitialOrientation(); }
 static void remember(void* value) { context(value); locked(); activeFixture->rememberCurrentContentOffset(); }
-static void discard(void* value) { context(value); unlocked(); activeFixture->discardOverlayPage(); }
+static void discard(void* value) { context(value); locked(); activeFixture->discardOverlayPage(); }
 static void paint(void* value) { context(value); unlocked(); activeFixture->paintOverlayPopup(); }
 static void statusHeight(void* value, int32_t height) {
   context(value); unlocked(); assert(height == UITheme::getInstance().status);

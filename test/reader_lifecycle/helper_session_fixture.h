@@ -22,6 +22,7 @@ void* xp_epub_test_helpers_create(const XpEpubTestHelpersSeed*, const XpEpubLeav
 void xp_epub_test_helpers_destroy(void*);
 void xp_epub_test_helpers_observe(void*, XpEpubTestHelpersObservation*);
 void xp_epub_test_helpers_discard(void*);
+void xp_epub_test_helpers_apply_text_live(void*);
 void xp_epub_test_helpers_push(void*);
 void xp_epub_test_helpers_settle(void*);
 void xp_epub_test_helpers_paint(void*);

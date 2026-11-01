@@ -45,10 +45,15 @@ pub(super) enum Notice {
     Dictionary,
     FontDamaged,
     ClipSaved,
+    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipRemoved,
+    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipLimit,
+    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipFailed,
+    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipDeleteFailed,
+    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipExportFailed,
 }
 #[derive(Clone, Copy)]
@@ -114,13 +119,19 @@ pub(super) struct BasePublication {
 pub(super) enum ChildIntent {
     #[default]
     None,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Menu,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Chapter,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Percent,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     TextSettings,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Footnote {
         reopen_menu: bool,
     },
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Selection {
         spine: u16,
         page: i32,
@@ -128,11 +139,16 @@ pub(super) enum ChildIntent {
         signature: u32,
         toc: i32,
     },
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Dictionary,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Bookmarks,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Clippings,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Qr,
     Wifi,
+    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Reopen,
 }
 #[derive(Clone, Copy, Default)]
@@ -142,7 +158,9 @@ pub(super) enum PopupIntent {
     FontSize,
     Spacing,
     Alignment,
+    #[expect(dead_code, reason = "Used by the pending overlay input port.")]
     Orientation,
+    #[expect(dead_code, reason = "Used by the pending overlay input port.")]
     AutoTurn,
     LoadFailure {
         offer_sync: bool,
@@ -161,7 +179,9 @@ pub(super) struct SectionFacts {
 pub(super) struct ResourceFacts {
     pub(super) book: bool,
     pub(super) section: Option<SectionFacts>,
+    #[expect(dead_code, reason = "Read by the pending loop fact projection.")]
     pub(super) end_menu: bool,
+    #[expect(dead_code, reason = "Read by the pending loop fact projection.")]
     pub(super) load_popup: bool,
     pub(super) spine_count: i32,
     pub(super) frame_stale: bool,
@@ -186,16 +206,22 @@ pub(super) struct State {
     pub(super) deferred: DeferredPosition,
     pub(super) history: History,
     pub(super) last_saved: (i32, i32, i32),
+    #[expect(dead_code, reason = "Read by the pending idle and loop owner port.")]
     pub(super) idle_prewarm: Position,
     pub(super) last_turn_ms: u32,
     pub(super) turn_duration_ms: u32,
     pub(super) last_render_ms: u32,
     pub(super) manual_turn: i8,
+    #[expect(dead_code, reason = "Read by the pending manual turn owner port.")]
     pub(super) manual_touch: bool,
     pub(super) auto_turn: bool,
     pub(super) screenshot: bool,
     pub(super) sync_save_error: bool,
     pub(super) page_retries: u8,
+    #[expect(
+        dead_code,
+        reason = "Read by the pending input suppression owner port."
+    )]
     pub(super) skip_button_frame: bool,
     pub(super) bookmark_notice: Option<TimedNotice>,
     pub(super) dictionary_notice: Option<TimedNotice>,
@@ -203,6 +229,7 @@ pub(super) struct State {
     pub(super) clipping_notice: Option<TimedNotice>,
     pub(super) bookmarked: bool,
     pub(super) bookmark_removed: bool,
+    #[expect(dead_code, reason = "Read by the pending entry and loop owner port.")]
     pub(super) recents_removed: bool,
     pub(super) move_to_read: bool,
     pub(super) overlay: Overlay,

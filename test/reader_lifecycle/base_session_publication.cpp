@@ -204,7 +204,7 @@ static const XpAppRuntime& physicalRuntime() {
 static const XpEpubLeaves& physicalLeaves() {
   static const XpEpubLeaves value = [] {
     XpEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)()));
     UNUSED_LEAF(resources_open);
     UNUSED_LEAF(resources_close);
     UNUSED_LEAF(render_services);
@@ -410,6 +410,7 @@ static const XpEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(font_text_advance);
     UNUSED_LEAF(log_enabled);
     UNUSED_LEAF(toolbar_reset_navigation);
+    UNUSED_LEAF(input_snapshot);
     table.trusted_now = []() -> int64_t {
       physical();
       return active->epoch.load();

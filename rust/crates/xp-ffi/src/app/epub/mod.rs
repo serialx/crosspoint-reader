@@ -11,12 +11,14 @@ mod lifetime;
 mod links;
 mod navigation;
 mod overlay;
+mod overlay_actions;
 mod overlay_view;
 mod page;
 mod position;
 mod projection;
 mod read_folder;
 mod recovery;
+mod rejected_input;
 mod render;
 mod render_scope;
 mod settings;
@@ -32,6 +34,7 @@ use alloc::{alloc::alloc, boxed::Box, vec::Vec};
 use core::{alloc::Layout, cell::UnsafeCell, ffi::c_void, marker::PhantomData, ptr::NonNull};
 use state::{RenderFrame, SectionFacts, State};
 
+#[derive(Default)]
 struct Guarded {
     native: Option<NonNull<c_void>>,
     book: Option<NonNull<c_void>>,
@@ -48,26 +51,6 @@ struct Guarded {
     more_count: u8,
     // Loop-only retained popup payload; render never reads these choices.
     font_sizes: Vec<u8>,
-}
-
-impl Default for Guarded {
-    fn default() -> Self {
-        Self {
-            native: None,
-            book: None,
-            section: None,
-            toolbar: None,
-            overlay_popup: None,
-            failure_popup: None,
-            end_options: None,
-            bookmarks: None,
-            active_frame: None,
-            anchor: Text::default(),
-            more_actions: [0; 19],
-            more_count: 0,
-            font_sizes: Vec::new(),
-        }
-    }
 }
 
 pub(super) struct EpubSession {
@@ -103,6 +86,8 @@ pub(super) struct EpubSession {
     render_hooks: Option<test_support::RenderHooks>,
     #[cfg(feature = "app-test")]
     overlay_view_hooks: Option<test_support::OverlayViewHooks>,
+    #[cfg(feature = "app-test")]
+    overlay_hooks: Option<test_support::OverlayHooks>,
     #[cfg(feature = "app-test")]
     book_render_hooks: Option<test_support::BookRenderHooks>,
 }
@@ -170,6 +155,8 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).render_hooks).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).overlay_view_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).overlay_hooks).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).book_render_hooks).write(None);
             Some(Box::from_raw(ptr))

@@ -225,6 +225,11 @@ impl EpubSession {
     }
 
     pub(super) fn render_overlay(&self, access: &ResourceAccess<'_>) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_hooks {
+            unsafe { (hooks.paint)(hooks.context) };
+            return;
+        }
         let Some(book) = self.book(access) else {
             return;
         };

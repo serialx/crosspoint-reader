@@ -40,12 +40,16 @@ impl EpubSession {
         if !self.render_load_failure(&access) {
             self.render_with(|access| self.render_base(access, || self.render_book(access)));
         }
+        self.complete_render();
+        true
+    }
+
+    pub(super) fn complete_render(&self) {
         self.model(|state| {
             if matches!(state.overlay, Overlay::Page) {
                 state.scene_gate.failed = false;
             }
         });
-        true
     }
 
     // The application render caller holds RenderLock for this entire invocation.

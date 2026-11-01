@@ -38,7 +38,7 @@ pub unsafe extern "C" fn xp_epub_test_navigation_create(
         .history
         .positions
         .iter_mut()
-        .zip(seed.history.chunks_exact(2))
+        .zip(seed.history.as_chunks::<2>().0.iter())
     {
         *slot = Position {
             spine: pair[0],
@@ -82,7 +82,12 @@ pub unsafe extern "C" fn xp_epub_test_navigation_observe(
     let anchor = (*owner.guarded(&access)).anchor.wire();
     *out = owner.model(|state| {
         let mut history = [0; 6];
-        for (pair, position) in history.chunks_exact_mut(2).zip(state.history.positions) {
+        for (pair, position) in history
+            .as_chunks_mut::<2>()
+            .0
+            .iter_mut()
+            .zip(state.history.positions)
+        {
             pair[0] = position.spine;
             pair[1] = position.page;
         }

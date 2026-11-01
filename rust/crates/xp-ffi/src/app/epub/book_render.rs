@@ -52,7 +52,7 @@ impl Drop for BuildLoan<'_, '_> {
     }
 }
 
-unsafe extern "C" fn build_popup(context: *mut c_void) {
+pub(super) unsafe extern "C" fn build_popup(context: *mut c_void) {
     let owner = &*context.cast::<EpubSession>();
     let access = owner.borrowed_resources();
     owner.show_build_popup(&access);
@@ -754,7 +754,7 @@ impl EpubSession {
             state.visible_offset = Some(unsafe { (*info.as_ptr()).visible_offset });
             state.link_margins = (viewport.margins[3], viewport.margins[0]);
         });
-        self.discard_overlay_page();
+        self.discard_overlay_page(access);
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.book_render_hooks {
             unsafe { (hook.discard)(hook.context) };

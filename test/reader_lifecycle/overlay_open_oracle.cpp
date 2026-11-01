@@ -1,4 +1,7 @@
 #include <xp_ui_reader.h>
+#ifdef XP_OVERLAY_SESSION
+#include "overlay_actions_session_fixture.h"
+#endif
 
 #include <cassert>
 #include <cstdio>
@@ -89,6 +92,12 @@ struct EpubReaderActivity {
   void pushOverlayRefresh() { event("push"); }
   void requestUpdate() { event("update"); }
   void openOverlay(Overlay target);
+#ifdef XP_OVERLAY_SESSION
+  void* owner = nullptr;
+  void initialize();
+  void observe();
+  ~EpubReaderActivity();
+#endif
 };
 // OPEN_METHODS
 int main() {

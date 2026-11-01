@@ -127,6 +127,12 @@ static const XpAppRuntime runtime = [] {
   UNUSED_LEAF(notify_render);
   table.model_lock = [] { leaf(); ++modelDepth; };
   table.model_unlock = [] { assert(modelDepth == 1); --modelDepth; };
+  table.render_lock = []() -> void* {
+    unlocked(); return new RenderLock;
+  };
+  table.render_unlock = [](void* value) {
+    locked(); assert(value); delete static_cast<RenderLock*>(value); unlocked();
+  };
   table.delay_ms = [](uint32_t value) { unlocked(); delay(value); };
   return table;
 }();
@@ -145,7 +151,7 @@ static XpUiReaderRenderServices renderServices{
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -351,6 +357,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
+  UNUSED_LEAF(input_snapshot);
   table.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     locked(); assert(root == activeFixture); renderServices.context = root; return &renderServices;
   };
@@ -365,7 +372,7 @@ static const XpEpubLeaves leaves = [] {
   table.popup_show = [](void* popup, XpAppText title, XpAppText message, uint32_t count, int32_t selected,
                         uint8_t (*label)(void*, uint32_t, XpAppTextSink, void*), void* labelContext,
                         void (*choose)(void*, int32_t), void* choiceContext) {
-    unlocked(); assert(popup == &activeFixture->loadFailurePopup && !title.len);
+    locked(); assert(popup == &activeFixture->loadFailurePopup && !title.len);
     assert(count >= 1 && count <= 2 && selected == 0 && label && choose);
     assert(choiceContext == activeFixture->owner);
     std::vector<std::string> labels;
@@ -373,10 +380,10 @@ static const XpEpubLeaves leaves = [] {
     for (uint32_t index = 0; index < count; ++index) {
       struct Label { std::string value; unsigned calls = 0; } result;
       const auto accepted = label(labelContext, index, [](void* opaque, XpAppText value) -> uint8_t {
-        unlocked(); auto& result = *static_cast<Label*>(opaque);
+        locked(); auto& result = *static_cast<Label*>(opaque);
         assert(result.calls++ == 0); result.value = nativeText(value); return 1;
       }, &result);
-      unlocked(); assert(accepted == 1 && result.calls == 1);
+      locked(); assert(accepted == 1 && result.calls == 1);
       labels.push_back(std::move(result.value));
     }
     const char* options[2]{};

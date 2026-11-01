@@ -141,7 +141,6 @@ struct ReaderChromeListActivity {
 // BRIDGE
 XpUiInput adapter(const MappedInputManager& mappedInput) {
   // ADAPTER
-  return input;
 }
 int main() {
   using Swipe = MappedInputManager::SwipeDir;

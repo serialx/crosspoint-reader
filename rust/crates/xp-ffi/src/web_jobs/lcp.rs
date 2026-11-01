@@ -131,7 +131,7 @@ pub unsafe extern "C" fn xp_lcp_ensure(s: *const Services, not_enrollable: *mut 
     s.op(Op::SetId, parsed.len, parsed.id.as_mut_ptr());
     let mut hex = [0; 64];
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    for (pair, &b) in hex.chunks_exact_mut(2).zip(keys[..32].iter()) {
+    for (pair, &b) in hex.as_chunks_mut::<2>().0.iter_mut().zip(keys[..32].iter()) {
         pair[0] = DIGITS[(b >> 4) as usize];
         pair[1] = DIGITS[(b & 15) as usize];
     }

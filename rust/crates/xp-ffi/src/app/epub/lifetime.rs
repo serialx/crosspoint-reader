@@ -189,7 +189,7 @@ impl EpubSession {
     pub(super) fn teardown_book(&self, access: &ResourceAccess<'_>) {
         unsafe { (self.leaves.book_clear_extractor)() };
         self.settle_overlay_refresh(access);
-        self.discard_overlay_page();
+        self.discard_overlay_page(access);
         if self.model(|state| state.facts.radio_released) {
             unsafe { (self.leaves.radio_after_paint)() };
         }

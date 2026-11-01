@@ -51,21 +51,56 @@ def generated_i18n_directory(archive):
     return headers[0].parent
 
 
+def project(raw):
+    """Add only the approved discard and popup resource-lock scopes."""
+    lines = raw.splitlines(keepends=True)
+    output = []
+    counts = dict(discard=0, popup_labels=0, popup_ids=0)
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.startswith(b'discard '):
+            assert line == b'discard 0 0\n', line
+            output.extend((b'lock 1 0\n', b'discard 1 0\n', b'unlock 1 0\n'))
+            counts['discard'] += 1
+            index += 1
+        elif line.startswith((b'popup-labels ', b'popup-ids ')):
+            labels = line.startswith(b'popup-labels ')
+            prefix = b'label ' if labels else b'id '
+            counts['popup_labels' if labels else 'popup_ids'] += 1
+            output.extend((b'lock 1 0\n', line))
+            index += 1
+            first = index
+            while index < len(lines) and lines[index].startswith(prefix):
+                output.append(lines[index])
+                index += 1
+            assert index > first, ('popup without label/id rows', line)
+            output.append(b'unlock 1 0\n')
+        else:
+            output.append(line)
+            index += 1
+    assert counts == dict(discard=544, popup_labels=64, popup_ids=256)
+    projected = b''.join(output)
+    assert len(projected.splitlines()) == 34760 and len(projected) == 432408
+    return projected, counts
+
+
 def main():
     if len(sys.argv) != 1:
         raise SystemExit('Settings goldens are immutable; regeneration is not supported.')
     golden = HERE / 'reader-settings.golden.gz'
     compressed = golden.read_bytes()
-    expected = gzip.decompress(compressed)
-    assert digest(compressed) == GZIP_SHA and digest(expected) == TRACE_SHA
-    assert len(expected) == 415128 and len(expected.splitlines()) == 33032
-    counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in expected.splitlines())
+    raw = gzip.decompress(compressed)
+    assert digest(compressed) == GZIP_SHA and digest(raw) == TRACE_SHA
+    assert len(raw) == 415128 and len(raw.splitlines()) == 33032
+    counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in raw.splitlines())
     assert counts['case'] == counts['config'] == 2304
     assert counts['remember'] == 568 and counts['initial'] == 256
     assert counts['discard'] == counts['update'] == 544
     assert counts['status-height'] == 128 and counts['progress-height'] == 96 and counts['snap'] == 64
     assert counts['retained-result'] == counts['dismiss-popup'] == counts['paint-popup'] == 320
     assert counts['lock'] == 1696 and counts['owner-lock'] == 240 and counts['unlock'] == 1936
+    expected, projections = project(raw)
     fixture_source = (HERE / 'reader_settings_oracle.cpp').read_bytes()
     marker = b'#include "settings_session_rust.inc"'
     assert fixture_source.count(marker) == 1
@@ -94,13 +129,19 @@ def main():
 
             baseline = run(fixture, 'settings')
             assert baseline.returncode == 0, baseline.stderr.decode(errors='replace')
-            assert baseline.stdout == expected, (digest(baseline.stdout), TRACE_SHA)
+            assert baseline.stdout == expected, (digest(baseline.stdout), digest(expected))
             print(json.dumps({
                 'test_name': TEST_NAME, 'cases': 2304, 'trace_lines': 33032, 'trace_bytes': 415128,
                 'original_gzip_sha256': GZIP_SHA, 'original_trace_sha256': TRACE_SHA,
                 'actual_trace_sha256': digest(baseline.stdout), 'event_counts': counts,
+                'projected_trace_sha256': digest(expected), 'projection_counts': projections,
+                'projected_trace_lines': len(expected.splitlines()), 'projected_trace_bytes': len(expected),
+                'projected_event_counts': collections.Counter(
+                    line.split(b' ', 1)[0].decode() for line in expected.splitlines()),
                 'candidate_source_sha256': digest(production), 'fixture_sha256': fixture_hashes,
                 'lock_label_projection': 'typed orientation entry uses owner-lock; native lock identity is unchanged',
+                'resource_lock_contract': '544 discard calls and 320 popup groups now hold ResourceAccess; '
+                    'popup translation/labels locked, retained choice unlocked; original bytes unchanged except declared discard depth',
                 'policy_replacements': ['initial', 'remember', 'discard', 'paint'],
                 'observers': ['status_height', 'progress_height', 'snap'],
             }), flush=True)
@@ -140,7 +181,8 @@ def main():
     finally:
         assert golden.read_bytes() == compressed, 'immutable original golden changed'
         assert production_file.read_bytes() == production, 'real production source changed'
-    print(f'{TEST_NAME}: 2304 cases / 33032 exact lines; three physical and four actual Rust mutants rejected')
+    print(f'{TEST_NAME}: 2304 cases / 33032 original lines / 34760 projected lines; '
+          '544 discard and 320 popup lock scopes; three physical and four actual Rust mutants rejected')
 
 
 if __name__ == '__main__':

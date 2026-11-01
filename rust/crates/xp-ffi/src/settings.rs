@@ -1030,8 +1030,7 @@ const FRONT_KEYS: [&core::ffi::CStr; 4] = [
     c"frontButtonRight",
 ];
 
-#[no_mangle]
-pub extern "C" fn xp_setting_sleep_minutes(legacy: u8) -> u8 {
+fn xp_setting_sleep_minutes(legacy: u8) -> u8 {
     match legacy {
         0 => 1,
         1 => 5,

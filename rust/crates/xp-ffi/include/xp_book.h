@@ -504,7 +504,6 @@ void xp_book_section_header(const XpBookFileServices* io, const uint32_t values[
 const char* xp_book_entity(const uint8_t* input, size_t length);
 uint32_t xp_book_layout_signature(const uint32_t fields[12], float compression);
 uint8_t xp_book_link_contains(const int16_t bounds[4], int32_t x, int32_t y, int32_t slop, int32_t minimum);
-uint8_t xp_book_tag_equals(const uint8_t* name, size_t length, const uint8_t* tag, size_t tag_length);
 uint8_t xp_book_tag_hidden(const uint8_t* name, size_t length);
 // 0 accepted, 1 nonpositive, 2 dimension limit, 3 pixel limit.
 uint8_t xp_book_image_dimensions(int64_t width, int64_t height);

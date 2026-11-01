@@ -512,15 +512,6 @@ pub unsafe extern "C" fn xp_ui_render_layers(
 }
 
 /// # Safety
-/// damage is an aligned writable descriptor, exclusively lent for this call.
-#[no_mangle]
-pub unsafe extern "C" fn xp_ui_damage_add(damage: *mut crate::scene::Damage, native_rect: Rect) {
-    if let Some(damage) = unsafe { damage.as_mut() } {
-        damage.add(native_rect);
-    }
-}
-
-/// # Safety
 /// The descriptors are live, aligned, immutable snapshots for this call.
 #[no_mangle]
 pub unsafe extern "C" fn xp_ui_input_due(

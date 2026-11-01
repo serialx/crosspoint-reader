@@ -191,7 +191,6 @@ typedef struct {
 } XpStoreSettings;
 bool xp_settings_tail(const XpStoreSettings*, const XpStoreJsonOps*, bool);
 void xp_setting_front(uint8_t* const*);
-uint8_t xp_setting_sleep_minutes(uint8_t);
 float xp_setting_line_compression(bool, uint8_t);
 uint32_t xp_setting_sleep_ms(uint8_t);
 int32_t xp_setting_refresh(uint8_t);

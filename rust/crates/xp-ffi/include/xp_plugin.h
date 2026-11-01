@@ -48,15 +48,12 @@ typedef struct {
 extern const char* const xp_plugin_roots[3];
 bool xp_plugin_root(XpPluginSpan);
 bool xp_plugin_reuse_dir(XpPluginSpan, XpPluginSpan);
-bool xp_plugin_version(XpPluginSpan, uint32_t out[3]);
 bool xp_plugin_newer(XpPluginSpan, XpPluginSpan);
 uint32_t xp_plugin_classify(bool browse, bool events);
 uint32_t xp_plugin_picker(uint32_t kind, bool readme);
 bool xp_plugin_discoverable(bool quarantined, bool js, bool device, bool manifest);
 int32_t xp_plugin_subtitle(int32_t viewport, int32_t label_lines, int32_t label_height, int32_t value_height,
                            int32_t subtitle_height, int32_t padding);
-size_t xp_plugin_split_count(XpPluginSpan);
-void xp_plugin_split(XpPluginSpan, void*, void (*segment)(void*, XpPluginSpan));
 void xp_plugin_substitute(const XpPluginString*, XpPluginSpan key, XpPluginSpan value, bool self_value);
 void xp_plugin_encode(XpPluginSpan, void*, void (*append)(void*, XpPluginSpan));
 bool xp_plugin_relative(XpPluginSpan);

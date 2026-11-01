@@ -111,12 +111,6 @@ pub unsafe extern "C" fn xp_plugin_reuse_dir(dir: Span, sub: Span) -> bool {
     !sub.bytes().is_empty() && !sub.bytes().contains(&b'/') && xp_plugin_root(dir)
 }
 /// # Safety
-/// The input is readable and out points to three writable u32 values.
-#[no_mangle]
-pub unsafe extern "C" fn xp_plugin_version(s: Span, out: *mut [u32; 3]) -> bool {
-    version(s.bytes(), &mut *out)
-}
-/// # Safety
 /// Input spans are readable for their lengths.
 #[no_mangle]
 pub unsafe extern "C" fn xp_plugin_newer(c: Span, i: Span) -> bool {
@@ -164,24 +158,6 @@ pub extern "C" fn xp_plugin_subtitle(
         (available / subtitle).clamp(1, 16)
     } else {
         1
-    }
-}
-/// # Safety
-/// Input span is readable for its length.
-#[no_mangle]
-pub unsafe extern "C" fn xp_plugin_split_count(s: Span) -> usize {
-    s.bytes().iter().filter(|&&b| b == b'.').count() + 1
-}
-/// # Safety
-/// Input span is readable and callback accepts borrowed segments synchronously.
-#[no_mangle]
-pub unsafe extern "C" fn xp_plugin_split(
-    s: Span,
-    ctx: *mut c_void,
-    segment: unsafe extern "C" fn(*mut c_void, Span),
-) {
-    for part in s.bytes().split(|&b| b == b'.').filter(|s| !s.is_empty()) {
-        segment(ctx, Span::new(part));
     }
 }
 /// # Safety

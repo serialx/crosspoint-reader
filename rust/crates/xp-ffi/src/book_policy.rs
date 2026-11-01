@@ -326,30 +326,6 @@ pub unsafe extern "C" fn xp_book_link_contains(
         && y < by.wrapping_add(height).wrapping_add(slop)) as u8
 }
 /// # Safety
-/// Name and tag point to their stated readable lengths (or null when empty).
-#[no_mangle]
-pub unsafe extern "C" fn xp_book_tag_equals(
-    name: *const u8,
-    length: usize,
-    tag: *const u8,
-    tag_length: usize,
-) -> u8 {
-    if length != tag_length {
-        return 0;
-    }
-    if length == 0 {
-        return 1;
-    }
-    if name.is_null() || tag.is_null() {
-        return 0;
-    }
-    let name = slice::from_raw_parts(name, length);
-    let tag = slice::from_raw_parts(tag, tag_length);
-    name.iter()
-        .zip(tag)
-        .all(|(a, b)| a.to_ascii_lowercase() == *b) as u8
-}
-/// # Safety
 /// Name points to length readable bytes (or null when empty).
 #[no_mangle]
 pub unsafe extern "C" fn xp_book_tag_hidden(name: *const u8, length: usize) -> u8 {

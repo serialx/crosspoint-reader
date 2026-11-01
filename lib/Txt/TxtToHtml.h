@@ -22,8 +22,6 @@ class TxtToHtml {
   }
 
   static const char* cacheVersionTag(std::string_view filename);
-  static size_t escapedHtmlSize(std::string_view text);
-  static void appendEscapedHtml(std::string& out, std::string_view text);
   static bool stream(std::string_view filename, void* readerCtx, int (*readFn)(void* ctx, uint8_t* buf, size_t size),
                      Print& out);
   static bool stream(std::string_view filename, std::string_view content, Print& out);

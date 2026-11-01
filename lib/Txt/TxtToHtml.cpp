@@ -12,14 +12,6 @@ const char* TxtToHtml::cacheVersionTag(std::string_view filename) {
   return xp_book_txt_cache_tag({reinterpret_cast<const uint8_t*>(filename.data()), filename.size()});
 }
 
-size_t TxtToHtml::escapedHtmlSize(const std::string_view text) {
-  return xp_book_txt_escaped_size(reinterpret_cast<const uint8_t*>(text.data()), text.size());
-}
-
-void TxtToHtml::appendEscapedHtml(std::string& out, const std::string_view text) {
-  TxtToHtml::streamEscapedHtml([&out](std::string_view fragment) { out.append(fragment); }, text);
-}
-
 bool TxtToHtml::stream(std::string_view filename, void* readerCtx, int (*readFn)(void* ctx, uint8_t* buf, size_t size),
                        Print& out) {
   constexpr size_t IN_BUF_SIZE = 8192;

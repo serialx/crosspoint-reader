@@ -97,11 +97,6 @@ class CrossPointWebServer : private XpWebLifecycle {
   void handleFileList() const;
   void handleFileListData() const;
   void handleDownload() const;
-  // Streams an already-open file to the client in 4KB chunks, feeding the
-  // watchdog per write and aborting cleanly (rather than looping past a dead
-  // connection) if a write stalls. Caller sets headers/content-length and
-  // closes the file.
-  void streamFileToClient(HalFile& file) const;
   void handleUpload(UploadState& state) const;
   void handleUploadPost(UploadState& state) const;
   void handleCreateFolder() const;

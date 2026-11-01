@@ -903,8 +903,6 @@ void CrossPointWebServer::handleFileList() const { WebFileBridge::page(*this, XP
 
 void CrossPointWebServer::handleFileListData() const { WebFileBridge::route(*this, XP_WEB_LIST); }
 
-void CrossPointWebServer::streamFileToClient(HalFile& file) const { WebFileBridge::stream(*this, file); }
-
 void CrossPointWebServer::handleDownload() const { WebFileBridge::route(*this, XP_WEB_DOWNLOAD); }
 
 const XpWebTransfers WebFileBridge::transfers = {

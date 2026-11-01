@@ -89,7 +89,3 @@ bool GifToFramebufferConverter::decodeToFramebuffer(const std::string& path, Gfx
   if (xp_gif_frame(&input, &options, &sink, !config.cachePath.empty())) return true;
   return false;
 }
-
-bool GifToFramebufferConverter::supportsFormat(const std::string& extension) {
-  return FsHelpers::hasGifExtension(extension);
-}

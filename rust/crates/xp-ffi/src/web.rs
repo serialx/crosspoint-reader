@@ -1451,14 +1451,6 @@ fn component(bytes: &[u8]) -> bool {
         && !visible.windows(2).any(|p| p == b"..")
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn xp_web_component(data: *const u8, len: usize) -> bool {
-    if data.is_null() && len != 0 {
-        return false;
-    }
-    component(unsafe { Span { data, len }.bytes() })
-}
-
 /// # Safety
 /// The selected immutable asset and transport descriptor are valid for the call.
 #[unsafe(no_mangle)]

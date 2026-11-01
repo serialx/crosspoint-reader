@@ -62,10 +62,6 @@ pub unsafe extern "C" fn xp_sensitive_path(path: *const u8, len: usize, scratch:
         slice::from_raw_parts_mut(scratch, len + 1),
     )
 }
-#[no_mangle]
-pub unsafe extern "C" fn xp_short_alias(path: *const u8, len: usize) -> bool {
-    alias(slice::from_raw_parts(path, len))
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn xp_plugin_path_candidate(path: *const u8, len: usize) -> bool {

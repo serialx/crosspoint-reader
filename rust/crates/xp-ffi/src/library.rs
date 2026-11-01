@@ -52,10 +52,6 @@ pub unsafe extern "C" fn xp_library_initial(data: *const u8, len: usize) -> u32 
 pub unsafe extern "C" fn xp_library_hash(data: *const u8, len: usize) -> u64 {
     xp_core::fnv1a64(bytes(data, len))
 }
-#[no_mangle]
-pub extern "C" fn xp_library_align(value: u32) -> u32 {
-    format::align(value)
-}
 /// # Safety
 /// `header` borrows 64 writable bytes containing a CLX1 header.
 #[no_mangle]

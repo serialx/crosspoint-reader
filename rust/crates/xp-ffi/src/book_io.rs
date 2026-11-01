@@ -77,20 +77,6 @@ pub unsafe extern "C" fn xp_book_txt_escape(
 use xp_core::book_io::xtc_image::{self, Thumbnail};
 
 /// # Safety
-/// Out points to writable Thumbnail storage.
-#[no_mangle]
-pub unsafe extern "C" fn xp_book_xtc_thumbnail(
-    width: u16,
-    height: u16,
-    target: i32,
-    out: *mut Thumbnail,
-) {
-    if !out.is_null() {
-        out.write(xtc_image::thumbnail(width, height, target));
-    }
-}
-
-/// # Safety
 /// Pixels is readable for len bytes; row is initialized writable row_len bytes.
 /// Both are disjoint and callbacks obey the TXT write contract. Plan, when nonnull,
 /// is a readable thumbnail plan. Its dimensions and scale came from thumbnail().

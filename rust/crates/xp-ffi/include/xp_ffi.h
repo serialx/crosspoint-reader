@@ -432,11 +432,7 @@ uint8_t xp_para_word_style(const XpParagraph*, uint32_t);
 void xp_para_token(const XpParagraph*, uint32_t, XpToken*);
 void xp_para_get_style(const XpParagraph*, XpParaBlock*);
 void xp_para_set_style(XpParagraph*, const XpParaBlock*);
-void xp_para_suppress_indent(XpParagraph*);
-void xp_para_reset_indent(XpParagraph*);
 uint8_t xp_para_size_slot(XpParagraph*, float);
-uint8_t xp_para_slot_count(const XpParagraph*);
-float xp_para_slot_scale(const XpParagraph*, uint8_t);
 void xp_para_slot_font(XpParagraph*, uint8_t, int32_t);
 void xp_para_layout(XpParagraph*, const XpParaMetrics*, const XpParaLayout*);
 
@@ -1020,14 +1016,12 @@ typedef struct {
 bool xp_image_init(void*, const XpImageConfig*, int32_t width, int32_t height, bool progressive,
                    const XpImageCallbacks*, XpImagePlan*);
 // Convert 256 RGB888 entries to 256 gray entries; spans must be valid and disjoint.
-void xp_image_gray_palette(const uint8_t* rgb, uint8_t* gray);
 bool xp_image_prepare(void*);
 bool xp_image_cache_begin(void*);
 bool xp_image_row(void*, const XpImageRow*);
 // Returns cache-written; success separately reports row/gap processing failure.
 bool xp_image_finish(void*, bool* success);
 void xp_image_destroy(void*);
-void xp_image_packed_row(const XpImageTarget*, int32_t x, int32_t y, int32_t width, const uint8_t* row, size_t len);
 void xp_image_probe_init(void*);
 size_t xp_image_probe_write(void*, const uint8_t*, size_t);
 bool xp_image_probe_dimensions(const void*, uint32_t* width, uint32_t* height);
@@ -1262,7 +1256,6 @@ int32_t xp_bidi_words(size_t, const void*, const uint8_t* (*)(const void*, size_
 const void* xp_font_resident_glyph(const void*, uint32_t);
 void xp_font_solid_metrics(uint32_t, int32_t, uint16_t, XpFontGlyph*);
 void xp_textm_dimensions_utf8(const XpTextmFace*, const uint8_t*, size_t, int32_t*, int32_t*);
-int32_t xp_native_draw_scaled(const XpNativeProvider*, int32_t, uint32_t, uint8_t, int32_t, void*, void (*)(void*));
 // Synchronous glyph emission: callbacks cannot reenter bidi, register/unregister
 // fonts, or retain pointers. prepare receives terminated visual text and returns
 // a null slot for a cache scan. A returned data slot belongs to the stable EpdFont
@@ -1904,7 +1897,6 @@ size_t xp_library_text(uint8_t*, size_t, uint8_t);
 uint8_t xp_library_matches(const uint8_t*, size_t, const uint8_t*, size_t);
 uint32_t xp_library_initial(const uint8_t*, size_t);
 uint64_t xp_library_hash(const uint8_t*, size_t);
-uint32_t xp_library_align(uint32_t);
 void xp_library_layout(void*, uint32_t, uint32_t);
 uint8_t xp_library_validate(const void*, uint64_t, uint8_t);
 uint32_t xp_library_offset(const void*, uint16_t, uint8_t);
@@ -2596,7 +2588,6 @@ uint32_t xp_flash_validate(const XpFlashServices* services, size_t partition_siz
 uint32_t xp_flash_run(const XpFlashServices* services, bool already_validated);
 
 bool xp_sensitive_path(const uint8_t* path, size_t len, uint8_t* scratch);
-bool xp_short_alias(const uint8_t* path, size_t len);
 bool xp_plugin_path_candidate(const uint8_t* path, size_t len);
 
 enum XpHttpMode { XP_HTTP_FETCH, XP_HTTP_CATALOG, XP_HTTP_FORM, XP_HTTP_DOWNLOAD, XP_HTTP_POST_FILE };
@@ -2769,7 +2760,6 @@ typedef struct {
   uint16_t width, height;
   float scale;
 } XpBookXtcThumbnail;
-void xp_book_xtc_thumbnail(uint16_t width, uint16_t height, int32_t target, XpBookXtcThumbnail* out);
 void xp_book_xtc_image(const uint8_t* pixels, size_t len, uint16_t width, uint16_t height, uint8_t depth, uint8_t* row,
                        size_t row_len, const XpBookXtcThumbnail* plan, void* context,
                        size_t (*write)(void*, const uint8_t*, size_t), void (*yield_now)(void*));

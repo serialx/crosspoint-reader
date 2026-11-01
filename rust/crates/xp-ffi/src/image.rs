@@ -1,11 +1,7 @@
 //! Caller-owned image contexts; all borrowed buffers live for one synchronous call.
 use core::{ffi::c_void, mem, ptr, slice};
 use xp_core::image::{
-    self,
-    cache::ByteSink,
-    frame::{Target, Writer},
-    probe::Probe,
-    Config, Diagnostic, Pipeline, Plan, Sink,
+    self, cache::ByteSink, frame::Target, probe::Probe, Config, Diagnostic, Pipeline, Plan, Sink,
 };
 
 #[repr(C)]
@@ -137,16 +133,6 @@ pub unsafe extern "C" fn xp_image_cache_begin(storage: *mut c_void) -> bool {
     c.pipeline.start_cache(&mut c.callbacks)
 }
 /// # Safety
-/// rgb and gray are disjoint readable/writable spans of 768 and 256 bytes.
-#[no_mangle]
-pub unsafe extern "C" fn xp_image_gray_palette(rgb: *const u8, gray: *mut u8) {
-    let rgb = slice::from_raw_parts(rgb, 768);
-    let gray = slice::from_raw_parts_mut(gray, 256);
-    for (pixel, out) in rgb.chunks_exact(3).zip(gray) {
-        *out = ((pixel[0] as u32 * 77 + pixel[1] as u32 * 150 + pixel[2] as u32 * 29) >> 8) as u8;
-    }
-}
-/// # Safety
 /// Row spans are readable and disjoint from context/target for this call.
 #[no_mangle]
 pub unsafe extern "C" fn xp_image_row(storage: *mut c_void, row: *const Row) -> bool {
@@ -194,25 +180,6 @@ pub unsafe extern "C" fn xp_image_destroy(storage: *mut c_void) {
     let c = &mut *storage.cast::<Context>();
     c.pipeline.abort(&mut c.callbacks);
     ptr::drop_in_place(c);
-}
-/// # Safety
-/// Target is a valid exclusive borrowed target; row points to len readable bytes.
-#[no_mangle]
-pub unsafe extern "C" fn xp_image_packed_row(
-    target: *const Target,
-    x: i32,
-    y: i32,
-    width: i32,
-    row: *const u8,
-    len: usize,
-) {
-    if target.is_null() {
-        return;
-    }
-    let Some(row) = bytes(row, len) else {
-        return;
-    };
-    Writer::new(*target).packed_row(x, y, width, row);
 }
 /// # Safety
 /// Storage is an aligned writable XpImageProbe object. It owns no heap memory.

@@ -444,29 +444,6 @@ pub unsafe extern "C" fn xp_textm_dimensions_utf8(
     *width = w;
     *height = h;
 }
-/// # Safety
-/// Same provider contract as xp_native_draw. emit consumes the bitmap immediately.
-#[no_mangle]
-pub unsafe extern "C" fn xp_native_draw_scaled(
-    provider: *const Provider,
-    id: i32,
-    cp: u32,
-    style: u8,
-    scale: i32,
-    context: *mut c_void,
-    emit: unsafe extern "C" fn(*mut c_void),
-) -> i32 {
-    if scale <= 0 {
-        return 0;
-    }
-    let engine = Engine::new(*provider);
-    let Some(glyph) = engine.face(id).glyph(cp, style) else {
-        return 0;
-    };
-    let advance = textm::to_pixel(i32::from(glyph.advance).wrapping_mul(scale) / 256);
-    emit(context);
-    advance
-}
 
 use xp_core::font::raw::{FontData, Glyph as RasterGlyph};
 use xp_core::glyph::{Bitmap, BitmapSource, Draw, GlyphTarget, Kind};

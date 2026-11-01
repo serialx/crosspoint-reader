@@ -96,11 +96,8 @@ class MappedInputManager {
   // The reader menu remains on its existing top-edge gesture and middle tap.
   bool wasHomeGesture() const;
   // Configured one-frame action, independent of the gesture that triggered it.
-  HomeButtonAction homeButtonAction() const { return homeAction; }
-  void resetHomeButtonInput() const {
-    homeButtonInput.reset();
-    deferredHomeAction = HomeButtonAction::Ignore;
-  }
+  HomeButtonAction homeButtonAction() const;
+  void resetHomeButtonInput() const;
   bool wasMenuGesture() const;
   // Bottom-edge up-swipe as the reader-menu gesture (SHOW_READER_MENU's Swipe
   // Up option). Only meaningful on home-key boards, where Home lives on the
@@ -149,9 +146,6 @@ class MappedInputManager {
   void suppressNextRelease(Button button) const;
 
   mutable RemoteButtonInput remoteInput;
-  mutable HomeButtonInput homeButtonInput;
-  mutable HomeButtonAction homeAction = HomeButtonAction::Ignore;
-  mutable HomeButtonAction deferredHomeAction = HomeButtonAction::Ignore;
   mutable bool touchHeldOverrideValid = false;
   mutable unsigned long touchHeldOverrideMs = 0;
   mutable unsigned long touchHeldOverrideAt = 0;

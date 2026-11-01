@@ -10,6 +10,7 @@
 #include <cstdlib>
 
 #include "CrossPointSettings.h"
+#include "activities/ActivityManager.h"
 #include "components/HeaderBackTapTarget.h"
 #include "components/UITheme.h"
 
@@ -21,49 +22,18 @@ void MappedInputManager::update(const bool deferHomeButtonAction) const {
   const bool pagePressed =
       SETTINGS.vibration == CrossPointSettings::VIBRATION_TOUCH_PAGE && gpio.wasCapacitivePagePressed();
   HalHaptics::feedback(SETTINGS.vibration != CrossPointSettings::VIBRATION_OFF, pagePressed, SETTINGS.hapticIntensity);
-  homeAction = HomeButtonAction::Ignore;
-  if (gpio.hasHomeKey()) {
-    homeAction = homeButtonInput.update(millis(), gpio.wasHomeKeyTapped(), gpio.wasHomeKeyLongPressed(),
-                                        wasSwipe() != SwipeDir::None, gpio.wasHomeKeyPressed(),
-                                        static_cast<HomeButtonAction>(SETTINGS.homeButtonTapAction),
-                                        static_cast<HomeButtonAction>(SETTINGS.homeButtonDoubleTapAction),
-                                        static_cast<HomeButtonAction>(SETTINGS.homeButtonLongPressAction));
-    if (gpio.wasHomeKeyLongPressed() && homeAction != HomeButtonAction::Ignore) {
-      HalHaptics::longPress(SETTINGS.vibration != CrossPointSettings::VIBRATION_OFF, SETTINGS.hapticIntensity);
-    } else if (homeAction != HomeButtonAction::Ignore) {
-      HalHaptics::feedback(SETTINGS.vibration != CrossPointSettings::VIBRATION_OFF, true, SETTINGS.hapticIntensity);
-    }
-  }
-  // Touch boards without a home key: a short power click can carry a reader
-  // shortcut (see SHORT_PWRBTN).
-  if (homeAction == HomeButtonAction::Ignore && mapButton(Button::Power, &HalGPIO::wasReleased)) {
-    switch (SETTINGS.shortPwrBtn) {
-      case CrossPointSettings::PWR_BOOKMARK:
-        homeAction = HomeButtonAction::Bookmark;
-        break;
-      case CrossPointSettings::PWR_SYNC:
-        homeAction = HomeButtonAction::Sync;
-        break;
-      case CrossPointSettings::PWR_READER_MENU:
-        homeAction = HomeButtonAction::ReaderMenu;
-        break;
-      default:
-        break;
-    }
-  }
-  if (deferHomeButtonAction) {
-    // Keep the first action observed during a synchronous transfer. Home must
-    // still be visible now so the transfer can cancel and unwind promptly.
-    if (homeAction != HomeButtonAction::Ignore && deferredHomeAction == HomeButtonAction::Ignore) {
-      deferredHomeAction = homeAction;
-    }
-  } else if (deferredHomeAction != HomeButtonAction::Ignore) {
-    homeAction = deferredHomeAction;
-    deferredHomeAction = HomeButtonAction::Ignore;
-  }
+  XpAppEvent event{.kind = XP_APP_INPUT_POLLED};
+  event.value.defer_home = deferHomeButtonAction;
+  xp_app_event(&event);
   for (uint8_t value = 0; value <= static_cast<uint8_t>(Button::ScreenDown); ++value) {
     if (!isPressed(static_cast<Button>(value))) longPressFiredButtons &= ~(1u << value);
   }
+}
+
+HomeButtonAction MappedInputManager::homeButtonAction() const { return activityManager.homeButtonAction(); }
+void MappedInputManager::resetHomeButtonInput() const {
+  const XpAppEvent event{.kind = XP_APP_RESET_HOME_INPUT};
+  xp_app_event(&event);
 }
 
 bool MappedInputManager::isNavDirectionSwapped() const {
@@ -344,7 +314,7 @@ bool MappedInputManager::wasMenuGesture() const { return wasTopEdgeDownSwipe(); 
 bool MappedInputManager::wasReaderMenuSwipeUp() const { return gpio.hasHomeKey() && wasBottomEdgeUpSwipe(); }
 
 bool MappedInputManager::wasHomeGesture() const {
-  return gpio.hasHomeKey() ? homeAction == HomeButtonAction::Home : wasBottomEdgeUpSwipe();
+  return gpio.hasHomeKey() ? homeButtonAction() == HomeButtonAction::Home : wasBottomEdgeUpSwipe();
 }
 
 bool MappedInputManager::wasLightPanelGesture() const {
@@ -375,7 +345,7 @@ bool MappedInputManager::wasPressed(const Button button) const {
   if ((button == Button::NavNext || button == Button::Right) && remoteInput.button == RemoteButton::Next) return true;
   if ((button == Button::NavPrevious || button == Button::Left) && remoteInput.button == RemoteButton::Previous)
     return true;
-  if (button == Button::Confirm && homeAction == HomeButtonAction::Confirm) return true;
+  if (button == Button::Confirm && homeButtonAction() == HomeButtonAction::Confirm) return true;
   if (button == Button::Back && wasBackGesture()) return true;
 #if FREEINK_CAP_TOUCH
   if (button == Button::Confirm && wasPowerConfirmClick()) return true;
@@ -389,7 +359,7 @@ bool MappedInputManager::wasReleased(const Button button) const {
   if ((button == Button::NavNext || button == Button::Right) && remoteInput.button == RemoteButton::Next) return true;
   if ((button == Button::NavPrevious || button == Button::Left) && remoteInput.button == RemoteButton::Previous)
     return true;
-  if (button == Button::Confirm && homeAction == HomeButtonAction::Confirm) return true;
+  if (button == Button::Confirm && homeButtonAction() == HomeButtonAction::Confirm) return true;
   if (button == Button::Back && wasBackGesture()) return true;
 #if FREEINK_CAP_TOUCH
   if (button == Button::Confirm && wasPowerConfirmClick()) return true;
@@ -429,7 +399,7 @@ bool MappedInputManager::isPressed(const Button button) const { return mapButton
 
 unsigned long MappedInputManager::getHeldTime() const {
   // A mapped action has its own meaning, independent of the contact duration.
-  if (hasRemoteClick() || homeAction != HomeButtonAction::Ignore) return 0;
+  if (hasRemoteClick() || homeButtonAction() != HomeButtonAction::Ignore) return 0;
   if (!gpio.wasAnyPressed() && !gpio.wasAnyReleased() && touchHeldOverrideValid &&
       millis() - touchHeldOverrideAt <= TOUCH_HELD_OVERRIDE_WINDOW_MS) {
     return touchHeldOverrideMs;

@@ -9,6 +9,8 @@ mod home_text;
 mod resources;
 mod result;
 mod sync;
+#[cfg(test)]
+mod test_resources;
 
 use alloc::{alloc::alloc, boxed::Box};
 use core::{
@@ -25,7 +27,7 @@ use xp_ui::{
         Activity, Application, Services, Transition, TransitionKind,
     },
     home::activity::InputResult,
-    model::{EffectKind, POWER},
+    model::EffectKind,
 };
 
 #[derive(Clone, Copy)]
@@ -301,7 +303,7 @@ impl App {
             Feedback::Tap => unsafe { (self.runtime.touch_feedback)(0) },
             Feedback::LongPress => unsafe { (self.runtime.touch_feedback)(1) },
         }
-        let power = if frame.input.released & POWER != 0 {
+        let power = if frame.power_released != 0 {
             match settings.short_power {
                 7 => HomeAction::Bookmark,
                 8 => HomeAction::Sync,
@@ -579,7 +581,7 @@ unsafe extern "C" fn screenshot_info(sink: abi::ScreenshotSink, context: *mut c_
     let empty = abi::Screenshot {
         reader_type: 0,
         title: [0; 64],
-        spine: 0,
+        spine: -1,
         current_page: 0,
         total_pages: 0,
         progress_percent: 0,
@@ -789,9 +791,9 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
         }
         abi::FORCED_REFRESH => {
             return if app.forced_refresh() {
-                abi::HANDLED
+                abi::ACCEPTED
             } else {
-                abi::UNHANDLED
+                abi::REJECTED
             }
         }
         abi::INPUT_POLLED => {

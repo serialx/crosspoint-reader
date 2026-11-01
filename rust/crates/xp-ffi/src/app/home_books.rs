@@ -76,7 +76,7 @@ impl Collection {
             if self.identities.len() >= self.limit {
                 break;
             }
-            let book = match library.row(row) {
+            let path = match library.row(row, false) {
                 Ok(Some(book)) => book,
                 Ok(None) => continue,
                 Err(()) => break,
@@ -84,11 +84,17 @@ impl Collection {
             if self
                 .identities
                 .iter()
-                .any(|existing| existing.path.bytes() == book.identity.path.bytes())
-                || unsafe { (self.services.recent_missing)(book.identity.path.wire()) } != 0
+                .any(|existing| existing.path.bytes() == path.identity.path.bytes())
+                || unsafe { (self.services.recent_missing)(path.identity.path.wire()) } != 0
             {
                 continue;
             }
+            let mut book = match library.row(row, true) {
+                Ok(Some(book)) => book,
+                Ok(None) => continue,
+                Err(()) => break,
+            };
+            book.identity.path = path.identity.path;
             self.push(book);
         }
     }
@@ -270,5 +276,87 @@ pub fn load_covers(
             unsafe { (services.recent_update)(&recent) };
         }
         invalidate();
+    }
+}
+
+#[cfg(test)]
+pub(super) mod tests {
+    use super::*;
+    use alloc::{boxed::Box, vec};
+    use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+
+    static IO_FAILED: AtomicBool = AtomicBool::new(false);
+    static METADATA_READS: AtomicU8 = AtomicU8::new(0);
+
+    pub unsafe extern "C" fn library_open() -> *mut c_void {
+        core::ptr::NonNull::<u8>::dangling().as_ptr().cast()
+    }
+    pub unsafe extern "C" fn library_count(_: *mut c_void) -> u32 {
+        3
+    }
+    pub unsafe extern "C" fn library_close(_: *mut c_void) {}
+    pub unsafe extern "C" fn recent_missing(path: abi::Text) -> u8 {
+        u8::from(unsafe { path.bytes() } == Some(b"/missing".as_slice()))
+    }
+    pub unsafe extern "C" fn library_row(
+        _: *mut c_void,
+        row: u32,
+        metadata: u8,
+        sink: abi::BookSink,
+        context: *mut c_void,
+    ) -> u8 {
+        let empty = abi::Text::from_bytes(b"");
+        if metadata != 0 {
+            METADATA_READS.fetch_or(1 << row, Ordering::Relaxed);
+            if row < 2 {
+                IO_FAILED.store(true, Ordering::Relaxed);
+            }
+        }
+        if IO_FAILED.load(Ordering::Relaxed) {
+            return 2;
+        }
+        let path = [b"/duplicate".as_slice(), b"/missing", b"/valid"][row as usize];
+        let book = abi::Book {
+            path: if metadata == 0 {
+                abi::Text::from_bytes(path)
+            } else {
+                empty
+            },
+            title: if metadata != 0 {
+                abi::Text::from_bytes(b"Valid title")
+            } else {
+                empty
+            },
+            author: empty,
+            cover: empty,
+        };
+        unsafe { sink(context, &book) }
+    }
+
+    #[test]
+    fn duplicate_and_missing_rows_do_not_read_corrupt_metadata() {
+        IO_FAILED.store(false, Ordering::Relaxed);
+        METADATA_READS.store(0, Ordering::Relaxed);
+        let services = Box::leak(Box::new(super::super::test_resources::resources()));
+        let mut collection = Collection {
+            identities: vec![Identity {
+                path: Text::copy(b"/duplicate").unwrap(),
+                title: Text::default(),
+                author: Text::default(),
+            }],
+            covers: vec![Text::default()],
+            limit: 3,
+            services,
+            failed: false,
+        };
+        collection.identities.reserve_exact(2);
+        collection.covers.reserve_exact(2);
+        collection.fill_library(true);
+        assert!(!IO_FAILED.load(Ordering::Relaxed));
+        assert_eq!(METADATA_READS.load(Ordering::Relaxed), 1 << 2);
+        assert_eq!(collection.identities.len(), 2);
+        assert_eq!(collection.identities[1].path.bytes(), b"/valid");
+        assert_eq!(collection.identities[1].title.bytes(), b"Valid title");
+        assert_eq!(collection.covers.len(), 2);
     }
 }

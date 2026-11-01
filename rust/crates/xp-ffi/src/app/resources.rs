@@ -165,12 +165,12 @@ impl Book {
         })
     }
 
-    pub fn load(&mut self, skip_css: bool, metadata_only: bool) -> bool {
+    pub fn load(&mut self, build_missing: bool, skip_css: bool) -> bool {
         unsafe {
             (self.services.book_load)(
                 self.object.as_ptr(),
+                u8::from(build_missing),
                 u8::from(skip_css),
-                u8::from(metadata_only),
             ) != 0
         }
     }
@@ -238,7 +238,7 @@ impl Library {
         (count != u32::MAX).then_some(count)
     }
 
-    pub fn row(&mut self, row: u32) -> Result<Option<Recent>, ()> {
+    pub fn row(&mut self, row: u32, metadata: bool) -> Result<Option<Recent>, ()> {
         struct Capture(Option<Recent>, bool);
         unsafe extern "C" fn sink(context: *mut c_void, book: *const abi::Book) -> u8 {
             let capture = unsafe { &mut *context.cast::<Capture>() };
@@ -251,6 +251,7 @@ impl Library {
             (self.services.library_row)(
                 self.object.as_ptr(),
                 row,
+                u8::from(metadata),
                 sink,
                 (&mut capture as *mut Capture).cast(),
             )

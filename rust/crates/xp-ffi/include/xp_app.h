@@ -1,7 +1,8 @@
 #pragma once
-#include "xp_ui.h"
 #include <stddef.h>
 #include <stdint.h>
+
+#include "xp_ui.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,14 +26,7 @@ typedef uint8_t (*XpAppBookSink)(void* context, const XpAppBook* book);
 typedef uint8_t XpAppStatus;
 enum { XP_APP_OK, XP_APP_INVALID, XP_APP_OUT_OF_MEMORY, XP_APP_WRONG_CONTEXT };
 typedef uint8_t XpAppEventResult;
-enum {
-  XP_APP_ACCEPTED,
-  XP_APP_REJECTED,
-  XP_APP_HANDLED,
-  XP_APP_UNHANDLED,
-  XP_APP_EVENT_OUT_OF_MEMORY,
-  XP_APP_EVENT_INVALID
-};
+enum { XP_APP_ACCEPTED, XP_APP_REJECTED, XP_APP_EVENT_OUT_OF_MEMORY, XP_APP_EVENT_INVALID };
 typedef uint8_t XpAppLaunchKind;
 enum {
   XP_APP_FILES,
@@ -52,8 +46,14 @@ enum {
   XP_APP_FRONTLIGHT_PANEL,
   XP_APP_NETWORK_MODE
 };
-typedef struct { XpAppText path; uint8_t fast_initial; } XpAppReaderLaunch;
-typedef struct { XpAppText text; uint8_t style; } XpAppMessageLaunch;
+typedef struct {
+  XpAppText path;
+  uint8_t fast_initial;
+} XpAppReaderLaunch;
+typedef struct {
+  XpAppText text;
+  uint8_t style;
+} XpAppMessageLaunch;
 typedef struct {
   XpAppLaunchKind kind;
   union {
@@ -68,9 +68,16 @@ typedef struct {
     uint8_t sleep_from_timeout;
   } value;
 } XpAppLaunch;
-typedef struct { uint8_t menu, clean_initial; } XpAppHomeRequest;
-typedef struct { uint8_t forward, chapter; } XpAppRemoteTurn;
-typedef struct { uint32_t allow_sleep_at; uint8_t wake_release_pending; } XpAppBootInput;
+typedef struct {
+  uint8_t menu, clean_initial;
+} XpAppHomeRequest;
+typedef struct {
+  uint8_t forward, chapter;
+} XpAppRemoteTurn;
+typedef struct {
+  uint32_t allow_sleep_at;
+  uint8_t wake_release_pending;
+} XpAppBootInput;
 typedef uint8_t XpAppEventKind;
 enum {
   XP_APP_ADOPT_REPLACE,
@@ -124,9 +131,18 @@ enum {
   XP_APP_RESULT_FILE_PATH,
   XP_APP_RESULT_TRANSFER_FAILED
 };
-typedef struct { XpAppText ssid, ip; uint8_t connected; } XpAppWifiResult;
-typedef struct { int32_t action; uint8_t orientation, page_turn; } XpAppMenuResult;
-typedef struct { XpAppText anchor; int32_t spine; } XpAppChapterResult;
+typedef struct {
+  XpAppText ssid, ip;
+  uint8_t connected;
+} XpAppWifiResult;
+typedef struct {
+  int32_t action;
+  uint8_t orientation, page_turn;
+} XpAppMenuResult;
+typedef struct {
+  XpAppText anchor;
+  int32_t spine;
+} XpAppChapterResult;
 typedef struct {
   XpAppText text;
   uint32_t start_offset, end_offset;
@@ -176,7 +192,9 @@ typedef struct {
 } XpAppLegacyFacts;
 
 // The token borrows the existing C++ RenderLock and power scope for one render call.
-typedef struct { void* lock; } XpAppRenderToken;
+typedef struct {
+  void* lock;
+} XpAppRenderToken;
 typedef struct {
   void* (*create)(const XpAppLaunch* launch);
   void (*destroy)(void* activity);
@@ -239,8 +257,14 @@ typedef struct {
   int16_t tab_height, tab_height_pct, tab_width_pct, tab_offset;
   uint8_t theme, continue_in_menu, columns, touch, body_bold;
 } XpAppTheme;
-typedef struct { int32_t width, height; uint8_t valid; } XpAppBitmapInfo;
-typedef struct { int32_t font, width; uint8_t lines, style; } XpAppTextLayout;
+typedef struct {
+  int32_t width, height;
+  uint8_t valid;
+} XpAppBitmapInfo;
+typedef struct {
+  int32_t font, width;
+  uint8_t lines, style;
+} XpAppTextLayout;
 typedef uint8_t XpAppMemoryDomain;
 enum { XP_APP_MEMORY_DEFAULT, XP_APP_MEMORY_PSRAM_ONLY };
 typedef uint8_t XpAppBookKind;
@@ -255,12 +279,12 @@ typedef struct {
   int32_t (*book_progress)(XpAppText path);
   void* (*library_open)(void);
   uint32_t (*library_count)(void* library);
-  uint8_t (*library_row)(void* library, uint32_t row, XpAppBookSink sink, void* context);
+  uint8_t (*library_row)(void* library, uint32_t row, uint8_t metadata, XpAppBookSink sink, void* context);
   void (*library_close)(void* library);
   uint8_t (*library_rebuild)(uint8_t metadata);
   void* (*book_open)(XpAppBookKind kind, XpAppText path);
   uint8_t (*book_thumb_path)(void* book, int32_t height, XpAppTextSink sink, void* context);
-  uint8_t (*book_load)(void* book, uint8_t skip_css, uint8_t metadata_only);
+  uint8_t (*book_load)(void* book, uint8_t build_missing, uint8_t skip_css);
   uint8_t (*book_generate_thumb)(void* book, int32_t height);
   uint8_t (*book_generate_thumb_from_source)(void* book, int32_t height);
   void (*book_close)(void* book);

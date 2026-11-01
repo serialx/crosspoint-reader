@@ -11,3 +11,6 @@ add_test(NAME home_ui_touch_goldens COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURREN
 add_test(NAME home_ui_facade_routes COMMAND ${CMAKE_COMMAND} -E env
   "XP_FFI_HOST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
   ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/facade_oracle.py)
+
+add_test(NAME home_app_owners COMMAND cargo test --manifest-path
+  ${CMAKE_CURRENT_SOURCE_DIR}/app_owner/Cargo.toml --locked)

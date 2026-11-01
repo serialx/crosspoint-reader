@@ -169,7 +169,8 @@ impl Home {
         frame.paint.texts.body_bold = theme.body_bold != 0;
         let prepared = if snapshot.grid == 0 {
             frame.paint.layout = standard_layout(theme);
-            frame.paint.prepare_covers(self.services, widths)
+            let available = unsafe { (self.runtime.display_geometry)() }.frame_available != 0;
+            frame.paint.prepare_covers(self.services, widths, available)
         } else {
             view::Prepared::default()
         };
@@ -340,6 +341,7 @@ impl PaintState {
         &mut self,
         services: &'static abi::Resources,
         widths: &mut view::Widths,
+        frame_available: bool,
     ) -> view::Prepared {
         self.restore_rect = self.cover_rect;
         let restore_bytes = unsafe { (services.region_size)(self.cover_rect) };
@@ -348,6 +350,7 @@ impl PaintState {
             restored: u8::from(
                 self.cover_rendered
                     && self.buffer_stored
+                    && frame_available
                     && restore_bytes > 0
                     && self
                         .buffer

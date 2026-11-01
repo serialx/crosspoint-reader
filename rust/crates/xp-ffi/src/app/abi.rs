@@ -405,8 +405,13 @@ pub struct Resources {
     pub book_progress: unsafe extern "C" fn(Text) -> i32,
     pub library_open: unsafe extern "C" fn() -> *mut core::ffi::c_void,
     pub library_count: unsafe extern "C" fn(*mut core::ffi::c_void) -> u32,
-    pub library_row:
-        unsafe extern "C" fn(*mut core::ffi::c_void, u32, BookSink, *mut core::ffi::c_void) -> u8,
+    pub library_row: unsafe extern "C" fn(
+        *mut core::ffi::c_void,
+        u32,
+        u8,
+        BookSink,
+        *mut core::ffi::c_void,
+    ) -> u8,
     pub library_close: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub library_rebuild: unsafe extern "C" fn(u8) -> u8,
     pub book_open: unsafe extern "C" fn(BookKind, Text) -> *mut core::ffi::c_void,
@@ -501,10 +506,8 @@ pub const OUT_OF_MEMORY: u8 = 2;
 pub const WRONG_CONTEXT: u8 = 3;
 pub const ACCEPTED: u8 = 0;
 pub const REJECTED: u8 = 1;
-pub const HANDLED: u8 = 2;
-pub const UNHANDLED: u8 = 3;
-pub const EVENT_OUT_OF_MEMORY: u8 = 4;
-pub const EVENT_INVALID: u8 = 5;
+pub const EVENT_OUT_OF_MEMORY: u8 = 2;
+pub const EVENT_INVALID: u8 = 3;
 pub const FILES: u8 = 0;
 pub const LIBRARY: u8 = 1;
 pub const OPDS: u8 = 2;

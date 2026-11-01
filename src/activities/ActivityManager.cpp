@@ -10,25 +10,25 @@
 #include <Memory.h>
 #include <VectorFontSupport.h>
 
-#include <algorithm>
+#include <cstring>
 
 #include "Activity.h"
 #include "CrossPointSettings.h"
 #include "HapticFeedback.h"
 #include "OpdsServerStore.h"
+#include "RustAppResources.h"
+#include "RustAppResult.h"
 #include "boot_sleep/BootActivity.h"
 #include "boot_sleep/SleepActivity.h"
 #include "browser/OpdsBookBrowserActivity.h"
 #include "components/HeaderBackTapTarget.h"
 #include "home/CrashActivity.h"
 #include "home/FileBrowserActivity.h"
-#include "home/HomeActivity.h"
 #include "library/LibraryListActivity.h"
 #include "network/CrossPointWebServerActivity.h"
 #include "network/UsbDriveActivity.h"
 #include "plugins/PluginCatalogActivity.h"
 #include "reader/ReaderActivity.h"
-#include "reader/RemoteTurnGate.h"
 #include "settings/OpdsServerListActivity.h"
 #include "settings/SettingsListActivity.h"
 #include "util/BmpViewerActivity.h"
@@ -36,16 +36,183 @@
 #include "util/FullScreenMessageActivity.h"
 
 static portMUX_TYPE activityManagerSpinlock = portMUX_INITIALIZER_UNLOCKED;
+static portMUX_TYPE appModelSpinlock = portMUX_INITIALIZER_UNLOCKED;
+
+namespace {
+XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
+std::string owned(XpAppText value) {
+  return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
+}
+bool send(XpAppEvent event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
+void navigate(XpAppLaunch launch) {
+  XpAppEvent event{.kind = XP_APP_NAVIGATE};
+  event.value.navigate = launch;
+  if (!send(event)) LOG_ERR("ACT", "Cannot create activity kind=%u", launch.kind);
+}
+void screenshot(const ScreenshotInfo& info, XpAppScreenshotSink sink, void* context) {
+  XpAppScreenshot view{.reader_type = static_cast<uint8_t>(info.readerType)};
+  static_assert(sizeof(view.title) == sizeof(info.title));
+  memcpy(view.title, info.title, sizeof(view.title));
+  view.spine = info.spineIndex;
+  view.current_page = info.currentPage;
+  view.total_pages = info.totalPages;
+  view.progress_percent = info.progressPercent;
+  sink(context, &view);
+}
+}  // namespace
 
 ActivityManager::ActivityManager(GfxRenderer& renderer, MappedInputManager& mappedInput)
     : renderer(renderer), mappedInput(mappedInput), renderingMutex(xSemaphoreCreateMutex()) {
   assert(renderingMutex != nullptr && "Failed to create rendering mutex");
-  stackActivities.reserve(10);
 }
+ActivityManager::~ActivityManager() { assert(false); }
 
-ActivityManager::~ActivityManager() { assert(false); /* should never be called */ }
-
-void ActivityManager::begin() {
+void ActivityManager::begin(const XpAppRuntime& leaves) {
+  static const XpAppLegacy legacy{
+      .create = [](const XpAppLaunch* launch) -> void* {
+        auto& renderer = activityManager.renderer;
+        auto& input = activityManager.mappedInput;
+        switch (launch->kind) {
+          case XP_APP_FILES:
+            return makeUniqueNoThrow<FileBrowserActivity>(renderer, input, owned(launch->value.file_path)).release();
+          case XP_APP_LIBRARY:
+            return makeUniqueNoThrow<LibraryListActivity>(renderer, input).release();
+          case XP_APP_OPDS: {
+            const auto& servers = OPDS_STORE.getServers();
+            if (launch->value.opds_server >= servers.size()) return nullptr;
+            return makeUniqueNoThrow<OpdsBookBrowserActivity>(renderer, input, servers[launch->value.opds_server])
+                .release();
+          }
+          case XP_APP_OPDS_PICKER:
+            return makeUniqueNoThrow<OpdsServerListActivity>(renderer, input, true).release();
+          case XP_APP_PLUGINS:
+            return makeUniqueNoThrow<PluginCatalogActivity>(renderer, input, launch->value.plugins_show_opds != 0, true)
+                .release();
+          case XP_APP_FILE_TRANSFER:
+            return makeUniqueNoThrow<CrossPointWebServerActivity>(renderer, input,
+                                                                  launch->value.transfer_join_network != 0)
+                .release();
+          case XP_APP_USB_DRIVE:
+#if FREEINK_CAP_USB_MSC
+            return makeUniqueNoThrow<UsbDriveActivity>(renderer, input).release();
+#else
+            LOG_ERR("ACT", "USB Drive requested in a build without USB Drive capability");
+            return nullptr;
+#endif
+          case XP_APP_SETTINGS:
+            static_assert(static_cast<uint8_t>(SettingsSection::End) == 6);
+            return makeUniqueNoThrow<SettingsListActivity>(renderer, input,
+                                                           static_cast<SettingsSection>(launch->value.settings_section))
+                .release();
+          case XP_APP_READER:
+            return ReaderActivity::create(renderer, input, owned(launch->value.reader.path),
+                                          launch->value.reader.fast_initial != 0)
+                .release();
+          case XP_APP_BITMAP:
+            return makeUniqueNoThrow<BmpViewerActivity>(renderer, input, owned(launch->value.bitmap_path)).release();
+          case XP_APP_BOOT:
+            return makeUniqueNoThrow<BootActivity>(renderer, input).release();
+          case XP_APP_SLEEP:
+            return makeUniqueNoThrow<SleepActivity>(renderer, input, launch->value.sleep_from_timeout != 0).release();
+          case XP_APP_MESSAGE:
+            return makeUniqueNoThrow<FullScreenMessageActivity>(
+                       renderer, input, owned(launch->value.message.text),
+                       static_cast<EpdFontFamily::Style>(launch->value.message.style))
+                .release();
+          case XP_APP_CRASH:
+            return makeUniqueNoThrow<CrashActivity>(renderer, input).release();
+          case XP_APP_FRONTLIGHT_PANEL:
+            return makeUniqueNoThrow<FrontlightPanelActivity>(renderer, input).release();
+          default:
+            return nullptr;
+        }
+      },
+      .destroy = [](void* activity) { delete static_cast<Activity*>(activity); },
+      .enter = [](void* activity) { static_cast<Activity*>(activity)->onEnter(); },
+      .loop = [](void* activity) { static_cast<Activity*>(activity)->loop(); },
+      .exit = [](void* activity) { static_cast<Activity*>(activity)->onExit(); },
+      .render =
+          [](void* activity, XpAppRenderToken* token) {
+            static_cast<Activity*>(activity)->render(std::move(*static_cast<RenderLock*>(token->lock)));
+          },
+      .facts = [](const void* object) -> XpAppLegacyFacts {
+        auto* activity = const_cast<Activity*>(static_cast<const Activity*>(object));
+        uint8_t kind = UINT8_MAX;
+        const auto& name = activity->name;
+        if (name == "FileBrowser")
+          kind = XP_APP_FILES;
+        else if (name == "Library")
+          kind = XP_APP_LIBRARY;
+        else if (name == "OpdsBookBrowser")
+          kind = XP_APP_OPDS;
+        else if (name == "PluginCatalog")
+          kind = XP_APP_PLUGINS;
+        else if (name == "CrossPointWebServer")
+          kind = XP_APP_FILE_TRANSFER;
+        else if (name == "Settings" || name == "SettingsList")
+          kind = XP_APP_SETTINGS;
+        else if (name == "NetworkModeSelection")
+          kind = XP_APP_NETWORK_MODE;
+        else if (name == "FrontlightPanel")
+          kind = XP_APP_FRONTLIGHT_PANEL;
+        const bool reader = activity->isReaderActivity();
+        return {kind,
+                static_cast<uint8_t>(reader),
+                static_cast<uint8_t>(activity->acceptsRemoteInput()),
+                static_cast<uint8_t>(activity->preventAutoSleep()),
+                static_cast<uint8_t>(activity->requiresExclusiveStorageLoop()),
+                static_cast<uint8_t>(activity->skipLoopDelay()),
+                static_cast<uint8_t>(reader && static_cast<ReaderActivity*>(activity)->inputOverPage())};
+      },
+      .take_result = [](void* activity, XpAppResultSink sink, void* context) -> uint8_t {
+        const auto view = rustAppResultView(static_cast<Activity*>(activity)->result);
+        return sink(context, &view);
+      },
+      .deliver_result =
+          [](void* parent, const XpAppResultView* view) {
+            auto* activity = static_cast<Activity*>(parent);
+            auto handler = std::move(activity->resultHandler);
+            activity->resultHandler = nullptr;
+            if (handler) handler(nativeAppResult(*view));
+          },
+      .prepare_sleep = [](void* activity) { static_cast<Activity*>(activity)->prepareForSleep(); },
+      .home_gesture = [](void* activity) -> uint8_t { return static_cast<Activity*>(activity)->handleHomeGesture(); },
+      .forced_refresh = [](void* activity) -> uint8_t {
+        return static_cast<Activity*>(activity)->handleForcedRefresh();
+      },
+      .reader_turn = [](void* activity, uint8_t forward, uint8_t chapter) -> uint8_t {
+        if (activityManager.mappedInput.hasRemoteClick()) return 0;
+        auto* reader = static_cast<ReaderActivity*>(activity);
+        return chapter ? reader->skipPages(forward ? 1 : -1) : reader->pageTurn(forward != 0);
+      },
+      .reader_shortcut = [](void* activity, uint8_t menu) -> uint8_t {
+        return static_cast<ReaderActivity*>(activity)->remoteShortcut(menu != 0);
+      },
+      .screenshot_info =
+          [](const void* activity, XpAppScreenshotSink sink, void* context) {
+            screenshot(static_cast<const Activity*>(activity)->getScreenshotInfo(), sink, context);
+          },
+  };
+  static XpAppRuntime runtime = leaves;
+  runtime.render_lock = []() -> void* {
+    const auto mutex = activityManager.renderingMutex;
+    const bool locked = xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE;
+    assert(locked && "Blocking render lock acquisition failed");
+    return mutex;
+  };
+  runtime.render_try_lock = []() -> void* {
+    const auto mutex = activityManager.renderingMutex;
+    return xSemaphoreTake(mutex, 0) == pdTRUE ? mutex : nullptr;
+  };
+  runtime.render_unlock = [](void* lock) { xSemaphoreGive(static_cast<SemaphoreHandle_t>(lock)); };
+  runtime.model_lock = [] { taskENTER_CRITICAL(&appModelSpinlock); };
+  runtime.model_unlock = [] { taskEXIT_CRITICAL(&appModelSpinlock); };
+  runtime.notify_render = [] {
+    if (activityManager.renderTaskHandle) xTaskNotify(activityManager.renderTaskHandle, 1, eIncrement);
+  };
+  const XpAppPlatform platform{&legacy, &rustAppResources(renderer, mappedInput), &runtime};
+  const auto status = xp_app_init(&platform, &compatibility);
+  assert(status == XP_APP_OK && "Failed to initialize Rust application");
 #if defined(configNUM_CORES) && configNUM_CORES > 1
   constexpr BaseType_t renderTaskCore = 1;
 #else
@@ -71,415 +238,130 @@ void ActivityManager::begin() {
   assert(renderTaskHandle != nullptr && "Failed to create render task");
 }
 
-void ActivityManager::renderTaskTrampoline(void* param) {
-  auto* self = static_cast<ActivityManager*>(param);
-  self->renderTaskLoop();
-}
-
+void ActivityManager::renderTaskTrampoline(void* param) { static_cast<ActivityManager*>(param)->renderTaskLoop(); }
 void ActivityManager::renderTaskLoop() {
   while (true) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    // Acquire the lock before reading currentActivity to avoid a TOCTOU race
-    // where the main task deletes the activity between the null-check and render().
     RenderLock lock;
-    if (currentActivity) {
-      HalPowerManager::Lock powerLock;  // Ensure we don't go into low-power mode while rendering
-      // Night mode is a global output polarity applied to every activity.
-      // The sleep screen forces normal polarity itself (SleepActivity).
-      display.setInverted(SETTINGS.screenInverted != 0);
-      const uint32_t renderingVisit = screenVisit;
-      currentActivity->render(std::move(lock));
-      paintedVisit.store(renderingVisit, std::memory_order_release);
-    }
-    // Notify any task blocked in requestUpdateAndWait() that the render is done.
+    HalPowerManager::Lock powerLock;
+    display.setInverted(SETTINGS.screenInverted != 0);
+    XpAppRenderToken token{&lock};
+    xp_app_render(&token);
     TaskHandle_t waiter = nullptr;
     taskENTER_CRITICAL(&activityManagerSpinlock);
     waiter = waitingTaskHandle;
     waitingTaskHandle = nullptr;
     taskEXIT_CRITICAL(&activityManagerSpinlock);
-    if (waiter) {
-      xTaskNotify(waiter, 1, eIncrement);
-    }
+    if (waiter) xTaskNotify(waiter, 1, eIncrement);
   }
 }
 
-void ActivityManager::loop() {
-  if (mappedInput.consumeSuppressedRelease()) return;
-
-  if (currentActivity && currentActivity->requiresExclusiveStorageLoop()) {
-    currentActivity->loop();
-    // An exclusive-storage activity must restart rather than navigate away:
-    // processing a pending action here could re-enable filesystem users while
-    // the USB host still owns the raw SD card.
-    if (requestedUpdate.exchange(false) && renderTaskHandle) {
-      xTaskNotify(renderTaskHandle, 1, eIncrement);
-    }
-    return;
-  }
-
-  if (currentActivity) {
-    if (!currentActivity->isHomeActivity() && mappedInput.wasHomeGesture()) {
-      if (currentActivity->handleHomeGesture()) {
-        return;
-      }
-      goHome();
-      return;
-    }
-
-    // Tap-first control-center entry: a tap on the status-bar band of the
-    // top-level tab screens opens it, mirroring the top-edge swipe (which some
-    // panels' etched glass makes unreliable). The reader keeps its clean page
-    // (no status bar there to tap). Touch boards only, like the swipe itself.
-    bool statusBarTap = false;
-    if (mappedInput.hasTouch() && (currentActivity->name == "Home" || currentActivity->name == "FileBrowser" ||
-                                   currentActivity->name == "Settings" || currentActivity->name == "SettingsList" ||
-                                   currentActivity->name == "NetworkModeSelection")) {
-      int tx = 0;
-      int ty = 0;
-      // The header back button shares this band; its taps stay Back.
-      statusBarTap = mappedInput.wasScreenTapped(tx, ty) && ty < 44 && !HeaderBackTapTarget::contains(tx, ty);
-    }
-    // Only boards whose frontlight was detected get the panel.
-    if (Frontlight.present() && currentActivity->name != "FrontlightPanel" &&
-        (statusBarTap || mappedInput.wasLightPanelGesture())) {
-      haptic_feedback::touchAction();
-      pushActivity(std::make_unique<FrontlightPanelActivity>(renderer, mappedInput));
-      return;
-    }
-
-    // Note: do not hold a lock here, the loop() method must be responsible for acquire one if needed
-    currentActivity->loop();
-  }
-
-  while (pendingAction != PendingAction::None) {
-    // The page turner's radio gives its heap back before the next screen allocates. Its teardown
-    // can span loop passes and runs outside the render lock.
-    if (pendingAction != PendingAction::ReplaceForSleep &&
-        !bleturner::beforeScreenChange(0, pendingActivity && pendingActivity->isReaderActivity())) {
-      return;
-    }
-    if (pendingAction == PendingAction::Pop) {
-      RenderLock lock;
-
-      if (!currentActivity) {
-        // Should never happen in practice
-        LOG_ERR("ACT", "Pop set but currentActivity is null; ignoring pop request");
-        pendingAction = PendingAction::None;
-        continue;
-      }
-
-      ++screenVisit;
-      ActivityResult pendingResult = std::move(currentActivity->result);
-
-      // Destroy the current activity
-      exitActivity(lock);
-      pendingAction = PendingAction::None;
-
-      if (stackActivities.empty()) {
-        LOG_DBG("ACT", "No more activities on stack, going home");
-        lock.unlock();  // goHome may acquire its own lock
-        goHome();
-        continue;  // Will launch goHome immediately
-
-      } else {
-        currentActivity = std::move(stackActivities.back());
-        stackActivities.pop_back();
-        LOG_DBG("ACT", "Popped from activity stack, new size = %zu", stackActivities.size());
-        // Handle result if necessary
-        if (currentActivity->resultHandler) {
-          LOG_DBG("ACT", "Handling result for popped activity");
-
-          // Move it here to avoid the case where handler calling another startActivityForResult()
-          auto handler = std::move(currentActivity->resultHandler);
-          currentActivity->resultHandler = nullptr;
-          lock.unlock();  // Handler may acquire its own lock
-          handler(pendingResult);
-        }
-
-        // Request an update to ensure the popped activity gets re-rendered
-        if (pendingAction == PendingAction::None) {
-          requestUpdate();
-        }
-
-        // Handler may request another pending action, we will handle it in the next loop iteration
-        continue;
-      }
-
-    } else if (pendingActivity) {
-      // Current activity has requested a new activity to be launched
-      RenderLock lock;
-
-      if (pendingAction == PendingAction::Replace || pendingAction == PendingAction::ReplaceForSleep) {
-        // Destroy the current activity
-        exitActivity(lock);
-        // Clear the stack
-        while (!stackActivities.empty()) {
-          stackActivities.back()->onExit();
-          stackActivities.pop_back();
-        }
-      } else if (pendingAction == PendingAction::Push) {
-        // Move current activity to stack
-        stackActivities.push_back(std::move(currentActivity));
-        // The parent's header back rect must not route taps on the pushed
-        // screen (which may draw no header of its own).
-        HeaderBackTapTarget::clear();
-        LOG_DBG("ACT", "Pushed to activity stack, new size = %zu", stackActivities.size());
-      }
-      ++screenVisit;
-      pendingAction = PendingAction::None;
-      currentActivity = std::move(pendingActivity);
-
-      lock.unlock();  // onEnter may acquire its own lock
-      currentActivity->onEnter();
-
-      // onEnter may request another pending action, we will handle it in the next loop iteration
-      continue;
-    }
-  }
-
-  if (requestedUpdate.exchange(false)) {
-    // Using direct notification to signal the render task to update
-    // Increment counter so multiple rapid calls won't be lost
-    if (renderTaskHandle) {
-      xTaskNotify(renderTaskHandle, 1, eIncrement);
-    }
-  }
+void ActivityManager::loop() { xp_app_loop(); }
+void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& activity) {
+  XpAppEvent event{.kind = XP_APP_ADOPT_REPLACE};
+  event.value.adopt_replace = activity.release();
+  if (!send(event)) delete static_cast<Activity*>(event.value.adopt_replace);
 }
-
-void ActivityManager::exitActivity(const RenderLock& lock) {
-  // Note: lock must be held by the caller
-  if (currentActivity) {
-    currentActivity->onExit();
-    currentActivity.reset();
-  }
-  // The outgoing screen's header back button must not eat taps on the next
-  // screen; the next header draw re-records it.
-  HeaderBackTapTarget::clear();
-}
-
-void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& newActivity) {
-  mappedInput.resetHomeButtonInput();
-  // Note: no lock here, this is usually called by loop() and we may run into deadlock
-  if (currentActivity) {
-    // Defer launch if we're currently in an activity, to avoid deleting the current activity
-    // leading to the "delete this" problem
-    pendingActivity = std::move(newActivity);
-    pendingAction = PendingAction::Replace;
-  } else {
-    // No current activity, safe to launch immediately
-    currentActivity = std::move(newActivity);
-    currentActivity->onEnter();
-  }
-}
-
-void ActivityManager::goToFileTransfer() {
-  replaceActivity(std::make_unique<CrossPointWebServerActivity>(renderer, mappedInput));
-}
-
-void ActivityManager::goToJoinNetwork() {
-  // Post heap-defrag reboot: enter the web-server activity straight in Join
-  // Network mode (skips mode selection, does not reboot again).
-  replaceActivity(std::make_unique<CrossPointWebServerActivity>(renderer, mappedInput, /*startInJoinNetwork=*/true));
-}
-
-void ActivityManager::goToUsbDrive() {
-#if FREEINK_CAP_USB_MSC
-  auto activity = makeUniqueNoThrow<UsbDriveActivity>(renderer, mappedInput);
-  if (!activity) {
-    LOG_ERR("ACT", "OOM: USB Drive activity");
-    return;
-  }
-  replaceActivity(std::move(activity));
-#else
-  LOG_ERR("ACT", "USB Drive requested in a build without USB Drive capability");
-#endif
-}
-
-void ActivityManager::goToSettings(const SettingsSection openSection) {
-  replaceActivity(std::make_unique<SettingsListActivity>(renderer, mappedInput, openSection));
-}
-
-void ActivityManager::goToFileBrowser(std::string path) {
-  replaceActivity(std::make_unique<FileBrowserActivity>(renderer, mappedInput, std::move(path)));
-}
-
-void ActivityManager::goToLibrary() {
-  auto activity = makeUniqueNoThrow<LibraryListActivity>(renderer, mappedInput);
-  if (!activity) {
-    LOG_ERR("ACT", "OOM: library activity");
-    return;
-  }
-  replaceActivity(std::move(activity));
-}
-
-void ActivityManager::goToBrowser() {
-  const auto& servers = OPDS_STORE.getServers();
-  // Skip the server picker when there's only one server configured
-  if (servers.size() == 1) {
-    replaceActivity(std::make_unique<OpdsBookBrowserActivity>(renderer, mappedInput, servers[0]));
-  } else {
-    replaceActivity(std::make_unique<OpdsServerListActivity>(renderer, mappedInput, true));
-  }
-}
-
-void ActivityManager::goToPlugins(bool showOpds) {
-  replaceActivity(std::make_unique<PluginCatalogActivity>(renderer, mappedInput, showOpds, /*rootMode=*/true));
-}
-
-void ActivityManager::goToReader(std::string path, const bool allowFastInitialRefresh) {
-  if (path.empty()) {
-    goToFileBrowser("/");
-    return;
-  }
-
-  if (FsHelpers::hasImageExtension(path)) {
-    auto activity = makeUniqueNoThrow<BmpViewerActivity>(renderer, mappedInput, std::move(path));
-    if (!activity) {
-      LOG_ERR("ACT", "OOM: bitmap viewer activity");
-      return;
-    }
-    replaceActivity(std::move(activity));
-    return;
-  }
-
-  auto activity = ReaderActivity::create(renderer, mappedInput, std::move(path), allowFastInitialRefresh);
-  if (activity) {
-    replaceActivity(std::move(activity));
-  }
-}
-
-void ActivityManager::goToSleep(bool fromTimeout) {
-  replaceActivity(std::make_unique<SleepActivity>(renderer, mappedInput, fromTimeout));
-  if (pendingAction == PendingAction::Replace) pendingAction = PendingAction::ReplaceForSleep;
-  loop();  // Important: sleep screen must be rendered immediately, the caller will go to sleep right after this returns
-}
-
-void ActivityManager::goToBoot() { replaceActivity(std::make_unique<BootActivity>(renderer, mappedInput)); }
-
-void ActivityManager::goToFullScreenMessage(std::string message, EpdFontFamily::Style style) {
-  replaceActivity(std::make_unique<FullScreenMessageActivity>(renderer, mappedInput, std::move(message), style));
-}
-
-void ActivityManager::goHome(HomeMenuItem initialMenuItem, bool cleanInitialRefresh) {
-  if (initialMenuItem == HomeMenuItem::NONE && currentActivity) {
-    const auto& activityName = currentActivity->name;
-    if (activityName == "FileBrowser") {
-      initialMenuItem = HomeMenuItem::FILE_BROWSER;
-    } else if (activityName == "Library") {
-      initialMenuItem = HomeMenuItem::LIBRARY;
-    } else if (activityName == "OpdsBookBrowser" || activityName == "PluginCatalog") {
-      initialMenuItem = HomeMenuItem::OPDS_BROWSER;
-    } else if (activityName == "CrossPointWebServer") {
-      initialMenuItem = HomeMenuItem::FILE_TRANSFER;
-    } else if (activityName == "Settings" || activityName == "SettingsList") {
-      initialMenuItem = HomeMenuItem::SETTINGS_MENU;
-    }
-  }
-  replaceActivity(std::make_unique<HomeActivity>(renderer, mappedInput, initialMenuItem, cleanInitialRefresh));
-}
-void ActivityManager::goToCrashReport() { replaceActivity(std::make_unique<CrashActivity>(renderer, mappedInput)); }
-
 void ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
-  mappedInput.resetHomeButtonInput();
-  if (pendingActivity) {
-    // Should never happen in practice
-    LOG_ERR("ACT", "pendingActivity while pushActivity is not expected");
-    pendingActivity.reset();
-  }
-  pendingActivity = std::move(activity);
-  pendingAction = PendingAction::Push;
+  XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};
+  event.value.adopt_push = activity.release();
+  if (!send(event)) delete static_cast<Activity*>(event.value.adopt_push);
 }
-
-void ActivityManager::popActivity() {
-  mappedInput.resetHomeButtonInput();
-  if (pendingActivity) {
-    // Should never happen in practice
-    LOG_ERR("ACT", "pendingActivity while popActivity is not expected");
-    pendingActivity.reset();
-  }
-  pendingAction = PendingAction::Pop;
+void ActivityManager::popActivity() { send({.kind = XP_APP_POP}); }
+void ActivityManager::goToFileTransfer() { navigate({.kind = XP_APP_FILE_TRANSFER}); }
+void ActivityManager::goToJoinNetwork() {
+  XpAppLaunch launch{.kind = XP_APP_FILE_TRANSFER};
+  launch.value.transfer_join_network = 1;
+  navigate(launch);
 }
-
-bool ActivityManager::preventAutoSleep() const { return currentActivity && currentActivity->preventAutoSleep(); }
-
-bool ActivityManager::requiresExclusiveStorageLoop() const {
-  return currentActivity && currentActivity->requiresExclusiveStorageLoop();
+void ActivityManager::goToUsbDrive() { navigate({.kind = XP_APP_USB_DRIVE}); }
+void ActivityManager::goToSettings(SettingsSection section) {
+  XpAppLaunch launch{.kind = XP_APP_SETTINGS};
+  launch.value.settings_section = static_cast<uint8_t>(section);
+  navigate(launch);
 }
-
-bool ActivityManager::isReaderActivity() const {
-  return std::any_of(stackActivities.begin(), stackActivities.end(),
-                     [](const auto& activity) { return activity->isReaderActivity(); }) ||
-         (currentActivity && currentActivity->isReaderActivity());
+void ActivityManager::goToFileBrowser(std::string path) {
+  XpAppLaunch launch{.kind = XP_APP_FILES};
+  launch.value.file_path = text(path);
+  navigate(launch);
 }
-
-bool ActivityManager::isForegroundReader() const {
-  return pendingAction == PendingAction::None && currentActivity && currentActivity->isReaderActivity();
+void ActivityManager::goToLibrary() { navigate({.kind = XP_APP_LIBRARY}); }
+void ActivityManager::goToBrowser() { navigate({.kind = XP_APP_OPDS_PICKER}); }
+void ActivityManager::goToPlugins(bool showOpds) {
+  XpAppLaunch launch{.kind = XP_APP_PLUGINS};
+  launch.value.plugins_show_opds = showOpds;
+  navigate(launch);
 }
-
-bool ActivityManager::isRemoteReaderContext() const {
-  return pendingAction == PendingAction::None && currentActivity && currentActivity->acceptsRemoteInput();
+void ActivityManager::goToReader(std::string path, bool fastInitial) {
+  XpAppLaunch launch{.kind = XP_APP_READER};
+  launch.value.reader = {text(path), static_cast<uint8_t>(fastInitial)};
+  navigate(launch);
 }
-
-bool ActivityManager::remoteClick(const RemoteButton button) {
-  if (!isRemoteReaderContext() || RenderLock::peek() || requestedUpdate.load()) return false;
-  return mappedInput.injectRemoteClick(button);
+void ActivityManager::goToSleep(bool fromTimeout) {
+  XpAppEvent event{.kind = XP_APP_SLEEP_REQUESTED};
+  event.value.sleep_from_timeout = fromTimeout;
+  send(event);
 }
-
-bool ActivityManager::isForegroundHomeShown() const {
-  return pendingAction == PendingAction::None && currentActivity && currentActivity->name == "Home" &&
-         paintedVisit.load(std::memory_order_acquire) == screenVisit;
+void ActivityManager::goToBoot() { navigate({.kind = XP_APP_BOOT}); }
+void ActivityManager::goToFullScreenMessage(std::string message, EpdFontFamily::Style style) {
+  XpAppLaunch launch{.kind = XP_APP_MESSAGE};
+  launch.value.message = {text(message), static_cast<uint8_t>(style)};
+  navigate(launch);
 }
-
-bool ActivityManager::remoteShortcut(const bool readerMenu) {
-  if (!isForegroundReader()) return false;
-  auto* reader = static_cast<ReaderActivity*>(currentActivity.get());
-  if (!remoteTurnAccepted(reader->acceptsRemoteInput(), RenderLock::peek(), reader->inputOverPage())) {
-    return false;
-  }
-  return reader->remoteShortcut(readerMenu);
+void ActivityManager::goToCrashReport() { navigate({.kind = XP_APP_CRASH}); }
+void ActivityManager::goHome(HomeMenuItem menu, bool clean) {
+  XpAppEvent event{.kind = XP_APP_HOME_REQUESTED};
+  event.value.home = {static_cast<uint8_t>(menu), static_cast<uint8_t>(clean)};
+  if (!send(event)) LOG_ERR("ACT", "OOM: Home activity");
 }
-
-bool ActivityManager::remoteTurn(const bool forward, const bool chapter) {
-  if (!isRemoteReaderContext() || mappedInput.hasRemoteClick()) return false;
-  auto* reader = isForegroundReader() ? static_cast<ReaderActivity*>(currentActivity.get()) : nullptr;
-  if (!reader || reader->inputOverPage()) {
-    return !chapter && remoteClick(forward ? RemoteButton::Next : RemoteButton::Previous);
-  }
-  if (!remoteTurnAccepted(reader->acceptsRemoteInput(), RenderLock::peek(), reader->inputOverPage())) {
-    return false;
-  }
-  const bool turned = chapter ? reader->skipPages(forward ? 1 : -1) : reader->pageTurn(forward);
-  if (turned) requestUpdate();
-  return turned;
+bool ActivityManager::preventAutoSleep() const { return facts().prevent_sleep != 0; }
+bool ActivityManager::requiresExclusiveStorageLoop() const { return facts().exclusive_storage != 0; }
+bool ActivityManager::isReaderActivity() const { return facts().reader_in_stack != 0; }
+bool ActivityManager::isForegroundReader() const { return facts().foreground_reader != 0; }
+bool ActivityManager::isRemoteReaderContext() const { return facts().remote_context != 0; }
+bool ActivityManager::isForegroundHomeShown() const { return facts().foreground_home_shown != 0; }
+bool ActivityManager::skipLoopDelay() const { return facts().skip_delay != 0; }
+HomeButtonAction ActivityManager::homeButtonAction() const {
+  return compatibility.home_action ? static_cast<HomeButtonAction>(compatibility.home_action())
+                                   : HomeButtonAction::Ignore;
 }
-
-bool ActivityManager::handleForcedRefresh() { return currentActivity && currentActivity->handleForcedRefresh(); }
-
-bool ActivityManager::skipLoopDelay() const { return currentActivity && currentActivity->skipLoopDelay(); }
-
+bool ActivityManager::remoteClick(RemoteButton button) {
+  XpAppEvent event{.kind = XP_APP_REMOTE_CLICK};
+  event.value.remote_button = static_cast<uint8_t>(button);
+  return send(event);
+}
+bool ActivityManager::remoteTurn(bool forward, bool chapter) {
+  XpAppEvent event{.kind = XP_APP_REMOTE_TURN};
+  event.value.remote_turn = {static_cast<uint8_t>(forward), static_cast<uint8_t>(chapter)};
+  return send(event);
+}
+bool ActivityManager::remoteShortcut(bool menu) {
+  XpAppEvent event{.kind = XP_APP_REMOTE_SHORTCUT};
+  event.value.reader_menu = menu;
+  return send(event);
+}
+bool ActivityManager::handleForcedRefresh() { return send({.kind = XP_APP_FORCED_REFRESH}); }
 ScreenshotInfo ActivityManager::getScreenshotInfo() const {
-  if (currentActivity) {
-    return currentActivity->getScreenshotInfo();
-  }
-  return {};
+  ScreenshotInfo info;
+  if (compatibility.screenshot_info)
+    compatibility.screenshot_info(
+        [](void* context, const XpAppScreenshot* view) {
+          auto& info = *static_cast<ScreenshotInfo*>(context);
+          info.readerType = static_cast<ScreenshotInfo::ReaderType>(view->reader_type);
+          memcpy(info.title, view->title, sizeof(info.title));
+          info.spineIndex = view->spine;
+          info.currentPage = view->current_page;
+          info.totalPages = view->total_pages;
+          info.progressPercent = view->progress_percent;
+        },
+        &info);
+  return info;
 }
-
-void ActivityManager::prepareForSleep() {
-  RenderLock lock;
-  for (const auto& activity : stackActivities) activity->prepareForSleep();
-  if (currentActivity) currentActivity->prepareForSleep();
-}
-
+void ActivityManager::prepareForSleep() { send({.kind = XP_APP_PREPARE_SLEEP}); }
 void ActivityManager::requestUpdate(bool immediate) {
-  if (immediate) {
-    if (renderTaskHandle) {
-      xTaskNotify(renderTaskHandle, 1, eIncrement);
-    }
-  } else {
-    // Deferring the update until current loop is finished
-    // This is to avoid multiple updates being requested in the same loop
-    requestedUpdate = true;
-  }
+  XpAppEvent event{.kind = XP_APP_RENDER_REQUESTED};
+  event.value.render_immediate = immediate;
+  send(event);
 }
 void ActivityManager::requestUpdateAndWait() {
   if (!renderTaskHandle) {

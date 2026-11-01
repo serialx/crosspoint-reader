@@ -1,0 +1,14 @@
+[package]
+name = "home-app-owner-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+xp-ui = { path = "../../../rust/crates/xp-ui" }
+xp-core = { path = "../../../rust/crates/xp-core" }
+
+[lib]
+path = "lib.rs"

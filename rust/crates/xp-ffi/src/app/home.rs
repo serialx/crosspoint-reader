@@ -182,14 +182,15 @@ impl Home {
         Some(true)
     }
 
-    // Preparation locals must leave the stack before book cover loading starts.
+    // Keep preparation locals off the native drawing and cover-loading call paths.
     #[inline(never)]
-    fn paint_frame(
+    fn prepare_scene(
         &self,
         frame: &mut Frame,
         identities: &[Identity],
         widths: &mut view::Widths,
-    ) -> Option<xp_ui::home::AfterPaint> {
+        prepared_geometry: &mut Geometry,
+    ) -> Option<usize> {
         let snapshot = frame.paint.snapshot;
         let theme = self.theme();
         frame.paint.texts.body_bold = theme.body_bold != 0;
@@ -271,6 +272,20 @@ impl Home {
                 }
             }
         };
+        *prepared_geometry = geometry;
+        Some(command_count)
+    }
+
+    #[inline(never)]
+    fn paint_frame(
+        &self,
+        frame: &mut Frame,
+        identities: &[Identity],
+        widths: &mut view::Widths,
+    ) -> Option<xp_ui::home::AfterPaint> {
+        let mut geometry = Geometry::Unpublished;
+        let command_count = self.prepare_scene(frame, identities, widths, &mut geometry)?;
+        let snapshot = frame.paint.snapshot;
         let mut changed = false;
         if let Geometry::Grid(geometry) = geometry {
             let display = unsafe { (self.runtime.display_geometry)() };

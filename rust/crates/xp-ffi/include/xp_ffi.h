@@ -174,16 +174,11 @@ void xp_word_store_destroy(XpWordStore* state);
 // out is aligned, writable and disjoint from input/state. Failure leaves it unchanged.
 // Copies at most 65534 bytes and appends NUL. 1=success, 0=OOM/invalid length.
 uint8_t xp_word_store_append(XpWordStore* state, const uint8_t* text, size_t len, XpStoredWord* out);
-// A handle/suffix is borrowed until release or destruction. Release exactly one
-// of the original handle and its suffix aliases, never both. Handles belong to state.
 size_t xp_word_store_chunk_count(const XpWordStore* state);
 
 // Token metadata uses caller-owned opaque state: 26 pointer-sized words,
 // pointer-aligned. Same allocator, lifetime and serialization contract as above.
 // Token flags: bit 0 continues, bit 1 no-space-before; remaining bits ignored.
-// insert/reserve return 0 on failure without changing the token sequence; capacity
-// may grow. get returns a zero token outside the sequence. Tokens borrow word handles;
-// callers release word-text obligations before erasing metadata or destroying its arena.
 typedef struct XpTokens XpTokens;
 typedef struct {
   XpStoredWord word;
@@ -196,100 +191,6 @@ uint8_t xp_tokens_insert(XpTokens* state, size_t index, const XpToken* token, ui
 uint8_t xp_tokens_record_absorbed(XpTokens* state, uint32_t offset);
 // Updates the NFC cursor; requires exclusive access despite being a logical lookup.
 uint32_t xp_tokens_source_after(XpTokens* state, uint32_t start, uint32_t rendered);
-
-// Width-cache owner: initialize all fields to zero except allocator. Only Rust
-// mutates ownership fields; C++ may read/write data[0..len] between calls. Movable
-// by transferring the record and zeroing the source data/len/capacity. No copies.
-// Growth starts at requested count, then doubles; failed is latched on OOM.
-typedef struct {
-  uint16_t* data;
-  size_t len, capacity;
-  const XpParaAllocator* allocator;
-  uint8_t failed;
-} XpLayoutWidths;
-
-// Same ownership and failure contract as XpLayoutWidths; usize break indices.
-typedef struct {
-  size_t* data;
-  size_t len, capacity;
-  const XpParaAllocator* allocator;
-  uint8_t failed;
-} XpLayoutBreaks;
-
-// Paragraph breaking callbacks are synchronous and may not reenter layout. The
-// context and callback record outlive the call; no pointer is retained by Rust.
-// widths describes the token sequence. Successful split inserts exactly one word
-// and updates widths; other metric callbacks do not mutate the sequence.
-// ruby intervals use exclusive ends. emit copies one break, returning 0 on OOM.
-// Both entry points return 1 on success, 0 on allocation/size/output failure.
-// Optimal allocates int32_t[N] + size_t[N] with the paragraph allocator; greedy
-// has no Rust allocations. Caller owns widths, split mutation and output storage.
-typedef struct {
-  void* context;
-  const XpLayoutWidths* widths;
-  uint8_t has_ruby;
-  uint8_t (*allows_break)(void*, size_t);
-  int32_t (*gap)(void*, size_t);
-  int32_t (*ruby_start)(void*, size_t, size_t);
-  int32_t (*ruby_end)(void*, size_t, size_t);
-  uint8_t (*split)(void*, size_t, int32_t, uint8_t);
-  uint8_t (*emit)(void*, size_t);
-} XpLayoutCallbacks;
-
-// Split borrows disjoint stores exclusively. Callbacks cannot access those stores;
-// measure borrows text for the call, inserted updates only ruby metadata.
-// Result is written only on success; failed width growth latches widths.failed.
-typedef struct {
-  void* context;
-  uint16_t (*measure)(void*, const uint8_t*, size_t, uint8_t, uint8_t, uint8_t);
-  uint8_t (*boundary)(uint32_t, uint32_t);
-  void (*inserted)(void*, size_t);
-  size_t index;
-  int32_t available, language;
-  uint8_t style, fallback;
-} XpLayoutSplitRequest;
-typedef struct {
-  size_t offset;
-  int32_t width;
-  uint32_t remainder_offset;
-  uint16_t remainder_width;
-  uint8_t hyphen;
-} XpLayoutSplitResult;
-
-// Stable borrowed line in logical or MiniBidi visual order. gap queries the
-// natural advance BEFORE index, with index > 0. Callbacks never reenter layout.
-typedef struct {
-  uint16_t width;
-  uint8_t continues, space;
-} XpLineWordMetrics;
-typedef struct {
-  void* context;
-  XpLineWordMetrics (*word)(void*, size_t);
-  int32_t (*gap)(void*, size_t);
-} XpLineCallbacks;
-typedef struct {
-  size_t count;
-  int32_t page, indent, extra_start, extra_end;
-  uint8_t alignment, rtl, reordered, last;
-} XpLineSpec;
-typedef struct {
-  int32_t width, natural_gaps;
-  size_t gap_count;
-  int32_t spare, justify;
-} XpLineMetrics;
-// out borrows count writable i16 positions, disjoint from inputs. metrics belongs
-// to the same unchanged spec/callback line. Casts preserve firmware i16 wrapping.
-
-// Completed-line owner; initialize zero except allocator. One exact allocation:
-// N pairs of u32 source offsets, N i16 x positions, N u8 styles, then optional
-// N u8 focus boundaries and N u16 suffix advances. N <= 10000. No TextBlock wire
-// format is shared here. Arrays are borrowed until destroy, without concurrent use.
-typedef struct {
-  uint8_t* data;
-  size_t count;
-  const XpParaAllocator* allocator;
-  uint8_t focus;
-} XpLayoutLine;
 
 // Paragraph owner in 64 pointer-sized, pointer-aligned words. Initialize/destroy once.
 // Callback spans are borrowed for one call. Metrics cannot reenter the paragraph; the
@@ -383,8 +284,6 @@ typedef struct {
 void xp_para_init(XpParagraph*, const XpParaAllocator*, const XpParaBlock*, uint8_t hyphenation, uint8_t focus,
                   uint8_t indent, uint8_t (*starts_rtl)(XpParaSpan, int32_t));
 void xp_para_destroy(XpParagraph*);
-// Retains a borrowed paragraph (or null). Rebind before destroying/replacing it;
-// chapter calls and paragraph mutation must be serialized with assembly.
 void xp_para_add_word(XpParagraph*, XpParaSpan, uint8_t style, uint8_t underline, uint8_t attach, uint32_t offset,
                       uint8_t link, uint8_t slot, uint8_t no_space);
 uint8_t xp_para_add_link(XpParagraph*, XpParaSpan);
@@ -709,7 +608,6 @@ typedef struct {
 } XpSecRecord;
 size_t xp_sec_arena_size(uint16_t words, uint8_t focus, uint16_t text_bytes);
 
-
 /* Chapter semantics: synchronous borrowed spans, one fallible owning handle.
  * CSS and sink/metrics/context outlive the handle. Only table_file may pass
  * its state reborrow to the supplied reader visitor; no other callback may access
@@ -975,7 +873,6 @@ typedef struct {
 } XpImageRow;
 bool xp_image_init(void*, const XpImageConfig*, int32_t width, int32_t height, bool progressive,
                    const XpImageCallbacks*, XpImagePlan*);
-// Convert 256 RGB888 entries to 256 gray entries; spans must be valid and disjoint.
 bool xp_image_prepare(void*);
 bool xp_image_cache_begin(void*);
 bool xp_image_row(void*, const XpImageRow*);

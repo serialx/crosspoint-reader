@@ -87,7 +87,7 @@ inline XpAppResources appTestResources() {
 
 inline XpAppRuntime appTestRuntime() {
   return {
-      .input_mapped_snapshot = [](uint8_t poll, uint8_t defer_home, uint8_t consume_release,
+      .input_mapped_snapshot = [](uint8_t poll, uint8_t full, uint8_t consume_release,
                                   XpAppMappedSnapshot* frame) -> void { *frame = {}; },
       .input_shared_power_mode = [](uint8_t enabled) -> void {},
       .input_power_confirm = [](uint8_t enabled) -> void {},

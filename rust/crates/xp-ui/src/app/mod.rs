@@ -1,7 +1,6 @@
 //! Application ownership. Platform callbacks run without a navigation borrow.
 extern crate alloc;
 
-use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 
@@ -78,18 +77,22 @@ pub struct Application<A: Activity> {
     visit: Cell<u32>,
 }
 
+impl<A: Activity> Default for Application<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<A: Activity> Application<A> {
-    pub fn new() -> Result<Self, TryReserveError> {
-        let mut parents = Vec::new();
-        parents.try_reserve(10)?;
-        Ok(Self {
+    pub fn new() -> Self {
+        Self {
             navigation: RefCell::new(Navigation {
                 current: None,
-                parents,
+                parents: Vec::new(),
             }),
             pending: RefCell::new(Transition::None),
             visit: Cell::new(0),
-        })
+        }
     }
 
     pub fn visit(&self) -> u32 {

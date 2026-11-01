@@ -502,7 +502,6 @@ pub struct Platform {
 
 pub const OK: u8 = 0;
 pub const INVALID: u8 = 1;
-pub const OUT_OF_MEMORY: u8 = 2;
 pub const WRONG_CONTEXT: u8 = 3;
 pub const ACCEPTED: u8 = 0;
 pub const REJECTED: u8 = 1;

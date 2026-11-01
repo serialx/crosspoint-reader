@@ -258,12 +258,17 @@ impl App {
         true
     }
 
-    fn snapshot(&self, poll: bool, defer_home: bool, consume_release: bool) -> abi::MappedSnapshot {
+    fn snapshot(
+        &self,
+        poll: bool,
+        full_buttons: bool,
+        consume_release: bool,
+    ) -> abi::MappedSnapshot {
         let mut frame = core::mem::MaybeUninit::uninit();
         unsafe {
             (self.runtime.input_mapped_snapshot)(
                 u8::from(poll),
-                u8::from(defer_home),
+                u8::from(full_buttons),
                 u8::from(consume_release),
                 frame.as_mut_ptr(),
             );
@@ -280,7 +285,7 @@ impl App {
     }
 
     fn input_polled(&self, defer: bool) {
-        let frame = self.snapshot(false, defer, false);
+        let frame = self.snapshot(false, false, false);
         let settings = self.settings();
         let action = |value| HomeAction::try_from(value).unwrap_or(HomeAction::Ignore);
         let bindings = HomeBindings {
@@ -317,7 +322,7 @@ impl App {
     }
 
     fn activity_loop(&self) {
-        let frame = self.snapshot(false, false, true);
+        let frame = self.snapshot(false, true, true);
         if frame.suppressed_release != 0 {
             return;
         }
@@ -612,9 +617,7 @@ pub unsafe extern "C" fn xp_app_init(
     ) else {
         return abi::INVALID;
     };
-    let Ok(navigation) = Application::new() else {
-        return abi::OUT_OF_MEMORY;
-    };
+    let navigation = Application::new();
     let owner = App {
         navigation,
         input: RefCell::new(HomeInput::default()),

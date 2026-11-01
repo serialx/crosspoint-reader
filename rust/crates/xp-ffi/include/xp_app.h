@@ -220,7 +220,7 @@ typedef struct {
   void (*screenshot_info)(XpAppScreenshotSink sink, void* context);
 } XpAppCompatibility;
 
-// Native mapping supplies one frame; key timing and app shortcuts remain Rust decisions.
+// Snapshot args: poll, all buttons (else Power), consume release. Raw fields always collected.
 typedef struct {
   XpUiInput input;
   uint32_t power_held_ms;
@@ -320,7 +320,7 @@ typedef struct {
 } XpAppResources;
 
 typedef struct {
-  void (*input_mapped_snapshot)(uint8_t poll, uint8_t defer_home, uint8_t consume_release, XpAppMappedSnapshot* frame);
+  void (*input_mapped_snapshot)(uint8_t poll, uint8_t full, uint8_t consume_release, XpAppMappedSnapshot* frame);
   void (*input_shared_power_mode)(uint8_t enabled);
   void (*input_power_confirm)(uint8_t enabled);
   uint8_t (*input_remote_click)(uint8_t button);

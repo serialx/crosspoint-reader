@@ -173,6 +173,24 @@ impl Home {
         let identities = unsafe { &*self.identities.get() };
         let frame = unsafe { &mut *self.render.get() };
         frame.paint.snapshot = snapshot;
+        let Some(after) = self.paint_frame(frame, identities, widths) else {
+            return Some(false);
+        };
+        if after == xp_ui::home::AfterPaint::LoadCovers {
+            self.load_covers(frame, identities);
+        }
+        Some(true)
+    }
+
+    // Preparation locals must leave the stack before book cover loading starts.
+    #[inline(never)]
+    fn paint_frame(
+        &self,
+        frame: &mut Frame,
+        identities: &[Identity],
+        widths: &mut view::Widths,
+    ) -> Option<xp_ui::home::AfterPaint> {
+        let snapshot = frame.paint.snapshot;
         let theme = self.theme();
         frame.paint.texts.body_bold = theme.body_bold != 0;
         let prepared = if !snapshot.grid {
@@ -194,7 +212,7 @@ impl Home {
                     .is_err()
                 {
                     self.reject();
-                    return Some(false);
+                    return None;
                 }
                 frame.commands.resize(capacity, Command::default());
             }
@@ -202,7 +220,7 @@ impl Home {
                 Ok(arena) => arena,
                 Err(_) => {
                     self.reject();
-                    return Some(false);
+                    return None;
                 }
             };
             let mut texts = Texts {
@@ -241,7 +259,7 @@ impl Home {
                     Ok(scene) => break (geometry, scene.commands.len()),
                     Err(_) => {
                         self.reject();
-                        return Some(false);
+                        return None;
                     }
                 },
                 Err(Error::Capacity) if capacity < 128 => {
@@ -249,7 +267,7 @@ impl Home {
                 }
                 Err(_) => {
                     self.reject();
-                    return Some(false);
+                    return None;
                 }
             }
         };
@@ -291,10 +309,10 @@ impl Home {
         };
         if unsafe { (self.services.paint_scene)(&scene, &resources) } == 0 {
             self.reject();
-            return Some(false);
+            return None;
         }
         if !self.model.with(|model| model.publish(geometry)) {
-            return Some(false);
+            return None;
         }
         let refresh = if self.clean_initial && !snapshot.first_render {
             Refresh::Half
@@ -312,35 +330,38 @@ impl Home {
         if after == xp_ui::home::AfterPaint::Repaint {
             (self.request_update)();
         }
-        if after == xp_ui::home::AfterPaint::LoadCovers {
-            let height = if snapshot.grid {
-                if frame.paint.grid_height > 0 {
-                    frame.paint.grid_height
-                } else {
-                    400
-                }
+        Some(after)
+    }
+
+    #[inline(never)]
+    fn load_covers(&self, frame: &mut Frame, identities: &[Identity]) {
+        let snapshot = frame.paint.snapshot;
+        let height = if snapshot.grid {
+            if frame.paint.grid_height > 0 {
+                frame.paint.grid_height
             } else {
-                view::thumbnail_height(frame.paint.layout)
-            };
-            let rendered = &mut frame.paint.cover_rendered;
-            home_books::load_covers(
-                self.services,
-                identities,
-                &mut frame.paint.covers,
-                height,
-                snapshot.grid,
-                || {
-                    *rendered = false;
-                    (self.request_update)();
-                },
-            );
-            self.model.with(Model::loaded);
-            if snapshot.grid {
-                frame.paint.refresh_paths(self.services);
-                (self.request_update)();
+                400
             }
+        } else {
+            view::thumbnail_height(frame.paint.layout)
+        };
+        let rendered = &mut frame.paint.cover_rendered;
+        home_books::load_covers(
+            self.services,
+            identities,
+            &mut frame.paint.covers,
+            height,
+            snapshot.grid,
+            || {
+                *rendered = false;
+                (self.request_update)();
+            },
+        );
+        self.model.with(Model::loaded);
+        if snapshot.grid {
+            frame.paint.refresh_paths(self.services);
+            (self.request_update)();
         }
-        Some(true)
     }
 }
 

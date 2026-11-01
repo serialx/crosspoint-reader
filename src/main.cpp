@@ -452,8 +452,8 @@ void enterDeepSleep(bool fromTimeout = false) {
 }
 
 namespace {
-void mappedSnapshot(uint8_t poll, uint8_t deferHome, uint8_t consumeRelease, XpAppMappedSnapshot* snapshot) {
-  if (poll) mappedInputManager.update(deferHome != 0);
+void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, XpAppMappedSnapshot* snapshot) {
+  if (poll) mappedInputManager.update(false);
   *snapshot = {};
   snapshot->suppressed_release = consumeRelease && mappedInputManager.consumeSuppressedRelease();
   auto& input = snapshot->input;
@@ -467,6 +467,7 @@ void mappedSnapshot(uint8_t poll, uint8_t deferHome, uint8_t consumeRelease, XpA
       MappedInputManager::Button::ScreenRight, MappedInputManager::Button::ScreenUp,
       MappedInputManager::Button::ScreenDown};
   for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
+    if (!fullButtons && buttons[i] != MappedInputManager::Button::Power) continue;
     if (mappedInputManager.wasPressed(buttons[i])) input.pressed |= 1u << i;
     if (mappedInputManager.wasReleased(buttons[i])) input.released |= 1u << i;
     if (mappedInputManager.isPressed(buttons[i])) input.held |= 1u << i;

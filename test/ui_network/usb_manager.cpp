@@ -98,13 +98,18 @@ class ActivityManager {
       return sink(context, &result);
     };
     legacy.home_gesture = [](void* object) -> uint8_t { return static_cast<Activity*>(object)->handleHomeGesture(); };
-    runtime.input_mapped_snapshot = [](uint8_t, uint8_t, uint8_t, XpAppMappedSnapshot* snapshot) {
+    runtime.input_mapped_snapshot = [](uint8_t, uint8_t full, uint8_t, XpAppMappedSnapshot* snapshot) {
       *snapshot = {};
       snapshot->home_gesture = manager->mappedInput.wasHomeGesture();
       snapshot->light_panel_gesture = manager->mappedInput.wasLightPanelGesture();
       snapshot->input.pressed = manager->mappedInput.pressed;
       snapshot->input.released = manager->mappedInput.released;
       snapshot->input.held = manager->mappedInput.held;
+      if (!full) {
+        snapshot->input.pressed &= XP_UI_POWER;
+        snapshot->input.released &= XP_UI_POWER;
+        snapshot->input.held &= XP_UI_POWER;
+      }
       snapshot->input.now_ms = testNow;
     };
     runtime.now_ms = []() -> uint32_t { return testNow; };

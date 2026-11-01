@@ -143,7 +143,7 @@ impl Services<Owner> for Host<'_> {
 
 #[test]
 fn prepare_sleep_visits_retained_parents_then_current() {
-    let app = Application::new().unwrap();
+    let app = Application::new();
     let host = Host::new(&app);
     app.replace(host.owner(1), &host);
     for id in [2, 3] {
@@ -160,7 +160,7 @@ fn prepare_sleep_visits_retained_parents_then_current() {
 
 #[test]
 fn bootstrap_push_pop_preserves_parent_and_result_order() {
-    let app = Application::new().unwrap();
+    let app = Application::new();
     let host = Host::new(&app);
     app.replace(host.owner(1), &host);
     assert_eq!(
@@ -196,7 +196,7 @@ fn bootstrap_push_pop_preserves_parent_and_result_order() {
 
 #[test]
 fn replace_exits_current_then_parents_in_reverse_order() {
-    let app = Application::new().unwrap();
+    let app = Application::new();
     let host = Host::new(&app);
     app.replace(host.owner(1), &host);
     for id in [2, 3] {
@@ -226,7 +226,7 @@ fn replace_exits_current_then_parents_in_reverse_order() {
 
 #[test]
 fn enter_and_result_callbacks_can_queue_transitions() {
-    let app = Application::new().unwrap();
+    let app = Application::new();
     let host = Host::new(&app);
     host.enter_push.set(Some(2));
     app.replace(host.owner(1), &host);
@@ -255,7 +255,7 @@ fn enter_and_result_callbacks_can_queue_transitions() {
 
 #[test]
 fn deferred_radio_keeps_owners_and_sleep_bypasses_it() {
-    let app = Application::new().unwrap();
+    let app = Application::new();
     let host = Host::new(&app);
     app.replace(host.owner(1), &host);
     host.events();
@@ -282,7 +282,7 @@ fn deferred_radio_keeps_owners_and_sleep_bypasses_it() {
 
 #[test]
 fn empty_pop_is_ignored_and_last_pop_enters_home_once() {
-    let app = Application::new().unwrap();
+    let app = Application::new();
     let host = Host::new(&app);
     app.queue(Transition::Pop);
     app.drain(&host);
@@ -310,7 +310,7 @@ fn empty_pop_is_ignored_and_last_pop_enters_home_once() {
 
 #[test]
 fn replacing_pending_owner_never_enters_or_exits_it() {
-    let app = Application::new().unwrap();
+    let app = Application::new();
     let host = Host::new(&app);
     app.queue(Transition::Push(host.owner(1)));
     app.queue(Transition::Replace(host.owner(2)));

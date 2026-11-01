@@ -15,7 +15,6 @@ inline constexpr size_t ROOT_COUNT = sizeof(ROOTS) / sizeof(ROOTS[0]);
 inline constexpr const char* INSTALL_MARKER = ".installing";
 
 inline XpPluginSpan span(const std::string& s) { return {reinterpret_cast<const uint8_t*>(s.data()), s.size()}; }
-inline bool isPluginRoot(const std::string& dir) { return xp_plugin_root(span(dir)); }
 
 // A bundle targeting one direct child of a plugin root may update an existing
 // same-named plugin in place instead of creating a duplicate in another root.
@@ -41,10 +40,6 @@ inline DeviceKind classifyDeviceManifest(const bool hasBrowseUrl, const bool has
 inline PickerAction pickerAction(const DeviceKind kind, const bool hasReadme) {
   return static_cast<PickerAction>(xp_plugin_picker(static_cast<uint32_t>(kind), hasReadme));
 }
-
-// Exactly MAJOR.MINOR.PATCH: three digit-only components, nothing else (no
-// sign, spaces, suffix or fourth part), each fitting in 32 bits.
-inline bool parseVersion(const std::string& v, uint32_t (&out)[3]) { return xp_plugin_version(span(v), out); }
 
 // Plugin versions are MAJOR.MINOR.PATCH (the catalog contract). True when
 // `catalog` is newer than `installed`. An installed copy without a valid

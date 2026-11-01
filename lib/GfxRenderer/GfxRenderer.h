@@ -247,17 +247,10 @@ class GfxRenderer {
     ++fontTableGeneration;
     sdCardFonts_[fontId] = font;
   }
-  void unregisterSdCardFont(int fontId) { removeFont(fontId); }
   void clearSdCardFonts() {
     ++fontTableGeneration;
     sdCardFonts_.clear();
     sdCardFontScales_.clear();
-  }
-  void registerSdCardFontScale(int fontId, uint16_t scale) { sdCardFontScales_[fontId] = scale; }
-  void clearSdCardFontScales() { sdCardFontScales_.clear(); }
-  uint16_t getSdCardFontScale(int fontId) const {
-    auto it = sdCardFontScales_.find(fontId);
-    return (it != sdCardFontScales_.end()) ? it->second : 256;
   }
   const std::map<int, SdCardFont*>& getSdCardFonts() const { return sdCardFonts_; }
   bool isSdCardFont(int fontId) const { return sdCardFonts_.count(fontId) > 0; }

@@ -122,14 +122,6 @@ struct CssPropertyFlags {
         floatLeft(0),
         initialLetter(0),
         whiteSpace(0) {}
-
-  [[nodiscard]] bool anySet() const {
-    return textAlign || fontStyle || fontWeight || textDecoration || textIndent || marginTop || marginBottom ||
-           marginLeft || marginRight || paddingTop || paddingBottom || paddingLeft || paddingRight || imageHeight ||
-           imageWidth || display || direction || verticalAlign || listStyleType || fontSize || smallCaps ||
-           pageBreakBefore || pageBreakAfter || borderTop || borderRight || borderBottom || borderLeft || shaded ||
-           floatLeft || initialLetter || whiteSpace;
-  }
 };
 
 // Cache serializes defined flags as uint32_t with bit indices 0..30.

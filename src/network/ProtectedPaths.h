@@ -13,12 +13,6 @@
 // OpdsServerStore and KOReaderCredentialStore, including temp/backup siblings.
 namespace protectedpaths {
 
-// SdFat also opens a name by its generated 8.3 alias (".crosspoint" is
-// CROSSP~1), which no spelling check can map back to the long name.
-inline bool isShortAlias(const char* first, const char* last) {
-  return xp_short_alias(reinterpret_cast<const uint8_t*>(first), static_cast<size_t>(last - first));
-}
-
 // Keep the allocation wrapper shared across path-validation callers.
 [[gnu::noinline]] inline bool isSensitivePath(const char* path) {
   const size_t len = strlen(path);

@@ -30,12 +30,9 @@ class Paragraph {
   void setRubyForWordAt(size_t index, const std::string& text);
   void setRubyGroupAt(size_t index, size_t count, const std::string& text);
   std::string getRubyTextAt(size_t index) const;
-  static void ensureRubyCapacity() {}
   EpdFontFamily::Style getWordStyleAt(size_t index) const {
     return static_cast<EpdFontFamily::Style>(xp_para_word_style(handle(), index));
   }
-  void suppressFirstLineIndent() { xp_para_suppress_indent(handle()); }
-  void resetFirstLineIndent() { xp_para_reset_indent(handle()); }
   BlockStyle getBlockStyle() const;
   void setBlockStyle(const BlockStyle& style);
   size_t size() const { return xp_para_size(handle()); }
@@ -43,8 +40,6 @@ class Paragraph {
   bool hadDroppedWords() const { return xp_para_dropped(handle()); }
   int linesAfterCurrentLine() const { return xp_para_lines_after(handle()); }
   uint8_t sizeSlotFor(float scale) { return xp_para_size_slot(handle(), scale); }
-  uint8_t sizeSlotsInUse() const { return xp_para_slot_count(handle()); }
-  float sizeSlotScale(uint8_t slot) const { return xp_para_slot_scale(handle(), slot); }
   void setSizeSlotFontId(uint8_t slot, int32_t font) { xp_para_slot_font(handle(), slot, font); }
   std::string_view wordAt(size_t index) const {
     const auto word = xp_para_word(handle(), index);

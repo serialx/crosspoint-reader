@@ -26,20 +26,6 @@ class WordSelectionInput {
            (input.wasPressed(B::NavPrevious) ? INPUT_PREVIOUS : 0) | (input.wasPressed(B::NavNext) ? INPUT_NEXT : 0);
   }
 
-  uint8_t pollButtons(const MappedInputManager& input, const uint32_t now) {
-    uint8_t buttons = buttonEdges(input);
-    const uint8_t held = (input.isPressed(MappedInputManager::Button::ScreenLeft) ? INPUT_LEFT : 0) |
-                         (input.isPressed(MappedInputManager::Button::ScreenRight) ? INPUT_RIGHT : 0);
-    if (held != repeatingButton || (buttons & (INPUT_LEFT | INPUT_RIGHT))) {
-      repeatingButton = held;
-      lastRepeat = now;
-    } else if ((held == INPUT_LEFT || held == INPUT_RIGHT) && now - lastRepeat >= BUTTON_REPEAT_MS) {
-      buttons |= held;
-      lastRepeat = now;
-    }
-    return buttons;
-  }
-
  private:
   uint8_t repeatingButton = 0;
   uint32_t lastRepeat = 0;

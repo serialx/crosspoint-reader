@@ -122,9 +122,8 @@ screen requests no input or timer work.
 
 ## Invalidation and verification
 
-An update returns an effect and a repaint flag. Screens conservatively rebuild the whole scene. `XpUiDamage` accepts native-coordinate rectangles; a
-ninth rectangle switches to full-screen damage. Raster damage does not change
-waveform policy. Messages retain their caller-selected refresh mode and XTC
+An update returns an effect and a repaint flag. Screens conservatively rebuild
+the whole scene; damage rectangles are not exposed across the ABI. Messages retain their caller-selected refresh mode and XTC
 requests FAST, including the existing renderer's one-shot promotion behavior.
 
 Run `cargo test -p xp-ui` from `rust` and the `ui_runtime_*` CTest cases. The tests

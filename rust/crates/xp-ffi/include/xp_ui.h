@@ -28,10 +28,6 @@ typedef enum {
   XP_UI_TRIANGLE,
   XP_UI_HINT_TEXT
 } XpUiCommandKind;
-typedef struct {
-  XpUiRect rects[8];
-  uint8_t count, full;
-} XpUiDamage;
 
 typedef enum { XP_UI_NONE, XP_UI_FAST, XP_UI_HALF, XP_UI_FULL } XpUiRefresh;
 typedef enum { XP_UI_EFFECT_NONE, XP_UI_CANCEL, XP_UI_ACTIVATE, XP_UI_SCROLL } XpUiEffectKind;

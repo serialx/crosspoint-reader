@@ -239,7 +239,7 @@ Rust to make a failing differential test pass.
 
 The host CMake build compiles the same `xp-ffi` static library and links it
 into the hyphenation and line-breaking suites. The existing F1 thresholds
-also run through the C++ facade. The `HyphenationCommon` predicate facade was
+also run through the C++ `Hyphenator` wrapper. The `HyphenationCommon` predicate facade was
 deleted with the dead-code cleanup; `TokenBoundary` calls `xp_text_break_after_hyphen`
 directly.
 

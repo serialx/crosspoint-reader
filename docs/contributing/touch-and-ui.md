@@ -23,7 +23,7 @@ The following describes the existing C++ hosts. For new screens, use the Rust ho
 
 `UiAppHost` ([src/components/UiAppHost.h](../../src/components/UiAppHost.h)) owns what every FUI screen shares: the font-bound render target, the `FreeInkApp`, and the `uiReady` handshake that lets the loop task route touch snapshots against the interaction table the render task rebuilds. Never re-implement that handshake; it is a cross-task protocol and lives in exactly one place.
 
-The C++ list base classes (`UiListActivity`, `UiTabListActivity`) have been deleted; lists and tabbed lists are built on the Rust UI list hosts listed above.
+The C++ list base classes (`UiListActivity`, `UiTabListActivity`) have been deleted; lists and tabbed lists use `RustActivityAdapter` with the shared Rust list scenes. See [the Rust UI guide](rust-ui.md).
 
 ### Rules that apply to every FUI screen
 
@@ -31,7 +31,7 @@ The C++ list base classes (`UiListActivity`, `UiTabListActivity`) have been dele
 - Handlers that leave the current screen call `app.clearTapFlash()` first.
 - Theme tokens are shared and bound by `resetUi()`; never call `app.setTheme` yourself. Metrics flow from the active UITheme through [`UIThemeTokens.h`](../../src/components/UIThemeTokens.h), including the per-board bezel insets that keep scrollbars visible.
 - `TextStyle.maxLines` defaults to 1 and truncates with an ellipsis. Set `maxLines` explicitly on any dialog headline or message that can wrap.
-- Keep steady-state repaint allocation-free. A local `std::vector` in `buildScreen()` allocates and frees on every repaint even with `reserve()`. For bounded lists, reuse activity-owned row storage, reserved or fixed-size when data loads. For large lists, use `fui::ListProps::rowProvider` with reusable scratch storage. Keep the backing storage alive for rendering; do not retain FUI `props` across renders.
+- Keep steady-state repaint allocation-free. A local `std::vector` in `buildScreen()` allocates and frees on every repaint even with `reserve()`. For bounded lists, reuse activity-owned row storage, reserved or fixed-size when data loads. Keep the backing storage alive for rendering; do not retain FUI `props` across renders.
 
 ### Component inventory
 

@@ -19,9 +19,8 @@ when changing a screen.
 - `ButtonNavigator` owns navigation press/hold callbacks (`onPress`,
   `onContinuous`, `onPressAndContinuous`). The release-based helpers were
   deleted with the C++ list hosts.
-- Large lists use `fui::ListProps::rowProvider`, as in
-  `FileBrowserActivity::provideRow`. Keep bounded row storage with the activity
-  and reuse it; steady-state repaint must remain allocation-free.
+- Keep bounded row storage with the activity and reuse it; steady-state
+  repaint must remain allocation-free.
 - Global Home/Back/control-center gestures and header Back taps have shared
   routing. Reader overlays/end-of-book menus consume input before page turns.
   Reuse these owners instead of per-screen gesture or coordinate handlers.

@@ -2,7 +2,7 @@
 
 CrossPoint runs on touch devices (Seeed Sticky, M5Paper, M5Stack PaperMono, LilyGo T5, Xteink X4 Pro) alongside the button-only Xteink X3/X4. Every screen must work with both input styles.
 
-New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; a `RustActivityAdapter` facade keeps ActivityManager navigation, resource bindings and publication. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
+New screens use the [Rust UI runtime](rust-ui.md). Rust owns state, layout and input policy; the Rust application owns navigation. Legacy `RustActivityAdapter` facades retain resource bindings and publication for their screens; Home has a direct Rust owner. Use the existing family host when it fits the screen. FreeInkUI still supplies shared resource painters and supports remaining C++ surfaces.
 
 ## Picking the right host
 
@@ -58,7 +58,7 @@ Three gestures are handled once, for every screen. Activities must not add their
 | Gesture | Trigger | Where it is handled |
 |---|---|---|
 | Back | Right-swipe starting in the left 25% of the screen | Folded into `Button::Back`, so the existing `wasPressed(Button::Back)` in your activity already fires |
-| Home | Up-swipe starting in the bottom 14% | `ActivityManager::loop()`; pops to Home (activities can override via `handleHomeGesture()`) |
+| Home | Up-swipe starting in the bottom 14% | Rust app dispatch through `ActivityManager::loop()`; returns to Home (activities can override via `handleHomeGesture()`) |
 | Menu | Down-swipe starting in the top 14% | Activities that have a menu check `wasMenuGesture()` themselves (the reader does this) |
 
 Because the back gesture arrives as `Button::Back`, most button-era activities gain back-swipe support with zero changes.

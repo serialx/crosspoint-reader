@@ -1,16 +1,55 @@
 # Rust UI coexistence
 
-The scene runtime in `xp-ui` builds bounded scenes and routes input snapshots. `RustActivityAdapter`
-keeps the existing ActivityManager, render task, RenderLock, result objects and
-push/pop behavior. A stack can contain both C++ activities and Rust-backed
-activities. This runtime does not poll hardware or create tasks.
+The Rust application in `xp-ffi/src/app` owns the main-loop policy, current activity,
+retained parents, pending transition, Home gestures and Home screen. `ActivityManager`
+forwards native callers through `xp_app.h`; it retains the physical render task,
+RenderLock and completion notification. There is one activity stack, owned by
+`xp-ui::app::Application`. Its entries are Rust Home owners or owned legacy native
+activities. A legacy pointer transfers only when the Rust event accepts it.
 
-The wire interface is `rust/crates/xp-ffi/include/xp_ui.h` (ABI version 2).
+`xp_app_init`, `xp_app_loop`, `xp_app_render` and `xp_app_event` are the application
+boundary. Typed legacy, resource and runtime tables supply existing services.
+Legacy activities retain their individual models and resources until their owners
+move. General button remapping stays in `MappedInputManager`; Rust owns Home timing,
+deferred actions, global navigation and loop dispatch.
+
+The scene interface is `rust/crates/xp-ffi/include/xp_ui.h` (ABI version 2).
 `FullScreenMessageActivity` is the synchronous entry-only example;
 `XtcReaderChapterSelectionActivity` is the stateful list example.
 `SettingsUiActivity`, `UpdateUiActivity` and `CatalogUiActivity` share bindings
-within their families. Home, library, file browser and network screens use the
-same adapter with their own Rust models and resource bindings.
+within their families. Library, file browser and network screens use the
+`RustActivityAdapter` with their Rust models and native resource bindings.
+Home calls its Rust model and view directly and has no native activity class.
+
+## Application and Home ownership
+
+Replace and sleep exit and drop the current owner and retained parents under
+RenderLock; push retains the parent without exit; pop copies the child result
+before exit and destruction. The parent callback runs after unlocking. Result
+strings are owned for that transition; copy failure produces a cancelled
+`TransferFailed` result with one diagnostic, never a partial result or retry queue.
+Entry runs after unlocking and may queue another transition.
+
+Loop-only navigation and driver state are separate from render-only command/text
+storage. Brief model critical sections protect scalar snapshots and publication.
+They contain no allocation, storage, logging or blocking calls. RenderLock keeps
+activity pointers alive through rendering and destruction. Home entry publishes
+readiness only after its identities are complete, so an early render notification
+defers rather than borrowing partly initialized data.
+
+Home owns recent identities, cover paths, typed text/resources, prepared wrapped
+lines, commands and the cover cache. Commands use a reused fallible vector bounded
+at 128 entries; wrapped title buffers are reused during preparation. Painting
+borrows these strings and adds no Home text allocation. Numeric resource encoding
+exists only at the shared scene boundary. The native `RustAppResources` leaves
+supply storage/book/font/display services; they do not own Home selection or
+publication. The grid cache retains the capability-aware PSRAM allocation path.
+
+The former Home exports and mirrored C layouts are removed. `xp_ui_home.h` still
+serves FileBrowser and Library, including their shared scene-status enum. The
+`app-test` feature exposes four read-only host probes and must never be enabled
+for firmware. The host suite audits the production owner with fake physical
+leaves; firmware symbol inventories must exclude `xp_app_test_*`.
 
 The scene contracts below apply to scene-based activities. The reader uses the
 [policy boundary](#reader-policy-boundary) described separately.
@@ -36,7 +75,7 @@ after successful painting. A short model critical section protects snapshots,
 updates and publication. Layout, font services, painting and synchronous panel
 refresh run outside that section. RenderLock still protects activity lifetime
 and the framebuffer; input never takes it. A failed build or paint rejects activation, clears pending gestures and leaves
-the previous frame displayed. Back remains available; a successful publication
+the previous frame displayed. Back remains available for adapter screens; Home preserves its existing suppressed-Back behavior. A successful publication
 restores routing after held-over input has been released. Rejection arms suppression
 for all buttons and touch. The first loop keeps only held inputs suppressed through
 their release. A fresh gesture arriving between failure and that first loop may be
@@ -101,7 +140,7 @@ its band storage, origin and clip may differ. The previous target/clip is restor
 on return. Resources must use this bound renderer or the supplied target rather
 than a separately captured framebuffer. `xp_ui_hit` searches hits in
 reverse painter order and rejects stale generations. Inherited-release
-suppression and global gesture ownership remain ActivityManager responsibilities.
+suppression remains with the relevant screen model; global gesture ownership belongs to the Rust app.
 
 ## Input dispatch
 

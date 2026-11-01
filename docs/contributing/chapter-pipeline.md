@@ -4,7 +4,9 @@ Rust owns EPUB parsing and layout, page records, page-byte construction and
 load-time decoding and page rendering through `xp-core::page`. C++ owns file I/O,
 the loaded page allocation and views. Glyph bitmap views and rasterization run
 in Rust. C++ retains font registration/preparation, built-in/TTF caches,
-JPEGDEC integration and the UI. The wider reader also uses Rust for
+JPEGDEC integration and the native reader owner/resources. The Rust application
+owns navigation and Home; it retains the reader as a typed legacy owner without
+changing this chapter boundary. The wider reader also uses Rust for
 [shared inflate](rust.md#zip-directory-boundary),
 [SD font parsing/cache policy and XTC parsing](rust.md#sd-font-and-xtc-parsers),
 and [PNG/GIF decoding](rust.md#image-pixel-pipeline).

@@ -15,7 +15,10 @@ rendering, PNG/GIF decoding and image row processing, text measurement, glyph
 rasterization and bitmap views, SD font parsing and cache policy, XTC parsing,
 and the shared inflater for ZIP, PNG, ContentProtection, fonts and DictZip.
 C++ retains file I/O, font containers and platform callbacks,
-JPEGDEC integration, page storage and views, and the UI. See the
+JPEGDEC integration, page storage and views, and legacy screen resources. The
+Rust application owns loop/navigation policy and Home; native ActivityManager
+forwards into that owner and retains the physical render task and lock. See the
+[Rust UI ownership guide](rust-ui.md) and the
 [chapter pipeline](chapter-pipeline.md) for page ownership and lifetime.
 
 Install rustup, then install the pinned C3 toolchain:

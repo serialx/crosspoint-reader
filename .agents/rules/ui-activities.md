@@ -36,8 +36,8 @@ follow `SETTINGS.sideButtonLayout`. Inspect
 
 ### Input frames and ownership
 
-The main loop updates `MappedInputManager` before
-[ActivityManager::loop()](../../src/activities/ActivityManager.cpp).
+[ActivityManager::loop()](../../src/activities/ActivityManager.cpp) forwards to the
+Rust app driver, which updates `MappedInputManager` before activity dispatch.
 Activities read that shared snapshot; a second update can erase an edge.
 
 | Query | Physical-button meaning |
@@ -51,7 +51,7 @@ Touch, Home, and shared-button actions may synthesize both edges in one frame.
 Trace them before assuming a physical hold. Keep one gesture with one semantic
 owner, preserve navigation-repeat cadence, and prevent a long action also firing
 the short release action. `wasLongPressed()` already suppresses that release;
-`ActivityManager::loop()` consumes it before activity dispatch.
+The Rust app consumes it before activity dispatch through the mapped-input leaf.
 
 ### Activity and popup transitions
 
@@ -81,9 +81,12 @@ button remapping and relevant orientations. Verify these changed paths:
 
 ### Activity Lifecycle and Memory Management
 
-`ActivityManager` owns heap-allocated activities through `std::unique_ptr`.
-Replace/pop calls `onExit()` before destruction; push retains the parent, which
-must remain in the peak memory budget. Use manager navigation methods.
+The Rust application owns the current activity, retained parents and pending
+transition. `ActivityManager` forwards native navigation; an accepted legacy
+pointer transfers to the Rust owner exactly once. Replace/pop calls `onExit()`
+before destruction; push retains the parent, which must remain in the peak
+memory budget. Use manager navigation methods from native activities. Home
+uses its direct Rust owner and has no native activity class.
 
 Destruction is serialized with rendering through `RenderLock`; `onEnter()`
 runs after releasing it. Never call `requestUpdateAndWait()` while holding it.

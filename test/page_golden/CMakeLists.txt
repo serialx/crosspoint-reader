@@ -40,7 +40,6 @@ add_executable(PageGolden PageGolden.cpp ${INSTRUMENTED}/GfxRenderer.cpp
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
   ${REPO_ROOT}/lib/Epub/Epub/htmlEntities.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/HyphenationCommon.cpp
   ${REPO_ROOT}/lib/FsHelpers/FsHelpers.cpp
   ${PAGE_IMAGE_SOURCE}
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp

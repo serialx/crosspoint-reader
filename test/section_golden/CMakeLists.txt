@@ -27,7 +27,6 @@ add_executable(SectionGoldenDump
   ${REPO_ROOT}/lib/Epub/Epub/converters/ImageToFramebufferDecoder.cpp
   ${REPO_ROOT}/lib/Epub/Epub/htmlEntities.cpp
   ${REPO_ROOT}/lib/Epub/Epub/hyphenation/Hyphenator.cpp
-  ${REPO_ROOT}/lib/Epub/Epub/hyphenation/HyphenationCommon.cpp
   ${REPO_ROOT}/lib/MiniBidi/RustBidi.cpp
 
   ${REPO_ROOT}/lib/Utf8/Utf8.cpp

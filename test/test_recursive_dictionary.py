@@ -662,8 +662,7 @@ with tempfile.TemporaryDirectory() as directory:
     subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
                     "-I", str(ROOT / "lib/Epub/Epub"), "-I", str(ROOT / "lib/Utf8"),
                     str(path / "lookup.cpp"),
-                    str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"),
-                    str(ROOT / "lib/Epub/Epub/hyphenation/HyphenationCommon.cpp"), *rust_link_flags(),
+                    str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"), *rust_link_flags(),
                     "-o", str(path / "lookup")], check=True)
     subprocess.run([str(path / "lookup")], check=True)
 print("Recursive dictionary navigation checks passed")

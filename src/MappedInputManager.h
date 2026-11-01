@@ -86,8 +86,6 @@ class MappedInputManager {
   enum class RowTouch : uint8_t { None, Down, Tap };
   RowTouch rowTouch(int& row, int top, int rowStep, int rowCount, int xStart = 0, int xEnd = INT32_MAX,
                     int rowHeight = 0) const;
-  // Horizontal variant for side-by-side button pairs (confirmation prompts).
-  RowTouch colTouch(int& col, int left, int colStep, int colCount, int yStart, int yEnd, int colWidth = 0) const;
 
   SwipeDir wasSwipe(int* startX = nullptr, int* startY = nullptr) const;
   // Back = left-to-right swipe anchored at the left edge. Public so swipe-mode

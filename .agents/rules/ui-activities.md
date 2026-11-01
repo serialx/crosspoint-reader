@@ -16,8 +16,9 @@ Keep interaction-table publication and the `uiReady` handshake in `UiAppHost`.
 Consult the relevant section of [touch/UI guidance](../../docs/contributing/touch-and-ui.md)
 when changing a screen.
 
-- `ButtonNavigator` owns navigation press/hold callbacks. Confirm/Back callers
-  retain release/long-press semantics.
+- `ButtonNavigator` owns navigation press/hold callbacks (`onPress`,
+  `onContinuous`, `onPressAndContinuous`). The release-based helpers were
+  deleted with the C++ list hosts.
 - Large lists use `fui::ListProps::rowProvider`, as in
   `FileBrowserActivity::provideRow`. Keep bounded row storage with the activity
   and reuse it; steady-state repaint must remain allocation-free.

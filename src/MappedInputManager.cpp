@@ -267,25 +267,6 @@ MappedInputManager::RowTouch MappedInputManager::rowTouch(int& row, const int to
   return RowTouch::None;
 }
 
-MappedInputManager::RowTouch MappedInputManager::colTouch(int& col, const int left, const int colStep,
-                                                          const int colCount, const int yStart, const int yEnd,
-                                                          const int colWidth) const {
-  if (colStep <= 0 || colCount <= 0) return RowTouch::None;
-  const auto hit = [&](const int x, const int y) {
-    if (y < yStart || y >= yEnd || x < left) return false;
-    const int c = (x - left) / colStep;
-    if (c >= colCount) return false;
-    if (colWidth > 0 && (x - left) % colStep >= colWidth) return false;
-    col = c;
-    return true;
-  };
-  int x = 0;
-  int y = 0;
-  if (wasScreenTouchDown(x, y) && hit(x, y)) return RowTouch::Down;
-  if (wasScreenTapped(x, y) && hit(x, y)) return RowTouch::Tap;
-  return RowTouch::None;
-}
-
 bool MappedInputManager::decodeSwipe(int& sx, int& sy, int& ex, int& ey) const {
   float nxs = 0.0f;
   float nys = 0.0f;

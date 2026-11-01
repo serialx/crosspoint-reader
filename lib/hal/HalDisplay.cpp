@@ -63,11 +63,6 @@ void HalDisplay::drawImage(const uint8_t* imageData, uint16_t x, uint16_t y, uin
   einkDisplay.drawImage(imageData, x, y, w, h, fromProgmem);
 }
 
-void HalDisplay::drawImageTransparent(const uint8_t* imageData, uint16_t x, uint16_t y, uint16_t w, uint16_t h,
-                                      bool fromProgmem) const {
-  einkDisplay.drawImageTransparent(imageData, x, y, w, h, fromProgmem);
-}
-
 void HalDisplay::displayBuffer(HalDisplay::RefreshMode mode, bool turnOffScreen) {
   xp_hal_display_refresh(this, dispatch, gpio.deviceIsX3(), XP_HAL_DISPLAY_BUFFER, mode, turnOffScreen, 0);
 }
@@ -91,8 +86,6 @@ void HalDisplay::refreshDisplay(HalDisplay::RefreshMode mode, bool turnOffScreen
 }
 
 void HalDisplay::setInverted(bool inverted) { einkDisplay.setInverted(inverted); }
-
-bool HalDisplay::toggleInverted() { return einkDisplay.toggleInverted(); }
 
 bool HalDisplay::isInverted() const { return einkDisplay.isInverted(); }
 

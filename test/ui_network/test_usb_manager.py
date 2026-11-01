@@ -45,7 +45,6 @@ with tempfile.TemporaryDirectory() as directory:
   std::function<void(ActivityResult)> resultHandler;
   virtual void onEnter() {}
   virtual void onExit() {}
-  virtual bool isHomeActivity() const { return false; }
   virtual bool isReaderActivity() const { return false; }
   virtual bool handleHomeGesture() { return false; }
   virtual bool preventAutoSleep() { return false; }

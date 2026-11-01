@@ -346,12 +346,19 @@ impl Home {
             view::thumbnail_height(frame.paint.layout)
         };
         let rendered = &mut frame.paint.cover_rendered;
+        let buffer = &mut frame.paint.buffer;
+        let stored = &mut frame.paint.buffer_stored;
         home_books::load_covers(
             self.services,
             identities,
             &mut frame.paint.covers,
             height,
             snapshot.grid,
+            || {
+                // Generation invalidates this backup before the next paint.
+                *buffer = None;
+                *stored = false;
+            },
             || {
                 *rendered = false;
                 (self.request_update)();
@@ -1008,5 +1015,135 @@ mod tests {
             Some(true)
         );
         GRID_PAINT.store(false, Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod backup_lifetime_tests {
+    use super::*;
+    use alloc::{boxed::Box, vec};
+    use core::sync::atomic::{AtomicBool, AtomicU8, Ordering::Relaxed};
+
+    static MODE: AtomicU8 = AtomicU8::new(0);
+    static RELEASED: AtomicBool = AtomicBool::new(false);
+    static GENERATED: AtomicBool = AtomicBool::new(false);
+    static UPDATED: AtomicBool = AtomicBool::new(false);
+    static RECENT_CLEARED: AtomicBool = AtomicBool::new(false);
+    unsafe extern "C" fn noop() {}
+    unsafe extern "C" fn allocate(_: u8, _: usize) -> *mut u8 {
+        core::ptr::NonNull::<u8>::dangling().as_ptr()
+    }
+    unsafe extern "C" fn release(_: u8, _: *mut u8) {
+        assert!(!GENERATED.load(Relaxed));
+        RELEASED.store(true, Relaxed);
+    }
+    unsafe extern "C" fn exists(_: abi::Text) -> u8 {
+        u8::from(MODE.load(Relaxed) == 0)
+    }
+    unsafe extern "C" fn thumbnail(
+        _: abi::Text,
+        _: i32,
+        sink: abi::TextSink,
+        context: *mut c_void,
+    ) -> u8 {
+        unsafe { sink(context, abi::Text::from_bytes(b"cover.bmp")) }
+    }
+    unsafe extern "C" fn open(_: u8, _: abi::Text) -> *mut c_void {
+        if MODE.load(Relaxed) == 1 {
+            core::ptr::null_mut()
+        } else {
+            core::ptr::NonNull::<u8>::dangling().as_ptr().cast()
+        }
+    }
+    unsafe extern "C" fn load(_: *mut c_void, _: u8, _: u8) -> u8 {
+        u8::from(MODE.load(Relaxed) != 2)
+    }
+    unsafe extern "C" fn generate(_: *mut c_void, _: i32) -> u8 {
+        assert!(RELEASED.load(Relaxed));
+        assert!(!UPDATED.load(Relaxed));
+        GENERATED.store(true, Relaxed);
+        u8::from(MODE.load(Relaxed) != 3)
+    }
+    unsafe extern "C" fn close(_: *mut c_void) {}
+    unsafe extern "C" fn translate(_: u16) -> abi::Text {
+        abi::Text::from_bytes(b"Loading")
+    }
+    unsafe extern "C" fn popup(_: abi::Text) -> Rect {
+        assert!(!RELEASED.load(Relaxed));
+        Rect::default()
+    }
+    unsafe extern "C" fn progress(_: Rect, _: i32) {
+        assert!(!RELEASED.load(Relaxed));
+    }
+    unsafe extern "C" fn recent(book: *const abi::Book) {
+        assert!(GENERATED.load(Relaxed));
+        assert_eq!(unsafe { (*book).cover.bytes() }, Some(&b""[..]));
+        RECENT_CLEARED.store(true, Relaxed);
+    }
+    fn update() {
+        assert!(GENERATED.load(Relaxed));
+        UPDATED.store(true, Relaxed);
+    }
+
+    #[test]
+    fn backup_survives_skips_but_leaves_before_generation() {
+        let mut services = super::super::test_resources::resources();
+        services.buffer_allocate = allocate;
+        services.buffer_release = release;
+        services.path_exists = exists;
+        services.thumbnail_path = thumbnail;
+        services.book_open = open;
+        services.book_load = load;
+        services.book_generate_thumb = generate;
+        services.book_close = close;
+        services.translate = translate;
+        services.popup_draw = popup;
+        services.popup_progress = progress;
+        services.recent_update = recent;
+        // Unexpected region reads/writes retain the panic leaves: no popup restore.
+        let services = Box::leak(Box::new(services));
+        let mut runtime = super::super::test_resources::runtime();
+        runtime.model_lock = noop;
+        runtime.model_unlock = noop;
+        let runtime = Box::leak(Box::new(runtime));
+        for mode in 0..5 {
+            MODE.store(mode, Relaxed);
+            RELEASED.store(false, Relaxed);
+            GENERATED.store(false, Relaxed);
+            UPDATED.store(false, Relaxed);
+            RECENT_CLEARED.store(false, Relaxed);
+            let home = Home::new(services, runtime, update, 0, false);
+            let identities = [Identity {
+                path: Text::copy(if mode == 2 {
+                    b"/book.xtc"
+                } else {
+                    b"/book.epub"
+                })
+                .unwrap(),
+                title: Text::default(),
+                author: Text::default(),
+            }];
+            let mut frame = Frame {
+                commands: Vec::new(),
+                paint: PaintState {
+                    covers: vec![Text::copy(b"cover").unwrap()],
+                    buffer: Buffer::allocate(services, abi::MEMORY_DEFAULT, 14694),
+                    buffer_stored: true,
+                    cover_rendered: true,
+                    ..PaintState::default()
+                },
+            };
+            home.load_covers(&mut frame, &identities);
+            let generated = mode >= 3;
+            assert_eq!(GENERATED.load(Relaxed), generated);
+            assert_eq!(RELEASED.load(Relaxed), generated);
+            assert_eq!(UPDATED.load(Relaxed), generated);
+            assert_eq!(frame.paint.buffer.is_none(), generated);
+            assert_eq!(frame.paint.buffer_stored, !generated);
+            assert_eq!(frame.paint.cover_rendered, !generated);
+            assert_eq!(frame.paint.covers[0].is_empty(), mode == 3);
+            assert_eq!(RECENT_CLEARED.load(Relaxed), mode == 3);
+            GENERATED.store(false, Relaxed);
+        }
     }
 }

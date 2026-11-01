@@ -548,21 +548,22 @@ const XpAppRuntime& appRuntime() {
       .loop_settings =
           [](XpAppSettings* settings) {
             *settings = {};
-            settings->power_duration = SETTINGS.getPowerButtonDuration();
-            settings->sleep_timeout = SETTINGS.getSleepTimeoutMs();
+            const auto& stored = SETTINGS;
+            settings->power_duration = stored.getPowerButtonDuration();
+            settings->sleep_timeout = stored.getSleepTimeoutMs();
             settings->idle_power_saving = HalPowerManager::IDLE_POWER_SAVING_MS;
-            settings->home_tap = SETTINGS.homeButtonTapAction;
-            settings->home_double = SETTINGS.homeButtonDoubleTapAction;
-            settings->home_long = SETTINGS.homeButtonLongPressAction;
-            settings->short_power = SETTINGS.shortPwrBtn;
-            settings->double_power_light = SETTINGS.doubleClickPwrLight;
-            settings->slide_action = SETTINGS.slideSwitchAction;
-            settings->tilt = SETTINGS.tiltPageTurn;
-            settings->reader_orientation = SETTINGS.orientation;
-            settings->fading_fix = SETTINGS.fadingFix;
-            settings->screen_inverted = SETTINGS.screenInverted;
-            settings->touch_reader = SETTINGS.touchReaderControls;
-            settings->frontlight_on = SETTINGS.frontlightOn;
+            settings->home_tap = stored.homeButtonTapAction;
+            settings->home_double = stored.homeButtonDoubleTapAction;
+            settings->home_long = stored.homeButtonLongPressAction;
+            settings->short_power = stored.shortPwrBtn;
+            settings->double_power_light = stored.doubleClickPwrLight;
+            settings->slide_action = stored.slideSwitchAction;
+            settings->tilt = stored.tiltPageTurn;
+            settings->reader_orientation = stored.orientation;
+            settings->fading_fix = stored.fadingFix;
+            settings->screen_inverted = stored.screenInverted;
+            settings->touch_reader = stored.touchReaderControls;
+            settings->frontlight_on = stored.frontlightOn;
             settings->is_x4pro = BoardConfig::isX4Pro();
             settings->is_papermono = FREEINK_DEVICE_PAPERMONO;
           },

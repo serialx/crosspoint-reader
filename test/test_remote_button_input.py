@@ -126,6 +126,8 @@ def method(text, signature):
     return text[start:end]
 remote_turn = method(manager_source, "bool ActivityManager::remoteTurn(")
 reader_turn = method(manager_source, "[](void* activity, uint8_t forward, uint8_t chapter)")
+owner_helpers = 'struct OwnedLegacyActivity' + manager_source.split('struct OwnedLegacyActivity', 1)[1].split('std::unique_ptr<OwnedLegacyActivity> ownLegacy', 1)[0]
+owner_helpers += method(manager_source, 'Activity* nativeActivity(')
 harness = harness.replace("int main() {", r"""
 #include <atomic>
 #include <memory>
@@ -140,6 +142,8 @@ struct ReaderActivity {
   bool pageTurn(bool forward) { pages += forward ? 1 : -1; return true; }
   bool skipPages(int step) { chapters += step; return true; }
 };
+using Activity = ReaderActivity;
+LEGACY_OWNER_HELPERS
 struct ActivityManager {
   MappedInputManager& mappedInput;
   ReaderActivity* currentActivity = new ReaderActivity();
@@ -158,9 +162,9 @@ void checkRouting(MappedInputManager& input) {
   static auto legacy = appTestLegacy();
   static auto resources = appTestResources();
   static auto runtime = appTestRuntime();
-  legacy.destroy = [](void* object) { delete static_cast<ReaderActivity*>(object); };
+  legacy.destroy = [](void* object) { delete static_cast<OwnedLegacyActivity*>(object); };
   legacy.facts = [](const void* object, uint8_t delay, uint8_t input) -> XpAppLegacyFacts {
-    const auto* reader = static_cast<const ReaderActivity*>(object);
+    const auto* reader = static_cast<const ReaderActivity*>(nativeActivity(object));
     XpAppLegacyFacts facts{};
     facts.reader = reader->foregroundReader;
     facts.remote_input = reader->context && reader->acceptsRemoteInput();
@@ -175,7 +179,7 @@ void checkRouting(MappedInputManager& input) {
   const XpAppPlatform platform{&legacy, &resources, &runtime};
   assert(xp_app_init(&platform, &activityManager.table) == XP_APP_OK);
   XpAppEvent adopt{.kind = XP_APP_ADOPT_REPLACE};
-  adopt.value.adopt_replace = manager.currentActivity;
+  adopt.value.adopt_replace = new OwnedLegacyActivity(std::unique_ptr<Activity>(manager.currentActivity));
   assert(send(adopt));
   input.update();
   assert(manager.remoteTurn(true, false));
@@ -203,6 +207,7 @@ int main() {
 """)
 harness = harness.replace("READER_TURN_LEAF", reader_turn)
 harness = harness.replace("  using Button =", "  checkRouting(input);\n  using Button =")
+harness = harness.replace("LEGACY_OWNER_HELPERS", owner_helpers)
 with tempfile.TemporaryDirectory() as directory:
     directory = Path(directory)
     (directory / "HalGPIO.h").write_text(stub)

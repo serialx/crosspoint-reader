@@ -7,6 +7,13 @@
 #include "UsbDriveActivity.h"
 #include "app_leaves.h"
 
+#define LOG_ERR(...) ((void)0)
+template <typename T, typename... Args>
+std::unique_ptr<T> makeUniqueNoThrow(Args&&... args) {
+  return std::unique_ptr<T>(new (std::nothrow) T(std::forward<Args>(args)...));
+}
+// LEGACY_OWNER
+
 #define LOG_INF(...) ((void)0)
 #define LOG_DBG(...) ((void)0)
 enum class UsbDriveState : uint8_t { Unsupported, WaitingForHost, Connected, Ejected, Disconnected, IoError };
@@ -76,17 +83,17 @@ class ActivityManager {
   void begin() {
     legacy.create = [](const XpAppLaunch* launch) -> void* {
       assert(launch->kind == XP_APP_FRONTLIGHT_PANEL);
-      return new FrontlightPanelActivity(manager->renderer, manager->mappedInput);
+      return ownLegacy(std::make_unique<FrontlightPanelActivity>(manager->renderer, manager->mappedInput)).release();
     };
-    legacy.destroy = [](void* object) { delete static_cast<Activity*>(object); };
-    legacy.enter = [](void* object) { static_cast<Activity*>(object)->onEnter(); };
-    legacy.loop = [](void* object) { static_cast<Activity*>(object)->loop(); };
-    legacy.exit = [](void* object) { static_cast<Activity*>(object)->onExit(); };
+    legacy.destroy = [](void* object) { delete static_cast<OwnedLegacyActivity*>(object); };
+    legacy.enter = [](void* object) { nativeActivity(object)->onEnter(); };
+    legacy.loop = [](void* object) { nativeActivity(object)->loop(); };
+    legacy.exit = [](void* object) { nativeActivity(object)->onExit(); };
     legacy.render = [](void* object, XpAppRenderToken* token) {
-      static_cast<Activity*>(object)->render(std::move(*static_cast<RenderLock*>(token->lock)));
+      nativeActivity(object)->render(std::move(*static_cast<RenderLock*>(token->lock)));
     };
     legacy.facts = [](const void* object, uint8_t delay, uint8_t input) -> XpAppLegacyFacts {
-      auto* activity = const_cast<Activity*>(static_cast<const Activity*>(object));
+      auto* activity = nativeActivity(object);
       XpAppLegacyFacts facts{};
       facts.kind = activity->name == "FrontlightPanel" ? XP_APP_FRONTLIGHT_PANEL : XP_APP_USB_DRIVE;
       facts.exclusive_storage = activity->requiresExclusiveStorageLoop();
@@ -97,7 +104,7 @@ class ActivityManager {
       XpAppResultView result{};
       return sink(context, &result);
     };
-    legacy.home_gesture = [](void* object) -> uint8_t { return static_cast<Activity*>(object)->handleHomeGesture(); };
+    legacy.home_gesture = [](void* object) -> uint8_t { return nativeActivity(object)->handleHomeGesture(); };
     runtime.input_mapped_snapshot = [](uint8_t, uint8_t full, uint8_t, XpAppMappedSnapshot* snapshot) {
       *snapshot = {};
       snapshot->home_gesture = manager->mappedInput.wasHomeGesture();
@@ -122,7 +129,7 @@ class ActivityManager {
   }
   XpAppFacts facts() const { return compatibility.activity_facts(); }
   std::string currentName() const {
-    if (auto* activity = static_cast<Activity*>(xp_app_test_current_legacy())) return activity->name;
+    if (auto* object = xp_app_test_current_legacy()) return nativeActivity(object)->name;
     assert(xp_app_test_is_home());
     return "Home";
   }

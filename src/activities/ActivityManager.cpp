@@ -39,6 +39,24 @@ static portMUX_TYPE activityManagerSpinlock = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE appModelSpinlock = portMUX_INITIALIZER_UNLOCKED;
 
 namespace {
+struct OwnedLegacyActivity {
+  std::unique_ptr<Activity> activity;
+  uint8_t kind = UINT8_MAX;
+  bool reader = false;
+  bool identified = false;
+
+  explicit OwnedLegacyActivity(std::unique_ptr<Activity> activity) : activity(std::move(activity)) {}
+};
+
+std::unique_ptr<OwnedLegacyActivity> ownLegacy(std::unique_ptr<Activity> activity) {
+  if (!activity) return nullptr;
+  auto owner = makeUniqueNoThrow<OwnedLegacyActivity>(std::move(activity));
+  if (!owner) LOG_ERR("ACT", "Cannot allocate legacy activity owner");
+  return owner;
+}
+
+Activity* nativeActivity(const void* object) { return static_cast<const OwnedLegacyActivity*>(object)->activity.get(); }
+
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
 std::string owned(XpAppText value) {
   return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
@@ -72,125 +90,126 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
       .create = [](const XpAppLaunch* launch) -> void* {
         auto& renderer = activityManager.renderer;
         auto& input = activityManager.mappedInput;
-        switch (launch->kind) {
-          case XP_APP_FILES:
-            return makeUniqueNoThrow<FileBrowserActivity>(renderer, input, owned(launch->value.file_path)).release();
-          case XP_APP_LIBRARY:
-            return makeUniqueNoThrow<LibraryListActivity>(renderer, input).release();
-          case XP_APP_OPDS: {
-            const auto& servers = OPDS_STORE.getServers();
-            if (launch->value.opds_server >= servers.size()) return nullptr;
-            return makeUniqueNoThrow<OpdsBookBrowserActivity>(renderer, input, servers[launch->value.opds_server])
-                .release();
-          }
-          case XP_APP_OPDS_PICKER:
-            return makeUniqueNoThrow<OpdsServerListActivity>(renderer, input, true).release();
-          case XP_APP_PLUGINS:
-            return makeUniqueNoThrow<PluginCatalogActivity>(renderer, input, launch->value.plugins_show_opds != 0, true)
-                .release();
-          case XP_APP_FILE_TRANSFER:
-            return makeUniqueNoThrow<CrossPointWebServerActivity>(renderer, input,
-                                                                  launch->value.transfer_join_network != 0)
-                .release();
-          case XP_APP_USB_DRIVE:
+        const auto create = [&]() -> std::unique_ptr<Activity> {
+          switch (launch->kind) {
+            case XP_APP_FILES:
+              return makeUniqueNoThrow<FileBrowserActivity>(renderer, input, owned(launch->value.file_path));
+            case XP_APP_LIBRARY:
+              return makeUniqueNoThrow<LibraryListActivity>(renderer, input);
+            case XP_APP_OPDS: {
+              const auto& servers = OPDS_STORE.getServers();
+              if (launch->value.opds_server >= servers.size()) return nullptr;
+              return makeUniqueNoThrow<OpdsBookBrowserActivity>(renderer, input, servers[launch->value.opds_server]);
+            }
+            case XP_APP_OPDS_PICKER:
+              return makeUniqueNoThrow<OpdsServerListActivity>(renderer, input, true);
+            case XP_APP_PLUGINS:
+              return makeUniqueNoThrow<PluginCatalogActivity>(renderer, input, launch->value.plugins_show_opds != 0,
+                                                              true);
+            case XP_APP_FILE_TRANSFER:
+              return makeUniqueNoThrow<CrossPointWebServerActivity>(renderer, input,
+                                                                    launch->value.transfer_join_network != 0);
+            case XP_APP_USB_DRIVE:
 #if FREEINK_CAP_USB_MSC
-            return makeUniqueNoThrow<UsbDriveActivity>(renderer, input).release();
+              return makeUniqueNoThrow<UsbDriveActivity>(renderer, input);
 #else
-            LOG_ERR("ACT", "USB Drive requested in a build without USB Drive capability");
-            return nullptr;
+              LOG_ERR("ACT", "USB Drive requested in a build without USB Drive capability");
+              return nullptr;
 #endif
-          case XP_APP_SETTINGS:
-            static_assert(static_cast<uint8_t>(SettingsSection::End) == 6);
-            return makeUniqueNoThrow<SettingsListActivity>(renderer, input,
-                                                           static_cast<SettingsSection>(launch->value.settings_section))
-                .release();
-          case XP_APP_READER:
-            return ReaderActivity::create(renderer, input, owned(launch->value.reader.path),
-                                          launch->value.reader.fast_initial != 0)
-                .release();
-          case XP_APP_BITMAP:
-            return makeUniqueNoThrow<BmpViewerActivity>(renderer, input, owned(launch->value.bitmap_path)).release();
-          case XP_APP_BOOT:
-            return makeUniqueNoThrow<BootActivity>(renderer, input).release();
-          case XP_APP_SLEEP:
-            return makeUniqueNoThrow<SleepActivity>(renderer, input, launch->value.sleep_from_timeout != 0).release();
-          case XP_APP_MESSAGE:
-            return makeUniqueNoThrow<FullScreenMessageActivity>(
-                       renderer, input, owned(launch->value.message.text),
-                       static_cast<EpdFontFamily::Style>(launch->value.message.style))
-                .release();
-          case XP_APP_CRASH:
-            return makeUniqueNoThrow<CrashActivity>(renderer, input).release();
-          case XP_APP_FRONTLIGHT_PANEL:
-            return makeUniqueNoThrow<FrontlightPanelActivity>(renderer, input).release();
-          default:
-            return nullptr;
-        }
+            case XP_APP_SETTINGS:
+              static_assert(static_cast<uint8_t>(SettingsSection::End) == 6);
+              return makeUniqueNoThrow<SettingsListActivity>(
+                  renderer, input, static_cast<SettingsSection>(launch->value.settings_section));
+            case XP_APP_READER:
+              return ReaderActivity::create(renderer, input, owned(launch->value.reader.path),
+                                            launch->value.reader.fast_initial != 0);
+            case XP_APP_BITMAP:
+              return makeUniqueNoThrow<BmpViewerActivity>(renderer, input, owned(launch->value.bitmap_path));
+            case XP_APP_BOOT:
+              return makeUniqueNoThrow<BootActivity>(renderer, input);
+            case XP_APP_SLEEP:
+              return makeUniqueNoThrow<SleepActivity>(renderer, input, launch->value.sleep_from_timeout != 0);
+            case XP_APP_MESSAGE:
+              return makeUniqueNoThrow<FullScreenMessageActivity>(
+                  renderer, input, owned(launch->value.message.text),
+                  static_cast<EpdFontFamily::Style>(launch->value.message.style));
+            case XP_APP_CRASH:
+              return makeUniqueNoThrow<CrashActivity>(renderer, input);
+            case XP_APP_FRONTLIGHT_PANEL:
+              return makeUniqueNoThrow<FrontlightPanelActivity>(renderer, input);
+            default:
+              return nullptr;
+          }
+        };
+        return ownLegacy(create()).release();
       },
-      .destroy = [](void* activity) { delete static_cast<Activity*>(activity); },
-      .enter = [](void* activity) { static_cast<Activity*>(activity)->onEnter(); },
-      .loop = [](void* activity) { static_cast<Activity*>(activity)->loop(); },
-      .exit = [](void* activity) { static_cast<Activity*>(activity)->onExit(); },
+      .destroy = [](void* activity) { delete static_cast<OwnedLegacyActivity*>(activity); },
+      .enter = [](void* activity) { nativeActivity(activity)->onEnter(); },
+      .loop = [](void* activity) { nativeActivity(activity)->loop(); },
+      .exit = [](void* activity) { nativeActivity(activity)->onExit(); },
       .render =
           [](void* activity, XpAppRenderToken* token) {
-            static_cast<Activity*>(activity)->render(std::move(*static_cast<RenderLock*>(token->lock)));
+            nativeActivity(activity)->render(std::move(*static_cast<RenderLock*>(token->lock)));
           },
       .facts = [](const void* object, uint8_t delay, uint8_t input) -> XpAppLegacyFacts {
-        auto* activity = const_cast<Activity*>(static_cast<const Activity*>(object));
-        uint8_t kind = UINT8_MAX;
-        const auto& name = activity->name;
-        if (name == "FileBrowser")
-          kind = XP_APP_FILES;
-        else if (name == "Library")
-          kind = XP_APP_LIBRARY;
-        else if (name == "OpdsBookBrowser")
-          kind = XP_APP_OPDS;
-        else if (name == "PluginCatalog")
-          kind = XP_APP_PLUGINS;
-        else if (name == "CrossPointWebServer")
-          kind = XP_APP_FILE_TRANSFER;
-        else if (name == "Settings" || name == "SettingsList")
-          kind = XP_APP_SETTINGS;
-        else if (name == "NetworkModeSelection")
-          kind = XP_APP_NETWORK_MODE;
-        else if (name == "FrontlightPanel")
-          kind = XP_APP_FRONTLIGHT_PANEL;
-        const bool reader = activity->isReaderActivity();
-        return {kind,
-                static_cast<uint8_t>(reader),
+        auto& owner = *const_cast<OwnedLegacyActivity*>(static_cast<const OwnedLegacyActivity*>(object));
+        auto* activity = owner.activity.get();
+        // Adoption reads facts before publication; identity then stays immutable.
+        if (!owner.identified) {
+          const auto& name = activity->name;
+          if (name == "FileBrowser")
+            owner.kind = XP_APP_FILES;
+          else if (name == "Library")
+            owner.kind = XP_APP_LIBRARY;
+          else if (name == "OpdsBookBrowser")
+            owner.kind = XP_APP_OPDS;
+          else if (name == "PluginCatalog")
+            owner.kind = XP_APP_PLUGINS;
+          else if (name == "CrossPointWebServer")
+            owner.kind = XP_APP_FILE_TRANSFER;
+          else if (name == "Settings" || name == "SettingsList")
+            owner.kind = XP_APP_SETTINGS;
+          else if (name == "NetworkModeSelection")
+            owner.kind = XP_APP_NETWORK_MODE;
+          else if (name == "FrontlightPanel")
+            owner.kind = XP_APP_FRONTLIGHT_PANEL;
+          owner.reader = activity->isReaderActivity();
+
+          owner.identified = true;
+        }
+        return {owner.kind,
+                static_cast<uint8_t>(owner.reader),
                 static_cast<uint8_t>(activity->acceptsRemoteInput()),
                 static_cast<uint8_t>(activity->preventAutoSleep()),
                 static_cast<uint8_t>(activity->requiresExclusiveStorageLoop()),
                 static_cast<uint8_t>(delay && activity->skipLoopDelay()),
-                static_cast<uint8_t>(input && reader && static_cast<ReaderActivity*>(activity)->inputOverPage())};
+                static_cast<uint8_t>(input && owner.reader && static_cast<ReaderActivity*>(activity)->inputOverPage())};
       },
       .take_result = [](void* activity, XpAppResultSink sink, void* context) -> uint8_t {
-        const auto view = rustAppResultView(static_cast<Activity*>(activity)->result);
+        const auto view = rustAppResultView(nativeActivity(activity)->result);
         return sink(context, &view);
       },
       .deliver_result =
           [](void* parent, const XpAppResultView* view) {
-            auto* activity = static_cast<Activity*>(parent);
+            auto* activity = nativeActivity(parent);
             auto handler = std::move(activity->resultHandler);
             activity->resultHandler = nullptr;
             if (handler) handler(nativeAppResult(*view));
           },
-      .prepare_sleep = [](void* activity) { static_cast<Activity*>(activity)->prepareForSleep(); },
-      .home_gesture = [](void* activity) -> uint8_t { return static_cast<Activity*>(activity)->handleHomeGesture(); },
-      .forced_refresh = [](void* activity) -> uint8_t {
-        return static_cast<Activity*>(activity)->handleForcedRefresh();
-      },
+      .prepare_sleep = [](void* activity) { nativeActivity(activity)->prepareForSleep(); },
+      .home_gesture = [](void* activity) -> uint8_t { return nativeActivity(activity)->handleHomeGesture(); },
+      .forced_refresh = [](void* activity) -> uint8_t { return nativeActivity(activity)->handleForcedRefresh(); },
       .reader_turn = [](void* activity, uint8_t forward, uint8_t chapter) -> uint8_t {
         if (activityManager.mappedInput.hasRemoteClick()) return 0;
-        auto* reader = static_cast<ReaderActivity*>(activity);
+        auto* reader = static_cast<ReaderActivity*>(nativeActivity(activity));
         return chapter ? reader->skipPages(forward ? 1 : -1) : reader->pageTurn(forward != 0);
       },
       .reader_shortcut = [](void* activity, uint8_t menu) -> uint8_t {
-        return static_cast<ReaderActivity*>(activity)->remoteShortcut(menu != 0);
+        return static_cast<ReaderActivity*>(nativeActivity(activity))->remoteShortcut(menu != 0);
       },
       .screenshot_info =
           [](const void* activity, XpAppScreenshotSink sink, void* context) {
-            screenshot(static_cast<const Activity*>(activity)->getScreenshotInfo(), sink, context);
+            screenshot(nativeActivity(activity)->getScreenshotInfo(), sink, context);
           },
   };
   static XpAppRuntime runtime = leaves;
@@ -258,14 +277,18 @@ void ActivityManager::renderTaskLoop() {
 
 void ActivityManager::loop() { xp_app_loop(); }
 void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& activity) {
+  auto owner = ownLegacy(std::move(activity));
+  if (!owner) return;
   XpAppEvent event{.kind = XP_APP_ADOPT_REPLACE};
-  event.value.adopt_replace = activity.release();
-  if (!send(event)) delete static_cast<Activity*>(event.value.adopt_replace);
+  event.value.adopt_replace = owner.release();
+  if (!send(event)) delete static_cast<OwnedLegacyActivity*>(event.value.adopt_replace);
 }
 void ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
+  auto owner = ownLegacy(std::move(activity));
+  if (!owner) return;
   XpAppEvent event{.kind = XP_APP_ADOPT_PUSH};
-  event.value.adopt_push = activity.release();
-  if (!send(event)) delete static_cast<Activity*>(event.value.adopt_push);
+  event.value.adopt_push = owner.release();
+  if (!send(event)) delete static_cast<OwnedLegacyActivity*>(event.value.adopt_push);
 }
 void ActivityManager::popActivity() { send({.kind = XP_APP_POP}); }
 void ActivityManager::goToFileTransfer() { navigate({.kind = XP_APP_FILE_TRANSFER}); }

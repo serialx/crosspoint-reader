@@ -9,11 +9,15 @@ start = source.index("void mappedSnapshot(")
 body = source[start:source.index("\nconst XpAppRuntime& appRuntime()", start)]
 manager = (ROOT / "src/activities/ActivityManager.cpp").read_text()
 facts = manager.split(".facts = ", 1)[1].split(",\n      .take_result", 1)[0]
+helpers = 'struct OwnedLegacyActivity' + manager.split('struct OwnedLegacyActivity', 1)[1].split('XpAppText text', 1)[0]
+settings = source.split('.loop_settings =', 1)[1].split(',\n      .display_geometry', 1)[0]
 harness = r'''
 #include <cassert>
 #include <atomic>
 #include <cstring>
 #include <string>
+#include <memory>
+#include <vector>
 #include <xp_app.h>
 void mappedSnapshot(uint8_t, uint8_t, uint8_t, XpAppMappedSnapshot*);
 XpAppMappedSnapshot eventFrame{};
@@ -61,35 +65,101 @@ struct Touch { int touchX=17, touchY=23; bool touchPressed=true, touchReleased=t
 Touch touchSnapshotFrom(const MappedInputManager&) { ++touchReads; return {}; }
 struct HeaderBackTapTarget { static bool contains(int,int) { return false; } };
 namespace pageturner { std::atomic<bool> holdsCpu{true}; }
+bool failOwner = false;
+unsigned destroyed = 0, settingsLookups = 0;
+std::vector<unsigned> reads;
+struct SettingField {
+  unsigned index;
+  operator uint8_t() const { reads.push_back(index); return index; }
+};
+struct Settings {
+  uint32_t getPowerButtonDuration() const { reads.push_back(1); return 700; }
+  uint32_t getSleepTimeoutMs() const { reads.push_back(2); return 1200; }
+  SettingField homeButtonTapAction{3}, homeButtonDoubleTapAction{4}, homeButtonLongPressAction{5},
+    shortPwrBtn{6}, doubleClickPwrLight{7}, slideSwitchAction{8}, tiltPageTurn{9}, orientation{10},
+    fadingFix{11}, screenInverted{12}, touchReaderControls{13}, frontlightOn{14};
+} storedSettings;
+Settings& settingsInstance() { ++settingsLookups; return storedSettings; }
+#define SETTINGS settingsInstance()
+#define FREEINK_DEVICE_PAPERMONO 0
+struct HalPowerManager { static constexpr uint32_t IDLE_POWER_SAVING_MS = 100; };
+struct BoardConfig { static bool isX4Pro() { return false; } };
+#define LOG_ERR(...) ((void)0)
+template <typename T, typename... Args>
+std::unique_ptr<T> makeUniqueNoThrow(Args&&... args) {
+  if (failOwner) return nullptr;
+  return std::make_unique<T>(std::forward<Args>(args)...);
+}
 struct Activity {
   std::string name = "EpubReader";
   unsigned delayCalls = 0;
-  virtual ~Activity() = default;
-  virtual bool isReaderActivity() const { return false; }
-  bool acceptsRemoteInput() const { return true; }
-  bool preventAutoSleep() const { return false; }
-  bool requiresExclusiveStorageLoop() const { return false; }
+  mutable unsigned identityCalls = 0;
+  bool remote = true, prevent = false, exclusive = false;
+  virtual ~Activity() { ++destroyed; }
+  virtual bool isReaderActivity() const { ++identityCalls; return false; }
+  bool acceptsRemoteInput() const { return remote; }
+  bool preventAutoSleep() const { return prevent; }
+  bool requiresExclusiveStorageLoop() const { return exclusive; }
   bool skipLoopDelay() { ++delayCalls; return true; }
 };
 struct ReaderActivity : Activity {
   unsigned overlayCalls = 0;
-  bool isReaderActivity() const override { return true; }
+  bool isReaderActivity() const override { ++identityCalls; return true; }
   bool inputOverPage() { ++overlayCalls; return true; }
 };
-''' + body + "\nauto legacyFacts = " + facts + ";\n" + r'''
+''' + helpers + '\nauto loopSettings = ' + settings + ';\n' + body + "\nauto legacyFacts = " + facts + ";\n" + r'''
 int main() {
-  ReaderActivity reader;
-  const auto summary = legacyFacts(&reader, 0, 0);
+  auto readerOwner = ownLegacy(std::make_unique<ReaderActivity>());
+  auto& reader = *static_cast<ReaderActivity*>(nativeActivity(readerOwner.get()));
+  const auto summary = legacyFacts(readerOwner.get(), 0, 0);
   assert(summary.reader && summary.remote_input && !summary.skip_delay && !summary.input_over_page);
   assert(reader.delayCalls == 0 && reader.overlayCalls == 0);
-  const auto delay = legacyFacts(&reader, 1, 0);
+  const auto delay = legacyFacts(readerOwner.get(), 1, 0);
   assert(delay.skip_delay && !delay.input_over_page && reader.delayCalls == 1 && reader.overlayCalls == 0);
-  const auto overlay = legacyFacts(&reader, 0, 1);
+  const auto overlay = legacyFacts(readerOwner.get(), 0, 1);
   assert(!overlay.skip_delay && overlay.input_over_page && reader.delayCalls == 1 && reader.overlayCalls == 1);
-  Activity settings;
+  auto settingsOwner = ownLegacy(std::make_unique<Activity>());
+  auto& settings = *nativeActivity(settingsOwner.get());
   settings.name = "Settings";
-  const auto native = legacyFacts(&settings, 1, 1);
+  const auto native = legacyFacts(settingsOwner.get(), 1, 1);
   assert(native.kind == XP_APP_SETTINGS && !native.reader && native.skip_delay && !native.input_over_page);
+
+  assert(reader.identityCalls == 1 && settings.identityCalls == 1);
+  reader.name = "Settings";
+  reader.remote = false;
+  reader.prevent = reader.exclusive = true;
+  const auto changed = legacyFacts(readerOwner.get(), 0, 0);
+  assert(changed.kind == UINT8_MAX && changed.reader && !changed.remote_input);
+  assert(changed.prevent_sleep && changed.exclusive_storage && reader.identityCalls == 1);
+  settings.name = "FileBrowser";
+  assert(legacyFacts(settingsOwner.get(), 0, 0).kind == XP_APP_SETTINGS);
+  assert(settings.identityCalls == 1);
+  readerOwner.reset();
+  settingsOwner.reset();
+  assert(destroyed == 2);
+  // Reusing the same owner storage must not preserve the previous identity.
+  alignas(OwnedLegacyActivity) unsigned char storage[sizeof(OwnedLegacyActivity)];
+  auto* reused = new (storage) OwnedLegacyActivity(std::make_unique<Activity>());
+  reused->activity->name = "FileBrowser";
+  assert(legacyFacts(reused, 0, 0).kind == XP_APP_FILES);
+  reused->~OwnedLegacyActivity();
+  reused = new (storage) OwnedLegacyActivity(std::make_unique<ReaderActivity>());
+  assert(legacyFacts(reused, 0, 0).reader && legacyFacts(reused, 0, 0).kind == UINT8_MAX);
+  assert(reused->activity->identityCalls == 1);
+  reused->~OwnedLegacyActivity();
+  failOwner = true;
+  const auto failed = ownLegacy(std::make_unique<Activity>());
+  assert(!failed && destroyed == 5);
+  assert(!ownLegacy(nullptr) && destroyed == 5);
+  XpAppSettings config;
+  for (unsigned n = 1; n <= 2; ++n) {
+    reads.clear();
+    storedSettings.homeButtonTapAction.index = 3 + n;
+    loopSettings(&config);
+    assert(settingsLookups == n && reads.size() == 14);
+    for (unsigned i = 0; i < 14; ++i) assert(reads[i] == (i == 2 ? 3 + n : i + 1));
+    assert(config.home_tap == 3 + n && config.power_duration == 700 && config.sleep_timeout == 1200);
+  }
 
   XpAppMappedSnapshot driver;
   std::memset(&driver, 0xa5, sizeof(driver));

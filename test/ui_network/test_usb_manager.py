@@ -17,6 +17,9 @@ for cls, filename, names in [
 ]:
     production = (ROOT / 'src/activities' / filename).read_text()
     methods.extend(prepare.extract(production, cls, name) for name in names)
+manager_source = (ROOT / 'src/activities/ActivityManager.cpp').read_text()
+helpers = manager_source.split('struct OwnedLegacyActivity', 1)[1].split('XpAppText text', 1)[0]
+source = source.replace('// LEGACY_OWNER', 'struct OwnedLegacyActivity' + helpers)
 source = source.replace('// PRODUCTION_METHODS', '\n\n'.join(methods))
 with tempfile.TemporaryDirectory() as directory:
     out = Path(directory)

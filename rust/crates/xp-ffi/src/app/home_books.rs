@@ -229,6 +229,7 @@ pub fn load_covers(
     covers: &mut [Text],
     height: i32,
     grid: bool,
+    mut before_generate: impl FnMut(),
     mut invalidate: impl FnMut(),
 ) {
     let mut popup = None;
@@ -265,6 +266,7 @@ pub fn load_covers(
             (services.popup_draw)((services.translate)(STR_LOADING_POPUP))
         });
         unsafe { (services.popup_progress)(rect, (10 + index * (90 / identities.len())) as i32) };
+        before_generate();
         if !book.generate(height, false) {
             cover.clear();
             let recent = abi::Book {

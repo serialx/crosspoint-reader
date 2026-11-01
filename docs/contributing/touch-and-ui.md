@@ -23,63 +23,7 @@ The following describes the existing C++ hosts. For new screens, use the Rust ho
 
 `UiAppHost` ([src/components/UiAppHost.h](../../src/components/UiAppHost.h)) owns what every FUI screen shares: the font-bound render target, the `FreeInkApp`, and the `uiReady` handshake that lets the loop task route touch snapshots against the interaction table the render task rebuilds. Never re-implement that handshake; it is a cross-task protocol and lives in exactly one place.
 
-`UiListActivity` ([src/activities/UiListActivity.h](../../src/activities/UiListActivity.h)) layers the list protocol on top: swipes scroll the viewport without moving the selection, buttons move the selection and pull the viewport along (`fui::ListNav`), plus the render skeleton (header chrome, app, footer hints). `UiTabListActivity` is the tab-bar sibling; its selection ring puts the tab bar at position 0 and the rows after it.
-
-### Legacy list host contract
-
-Subclasses supply the data; the base owns the loop. The whole contract:
-
-```cpp
-class MyListActivity final : public UiListActivity {
- public:
-  MyListActivity(GfxRenderer& r, MappedInputManager& in) : UiListActivity("MyList", r, in) {}
-
- private:
-  std::vector<Entry> entries;       // the activity's data, loaded in onEnter
-  std::vector<fui::ListItem> rows;  // activity-owned row cache: rebuilt only when entries changes, reused every render
-
-  int listCount() const override { return entries.size(); }
-  const char* headerTitle() const override { return tr(STR_MY_TITLE); }
-
-  void onEnter() override {
-    UiListActivity::onEnter();
-    entries = /* ... load from wherever ... */;
-    rebuildRows();
-  }
-
-  // Called whenever entries changes (here, only onEnter; a mutable list would
-  // also call this after any add/remove). NOT called from buildScreen().
-  void rebuildRows() {
-    rows.clear();
-    rows.reserve(entries.size());
-    // ... one fui::ListItem per entry (label, actionValue = index) ...
-  }
-
-  void buildScreen(UiScreen& screen) override {
-    // set content margin from the theme safe area, then:
-    fui::ListProps props;
-    props.items = rows.data();
-    props.count = rows.size();
-    props.action = ACTION_ROW;
-    props.inputMask = fui::InputTouch;  // physical buttons stay in the base loop
-    syncListViewport(screen, props);    // selection/viewport handoff, always right before list()
-    screen.list(props);
-  }
-
-  void activateIndex(int index) override {
-    app.clearTapFlash();  // leaving the screen: a lingering flash would gray the next render
-    // ... open the thing ...
-  }
-};
-```
-
-For small bounded lists, build a fixed row array in `onEnter()` and reuse it in
-`buildScreen()`. For large lists, use `fui::ListProps::rowProvider`: format rows
-on demand into reusable scratch storage instead of materializing the whole row
-list. Optional overrides include
-`onRowLongPress(index)`, `drawFooter()`, and `handleButtons()` for extra physical
-input. Use `ACTION_USER`-and-up action ids for non-row elements and register
-handlers in `onEnter()` after the base's.
+The C++ list base classes (`UiListActivity`, `UiTabListActivity`) have been deleted; lists and tabbed lists are built on the Rust UI list hosts listed above.
 
 ### Rules that apply to every FUI screen
 
@@ -87,7 +31,7 @@ handlers in `onEnter()` after the base's.
 - Handlers that leave the current screen call `app.clearTapFlash()` first.
 - Theme tokens are shared and bound by `resetUi()`; never call `app.setTheme` yourself. Metrics flow from the active UITheme through [`UIThemeTokens.h`](../../src/components/UIThemeTokens.h), including the per-board bezel insets that keep scrollbars visible.
 - `TextStyle.maxLines` defaults to 1 and truncates with an ellipsis. Set `maxLines` explicitly on any dialog headline or message that can wrap.
-- Keep steady-state repaint allocation-free. A local `std::vector` in `buildScreen()` allocates and frees on every repaint even with `reserve()`. For bounded lists, reuse activity-owned row storage, reserved or fixed-size when data loads. For large lists, use `rowProvider` with reusable scratch storage as above. Keep the backing storage alive for rendering; do not retain FUI `props` across renders.
+- Keep steady-state repaint allocation-free. A local `std::vector` in `buildScreen()` allocates and frees on every repaint even with `reserve()`. For bounded lists, reuse activity-owned row storage, reserved or fixed-size when data loads. For large lists, use `fui::ListProps::rowProvider` with reusable scratch storage. Keep the backing storage alive for rendering; do not retain FUI `props` across renders.
 
 ### Component inventory
 
@@ -128,7 +72,7 @@ Because the back gesture arrives as `Button::Back`, most button-era activities g
 | Helper | Status |
 |---|---|
 | `wasScreenTapped` / `wasScreenTouchDown` / `isScreenTouchHeld` | Consumed by the FUI snapshot builder. Direct use only where an existing surface owns the input frame |
-| `rowTouch` / `colTouch` | Legacy row/column band math; no current activity caller |
+| `rowTouch` | Legacy row band math; no current activity caller |
 | `wasSwipe()` | Raw swipe direction, for behavior beyond the global gestures (reader page turns) |
 | `hasTouch()` | Still fine anywhere: gate touch-only chrome (on-screen Cancel/OK pairs) on it |
 

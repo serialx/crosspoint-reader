@@ -10,15 +10,12 @@ Derive fonts, colors, and layout from those contracts rather than hardcoding the
 
 ### Shared UI and input
 
-Use `UiListActivity` for lists, `UiTabListActivity` for tabbed lists,
-`UiAppHost` for custom FreeInkUI layouts, and existing popup/dialog hosts.
+Use the Rust UI list hosts for lists and tabbed lists, `UiAppHost` for custom
+FreeInkUI layouts, and existing popup/dialog hosts.
 Keep interaction-table publication and the `uiReady` handshake in `UiAppHost`.
 Consult the relevant section of [touch/UI guidance](../../docs/contributing/touch-and-ui.md)
 when changing a screen.
 
-- `fui::ListNav` separates selection from viewport scrolling. Swipes scroll;
-  buttons select and bring rows into view. The tabbed ring reserves position 0
-  for the tab bar; row indices remain zero-based.
 - `ButtonNavigator` owns navigation press/hold callbacks. Confirm/Back callers
   retain release/long-press semantics.
 - Large lists use `fui::ListProps::rowProvider`, as in

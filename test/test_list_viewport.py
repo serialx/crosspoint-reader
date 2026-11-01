@@ -5,8 +5,12 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+# The list base classes were deleted; read the pre-port oracle from the last
+# revision that still contained them.
+BASE = "365cf23d0eb0b4344eecac6c98efd66514fd594c"
 # Compile the production method without the activity's hardware dependencies.
-source = (ROOT / "src/activities/UiListActivity.cpp").read_text()
+source = subprocess.check_output(
+    ["git", "show", f"{BASE}:src/activities/UiListActivity.cpp"], cwd=ROOT, text=True)
 method = source.split("void UiListActivity::syncListViewport(", 1)[1]
 method = "void UiListActivity::syncListViewport(" + method.split(
     "\nvoid UiListActivity::drawChrome", 1

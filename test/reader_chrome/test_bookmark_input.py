@@ -14,8 +14,13 @@ sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 
 
+# The list base classes were deleted; read the pre-port oracle from the last
+# revision that still contained them.
+BASE = "365cf23d0eb0b4344eecac6c98efd66514fd594c"
+
+
 def method(path, signature):
-    source = (ROOT / path).read_text()
+    source = subprocess.check_output(["git", "show", f"{BASE}:{path}"], cwd=ROOT, text=True)
     start = source.index(signature)
     brace = source.index('{', start)
     depth = 1

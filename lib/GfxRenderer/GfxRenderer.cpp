@@ -753,21 +753,6 @@ void GfxRenderer::fillRect(const int x, const int y, const int width, const int 
 // NOTE: Those are in critical path, and need to be templated to avoid runtime checks for every pixel.
 // Any branching must be done outside the loops to avoid performance degradation.
 template <>
-void GfxRenderer::drawPixelDither<Color::Clear>(const int x, const int y) const {
-  // Do nothing
-}
-
-template <>
-void GfxRenderer::drawPixelDither<Color::Black>(const int x, const int y) const {
-  drawPixel(x, y, true);
-}
-
-template <>
-void GfxRenderer::drawPixelDither<Color::White>(const int x, const int y) const {
-  drawPixel(x, y, false);
-}
-
-template <>
 void GfxRenderer::drawPixelDither<Color::LightGray>(const int x, const int y) const {
   drawPixel(x, y, x % 2 == 0 && y % 2 == 0);
 }

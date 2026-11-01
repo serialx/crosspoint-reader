@@ -1,10 +1,10 @@
 //! Cover-grid geometry and arithmetic hit routing; bitmap storage stays in the binding.
-use super::{view, HomeState};
+use super::{
+    resource::{Resource, Text},
+    HomeState,
+};
 use crate::scene::{Arena, Command, Error, Kind, Rect};
 
-pub const PROGRESS: u32 = 0x8000_0013;
-pub const GRID_COVER: u32 = 0x6000;
-pub const GRID_ICON: u32 = 0x7000;
 #[derive(Clone, Copy, Default)]
 pub struct Layout {
     pub screen: Rect,
@@ -44,10 +44,10 @@ pub struct Geometry {
     pub tab_distributed: u8,
 }
 pub trait Texts {
-    fn width(&mut self, handle: u32, font: i32) -> Result<i16, Error>;
+    fn width(&mut self, handle: Text, font: i32) -> Result<i16, Error>;
     fn line(&mut self, font: i32) -> Result<i16, Error>;
-    fn height(&mut self, handle: u32, font: i32, width: i16, lines: u8) -> Result<i16, Error>;
-    fn empty(&mut self, handle: u32) -> bool;
+    fn height(&mut self, handle: Text, font: i32, width: i16, lines: u8) -> Result<i16, Error>;
+    fn empty(&mut self, handle: Text) -> bool;
 }
 #[inline(never)]
 fn r(x: i32, y: i32, w: i32, h: i32) -> Result<Rect, Error> {
@@ -78,10 +78,10 @@ fn fill(a: &mut Arena<'_>, rect: Rect, paint: u8) -> Result<(), Error> {
     })
 }
 #[inline(never)]
-fn page(a: &mut Arena<'_>, rect: Rect, resource: u32) -> Result<(), Error> {
+fn page(a: &mut Arena<'_>, rect: Rect, resource: Resource) -> Result<(), Error> {
     a.push(Command {
         rect,
-        resource,
+        resource: resource.encode(),
         generation: 1,
         kind: Kind::Page as u8,
         ..Command::default()
@@ -91,7 +91,7 @@ fn page(a: &mut Arena<'_>, rect: Rect, resource: u32) -> Result<(), Error> {
 fn text(
     a: &mut Arena<'_>,
     rect: Rect,
-    resource: u32,
+    resource: Text,
     font: i32,
     max_lines: u8,
     style: u8,
@@ -99,7 +99,7 @@ fn text(
 ) -> Result<(), Error> {
     a.push(Command {
         rect,
-        resource,
+        resource: Resource::Text(resource).encode(),
         font,
         max_lines,
         style,
@@ -109,7 +109,7 @@ fn text(
         ..Command::default()
     })
 }
-fn cover(a: &mut Arena<'_>, rect: Rect, index: u32) -> Result<(), Error> {
+fn cover(a: &mut Arena<'_>, rect: Rect, index: u8) -> Result<(), Error> {
     fill(
         a,
         r(
@@ -130,7 +130,7 @@ fn cover(a: &mut Arena<'_>, rect: Rect, index: u32) -> Result<(), Error> {
         )?,
         0,
     )?;
-    page(a, rect, GRID_COVER + index)
+    page(a, rect, Resource::GridCover(index))
 }
 impl Geometry {
     pub fn count(&self) -> u8 {
@@ -356,8 +356,8 @@ pub fn view(
         let py = i32::from(c.y) + ch - ph;
         let bottom = py - 8;
         let title_h =
-            i32::from(t.height(view::TITLE, l.body_font, tw as i16, title_lines as u8)?);
-        let author_h = if t.empty(view::AUTHOR) {
+            i32::from(t.height(Text::Title(0), l.body_font, tw as i16, title_lines as u8)?);
+        let author_h = if t.empty(Text::Author(0)) {
             0
         } else {
             i32::from(t.line(l.small_font)?)
@@ -374,7 +374,7 @@ pub fn view(
         text(
             a,
             r(tx, y, tw, title_h)?,
-            view::TITLE,
+            Text::Title(0),
             l.body_font,
             title_lines as u8,
             l.body_bold,
@@ -385,7 +385,7 @@ pub fn view(
             text(
                 a,
                 r(tx, ay, tw, author_h)?,
-                view::AUTHOR,
+                Text::Author(0),
                 l.small_font,
                 1,
                 0,
@@ -393,12 +393,12 @@ pub fn view(
             )?;
         }
         if l.progress >= 0 {
-            let lw = i32::from(t.width(PROGRESS, l.small_font)?).min(tw / 2);
+            let lw = i32::from(t.width(Text::Progress, l.small_font)?).min(tw / 2);
             let (bx, bw) = if tw > 0 {
                 text(
                     a,
                     r(tx, py + (ph - label_h) / 2, lw, label_h)?,
-                    PROGRESS,
+                    Text::Progress,
                     l.small_font,
                     1,
                     0,
@@ -444,7 +444,7 @@ pub fn view(
                 cover_w,
                 cover_h,
             )?;
-            cover(a, c, u32::from(i))?;
+            cover(a, c, i)?;
             if s.selected == i32::from(i) {
                 a.push(Command {
                     kind: Kind::Stroke as u8,
@@ -515,7 +515,7 @@ pub fn view(
                 32,
                 32,
             )?,
-            GRID_ICON + u32::from(icon),
+            Resource::GridIcon(icon),
         )?;
     }
     if s.books == 0 {
@@ -526,12 +526,12 @@ pub fn view(
         page(
             a,
             r(i32::from(body.x) + (i32::from(body.w) - 32) / 2, y, 32, 32)?,
-            GRID_ICON + 5,
+            Resource::GridIcon(5),
         )?;
         text(
             a,
             r(i32::from(body.x), y + 32 + lg, i32::from(body.w), title_h)?,
-            view::NO_OPEN_BOOK,
+            Text::NoOpenBook,
             l.title_font,
             1,
             1,
@@ -545,7 +545,7 @@ pub fn view(
                 i32::from(body.w),
                 message_h,
             )?,
-            view::START_READING,
+            Text::StartReading,
             l.body_font,
             1,
             l.body_bold,
@@ -555,7 +555,7 @@ pub fn view(
     page(
         a,
         r(0, i32::from(l.header_top), sw, i32::from(l.header_height))?,
-        view::HEADER,
+        Resource::Header,
     )?;
     Ok(g)
 }

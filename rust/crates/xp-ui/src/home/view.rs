@@ -1,22 +1,6 @@
+use super::resource::{Resource, Text};
 use super::{HomeState, HomeTouch};
 use crate::scene::{Arena, Command, Error, Kind, Rect};
-
-pub const HEADER: u32 = 0x8000_0001;
-pub const FOOTER: u32 = 0x8000_0002;
-pub const RESTORE: u32 = 0x8000_0003;
-pub const SNAPSHOT: u32 = 0x8000_0004;
-pub const MASK_CORNERS: u32 = 0x8000_0005;
-pub const RIBBON: u32 = 0x8000_0006;
-pub const PLACEHOLDER: u32 = 0x8000_0007;
-pub const COVER_ICON: u32 = 0x8000_0008;
-pub const NO_OPEN_BOOK: u32 = 0x8000_0010;
-pub const START_READING: u32 = 0x8000_0011;
-pub const CONTINUE: u32 = 0x8000_0012;
-pub const COVER: u32 = 0x1000;
-pub const TITLE: u32 = 0x2000;
-pub const AUTHOR: u32 = 0x3000;
-pub const MENU: u32 = 0x4000;
-pub const MENU_ICON: u32 = 0x5000;
 
 #[derive(Clone, Copy, Default)]
 pub struct Layout {
@@ -85,24 +69,24 @@ impl Widths {
 
 #[derive(Clone, Copy, Default)]
 pub struct Lines {
-    pub first: u32,
+    pub book: u8,
     pub count: u8,
     pub max_width: i16,
 }
 
 pub trait Texts {
-    fn width(&mut self, handle: u32, font: i32, bold: bool) -> Result<i16, Error>;
+    fn width(&mut self, handle: Text, font: i32, bold: bool) -> Result<i16, Error>;
     fn line(&mut self, font: i32) -> Result<i16, Error>;
-    fn empty(&mut self, handle: u32) -> bool;
+    fn empty(&mut self, handle: Text) -> bool;
     fn wrap(
         &mut self,
-        handle: u32,
+        handle: Text,
         font: i32,
         width: i16,
         max: u8,
         bold: bool,
     ) -> Result<Lines, Error>;
-    fn truncate(&mut self, handle: u32, font: i32, width: i16, bold: bool) -> Result<u32, Error>;
+    fn truncate(&mut self, handle: Text, font: i32, width: i16, bold: bool) -> Result<Text, Error>;
 }
 
 #[inline(never)]
@@ -137,11 +121,11 @@ fn stroke(a: &mut Arena<'_>, r: Rect, paint: u8, radius: u8) -> Result<(), Error
         ..Command::default()
     })
 }
-fn resource(a: &mut Arena<'_>, r: Rect, id: u32, paint: u8) -> Result<(), Error> {
+fn resource(a: &mut Arena<'_>, r: Rect, id: Resource, paint: u8) -> Result<(), Error> {
     a.push(Command {
         kind: Kind::Page as u8,
         rect: r,
-        resource: id,
+        resource: id.encode(),
         generation: 1,
         paint,
         ..Command::default()
@@ -151,7 +135,7 @@ fn resource(a: &mut Arena<'_>, r: Rect, id: u32, paint: u8) -> Result<(), Error>
 fn text(
     a: &mut Arena<'_>,
     r: Rect,
-    id: u32,
+    id: Text,
     font: i32,
     bold: bool,
     paint: u8,
@@ -159,7 +143,7 @@ fn text(
     a.push(Command {
         kind: Kind::TextHandle as u8,
         rect: r,
-        resource: id,
+        resource: Resource::Text(id).encode(),
         generation: 1,
         font,
         style: u8::from(bold),
@@ -171,7 +155,7 @@ fn centered(
     a: &mut Arena<'_>,
     t: &mut dyn Texts,
     l: &Layout,
-    id: u32,
+    id: Text,
     font: i32,
     y: i32,
     paint: u8,
@@ -192,8 +176,11 @@ fn lines(
     center: Option<(i16, &mut dyn Texts)>,
 ) -> Result<(), Error> {
     let mut center = center;
-    for n in 0..u32::from(l.count) {
-        let id = l.first + n;
+    for index in 0..l.count {
+        let id = Text::WrappedTitle {
+            book: l.book,
+            line: index,
+        };
         let x = if let Some((width, texts)) = center.as_mut() {
             (i32::from(*width) - i32::from(texts.width(id, font, bold)?)) / 2
         } else {
@@ -241,7 +228,7 @@ pub fn standard(
         i32::from(l.tile_height),
     )?;
     if p.restored != 0 {
-        resource(a, cover, RESTORE, 0)?;
+        resource(a, cover, Resource::Restore, 0)?;
     }
     resource(
         a,
@@ -251,7 +238,7 @@ pub fn standard(
             i32::from(l.screen.w),
             i32::from(l.home_top - l.top_padding),
         )?,
-        HEADER,
+        Resource::Header,
         0,
     )?;
     match l.theme {
@@ -262,7 +249,7 @@ pub fn standard(
         _ => return Err(Error::Invalid),
     }
     menus(a, state, l, t)?;
-    resource(a, l.screen, FOOTER, 0)?;
+    resource(a, l.screen, Resource::Footer, 0)?;
     Ok(HomeTouch {
         cover: rect(
             i32::from(l.content.x + l.side_padding),
@@ -299,7 +286,7 @@ fn empty_lyra(a: &mut Arena<'_>, l: &Layout, t: &mut dyn Texts, r: Rect) -> Resu
             0,
             0,
         )?,
-        NO_OPEN_BOOK,
+        Text::NoOpenBook,
         l.title_font,
         true,
         0,
@@ -312,7 +299,7 @@ fn empty_lyra(a: &mut Arena<'_>, l: &Layout, t: &mut dyn Texts, r: Rect) -> Resu
             0,
             0,
         )?,
-        START_READING,
+        Text::StartReading,
         l.small_font,
         false,
         0,
@@ -337,14 +324,14 @@ fn lyra(
     let image = rect(x + 8, y + 8, cw, h)?;
     if p.rendered == 0 {
         if p.covers[0].status == 2 {
-            resource(a, image, COVER, 0)?;
+            resource(a, image, Resource::Cover(0), 0)?;
         }
         stroke(a, image, 0, 0)?;
         if p.covers[0].status == 0 {
-            resource(a, image, PLACEHOLDER, 0)?;
+            resource(a, image, Resource::Placeholder, 0)?;
         }
         if p.can_snapshot != 0 {
-            resource(a, r, SNAPSHOT, 0)?;
+            resource(a, r, Resource::Snapshot, 0)?;
         }
     }
     if s.selected == 0 {
@@ -354,11 +341,11 @@ fn lyra(
         fill(a, rect(x, y + h + 8, w, 8)?, 2, 6, 12)?;
     }
     let tw = cv(w - 16 - i32::from(l.spacing) - cw)?;
-    let title = t.wrap(TITLE, l.title_font, tw, 3, true)?;
-    let author = t.truncate(AUTHOR, l.small_font, tw, false)?;
+    let title = t.wrap(Text::Title(0), l.title_font, tw, 3, true)?;
+    let author = t.truncate(Text::Author(0), l.small_font, tw, false)?;
     let title_line = t.line(l.title_font)?;
     let small_line = t.line(l.small_font)?;
-    let author_height = if t.empty(AUTHOR) {
+    let author_height = if t.empty(Text::Author(0)) {
         0
     } else {
         i32::from(small_line) * 3 / 2
@@ -405,7 +392,7 @@ fn three(
             let image = rect(x + 8, y + 8, width - 16, h)?;
             let status = p.covers[usize::from(i)].status;
             if status == 2 {
-                resource(a, image, COVER + u32::from(i), 0)?;
+                resource(a, image, Resource::Cover(i), 0)?;
             }
             stroke(a, image, 0, 0)?;
             if status == 0 {
@@ -416,17 +403,17 @@ fn three(
                     0,
                     0,
                 )?;
-                resource(a, rect(x + 32, y + 32, 32, 32)?, COVER_ICON, 0)?;
+                resource(a, rect(x + 32, y + 32, 32, 32)?, Resource::CoverIcon, 0)?;
             }
         }
         if p.can_snapshot != 0 {
-            resource(a, r, SNAPSHOT, 0)?;
+            resource(a, r, Resource::Snapshot, 0)?;
         }
     }
     let line = t.line(l.tiny_font)?;
     for i in 0..count {
         let x = i32::from(r.x + l.side_padding) + width * i32::from(i);
-        let title = t.wrap(TITLE + u32::from(i), l.tiny_font, cv(width - 16)?, 3, false)?;
+        let title = t.wrap(Text::Title(i), l.tiny_font, cv(width - 16)?, 3, false)?;
         if s.selected == i32::from(i) {
             fill(a, rect(x, y, width, 8)?, 2, 6, 3)?;
             fill(a, rect(x, y + 8, 8, h)?, 2, 0, 0)?;
@@ -473,15 +460,23 @@ fn rounded(
     if s.books == 0 {
         fill(a, rect(x, y, w, h)?, 2, 20, 0)?;
         let line = i32::from(t.line(l.title_font)?);
-        return centered(a, t, l, NO_OPEN_BOOK, l.title_font, y + h / 2 - line / 2, 0);
+        return centered(
+            a,
+            t,
+            l,
+            Text::NoOpenBook,
+            l.title_font,
+            y + h / 2 - line / 2,
+            0,
+        );
     }
     let ch = i32::from(l.cover_height);
     let cw = p.cover_width;
     let image = rect(x + (w - cw) / 2, y + (h - ch) / 2, cw, ch)?;
     if p.rendered == 0 {
         if p.covers[0].status == 2 {
-            resource(a, image, COVER, 0)?;
-            resource(a, image, MASK_CORNERS, 2)?;
+            resource(a, image, Resource::Cover(0), 0)?;
+            resource(a, image, Resource::MaskCorners, 2)?;
         }
         stroke(a, image, 0, 18)?;
         if p.covers[0].status == 0 {
@@ -500,13 +495,13 @@ fn rounded(
             resource(
                 a,
                 rect(i32::from(image.x) + 24, i32::from(image.y) + 24, 32, 32)?,
-                COVER_ICON,
+                Resource::CoverIcon,
                 0,
             )?;
-            resource(a, image, MASK_CORNERS, 2)?;
+            resource(a, image, Resource::MaskCorners, 2)?;
         }
         if p.can_snapshot != 0 {
-            resource(a, r, SNAPSHOT, 0)?;
+            resource(a, r, Resource::Snapshot, 0)?;
         }
     }
     fill(a, rect(x, y, w, i32::from(image.y) - y)?, 2, 20, 3)?;
@@ -554,10 +549,10 @@ fn classic(
     let new_image = s.books != 0 && c.status == 2 && p.rendered == 0;
     let rendered = p.rendered != 0 || new_image && p.can_snapshot != 0;
     if new_image {
-        resource(a, card, COVER, 0)?;
+        resource(a, card, Resource::Cover(0), 0)?;
         stroke(a, card, 0, 0)?;
         if p.can_snapshot != 0 {
-            resource(a, r, SNAPSHOT, 0)?;
+            resource(a, r, Resource::Snapshot, 0)?;
         }
         if selected {
             stroke(a, rect(x + 1, y + 1, w - 2, h - 2)?, 0, 0)?;
@@ -574,7 +569,7 @@ fn classic(
             resource(
                 a,
                 rect(x + w - w / 8 - 10, y + 5, w / 8, h / 5)?,
-                RIBBON,
+                Resource::Ribbon,
                 u8::from(selected),
             )?;
         }
@@ -587,32 +582,32 @@ fn classic(
     let small_line = t.line(l.small_font)?;
     if s.books == 0 {
         let ty = y + (h - i32::from(title_line) - i32::from(small_line)) / 2;
-        centered(a, t, l, NO_OPEN_BOOK, l.title_font, ty, 0)?;
+        centered(a, t, l, Text::NoOpenBook, l.title_font, ty, 0)?;
         return centered(
             a,
             t,
             l,
-            START_READING,
+            Text::StartReading,
             l.small_font,
             ty + i32::from(title_line),
             0,
         );
     }
-    let title = t.wrap(TITLE, l.title_font, cv(w - 40)?, 3, false)?;
-    let author = if t.empty(AUTHOR) {
-        0
+    let title = t.wrap(Text::Title(0), l.title_font, cv(w - 40)?, 3, false)?;
+    let author = if t.empty(Text::Author(0)) {
+        None
     } else {
-        t.truncate(AUTHOR, l.small_font, cv(w - 40)?, false)?
+        Some(t.truncate(Text::Author(0), l.small_font, cv(w - 40)?, false)?)
     };
     let total = i32::from(title_line) * i32::from(title.count)
-        + if author != 0 {
+        + if author.is_some() {
             i32::from(small_line) * 3 / 2
         } else {
             0
         };
     let ty = y + (h - total) / 2;
     if rendered {
-        let max_width = i32::from(title.max_width).max(if author != 0 {
+        let max_width = i32::from(title.max_width).max(if let Some(author) = author {
             i32::from(t.width(author, l.small_font, false)?)
         } else {
             0
@@ -638,7 +633,7 @@ fn classic(
         title_line,
         Some((l.screen.w, t)),
     )?;
-    if author != 0 {
+    if let Some(author) = author {
         centered(
             a,
             t,
@@ -651,7 +646,7 @@ fn classic(
     }
     let cy = y + h - i32::from(small_line) * 3 / 2;
     if rendered {
-        let bw = i32::from(t.width(CONTINUE, l.small_font, false)?) + 12;
+        let bw = i32::from(t.width(Text::Continue, l.small_font, false)?) + 12;
         let box_rect = rect(
             i32::from(r.x) + (i32::from(r.w) - bw) / 2,
             cy - 3,
@@ -661,7 +656,15 @@ fn classic(
         fill(a, box_rect, u8::from(!selected), 0, 0)?;
         stroke(a, box_rect, u8::from(selected), 0)?;
     }
-    centered(a, t, l, CONTINUE, l.small_font, cy, u8::from(selected))
+    centered(
+        a,
+        t,
+        l,
+        Text::Continue,
+        l.small_font,
+        cy,
+        u8::from(selected),
+    )
 }
 
 fn menus(a: &mut Arena<'_>, s: HomeState, l: &Layout, t: &mut dyn Texts) -> Result<(), Error> {
@@ -707,7 +710,7 @@ fn menus(a: &mut Arena<'_>, s: HomeState, l: &Layout, t: &mut dyn Texts) -> Resu
         0
     };
     for i in start..count.min(start + page) {
-        let id = MENU + i as u32;
+        let id = Text::Menu(i as u8);
         let sy = y
             + (i - start) * step
             + if l.theme == 0 {
@@ -750,7 +753,7 @@ fn menus(a: &mut Arena<'_>, s: HomeState, l: &Layout, t: &mut dyn Texts) -> Resu
                 fill(a, rect(x, sy, w, rh)?, 2, 6, 0)?;
             }
             let ty = sy + (rh - i32::from(line)) / 2;
-            resource(a, rect(x + 16, ty, 32, 32)?, MENU_ICON + i as u32, 0)?;
+            resource(a, rect(x + 16, ty, 32, 32)?, Resource::MenuIcon(i as u8), 0)?;
             text(a, rect(x + 58, ty, 0, 0)?, id, l.title_font, false, 0)?;
         }
     }

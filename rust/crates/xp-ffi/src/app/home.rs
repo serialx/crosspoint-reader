@@ -15,7 +15,9 @@ use xp_ui::{
     ffi::{Paint, SceneView},
     home::{
         activity::{Geometry, InputResult, Model},
-        grid, view, HomeState,
+        grid,
+        resource::{Resource, Text as TextResource},
+        view, HomeState,
     },
     model::Input,
     scene::{Arena, Command, Error, Kind, Rect, Refresh},
@@ -218,7 +220,7 @@ impl Home {
                     let geometry = grid::view(&mut arena, snapshot, &layout, &mut texts)?;
                     arena.push(Command {
                         kind: Kind::Page as u8,
-                        resource: view::FOOTER,
+                        resource: Resource::Footer.encode(),
                         generation: 1,
                         ..Command::default()
                     })?;
@@ -243,7 +245,7 @@ impl Home {
                     }
                 },
                 Err(Error::Capacity) if capacity < 128 => {
-                    capacity = (capacity + 4).min(128);
+                    capacity = (capacity * 2).min(128);
                 }
                 Err(_) => {
                     self.reject();
@@ -428,7 +430,7 @@ struct PaintContext<'a> {
 }
 
 impl PaintContext<'_> {
-    fn text(&mut self, handle: u32) -> Option<abi::Text> {
+    fn text(&mut self, handle: TextResource) -> Option<abi::Text> {
         Texts {
             identities: self.identities,
             prepared: &mut self.state.texts,
@@ -439,18 +441,21 @@ impl PaintContext<'_> {
 
     unsafe extern "C" fn valid(context: *mut c_void, handle: u32, generation: u32) -> u8 {
         let this = unsafe { &mut *context.cast::<Self>() };
-        u8::from(
-            generation == 1
-                && (this.text(handle).is_some()
-                    || (view::HEADER..=view::COVER_ICON).contains(&handle)
-                    || (view::COVER..view::COVER + this.identities.len() as u32).contains(&handle)
-                    || (view::MENU_ICON..view::MENU_ICON + this.state.texts.count as u32)
-                        .contains(&handle)
-                    || this.state.snapshot.grid
-                        && ((grid::GRID_COVER..grid::GRID_COVER + this.identities.len() as u32)
-                            .contains(&handle)
-                            || (grid::GRID_ICON..grid::GRID_ICON + 6).contains(&handle))),
-        )
+        if generation != 1 {
+            return 0;
+        }
+        let valid = match Resource::decode(handle) {
+            Some(Resource::Text(text)) => this.text(text).is_some(),
+            Some(Resource::Cover(index)) => usize::from(index) < this.identities.len(),
+            Some(Resource::MenuIcon(index)) => usize::from(index) < this.state.texts.count,
+            Some(Resource::GridCover(index)) => {
+                this.state.snapshot.grid && usize::from(index) < this.identities.len()
+            }
+            Some(Resource::GridIcon(_)) => this.state.snapshot.grid,
+            Some(_) => true,
+            None => false,
+        };
+        u8::from(valid)
     }
 
     unsafe extern "C" fn paint(
@@ -461,29 +466,32 @@ impl PaintContext<'_> {
     ) {
         let this = unsafe { &mut *context.cast::<Self>() };
         let command = unsafe { &*command };
-        let handle = command.resource;
-        if let Some(text) = this.text(handle) {
-            unsafe { (this.services.text_draw)(command, clip, text) };
+        let Some(resource) = Resource::decode(command.resource) else {
+            return;
+        };
+        if let Resource::Text(text) = resource {
+            if let Some(text) = this.text(text) {
+                unsafe { (this.services.text_draw)(command, clip, text) };
+            }
             return;
         }
         let rect = command.rect;
         if this.state.snapshot.grid {
-            if (grid::GRID_COVER..grid::GRID_COVER + this.identities.len() as u32).contains(&handle)
-            {
-                let index = (handle - grid::GRID_COVER) as usize;
+            if let Resource::GridCover(index) = resource {
+                let index = usize::from(index);
                 if let Some(cache) = &mut this.state.grid_cache {
                     cache.paint(index, rect, &this.state.grid_paths[index]);
                 }
                 return;
             }
-            if (grid::GRID_ICON..grid::GRID_ICON + 6).contains(&handle) {
-                let icon = [1, 2, 3, 4, 5, 0][(handle - grid::GRID_ICON) as usize];
+            if let Resource::GridIcon(index) = resource {
+                let icon = [1, 2, 3, 4, 5, 0][usize::from(index)];
                 unsafe { (this.services.icon_draw)(icon, rect) };
                 return;
             }
         }
-        if (view::COVER..view::COVER + this.identities.len() as u32).contains(&handle) {
-            let index = (handle - view::COVER) as usize;
+        if let Resource::Cover(index) = resource {
+            let index = usize::from(index);
             if let Some(path) = home_books::thumbnail(
                 this.services,
                 &this.state.covers[index],
@@ -497,13 +505,13 @@ impl PaintContext<'_> {
             }
             return;
         }
-        if (view::MENU_ICON..view::MENU_ICON + this.state.texts.count as u32).contains(&handle) {
-            let key = this.state.texts.keys[(handle - view::MENU_ICON) as usize] as usize;
+        if let Resource::MenuIcon(index) = resource {
+            let key = this.state.texts.keys[usize::from(index)] as usize;
             unsafe { (this.services.icon_draw)([0, 1, 2, 3, 3, 4, 5][key], rect) };
             return;
         }
-        match handle {
-            view::HEADER => {
+        match resource {
+            Resource::Header => {
                 let title = if !this.state.snapshot.grid && this.state.layout.continue_in_menu != 0
                 {
                     this.identities.first().map(|book| book.title.wire())
@@ -520,7 +528,7 @@ impl PaintContext<'_> {
                     )
                 };
             }
-            view::FOOTER => {
+            Resource::Footer => {
                 let translate = this.services.translate;
                 let labels = unsafe {
                     [
@@ -544,12 +552,12 @@ impl PaintContext<'_> {
                 };
                 unsafe { (this.services.footer_draw)(labels.as_ptr()) };
             }
-            view::RESTORE => {
+            Resource::Restore => {
                 if let Some(buffer) = &this.state.buffer {
                     buffer.write(this.state.restore_rect, 0, buffer.len());
                 }
             }
-            view::SNAPSHOT => {
+            Resource::Snapshot => {
                 let stored = this
                     .state
                     .buffer
@@ -561,8 +569,8 @@ impl PaintContext<'_> {
                 this.state.buffer_stored = stored;
                 this.state.cover_rendered = stored;
             }
-            view::MASK_CORNERS => unsafe { (this.services.rounded_mask)(rect, 18, 2) },
-            view::RIBBON => {
+            Resource::MaskCorners => unsafe { (this.services.rounded_mask)(rect, 18, 2) },
+            Resource::Ribbon => {
                 let (x, y, w, h) = (
                     i32::from(rect.x),
                     i32::from(rect.y),
@@ -583,8 +591,8 @@ impl PaintContext<'_> {
                     (this.services.polygon_draw)(points.as_ptr(), 5, u8::from(command.paint == 1))
                 };
             }
-            view::PLACEHOLDER => unsafe { (this.services.placeholder_draw)(rect) },
-            view::COVER_ICON => unsafe { (this.services.icon_draw)(6, rect) },
+            Resource::Placeholder => unsafe { (this.services.placeholder_draw)(rect) },
+            Resource::CoverIcon => unsafe { (this.services.icon_draw)(6, rect) },
             _ => {}
         }
     }
@@ -688,7 +696,7 @@ mod tests {
                 prepared: &mut state.texts,
                 services,
             }
-            .wrap(view::TITLE + book, 1, 40, 3, false)
+            .wrap(TextResource::Title(book), 1, 40, 3, false)
             .unwrap();
         }
         assert_eq!(WRAPS.load(Ordering::Relaxed), 3);
@@ -699,7 +707,11 @@ mod tests {
         };
         for (book, count) in [2, 3, 1].into_iter().enumerate() {
             for line in 0..4 {
-                let handle = super::super::home_text::WRAPPED_TITLE + book as u32 * 4 + line;
+                let handle = Resource::Text(TextResource::WrappedTitle {
+                    book: book as u8,
+                    line,
+                })
+                .encode();
                 assert_eq!(
                     unsafe {
                         PaintContext::valid((&mut context as *mut PaintContext).cast(), handle, 1)
@@ -830,7 +842,7 @@ mod tests {
                 unsafe { core::slice::from_raw_parts(scene.commands, scene.command_count.into()) };
             assert_eq!(commands.first().unwrap().kind, Kind::Clear as u8);
             assert_eq!(commands.last().unwrap().kind, Kind::Page as u8);
-            assert_eq!(commands.last().unwrap().resource, view::FOOTER);
+            assert_eq!(commands.last().unwrap().resource, Resource::Footer.encode());
         }
         u8::from(PAINT_OK.load(Ordering::Relaxed))
     }

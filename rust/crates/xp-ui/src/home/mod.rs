@@ -344,6 +344,7 @@ pub mod activity;
 pub mod cache;
 pub mod file;
 pub mod library;
+pub mod resource;
 pub mod view;
 
 pub mod grid;

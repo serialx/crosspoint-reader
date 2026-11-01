@@ -87,16 +87,20 @@ fn main() {
                         let effect = match update.action {
                             Some(home::Action::Book(index)) => i32::from(index),
                             Some(home::Action::Menu(menu)) => match menu {
-                                home::Menu::Files => 100, home::Menu::Library => 101,
-                                home::Menu::Opds => 102, home::Menu::Plugins => 103,
-                                home::Menu::Transfer => 104, home::Menu::Settings => 105,
+                                home::Menu::Files => 100,
+                                home::Menu::Library => 101,
+                                home::Menu::Opds => 102,
+                                home::Menu::Plugins => 103,
+                                home::Menu::Transfer => 104,
+                                home::Menu::Settings => 105,
                             },
                             None => -1,
                         };
                         let mut updates = update.invalidate as i32;
                         println!(
                             "home {grid} {count} {slot} {initial} {event}: {} {effect} {updates} {}",
-                            h.selected, u8::from(update.haptic)
+                            h.selected,
+                            u8::from(update.haptic)
                         );
                         if (6..12).contains(&event) {
                             for ms in [500, 501, 1001, 1002] {

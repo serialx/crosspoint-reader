@@ -1,67 +1,79 @@
 #![allow(dead_code)]
-use home::{HomeState, view::*};
+use home::{
+    HomeState,
+    resource::{Resource, Text},
+    view::*,
+};
 use scene::{Arena, Command, Error, Rect, Refresh};
 use xp_ui::home;
 pub use xp_ui::{ffi, model, scene};
 
 struct Texts {
-    strings: Vec<String>,
+    strings: Vec<(Text, String)>,
 }
 impl Texts {
-    fn get(&self, handle: u32) -> String {
+    fn get(&self, handle: Text) -> String {
         match handle {
-            NO_OPEN_BOOK => "No open book".into(),
-            START_READING => "Start reading".into(),
-            CONTINUE => "Continue reading".into(),
-            TITLE..=0x2002 => if handle == TITLE + 1 {
+            Text::NoOpenBook => "No open book".into(),
+            Text::StartReading => "Start reading".into(),
+            Text::Continue => "Continue reading".into(),
+            Text::Title(book) => if book == 1 {
                 "Short"
             } else {
                 "A book title with enough words to occupy multiple lines"
             }
             .into(),
-            AUTHOR..=0x3002 => if handle == AUTHOR + 1 {
-                ""
-            } else {
-                "An author"
-            }
-            .into(),
-            MENU..=0x4005 => format!("Menu {}", handle - MENU),
-            _ => self.strings[(handle - 0x10000) as usize].clone(),
+            Text::Author(book) => if book == 1 { "" } else { "An author" }.into(),
+            Text::Menu(index) => format!("Menu {index}"),
+            _ => self
+                .strings
+                .iter()
+                .find(|(key, _)| *key == handle)
+                .unwrap()
+                .1
+                .clone(),
         }
-    }
-    fn store(&mut self, text: String) -> u32 {
-        let id = 0x10000 + self.strings.len() as u32;
-        self.strings.push(text);
-        id
     }
 }
 impl home::view::Texts for Texts {
-    fn width(&mut self, h: u32, f: i32, b: bool) -> Result<i16, Error> {
+    fn width(&mut self, h: Text, f: i32, b: bool) -> Result<i16, Error> {
         Ok((self.get(h).len() as i32 * (f / 2 + i32::from(b))) as i16)
     }
     fn line(&mut self, f: i32) -> Result<i16, Error> {
         Ok((f * 2) as i16)
     }
-    fn empty(&mut self, h: u32) -> bool {
+    fn empty(&mut self, h: Text) -> bool {
         self.get(h).is_empty()
     }
-    fn truncate(&mut self, h: u32, f: i32, w: i16, b: bool) -> Result<u32, Error> {
+    fn truncate(&mut self, h: Text, f: i32, w: i16, b: bool) -> Result<Text, Error> {
         let mut s = self.get(h);
         s.truncate(
             s.len()
                 .min((i32::from(w).max(0) / (f / 2 + i32::from(b))) as usize),
         );
-        Ok(self.store(s))
+        let resource = match h {
+            Text::Author(0) => Text::ClippedAuthor,
+            Text::Menu(i) => Text::ClippedMenu(i),
+            _ => panic!("truncate"),
+        };
+        self.strings.push((resource, s));
+        Ok(resource)
     }
-    fn wrap(&mut self, h: u32, f: i32, w: i16, max: u8, b: bool) -> Result<Lines, Error> {
+    fn wrap(&mut self, h: Text, f: i32, w: i16, max: u8, b: bool) -> Result<Lines, Error> {
         let text = self.get(h);
         let chars = (i32::from(w) / (f / 2 + i32::from(b))).max(1) as usize;
+        let Text::Title(book) = h else { panic!("wrap") };
         let mut lines = Lines {
-            first: 0x10000 + self.strings.len() as u32,
+            book,
             ..Lines::default()
         };
         for chunk in text.as_bytes().chunks(chars).take(usize::from(max)) {
-            let id = self.store(String::from_utf8(chunk.to_vec()).unwrap());
+            let id = Text::WrappedTitle {
+                book,
+                line: lines.count,
+            };
+            self.strings
+                .push((id, String::from_utf8(chunk.to_vec()).unwrap()));
             lines.count += 1;
             lines.max_width = lines.max_width.max(self.width(id, f, b)?);
         }
@@ -123,7 +135,6 @@ fn main() {
                                 rendered: u8::from(snapshot == 2),
                                 restored: u8::from(snapshot == 2),
                                 can_snapshot: u8::from(snapshot != 0),
-
                             };
                             let mut texts = Texts {
                                 strings: Vec::new(),
@@ -141,7 +152,10 @@ fn main() {
                                         c.rect.y,
                                         c.paint,
                                         c.style,
-                                        texts.get(c.resource)
+                                        texts.get(match Resource::decode(c.resource).unwrap() {
+                                            Resource::Text(text) => text,
+                                            _ => panic!("text command"),
+                                        })
                                     );
                                 } else {
                                     println!(

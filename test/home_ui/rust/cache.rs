@@ -69,7 +69,13 @@ fn main() {
                 for s in &state.slots {
                     print!(
                         " {},{},{},{},{},{},{}",
-                        s.rect.x, s.rect.y, s.rect.w, s.rect.h, s.range.start, s.range.end - s.range.start, u8::from(s.valid)
+                        s.rect.x,
+                        s.rect.y,
+                        s.rect.w,
+                        s.rect.h,
+                        s.range.start,
+                        s.range.end - s.range.start,
+                        u8::from(s.valid)
                     );
                 }
                 println!();

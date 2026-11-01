@@ -1,30 +1,34 @@
 use xp_ui::{
-    home::{HomeState, grid::*, view},
+    home::{
+        HomeState,
+        grid::*,
+        resource::{Resource, Text},
+    },
     scene::{Arena, Command, Error, Kind, Rect, Refresh},
 };
 struct Texts {
     progress: i32,
 }
 impl Texts {
-    fn get(&self, h: u32) -> String {
+    fn get(&self, h: Text) -> String {
         match h {
-            view::TITLE => "A long title with several words".into(),
-            view::AUTHOR => "An author".into(),
-            view::NO_OPEN_BOOK => "No open book".into(),
-            view::START_READING => "Start reading".into(),
-            PROGRESS => format!("{}%", self.progress),
+            Text::Title(0) => "A long title with several words".into(),
+            Text::Author(0) => "An author".into(),
+            Text::NoOpenBook => "No open book".into(),
+            Text::StartReading => "Start reading".into(),
+            Text::Progress => format!("{}%", self.progress),
             _ => panic!("handle"),
         }
     }
 }
 impl xp_ui::home::grid::Texts for Texts {
-    fn width(&mut self, h: u32, f: i32) -> Result<i16, Error> {
+    fn width(&mut self, h: Text, f: i32) -> Result<i16, Error> {
         Ok((self.get(h).len() * if f == 0 { 8 } else { 10 }) as i16)
     }
     fn line(&mut self, f: i32) -> Result<i16, Error> {
         Ok(if f == 0 { 18 } else { 24 })
     }
-    fn height(&mut self, h: u32, f: i32, w: i16, n: u8) -> Result<i16, Error> {
+    fn height(&mut self, h: Text, f: i32, w: i16, n: u8) -> Result<i16, Error> {
         let text = self.get(h);
         let unit = if f == 0 { 8 } else { 10 };
         let mut lines = 1;
@@ -41,8 +45,14 @@ impl xp_ui::home::grid::Texts for Texts {
         }
         Ok(lines.min(i32::from(n)) as i16 * self.line(f)?)
     }
-    fn empty(&mut self, h: u32) -> bool {
+    fn empty(&mut self, h: Text) -> bool {
         self.get(h).is_empty()
+    }
+}
+fn text_resource(handle: u32) -> Text {
+    match Resource::decode(handle).unwrap() {
+        Resource::Text(text) => text,
+        _ => panic!("text command"),
     }
 }
 fn main() {
@@ -84,7 +94,6 @@ fn main() {
                                 tab_offset: if touch != 0 { 3 } else { 0 },
                                 touch,
                                 body_bold: 0,
-
                             };
                             let mut s = HomeState::new(books, true, opds != 0, false, books != 0);
                             s.selected = selected;
@@ -132,12 +141,12 @@ fn main() {
                                         c.corners
                                     ),
                                     Kind::Page => {
-                                        if c.resource == view::HEADER {
+                                        if c.resource == Resource::Header.encode() {
                                             println!("header {} {} {} {}", r.x, r.y, r.w, r.h)
-                                        } else if c.resource >= GRID_ICON {
+                                        } else if c.resource >= Resource::GridIcon(0).encode() {
                                             println!(
                                                 "icon {} {} {} {}",
-                                                c.resource - GRID_ICON,
+                                                c.resource - Resource::GridIcon(0).encode(),
                                                 r.x,
                                                 r.y,
                                                 r.w
@@ -149,7 +158,7 @@ fn main() {
                                                 r.y,
                                                 r.w,
                                                 r.h,
-                                                c.resource - GRID_COVER
+                                                c.resource - Resource::GridCover(0).encode()
                                             )
                                         }
                                     }
@@ -164,10 +173,12 @@ fn main() {
                                             c.align,
                                             c.max_lines,
                                             c.style,
-                                            t.get(c.resource)
+                                            t.get(text_resource(c.resource))
                                         );
                                         let w = xp_ui::home::grid::Texts::width(
-                                            &mut t, c.resource, c.font,
+                                            &mut t,
+                                            text_resource(c.resource),
+                                            c.font,
                                         )
                                         .unwrap();
                                         if w <= r.w {

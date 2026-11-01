@@ -12,14 +12,23 @@ pub struct Text {
 
 impl Text {
     pub fn copy(bytes: &[u8]) -> Result<Self, TryReserveError> {
+        let mut text = Self::default();
+        text.assign(bytes)?;
+        Ok(text)
+    }
+
+    pub fn assign(&mut self, bytes: &[u8]) -> Result<(), TryReserveError> {
         if bytes.is_empty() {
-            return Ok(Self::default());
+            self.bytes.clear();
+            return Ok(());
         }
-        let mut owned = Vec::new();
-        owned.try_reserve_exact(bytes.len().saturating_add(1))?;
-        owned.extend_from_slice(bytes);
-        owned.push(0);
-        Ok(Self { bytes: owned })
+        let needed = bytes.len().saturating_add(1);
+        self.bytes
+            .try_reserve_exact(needed.saturating_sub(self.bytes.len()))?;
+        self.bytes.clear();
+        self.bytes.extend_from_slice(bytes);
+        self.bytes.push(0);
+        Ok(())
     }
 
     pub fn bytes(&self) -> &[u8] {

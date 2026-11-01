@@ -8,13 +8,9 @@ use alloc::vec::Vec;
 use core::{ffi::c_void, fmt::Write};
 use xp_core::i18n::ids::*;
 use xp_ui::{
-    home::{grid, view},
+    home::{grid, resource::Text as TextResource, view},
     scene::Error,
 };
-
-pub const WRAPPED_TITLE: u32 = 0x10000;
-pub const CLIPPED_AUTHOR: u32 = 0x11000;
-pub const CLIPPED_MENU: u32 = 0x12000;
 
 pub struct PreparedTexts {
     wrapped: [Vec<Text>; 3],
@@ -65,61 +61,63 @@ pub struct Texts<'a> {
 }
 
 impl Texts<'_> {
-    pub fn lookup(&self, handle: u32) -> Option<abi::Text> {
-        if (view::TITLE..view::TITLE + 3).contains(&handle) {
-            return self
-                .identities
-                .get((handle - view::TITLE) as usize)
-                .map(|book| book.title.wire());
-        }
-        if (view::AUTHOR..view::AUTHOR + 3).contains(&handle) {
-            return self
-                .identities
-                .get((handle - view::AUTHOR) as usize)
-                .map(|book| book.author.wire());
-        }
-        if (WRAPPED_TITLE..WRAPPED_TITLE + 12).contains(&handle) {
-            let n = (handle - WRAPPED_TITLE) as usize;
-            return self.prepared.wrapped[n / 4].get(n % 4).map(Text::wire);
-        }
-        if handle == CLIPPED_AUTHOR {
-            return Some(self.prepared.author.wire());
-        }
-        if (CLIPPED_MENU..CLIPPED_MENU + self.prepared.count as u32).contains(&handle) {
-            return Some(self.prepared.menu[(handle - CLIPPED_MENU) as usize].wire());
-        }
-        if handle == grid::PROGRESS && self.prepared.grid {
-            let length = self
-                .prepared
-                .progress
-                .iter()
-                .position(|b| *b == 0)
-                .unwrap_or(11);
-            return Some(abi::Text::from_bytes(&self.prepared.progress[..length]));
-        }
-        let string_id = if (view::MENU..view::MENU + self.prepared.count as u32).contains(&handle) {
-            match self.prepared.keys[(handle - view::MENU) as usize] {
-                0 => STR_CONTINUE_READING,
-                1 => STR_BROWSE_FILES,
-                2 => STR_LIBRARY,
-                3 => STR_PLUGINS,
-                4 => STR_OPDS_BROWSER,
-                5 => STR_FILE_TRANSFER,
-                6 => STR_SETTINGS_TITLE,
-                _ => return None,
+    pub fn lookup(&self, resource: TextResource) -> Option<abi::Text> {
+        let string_id = match resource {
+            TextResource::Title(book) => {
+                return self
+                    .identities
+                    .get(usize::from(book))
+                    .map(|book| book.title.wire())
             }
-        } else {
-            match handle {
-                view::NO_OPEN_BOOK => STR_NO_OPEN_BOOK,
-                view::START_READING => STR_START_READING,
-                view::CONTINUE => STR_CONTINUE_READING,
-                _ => return None,
+            TextResource::Author(book) => {
+                return self
+                    .identities
+                    .get(usize::from(book))
+                    .map(|book| book.author.wire())
             }
+            TextResource::WrappedTitle { book, line } => {
+                return self
+                    .prepared
+                    .wrapped
+                    .get(usize::from(book))?
+                    .get(usize::from(line))
+                    .map(Text::wire)
+            }
+            TextResource::ClippedAuthor => return Some(self.prepared.author.wire()),
+            TextResource::ClippedMenu(index) => {
+                return (usize::from(index) < self.prepared.count)
+                    .then(|| self.prepared.menu[usize::from(index)].wire())
+            }
+            TextResource::Progress if self.prepared.grid => {
+                let length = self
+                    .prepared
+                    .progress
+                    .iter()
+                    .position(|b| *b == 0)
+                    .unwrap_or(11);
+                return Some(abi::Text::from_bytes(&self.prepared.progress[..length]));
+            }
+            TextResource::Menu(index) if usize::from(index) < self.prepared.count => {
+                match self.prepared.keys[usize::from(index)] {
+                    0 => STR_CONTINUE_READING,
+                    1 => STR_BROWSE_FILES,
+                    2 => STR_LIBRARY,
+                    3 => STR_PLUGINS,
+                    4 => STR_OPDS_BROWSER,
+                    5 => STR_FILE_TRANSFER,
+                    6 => STR_SETTINGS_TITLE,
+                    _ => return None,
+                }
+            }
+            TextResource::NoOpenBook => STR_NO_OPEN_BOOK,
+            TextResource::StartReading => STR_START_READING,
+            TextResource::Continue => STR_CONTINUE_READING,
+            _ => return None,
         };
         Some(unsafe { (self.services.translate)(string_id) })
     }
 
-    fn measure(&self, handle: u32, font: i32, bold: bool) -> Result<i16, Error> {
+    fn measure(&self, handle: TextResource, font: i32, bold: bool) -> Result<i16, Error> {
         let text = self.lookup(handle).ok_or(Error::Invalid)?;
         i16::try_from(unsafe { (self.services.text_width)(text, font, u8::from(bold)) })
             .map_err(|_| Error::Invalid)
@@ -129,7 +127,7 @@ impl Texts<'_> {
         i16::try_from(unsafe { (self.services.line_height)(font) }).map_err(|_| Error::Invalid)
     }
 
-    fn is_empty(&self, handle: u32) -> bool {
+    fn is_empty(&self, handle: TextResource) -> bool {
         self.lookup(handle).is_none_or(|text| {
             text.len == 0 || unsafe { text.bytes() }.is_none_or(|b| b.first() == Some(&0))
         })
@@ -137,42 +135,42 @@ impl Texts<'_> {
 }
 
 impl view::Texts for Texts<'_> {
-    fn width(&mut self, handle: u32, font: i32, bold: bool) -> Result<i16, Error> {
+    fn width(&mut self, handle: TextResource, font: i32, bold: bool) -> Result<i16, Error> {
         self.measure(handle, font, bold)
     }
     fn line(&mut self, font: i32) -> Result<i16, Error> {
         self.line_height(font)
     }
-    fn empty(&mut self, handle: u32) -> bool {
+    fn empty(&mut self, handle: TextResource) -> bool {
         self.is_empty(handle)
     }
 
     fn wrap(
         &mut self,
-        handle: u32,
+        handle: TextResource,
         font: i32,
         width: i16,
         max: u8,
         bold: bool,
     ) -> Result<view::Lines, Error> {
-        if !(view::TITLE..view::TITLE + 3).contains(&handle) {
+        let TextResource::Title(book) = handle else {
             return Err(Error::Invalid);
-        }
+        };
         let text = self.lookup(handle).ok_or(Error::Invalid)?;
-        let book = (handle - view::TITLE) as usize;
+        let book = usize::from(book);
         let lines = &mut self.prepared.wrapped[book];
-        lines.clear();
         lines
-            .try_reserve_exact(usize::from(max))
+            .try_reserve_exact(usize::from(max).saturating_sub(lines.len()))
             .map_err(|_| Error::Capacity)?;
+        lines.resize_with(usize::from(max), Text::default);
         struct Capture<'a> {
             lines: &'a mut Vec<Text>,
-            max: usize,
+            count: usize,
             failed: bool,
         }
         unsafe extern "C" fn sink(context: *mut c_void, value: abi::Text) -> u8 {
             let capture = unsafe { &mut *context.cast::<Capture<'_>>() };
-            if capture.failed || capture.lines.len() >= capture.max {
+            if capture.failed || capture.count >= capture.lines.len() {
                 capture.failed = true;
                 return 0;
             }
@@ -180,16 +178,16 @@ impl view::Texts for Texts<'_> {
                 capture.failed = true;
                 return 0;
             };
-            let Ok(text) = Text::copy(bytes) else {
+            let Ok(()) = capture.lines[capture.count].assign(bytes) else {
                 capture.failed = true;
                 return 0;
             };
-            capture.lines.push(text);
+            capture.count += 1;
             1
         }
         let mut capture = Capture {
             lines,
-            max: usize::from(max),
+            count: 0,
             failed: false,
         };
         let layout = abi::TextLayout {
@@ -209,19 +207,26 @@ impl view::Texts for Texts<'_> {
         if success == 0 || capture.failed {
             return Err(Error::Capacity);
         }
+        capture.lines.truncate(capture.count);
         let mut max_width = 0;
         for text in &*capture.lines {
             max_width = max_width
                 .max(unsafe { (self.services.text_width)(text.wire(), font, u8::from(bold)) });
         }
         Ok(view::Lines {
-            first: WRAPPED_TITLE + 4 * book as u32,
+            book: book as u8,
             count: capture.lines.len() as u8,
             max_width: i16::try_from(max_width).map_err(|_| Error::Invalid)?,
         })
     }
 
-    fn truncate(&mut self, handle: u32, font: i32, width: i16, bold: bool) -> Result<u32, Error> {
+    fn truncate(
+        &mut self,
+        handle: TextResource,
+        font: i32,
+        width: i16,
+        bold: bool,
+    ) -> Result<TextResource, Error> {
         let source = self.lookup(handle).ok_or(Error::Invalid)?;
         let layout = abi::TextLayout {
             font,
@@ -233,29 +238,37 @@ impl view::Texts for Texts<'_> {
             (self.services.text_truncate)(source, layout, sink, context)
         })
         .ok_or(Error::Capacity)?;
-        if handle == view::AUTHOR {
-            self.prepared.author = text;
-            Ok(CLIPPED_AUTHOR)
-        } else if (view::MENU..view::MENU + self.prepared.count as u32).contains(&handle) {
-            self.prepared.menu[(handle - view::MENU) as usize] = text;
-            Ok(CLIPPED_MENU + handle - view::MENU)
-        } else {
-            Err(Error::Invalid)
+        match handle {
+            TextResource::Author(0) => {
+                self.prepared.author = text;
+                Ok(TextResource::ClippedAuthor)
+            }
+            TextResource::Menu(index) if usize::from(index) < self.prepared.count => {
+                self.prepared.menu[usize::from(index)] = text;
+                Ok(TextResource::ClippedMenu(index))
+            }
+            _ => Err(Error::Invalid),
         }
     }
 }
 
 impl grid::Texts for Texts<'_> {
-    fn width(&mut self, handle: u32, font: i32) -> Result<i16, Error> {
+    fn width(&mut self, handle: TextResource, font: i32) -> Result<i16, Error> {
         self.measure(handle, font, false)
     }
     fn line(&mut self, font: i32) -> Result<i16, Error> {
         self.line_height(font)
     }
-    fn empty(&mut self, handle: u32) -> bool {
+    fn empty(&mut self, handle: TextResource) -> bool {
         self.is_empty(handle)
     }
-    fn height(&mut self, handle: u32, font: i32, width: i16, lines: u8) -> Result<i16, Error> {
+    fn height(
+        &mut self,
+        handle: TextResource,
+        font: i32,
+        width: i16,
+        lines: u8,
+    ) -> Result<i16, Error> {
         let text = self.lookup(handle).ok_or(Error::Invalid)?;
         let layout = abi::TextLayout {
             font,

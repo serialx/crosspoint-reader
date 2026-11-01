@@ -95,13 +95,6 @@ bool transferSetting(CrossPointSettings& settings, const SettingInfo& info, cons
 }
 }  // namespace
 
-void CrossPointSettings::validateFrontButtonMapping(CrossPointSettings& s) {
-  uint8_t* front[] = {&s.frontButtonBack, &s.frontButtonConfirm, &s.frontButtonLeft, &s.frontButtonRight};
-  xp_setting_front(front);
-}
-uint8_t CrossPointSettings::sleepTimeoutEnumToMinutes(uint8_t legacyValue) {
-  return xp_setting_sleep_minutes(legacyValue);
-}
 void CrossPointSettings::toJson(JsonDocument& doc) const {
   auto& self = const_cast<CrossPointSettings&>(*this);
   store_bridge::Json json(doc);

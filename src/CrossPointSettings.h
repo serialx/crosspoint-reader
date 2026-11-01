@@ -471,9 +471,6 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   void toJson(JsonDocument& doc) const;
   bool fromJson(JsonVariantConst doc);
 
-  static void validateFrontButtonMapping(CrossPointSettings& settings);
-  static uint8_t sleepTimeoutEnumToMinutes(uint8_t legacyValue);
-
   float getReaderLineCompression() const;
   unsigned long getSleepTimeoutMs() const;
   int getRefreshFrequency() const;

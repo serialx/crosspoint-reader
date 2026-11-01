@@ -12,6 +12,7 @@ mod sync;
 #[cfg(test)]
 mod test_resources;
 
+use abi::LaunchPayload;
 use alloc::{alloc::alloc, boxed::Box};
 use core::{
     alloc::Layout,
@@ -239,26 +240,19 @@ impl App {
                 return false;
             };
             if path.is_empty() {
-                launch = abi::Launch {
-                    kind: abi::FILES,
-                    value: abi::LaunchValue {
-                        file_path: abi::Text::from_bytes(b"/"),
-                    },
-                };
+                launch = abi::Launch::new(
+                    abi::FILES,
+                    LaunchPayload::Files(abi::Text::from_bytes(b"/")),
+                );
             } else if image_path(path) {
-                launch = abi::Launch {
-                    kind: abi::BITMAP,
-                    value: abi::LaunchValue {
-                        bitmap_path: unsafe { launch.value.reader.path },
-                    },
-                };
+                launch = abi::Launch::new(
+                    abi::BITMAP,
+                    LaunchPayload::Bitmap(unsafe { launch.value.reader.path }),
+                );
             }
         }
         if launch.kind == abi::OPDS_PICKER && unsafe { (self.resources.opds_count)() } == 1 {
-            launch = abi::Launch {
-                kind: abi::OPDS,
-                value: abi::LaunchValue { opds_server: 0 },
-            };
+            launch = abi::Launch::new(abi::OPDS, LaunchPayload::Opds(0));
         }
         let Some(owner) = self.create(&launch) else {
             return false;
@@ -365,10 +359,10 @@ impl App {
                 && (frame.light_panel_gesture != 0 || status_screen && frame.status_bar_tap != 0)
             {
                 unsafe { (self.runtime.touch_feedback)(0) };
-                if let Some(panel) = self.create(&abi::Launch {
-                    kind: abi::FRONTLIGHT_PANEL,
-                    value: abi::LaunchValue { opds_server: 0 },
-                }) {
+                if let Some(panel) = self.create(&abi::Launch::new(
+                    abi::FRONTLIGHT_PANEL,
+                    LaunchPayload::None,
+                )) {
                     self.input.borrow_mut().reset();
                     self.navigation.queue(Transition::Push(panel));
                 }
@@ -389,15 +383,13 @@ impl App {
                         match update.action {
                             Some(HomeRoute::Book(index)) => {
                                 if let Some(path) = unsafe { home.as_ref().path(index.into()) } {
-                                    self.navigate(abi::Launch {
-                                        kind: abi::READER,
-                                        value: abi::LaunchValue {
-                                            reader: abi::ReaderLaunch {
-                                                path,
-                                                fast_initial: 0,
-                                            },
-                                        },
-                                    });
+                                    self.navigate(abi::Launch::new(
+                                        abi::READER,
+                                        LaunchPayload::Reader(abi::ReaderLaunch {
+                                            path,
+                                            fast_initial: 0,
+                                        }),
+                                    ));
                                 }
                             }
                             Some(HomeRoute::Menu(menu)) => {
@@ -409,19 +401,16 @@ impl App {
                                     Menu::Transfer => abi::FILE_TRANSFER,
                                     Menu::Settings => abi::SETTINGS,
                                 };
-                                let flag = match menu {
-                                    Menu::Plugins => {
-                                        u8::from(unsafe { (self.resources.opds_count)() } != 0)
-                                    }
-                                    Menu::Settings => 6,
-                                    _ => 0,
+                                let payload = match menu {
+                                    Menu::Files => LaunchPayload::Files(abi::Text::from_bytes(b"")),
+                                    Menu::Library | Menu::Opds => LaunchPayload::None,
+                                    Menu::Plugins => LaunchPayload::Plugins(u8::from(
+                                        unsafe { (self.resources.opds_count)() } != 0,
+                                    )),
+                                    Menu::Transfer => LaunchPayload::Transfer(0),
+                                    Menu::Settings => LaunchPayload::Settings(6),
                                 };
-                                self.navigate(abi::Launch {
-                                    kind,
-                                    value: abi::LaunchValue {
-                                        settings_section: flag,
-                                    },
-                                });
+                                self.navigate(abi::Launch::new(kind, payload));
                             }
                             None => {}
                         }
@@ -728,12 +717,10 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
             true
         }
         abi::SLEEP_REQUESTED => {
-            let launch = abi::Launch {
-                kind: abi::SLEEP,
-                value: abi::LaunchValue {
-                    sleep_from_timeout: unsafe { event.value.sleep_from_timeout },
-                },
-            };
+            let launch = abi::Launch::new(
+                abi::SLEEP,
+                LaunchPayload::Sleep(unsafe { event.value.sleep_from_timeout }),
+            );
             let Some(owner) = app.create(&launch) else {
                 return abi::EVENT_OUT_OF_MEMORY;
             };

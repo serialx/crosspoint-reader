@@ -63,6 +63,57 @@ pub struct Launch {
     pub value: LaunchValue,
 }
 
+// Rust callers cannot pair a launch kind with a partially initialized union member.
+pub enum LaunchPayload {
+    None,
+    Files(Text),
+    Bitmap(Text),
+    Reader(ReaderLaunch),
+    Opds(u32),
+    Settings(u8),
+    Plugins(u8),
+    Transfer(u8),
+    Sleep(u8),
+}
+
+impl Launch {
+    pub fn new(kind: LaunchKind, payload: LaunchPayload) -> Self {
+        use LaunchPayload::*;
+        assert!(
+            matches!(
+                (kind, &payload),
+                (FILES, Files(_))
+                    | (BITMAP, Bitmap(_))
+                    | (READER, Reader(_))
+                    | (OPDS, Opds(_))
+                    | (SETTINGS, Settings(_))
+                    | (PLUGINS, Plugins(_))
+                    | (FILE_TRANSFER, Transfer(_))
+                    | (SLEEP, Sleep(_))
+                    | (
+                        LIBRARY | OPDS_PICKER | USB_DRIVE | BOOT | CRASH | FRONTLIGHT_PANEL,
+                        None
+                    )
+            ),
+            "launch payload does not initialize its kind"
+        );
+        let value = match payload {
+            None => LaunchValue { opds_server: 0 },
+            Files(file_path) => LaunchValue { file_path },
+            Bitmap(bitmap_path) => LaunchValue { bitmap_path },
+            Reader(reader) => LaunchValue { reader },
+            Opds(opds_server) => LaunchValue { opds_server },
+            Settings(settings_section) => LaunchValue { settings_section },
+            Plugins(plugins_show_opds) => LaunchValue { plugins_show_opds },
+            Transfer(transfer_join_network) => LaunchValue {
+                transfer_join_network,
+            },
+            Sleep(sleep_from_timeout) => LaunchValue { sleep_from_timeout },
+        };
+        Self { kind, value }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HomeRequest {
@@ -555,3 +606,14 @@ pub const MEMORY_DEFAULT: u8 = 0;
 pub const MEMORY_PSRAM_ONLY: u8 = 1;
 pub const BOOK_REFLOWABLE: u8 = 0;
 pub const BOOK_XTC: u8 = 1;
+
+#[cfg(test)]
+mod launch_tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "launch payload does not initialize its kind")]
+    fn files_rejects_byte_payload() {
+        Launch::new(FILES, LaunchPayload::Settings(0));
+    }
+}

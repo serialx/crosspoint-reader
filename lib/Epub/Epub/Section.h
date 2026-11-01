@@ -118,6 +118,7 @@ class Section {
   std::unique_ptr<Page> loadPage(int page);
 
   std::string getTextFromSectionFile();
+  std::string getTextFromSectionFile(int page);
 
   // Resolve an anchor from the in-progress build first, then the on-disk anchor map
   // (covers finalized sections and partials from a previous session).

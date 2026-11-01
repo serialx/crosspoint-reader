@@ -1,0 +1,92 @@
+use super::{abi, EpubSession, ResourceAccess};
+use core::mem::MaybeUninit;
+use xp_ui::{
+    reader::render::{Kind, Op},
+    scene::Refresh,
+};
+
+impl EpubSession {
+    pub(super) fn render_operation(&self, access: &ResourceAccess<'_>, operation: Op) -> u32 {
+        let services = unsafe { &*(self.leaves.render_services)(self.native(access)) };
+        unsafe { services.execute.expect("reader renderer")(services.context, &operation) }
+    }
+
+    pub(super) fn discard_overlay_page(&self, _access: &ResourceAccess<'_>) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.lifetime_overrides {
+            unsafe { (hook.discard_overlay)(hook.context) };
+            return;
+        }
+        if !self.model(|state| state.page_stored) {
+            return;
+        }
+        unsafe { (self.leaves.render_discard_bw)() };
+        self.model(|state| state.page_stored = false);
+    }
+
+    pub(super) fn push_overlay_refresh(&self, access: &ResourceAccess<'_>) {
+        let mut geometry = MaybeUninit::<abi::XpEpubGeometry>::uninit();
+        unsafe { (self.leaves.render_geometry)(geometry.as_mut_ptr()) };
+        let asynchronous = unsafe { geometry.assume_init() }.async_refresh != 0;
+        self.render_operation(
+            access,
+            Op {
+                kind: if asynchronous {
+                    Kind::DisplayAsync
+                } else {
+                    Kind::Display
+                } as u8,
+                mode: Refresh::Fast as u8,
+                ..Op::default()
+            },
+        );
+        if asynchronous {
+            self.model(|state| state.refresh_pending = true);
+        }
+    }
+
+    pub(super) fn settle_overlay_refresh(&self, access: &ResourceAccess<'_>) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.lifetime_overrides {
+            unsafe { (hook.settle_overlay)(hook.context) };
+            return;
+        }
+        if !self.model(|state| core::mem::take(&mut state.refresh_pending)) {
+            return;
+        }
+        self.render_operation(
+            access,
+            Op {
+                kind: Kind::Cleanup as u8,
+                ..Op::default()
+            },
+        );
+    }
+
+    pub(super) fn paint_overlay_popup(&self) {
+        let access = self.lock_resources();
+        self.settle_overlay_refresh(&access);
+        let popup = unsafe {
+            (*self.guarded(&access))
+                .overlay_popup
+                .expect("overlay popup")
+        };
+        unsafe { (self.leaves.popup_paint)(popup.as_ptr()) };
+        self.push_overlay_refresh(&access);
+    }
+
+    pub(super) fn disable_fast_initial_refresh(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.lifetime_overrides {
+            unsafe { (hook.disable_fast)(hook.context) };
+            return;
+        }
+        self.model(|state| state.base.refresh_counter = 0);
+    }
+
+    pub(super) fn apply_initial_orientation(&self) {
+        let mut settings = MaybeUninit::<abi::XpEpubSettings>::uninit();
+        unsafe { (self.leaves.settings_snapshot)(settings.as_mut_ptr()) };
+        unsafe { (self.leaves.render_orientation)(settings.assume_init().orientation) };
+    }
+}

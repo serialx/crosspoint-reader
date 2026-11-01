@@ -882,9 +882,11 @@ std::unique_ptr<Page> Section::loadPage(const int page) {
       })));
 }
 
-std::string Section::getTextFromSectionFile() {
+std::string Section::getTextFromSectionFile() { return getTextFromSectionFile(currentPage); }
+
+std::string Section::getTextFromSectionFile(const int pageNumber) {
   std::string text;
-  auto page = loadPage(currentPage);
+  auto page = loadPage(pageNumber);
   if (!page) return text;
   struct Context {
     Page& page;

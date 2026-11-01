@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ActivityResult.h"
+#include "ActivityResultView.h"
 #include "app_leaves.h"
 
 bool denyNative = false;

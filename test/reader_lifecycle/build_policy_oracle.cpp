@@ -1,19 +1,26 @@
-#include <xp_ui_reader.h>
+#include <I18nKeys.h>
 
-#include <atomic>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
-#include <optional>
 #include <vector>
-#ifdef BUILD_RELEASE_LOG
-#define LOG_DBG(tag, fmt, ...) ((void)0)
-#else
-#define LOG_DBG(tag, fmt, ...) std::printf(tag " " fmt "\n", ##__VA_ARGS__)
-#endif
-#define LOG_ERR(tag, fmt, ...) std::printf(tag " " fmt "\n", ##__VA_ARGS__)
-static void event(const char* name, int a = 0, int b = 0) { std::printf("%s %d %d\n", name, a, b); }
+
+#include "session_fixture.h"
+
+static unsigned modelDepth;
+static bool publishing;
+static unsigned publicationStep, publicationCount;
+static uint16_t publicationValues[5];
+struct Section;
+static Section* liveSection;
+static void leaf() { assert(!modelDepth); }
+static void event(const char* name, int a = 0, int b = 0) {
+  leaf();
+  std::printf("%s %d %d\n", name, a, b);
+}
 static uint32_t clockMs = 0;
 uint32_t millis() {
   event("clock", clockMs);
@@ -28,15 +35,20 @@ struct RenderLock {
   enum class Mode { Try };
   static inline bool available = true;
   RenderLock() {
+    leaf();
+    assert(!lockDepth);
     ++lockDepth;
     event("lock", lockDepth);
   }
   explicit RenderLock(Mode) {
+    leaf();
+    assert(!lockDepth);
     ++lockDepth;
     event("try-lock", available);
   }
   ~RenderLock() {
     event("unlock", lockDepth);
+    assert(lockDepth == 1);
     --lockDepth;
   }
   bool ownsLock() const { return available; }
@@ -66,7 +78,6 @@ bool holdsHeap() {
   return heap;
 }
 }  // namespace bleturner
-// BUILD_GATE
 struct {
   size_t free = 32768, block = 16384;
   size_t getFreeHeap() const {
@@ -123,15 +134,23 @@ bool buttonContactClosed() {
 }
 struct Section {
   bool building = true, complete = false, ok = true, loan = false;
-  int currentPage = 7;
   GfxRenderer* renderer = nullptr;
-  ~Section() { event("section-drop"); }
+  Section() {
+    assert(!liveSection);
+    liveSection = this;
+  }
+  ~Section() {
+    leaf();
+    assert(liveSection == this && !publishing);
+    liveSection = nullptr;
+    event("section-drop");
+  }
   bool isBuilding() const {
-    event("building", building);
+    if (!publishing) event("building", building);
     return building;
   }
   bool isBuildComplete() const {
-    event("complete", complete);
+    if (!publishing) event("complete", complete);
     return complete;
   }
   bool buildSomeMore(int count, bool (*stop)()) {
@@ -141,39 +160,32 @@ struct Section {
     return ok;
   }
 };
-struct EpubReaderActivity {
-  struct ModelLock {
-    explicit ModelLock(EpubReaderActivity&) {}
-  };
+// Scalar members are construction inputs; observations always read the Rust owner.
+struct BuildFixture {
   enum class Overlay { None, Toolbar };
-  static constexpr uint32_t BUILD_ROOM_WAIT_MS = 5000, BUILD_ROOM_STEP_MS = 50;
-  static constexpr size_t BACKGROUND_BUILD_MIN_FREE_HEAP = 32768, BACKGROUND_BUILD_MIN_MAX_ALLOC = 16384;
-  static constexpr int BACKGROUND_BUILD_PAGES_PER_TICK = 2;
   GfxRenderer renderer;
   StripBuffers stripBuffers;
   MappedInputManager mappedInput;
   std::unique_ptr<Section> section;
-  std::atomic<bool> radioReleasedForBuild{false}, pageBufferStale{false};
+  bool radioReleasedForBuild = false, pageBufferStale = false;
   bool buildHeapPaused = false, buildPopupPending = false, reposition = false;
-  int refresh = 8, currentSpineIndex = 2, backgroundBuildFailedSpine = -1, nextPageNumber = 0, pendingManualTurn = 0;
+  int refresh = 8, currentSpineIndex = 2, activePage = 7;
+  int backgroundBuildFailedSpine = -1, nextPageNumber = 0, pendingManualTurn = 0;
   Overlay overlay = Overlay::None;
-  int& renderRefreshCounter() { return refresh; }
-  void requestUpdate() { event("update"); }
-  bool applyDeferredReposition() {
-    event("reposition", reposition);
-    return reposition;
-  }
+  void* owner = nullptr;
+  ~BuildFixture();
+  void initialize();
+  XpEpubTestBuildObservation observe();
   bool makeRoomForChapterBuild();
   bool buildTickHeapGate();
   void showBuildPopup();
-  void showBuildPopup(GfxRenderer&, int&);
-  bool anyButtonPressed() const;
+  bool anyButtonPressed();
   void backgroundBuildTick();
-  bool backgroundBuildWanted() const;
+  bool backgroundBuildWanted();
   bool skipLoopDelay();
-  bool runBuildPolicy(uint8_t operation) const;
 };
-// BUILD_METHODS
+static BuildFixture* activeFixture;
+#include "build_session_rust.inc"
 int main() {
   for (int pattern = 0; pattern < 8; ++pattern) {
     for (int release = 0; release < 3; ++release) {
@@ -186,9 +198,10 @@ int main() {
           bleturner::index = 0;
           bleturner::release = static_cast<bleturner::BuildRelease>(release);
           clockMs = start;
-          EpubReaderActivity a;
+          BuildFixture a;
           a.radioReleasedForBuild = released;
-          event("admission-result", a.makeRoomForChapterBuild(), a.radioReleasedForBuild);
+          const bool admitted = a.makeRoomForChapterBuild();
+          event("admission-result", admitted, a.observe().radio_released);
           event("admission-clock", clockMs);
         }
       }
@@ -201,7 +214,7 @@ int main() {
     bleturner::release = bleturner::BuildRelease::NotHeld;
     bleturner::releaseCost = 3000;
     clockMs = start;
-    EpubReaderActivity a;
+    BuildFixture a;
     assert(!a.makeRoomForChapterBuild());
     assert(clockMs == start + 9100u);
     event("slow-radio-clock", clockMs);
@@ -209,22 +222,23 @@ int main() {
   }
   for (int mask = 0; mask < 128; ++mask) {
     event("buttons", mask);
-    EpubReaderActivity a;
+    BuildFixture a;
     a.mappedInput.mask = mask;
     event("pressed-result", a.anyButtonPressed());
   }
   for (int mask = 0; mask < 4; ++mask) {
     event("popup-case", mask);
-    EpubReaderActivity a;
+    BuildFixture a;
     a.buildPopupPending = mask & 1;
     a.renderer.framebuffer = mask & 2;
     a.showBuildPopup();
-    event("popup-state", a.buildPopupPending, a.refresh);
+    const auto state = a.observe();
+    event("popup-state", state.popup, state.refresh);
   }
   for (int mask = 0; mask < 16; ++mask) {
     for (int initial = 0; initial < 4; ++initial) {
       event("heap-case", mask, initial);
-      EpubReaderActivity a;
+      BuildFixture a;
       ESP.free = initial & 1 ? 32768 : 32767;
       ESP.block = initial & 2 ? 16384 : 16383;
       a.stripBuffers.release = mask & 1;
@@ -232,15 +246,15 @@ int main() {
       a.stripBuffers.block = mask & 4 ? 16384 : 16383;
       a.buildHeapPaused = mask & 8;
       const bool result = a.buildTickHeapGate();
-      event("heap-result", result, a.buildHeapPaused);
+      event("heap-result", result, a.observe().heap_paused);
     }
   }
   for (int mask = 0; mask < 4096; ++mask) {
     event("background", mask);
-    EpubReaderActivity a;
+    BuildFixture a;
     lockDepth = 0;
     RenderLock::available = !(mask & 1);
-    a.overlay = mask & 2 ? EpubReaderActivity::Overlay::Toolbar : EpubReaderActivity::Overlay::None;
+    a.overlay = mask & 2 ? BuildFixture::Overlay::Toolbar : BuildFixture::Overlay::None;
     if (!(mask & 4)) {
       a.section = std::make_unique<Section>();
       a.section->renderer = &a.renderer;
@@ -260,8 +274,9 @@ int main() {
     a.reposition = true;
     a.backgroundBuildTick();
     assert(lockDepth == 0);
-    event("background-state", a.nextPageNumber, a.backgroundBuildFailedSpine);
-    event("background-flags", a.pageBufferStale, a.buildHeapPaused);
+    const auto state = a.observe();
+    event("background-state", state.next_page, state.failed_spine);
+    event("background-flags", state.stale, state.heap_paused);
     event("delay", a.skipLoopDelay());
   }
 }

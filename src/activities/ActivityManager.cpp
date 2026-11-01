@@ -13,6 +13,7 @@
 #include <cstring>
 
 #include "Activity.h"
+#include "ActivityResultView.h"
 #include "CrossPointSettings.h"
 #include "HapticFeedback.h"
 #include "OpdsServerStore.h"
@@ -189,7 +190,8 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
             static_assert(std::is_nothrow_move_constructible_v<ActivityResult>);
             // The continuation destroys the child before delivering this stack-owned result.
             auto result = std::move(nativeActivity(activity)->result);
-            sink(context, &result);
+            const auto view = activityResultView(result);
+            sink(context, &view);
           },
       .deliver_result =
           [](void* parent, const void* result) {
@@ -237,7 +239,7 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
   runtime.notify_render = [] {
     if (activityManager.renderTaskHandle) xTaskNotify(activityManager.renderTaskHandle, 1, eIncrement);
   };
-  const XpAppPlatform platform{&legacy, &rustAppResources(renderer, mappedInput), &runtime};
+  const XpAppPlatform platform{&legacy, &rustAppResources(renderer, mappedInput), &runtime, nullptr};
   const auto status = xp_app_init(&platform, &compatibility);
   assert(status == XP_APP_OK && "Failed to initialize Rust application");
 #if defined(configNUM_CORES) && configNUM_CORES > 1

@@ -1,3 +1,4 @@
+#include <xp_epub_session.h>
 #include <xp_ui_reader.h>
 
 #include <cassert>
@@ -5,6 +6,20 @@
 #include <initializer_list>
 #include <limits>
 #include <string>
+#include <type_traits>
+
+static_assert(std::is_same_v<XpAppResultSink, void (*)(void*, const XpAppResultView*)>);
+static_assert(std::is_same_v<decltype(XpAppPlatform::epub), const XpEpubLeaves*>);
+static_assert(std::is_same_v<decltype(XpEpubLeaves::strip_release_idle), uint8_t (*)(void*)>);
+static_assert(std::is_same_v<decltype(XpEpubLeaves::bookmarks_load), uint8_t (*)(void*, void*)>);
+static_assert(std::is_same_v<decltype(XpEpubLeaves::bookmarks_save), uint8_t (*)(void*, void*)>);
+static_assert(std::is_same_v<decltype(XpEpubLeaves::clippings_load), uint8_t (*)(void*)>);
+static_assert(std::is_same_v<decltype(XpEpubLeaves::bookmarks_retain),
+                             uint32_t (*)(void*, uint8_t (*)(void*, const XpEpubBookmark*), void*)>);
+static_assert(
+    std::is_same_v<decltype(XpEpubLeaves::child_selection), void* (*)(void**, uint8_t, const XpEpubSelectionArgs*)>);
+static_assert(std::is_standard_layout_v<XpAppResultView>);
+static_assert(std::is_standard_layout_v<XpEpubLeaves>);
 
 struct ProgressIoFixture {
   std::string trace;

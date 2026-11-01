@@ -3,6 +3,7 @@ extern crate alloc;
 mod abi;
 mod cover_cache;
 mod driver;
+mod epub;
 mod home;
 mod home_books;
 mod home_text;
@@ -463,7 +464,7 @@ fn image_path(path: &[u8]) -> bool {
 
 impl Services<Owner> for App {
     type RenderGuard = RenderGuard;
-    type Result = *const c_void;
+    type Result = *const abi::XpAppResultView;
     fn render_lock(&self) -> RenderGuard {
         RenderGuard {
             token: unsafe { (self.runtime.render_lock)() },
@@ -494,15 +495,19 @@ impl Services<Owner> for App {
             Target::Legacy(target) => unsafe { (self.legacy.exit)(target.as_ptr()) },
         }
     }
-    fn with_result(&self, target: Target, consume: impl FnOnce(*const c_void)) {
-        unsafe extern "C" fn receive<F: FnOnce(*const c_void)>(
+    fn with_result(&self, target: Target, consume: impl FnOnce(*const abi::XpAppResultView)) {
+        unsafe extern "C" fn receive<F: FnOnce(*const abi::XpAppResultView)>(
             context: *mut c_void,
-            result: *const c_void,
+            result: *const abi::XpAppResultView,
         ) {
             let consume = unsafe { &mut *context.cast::<Option<F>>() };
             consume.take().expect("result continuation called twice")(result);
         }
-        fn invoke<F: FnOnce(*const c_void)>(app: &App, target: NonNull<c_void>, consume: F) {
+        fn invoke<F: FnOnce(*const abi::XpAppResultView)>(
+            app: &App,
+            target: NonNull<c_void>,
+            consume: F,
+        ) {
             let mut consume = Some(consume);
             unsafe {
                 (app.legacy.with_result)(
@@ -518,9 +523,11 @@ impl Services<Owner> for App {
             Target::Legacy(target) => invoke(self, target, consume),
         }
     }
-    fn deliver_result(&self, parent: Target, result: *const c_void) {
+    fn deliver_result(&self, parent: Target, result: *const abi::XpAppResultView) {
         if let Target::Legacy(parent) = parent {
-            unsafe { (self.legacy.deliver_result)(parent.as_ptr(), result) };
+            let original =
+                unsafe { result.as_ref() }.map_or(core::ptr::null(), |view| view.original);
+            unsafe { (self.legacy.deliver_result)(parent.as_ptr(), original) };
         }
     }
     fn home(&self) -> Option<Owner> {

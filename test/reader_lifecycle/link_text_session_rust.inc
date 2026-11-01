@@ -1,0 +1,394 @@
+#include "link_text_session_fixture.h"
+#include <cstdlib>
+#include <cstring>
+
+namespace link_text_adapter {
+static unsigned modelDepth;
+static void leaf() { assert(modelDepth == 0); }
+struct PhysicalPageLinks {
+  std::span<const PageLink> links;
+  unsigned countCalls = 0;
+  uint16_t nextIndex = 0;
+};
+static XpAppText wire(const std::string& text) {
+  return {reinterpret_cast<const uint8_t*>(text.data()), text.size()};
+}
+
+// All table slots contain correctly typed functions; unused calls fail immediately.
+template <typename Signature> struct Unexpected;
+template <typename Result, typename... Args> struct Unexpected<Result (*)(Args...)> {
+  static Result call(Args...) {
+    leaf();
+    assert(false && "unexpected link/text helper leaf");
+    std::abort();
+  }
+};
+#define UNUSED_LEAF(field) table.field = &Unexpected<decltype(table.field)>::call
+
+static const XpAppResources resources = [] {
+  XpAppResources table{};
+  static_assert(sizeof(XpAppResources) == 46 * sizeof(void (*)()));
+  UNUSED_LEAF(settings_snapshot);
+  UNUSED_LEAF(recents_visit);
+  UNUSED_LEAF(recent_missing);
+  UNUSED_LEAF(recent_update);
+  UNUSED_LEAF(opds_count);
+  UNUSED_LEAF(book_progress);
+  UNUSED_LEAF(library_open);
+  UNUSED_LEAF(library_count);
+  UNUSED_LEAF(library_row);
+  UNUSED_LEAF(library_close);
+  UNUSED_LEAF(library_rebuild);
+  UNUSED_LEAF(book_open);
+  UNUSED_LEAF(book_thumb_path);
+  UNUSED_LEAF(book_load);
+  UNUSED_LEAF(book_generate_thumb);
+  UNUSED_LEAF(book_generate_thumb_from_source);
+  UNUSED_LEAF(book_close);
+  UNUSED_LEAF(path_exists);
+  UNUSED_LEAF(thumbnail_path);
+  UNUSED_LEAF(bitmap_open);
+  UNUSED_LEAF(bitmap_info);
+  UNUSED_LEAF(bitmap_draw);
+  UNUSED_LEAF(bitmap_close);
+  UNUSED_LEAF(theme_snapshot);
+  UNUSED_LEAF(translate);
+  UNUSED_LEAF(header_draw);
+  UNUSED_LEAF(footer_draw);
+  UNUSED_LEAF(placeholder_draw);
+  UNUSED_LEAF(popup_draw);
+  UNUSED_LEAF(popup_progress);
+  UNUSED_LEAF(icon_draw);
+  UNUSED_LEAF(text_draw);
+  UNUSED_LEAF(text_width);
+  UNUSED_LEAF(line_height);
+  UNUSED_LEAF(text_wrap);
+  UNUSED_LEAF(text_truncate);
+  UNUSED_LEAF(text_box_height);
+  UNUSED_LEAF(region_size);
+  UNUSED_LEAF(region_read);
+  UNUSED_LEAF(region_write);
+  UNUSED_LEAF(rounded_mask);
+  UNUSED_LEAF(polygon_draw);
+  UNUSED_LEAF(paint_scene);
+  UNUSED_LEAF(refresh);
+  UNUSED_LEAF(buffer_allocate);
+  UNUSED_LEAF(buffer_release);
+  return table;
+}();
+
+static const XpAppRuntime runtime = [] {
+  XpAppRuntime table{};
+  static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void (*)()));
+  UNUSED_LEAF(input_mapped_snapshot);
+  UNUSED_LEAF(input_shared_power_mode);
+  UNUSED_LEAF(input_power_confirm);
+  UNUSED_LEAF(input_remote_click);
+  UNUSED_LEAF(loop_settings);
+  UNUSED_LEAF(display_geometry);
+  UNUSED_LEAF(header_back_clear);
+  UNUSED_LEAF(now_ms);
+  UNUSED_LEAF(delay_ms);
+  UNUSED_LEAF(idle_wait);
+  UNUSED_LEAF(yield_task);
+  UNUSED_LEAF(power_saving);
+  UNUSED_LEAF(tilt_update);
+  UNUSED_LEAF(battery_capacity_step);
+  UNUSED_LEAF(fading_fix);
+  UNUSED_LEAF(memory_diagnostic);
+  UNUSED_LEAF(console_service);
+  UNUSED_LEAF(screenshot);
+  UNUSED_LEAF(touch_feedback);
+  UNUSED_LEAF(frontlight_present);
+  UNUSED_LEAF(frontlight_state);
+  UNUSED_LEAF(frontlight_set);
+  UNUSED_LEAF(settings_save);
+  UNUSED_LEAF(ble_tick);
+  UNUSED_LEAF(ble_before_screen_change);
+  UNUSED_LEAF(sleep_enter);
+  UNUSED_LEAF(diagnostic);
+  UNUSED_LEAF(render_lock);
+  UNUSED_LEAF(render_try_lock);
+  UNUSED_LEAF(render_unlock);
+  UNUSED_LEAF(model_lock);
+  UNUSED_LEAF(model_unlock);
+  UNUSED_LEAF(notify_render);
+  table.model_lock = [] { assert(modelDepth == 0); ++modelDepth; };
+  table.model_unlock = [] { assert(modelDepth == 1); --modelDepth; };
+  return table;
+}();
+
+static const XpEpubLeaves leaves = [] {
+  XpEpubLeaves table{};
+  static_assert(sizeof(XpEpubLeaves) == 198 * sizeof(void (*)()));
+  UNUSED_LEAF(resources_open);
+  UNUSED_LEAF(resources_close);
+  UNUSED_LEAF(render_services);
+  UNUSED_LEAF(render_bind_page);
+  UNUSED_LEAF(render_finish_page);
+  UNUSED_LEAF(render_margins);
+  UNUSED_LEAF(render_geometry);
+  UNUSED_LEAF(render_restore_bw);
+  UNUSED_LEAF(render_discard_bw);
+  UNUSED_LEAF(render_orientation);
+  UNUSED_LEAF(loan_begin);
+  UNUSED_LEAF(loan_end);
+  UNUSED_LEAF(loan_drop);
+  UNUSED_LEAF(loan_count);
+  UNUSED_LEAF(strip_release_idle);
+  UNUSED_LEAF(book_open);
+  UNUSED_LEAF(book_load);
+  UNUSED_LEAF(book_close);
+  UNUSED_LEAF(book_size);
+  UNUSED_LEAF(book_spine_count);
+  UNUSED_LEAF(book_toc_count);
+  UNUSED_LEAF(book_path);
+  UNUSED_LEAF(book_cache_path);
+  UNUSED_LEAF(book_title);
+  UNUSED_LEAF(book_author);
+  UNUSED_LEAF(book_language);
+  UNUSED_LEAF(book_thumbnail);
+  UNUSED_LEAF(book_spine);
+  UNUSED_LEAF(book_toc);
+  UNUSED_LEAF(book_spine_for_toc);
+  UNUSED_LEAF(book_toc_for_spine);
+  UNUSED_LEAF(book_cumulative_size);
+  UNUSED_LEAF(book_spine_for_size);
+  UNUSED_LEAF(book_text_reference);
+  UNUSED_LEAF(book_progress);
+  UNUSED_LEAF(book_resolve_href);
+  UNUSED_LEAF(book_setup_cache);
+  UNUSED_LEAF(book_clear_cache);
+  UNUSED_LEAF(book_install_extractor);
+  UNUSED_LEAF(book_clear_extractor);
+  UNUSED_LEAF(book_protection_error);
+  UNUSED_LEAF(progress_to_reader);
+  UNUSED_LEAF(progress_to_saved);
+  UNUSED_LEAF(progress_save);
+  UNUSED_LEAF(section_open);
+  UNUSED_LEAF(section_close);
+  UNUSED_LEAF(section_page_count);
+  UNUSED_LEAF(section_estimated_pages);
+  UNUSED_LEAF(section_building);
+  UNUSED_LEAF(section_complete);
+  UNUSED_LEAF(section_partial);
+  UNUSED_LEAF(section_load_cache);
+  UNUSED_LEAF(section_create_cache);
+  UNUSED_LEAF(section_start_build);
+  UNUSED_LEAF(section_build_more);
+  UNUSED_LEAF(section_abandon_build);
+  UNUSED_LEAF(section_clear_cache);
+  UNUSED_LEAF(section_html_cached);
+  UNUSED_LEAF(section_find_anchor);
+  UNUSED_LEAF(section_cached_anchor);
+  UNUSED_LEAF(section_toc_for_page);
+  UNUSED_LEAF(section_page_for_offset);
+  UNUSED_LEAF(section_offset_for_page);
+  UNUSED_LEAF(section_paragraph_for_page);
+  UNUSED_LEAF(section_reached_offset);
+  UNUSED_LEAF(section_load_page);
+  UNUSED_LEAF(section_page_text);
+  UNUSED_LEAF(page_close);
+  UNUSED_LEAF(page_info);
+  UNUSED_LEAF(page_element);
+  UNUSED_LEAF(page_word);
+  UNUSED_LEAF(page_footnote);
+  UNUSED_LEAF(page_link);
+  UNUSED_LEAF(metadata_assign);
+  UNUSED_LEAF(metadata_clear);
+  UNUSED_LEAF(metadata_footnotes);
+  UNUSED_LEAF(metadata_links);
+  UNUSED_LEAF(metadata_footnote);
+  UNUSED_LEAF(metadata_link);
+  UNUSED_LEAF(paint_dither);
+  UNUSED_LEAF(paint_pixel);
+  UNUSED_LEAF(paint_status);
+  UNUSED_LEAF(image_clear_failures);
+  UNUSED_LEAF(image_release_cache);
+  UNUSED_LEAF(fonts_ensure_loaded);
+  UNUSED_LEAF(fonts_release_caches);
+  UNUSED_LEAF(fonts_prewarm_begin);
+  UNUSED_LEAF(fonts_prewarm_finish_scan);
+  UNUSED_LEAF(fonts_prewarm_drop);
+  UNUSED_LEAF(fonts_take_corrupt_notice);
+  UNUSED_LEAF(font_sizes);
+  UNUSED_LEAF(settings_snapshot);
+  UNUSED_LEAF(settings_render_spec);
+  UNUSED_LEAF(settings_orientation);
+  UNUSED_LEAF(settings_font_size);
+  UNUSED_LEAF(settings_line_spacing);
+  UNUSED_LEAF(settings_alignment);
+  UNUSED_LEAF(settings_focus_reading);
+  UNUSED_LEAF(settings_inversion);
+  UNUSED_LEAF(settings_ble_enabled);
+  UNUSED_LEAF(settings_save);
+  UNUSED_LEAF(input_services);
+  UNUSED_LEAF(input_facts);
+  UNUSED_LEAF(input_pressed);
+  UNUSED_LEAF(input_long_press);
+  UNUSED_LEAF(input_released);
+  UNUSED_LEAF(input_screen_long);
+  UNUSED_LEAF(input_screen_tap);
+  UNUSED_LEAF(input_raw_contact);
+  UNUSED_LEAF(render_busy);
+  UNUSED_LEAF(file_open_read);
+  UNUSED_LEAF(file_open_write);
+  UNUSED_LEAF(file_read);
+  UNUSED_LEAF(file_write);
+  UNUSED_LEAF(file_flush);
+  UNUSED_LEAF(file_close);
+  UNUSED_LEAF(path_remove);
+  UNUSED_LEAF(path_rename);
+  UNUSED_LEAF(path_mkdir);
+  UNUSED_LEAF(native_path_hash);
+  UNUSED_LEAF(heap_snapshot);
+  UNUSED_LEAF(radio_status);
+  UNUSED_LEAF(radio_before_build);
+  UNUSED_LEAF(radio_settle_start);
+  UNUSED_LEAF(radio_holds_heap);
+  UNUSED_LEAF(radio_after_paint);
+  UNUSED_LEAF(radio_switch_off);
+  UNUSED_LEAF(radio_request_connect);
+  UNUSED_LEAF(trusted_now);
+  UNUSED_LEAF(trusted_sync);
+  UNUSED_LEAF(wifi_connected);
+  UNUSED_LEAF(wifi_disconnect);
+  UNUSED_LEAF(restart_reader);
+  UNUSED_LEAF(child_menu);
+  UNUSED_LEAF(child_chapter);
+  UNUSED_LEAF(child_percent);
+  UNUSED_LEAF(child_text_settings);
+  UNUSED_LEAF(child_footnote);
+  UNUSED_LEAF(child_dictionary);
+  UNUSED_LEAF(child_selection);
+  UNUSED_LEAF(child_bookmarks);
+  UNUSED_LEAF(child_clippings);
+  UNUSED_LEAF(child_qr);
+  UNUSED_LEAF(child_wifi);
+  UNUSED_LEAF(child_sync);
+  UNUSED_LEAF(toolbar_open);
+  UNUSED_LEAF(toolbar_close);
+  UNUSED_LEAF(toolbar_begin);
+  UNUSED_LEAF(toolbar_paint);
+  UNUSED_LEAF(toolbar_route);
+  UNUSED_LEAF(toolbar_scroll);
+  UNUSED_LEAF(toolbar_visible_rows);
+  UNUSED_LEAF(popup_open);
+  UNUSED_LEAF(popup_close);
+  UNUSED_LEAF(popup_active);
+  UNUSED_LEAF(popup_show);
+  UNUSED_LEAF(popup_dismiss);
+  UNUSED_LEAF(popup_input);
+  UNUSED_LEAF(popup_paint);
+  UNUSED_LEAF(popup_process_render);
+  UNUSED_LEAF(end_open);
+  UNUSED_LEAF(end_close);
+  UNUSED_LEAF(end_load);
+  UNUSED_LEAF(end_menu_active);
+  UNUSED_LEAF(end_input);
+  UNUSED_LEAF(end_paint);
+  UNUSED_LEAF(bookmarks_open);
+  UNUSED_LEAF(bookmarks_close);
+  UNUSED_LEAF(bookmarks_clear);
+  UNUSED_LEAF(bookmarks_load);
+  UNUSED_LEAF(bookmarks_save);
+  UNUSED_LEAF(bookmarks_count);
+  UNUSED_LEAF(bookmarks_row);
+  UNUSED_LEAF(bookmarks_retain);
+  UNUSED_LEAF(bookmarks_insert_front);
+  UNUSED_LEAF(clippings_load);
+  UNUSED_LEAF(clippings_unload);
+  UNUSED_LEAF(clippings_count);
+  UNUSED_LEAF(clippings_row);
+  UNUSED_LEAF(clippings_remove);
+  UNUSED_LEAF(clippings_insert);
+  UNUSED_LEAF(clippings_export);
+  UNUSED_LEAF(clippings_move_book);
+  UNUSED_LEAF(recents_remove);
+  UNUSED_LEAF(recents_add);
+  UNUSED_LEAF(recents_update_path);
+  UNUSED_LEAF(state_open_path);
+  UNUSED_LEAF(state_set_open_path);
+  UNUSED_LEAF(state_reset_reader_count);
+  UNUSED_LEAF(state_save);
+  UNUSED_LEAF(has_sync_credentials);
+  UNUSED_LEAF(has_exit_subscriber);
+  UNUSED_LEAF(has_session_subscriber);
+  UNUSED_LEAF(document_id);
+  UNUSED_LEAF(emit_open);
+  UNUSED_LEAF(emit_exit);
+  UNUSED_LEAF(emit_session);
+  UNUSED_LEAF(log);
+  table.metadata_links = [](void* native) -> uint16_t {
+    leaf();
+    assert(native);
+    auto& physical = *static_cast<PhysicalPageLinks*>(native);
+    assert(physical.countCalls == 0 && physical.links.size() <= UINT16_MAX);
+    ++physical.countCalls;
+    return static_cast<uint16_t>(physical.links.size());
+  };
+  table.metadata_link = [](void* native, uint16_t index, XpEpubLinkSink sink, void* context) -> uint8_t {
+    leaf();
+    assert(native && sink);
+    auto& physical = *static_cast<PhysicalPageLinks*>(native);
+    assert(physical.countCalls == 1 && index == physical.nextIndex && index < physical.links.size());
+    ++physical.nextIndex;
+    const auto& link = physical.links[index];
+    const XpEpubLink value{{reinterpret_cast<const uint8_t*>(link.href), std::strlen(link.href)},
+                          link.x, link.y, link.width, link.height};
+    const auto accepted = sink(context, &value);
+    leaf();
+    assert(accepted == 1);
+    return accepted;
+  };
+  return table;
+}();
+
+#undef UNUSED_LEAF
+
+struct Owner {
+  void* value;
+  explicit Owner(PhysicalPageLinks& physical) {
+    leaf();
+    const XpEpubTestLinkSeed seed{&physical};
+    value = xp_epub_test_link_create(&seed, &leaves, &runtime, &resources);
+    assert(value);
+    leaf();
+  }
+  ~Owner() {
+    xp_epub_test_link_destroy(value);
+    leaf();
+  }
+  Owner(const Owner&) = delete;
+  Owner& operator=(const Owner&) = delete;
+};
+}  // namespace link_text_adapter
+
+namespace EpubReaderUtils {
+const PageLink* linkAtPoint(std::span<const PageLink> links, int x, int y, int left, int top) {
+  link_text_adapter::PhysicalPageLinks physical{links};
+  link_text_adapter::Owner owner(physical);
+  uint16_t index = UINT16_MAX;
+  const auto found = xp_epub_test_link_at_point(owner.value, x, y, left, top, &index);
+  link_text_adapter::leaf();
+  assert(found <= 1 && physical.countCalls == 1);
+  if (!found) {
+    assert(index == UINT16_MAX && physical.nextIndex == links.size());
+    return nullptr;
+  }
+  assert(index < links.size() && physical.nextIndex == unsigned(index) + 1);
+  // The original generator reports pointer distance; only Rust chooses the index.
+  return links.data() + index;
+}
+}  // namespace EpubReaderUtils
+
+namespace BookmarkUtil {
+std::string sanitizeBookmarkSummary(const std::string& input) {
+  link_text_adapter::leaf();
+  uint8_t output[72]{};
+  const size_t length = xp_epub_test_sanitize_summary(link_text_adapter::wire(input), &output);
+  link_text_adapter::leaf();
+  assert(length <= sizeof(output));
+  return {reinterpret_cast<const char*>(output), length};
+}
+}  // namespace BookmarkUtil

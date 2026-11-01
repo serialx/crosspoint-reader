@@ -113,9 +113,75 @@ typedef struct {
   } value;
 } XpAppEvent;
 
+// Borrowed application result. Valid only during synchronous delivery.
+typedef struct {
+  XpAppText bytes;
+  const void* native_string;
+} XpAppNativeText;
+
+typedef struct {
+  int32_t action;
+  uint8_t orientation;
+  uint8_t page_turn_option;
+} XpAppMenuResult;
+
+typedef struct {
+  int32_t spine;
+  XpAppText anchor;
+} XpAppChapterResult;
+
+typedef struct {
+  int32_t spine;
+  int32_t page;
+  int32_t pages;
+  XpAppText xpath;
+  float percentage;
+  uint32_t offset;
+  uint8_t has_saved_progress;
+  uint8_t has_offset;
+} XpAppProgressResult;
+
+typedef struct {
+  XpAppNativeText text;
+  uint16_t start_page_offset;
+  uint16_t end_page_offset;
+  uint16_t start_word;
+  uint16_t end_word;
+  uint16_t word_count;
+  uint32_t start_offset;
+  uint32_t end_offset;
+  uint8_t action;
+} XpAppClipResult;
+
+typedef struct {
+  XpAppText ssid;
+  XpAppText ip;
+  uint8_t connected;
+} XpAppWifiResult;
+
+typedef union {
+  XpAppMenuResult menu;
+  XpAppChapterResult chapter;
+  XpAppProgressResult progress;
+  XpAppClipResult clipping;
+  XpAppWifiResult wifi;
+  XpAppText text;
+  int32_t signed_value;
+  uint32_t unsigned_value;
+} XpAppResultPayload;
+
+// kind: 0 empty, 1 Wi-Fi, 2 keyboard, 3 menu, 4 chapter, 5 percent,
+// 6 interval, 7 page, 8 clipping, 9 progress, 10 network mode, 11 footnote, 12 file path.
+typedef struct XpAppResultView {
+  const void* original;
+  XpAppResultPayload value;
+  uint8_t kind;
+  uint8_t cancelled;
+} XpAppResultView;
+
 // The native result slot is borrowed only during this synchronous continuation.
 // It must run exactly once; it may destroy the child and enqueue navigation.
-typedef void (*XpAppResultSink)(void* context, const void* result);
+typedef void (*XpAppResultSink)(void* context, const XpAppResultView* result);
 typedef struct {
   uint8_t reader_type;
   char title[64];
@@ -294,10 +360,12 @@ typedef struct {
   void (*model_unlock)(void);
   void (*notify_render)(void);
 } XpAppRuntime;
+struct XpEpubLeaves;
 typedef struct {
   const XpAppLegacy* legacy;
   const XpAppResources* resources;
   const XpAppRuntime* runtime;
+  const struct XpEpubLeaves* epub;
 } XpAppPlatform;
 
 XpAppStatus xp_app_init(const XpAppPlatform* platform, XpAppCompatibility* compatibility);
@@ -315,7 +383,7 @@ static_assert(sizeof(XpAppLegacy) == 15 * sizeof(void*));
 static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
 static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
 static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void*));
-static_assert(sizeof(XpAppPlatform) == 3 * sizeof(void*));
+static_assert(sizeof(XpAppPlatform) == 4 * sizeof(void*));
 static_assert(offsetof(XpAppEvent, kind) == 0);
 static_assert(sizeof(XpAppSettings) == 28);
 static_assert(sizeof(XpAppDisplayGeometry) == 16);
@@ -324,3 +392,45 @@ static_assert(sizeof(XpAppHomeSettings) == 4);
 static_assert(sizeof(XpAppBitmapInfo) == 12);
 static_assert(sizeof(XpAppTextLayout) == 12);
 #endif
+
+#ifdef __cplusplus
+#define XP_APP_RESULT_ASSERT(condition, message) static_assert(condition, message)
+#else
+#define XP_APP_RESULT_ASSERT(condition, message) _Static_assert(condition, message)
+#endif
+XP_APP_RESULT_ASSERT(sizeof(XpAppNativeText) == 3 * sizeof(void*), "XpAppNativeText size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppNativeText, native_string) == 2 * sizeof(void*), "XpAppNativeText.native_string");
+XP_APP_RESULT_ASSERT(sizeof(XpAppMenuResult) == 8, "XpAppMenuResult size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppMenuResult, action) == 0, "XpAppMenuResult.action");
+XP_APP_RESULT_ASSERT(offsetof(XpAppMenuResult, orientation) == 4, "XpAppMenuResult.orientation");
+XP_APP_RESULT_ASSERT(offsetof(XpAppMenuResult, page_turn_option) == 5, "XpAppMenuResult.page_turn_option");
+XP_APP_RESULT_ASSERT(sizeof(XpAppChapterResult) == 3 * sizeof(void*), "XpAppChapterResult size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppChapterResult, anchor) == sizeof(void*), "XpAppChapterResult.anchor");
+XP_APP_RESULT_ASSERT(sizeof(XpAppProgressResult) == 16 + 4 * sizeof(void*), "XpAppProgressResult size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppProgressResult, xpath) == 8 + sizeof(void*), "XpAppProgressResult.xpath");
+XP_APP_RESULT_ASSERT(offsetof(XpAppProgressResult, percentage) == 8 + 3 * sizeof(void*),
+                     "XpAppProgressResult.percentage");
+XP_APP_RESULT_ASSERT(offsetof(XpAppProgressResult, offset) == 12 + 3 * sizeof(void*), "XpAppProgressResult.offset");
+XP_APP_RESULT_ASSERT(offsetof(XpAppProgressResult, has_saved_progress) == 16 + 3 * sizeof(void*),
+                     "XpAppProgressResult.has_saved_progress");
+XP_APP_RESULT_ASSERT(offsetof(XpAppProgressResult, has_offset) == 17 + 3 * sizeof(void*),
+                     "XpAppProgressResult.has_offset");
+XP_APP_RESULT_ASSERT(sizeof(XpAppClipResult) == 24 + 3 * sizeof(void*), "XpAppClipResult size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppClipResult, start_page_offset) == 3 * sizeof(void*),
+                     "XpAppClipResult.start_page_offset");
+XP_APP_RESULT_ASSERT(offsetof(XpAppClipResult, start_offset) == 12 + 3 * sizeof(void*), "XpAppClipResult.start_offset");
+XP_APP_RESULT_ASSERT(offsetof(XpAppClipResult, end_offset) == 16 + 3 * sizeof(void*), "XpAppClipResult.end_offset");
+XP_APP_RESULT_ASSERT(offsetof(XpAppClipResult, action) == 20 + 3 * sizeof(void*), "XpAppClipResult.action");
+XP_APP_RESULT_ASSERT(sizeof(XpAppWifiResult) == 5 * sizeof(void*), "XpAppWifiResult size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppWifiResult, connected) == 4 * sizeof(void*), "XpAppWifiResult.connected");
+XP_APP_RESULT_ASSERT(sizeof(XpAppResultPayload) == sizeof(XpAppClipResult), "XpAppResultPayload size");
+XP_APP_RESULT_ASSERT(sizeof(XpAppResultView) == 24 + 5 * sizeof(void*), "XpAppResultView size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppResultView, original) == 0, "XpAppResultView.original");
+XP_APP_RESULT_ASSERT(offsetof(XpAppResultView, value) == sizeof(void*), "XpAppResultView.value");
+XP_APP_RESULT_ASSERT(offsetof(XpAppResultView, kind) == sizeof(void*) + sizeof(XpAppResultPayload),
+                     "XpAppResultView.kind");
+XP_APP_RESULT_ASSERT(offsetof(XpAppResultView, cancelled) == 1 + sizeof(void*) + sizeof(XpAppResultPayload),
+                     "XpAppResultView.cancelled");
+XP_APP_RESULT_ASSERT(sizeof(XpAppPlatform) == 4 * sizeof(void*), "XpAppPlatform size");
+XP_APP_RESULT_ASSERT(offsetof(XpAppPlatform, epub) == 3 * sizeof(void*), "XpAppPlatform.epub");
+#undef XP_APP_RESULT_ASSERT

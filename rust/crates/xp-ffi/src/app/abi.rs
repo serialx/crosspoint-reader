@@ -159,7 +159,86 @@ pub struct Event {
     pub value: EventValue,
 }
 
-pub type ResultSink = unsafe extern "C" fn(*mut core::ffi::c_void, *const core::ffi::c_void);
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XpAppNativeText {
+    pub bytes: Text,
+    pub native_string: *const core::ffi::c_void,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XpAppMenuResult {
+    pub action: i32,
+    pub orientation: u8,
+    pub page_turn_option: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XpAppChapterResult {
+    pub spine: i32,
+    pub anchor: Text,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XpAppProgressResult {
+    pub spine: i32,
+    pub page: i32,
+    pub pages: i32,
+    pub xpath: Text,
+    pub percentage: f32,
+    pub offset: u32,
+    pub has_saved_progress: u8,
+    pub has_offset: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XpAppClipResult {
+    pub text: XpAppNativeText,
+    pub start_page_offset: u16,
+    pub end_page_offset: u16,
+    pub start_word: u16,
+    pub end_word: u16,
+    pub word_count: u16,
+    pub start_offset: u32,
+    pub end_offset: u32,
+    pub action: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XpAppWifiResult {
+    pub ssid: Text,
+    pub ip: Text,
+    pub connected: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union XpAppResultPayload {
+    pub menu: XpAppMenuResult,
+    pub chapter: XpAppChapterResult,
+    pub progress: XpAppProgressResult,
+    pub clipping: XpAppClipResult,
+    pub wifi: XpAppWifiResult,
+    pub text: Text,
+    pub signed_value: i32,
+    pub unsigned_value: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct XpAppResultView {
+    pub original: *const core::ffi::c_void,
+    pub value: XpAppResultPayload,
+    pub kind: u8,
+    pub cancelled: u8,
+}
+
+pub type ResultSink = unsafe extern "C" fn(*mut core::ffi::c_void, *const XpAppResultView);
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Screenshot {
@@ -471,6 +550,7 @@ pub struct Platform {
     pub legacy: *const Legacy,
     pub resources: *const Resources,
     pub runtime: *const Runtime,
+    pub epub: *const super::epub::abi::XpEpubLeaves,
 }
 
 pub const OK: u8 = 0;

@@ -1,15 +1,18 @@
-#include <xp_ui_reader.h>
+#include <I18nKeys.h>
 
 #include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "book_lifetime_session_fixture.h"
 #ifdef LIFETIME_RELEASE_LOG
 #define LOG_DBG(tag, fmt, ...) ((void)0)
 #else
@@ -144,22 +147,27 @@ struct EpubReaderActivity {
       cachedChapterTotalPageCount = 6;
   std::optional<uint32_t> cachedVisibleTextOffset = 99;
   bool pendingReadFolderMove = false;
+  void* owner = nullptr;
+  bool observedBook = false;
+  std::optional<GfxRenderer::FrameBufferLoan> loan;
   void settleOverlayRefresh() { event("settle"); }
   void discardOverlayPage() { event("discard"); }
   void saveLinkStack() { event("save-links"); }
   void loadLinkStack() { event("load-links"); }
   void loadCachedBookmarks() { event("load-bookmarks"); }
   void disableFastInitialRefresh() { event("disable-fast"); }
-  bool runBookLifetime(uint8_t operation);
+  void initialize();
+  void observe();
   bool loadBook();
   ~EpubReaderActivity();
-  void dump(bool loaded) const {
-    std::printf("state %d %d %d %d %d %d %d %u [%s]\n", loaded, bool(epub), currentSpineIndex, nextPageNumber,
+  void dump(bool loaded) {
+    observe();
+    std::printf("state %d %d %d %d %d %d %d %u [%s]\n", loaded, observedBook, currentSpineIndex, nextPageNumber,
                 cachedSpineIndex, cachedChapterTotalPageCount, bool(cachedVisibleTextOffset),
                 cachedVisibleTextOffset.value_or(0), loadProtectionError.c_str());
   }
 };
-// LIFETIME_METHODS
+#include "book_lifetime_session_rust.inc"
 int main() {
   for (int size : {-1, 0, 3, 4, 5, 6, 9, 10, 12})
     for (int flags = 0; flags < 64; ++flags) {

@@ -1,0 +1,233 @@
+extern crate alloc;
+
+pub(super) mod abi;
+mod book;
+mod bookmarks;
+mod build;
+mod lifetime;
+mod links;
+mod navigation;
+mod overlay;
+mod position;
+mod read_folder;
+mod state;
+mod storage;
+#[cfg(feature = "app-test")]
+mod test_support;
+mod text;
+
+use super::{abi as app_abi, resources::Text};
+use alloc::{alloc::alloc, boxed::Box, vec::Vec};
+use core::{alloc::Layout, cell::UnsafeCell, ffi::c_void, marker::PhantomData, ptr::NonNull};
+use state::{RenderFrame, SectionFacts, State};
+
+struct Guarded {
+    native: Option<NonNull<c_void>>,
+    book: Option<NonNull<c_void>>,
+    section: Option<NonNull<c_void>>,
+    toolbar: Option<NonNull<c_void>>,
+    overlay_popup: Option<NonNull<c_void>>,
+    failure_popup: Option<NonNull<c_void>>,
+    end_options: Option<NonNull<c_void>>,
+    // Loop is the sole writer; mutations and render reads hold ResourceAccess.
+    bookmarks: Option<NonNull<c_void>>,
+    active_frame: Option<NonNull<RenderFrame>>,
+    anchor: Text,
+    more_actions: [u8; 19],
+    more_count: u8,
+    font_sizes: Vec<u8>,
+}
+
+impl Default for Guarded {
+    fn default() -> Self {
+        Self {
+            native: None,
+            book: None,
+            section: None,
+            toolbar: None,
+            overlay_popup: None,
+            failure_popup: None,
+            end_options: None,
+            bookmarks: None,
+            active_frame: None,
+            anchor: Text::default(),
+            more_actions: [0; 19],
+            more_count: 0,
+            font_sizes: Vec::new(),
+        }
+    }
+}
+
+pub(super) struct EpubSession {
+    path: Text,
+    state: UnsafeCell<State>,
+    guarded: UnsafeCell<Guarded>,
+    leaves: &'static abi::XpEpubLeaves,
+    runtime: &'static app_abi::Runtime,
+    resources: &'static app_abi::Resources,
+    #[cfg(feature = "app-test")]
+    estimate_observer: Option<test_support::EstimateObserver>,
+    #[cfg(feature = "app-test")]
+    building_observer: Option<test_support::BuildingObserver>,
+    #[cfg(feature = "app-test")]
+    deferred_override: Option<test_support::DeferredOverride>,
+    #[cfg(feature = "app-test")]
+    lifetime_overrides: Option<test_support::LifetimeOverrides>,
+    #[cfg(feature = "app-test")]
+    bookmark_overrides: Option<test_support::BookmarkOverrides>,
+}
+
+// This capability cannot move to another task. Native render borrows its lock;
+// loop operations own a token and release it when this scope ends.
+struct ResourceAccess<'a> {
+    owner: &'a EpubSession,
+    token: Option<NonNull<c_void>>,
+    task: PhantomData<*mut ()>,
+}
+
+impl Drop for ResourceAccess<'_> {
+    fn drop(&mut self) {
+        if let Some(token) = self.token.take() {
+            unsafe { (self.owner.runtime.render_unlock)(token.as_ptr()) };
+        }
+    }
+}
+
+impl EpubSession {
+    pub(super) fn try_new(
+        path: &[u8],
+        fast_initial: bool,
+        frequency: i32,
+        leaves: &'static abi::XpEpubLeaves,
+        runtime: &'static app_abi::Runtime,
+        resources: &'static app_abi::Resources,
+    ) -> Option<Box<Self>> {
+        let path = Text::copy(path).ok()?;
+        let owner = NonNull::new(unsafe { alloc(Layout::new::<Self>()) }.cast::<Self>())?;
+        // Construction runs on the loop task, before publishing this allocation.
+        unsafe {
+            let ptr = owner.as_ptr();
+            core::ptr::addr_of_mut!((*ptr).path).write(path);
+            core::ptr::addr_of_mut!((*ptr).state)
+                .write(UnsafeCell::new(State::new(fast_initial, frequency)));
+            core::ptr::addr_of_mut!((*ptr).guarded).write(UnsafeCell::new(Guarded::default()));
+            core::ptr::addr_of_mut!((*ptr).leaves).write(leaves);
+            core::ptr::addr_of_mut!((*ptr).runtime).write(runtime);
+            core::ptr::addr_of_mut!((*ptr).resources).write(resources);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).estimate_observer).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).building_observer).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).deferred_override).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).lifetime_overrides).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).bookmark_overrides).write(None);
+            Some(Box::from_raw(ptr))
+        }
+    }
+
+    // Only bounded scalar work is allowed here. R cannot borrow from State.
+    fn model<R>(&self, update: impl FnOnce(&mut State) -> R) -> R {
+        struct Unlock(&'static app_abi::Runtime);
+        impl Drop for Unlock {
+            fn drop(&mut self) {
+                unsafe { (self.0.model_unlock)() };
+            }
+        }
+        unsafe { (self.runtime.model_lock)() };
+        let _unlock = Unlock(self.runtime);
+        update(unsafe { &mut *self.state.get() })
+    }
+
+    fn lock_resources(&self) -> ResourceAccess<'_> {
+        let token = NonNull::new(unsafe { (self.runtime.render_lock)() })
+            .expect("reader resource lock failed");
+        ResourceAccess {
+            owner: self,
+            token: Some(token),
+            task: PhantomData,
+        }
+    }
+
+    fn try_resources(&self) -> Option<ResourceAccess<'_>> {
+        let token = NonNull::new(unsafe { (self.runtime.render_try_lock)() })?;
+        Some(ResourceAccess {
+            owner: self,
+            token: Some(token),
+            task: PhantomData,
+        })
+    }
+
+    // The app render/exit caller holds the native lock until this scope ends.
+    unsafe fn borrowed_resources(&self) -> ResourceAccess<'_> {
+        ResourceAccess {
+            owner: self,
+            token: None,
+            task: PhantomData,
+        }
+    }
+
+    fn entry_resources(&self) -> ResourceAccess<'_> {
+        assert!(!self.model(|state| state.ready));
+        // Render returns before resources until ready, so entry has sole access.
+        ResourceAccess {
+            owner: self,
+            token: None,
+            task: PhantomData,
+        }
+    }
+
+    fn guarded(&self, access: &ResourceAccess<'_>) -> *mut Guarded {
+        assert!(core::ptr::eq(self, access.owner));
+        self.guarded.get()
+    }
+
+    fn section(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
+        unsafe { (*self.guarded(access)).section }
+    }
+
+    fn book(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
+        unsafe { (*self.guarded(access)).book }
+    }
+
+    fn native(&self, access: &ResourceAccess<'_>) -> *mut c_void {
+        unsafe {
+            (*self.guarded(access))
+                .native
+                .expect("reader resources")
+                .as_ptr()
+        }
+    }
+
+    // Only the loop task installs or releases the book. Render borrows it while
+    // holding ResourceAccess; it never changes this slot.
+    fn loop_book(&self) -> Option<NonNull<c_void>> {
+        unsafe { core::ptr::addr_of!((*self.guarded.get()).book).read() }
+    }
+
+    // Call after each Section mutation, before releasing the resource lock.
+    // Loop readers only receive these values, never Section's build pointers.
+    fn publish_section(&self, access: &ResourceAccess<'_>) {
+        let facts = self.section(access).map(|section| unsafe {
+            let section = section.as_ptr();
+            SectionFacts {
+                pages: (self.leaves.section_page_count)(section),
+                estimated_pages: (self.leaves.section_estimated_pages)(section),
+                building: (self.leaves.section_building)(section) != 0,
+                complete: (self.leaves.section_complete)(section) != 0,
+                partial: (self.leaves.section_partial)(section) != 0,
+            }
+        });
+        self.model(|state| state.facts.section = facts);
+    }
+
+    fn drop_section(&self, access: &ResourceAccess<'_>) {
+        let section = unsafe { (*self.guarded(access)).section.take() };
+        self.model(|state| state.facts.section = None);
+        if let Some(section) = section {
+            unsafe { (self.leaves.section_close)(section.as_ptr()) };
+        }
+    }
+}

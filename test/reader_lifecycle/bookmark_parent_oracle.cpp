@@ -1,10 +1,9 @@
-#include <xp_ui_reader.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <optional>
@@ -13,7 +12,16 @@
 
 #include "BookmarkEntry.h"
 #include "HalStorage.h"
-static void event(const char* name, int a = 0, int b = 0) { std::printf("%s %d %d\n", name, a, b); }
+#include "bookmark_session_fixture.h"
+static unsigned modelDepth;
+static bool publishing;
+static unsigned publicationStep;
+static unsigned sectionDrops, textReads, offsetReads;
+static void leaf() { assert(modelDepth == 0); }
+static void event(const char* name, int a = 0, int b = 0) {
+  leaf();
+  std::printf("%s %d %d\n", name, a, b);
+}
 static uint32_t bits(float f) {
   uint32_t n;
   std::memcpy(&n, &f, 4);
@@ -21,8 +29,15 @@ static uint32_t bits(float f) {
 }
 static int lockDepth = 0;
 struct RenderLock {
-  RenderLock() { event("lock", ++lockDepth); }
-  ~RenderLock() { event("unlock", lockDepth--); }
+  RenderLock() {
+    leaf();
+    assert(lockDepth == 0);
+    event("lock", ++lockDepth);
+  }
+  ~RenderLock() {
+    assert(lockDepth == 1);
+    event("unlock", lockDepth--);
+  }
 };
 #ifdef BOOKMARK_RELEASE_LOG
 #define LOG_DBG(...) ((void)0)
@@ -43,20 +58,32 @@ struct Epub {
     return (spine + fraction) / 4.0f;
   }
 };
+struct Section;
+static Section* liveSection;
 struct Section {
-  int currentPage = 2;
+  Section() {
+    assert(!liveSection);
+    liveSection = this;
+  }
+  ~Section() {
+    assert(liveSection == this);
+    liveSection = nullptr;
+    ++sectionDrops;
+  }
   uint16_t pageCount = 5;
   int estimated = 7;
   std::optional<uint32_t> offset = 123;
   int estimatedTotalPages() {
-    event("estimate", estimated, lockDepth);
+    if (!publishing) event("estimate", estimated, lockDepth);
     return estimated;
   }
-  std::string getTextFromSectionFile() {
-    event("text", currentPage, lockDepth);
+  std::string getTextFromSectionFile(int page) {
+    ++textReads;
+    event("text", page, lockDepth);
     return "A sufficiently long bookmark summary from page text.";
   }
   std::optional<uint32_t> getVisibleTextOffsetForPage(uint16_t page) {
+    ++offsetReads;
     event("offset", page, lockDepth);
     return offset;
   }
@@ -67,18 +94,16 @@ struct SavedProgressPosition {
   float percentage;
 };
 namespace ProgressMapper {
-SavedProgressPosition toSavedProgress(const std::shared_ptr<Epub>&, const CrossPointPosition&) {
+SavedProgressPosition toSavedProgress(const Epub&, const CrossPointPosition&) {
   event("map", lockDepth);
   return {"/body/long/path/to/visible/text", 0.375f};
 }
 }  // namespace ProgressMapper
 namespace BookmarkUtil {
-std::string sanitizeBookmarkSummary(std::string text) {
-  std::printf("sanitize [%s]\n", text.c_str());
-  return text;
-}
+void observeSummary(const std::string& text) { std::printf("sanitize [%s]\n", text.c_str()); }
 }  // namespace BookmarkUtil
 static bool saveOk = true;
+static unsigned saveCalls;
 static std::vector<BookmarkEntry> stored;
 static void dump(const std::vector<BookmarkEntry>& entries) {
   event("entries", entries.size());
@@ -94,6 +119,7 @@ bool load(const std::string& path, std::vector<BookmarkEntry>& entries) {
   return !entries.empty();
 }
 bool save(const std::string& path, const std::vector<BookmarkEntry>& entries) {
+  ++saveCalls;
   std::printf("save [%s] %d\n", path.c_str(), saveOk);
   dump(entries);
   return saveOk;
@@ -102,38 +128,32 @@ bool save(const std::string& path, const std::vector<BookmarkEntry>& entries) {
 struct ProgressRange {
   float start, end;
 };
-constexpr float bookmarkProgressEpsilon = 0.0001f;
-// MATCH_METHODS
-struct EpubReaderActivity {
-  struct ModelLock {
-    explicit ModelLock(const EpubReaderActivity&) {}
-  };
+struct BookmarkFixture {
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();
   std::unique_ptr<Section> section = std::make_unique<Section>();
   std::vector<BookmarkEntry> cachedBookmarks;
-  int currentSpineIndex = 1;
+  int currentSpineIndex = 1, activePage = 2;
   bool bookmarkRemoved = false, currentPageBookmarked = false;
   std::optional<uint32_t> currentPageVisibleOffset;
   struct SavedPosition {
     int spineIndex, pageNumber;
   };
-  static constexpr int MAX_FOOTNOTE_DEPTH = 3;
-  SavedPosition savedPositions[MAX_FOOTNOTE_DEPTH]{};
+  SavedPosition savedPositions[3]{};
   int footnoteDepth = 0;
-  CrossPointPosition getCurrentPosition() {
-    event("position", lockDepth);
-    return {};
-  }
-  void requestUpdate() { event("update", lockDepth); }
-  void runBookmarkPolicy(uint8_t operation, void* resources = nullptr);
-  void runLinkPersistence(uint8_t load) const;
+  void* owner = nullptr;
+  ~BookmarkFixture();
+  void initialize();
+  XpEpubTestBookmarkObservation observe();
+  void seedHistory();
   void loadCachedBookmarks();
   void addBookmark();
   void updateBookmarkFlag();
-  void saveLinkStack() const;
+  void saveLinkStack();
   void loadLinkStack();
 };
-// BOOKMARK_METHODS
+static BookmarkFixture* activeFixture;
+static bool dropAfterUnlock;
+#include "bookmark_session_rust.inc"
 static BookmarkEntry entry(float percent, int spine, int page, int count) {
   BookmarkEntry e;
   e.percentage = percent;
@@ -144,14 +164,35 @@ static BookmarkEntry entry(float percent, int spine, int page, int count) {
   e.computedChapterPageCount = count;
   return e;
 }
-int main() {
+static void sectionDropCase() {
+  BookmarkFixture o;
+  saveOk = true;
+  stored.clear();
+  o.initialize();
+  const auto drops = sectionDrops, texts = textReads, offsets = offsetReads, saves = saveCalls;
+  dropAfterUnlock = true;
+  o.addBookmark();
+  const auto state = o.observe();
+  assert(!dropAfterUnlock && !state.has_section && sectionDrops == drops + 1);
+  assert(textReads == texts && offsetReads == offsets);
+  assert(o.cachedBookmarks.size() == 1 && o.cachedBookmarks[0].summary.empty());
+  assert(!o.cachedBookmarks[0].hasVisibleTextOffset && state.bookmarked && !state.removed);
+  assert(saveCalls == saves + 1);
+  std::puts("section-drop summary-empty offset-absent saved=1");
+}
+int main(int argc, char** argv) {
+  if (argc == 2 && std::string(argv[1]) == "--section-drop") {
+    sectionDropCase();
+    return 0;
+  }
+  assert(argc == 1);
   for (int flags = 0; flags < 32; ++flags)
     for (int page : {-1, 0, 2, 4, 7})
       for (int count : {0, 1, 5, 7})
         for (int set = 0; set < 4; ++set) {
           std::printf("case %d %d %d %d\n", flags, page, count, set);
-          EpubReaderActivity o;
-          o.section->currentPage = page;
+          BookmarkFixture o;
+          o.activePage = page;
           o.section->estimated = count;
           if (flags & 1) o.section.reset();
           if (flags & 2) o.epub.reset();
@@ -165,13 +206,14 @@ int main() {
           o.cachedBookmarks = stored;
           o.currentPageBookmarked = true;
           o.updateBookmarkFlag();
-          event("flag", o.currentPageBookmarked);
+          event("flag", o.observe().bookmarked);
           o.addBookmark();
           dump(o.cachedBookmarks);
-          event("result", o.bookmarkRemoved, o.currentPageBookmarked);
+          const auto result = o.observe();
+          event("result", result.removed, result.bookmarked);
           o.loadCachedBookmarks();
           dump(o.cachedBookmarks);
-          event("loaded", o.currentPageBookmarked);
+          event("loaded", o.observe().bookmarked);
           assert(lockDepth == 0);
         }
   for (int count : {-1, 0, 1, 2, 5, 37})
@@ -198,15 +240,17 @@ int main() {
         storageTrace.files.clear();
         storageTrace.openOk = open;
         storageTrace.writeLimit = limit;
-        EpubReaderActivity o;
+        BookmarkFixture o;
         o.footnoteDepth = depth;
         for (int i = 0; i < 3; ++i) o.savedPositions[i] = {i, 1000 * i};
         o.saveLinkStack();
         o.footnoteDepth = 0;
         for (auto& p : o.savedPositions) p = {17, 19};
+        o.seedHistory();
         o.loadLinkStack();
-        event("depth", o.footnoteDepth);
-        for (auto p : o.savedPositions) event("position", p.spineIndex, p.pageNumber);
+        const auto history = o.observe();
+        event("depth", history.history_depth);
+        for (int i = 0; i < 3; ++i) event("position", history.history[2 * i], history.history[2 * i + 1]);
         assert(storageTrace.liveFiles == 0);
       }
   for (int size = 0; size < 15; ++size)
@@ -221,12 +265,13 @@ int main() {
           data[2] = spine >> 8;
         }
         storageTrace.files["/cache/links.bin"] = data;
-        EpubReaderActivity o;
+        BookmarkFixture o;
         o.footnoteDepth = 2;
         for (auto& p : o.savedPositions) p = {17, 19};
         o.loadLinkStack();
-        event("depth", o.footnoteDepth);
-        for (auto p : o.savedPositions) event("position", p.spineIndex, p.pageNumber);
+        const auto history = o.observe();
+        event("depth", history.history_depth);
+        for (int i = 0; i < 3; ++i) event("position", history.history[2 * i], history.history[2 * i + 1]);
         assert(storageTrace.liveFiles == 0);
       }
 }

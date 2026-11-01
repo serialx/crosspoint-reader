@@ -18,15 +18,24 @@ impl Text {
     }
 
     pub fn assign(&mut self, bytes: &[u8]) -> Result<(), TryReserveError> {
-        if bytes.is_empty() {
+        self.assign_parts(&[bytes])
+    }
+
+    pub fn assign_parts(&mut self, parts: &[&[u8]]) -> Result<(), TryReserveError> {
+        let length = parts
+            .iter()
+            .fold(0usize, |total, part| total.saturating_add(part.len()));
+        if length == 0 {
             self.bytes.clear();
             return Ok(());
         }
-        let needed = bytes.len().saturating_add(1);
+        let needed = length.saturating_add(1);
         self.bytes
             .try_reserve_exact(needed.saturating_sub(self.bytes.len()))?;
         self.bytes.clear();
-        self.bytes.extend_from_slice(bytes);
+        for part in parts {
+            self.bytes.extend_from_slice(part);
+        }
         self.bytes.push(0);
         Ok(())
     }

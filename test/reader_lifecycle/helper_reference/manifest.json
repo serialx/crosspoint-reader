@@ -1,0 +1,120 @@
+{
+  "artifacts": {
+    "link-hit.reference.txt": {
+      "bytes": 85878,
+      "sha256": "8d400afc5ed71b1c6590ff67fe2a84e266c332da35ab29137ad377b004705eee"
+    },
+    "overlay.reference.txt": {
+      "bytes": 3168,
+      "sha256": "ae830de998b3912836d95814975b02d369e5d3a077d162bd38cb2e9871da0a1d"
+    },
+    "refresh-orientation.reference.txt": {
+      "bytes": 829,
+      "sha256": "fe8a0a4e57d2f34d413f3026755d3be6952b0f60b9d76b86bb2ba70b4230e894"
+    },
+    "sanitize.reference.txt": {
+      "bytes": 5862,
+      "sha256": "db42247744f78a61690ea1599a1a85b5f21d2b86a2d82dd82109406b6601ec32"
+    }
+  },
+  "capture_argv": [
+    "/Users/serialx/.platformio/penv/bin/python3",
+    "/Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session/test/reader_lifecycle/capture_helpers.py",
+    "--capture",
+    "/Users/serialx/workspace/crosspoint-evidence/riir-round-2026-10/p16-o2f/helper-reference-formatted",
+    "--rust-archive",
+    "/private/tmp/p16-o2f-host/xp-ffi-host-target/aarch64-apple-darwin/release/libxp_ffi.a"
+  ],
+  "capture_command": "/Users/serialx/.platformio/penv/bin/python3 /Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session/test/reader_lifecycle/capture_helpers.py --capture /Users/serialx/workspace/crosspoint-evidence/riir-round-2026-10/p16-o2f/helper-reference-formatted --rust-archive /private/tmp/p16-o2f-host/xp-ffi-host-target/aarch64-apple-darwin/release/libxp_ffi.a",
+  "capture_cwd": "/Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session",
+  "commands": [
+    [
+      "c++",
+      "-std=c++20",
+      "-UNDEBUG",
+      "-O0",
+      "-I",
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g",
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/reference.cpp",
+      "-I",
+      "/Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session/rust/crates/xp-ffi/include",
+      "/Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session/test/cmake/xp_ffi_host.cpp",
+      "/private/tmp/p16-o2f-host/xp-ffi-host-target/aarch64-apple-darwin/release/libxp_ffi.a",
+      "-o",
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/reference"
+    ],
+    [
+      "c++",
+      "-std=c++20",
+      "-UNDEBUG",
+      "-O0",
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/wrappers.cpp",
+      "-o",
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/wrappers"
+    ],
+    [
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/wrappers"
+    ],
+    [
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/reference",
+      "overlay"
+    ],
+    [
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/reference",
+      "refresh-orientation"
+    ],
+    [
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/reference",
+      "link-hit"
+    ],
+    [
+      "/var/folders/vd/pb_87xyn4gn4r09mhyd771080000gn/T/reader-helper-reference-9n6nuh8g/reference",
+      "sanitize"
+    ]
+  ],
+  "compiler_version": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "fixture_sha256": {
+    "capture_helpers.py": "465989218dffa432b01bb15e32a5a8ceae42be6a1724a7254724b36e92bcd4c8",
+    "helper_reference.cpp": "2ce84c7b9a024ae460b802f6704b47921a8317aeb023fefefeda0827554d7ce2",
+    "helper_wrapper_reference.cpp": "ec8748ac61a163c47fe34bc9ee560ea40b07cc883fb0a7d02ef5f8cf861267b4"
+  },
+  "link_contract": "Caller supplies an already-built archive matching the recorded xp_book_link_contains body; the archive hash records the actual linked binary, not a proof of build provenance.",
+  "link_inputs_sha256": {
+    "archive": "5e443c89b8d471ab737d0480a59e21ce0b26882042e5bbeb062601aa0651c40c",
+    "test/cmake/xp_ffi_host.cpp": "b7f517812e3d7a377781476b73d073279027880e612ee29adab2d1eeb8b27f08",
+    "test/rust_host.py": "4f7a5c4d415844dfec2c300772916da8e293ba5a9028ae96e380b5de3b63d533"
+  },
+  "next_steps": "Main adds production candidate comparison, CTest registration and at least one deliberate mutant per new test, including each thin wrapper. No existing golden was read or written.",
+  "parent": "b88726243ea49662e161eaab935ee11f303f9197",
+  "platform": {
+    "machine": "arm64",
+    "python": "3.14.10",
+    "system": "Darwin"
+  },
+  "reproduce_command": "/Users/serialx/.platformio/penv/bin/python3 /Users/serialx/orca/workspaces/crosspoint-reader/riir-p16-o2-reader-session/test/reader_lifecycle/capture_helpers.py --capture /Users/serialx/workspace/crosspoint-evidence/riir-round-2026-10/p16-o2f/helper-reference-formatted --rust-archive /private/tmp/p16-o2f-host/xp-ffi-host-target/aarch64-apple-darwin/release/libxp_ffi.a --cxx c++",
+  "rust_archive": "/private/tmp/p16-o2f-host/xp-ffi-host-target/aarch64-apple-darwin/release/libxp_ffi.a",
+  "sanitizer_limit": "Baseline std::isspace(char) receives negative values on signed-char hosts for UTF-8. Those observations are platform-specific and are not claimed to be defined portable C++ behavior. The reference preserves the baseline code unchanged and reports bytes in hex.",
+  "source_sha256": {
+    "lib/Epub/Epub/FootnoteEntry.h": "61dadbfb9191a1a1b75ea4b0347773f956c01a296a04e584291deecb630a8d8a",
+    "lib/Epub/Epub/PageLink.h": "e9f82142620414a9a3f657ab28fccbe82f59e2d6397d4eea38e9f1e3ea8e220a",
+    "rust/crates/xp-ffi/include/xp_book.h": "e2cd1fbc7b62eb380b97fc07309239a53415899653ce72c77d0e06af99c3d085",
+    "rust/crates/xp-ffi/include/xp_book_limits.h": "8473b08d99b9531aed75a81f68b98528d897e27c39455f0665e3cbe566d05b99",
+    "rust/crates/xp-ffi/src/book_policy.rs": "3809ab1f282cfb22c2e8bff7e220cc33ed3f3b930d67c5e0cd187647951ef281",
+    "src/activities/reader/EpubReaderActivity.cpp": "579eee94c29ce8a633ad395b6e899cde3aa82c51339b1e1cba4994f6883b164f",
+    "src/activities/reader/EpubReaderUtils.h": "066793afc3cfb25a3d31695c0f69952bd79ac399deff1f717df00884d75aa241",
+    "src/activities/reader/ReaderActivity.cpp": "0a4a28559a3bcf9616dd16baaf0e7ed620fe0aa6f0f6aa597a2e1bdbd9e8bd35",
+    "src/activities/reader/ReaderActivity.h": "5672cd0239581a36bc43efaa22296408008da51e64bb0607ed1237effb35c9c3",
+    "src/util/BookmarkUtil.cpp": "ed6277914ed28faa11c8e041fe726046b5dd3363b3fc52e04731a9e33d4bb57e"
+  },
+  "synthetic_only": true,
+  "thin_wrappers": {
+    "expected": "Source-derived forwarding/value assertions; no frozen artifact",
+    "methods": [
+      "handleBackNavigation",
+      "inputOverPage",
+      "getProgressPercent",
+      "clampPercent"
+    ],
+    "result": "passed"
+  }
+}

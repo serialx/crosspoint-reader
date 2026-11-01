@@ -38,14 +38,6 @@ freeink::SecureHttpClient* openClient(freeink::SecureHttpClient* session, freein
 
 namespace pluginhttp {
 
-void splitPath(const std::string& dotted, std::vector<std::string>& out) {
-  out.clear();
-  out.reserve(xp_plugin_split_count(span(dotted)));
-  xp_plugin_split(span(dotted), &out, [](void* ctx, XpPluginSpan part) {
-    static_cast<std::vector<std::string>*>(ctx)->emplace_back(reinterpret_cast<const char*>(part.data), part.len);
-  });
-}
-
 JsonVariantConst resolvePath(JsonVariantConst node, const std::string& dotted) {
   PluginJson json(node);
   const auto api = json.api();

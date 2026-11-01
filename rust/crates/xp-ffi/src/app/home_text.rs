@@ -217,7 +217,6 @@ impl view::Texts for Texts<'_> {
         Ok(view::Lines {
             first: WRAPPED_TITLE + 4 * book as u32,
             count: capture.lines.len() as u8,
-            reserved: 0,
             max_width: i16::try_from(max_width).map_err(|_| Error::Invalid)?,
         })
     }

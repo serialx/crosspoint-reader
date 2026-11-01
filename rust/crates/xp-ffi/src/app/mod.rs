@@ -27,7 +27,7 @@ use xp_ui::{
         Activity, Application, Services, Transition, TransitionKind,
     },
     home::activity::InputResult,
-    model::EffectKind,
+    home::{Action as HomeRoute, Menu},
 };
 
 #[derive(Clone, Copy)]
@@ -365,16 +365,15 @@ impl App {
                     InputResult::Idle => {}
                     InputResult::RetryPaint => self.request(false),
                     InputResult::Update(update) => {
-                        if update.effect.invalidate != 0 {
+                        if update.invalidate != 0 {
                             self.request(false);
                         }
-                        if update.haptic != 0 {
+                        if update.haptic {
                             unsafe { (self.runtime.touch_feedback)(0) };
                         }
-                        if update.effect.kind == EffectKind::Activate as u8 {
-                            let value = update.effect.value;
-                            if (0..100).contains(&value) {
-                                if let Some(path) = unsafe { home.as_ref().path(value as usize) } {
+                        match update.action {
+                            Some(HomeRoute::Book(index)) => {
+                                if let Some(path) = unsafe { home.as_ref().path(index.into()) } {
                                     self.navigate(abi::Launch {
                                         kind: abi::READER,
                                         value: abi::LaunchValue {
@@ -385,22 +384,22 @@ impl App {
                                         },
                                     });
                                 }
-                            } else {
-                                let kind = match value {
-                                    xp_ui::home::FILES => abi::FILES,
-                                    xp_ui::home::LIBRARY => abi::LIBRARY,
-                                    xp_ui::home::OPDS => abi::OPDS_PICKER,
-                                    xp_ui::home::PLUGINS => abi::PLUGINS,
-                                    xp_ui::home::TRANSFER => abi::FILE_TRANSFER,
-                                    xp_ui::home::SETTINGS => abi::SETTINGS,
-                                    _ => 255,
+                            }
+                            Some(HomeRoute::Menu(menu)) => {
+                                let kind = match menu {
+                                    Menu::Files => abi::FILES,
+                                    Menu::Library => abi::LIBRARY,
+                                    Menu::Opds => abi::OPDS_PICKER,
+                                    Menu::Plugins => abi::PLUGINS,
+                                    Menu::Transfer => abi::FILE_TRANSFER,
+                                    Menu::Settings => abi::SETTINGS,
                                 };
-                                let flag = if kind == abi::PLUGINS {
-                                    u8::from(unsafe { (self.resources.opds_count)() } != 0)
-                                } else if kind == abi::SETTINGS {
-                                    6
-                                } else {
-                                    0
+                                let flag = match menu {
+                                    Menu::Plugins => {
+                                        u8::from(unsafe { (self.resources.opds_count)() } != 0)
+                                    }
+                                    Menu::Settings => 6,
+                                    _ => 0,
                                 };
                                 self.navigate(abi::Launch {
                                     kind,
@@ -409,6 +408,7 @@ impl App {
                                     },
                                 });
                             }
+                            None => {}
                         }
                     }
                 },
@@ -818,5 +818,39 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
         abi::ACCEPTED
     } else {
         abi::REJECTED
+    }
+}
+
+// Read-only host-oracle probes. Firmware builds never enable app-test.
+#[cfg(feature = "app-test")]
+mod probe {
+    use super::*;
+    #[no_mangle]
+    pub extern "C" fn xp_app_test_current_legacy() -> *mut c_void {
+        match app().and_then(|app| app.navigation.current()) {
+            Some(Target::Legacy(target)) => target.as_ptr(),
+            _ => core::ptr::null_mut(),
+        }
+    }
+    #[no_mangle]
+    pub extern "C" fn xp_app_test_is_home() -> u8 {
+        u8::from(matches!(
+            app().and_then(|app| app.navigation.current()),
+            Some(Target::Home(_))
+        ))
+    }
+    #[no_mangle]
+    pub extern "C" fn xp_app_test_parent_count() -> usize {
+        app().map_or(0, |app| app.navigation.parent_count())
+    }
+    #[no_mangle]
+    pub extern "C" fn xp_app_test_pending_kind() -> u8 {
+        match app().map_or(TransitionKind::None, |app| app.navigation.pending_kind()) {
+            TransitionKind::None => 0,
+            TransitionKind::Push => 1,
+            TransitionKind::Pop => 2,
+            TransitionKind::Replace => 3,
+            TransitionKind::Sleep => 4,
+        }
     }
 }

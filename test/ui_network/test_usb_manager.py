@@ -12,7 +12,7 @@ source = (HERE / 'usb_manager.cpp').read_text()
 methods = []
 for cls, filename, names in [
     ('UsbDriveActivity', 'network/UsbDriveActivity.cpp', ['onEnter', 'onExit', 'loop', 'render', 'rustSceneCurrent', 'run', 'service']),
-    ('ActivityManager', 'ActivityManager.cpp', ['loop', 'exitActivity', 'replaceActivity', 'pushActivity',
+    ('ActivityManager', 'ActivityManager.cpp', ['loop', 'replaceActivity', 'pushActivity',
                                                'popActivity', 'goHome', 'requiresExclusiveStorageLoop']),
 ]:
     production = (ROOT / 'src/activities' / filename).read_text()
@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory() as directory:
     (out / 'Activity.h').write_text(stub)
     (out / 'manager.cpp').write_text(source)
     subprocess.run(['c++', '-std=c++20', '-pthread', '-I' + str(out),
-                    '-I' + str(ROOT / 'test/ui_runtime/stubs'), '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
+                    '-I' + str(ROOT / 'test/ui_runtime/stubs'), '-I' + str(ROOT / 'test/ui_runtime'), '-I' + str(ROOT / 'rust/crates/xp-ffi/include'),
                     str(out / 'manager.cpp'), str(out / 'RustActivityAdapter.cpp'),
                     str(ROOT / 'test/cmake/xp_ffi_host.cpp'), sys.argv[1], '-o', str(out / 'manager')], check=True)
     failures = []

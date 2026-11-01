@@ -631,10 +631,10 @@ const XpAppRuntime& appRuntime() {
           [](uint8_t event, uint32_t first, uint32_t second) {
             switch (event) {
               case 0:
-                LOG_DBG("ACT", "Entering Home");
+                LOG_DBG("ACT", "Entering activity: Home");
                 break;
               case 1:
-                LOG_DBG("ACT", "Exiting Home");
+                LOG_DBG("ACT", "Exiting activity: Home");
                 break;
               case 2:
                 LOG_ERR("ACT", "OOM: Rust application resource %u", first);

@@ -44,13 +44,16 @@ impl CoverCache {
         if index >= cache::SLOTS {
             return false;
         }
-        let span = self.state.lookup(index, rect);
-        if self
-            .buffer
-            .as_ref()
-            .is_some_and(|buffer| buffer.write(rect, span.offset as usize, span.bytes as usize))
-        {
-            return true;
+        if let Some(range) = self.state.lookup(index, rect) {
+            if self.buffer.as_ref().is_some_and(|buffer| {
+                buffer.write(
+                    rect,
+                    range.start as usize,
+                    (range.end - range.start) as usize,
+                )
+            }) {
+                return true;
+            }
         }
         self.state.invalidate_slot(index);
         let mut drawn = false;
@@ -117,9 +120,12 @@ impl CoverCache {
         if let Some(buffer) = &mut self.buffer {
             let needed = unsafe { (self.services.region_size)(rect) };
             if let Ok(needed) = u32::try_from(needed) {
-                let span = self.state.reserve(index, rect, needed);
-                if span.bytes != 0 {
-                    let copied = buffer.read(rect, span.offset as usize, span.bytes as usize);
+                if let Some(range) = self.state.reserve(index, rect, needed) {
+                    let copied = buffer.read(
+                        rect,
+                        range.start as usize,
+                        (range.end - range.start) as usize,
+                    );
                     self.state.copied(index, copied);
                 }
             }

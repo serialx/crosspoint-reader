@@ -1,33 +1,24 @@
 use crate::scene::Rect;
+use core::ops::Range;
 pub const SLOTS: usize = 7;
 
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Default)]
 pub struct Slot {
     pub rect: Rect,
-    pub offset: u32,
-    pub bytes: u32,
-    pub valid: u8,
-    pub reserved: [u8; 3],
+    pub range: Range<u32>,
+    pub valid: bool,
 }
-#[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct State {
     pub slots: [Slot; SLOTS],
     pub capacity: u32,
     pub used: u32,
     pub orientation: i32,
 }
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct Span {
-    pub offset: u32,
-    pub bytes: u32,
-}
 impl Default for State {
     fn default() -> Self {
         Self {
-            slots: [Slot::default(); SLOTS],
+            slots: core::array::from_fn(|_| Slot::default()),
             capacity: 0,
             used: 0,
             orientation: -1,
@@ -44,11 +35,11 @@ impl State {
     }
     pub fn invalidate(&mut self) {
         self.used = 0;
-        self.slots = [Slot::default(); SLOTS];
+        self.slots = core::array::from_fn(|_| Slot::default());
     }
     pub fn invalidate_slot(&mut self, index: usize) {
         if let Some(slot) = self.slots.get_mut(index) {
-            slot.valid = 0;
+            slot.valid = false;
         }
     }
     pub fn prepare(&mut self, orientation: i32) {
@@ -57,49 +48,30 @@ impl State {
             self.orientation = orientation;
         }
     }
-    pub fn lookup(&self, index: usize, rect: Rect) -> Span {
-        let Some(s) = self.slots.get(index) else {
-            return Span::default();
-        };
-        if self.capacity != 0 && s.valid != 0 && s.rect == rect {
-            Span {
-                offset: s.offset,
-                bytes: s.bytes,
-            }
-        } else {
-            Span::default()
-        }
+    pub fn lookup(&self, index: usize, rect: Rect) -> Option<Range<u32>> {
+        let slot = self.slots.get(index)?;
+        (self.capacity != 0 && slot.valid && slot.rect == rect).then(|| slot.range.clone())
     }
-    pub fn reserve(&mut self, index: usize, rect: Rect, needed: u32) -> Span {
-        let Some(s) = self.slots.get_mut(index) else {
-            return Span::default();
-        };
+    pub fn reserve(&mut self, index: usize, rect: Rect, needed: u32) -> Option<Range<u32>> {
+        let slot = self.slots.get_mut(index)?;
         if self.capacity == 0 {
-            return Span::default();
+            return None;
         }
-        if needed > s.bytes && needed <= self.capacity.saturating_sub(self.used) {
-            s.offset = self.used;
-            s.bytes = needed;
+        if needed > slot.range.end - slot.range.start
+            && needed <= self.capacity.saturating_sub(self.used)
+        {
+            slot.range = self.used..self.used + needed;
             self.used += needed;
         }
-        if needed > 0 && needed <= s.bytes {
-            s.rect = rect;
-            Span {
-                offset: s.offset,
-                bytes: s.bytes,
-            }
-        } else {
-            Span::default()
+        if needed == 0 || needed > slot.range.end - slot.range.start {
+            return None;
         }
+        slot.rect = rect;
+        Some(slot.range.clone())
     }
     pub fn copied(&mut self, index: usize, success: bool) {
         if let Some(s) = self.slots.get_mut(index) {
-            s.valid = u8::from(success);
+            s.valid = success;
         }
     }
 }
-const _: () = {
-    assert!(core::mem::size_of::<Slot>() == 20);
-    assert!(core::mem::size_of::<State>() == 152);
-    assert!(core::mem::size_of::<Span>() == 8);
-};

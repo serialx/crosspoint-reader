@@ -123,7 +123,7 @@ fn main() {
                                 rendered: u8::from(snapshot == 2),
                                 restored: u8::from(snapshot == 2),
                                 can_snapshot: u8::from(snapshot != 0),
-                                reserved: 0,
+
                             };
                             let mut texts = Texts {
                                 strings: Vec::new(),

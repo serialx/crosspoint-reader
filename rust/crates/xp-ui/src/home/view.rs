@@ -18,7 +18,6 @@ pub const AUTHOR: u32 = 0x3000;
 pub const MENU: u32 = 0x4000;
 pub const MENU_ICON: u32 = 0x5000;
 
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Layout {
     pub screen: Rect,
@@ -43,20 +42,16 @@ pub struct Layout {
     pub theme: u8,
     pub continue_in_menu: u8,
     pub columns: u8,
-    pub reserved: u8,
 }
 
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Cover {
     pub width: i32,
     pub height: i32,
     /// 0: empty/invalid; 1: nonempty path that could not open; 2: parsed.
     pub status: u8,
-    pub reserved: [u8; 3],
 }
 
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Prepared {
     pub covers: [Cover; 3],
@@ -64,10 +59,8 @@ pub struct Prepared {
     pub rendered: u8,
     pub restored: u8,
     pub can_snapshot: u8,
-    pub reserved: u8,
 }
 
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Widths {
     pub lyra: i32,
@@ -90,12 +83,10 @@ impl Widths {
     }
 }
 
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Lines {
     pub first: u32,
     pub count: u8,
-    pub reserved: u8,
     pub max_width: i16,
 }
 
@@ -675,7 +666,7 @@ fn classic(
 
 fn menus(a: &mut Arena<'_>, s: HomeState, l: &Layout, t: &mut dyn Texts) -> Result<(), Error> {
     let extra = l.continue_in_menu != 0 && s.books != 0;
-    let count = 4 + i32::from(s.opds != 0 || s.plugins != 0) + i32::from(extra);
+    let count = 4 + i32::from(s.opds || s.plugins) + i32::from(extra);
     let selected = if l.continue_in_menu != 0 {
         s.selected
     } else {

@@ -18,7 +18,7 @@ use xp_ui::{
         grid, view, HomeState,
     },
     model::Input,
-    scene::{Arena, Command, Error, Rect, Refresh},
+    scene::{Arena, Command, Error, Kind, Rect, Refresh},
 };
 
 pub struct Home {
@@ -53,6 +53,26 @@ struct PaintState {
     buffer_stored: bool,
 }
 
+impl Default for PaintState {
+    fn default() -> Self {
+        Self {
+            covers: Vec::new(),
+            grid_paths: core::array::from_fn(|_| Text::default()),
+            grid_cache: None,
+            grid_height: 0,
+            progress: -1,
+            texts: PreparedTexts::new(-1, false),
+            layout: view::Layout::default(),
+            snapshot: HomeState::default(),
+            buffer: None,
+            cover_rect: Rect::default(),
+            restore_rect: Rect::default(),
+            cover_rendered: false,
+            buffer_stored: false,
+        }
+    }
+}
+
 impl Home {
     pub fn new(
         services: &'static abi::Resources,
@@ -66,21 +86,7 @@ impl Home {
             model: ModelCell::new(Model::default(), runtime),
             render: UnsafeCell::new(Frame {
                 commands: Vec::new(),
-                paint: PaintState {
-                    covers: Vec::new(),
-                    grid_paths: core::array::from_fn(|_| Text::default()),
-                    grid_cache: None,
-                    grid_height: 0,
-                    progress: -1,
-                    texts: PreparedTexts::new(-1, false),
-                    layout: view::Layout::default(),
-                    snapshot: HomeState::default(),
-                    buffer: None,
-                    cover_rect: Rect::default(),
-                    restore_rect: Rect::default(),
-                    cover_rendered: false,
-                    buffer_stored: false,
-                },
+                paint: PaintState::default(),
             }),
             services,
             runtime,
@@ -112,7 +118,7 @@ impl Home {
         let frame = unsafe { &mut *self.render.get() };
         if let Some(loaded) = loaded {
             state.books = loaded.identities.len() as u8;
-            state.continuing = u8::from(loaded.continuing);
+            state.continuing = loaded.continuing;
             unsafe { *self.identities.get() = loaded.identities };
             frame.paint.covers = loaded.covers;
             frame.paint.progress = loaded.progress;
@@ -167,7 +173,7 @@ impl Home {
         frame.paint.snapshot = snapshot;
         let theme = self.theme();
         frame.paint.texts.body_bold = theme.body_bold != 0;
-        let prepared = if snapshot.grid == 0 {
+        let prepared = if !snapshot.grid {
             frame.paint.layout = standard_layout(theme);
             let available = unsafe { (self.runtime.display_geometry)() }.frame_available != 0;
             frame.paint.prepare_covers(self.services, widths, available)
@@ -202,9 +208,22 @@ impl Home {
                 prepared: &mut frame.paint.texts,
                 services: self.services,
             };
-            let geometry = if snapshot.grid != 0 {
+            let geometry = if snapshot.grid {
                 let layout = grid_layout(theme, frame.paint.progress, self.services);
-                grid::view(&mut arena, snapshot, &layout, &mut texts).map(Geometry::Grid)
+                (|| {
+                    arena.push(Command {
+                        kind: Kind::Clear as u8,
+                        ..Command::default()
+                    })?;
+                    let geometry = grid::view(&mut arena, snapshot, &layout, &mut texts)?;
+                    arena.push(Command {
+                        kind: Kind::Page as u8,
+                        resource: view::FOOTER,
+                        generation: 1,
+                        ..Command::default()
+                    })?;
+                    Ok(Geometry::Grid(geometry))
+                })()
             } else {
                 view::standard(
                     &mut arena,
@@ -275,7 +294,7 @@ impl Home {
         if !self.model.with(|model| model.publish(geometry)) {
             return Some(false);
         }
-        let refresh = if self.clean_initial && snapshot.first_render == 0 {
+        let refresh = if self.clean_initial && !snapshot.first_render {
             Refresh::Half
         } else {
             Refresh::Fast
@@ -288,11 +307,11 @@ impl Home {
             }
         }
         let after = self.model.with(|model| model.painted(changed));
-        if after.invalidate != 0 {
+        if after == xp_ui::home::AfterPaint::Repaint {
             (self.request_update)();
         }
-        if after.kind == 4 {
-            let height = if snapshot.grid != 0 {
+        if after == xp_ui::home::AfterPaint::LoadCovers {
+            let height = if snapshot.grid {
                 if frame.paint.grid_height > 0 {
                     frame.paint.grid_height
                 } else {
@@ -307,14 +326,14 @@ impl Home {
                 identities,
                 &mut frame.paint.covers,
                 height,
-                snapshot.grid != 0,
+                snapshot.grid,
                 || {
                     *rendered = false;
                     (self.request_update)();
                 },
             );
             self.model.with(Model::loaded);
-            if snapshot.grid != 0 {
+            if snapshot.grid {
                 frame.paint.refresh_paths(self.services);
                 (self.request_update)();
             }
@@ -381,7 +400,6 @@ impl PaintState {
                         width: info.width,
                         height: info.height,
                         status: if info.valid != 0 { 2 } else { 0 },
-                        reserved: [0; 3],
                     };
                 }
             }
@@ -428,7 +446,7 @@ impl PaintContext<'_> {
                     || (view::COVER..view::COVER + this.identities.len() as u32).contains(&handle)
                     || (view::MENU_ICON..view::MENU_ICON + this.state.texts.count as u32)
                         .contains(&handle)
-                    || this.state.snapshot.grid != 0
+                    || this.state.snapshot.grid
                         && ((grid::GRID_COVER..grid::GRID_COVER + this.identities.len() as u32)
                             .contains(&handle)
                             || (grid::GRID_ICON..grid::GRID_ICON + 6).contains(&handle))),
@@ -449,7 +467,7 @@ impl PaintContext<'_> {
             return;
         }
         let rect = command.rect;
-        if this.state.snapshot.grid != 0 {
+        if this.state.snapshot.grid {
             if (grid::GRID_COVER..grid::GRID_COVER + this.identities.len() as u32).contains(&handle)
             {
                 let index = (handle - grid::GRID_COVER) as usize;
@@ -486,12 +504,12 @@ impl PaintContext<'_> {
         }
         match handle {
             view::HEADER => {
-                let title =
-                    if this.state.snapshot.grid == 0 && this.state.layout.continue_in_menu != 0 {
-                        this.identities.first().map(|book| book.title.wire())
-                    } else {
-                        None
-                    };
+                let title = if !this.state.snapshot.grid && this.state.layout.continue_in_menu != 0
+                {
+                    this.identities.first().map(|book| book.title.wire())
+                } else {
+                    None
+                };
                 unsafe {
                     (this.services.header_draw)(
                         rect,
@@ -506,18 +524,18 @@ impl PaintContext<'_> {
                 let translate = this.services.translate;
                 let labels = unsafe {
                     [
-                        if this.state.snapshot.continuing != 0 {
+                        if this.state.snapshot.continuing {
                             translate(STR_RESUME)
                         } else {
                             abi::Text::from_bytes(&b"\0"[..0])
                         },
                         translate(STR_SELECT),
-                        translate(if this.state.snapshot.grid != 0 {
+                        translate(if this.state.snapshot.grid {
                             STR_DIR_LEFT
                         } else {
                             STR_DIR_UP
                         }),
-                        translate(if this.state.snapshot.grid != 0 {
+                        translate(if this.state.snapshot.grid {
                             STR_DIR_RIGHT
                         } else {
                             STR_DIR_DOWN
@@ -596,7 +614,6 @@ fn standard_layout(theme: abi::Theme) -> view::Layout {
         theme: theme.theme,
         continue_in_menu: theme.continue_in_menu,
         columns: theme.columns,
-        reserved: 0,
     }
 }
 
@@ -620,6 +637,343 @@ fn grid_layout(theme: abi::Theme, progress: i32, services: &abi::Resources) -> g
         tab_offset: theme.tab_offset,
         touch: theme.touch,
         body_bold: theme.body_bold,
-        reserved: [0; 2],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::boxed::Box;
+    use core::sync::atomic::{AtomicU8, Ordering};
+    use xp_ui::home::view::Texts as _;
+    static WRAPS: AtomicU8 = AtomicU8::new(0);
+    unsafe extern "C" fn wrap(
+        text: abi::Text,
+        _: abi::TextLayout,
+        sink: abi::TextSink,
+        context: *mut c_void,
+    ) -> u8 {
+        WRAPS.fetch_add(1, Ordering::Relaxed);
+        let count = unsafe { text.bytes().unwrap() }[0] - b'0';
+        for _ in 0..count {
+            if unsafe { sink(context, abi::Text::from_bytes(b"line")) } == 0 {
+                return 0;
+            }
+        }
+        1
+    }
+    unsafe extern "C" fn width(_: abi::Text, _: i32, _: u8) -> i32 {
+        4
+    }
+
+    #[test]
+    fn validation_does_not_wrap() {
+        let mut services = super::super::test_resources::resources();
+        services.text_wrap = wrap;
+        services.text_width = width;
+        let services = Box::leak(Box::new(services));
+        let identities: Vec<_> = [b"2", b"3", b"1"]
+            .into_iter()
+            .map(|title| Identity {
+                path: Text::default(),
+                title: Text::copy(title).unwrap(),
+                author: Text::default(),
+            })
+            .collect();
+        let mut state = PaintState::default();
+        WRAPS.store(0, Ordering::Relaxed);
+        for book in 0..3 {
+            Texts {
+                identities: &identities,
+                prepared: &mut state.texts,
+                services,
+            }
+            .wrap(view::TITLE + book, 1, 40, 3, false)
+            .unwrap();
+        }
+        assert_eq!(WRAPS.load(Ordering::Relaxed), 3);
+        let mut context = PaintContext {
+            state: &mut state,
+            identities: &identities,
+            services,
+        };
+        for (book, count) in [2, 3, 1].into_iter().enumerate() {
+            for line in 0..4 {
+                let handle = super::super::home_text::WRAPPED_TITLE + book as u32 * 4 + line;
+                assert_eq!(
+                    unsafe {
+                        PaintContext::valid((&mut context as *mut PaintContext).cast(), handle, 1)
+                    } != 0,
+                    line < count
+                );
+                assert_eq!(
+                    unsafe {
+                        PaintContext::valid((&mut context as *mut PaintContext).cast(), handle, 2)
+                    },
+                    0
+                );
+            }
+        }
+        assert_eq!(
+            WRAPS.load(Ordering::Relaxed),
+            3,
+            "validation must not wrap prepared titles"
+        );
+    }
+    use core::sync::atomic::AtomicBool;
+    use xp_ui::model::{BACK, CONFIRM, NAV_NEXT, POWER, TOUCH_HELD, TOUCH_PRESSED, TOUCH_RELEASED};
+    static BUILD_OK: AtomicBool = AtomicBool::new(true);
+    static PAINT_OK: AtomicBool = AtomicBool::new(true);
+    static GRID_PAINT: AtomicBool = AtomicBool::new(false);
+    static ENTERING: core::sync::atomic::AtomicPtr<Home> =
+        core::sync::atomic::AtomicPtr::new(core::ptr::null_mut());
+    unsafe extern "C" fn noop() {}
+    unsafe extern "C" fn diagnostic(_: u8, _: u32, _: u32) {}
+    unsafe extern "C" fn display_geometry() -> abi::DisplayGeometry {
+        abi::DisplayGeometry {
+            width: 480,
+            height: 800,
+            orientation: 0,
+            frame_available: 0,
+        }
+    }
+    unsafe extern "C" fn settings() -> abi::HomeSettings {
+        abi::HomeSettings {
+            grid: 0,
+            plugins: 0,
+            opds: 0,
+            library_metadata: 0,
+        }
+    }
+    unsafe extern "C" fn theme(out: *mut abi::Theme) {
+        unsafe { *out = core::mem::zeroed() };
+        let out = unsafe { &mut *out };
+        out.screen = Rect {
+            x: 0,
+            y: 0,
+            w: 480,
+            h: 800,
+        };
+        out.content = Rect {
+            x: 6,
+            y: 0,
+            w: 468,
+            h: 800,
+        };
+        out.safe = out.screen;
+        out.title_font = 12;
+        out.small_font = 10;
+        out.tiny_font = 8;
+        out.body_font = 12;
+        out.top_padding = 10;
+        out.header_height = 50;
+        out.home_top = 60;
+        out.tile_height = 250;
+        out.cover_height = 180;
+        out.side_padding = 20;
+        out.spacing = 10;
+        out.menu_top = 12;
+        out.menu_height = 42;
+        out.menu_gap = 6;
+        out.hints_height = 40;
+        out.scroll_width = 4;
+        out.scroll_offset = 6;
+        out.columns = 3;
+        out.tab_height = 40;
+    }
+    unsafe extern "C" fn recents(sink: abi::BookSink, context: *mut c_void) -> u8 {
+        let empty = abi::Text::from_bytes(b"");
+        for path in [b"/one".as_slice(), b"/two", b"/three"] {
+            if let Some(home) = unsafe { ENTERING.load(Ordering::Relaxed).as_ref() } {
+                assert_eq!(unsafe { home.render(&mut view::Widths::default()) }, None);
+            }
+            let book = abi::Book {
+                path: abi::Text::from_bytes(path),
+                title: empty,
+                author: empty,
+                cover: empty,
+            };
+            if unsafe { sink(context, &book) } == 0 {
+                return 0;
+            }
+        }
+        1
+    }
+    unsafe extern "C" fn measure(text: abi::Text, _: i32, _: u8) -> i32 {
+        if BUILD_OK.load(Ordering::Relaxed) {
+            text.len as i32 * 6
+        } else {
+            i32::MAX
+        }
+    }
+    unsafe extern "C" fn line(_: i32) -> i32 {
+        20
+    }
+    unsafe extern "C" fn translate(_: u16) -> abi::Text {
+        abi::Text::from_bytes(b"label")
+    }
+    unsafe extern "C" fn truncate(
+        text: abi::Text,
+        _: abi::TextLayout,
+        sink: abi::TextSink,
+        context: *mut c_void,
+    ) -> u8 {
+        unsafe { sink(context, text) }
+    }
+    unsafe extern "C" fn region(_: Rect) -> usize {
+        0
+    }
+    unsafe extern "C" fn paint(scene: *const SceneView, _: *const Paint) -> u8 {
+        if GRID_PAINT.load(Ordering::Relaxed) {
+            let scene = unsafe { &*scene };
+            let commands =
+                unsafe { core::slice::from_raw_parts(scene.commands, scene.command_count.into()) };
+            assert_eq!(commands.first().unwrap().kind, Kind::Clear as u8);
+            assert_eq!(commands.last().unwrap().kind, Kind::Page as u8);
+            assert_eq!(commands.last().unwrap().resource, view::FOOTER);
+        }
+        u8::from(PAINT_OK.load(Ordering::Relaxed))
+    }
+    unsafe extern "C" fn text_height(_: abi::Text, _: abi::TextLayout) -> i32 {
+        20
+    }
+    unsafe extern "C" fn refresh(_: u8) {}
+    fn fixture() -> Home {
+        let mut services = super::super::test_resources::resources();
+        services.settings_snapshot = settings;
+        services.recents_visit = recents;
+        services.theme_snapshot = theme;
+        services.translate = translate;
+        services.text_width = measure;
+        services.line_height = line;
+        services.text_wrap = truncate;
+        services.text_truncate = truncate;
+        services.region_size = region;
+        services.text_box_height = text_height;
+        services.paint_scene = paint;
+        services.refresh = refresh;
+        let mut runtime = super::super::test_resources::runtime();
+        runtime.model_lock = noop;
+        runtime.model_unlock = noop;
+        runtime.diagnostic = diagnostic;
+        runtime.display_geometry = display_geometry;
+        Home::new(
+            Box::leak(Box::new(services)),
+            Box::leak(Box::new(runtime)),
+            || {},
+            0,
+            false,
+        )
+    }
+
+    #[test]
+    fn family_build_and_paint_rejection() {
+        for first in [false, true] {
+            for build_failure in [false, true] {
+                BUILD_OK.store(true, Ordering::Relaxed);
+                PAINT_OK.store(true, Ordering::Relaxed);
+                let home = fixture();
+                ENTERING.store((&home as *const Home).cast_mut(), Ordering::Relaxed);
+                home.enter();
+                ENTERING.store(core::ptr::null_mut(), Ordering::Relaxed);
+                let mut widths = view::Widths::default();
+                let mut updates = 0;
+                let mut effects = 0;
+                let dispatch = |input, updates: &mut u32, effects: &mut u32| {
+                    if let InputResult::Update(update) = home.input(input) {
+                        *updates += 1;
+                        *effects += u32::from(update.action.is_some());
+                    }
+                };
+                dispatch(
+                    Input {
+                        released: CONFIRM,
+                        ..Input::default()
+                    },
+                    &mut updates,
+                    &mut effects,
+                );
+                assert_eq!(updates, 1, "pre-first-paint input remains live");
+                if first {
+                    assert_eq!(unsafe { home.render(&mut widths) }, Some(true));
+                }
+                BUILD_OK.store(!build_failure, Ordering::Relaxed);
+                PAINT_OK.store(build_failure, Ordering::Relaxed);
+                assert_eq!(unsafe { home.render(&mut widths) }, Some(false));
+                let before = updates;
+                let before_effects = effects;
+                for button in [CONFIRM, NAV_NEXT, POWER] {
+                    dispatch(
+                        Input {
+                            pressed: button,
+                            held: button,
+                            held_ms: 1001,
+                            ..Input::default()
+                        },
+                        &mut updates,
+                        &mut effects,
+                    );
+                    dispatch(
+                        Input {
+                            released: button,
+                            held_ms: 1001,
+                            ..Input::default()
+                        },
+                        &mut updates,
+                        &mut effects,
+                    );
+                }
+                dispatch(
+                    Input {
+                        touch_flags: TOUCH_PRESSED | TOUCH_HELD,
+                        ..Input::default()
+                    },
+                    &mut updates,
+                    &mut effects,
+                );
+                dispatch(
+                    Input {
+                        touch_flags: TOUCH_RELEASED,
+                        ..Input::default()
+                    },
+                    &mut updates,
+                    &mut effects,
+                );
+                assert_eq!((updates, effects), (before, before_effects));
+                dispatch(
+                    Input {
+                        released: BACK,
+                        ..Input::default()
+                    },
+                    &mut updates,
+                    &mut effects,
+                );
+                assert_eq!(
+                    effects, before_effects,
+                    "Home Back must not act while rejected"
+                );
+                BUILD_OK.store(true, Ordering::Relaxed);
+                PAINT_OK.store(true, Ordering::Relaxed);
+                assert_eq!(unsafe { home.render(&mut widths) }, Some(true));
+                dispatch(
+                    Input {
+                        released: CONFIRM,
+                        ..Input::default()
+                    },
+                    &mut updates,
+                    &mut effects,
+                );
+                assert_eq!(updates, before + 1);
+            }
+        }
+        let home = fixture();
+        home.model
+            .with(|model| model.complete_entry(HomeState::new(0, true, false, false, false)));
+        GRID_PAINT.store(true, Ordering::Relaxed);
+        assert_eq!(
+            unsafe { home.render(&mut view::Widths::default()) },
+            Some(true)
+        );
+        GRID_PAINT.store(false, Ordering::Relaxed);
     }
 }

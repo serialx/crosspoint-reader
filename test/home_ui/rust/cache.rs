@@ -40,10 +40,10 @@ fn main() {
                 let mut trace = 0;
                 if index < 7 {
                     let cached = state.lookup(index, r);
-                    if cached.bytes != 0 {
+                    if cached.is_some() {
                         trace |= 32;
                     }
-                    if cached.bytes == 0 || flags & 2 != 0 {
+                    if cached.is_none() || flags & 2 != 0 {
                         state.invalidate_slot(index);
                         if status == 0 || status == 3 {
                             trace |= 1;
@@ -53,7 +53,7 @@ fn main() {
                             - i32::from(r.x) / 8)
                             * i32::from(r.h)) as u32;
                         let slot = state.reserve(index, r, needed);
-                        if slot.bytes != 0 {
+                        if slot.is_some() {
                             trace |= 64;
                             state.copied(index, flags & 4 == 0);
                         }
@@ -66,10 +66,10 @@ fn main() {
                     state.used,
                     state.orientation
                 );
-                for s in state.slots {
+                for s in &state.slots {
                     print!(
                         " {},{},{},{},{},{},{}",
-                        s.rect.x, s.rect.y, s.rect.w, s.rect.h, s.offset, s.bytes, s.valid
+                        s.rect.x, s.rect.y, s.rect.w, s.rect.h, s.range.start, s.range.end - s.range.start, u8::from(s.valid)
                     );
                 }
                 println!();

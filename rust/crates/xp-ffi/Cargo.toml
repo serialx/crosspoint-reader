@@ -17,6 +17,7 @@ xp-core = { path = "../xp-core" }
 xp-display = { path = "../xp-display", optional = true, default-features = false }
 
 [features]
+app-test = []
 reader-strips = ["strip-spike", "display-api", "xp-core/reader-strips"]
 strip-spike = ["xp-core/strip-spike", "dep:embedded-graphics-core"]
 display-api = ["dep:xp-display"]

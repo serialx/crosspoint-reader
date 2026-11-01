@@ -5,7 +5,6 @@ use crate::scene::{Arena, Command, Error, Kind, Rect};
 pub const PROGRESS: u32 = 0x8000_0013;
 pub const GRID_COVER: u32 = 0x6000;
 pub const GRID_ICON: u32 = 0x7000;
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Layout {
     pub screen: Rect,
@@ -26,9 +25,7 @@ pub struct Layout {
     pub tab_offset: i16,
     pub touch: u8,
     pub body_bold: u8,
-    pub reserved: [u8; 2],
 }
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Geometry {
     pub screen: Rect,
@@ -296,7 +293,7 @@ pub fn view(
     let mut g = Geometry {
         screen: l.screen,
         books: s.books,
-        tab_count: if s.opds != 0 || s.plugins != 0 { 5 } else { 4 },
+        tab_count: if s.opds || s.plugins { 5 } else { 4 },
         min_touch: 44,
         ..Geometry::default()
     };

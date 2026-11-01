@@ -12,3 +12,6 @@ xp-core = { path = "../../../rust/crates/xp-core" }
 
 [lib]
 path = "lib.rs"
+
+[features]
+app-test = []

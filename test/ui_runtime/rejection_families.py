@@ -54,27 +54,6 @@ class UtilityActivity:public Probe {
   void applyRustEffect(const XpUiEffect&) override {applyUtilityEffect(pendingEffect);}
   void applyUtilityEffect(const XpUiUtilityEffect& e) {effects += e.navigation.kind != 0;writes += e.writes;}
 };
-struct CoverGridHomeUi {
- static constexpr int THUMB_HEIGHT=100;
- bool prepare(const XpUiHomeGridGeometry&){return false;}
- void refreshCoverPaths(){}
-};
-class HomeActivity:public Probe {
- public:
-  using Probe::Probe;
-  XpUiHomeState state{};
-  XpUiHomeTouch publishedTouch{};
-  XpUiHomeGridGeometry publishedGrid{};
-  CoverGridHomeUi* coverGridUi=nullptr;
-  struct {XpUiHomeGridGeometry grid{};XpUiHomeLayout layout{};} frame;
-  void loadRecentCovers(int){}
-  void render(RenderLock&&) override;
-  bool touchActivated=false;
-  XpUiEffect updateRust(const XpUiInput&) override;
-  XpUiInterest rustInterest(uint32_t now) const override {return xp_ui_home_interest(&state,now);}
-  void cancelRejectedInput(const XpUiInput&) override {}
-  void rustSceneFailed() override {touchActivated=false;}
-};
 class BmpViewerActivity:public Probe {
  public:
   using Probe::Probe;
@@ -164,7 +143,6 @@ for name,path,sigs in [
     ('FileBrowserActivity','home',['XpUiEffect','XpUiInterest','void rustSceneFailed','void cancelRejectedInput']),
     ('LibraryListActivity','library',['XpUiEffect','XpUiInterest','void rustSceneFailed','void cancelRejectedInput']),
     ('UtilityActivity','util',['XpUiEffect','void rustSceneFailed','void cancelRejectedInput']),
-    ('HomeActivity','home',['XpUiEffect','void render']),
     ('BmpViewerActivity','util',['XpUiEffect','XpUiInterest']),
     ('EpubReaderFootnoteSelectActivity','reader',['XpUiEffect']),
     ('ReaderChromeListActivity','reader',['XpUiEffect','XpUiInterest','void rustSceneFailed','bool renderList'])]:
@@ -180,7 +158,6 @@ template<class Family> void exercise(int kind=-1) {
     MappedInputManager input;
     Family family(renderer,input);
     if constexpr(std::is_same_v<Family,UtilityActivity>) {family.state.kind=kind;xp_ui_utility_init(&family.state);}
-    if constexpr(std::is_same_v<Family,HomeActivity>) xp_ui_home_init(&family.state,3,0,0,0,1,0);
     if constexpr(std::is_same_v<Family,ReaderChromeListActivity>) {family.kind=kind;xp_ui_reader_list_init(&family.state,0);}
     if constexpr(std::is_same_v<Family,FileBrowserActivity>) xp_ui_file_init(&family.state,0);
     if constexpr(std::is_same_v<Family,LibraryListActivity>) xp_ui_library_init(&family.state);
@@ -203,8 +180,7 @@ template<class Family> void exercise(int kind=-1) {
     input.touchFlags=XP_UI_TOUCH_RELEASED;family.loop();
     assert(family.updates==before && family.effects==effects && family.writes==writes);
     input={};input.released=1u<<unsigned(MappedInputManager::Button::Back);family.loop();
-    if constexpr(std::is_same_v<Family,HomeActivity>) assert(family.effects==effects);
-    else assert(family.effects==effects+1 && family.writes==writes);
+    assert(family.effects==effects+1 && family.writes==writes);
     input={};family.buildOk=renderer.paintOk=true;paint();
     input.released=1u<<unsigned(MappedInputManager::Button::Confirm);family.loop();
     assert(family.updates==before+1);
@@ -241,7 +217,7 @@ int main() {
   for(int kind:{XP_UI_READER_MENU,XP_UI_READER_CHAPTERS,XP_UI_READER_BOOKMARKS,XP_UI_READER_CLIPPINGS}) exercise<ReaderChromeListActivity>(kind);
   exercise<FileBrowserActivity>();exercise<LibraryListActivity>();
   exercise<TextSettingsActivity>();exercise<XtcReaderChapterSelectionActivity>();
-  exercise<HomeActivity>();exercise<BmpViewerActivity>();exercise<EpubReaderFootnoteSelectActivity>();
+  exercise<BmpViewerActivity>();exercise<EpubReaderFootnoteSelectActivity>();
 }
 '''
 with tempfile.TemporaryDirectory() as directory:
@@ -255,4 +231,7 @@ with tempfile.TemporaryDirectory() as directory:
                     str(out/'RustActivityAdapter.cpp'),str(ROOT/'test/cmake/xp_ffi_host.cpp'),
                     str(ARCHIVE),'-o',str(out/'families')],check=True)
     subprocess.run([str(out/'families')],check=True,timeout=30)
+subprocess.run(['cargo', 'test', '--offline', '--locked', '--manifest-path',
+                str(SOURCE / 'test/home_ui/app_owner/Cargo.toml'),
+                'app::home::tests::family_build_and_paint_rejection', '--', '--exact'], check=True)
 print('Family build/paint rejection: before/after publication, activation, navigation, touch, Back and recovery pass')

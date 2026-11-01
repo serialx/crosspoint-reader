@@ -1,6 +1,6 @@
 //! Home navigation uses the same mapped snapshot as the Activity owner.
 use crate::{
-    model::{self, Effect, EffectKind, Input, Interest},
+    model::{self, Input, Interest},
     scene::Rect,
 };
 
@@ -11,23 +11,21 @@ pub const PLUGINS: i32 = 103;
 pub const TRANSFER: i32 = 104;
 pub const SETTINGS: i32 = 105;
 
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct HomeState {
     pub selected: i32,
     pub last_repeat: u32,
     pub books: u8,
-    pub grid: u8,
-    pub opds: u8,
-    pub plugins: u8,
-    pub continuing: u8,
-    pub first_render: u8,
-    pub covers_loaded: u8,
-    pub loading: u8,
+    pub grid: bool,
+    pub opds: bool,
+    pub plugins: bool,
+    pub continuing: bool,
+    pub first_render: bool,
+    pub covers_loaded: bool,
+    pub loading: bool,
 }
 
 /// Geometry from the completed paint, with uniform rows/columns routed arithmetically.
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct HomeTouch {
     pub cover: Rect,
@@ -37,12 +35,34 @@ pub struct HomeTouch {
     pub continue_in_menu: u8,
 }
 
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct HomeUpdate {
-    pub effect: Effect,
-    pub haptic: u8,
-    pub reserved: [u8; 3],
+    pub action: Option<Action>,
+    pub invalidate: u8,
+    pub haptic: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Menu {
+    Files,
+    Library,
+    Opds,
+    Plugins,
+    Transfer,
+    Settings,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Action {
+    Book(u8),
+    Menu(Menu),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AfterPaint {
+    Idle,
+    Repaint,
+    LoadCovers,
 }
 
 impl HomeState {
@@ -57,8 +77,8 @@ impl HomeState {
             keys[count] = key;
             count += 1;
         }
-        if self.plugins != 0 || self.opds != 0 {
-            keys[count] = if self.plugins != 0 { 3 } else { 4 };
+        if self.plugins || self.opds {
+            keys[count] = if self.plugins { 3 } else { 4 };
             count += 1;
         }
         for key in [5, 6] {
@@ -67,49 +87,43 @@ impl HomeState {
         }
         (keys, count)
     }
-    pub fn painted(&mut self, thumb_changed: bool) -> Effect {
+    pub fn painted(&mut self, thumb_changed: bool) -> AfterPaint {
         if thumb_changed {
-            self.covers_loaded = 0;
+            self.covers_loaded = false;
         }
-        if self.first_render == 0 {
-            self.first_render = 1;
-            return Effect {
-                invalidate: 1,
-                ..Effect::default()
-            };
+        if !self.first_render {
+            self.first_render = true;
+            return AfterPaint::Repaint;
         }
-        if self.covers_loaded == 0 && self.loading == 0 {
-            self.loading = 1;
-            return Effect {
-                kind: 4,
-                ..Effect::default()
-            };
+        if !self.covers_loaded && !self.loading {
+            self.loading = true;
+            return AfterPaint::LoadCovers;
         }
-        Effect::default()
+        AfterPaint::Idle
     }
     pub fn loaded(&mut self) {
-        self.covers_loaded = 1;
-        self.loading = 0;
+        self.covers_loaded = true;
+        self.loading = false;
     }
     pub fn new(books: u8, grid: bool, opds: bool, plugins: bool, continuing: bool) -> Self {
         Self {
             books,
-            grid: u8::from(grid),
-            opds: u8::from(opds),
-            plugins: u8::from(plugins),
-            continuing: u8::from(continuing),
+            grid,
+            opds,
+            plugins,
+            continuing,
             ..Self::default()
         }
     }
     pub fn count(&self) -> i32 {
-        i32::from(self.books) + 4 + i32::from(self.opds != 0 || self.plugins != 0)
+        i32::from(self.books) + 4 + i32::from(self.opds || self.plugins)
     }
     pub fn initial_selection(&mut self, menu: i32) {
         if menu == 0 {
             self.selected = 0;
             return;
         }
-        let slot = self.opds != 0 || self.plugins != 0;
+        let slot = self.opds || self.plugins;
         let index = match menu {
             1 => 0,
             2 => 1,
@@ -127,7 +141,7 @@ impl HomeState {
         self.selected = i32::from(self.books) + index;
     }
     pub fn interest(&self, now: u32) -> Interest {
-        let nav = if self.grid != 0 {
+        let nav = if self.grid {
             model::UP | model::DOWN | model::LEFT | model::RIGHT
         } else {
             model::NAV_NEXT | model::NAV_PREVIOUS
@@ -144,26 +158,27 @@ impl HomeState {
             ..Interest::default()
         }
     }
-    fn activate(&self) -> i32 {
-        if self.selected < i32::from(self.books) {
-            return self.selected;
+    fn activate(&self) -> Option<Action> {
+        if (0..i32::from(self.books)).contains(&self.selected) {
+            return Some(Action::Book(self.selected as u8));
         }
         let index = self.selected - i32::from(self.books);
-        let slot = self.opds != 0 || self.plugins != 0;
-        match index {
-            0 => FILES,
-            1 => LIBRARY,
+        let slot = self.opds || self.plugins;
+        let menu = match index {
+            0 => Menu::Files,
+            1 => Menu::Library,
             2 if slot => {
-                if self.plugins != 0 {
-                    PLUGINS
+                if self.plugins {
+                    Menu::Plugins
                 } else {
-                    OPDS
+                    Menu::Opds
                 }
             }
-            i if i == 2 + i32::from(slot) => TRANSFER,
-            i if i == 3 + i32::from(slot) => SETTINGS,
-            _ => -1,
-        }
+            i if i == 2 + i32::from(slot) => Menu::Transfer,
+            i if i == 3 + i32::from(slot) => Menu::Settings,
+            _ => return None,
+        };
+        Some(Action::Menu(menu))
     }
     fn band(&mut self, base: i32, count: i32, direction: i32, out: &mut HomeUpdate) {
         if count <= 0 {
@@ -180,7 +195,7 @@ impl HomeState {
             } else {
                 (index + count + direction) % count
             };
-        out.effect.invalidate += 1;
+        out.invalidate += 1;
     }
     fn navigate(
         &mut self,
@@ -217,16 +232,15 @@ impl HomeState {
         let touch = input.action != 0 && input.touch_flags & model::TOUCH_RELEASED != 0;
         let bypass = input.swipe == model::SWIPE_UP
             || input.swipe == model::SWIPE_DOWN
-            || (input.released & model::BACK != 0 && self.continuing != 0 && self.books != 0);
+            || (input.released & model::BACK != 0 && self.continuing && self.books != 0);
         let mut result = self.update(input, &HomeTouch::default());
-        result.haptic =
-            u8::from(touch && !bypass && result.effect.kind == EffectKind::Activate as u8);
+        result.haptic = touch && !bypass && result.action.is_some();
         result
     }
     pub fn update(&mut self, input: Input, published: &HomeTouch) -> HomeUpdate {
         let mut out = HomeUpdate::default();
         let count = self.count();
-        if self.grid == 0 {
+        if !self.grid {
             self.navigate(input, model::NAV_NEXT, 0, count, 1, &mut out);
             self.navigate(input, model::NAV_PREVIOUS, 0, count, -1, &mut out);
         }
@@ -243,24 +257,21 @@ impl HomeState {
             );
             return out;
         }
-        if input.released & model::BACK != 0 && self.continuing != 0 && self.books != 0 {
-            out.effect.kind = EffectKind::Activate as u8;
-            out.effect.value = 0;
+        if input.released & model::BACK != 0 && self.continuing && self.books != 0 {
+            out.action = Some(Action::Book(0));
             return out;
         }
-        if self.grid != 0 {
+        if self.grid {
             if input.touch_flags & model::TOUCH_RELEASED != 0
                 && input.action != 0
                 && (0..count).contains(&input.value)
             {
                 self.selected = input.value;
-                out.effect.kind = EffectKind::Activate as u8;
-                out.effect.value = self.activate();
+                out.action = self.activate();
                 return out;
             }
             if input.released & model::CONFIRM != 0 {
-                out.effect.kind = EffectKind::Activate as u8;
-                out.effect.value = self.activate();
+                out.action = self.activate();
                 return out;
             }
             let books = i32::from(self.books);
@@ -312,20 +323,18 @@ impl HomeState {
                 if input.touch_flags & model::TOUCH_PRESSED != 0 {
                     if self.selected != selected {
                         self.selected = selected;
-                        out.effect.invalidate += 1;
+                        out.invalidate += 1;
                     }
                 } else {
                     self.selected = selected;
-                    out.haptic = 1;
-                    out.effect.kind = EffectKind::Activate as u8;
-                    out.effect.value = self.activate();
+                    out.haptic = true;
+                    out.action = self.activate();
                 }
                 return out;
             }
         }
         if input.released & model::CONFIRM != 0 {
-            out.effect.kind = EffectKind::Activate as u8;
-            out.effect.value = self.activate();
+            out.action = self.activate();
         }
         out
     }
@@ -333,7 +342,6 @@ impl HomeState {
 
 pub mod activity;
 pub mod cache;
-pub mod ffi;
 pub mod file;
 pub mod library;
 pub mod view;

@@ -97,7 +97,7 @@ impl Model {
         if !self.state.interest(input.now_ms).due(&input) {
             return InputResult::Idle;
         }
-        let update = if self.state.grid != 0 {
+        let update = if self.state.grid {
             self.state.update_grid(
                 input,
                 match &self.geometry {
@@ -115,7 +115,7 @@ impl Model {
         InputResult::Update(update)
     }
 
-    pub fn painted(&mut self, changed: bool) -> crate::model::Effect {
+    pub fn painted(&mut self, changed: bool) -> super::AfterPaint {
         self.state.painted(changed)
     }
 
@@ -126,8 +126,9 @@ impl Model {
 
 #[cfg(test)]
 mod tests {
+    use super::super::Action;
     use super::*;
-    use crate::model::{EffectKind, BACK, CONFIRM};
+    use crate::model::{BACK, CONFIRM};
 
     #[test]
     fn notification_during_entry_waits_for_complete_resources() {
@@ -151,8 +152,7 @@ mod tests {
         }) else {
             panic!("entry never became ready")
         };
-        assert_eq!(result.effect.kind, EffectKind::Activate as u8);
-        assert_eq!(result.effect.value, 0);
+        assert_eq!(result.action, Some(Action::Book(0)));
     }
 
     #[test]
@@ -183,8 +183,7 @@ mod tests {
         }) else {
             panic!("fresh input stayed suppressed")
         };
-        assert_eq!(result.effect.kind, EffectKind::Activate as u8);
-        assert_eq!(result.effect.value, 0);
+        assert_eq!(result.action, Some(Action::Book(0)));
     }
 
     #[test]

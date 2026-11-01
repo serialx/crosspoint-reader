@@ -84,7 +84,7 @@ fn main() {
                                 tab_offset: if touch != 0 { 3 } else { 0 },
                                 touch,
                                 body_bold: 0,
-                                reserved: [0; 2],
+
                             };
                             let mut s = HomeState::new(books, true, opds != 0, false, books != 0);
                             s.selected = selected;

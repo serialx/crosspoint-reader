@@ -84,20 +84,24 @@ fn main() {
                             continue_in_menu: 0,
                         };
                         let update = h.update(input, &touch);
-                        let effect = if update.effect.kind != 0 {
-                            update.effect.value
-                        } else {
-                            -1
+                        let effect = match update.action {
+                            Some(home::Action::Book(index)) => i32::from(index),
+                            Some(home::Action::Menu(menu)) => match menu {
+                                home::Menu::Files => 100, home::Menu::Library => 101,
+                                home::Menu::Opds => 102, home::Menu::Plugins => 103,
+                                home::Menu::Transfer => 104, home::Menu::Settings => 105,
+                            },
+                            None => -1,
                         };
-                        let mut updates = update.effect.invalidate as i32;
+                        let mut updates = update.invalidate as i32;
                         println!(
                             "home {grid} {count} {slot} {initial} {event}: {} {effect} {updates} {}",
-                            h.selected, update.haptic
+                            h.selected, u8::from(update.haptic)
                         );
                         if (6..12).contains(&event) {
                             for ms in [500, 501, 1001, 1002] {
                                 input.now_ms = 5000 + ms;
-                                updates += h.update(input, &touch).effect.invalidate as i32;
+                                updates += h.update(input, &touch).invalidate as i32;
                                 println!("repeat {ms}: {} {updates}", h.selected);
                             }
                         }

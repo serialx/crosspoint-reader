@@ -39,7 +39,18 @@ struct HalGPIO {
 harness = r"""
 #include <cassert>
 #include "MappedInputManager.h"
+#include "app_leaves.h"
 class GfxRenderer {};
+MappedInputManager* testInput = nullptr;
+struct Compatibility {
+  XpAppCompatibility table{};
+  struct InputProxy { bool hasRemoteClick() const { return testInput->hasRemoteClick(); } } mappedInput;
+  HomeButtonAction homeButtonAction() const {
+    return table.home_action ? static_cast<HomeButtonAction>(table.home_action()) : HomeButtonAction::Ignore;
+  }
+} activityManager;
+bool send(XpAppEvent event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
+
 unsigned long millis() { return 1000; }
 constexpr unsigned long TOUCH_HELD_OVERRIDE_WINDOW_MS = 250;
 struct CrossPointSettings {
@@ -105,9 +116,16 @@ int main() {
 }
 """
 manager_source = (ROOT / "src/activities/ActivityManager.cpp").read_text()
-remote_turn = "bool ActivityManager::remoteTurn(" + manager_source.split(
-    "bool ActivityManager::remoteTurn(", 1
-)[1].split("bool ActivityManager::handleForcedRefresh()", 1)[0]
+def method(text, signature):
+    start = text.index(signature)
+    end = text.index('{', start) + 1
+    level = 1
+    while level:
+        level += (text[end] == '{') - (text[end] == '}')
+        end += 1
+    return text[start:end]
+remote_turn = method(manager_source, "bool ActivityManager::remoteTurn(")
+reader_turn = method(manager_source, "[](void* activity, uint8_t forward, uint8_t chapter)")
 harness = harness.replace("int main() {", r"""
 #include <atomic>
 #include <memory>
@@ -116,7 +134,7 @@ struct RenderLock { static bool peek() { return false; } };
 struct ReaderActivity {
   std::atomic<bool> pageRendered{true};
   bool acceptsRemoteInput() const { return pageRendered.load(std::memory_order_acquire); }
-  bool menu = false;
+  bool menu = false, context = true, foregroundReader = true;
   int pages = 0, chapters = 0;
   bool inputOverPage() const { return menu; }
   bool pageTurn(bool forward) { pages += forward ? 1 : -1; return true; }
@@ -124,8 +142,9 @@ struct ReaderActivity {
 };
 struct ActivityManager {
   MappedInputManager& mappedInput;
-  std::unique_ptr<ReaderActivity> currentActivity = std::make_unique<ReaderActivity>();
-  bool context = true, foregroundReader = true;
+  ReaderActivity* currentActivity = new ReaderActivity();
+  bool& context = currentActivity->context;
+  bool& foregroundReader = currentActivity->foregroundReader;
   bool isRemoteReaderContext() const { return context; }
   bool isForegroundReader() const { return foregroundReader; }
   bool remoteClick(RemoteButton button) { return mappedInput.injectRemoteClick(button); }
@@ -135,9 +154,33 @@ struct ActivityManager {
 """ + remote_turn + r"""
 void checkRouting(MappedInputManager& input) {
   ActivityManager manager{input};
+  testInput = &input;
+  static auto legacy = appTestLegacy();
+  static auto resources = appTestResources();
+  static auto runtime = appTestRuntime();
+  legacy.destroy = [](void* object) { delete static_cast<ReaderActivity*>(object); };
+  legacy.facts = [](const void* object) -> XpAppLegacyFacts {
+    const auto* reader = static_cast<const ReaderActivity*>(object);
+    XpAppLegacyFacts facts{};
+    facts.reader = reader->foregroundReader;
+    facts.remote_input = reader->context && reader->acceptsRemoteInput();
+    facts.input_over_page = reader->inputOverPage();
+    return facts;
+  };
+  legacy.reader_turn = READER_TURN_LEAF;
+  runtime.input_remote_click = [](uint8_t button) -> uint8_t { return testInput->injectRemoteClick(static_cast<RemoteButton>(button)); };
+  runtime.render_lock = []() -> void* { return testInput; };
+  runtime.render_try_lock = runtime.render_lock;
+  runtime.ble_before_screen_change = [](uint8_t) -> uint8_t { return 1; };
+  const XpAppPlatform platform{&legacy, &resources, &runtime};
+  assert(xp_app_init(&platform, &activityManager.table) == XP_APP_OK);
+  XpAppEvent adopt{.kind = XP_APP_ADOPT_REPLACE};
+  adopt.value.adopt_replace = manager.currentActivity;
+  assert(send(adopt));
   input.update();
   assert(manager.remoteTurn(true, false));
   assert(manager.currentActivity->pages == 1 && !input.hasRemoteClick());
+  xp_app_loop();  // Complete the requested frame before overlay remote-click routing.
   for (bool reader : {true, false}) {
     manager.foregroundReader = reader;
     manager.currentActivity->menu = true;
@@ -158,6 +201,7 @@ void checkRouting(MappedInputManager& input) {
 }
 int main() {
 """)
+harness = harness.replace("READER_TURN_LEAF", reader_turn)
 harness = harness.replace("  using Button =", "  checkRouting(input);\n  using Button =")
 with tempfile.TemporaryDirectory() as directory:
     directory = Path(directory)
@@ -167,7 +211,7 @@ with tempfile.TemporaryDirectory() as directory:
     cpp.write_text("#include <initializer_list>\n" + harness)
     subprocess.run([
         "c++", "-std=c++20", "-DFREEINK_CAP_TOUCH=0", "-I", str(directory),
-        "-I", str(ROOT / "src"), str(cpp), *rust_link_flags(), "-o", str(executable),
+        "-I", str(ROOT / "src"), "-I", str(ROOT / "test/ui_runtime"), str(cpp), *rust_link_flags(), "-o", str(executable),
     ], check=True)
     subprocess.run([str(executable)], check=True)
 print("Remote button input regression checks passed")

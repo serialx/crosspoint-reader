@@ -208,3 +208,146 @@ pub fn resources() -> Resources {
         buffer_release,
     }
 }
+
+unsafe extern "C" fn runtime_input_mapped_snapshot(
+    _arg0: u8,
+    _arg1: u8,
+    _arg2: u8,
+    _arg3: *mut MappedSnapshot,
+) {
+    panic!("unexpected runtime callback: input_mapped_snapshot")
+}
+unsafe extern "C" fn runtime_input_shared_power_mode(_arg0: u8) {
+    panic!("unexpected runtime callback: input_shared_power_mode")
+}
+unsafe extern "C" fn runtime_input_power_confirm(_arg0: u8) {
+    panic!("unexpected runtime callback: input_power_confirm")
+}
+unsafe extern "C" fn runtime_input_remote_click(_arg0: u8) -> u8 {
+    panic!("unexpected runtime callback: input_remote_click")
+}
+unsafe extern "C" fn runtime_loop_settings(_arg0: *mut Settings) {
+    panic!("unexpected runtime callback: loop_settings")
+}
+unsafe extern "C" fn runtime_display_geometry() -> DisplayGeometry {
+    panic!("unexpected runtime callback: display_geometry")
+}
+unsafe extern "C" fn runtime_header_back_clear() {
+    panic!("unexpected runtime callback: header_back_clear")
+}
+unsafe extern "C" fn runtime_now_ms() -> u32 {
+    panic!("unexpected runtime callback: now_ms")
+}
+unsafe extern "C" fn runtime_delay_ms(_arg0: u32) {
+    panic!("unexpected runtime callback: delay_ms")
+}
+unsafe extern "C" fn runtime_idle_wait(_arg0: u32, _arg1: u32) {
+    panic!("unexpected runtime callback: idle_wait")
+}
+unsafe extern "C" fn runtime_yield_task() {
+    panic!("unexpected runtime callback: yield_task")
+}
+unsafe extern "C" fn runtime_power_saving(_arg0: u8) {
+    panic!("unexpected runtime callback: power_saving")
+}
+unsafe extern "C" fn runtime_tilt_update(_arg0: u8, _arg1: u8, _arg2: u8) -> u8 {
+    panic!("unexpected runtime callback: tilt_update")
+}
+unsafe extern "C" fn runtime_battery_capacity_step() -> u8 {
+    panic!("unexpected runtime callback: battery_capacity_step")
+}
+unsafe extern "C" fn runtime_fading_fix(_arg0: u8) {
+    panic!("unexpected runtime callback: fading_fix")
+}
+unsafe extern "C" fn runtime_memory_diagnostic() {
+    panic!("unexpected runtime callback: memory_diagnostic")
+}
+unsafe extern "C" fn runtime_console_service() {
+    panic!("unexpected runtime callback: console_service")
+}
+unsafe extern "C" fn runtime_screenshot() {
+    panic!("unexpected runtime callback: screenshot")
+}
+unsafe extern "C" fn runtime_touch_feedback(_arg0: u8) {
+    panic!("unexpected runtime callback: touch_feedback")
+}
+unsafe extern "C" fn runtime_frontlight_present() -> u8 {
+    panic!("unexpected runtime callback: frontlight_present")
+}
+unsafe extern "C" fn runtime_frontlight_state() -> u8 {
+    panic!("unexpected runtime callback: frontlight_state")
+}
+unsafe extern "C" fn runtime_frontlight_set(_arg0: u8) {
+    panic!("unexpected runtime callback: frontlight_set")
+}
+unsafe extern "C" fn runtime_settings_save(_arg0: *const Settings) {
+    panic!("unexpected runtime callback: settings_save")
+}
+unsafe extern "C" fn runtime_ble_tick(_arg0: *const BleScene) -> u8 {
+    panic!("unexpected runtime callback: ble_tick")
+}
+unsafe extern "C" fn runtime_ble_before_screen_change(_arg0: u8) -> u8 {
+    panic!("unexpected runtime callback: ble_before_screen_change")
+}
+unsafe extern "C" fn runtime_sleep_enter(_arg0: u8) {
+    panic!("unexpected runtime callback: sleep_enter")
+}
+unsafe extern "C" fn runtime_diagnostic(_arg0: u8, _arg1: u32, _arg2: u32) {
+    panic!("unexpected runtime callback: diagnostic")
+}
+unsafe extern "C" fn runtime_render_lock() -> *mut core::ffi::c_void {
+    panic!("unexpected runtime callback: render_lock")
+}
+unsafe extern "C" fn runtime_render_try_lock() -> *mut core::ffi::c_void {
+    panic!("unexpected runtime callback: render_try_lock")
+}
+unsafe extern "C" fn runtime_render_unlock(_arg0: *mut core::ffi::c_void) {
+    panic!("unexpected runtime callback: render_unlock")
+}
+unsafe extern "C" fn runtime_model_lock() {
+    panic!("unexpected runtime callback: model_lock")
+}
+unsafe extern "C" fn runtime_model_unlock() {
+    panic!("unexpected runtime callback: model_unlock")
+}
+unsafe extern "C" fn runtime_notify_render() {
+    panic!("unexpected runtime callback: notify_render")
+}
+
+pub fn runtime() -> Runtime {
+    Runtime {
+        input_mapped_snapshot: runtime_input_mapped_snapshot,
+        input_shared_power_mode: runtime_input_shared_power_mode,
+        input_power_confirm: runtime_input_power_confirm,
+        input_remote_click: runtime_input_remote_click,
+        loop_settings: runtime_loop_settings,
+        display_geometry: runtime_display_geometry,
+        header_back_clear: runtime_header_back_clear,
+        now_ms: runtime_now_ms,
+        delay_ms: runtime_delay_ms,
+        idle_wait: runtime_idle_wait,
+        yield_task: runtime_yield_task,
+        power_saving: runtime_power_saving,
+        tilt_update: runtime_tilt_update,
+        battery_capacity_step: runtime_battery_capacity_step,
+        fading_fix: runtime_fading_fix,
+        memory_diagnostic: runtime_memory_diagnostic,
+        console_service: runtime_console_service,
+        screenshot: runtime_screenshot,
+        touch_feedback: runtime_touch_feedback,
+        frontlight_present: runtime_frontlight_present,
+        frontlight_state: runtime_frontlight_state,
+        frontlight_set: runtime_frontlight_set,
+        settings_save: runtime_settings_save,
+        ble_tick: runtime_ble_tick,
+        ble_before_screen_change: runtime_ble_before_screen_change,
+        sleep_enter: runtime_sleep_enter,
+        diagnostic: runtime_diagnostic,
+        render_lock: runtime_render_lock,
+        render_try_lock: runtime_render_try_lock,
+        render_unlock: runtime_render_unlock,
+        model_lock: runtime_model_lock,
+        model_unlock: runtime_model_unlock,
+        notify_render: runtime_notify_render,
+    }
+}

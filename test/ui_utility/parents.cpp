@@ -1,3 +1,4 @@
+#include <xp_app.h>
 #include <xp_ui_utility.h>
 
 #include <cassert>
@@ -52,11 +53,9 @@ struct CppParent : Activity {
 struct RustParent : RustActivityAdapter {
   using RustActivityAdapter::RustActivityAdapter;
 };
+// RESULT_BRIDGE
 // The production manager delivery sequence, after the child has been popped.
 void deliver(Activity* currentActivity, const ActivityResult& pendingResult) {
-  struct {
-    void unlock() {}
-  } lock;
   // PRODUCTION_DELIVERY
 }
 int main() {

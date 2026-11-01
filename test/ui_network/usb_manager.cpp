@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "UsbDriveActivity.h"
+#include "app_leaves.h"
 
 #define LOG_INF(...) ((void)0)
 #define LOG_DBG(...) ((void)0)
@@ -54,42 +55,95 @@ bool beforeScreenChange(int, bool) { return true; }
 constexpr int eIncrement = 0;
 void xTaskNotify(void*, int, int) {}
 enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, OPDS_BROWSER, FILE_TRANSFER, SETTINGS_MENU };
-class HomeActivity : public Activity {
- public:
-  HomeActivity(GfxRenderer& r, MappedInputManager& i, HomeMenuItem, bool) : Activity("Home", r, i) {}
-  bool isHomeActivity() const override { return true; }
-};
 class FrontlightPanelActivity : public Activity {
  public:
   FrontlightPanelActivity(GfxRenderer& r, MappedInputManager& i) : Activity("FrontlightPanel", r, i) {}
 };
+class ActivityManager;
+ActivityManager* manager;
+
+bool send(XpAppEvent event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
 class ActivityManager {
  public:
   GfxRenderer& renderer;
   MappedInputManager& mappedInput;
-  std::vector<std::unique_ptr<Activity>> stackActivities;
-  std::unique_ptr<Activity> currentActivity, pendingActivity;
+  XpAppLegacy legacy = appTestLegacy();
+  XpAppResources resources = appTestResources();
+  XpAppRuntime runtime = appTestRuntime();
+  XpAppCompatibility compatibility{};
   enum class PendingAction { None, Push, Pop, Replace, ReplaceForSleep };
-  PendingAction pendingAction = PendingAction::None;
-  std::atomic<bool> requestedUpdate{false};
-  void* renderTaskHandle = nullptr;
-  uint32_t screenVisit = 0;
   ActivityManager(GfxRenderer& r, MappedInputManager& i) : renderer(r), mappedInput(i) {}
+  void begin() {
+    legacy.create = [](const XpAppLaunch* launch) -> void* {
+      assert(launch->kind == XP_APP_FRONTLIGHT_PANEL);
+      return new FrontlightPanelActivity(manager->renderer, manager->mappedInput);
+    };
+    legacy.destroy = [](void* object) { delete static_cast<Activity*>(object); };
+    legacy.enter = [](void* object) { static_cast<Activity*>(object)->onEnter(); };
+    legacy.loop = [](void* object) { static_cast<Activity*>(object)->loop(); };
+    legacy.exit = [](void* object) { static_cast<Activity*>(object)->onExit(); };
+    legacy.render = [](void* object, XpAppRenderToken* token) {
+      static_cast<Activity*>(object)->render(std::move(*static_cast<RenderLock*>(token->lock)));
+    };
+    legacy.facts = [](const void* object) -> XpAppLegacyFacts {
+      auto* activity = const_cast<Activity*>(static_cast<const Activity*>(object));
+      XpAppLegacyFacts facts{};
+      facts.kind = activity->name == "FrontlightPanel" ? XP_APP_FRONTLIGHT_PANEL : XP_APP_USB_DRIVE;
+      facts.exclusive_storage = activity->requiresExclusiveStorageLoop();
+      facts.prevent_sleep = activity->preventAutoSleep();
+      return facts;
+    };
+    legacy.take_result = [](void*, XpAppResultSink sink, void* context) -> uint8_t {
+      XpAppResultView result{};
+      return sink(context, &result);
+    };
+    legacy.home_gesture = [](void* object) -> uint8_t { return static_cast<Activity*>(object)->handleHomeGesture(); };
+    runtime.input_mapped_snapshot = [](uint8_t, uint8_t, uint8_t, XpAppMappedSnapshot* snapshot) {
+      *snapshot = {};
+      snapshot->home_gesture = manager->mappedInput.wasHomeGesture();
+      snapshot->light_panel_gesture = manager->mappedInput.wasLightPanelGesture();
+      snapshot->input.pressed = manager->mappedInput.pressed;
+      snapshot->input.released = manager->mappedInput.released;
+      snapshot->input.held = manager->mappedInput.held;
+      snapshot->input.now_ms = testNow;
+    };
+    runtime.now_ms = []() -> uint32_t { return testNow; };
+    runtime.ble_before_screen_change = [](uint8_t) -> uint8_t { return 1; };
+    runtime.render_lock = []() -> void* { return manager; };
+    runtime.render_try_lock = runtime.render_lock;
+    runtime.frontlight_present = []() -> uint8_t { return Frontlight.present(); };
+    const XpAppPlatform platform{&legacy, &resources, &runtime};
+    assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
+  }
+  XpAppFacts facts() const { return compatibility.activity_facts(); }
+  std::string currentName() const {
+    if (auto* activity = static_cast<Activity*>(xp_app_test_current_legacy())) return activity->name;
+    assert(xp_app_test_is_home());
+    return "Home";
+  }
+  PendingAction pendingAction() const { return static_cast<PendingAction>(xp_app_test_pending_kind()); }
+  bool pendingOwner() const {
+    const auto kind = pendingAction();
+    return kind == PendingAction::Push || kind == PendingAction::Replace || kind == PendingAction::ReplaceForSleep;
+  }
   void loop();
-  void exitActivity(const RenderLock&);
+  void exitActivity(const RenderLock&) { legacy.exit(xp_app_test_current_legacy()); }
   void replaceActivity(std::unique_ptr<Activity>&&);
   void pushActivity(std::unique_ptr<Activity>&&);
   void popActivity();
   void goHome(HomeMenuItem = HomeMenuItem::NONE, bool = false);
   bool requiresExclusiveStorageLoop() const;
-  void requestUpdate() { requestedUpdate = true; }
+  void requestUpdate() {
+    XpAppEvent event{.kind = XP_APP_RENDER_REQUESTED};
+    send(event);
+  }
   void paint() {
     RenderLock lock;
-    if (currentActivity) currentActivity->render(std::move(lock));
+    XpAppRenderToken token{&lock};
+    xp_app_render(&token);
   }
 };
-ActivityManager* manager;
-bool navigationPending() { return manager->pendingAction != ActivityManager::PendingAction::None; }
+bool navigationPending() { return manager->pendingAction() != ActivityManager::PendingAction::None; }
 void Activity::finish() { manager->popActivity(); }
 void Activity::requestUpdate() { manager->requestUpdate(); }
 void Activity::requestUpdateAndWait() { manager->paint(); }
@@ -105,6 +159,7 @@ int main(int argc, char** argv) {
   MappedInputManager input;
   ActivityManager activityManager(renderer, input);
   manager = &activityManager;
+  activityManager.begin();
   buildOkay = !buildFailure;
   renderer.acceptScene = buildFailure;
   activityManager.replaceActivity(std::make_unique<UsbDriveActivity>(renderer, input));
@@ -118,8 +173,8 @@ int main(int argc, char** argv) {
     assert(Storage.begin == 1 && activityManager.requiresExclusiveStorageLoop());
     activityManager.popActivity();
     for (int n = 0; n < 3; ++n) activityManager.loop();
-    assert(activityManager.currentActivity->name == "UsbDrive");
-    assert(activityManager.pendingAction == ActivityManager::PendingAction::Pop);
+    assert(activityManager.currentName() == "UsbDrive");
+    assert(activityManager.pendingAction() == ActivityManager::PendingAction::Pop);
     assert(Storage.begin == 1 && Storage.end == 0 && restarts == 0);
     if (action == "active-io") {
       Storage.phase = UsbDriveState::IoError;
@@ -145,14 +200,14 @@ int main(int argc, char** argv) {
     activityManager.loop();
     assert(Storage.end == 1 && restarts == 1);
     // Restart is terminal on hardware; a returning host restart must still not navigate.
-    assert(activityManager.currentActivity->name == "UsbDrive");
-    assert(activityManager.pendingAction == ActivityManager::PendingAction::Pop);
+    assert(activityManager.currentName() == "UsbDrive");
+    assert(activityManager.pendingAction() == ActivityManager::PendingAction::Pop);
     assert(activityManager.requiresExclusiveStorageLoop());
     input.pressed = 0;
     input.home = false;
     activityManager.loop();
     assert(Storage.end == 1 && restarts == 1);
-    assert(activityManager.currentActivity->name == "UsbDrive");
+    assert(activityManager.currentName() == "UsbDrive");
     RenderLock lock;
     activityManager.exitActivity(lock);
     assert(Storage.end == 1);
@@ -166,10 +221,10 @@ int main(int argc, char** argv) {
     input.lightPanel = false;  // One input frame, like the top-edge swipe.
     if (!before) activityManager.paint();
     activityManager.loop();
-    assert(activityManager.currentActivity->name == "UsbDrive");
-    assert(activityManager.stackActivities.empty());
-    assert(activityManager.pendingAction == ActivityManager::PendingAction::None);
-    assert(!activityManager.pendingActivity);
+    assert(activityManager.currentName() == "UsbDrive");
+    assert(xp_app_test_parent_count() == 0);
+    assert(activityManager.pendingAction() == ActivityManager::PendingAction::None);
+    assert(!activityManager.pendingOwner());
     assert(Storage.begin == 1 && Storage.beginWithPendingNavigation == 0);
     assert(Storage.end == 0 && restarts == 0 && activityManager.requiresExclusiveStorageLoop());
   } else {
@@ -188,9 +243,9 @@ int main(int argc, char** argv) {
     input.home = false;
     if (recovered && !before) activityManager.paint();
     for (int n = 0; n < 2; ++n) activityManager.loop();
-    assert(activityManager.currentActivity->name == "Home");
-    assert(activityManager.pendingAction == ActivityManager::PendingAction::None);
-    assert(!activityManager.pendingActivity);
+    assert(activityManager.currentName() == "Home");
+    assert(activityManager.pendingAction() == ActivityManager::PendingAction::None);
+    assert(!activityManager.pendingOwner());
     assert(!activityManager.requiresExclusiveStorageLoop());
     assert(Storage.begin == 0 && Storage.end == 0 && restarts == 0);
     buildOkay = renderer.acceptScene = true;

@@ -56,36 +56,9 @@ class FacadeRoutes(unittest.TestCase):
                 reject=True)
 
     def test_home_validation_does_not_wrap(self):
-        source = """
-#include <xp_ui_home.h>
-#include <cassert>
-#include <vector>
-constexpr uint32_t WRAPPED_TITLE = 0x10000;
-struct Grid { const char* text(uint32_t) { return nullptr; } };
-struct HomeActivity {
-  Grid* coverGridUi = nullptr;
-  std::vector<int> recentBooks{0, 1, 2};
-  struct { uint8_t titleLineCounts[3]{2, 3, 1}; uint8_t menuCount = 0; } frame;
-  int wraps = 0;
-  const char* text(uint32_t) { ++wraps; return nullptr; }
-};
-int main() {
-  HomeActivity owner;
-  auto validate = """
-        home = (ROOT / 'src/activities/home/HomeActivity.cpp').read_text()
-        source += method(home, '[](void* p, uint32_t h, uint32_t generation)') + ';'
-        source += """
-  for (int book = 0; book < 3; ++book) {
-    for (int line = 0; line < 4; ++line) {
-      assert(validate(&owner, WRAPPED_TITLE + book * 4 + line, 1) ==
-             (line < owner.frame.titleLineCounts[book]));
-      assert(!validate(&owner, WRAPPED_TITLE + book * 4 + line, 2));
-    }
-  }
-  assert(owner.wraps == 0);
-}
-"""
-        run_cpp(source)
+        subprocess.run(['cargo', 'test', '--offline', '--locked', '--manifest-path',
+                        str(HERE / 'app_owner/Cargo.toml'),
+                        'app::home::tests::validation_does_not_wrap', '--', '--exact'], check=True)
 
     def test_popup_open(self):
         source = (HERE / 'facade_file.cpp').read_text()

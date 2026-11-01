@@ -125,8 +125,8 @@
       "activity": "FileBrowser"
     },
     {
-      "source": "src/activities/home/HomeActivity.cpp",
-      "status": "captured",
+      "source": "src/activities/RustAppResources.cpp",
+      "status": "shared-implementation",
       "groups": [
         "broken-book",
         "general",
@@ -137,7 +137,8 @@
         "home-theme-4",
         "plugins"
       ],
-      "activity": "Home"
+      "activity": "Home",
+      "reason": "Native storage and font leaves used by the Rust Home owner."
     },
     {
       "source": "src/activities/library/LibraryListActivity.cpp",
@@ -744,6 +745,11 @@
         "fixture-upd-cache-0-theme0",
         "fixture-upd-font-3-theme0"
       ]
+    },
+    {
+      "source": "src/activities/RustAppResult.cpp",
+      "status": "shared-implementation",
+      "reason": "Typed result conversion for native child and parent activities; no separate screen."
     }
   ],
   "additional_limits": [

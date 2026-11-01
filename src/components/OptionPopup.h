@@ -16,7 +16,8 @@
 // fui::optionDialog. Touch hit-testing is the SDK's InteractionBuffer: each
 // render registers the option buttons (plus a chrome guard rect) on the render
 // task, and handleInput routes touch snapshots against that table on the loop
-// task, gated by the uiReady handshake (same pattern as UiListActivity).
+// task, gated by this popup's uiReady handshake. RustActivityAdapter owns
+// scene publication for Rust screens.
 // render() builds into InteractionBuffer's non-published generation
 // (beginPublishCycle()) and publishes it only once every hit() call for the
 // frame is done (publish()), so handleInput()'s routePublished()/
@@ -293,7 +294,7 @@ class OptionPopup {
   int selectedIndex = 0;
   std::function<void(int)> onSelectCallback;
   // Written by the render task (frame registration), routed by the loop task;
-  // uiReady closes the rebuild window exactly like UiListActivity::uiReady.
+  // uiReady gates routing until the current popup data has been published.
   mutable freeink::ui::InteractionBuffer<INTERACTION_CAPACITY> interactions;
   mutable std::atomic<bool> uiReady{false};
 };

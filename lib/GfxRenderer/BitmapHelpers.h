@@ -12,7 +12,6 @@ struct BmpHeader;
 // Helper functions
 uint8_t quantize(int gray, int x, int y);
 uint8_t quantizeSimple(int gray);
-uint8_t quantize1bit(int gray, int x, int y);
 int adjustPixel(int gray);
 
 struct GrayPlanePixel {

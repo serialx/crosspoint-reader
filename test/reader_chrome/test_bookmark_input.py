@@ -1,6 +1,6 @@
 """Compare production release/swipe routing with the original C++ list owner.
 
-The unchanged UiListActivity is the pre-port oracle. Extract its methods and
+The frozen UiListActivity is the pre-port oracle. Extract its methods and
 both production snapshot/reader bridge methods so the test includes non-tap
 release classification, published hit lookup, and the Rust C ABI.
 """
@@ -19,8 +19,9 @@ from rust_host import rust_link_flags
 BASE = "365cf23d0eb0b4344eecac6c98efd66514fd594c"
 
 
-def method(path, signature):
-    source = subprocess.check_output(["git", "show", f"{BASE}:{path}"], cwd=ROOT, text=True)
+def method(path, signature, revision=None):
+    source = ((ROOT / path).read_text() if revision is None else
+              subprocess.check_output(["git", "show", f"{revision}:{path}"], cwd=ROOT, text=True))
     start = source.index(signature)
     brace = source.index('{', start)
     depth = 1
@@ -31,7 +32,7 @@ def method(path, signature):
     return source[start:end]
 
 
-baseline = '\n'.join(method('src/activities/UiListActivity.cpp', signature) for signature in [
+baseline = '\n'.join(method('src/activities/UiListActivity.cpp', signature, revision=BASE) for signature in [
     'void UiListActivity::rowActionTrampoline(',
     'void UiListActivity::onRowAction(',
     'void UiListActivity::closeSwipeDelete()',

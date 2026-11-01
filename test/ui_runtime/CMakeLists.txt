@@ -41,3 +41,6 @@ add_test(NAME ui_runtime_stale_publication COMMAND ${Python3_EXECUTABLE}
 
 add_test(NAME ui_runtime_custom_gates COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/custom_gates.py ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME ui_runtime_app_snapshot COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/app_snapshot.py)

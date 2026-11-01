@@ -159,12 +159,12 @@ void checkRouting(MappedInputManager& input) {
   static auto resources = appTestResources();
   static auto runtime = appTestRuntime();
   legacy.destroy = [](void* object) { delete static_cast<ReaderActivity*>(object); };
-  legacy.facts = [](const void* object) -> XpAppLegacyFacts {
+  legacy.facts = [](const void* object, uint8_t delay, uint8_t input) -> XpAppLegacyFacts {
     const auto* reader = static_cast<const ReaderActivity*>(object);
     XpAppLegacyFacts facts{};
     facts.reader = reader->foregroundReader;
     facts.remote_input = reader->context && reader->acceptsRemoteInput();
-    facts.input_over_page = reader->inputOverPage();
+    facts.input_over_page = input && reader->inputOverPage();
     return facts;
   };
   legacy.reader_turn = READER_TURN_LEAF;

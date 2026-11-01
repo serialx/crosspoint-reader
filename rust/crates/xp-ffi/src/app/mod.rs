@@ -123,7 +123,16 @@ fn request_update() {
 
 impl App {
     fn legacy_facts(&self, target: NonNull<c_void>) -> abi::LegacyFacts {
-        unsafe { (self.legacy.facts)(target.as_ptr()) }
+        unsafe { (self.legacy.facts)(target.as_ptr(), 0, 0) }
+    }
+
+    fn skip_delay(&self) -> bool {
+        match self.navigation.current() {
+            Some(Target::Legacy(target)) => unsafe {
+                (self.legacy.facts)(target.as_ptr(), 1, 0).skip_delay != 0
+            },
+            _ => false,
+        }
     }
 
     fn target_facts(&self) -> Option<abi::LegacyFacts> {
@@ -567,7 +576,6 @@ unsafe extern "C" fn facts() -> abi::Facts {
         ),
         prevent_sleep: native.map_or(0, |f| f.prevent_sleep),
         exclusive_storage: native.map_or(0, |f| f.exclusive_storage),
-        skip_delay: native.map_or(0, |f| f.skip_delay),
     }
 }
 
@@ -751,7 +759,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
             let Some(Target::Legacy(target)) = app.navigation.current() else {
                 return abi::REJECTED;
             };
-            let facts = app.legacy_facts(target);
+            let facts = unsafe { (app.legacy.facts)(target.as_ptr(), 0, 1) };
             if event.kind == abi::REMOTE_SHORTCUT {
                 if facts.reader == 0 || facts.remote_input == 0 || facts.input_over_page != 0 {
                     return abi::REJECTED;

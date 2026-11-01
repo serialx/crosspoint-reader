@@ -85,7 +85,7 @@ class ActivityManager {
     legacy.render = [](void* object, XpAppRenderToken* token) {
       static_cast<Activity*>(object)->render(std::move(*static_cast<RenderLock*>(token->lock)));
     };
-    legacy.facts = [](const void* object) -> XpAppLegacyFacts {
+    legacy.facts = [](const void* object, uint8_t delay, uint8_t input) -> XpAppLegacyFacts {
       auto* activity = const_cast<Activity*>(static_cast<const Activity*>(object));
       XpAppLegacyFacts facts{};
       facts.kind = activity->name == "FrontlightPanel" ? XP_APP_FRONTLIGHT_PANEL : XP_APP_USB_DRIVE;

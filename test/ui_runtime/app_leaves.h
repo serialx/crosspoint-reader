@@ -16,7 +16,7 @@ inline XpAppLegacy appTestLegacy() {
       .loop = [](void* activity) -> void {},
       .exit = [](void* activity) -> void {},
       .render = [](void* activity, XpAppRenderToken* token) -> void {},
-      .facts = [](const void* activity) -> XpAppLegacyFacts { return {}; },
+      .facts = [](const void* activity, uint8_t delay, uint8_t input) -> XpAppLegacyFacts { return {}; },
       .take_result = [](void* activity, XpAppResultSink sink, void* context) -> uint8_t { return {}; },
       .deliver_result = [](void* parent, const XpAppResultView* result) -> void {},
       .prepare_sleep = [](void* activity) -> void {},

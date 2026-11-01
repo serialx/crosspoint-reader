@@ -295,7 +295,7 @@ fn iteration(app: &App, state: &mut State) {
         token,
         runtime: app.runtime,
     };
-    let skip_delay = unsafe { facts() }.skip_delay != 0;
+    let skip_delay = app.skip_delay();
     drop(guard);
     if skip_delay {
         unsafe {

@@ -135,7 +135,7 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
           [](void* activity, XpAppRenderToken* token) {
             static_cast<Activity*>(activity)->render(std::move(*static_cast<RenderLock*>(token->lock)));
           },
-      .facts = [](const void* object) -> XpAppLegacyFacts {
+      .facts = [](const void* object, uint8_t delay, uint8_t input) -> XpAppLegacyFacts {
         auto* activity = const_cast<Activity*>(static_cast<const Activity*>(object));
         uint8_t kind = UINT8_MAX;
         const auto& name = activity->name;
@@ -161,8 +161,8 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
                 static_cast<uint8_t>(activity->acceptsRemoteInput()),
                 static_cast<uint8_t>(activity->preventAutoSleep()),
                 static_cast<uint8_t>(activity->requiresExclusiveStorageLoop()),
-                static_cast<uint8_t>(activity->skipLoopDelay()),
-                static_cast<uint8_t>(reader && static_cast<ReaderActivity*>(activity)->inputOverPage())};
+                static_cast<uint8_t>(delay && activity->skipLoopDelay()),
+                static_cast<uint8_t>(input && reader && static_cast<ReaderActivity*>(activity)->inputOverPage())};
       },
       .take_result = [](void* activity, XpAppResultSink sink, void* context) -> uint8_t {
         const auto view = rustAppResultView(static_cast<Activity*>(activity)->result);
@@ -320,7 +320,6 @@ bool ActivityManager::isReaderActivity() const { return facts().reader_in_stack 
 bool ActivityManager::isForegroundReader() const { return facts().foreground_reader != 0; }
 bool ActivityManager::isRemoteReaderContext() const { return facts().remote_context != 0; }
 bool ActivityManager::isForegroundHomeShown() const { return facts().foreground_home_shown != 0; }
-bool ActivityManager::skipLoopDelay() const { return facts().skip_delay != 0; }
 HomeButtonAction ActivityManager::homeButtonAction() const {
   return compatibility.home_action ? static_cast<HomeButtonAction>(compatibility.home_action())
                                    : HomeButtonAction::Ignore;

@@ -211,7 +211,6 @@ pub struct Facts {
     pub foreground_home_shown: u8,
     pub prevent_sleep: u8,
     pub exclusive_storage: u8,
-    pub skip_delay: u8,
 }
 
 #[repr(C)]
@@ -241,7 +240,7 @@ pub struct Legacy {
     pub r#loop: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub exit: unsafe extern "C" fn(*mut core::ffi::c_void),
     pub render: unsafe extern "C" fn(*mut core::ffi::c_void, *mut RenderToken),
-    pub facts: unsafe extern "C" fn(*const core::ffi::c_void) -> LegacyFacts,
+    pub facts: unsafe extern "C" fn(*const core::ffi::c_void, u8, u8) -> LegacyFacts,
     pub take_result:
         unsafe extern "C" fn(*mut core::ffi::c_void, ResultSink, *mut core::ffi::c_void) -> u8,
     pub deliver_result: unsafe extern "C" fn(*mut core::ffi::c_void, *const ResultView),

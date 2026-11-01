@@ -455,66 +455,78 @@ namespace {
 void mappedSnapshot(uint8_t poll, uint8_t fullButtons, uint8_t consumeRelease, XpAppMappedSnapshot* snapshot) {
   if (poll) mappedInputManager.update(false);
   *snapshot = {};
-  snapshot->suppressed_release = consumeRelease && mappedInputManager.consumeSuppressedRelease();
   auto& input = snapshot->input;
-  constexpr MappedInputManager::Button buttons[] = {
-      MappedInputManager::Button::Back,        MappedInputManager::Button::Confirm,
-      MappedInputManager::Button::NavNext,     MappedInputManager::Button::NavPrevious,
-      MappedInputManager::Button::Left,        MappedInputManager::Button::Right,
-      MappedInputManager::Button::Up,          MappedInputManager::Button::Down,
-      MappedInputManager::Button::Power,       MappedInputManager::Button::PageBack,
-      MappedInputManager::Button::PageForward, MappedInputManager::Button::ScreenLeft,
-      MappedInputManager::Button::ScreenRight, MappedInputManager::Button::ScreenUp,
-      MappedInputManager::Button::ScreenDown};
-  for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
-    if (!fullButtons && buttons[i] != MappedInputManager::Button::Power) continue;
-    if (mappedInputManager.wasPressed(buttons[i])) input.pressed |= 1u << i;
-    if (mappedInputManager.wasReleased(buttons[i])) input.released |= 1u << i;
-    if (mappedInputManager.isPressed(buttons[i])) input.held |= 1u << i;
+  if (fullButtons) {
+    constexpr MappedInputManager::Button buttons[] = {
+        MappedInputManager::Button::Back,        MappedInputManager::Button::Confirm,
+        MappedInputManager::Button::NavNext,     MappedInputManager::Button::NavPrevious,
+        MappedInputManager::Button::Left,        MappedInputManager::Button::Right,
+        MappedInputManager::Button::Up,          MappedInputManager::Button::Down,
+        MappedInputManager::Button::Power,       MappedInputManager::Button::PageBack,
+        MappedInputManager::Button::PageForward, MappedInputManager::Button::ScreenLeft,
+        MappedInputManager::Button::ScreenRight, MappedInputManager::Button::ScreenUp,
+        MappedInputManager::Button::ScreenDown};
+    for (unsigned i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
+      if (mappedInputManager.wasPressed(buttons[i])) input.pressed |= 1u << i;
+      if (mappedInputManager.wasReleased(buttons[i])) input.released |= 1u << i;
+      if (mappedInputManager.isPressed(buttons[i])) input.held |= 1u << i;
+    }
+    input.now_ms = millis();
+    input.held_ms = mappedInputManager.getHeldTime();
+    const auto touch = touchSnapshotFrom(mappedInputManager);
+    input.touch_x = touch.touchX;
+    input.touch_y = touch.touchY;
+    input.touch_flags = (touch.touchPressed ? XP_UI_TOUCH_PRESSED : 0) |
+                        (touch.touchReleased ? XP_UI_TOUCH_RELEASED : 0) | (touch.touchHeld ? XP_UI_TOUCH_HELD : 0);
   }
-  input.now_ms = millis();
-  input.held_ms = mappedInputManager.getHeldTime();
-  const auto touch = touchSnapshotFrom(mappedInputManager);
-  input.touch_x = touch.touchX;
-  input.touch_y = touch.touchY;
-  input.touch_flags = (touch.touchPressed ? XP_UI_TOUCH_PRESSED : 0) |
-                      (touch.touchReleased ? XP_UI_TOUCH_RELEASED : 0) | (touch.touchHeld ? XP_UI_TOUCH_HELD : 0);
-  switch (mappedInputManager.wasSwipe()) {
-    case MappedInputManager::SwipeDir::Up:
-      input.swipe = XP_UI_SWIPE_UP;
-      break;
-    case MappedInputManager::SwipeDir::Down:
-      input.swipe = XP_UI_SWIPE_DOWN;
-      break;
-    case MappedInputManager::SwipeDir::Left:
-      input.swipe = XP_UI_SWIPE_LEFT;
-      break;
-    case MappedInputManager::SwipeDir::Right:
-      input.swipe = XP_UI_SWIPE_RIGHT;
-      break;
-    case MappedInputManager::SwipeDir::None:
-      break;
+  const bool homeKeys = !poll && !consumeRelease;
+  if (fullButtons || homeKeys) {
+    switch (mappedInputManager.wasSwipe()) {
+      case MappedInputManager::SwipeDir::Up:
+        input.swipe = XP_UI_SWIPE_UP;
+        break;
+      case MappedInputManager::SwipeDir::Down:
+        input.swipe = XP_UI_SWIPE_DOWN;
+        break;
+      case MappedInputManager::SwipeDir::Left:
+        input.swipe = XP_UI_SWIPE_LEFT;
+        break;
+      case MappedInputManager::SwipeDir::Right:
+        input.swipe = XP_UI_SWIPE_RIGHT;
+        break;
+      case MappedInputManager::SwipeDir::None:
+        break;
+    }
   }
-  snapshot->power_held_ms = gpio.getPowerButtonHeldTime();
-  snapshot->power_pressed = gpio.wasPressed(HalGPIO::BTN_POWER);
-  snapshot->power_released = gpio.wasReleased(HalGPIO::BTN_POWER);
-  snapshot->power_held = gpio.isPressed(HalGPIO::BTN_POWER);
-  snapshot->physical_down = gpio.isPressed(HalGPIO::BTN_DOWN);
-  snapshot->any_pressed = gpio.wasAnyPressed();
-  snapshot->any_released = gpio.wasAnyReleased();
-  snapshot->touch_activity = gpio.wasTouchActivity();
-  snapshot->home_key_pressed = gpio.wasHomeKeyPressed();
-  snapshot->home_key_tapped = gpio.wasHomeKeyTapped();
-  snapshot->home_key_long_pressed = gpio.wasHomeKeyLongPressed();
-  snapshot->has_home_key = gpio.hasHomeKey();
-  snapshot->has_switch = gpio.hasToggleSwitch();
-  snapshot->switch_on = gpio.isToggleSwitchOn();
-  snapshot->usb_changed = gpio.wasUsbStateChanged();
-  snapshot->home_gesture = mappedInputManager.wasHomeGesture();
-  snapshot->light_panel_gesture = mappedInputManager.wasLightPanelGesture();
-  int tx = 0, ty = 0;
-  snapshot->status_bar_tap = mappedInputManager.hasTouch() && mappedInputManager.wasScreenTapped(tx, ty) && ty < 44 &&
-                             !HeaderBackTapTarget::contains(tx, ty);
+  if (homeKeys) {
+    input.now_ms = millis();
+    snapshot->home_key_pressed = gpio.wasHomeKeyPressed();
+    snapshot->home_key_tapped = gpio.wasHomeKeyTapped();
+    snapshot->home_key_long_pressed = gpio.wasHomeKeyLongPressed();
+    snapshot->has_home_key = gpio.hasHomeKey();
+  }
+  if (poll || homeKeys) snapshot->power_released = gpio.wasReleased(HalGPIO::BTN_POWER);
+  if (poll) {
+    if (!fullButtons && mappedInputManager.wasReleased(MappedInputManager::Button::Power))
+      input.released |= XP_UI_POWER;
+    snapshot->power_held_ms = gpio.getPowerButtonHeldTime();
+    snapshot->power_held = gpio.isPressed(HalGPIO::BTN_POWER);
+    snapshot->physical_down = gpio.isPressed(HalGPIO::BTN_DOWN);
+    snapshot->any_pressed = gpio.wasAnyPressed();
+    snapshot->any_released = gpio.wasAnyReleased();
+    snapshot->touch_activity = gpio.wasTouchActivity();
+    snapshot->has_switch = gpio.hasToggleSwitch();
+    snapshot->switch_on = gpio.isToggleSwitchOn();
+    snapshot->usb_changed = gpio.wasUsbStateChanged();
+  }
+  if (consumeRelease) {
+    snapshot->suppressed_release = mappedInputManager.consumeSuppressedRelease();
+    snapshot->home_gesture = mappedInputManager.wasHomeGesture();
+    snapshot->light_panel_gesture = mappedInputManager.wasLightPanelGesture();
+    int tx = 0, ty = 0;
+    snapshot->status_bar_tap = mappedInputManager.hasTouch() && mappedInputManager.wasScreenTapped(tx, ty) && ty < 44 &&
+                               !HeaderBackTapTarget::contains(tx, ty);
+  }
   snapshot->cpu_hold = pageturner::holdsCpu.load();
 }
 

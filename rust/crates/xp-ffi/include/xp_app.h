@@ -24,7 +24,7 @@ typedef struct {
 typedef uint8_t (*XpAppBookSink)(void* context, const XpAppBook* book);
 
 typedef uint8_t XpAppStatus;
-enum { XP_APP_OK, XP_APP_INVALID, XP_APP_OUT_OF_MEMORY, XP_APP_WRONG_CONTEXT };
+enum { XP_APP_OK, XP_APP_INVALID, XP_APP_WRONG_CONTEXT = 3 };
 typedef uint8_t XpAppEventResult;
 enum { XP_APP_ACCEPTED, XP_APP_REJECTED, XP_APP_EVENT_OUT_OF_MEMORY, XP_APP_EVENT_INVALID };
 typedef uint8_t XpAppLaunchKind;
@@ -185,7 +185,7 @@ typedef void (*XpAppScreenshotSink)(void* context, const XpAppScreenshot* info);
 typedef struct {
   uint32_t visit, painted_visit;
   uint8_t current_kind, pending, reader_in_stack, foreground_reader, remote_context;
-  uint8_t foreground_home_shown, prevent_sleep, exclusive_storage, skip_delay;
+  uint8_t foreground_home_shown, prevent_sleep, exclusive_storage;
 } XpAppFacts;
 typedef struct {
   uint8_t kind, reader, remote_input, prevent_sleep, exclusive_storage, skip_delay, input_over_page;
@@ -202,7 +202,7 @@ typedef struct {
   void (*loop)(void* activity);
   void (*exit)(void* activity);
   void (*render)(void* activity, XpAppRenderToken* token);
-  XpAppLegacyFacts (*facts)(const void* activity);
+  XpAppLegacyFacts (*facts)(const void* activity, uint8_t delay, uint8_t input);
   uint8_t (*take_result)(void* activity, XpAppResultSink sink, void* context);
   void (*deliver_result)(void* parent, const XpAppResultView* result);
   void (*prepare_sleep)(void* activity);
@@ -220,7 +220,7 @@ typedef struct {
   void (*screenshot_info)(XpAppScreenshotSink sink, void* context);
 } XpAppCompatibility;
 
-// Snapshot args: poll, all buttons (else Power), consume release. Raw fields always collected.
+// Snapshot flags select driver, Home keys, or activity fields; other fields are zero.
 typedef struct {
   XpUiInput input;
   uint32_t power_held_ms;

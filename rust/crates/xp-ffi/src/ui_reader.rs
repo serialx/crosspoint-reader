@@ -135,30 +135,6 @@ pub unsafe extern "C" fn xp_ui_reader_link_repaint(state: *mut LinkNote, note: u
     u8::from(state.repaint(note))
 }
 
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_turn(
-    spine: i32,
-    spine_count: i32,
-    page: i32,
-    page_count: u16,
-    building: u8,
-    forward: u8,
-) -> reader::PageMove {
-    reader::turn(
-        spine,
-        spine_count,
-        page,
-        page_count,
-        building != 0,
-        forward != 0,
-    )
-}
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_skip(spine: i32, page: i32, amount: i32) -> reader::PageMove {
-    reader::skip(spine, page, amount)
-}
 /// # Safety
 /// Services and byte ranges follow xp_ui_reader.h; written must be writable and
 /// callbacks must neither retain bytes nor reenter this operation.

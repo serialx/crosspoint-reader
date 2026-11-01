@@ -16,7 +16,6 @@ predicate!(xp_text_cjk, text::cjk);
 predicate!(xp_text_hangul, text::hangul);
 predicate!(xp_text_combining, text::combining);
 predicate!(xp_text_break_after_hyphen, text::break_after_hyphen);
-predicate!(xp_text_explicit_hyphen, text::explicit);
 #[no_mangle]
 pub extern "C" fn xp_text_upper(cp: u32) -> u32 {
     text::small_caps_upper(cp)

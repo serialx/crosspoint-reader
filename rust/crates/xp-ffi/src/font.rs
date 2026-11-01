@@ -119,17 +119,6 @@ pub unsafe extern "C" fn xp_font_resident_glyph(data: *const FontData, cp: u32) 
         .glyph_index(cp)
         .map_or(core::ptr::null(), |i| (*data).glyph.add(i))
 }
-/// # Safety
-/// out is a live, aligned writable glyph; no bitmap storage is allocated.
-#[no_mangle]
-pub unsafe extern "C" fn xp_font_solid_metrics(
-    cp: u32,
-    ascender: i32,
-    em_advance: u16,
-    out: *mut Glyph,
-) {
-    out.write(xp_core::font::solid_metrics(cp, ascender, Some(em_advance)));
-}
 use xp_core::font::cache::{Cache, Services};
 
 #[no_mangle]

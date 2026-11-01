@@ -176,11 +176,7 @@ void xp_word_store_destroy(XpWordStore* state);
 uint8_t xp_word_store_append(XpWordStore* state, const uint8_t* text, size_t len, XpStoredWord* out);
 // A handle/suffix is borrowed until release or destruction. Release exactly one
 // of the original handle and its suffix aliases, never both. Handles belong to state.
-const char* xp_word_store_cstr(const XpWordStore* state, XpStoredWord word);
-void xp_word_store_release(XpWordStore* state, XpStoredWord word);
 size_t xp_word_store_chunk_count(const XpWordStore* state);
-const char* xp_word_store_chunk_data(const XpWordStore* state, size_t index);
-size_t xp_word_store_chunk_used(const XpWordStore* state, size_t index);
 
 // Token metadata uses caller-owned opaque state: 26 pointer-sized words,
 // pointer-aligned. Same allocator, lifetime and serialization contract as above.
@@ -196,12 +192,7 @@ typedef struct {
 void xp_tokens_init(XpTokens* state, const XpParaAllocator* allocator);
 void xp_tokens_destroy(XpTokens* state);
 size_t xp_tokens_size(const XpTokens* state);
-void xp_tokens_get(const XpTokens* state, size_t index, XpToken* out);
-void xp_tokens_set(XpTokens* state, size_t index, const XpToken* token);
-uint8_t xp_tokens_reserve(XpTokens* state, size_t required);
 uint8_t xp_tokens_insert(XpTokens* state, size_t index, const XpToken* token, uint32_t offset);
-void xp_tokens_erase_prefix(XpTokens* state, size_t count);
-uint32_t xp_tokens_offset(const XpTokens* state, size_t index);
 uint8_t xp_tokens_record_absorbed(XpTokens* state, uint32_t offset);
 // Updates the NFC cursor; requires exclusive access despite being a logical lookup.
 uint32_t xp_tokens_source_after(XpTokens* state, uint32_t start, uint32_t rendered);
@@ -216,9 +207,6 @@ typedef struct {
   const XpParaAllocator* allocator;
   uint8_t failed;
 } XpLayoutWidths;
-uint8_t xp_layout_widths_reserve(XpLayoutWidths* widths, size_t needed);
-uint8_t xp_layout_widths_insert(XpLayoutWidths* widths, size_t index, uint16_t value);
-void xp_layout_widths_destroy(XpLayoutWidths* widths);
 
 // Same ownership and failure contract as XpLayoutWidths; usize break indices.
 typedef struct {
@@ -227,8 +215,6 @@ typedef struct {
   const XpParaAllocator* allocator;
   uint8_t failed;
 } XpLayoutBreaks;
-uint8_t xp_layout_breaks_push(XpLayoutBreaks* breaks, size_t value);
-void xp_layout_breaks_destroy(XpLayoutBreaks* breaks);
 
 // Paragraph breaking callbacks are synchronous and may not reenter layout. The
 // context and callback record outlive the call; no pointer is retained by Rust.
@@ -249,10 +235,6 @@ typedef struct {
   uint8_t (*split)(void*, size_t, int32_t, uint8_t);
   uint8_t (*emit)(void*, size_t);
 } XpLayoutCallbacks;
-uint8_t xp_layout_optimal(const XpLayoutCallbacks* callbacks, const XpParaAllocator* allocator, int32_t page,
-                          int32_t indent);
-uint8_t xp_layout_greedy(const XpLayoutCallbacks* callbacks, int32_t page, int32_t indent, size_t max_lines,
-                         uint8_t first_consumed, uint8_t hyphenation);
 
 // Split borrows disjoint stores exclusively. Callbacks cannot access those stores;
 // measure borrows text for the call, inserted updates only ruby metadata.
@@ -273,8 +255,6 @@ typedef struct {
   uint16_t remainder_width;
   uint8_t hyphen;
 } XpLayoutSplitResult;
-uint8_t xp_layout_split(XpWordStore* store, XpTokens* tokens, XpLayoutWidths* widths,
-                        const XpLayoutSplitRequest* request, XpLayoutSplitResult* result);
 
 // Stable borrowed line in logical or MiniBidi visual order. gap queries the
 // natural advance BEFORE index, with index > 0. Callbacks never reenter layout.
@@ -297,11 +277,8 @@ typedef struct {
   size_t gap_count;
   int32_t spare, justify;
 } XpLineMetrics;
-void xp_layout_line_metrics(const XpLineSpec* spec, const XpLineCallbacks* callbacks, XpLineMetrics* out);
 // out borrows count writable i16 positions, disjoint from inputs. metrics belongs
 // to the same unchanged spec/callback line. Casts preserve firmware i16 wrapping.
-void xp_layout_line_position(const XpLineSpec* spec, const XpLineCallbacks* callbacks, const XpLineMetrics* metrics,
-                             int16_t* out);
 
 // Completed-line owner; initialize zero except allocator. One exact allocation:
 // N pairs of u32 source offsets, N i16 x positions, N u8 styles, then optional
@@ -313,11 +290,6 @@ typedef struct {
   const XpParaAllocator* allocator;
   uint8_t focus;
 } XpLayoutLine;
-uint8_t xp_layout_line_init(XpLayoutLine* line, size_t count, uint8_t focus);
-void xp_layout_line_destroy(XpLayoutLine* line);
-uint8_t xp_layout_line_sources(XpLayoutLine* line, const XpWordStore* store, XpTokens* tokens, size_t start,
-                               const uint16_t* order, uint8_t paragraph_emitted, uint16_t* paragraph_start);
-size_t xp_layout_strip_soft_hyphens(uint8_t* data, size_t len);
 
 // Paragraph owner in 64 pointer-sized, pointer-aligned words. Initialize/destroy once.
 // Callback spans are borrowed for one call. Metrics cannot reenter the paragraph; the
@@ -413,7 +385,6 @@ void xp_para_init(XpParagraph*, const XpParaAllocator*, const XpParaBlock*, uint
 void xp_para_destroy(XpParagraph*);
 // Retains a borrowed paragraph (or null). Rebind before destroying/replacing it;
 // chapter calls and paragraph mutation must be serialized with assembly.
-void xp_para_bind_chapter(XpChapterState*, XpParagraph*);
 void xp_para_add_word(XpParagraph*, XpParaSpan, uint8_t style, uint8_t underline, uint8_t attach, uint32_t offset,
                       uint8_t link, uint8_t slot, uint8_t no_space);
 uint8_t xp_para_add_link(XpParagraph*, XpParaSpan);
@@ -489,7 +460,6 @@ uint8_t xp_text_cjk(uint32_t cp);
 uint8_t xp_text_hangul(uint32_t cp);
 uint8_t xp_text_combining(uint32_t cp);
 uint8_t xp_text_break_after_hyphen(uint32_t cp);
-uint8_t xp_text_explicit_hyphen(uint32_t cp);
 uint32_t xp_text_upper(uint32_t cp);
 uint32_t xp_text_decomposed_base(uint32_t cp);
 uint8_t xp_text_boundary(uint32_t left, uint32_t right);
@@ -738,13 +708,7 @@ typedef struct {
   uint32_t values[20];
 } XpSecRecord;
 size_t xp_sec_arena_size(uint16_t words, uint8_t focus, uint16_t text_bytes);
-uint8_t xp_sec_validate_arena(uint16_t words, uint8_t focus, uint16_t text_bytes, const uint8_t* data, size_t len);
-uint8_t xp_sec_validate_fonts(uint16_t words, const uint8_t* data, size_t len);
-uint8_t xp_sec_header_matches(const XpSecRecord* header, const XpSecRecord* expected);
-uint8_t xp_sec_partial_trailer(const XpSecRecord* header, uint32_t size, uint32_t* result);
 
-uint32_t xp_sec_encode_text_word(size_t previous, const uint8_t* word, size_t len, uint8_t* output, size_t capacity,
-                                 size_t* required);
 
 /* Chapter semantics: synchronous borrowed spans, one fallible owning handle.
  * CSS and sink/metrics/context outlive the handle. Only table_file may pass
@@ -935,10 +899,6 @@ XpChapterState* xp_chapter_state(XpChapter* handle);
 /* Feed at most 1024 bytes and drain internally: More=0, Done=1, Error=2. */
 uint8_t xp_chapter_feed(XpChapter* handle, const uint8_t* data, uint32_t len, uint8_t final_input);
 uint32_t xp_chapter_query(const XpChapterState* state, uint32_t query);
-uint32_t xp_chapter_notify(XpChapterState* state, uint32_t notification);
-void xp_chapter_block(const XpChapterState* state, XpChapterBlock* out);
-void xp_chapter_drop_cap(const XpChapterState* state, XpChapterDropCap* out);
-uint32_t xp_chapter_handle_size(void);
 
 // Image pipeline: caller-owned opaque storage; init/prepare/rows/finish/destroy
 // are synchronous and exclusive. Never copy initialized storage. Destroy exactly
@@ -1254,7 +1214,6 @@ void xp_bidi_rtl_tokens(const uint8_t*, size_t, void*, void*, void (*)(void*, co
 int32_t xp_bidi_words(size_t, const void*, const uint8_t* (*)(const void*, size_t, size_t*), uint8_t, void*, uint16_t*);
 // The resident pointer expires before any font-owner mutation or next bitmap request.
 const void* xp_font_resident_glyph(const void*, uint32_t);
-void xp_font_solid_metrics(uint32_t, int32_t, uint16_t, XpFontGlyph*);
 void xp_textm_dimensions_utf8(const XpTextmFace*, const uint8_t*, size_t, int32_t*, int32_t*);
 // Synchronous glyph emission: callbacks cannot reenter bidi, register/unregister
 // fonts, or retain pointers. prepare receives terminated visual text and returns
@@ -1519,10 +1478,7 @@ uint8_t xp_sdfont_pool_mask(const XpSdfontPool*, uint8_t mask);
 bool xp_sdfont_pool_coverage(const XpSdfontPool*, uint32_t cp, uint8_t style);
 const void* xp_sdfont_pool_miss(XpSdfontPool*, uint32_t cp, uint8_t style);
 void xp_sdfont_pool_clear_advances(XpSdfontPool*);
-void xp_sdfont_pool_clear_overflow(XpSdfontPool*);
 void xp_sdfont_pool_clear_cache(XpSdfontPool*);
-void xp_sdfont_pool_free_mini(void* style, const XpSdfontServices*);
-void xp_sdfont_pool_free_ligatures(void* style, const XpSdfontServices*);
 // Host ABI test: field offsets and sizes of the stable native cache slots.
 size_t xp_sdfont_pool_layout(uint32_t field);
 // Failure details are written only on a parsed rejection; all other outputs and
@@ -1595,19 +1551,7 @@ typedef struct {
   uint16_t name_len, start, end;
   XpXtcChapterAction action;
 } XpXtcChapter;
-int32_t xp_xtc_header(const uint8_t* data, size_t len, XpXtcHeader* out);
 uint8_t xp_xtc_bit_depth(const uint8_t* data, size_t len);  // 0 invalid, 1 XTC, 2 XTCH.
-bool xp_xtc_table_valid(const XpXtcHeader* header, uint64_t file_size);
-bool xp_xtc_has_chapters(const XpXtcHeader* header);
-bool xp_xtc_chapter_flag(uint8_t flag);
-int32_t xp_xtc_entry(const uint8_t* data, size_t len, XpXtcEntry* out);
-uint32_t xp_xtc_bitmap_size(uint16_t width, uint16_t height, uint8_t depth);
-int32_t xp_xtc_page(const uint8_t* data, size_t len, uint8_t depth, bool streaming, uint32_t* size);
-uint32_t xp_xtc_metadata_offset(bool author);
-size_t xp_xtc_text_len(const uint8_t* data, size_t len);
-void xp_xtc_chapter_span(const XpXtcHeader* header, const uint8_t* data, size_t len, uint64_t file_size,
-                         uint64_t* offset, uint64_t* count);
-int32_t xp_xtc_chapter(const uint8_t* data, size_t len, uint16_t page_count, XpXtcChapter* out);
 
 // Page records (section v68): no allocation; arena bytes are relocatable and
 // require no alignment. Status: 0 OK, 1 short input, 2 short output, 3 invalid.

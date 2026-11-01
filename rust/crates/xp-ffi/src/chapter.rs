@@ -7,8 +7,7 @@ use xp_core::{
     chapter::{
         self,
         assembly::{self, runtime::Callbacks},
-        feedback::{Notify, Query},
-        style::{Block, DropCap},
+        feedback::Query,
         State,
     },
     xml::{Kind, Parser},
@@ -218,33 +217,6 @@ pub unsafe extern "C" fn xp_chapter_query(state: *const State, query: u32) -> u3
     (*state).query(core::mem::transmute::<u32, Query>(query))
 }
 /// # Safety
-/// Same state lifetime as query; notification must be a declared value.
-/// A reverse FlushWord may synchronously nest assembly callbacks. Other semantic
-/// storage is not borrowed across such a call by the assembler.
-#[no_mangle]
-pub unsafe extern "C" fn xp_chapter_notify(state: *mut State, notification: u32) -> u32 {
-    if state.is_null() || notification > Notify::BeginLists as u32 {
-        return 0;
-    }
-    (*state).notify(core::mem::transmute::<u32, Notify>(notification))
-}
-/// # Safety
-/// state is live; out is writable and disjoint from state.
-#[no_mangle]
-pub unsafe extern "C" fn xp_chapter_block(state: *const State, out: *mut Block) {
-    if !state.is_null() && !out.is_null() {
-        out.write((*state).parent_block());
-    }
-}
-/// # Safety
-/// state is live; out is writable and disjoint from state.
-#[no_mangle]
-pub unsafe extern "C" fn xp_chapter_drop_cap(state: *const State, out: *mut DropCap) {
-    if !state.is_null() && !out.is_null() {
-        out.write((*state).drop_cap());
-    }
-}
-/// # Safety
 /// state is the current reborrow, read writes at most capacity synchronously,
 /// context remains live until return, and out is writable/disjoint from state.
 #[cfg(feature = "chapter-test")]
@@ -277,10 +249,6 @@ pub unsafe extern "C" fn xp_chapter_plan_columns(
     if !state.is_null() && !measure.is_null() {
         (*state).plan_columns(*measure);
     }
-}
-#[no_mangle]
-pub extern "C" fn xp_chapter_handle_size() -> u32 {
-    core::mem::size_of::<Chapter>() as u32
 }
 
 // These symbols are absent from firmware builds.

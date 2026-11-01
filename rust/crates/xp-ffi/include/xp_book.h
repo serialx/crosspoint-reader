@@ -109,7 +109,6 @@ typedef struct XpBookCssEntry {
 // hash collision matching and content-key selection. No allocation occurs here.
 void xp_book_css_observe(XpBookCssEntry*, size_t count, XpBookSpan path, uint32_t crc, uint32_t compressed, void* ctx,
                          XpBookSpan (*path_at)(void*, size_t));
-uint8_t xp_book_css_duplicate(const XpBookCssEntry*, size_t count, size_t index);
 typedef enum XpBookIoControl {
   XP_BOOK_IO_NORMALIZE,
   XP_BOOK_IO_IS_TEXT,

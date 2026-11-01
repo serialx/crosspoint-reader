@@ -52,19 +52,6 @@ pub unsafe extern "C" fn xp_book_css_observe(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_book_css_duplicate(
-    entries: *const book::css::CssEntry,
-    count: usize,
-    index: usize,
-) -> u8 {
-    if entries.is_null()
-        || count > isize::MAX as usize / core::mem::size_of::<book::css::CssEntry>()
-    {
-        return 0;
-    }
-    book::css::css_duplicate(core::slice::from_raw_parts(entries, count), index) as u8
-}
-#[no_mangle]
 pub unsafe extern "C" fn xp_book_read_bytes(
     services: *const book::io::Services,
     empty: u8,

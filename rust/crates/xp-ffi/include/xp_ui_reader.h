@@ -53,9 +53,6 @@ typedef struct {
   uint8_t kind, last_page;
   uint8_t reserved[2];
 } XpUiReaderMove;
-XpUiReaderMove xp_ui_reader_turn(int32_t spine, int32_t spine_count, int32_t page, uint16_t page_count,
-                                 uint8_t building, uint8_t forward);
-XpUiReaderMove xp_ui_reader_skip(int32_t spine, int32_t page, int32_t amount);
 /* The C++ shell applies the selected resource operation at its original lock point,
  * and samples millis only after a successful turn. No callback or allocation here. */
 

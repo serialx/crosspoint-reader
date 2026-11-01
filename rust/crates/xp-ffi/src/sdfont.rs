@@ -168,7 +168,7 @@ pub unsafe extern "C" fn xp_sdfont_filename(data: *const u8, len: usize, size: *
     true
 }
 
-use xp_core::sdfont::pool::{Cache, Resident, Services, TextGetter, Texts};
+use xp_core::sdfont::pool::{Cache, TextGetter, Texts};
 #[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_pool_prewarm(
     pool: *mut Cache,
@@ -232,27 +232,9 @@ pub unsafe extern "C" fn xp_sdfont_pool_clear_advances(pool: *mut Cache) {
     }
 }
 #[no_mangle]
-pub unsafe extern "C" fn xp_sdfont_pool_clear_overflow(pool: *mut Cache) {
-    if let Some(p) = pool.as_mut() {
-        p.clear_overflow();
-    }
-}
-#[no_mangle]
 pub unsafe extern "C" fn xp_sdfont_pool_clear_cache(pool: *mut Cache) {
     if let Some(p) = pool.as_mut() {
         p.clear_cache();
-    }
-}
-#[no_mangle]
-pub unsafe extern "C" fn xp_sdfont_pool_free_mini(style: *mut Resident, io: *const Services) {
-    if let (Some(s), Some(io)) = (style.as_mut(), io.as_ref()) {
-        s.free_mini(io);
-    }
-}
-#[no_mangle]
-pub unsafe extern "C" fn xp_sdfont_pool_free_ligatures(style: *mut Resident, io: *const Services) {
-    if let (Some(s), Some(io)) = (style.as_mut(), io.as_ref()) {
-        s.free_ligatures(io);
     }
 }
 #[no_mangle]

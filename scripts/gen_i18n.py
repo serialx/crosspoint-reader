@@ -28,7 +28,7 @@ Examples:
     python gen_i18n.py
     python gen_i18n.py lib/I18n/translations lib/I18n/
     python gen_i18n.py --strip-unused
-    python gen_i18n.py --strip-unused --src-dirs src lib/EpdFont
+    python gen_i18n.py --strip-unused --src-dirs src lib rust/crates
 """
 
 import codecs

@@ -55,8 +55,9 @@ to native theme icons. These mappings remain separate because translations and
 icons are native services; a row change must update all three together.
 
 `STR_CONTINUE_READING`, `STR_BROWSE_FILES`, `STR_NO_OPEN_BOOK`, `STR_START_READING`
-and `STR_RESUME` are referenced only under `rust/crates`. When generating with
-`--strip-unused`, keep `rust/crates` in `--src-dirs` alongside `src` and `lib`.
+and `STR_RESUME` are referenced only under `rust/crates`. The default scan includes
+it; when generating with `--strip-unused` and an explicit `--src-dirs`, keep
+`rust/crates` alongside `src` and `lib`.
 `test/i18n_oracle/test_ids.py` checks the mixed-language scan and matching IDs.
 
 The former Home exports and mirrored C layouts are removed. `xp_ui_home.h` still

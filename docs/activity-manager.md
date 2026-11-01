@@ -9,7 +9,7 @@ This document explains the refactoring from the original per-activity render tas
 | Render task | One per activity (8KB stack each) | Single shared task in `ActivityManager` |
 | Render mutex | Per-activity `renderingMutex` | Single global mutex in `ActivityManager` |
 | `RenderLock` | Inner class of `Activity` | Standalone class, acquires global mutex |
-| Subactivities | `ActivityWithSubactivity` base class | Activity stack managed by `ActivityManager` |
+| Subactivities | `ActivityWithSubactivity` base class | Activity stack owned by `xp-ui::app::Application`; `ActivityManager` forwards navigation |
 | Navigation | Free functions in `main.cpp` | `activityManager.goHome()`, `goToReader()`, etc. |
 | Subactivity results | Callback lambdas stored in parent | `startActivityForResult()` / `setResult()` / `finish()` |
 | `requestUpdate()` | Notifies activity's own render task | Delegates to `ActivityManager` (immediate or deferred) |
@@ -367,19 +367,26 @@ For push/pop navigation:
 
 ```text
 Parent: startActivityForResult(child, handler)
-  -> store handler in parent; enqueue Push in Rust
+  -> store handler in parent; enqueue Push in Rust (child not entered yet)
+  -> Parent::loop() returns; the loop drain in the same xp_app_loop pass applies Push:
   -> Rust retains parent and installs child under RenderLock
   -> unlock; Child::onEnter()
 
 Child: setResult(value); finish()
-  -> enqueue Pop in Rust
+  -> enqueue Pop in Rust (nothing destroyed yet)
+  -> Child::loop() returns; the loop drain in the same xp_app_loop pass applies Pop:
   -> acquire RenderLock
   -> native bridge moves child result into a temporary stack slot
   -> synchronous Rust continuation exits and destroys child
   -> Rust restores and publishes parent
   -> unlock; invoke parent handler with borrowed result
-  -> discard result slot; outer loop drains any newly queued transition
+  -> discard result slot; the drain continues with any newly queued transition
 ```
+
+A loop pass that returns before its drain (suppressed release, exclusive storage,
+a Home gesture, the frontlight panel) defers the queued transition to a later pass.
+The drain is the last navigation step of `App::activity_loop` (`rust/crates/xp-ffi/src/app/mod.rs:420`)
+and `Application::drain` applies the transition there (`rust/crates/xp-ui/src/app/mod.rs:231`).
 
 The continuation holds no navigation borrow across a native callback. Handlers
 may enqueue another pop or replacement; they must copy any result text they retain.
@@ -387,7 +394,7 @@ The parent receives an automatic render request if no transition was queued.
 
 ### Common Pitfalls
 
-**Calling `finish()` and continuing to access `this`**: `finish()` sets `pendingAction = Pop` but does not immediately destroy the activity. The activity is destroyed on the next `ActivityManager::loop()` iteration. It's safe to access member variables after `finish()` within the same function, but don't rely on the activity surviving past the current `loop()` call.
+**Calling `finish()` and continuing to access `this`**: `finish()` calls `activityManager.popActivity()`, which only queues `Transition::Pop` in the Rust application (`rust/crates/xp-ffi/src/app/mod.rs:705`); it does not destroy the activity. The activity is destroyed when the loop drains that pop, after the current `loop()` call returns (`Application::pop`, `rust/crates/xp-ui/src/app/mod.rs:176`). It's safe to access member variables after `finish()` within the same function, but don't rely on the activity surviving past the current `loop()` call.
 
 **Modifying shared state without `RenderLock`**: If `render()` reads a variable and `loop()` writes it, the write must be under a `RenderLock`. Without it, `render()` could see a half-written value (e.g., a partially updated string or struct).
 

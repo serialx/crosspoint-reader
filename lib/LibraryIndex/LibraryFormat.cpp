@@ -6,7 +6,6 @@ namespace library {
 uint64_t clixPathHash(const char* data, size_t len) {
   return xp_library_hash(reinterpret_cast<const uint8_t*>(data), len);
 }
-uint32_t alignUp(uint32_t v) { return xp_library_align(v); }
 void layoutSections(ClixHeader& h, uint32_t folders, uint32_t names) { xp_library_layout(&h, folders, names); }
 uint32_t recordOffset(const ClixHeader& h, uint16_t n) { return xp_library_offset(&h, n, 0); }
 uint32_t authorOrderOffset(const ClixHeader& h, uint16_t n) { return xp_library_offset(&h, n, 1); }

@@ -15,8 +15,6 @@ LibraryIndexFile::~LibraryIndexFile() { close(); }
 
 bool LibraryIndexFile::open(const char* path) { return openImpl(path, false); }
 
-bool LibraryIndexFile::openForReconciliation(const char* path) { return openImpl(path, true); }
-
 bool LibraryIndexFile::openImpl(const char* path, const bool acceptStaleFold) {
   close();
   readFailed = false;

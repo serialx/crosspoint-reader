@@ -48,9 +48,6 @@ class LibraryIndexFile {
   // caused by a format bug is visible in the log rather than looking like a slow
   // first boot.
   bool open(const char* path);
-  // Accept an otherwise valid stale fold so a rebuild can preserve arrival
-  // history without exposing stale sort/search keys to the browser.
-  bool openForReconciliation(const char* path);
   void close();
   bool isOpen() const { return opened; }
   bool ioFailed() const { return readFailed; }

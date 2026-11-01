@@ -107,8 +107,6 @@ static_assert(sizeof(ClixFolderHeader) == 1, "ClixFolderHeader must be 1 byte");
 
 #pragma pack(pop)
 
-uint32_t alignUp(const uint32_t value);
-
 // Fill in every offset and the expected file size from the counts alone, so the
 // writer and the reader can never disagree about where a section starts.
 void layoutSections(ClixHeader& h, const uint32_t folderBytes, const uint32_t nameBytes);

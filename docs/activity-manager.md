@@ -48,35 +48,19 @@ Problems with this approach:
 - **Dangerous deletion patterns**: `exitActivity()` + `enterNewActivity()` in callbacks led to `delete this` situations where the caller was destroyed while its code was still on the stack
 - **Subactivity coupling**: Parents stored callbacks to child results, creating tight coupling and lifetime hazards
 
-### New Model: Centralized ActivityManager
+### Application owner and native facade
 
-A single `ActivityManager` owns the render task and manages an activity stack:
+`xp-ui::app::Application` owns the current activity, retained parents and pending
+transition. `ActivityManager` forwards native navigation through `xp_app.h` and
+retains the render task, RenderLock and completion notification. See
+[Application and Home ownership](contributing/rust-ui.md#application-and-home-ownership).
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│ Main Task (Arduino loop)                                 │
-│                                                          │
-│  activityManager.loop()                                  │
-│    │                                                     │
-│    ├── currentActivity->loop()                           │
-│    │     ├── handle input                                │
-│    │     ├── update state (under RenderLock)              │
-│    │     └── requestUpdate()                             │
-│    │                                                     │
-│    ├── process pending actions (Push / Pop / Replace)    │
-│    │                                                     │
-│    └── if requestedUpdate: ──notify──► Render Task       │
-│                                         (single, shared) │
-│                                         8KB stack        │
-│                                         global mutex     │
-│                                                          │
-│  Activity Stack:                                         │
-│  ┌──────────┬──────────┬──────────┐    ┌──────────┐     │
-│  │ Home     │ Settings │ Wifi     │    │ Keyboard │     │
-│  │ (stack)  │ (stack)  │ (stack)  │    │ (current)│     │
-│  └──────────┴──────────┴──────────┘    └──────────┘     │
-│   stackActivities[]                    currentActivity   │
-└──────────────────────────────────────────────────────────┘
+Main task -> xp_app_loop -> Rust Application
+                            current: Home or owned legacy activity
+                            parents: retained owners
+                            pending: Push / Pop / Replace / Sleep
+                            render request -> shared native render task
 ```
 
 ## Migration Checklist
@@ -372,69 +356,34 @@ requestUpdateAndWait()
   └─ return
 ```
 
-### Activity Lifecycle Under ActivityManager
+### Activity lifecycle through ActivityManager
+
+Native `replaceActivity`, `pushActivity` and `popActivity` forward events to the
+Rust application. The outer loop drains queued transitions. Replacement exits and
+drops current and retained owners under RenderLock, publishes the new current
+owner, then unlocks before calling `onEnter()`.
+
+For push/pop navigation:
 
 ```text
-activityManager.replaceActivity(make_unique<MyActivity>(...))
-  │
-  ▼
-╔═══════════════════════════════════════════════════╗
-║  pendingAction = Replace                          ║
-║  pendingActivity = MyActivity                     ║
-╚═══════════════════════════════════════════════════╝
-  │
-  ▼ (next loop iteration)
-  ActivityManager::loop()
-  │
-  ├── currentActivity->loop()     // old activity's last loop
-  │
-  ├── process pending action:
-  │   ├── RenderLock lock;
-  │   ├── oldActivity->onExit()   // cleanup under lock
-  │   ├── delete oldActivity
-  │   ├── clear stack
-  │   ├── currentActivity = MyActivity
-  │   ├── lock.unlock()
-  │   └── MyActivity->onEnter()   // init new activity
-  │
-  └── if requestedUpdate:
-      └── notify render task
+Parent: startActivityForResult(child, handler)
+  -> store handler in parent; enqueue Push in Rust
+  -> Rust retains parent and installs child under RenderLock
+  -> unlock; Child::onEnter()
+
+Child: setResult(value); finish()
+  -> enqueue Pop in Rust
+  -> acquire RenderLock
+  -> native bridge moves child result into a temporary stack slot
+  -> synchronous Rust continuation exits and destroys child
+  -> Rust restores and publishes parent
+  -> unlock; invoke parent handler with borrowed result
+  -> discard result slot; outer loop drains any newly queued transition
 ```
 
-For push/pop (subactivity) navigation:
-
-```text
-Parent calls: startActivityForResult(make_unique<Child>(...), handler)
-  │
-  ▼
-╔══════════════════════════════════════╗
-║  pendingAction = Push               ║
-║  pendingActivity = Child            ║
-║  parent->resultHandler = handler    ║
-╚══════════════════════════════════════╝
-  │
-  ▼ (next loop iteration)
-  ├── Parent moved to stackActivities[]
-  ├── currentActivity = Child
-  └── Child->onEnter()
-
-        ... child runs ...
-
-Child calls: setResult(MyResult{...}); finish();
-  │
-  ▼
-╔══════════════════════════════════════╗
-║  pendingAction = Pop                ║
-║  child->result = MyResult{...}      ║
-╚══════════════════════════════════════╝
-  │
-  ▼ (next loop iteration)
-  ├── result = child->result
-  ├── Child->onExit(); delete Child
-  ├── currentActivity = Parent (popped from stack)
-  ├── Parent->resultHandler(result)
-  └── requestUpdate()   // automatic re-render for parent
-```
+The continuation holds no navigation borrow across a native callback. Handlers
+may enqueue another pop or replacement; they must copy any result text they retain.
+The parent receives an automatic render request if no transition was queued.
 
 ### Common Pitfalls
 

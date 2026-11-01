@@ -24,11 +24,13 @@ Home calls its Rust model and view directly and has no native activity class.
 ## Application and Home ownership
 
 Replace and sleep exit and drop the current owner and retained parents under
-RenderLock; push retains the parent without exit; pop copies the child result
-before exit and destruction. The parent callback runs after unlocking. Result
-strings are owned for that transition; copy failure produces a cancelled
-`TransferFailed` result with one diagnostic, never a partial result or retry queue.
-Entry runs after unlocking and may queue another transition.
+RenderLock; push retains the parent without exit. On pop, the native bridge moves
+the child result into a stack slot, then calls a synchronous Rust continuation.
+The continuation exits and destroys the child under RenderLock, restores the
+parent, unlocks, and invokes its handler with the borrowed result. Rust neither
+copies nor decodes the native strings. The slot dies when the continuation returns;
+handlers retaining text must copy it. Callbacks enqueue transitions, which the
+outer driver drains after the slot returns. Entry also runs after unlocking.
 
 Loop-only navigation and driver state are separate from render-only command/text
 storage. Brief model critical sections protect scalar snapshots and publication.
@@ -39,11 +41,23 @@ defers rather than borrowing partly initialized data.
 
 Home owns recent identities, cover paths, typed text/resources, prepared wrapped
 lines, commands and the cover cache. Commands use a reused fallible vector bounded
-at 128 entries; wrapped title buffers are reused during preparation. Painting
-borrows these strings and adds no Home text allocation. Numeric resource encoding
+at 128 entries; wrapped title buffers are reused during preparation. Clipped
+author and menu labels copy once per scene build. Drawing borrows the prepared
+strings. Numeric resource encoding
 exists only at the shared scene boundary. The native `RustAppResources` leaves
 supply storage/book/font/display services; they do not own Home selection or
 publication. The grid cache retains the capability-aware PSRAM allocation path.
+
+Home's display keys include Continue and distinguish Plugins from OPDS, while the
+navigation enum describes destinations. `HomeState::menu_keys` supplies the display
+order; `home_text.rs` maps those keys to translations, and `PaintContext` maps them
+to native theme icons. These mappings remain separate because translations and
+icons are native services; a row change must update all three together.
+
+`STR_CONTINUE_READING`, `STR_BROWSE_FILES`, `STR_NO_OPEN_BOOK`, `STR_START_READING`
+and `STR_RESUME` are referenced only under `rust/crates`. When generating with
+`--strip-unused`, keep `rust/crates` in `--src-dirs` alongside `src` and `lib`.
+`test/i18n_oracle/test_ids.py` checks the mixed-language scan and matching IDs.
 
 The former Home exports and mirrored C layouts are removed. `xp_ui_home.h` still
 serves FileBrowser and Library, including their shared scene-status enum. The

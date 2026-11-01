@@ -13,7 +13,8 @@ pub enum Query {
     Frequency,
     TextAa,
     IsA4,
-    IsX3,
+    IsBw = 19,
+    IsX3 = 8,
     IsUc8279,
     AbsoluteSupported,
     OverlayCaps,
@@ -460,6 +461,26 @@ pub unsafe fn render(services: Services, strip_enabled: bool) {
     .run(strip_enabled);
 }
 const _: () = {
+    assert!(Query::Now as u8 == 0);
+    assert!(Query::HasImages as u8 == 1);
+    assert!(Query::ImagesNeedDecode as u8 == 2);
+    assert!(Query::TakeForced as u8 == 3);
+    assert!(Query::Counter as u8 == 4);
+    assert!(Query::Frequency as u8 == 5);
+    assert!(Query::TextAa as u8 == 6);
+    assert!(Query::IsA4 as u8 == 7);
+    assert!(Query::IsX3 as u8 == 8);
+    assert!(Query::IsUc8279 as u8 == 9);
+    assert!(Query::AbsoluteSupported as u8 == 10);
+    assert!(Query::OverlayCaps as u8 == 11);
+    assert!(Query::AbsoluteCaps as u8 == 12);
+    assert!(Query::StripBoard as u8 == 13);
+    assert!(Query::Elements as u8 == 14);
+    assert!(Query::WidthBytes as u8 == 15);
+    assert!(Query::Height as u8 == 16);
+    assert!(Query::FreeHeap as u8 == 17);
+    assert!(Query::MaxBlock as u8 == 18);
+    assert!(Query::IsBw as u8 == 19);
     use core::mem::{align_of, offset_of, size_of};
     assert!(size_of::<Op>() == 16 && align_of::<Op>() == 4);
     assert!(

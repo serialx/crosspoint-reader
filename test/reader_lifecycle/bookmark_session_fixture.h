@@ -12,7 +12,7 @@ struct XpEpubTestBookmarkSeed {
   void* context;
   void (*position)(void*, XpEpubPosition*);
   void (*sanitize)(void*, XpAppText);
-  void (*estimate)(void*, uint16_t);
+  void (*estimate)(void*, int32_t);
 };
 struct XpEpubTestBookmarkObservation {
   int32_t history[6];

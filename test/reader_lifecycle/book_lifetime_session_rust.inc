@@ -161,7 +161,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 198 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -360,6 +360,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
+  UNUSED_LEAF(page_word_font);
+  UNUSED_LEAF(page_line_font);
+  UNUSED_LEAF(page_word_y_offset);
+  UNUSED_LEAF(page_line_ruby_shift);
+  UNUSED_LEAF(font_text_advance);
+  UNUSED_LEAF(log_enabled);
+  UNUSED_LEAF(toolbar_reset_navigation);
   table.book_open = [](XpAppText path) -> void* {
     leaf();
     assert(!liveBook);
@@ -423,8 +430,9 @@ static const XpEpubLeaves leaves = [] {
   };
   table.book_clear_extractor = [] { leaf(); ImageBlock::setExtractor(nullptr, nullptr); };
   table.image_clear_failures = [] { leaf(); ImageBlock::clearRenderFailures(); };
-  table.settings_snapshot = [](XpEpubSettings* out) {
+  table.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
     leaf();
+    assert(resolveFont == 0);
     assert(out);
     *out = {};
     out->embedded_style = SETTINGS.embeddedStyle;

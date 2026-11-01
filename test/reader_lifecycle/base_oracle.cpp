@@ -1,4 +1,7 @@
 #include <xp_ui_reader.h>
+#ifdef XP_BASE_OWNER
+#include "base_owner_fixture.h"
+#endif
 
 #include <algorithm>
 #include <atomic>
@@ -11,11 +14,19 @@
 #include <new>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 static unsigned eventId;
+static unsigned modelDepth = 0;
+#ifdef XP_BASE_OWNER
+static bool longCallbackPath = false;
+#endif
 static unsigned lockDepth = 0;
-static void event(const char* name, int a = 0, int b = 0) { std::printf("%u %s %d %d\n", eventId++, name, a, b); }
+static void event(const char* name, int a = 0, int b = 0) {
+  assert(modelDepth == 0);
+  std::printf("%u %s %d %d\n", eventId++, name, a, b);
+}
 struct Allocation {
   void* pointer;
   size_t bytes;
@@ -231,6 +242,12 @@ struct EndOfBookOptions {
   void render(GfxRenderer&, MappedInputManager&) { event("end-render"); }
   Action handleMenuInput(MappedInputManager&, std::string* p) {
     event("end-input", int(action));
+#ifdef XP_BASE_OWNER
+    if (longCallbackPath) {
+      p->assign(4096, 'x');
+      return action;
+    }
+#endif
     *p = "/library/next-very-long-path.epub";
     return action;
   }
@@ -404,9 +421,22 @@ struct ReaderActivity : Activity {
   void onEnter();
   void onExit();
   void flushReaderSession();
+#ifdef XP_BASE_OWNER
+  void* owner = nullptr;
+  void initializeOwner();
+  void observeOwner();
+  ~ReaderActivity();
+#endif
 };
+#ifdef XP_BASE_OWNER
+#include "base_owner_rust.inc"
+#else
 #include "base_methods.inc"
-int main() {
+#endif
+int main(int argc, char** argv) {
+#ifdef XP_BASE_OWNER
+  if (argc == 2 && std::string_view(argv[1]) == "--callbacks") return base_owner_adapter::callbackCases();
+#endif
   recordAllocations = true;
   for (unsigned phase = 0; phase < 24; ++phase)
     for (unsigned action = 0; action < 24; ++action) {
@@ -442,6 +472,9 @@ int main() {
       ReaderUtils::touch = {action >= 16 && (action & 1), action >= 16 && (action & 2),
                             action % 3 == 0 ? 699UL : 700UL};
       a.mappedInput.held = action % 3 == 0 ? 699 : 700;
+#ifdef XP_BASE_OWNER
+      a.initializeOwner();
+#endif
       a.onEnter();
       a.loop();
       assert(lockDepth == 0);
@@ -455,6 +488,9 @@ int main() {
       if (action & 1) a.flushReaderSession();
       a.onExit();
       assert(lockDepth == 0);
+#ifdef XP_BASE_OWNER
+      a.observeOwner();
+#endif
       event("state", a.pagesUntilFullRefresh, a.forcedRefreshPending);
       event("publication", a.pageRendered.load(), a.endOfBookOptionsReady.load());
       event("remembered", a.bookRemembered);

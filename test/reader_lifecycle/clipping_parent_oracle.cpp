@@ -1,4 +1,8 @@
 #include <xp_ui_reader.h>
+#ifdef XP_CLIPPING_OWNER
+#include "Epub/ReaderRenderSpec.h"
+#include "clipping_owner_fixture.h"
+#endif
 
 #include <algorithm>
 #include <cassert>
@@ -125,7 +129,12 @@ struct TextBlock {
   }
   SourceRange wordSourceRange(uint16_t i) const { return {(*words)[i].start, (*words)[i].end}; }
 };
+#ifdef XP_CLIPPING_OWNER
+// The historical fake used tag 3; the physical Page wire tag is 1.
+constexpr int TAG_PageLine = 1;
+#else
 constexpr int TAG_PageLine = 3;
+#endif
 struct PageElementView {
   int tag, xPos, yPos;
   struct BlockSeed {
@@ -192,9 +201,17 @@ struct EpubReaderActivity {
   int runClippingPolicy(uint8_t operation, const Page& page, const XpUiReaderClipInput& input) const;
   int clippingAtPoint(const Page&, int, int) const;
   void drawClippingHighlights(const Page&, int, int, int) const;
+#ifdef XP_CLIPPING_OWNER
+  void* owner = nullptr;
+  void initializeOwner(bool realFacts = false);
+  ~EpubReaderActivity();
+#endif
 };
 // CLIPPING_METHODS
-int main() {
+int main(int argc, char** argv) {
+#ifdef XP_CLIPPING_OWNER
+  if (argc == 2 && std::strcmp(argv[1], "--real-facts") == 0) return clipping_owner_adapter::realFacts();
+#endif
   const std::vector<Word> ltr = {{"one", 0, 6, 0, 0, 0, 3},        {"   ", 11, 6, 0, 0, 3, 6},
                                  {"zero", 13, 6, 0, 0, 6, 10},     {"\xe2\x80\x83two", 18, 9, 4, 2, 10, 16},
                                  {"three", 23, 42, 5, -1, 16, 21}, {"negative", 40, 6, 0, 0, 21, 29},
@@ -240,6 +257,9 @@ int main() {
             c.spineIndex = 1;
             CLIPPINGS.entries.push_back(c);
           }
+#ifdef XP_CLIPPING_OWNER
+          o.initializeOwner();
+#endif
           o.drawClippingHighlights(page, 6, 4, 7);
           if (current >= 0 && current < 3)
             for (int x : {-1, 8, 10, 22, 30, 50, 75})
@@ -247,5 +267,8 @@ int main() {
         }
   EpubReaderActivity absent;
   absent.section.reset();
+#ifdef XP_CLIPPING_OWNER
+  absent.initializeOwner();
+#endif
   absent.drawClippingHighlights(page, 6, 4, 7);
 }

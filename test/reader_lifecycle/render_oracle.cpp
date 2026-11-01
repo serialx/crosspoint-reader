@@ -3,10 +3,15 @@
 #include <xp_ui_reader.h>
 #endif
 
+#ifdef RENDER_SESSION_OWNER
+#include "render_session_fixture.h"
+#endif
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <new>
 #include <optional>
@@ -123,7 +128,12 @@ struct XpDisplaySource {
   void (*paint)();
 };
 struct GfxRenderer {
+#ifdef RENDER_SESSION_OWNER
+  struct FrameBufferLoan {};
+#endif
   enum RenderMode { BW, GRAYSCALE_LSB, GRAYSCALE_MSB };
+  RenderMode renderMode = BW;
+  RenderMode getRenderMode() const { return renderMode; }
   Caps caps;
   bool baseOk = true, storeOk = true, planOk = true;
   XpPagePlan* plan = nullptr;
@@ -145,7 +155,10 @@ struct GfxRenderer {
   int getDisplayWidth() const { return 16; }
   int getDisplayHeight() const { return 83; }
   int getScreenHeight() const { return 83; }
-  void setRenderMode(RenderMode mode) { std::printf("mode %d\n", mode); }
+  void setRenderMode(RenderMode mode) {
+    renderMode = mode;
+    std::printf("mode %d\n", mode);
+  }
   void beginStripTarget(uint8_t*, int y, int rows) { std::printf("strip-begin %d %d\n", y, rows); }
   void endStripTarget() { std::puts("strip-end"); }
   void waitRefreshComplete() { std::puts("wait"); }
@@ -166,6 +179,12 @@ struct GfxRenderer {
     std::printf("plan %d %d %d\n", p != nullptr, count, record);
   }
 };
+#ifdef RENDER_SESSION_OWNER
+static const XpDisplaySource* boundSource;
+static bool replayOnDetach;
+static void replayBeforeDetach();
+static unsigned livePages;
+#endif
 struct {
   HalDisplay::Controller controller;
   bool sourceOk = true;
@@ -173,10 +192,18 @@ struct {
   bool isInverted() const { return false; }
   bool setFrameSource(const XpDisplaySource* source) {
     std::printf("source %d\n", source != nullptr);
+#ifdef RENDER_SESSION_OWNER
+    if (!source && boundSource && replayOnDetach) replayBeforeDetach();
+    if (!source || sourceOk) boundSource = source;
+#endif
     return sourceOk;
   }
 } display;
 struct Page {
+#ifdef RENDER_SESSION_OWNER
+  Page() { assert(livePages++ == 0); }
+  ~Page() { assert(livePages-- == 1); }
+#endif
   bool images = false, decode = false;
   int elements = 1;
   bool hasImages() const { return images; }
@@ -230,7 +257,19 @@ struct ReaderStripPainter {
   void (*highlights)(void*, const Page&, int, int, int);
   static void paint() {}
 };
+#ifdef RENDER_SESSION_OWNER
+struct PageMetadata {};
+static GfxRenderer* target;
+// ACTUAL_NATIVE_FRAME
+// ACTUAL_NATIVE_RESOURCES
+// ACTUAL_NATIVE_RESOURCE_ACCESS
+#endif
 struct EpubReaderActivity {
+#ifdef RENDER_SESSION_OWNER
+  void* rustOwner = nullptr;
+  std::unique_ptr<NativeResources> native;
+  ~EpubReaderActivity();
+#endif
   int& renderRefreshCounter() { return pagesUntilFullRefresh; }
   bool takeForcedRefresh() {
     const bool forced = forcedRefreshPending;
@@ -246,8 +285,21 @@ struct EpubReaderActivity {
   void renderStatusBar() const { std::puts("status"); }
   void drawClippingHighlights(const Page&, int, int, int) const { std::puts("highlights"); }
 };
+#ifdef RENDER_SESSION_OWNER
+#include "render_session_rust.inc"
+#else
 #include "render_methods.inc"
-int main() {
+#endif
+int main(int argc, char** argv) {
+#ifdef RENDER_SESSION_OWNER
+  if (argc == 2 && std::strcmp(argv[1], "--lifetime") == 0) {
+    render_adapter::lifetimeFacts();
+    return 0;
+  }
+#else
+  (void)argc;
+  (void)argv;
+#endif
   for (int board = 0; board < 5; ++board)
     for (int image = 0; image < 4; ++image)
       for (int flags = 0; flags < 16; ++flags)

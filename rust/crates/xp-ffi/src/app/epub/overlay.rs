@@ -11,7 +11,12 @@ impl EpubSession {
         unsafe { services.execute.expect("reader renderer")(services.context, &operation) }
     }
 
-    pub(super) fn discard_overlay_page(&self, _access: &ResourceAccess<'_>) {
+    pub(super) fn discard_overlay_page(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.settings_overrides {
+            unsafe { (hook.discard)(hook.context) };
+            return;
+        }
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.lifetime_overrides {
             unsafe { (hook.discard_overlay)(hook.context) };
@@ -64,6 +69,11 @@ impl EpubSession {
     }
 
     pub(super) fn paint_overlay_popup(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.settings_overrides {
+            unsafe { (hook.paint)(hook.context) };
+            return;
+        }
         let access = self.lock_resources();
         self.settle_overlay_refresh(&access);
         let popup = unsafe {
@@ -81,12 +91,17 @@ impl EpubSession {
             unsafe { (hook.disable_fast)(hook.context) };
             return;
         }
-        self.model(|state| state.base.refresh_counter = 0);
+        self.set_refresh_counter(0);
     }
 
     pub(super) fn apply_initial_orientation(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.settings_overrides {
+            unsafe { (hook.initial)(hook.context) };
+            return;
+        }
         let mut settings = MaybeUninit::<abi::XpEpubSettings>::uninit();
-        unsafe { (self.leaves.settings_snapshot)(settings.as_mut_ptr()) };
+        unsafe { (self.leaves.settings_snapshot)(0, settings.as_mut_ptr()) };
         unsafe { (self.leaves.render_orientation)(settings.assume_init().orientation) };
     }
 }

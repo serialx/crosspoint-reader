@@ -111,7 +111,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 198 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -310,6 +310,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
+  UNUSED_LEAF(page_word_font);
+  UNUSED_LEAF(page_line_font);
+  UNUSED_LEAF(page_word_y_offset);
+  UNUSED_LEAF(page_line_ruby_shift);
+  UNUSED_LEAF(font_text_advance);
+  UNUSED_LEAF(log_enabled);
+  UNUSED_LEAF(toolbar_reset_navigation);
   table.book_size = [](void* book) -> uint32_t {
     leaf();
     return static_cast<Epub*>(book)->getBookSize();
@@ -339,7 +346,7 @@ static const XpEpubLeaves leaves = [] {
     publicationRead(0);
     return static_cast<Section*>(section)->pageCount;
   };
-  table.section_estimated_pages = [](void* section) -> uint16_t {
+  table.section_estimated_pages = [](void* section) -> int32_t {
     publicationRead(1);
     return static_cast<Section*>(section)->estimatedTotalPages();
   };
@@ -400,7 +407,7 @@ static const XpEpubLeaves leaves = [] {
 
 #undef UNUSED_LEAF
 
-static void estimateRead(void* context, uint16_t pages) {
+static void estimateRead(void* context, int32_t pages) {
   leaf();
   assert(!publishing && liveSections == 1);
   const auto* section = static_cast<const Section*>(context);

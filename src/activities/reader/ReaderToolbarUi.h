@@ -34,6 +34,8 @@ class ReaderToolbarUi {
     const char* panelTitle = nullptr;
     int itemCount = 0;
     int selectedIndex = -1;  // row the buttons' cursor sits on; -1 = none shown
+    bool (*rowFill)(void* ctx, int index, std::string& label, std::string& value, RowFlags& flags) = nullptr;
+    void* rowFillContext = nullptr;
     std::function<std::string(int)> rowText;
     std::function<std::string(int)> rowValue;
     RowFlags (*rowCheckbox)(void* ctx, int index) = nullptr;

@@ -96,6 +96,10 @@ impl EpubSession {
     }
 
     pub(super) fn clear_deferred(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.projection_hooks {
+            unsafe { (hook.clear)(hook.context) };
+        }
         self.model(|state| {
             state.cached.pages = 0;
             state.cached.offset = None;
@@ -193,12 +197,11 @@ impl EpubSession {
                 && state.current.spine == sync.spine
                 && sync.page >= 0
                 && sync.page < sync.pages
-                && i32::from(active_total) == sync.pages
+                && active_total == sync.pages
         });
         if !matches && sync.has_saved_progress != 0 {
             let count = self
                 .estimated_pages()
-                .map(i32::from)
                 .unwrap_or_else(|| self.model(|state| state.cached.pages));
             let spine = self.model(|state| state.current.spine);
             let saved = abi::XpEpubSavedProgress {
@@ -232,7 +235,7 @@ impl EpubSession {
         unsafe { (self.runtime.notify_render)() };
     }
 
-    pub(super) fn estimated_pages(&self) -> Option<u16> {
+    pub(super) fn estimated_pages(&self) -> Option<i32> {
         let pages = self.model(|state| state.facts.section.map(|facts| facts.estimated_pages));
         #[cfg(feature = "app-test")]
         if let (Some(pages), Some(observer)) = (pages, self.estimate_observer) {
@@ -342,6 +345,11 @@ impl EpubSession {
     }
 
     pub(super) fn remember_offset(&self, access: &ResourceAccess<'_>) {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.settings_overrides {
+            unsafe { (hook.remember)(hook.context) };
+            return;
+        }
         self.model(|state| state.cached.offset = None);
         let Some(section) = self.section(access) else {
             return;

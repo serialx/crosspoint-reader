@@ -22,7 +22,7 @@ pub struct BookmarkSeed {
     pub context: *mut c_void,
     pub position: unsafe extern "C" fn(*mut c_void, *mut abi::XpEpubPosition),
     pub sanitize: unsafe extern "C" fn(*mut c_void, app_abi::Text),
-    pub estimate: unsafe extern "C" fn(*mut c_void, u16),
+    pub estimate: unsafe extern "C" fn(*mut c_void, i32),
 }
 #[repr(C)]
 pub struct BookmarkObservation {

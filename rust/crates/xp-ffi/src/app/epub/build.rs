@@ -7,10 +7,10 @@ const MIN_BLOCK: u32 = 16 * 1024;
 const PAGES_PER_TICK: i32 = 2;
 
 impl EpubSession {
-    fn radio_status(&self) -> abi::XpEpubRadio {
+    pub(super) fn radio_status(&self) -> abi::XpEpubRadio {
         let mut status = core::mem::MaybeUninit::uninit();
         unsafe {
-            (self.leaves.radio_status)(status.as_mut_ptr());
+            (self.leaves.radio_status)(status.as_mut_ptr(), core::ptr::null_mut());
             status.assume_init()
         }
     }

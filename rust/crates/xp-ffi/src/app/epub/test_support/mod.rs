@@ -1,5 +1,93 @@
+mod base;
+mod book_render;
+pub(super) use book_render::BookRenderHooks;
+mod clipping;
+mod entry_gate;
+pub(super) mod overlay_view;
+mod render;
+mod view_values;
+
 use super::app_abi;
 use core::ffi::c_void;
+
+#[derive(Clone, Copy)]
+pub(super) struct OverlayViewHooks {
+    pub context: *mut c_void,
+    pub chapter: unsafe extern "C" fn(*mut c_void, app_abi::TextSink, *mut c_void) -> u8,
+    pub text_name: unsafe extern "C" fn(*mut c_void, i32, app_abi::TextSink, *mut c_void) -> u8,
+    pub text_value: unsafe extern "C" fn(*mut c_void, i32, app_abi::TextSink, *mut c_void) -> u8,
+    pub more_name: unsafe extern "C" fn(*mut c_void, i32, app_abi::TextSink, *mut c_void) -> u8,
+    pub more_value: unsafe extern "C" fn(*mut c_void, i32, app_abi::TextSink, *mut c_void) -> u8,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct RenderHooks {
+    pub context: *mut c_void,
+    pub status: unsafe extern "C" fn(*mut c_void),
+    pub highlights: unsafe extern "C" fn(*mut c_void, *mut c_void, i32, i32, i32),
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ViewValueHooks {
+    pub context: *mut c_void,
+    pub more_label: unsafe extern "C" fn(*mut c_void, i32) -> u16,
+    pub link_note_drawn: unsafe extern "C" fn(*mut c_void, u8, u8),
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ClippingHooks {
+    pub context: *mut c_void,
+    pub signature: unsafe extern "C" fn(*mut c_void, u16, u16) -> u32,
+    pub nonempty: unsafe extern "C" fn(*mut c_void, u8),
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct NavigationHooks {
+    pub context: *mut c_void,
+    pub finish: unsafe extern "C" fn(*mut c_void),
+    pub push: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub reopen: unsafe extern "C" fn(*mut c_void, app_abi::Text),
+    pub update: unsafe extern "C" fn(*mut c_void),
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct BaseHooks {
+    pub context: *mut c_void,
+    pub enter: unsafe extern "C" fn(*mut c_void),
+    pub exit: unsafe extern "C" fn(*mut c_void),
+    pub orientation: unsafe extern "C" fn(*mut c_void),
+    pub load: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub failure: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub at_end: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub return_end: unsafe extern "C" fn(*mut c_void),
+    pub end_rendered: unsafe extern "C" fn(*mut c_void),
+    pub back: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub format: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub touch: unsafe extern "C" fn(*mut c_void) -> xp_ui::reader::input::Turn,
+    pub buttons: unsafe extern "C" fn(*mut c_void) -> xp_ui::reader::input::Turn,
+    pub turn: unsafe extern "C" fn(*mut c_void, u8) -> u8,
+    pub skip: unsafe extern "C" fn(*mut c_void, i32) -> u8,
+    pub snapshot: unsafe extern "C" fn(*mut c_void) -> xp_ui::reader::Session,
+    pub worthy: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub reset: unsafe extern "C" fn(*mut c_void),
+    pub complete: unsafe extern "C" fn(*mut c_void),
+    pub mark: unsafe extern "C" fn(*mut c_void),
+    pub note: unsafe extern "C" fn(*mut c_void, u8, u8),
+    pub force: unsafe extern "C" fn(*mut c_void),
+    pub percent: unsafe extern "C" fn(*mut c_void) -> i32,
+    pub home: unsafe extern "C" fn(*mut c_void),
+    pub navigate: unsafe extern "C" fn(*mut c_void, app_abi::Text),
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ProjectionHooks {
+    pub context: *mut c_void,
+    pub toolbar_menu: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub base_input: unsafe extern "C" fn(*mut c_void) -> u8,
+    pub acknowledge: unsafe extern "C" fn(*mut c_void),
+    pub clear: unsafe extern "C" fn(*mut c_void),
+    pub fallback: unsafe extern "C" fn(*mut c_void),
+}
 
 #[derive(Clone, Copy)]
 pub(super) struct BookmarkOverrides {
@@ -28,12 +116,17 @@ pub(super) mod helpers;
 pub(super) mod lifetime;
 pub(super) mod link_text;
 pub(super) mod navigation;
+pub(super) mod position;
+pub(super) mod projection;
+pub(super) mod publication;
 pub(super) mod read_folder;
+pub(super) mod recovery;
+pub(super) mod settings;
 
 #[derive(Clone, Copy)]
 pub(super) struct EstimateObserver {
     pub context: *mut c_void,
-    pub read: unsafe extern "C" fn(*mut c_void, u16),
+    pub read: unsafe extern "C" fn(*mut c_void, i32),
 }
 
 #[derive(Clone, Copy)]
@@ -97,7 +190,7 @@ pub struct NavigationSeed {
     pub has_visible_offset: u8,
     pub anchor: app_abi::Text,
     pub estimate_context: *mut c_void,
-    pub estimate_read: unsafe extern "C" fn(*mut c_void, u16),
+    pub estimate_read: unsafe extern "C" fn(*mut c_void, i32),
 }
 
 #[repr(C)]

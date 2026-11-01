@@ -2,6 +2,10 @@
 pub mod idle;
 mod thresholds;
 use core::ffi::c_void;
+pub use thresholds::{
+    BUILD_POPUP_BYTE_THRESHOLD, BUILD_POPUP_DEADLINE_MS, BUILD_POPUP_PAGE_THRESHOLD,
+    PARTIAL_REBUILD_START_MARGIN, SKIP_HOLD_MS,
+};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]

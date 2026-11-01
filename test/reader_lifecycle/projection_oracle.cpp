@@ -1,3 +1,4 @@
+#include <I18nKeys.h>
 #include <xp_ui_reader.h>
 
 #include <algorithm>
@@ -13,8 +14,11 @@
 
 #include "ChapterPosition.h"
 #include "CrossPointPosition.h"
+#include "projection_session_fixture.h"
 #include "util/ScreenshotInfo.h"
 static int lockDepth = 0, modelDepth = 0;
+static int lastClockDepth = -1;
+static unsigned clockCalls = 0;
 static void event(const char* name, int a = 0, int b = 0) {
   assert(!modelDepth);
   std::printf("%s %d %d\n", name, a, b);
@@ -30,6 +34,8 @@ static float fromBits(uint32_t value) {
   return result;
 }
 unsigned long millis() {
+  lastClockDepth = lockDepth;
+  ++clockCalls;
   event("clock", lockDepth);
   return 1234;
 }
@@ -132,6 +138,11 @@ struct EpubReaderActivity : ReaderActivity {
   };
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();
   std::unique_ptr<Section> section = std::make_unique<Section>();
+  mutable void* owner = nullptr;
+  void initialize();
+  void* getOwner() const;
+  XpEpubTestProjectionObservation observe() const;
+  ~EpubReaderActivity();
   mutable GfxRenderer renderer;
   int currentSpineIndex = 0, nextPageNumber = 2, cachedChapterTotalPageCount = 8;
   std::optional<uint16_t> pendingPageJump = 123;
@@ -166,14 +177,9 @@ struct EpubReaderActivity : ReaderActivity {
   bool pageTurn(bool);
   bool skipPages(int);
   bool applyPageMove(const XpUiReaderMove&, bool);
-  uint32_t runProjection(uint8_t, int32_t = 0, int32_t = 0, uint8_t = 0, void* = nullptr) const;
-  void dump() const {
-    std::printf("state %d %d %d %d %lu %d %d %d\n", currentSpineIndex, nextPageNumber, pendingPageJump.value_or(0),
-                section ? section->currentPage : -99, lastPageTurnTime, automaticPageTurnActive, pendingSyncSaveError,
-                !!section);
-  }
+  void dump() const;
 };
-// PROJECTION_METHODS
+#include "projection_session_rust.inc"
 static void screenshot(const ScreenshotInfo& s) {
   std::printf("screenshot %u [%s] %d %d %d %d\n", static_cast<unsigned>(s.readerType), s.title, s.spineIndex,
               s.currentPage, s.totalPages, s.progressPercent);
@@ -199,7 +205,12 @@ static void configure(EpubReaderActivity& o, int flags, int page, int total, int
   o.overlay = flags & 16 ? EpubReaderActivity::Overlay::Toolbar : EpubReaderActivity::Overlay::None;
   o.pendingSyncSaveError = flags & 32;
 }
-int main() {
+int main(int argc, char** argv) {
+  if (argc == 2 && std::strcmp(argv[1], "--owner-edges") == 0) {
+    projectionOwnerEdges();
+    return 0;
+  }
+  assert(argc == 1);
   for (int flags = 0; flags < 64; ++flags)
     for (int page : {-1, 0, 1, 4, 5, 65536})
       for (int total : {-1, 0, 1, 5})

@@ -68,8 +68,7 @@ pub unsafe extern "C" fn xp_epub_test_helpers_observe(
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_helpers_discard(owner: *mut c_void) {
     let owner = &*owner.cast::<EpubSession>();
-    let access = owner.borrowed_resources();
-    owner.discard_overlay_page(&access);
+    owner.discard_overlay_page();
 }
 
 #[no_mangle]

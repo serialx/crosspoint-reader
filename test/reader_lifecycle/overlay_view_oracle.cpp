@@ -4,13 +4,20 @@
 #include <algorithm>
 #include <cassert>
 #include <climits>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>
+#ifdef OVERLAY_VIEW_OWNER
+#include <I18nKeys.h>
+
+#include "overlay_view_session_fixture.h"
+#endif
 namespace freeink::ui {
 struct ListItem {
   bool toggle = false, checked = false;
@@ -139,10 +146,26 @@ struct EpubReaderActivity {
   std::string moreRowValue(int i) const { return "more-value-" + std::to_string(i); }
   void publishRustScene(const XpUiScene&) {}
   void rejectRustScene() { assert(false); }
+#ifdef OVERLAY_VIEW_OWNER
+  void* rustOwner = nullptr;
+  Section* nativeSection = nullptr;
+  bool realValues = false;
+  ~EpubReaderActivity();
+#endif
   void renderOverlay();
 };
+#ifdef OVERLAY_VIEW_OWNER
+#include "overlay_view_session_rust.inc"
+#else
 // VIEW_METHODS
-int main(int argc, char**) {
+#endif
+int main(int argc, char** argv) {
+#ifdef OVERLAY_VIEW_OWNER
+  if (argc > 1 && std::strcmp(argv[1], "--real-borrows") == 0) {
+    overlay_view_adapter::realBorrows();
+    return 0;
+  }
+#endif
   if (argc > 1) {
     const int pages[] = {65534, INT_MAX - 1, INT_MIN, INT_MIN};
     const int counts[] = {65535, 65535, 65535, INT_MIN};

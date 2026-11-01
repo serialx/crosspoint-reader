@@ -60,7 +60,6 @@ typedef struct {
 
 typedef struct {
   int32_t font;
-  int32_t refresh_frequency;
   uint8_t orientation;
   uint8_t font_size;
   uint8_t line_spacing;
@@ -99,8 +98,6 @@ typedef struct {
 typedef struct {
   int32_t x;
   int32_t y;
-  int32_t font;
-  int32_t ruby_shift;
   uint16_t words;
   uint8_t tag;
   uint8_t valid;
@@ -109,10 +106,6 @@ typedef struct {
 typedef struct {
   XpAppText text;
   int32_t x;
-  int32_t y_offset;
-  int32_t font;
-  int32_t advance;
-  int32_t em_advance;
   uint32_t source_start;
   uint32_t source_end;
   uint8_t style;
@@ -143,16 +136,20 @@ typedef struct {
   uint8_t starting;
   uint8_t stopping;
   uint8_t note;
-  uint8_t peer[64];
 } XpEpubRadio;
+
+typedef struct {
+  uint8_t name[64];
+  uint8_t addr[18];
+} XpEpubPeer;
 
 typedef struct {
   int32_t width;
   int32_t height;
-  int32_t margins[4];
   int32_t status_height;
   int32_t progress_height;
   int32_t status_margin;
+  int32_t ui_font_12;
   uint8_t title_mode;
   uint8_t has_framebuffer;
   uint8_t async_refresh;
@@ -167,7 +164,8 @@ typedef struct {
   uint32_t raw_held;
   uint8_t raw_edges;
   uint8_t remote_click;
-  uint8_t touch;
+  uint8_t touch;        // Runtime mapped-input availability.
+  uint8_t board_touch;  // Board capability used by the confirm threshold.
   uint8_t home_action;
   uint8_t slide_owns_light;
 } XpEpubInputFacts;
@@ -206,6 +204,7 @@ typedef struct {
 typedef struct {
   XpAppText label;
   XpAppText value;
+  uint32_t label_spaces;
   uint8_t toggle;
   uint8_t checked;
 } XpEpubToolbarRow;
@@ -220,8 +219,6 @@ typedef struct {
 } XpEpubRouted;
 
 typedef struct {
-  int32_t selected;
-  uint8_t chosen;
   uint8_t active;
   uint8_t changed;
   uint8_t consumed;
@@ -338,7 +335,7 @@ typedef struct XpEpubLeaves {
   void* (*section_open)(void* book, int32_t spine);
   void (*section_close)(void* section);
   uint16_t (*section_page_count)(void* section);
-  uint16_t (*section_estimated_pages)(void* section);
+  int32_t (*section_estimated_pages)(void* section);
   uint8_t (*section_building)(void* section);
   uint8_t (*section_complete)(void* section);
   uint8_t (*section_partial)(void* section);
@@ -351,7 +348,8 @@ typedef struct XpEpubLeaves {
   uint8_t (*section_html_cached)(void* section);
   uint8_t (*section_find_anchor)(void* section, XpAppText anchor, uint16_t* page);
   uint8_t (*section_cached_anchor)(void* section, XpAppText anchor, uint16_t* page);
-  int32_t (*section_toc_for_page)(void* section, int32_t page);
+  // Caller chooses null for a temporary cached Section; book stays borrowed for this call.
+  int32_t (*section_toc_for_page)(void* section_or_null, void* book, int32_t spine, int32_t page);
   uint8_t (*section_page_for_offset)(void* section, uint32_t offset, uint8_t prefer_first, uint16_t* page);
   uint8_t (*section_offset_for_page)(void* section, uint16_t page, uint32_t* offset);
   uint8_t (*section_paragraph_for_page)(void* section, uint16_t page, uint16_t* paragraph);
@@ -360,8 +358,8 @@ typedef struct XpEpubLeaves {
   uint8_t (*section_page_text)(void* section, int32_t page, XpAppTextSink sink, void* context);
   void (*page_close)(void* page);
   void (*page_info)(void* page, XpEpubPageInfo* out);
-  void (*page_element)(void* page, uint16_t index, int32_t reader_font, XpEpubElement* out);
-  void (*page_word)(void* page, uint16_t element, uint16_t word, int32_t reader_font, XpEpubWord* out);
+  void (*page_element)(void* page, uint16_t index, XpEpubElement* out);
+  void (*page_word)(void* page, uint16_t element, uint16_t word, XpEpubWord* out);
   uint8_t (*page_footnote)(void* page, uint16_t index, XpEpubFootnoteSink sink, void* context);
   uint8_t (*page_link)(void* page, uint16_t index, XpEpubLinkSink sink, void* context);
   uint8_t (*metadata_assign)(void* resources, void* page);
@@ -382,7 +380,8 @@ typedef struct XpEpubLeaves {
   void (*fonts_prewarm_drop)(void* resources);
   uint8_t (*fonts_take_corrupt_notice)(void);
   uint8_t (*font_sizes)(XpAppText family, XpAppTextSink sink, void* context);
-  void (*settings_snapshot)(XpEpubSettings* out);
+  // Font is meaningful only when requested; otherwise font is zero and resolution is skipped.
+  void (*settings_snapshot)(uint8_t resolve_font, XpEpubSettings* out);
   void (*settings_render_spec)(uint16_t width, uint16_t height, XpEpubRenderSpec* out);
   void (*settings_orientation)(uint8_t value);
   void (*settings_font_size)(uint8_t value);
@@ -412,7 +411,7 @@ typedef struct XpEpubLeaves {
   uint8_t (*path_mkdir)(XpAppText path);
   uint64_t (*native_path_hash)(XpAppText path);
   void (*heap_snapshot)(XpEpubHeap* out);
-  void (*radio_status)(XpEpubRadio* out);
+  void (*radio_status)(XpEpubRadio* out, XpEpubPeer* peer_or_null);
   uint8_t (*radio_before_build)(void);
   void (*radio_settle_start)(void);
   uint8_t (*radio_holds_heap)(void);
@@ -447,9 +446,13 @@ typedef struct XpEpubLeaves {
   void* (*popup_open)(void);
   void (*popup_close)(void* popup);
   uint8_t (*popup_active)(void* popup);
-  void (*popup_show)(void* popup, XpAppText title, XpAppText message, const XpAppText* labels, uint32_t count,
-                     int32_t selected);
+  // Labels are copied synchronously; only choose and choice_context are retained.
+  // Choice runs before haptic/update. The retained context must outlive the popup callback.
+  void (*popup_show)(void* popup, XpAppText title, XpAppText message, uint32_t count, int32_t selected,
+                     uint8_t (*label)(void* label_context, uint32_t index, XpAppTextSink sink, void* sink_context),
+                     void* label_context, void (*choose)(void* choice_context, int32_t index), void* choice_context);
   void (*popup_dismiss)(void* popup);
+  // Choice has already run synchronously. Handle changed last after this call returns.
   void (*popup_input)(void* popup, XpEpubPopupInput* out);
   void (*popup_paint)(void* popup);
   void (*popup_process_render)(void* popup);
@@ -457,7 +460,7 @@ typedef struct XpEpubLeaves {
   void (*end_close)(void* end);
   void (*end_load)(void* end, XpAppText path);
   uint8_t (*end_menu_active)(void* end);
-  uint8_t (*end_input)(void* end, XpAppTextSink selected_path, void* context);
+  void (*end_input)(void* end, void (*result)(void* context, uint8_t action, XpAppText selected_path), void* context);
   void (*end_paint)(void* end);
   void* (*bookmarks_open)(void);
   void (*bookmarks_close)(void* bookmarks);
@@ -480,7 +483,7 @@ typedef struct XpEpubLeaves {
                               XpAppNativeText text);
   uint8_t (*clippings_move_book)(XpAppText from, XpAppText to);
   uint8_t (*recents_remove)(XpAppText path);
-  void (*recents_add)(const XpAppBook* book);
+  void (*recents_add)(void* book);
   void (*recents_update_path)(XpAppText from, XpAppText to, XpAppText old_cache, XpAppText new_cache);
   uint8_t (*state_open_path)(XpAppTextSink sink, void* context);
   void (*state_set_open_path)(XpAppText path);
@@ -494,6 +497,13 @@ typedef struct XpEpubLeaves {
   void (*emit_exit)(XpAppText path, int32_t percent);
   void (*emit_session)(XpAppText path, XpAppText document, const XpEpubSessionEvent* event);
   void (*log)(uint8_t severity, XpAppText origin, XpAppText message);
+  int32_t (*page_word_font)(void* page, uint16_t element, uint16_t word, int32_t reader_font);
+  int32_t (*page_line_font)(void* page, uint16_t element, int32_t reader_font);
+  int32_t (*page_word_y_offset)(void* page, uint16_t element, uint16_t word, int32_t reader_font);
+  int32_t (*page_line_ruby_shift)(void* page, uint16_t element, int32_t line_font);
+  int32_t (*font_text_advance)(XpAppText text, int32_t font, uint8_t style, int8_t character_spacing);
+  uint8_t (*log_enabled)(uint8_t severity);
+  void (*toolbar_reset_navigation)(void* toolbar, int32_t selected, int32_t top);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -505,13 +515,47 @@ typedef struct XpEpubLeaves {
 XP_EPUB_ASSERT(sizeof(XpEpubPosition) == 92, "XpEpubPosition size");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, visible_offset) == 12, "XpEpubPosition.visible_offset");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, anchor) == 25, "XpEpubPosition.anchor");
-XP_EPUB_ASSERT(sizeof(XpEpubGeometry) == 44, "XpEpubGeometry size");
-XP_EPUB_ASSERT(offsetof(XpEpubGeometry, margins) == 8, "XpEpubGeometry.margins");
+XP_EPUB_ASSERT(sizeof(XpEpubGeometry) == 32, "XpEpubGeometry size");
+XP_EPUB_ASSERT(offsetof(XpEpubGeometry, status_height) == 8, "XpEpubGeometry.status_height");
+XP_EPUB_ASSERT(offsetof(XpEpubGeometry, ui_font_12) == 20, "XpEpubGeometry.ui_font_12");
+XP_EPUB_ASSERT(offsetof(XpEpubGeometry, title_mode) == 24, "XpEpubGeometry.title_mode");
 XP_EPUB_ASSERT(sizeof(XpEpubSelectionArgs) == 20, "XpEpubSelectionArgs size");
 XP_EPUB_ASSERT(offsetof(XpEpubSelectionArgs, mode) == 16, "XpEpubSelectionArgs.mode");
 XP_EPUB_ASSERT(sizeof(XpEpubSessionEvent) == 24, "XpEpubSessionEvent size");
 XP_EPUB_ASSERT(offsetof(XpEpubSessionEvent, duration_seconds) == 16, "XpEpubSessionEvent.duration_seconds");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 198 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubPopupInput) == 3, "XpEpubPopupInput size");
+XP_EPUB_ASSERT(offsetof(XpEpubPopupInput, active) == 0, "XpEpubPopupInput.active");
+XP_EPUB_ASSERT(offsetof(XpEpubPopupInput, changed) == 1, "XpEpubPopupInput.changed");
+XP_EPUB_ASSERT(offsetof(XpEpubPopupInput, consumed) == 2, "XpEpubPopupInput.consumed");
+XP_EPUB_ASSERT(sizeof(XpEpubInputFacts) == 16, "XpEpubInputFacts size");
+XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, touch) == 10, "XpEpubInputFacts.touch");
+XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, board_touch) == 11, "XpEpubInputFacts.board_touch");
+XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, home_action) == 12, "XpEpubInputFacts.home_action");
+XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, slide_owns_light) == 13, "XpEpubInputFacts.slide_owns_light");
+XP_EPUB_ASSERT(sizeof(XpEpubElement) == 12, "XpEpubElement size");
+XP_EPUB_ASSERT(offsetof(XpEpubElement, words) == 8, "XpEpubElement.words");
+XP_EPUB_ASSERT(offsetof(XpEpubElement, tag) == 10, "XpEpubElement.tag");
+XP_EPUB_ASSERT(offsetof(XpEpubElement, valid) == 11, "XpEpubElement.valid");
+XP_EPUB_ASSERT(sizeof(XpEpubWord) == sizeof(XpAppText) + 16, "XpEpubWord size");
+XP_EPUB_ASSERT(offsetof(XpEpubWord, x) == sizeof(XpAppText), "XpEpubWord.x");
+XP_EPUB_ASSERT(offsetof(XpEpubWord, source_start) == sizeof(XpAppText) + 4, "XpEpubWord.source_start");
+XP_EPUB_ASSERT(offsetof(XpEpubWord, source_end) == sizeof(XpAppText) + 8, "XpEpubWord.source_end");
+XP_EPUB_ASSERT(offsetof(XpEpubWord, style) == sizeof(XpAppText) + 12, "XpEpubWord.style");
+XP_EPUB_ASSERT(offsetof(XpEpubWord, character_spacing) == sizeof(XpAppText) + 13, "XpEpubWord.character_spacing");
+XP_EPUB_ASSERT(offsetof(XpEpubSettings, orientation) == 4, "XpEpubSettings.orientation");
+XP_EPUB_ASSERT(offsetof(XpEpubSettings, dictionary_available) == 26, "XpEpubSettings.dictionary_available");
+XP_EPUB_ASSERT(offsetof(XpEpubSettings, font_family) == (sizeof(void*) == 8 ? 32 : 28), "XpEpubSettings.font_family");
+XP_EPUB_ASSERT(sizeof(XpEpubSettings) == (sizeof(void*) == 8 ? 48 : 36), "XpEpubSettings size");
+XP_EPUB_ASSERT(sizeof(XpEpubRadio) == 5, "XpEpubRadio size");
+XP_EPUB_ASSERT(offsetof(XpEpubRadio, note) == 4, "XpEpubRadio.note");
+XP_EPUB_ASSERT(sizeof(XpEpubPeer) == 82, "XpEpubPeer size");
+XP_EPUB_ASSERT(offsetof(XpEpubPeer, name) == 0, "XpEpubPeer.name");
+XP_EPUB_ASSERT(offsetof(XpEpubPeer, addr) == 64, "XpEpubPeer.addr");
+XP_EPUB_ASSERT(sizeof(XpEpubToolbarRow) == 2 * sizeof(XpAppText) + 8, "XpEpubToolbarRow size");
+XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, label_spaces) == 2 * sizeof(XpAppText), "XpEpubToolbarRow.label_spaces");
+XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, toggle) == 2 * sizeof(XpAppText) + 4, "XpEpubToolbarRow.toggle");
+XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, checked) == 2 * sizeof(XpAppText) + 5, "XpEpubToolbarRow.checked");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(resources_open, 0);
@@ -712,5 +756,56 @@ XP_EPUB_LEAF_OFFSET(emit_open, 194);
 XP_EPUB_LEAF_OFFSET(emit_exit, 195);
 XP_EPUB_LEAF_OFFSET(emit_session, 196);
 XP_EPUB_LEAF_OFFSET(log, 197);
+XP_EPUB_LEAF_OFFSET(page_word_font, 198);
+XP_EPUB_LEAF_OFFSET(page_line_font, 199);
+XP_EPUB_LEAF_OFFSET(page_word_y_offset, 200);
+XP_EPUB_LEAF_OFFSET(page_line_ruby_shift, 201);
+XP_EPUB_LEAF_OFFSET(font_text_advance, 202);
+XP_EPUB_LEAF_OFFSET(log_enabled, 203);
+XP_EPUB_LEAF_OFFSET(toolbar_reset_navigation, 204);
 #undef XP_EPUB_LEAF_OFFSET
 #undef XP_EPUB_ASSERT
+
+#ifndef __cplusplus
+_Static_assert(_Generic(((XpEpubLeaves*)0)->page_element, void (*)(void*, uint16_t, XpEpubElement*): 1, default: 0),
+               "XpEpubLeaves.page_element signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->page_word, void (*)(void*, uint16_t, uint16_t, XpEpubWord*): 1, default: 0),
+               "XpEpubLeaves.page_word signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->end_input,
+                   void (*)(void*, void (*)(void*, uint8_t, XpAppText), void*): 1,
+                   default: 0),
+               "XpEpubLeaves.end_input signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->recents_add, void (*)(void*): 1, default: 0),
+               "XpEpubLeaves.recents_add signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->page_word_font,
+                   int32_t (*)(void*, uint16_t, uint16_t, int32_t): 1,
+                   default: 0),
+               "XpEpubLeaves.page_word_font signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->page_line_font, int32_t (*)(void*, uint16_t, int32_t): 1, default: 0),
+               "XpEpubLeaves.page_line_font signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->page_word_y_offset,
+                   int32_t (*)(void*, uint16_t, uint16_t, int32_t): 1,
+                   default: 0),
+               "XpEpubLeaves.page_word_y_offset signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->page_line_ruby_shift, int32_t (*)(void*, uint16_t, int32_t): 1, default: 0),
+               "XpEpubLeaves.page_line_ruby_shift signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->font_text_advance,
+                   int32_t (*)(XpAppText, int32_t, uint8_t, int8_t): 1,
+                   default: 0),
+               "XpEpubLeaves.font_text_advance signature");
+#endif
+
+#ifndef __cplusplus
+_Static_assert(_Generic(((XpEpubLeaves*)0)->log_enabled, uint8_t (*)(uint8_t): 1, default: 0),
+               "XpEpubLeaves.log_enabled signature");
+#endif
+
+#ifndef __cplusplus
+_Static_assert(_Generic(((XpEpubLeaves*)0)->toolbar_reset_navigation, void (*)(void*, int32_t, int32_t): 1, default: 0),
+               "XpEpubLeaves.toolbar_reset_navigation signature");
+#endif
+
+#ifndef __cplusplus
+_Static_assert(_Generic(((XpEpubLeaves*)0)->radio_status, void (*)(XpEpubRadio*, XpEpubPeer*): 1, default: 0),
+               "XpEpubLeaves.radio_status signature");
+#endif

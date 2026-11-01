@@ -1,4 +1,9 @@
 #include <xp_ui_reader.h>
+#ifdef XP_RECOVERY_SESSION
+#include <I18nKeys.h>
+
+#include "recovery_session_fixture.h"
+#endif
 
 #include <cassert>
 #include <cstdint>
@@ -7,8 +12,12 @@
 #include <memory>
 #include <string>
 #include <utility>
-static void event(const char* name, int value = 0) { std::printf("%s %d\n", name, value); }
-enum StrId {
+static int modelDepth = 0;
+static void event(const char* name, int value = 0) {
+  assert(modelDepth == 0);
+  std::printf("%s %d\n", name, value);
+}
+enum FixtureStrId {
   STR_DRM_PROTECTED_FILE,
   STR_LOAN_EXPIRED,
   STR_LOAN_TIME_UNVERIFIED,
@@ -18,14 +27,17 @@ enum StrId {
   STR_RETRY,
   STR_CLOCK_SYNC_FAIL
 };
+#ifndef XP_RECOVERY_SESSION
+using StrId = FixtureStrId;
+#endif
 struct I18n {
-  const char* get(StrId id) {
+  const char* get(FixtureStrId id) {
     event("translation", id);
     static const char* names[] = {"DRM", "expired", "unverified", "sync", "ok", "syncing", "retry", "failed"};
     return names[id];
   }
 } I18N;
-const char* tr(StrId id) { return I18N.get(id); }
+const char* tr(FixtureStrId id) { return I18N.get(id); }
 #define LOG_ERR(tag, message) std::printf("error [%s] [%s]\n", tag, message)
 static int locks = 0;
 struct RenderLock {
@@ -123,6 +135,14 @@ struct EpubReaderActivity : ReaderActivity {
   bool handleLoadFailure();
   void beginLoanTimeSync();
   void render(RenderLock&&);
+#ifdef XP_RECOVERY_SESSION
+  void* owner = nullptr;
+  void initialize(uint8_t failure = 0);
+  void seedFailure(uint8_t failure);
+  void seedPath();
+  bool renderLoadFailure();
+  ~EpubReaderActivity();
+#endif
 };
 // RECOVERY_METHODS
 static void choose(EpubReaderActivity& owner, int index) {
@@ -148,14 +168,23 @@ int main() {
                 APP_STATE.openEpubPath = "before";
                 EpubReaderActivity owner;
                 owner.loadProtectionError = errors[error];
+#ifdef XP_RECOVERY_SESSION
+                owner.initialize(static_cast<uint8_t>(error));
+#endif
                 event("handled", owner.handleLoadFailure());
                 owner.loadProtectionError = "changed after show";
+#ifdef XP_RECOVERY_SESSION
+                owner.seedFailure(3);
+#endif
                 choose(owner, first);
                 if (owner.childResult) {
                   auto callback = std::move(owner.childResult);
                   owner.child.reset();
                   event("child-dismiss");
                   owner.bookPath = "changed-before-result.epub";
+#ifdef XP_RECOVERY_SESSION
+                  owner.seedPath();
+#endif
                   callback(ActivityResult{bool(cancel)});
                   choose(owner, retry);
                 }

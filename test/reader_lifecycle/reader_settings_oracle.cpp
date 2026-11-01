@@ -1,3 +1,4 @@
+#include <I18nKeys.h>
 #include <xp_ui_reader.h>
 
 #include <algorithm>
@@ -5,12 +6,20 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
-static void event(const char* name, int a = 0, int b = 0) { std::printf("%s %d %d\n", name, a, b); }
-enum StrId {
+
+#include "settings_session_fixture.h"
+
+static unsigned modelDepth = 0;
+static void event(const char* name, int a = 0, int b = 0) {
+  assert(modelDepth == 0);
+  std::printf("%s %d %d\n", name, a, b);
+}
+enum FixtureStrId {
   STR_FONT_SIZE,
   STR_LINE_SPACING,
   STR_PARA_ALIGNMENT,
@@ -24,8 +33,8 @@ enum StrId {
   STR_ALIGN_RIGHT,
   STR_BOOK_S_STYLE
 };
-constexpr StrId kSpacingIds[] = {STR_TIGHT, STR_NORMAL, STR_WIDE, STR_EXTRA_WIDE};
-constexpr StrId kAlignIds[] = {STR_JUSTIFY, STR_ALIGN_LEFT, STR_CENTER, STR_ALIGN_RIGHT, STR_BOOK_S_STYLE};
+constexpr FixtureStrId kSpacingIds[] = {STR_TIGHT, STR_NORMAL, STR_WIDE, STR_EXTRA_WIDE};
+constexpr FixtureStrId kAlignIds[] = {STR_JUSTIFY, STR_ALIGN_LEFT, STR_CENTER, STR_ALIGN_RIGHT, STR_BOOK_S_STYLE};
 constexpr int PAGE_TURN_RATES[] = {1, 1, 3, 6, 12};
 static int lockDepth = 0;
 struct RenderLock {
@@ -90,19 +99,14 @@ std::vector<uint8_t> readerFontPointSizes(int*, const char* family) {
   std::printf("sizes [%s]\n", family);
   return sizes;
 }
-uint8_t snapToNearestPointSize(const std::vector<uint8_t>& values, uint8_t current) {
-  event("snap", current);
-  assert(!values.empty());
-  return values[values.size() / 2];
-}
 struct Popup {
   std::function<void(int)> callback;
-  void show(StrId title, const std::vector<std::string>& labels, int current, std::function<void(int)> result) {
+  void show(FixtureStrId title, const std::vector<std::string>& labels, int current, std::function<void(int)> result) {
     event("popup-labels", title, current);
     for (const auto& label : labels) std::printf("label [%s]\n", label.c_str());
     callback = std::move(result);
   }
-  void show(StrId title, const StrId* ids, int count, int current, std::function<void(int)> result) {
+  void show(FixtureStrId title, const FixtureStrId* ids, int count, int current, std::function<void(int)> result) {
     event("popup-ids", title, current);
     for (int i = 0; i < count; ++i) event("id", ids[i]);
     callback = std::move(result);
@@ -120,6 +124,11 @@ struct EpubReaderActivity : ReaderActivity {
   Renderer renderer;
   Popup overlayPopup;
   std::unique_ptr<Section> section;
+  void* owner = nullptr;
+  bool hasSection = false;
+  void initialize();
+  void observe();
+  ~EpubReaderActivity();
   int appliedOrientation = 0, currentSpineIndex = 3, cachedSpineIndex = -1, cachedChapterTotalPageCount = 0,
       nextPageNumber = 0;
   bool automaticPageTurnActive = false;
@@ -128,7 +137,6 @@ struct EpubReaderActivity : ReaderActivity {
   void discardOverlayPage() { event("discard", lockDepth); }
   void requestUpdate() { event("update", lockDepth); }
   void paintOverlayPopup() { event("paint-popup", lockDepth); }
-  void runSettingsPolicy(uint8_t operation, int32_t argument = 0, const std::vector<uint8_t>* resultSizes = nullptr);
   void applyInitialOrientation();
   void applyOrientation(uint8_t);
   void toggleAutoPageTurn(uint8_t);
@@ -136,7 +144,7 @@ struct EpubReaderActivity : ReaderActivity {
   void applyTextSettingLive();
   void showTextRowPopup(int);
 };
-// SETTINGS_METHODS
+#include "settings_session_rust.inc"
 int main() {
   for (int operation = 0; operation < 6; ++operation) {
     for (int argument : {-1, 0, 1, 2, 3, 4, 5, 255}) {
@@ -157,6 +165,7 @@ int main() {
           clockMs = mask & 2 ? UINT32_MAX - 10 : 123456;
           sizes = mask & 16 ? std::vector<uint8_t>{}
                             : (mask & 8 ? std::vector<uint8_t>{14, 14, 14} : std::vector<uint8_t>{12, 14, 18});
+          a.initialize();
           switch (operation) {
             case 0:
               a.applyInitialOrientation();
@@ -185,8 +194,9 @@ int main() {
             callback(result);
           }
           assert(lockDepth == 0);
+          a.observe();
           event("cached", a.cachedSpineIndex, a.cachedChapterTotalPageCount);
-          event("page", a.nextPageNumber, bool(a.section));
+          event("page", a.nextPageNumber, a.hasSection);
           event("orientation-state", SETTINGS.orientation, a.appliedOrientation);
           event("auto", a.automaticPageTurnActive, a.pageTurnDuration);
           event("last-turn", a.lastPageTurnTime);

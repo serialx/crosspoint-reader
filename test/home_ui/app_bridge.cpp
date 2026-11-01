@@ -137,6 +137,90 @@ void paint() {
   XpAppRenderToken token{};
   xp_app_render(&token);
 }
+static void checkBorrowedText(XpAppText text, const std::string& native) {
+  assert(text.data == reinterpret_cast<const uint8_t*>(native.data()));
+  assert(text.len == native.size());
+}
+static unsigned resultViewChecks[13][2]{};
+static void checkResultView(const XpAppResultView& view, const ActivityResult& native) {
+  static_assert(std::variant_size_v<ResultVariant> == 13);
+  assert(view.original == &native);
+  assert(view.kind == native.data.index());
+  assert(view.cancelled == native.isCancelled);
+  switch (static_cast<ActivityResultKind>(view.kind)) {
+    case ActivityResultKind::None:
+      assert(std::holds_alternative<std::monostate>(native.data));
+      break;
+    case ActivityResultKind::Wifi: {
+      const auto& value = std::get<WifiResult>(native.data);
+      checkBorrowedText(view.value.wifi.ssid, value.ssid);
+      checkBorrowedText(view.value.wifi.ip, value.ip);
+      assert(view.value.wifi.connected == value.connected);
+      break;
+    }
+    case ActivityResultKind::Keyboard:
+      checkBorrowedText(view.value.text, std::get<KeyboardResult>(native.data).text);
+      break;
+    case ActivityResultKind::Menu: {
+      const auto& value = std::get<MenuResult>(native.data);
+      assert(view.value.menu.action == value.action);
+      assert(view.value.menu.orientation == value.orientation);
+      assert(view.value.menu.page_turn_option == value.pageTurnOption);
+      break;
+    }
+    case ActivityResultKind::Chapter: {
+      const auto& value = std::get<ChapterResult>(native.data);
+      assert(view.value.chapter.spine == value.spineIndex);
+      checkBorrowedText(view.value.chapter.anchor, value.anchor);
+      break;
+    }
+    case ActivityResultKind::Percent:
+      assert(view.value.signed_value == std::get<PercentResult>(native.data).percent);
+      break;
+    case ActivityResultKind::Interval:
+      assert(view.value.unsigned_value == std::get<IntervalResult>(native.data).value);
+      break;
+    case ActivityResultKind::Page:
+      assert(view.value.unsigned_value == std::get<PageResult>(native.data).page);
+      break;
+    case ActivityResultKind::Clipping: {
+      const auto& value = std::get<ClippingResult>(native.data);
+      checkBorrowedText(view.value.clipping.text.bytes, value.text);
+      assert(view.value.clipping.text.native_string == &value.text);
+      assert(view.value.clipping.start_page_offset == value.startPageOffset);
+      assert(view.value.clipping.end_page_offset == value.endPageOffset);
+      assert(view.value.clipping.start_word == value.startWordIndex);
+      assert(view.value.clipping.end_word == value.endWordIndex);
+      assert(view.value.clipping.word_count == value.wordCount);
+      assert(view.value.clipping.start_offset == value.startOffset);
+      assert(view.value.clipping.end_offset == value.endOffset);
+      assert(view.value.clipping.action == static_cast<uint8_t>(value.action));
+      break;
+    }
+    case ActivityResultKind::Progress: {
+      const auto& value = std::get<ProgressChangeResult>(native.data);
+      assert(view.value.progress.spine == value.spineIndex);
+      assert(view.value.progress.page == value.page);
+      assert(view.value.progress.pages == value.totalPages);
+      checkBorrowedText(view.value.progress.xpath, value.xpath);
+      assert(std::memcmp(&view.value.progress.percentage, &value.percentage, sizeof(float)) == 0);
+      assert(view.value.progress.offset == value.visibleTextOffset);
+      assert(view.value.progress.has_saved_progress == value.hasSavedProgress);
+      assert(view.value.progress.has_offset == value.hasVisibleTextOffset);
+      break;
+    }
+    case ActivityResultKind::NetworkMode:
+      assert(view.value.signed_value == static_cast<int32_t>(std::get<NetworkModeResult>(native.data).mode));
+      break;
+    case ActivityResultKind::Footnote:
+      checkBorrowedText(view.value.text, std::get<FootnoteResult>(native.data).href);
+      break;
+    case ActivityResultKind::FilePath:
+      checkBorrowedText(view.value.text, std::get<FilePathResult>(native.data).path);
+      break;
+  }
+  ++resultViewChecks[view.kind][view.cancelled];
+}
 void init() {
   legacy.create =  // FACTORY
       ;
@@ -144,8 +228,31 @@ void init() {
     assert(locked);
     delete static_cast<OwnedLegacyActivity*>(p);
   };
-  legacy.with_result =  // WITH_RESULT
+  static const auto withNativeResult = +  // WITH_RESULT
       ;
+  legacy.with_result = [](void* activity, XpAppResultSink sink, void* context) {
+    const auto& original = nativeActivity(activity)->result;
+    struct CheckContext {
+      XpAppResultSink sink;
+      void* context;
+      size_t kind;
+      bool cancelled;
+      bool called;
+    } checked{sink, context, original.data.index(), original.isCancelled, false};
+    withNativeResult(
+        activity,
+        [](void* opaque, const XpAppResultView* view) {
+          auto& checked = *static_cast<CheckContext*>(opaque);
+          assert(view && view->original && !checked.called);
+          const auto& native = *static_cast<const ActivityResult*>(view->original);
+          assert(native.data.index() == checked.kind && native.isCancelled == checked.cancelled);
+          checkResultView(*view, native);
+          checked.called = true;
+          checked.sink(checked.context, view);
+        },
+        &checked);
+    assert(checked.called);
+  };
   legacy.deliver_result =  // DELIVERY
       ;
   legacy.render = [](void*, XpAppRenderToken*) { ++paints; };
@@ -273,76 +380,101 @@ void resultCase() {
   init();
   auto* grand = new Activity;
   adopt(grand, false);
-  ActivityResult cases[] = {ActivityResult{},
-                            WifiResult{true, "ssid", "ip"},
-                            KeyboardResult{"keyboard"},
-                            MenuResult{7, 2, 3},
-                            ChapterResult{9, "anchor"},
-                            PercentResult{42},
-                            IntervalResult{1234},
-                            PageResult{88},
-                            ClippingResult{.text = "clipping", .wordCount = 3},
-                            ProgressChangeResult{.spineIndex = 4, .xpath = "xpath", .hasSavedProgress = true},
-                            NetworkModeResult{static_cast<NetworkMode>(1)},
-                            FootnoteResult{"href"},
-                            FilePathResult{"/file"}};
-  for (size_t index = 0; index < std::size(cases); ++index) {
-    grand->resultHandler = [index](const ActivityResult& r) {
-      assert(!locked && !r.isCancelled && r.data.index() == index);
-      switch (index) {
-        case 1:
-          assert(std::get<WifiResult>(r.data).ssid == "ssid" && std::get<WifiResult>(r.data).ip == "ip" &&
-                 std::get<WifiResult>(r.data).connected);
-          break;
-        case 2:
-          assert(std::get<KeyboardResult>(r.data).text == "keyboard");
-          break;
-        case 3:
-          assert(std::get<MenuResult>(r.data).action == 7 && std::get<MenuResult>(r.data).orientation == 2 &&
-                 std::get<MenuResult>(r.data).pageTurnOption == 3);
-          break;
-        case 4:
-          assert(std::get<ChapterResult>(r.data).anchor == "anchor" && std::get<ChapterResult>(r.data).spineIndex == 9);
-          break;
-        case 5:
-          assert(std::get<PercentResult>(r.data).percent == 42);
-          break;
-        case 6:
-          assert(std::get<IntervalResult>(r.data).value == 1234);
-          break;
-        case 7:
-          assert(std::get<PageResult>(r.data).page == 88);
-          break;
-        case 8:
-          assert(std::get<ClippingResult>(r.data).text == "clipping" &&
-                 std::get<ClippingResult>(r.data).wordCount == 3);
-          break;
-        case 9:
-          assert(std::get<ProgressChangeResult>(r.data).xpath == "xpath" &&
-                 std::get<ProgressChangeResult>(r.data).hasSavedProgress);
-          break;
-        case 10:
-          assert(int(std::get<NetworkModeResult>(r.data).mode) == 1);
-          break;
-        case 11:
-          assert(std::get<FootnoteResult>(r.data).href == "href");
-          break;
-        case 12:
-          assert(std::get<FilePathResult>(r.data).path == "/file");
-          break;
-      }
-    };
-    auto* child = new Activity;
-    child->result = std::move(cases[index]);
-    adopt(child, true);
-    xp_app_loop();
-    xp_test_fail_allocation_after(0);
-    denyNative = true;
-    pop();
-    xp_app_loop();
-    denyNative = false;
-    assert(xp_test_allocation_attempts() == 0);
-    xp_test_fail_allocation_after(SIZE_MAX);
+  for (bool cancelled : {false, true}) {
+    ActivityResult cases[] = {ActivityResult{},
+                              WifiResult{true, "ssid", "ip"},
+                              KeyboardResult{"keyboard"},
+                              MenuResult{7, 2, 3},
+                              ChapterResult{9, "anchor"},
+                              PercentResult{42},
+                              IntervalResult{1234},
+                              PageResult{88},
+                              ClippingResult{.action = ClippingResult::Action::Bookmark,
+                                             .text = "clipping",
+                                             .startPageOffset = 11,
+                                             .endPageOffset = 29,
+                                             .startWordIndex = 41,
+                                             .endWordIndex = 67,
+                                             .wordCount = 3,
+                                             .startOffset = 0x12345678,
+                                             .endOffset = 0x9abcdef0},
+                              ProgressChangeResult{.spineIndex = 4,
+                                                   .page = 17,
+                                                   .totalPages = 91,
+                                                   .xpath = "xpath",
+                                                   .percentage = 0.375f,
+                                                   .hasSavedProgress = true,
+                                                   .hasVisibleTextOffset = true,
+                                                   .visibleTextOffset = 0xa1b2c3d4},
+                              NetworkModeResult{static_cast<NetworkMode>(1)},
+                              FootnoteResult{"href"},
+                              FilePathResult{"/file"}};
+    for (size_t index = 0; index < std::size(cases); ++index) {
+      grand->resultHandler = [index, cancelled](const ActivityResult& r) {
+        assert(!locked && r.data.index() == index);
+        if (cancelled)
+          assert(r.isCancelled);
+        else
+          assert(!r.isCancelled);
+        switch (index) {
+          case 1:
+            assert(std::get<WifiResult>(r.data).ssid == "ssid" && std::get<WifiResult>(r.data).ip == "ip" &&
+                   std::get<WifiResult>(r.data).connected);
+            break;
+          case 2:
+            assert(std::get<KeyboardResult>(r.data).text == "keyboard");
+            break;
+          case 3:
+            assert(std::get<MenuResult>(r.data).action == 7 && std::get<MenuResult>(r.data).orientation == 2 &&
+                   std::get<MenuResult>(r.data).pageTurnOption == 3);
+            break;
+          case 4:
+            assert(std::get<ChapterResult>(r.data).anchor == "anchor" &&
+                   std::get<ChapterResult>(r.data).spineIndex == 9);
+            break;
+          case 5:
+            assert(std::get<PercentResult>(r.data).percent == 42);
+            break;
+          case 6:
+            assert(std::get<IntervalResult>(r.data).value == 1234);
+            break;
+          case 7:
+            assert(std::get<PageResult>(r.data).page == 88);
+            break;
+          case 8:
+            assert(std::get<ClippingResult>(r.data).text == "clipping" &&
+                   std::get<ClippingResult>(r.data).wordCount == 3);
+            break;
+          case 9:
+            assert(std::get<ProgressChangeResult>(r.data).xpath == "xpath" &&
+                   std::get<ProgressChangeResult>(r.data).hasSavedProgress);
+            break;
+          case 10:
+            assert(int(std::get<NetworkModeResult>(r.data).mode) == 1);
+            break;
+          case 11:
+            assert(std::get<FootnoteResult>(r.data).href == "href");
+            break;
+          case 12:
+            assert(std::get<FilePathResult>(r.data).path == "/file");
+            break;
+        }
+      };
+      auto* child = new Activity;
+      child->result = std::move(cases[index]);
+      child->result.isCancelled = cancelled;
+      adopt(child, true);
+      xp_app_loop();
+      const auto checkedBefore = resultViewChecks[index][cancelled];
+      xp_test_fail_allocation_after(0);
+      denyNative = true;
+      pop();
+      xp_app_loop();
+      denyNative = false;
+      assert(xp_test_allocation_attempts() == 0);
+      assert(resultViewChecks[index][cancelled] == checkedBefore + 1);
+      xp_test_fail_allocation_after(SIZE_MAX);
+    }
   }
   destroyed = 0;
 

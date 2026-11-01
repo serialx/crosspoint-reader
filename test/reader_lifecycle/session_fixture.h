@@ -11,7 +11,7 @@ struct XpEpubTestNavigationSeed {
   uint8_t history_depth, has_cached_offset, has_visible_offset;
   XpAppText anchor;
   void* estimate_context;
-  void (*estimate_read)(void*, uint16_t);
+  void (*estimate_read)(void*, int32_t);
 };
 
 struct XpEpubTestNavigationObservation {

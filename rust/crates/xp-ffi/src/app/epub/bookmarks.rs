@@ -80,7 +80,6 @@ impl EpubSession {
                 .map(|section| unsafe { (self.leaves.section_estimated_pages)(section.as_ptr()) }),
             None => self.estimated_pages(),
         }
-        .map(i32::from)
         .unwrap_or(0);
         let position = self.model(|state| state.current);
         let range = self.bookmark_range(book, position, count);
@@ -174,18 +173,9 @@ impl EpubSession {
                 return;
             };
             let count = unsafe { (self.leaves.section_estimated_pages)(section.as_ptr()) };
-            (self.model(|state| state.current.page), i32::from(count))
+            (self.model(|state| state.current.page), count)
         };
-        let position = self.position_with_queries(
-            |page| {
-                let access = self.lock_resources();
-                self.section_paragraph(&access, page)
-            },
-            |page| {
-                let access = self.lock_resources();
-                self.section_offset(&access, page)
-            },
-        );
+        let position = self.loop_current_position();
         struct Context<'a> {
             owner: &'a EpubSession,
             book: NonNull<c_void>,

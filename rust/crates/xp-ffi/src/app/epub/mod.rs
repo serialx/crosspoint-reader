@@ -1,20 +1,31 @@
 extern crate alloc;
 
 pub(super) mod abi;
+mod base;
 mod book;
+mod book_render;
 mod bookmarks;
 mod build;
+mod clipping;
 mod lifetime;
 mod links;
 mod navigation;
 mod overlay;
+mod overlay_view;
+mod page;
 mod position;
+mod projection;
 mod read_folder;
+mod recovery;
+mod render;
+mod render_scope;
+mod settings;
 mod state;
 mod storage;
 #[cfg(feature = "app-test")]
 mod test_support;
 mod text;
+mod view_values;
 
 use super::{abi as app_abi, resources::Text};
 use alloc::{alloc::alloc, boxed::Box, vec::Vec};
@@ -35,6 +46,7 @@ struct Guarded {
     anchor: Text,
     more_actions: [u8; 19],
     more_count: u8,
+    // Loop-only retained popup payload; render never reads these choices.
     font_sizes: Vec<u8>,
 }
 
@@ -75,6 +87,24 @@ pub(super) struct EpubSession {
     lifetime_overrides: Option<test_support::LifetimeOverrides>,
     #[cfg(feature = "app-test")]
     bookmark_overrides: Option<test_support::BookmarkOverrides>,
+    #[cfg(feature = "app-test")]
+    settings_overrides: Option<test_support::settings::Overrides>,
+    #[cfg(feature = "app-test")]
+    projection_hooks: Option<test_support::ProjectionHooks>,
+    #[cfg(feature = "app-test")]
+    navigation_hooks: Option<test_support::NavigationHooks>,
+    #[cfg(feature = "app-test")]
+    base_hooks: Option<test_support::BaseHooks>,
+    #[cfg(feature = "app-test")]
+    clipping_hooks: Option<test_support::ClippingHooks>,
+    #[cfg(feature = "app-test")]
+    view_value_hooks: Option<test_support::ViewValueHooks>,
+    #[cfg(feature = "app-test")]
+    render_hooks: Option<test_support::RenderHooks>,
+    #[cfg(feature = "app-test")]
+    overlay_view_hooks: Option<test_support::OverlayViewHooks>,
+    #[cfg(feature = "app-test")]
+    book_render_hooks: Option<test_support::BookRenderHooks>,
 }
 
 // This capability cannot move to another task. Native render borrows its lock;
@@ -124,6 +154,24 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).lifetime_overrides).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).bookmark_overrides).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).settings_overrides).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).projection_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).navigation_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).base_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).clipping_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).view_value_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).render_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).overlay_view_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).book_render_hooks).write(None);
             Some(Box::from_raw(ptr))
         }
     }

@@ -4,11 +4,17 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
-enum StrId {
+#ifdef VIEW_VALUES_OWNER
+#include <I18nKeys.h>
+
+#include "view_values_session_fixture.h"
+#endif
+enum FixtureStrId {
   STR_ALIGN_LEFT,
   STR_ALIGN_RIGHT,
   STR_AUTO_TURN_ENABLED,
@@ -36,7 +42,10 @@ enum StrId {
   STR_UNNAMED,
   STR_WIDE
 };
-const char* tr(StrId id) {
+#ifndef VIEW_VALUES_OWNER
+using StrId = FixtureStrId;
+#endif
+const char* tr(FixtureStrId id) {
   static const char* names[] = {
       "STR_ALIGN_LEFT",     "STR_ALIGN_RIGHT",   "STR_AUTO_TURN_ENABLED", "STR_BOOK_S_STYLE",
       "Connected %s",       "STR_BT_CONNECTING", "STR_BT_FAILED",         "STR_BT_LOW_MEMORY",
@@ -48,7 +57,7 @@ const char* tr(StrId id) {
   return names[id];
 }
 struct {
-  const char* get(StrId id) const { return tr(id); }
+  const char* get(FixtureStrId id) const { return tr(id); }
 } I18N;
 struct CrossPointSettings {
   enum STATUS_BAR_TITLE { BOOK_TITLE, CHAPTER_TITLE, HIDE_TITLE };
@@ -68,11 +77,13 @@ struct CrossPointSettings {
   char sdFontFamilyName[32] = {};
   Spec statusBarSpec() const { return spec; }
 } SETTINGS;
-constexpr StrId kTextRowNames[] = {StrId::STR_FONT, StrId::STR_FONT_SIZE, StrId::STR_LINE_SPACING,
-                                   StrId::STR_PARA_ALIGNMENT, StrId::STR_FOCUS_READING};
-constexpr StrId kSpacingIds[] = {StrId::STR_TIGHT, StrId::STR_NORMAL, StrId::STR_WIDE, StrId::STR_EXTRA_WIDE};
-constexpr StrId kAlignIds[] = {StrId::STR_JUSTIFY, StrId::STR_ALIGN_LEFT, StrId::STR_CENTER, StrId::STR_ALIGN_RIGHT,
-                               StrId::STR_BOOK_S_STYLE};
+constexpr FixtureStrId kTextRowNames[] = {FixtureStrId::STR_FONT, FixtureStrId::STR_FONT_SIZE,
+                                          FixtureStrId::STR_LINE_SPACING, FixtureStrId::STR_PARA_ALIGNMENT,
+                                          FixtureStrId::STR_FOCUS_READING};
+constexpr FixtureStrId kSpacingIds[] = {FixtureStrId::STR_TIGHT, FixtureStrId::STR_NORMAL, FixtureStrId::STR_WIDE,
+                                        FixtureStrId::STR_EXTRA_WIDE};
+constexpr FixtureStrId kAlignIds[] = {FixtureStrId::STR_JUSTIFY, FixtureStrId::STR_ALIGN_LEFT, FixtureStrId::STR_CENTER,
+                                      FixtureStrId::STR_ALIGN_RIGHT, FixtureStrId::STR_BOOK_S_STYLE};
 constexpr int kTextRowCount = static_cast<int>(std::size(kTextRowNames));
 static_assert(std::size(kSpacingIds) == CrossPointSettings::LINE_COMPRESSION_COUNT, "line spacing labels");
 static_assert(std::size(kAlignIds) == CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT, "alignment labels");
@@ -82,7 +93,11 @@ namespace bleturner {
 enum class LinkNote : uint8_t { None, Connecting, Failed, Connected, LowMemory };
 LinkNote note;
 struct Peer {
+#ifdef VIEW_VALUES_OWNER
+  char name[96] = "Keyboard";
+#else
   char name[32] = "Keyboard";
+#endif
   char addr[32] = "AA:BB";
 } peer;
 LinkNote linkNote() { return note; }
@@ -166,10 +181,15 @@ struct EpubReaderMenuActivity {
   };
   struct MenuItem {
     MenuAction action;
-    StrId labelId;
+    FixtureStrId labelId;
   };
 };
 struct EpubReaderActivity {
+#ifdef VIEW_VALUES_OWNER
+  mutable void* rustOwner = nullptr;
+  mutable Section* nativeSection = nullptr;
+  ~EpubReaderActivity();
+#endif
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();
   std::unique_ptr<Section> section = std::make_unique<Section>();
   mutable GfxRenderer renderer;
@@ -187,8 +207,21 @@ struct EpubReaderActivity {
   std::string moreRowName(int row) const;
   std::string moreRowValue(int row) const;
 };
+#ifdef VIEW_VALUES_OWNER
+#include "view_values_session_rust.inc"
+#else
 // VALUE_METHODS
-int main() {
+#endif
+int main(int argc, char** argv) {
+#ifdef VIEW_VALUES_OWNER
+  if (argc == 2 && std::strcmp(argv[1], "--real-facts") == 0) {
+    view_values_adapter::realFacts();
+    return 0;
+  }
+#else
+  (void)argc;
+  (void)argv;
+#endif
   for (int note = 0; note < 5; ++note)
     for (int title = 0; title < 3; ++title)
       for (int flags = 0; flags < 64; ++flags) {

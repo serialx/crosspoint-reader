@@ -34,6 +34,8 @@ struct ReaderToolbarUi {
     bool toggle = false, checked = false;
   };
   struct ResourceModel : Toolbar::Model {
+    bool (*rowFill)(void*, int, std::string&, std::string&, RowFlags&) = nullptr;
+    void* rowFillContext = nullptr;
     RowFlags (*rowCheckbox)(void*, int) = nullptr;
   } model_;
   Metrics renderer;

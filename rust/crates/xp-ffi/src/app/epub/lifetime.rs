@@ -30,6 +30,12 @@ impl Drop for LoadLoan<'_> {
 
 impl EpubSession {
     pub(super) fn entry_load_book(&self) -> bool {
+        #[cfg(feature = "app-test")]
+        if let Some(hook) = self.base_hooks {
+            let loaded = unsafe { (hook.load)(hook.context) != 0 };
+            self.model(|state| state.ready = true);
+            return loaded;
+        }
         let loaded = {
             let access = self.entry_resources();
             self.load_book(&access)
@@ -103,7 +109,7 @@ impl EpubSession {
             } else {
                 None
             };
-            let skip_css = self.settings().embedded_style == 0;
+            let skip_css = self.settings(false).embedded_style == 0;
             (unsafe { (self.leaves.book_load)(book.as_ptr(), 1, u8::from(skip_css)) }) != 0
         };
         if !succeeded {
@@ -183,7 +189,7 @@ impl EpubSession {
     pub(super) fn teardown_book(&self, access: &ResourceAccess<'_>) {
         unsafe { (self.leaves.book_clear_extractor)() };
         self.settle_overlay_refresh(access);
-        self.discard_overlay_page(access);
+        self.discard_overlay_page();
         if self.model(|state| state.facts.radio_released) {
             unsafe { (self.leaves.radio_after_paint)() };
         }

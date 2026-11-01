@@ -153,7 +153,7 @@ static XpUiReaderRenderServices renderServices{
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 198 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -352,6 +352,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
+  UNUSED_LEAF(page_word_font);
+  UNUSED_LEAF(page_line_font);
+  UNUSED_LEAF(page_word_y_offset);
+  UNUSED_LEAF(page_line_ruby_shift);
+  UNUSED_LEAF(font_text_advance);
+  UNUSED_LEAF(log_enabled);
+  UNUSED_LEAF(toolbar_reset_navigation);
   table.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     leaf();
     assert(activeEpub && root == activeEpub && lockDepth == 1);
@@ -374,8 +381,9 @@ static const XpEpubLeaves leaves = [] {
     assert(activeEpub && popup == &activeEpub->overlayPopup && lockDepth == 1);
     activeEpub->overlayPopup.render(activeEpub->renderer);
   };
-  table.settings_snapshot = [](XpEpubSettings* out) {
+  table.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
     leaf();
+    assert(resolveFont == 0);
     assert(activeBase && !activeEpub && out && !lockDepth);
     *out = {};
     out->orientation = SETTINGS.orientation;

@@ -110,6 +110,13 @@ XpUiReaderRows ReaderToolbarUi::resources() {
         self.windowCount = count;
         for (uint16_t i = 0; i < count; ++i) {
           const int index = first + i;
+          if (self.model_.rowFill) {
+            if (!self.model_.rowFill(self.model_.rowFillContext, index, self.windowLabels_[i], self.windowValues_[i],
+                                     self.rowFlags[i])) {
+              return false;
+            }
+            continue;
+          }
           self.windowLabels_[i] = self.model_.rowText ? self.model_.rowText(index) : std::string();
           self.windowValues_[i] = self.model_.rowValue ? self.model_.rowValue(index) : std::string();
           self.rowFlags[i] =

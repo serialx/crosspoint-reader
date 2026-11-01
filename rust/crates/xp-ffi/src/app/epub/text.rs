@@ -70,8 +70,18 @@ impl EpubSession {
 
     // This formatter is used only on the loop task. The native log prefix reduces the
     // visible message below this capacity; truncation remains native-owned.
-    #[inline(never)]
     pub(super) fn loop_log(&self, prefix: fmt::Arguments<'_>, suffix: &[u8]) {
+        self.loop_log_formatted(0, b"ERS", prefix, suffix);
+    }
+
+    #[inline(never)]
+    pub(super) fn loop_log_formatted(
+        &self,
+        severity: u8,
+        origin: &[u8],
+        prefix: fmt::Arguments<'_>,
+        suffix: &[u8],
+    ) {
         let mut text = LogText {
             bytes: [0; 256],
             len: 0,
@@ -80,8 +90,8 @@ impl EpubSession {
         text.append(suffix);
         unsafe {
             (self.leaves.log)(
-                0,
-                app_abi::Text::from_bytes(b"ERS"),
+                severity,
+                app_abi::Text::from_bytes(origin),
                 app_abi::Text::from_bytes(&text.bytes[..text.len]),
             );
         }

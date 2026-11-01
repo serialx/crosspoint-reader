@@ -50,3 +50,86 @@ void (*overlay)(const XpUiReaderOverlayServices*, uint8_t) = xp_ui_reader_overla
     failed = subprocess.run(['c++', '-std=c++17', '-fsyntax-only', str(cpp), '-I' + str(ROOT / 'rust/crates/xp-ffi/include')], capture_output=True, text=True)
     assert failed.returncode != 0 and 'xp_ui_reader_base_publish_drift' in failed.stderr
     print('base publication: actual input helpers finish during busy paint; pending turn/manual/counter survive once; C ABI, enum drift, nested render and ASan/UBSan checks pass')
+
+# Append owner coverage; all shared/XTC executables and ABI/drift checks above stay intact.
+import hashlib
+import json
+import shutil
+import signal
+
+
+def owner_mutation(source, before, after):
+    if source.count(before) != 1:
+        raise ValueError(f'Expected one owner mutant anchor: {before}')
+    return source.replace(before, after, 1)
+
+
+def run_owner_publication():
+    owner_source = HERE / 'base_session_publication.cpp'
+    scope_path = Path('crates/xp-ffi/src/app/epub/render_scope.rs')
+    state_path = Path('crates/xp-ffi/src/app/epub/state.rs')
+    originals = {path: (ROOT / 'rust' / path).read_text() for path in [scope_path, state_path]}
+    with tempfile.TemporaryDirectory(prefix='reader-owner-publication-') as directory:
+        work = Path(directory)
+        baseline_flags = rust_link_flags()
+
+        def executable(name, archive=None):
+            binary = work / name
+            flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive))
+            subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-pthread',
+                            '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
+                            '-fno-omit-frame-pointer', '-I', str(HERE), str(owner_source),
+                            *flags, '-o', str(binary)], check=True)
+            return binary
+
+        baseline = executable('owner-publication')
+        subprocess.run([str(baseline)], check=True)
+        nested = subprocess.run([str(baseline), 'nested'], capture_output=True, text=True)
+        # The no_std Rust panic handler aborts without printing the panic text.
+        # Reaching the inner callback exits 77; returning from nested render exits 78.
+        assert nested.returncode == -signal.SIGABRT and 'owner-nested-entry' in nested.stderr
+        assert 'unexpected-nested-paint' not in nested.stderr
+
+        copied_repo = work / 'source'
+        copied_rust = copied_repo / 'rust'
+        shutil.copytree(ROOT / 'rust', copied_rust,
+                        ignore=shutil.ignore_patterns('target', '__pycache__'))
+        for name in ('scripts', 'lib', 'src'):
+            (copied_repo / name).symlink_to(ROOT / name, target_is_directory=True)
+        target = work / 'target'
+        mutants = [
+            ('pending-input-overwritten', scope_path,
+             'state.base.session.pending_forward = pending;',
+             'state.base.session.pending_forward = false; let _ = pending;',
+             'pending input must survive publication'),
+            ('counter-only-lost', scope_path,
+             'if state.base.refresh_requests == 0 {',
+             'if state.base.refresh_requests & REFRESH_MANUAL == 0 {',
+             'counter-only refresh must survive publication'),
+            ('elapsed-two-seconds-lost', state_path,
+             'if elapsed >= 2 {', 'if elapsed > 2 {', 'session duration'),
+        ]
+        for name, path, before, after, expected_assertion in mutants:
+            for original_path, original in originals.items():
+                (copied_rust / original_path).write_text(original)
+            changed = owner_mutation(originals[path], before, after)
+            (copied_rust / path).write_text(changed)
+            print(json.dumps({'mutant': name, 'path': str(path), 'replacement_count': 1,
+                              'original_sha256': hashlib.sha256(originals[path].encode()).hexdigest(),
+                              'mutant_sha256': hashlib.sha256(changed.encode()).hexdigest()}), flush=True)
+            subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
+                            '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
+                            '--features', 'app-test'], cwd=copied_rust, check=True)
+            binary = executable(name, target / 'release/libxp_ffi.a')
+            failed = subprocess.run([str(binary)], capture_output=True, text=True)
+            assert failed.returncode != 0 and expected_assertion in failed.stderr, (
+                name, failed.returncode, failed.stdout, failed.stderr)
+        for path, original in originals.items():
+            assert (ROOT / 'rust' / path).read_text() == original
+    print('owner publication: blocked-paint input, pending/manual/counter/disable-fast once-only '
+          'publication, remembered bit, physical progress completion, accounting boundaries, '
+          'nested rejection and three Rust mutants pass; ready false/true is a render scope gate '
+          'only, not full app entry/failed-entry integration')
+
+
+run_owner_publication()

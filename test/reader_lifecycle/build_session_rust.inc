@@ -157,7 +157,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 198 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -356,6 +356,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
+  UNUSED_LEAF(page_word_font);
+  UNUSED_LEAF(page_line_font);
+  UNUSED_LEAF(page_word_y_offset);
+  UNUSED_LEAF(page_line_ruby_shift);
+  UNUSED_LEAF(font_text_advance);
+  UNUSED_LEAF(log_enabled);
+  UNUSED_LEAF(toolbar_reset_navigation);
   table.strip_release_idle = [](void* native) -> uint8_t {
     leaf();
     assert(native && native == activeFixture);
@@ -371,9 +378,9 @@ static const XpEpubLeaves leaves = [] {
     out->free_bytes = ESP.getFreeHeap();
     out->largest_block = ESP.getMaxAllocHeap();
   };
-  table.radio_status = [](XpEpubRadio* out) {
+  table.radio_status = [](XpEpubRadio* out, XpEpubPeer* peerOrNull) {
     leaf();
-    assert(out);
+    assert(out && peerOrNull == nullptr);
     const auto status = bleturner::status();
     *out = {};
     out->compiled_in = 1;
@@ -412,7 +419,7 @@ static const XpEpubLeaves leaves = [] {
     publicationRead(section, 0, 0);
     return 0;
   };
-  table.section_estimated_pages = [](void* section) -> uint16_t {
+  table.section_estimated_pages = [](void* section) -> int32_t {
     publicationRead(section, 1, 0);
     return 0;
   };

@@ -73,6 +73,18 @@ class OptionPopup {
     activate(currentIndex, std::move(onSelect));
   }
 
+  // Borrow each generated label only until it has been copied into the widget.
+  template <class LabelSource>
+  void show(const char* titleStr, const char* messageStr, int optionCount, int currentIndex, LabelSource writeLabel,
+            std::function<void(int)> onSelect) {
+    title = titleStr;
+    headline.clear();
+    ownedStrings.resize(optionCount);
+    for (int i = 0; i < optionCount; ++i) writeLabel(i, ownedStrings[i]);
+    activate(currentIndex, std::move(onSelect));
+    message = messageStr ? messageStr : "";
+  }
+
   bool handleInput(MappedInputManager& input, const std::function<void()>& requestUpdate) {
     if (!active) return false;
 

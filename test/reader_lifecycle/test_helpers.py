@@ -89,8 +89,8 @@ def main():
     mutants = [
         ('overlay', 'popup-settle', 'self.settle_overlay_refresh(&access);',
          '/* deliberate mutant: omitted pending-refresh settlement */'),
-        ('refresh-orientation', 'refresh-counter', 'self.model(|state| state.base.refresh_counter = 0);',
-         'self.model(|state| state.base.refresh_counter = 1);'),
+        ('refresh-orientation', 'refresh-counter', 'self.set_refresh_counter(0);',
+         'self.set_refresh_counter(1);'),
         ('refresh-orientation', 'orientation-forward', 'settings.assume_init().orientation',
          'settings.assume_init().orientation.wrapping_add(1)'),
     ]

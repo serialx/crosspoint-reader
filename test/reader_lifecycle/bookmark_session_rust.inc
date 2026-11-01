@@ -143,7 +143,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 198 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 205 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -342,6 +342,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
+  UNUSED_LEAF(page_word_font);
+  UNUSED_LEAF(page_line_font);
+  UNUSED_LEAF(page_word_y_offset);
+  UNUSED_LEAF(page_line_ruby_shift);
+  UNUSED_LEAF(font_text_advance);
+  UNUSED_LEAF(log_enabled);
+  UNUSED_LEAF(toolbar_reset_navigation);
   table.book_progress = [](void* book, int32_t spine, float fraction) -> float {
     unlocked(); assert(book); return static_cast<Epub*>(book)->calculateProgress(spine, fraction);
   };
@@ -355,7 +362,7 @@ static const XpEpubLeaves leaves = [] {
   table.section_page_count = [](void* section) -> uint16_t {
     publicationRead(0); assert(section == liveSection); return liveSection->pageCount;
   };
-  table.section_estimated_pages = [](void* section) -> uint16_t {
+  table.section_estimated_pages = [](void* section) -> int32_t {
     leaf(); assert(section && section == liveSection);
     if (publishing) publicationRead(1); else locked();
     return liveSection->estimatedTotalPages();
@@ -458,7 +465,7 @@ void BookmarkFixture::initialize() {
   seed.sanitize = [](void* context, XpAppText text) {
     bookmark_adapter::unlocked(); assert(context == activeFixture); BookmarkUtil::observeSummary(bookmark_adapter::nativeText(text));
   };
-  seed.estimate = [](void* context, uint16_t count) {
+  seed.estimate = [](void* context, int32_t count) {
     bookmark_adapter::unlocked(); assert(context == activeFixture && liveSection && count == liveSection->estimated);
     const auto observed = liveSection->estimatedTotalPages(); assert(count == observed);
   };

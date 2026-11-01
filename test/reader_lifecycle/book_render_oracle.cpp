@@ -1,9 +1,15 @@
 #include <xp_ui_reader.h>
+#ifdef BOOK_RENDER_OWNER
+#include <I18nKeys.h>
+
+#include "book_render_session_fixture.h"
+#endif
 
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -243,6 +249,12 @@ struct EpubReaderActivity {
   struct ModelLock {
     explicit ModelLock(EpubReaderActivity&) {}
   };
+#ifdef BOOK_RENDER_OWNER
+  void* rustOwner = nullptr;
+  Section* nativeSection = nullptr;
+  ~EpubReaderActivity();
+  void observeOwner();
+#endif
   std::shared_ptr<Epub> epub = std::make_shared<Epub>();
   std::unique_ptr<Section> section;
   GfxRenderer renderer;
@@ -335,19 +347,31 @@ struct EpubReaderActivity {
   void requestUpdate() { event("update"); }
   void renderBook();
   void dump() {
+#ifdef BOOK_RENDER_OWNER
+    observeOwner();
+#endif
     std::printf("state %d %d %d %d %d %d %d %d %d %d %d %u %u %lu %lu %d %d %d %d %u [%s]\n", currentSpineIndex,
-                section ? section->currentPage : -999, section ? section->pageCount : -1, partialRebuildStartFailed,
-                pendingPercentJump, buildPopupPending, pageBufferStale, automaticPageTurnActive, pendingSyncSaveError,
-                pagesUntilFullRefresh, pageLoadRetryCount, buildViewportWidth, buildViewportHeight,
-                lastRenderCompleteMs, fontDamagedMessageTime, lastSavedSpineIndex, lastSavedPage, lastSavedPageCount,
-                bool(currentPageVisibleOffset), currentPageVisibleOffset.value_or(0), pendingAnchor.c_str());
+#ifdef BOOK_RENDER_OWNER
+                nativeSection ? nativeSection->currentPage : -999, nativeSection ? nativeSection->pageCount : -1,
+#else
+                section ? section->currentPage : -999, section ? section->pageCount : -1,
+#endif
+                partialRebuildStartFailed, pendingPercentJump, buildPopupPending, pageBufferStale,
+                automaticPageTurnActive, pendingSyncSaveError, pagesUntilFullRefresh, pageLoadRetryCount,
+                buildViewportWidth, buildViewportHeight, lastRenderCompleteMs, fontDamagedMessageTime,
+                lastSavedSpineIndex, lastSavedPage, lastSavedPageCount, bool(currentPageVisibleOffset),
+                currentPageVisibleOffset.value_or(0), pendingAnchor.c_str());
     std::printf("flags %d %d %d %d %d %d %d %d %d %d %u\n", pendingScreenshot, showBookmarkMessage,
                 showDictionaryMessage, showFontDamagedMessage, showClippingMessage, overlayPageStored,
                 currentPageLinkMarginLeft, currentPageLinkMarginTop, bool(pendingPageJump), bool(pendingOffsetJump),
                 cachedVisibleTextOffset.value_or(0));
   }
 };
+#ifdef BOOK_RENDER_OWNER
+#include "book_render_session_rust.inc"
+#else
 // BOOK_METHOD
+#endif
 int main() {
   for (int scenario = 0; scenario < 28; ++scenario)
     for (int variant = 0; variant < 8; ++variant) {

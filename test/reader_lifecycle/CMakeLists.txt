@@ -31,14 +31,21 @@ foreach(mode off on)
     target_compile_definitions(ReaderRenderOracle_${mode} PRIVATE XP_STRIP_RENDER=1)
   endif()
   add_test(NAME reader_render_oracle_${mode}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
-      $<TARGET_FILE:ReaderRenderOracle_${mode}> ${CMAKE_CURRENT_SOURCE_DIR}/render-${mode}.golden.gz)
+    COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+      ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_render_session.py
+      --mode ${mode} --legacy-executable $<TARGET_FILE:ReaderRenderOracle_${mode}>)
 endforeach()
 
 add_executable(ReaderLifecycleAbi abi.cpp)
 target_link_libraries(ReaderLifecycleAbi PRIVATE crosspoint_test_common)
 target_compile_options(ReaderLifecycleAbi PRIVATE -UNDEBUG)
 add_test(NAME reader_lifecycle_abi COMMAND ReaderLifecycleAbi)
+
+foreach(mode blocked failed)
+  add_test(NAME reader_render_entry_${mode}
+    COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+      ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_render_entry_gate.py --mode ${mode})
+endforeach()
 
 set(INPUT_METHODS ${CMAKE_CURRENT_BINARY_DIR}/input_methods.inc)
 add_custom_command(OUTPUT ${INPUT_METHODS}
@@ -91,8 +98,13 @@ add_executable(ReaderBaseOracle base_oracle.cpp ${BASE_METHODS})
 target_link_libraries(ReaderBaseOracle PRIVATE crosspoint_test_common)
 target_include_directories(ReaderBaseOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_test(NAME reader_base_oracle
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
-    $<TARGET_FILE:ReaderBaseOracle> ${CMAKE_CURRENT_SOURCE_DIR}/base.golden.gz)
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_base_owner.py
+    $<TARGET_FILE:ReaderBaseOracle> ${CMAKE_CURRENT_BINARY_DIR})
+
+add_test(NAME reader_toolbar_resource
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_toolbar_resource.py)
 
 foreach(target ReaderLoopOracle ReaderLoopOracleRelease ReaderBaseOracle)
   target_compile_options(${target} PRIVATE -UNDEBUG)
@@ -240,3 +252,10 @@ add_test(NAME reader_link_hit_helper
 add_test(NAME reader_summary_helper
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_link_text_helpers.py --mode sanitize)
+
+add_test(NAME reader_position_helper
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_position_session.py)
+
+add_test(NAME reader_popup_resource
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_popup_resource.py)

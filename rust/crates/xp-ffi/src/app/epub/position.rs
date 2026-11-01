@@ -39,7 +39,6 @@ impl EpubSession {
         });
         let count = self
             .estimated_pages()
-            .map(i32::from)
             .unwrap_or_else(|| self.model(|state| state.cached.pages));
         let in_bounds = || {
             self.model(|state| {
@@ -89,6 +88,19 @@ impl EpubSession {
         self.position_with_queries(
             |page| self.section_paragraph(access, page),
             |page| self.section_offset(access, page),
+        )
+    }
+
+    pub(super) fn loop_current_position(&self) -> abi::XpEpubPosition {
+        self.position_with_queries(
+            |page| {
+                let access = self.lock_resources();
+                self.section_paragraph(&access, page)
+            },
+            |page| {
+                let access = self.lock_resources();
+                self.section_offset(&access, page)
+            },
         )
     }
 }

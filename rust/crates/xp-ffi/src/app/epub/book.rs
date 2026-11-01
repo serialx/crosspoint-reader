@@ -9,6 +9,16 @@ pub(super) fn with_book_text<R>(
     read: BookText,
     use_text: impl FnOnce(app_abi::Text) -> R,
 ) -> Option<R> {
+    with_text(
+        |sink, context| unsafe { read(book.as_ptr(), sink, context) },
+        use_text,
+    )
+}
+
+pub(super) fn with_text<R>(
+    read: impl FnOnce(app_abi::TextSink, *mut c_void) -> u8,
+    use_text: impl FnOnce(app_abi::Text) -> R,
+) -> Option<R> {
     struct Call<F, R> {
         function: Option<F>,
         result: Option<R>,
@@ -22,24 +32,17 @@ pub(super) fn with_book_text<R>(
         1
     }
     fn invoke<F: FnOnce(app_abi::Text) -> R, R>(
-        book: NonNull<c_void>,
-        read: BookText,
+        read: impl FnOnce(app_abi::TextSink, *mut c_void) -> u8,
         function: F,
     ) -> Option<R> {
         let mut call = Call {
             function: Some(function),
             result: None,
         };
-        unsafe {
-            read(
-                book.as_ptr(),
-                receive::<F, R>,
-                (&mut call as *mut Call<F, R>).cast(),
-            )
-        };
+        read(receive::<F, R>, (&mut call as *mut Call<F, R>).cast());
         call.result
     }
-    invoke(book, read, use_text)
+    invoke(read, use_text)
 }
 
 impl EpubSession {
@@ -47,10 +50,10 @@ impl EpubSession {
         unsafe { (self.leaves.clippings_load)(book.as_ptr()) != 0 }
     }
 
-    pub(super) fn settings(&self) -> abi::XpEpubSettings {
+    pub(super) fn settings(&self, resolve_font: bool) -> abi::XpEpubSettings {
         let mut settings = core::mem::MaybeUninit::uninit();
         unsafe {
-            (self.leaves.settings_snapshot)(settings.as_mut_ptr());
+            (self.leaves.settings_snapshot)(u8::from(resolve_font), settings.as_mut_ptr());
             settings.assume_init()
         }
     }

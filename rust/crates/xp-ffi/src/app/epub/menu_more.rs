@@ -7,10 +7,7 @@ use super::{
 use core::{ffi::c_void, mem::MaybeUninit};
 use xp_core::i18n::ids;
 use xp_ui::{
-    reader::{
-        menu_parent::Action,
-        render::{Kind, Op},
-    },
+    reader::{menu_parent::Action, render::Command},
     scene::Refresh,
 };
 
@@ -121,14 +118,7 @@ impl EpubSession {
         unsafe { (self.runtime.settings_save)(&settings) };
         let access = self.lock_resources();
         self.render_overlay(&access);
-        self.render_operation(
-            &access,
-            Op {
-                kind: Kind::Display as u8,
-                mode: Refresh::Fast as u8,
-                ..Op::default()
-            },
-        );
+        self.render_operation(&access, Command::Display(Refresh::Fast));
     }
 
     pub(super) fn activate_more_row(&self, row: i32) {

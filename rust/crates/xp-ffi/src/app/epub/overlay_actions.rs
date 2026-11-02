@@ -2,11 +2,7 @@ use super::{abi, state::Overlay, EpubSession, ResourceAccess};
 use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
 use xp_ui::{
     model::{Input, BACK},
-    reader::{
-        input::Query,
-        menu_parent::Action,
-        render::{Kind, Op},
-    },
+    reader::{input::Query, menu_parent::Action, render::Command},
     scene::Refresh,
 };
 
@@ -36,13 +32,7 @@ impl EpubSession {
         self.settle_overlay_refresh(&access);
         if self.model(|state| state.page_stored) {
             unsafe { (self.leaves.render_restore_bw)(0) };
-            let stored = self.render_operation(
-                &access,
-                Op {
-                    kind: Kind::StoreBw as u8,
-                    ..Op::default()
-                },
-            ) != 0;
+            let stored = self.render_operation(&access, Command::StoreBw) != 0;
             self.model(|state| state.page_stored = stored);
             self.render_overlay(&access);
             self.push_overlay_refresh(&access);
@@ -65,13 +55,7 @@ impl EpubSession {
                 let access = self.lock_resources();
                 self.settle_overlay_refresh(&access);
                 unsafe { (self.leaves.render_restore_bw)(0) };
-                let stored = self.render_operation(
-                    &access,
-                    Op {
-                        kind: Kind::StoreBw as u8,
-                        ..Op::default()
-                    },
-                ) != 0;
+                let stored = self.render_operation(&access, Command::StoreBw) != 0;
                 self.model(|state| state.page_stored = stored);
             }
             self.redraw_overlay();
@@ -310,23 +294,11 @@ impl EpubSession {
             let access = self.lock_resources();
             self.settle_overlay_refresh(&access);
             if matches!(previous, Overlay::Page) {
-                let stored = self.render_operation(
-                    &access,
-                    Op {
-                        kind: Kind::StoreBw as u8,
-                        ..Op::default()
-                    },
-                ) != 0;
+                let stored = self.render_operation(&access, Command::StoreBw) != 0;
                 self.model(|state| state.page_stored = stored);
             } else if self.model(|state| state.page_stored) {
                 unsafe { (self.leaves.render_restore_bw)(0) };
-                let stored = self.render_operation(
-                    &access,
-                    Op {
-                        kind: Kind::StoreBw as u8,
-                        ..Op::default()
-                    },
-                ) != 0;
+                let stored = self.render_operation(&access, Command::StoreBw) != 0;
                 self.model(|state| state.page_stored = stored);
             }
             self.render_overlay(&access);
@@ -373,14 +345,7 @@ impl EpubSession {
             self.settle_overlay_refresh(&access);
             unsafe { (self.leaves.render_restore_bw)(0) };
             self.model(|state| state.page_stored = false);
-            self.render_operation(
-                &access,
-                Op {
-                    kind: Kind::Display as u8,
-                    mode: Refresh::Fast as u8,
-                    ..Op::default()
-                },
-            );
+            self.render_operation(&access, Command::Display(Refresh::Fast));
         } else {
             {
                 let access = self.lock_resources();

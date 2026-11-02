@@ -26,11 +26,11 @@ GOLDENS = {
            '56dcfdb47b7ad4f42eff66ae5f86f71c94ef266e4249c0b383ae65b9829874cf'),
 }
 RUST_MUTANTS = (
-    ('forced-refresh-not-consumed', 'u32::from(owner.take_forced_refresh(call.access))', '0', False),
-    ('counter-publication', '(*op).value as i32', '((*op).value as i32).wrapping_add(1)', False),
-    ('status-not-intercepted', 'kind if kind == Kind::Status as u8 =>', 'kind if kind == u8::MAX =>', False),
-    ('highlight-coordinates', 'call.highlights(call.page, call.font, call.left, call.top);',
-     'call.highlights(call.page, call.font, call.top, call.left);', False),
+    ('forced-refresh-not-consumed', 'u32::from(owner.take_forced_refresh(self.access))', '0', False),
+    ('counter-publication', 'value as i32', '(value as i32).wrapping_add(1)', False),
+    ('status-not-intercepted', 'Command::Status =>', 'Command::Status if false =>', False),
+    ('highlight-coordinates', 'self.highlights(self.page, self.font, self.left, self.top);',
+     'self.highlights(self.page, self.font, self.top, self.left);', False),
     ('page-before-finish', '        drop(call);\n        drop(page);',
      '        drop(page);\n        drop(call);', True),
 )

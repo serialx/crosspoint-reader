@@ -8,9 +8,8 @@ use core::{ffi::c_void, fmt, mem::MaybeUninit, ptr::NonNull};
 use xp_core::i18n::ids;
 use xp_ui::{
     reader::{
-        render::{Kind, Op},
-        BUILD_POPUP_BYTE_THRESHOLD, BUILD_POPUP_DEADLINE_MS, BUILD_POPUP_PAGE_THRESHOLD,
-        PARTIAL_REBUILD_START_MARGIN,
+        render::Command as RenderCommand, BUILD_POPUP_BYTE_THRESHOLD, BUILD_POPUP_DEADLINE_MS,
+        BUILD_POPUP_PAGE_THRESHOLD, PARTIAL_REBUILD_START_MARGIN,
     },
     scene::{Command, Rect, Refresh},
 };
@@ -426,25 +425,11 @@ impl EpubSession {
     }
 
     fn book_clear(&self, access: &ResourceAccess<'_>) {
-        self.render_operation(
-            access,
-            Op {
-                kind: Kind::Clear as u8,
-                value: 255,
-                ..Op::default()
-            },
-        );
+        self.render_operation(access, RenderCommand::Clear(255));
     }
 
     fn book_display(&self, access: &ResourceAccess<'_>) {
-        self.render_operation(
-            access,
-            Op {
-                kind: Kind::Display as u8,
-                mode: Refresh::Fast as u8,
-                ..Op::default()
-            },
-        );
+        self.render_operation(access, RenderCommand::Display(Refresh::Fast));
     }
 
     fn book_error(&self, access: &ResourceAccess<'_>, radio: bool) {
@@ -897,13 +882,7 @@ impl EpubSession {
         self.book_notices();
         self.model(|state| state.facts.frame_stale = false);
         if self.model(|state| !matches!(state.overlay, Overlay::Page)) && self.book_uses_toolbar() {
-            let stored = self.render_operation(
-                access,
-                Op {
-                    kind: Kind::StoreBw as u8,
-                    ..Op::default()
-                },
-            ) != 0;
+            let stored = self.render_operation(access, RenderCommand::StoreBw) != 0;
             self.model(|state| state.page_stored = stored);
             self.book_overlay(access);
             if let Some(popup) = unsafe { (*self.guarded(access)).overlay_popup } {

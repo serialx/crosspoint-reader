@@ -1,10 +1,10 @@
 use super::{page::Page, EpubSession, ResourceAccess};
 use core::{ffi::c_void, ptr::NonNull};
-use xp_ui::reader::render::{self, Kind, Op, Query, Services};
+use xp_ui::reader::render::{self, Command, PhysicalRenderer, Query, Renderer};
 
 struct RenderCall<'a, 'b> {
     access: &'a ResourceAccess<'b>,
-    native: &'a Services,
+    native: PhysicalRenderer<'a>,
     page: NonNull<c_void>,
     font: i32,
     left: i32,
@@ -28,43 +28,36 @@ impl Drop for RenderCall<'_, '_> {
     }
 }
 
-unsafe extern "C" fn read(context: *mut c_void, query: u8) -> u32 {
-    let call = &*context.cast::<RenderCall<'_, '_>>();
-    let owner = call.access.owner;
-    if query == Query::TakeForced as u8 {
-        u32::from(owner.take_forced_refresh(call.access))
-    } else if query == Query::Counter as u8 {
-        owner.render_refresh_counter(call.access) as u32
-    } else {
-        (call.native.read.expect("native render queries"))(call.native.context, query)
+impl Renderer for RenderCall<'_, '_> {
+    fn query(&self, query: Query) -> u32 {
+        let owner = self.access.owner;
+        match query {
+            Query::TakeForced => u32::from(owner.take_forced_refresh(self.access)),
+            Query::Counter => owner.render_refresh_counter(self.access) as u32,
+            _ => self.native.query(query),
+        }
     }
-}
-unsafe extern "C" fn execute(context: *mut c_void, op: *const Op) -> u32 {
-    let call = &*context.cast::<RenderCall<'_, '_>>();
-    let owner = call.access.owner;
-    match (*op).kind {
-        kind if kind == Kind::Status as u8 => {
-            #[cfg(feature = "app-test")]
-            if let Some(hook) = owner.render_hooks {
-                (hook.status)(hook.context);
-                return 0;
+    fn execute(&self, command: Command) -> u32 {
+        let owner = self.access.owner;
+        match command {
+            Command::Status => {
+                #[cfg(feature = "app-test")]
+                if let Some(hook) = owner.render_hooks {
+                    unsafe { (hook.status)(hook.context) };
+                    return 0;
+                }
+                owner.render_status_bar(self.access);
             }
-            owner.render_status_bar(call.access);
+            Command::Highlights => {
+                self.highlights(self.page, self.font, self.left, self.top);
+            }
+            Command::SetCounter(value) => {
+                owner.set_render_refresh_counter(self.access, value as i32);
+            }
+            _ => return self.native.execute(command),
         }
-        kind if kind == Kind::Highlights as u8 => {
-            call.highlights(call.page, call.font, call.left, call.top);
-        }
-        kind if kind == Kind::SetCounter as u8 => {
-            owner.set_render_refresh_counter(call.access, (*op).value as i32);
-        }
-        _ => {
-            return (call.native.execute.expect("native render operations"))(
-                call.native.context,
-                op,
-            )
-        }
+        0
     }
-    0
 }
 unsafe extern "C" fn highlights(
     context: *mut c_void,
@@ -94,15 +87,15 @@ impl EpubSession {
         let native = self.native(access);
         let services = unsafe { (self.leaves.render_services)(native).as_ref() }
             .expect("physical renderer services");
-        let mut call = RenderCall {
+        let call = RenderCall {
             access,
-            native: services,
+            native: unsafe { PhysicalRenderer::new(services) },
             page: page.handle,
             font,
             left: margins[3],
             top: margins[0],
         };
-        let context = (&mut call as *mut RenderCall<'_, '_>).cast();
+        let context = (&call as *const RenderCall<'_, '_>).cast_mut().cast();
         unsafe {
             (self.leaves.render_bind_page)(
                 native,
@@ -114,15 +107,8 @@ impl EpubSession {
                 highlights,
                 context,
             );
-            render::render(
-                Services {
-                    context,
-                    read: Some(read),
-                    execute: Some(execute),
-                },
-                strip_enabled,
-            );
         }
+        render::render(&call, strip_enabled);
         // Detach strip sources, prewarm and buffers before destroying their Page.
         drop(call);
         drop(page);

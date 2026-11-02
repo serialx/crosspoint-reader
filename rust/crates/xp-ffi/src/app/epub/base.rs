@@ -1,11 +1,7 @@
 use super::{abi, app_abi, book::with_text, EpubSession, ResourceAccess};
 use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
 use xp_ui::{
-    reader::{
-        input,
-        render::{Kind, Op},
-        values, SKIP_HOLD_MS,
-    },
+    reader::{input, render::Command, values, SKIP_HOLD_MS},
     scene::Refresh,
 };
 
@@ -449,27 +445,13 @@ impl EpubSession {
                     };
                 }
             }
-            self.render_operation(
-                access,
-                Op {
-                    kind: Kind::Clear as u8,
-                    value: 255,
-                    ..Op::default()
-                },
-            );
+            self.render_operation(access, Command::Clear(255));
             if let Some(end) = unsafe { (*self.guarded(access)).end_options } {
                 unsafe { (self.leaves.end_load)(end.as_ptr(), self.path.wire()) };
                 self.mark_end_ready(access);
                 unsafe { (self.leaves.end_paint)(end.as_ptr()) };
             }
-            self.render_operation(
-                access,
-                Op {
-                    kind: Kind::Display as u8,
-                    mode: Refresh::Fast as u8,
-                    ..Op::default()
-                },
-            );
+            self.render_operation(access, Command::Display(Refresh::Fast));
             self.end_rendered();
             self.mark_page_rendered(access);
             self.complete_session(access);

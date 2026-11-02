@@ -6,10 +6,7 @@ use super::{
 };
 use core::{ffi::c_void, ptr::NonNull};
 use xp_core::i18n::ids;
-use xp_ui::{
-    app::Transition,
-    reader::render::{Kind, Op},
-};
+use xp_ui::{app::Transition, reader::render::Command};
 
 unsafe extern "C" fn failure_choice(context: *mut c_void, index: i32) {
     (&*context.cast::<EpubSession>()).choose_failure(index);
@@ -208,14 +205,7 @@ impl EpubSession {
         if unsafe { (self.leaves.popup_active)(popup.as_ptr()) } == 0 {
             return false;
         }
-        self.render_operation(
-            access,
-            Op {
-                kind: Kind::Clear as u8,
-                value: 255,
-                ..Op::default()
-            },
-        );
+        self.render_operation(access, Command::Clear(255));
         unsafe { (self.leaves.popup_process_render)(popup.as_ptr()) };
         true
     }

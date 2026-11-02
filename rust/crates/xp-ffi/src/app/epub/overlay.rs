@@ -1,14 +1,14 @@
 use super::{abi, EpubSession, ResourceAccess};
 use core::mem::MaybeUninit;
 use xp_ui::{
-    reader::render::{Kind, Op},
+    reader::render::{Command, PhysicalRenderer, Renderer},
     scene::Refresh,
 };
 
 impl EpubSession {
-    pub(super) fn render_operation(&self, access: &ResourceAccess<'_>, operation: Op) -> u32 {
+    pub(super) fn render_operation(&self, access: &ResourceAccess<'_>, command: Command) -> u32 {
         let services = unsafe { &*(self.leaves.render_services)(self.native(access)) };
-        unsafe { services.execute.expect("reader renderer")(services.context, &operation) }
+        unsafe { PhysicalRenderer::new(services) }.execute(command)
     }
 
     pub(super) fn discard_overlay_page(&self, access: &ResourceAccess<'_>) {
@@ -42,14 +42,10 @@ impl EpubSession {
         let asynchronous = unsafe { geometry.assume_init() }.async_refresh != 0;
         self.render_operation(
             access,
-            Op {
-                kind: if asynchronous {
-                    Kind::DisplayAsync
-                } else {
-                    Kind::Display
-                } as u8,
-                mode: Refresh::Fast as u8,
-                ..Op::default()
+            if asynchronous {
+                Command::DisplayAsync(Refresh::Fast)
+            } else {
+                Command::Display(Refresh::Fast)
             },
         );
         if asynchronous {
@@ -66,13 +62,7 @@ impl EpubSession {
         if !self.model(|state| core::mem::take(&mut state.refresh_pending)) {
             return;
         }
-        self.render_operation(
-            access,
-            Op {
-                kind: Kind::Cleanup as u8,
-                ..Op::default()
-            },
-        );
+        self.render_operation(access, Command::Cleanup);
     }
 
     pub(super) fn paint_overlay_popup(&self) {

@@ -1,4 +1,7 @@
 //! Reader page orchestration over synchronous renderer and allocator leaves.
+mod command;
+pub use command::{Command, Plane};
+
 use crate::scene::Refresh;
 use core::ffi::c_void;
 
@@ -107,52 +110,58 @@ pub struct Services {
     pub read: Option<unsafe extern "C" fn(*mut c_void, u8) -> u32>,
     pub execute: Option<unsafe extern "C" fn(*mut c_void, *const Op) -> u32>,
 }
-struct Engine {
-    context: *mut c_void,
-    read: unsafe extern "C" fn(*mut c_void, u8) -> u32,
-    execute: unsafe extern "C" fn(*mut c_void, *const Op) -> u32,
+pub trait Renderer {
+    fn query(&self, query: Query) -> u32;
+    fn execute(&self, command: Command) -> u32;
+}
+
+pub struct PhysicalRenderer<'a> {
+    services: &'a Services,
+}
+impl<'a> PhysicalRenderer<'a> {
+    /// # Safety
+    /// Callbacks/context follow xp_ui_reader.h, remain valid for this borrow,
+    /// and do not retain operation pointers after synchronous calls return.
+    pub unsafe fn new(services: &'a Services) -> Self {
+        Self { services }
+    }
+}
+impl Renderer for PhysicalRenderer<'_> {
+    fn query(&self, query: Query) -> u32 {
+        unsafe {
+            self.services.read.expect("native render queries")(self.services.context, query as u8)
+        }
+    }
+    fn execute(&self, command: Command) -> u32 {
+        let op = Op::from(command);
+        unsafe {
+            self.services.execute.expect("native render operations")(self.services.context, &op)
+        }
+    }
+}
+
+struct Engine<'a> {
+    renderer: &'a dyn Renderer,
     next_mark: u32,
 }
-impl Engine {
-    fn query(&self, q: Query) -> u32 {
-        unsafe { (self.read)(self.context, q as u8) }
-    }
-    fn op(&self, op: Op) -> u32 {
-        unsafe { (self.execute)(self.context, &op) }
+impl Engine<'_> {
+    fn query(&self, query: Query) -> u32 {
+        self.renderer.query(query)
     }
     #[inline(never)]
-    fn command(&self, kind: Kind, value: u32) -> u32 {
-        self.op(Op {
-            kind: kind as u8,
-            value,
-            ..Op::default()
-        })
-    }
-    fn simple(&self, kind: Kind) -> u32 {
-        self.command(kind, 0)
+    fn command(&self, command: Command) -> u32 {
+        self.renderer.execute(command)
     }
     #[inline(never)]
-    fn display(&self, kind: Kind, mode: Refresh) -> u32 {
-        self.op(Op {
-            kind: kind as u8,
-            mode: mode as u8,
-            ..Op::default()
-        })
-    }
-    #[inline(never)]
-    fn mode(&self, mode: u8) {
-        self.op(Op {
-            kind: Kind::Mode as u8,
-            mode,
-            ..Op::default()
-        });
+    fn mode(&self, plane: Plane) {
+        self.command(Command::Mode(plane));
     }
     fn mark(&mut self) {
-        self.command(Kind::Mark, self.next_mark);
+        self.command(Command::Mark(self.next_mark));
         self.next_mark += 1;
     }
     fn log(&self, message: Log) {
-        self.command(Kind::Log, message as u32);
+        self.command(Command::Log(message));
     }
     fn advance_counter(&self) {
         let counter = self.query(Query::Counter) as i32;
@@ -161,7 +170,7 @@ impl Engine {
         } else {
             (counter - 1) as u32
         };
-        self.command(Kind::SetCounter, next);
+        self.command(Command::SetCounter(next));
     }
     fn cycle(&self, asynchronous: bool) {
         let mode = if (self.query(Query::Counter) as i32) <= 1 {
@@ -169,14 +178,11 @@ impl Engine {
         } else {
             Refresh::Fast
         };
-        self.display(
-            if asynchronous {
-                Kind::DisplayAsync
-            } else {
-                Kind::Display
-            },
-            mode,
-        );
+        self.command(if asynchronous {
+            Command::DisplayAsync(mode)
+        } else {
+            Command::Display(mode)
+        });
         self.advance_counter();
     }
     fn combined_cycle(&self) {
@@ -189,20 +195,20 @@ impl Engine {
         } else {
             Refresh::Fast
         };
-        self.display(Kind::GrayBase, mode);
+        self.command(Command::GrayBase(mode));
         self.advance_counter();
     }
     fn gray_pass(&self, absolute: bool, text: bool) {
         if self.query(Query::IsA4) != 0 {
-            self.simple(Kind::Highlights);
+            self.command(Command::Highlights);
         }
-        self.simple(if absolute || text {
-            Kind::Page
+        self.command(if absolute || text {
+            Command::Page
         } else {
-            Kind::Images
+            Command::Images
         });
         if absolute || self.query(Query::IsA4) != 0 {
-            self.simple(Kind::Status);
+            self.command(Command::Status);
         }
     }
     fn fits(&self, bytes: u32) -> bool {
@@ -210,21 +216,14 @@ impl Engine {
             && self.query(Query::MaxBlock) >= bytes.saturating_add(16 * 1024)
     }
     fn allocate(&self, buffer: Buffer, bytes: u32) -> bool {
-        self.op(Op {
-            kind: Kind::Allocate as u8,
-            buffer: buffer as u8,
-            value: bytes,
-            ..Op::default()
-        }) != 0
+        self.command(Command::Allocate { buffer, bytes }) != 0
     }
     fn write(&self, buffer: Buffer, lsb: bool, y: u16, rows: u16) {
-        self.op(Op {
-            kind: Kind::WritePlane as u8,
-            buffer: buffer as u8,
-            mode: if lsb { 1 } else { 2 },
+        self.command(Command::WritePlane {
+            buffer,
+            plane: if lsb { Plane::Lsb } else { Plane::Msb },
             y,
             rows,
-            ..Op::default()
         });
     }
     fn plane(
@@ -236,13 +235,12 @@ impl Engine {
         absolute: bool,
         text: bool,
     ) {
-        self.mode(if lsb { 1 } else { 2 });
+        self.mode(if lsb { Plane::Lsb } else { Plane::Msb });
         let mut y = 0u16;
         while y < height {
             let rows = (height - y).min(80);
-            self.op(Op {
-                kind: Kind::StripBegin as u8,
-                buffer: buffer as u8,
+            self.command(Command::StripBegin {
+                buffer,
                 y,
                 rows,
                 offset: if matches!(buffer, Buffer::Scratch) {
@@ -250,11 +248,10 @@ impl Engine {
                 } else {
                     u32::from(y).wrapping_mul(width)
                 },
-                ..Op::default()
             });
-            self.command(Kind::Clear, 0);
+            self.command(Command::Clear(0));
             self.gray_pass(absolute, text);
-            self.simple(Kind::StripEnd);
+            self.command(Command::StripEnd);
             if matches!(buffer, Buffer::Scratch) {
                 self.write(buffer, lsb, y, rows);
             }
@@ -275,7 +272,7 @@ impl Engine {
                 self.plane(Buffer::Msb, false, width, height, absolute, text);
             }
             self.mark();
-            self.simple(Kind::Wait);
+            self.command(Command::Wait);
             self.mark();
             self.write(Buffer::Lsb, true, 0, height);
             if msb {
@@ -285,33 +282,33 @@ impl Engine {
                 self.write(Buffer::Lsb, false, 0, height);
             }
             self.mark();
-            self.mode(0);
-            self.simple(Kind::GrayDisplay);
+            self.mode(Plane::Bw);
+            self.command(Command::GrayDisplay);
             self.mark();
-            self.simple(Kind::Cleanup);
+            self.command(Command::Cleanup);
             self.mark();
             self.log(Log::TimingAsync);
         } else {
             let scratch = if active {
-                self.simple(Kind::BorrowScratch) != 0
+                self.command(Command::BorrowScratch) != 0
             } else {
                 self.allocate(Buffer::Scratch, width.wrapping_mul(80))
             };
-            self.simple(Kind::Wait);
+            self.command(Command::Wait);
             if !scratch {
                 self.log(Log::ScratchOom);
                 if overlap || combined {
-                    self.simple(Kind::Cleanup);
+                    self.command(Command::Cleanup);
                 }
             } else {
                 self.plane(Buffer::Scratch, true, width, height, absolute, text);
                 self.mark();
                 self.plane(Buffer::Scratch, false, width, height, absolute, text);
                 self.mark();
-                self.mode(0);
-                self.simple(Kind::GrayDisplay);
+                self.mode(Plane::Bw);
+                self.command(Command::GrayDisplay);
                 self.mark();
-                self.simple(Kind::Cleanup);
+                self.command(Command::Cleanup);
                 self.mark();
                 self.mark();
                 self.log(Log::TimingTiled);
@@ -320,11 +317,11 @@ impl Engine {
     }
     fn run(mut self, strip_enabled: bool) {
         self.mark();
-        self.simple(Kind::ImageReset);
-        self.simple(Kind::PrewarmBegin);
-        self.simple(Kind::Page);
-        self.simple(Kind::Status);
-        self.simple(Kind::PrewarmEnd);
+        self.command(Command::ImageReset);
+        self.command(Command::PrewarmBegin);
+        self.command(Command::Page);
+        self.command(Command::Status);
+        self.command(Command::PrewarmEnd);
         self.mark();
         let images = self.query(Query::HasImages) != 0;
         let decode = images && self.query(Query::ImagesNeedDecode) != 0;
@@ -345,68 +342,72 @@ impl Engine {
         let combined = tiled && !images && caps & 2 != 0;
         let overlap = tiled && caps & 4 != 0 && !images;
         if decode {
-            self.simple(Kind::Placeholders);
-            self.simple(Kind::Status);
-            self.display(Kind::Display, Refresh::Fast);
-            self.command(Kind::Clear, 255);
+            self.command(Command::Placeholders);
+            self.command(Command::Status);
+            self.command(Command::Display(Refresh::Fast));
+            self.command(Command::Clear(255));
         }
         let mut active = false;
         if strip_enabled {
             if self.query(Query::StripBoard) != 0 && self.query(Query::Elements) <= 512 {
                 let scratch_bytes = self.query(Query::WidthBytes).wrapping_mul(80);
-                if self.command(Kind::PrepareStrips, u32::from(images)) != 0 {
-                    self.simple(Kind::ImageWindow);
-                    self.simple(Kind::RecordBegin);
-                    self.simple(Kind::Page);
-                    if self.simple(Kind::RecordEnd) != 0 {
-                        active = self.command(Kind::SetSource, scratch_bytes) != 0;
+                if self.command(Command::PrepareStrips { images }) != 0 {
+                    self.command(Command::ImageWindow);
+                    self.command(Command::RecordBegin);
+                    self.command(Command::Page);
+                    if self.command(Command::RecordEnd) != 0 {
+                        active = self.command(Command::SetSource { scratch_bytes }) != 0;
                     }
                 } else {
                     self.log(Log::StripOom);
                 }
             }
             if !active {
-                self.simple(Kind::ClearPlan);
-                self.simple(Kind::ClearWindow);
-                self.simple(Kind::ReleaseStrips);
+                self.command(Command::ClearPlan);
+                self.command(Command::ClearWindow);
+                self.command(Command::ReleaseStrips);
             }
         }
         if !active || images {
-            self.simple(Kind::Highlights);
-            self.simple(Kind::Page);
+            self.command(Command::Highlights);
+            self.command(Command::Page);
         }
-        self.simple(Kind::Status);
+        self.command(Command::Status);
         self.mark();
         if absolute {
-            if self.display(
-                Kind::AbsoluteBase,
-                if clean { Refresh::Half } else { Refresh::Fast },
-            ) == 0
+            if self.command(Command::AbsoluteBase(if clean {
+                Refresh::Half
+            } else {
+                Refresh::Fast
+            })) == 0
             {
                 self.log(Log::AbsoluteFailed);
                 self.cycle(false);
                 return;
             }
             self.log(Log::AbsoluteQuality);
-            self.command(Kind::SetCounter, 1);
+            self.command(Command::SetCounter(1));
         } else if images {
-            self.display(
-                Kind::Display,
-                if clean { Refresh::Half } else { Refresh::Fast },
-            );
-            self.command(Kind::SetCounter, 1);
+            self.command(Command::Display(if clean {
+                Refresh::Half
+            } else {
+                Refresh::Fast
+            }));
+            self.command(Command::SetCounter(1));
         } else if combined {
             self.combined_cycle();
         } else if any_gray {
             if (self.query(Query::Counter) as i32) <= 1 {
-                self.display(Kind::Display, Refresh::Half);
-                self.simple(Kind::Precondition);
-                self.command(Kind::SetCounter, self.query(Query::Frequency));
+                self.command(Command::Display(Refresh::Half));
+                self.command(Command::Precondition);
+                self.command(Command::SetCounter(self.query(Query::Frequency)));
             } else if overlap {
                 self.cycle(true);
             } else {
-                self.display(Kind::GrayBase, Refresh::Fast);
-                self.command(Kind::SetCounter, self.query(Query::Counter).wrapping_sub(1));
+                self.command(Command::GrayBase(Refresh::Fast));
+                self.command(Command::SetCounter(
+                    self.query(Query::Counter).wrapping_sub(1),
+                ));
             }
         } else {
             self.cycle(false);
@@ -415,28 +416,28 @@ impl Engine {
         if tiled {
             self.tiled(active, overlap, combined, absolute, text);
         } else if any_gray {
-            if self.simple(Kind::StoreBw) == 0 {
+            if self.command(Command::StoreBw) == 0 {
                 self.log(Log::StoreFailed);
                 if absolute {
-                    self.mode(0);
+                    self.mode(Plane::Bw);
                 }
                 return;
             }
             self.mark();
-            self.command(Kind::Clear, if absolute { 255 } else { 0 });
-            self.mode(1);
+            self.command(Command::Clear(if absolute { 255 } else { 0 }));
+            self.mode(Plane::Lsb);
             self.gray_pass(absolute, text);
-            self.simple(Kind::CopyLsb);
+            self.command(Command::CopyLsb);
             self.mark();
-            self.command(Kind::Clear, if absolute { 255 } else { 0 });
-            self.mode(2);
+            self.command(Command::Clear(if absolute { 255 } else { 0 }));
+            self.mode(Plane::Msb);
             self.gray_pass(absolute, text);
-            self.simple(Kind::CopyMsb);
+            self.command(Command::CopyMsb);
             self.mark();
-            self.simple(Kind::GrayDisplay);
+            self.command(Command::GrayDisplay);
             self.mark();
-            self.mode(0);
-            self.simple(Kind::RestoreBw);
+            self.mode(Plane::Bw);
+            self.command(Command::RestoreBw);
             self.mark();
             self.mark();
             self.log(Log::TimingGray);
@@ -446,16 +447,9 @@ impl Engine {
         }
     }
 }
-/// # Safety
-/// Callbacks/context follow xp_ui_reader.h, remain valid synchronously and do not retain operation pointers.
-pub unsafe fn render(services: Services, strip_enabled: bool) {
-    let (Some(read), Some(execute)) = (services.read, services.execute) else {
-        return;
-    };
+pub fn render(renderer: &dyn Renderer, strip_enabled: bool) {
     Engine {
-        context: services.context,
-        read,
-        execute,
+        renderer,
         next_mark: 0,
     }
     .run(strip_enabled);

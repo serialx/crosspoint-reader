@@ -29,3 +29,21 @@ pub unsafe extern "C" fn xp_epub_test_input_buttons(raw: *mut c_void, out: *mut 
 pub unsafe extern "C" fn xp_epub_test_input_touch(raw: *mut c_void, out: *mut Turn) {
     *out = (&*raw.cast::<EpubSession>()).touch_turn();
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_input_book_touch(
+    raw: *mut c_void,
+    book: *mut c_void,
+    out: *mut Turn,
+) {
+    let owner = &mut *raw.cast::<EpubSession>();
+    assert!(owner.guarded.get_mut().book.is_none());
+    owner.guarded.get_mut().book = core::ptr::NonNull::new(book);
+    *out = owner.book_touch_turn();
+    owner.guarded.get_mut().book = None;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_input_menu(raw: *mut c_void) -> u8 {
+    u8::from((&*raw.cast::<EpubSession>()).touch_menu_gesture())
+}

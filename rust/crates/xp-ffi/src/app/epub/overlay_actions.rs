@@ -11,7 +11,7 @@ use xp_ui::{
 };
 
 impl EpubSession {
-    fn overlay_popup(&self) -> Option<NonNull<c_void>> {
+    pub(super) fn overlay_popup(&self) -> Option<NonNull<c_void>> {
         // The loop owns popup lifetime; render only observes it under RenderLock.
         unsafe { core::ptr::addr_of!((*self.guarded.get()).overlay_popup).read() }
     }
@@ -21,7 +21,7 @@ impl EpubSession {
             .is_some_and(|popup| unsafe { (self.leaves.popup_active)(popup.as_ptr()) != 0 })
     }
 
-    fn dismiss_overlay_popup(&self) {
+    pub(super) fn dismiss_overlay_popup(&self) {
         if let Some(popup) = self.overlay_popup() {
             unsafe { (self.leaves.popup_dismiss)(popup.as_ptr()) };
         }
@@ -51,14 +51,14 @@ impl EpubSession {
         }
     }
 
-    fn redraw_overlay(&self) {
+    pub(super) fn redraw_overlay(&self) {
         let access = self.lock_resources();
         self.settle_overlay_refresh(&access);
         self.render_overlay(&access);
         self.push_overlay_refresh(&access);
     }
 
-    fn dismiss_overlay_panel(&self) {
+    pub(super) fn dismiss_overlay_panel(&self) {
         self.model(|state| state.overlay = Overlay::Toolbar);
         if self.model(|state| state.page_stored) {
             {
@@ -245,6 +245,14 @@ impl EpubSession {
     }
 
     pub(super) fn open_overlay(&self, target: Overlay) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_input_hooks {
+            self.model(|state| state.overlay = target);
+            unsafe {
+                (hooks.open)(hooks.context, target as u8);
+            }
+            return;
+        }
         self.reset_home_input();
         let (previous, mut focus, mut index) =
             self.model(|state| (state.overlay, state.focused_tool, state.panel_index));
@@ -329,6 +337,14 @@ impl EpubSession {
     }
 
     pub(super) fn close_overlay_to_page(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_input_hooks {
+            self.model(|state| state.overlay = Overlay::Page);
+            unsafe {
+                (hooks.close)(hooks.context);
+            }
+            return;
+        }
         self.reset_home_input();
         self.model(|state| state.overlay = Overlay::Page);
         self.dismiss_overlay_popup();

@@ -101,16 +101,18 @@ add_executable(ReaderLoopOracle loop_oracle.cpp ${LOOP_METHODS})
 target_link_libraries(ReaderLoopOracle PRIVATE crosspoint_test_common)
 target_include_directories(ReaderLoopOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
 add_test(NAME reader_loop_oracle
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
-    $<TARGET_FILE:ReaderLoopOracle> ${CMAKE_CURRENT_SOURCE_DIR}/loop.golden.gz)
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_loop_session.py
+    --original-executable $<TARGET_FILE:ReaderLoopOracle>)
 
 add_executable(ReaderLoopOracleRelease loop_oracle.cpp ${LOOP_METHODS})
 target_link_libraries(ReaderLoopOracleRelease PRIVATE crosspoint_test_common)
 target_compile_definitions(ReaderLoopOracleRelease PRIVATE LOOP_LOG_LEVEL=1)
 target_include_directories(ReaderLoopOracleRelease PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
 add_test(NAME reader_loop_oracle_release
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
-    $<TARGET_FILE:ReaderLoopOracleRelease> ${CMAKE_CURRENT_SOURCE_DIR}/loop-release.golden.gz)
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_loop_session.py --release
+    --original-executable $<TARGET_FILE:ReaderLoopOracleRelease>)
 
 set(BASE_METHODS ${CMAKE_CURRENT_BINARY_DIR}/base_methods.inc)
 add_custom_command(OUTPUT ${BASE_METHODS} ${CMAKE_CURRENT_BINARY_DIR}/base_action.inc
@@ -165,6 +167,17 @@ add_test(NAME reader_child_section_interleaving
 add_test(NAME reader_child_native_faults
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_child_native_faults.py)
+add_test(NAME reader_clipping_store_interleaving
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_clipping_store_interleaving.py
+    --repo ${REPO_ROOT})
+add_test(NAME reader_loop_link_faults
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_loop_link_faults.py)
+add_test(NAME reader_font_picker_admission
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_font_picker_admission.py
+    --repo ${REPO_ROOT})
 
 add_test(NAME reader_idle_projection
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"

@@ -130,6 +130,11 @@ impl EpubSession {
     }
 
     pub(super) fn background_build(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            unsafe { (hooks.background)(hooks.context) };
+            return;
+        }
         let Some(access) = self.try_resources() else {
             return;
         };

@@ -132,6 +132,13 @@ impl EpubSession {
     }
 
     pub(super) fn activate_more_row(&self, row: i32) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_input_hooks {
+            unsafe {
+                (hooks.more)(hooks.context, row);
+            }
+            return;
+        }
         let action = unsafe {
             let guarded = &*self.guarded.get();
             if row < 0 || row >= i32::from(guarded.more_count) {

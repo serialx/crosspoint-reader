@@ -117,6 +117,12 @@ impl EpubSession {
 
     pub(super) fn apply_orientation(&self, orientation: u8) {
         #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            unsafe { (hooks.orientation)(hooks.context, orientation) };
+            self.model(|state| state.orientation = orientation);
+            return;
+        }
+        #[cfg(feature = "app-test")]
         if let Some(hooks) = self.menu_hooks {
             unsafe { (hooks.orientation)(hooks.context, orientation) };
             return;
@@ -180,6 +186,13 @@ impl EpubSession {
     }
 
     pub(super) fn apply_text_settings(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_input_hooks {
+            unsafe {
+                (hooks.text)(hooks.context);
+            }
+            return;
+        }
         {
             let access = self.lock_resources();
             self.cache_current_position(&access);
@@ -191,6 +204,13 @@ impl EpubSession {
     }
 
     pub(super) fn apply_text_setting_live(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_input_hooks {
+            unsafe {
+                (hooks.live)(hooks.context);
+            }
+            return;
+        }
         self.apply_text_settings();
         {
             let access = self.lock_resources();
@@ -263,6 +283,13 @@ impl EpubSession {
     }
 
     pub(super) fn show_text_row_popup(&self, row: i32) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_input_hooks {
+            unsafe {
+                (hooks.text_popup)(hooks.context, row);
+            }
+            return;
+        }
         match row {
             1 => {
                 let settings = self.settings(false);

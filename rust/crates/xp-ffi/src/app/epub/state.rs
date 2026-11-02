@@ -21,7 +21,7 @@ pub(super) struct History {
     pub(super) positions: [Position; 3],
     pub(super) depth: u8,
 }
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(super) enum Overlay {
     #[default]
     Page,
@@ -185,13 +185,11 @@ pub(super) struct State {
     pub(super) deferred: DeferredPosition,
     pub(super) history: History,
     pub(super) last_saved: (i32, i32, i32),
-    #[expect(dead_code, reason = "Read by the pending idle and loop owner port.")]
     pub(super) idle_prewarm: Position,
     pub(super) last_turn_ms: u32,
     pub(super) turn_duration_ms: u32,
     pub(super) last_render_ms: u32,
     pub(super) manual_turn: i8,
-    #[expect(dead_code, reason = "Read by the pending manual turn owner port.")]
     pub(super) manual_touch: bool,
     pub(super) auto_turn: bool,
     pub(super) screenshot: bool,
@@ -208,7 +206,6 @@ pub(super) struct State {
     pub(super) clipping_notice: Option<TimedNotice>,
     pub(super) bookmarked: bool,
     pub(super) bookmark_removed: bool,
-    #[expect(dead_code, reason = "Read by the pending entry and loop owner port.")]
     pub(super) recents_removed: bool,
     pub(super) move_to_read: bool,
     pub(super) overlay: Overlay,

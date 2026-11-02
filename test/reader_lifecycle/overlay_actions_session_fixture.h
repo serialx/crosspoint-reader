@@ -154,7 +154,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)()));
   table.resources_open = &OverlayUnexpected<decltype(table.resources_open)>::call;
   table.resources_close = &OverlayUnexpected<decltype(table.resources_close)>::call;
   table.render_services = &OverlayUnexpected<decltype(table.render_services)>::call;
@@ -361,5 +361,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.log_enabled = &OverlayUnexpected<decltype(table.log_enabled)>::call;
   table.toolbar_reset_navigation = &OverlayUnexpected<decltype(table.toolbar_reset_navigation)>::call;
   table.input_snapshot = &OverlayUnexpected<decltype(table.input_snapshot)>::call;
+  table.page_render = &OverlayUnexpected<decltype(table.page_render)>::call;
   return table;
 }

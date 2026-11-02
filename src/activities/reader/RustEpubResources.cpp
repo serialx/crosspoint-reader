@@ -483,6 +483,8 @@ struct NativeResources {
         return SETTINGS.getRefreshFrequency();
       case XP_UI_READER_RENDER_FREE_HEAP:
         return ESP.getFreeHeap();
+      case XP_UI_READER_RENDER_MAX_BLOCK:
+        return ESP.getMaxAllocHeap();
       default:
         assert(frame);  // Remaining queries belong to a bound Page render.
         return frame->read(query);
@@ -633,6 +635,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                                 BoardConfig::isEegoA4();
             out->a4 = BoardConfig::isEegoA4();
             out->has_ttf = !target->getTtfFonts().empty();
+            out->has_font_cache = target->getFontCacheManager() != nullptr;
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
             out->strip_enabled = true;
 #endif
@@ -1398,6 +1401,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             static_cast<ReaderToolbarUi*>(handle)->resetNavigation(selected, top);
           },
       .input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); },
+      .page_render = [](void* handle, int32_t font, int32_t left,
+                        int32_t top) { static_cast<Page*>(handle)->render(*target, font, left, top); },
   };
   return leaves;
 }

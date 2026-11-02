@@ -9,13 +9,18 @@ mod build;
 mod child;
 mod child_result;
 mod clipping;
+mod idle;
 mod lifetime;
 mod links;
+mod loop_input;
+mod loop_maintenance;
+mod loop_owner;
 mod menu;
 mod menu_more;
 mod navigation;
 mod overlay;
 mod overlay_actions;
+mod overlay_input;
 mod overlay_view;
 mod page;
 mod position;
@@ -101,6 +106,10 @@ pub(super) struct EpubSession {
     child_hooks: Option<test_support::ChildHooks>,
     #[cfg(feature = "app-test")]
     menu_hooks: Option<test_support::MenuHooks>,
+    #[cfg(feature = "app-test")]
+    overlay_input_hooks: Option<test_support::OverlayInputHooks>,
+    #[cfg(feature = "app-test")]
+    loop_hooks: Option<test_support::LoopHooks>,
 }
 
 // This capability cannot move to another task. Native render borrows its lock;
@@ -174,6 +183,10 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).child_hooks).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).menu_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).overlay_input_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).loop_hooks).write(None);
             Some(Box::from_raw(ptr))
         }
     }

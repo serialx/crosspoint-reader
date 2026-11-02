@@ -74,6 +74,11 @@ impl EpubSession {
     }
 
     pub(super) fn restore_position(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            unsafe { (hooks.restore)(hooks.context) };
+            return;
+        }
         let saved = self.model(|state| {
             if state.history.depth == 0 {
                 return None;
@@ -107,6 +112,13 @@ impl EpubSession {
     }
 
     pub(super) fn clear_deferred(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_input_hooks {
+            unsafe {
+                (hooks.clear)(hooks.context);
+            }
+            return;
+        }
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.menu_hooks {
             unsafe { (hooks.clear)(hooks.context) };

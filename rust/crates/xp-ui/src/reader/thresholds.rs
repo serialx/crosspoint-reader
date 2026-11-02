@@ -1,11 +1,11 @@
 //! Reader policy thresholds, shared by input and build/render consumers.
-pub(super) const GO_HOME_MS: u32 = 1000;
+pub const GO_HOME_MS: u32 = 1000;
 pub const SKIP_HOLD_MS: u32 = 700;
 pub(super) const BACKGROUND_BUILD_MIN_FREE_HEAP: u32 = 32 * 1024;
-pub(super) const BACKGROUND_BUILD_MIN_MAX_ALLOC: u32 = 16 * 1024;
+pub const BACKGROUND_BUILD_MIN_MAX_ALLOC: u32 = 16 * 1024;
 pub(super) const BUILD_ROOM_WAIT_MS: u32 = 5000;
 pub(super) const BUILD_ROOM_STEP_MS: u32 = 50;
-pub(super) const RENDER_MIN_FREE_HEAP: u32 = 24 * 1024;
+pub const RENDER_MIN_FREE_HEAP: u32 = 24 * 1024;
 pub const PARTIAL_REBUILD_START_MARGIN: i32 = 15;
 pub const BUILD_POPUP_PAGE_THRESHOLD: i32 = 20;
 pub const BUILD_POPUP_BYTE_THRESHOLD: u32 = 96 * 1024;

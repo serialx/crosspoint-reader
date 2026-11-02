@@ -83,6 +83,11 @@ impl EpubSession {
     }
 
     pub(super) fn remember_book(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            unsafe { (hooks.remember)(hooks.context) };
+            return;
+        }
         let remember = self.model(|state| {
             if state.base.remembered || !state.base.rendered {
                 return false;
@@ -200,6 +205,11 @@ impl EpubSession {
     }
 
     pub(super) fn clear_end_options(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            unsafe { (hooks.clear_end)(hooks.context) };
+            return;
+        }
         if self.is_at_end() || !self.model(|state| state.base.end_ready) {
             return;
         }
@@ -239,7 +249,7 @@ impl EpubSession {
         app.go_home(0, false);
     }
 
-    fn input_config(&self) -> input::Config {
+    pub(super) fn input_config(&self) -> input::Config {
         let settings = self.settings(false);
         input::Config {
             long_press: settings.long_button,
@@ -357,6 +367,10 @@ impl EpubSession {
     }
 
     pub(super) fn handle_end_menu(&self, suppressed: bool) -> bool {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            return unsafe { (hooks.end_menu)(hooks.context) != 0 };
+        }
         if suppressed || !self.end_menu_active() {
             return false;
         }
@@ -404,6 +418,12 @@ impl EpubSession {
     }
 
     pub(super) fn handle_end_turn(&self, previous: bool, next: bool) -> bool {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            return unsafe {
+                (hooks.end_turn)(hooks.context, u8::from(previous), u8::from(next)) != 0
+            };
+        }
         if !self.is_at_end() {
             return false;
         }

@@ -234,6 +234,10 @@ impl EpubSession {
     }
 
     pub(super) fn confirm_long_press_threshold(&self) -> u32 {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            return unsafe { (hooks.threshold)(hooks.context) };
+        }
         let mut input = core::mem::MaybeUninit::uninit();
         unsafe { (self.leaves.input_facts)(input.as_mut_ptr()) };
         if unsafe { input.assume_init() }.board_touch != 0 {
@@ -269,6 +273,10 @@ impl EpubSession {
     }
 
     pub(super) fn end_menu_active(&self) -> bool {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.loop_hooks {
+            return unsafe { (hooks.end_active)(hooks.context) != 0 };
+        }
         if !self.is_at_end() || !self.model(|state| state.base.end_ready) {
             return false;
         }

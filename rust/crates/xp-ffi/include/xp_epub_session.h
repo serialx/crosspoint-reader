@@ -157,6 +157,7 @@ typedef struct {
   uint8_t a4;
   uint8_t has_ttf;
   uint8_t strip_enabled;
+  uint8_t has_font_cache;
 } XpEpubGeometry;
 
 typedef struct {
@@ -505,6 +506,7 @@ typedef struct XpEpubLeaves {
   uint8_t (*log_enabled)(uint8_t severity);
   void (*toolbar_reset_navigation)(void* toolbar, int32_t selected, int32_t top);
   void (*input_snapshot)(XpUiInput* out);
+  void (*page_render)(void* page, int32_t font, int32_t left, int32_t top);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -517,6 +519,7 @@ XP_EPUB_ASSERT(sizeof(XpEpubPosition) == 92, "XpEpubPosition size");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, visible_offset) == 12, "XpEpubPosition.visible_offset");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, anchor) == 25, "XpEpubPosition.anchor");
 XP_EPUB_ASSERT(sizeof(XpEpubGeometry) == 32, "XpEpubGeometry size");
+XP_EPUB_ASSERT(offsetof(XpEpubGeometry, has_font_cache) == 31, "XpEpubGeometry.has_font_cache");
 XP_EPUB_ASSERT(offsetof(XpEpubGeometry, status_height) == 8, "XpEpubGeometry.status_height");
 XP_EPUB_ASSERT(offsetof(XpEpubGeometry, ui_font_12) == 20, "XpEpubGeometry.ui_font_12");
 XP_EPUB_ASSERT(offsetof(XpEpubGeometry, title_mode) == 24, "XpEpubGeometry.title_mode");
@@ -556,7 +559,7 @@ XP_EPUB_ASSERT(sizeof(XpEpubToolbarRow) == 2 * sizeof(XpAppText) + 8, "XpEpubToo
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, label_spaces) == 2 * sizeof(XpAppText), "XpEpubToolbarRow.label_spaces");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, toggle) == 2 * sizeof(XpAppText) + 4, "XpEpubToolbarRow.toggle");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, checked) == 2 * sizeof(XpAppText) + 5, "XpEpubToolbarRow.checked");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(resources_open, 0);
@@ -765,6 +768,7 @@ XP_EPUB_LEAF_OFFSET(font_text_advance, 202);
 XP_EPUB_LEAF_OFFSET(log_enabled, 203);
 XP_EPUB_LEAF_OFFSET(toolbar_reset_navigation, 204);
 XP_EPUB_LEAF_OFFSET(input_snapshot, 205);
+XP_EPUB_LEAF_OFFSET(page_render, 206);
 #undef XP_EPUB_LEAF_OFFSET
 #undef XP_EPUB_ASSERT
 
@@ -807,6 +811,11 @@ _Static_assert(_Generic(((XpEpubLeaves*)0)->toolbar_reset_navigation, void (*)(v
                "XpEpubLeaves.toolbar_reset_navigation signature");
 _Static_assert(_Generic(((XpEpubLeaves*)0)->input_snapshot, void (*)(XpUiInput*): 1, default: 0),
                "XpEpubLeaves.input_snapshot signature");
+_Static_assert(_Generic(((XpEpubLeaves*)0)->page_render, void (*)(void*, int32_t, int32_t, int32_t): 1, default: 0),
+               "XpEpubLeaves.page_render signature");
+_Static_assert(_Generic(((XpEpubGeometry*)0)->has_font_cache, uint8_t: 1, default: 0),
+               "XpEpubGeometry.has_font_cache type");
+_Static_assert(_Alignof(XpEpubGeometry) == 4, "XpEpubGeometry alignment");
 #endif
 
 #ifndef __cplusplus

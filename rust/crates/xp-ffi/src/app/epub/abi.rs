@@ -181,6 +181,7 @@ pub struct XpEpubGeometry {
     pub a4: u8,
     pub has_ttf: u8,
     pub strip_enabled: u8,
+    pub has_font_cache: u8,
 }
 
 #[repr(C)]
@@ -812,6 +813,8 @@ pub struct XpEpubLeaves {
     pub toolbar_reset_navigation:
         unsafe extern "C" fn(toolbar: *mut core::ffi::c_void, selected: i32, top: i32),
     pub input_snapshot: unsafe extern "C" fn(out: *mut xp_ui::model::Input),
+    pub page_render:
+        unsafe extern "C" fn(page: *mut core::ffi::c_void, font: i32, left: i32, top: i32),
 }
 
 const _: () = {
@@ -833,7 +836,7 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 206 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 207 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
@@ -963,5 +966,15 @@ const _: () = {
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
+    let _: unsafe extern "C" fn(*mut core::ffi::c_void, i32, i32, i32) = leaves.page_render;
     let _: unsafe extern "C" fn(*mut xp_ui::model::Input) = leaves.input_snapshot;
+};
+
+const _: () = {
+    assert!(core::mem::size_of::<XpEpubGeometry>() == 32);
+    assert!(core::mem::align_of::<XpEpubGeometry>() == 4);
+    assert!(core::mem::offset_of!(XpEpubGeometry, has_font_cache) == 31);
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, page_render) == 206 * core::mem::size_of::<usize>()
+    );
 };

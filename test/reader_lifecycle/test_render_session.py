@@ -117,7 +117,7 @@ def main():
                 'policy_replacements': ['historical renderStatusBar', 'historical drawClippingHighlights'],
                 'scope': 'render_contents under render_with and silent caller-held RenderLock; no full renderBook or App entry-gate claim',
                 'lifetime': 'native finish precedes unique Page close; persistent strips drop after historical end line',
-                'extra_facts': ['Frequency, FreeHeap and StoreBw work before Page binding'] +
+                'extra_facts': ['Frequency, FreeHeap, MaxBlock and StoreBw work before Page binding'] +
                                (['actual bound strip painter callback during source detach'] if args.mode == 'on' else []),
             }), flush=True)
 
@@ -142,6 +142,17 @@ def main():
             wrong = compile_run('unbound-free-heap', wrong_native, lifetime=True)
             assert wrong.returncode != 0 and b'XP_UI_READER_RENDER_FREE_HEAP' in wrong.stderr
             print(json.dumps({'test_name': name, 'mutant': 'unbound-free-heap', 'kind': 'production-native',
+                              'replacement_count': 1, 'original_source_sha256': digest(native.encode()),
+                              'mutant_source_sha256': digest(wrong_native.encode()), 'returncode': wrong.returncode,
+                              'stderr_sha256': digest(wrong.stderr)}), flush=True)
+
+            wrong_root = replace_once(root,
+                '      case XP_UI_READER_RENDER_MAX_BLOCK:\n        return ESP.getMaxAllocHeap();',
+                '      case XP_UI_READER_RENDER_MAX_BLOCK:\n        return 0;')
+            wrong_native = replace_once(native, root, wrong_root)
+            wrong = compile_run('unbound-max-block', wrong_native, lifetime=True)
+            assert wrong.returncode != 0 and b'XP_UI_READER_RENDER_MAX_BLOCK' in wrong.stderr
+            print(json.dumps({'test_name': name, 'mutant': 'unbound-max-block', 'kind': 'production-native',
                               'replacement_count': 1, 'original_source_sha256': digest(native.encode()),
                               'mutant_source_sha256': digest(wrong_native.encode()), 'returncode': wrong.returncode,
                               'stderr_sha256': digest(wrong.stderr)}), flush=True)

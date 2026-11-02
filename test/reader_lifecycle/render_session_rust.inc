@@ -119,7 +119,7 @@ static const XpAppRuntime runtime = [] {
 }();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 206 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -326,6 +326,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
   UNUSED_LEAF(input_snapshot);
+  UNUSED_LEAF(page_render);
   table.render_services = [](void* context) -> const XpUiReaderRenderServices* {
     root(context);
     const auto* native = actualServices(context);
@@ -404,6 +405,8 @@ static void lifetimeFacts() {
   assert(services->read(services->context, XP_UI_READER_RENDER_FREQUENCY) == 3);
   ESP.free = 123456;
   assert(services->read(services->context, XP_UI_READER_RENDER_FREE_HEAP) == 123456);
+  ESP.block = 65432;
+  assert(services->read(services->context, XP_UI_READER_RENDER_MAX_BLOCK) == 65432);
   XpUiReaderRenderOp store{};
   store.kind = XP_UI_READER_RENDER_STORE_BW;
   owner.renderer.storeOk = false;

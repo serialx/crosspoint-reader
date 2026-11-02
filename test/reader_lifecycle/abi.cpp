@@ -36,6 +36,8 @@ static_assert(offsetof(XpEpubGeometry, status_margin) == 16);
 static_assert(offsetof(XpEpubGeometry, ui_font_12) == 20);
 static_assert(offsetof(XpEpubGeometry, title_mode) == 24);
 static_assert(offsetof(XpEpubGeometry, strip_enabled) == 30);
+static_assert(offsetof(XpEpubGeometry, has_font_cache) == 31);
+static_assert(std::is_same_v<decltype(XpEpubGeometry::has_font_cache), uint8_t>);
 static_assert(std::is_standard_layout_v<XpEpubToolbarRow>);
 static_assert(std::is_same_v<decltype(XpEpubToolbarRow::label_spaces), uint32_t>);
 static_assert(sizeof(XpEpubToolbarRow) == 2 * sizeof(XpAppText) + 8);
@@ -61,6 +63,9 @@ static_assert(std::is_same_v<decltype(XpEpubLeaves::toolbar_reset_navigation), v
 static_assert(offsetof(XpEpubLeaves, toolbar_reset_navigation) == 204 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::input_snapshot), void (*)(XpUiInput*)>);
 static_assert(offsetof(XpEpubLeaves, input_snapshot) == 205 * sizeof(void (*)(void)));
+static_assert(std::is_same_v<decltype(XpEpubLeaves::page_render), void (*)(void*, int32_t, int32_t, int32_t)>);
+static_assert(offsetof(XpEpubLeaves, page_render) == 206 * sizeof(void (*)(void)));
+static_assert(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::log_enabled), uint8_t (*)(uint8_t)>);
 static_assert(offsetof(XpEpubLeaves, log_enabled) == 203 * sizeof(void (*)(void)));
 static_assert(XP_UI_READER_RENDER_NOW == 0);

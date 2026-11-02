@@ -298,11 +298,7 @@ impl EpubSession {
         }
         // Render publishes EndReady after installing/loading the widget. Only the
         // loop drops it; its own menuActive() uses the widget publication gate.
-        let end = unsafe {
-            (*self.guarded.get())
-                .end_options
-                .expect("published end menu")
-        };
+        let end = self.published_end_options().expect("published end menu");
         unsafe { (self.leaves.end_menu_active)(end.as_ptr()) != 0 }
     }
 

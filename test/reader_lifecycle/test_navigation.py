@@ -67,8 +67,8 @@ with tempfile.TemporaryDirectory(prefix='reader-navigation-') as directory:
     target = work / 'target'
     mutants = [
         ('anchor-clear', [
-            ('(*self.guarded(&access)).anchor = anchor',
-             '(*self.guarded(&access)).anchor.clear()'),
+            ('self.set_anchor(&access, anchor)',
+             'self.clear_anchor(&access)'),
         ]),
         ('explicit-page', [
             ('self.model(|state| state.current.page = i32::from(page));',

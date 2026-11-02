@@ -223,7 +223,7 @@ impl EpubSession {
             }
         }
         // The loop alone owns the pending result payload, including cancellation.
-        unsafe { (*self.guarded.get()).selection_metadata = metadata };
+        self.set_selection_metadata(metadata);
         self.push_child(child, ChildIntent::Selection(capture));
     }
 
@@ -240,7 +240,7 @@ impl EpubSession {
         result: Option<&app_abi::XpAppClipResult>,
     ) {
         // Move out before any callback; every return path releases the old capture.
-        let metadata = unsafe { core::mem::take(&mut (*self.guarded.get()).selection_metadata) };
+        let metadata = self.take_selection_metadata();
         let Some(result) = result else {
             self.request_update();
             return;

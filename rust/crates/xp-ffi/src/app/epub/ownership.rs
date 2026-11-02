@@ -27,7 +27,7 @@ impl EpubSession {
         let owner = pending.0.as_ref().expect("pending owner");
         let access = owner.entry_resources();
         let native = NonNull::new(unsafe { (leaves.resources_open)() })?;
-        unsafe { (*owner.guarded(&access)).native = Some(native) };
+        owner.set_native(&access, Some(native));
         if fast_initial {
             let render = unsafe { (leaves.render_services)(native.as_ptr()).as_ref() }
                 .expect("physical root render services");
@@ -38,33 +38,33 @@ impl EpubSession {
                 )
             } as i32;
             // Entry owns the unpublished model; no render can observe it yet.
-            unsafe { (*owner.state.get()).base.refresh_counter = frequency.max(2) };
+            unsafe { owner.initialize_refresh_counter(frequency) };
         }
         let bookmarks = NonNull::new(unsafe { (leaves.bookmarks_open)() })?;
-        unsafe { (*owner.guarded(&access)).bookmarks = Some(bookmarks) };
+        owner.set_bookmarks(&access, Some(bookmarks));
         let overlay = NonNull::new(unsafe { (leaves.popup_open)() })?;
-        unsafe { (*owner.guarded(&access)).overlay_popup = Some(overlay) };
+        owner.set_overlay_popup(&access, Some(overlay));
         let failure = NonNull::new(unsafe { (leaves.popup_open)() })?;
-        unsafe { (*owner.guarded(&access)).failure_popup = Some(failure) };
+        owner.set_failure_popup(&access, Some(failure));
         drop(access);
         pending.0.take()
     }
 
     fn close_owned_components(&self, access: &ResourceAccess<'_>) {
-        assert!(unsafe { (*self.guarded(access)).active_frame.is_none() });
-        if let Some(toolbar) = unsafe { (*self.guarded(access)).toolbar.take() } {
+        assert!(self.active_frame(access).is_none());
+        if let Some(toolbar) = self.take_toolbar(access) {
             unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };
         }
-        if let Some(popup) = unsafe { (*self.guarded(access)).failure_popup.take() } {
+        if let Some(popup) = self.take_failure_popup(access) {
             unsafe { (self.leaves.popup_close)(popup.as_ptr()) };
         }
-        if let Some(popup) = unsafe { (*self.guarded(access)).overlay_popup.take() } {
+        if let Some(popup) = self.take_overlay_popup(access) {
             unsafe { (self.leaves.popup_close)(popup.as_ptr()) };
         }
-        if let Some(bookmarks) = unsafe { (*self.guarded(access)).bookmarks.take() } {
+        if let Some(bookmarks) = self.take_bookmarks(access) {
             unsafe { (self.leaves.bookmarks_close)(bookmarks.as_ptr()) };
         }
-        if let Some(native) = unsafe { (*self.guarded(access)).native.take() } {
+        if let Some(native) = self.take_native(access) {
             unsafe { (self.leaves.resources_close)(native.as_ptr()) };
         }
     }
@@ -91,7 +91,7 @@ impl EpubSession {
     pub(in crate::app) unsafe fn child_install_failed(&self) {
         let access = self.borrowed_resources();
         self.model(|state| state.child = super::state::ChildIntent::None);
-        (*self.guarded(&access)).selection_metadata = Default::default();
+        self.clear_selection_metadata(&access);
         self.request_update();
     }
 }

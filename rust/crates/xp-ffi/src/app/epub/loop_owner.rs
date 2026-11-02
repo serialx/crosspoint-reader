@@ -83,7 +83,7 @@ impl EpubSession {
         if self.try_idle_loop() || self.consume_rejected_input() {
             return;
         }
-        let popup = unsafe { (*self.guarded.get()).failure_popup };
+        let popup = self.loop_failure_popup();
         if let Some(popup) =
             popup.filter(|popup| unsafe { (self.leaves.popup_active)(popup.as_ptr()) != 0 })
         {

@@ -203,10 +203,11 @@ pub unsafe extern "C" fn xp_epub_test_book_render(raw: *mut c_void) {
 pub unsafe extern "C" fn xp_epub_test_book_observe(raw: *mut c_void, out: *mut BookObservation) {
     let owner = &*raw.cast::<EpubSession>();
     let access = owner.borrowed_resources();
-    let guard = &*owner.guarded(&access);
     *out = owner.model(|s| BookObservation {
-        section: guard.section.map_or(core::ptr::null_mut(), NonNull::as_ptr),
-        anchor: guard.anchor.wire(),
+        section: owner
+            .section(&access)
+            .map_or(core::ptr::null_mut(), NonNull::as_ptr),
+        anchor: owner.anchor(&access),
         published_pages: s.facts.section.map_or(-1, |f| i32::from(f.pages)),
         published_estimate: s.facts.section.map_or(-1, |f| f.estimated_pages),
         published_building: u8::from(s.facts.section.is_some_and(|f| f.building)),

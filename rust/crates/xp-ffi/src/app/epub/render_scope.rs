@@ -26,7 +26,7 @@ impl Drop for Publication<'_> {
             state.base.end_ready = frame.end_ready;
             state.base.rendered = frame.rendered;
         });
-        unsafe { (*self.owner.guarded(self.access)).active_frame = None };
+        self.owner.set_active_frame(self.access, None);
     }
 }
 
@@ -60,10 +60,7 @@ impl EpubSession {
             return false;
         }
         let access = self.borrowed_resources();
-        assert!(
-            (*self.guarded(&access)).active_frame.is_none(),
-            "nested render frame"
-        );
+        assert!(self.active_frame(&access).is_none(), "nested render frame");
         let frame_storage = UnsafeCell::new(RenderFrame {
             base: self.model(|state| {
                 debug_assert!(state.base.refresh_requests & !REFRESH_REQUEST_MASK == 0);
@@ -74,7 +71,7 @@ impl EpubSession {
             }),
         });
         let frame = NonNull::new(frame_storage.get()).expect("render frame storage");
-        (*self.guarded(&access)).active_frame = Some(frame);
+        self.set_active_frame(&access, Some(frame));
         let _publication = Publication {
             owner: self,
             access: &access,
@@ -85,11 +82,7 @@ impl EpubSession {
     }
 
     fn frame(&self, access: &ResourceAccess<'_>) -> NonNull<RenderFrame> {
-        unsafe {
-            (*self.guarded(access))
-                .active_frame
-                .expect("active render frame")
-        }
+        self.active_frame(access).expect("active render frame")
     }
 
     pub(super) fn render_refresh_counter(&self, access: &ResourceAccess<'_>) -> i32 {

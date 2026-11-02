@@ -12,7 +12,7 @@ impl EpubSession {
     }
 
     pub(super) fn discard_overlay_page(&self, access: &ResourceAccess<'_>) {
-        self.guarded(access);
+        self.check_resources(access);
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.settings_overrides {
             unsafe { (hook.discard)(hook.context) };
@@ -85,11 +85,7 @@ impl EpubSession {
         }
         let access = self.lock_resources();
         self.settle_overlay_refresh(&access);
-        let popup = unsafe {
-            (*self.guarded(&access))
-                .overlay_popup
-                .expect("overlay popup")
-        };
+        let popup = self.overlay_popup(&access).expect("overlay popup");
         unsafe { (self.leaves.popup_paint)(popup.as_ptr()) };
         self.push_overlay_refresh(&access);
     }

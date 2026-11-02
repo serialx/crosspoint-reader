@@ -106,7 +106,7 @@ impl EpubSession {
         access: &'a ResourceAccess<'_>,
         row: i32,
     ) -> RowText<'a> {
-        self.guarded(access);
+        self.check_resources(access);
         TEXT_NAMES
             .get(row as usize)
             .map_or(RowText::Borrowed(&[]), |&id| self.row_label(id))
@@ -117,7 +117,7 @@ impl EpubSession {
         access: &'a ResourceAccess<'_>,
         row: i32,
     ) -> RowText<'a> {
-        self.guarded(access);
+        self.check_resources(access);
         if !(0..4).contains(&row) {
             return RowText::Borrowed(&[]);
         }
@@ -136,12 +136,6 @@ impl EpubSession {
             3 => self.row_label(ALIGNMENT[usize::from(settings.alignment) % 5]),
             _ => unreachable!(),
         }
-    }
-
-    fn more_action(&self, access: &ResourceAccess<'_>, row: i32) -> Option<u8> {
-        let guarded = unsafe { &*self.guarded(access) };
-        (row >= 0 && row < i32::from(guarded.more_count))
-            .then(|| guarded.more_actions[row as usize])
     }
 
     pub(super) fn more_row_name<'a>(

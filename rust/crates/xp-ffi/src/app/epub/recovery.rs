@@ -83,11 +83,7 @@ impl EpubSession {
             owner: self,
             labels: Labels::Borrowed(labels),
         };
-        let popup = unsafe {
-            (*self.guarded(access))
-                .failure_popup
-                .expect("failure popup")
-        };
+        let popup = self.failure_popup(access).expect("failure popup");
         unsafe {
             (self.leaves.popup_show)(
                 popup.as_ptr(),
@@ -197,11 +193,7 @@ impl EpubSession {
     }
 
     pub(super) fn render_load_failure(&self, access: &ResourceAccess<'_>) -> bool {
-        let popup = unsafe {
-            (*self.guarded(access))
-                .failure_popup
-                .expect("failure popup")
-        };
+        let popup = self.failure_popup(access).expect("failure popup");
         if unsafe { (self.leaves.popup_active)(popup.as_ptr()) } == 0 {
             return false;
         }

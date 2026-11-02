@@ -42,7 +42,7 @@ impl EpubSession {
                 self.request_update();
                 return;
             }
-            let Some(popup) = (unsafe { (*self.guarded(&access)).overlay_popup }) else {
+            let Some(popup) = self.overlay_popup(&access) else {
                 return;
             };
             let mut source = LabelSource {
@@ -62,7 +62,7 @@ impl EpubSession {
                     menu_choice,
                     (self as *const Self).cast_mut().cast(),
                 );
-                (*self.guarded(&access)).font_sizes = Default::default();
+                self.set_font_sizes(&access, Default::default());
             }
         }
         self.paint_overlay_popup();
@@ -129,12 +129,8 @@ impl EpubSession {
             }
             return;
         }
-        let action = unsafe {
-            let guarded = &*self.guarded.get();
-            if row < 0 || row >= i32::from(guarded.more_count) {
-                return;
-            }
-            guarded.more_actions[row as usize]
+        let Some(action) = self.loop_more_action(row) else {
+            return;
         };
         {
             let access = self.lock_resources();

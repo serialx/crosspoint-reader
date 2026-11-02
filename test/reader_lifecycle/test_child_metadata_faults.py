@@ -38,7 +38,7 @@ def physical_fixture():
 def main():
     production_file = ROOT / 'rust' / PRODUCTION
     production = production_file.read_bytes()
-    before = b'core::mem::take(&mut (*self.guarded.get()).selection_metadata)'
+    before = b'self.take_selection_metadata()'
     changed = replace_once(production, before, b'SelectionMetadata::default()')
     fixture_paths = [HERE / name for name in ('child_parent_oracle.cpp', 'child_session_rust.inc',
                      'child_session_fixture.h', 'overlay_actions_session_fixture.h',

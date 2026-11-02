@@ -83,11 +83,10 @@ pub unsafe extern "C" fn xp_epub_test_view_seed_rows(
     let owner = &*raw.cast::<EpubSession>();
     assert!(count <= 19);
     let access = owner.borrowed_resources();
-    let guarded = &mut *owner.guarded(&access);
-    guarded.more_actions.fill(0);
-    guarded.more_actions[..usize::from(count)]
+    let mut values = [0; 19];
+    values[..usize::from(count)]
         .copy_from_slice(core::slice::from_raw_parts(actions, usize::from(count)));
-    guarded.more_count = count;
+    owner.set_more_actions(&access, values, count);
     owner.model(|state| state.auto_option = rate);
 }
 

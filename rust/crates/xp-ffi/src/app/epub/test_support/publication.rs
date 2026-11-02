@@ -154,7 +154,7 @@ pub unsafe extern "C" fn xp_epub_test_publication_render(
 pub unsafe extern "C" fn xp_epub_test_publication_frame_present(owner: *mut c_void) -> u8 {
     let owner = &*owner.cast::<EpubSession>();
     let access = owner.borrowed_resources();
-    u8::from((*owner.guarded(&access)).active_frame.is_some())
+    u8::from(owner.active_frame(&access).is_some())
 }
 
 #[no_mangle]
@@ -163,8 +163,9 @@ pub unsafe extern "C" fn xp_epub_test_publication_frame_observe(
     out: *mut PublicationObservation,
 ) {
     let callback = &*callback.cast::<PaintAccess<'_, '_>>();
-    let frame = (*callback.owner.guarded(callback.access))
-        .active_frame
+    let frame = callback
+        .owner
+        .active_frame(callback.access)
         .expect("fixture frame");
     *out = observation(&frame.as_ref().base);
 }

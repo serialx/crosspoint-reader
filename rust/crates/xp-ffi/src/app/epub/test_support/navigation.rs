@@ -79,7 +79,7 @@ pub unsafe extern "C" fn xp_epub_test_navigation_observe(
 ) {
     let owner = &*owner.cast::<EpubSession>();
     let access = owner.borrowed_resources();
-    let anchor = (*owner.guarded(&access)).anchor.wire();
+    let anchor = owner.anchor(&access);
     *out = owner.model(|state| {
         let mut history = [0; 6];
         for (pair, position) in history

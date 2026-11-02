@@ -30,11 +30,7 @@ impl Match {
 impl EpubSession {
     // Only the loop installs/destroys this handle or mutates its vector.
     fn loop_bookmarks(&self) -> NonNull<c_void> {
-        unsafe {
-            core::ptr::addr_of!((*self.guarded.get()).bookmarks)
-                .read()
-                .expect("reader bookmarks")
-        }
+        self.loop_bookmark_handle().expect("reader bookmarks")
     }
 
     fn bookmark_range(
@@ -66,7 +62,7 @@ impl EpubSession {
             return;
         };
         let bookmarks = match access {
-            Some(access) => unsafe { (*self.guarded(access)).bookmarks.expect("reader bookmarks") },
+            Some(access) => self.bookmarks(access).expect("reader bookmarks"),
             None => self.loop_bookmarks(),
         };
         let length = unsafe { (self.leaves.bookmarks_count)(bookmarks.as_ptr()) };
@@ -118,7 +114,7 @@ impl EpubSession {
     }
 
     fn load_bookmark_rows(&self, access: &ResourceAccess<'_>) {
-        let bookmarks = unsafe { (*self.guarded(access)).bookmarks.expect("reader bookmarks") };
+        let bookmarks = self.bookmarks(access).expect("reader bookmarks");
         unsafe { (self.leaves.bookmarks_clear)(bookmarks.as_ptr()) };
         if let Some(book) = self.book(access) {
             unsafe { (self.leaves.bookmarks_load)(bookmarks.as_ptr(), book.as_ptr()) };

@@ -214,7 +214,7 @@ pub unsafe extern "C" fn xp_epub_test_menu_destroy(raw: *mut c_void) {
 pub unsafe extern "C" fn xp_epub_test_menu_observe(raw: *mut c_void, out: *mut Observation) {
     let owner = &*raw.cast::<EpubSession>();
     let (has_toolbar, more_actions, more_count) = {
-        let guarded = &*owner.guarded.get();
+        let guarded = owner.guarded.fixture();
         (
             u8::from(guarded.toolbar.is_some()),
             guarded.more_actions,
@@ -249,7 +249,7 @@ pub unsafe extern "C" fn xp_epub_test_menu_anchor(
     context: *mut c_void,
 ) {
     let owner = &*raw.cast::<EpubSession>();
-    sink(context, (*owner.guarded.get()).anchor.wire());
+    sink(context, owner.guarded.fixture().anchor.wire());
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_menu_open(raw: *mut c_void) {

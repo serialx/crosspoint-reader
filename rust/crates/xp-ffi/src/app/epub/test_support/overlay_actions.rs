@@ -151,7 +151,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_create(
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_overlay_observe(raw: *mut c_void, out: *mut Observation) {
     let owner = &*raw.cast::<EpubSession>();
-    let toolbar = (*owner.guarded.get()).toolbar.is_some();
+    let toolbar = owner.guarded.fixture().toolbar.is_some();
     *out = owner.model(|state| Observation {
         focus: state.focused_tool,
         index: state.panel_index,

@@ -133,7 +133,7 @@ pub unsafe extern "C" fn xp_epub_test_base_destroy(owner: *mut c_void) {
     let mut owner = Box::from_raw(owner.cast::<EpubSession>());
     {
         let access = owner.borrowed_resources();
-        if let Some(end) = (*owner.guarded(&access)).end_options.take() {
+        if let Some(end) = owner.take_end_options(&access) {
             (owner.leaves.end_close)(end.as_ptr());
         }
     }
@@ -144,7 +144,9 @@ pub unsafe extern "C" fn xp_epub_test_base_destroy(owner: *mut c_void) {
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_base_observe(owner: *mut c_void, out: *mut Observation) {
     let owner = &*owner.cast::<EpubSession>();
-    let end = (*owner.guarded.get())
+    let end = owner
+        .guarded
+        .fixture()
         .end_options
         .map_or(core::ptr::null_mut(), |end| end.as_ptr());
     *out = owner.model(|state| Observation {

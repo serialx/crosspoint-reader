@@ -1,5 +1,5 @@
 use super::{abi, state::Overlay, EpubSession, ResourceAccess};
-use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
+use core::{mem::MaybeUninit, ptr::NonNull};
 use xp_ui::{
     model::{Input, BACK},
     reader::{input::Query, menu_parent::Action, render::Command},
@@ -7,18 +7,13 @@ use xp_ui::{
 };
 
 impl EpubSession {
-    pub(super) fn overlay_popup(&self) -> Option<NonNull<c_void>> {
-        // The loop owns popup lifetime; render only observes it under RenderLock.
-        unsafe { core::ptr::addr_of!((*self.guarded.get()).overlay_popup).read() }
-    }
-
     fn overlay_popup_active(&self) -> bool {
-        self.overlay_popup()
+        self.loop_overlay_popup()
             .is_some_and(|popup| unsafe { (self.leaves.popup_active)(popup.as_ptr()) != 0 })
     }
 
     pub(super) fn dismiss_overlay_popup(&self) {
-        if let Some(popup) = self.overlay_popup() {
+        if let Some(popup) = self.loop_overlay_popup() {
             unsafe { (self.leaves.popup_dismiss)(popup.as_ptr()) };
         }
     }
@@ -96,11 +91,6 @@ impl EpubSession {
         }
     }
 
-    // Only the loop installs/drops this slot; component methods publish their own data.
-    pub(super) fn loop_toolbar(&self) -> Option<NonNull<c_void>> {
-        unsafe { core::ptr::addr_of!((*self.guarded.get()).toolbar).read() }
-    }
-
     pub(super) fn overlay_geometry(&self) -> abi::XpEpubGeometry {
         let mut value = MaybeUninit::uninit();
         unsafe {
@@ -137,7 +127,7 @@ impl EpubSession {
             }
             unsafe { (self.leaves.metadata_footnotes)(self.native(&access)) != 0 }
         };
-        let bookmarks = unsafe { core::ptr::addr_of!((*self.guarded.get()).bookmarks).read() };
+        let bookmarks = self.loop_bookmark_handle();
         let bookmarks = bookmarks
             .is_some_and(|handle| unsafe { (self.leaves.bookmarks_count)(handle.as_ptr()) != 0 });
         let clippings = unsafe { (self.leaves.clippings_count)() != 0 };
@@ -154,10 +144,7 @@ impl EpubSession {
         if self.model(|state| state.scene_gate.failed) {
             return false;
         }
-        unsafe {
-            (*self.guarded(&access)).more_actions = actions;
-            (*self.guarded(&access)).more_count = retained as u8;
-        }
+        self.set_more_actions(&access, actions, retained as u8);
         true
     }
 
@@ -254,7 +241,7 @@ impl EpubSession {
                 self.request_update();
                 return;
             }
-            unsafe { (*self.guarded(&access)).toolbar = Some(toolbar) };
+            self.set_toolbar(&access, Some(toolbar));
             toolbar
         };
         if matches!(previous, Overlay::Page) {
@@ -323,7 +310,7 @@ impl EpubSession {
         if self.loop_toolbar().is_some() {
             let access = self.lock_resources();
             // Cancellation still tears down a toolbar after its scene was rejected.
-            let toolbar = unsafe { (*self.guarded(&access)).toolbar.take() };
+            let toolbar = self.take_toolbar(&access);
             if let Some(toolbar) = toolbar {
                 unsafe { (self.leaves.toolbar_close)(toolbar.as_ptr()) };
             }

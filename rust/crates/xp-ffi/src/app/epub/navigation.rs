@@ -62,7 +62,7 @@ impl EpubSession {
         {
             let access = self.lock_resources();
             self.clear_deferred();
-            unsafe { (*self.guarded(&access)).anchor = anchor };
+            self.set_anchor(&access, anchor);
             self.model(|state| {
                 state.current.spine = target;
                 state.next_page = 0;

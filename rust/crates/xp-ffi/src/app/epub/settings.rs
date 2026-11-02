@@ -252,11 +252,7 @@ impl EpubSession {
             owner: self,
             labels,
         };
-        let popup = unsafe {
-            (*self.guarded(access))
-                .overlay_popup
-                .expect("overlay popup")
-        };
+        let popup = self.overlay_popup(access).expect("overlay popup");
         unsafe {
             (self.leaves.popup_show)(
                 popup.as_ptr(),
@@ -322,7 +318,7 @@ impl EpubSession {
                         Labels::Sizes(&sizes),
                     );
                     // Only the loop reads or replaces this retained callback payload.
-                    unsafe { (*self.guarded(&access)).font_sizes = sizes };
+                    self.set_font_sizes(&access, sizes);
                 }
             }
             2 => {
@@ -337,7 +333,7 @@ impl EpubSession {
                     selected as i32,
                     Labels::Translated(&SPACING_IDS),
                 );
-                unsafe { (*self.guarded(&access)).font_sizes = Vec::new() };
+                self.set_font_sizes(&access, Vec::new());
             }
             3 => {
                 let selected = usize::from(self.settings(false).alignment) % ALIGNMENT_IDS.len();
@@ -351,7 +347,7 @@ impl EpubSession {
                     selected as i32,
                     Labels::Translated(&ALIGNMENT_IDS),
                 );
-                unsafe { (*self.guarded(&access)).font_sizes = Vec::new() };
+                self.set_font_sizes(&access, Vec::new());
             }
             _ => return,
         }
@@ -361,10 +357,9 @@ impl EpubSession {
     pub(super) fn choose_text_setting(&self, index: i32) {
         match self.model(|state| state.popup) {
             PopupIntent::FontSize => {
-                let size = usize::try_from(index).ok().and_then(|index| unsafe {
-                    let sizes = &(*self.guarded.get()).font_sizes;
-                    sizes.get(index).copied()
-                });
+                let size = usize::try_from(index)
+                    .ok()
+                    .and_then(|index| self.loop_font_size(index));
                 let Some(size) = size else { return };
                 unsafe { (self.leaves.settings_font_size)(size) };
             }

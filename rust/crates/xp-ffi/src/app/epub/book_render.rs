@@ -142,7 +142,7 @@ impl EpubSession {
         let section = NonNull::new(unsafe {
             (self.leaves.section_open)(self.book(access).unwrap().as_ptr(), spine)
         });
-        unsafe { (*self.guarded(access)).section = section };
+        self.set_section(access, section);
         self.publish_section(access);
         self.model(|state| state.partial_start_failed = false);
         let Some(section) = section else {
@@ -355,13 +355,16 @@ impl EpubSession {
         if self.book_has_anchor(access) {
             if let Some(page) = self.book_anchor(access, false) {
                 self.model(|state| state.current.page = i32::from(page));
-                let anchor = unsafe { &(*self.guarded(access)).anchor };
+                let anchor = self.anchor(access);
                 self.book_log_formatted(
-                    &[b"Resolved anchor '", anchor.bytes()],
+                    &[
+                        b"Resolved anchor '",
+                        unsafe { anchor.bytes() }.expect("retained anchor"),
+                    ],
                     format_args!("' to page {}", page),
                 );
             }
-            unsafe { (*self.guarded(access)).anchor.clear() };
+            self.clear_anchor(access);
         }
         if self.model(|state| state.deferred.percent) && self.book_page_count(access) > 0 {
             let count = self.book_page_count(access);
@@ -631,7 +634,7 @@ impl EpubSession {
     }
 
     fn book_anchor(&self, access: &ResourceAccess<'_>, cached: bool) -> Option<u16> {
-        let anchor = unsafe { (*self.guarded(access)).anchor.wire() };
+        let anchor = self.anchor(access);
         let leaf = if cached {
             self.leaves.section_cached_anchor
         } else {
@@ -642,9 +645,7 @@ impl EpubSession {
     }
 
     fn book_has_anchor(&self, access: &ResourceAccess<'_>) -> bool {
-        !unsafe { &(*self.guarded(access)).anchor }
-            .bytes()
-            .is_empty()
+        !self.anchor_is_empty(access)
     }
 
     fn book_build_to_page(&self, access: &ResourceAccess<'_>) -> bool {
@@ -885,7 +886,7 @@ impl EpubSession {
             let stored = self.render_operation(access, RenderCommand::StoreBw) != 0;
             self.model(|state| state.page_stored = stored);
             self.book_overlay(access);
-            if let Some(popup) = unsafe { (*self.guarded(access)).overlay_popup } {
+            if let Some(popup) = self.overlay_popup(access) {
                 if unsafe { (self.leaves.popup_active)(popup.as_ptr()) } != 0 {
                     unsafe { (self.leaves.popup_paint)(popup.as_ptr()) };
                 }

@@ -93,6 +93,6 @@ pub unsafe extern "C" fn xp_epub_test_overlay_input_anchor(
 ) {
     sink(
         context,
-        (*(*raw.cast::<EpubSession>()).guarded.get()).anchor.wire(),
+        (*raw.cast::<EpubSession>()).guarded.fixture().anchor.wire(),
     );
 }

@@ -26,7 +26,7 @@ pub unsafe extern "C" fn xp_epub_test_scene_setup(raw: *mut c_void, setup: *cons
         _ => panic!("fixture overlay"),
     };
     let access = owner.lock_resources();
-    assert!(matches!(overlay, Overlay::Page) || (*owner.guarded(&access)).toolbar.is_some());
+    assert!(matches!(overlay, Overlay::Page) || owner.toolbar(&access).is_some());
     owner.model(|state| {
         state.overlay = overlay;
         state.page_stored = setup.stored != 0;

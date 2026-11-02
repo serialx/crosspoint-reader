@@ -112,11 +112,10 @@ impl EpubSession {
         match mode {
             Overlay::Text if index == 4 => (1, u8::from(self.settings(false).focus_reading != 0)),
             Overlay::More | Overlay::Page => {
-                let guarded = unsafe { &*self.guarded(access) };
-                if index < 0 || index >= i32::from(guarded.more_count) {
+                let Some(action) = self.more_action(access, index) else {
                     return (0, 0);
-                }
-                match guarded.more_actions[index as usize] {
+                };
+                match action {
                     3 => (1, u8::from(self.settings(false).screen_inverted != 0)),
                     5 => (1, u8::from(self.settings(false).ble_enabled != 0)),
                     4 => (
@@ -200,7 +199,7 @@ impl EpubSession {
         mode: Overlay,
         model: &abi::XpEpubToolbarModel,
     ) {
-        let toolbar = unsafe { (*self.guarded(access)).toolbar.expect("overlay toolbar") };
+        let toolbar = self.toolbar(access).expect("overlay toolbar");
         let mut rows = Rows { access, mode };
         if unsafe {
             (self.leaves.toolbar_paint)(
@@ -236,7 +235,7 @@ impl EpubSession {
         let Some(section) = self.section(access) else {
             return;
         };
-        if unsafe { (*self.guarded(access)).toolbar.is_none() } {
+        if self.toolbar(access).is_none() {
             return;
         }
         let (mode, cursor, focus) =
@@ -308,10 +307,9 @@ impl EpubSession {
                 (self.leaves.book_toc_count)(book.as_ptr())
             }),
             Overlay::Text => (ids::STR_TOOL_TEXT, 5),
-            Overlay::Page | Overlay::More => (
-                ids::STR_TOOL_MORE,
-                i32::from(unsafe { (*self.guarded(access)).more_count }),
-            ),
+            Overlay::Page | Overlay::More => {
+                (ids::STR_TOOL_MORE, i32::from(self.more_count(access)))
+            }
             Overlay::Toolbar => unreachable!(),
         };
         model.item_count = count;

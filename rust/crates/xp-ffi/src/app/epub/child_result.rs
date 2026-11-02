@@ -33,7 +33,7 @@ impl EpubSession {
             state.current.spine = chapter.spine;
             state.next_page = 0;
         });
-        unsafe { (*self.guarded(&access)).anchor = anchor };
+        self.set_anchor(&access, anchor);
         self.drop_section(&access);
         self.request_update();
     }

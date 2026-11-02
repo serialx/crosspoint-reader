@@ -76,7 +76,7 @@ pub unsafe extern "C" fn xp_epub_test_entry_gate_observe(
         duration: state.base.session.duration,
         refresh_counter: state.base.refresh_counter,
         ready: u8::from(state.ready),
-        frame_present: u8::from((*owner.guarded.get()).active_frame.is_some()),
+        frame_present: u8::from(owner.guarded.fixture().active_frame.is_some()),
         rendered: u8::from(state.base.rendered),
         scene_failed: u8::from(state.scene_gate.failed),
         refresh_requests: state.base.refresh_requests,

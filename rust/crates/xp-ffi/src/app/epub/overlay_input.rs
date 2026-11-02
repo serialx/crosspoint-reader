@@ -120,7 +120,7 @@ impl EpubSession {
                         state.current.spine = row.spine;
                         state.next_page = 0;
                     });
-                    (*owner.guarded(&access)).anchor = anchor;
+                    owner.set_anchor(&access, anchor);
                     owner.drop_section(&access);
                 }
                 owner.model(|state| state.overlay = Overlay::Page);
@@ -219,7 +219,7 @@ impl EpubSession {
             return;
         };
         if let Some(popup) = self
-            .overlay_popup()
+            .loop_overlay_popup()
             .filter(|popup| unsafe { (self.leaves.popup_active)(popup.as_ptr()) != 0 })
         {
             let mut input = MaybeUninit::<abi::XpEpubPopupInput>::uninit();
@@ -307,7 +307,7 @@ impl EpubSession {
                 (self.leaves.book_toc_count)(book.as_ptr())
             }),
             Overlay::Text => TEXT_ROWS,
-            _ => i32::from(unsafe { (*self.guarded.get()).more_count }),
+            _ => i32::from(self.loop_more_count()),
         };
         let rows = unsafe { (self.leaves.toolbar_visible_rows)(toolbar.as_ptr()) }.max(1);
         match routed.event {

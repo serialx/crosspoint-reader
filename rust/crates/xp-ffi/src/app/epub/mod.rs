@@ -9,6 +9,7 @@ mod build;
 mod child;
 mod child_result;
 mod clipping;
+mod guarded;
 mod idle;
 mod lifetime;
 mod links;
@@ -42,34 +43,15 @@ mod text;
 mod view_values;
 
 use super::{abi as app_abi, resources::Text};
-use alloc::{alloc::alloc, boxed::Box, vec::Vec};
+use alloc::{alloc::alloc, boxed::Box};
 use core::{alloc::Layout, cell::UnsafeCell, ffi::c_void, marker::PhantomData, ptr::NonNull};
-use state::{RenderFrame, SectionFacts, State};
-
-#[derive(Default)]
-struct Guarded {
-    native: Option<NonNull<c_void>>,
-    book: Option<NonNull<c_void>>,
-    section: Option<NonNull<c_void>>,
-    toolbar: Option<NonNull<c_void>>,
-    overlay_popup: Option<NonNull<c_void>>,
-    failure_popup: Option<NonNull<c_void>>,
-    end_options: Option<NonNull<c_void>>,
-    // Loop is the sole writer; mutations and render reads hold ResourceAccess.
-    bookmarks: Option<NonNull<c_void>>,
-    active_frame: Option<NonNull<RenderFrame>>,
-    anchor: Text,
-    more_actions: [u8; 19],
-    more_count: u8,
-    // Loop-only retained popup payload; render never reads these choices.
-    font_sizes: Vec<u8>,
-    selection_metadata: selection_metadata::SelectionMetadata,
-}
+use guarded::GuardedCell;
+use state::{SectionFacts, State};
 
 pub(super) struct EpubSession {
     path: Text,
     state: UnsafeCell<State>,
-    guarded: UnsafeCell<Guarded>,
+    guarded: GuardedCell,
     leaves: &'static abi::XpEpubLeaves,
     runtime: &'static app_abi::Runtime,
     resources: &'static app_abi::Resources,
@@ -146,7 +128,7 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).path).write(path);
             core::ptr::addr_of_mut!((*ptr).state)
                 .write(UnsafeCell::new(State::new(fast_initial, frequency)));
-            core::ptr::addr_of_mut!((*ptr).guarded).write(UnsafeCell::new(Guarded::default()));
+            core::ptr::addr_of_mut!((*ptr).guarded).write(GuardedCell::default());
             core::ptr::addr_of_mut!((*ptr).leaves).write(leaves);
             core::ptr::addr_of_mut!((*ptr).runtime).write(runtime);
             core::ptr::addr_of_mut!((*ptr).resources).write(resources);
@@ -243,32 +225,13 @@ impl EpubSession {
         }
     }
 
-    fn guarded(&self, access: &ResourceAccess<'_>) -> *mut Guarded {
+    fn check_resources(&self, access: &ResourceAccess<'_>) {
         assert!(core::ptr::eq(self, access.owner));
-        self.guarded.get()
     }
 
-    fn section(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded(access)).section }
-    }
-
-    fn book(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded(access)).book }
-    }
-
-    fn native(&self, access: &ResourceAccess<'_>) -> *mut c_void {
-        unsafe {
-            (*self.guarded(access))
-                .native
-                .expect("reader resources")
-                .as_ptr()
-        }
-    }
-
-    // Only the loop task installs or releases the book. Render borrows it while
-    // holding ResourceAccess; it never changes this slot.
-    fn loop_book(&self) -> Option<NonNull<c_void>> {
-        unsafe { core::ptr::addr_of!((*self.guarded.get()).book).read() }
+    // Entry alone owns the unpublished model; do not acquire a runtime lock here.
+    unsafe fn initialize_refresh_counter(&self, frequency: i32) {
+        (*self.state.get()).base.refresh_counter = frequency.max(2);
     }
 
     // Call after each Section mutation, before releasing the resource lock.
@@ -288,7 +251,7 @@ impl EpubSession {
     }
 
     fn drop_section(&self, access: &ResourceAccess<'_>) {
-        let section = unsafe { (*self.guarded(access)).section.take() };
+        let section = self.take_section(access);
         self.model(|state| state.facts.section = None);
         if let Some(section) = section {
             unsafe { (self.leaves.section_close)(section.as_ptr()) };

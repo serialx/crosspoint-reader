@@ -183,7 +183,7 @@ impl EpubSession {
     }
 
     fn drop_end_options(&self, access: &ResourceAccess<'_>) {
-        if let Some(end) = unsafe { (*self.guarded(access)).end_options.take() } {
+        if let Some(end) = self.take_end_options(access) {
             unsafe { (self.leaves.end_close)(end.as_ptr()) };
         }
     }
@@ -386,7 +386,7 @@ impl EpubSession {
             };
         }
         // end_menu_active acquired the widget's completed-list publication.
-        let end = unsafe { (*self.guarded.get()).end_options.expect("end menu") };
+        let end = self.published_end_options().expect("end menu");
         let mut selection = Selection {
             owner: self,
             handled: false,
@@ -412,11 +412,7 @@ impl EpubSession {
             return false;
         }
         if self.model(|state| state.base.end_ready) {
-            let end = unsafe {
-                (*self.guarded.get())
-                    .end_options
-                    .expect("ready end options")
-            };
+            let end = self.published_end_options().expect("ready end options");
             if unsafe { (self.leaves.end_menu_active)(end.as_ptr()) } != 0 {
                 return true;
             }
@@ -432,9 +428,9 @@ impl EpubSession {
 
     pub(super) fn render_base(&self, access: &ResourceAccess<'_>, render_book: impl FnOnce()) {
         if self.is_at_end() {
-            if unsafe { (*self.guarded(access)).end_options.is_none() } {
+            if self.end_options(access).is_none() {
                 let end = NonNull::new(unsafe { (self.leaves.end_open)() });
-                unsafe { (*self.guarded(access)).end_options = end };
+                self.set_end_options(access, end);
                 if end.is_none() {
                     unsafe {
                         (self.leaves.log)(
@@ -446,7 +442,7 @@ impl EpubSession {
                 }
             }
             self.render_operation(access, Command::Clear(255));
-            if let Some(end) = unsafe { (*self.guarded(access)).end_options } {
+            if let Some(end) = self.end_options(access) {
                 unsafe { (self.leaves.end_load)(end.as_ptr(), self.path.wire()) };
                 self.mark_end_ready(access);
                 unsafe { (self.leaves.end_paint)(end.as_ptr()) };

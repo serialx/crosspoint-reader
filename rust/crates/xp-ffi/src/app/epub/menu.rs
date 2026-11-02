@@ -37,7 +37,7 @@ impl EpubSession {
                     self.request_update();
                     return;
                 }
-                unsafe { (*self.guarded(&access)).toolbar = Some(toolbar) };
+                self.set_toolbar(&access, Some(toolbar));
                 toolbar
             };
             self.model(|state| {
@@ -67,10 +67,9 @@ impl EpubSession {
         };
         let Some(book) = self.loop_book() else { return };
         with_book_text(book, self.leaves.book_title, |title| {
-            let bookmarks =
-                unsafe { (*self.guarded.get()).bookmarks }.is_some_and(|bookmarks| unsafe {
-                    (self.leaves.bookmarks_count)(bookmarks.as_ptr()) != 0
-                });
+            let bookmarks = self.loop_bookmark_handle().is_some_and(|bookmarks| unsafe {
+                (self.leaves.bookmarks_count)(bookmarks.as_ptr()) != 0
+            });
             let args = abi::XpEpubMenuArgs {
                 title,
                 display_page: position.display_page(),

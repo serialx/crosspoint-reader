@@ -22,7 +22,7 @@ impl EpubSession {
         let spine_count = book.map_or(0, |book| unsafe {
             (self.leaves.book_spine_count)(book.as_ptr())
         });
-        let popup = unsafe { (*self.guarded.get()).failure_popup };
+        let popup = self.loop_failure_popup();
         let load_popup =
             popup.is_some_and(|popup| unsafe { (self.leaves.popup_active)(popup.as_ptr()) != 0 });
         let mut input = MaybeUninit::<abi::XpEpubInputFacts>::uninit();

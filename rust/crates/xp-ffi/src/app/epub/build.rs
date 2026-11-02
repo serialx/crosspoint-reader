@@ -89,7 +89,7 @@ impl EpubSession {
             let label = (self.resources.translate)(xp_core::i18n::ids::STR_INDEXING);
             (self.resources.popup_draw)(label);
         }
-        let frame = unsafe { (*self.guarded(access)).active_frame };
+        let frame = self.active_frame(access);
         if let Some(frame) = frame {
             unsafe { (*frame.as_ptr()).base.refresh_counter = 1 };
         } else {

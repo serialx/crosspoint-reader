@@ -134,7 +134,7 @@ impl EpubSession {
             return false;
         }
         assert!(self.book(access).is_none());
-        unsafe { (*self.guarded(access)).book = loaded.handle.take() };
+        self.set_book(access, loaded.handle.take());
         self.model(|state| state.facts.book = true);
         unsafe {
             (self.leaves.image_clear_failures)();
@@ -176,7 +176,7 @@ impl EpubSession {
     }
 
     pub(super) fn drop_book(&self, access: &ResourceAccess<'_>) {
-        let book = unsafe { (*self.guarded(access)).book.take() };
+        let book = self.take_book(access);
         self.model(|state| {
             state.facts.book = false;
             state.facts.spine_count = 0;

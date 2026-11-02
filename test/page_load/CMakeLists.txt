@@ -42,13 +42,16 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_footnote_entry.py
-    ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/FootnoteReaderOwner.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp
     ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/FootnoteSelector.cpp
-  DEPENDS extract_footnote_entry.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
+  DEPENDS extract_footnote_entry.py ${CMAKE_CURRENT_SOURCE_DIR}/FootnoteReaderOwner.cpp
     ${REPO_ROOT}/src/activities/reader/EpubReaderFootnoteSelectActivity.cpp
   VERBATIM)
 target_sources(FootnoteSelect PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/FootnoteReader.cpp)
 target_include_directories(FootnoteSelect PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(FootnoteSelect PRIVATE XP_FOOTNOTE_SELECT_TEST=1)
+
+# The physical owner fixture uses assertions for callable contract checks.
+target_compile_options(FootnoteSelect PRIVATE -UNDEBUG)

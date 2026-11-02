@@ -1,14 +1,16 @@
 # Rust UI coexistence
 
 The Rust application in `xp-ffi/src/app` owns the main-loop policy, current activity,
-retained parents, pending transition, Home gestures and Home screen. `ActivityManager`
+retained parents, pending transition, Home gestures and screen, and EPUB session. `ActivityManager`
 forwards native callers through `xp_app.h`; it retains the physical render task,
 RenderLock and completion notification. There is one activity stack, owned by
-`xp-ui::app::Application`. Its entries are Rust Home owners or owned legacy native
-activities. A legacy pointer transfers only when the Rust event accepts it.
+`xp-ui::app::Application`. Its entries are Rust Home and EPUB session owners or owned legacy native
+activities, including XTC and reader child screens. A legacy pointer transfers only when the Rust event accepts it.
 
 `xp_app_init`, `xp_app_loop`, `xp_app_render` and `xp_app_event` are the application
-boundary. Typed legacy, resource and runtime tables supply existing services.
+boundary. Typed legacy, resource and runtime tables supply existing services;
+`xp_epub_session.h` supplies the physical leaves for the EPUB session. All four
+service tables, including the complete EPUB table, are required by `xp_app_init`.
 Legacy activities retain their individual models and resources until their owners
 move. General button remapping stays in `MappedInputManager`; Rust owns Home timing,
 deferred actions, global navigation and loop dispatch.
@@ -21,16 +23,23 @@ within their families. Library, file browser and network screens use the
 `RustActivityAdapter` with their Rust models and native resource bindings.
 Home calls its Rust model and view directly and has no native activity class.
 
-## Application and Home ownership
+## Application ownership
 
 Replace and sleep exit and drop the current owner and retained parents under
 RenderLock; push retains the parent without exit. On pop, the native bridge moves
-the child result into a stack slot, then calls a synchronous Rust continuation.
-The continuation exits and destroys the child under RenderLock, restores the
-parent, unlocks, and invokes its handler with the borrowed result. Rust neither
-copies nor decodes the native strings. The slot dies when the continuation returns;
-handlers retaining text must copy it. Callbacks enqueue transitions, which the
-outer driver drains after the slot returns. Entry also runs after unlocking.
+the child's result into callback-local storage and lends a typed result view to
+Rust. The synchronous continuation exits and destroys the child under RenderLock,
+restores the parent and publishes it as the render target, then unlocks before
+delivering the borrowed result. Destruction of any Pages transferred to the child
+precedes parent delivery. The producer-local result remains alive throughout that
+delivery and dies after the continuation returns.
+
+The EPUB owner consumes the typed result through its pending child intent. Native
+parents use the retained native forwarding path. Result text is borrowed, without
+an unconditional Rust copy; a handler that retains a path, anchor or other text
+must copy it before returning. Handlers enqueue transitions. The outer driver
+drains them after the result producer returns, so a callback does not destroy the
+storage it is still reading. Entry also runs after unlocking.
 
 Loop-only navigation and driver state are separate from render-only command/text
 storage. Brief model critical sections protect scalar snapshots and publication.
@@ -62,9 +71,12 @@ it; when generating with `--strip-unused` and an explicit `--src-dirs`, keep
 
 The former Home exports and mirrored C layouts are removed. `xp_ui_home.h` still
 serves FileBrowser and Library, including their shared scene-status enum. The
-`app-test` feature exposes four read-only host probes and must never be enabled
-for firmware. The host suite audits the production owner with fake physical
-leaves; firmware symbol inventories must exclude `xp_app_test_*`.
+`app-test` feature provides host-only setup, observations and historical oracle
+adapters; it must never be enabled for firmware. Some adapters replace named inner
+methods to preserve their original fixture boundary. Separate composition tests
+exercise the ordinary owner through App without those policy replacements.
+Firmware symbol inventories must exclude both `xp_app_test_*` and `xp_epub_test_*`.
+The reader oracle documentation describes the scope of each kind of test.
 
 The scene contracts below apply to scene-based activities. The reader uses the
 [policy boundary](#reader-policy-boundary) described separately.
@@ -191,22 +203,50 @@ handoff.
 
 ## Reader policy boundary
 
-Reader policy lives in `rust/crates/xp-ui/src/reader/`. Thin FFI exports in
-`rust/crates/xp-ffi/src/ui_reader.rs` and the contract in
-`rust/crates/xp-ffi/include/xp_ui_reader.h` connect it to native service contexts
-in `src/activities/reader/ReaderActivity.cpp` and `EpubReaderActivity.cpp`.
-Native EPUB scalar state remains authoritative; a canonical Rust EPUB model is
-deferred. The shared ReaderActivity model and session are Rust-defined.
+`EpubSession` in `rust/crates/xp-ffi/src/app/epub/` owns the EPUB session's scalar
+state, lifecycle, input decisions, page movement, menus, child-result intents and
+render sequencing. Its modules call ordinary Rust methods directly. The shared
+helpers in `rust/crates/xp-ui/src/reader/` remain available to EPUB and XTC where
+needed; the retired EPUB-exclusive service dispatch is not the session boundary.
 
-Services borrow their context and resources synchronously. Retained child-result
-callbacks capture the native owner and owned values, then create a fresh service
-context when called; they never retain a stack service descriptor. Rust guards
-pair BEGIN/END operations to release native resources on every return path.
-ModelLock permits only bounded scalar and POD copies. Allocation, reference-count
-changes, storage, logging and blocking locks stay outside that critical section.
-The port preserves the existing RenderLock scopes, including reader input paths
-that already needed them; the scene input rule above does not redefine those scopes.
+`src/activities/reader/RustEpubResources.cpp` implements the typed physical leaves
+in `rust/crates/xp-ffi/include/xp_epub_session.h`. C++ retains Book, Section and Page
+resources, files and stores, font/display services, toolbar widgets and native
+child screens. Rust chooses their operations and order. `ReaderActivity` and
+`XtcReaderActivity` remain the native XTC owner path with shared reader helpers.
+Reader launches for XTC/XTCH use that native owner; EPUB, TXT, Markdown and the
+existing non-image fallback use `EpubSession`. Empty paths open Files, and BMP,
+PNG, JPG and JPEG paths retain their bitmap route. Extension matching remains
+case-insensitive.
+The retained native resource bridge is a real lifetime and allocation boundary;
+moving session policy does not move all resource storage into Rust.
 
-The [reader lifecycle oracle](../../test/reader_lifecycle/README.md) documents
-host parity checks and their limits. These checks do not establish hardware
+ModelLock protects bounded scalar state reads and publication. It permits no
+allocation, reference-count changes, storage, logging, blocking locks or physical
+callbacks. Model borrows end before calling a physical leaf. `ResourceAccess`
+represents access under the existing nonrecursive RenderLock. A render borrows
+its caller's held lock; a loop operation acquires and releases a token at its
+resource access boundary. Helpers receive that access rather than reacquiring the
+lock. They recheck live Section/Page resources after acquisition. Published scalar
+facts can be read without touching those live native objects; live text, offsets
+and Page operations require resource access. The EPUB page cursor is Rust state.
+
+Render entry declines work until the owner is ready. A render uses a scoped frame
+and publishes its scalar results without overwriting input queued during that
+frame. No model or mutable frame borrow may survive a callback. Pending owner
+discard releases only its acquired components; an entered owner's exit performs
+base exit and book teardown before component destruction. It must not clear an
+active owner's shared stores when discarding an unentered replacement.
+
+Borrowed text is consumed synchronously at its leaf or result boundary. For
+example, TOC row labels and the current chapter title are lent to the native
+consumer; toolbar row filling copies labels and indentation into existing widget
+buffers. The widget does not retain the borrowed row source after painting.
+Native children can outlive a launch call, so their retained values must be owned.
+Their returned text instead follows the callback-local lifetime described above.
+
+The scene input rule above does not redefine reader resource-lock scopes. The
+[reader lifecycle oracle](../../test/reader_lifecycle/README.md) distinguishes
+frozen historical traces, ordinary-method tests and App composition tests. Those
+host checks do not establish target stack, heap, input timing or hardware
 qualification.

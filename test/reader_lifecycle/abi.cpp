@@ -8,6 +8,8 @@
 #include <string>
 #include <type_traits>
 
+#include "epub_boundary_assertions.h"
+
 static_assert(std::is_same_v<XpAppResultSink, void (*)(void*, const XpAppResultView*)>);
 static_assert(std::is_same_v<decltype(XpAppPlatform::epub), const XpEpubLeaves*>);
 static_assert(std::is_same_v<decltype(XpEpubLeaves::strip_release_idle), uint8_t (*)(void*)>);
@@ -217,33 +219,9 @@ static void inputPointers() {
     assert(!xp_ui_reader_back(&services, 0));
   }
   assert(calls == 0);
-  assert(!xp_ui_reader_language_rtl(nullptr, 0));
-  assert(!xp_ui_reader_language_rtl(nullptr, 2));
   xp_ui_reader_toolbar_nav_reset(nullptr);
   assert(!xp_ui_reader_toolbar_page_rows(nullptr));
   assert(!xp_ui_reader_toolbar_scroll(nullptr, 1, 10));
-}
-
-static void renderPointers() {
-  uint32_t calls = 0;
-  const XpUiReaderRenderServices complete{&calls,
-                                          [](void* raw, uint8_t) -> uint32_t {
-                                            ++*static_cast<uint32_t*>(raw);
-                                            return 0;
-                                          },
-                                          [](void* raw, const XpUiReaderRenderOp*) -> uint32_t {
-                                            ++*static_cast<uint32_t*>(raw);
-                                            return 0;
-                                          }};
-  xp_ui_reader_render_page(nullptr, 0);
-  for (int missing = 0; missing < 2; ++missing) {
-    auto services = complete;
-    if (missing == 0) services.read = nullptr;
-    if (missing == 1) services.execute = nullptr;
-    xp_ui_reader_render_page(&services, 0);
-    xp_ui_reader_render_page(&services, 1);
-  }
-  assert(calls == 0);
 }
 
 static void basePointers() {
@@ -286,86 +264,8 @@ static void basePointers() {
   assert(calls == 0);
 }
 
-static void loopPointers() {
-  uint32_t calls = 0;
-  const XpUiReaderLoopServices complete{&calls,
-                                        [](void* p, uint8_t) -> uint32_t {
-                                          ++*static_cast<uint32_t*>(p);
-                                          return 0;
-                                        },
-                                        [](void* p, uint8_t, uint32_t) { ++*static_cast<uint32_t*>(p); },
-                                        [](void* p, uint8_t) -> uint32_t {
-                                          ++*static_cast<uint32_t*>(p);
-                                          return 0;
-                                        },
-                                        [](void* p, uint8_t, int32_t, int32_t) -> uint32_t {
-                                          ++*static_cast<uint32_t*>(p);
-                                          return 0;
-                                        },
-                                        [](void* p) -> XpUiReaderTurnInput {
-                                          ++*static_cast<uint32_t*>(p);
-                                          return {};
-                                        },
-                                        [](void* p) -> XpUiReaderTurnInput {
-                                          ++*static_cast<uint32_t*>(p);
-                                          return {};
-                                        },
-                                        [](void* p, uint8_t, int32_t*, int32_t*) -> uint8_t {
-                                          ++*static_cast<uint32_t*>(p);
-                                          return 0;
-                                        }};
-  xp_ui_reader_loop_run(nullptr);
-  for (int missing = 0; missing < 7; ++missing) {
-    auto services = complete;
-    if (missing == 0) services.model_read = nullptr;
-    if (missing == 1) services.model_write = nullptr;
-    if (missing == 2) services.query = nullptr;
-    if (missing == 3) services.command = nullptr;
-    if (missing == 4) services.touch = nullptr;
-    if (missing == 5) services.buttons = nullptr;
-    if (missing == 6) services.point = nullptr;
-    xp_ui_reader_loop_run(&services);
-  }
-  assert(calls == 0);
-}
-
-static void overlayPointers() {
-  uint32_t calls = 0;
-  const XpUiReaderOverlayServices complete{&calls,
-                                           [](void* p, uint8_t) -> uint32_t {
-                                             ++*static_cast<uint32_t*>(p);
-                                             return 0;
-                                           },
-                                           [](void* p, uint8_t, uint32_t) { ++*static_cast<uint32_t*>(p); },
-                                           [](void* p, uint8_t) -> uint32_t {
-                                             ++*static_cast<uint32_t*>(p);
-                                             return 0;
-                                           },
-                                           [](void* p, uint8_t, int32_t, int32_t) -> uint32_t {
-                                             ++*static_cast<uint32_t*>(p);
-                                             return 0;
-                                           }};
-  static_assert(XP_UI_READER_OVERLAY_OPERATION_CANCEL == 9);
-  xp_ui_reader_overlay_run(nullptr, XP_UI_READER_OVERLAY_OPERATION_CANCEL);
-  xp_ui_reader_overlay_run(nullptr, 0);
-  xp_ui_reader_overlay_run(&complete, 255);
-  for (int missing = 0; missing < 4; ++missing) {
-    auto services = complete;
-    if (missing == 0) services.read = nullptr;
-    if (missing == 1) services.write = nullptr;
-    if (missing == 2) services.query = nullptr;
-    if (missing == 3) services.command = nullptr;
-    for (uint8_t operation = 0; operation <= XP_UI_READER_OVERLAY_OPERATION_CANCEL; ++operation)
-      xp_ui_reader_overlay_run(&services, operation);
-  }
-  assert(calls == 0);
-}
-
 int main() {
-  overlayPointers();
-  loopPointers();
   basePointers();
-  renderPointers();
   inputPointers();
   progressStatuses();
   links();
@@ -390,12 +290,7 @@ int main() {
   const auto saved = out;
   assert(xp_ui_reader_progress_decode(bytes, 4, &out) == 1);
   assert(out.spine == saved.spine && out.page == saved.page && !out.has_count && !out.has_offset);
-  XpUiReaderBuildServices services{};
-  assert(!xp_ui_reader_build_policy(nullptr, XP_UI_READER_BUILD_OPERATION_ROOM));
-  assert(!xp_ui_reader_build_policy(&services, XP_UI_READER_BUILD_OPERATION_ROOM));
   assert(!xp_ui_reader_refresh(nullptr, 3));
-  assert(!xp_ui_reader_link_draw(nullptr, 1, 1));
-  assert(!xp_ui_reader_link_repaint(nullptr, 1));
   xp_ui_reader_session_render(&session, 0, 12345, 50);
   xp_ui_reader_session_note(&session, 1, 1);
   xp_ui_reader_session_render(&session, 10000, 12355, 100);

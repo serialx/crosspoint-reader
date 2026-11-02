@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
+sys.path.insert(0, str(HERE))
+from test_lifecycle_boundary import retirement_absence
 
 TEST_NAME = 'reader_projection'
 PROJECTION = Path('crates/xp-ffi/src/app/epub/projection.rs')
@@ -80,6 +82,7 @@ def difference(expected, actual):
 def main():
     if len(sys.argv) != 1:
         raise SystemExit('Projection goldens are immutable; regeneration is not supported.')
+    absence = retirement_absence(ROOT)
     golden = HERE / 'projection.golden.gz'
     compressed = golden.read_bytes()
     raw = gzip.decompress(compressed)
@@ -95,7 +98,8 @@ def main():
     production = {path: (ROOT / 'rust' / path).read_bytes() for path in (PROJECTION, POSITION)}
     fixture_hashes = {path.name: digest(path.read_bytes()) for path in (
         HERE / 'projection_oracle.cpp', HERE / 'projection_session_rust.inc', HERE / 'projection_session_fixture.h',
-        HERE / 'projection_abi.cpp', Path(__file__), ROOT / 'rust/crates/xp-ffi/src/app/epub/test_support/projection.rs')}
+        HERE / 'projection_abi.cpp', HERE / 'epub_boundary_assertions.h', HERE / 'test_lifecycle_boundary.py',
+        Path(__file__), ROOT / 'rust/crates/xp-ffi/src/app/epub/test_support/projection.rs')}
     try:
         with tempfile.TemporaryDirectory(prefix='reader-projection-session-') as directory:
             work = Path(directory)
@@ -124,16 +128,16 @@ def main():
             edges = run(executable, True)
             assert edges.returncode == 0, edges.stderr.decode(errors='replace')
             assert edges.stdout.endswith(b'owner-edges 6 float 20 movement cases\n')
-            # Retain the old facade's ABI/null-service checks as a separate executable.
-            legacy = compile_fixture((HERE / 'projection_abi.cpp').read_bytes(), 'legacy-abi')
-            legacy_result = run(legacy)
-            assert legacy_result.returncode == 0, legacy_result.stderr.decode(errors='replace')
+            # Semantic edge cases above use the real owner; retain current physical ABI checks here.
+            boundary = compile_fixture((HERE / 'projection_abi.cpp').read_bytes(), 'physical-abi')
+            boundary_result = run(boundary)
+            assert boundary_result.returncode == 0, boundary_result.stderr.decode(errors='replace')
             print(json.dumps({
                 'test_name': TEST_NAME, 'original_gzip_sha256': GZIP_SHA, 'original_trace_sha256': RAW_SHA,
                 'projected_trace_sha256': digest(expected), 'actual_trace_sha256': digest(baseline.stdout),
                 'original_lines': 215943, 'projected_lines': 220551, 'projection_event_counts': projections,
                 'original_event_counts': counts, 'owner_edge_float_cases': 6, 'owner_edge_movement_cases': 20,
-                'owner_edge_trace_sha256': digest(edges.stdout), 'legacy_abi_retained': True,
+                'owner_edge_trace_sha256': digest(edges.stdout), 'legacy_abi_retained': False, 'retirement_absence': absence, 'physical_abi_retained': True,
                 'production_sha256': {str(path): digest(data) for path, data in production.items()},
                 'fixture_sha256': fixture_hashes,
             }), flush=True)
@@ -178,7 +182,7 @@ def main():
         assert golden.read_bytes() == compressed, 'immutable original golden changed'
         for path, data in production.items():
             assert (ROOT / 'rust' / path).read_bytes() == data, ('real production source changed', path)
-    print(f'{TEST_NAME}: 220551 projected lines; owner value/move edges and legacy ABI; four Rust mutants and caller-lock mutant rejected')
+    print(f'{TEST_NAME}: 220551 projected lines; owner value/move edges, physical ABI and retired-name absence; four Rust mutants and caller-lock mutant rejected')
 
 
 if __name__ == '__main__':

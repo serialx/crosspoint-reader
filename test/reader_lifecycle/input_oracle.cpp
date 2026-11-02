@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <string_view>
 
-#include "ChapterPosition.h"
+#include "reader_value_owner.h"
 
 enum class HomeButtonAction : uint8_t { Home, Ignore, NextPage };
 struct CrossPointSettings {
@@ -242,17 +242,18 @@ int main() {
   back();
   for (const char* tag : {"he", "iw", "ar", "fa", "ur", "HE", "iW", "Ar", "fA", "He-iL", "IW_IL", "AR-sa", "fa_IR",
                           "heb", "hebrew", "en", "h", ""})
-    std::printf("language %s %d\n", tag, ReaderUtils::isRtlBookLanguage(tag));
+    std::printf("language %s %d\n", tag, readerValueLanguage(tag));
   for (int value = 0; value < 256; ++value)
     std::printf("gesture-setting %d %d %d\n", value, ReaderUtils::gestureAllowsTap(value),
                 ReaderUtils::gestureAllowsSwipe(value));
   for (int page : {-1, 0, 10, 48})
     for (int total : {-1, 0, 48}) {
-      ChapterPosition p{page, total};
-      std::printf("chapter %d %d %d %d %08x\n", page, total, p.displayPage(), p.hasTotal(),
-                  std::bit_cast<uint32_t>(p.chapterFraction()));
+      const auto p = readerValueChapter(page, total);
+      std::printf("chapter %d %d %d %d %08x\n", page, total, p.display_page, int(p.has_total),
+                  std::bit_cast<uint32_t>(p.fraction));
     }
 #ifdef XP_INPUT_SESSION
   destroyInputOwner();
 #endif
+  assert(reader_value_fixture::languageCases == 18 && reader_value_fixture::chapterCases == 12);
 }

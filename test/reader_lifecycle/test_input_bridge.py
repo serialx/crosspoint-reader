@@ -148,7 +148,8 @@ def main():
     goldens = {path: path.read_bytes() for path in HERE.glob('*.golden.gz')}
     method = definition(original[paths[0]].decode(), 'inline XpUiReaderInputServices inputServices(')
     template = original[paths[1]].decode().split('static void buttons() {', 1)[0]
-    template = template.replace('#include "ChapterPosition.h"', '#include <xp_ui_reader.h>')
+    assert template.count('#include "reader_value_owner.h"') == 1
+    template = template.replace('#include "reader_value_owner.h"', '#include <xp_ui_reader.h>')
     template = template.replace('std::printf(', 'bridgePrintf(').replace('std::puts(', 'bridgePuts(')
     assert template.count('#include "input_methods.inc"') == 1
     variants = [('baseline', method, None)]

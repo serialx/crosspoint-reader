@@ -1,7 +1,11 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include <BlePageTurner.h>
 #include <gtest/gtest.h>
 
-#include "../reader_lifecycle/build_wait_fixture.h"
+#include "build_wait_owner.h"
 
 namespace {
 bleturner::Status radio() { return bleturner::Status{}; }

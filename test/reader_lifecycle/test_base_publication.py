@@ -10,6 +10,8 @@ sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 sys.path.insert(0, str(HERE))
 from extract import definition
+from test_lifecycle_boundary import retirement_absence
+retirement_absence(ROOT)
 source = (ROOT / 'src/activities/reader/ReaderActivity.cpp').read_text()
 methods = ['void ReaderActivity::render(', 'uint32_t ReaderActivity::readBaseField(',
            'void ReaderActivity::writeBaseField(', 'ReaderSession ReaderActivity::snapshotReaderSession(',
@@ -31,13 +33,10 @@ with tempfile.TemporaryDirectory() as directory:
 void (*begin)(XpUiReaderBaseModel*, XpUiReaderBaseModel*) = xp_ui_reader_base_begin_render;
 void (*publish)(XpUiReaderBaseModel*, const XpUiReaderBaseModel*) = xp_ui_reader_base_publish;
 void (*force)(XpUiReaderBaseModel*) = xp_ui_reader_base_force_refresh;
-void (*overlay)(const XpUiReaderOverlayServices*, uint8_t) = xp_ui_reader_overlay_run;
 ''')
     subprocess.run(['cc', '-std=c11', '-Werror', '-fsyntax-only', str(p / 'abi.c'), '-I' + str(ROOT / 'rust/crates/xp-ffi/include')], check=True)
     header = (ROOT / 'rust/crates/xp-ffi/include/xp_ui_reader.h').read_text()
-    for module, family, kinds in [('base', 'BASE', ['Field', 'Query', 'Command', 'Operation']),
-                                   ('epub_loop', 'LOOP', ['Field', 'Query', 'Command', 'Point']),
-                                   ('epub_overlay', 'OVERLAY', ['Event', 'Swipe', 'Mode', 'Field', 'Query', 'Command', 'Operation'])]:
+    for module, family, kinds in [('base', 'BASE', ['Field', 'Query', 'Command', 'Operation'])]:
         rust = (ROOT / f'rust/crates/xp-ui/src/reader/{module}.rs').read_text()
         for kind in kinds:
             body = re.search(r'pub enum ' + kind + r' \{(.*?)\n\}', rust, re.S)[1]
@@ -49,7 +48,7 @@ void (*overlay)(const XpUiReaderOverlayServices*, uint8_t) = xp_ui_reader_overla
     cpp.write_text(drift)
     failed = subprocess.run(['c++', '-std=c++17', '-fsyntax-only', str(cpp), '-I' + str(ROOT / 'rust/crates/xp-ffi/include')], capture_output=True, text=True)
     assert failed.returncode != 0 and 'xp_ui_reader_base_publish_drift' in failed.stderr
-    print('base publication: actual input helpers finish during busy paint; pending turn/manual/counter survive once; C ABI, enum drift, nested render and ASan/UBSan checks pass')
+    print('base publication: actual input helpers finish during busy paint; pending turn/manual/counter survive once; shared C ABI, base enum drift, retired-name absence, nested render and ASan/UBSan checks pass')
 
 # Append owner coverage; all shared/XTC executables and ABI/drift checks above stay intact.
 import hashlib

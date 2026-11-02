@@ -1,40 +1,14 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-set(READER_METHODS ${CMAKE_CURRENT_BINARY_DIR}/reader_methods.inc)
-add_custom_command(OUTPUT ${READER_METHODS}
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract.py ${REPO_ROOT} ${READER_METHODS}
-  DEPENDS extract.py turn_input_rust.inc restore_navigation_rust.inc load_progress_rust.inc build_policy_rust.inc ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
-    ${REPO_ROOT}/src/activities/reader/ReaderUtils.h
-  VERBATIM)
-add_executable(ReaderLifecycleOracle oracle.cpp ${READER_METHODS}
-  ${REPO_ROOT}/src/activities/reader/ReaderSession.cpp)
-target_include_directories(ReaderLifecycleOracle PRIVATE stubs ${CMAKE_CURRENT_BINARY_DIR}
-  ${REPO_ROOT}/src/activities/reader ${REPO_ROOT}/lib/Epub
-  ${REPO_ROOT}/lib/BlePageTurner/include
-  ${REPO_ROOT}/freeink-sdk/libs/network/BleKeyboardHost/include)
-target_link_libraries(ReaderLifecycleOracle PRIVATE crosspoint_test_common)
 add_test(NAME reader_lifecycle_oracle
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_lifecycle_session.py
-    --original-executable $<TARGET_FILE:ReaderLifecycleOracle>)
+)
 
-set(RENDER_METHODS ${CMAKE_CURRENT_BINARY_DIR}/render_methods.inc)
-add_custom_command(OUTPUT ${RENDER_METHODS}
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_render.py ${REPO_ROOT} ${RENDER_METHODS}
-  DEPENDS extract_render.py extract.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
-    ${REPO_ROOT}/src/activities/reader/ReaderUtils.h
-  VERBATIM)
 foreach(mode off on)
-  add_executable(ReaderRenderOracle_${mode} render_oracle.cpp ${RENDER_METHODS})
-  target_link_libraries(ReaderRenderOracle_${mode} PRIVATE crosspoint_test_common)
-  target_include_directories(ReaderRenderOracle_${mode} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-  target_compile_options(ReaderRenderOracle_${mode} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
-  if(mode STREQUAL "on")
-    target_compile_definitions(ReaderRenderOracle_${mode} PRIVATE XP_STRIP_RENDER=1)
-  endif()
   add_test(NAME reader_render_oracle_${mode}
     COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
       ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_render_session.py
-      --mode ${mode} --legacy-executable $<TARGET_FILE:ReaderRenderOracle_${mode}>)
+      --mode ${mode})
 endforeach()
 
 add_executable(ReaderLifecycleAbi abi.cpp)
@@ -99,28 +73,12 @@ add_test(NAME reader_nav_oracle
     $<TARGET_FILE:ReaderInputOracle> $<TARGET_FILE:ReaderNavOracle> --mode nav
     --repo ${REPO_ROOT})
 
-set(LOOP_METHODS ${CMAKE_CURRENT_BINARY_DIR}/loop_methods.inc)
-add_custom_command(OUTPUT ${LOOP_METHODS}
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_loop.py ${REPO_ROOT} ${LOOP_METHODS}
-  DEPENDS extract_loop.py extract.py ${REPO_ROOT}/src/activities/reader/EpubReaderActivity.cpp
-    ${REPO_ROOT}/src/activities/reader/ReaderUtils.h
-  VERBATIM)
-add_executable(ReaderLoopOracle loop_oracle.cpp ${LOOP_METHODS})
-target_link_libraries(ReaderLoopOracle PRIVATE crosspoint_test_common)
-target_include_directories(ReaderLoopOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
 add_test(NAME reader_loop_oracle
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
-    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_loop_session.py
-    --original-executable $<TARGET_FILE:ReaderLoopOracle>)
-
-add_executable(ReaderLoopOracleRelease loop_oracle.cpp ${LOOP_METHODS})
-target_link_libraries(ReaderLoopOracleRelease PRIVATE crosspoint_test_common)
-target_compile_definitions(ReaderLoopOracleRelease PRIVATE LOOP_LOG_LEVEL=1)
-target_include_directories(ReaderLoopOracleRelease PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src)
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_loop_session.py)
 add_test(NAME reader_loop_oracle_release
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
-    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_loop_session.py --release
-    --original-executable $<TARGET_FILE:ReaderLoopOracleRelease>)
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_loop_session.py --release)
 
 set(BASE_METHODS ${CMAKE_CURRENT_BINARY_DIR}/base_methods.inc)
 add_custom_command(OUTPUT ${BASE_METHODS} ${CMAKE_CURRENT_BINARY_DIR}/base_action.inc
@@ -140,7 +98,7 @@ add_test(NAME reader_toolbar_resource
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_toolbar_resource.py)
 
-foreach(target ReaderLoopOracle ReaderLoopOracleRelease ReaderBaseOracle)
+foreach(target ReaderBaseOracle)
   target_compile_options(${target} PRIVATE -UNDEBUG)
 endforeach()
 
@@ -340,3 +298,7 @@ add_test(NAME reader_app_epub_results
 
 add_test(NAME reader_stack_boundaries
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_stack_boundaries.py)
+
+add_test(NAME reader_app_routing
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_app_routing.py
+    --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE})

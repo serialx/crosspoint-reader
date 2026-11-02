@@ -208,7 +208,6 @@ static void cleared(const ReaderToolbarUi& toolbar) {
   const auto& model = toolbar.model_;
   assert(!model.rowFill && !model.rowFillContext && "borrowed Model must be cleared after paint");
   assert(!model.chapterTitle && !model.pageInfo && !model.panelTitle);
-  assert(!model.rowText && !model.rowValue && !model.rowCheckbox && !model.rowCheckboxContext);
 }
 struct Source {
   std::array<int, 64> indices{};
@@ -272,22 +271,26 @@ static void routeLikeRust(ReaderToolbarUi& toolbar, TouchSnapshot touch) {
   assert(std::memcmp(&contact, &toolbar.contact, sizeof(contact)) == 0);
 }
 
-static void legacyAndDirectWindow(ReaderToolbarUi& toolbar) {
+static void directWindowContract(ReaderToolbarUi& toolbar) {
   int labels = 0, values = 0, flags = 0;
   ReaderToolbarUi::Model model;
   model.itemCount = 30;
-  model.rowText = [&](int index) {
-    ++labels;
-    return "label" + std::to_string(index);
-  };
-  model.rowValue = [&](int index) {
-    ++values;
-    return "value" + std::to_string(index);
-  };
-  model.rowCheckboxContext = &flags;
-  model.rowCheckbox = [](void* raw, int index) {
-    ++*static_cast<int*>(raw);
-    return ReaderToolbarUi::RowFlags{true, index % 2 != 0};
+  struct Rows {
+    int* labels;
+    int* values;
+    int* flags;
+  } rows{&labels, &values, &flags};
+  model.rowFillContext = &rows;
+  model.rowFill = [](void* raw, int index, std::string& label, std::string& value, ReaderToolbarUi::RowFlags& flags) {
+    auto& rows = *static_cast<Rows*>(raw);
+    assert(index == 7 + *rows.labels && "rowFill at most once in visible order");
+    ++*rows.labels;
+    ++*rows.values;
+    ++*rows.flags;
+    label = "label" + std::to_string(index);
+    value = "value" + std::to_string(index);
+    flags = {true, index % 2 != 0};
+    return true;
   };
   toolbar.setModel(model);
   auto resources = toolbar.resources();
@@ -328,16 +331,14 @@ static void legacyAndDirectWindow(ReaderToolbarUi& toolbar) {
   model.itemCount = 1;
   toolbar.setModel(model);
   resources = toolbar.resources();
-  assert(resources.window(resources.context, 0, 1));
-  assert(toolbar.windowLabels_[0].empty() && toolbar.windowValues_[0].empty());
-  assert(!toolbar.rowFlags[0].toggle && !toolbar.rowFlags[0].checked);
+  assert(!resources.window(resources.context, 0, 1) && "missing row source must reject the window");
   toolbar.setModel({});
 }
 
 int main() {
   auto* toolbar = static_cast<ReaderToolbarUi*>(openToolbar());
   assert(toolbar);
-  legacyAndDirectWindow(*toolbar);
+  directWindowContract(*toolbar);
   beginToolbar(toolbar);
   assert(!toolbar->ready);
   XpEpubRouted inactive{};
@@ -439,6 +440,6 @@ int main() {
   assert(criticalDepth == 0);
   std::puts(
       "toolbar resource: actual class/render/native leaves; real Rust view/nav/route; temporary rows copied; "
-      "legacy fallback; cleared Model on success/failure; preallocated host paint allocation count zero "
+      "direct window; cleared Model on success/failure; preallocated host paint allocation count zero "
       "(not C3 SBO proof); 4096-byte title and indented row preserved; four actual-source mutants required");
 }

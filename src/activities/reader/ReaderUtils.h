@@ -7,8 +7,6 @@
 #include <Logging.h>
 #include <xp_ui_reader.h>
 
-#include <string_view>
-
 #include "HapticFeedback.h"
 #include "MappedInputManager.h"
 #include "activities/ActivityManager.h"
@@ -134,10 +132,6 @@ inline XpUiReaderInputServices inputServices(const MappedInputManager& input) {
 inline bool gestureAllowsSwipe(const uint8_t gesture) { return xp_ui_reader_gesture(gesture) & 2; }
 
 inline bool gestureAllowsTap(const uint8_t gesture) { return xp_ui_reader_gesture(gesture) & 1; }
-
-inline bool isRtlBookLanguage(std::string_view tag) {
-  return xp_ui_reader_language_rtl(reinterpret_cast<const uint8_t*>(tag.data()), tag.size());
-}
 
 inline void applyOrientation(GfxRenderer& renderer, const uint8_t orientation) {
   switch (orientation) {

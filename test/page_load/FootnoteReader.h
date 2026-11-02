@@ -35,26 +35,17 @@ class EpubReaderActivity {
   bool isFootnote = false;
   bool atEndOfBook = false;
   int currentPageLinkMarginLeft = 5, currentPageLinkMarginTop = 7;
-  std::unique_ptr<Activity> child;
+  Activity* child = nullptr;  // Borrowed from the real App child owner.
   std::function<void(const ActivityResult&)> completion;
   int menuRequests = 0, updates = 0;
-  EpubReaderActivity(FootnoteSection& s, GfxRenderer& r, MappedInputManager& m)
-      : section(&s), renderer(r), mappedInput(m) {}
+  EpubReaderActivity(FootnoteSection&, GfxRenderer&, MappedInputManager&);
+  ~EpubReaderActivity();
+  EpubReaderActivity(const EpubReaderActivity&) = delete;
+  EpubReaderActivity& operator=(const EpubReaderActivity&) = delete;
+  void preparePage();
   void openFootnoteSelect(bool reopenMenuOnCancel);
-  bool runChildPolicy(uint8_t, int32_t = 0, int32_t = 0, uint8_t = 0, const ActivityResult* = nullptr);
+
   void testLinkTap();
   bool testMenuAvailability();
   bool testMoreAvailability();
-  void navigateToHref(const std::string& href, bool note) {
-    RenderLock::requireUnlocked();
-    navigatedHref = href;
-    isFootnote = note;
-  }
-  void startActivityForResult(std::unique_ptr<Activity> activity, std::function<void(const ActivityResult&)> callback) {
-    RenderLock::requireUnlocked();
-    child = std::move(activity);
-    completion = std::move(callback);
-  }
-  void openReaderMenu() { ++menuRequests; }
-  void requestUpdate() { ++updates; }
 };

@@ -10,7 +10,7 @@
 #include "physical_defaults.h"
 
 extern "C" {
-uint8_t xp_app_test_install_epub(XpAppText, uint8_t, int32_t, const XpEpubLeaves*);
+uint8_t xp_app_test_install_epub(XpAppText, uint8_t, const XpEpubLeaves*);
 void* xp_app_test_current_epub();
 uint8_t xp_app_test_drain();
 void xp_test_fail_allocation_after(size_t);
@@ -413,7 +413,7 @@ void initialize() {
   assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
   assert(compatibility.activity_facts && compatibility.home_action && compatibility.screenshot_info);
 }
-uint8_t install() { return xp_app_test_install_epub(wire(f().path), 0, 3, &leaves); }
+uint8_t install() { return xp_app_test_install_epub(wire(f().path), 0, &leaves); }
 void adoptLegacy() {
   auto* value = f().acquire(Kind::Legacy, 0);
   value->activityKind = XP_APP_FILES;

@@ -29,6 +29,7 @@
 #include "network/UsbDriveActivity.h"
 #include "plugins/PluginCatalogActivity.h"
 #include "reader/ReaderActivity.h"
+#include "reader/RustEpubResources.h"
 #include "settings/OpdsServerListActivity.h"
 #include "settings/SettingsListActivity.h"
 #include "util/BmpViewerActivity.h"
@@ -214,9 +215,6 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
         auto* reader = static_cast<ReaderActivity*>(nativeActivity(activity));
         return chapter ? reader->skipPages(forward ? 1 : -1) : reader->pageTurn(forward != 0);
       },
-      .reader_shortcut = [](void* activity, uint8_t menu) -> uint8_t {
-        return static_cast<ReaderActivity*>(nativeActivity(activity))->remoteShortcut(menu != 0);
-      },
       .screenshot_info =
           [](const void* activity, XpAppScreenshotSink sink, void* context) {
             screenshot(nativeActivity(activity)->getScreenshotInfo(), sink, context);
@@ -239,7 +237,8 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
   runtime.notify_render = [] {
     if (activityManager.renderTaskHandle) xTaskNotify(activityManager.renderTaskHandle, 1, eIncrement);
   };
-  const XpAppPlatform platform{&legacy, &rustAppResources(renderer, mappedInput), &runtime, nullptr};
+  const XpAppPlatform platform{&legacy, &rustAppResources(renderer, mappedInput), &runtime,
+                               &rustEpubResources(renderer, mappedInput)};
   const auto status = xp_app_init(&platform, &compatibility);
   assert(status == XP_APP_OK && "Failed to initialize Rust application");
 #if defined(configNUM_CORES) && configNUM_CORES > 1

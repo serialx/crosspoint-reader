@@ -3,13 +3,19 @@
 Run: python3 test/test_recursive_dictionary.py (requires a C++20 compiler).
 """
 from pathlib import Path
+import hashlib
+import json
 import re
 import subprocess
 import sys
 import tempfile
+ADAPTER = Path(__file__).resolve().parent
+ROOT = Path(__import__("os").environ.get("XP_RETIREMENT_REPO", ADAPTER.parent)).resolve()
+sys.path.insert(0, str(ROOT / "test"))
 from rust_host import rust_link_flags
-
-ROOT = Path(__file__).resolve().parents[1]
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(ROOT / "test/reader_lifecycle"))
+from test_app_results import make_source as app_result_source
 viewer = (ROOT / "src/activities/reader/DictionaryDefinitionActivity.cpp").read_text()
 header = (ROOT / "src/activities/reader/DictionaryDefinitionActivity.h").read_text()
 selector = (ROOT / "src/activities/reader/ClipSelectionActivity.h").read_text()
@@ -70,38 +76,12 @@ back_handler = input_prefix + r'''
 methods += "\n" + navigation
 lookup_source = (ROOT / "src/activities/reader/DictionaryWordSelectActivity.cpp").read_text()
 definition_result = block(lookup_source, "[this](const ActivityResult& result)")
-reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
-reader_result_bridge = ""
-if "XP_UI_READER_CHILD_COMMAND_LAUNCH_LOOKUP:" in reader_source:
-    lookup_result = block(reader_source.split("case XP_UI_READER_CHILD_COMMAND_LAUNCH_LOOKUP:", 1)[1],
-                          "[owner = &o]").replace("ClipSelectionActivity::Mode::Lookup", "0")
-    reader_result_bridge = r"""
-  void runChildPolicy(uint8_t operation, int32_t a, int32_t b, uint8_t mode, const ActivityResult* result) {
-    struct Context { DictionaryDefinitionActivity& owner; const ActivityResult& result; } context{*this,*result};
-    const XpUiReaderChildServices services{&context,
-      [](void* p,uint8_t field)->uint32_t {
-        if (field==XP_UI_READER_CHILD_FIELD_CANCELLED) return static_cast<Context*>(p)->result.isCancelled;
-        switch(field) {
-          case XP_UI_READER_CHILD_FIELD_HAS_SECTION:
-          case XP_UI_READER_CHILD_FIELD_HAS_BOOK:
-          case XP_UI_READER_CHILD_FIELD_PAGE_COUNT:
-          case XP_UI_READER_CHILD_FIELD_BUILD_WIDTH:
-          case XP_UI_READER_CHILD_FIELD_BUILD_HEIGHT:
-          case XP_UI_READER_CHILD_FIELD_WINDOW: return 1;
-          default: return 0;
-        }
-      },
-      [](void*,uint8_t,uint32_t){},
-      [](void* p,uint8_t cmd,int32_t,int32_t)->uint32_t {
-        if (cmd==XP_UI_READER_CHILD_COMMAND_LAUNCH_SELECTION) static_cast<Context*>(p)->owner.openDictionaryWordSelect();
-        return cmd==XP_UI_READER_CHILD_COMMAND_PAGE_LOAD || cmd==XP_UI_READER_CHILD_COMMAND_NEW_SELECTION;
-      }};
-    xp_ui_reader_child(&services,operation,a,b,mode);
-  }
-"""
-else:
-    lookup_result = block(reader_source.split("startActivityForResult(std::move(lookup)", 1)[1],
-                          "[this](const ActivityResult& result)")
+parent_adapter = ADAPTER / 'recursive_dictionary_owner.inc'
+if not parent_adapter.is_file():
+    raise SystemExit('Missing required recursive_dictionary_owner.inc App composition fixture')
+reader_owner = parent_adapter.read_text()
+for retired in ('xp_ui_reader_child(', 'XpUiReaderChildServices'):
+    assert retired not in reader_owner, retired
 reader_constants = "\n".join(re.findall(
     r"^constexpr unsigned long (?:GO_HOME_MS|GO_BACK_OR_HOME_MS) = [^;]+;",
     (ROOT / "src/activities/reader/ReaderUtils.h").read_text(), re.MULTILINE))
@@ -311,8 +291,7 @@ struct DictionaryDefinitionActivity {
   void applyNavigation(const XpUiEffect&, int x, int y);
   void handleBack() { ''' + back_handler + r''' }
   void onDefinitionResult(const ActivityResult& child) { (''' + definition_result + r''')(child); }
-  ''' + reader_result_bridge + r'''
-  void onLookupResult(const ActivityResult& child) { auto& o = *this; (void)o; (''' + lookup_result + r''')(child); }
+  void onLookupResult(const ActivityResult& child);
   void startActivityForResult(std::unique_ptr<ClipSelectionActivity> next, ActivityResultHandler handler) {
     child = std::move(next);
     callback = std::move(handler);
@@ -328,7 +307,7 @@ struct DictionaryDefinitionActivity {
   bool buildPlainSelectionPages();
   void startSelection(int x = -1, int y = -1);
 };
-''' + methods + r'''
+''' + methods + reader_owner + r'''
 int main() {
   Dictionary dictionary;
   dictionary.entries = {{10, "first entry one two three four five six"}, {20, "other definition"}};
@@ -552,6 +531,7 @@ int main() {
       }
     }
   }
+  assert(xp_recursive_dictionary_cases() == 5);
 }
 '''
 
@@ -643,17 +623,51 @@ int main() {
 }
 '''
 
+# Reuse complete physical tables, actual entry/render, native borrowed-result producer,
+# and App child ownership checks. No policy hooks or direct Dictionary intent seed.
+owner_source = app_result_source(ROOT, ROOT / "test/reader_lifecycle")
+assert owner_source.count('int main(') == 1
+owner_source = owner_source.split('int main(', 1)[0]
+owner_source += '\n#define XP_RECURSIVE_DICTIONARY_OWNER 1\n' + reader_owner
+owner_sources = [
+    ROOT / 'test/reader_lifecycle/test_app_results.py',
+    ROOT / 'test/reader_lifecycle/app_owned_epub.cpp',
+    ROOT / 'test/reader_lifecycle/physical_defaults.h',
+    ROOT / 'test/reader_lifecycle/app_results_main.inc',
+    ROOT / 'test/reader_lifecycle/app_results_physical.inc',
+    ROOT / 'test/ui_runtime/app_leaves.h',
+    ROOT / 'src/activities/ActivityManager.cpp',
+    ROOT / 'src/activities/ActivityResult.h',
+    ROOT / 'src/activities/ActivityResultView.h',
+    ROOT / 'rust/crates/xp-ffi/src/app/epub/child.rs',
+    ROOT / 'rust/crates/xp-ffi/src/app/epub/child_result.rs',
+    parent_adapter, Path(__file__),
+]
+owner_hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in owner_sources}
+
 harness = harness.replace('bool DictionaryDefinitionActivity::prepareDefinition',
                           plain_scratch + '\nbool DictionaryDefinitionActivity::prepareDefinition', 1)
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
     (path / "navigation.cpp").write_text(harness)
+    (path / "owner.cpp").write_text(owner_source)
+    # Keep the original widget's strict warning flags; the reused App fixture uses
+    # its established independent translation-unit flags and complete physical table.
+    subprocess.run([
+        "c++", "-std=c++20", "-UNDEBUG", "-O0", "-DXP_FFI_HOST_FAULT_INJECTION",
+        "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
+        "-I", str(ROOT / "test/reader_lifecycle"), "-I", str(ROOT / "test/ui_runtime"),
+        "-I", str(ROOT / "src/activities"), "-I", str(ROOT / "rust/crates/xp-ffi/include"),
+        "-c", str(path / "owner.cpp"), "-o", str(path / "owner.o"),
+    ], check=True)
     subprocess.run([
         "c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
+        "-UNDEBUG", "-DXP_FFI_HOST_FAULT_INJECTION", "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
         "-I", str(ROOT / "src"), "-I", str(ROOT / "lib/Memory"),
+        "-I", str(ADAPTER), "-I", str(ROOT / "test/reader_lifecycle"),
         "-I", str(ROOT / "lib/MiniBidi"), "-I", str(ROOT / "lib/Utf8"),
         "-I", str(ROOT / "test/minibidi_arabic/stubs"),
-        str(path / "navigation.cpp"),
+        str(path / "navigation.cpp"), str(path / "owner.o"),
         str(ROOT / "lib/MiniBidi/RustBidi.cpp"), str(ROOT / "lib/Utf8/Utf8.cpp"), *rust_link_flags(),
         "-o", str(path / "navigation"),
     ], check=True)
@@ -665,4 +679,11 @@ with tempfile.TemporaryDirectory() as directory:
                     str(ROOT / "lib/Utf8/Utf8.cpp"), str(ROOT / "lib/Epub/Epub/CjkBreaks.cpp"), *rust_link_flags(),
                     "-o", str(path / "lookup")], check=True)
     subprocess.run([str(path / "lookup")], check=True)
+assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest() == digest for p, digest in owner_hashes.items())
+print(json.dumps({'owner_source_sha256': owner_hashes,
+                  'generated_owner_sha256': hashlib.sha256(owner_source.encode()).hexdigest(),
+                  'widget_cases': 'unchanged', 'app_dictionary_return_cases': 5,
+                  'sequence': 'real entry/render -> Selection -> successful Lookup -> Dictionary -> original viewer result',
+                  'policy_hooks': 0, 'intent_seeds': 0,
+                  'limits': 'synthetic physical Section/Page and native children; no device or dictionary storage integration'}))
 print("Recursive dictionary navigation checks passed")

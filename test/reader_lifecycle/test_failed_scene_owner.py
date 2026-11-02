@@ -108,6 +108,11 @@ namespace ReaderUtils {
     bridge = once(bridge, '// ACTUAL_INPUT_SNAPSHOT', definition(snapshot, 'inline XpUiInput rustInputSnapshot(') + '\n' + input_methods)
     main = original[original.index('int main(int argc, char** argv) {'):]
     main = once(main, 'int main(int argc, char** argv) {', 'static int failedSceneScenario(int argc, char** argv) {')
+    # Keep the original observation values after retiring the facade enum names.
+    for name, value in (('XP_UI_READER_OVERLAY_EVENT_TOOL', '2'),
+                        ('XP_UI_READER_OVERLAY_MODE_TEXT', '3'),
+                        ('XP_UI_READER_OVERLAY_MODE_TOOLBAR', '1')):
+        main = main.replace(name, value)
     main = once(main, '  if (check == "cancel-mixed") {\n    a.build();',
                 '  if (check == "cancel-mixed") {\n    a.build();\n    a.primeMixedRefresh();')
     start = main.index('    if (stage == "contents") a.fields[0]')

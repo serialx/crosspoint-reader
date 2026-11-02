@@ -231,7 +231,7 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
 
 inline XpAppLegacy unexpectedAppLegacy() {
   auto value = appTestLegacy();
-  static_assert(sizeof(XpAppLegacy) == 15 * sizeof(void (*)()));
+  static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void (*)()));
   value.create = &AppFixtureUnexpected<decltype(value.create), 1000>::call;
   value.destroy = &AppFixtureUnexpected<decltype(value.destroy), 1001>::call;
   value.enter = &AppFixtureUnexpected<decltype(value.enter), 1002>::call;
@@ -245,8 +245,7 @@ inline XpAppLegacy unexpectedAppLegacy() {
   value.home_gesture = &AppFixtureUnexpected<decltype(value.home_gesture), 1010>::call;
   value.forced_refresh = &AppFixtureUnexpected<decltype(value.forced_refresh), 1011>::call;
   value.reader_turn = &AppFixtureUnexpected<decltype(value.reader_turn), 1012>::call;
-  value.reader_shortcut = &AppFixtureUnexpected<decltype(value.reader_shortcut), 1013>::call;
-  value.screenshot_info = &AppFixtureUnexpected<decltype(value.screenshot_info), 1014>::call;
+  value.screenshot_info = &AppFixtureUnexpected<decltype(value.screenshot_info), 1013>::call;
   return value;
 }
 

@@ -65,40 +65,14 @@ static int inputFixturePrintf(const char* format, ...) {
 def input_fixture(root):
     oracle = root / 'test/reader_lifecycle'
     adapter = (oracle / 'input_session_rust.inc').read_text()
-    adapter = once(adapter, 'static bool currentRtl = false;',
-                   'static bool currentRtl = false;\nstatic const char* currentLanguage = nullptr;')
-    adapter = once(adapter,
-                   '    const char* language = currentRtl ? "ar" : "en";\n'
-                   '    assert(language[2] == \'\\0\');\n'
-                   '    const uint8_t consumed = sink(context, {reinterpret_cast<const uint8_t*>(language), 2});',
-                   '    const char* language = currentLanguage ? currentLanguage : (currentRtl ? "ar" : "en");\n'
-                   '    const uint8_t consumed = sink(context, {reinterpret_cast<const uint8_t*>(language), std::strlen(language)});')
-    adapter = once(adapter, 'assert(languageCalls == 13500);', 'assert(languageCalls == 13518);')
-    extension = (HERE / 'input_owner_extensions.inc').read_text()
-    header = (oracle / 'projection_session_fixture.h').read_text()
-    if 'struct XpEpubTestChapterDisplay' in header:
-        # Main may have installed the approved declaration by execution time.
-        begin = extension.index('// Main-approved test-only observation;')
-        end = extension.index('static unsigned ownerLanguageCases', begin)
-        extension = extension[:begin] + extension[end:]
     source = (oracle / 'input_oracle.cpp').read_text()
     source = source.replace('std::printf(', 'inputFixturePrintf(')
-    source = once(source, '#include "input_session_rust.inc"', adapter + '\n' + extension)
+    source = once(source, '#include "input_session_rust.inc"', adapter)
     source = once(source,
                   'auto r = rtl ? ReaderUtils::detectTouchPageTurn(renderer, input, rtl) : ownerTouch(input);',
                   'auto r = ownerBookTouch(input, rtl);')
     source = once(source, 'const bool open = ReaderUtils::isTouchMenuGesture(renderer, input);',
                   'const bool open = ownerMenu(input);')
-    source = once(source, 'tag, ReaderUtils::isRtlBookLanguage(tag));', 'tag, ownerLanguageTag(tag));')
-    source = once(source,
-                  '      ChapterPosition p{page, total};\n'
-                  '      inputFixturePrintf("chapter %d %d %d %d %08x\\n", page, total, p.displayPage(), p.hasTotal(),\n'
-                  '                  std::bit_cast<uint32_t>(p.chapterFraction()));',
-                  '      const auto p = ownerChapterDisplay(page, total);\n'
-                  '      inputFixturePrintf("chapter %d %d %d %d %08x\\n", page, total, p.display_page, int(p.has_total),\n'
-                  '                  std::bit_cast<uint32_t>(p.fraction));')
-    source = once(source, '  destroyInputOwner();',
-                  '  assert(ownerLanguageCases == 18 && ownerChapterCases == 12);\n  destroyInputOwner();')
     return INPUT_LOGGER + source
 
 
@@ -171,7 +145,9 @@ def main():
               'overlay_input_session_rust.inc', 'overlay_input_session_fixture.h', 'overlay_actions_session_fixture.h',
               'projection_session_fixture.h')]
     paths += [root / name for name in ('src/MappedInputManager.h', 'src/util/ButtonNavigator.cpp',
-              'src/activities/reader/ReaderUtils.h', 'src/activities/reader/ChapterPosition.h',
+              'src/activities/reader/ReaderUtils.h', 'test/reader_lifecycle/reader_value_owner.h',
+              'test/ble_link_note_title/owner_tables.h',
+              'test/reader_lifecycle/projection_session_fixture.h',
               'rust/crates/xp-ffi/include/xp_epub_session.h')]
     hashes = {str(path.relative_to(root)): digest(path.read_bytes()) for path in paths}
     try:

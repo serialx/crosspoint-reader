@@ -125,10 +125,10 @@ def exercise(output, compiler, archive):
 
     execute('baseline', sources)
     duplicate = dict(sources)
-    old = '            continue;\n          }\n          self.windowLabels_[i]'
-    new = ('            self.model_.rowFill(self.model_.rowFillContext, index, self.windowLabels_[i],\n'
-           '                                self.windowValues_[i], self.rowFlags[i]);\n'
-           '            continue;\n          }\n          self.windowLabels_[i]')
+    old = ('self.windowValues_[i], self.rowFlags[i])) {\n'
+           '            return false;\n          }\n')
+    new = old + ('          self.model_.rowFill(self.model_.rowFillContext, index, self.windowLabels_[i],\n'
+                 '                              self.windowValues_[i], self.rowFlags[i]);\n')
     duplicate[TOOLBAR_SOURCE] = replace_once(sources[TOOLBAR_SOURCE], old, new)
     execute('duplicate-row-fill', duplicate, 'rowFill at most once in visible order')
     retained = dict(sources)
@@ -150,7 +150,7 @@ def exercise(output, compiler, archive):
     print(json.dumps(manifest), flush=True)
     print('toolbar resource: whole production class/render/native leaves; real Rust view/navigation; '
           'ordered direct window fill; synchronous borrowed source copies; cleared Model success/failure; '
-          'legacy fallback; route/scroll/reset forwarding; zero preallocated host paint allocations; '
+          'missing row source rejected; route/scroll/reset forwarding; zero preallocated host paint allocations; '
           'four actual-source mutants rejected')
 
 

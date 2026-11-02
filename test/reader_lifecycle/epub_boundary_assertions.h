@@ -629,3 +629,14 @@ static_assert(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)()));
 static_assert(alignof(XpEpubLeaves) == alignof(void (*)()));
 static_assert(sizeof(XpAppResultView::kind) == 1);
 static_assert(sizeof(XpAppResultView::cancelled) == 1);
+
+// The native shortcut slot retires with the legacy EPUB owner.
+static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
+static_assert(offsetof(XpAppLegacy, reader_turn) == 12 * sizeof(void*));
+static_assert(offsetof(XpAppLegacy, screenshot_info) == 13 * sizeof(void*));
+static_assert(sizeof(XpAppPlatform) == 4 * sizeof(void*));
+static_assert(offsetof(XpAppPlatform, epub) == 3 * sizeof(void*));
+static_assert(sizeof(XpUiReaderRenderServices) == 3 * sizeof(void*));
+static_assert(std::is_same_v<decltype(XpUiReaderRenderServices::read), uint32_t (*)(void*, uint8_t)>);
+static_assert(
+    std::is_same_v<decltype(XpUiReaderRenderServices::execute), uint32_t (*)(void*, const XpUiReaderRenderOp*)>);

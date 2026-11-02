@@ -11,12 +11,12 @@
 #include <optional>
 #include <string_view>
 
-#include "ChapterPosition.h"
 #include "EpubReaderUtils.h"
-#include "LinkNoteTitle.h"
 #include "ReaderSession.h"
 #include "RemoteTurnGate.h"
 #include "build_wait_fixture.h"
+#include "reader_link_note_owner.h"
+#include "reader_value_owner.h"
 
 static uint32_t clockMs = 1234;
 static bool traceClock = false;
@@ -419,7 +419,7 @@ static void chrome() {
     }
   }
   for (const char* tag : {"", "h", "he", "HE", "ar-SA", "fa_IR", "iw", "iwx", "en", "hebrew"})
-    std::printf("rtl %s %d\n", tag, ReaderUtils::isRtlBookLanguage(tag));
+    std::printf("rtl %s %d\n", tag, readerValueLanguage(tag));
   for (int gesture = 0; gesture < 6; ++gesture)
     std::printf("gesture %d %d %d\n", gesture, ReaderUtils::gestureAllowsTap(gesture),
                 ReaderUtils::gestureAllowsSwipe(gesture));

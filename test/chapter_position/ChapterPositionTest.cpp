@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "src/activities/reader/ChapterPosition.h"
+#include "chapter_position_owner.h"
 
 // The reader menu header and the go-to-percent seed read a ChapterPosition
 // while the section may be released (#3434). A position rebuilt from the

@@ -60,6 +60,7 @@
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/BookmarkFile.h"
+#include "util/HomeButtonInput.h"
 #include "util/PluginEvents.h"
 #include "util/SlideSwitch.h"
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
@@ -68,6 +69,65 @@
 #endif
 
 namespace {
+// Persisted input settings consumed by the ordinary Rust reader.
+static_assert(static_cast<uint32_t>(HomeButtonAction::Footnotes) == 4);
+static_assert(static_cast<uint32_t>(HomeButtonAction::Sync) == 6);
+static_assert(static_cast<uint32_t>(HomeButtonAction::Bookmark) == 7);
+static_assert(static_cast<uint32_t>(HomeButtonAction::Dictionary) == 8);
+static_assert(static_cast<uint32_t>(HomeButtonAction::ReaderMenu) == 9);
+static_assert(static_cast<uint32_t>(HomeButtonAction::CreateClipping) == 11);
+static_assert(static_cast<uint32_t>(HomeButtonAction::Ignore) == 1);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_KOSYNC) == 0);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_BOOKMARK) == 2);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_DICTIONARY) == 3);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_CREATE_CLIPPING) == 5);
+static_assert(static_cast<uint32_t>(CrossPointSettings::LP_MENU_FOOTNOTES) == 6);
+static_assert(static_cast<uint32_t>(CrossPointSettings::SHORT_PWRBTN::FOOTNOTES) == 4);
+static_assert(static_cast<uint32_t>(CrossPointSettings::SHORT_PWRBTN::CREATE_CLIPPING) == 6);
+// Cardinalities and toolbar setting consumed by Rust label/selection tables.
+static_assert(CrossPointSettings::LINE_COMPRESSION_COUNT == 4);
+static_assert(CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT == 5);
+static_assert(CrossPointSettings::ORIENTATION_COUNT == 4);
+static_assert(CrossPointSettings::FONT_FAMILY_COUNT == 1);
+static_assert(CrossPointSettings::READER_MENU_TOOLBAR == 1);
+// Native toolbar events cross the typed routed-result leaf.
+static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::None) == 0);
+static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Dismiss) == 1);
+static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Tool) == 2);
+static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::PrevChapter) == 3);
+static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::NextChapter) == 4);
+static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Scrub) == 5);
+static_assert(static_cast<uint8_t>(ReaderToolbarUi::Event::Row) == 6);
+// Raw mapped directions are translated to shared XpUiSwipe by ReaderUtils.
+static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::None) == 0);
+static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Left) == 1);
+static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Right) == 2);
+static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Up) == 3);
+static_assert(static_cast<uint8_t>(MappedInputManager::SwipeDir::Down) == 4);
+// Native child results carry these MenuAction values to Rust.
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SELECT_CHAPTER) == 0);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::FOOTNOTES) == 1);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::TEXT_SETTINGS) == 2);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::NIGHT_MODE) == 3);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::FRONTLIGHT) == 4);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::BLUETOOTH) == 5);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::GO_TO_PERCENT) == 6);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::AUTO_PAGE_TURN) == 7);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::ROTATE_SCREEN) == 8);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::BOOKMARKS) == 9);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SAVE_CLIPPING) == 10);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::VIEW_CLIPPINGS) == 11);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::TOGGLE_BOOKMARK) == 12);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SCREENSHOT) == 13);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DISPLAY_QR) == 14);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::GO_HOME) == 15);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::SYNC) == 16);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DELETE_CACHE) == 17);
+static_assert(static_cast<uint8_t>(EpubReaderMenuActivity::MenuAction::DICTIONARY) == 18);
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+static_assert(ReaderStripBuffers::ROWS == 80 && ReaderStripBuffers::MAX_ELEMENTS == 512);
+#endif
+
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
 XpAppText text(const char* value) { return {reinterpret_cast<const uint8_t*>(value), strlen(value)}; }
 // File paths come from the Rust owner's NUL-terminated Text storage.

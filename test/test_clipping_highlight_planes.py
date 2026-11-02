@@ -4,17 +4,12 @@ from pathlib import Path
 import subprocess
 import tempfile
 import sys
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+ADAPTER = Path(__file__).resolve().parent
+ROOT = Path(__import__("os").environ.get("XP_RETIREMENT_REPO", ADAPTER.parent)).resolve()
+sys.path.insert(0, str(ROOT / "test"))
 from rust_host import rust_link_flags
-
-ROOT = Path(__file__).resolve().parents[1]
-source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
-if 'const auto fillHighlight =' in source:
-    fill = "const auto fillHighlight =" + source.split("const auto fillHighlight =", 1)[1].split("\n  uint16_t pageWordIndex", 1)[0]
-    flags = []
-else:
-    fill = (ROOT / 'test/reader_lifecycle/clipping_highlight_rust.inc').read_text()
-    flags = rust_link_flags()
+fill = "const auto fillHighlight = [&](int x, int y, int w, int h) { retirement_planes::fill(renderer, x, y, w, h); };"
+flags = rust_link_flags()
 harness = r"""
 #if __has_include(<xp_ui_reader.h>)
 #include <xp_ui_reader.h>
@@ -37,6 +32,7 @@ struct GfxRenderer {
   }
   void fillRectDither(int, int, int, int, Color) { ++ditherRects; }
 };
+#include "highlight_planes_owner.h"
 int main() {
   GfxRenderer renderer;
 """ + fill + r"""
@@ -57,7 +53,7 @@ with tempfile.TemporaryDirectory() as directory:
     cpp = Path(directory) / "highlight.cpp"
     executable = Path(directory) / "highlight"
     cpp.write_text(harness)
-    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", str(cpp), *flags, "-o", str(executable)], check=True)
+    subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror", "-I", str(ADAPTER), "-I", str(ROOT / "test/reader_lifecycle"), str(cpp), *flags, "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)
 # Grayscale operation order is frozen by reader_render_oracle_off/on, which
 # now executes the Rust plan through the extracted production resource binding.

@@ -49,6 +49,7 @@ struct Results {
   unsigned born = 0, dead = 0, returns = 0, inserts = 0, exports = 0, lookups = 0;
   unsigned bookmarkWrites = 0, wifiChecks = 0, syncs = 0;
   bool wifiMatrix = false, wifiConnected = true, syncSucceeded = false, reopenFails = false;
+  bool reopenPathChecked = false;
   unsigned restarts = 0, reopenAttempts = 0, syncStateSaves = 0, homeEnters = 0, homeExits = 0;
   unsigned rendered = 0, sectionOpened = 0, sectionClosed = 0;
   unsigned firstDeliveryLocks = 0, borrowedChecks = 0, beforeUnlockLocks = 0;
@@ -267,17 +268,35 @@ void bindResultsLifecycle() {
 void bindWifiMatrix() {
   static auto baseCreate = legacy.create;
   legacy.create = [](const XpAppLaunch* launch) -> void* {
-    assert(launch);
-    if (launch->kind != XP_APP_READER) return baseCreate(launch);
+    assert(launch && launch->kind != XP_APP_READER && "reopen must use the owned EPUB factory");
+    return baseCreate(launch);
+  };
+  static auto baseOpen = leaves.resources_open;
+  leaves.resources_open = []() -> void* {
+    if (!results.inResult) return baseOpen();
     borrowedUse("reopen-reader-create");
-    requireResult(text(launch->value.reader.path) == f().path && !launch->value.reader.fast_initial,
-                  "WIFI_REOPEN_DESTINATION");
     ++results.reopenAttempts;
-    if (results.reopenFails) return nullptr;
-    auto* value = f().acquire(Kind::Legacy, 0);
-    value->activityKind = XP_APP_READER;
-    value->path = text(launch->value.reader.path);
-    return value;
+    f().startAttempt(results.reopenFails ? 0 : -1);
+    return baseOpen();
+  };
+  static auto basePathExists = resources.path_exists;
+  resources.path_exists = [](XpAppText path) -> uint8_t {
+    if (f().generation == 2 && f().entered == 2 && !results.reopenPathChecked) {
+      requireResult(text(path) == f().path, "WIFI_REOPEN_DESTINATION");
+      results.reopenPathChecked = true;
+    }
+    return basePathExists(path);
+  };
+  static auto baseBookOpen = leaves.book_open;
+  leaves.book_open = [](XpAppText path) -> void* {
+    if (f().generation == 2) requireResult(text(path) == f().path, "WIFI_REOPEN_DESTINATION");
+    return baseBookOpen(path);
+  };
+  static auto baseRenderServices = leaves.render_services;
+  leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+    // A fast-initial reopen would query Frequency during construction.
+    requireResult(!results.inResult || !results.reopenAttempts, "WIFI_REOPEN_DESTINATION");
+    return baseRenderServices(raw);
   };
   static auto baseStateSave = leaves.state_save;
   leaves.state_save = [] {
@@ -315,10 +334,14 @@ void wifiMatrix(const std::string& mode) {
       assert(xp_app_test_current_epub() == results.owner && !xp_app_test_current_legacy());
       assert(!xp_epub_test_has_child(results.owner) && f().extractor && !f().clearedExtractor);
     } else {
-      assert(!xp_app_test_current_epub() && xp_app_test_current_legacy());
-      const auto& reader = f().handle(xp_app_test_current_legacy(), Kind::Legacy);
-      assert(reader.activityKind == XP_APP_READER && reader.path == f().path);
-      assertExited();
+      assert(xp_app_test_current_epub() && xp_app_test_current_epub() != results.owner);
+      assert(!xp_app_test_current_legacy() && f().entered == 2 && f().exited == 1);
+      assert(results.reopenPathChecked);
+      assert(f().clearedExtractor == 1 && f().unloadedClippings == 1);
+      assert(f().extractor && f().extractor->generation == 2 && f().clippings == f().extractor);
+      f().componentOrder(1, completeComponents);
+      f().count(Kind::Book, 2, 1);
+      results.owner = xp_app_test_current_epub();
     }
   } else {
     assert(!xp_app_test_current_epub() && !xp_app_test_current_legacy() && xp_app_test_is_home());
@@ -399,7 +422,19 @@ void closeToSleep() {
   assert(xp_app_event(&sleep) == XP_APP_ACCEPTED);
   assert(!xp_app_test_current_epub() && xp_app_test_parent_count() == 0);
   assert(results.children.empty() && results.pages.empty() && !results.section && !results.toolbar);
-  assertExited();
+  if (results.wifiMatrix && results.syncSucceeded && !results.reopenFails) {
+    assert(f().entered == 2 && f().exited == 2 && f().clearedExtractor == 2 && f().unloadedClippings == 2);
+    assert(!f().extractor && !f().clippings);
+    f().count(Kind::Book, 2, 2);
+    for (unsigned generation : {1u, 2u}) {
+      f().componentOrder(generation, completeComponents);
+      f().ordered(generation, {"exit", "fonts-release", "reader-count-reset", "state-save", "extractor-clear",
+                              "clippings-unload", "close:book", "close:failure-popup", "close:overlay-popup",
+                              "close:bookmarks", "close:root"});
+    }
+  } else {
+    assertExited();
+  }
   void* lock = runtime.render_lock(); XpAppRenderToken token{lock};
   xp_app_render(&token); runtime.render_unlock(lock);
   assert(results.sleepPainted); results.notificationPending = false;

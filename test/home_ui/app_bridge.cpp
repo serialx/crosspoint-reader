@@ -7,6 +7,7 @@
 #include <tuple>
 #include <vector>
 
+#include "../reader_lifecycle/physical_defaults.h"
 #include "ActivityResult.h"
 #include "ActivityResultView.h"
 #include "app_leaves.h"
@@ -332,7 +333,8 @@ void init() {
     }
     return 1;
   };
-  const XpAppPlatform platform{&legacy, &resources, &runtime};
+  static const auto epub = unexpectedEpubLeaves();
+  const XpAppPlatform platform{&legacy, &resources, &runtime, &epub};
   assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
 }
 void factoryCase(int argc, char** argv) {

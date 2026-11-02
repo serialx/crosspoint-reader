@@ -47,8 +47,10 @@ In each loop iteration, the firmware updates input, runs the active activity, ha
 
 ## Activity model
 
-Activities are screen-level controllers deriving from `src/activities/Activity.h`.
-Some flows use `src/activities/ActivityWithSubactivity.h` to host nested activities.
+The Rust application owns the activity stack, Home and the EPUB session. Native
+activities derive from `src/activities/Activity.h` and join that stack through the
+legacy activity boundary. Some native flows use
+`src/activities/ActivityWithSubactivity.h` to host nested activities.
 
 - `onEnter()` and `onExit()` manage setup/teardown
 - `loop()` handles per-frame behavior
@@ -57,14 +59,16 @@ Some flows use `src/activities/ActivityWithSubactivity.h` to host nested activit
 Top-level activity groups:
 
 - `src/activities/home/`: home and library navigation
-- `src/activities/reader/`: EPUB/XTC/TXT reading flows
+- `rust/crates/xp-ffi/src/app/epub/`: EPUB/TXT/Markdown session policy
+- `src/activities/reader/`: native XTC owner, reader resources and child screens
 - `src/activities/settings/`: settings menus and configuration
 - `src/activities/network/`: Wi-Fi selection, AP/STA mode, file transfer server
 - `src/activities/boot_sleep/`: boot and sleep transitions
 
 ## Reader and content pipeline
 
-Reader orchestration starts in `src/activities/reader/ReaderActivity.h` and dispatches to format-specific readers.
+Reader launches enter the Rust application. Reflowable books use its `EpubSession`;
+XTC/XTCH retain the native `ReaderActivity`/`XtcReaderActivity` route.
 The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust policy ownership and native resource lifetimes.
 EPUB processing is implemented in `lib/Epub/`. Its XML consumers use the
 streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
@@ -77,11 +81,11 @@ allocation ownership.
 
 ```mermaid
 flowchart LR
-    A[Select book] --> B[ReaderActivity]
+    A[Select book] --> B[Rust application]
     B --> C{Format}
-    C -->|EPUB| D[lib/Epub/Epub]
-    C -->|XTC| E[lib/Xtc reader]
-    C -->|TXT| F[lib/Txt reader]
+    C -->|EPUB / TXT / Markdown| F[EpubSession]
+    F --> D[Native Book resource / lib/Epub]
+    C -->|XTC / XTCH| E[Native XtcReaderActivity]
     D --> G[Parse OPF/TOC and collect CSS refs]
     G --> H[Build/load book.bin and css_rules.cache]
     H --> I[Layout pages/sections]
@@ -100,9 +104,9 @@ This diagram zooms into the EPUB path to show the main control and data flow fro
 
 ```mermaid
 flowchart TD
-    A[ReaderActivity onEnter] --> B{File type}
-    B -->|EPUB| C[Create Epub object]
-    B -->|XTC/TXT| Z[Use format-specific reader]
+    A[Rust application Reader launch] --> B{File type}
+    B -->|Reflowable| C[EpubSession opens native Book resource]
+    B -->|XTC / XTCH| Z[Native XtcReaderActivity]
 
     C --> D[Epub load]
     D --> E[Locate container and OPF]
@@ -110,7 +114,7 @@ flowchart TD
     F --> G[Load TOC and spine]
     G --> H[Load CSS cache or parse manifest/base-dir CSS]
 
-    H --> I[EpubReaderActivity]
+    H --> I[EpubSession book rendering]
     I --> J{Section cache exists for current settings?}
     J -->|Yes| K[Read section bin from SD cache]
     J -->|No| L[Parse chapter HTML and layout text]

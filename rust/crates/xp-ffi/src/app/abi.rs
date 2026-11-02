@@ -301,7 +301,6 @@ pub struct Legacy {
     pub home_gesture: unsafe extern "C" fn(*mut core::ffi::c_void) -> u8,
     pub forced_refresh: unsafe extern "C" fn(*mut core::ffi::c_void) -> u8,
     pub reader_turn: unsafe extern "C" fn(*mut core::ffi::c_void, u8, u8) -> u8,
-    pub reader_shortcut: unsafe extern "C" fn(*mut core::ffi::c_void, u8) -> u8,
     pub screenshot_info:
         unsafe extern "C" fn(*const core::ffi::c_void, ScreenshotSink, *mut core::ffi::c_void),
 }

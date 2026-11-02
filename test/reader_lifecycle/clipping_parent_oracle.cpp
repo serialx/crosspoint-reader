@@ -198,7 +198,9 @@ struct EpubReaderActivity {
   GfxRenderer renderer;
   std::unique_ptr<Section> section = std::make_unique<Section>();
   int currentSpineIndex = 2, buildViewportWidth = 80, buildViewportHeight = 100;
+#ifndef XP_CLIPPING_OWNER
   int runClippingPolicy(uint8_t operation, const Page& page, const XpUiReaderClipInput& input) const;
+#endif
   int clippingAtPoint(const Page&, int, int) const;
   void drawClippingHighlights(const Page&, int, int, int) const;
 #ifdef XP_CLIPPING_OWNER

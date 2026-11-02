@@ -119,10 +119,13 @@ def main():
     assert counts['child-dismiss'] == 48 and counts['save'] == counts['restart'] == counts['go'] == 4
     assert counts['lock'] == counts['unlock'] == 2 and counts['base-render'] == 1
     expected, projections = project(raw)
-    native_source = ROOT / 'src/activities/reader/EpubReaderActivity.cpp'
-    wrapper = definition(native_source.read_text(), 'void EpubReaderActivity::render(')
-    wrapper = replace_once(wrapper, 'runRecoveryPolicy(XP_UI_READER_RECOVERY_OPERATION_RENDER)',
-                           'renderLoadFailure()')
+    # Historical recovery composition shell only; full owner entry/render has its own tests.
+    # Copied from the pre-retirement source; the policy call binds the actual owner.
+    wrapper = """void EpubReaderActivity::render(RenderLock&& lock) {
+  if (!renderLoadFailure()) ReaderActivity::render(std::move(lock));
+  ModelLock modelLock(*this);
+  if (overlay == Overlay::None) publishRustScene({});
+}"""
     template = (HERE / 'recovery_oracle.cpp').read_text()
     fixture = replace_once(template, '// RECOVERY_METHODS',
                            '#include "recovery_session_rust.inc"\n' + wrapper).encode()

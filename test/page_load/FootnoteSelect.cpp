@@ -123,11 +123,11 @@ int main() {
   reader.testLinkTap();
   require(reader.navigatedHref.empty(), "cleared metadata has no link target");
   input.tapped = false;
+  reader.preparePage();
   require(reader.currentPageMetadata.assign(*page(2)), "multiple footnote metadata");
   section.loaded = page(2);
   reader.openFootnoteSelect(true);
   require(reader.child && section.loads == 1 && reader.navigatedHref.empty(), "multiple notes open selector");
-  reader.child->onEnter();
   input.released = MappedInputManager::Button::Confirm;
   reader.child->loop();
   reader.completion(reader.child->result);
@@ -143,6 +143,10 @@ int main() {
   input.released = MappedInputManager::Button::Power;
   powerActivity.loop();
   require(powerActivity.finished && std::get<FootnoteResult>(powerActivity.result.data).href == "#2", "power href");
+  // A new child owns the later cancellation; the prior result was already consumed.
+  reader.preparePage();
+  section.loaded = page(2);
+  reader.openFootnoteSelect(true);
   reader.completion(cancel.result);
   require(reader.menuRequests == 1, "cancel reopens requested reader menu");
 }

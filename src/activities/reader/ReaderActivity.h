@@ -47,16 +47,13 @@ class ReaderActivity : public RustActivityAdapter {
   // feature, then removed it in c1e1fec3 as dead code once no caller remained
   // ("removes unnecessary wrapper structs"). It is reinstated here because this
   // change reintroduces the callers: ReaderActivity.cpp uses it for the progress
-  // string and for the session's render-complete basis points, and
-  // EpubReaderActivity overrides getProgressBasisPoints() and falls back to it.
+  // string and for the session's render-complete basis points.
   int getProgressPercent() const { return getScreenshotInfo().progressPercent; }
   virtual int getProgressBasisPoints() const { return getProgressPercent() * 100; }
 
   virtual bool handleFormatInput() { return false; }
   virtual bool pageTurn(bool isForward) = 0;
   virtual bool skipPages(int amount) { return pageTurn(amount > 0); }
-  // A Bluetooth remote asks for the reader menu (true) or a new clipping (false).
-  virtual bool remoteShortcut(bool /*readerMenu*/) { return false; }
   virtual bool isAtEndOfBook() const = 0;
   virtual void onReturnFromEndOfBook() {}
 

@@ -62,7 +62,7 @@ def difference(actual, expected):
 def shared_methods(root, definition):
     source = (root / 'src/activities/reader/ReaderUtils.h').read_text()
     signatures = ('inline bool gestureAllowsSwipe(', 'inline bool gestureAllowsTap(',
-                  'inline bool isRtlBookLanguage(', 'inline void displayWithRefreshCycle(',
+'inline void displayWithRefreshCycle(',
                   'inline void displayBaseWithRefreshCycle(')
     return 'namespace ReaderUtils {\n' + '\n'.join(definition(source, item) for item in signatures) + '\n}\n'
 
@@ -113,8 +113,6 @@ def main():
     parser.add_argument('--adapter-dir', type=Path, default=ADAPTER)
     parser.add_argument('--interface-dir', type=Path,
                         help='Directory containing the main-owned lifecycle_session_fixture.h; defaults to adapter directory')
-    parser.add_argument('--original-executable', type=Path,
-                        help='Preserved ReaderLifecycleOracle executable; otherwise use unchanged extract.py')
     parser.add_argument('--evidence-dir', type=Path, default=os.environ.get('XP_LIFECYCLE_EVIDENCE_DIR'))
     args = parser.parse_args()
     root = args.repo.resolve()
@@ -124,7 +122,7 @@ def main():
     header = interface / 'lifecycle_session_fixture.h'
     assert header.is_file(), ('pass --interface-dir containing the frozen lifecycle header', str(header))
     sys.path.insert(0, str(here))
-    from extract import definition, generate
+    from extract import definition
     sys.path.insert(0, str(root / 'test'))
     from rust_host import rust_link_flags
 
@@ -145,7 +143,8 @@ def main():
                root / 'src/activities/reader/ReaderSession.cpp', root / 'src/activities/reader/ReaderSession.h',
                root / 'src/activities/reader/ReaderUtils.h', root / 'src/activities/reader/EpubReaderUtils.h',
                root / 'src/activities/reader/ProgressFile.h', root / 'src/activities/reader/RemoteTurnGate.h',
-               root / 'src/activities/reader/LinkNoteTitle.h', root / 'rust/crates/xp-ffi/include/xp_epub_session.h',
+               here / 'reader_link_note_owner.h', here / 'reader_value_owner.h',
+               root / 'test/ble_link_note_title/owner_tables.h', root / 'rust/crates/xp-ffi/include/xp_epub_session.h',
                root / 'rust/crates/xp-ffi/include/xp_ui_reader.h', root / 'rust/crates/xp-ffi/include/xp_app.h']
     tracked.extend(sorted((here / 'stubs').rglob('*.h')))
     tracked.extend(sorted((root / 'rust' / EPUB).rglob('*.rs')))
@@ -187,16 +186,6 @@ def main():
                 (evidence / (name + '.stderr')).write_bytes(result.stderr)
                 return result
 
-            if args.original_executable:
-                native = args.original_executable.resolve()
-            else:
-                # This preserves the old native route. If native methods are retired,
-                # pass the pinned executable rather than inventing a new baseline.
-                generate(root, work / 'reader_methods.inc')
-                native = compile_fixture('original', template)
-            original = capture('original', native)
-            assert original.returncode == 0, original.stderr.decode(errors='replace')
-            assert original.stdout == raw, difference(original.stdout, raw)
             candidate = capture('candidate', compile_fixture('candidate', fixture))
             assert candidate.returncode == 0, candidate.stderr.decode(errors='replace')
             assert candidate.stdout == raw, difference(candidate.stdout, raw)
@@ -208,7 +197,7 @@ def main():
                 'candidate_trace_sha256': digest(candidate.stdout),
                 'owners': 1566, 'input_owners': 12, 'input_frames': 96, 'room_calls': 20,
                 'section_publications': 1549, 'source_sha256': hashes,
-                'native_baseline': str(native), 'projections': {},
+                'baseline': 'immutable lifecycle.golden.gz', 'projections': {},
                 'policy': 'complete immutable golden; one retained owner per fixture; shared cases unchanged; no output filtering',
                 'physical_boundaries': 'original HalFile/Section/RenderLock; original clear stub with explicit pending-page setter',
                 'mutants': [],

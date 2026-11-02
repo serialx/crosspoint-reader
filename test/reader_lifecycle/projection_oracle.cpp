@@ -12,7 +12,11 @@
 #include <optional>
 #include <string>
 
-#include "ChapterPosition.h"
+// Fixture value only; chapter display/fraction are observed through the real owner.
+struct ChapterPosition {
+  int pageIndex = 0;
+  int totalPages = 0;
+};
 #include "CrossPointPosition.h"
 #include "projection_session_fixture.h"
 #include "util/ScreenshotInfo.h"

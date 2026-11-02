@@ -5,7 +5,6 @@
 #include <xp_ui_reader.h>
 #include <xp_ui_reader_chrome.h>
 
-#include <functional>
 #include <string>
 
 #include "ReaderChromeListActivity.h"
@@ -14,7 +13,7 @@ class GfxRenderer;
 class MappedInputManager;
 
 // Resource facade for Rust toolbar/panel scenes over the reader page.
-// The parent keeps its Model, navigation and Event API while EpubReaderActivity owns its lifecycle.
+// The Rust EPUB session owns its lifecycle and supplies synchronous row data.
 class ReaderToolbarUi {
  public:
   enum class Event { None = 0, Dismiss = 1, Tool = 2, PrevChapter = 3, NextChapter = 4, Scrub = 5, Row = 6 };
@@ -36,10 +35,6 @@ class ReaderToolbarUi {
     int selectedIndex = -1;  // row the buttons' cursor sits on; -1 = none shown
     bool (*rowFill)(void* ctx, int index, std::string& label, std::string& value, RowFlags& flags) = nullptr;
     void* rowFillContext = nullptr;
-    std::function<std::string(int)> rowText;
-    std::function<std::string(int)> rowValue;
-    RowFlags (*rowCheckbox)(void* ctx, int index) = nullptr;
-    void* rowCheckboxContext = nullptr;
     // Tile row: the tool in focus (toolbar) / the open panel (panel). 0..2.
     int activeTool = 0;
     // Button boards keep the theme's denser list row height (as every other

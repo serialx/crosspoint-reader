@@ -4,11 +4,11 @@ from pathlib import Path
 import sys
 import subprocess
 import tempfile
+ADAPTER = Path(__file__).resolve().parent
+ROOT = Path(__import__("os").environ.get("XP_RETIREMENT_REPO", ADAPTER.parent)).resolve()
+sys.path.insert(0, str(ROOT / "test"))
 from rust_host import rust_link_flags
-
-ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / "src/activities/reader/ClipSelectionActivity.cpp").read_text()
-reader_source = (ROOT / "src/activities/reader/EpubReaderActivity.cpp").read_text()
 header = (ROOT / "src/activities/reader/ClipSelectionActivity.h").read_text()
 word_box = next(line.strip() for line in header.splitlines() if 'using WordBox =' in line)
 clean_word = "const char* cleanWordStart" + source.split("const char* cleanWordStart", 1)[1].split(
@@ -30,12 +30,7 @@ def method(name, next_name, text=source):
 extract_words = method("bool ClipSelectionActivity::extractWords", "bool ClipSelectionActivity::buildSelectedText")
 sys.path.insert(0, str(ROOT / "test/reader_lifecycle"))
 from extract import definition
-word_font = definition(reader_source, "int clippingWordFont(")
-word_rect = definition(reader_source, "Rect clippingWordRect(") if "Rect clippingWordRect(" in reader_source else ""
-saved_hit = method("int EpubReaderActivity::clippingAtPoint", "void EpubReaderActivity::drawClippingHighlights", reader_source)
-saved_draw = definition(reader_source, "void EpubReaderActivity::drawClippingHighlights(")
-if "int EpubReaderActivity::runClippingPolicy(" in reader_source:
-    saved_draw += definition(reader_source, "int EpubReaderActivity::runClippingPolicy(")
+saved_owner = (ADAPTER / "clipping_selection_owner.inc").read_text()
 
 # Compile production extraction, export, and redraws with bounded UI/rendering stubs.
 harness = r"""
@@ -50,6 +45,7 @@ harness = r"""
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <BidiUtils.h>
 #include <Memory.h>
@@ -239,7 +235,6 @@ struct ClipSelectionActivity {
 """ + build_text + extract_words + r"""
 struct EpubReaderActivity {
   struct ModelLock { explicit ModelLock(const EpubReaderActivity&) {} };
-  int runClippingPolicy(uint8_t, const Page&, const XpUiReaderClipInput&) const;
   Renderer& renderer;
   explicit EpubReaderActivity(Renderer& renderer) : renderer(renderer) {}
   struct Section { int currentPage = 0, pageCount = 1; } sectionData;
@@ -248,7 +243,7 @@ struct EpubReaderActivity {
   int clippingAtPoint(const Page&, int, int) const;
   void drawClippingHighlights(const Page&, int, int, int) const;
 };
-""" + word_font + word_rect + saved_hit + saved_draw + r"""
+""" + saved_owner + r"""
 int loadLine(ClipSelectionActivity& activity, const std::vector<std::string>& logical,
              bool rtl, int first = 0, uint32_t offset = 0, uint16_t row = 0) {
   std::vector<uint16_t> visual;
@@ -431,7 +426,7 @@ with tempfile.TemporaryDirectory() as directory:
     cpp.write_text(harness)
     subprocess.run([
         "c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
-        "-I", str(ROOT / "src"), "-I", str(ROOT / "lib/Memory"),
+        "-I", str(ROOT / "src"), "-I", str(ADAPTER), "-I", str(ROOT / "test/reader_lifecycle"), "-I", str(ROOT / "lib/Memory"),
         "-I", str(ROOT / "test/minibidi_arabic/stubs"),
         "-I", str(ROOT / "lib/MiniBidi"), "-I", str(ROOT / "lib/Utf8"),
         "-I", str(ROOT / "lib/Epub"),

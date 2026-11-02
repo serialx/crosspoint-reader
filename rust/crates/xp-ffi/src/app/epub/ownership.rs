@@ -17,23 +17,29 @@ impl EpubSession {
     pub(in crate::app) fn try_owned(
         path: &[u8],
         fast_initial: bool,
-        frequency: i32,
         leaves: &'static abi::XpEpubLeaves,
         runtime: &'static app_abi::Runtime,
         resources: &'static app_abi::Resources,
     ) -> Option<Box<Self>> {
         let mut pending = Pending(Some(Self::try_new(
-            path,
-            fast_initial,
-            frequency,
-            leaves,
-            runtime,
-            resources,
+            path, false, 0, leaves, runtime, resources,
         )?));
         let owner = pending.0.as_ref().expect("pending owner");
         let access = owner.entry_resources();
         let native = NonNull::new(unsafe { (leaves.resources_open)() })?;
         unsafe { (*owner.guarded(&access)).native = Some(native) };
+        if fast_initial {
+            let render = unsafe { (leaves.render_services)(native.as_ptr()).as_ref() }
+                .expect("physical root render services");
+            let frequency = unsafe {
+                render.read.expect("physical root query")(
+                    render.context,
+                    xp_ui::reader::render::Query::Frequency as u8,
+                )
+            } as i32;
+            // Entry owns the unpublished model; no render can observe it yet.
+            unsafe { (*owner.state.get()).base.refresh_counter = frequency.max(2) };
+        }
         let bookmarks = NonNull::new(unsafe { (leaves.bookmarks_open)() })?;
         unsafe { (*owner.guarded(&access)).bookmarks = Some(bookmarks) };
         let overlay = NonNull::new(unsafe { (leaves.popup_open)() })?;

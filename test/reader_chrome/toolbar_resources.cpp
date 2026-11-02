@@ -33,10 +33,14 @@ struct ReaderToolbarUi {
   struct RowFlags {
     bool toggle = false, checked = false;
   };
-  struct ResourceModel : Toolbar::Model {
+  struct ResourceModel {
+    bool panel = false, denseRows = false;
+    const char* chapterTitle = "Chapter title";
+    const char* pageInfo = "12/40   51%";
+    const char* panelTitle = "Contents";
+    int itemCount = 30, selectedIndex = 2;
     bool (*rowFill)(void*, int, std::string&, std::string&, RowFlags&) = nullptr;
     void* rowFillContext = nullptr;
-    RowFlags (*rowCheckbox)(void*, int) = nullptr;
   } model_;
   Metrics renderer;
   ResourceTarget textTarget;
@@ -65,16 +69,19 @@ int main() {
         item.toggleChecked = index % 3 == 2;
       }
     };
-    now.model_.rowCheckbox = [](void*, int index) -> ReaderToolbarUi::RowFlags {
-      return {index % 3 != 0, index % 3 == 2};
-    };
     old.model_.rowText = [&](int) {
       ++oldCalls;
       return std::string(1024, 'A');
     };
-    now.model_.rowText = [&](int) {
-      ++newCalls;
-      return std::string(1024, 'A');
+    now.model_.rowFillContext = &newCalls;
+    now.model_.rowFill = [](void* context, int index, std::string& label, std::string& value,
+                            ReaderToolbarUi::RowFlags& flags) {
+      ++*static_cast<int*>(context);
+      // Preserve this fixture's original temporary-label allocation workload.
+      label = std::string(1024, 'A');
+      value.clear();
+      flags = {index % 3 != 0, index % 3 == 2};
+      return true;
     };
     XpUiReaderTheme theme{};
     theme.screen = theme.safe = {0, 0, static_cast<int16_t>(width), static_cast<int16_t>(height)};

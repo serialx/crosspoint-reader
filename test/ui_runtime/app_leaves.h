@@ -23,7 +23,6 @@ inline XpAppLegacy appTestLegacy() {
       .home_gesture = [](void* activity) -> uint8_t { return {}; },
       .forced_refresh = [](void* activity) -> uint8_t { return {}; },
       .reader_turn = [](void* activity, uint8_t forward, uint8_t chapter) -> uint8_t { return {}; },
-      .reader_shortcut = [](void* activity, uint8_t reader_menu) -> uint8_t { return {}; },
       .screenshot_info = [](const void* activity, XpAppScreenshotSink sink, void* context) -> void {},
   };
 }

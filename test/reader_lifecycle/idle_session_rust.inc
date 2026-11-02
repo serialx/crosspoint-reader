@@ -6,8 +6,8 @@ static EpubReaderActivity& idleOwner() {
   assert(activeIdle && !idleModelDepth && !lockDepth);
   return *activeIdle;
 }
-static XpUiReaderIdleSnapshot idleSeedSnapshot(const EpubReaderActivity& owner) {
-  XpUiReaderIdleSnapshot sample{};
+static XpEpubTestIdleSnapshot idleSeedSnapshot(const EpubReaderActivity& owner) {
+  XpEpubTestIdleSnapshot sample{};
   sample.spine = owner.currentSpineIndex;
   sample.spine_count = owner.epub ? owner.epub->count : 0;
   sample.confirm_threshold = owner.confirmThreshold;

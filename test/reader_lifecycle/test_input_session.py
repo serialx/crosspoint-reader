@@ -89,7 +89,9 @@ def main():
         fixture, adapter, here / 'overlay_actions_session_fixture.h',
         here / 'extract_input.py', here / 'extract.py', Path(__file__).resolve(),
         root / 'src/activities/reader/ReaderUtils.h',
-        root / 'src/activities/reader/ChapterPosition.h',
+        here / 'reader_value_owner.h',
+        root / 'test/ble_link_note_title/owner_tables.h',
+        here / 'projection_session_fixture.h',
         root / 'rust/crates/xp-ffi/src/app/epub/test_support/input.rs',
         root / 'rust/crates/xp-ffi/include/xp_epub_session.h',
     )

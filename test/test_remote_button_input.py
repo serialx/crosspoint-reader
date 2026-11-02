@@ -40,6 +40,7 @@ harness = r"""
 #include <cassert>
 #include "MappedInputManager.h"
 #include "app_leaves.h"
+#include "../reader_lifecycle/physical_defaults.h"
 class GfxRenderer {};
 MappedInputManager* testInput = nullptr;
 struct Compatibility {
@@ -176,7 +177,8 @@ void checkRouting(MappedInputManager& input) {
   runtime.render_lock = []() -> void* { return testInput; };
   runtime.render_try_lock = runtime.render_lock;
   runtime.ble_before_screen_change = [](uint8_t) -> uint8_t { return 1; };
-  const XpAppPlatform platform{&legacy, &resources, &runtime};
+  static const auto epub = unexpectedEpubLeaves();
+  const XpAppPlatform platform{&legacy, &resources, &runtime, &epub};
   assert(xp_app_init(&platform, &activityManager.table) == XP_APP_OK);
   XpAppEvent adopt{.kind = XP_APP_ADOPT_REPLACE};
   adopt.value.adopt_replace = new OwnedLegacyActivity(std::unique_ptr<Activity>(manager.currentActivity));

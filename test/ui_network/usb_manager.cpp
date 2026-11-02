@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "../reader_lifecycle/physical_defaults.h"
 #include "UsbDriveActivity.h"
 #include "app_leaves.h"
 
@@ -121,7 +122,8 @@ class ActivityManager {
     runtime.render_lock = []() -> void* { return manager; };
     runtime.render_try_lock = runtime.render_lock;
     runtime.frontlight_present = []() -> uint8_t { return Frontlight.present(); };
-    const XpAppPlatform platform{&legacy, &resources, &runtime};
+    static const auto epub = unexpectedEpubLeaves();
+    const XpAppPlatform platform{&legacy, &resources, &runtime, &epub};
     assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
   }
   XpAppFacts facts() const { return compatibility.activity_facts(); }

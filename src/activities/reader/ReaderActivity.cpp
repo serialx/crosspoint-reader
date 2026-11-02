@@ -1,7 +1,6 @@
 #include "ReaderActivity.h"
 
 #include <FontCacheManager.h>
-#include <FsHelpers.h>
 #include <HalStorage.h>
 #include <KOReaderDocumentId.h>
 #include <Memory.h>
@@ -12,7 +11,6 @@
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
-#include "EpubReaderActivity.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
 #include "SdCardFontSystem.h"
@@ -35,13 +33,8 @@ ReaderActivity::ReaderActivity(const char* name, GfxRenderer& renderer, MappedIn
 
 std::unique_ptr<ReaderActivity> ReaderActivity::create(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                        std::string path, const bool allowFastInitialRefresh) {
-  // ActivityManager requires heap ownership; each branch allocates exactly one screen-lifetime object.
-  std::unique_ptr<ReaderActivity> activity;
-  if (FsHelpers::hasXtcExtension(path)) {
-    activity = makeUniqueNoThrow<XtcReaderActivity>(renderer, mappedInput, std::move(path), allowFastInitialRefresh);
-  } else {
-    activity = makeUniqueNoThrow<EpubReaderActivity>(renderer, mappedInput, std::move(path), allowFastInitialRefresh);
-  }
+  // Rust routes only XTC launches to the native reader factory.
+  auto activity = makeUniqueNoThrow<XtcReaderActivity>(renderer, mappedInput, std::move(path), allowFastInitialRefresh);
 
   if (!activity) {
     LOG_ERR("READER", "OOM: reader activity");

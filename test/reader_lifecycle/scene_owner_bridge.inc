@@ -139,7 +139,7 @@ class EpubReaderActivity {
     const auto out = sceneObserve();
     panelHoldJumped = out.hold;
     fields[0] = out.overlay;
-    fields[XP_UI_READER_OVERLAY_FIELD_STORED] = out.stored;
+    fields[7] = out.stored;  // Original trace slot for the stored-page observation.
     lockDepth = sceneRenderDepth;
   }
   void loop() {

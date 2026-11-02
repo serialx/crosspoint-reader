@@ -1,13 +1,5 @@
-//! Thin reader-family exports. Policy and wire layouts live in xp-ui.
-use xp_ui::reader::{self, LinkNote, Progress, Session};
-
-/// # Safety
-/// Non-null snapshot points to an initialized, aligned POD value for this call.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_idle_plan(snapshot: *const reader::idle::Snapshot) -> u8 {
-    snapshot.as_ref().map_or(0, reader::idle::plan)
-}
+//! Shared reader-family exports. Policy and wire layouts live in xp-ui.
+use xp_ui::reader::{self, Progress, Session};
 
 /// # Safety
 /// Non-null pointers must be aligned, valid for the declared reader-family wire
@@ -111,28 +103,6 @@ pub unsafe extern "C" fn xp_ui_reader_refresh(remaining: *mut i32, frequency: i3
         return 0;
     };
     u8::from(reader::refresh(remaining, frequency))
-}
-/// # Safety
-/// Non-null pointers must be aligned, valid for the declared reader-family wire
-/// value or buffer, and exclusively borrowed for mutations during this call.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_link_draw(state: *mut LinkNote, shown: u8, note: u8) -> u8 {
-    let Some(state) = state.as_mut() else {
-        return 0;
-    };
-    state.draw(shown != 0, note)
-}
-/// # Safety
-/// Non-null pointers must be aligned, valid for the declared reader-family wire
-/// value or buffer, and exclusively borrowed for mutations during this call.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_link_repaint(state: *mut LinkNote, note: u8) -> u8 {
-    let Some(state) = state.as_mut() else {
-        return 0;
-    };
-    u8::from(state.repaint(note))
 }
 
 /// # Safety
@@ -264,24 +234,6 @@ pub extern "C" fn xp_ui_reader_gesture(gesture: u8) -> u8 {
     input::gesture(gesture)
 }
 /// # Safety
-/// tag points to length readable bytes; null is accepted only for length zero.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_language_rtl(tag: *const u8, length: u32) -> u8 {
-    if tag.is_null() || length > isize::MAX as u32 {
-        return 0;
-    }
-    u8::from(input::language_rtl(core::slice::from_raw_parts(
-        tag,
-        length as usize,
-    )))
-}
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_chapter_display(page: i32, total: i32) -> input::ChapterDisplay {
-    input::chapter_display(page, total)
-}
-/// # Safety
 /// Non-null state points to an exclusively borrowed valid ListState for this call.
 #[no_mangle]
 #[inline(never)]
@@ -324,20 +276,6 @@ pub unsafe extern "C" fn xp_ui_reader_toolbar_nav_publish(
     }
     debug_assert!((state as usize).abs_diff(painted as usize) >= core::mem::size_of::<ListState>());
     input::toolbar_publish(&mut *state, &*painted);
-}
-
-use xp_ui::reader::render;
-/// # Safety
-/// Services obey the reader-family synchronous callback contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_render_page(
-    services: *const render::Services,
-    strip_enabled: u8,
-) {
-    if let Some(services) = services.as_ref() {
-        render::render(*services, strip_enabled != 0)
-    }
 }
 
 use xp_ui::reader::base;
@@ -420,220 +358,4 @@ pub unsafe extern "C" fn xp_ui_reader_base_force_refresh(model: *mut base::Model
     if let Some(model) = model.as_mut() {
         model.force_refresh();
     }
-}
-
-/// # Safety
-/// Non-null services and their context obey the synchronous loop callback contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_loop_run(services: *const reader::epub_loop::Services) {
-    if let Some(services) = services.as_ref() {
-        reader::epub_loop::run(*services);
-    }
-}
-
-/// # Safety
-/// Services obey the synchronous toolbar-parent callback contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_overlay_run(
-    services: *const reader::epub_overlay::Services,
-    operation: u8,
-) {
-    reader::epub_overlay::run(services, operation);
-}
-
-/// # Safety
-/// Non-null services obey the synchronous overlay-view callback contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_overlay_view(
-    services: *const reader::overlay_view::Services,
-) {
-    if let Some(services) = services.as_ref() {
-        reader::overlay_view::run(*services);
-    }
-}
-
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_overlay_checkbox(mode: u8, row_or_action: i32) -> u8 {
-    reader::overlay_view::checkbox(mode, row_or_action)
-}
-
-/// # Safety
-/// Non-null services obey the synchronous navigation resource contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_navigation(
-    services: *const reader::epub_navigation::Services,
-    operation: u8,
-    a: i32,
-    b: i32,
-) -> u32 {
-    reader::epub_navigation::run(services, operation, a, b)
-}
-
-/// # Safety
-/// Non-null services obey the synchronous chapter-build resource contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_book_render(services: *const reader::book_render::Services) {
-    reader::book_render::run(services);
-}
-
-/// # Safety
-/// Services obey the synchronous status/row string and paint contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_view_value(
-    services: *const reader::view_values::Services,
-    operation: u8,
-    row: i32,
-) {
-    reader::view_values::run(services, operation, row);
-}
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_toolbar_style(style: u8) -> u8 {
-    reader::view_values::toolbar(style)
-}
-
-/// # Safety
-/// Services obey the synchronous EPUB lifetime resource contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_book_lifetime(
-    services: *const reader::book_lifetime::Services,
-    operation: u8,
-) -> u8 {
-    reader::book_lifetime::run(services, operation)
-}
-
-/// # Safety
-/// Services obey the synchronous chapter build resource contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_build_policy(
-    services: *const reader::build_policy::Services,
-    operation: u8,
-) -> u8 {
-    reader::build_policy::run(services, operation)
-}
-
-/// # Safety
-/// Services obey the synchronous reader settings resource contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_settings(
-    services: *const reader::settings::Services,
-    operation: u8,
-    argument: i32,
-) {
-    reader::settings::run(services, operation, argument);
-}
-
-/// # Safety
-/// Services obey the synchronous reader menu-parent resource contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_menu_parent(
-    services: *const reader::menu_parent::Services,
-    operation: u8,
-    argument: i32,
-) {
-    reader::menu_parent::run(services, operation, argument);
-}
-
-/// # Safety
-/// Services obey the synchronous protected-open recovery contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_recovery(
-    services: *const reader::recovery::Services,
-    operation: u8,
-    a: i32,
-    b: i32,
-) -> u8 {
-    reader::recovery::run(services, operation, a, b)
-}
-
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_bookmark_range(
-    page: i32,
-    count: i32,
-) -> reader::bookmark::ProgressRange {
-    reader::bookmark::range(page, count)
-}
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn xp_ui_reader_bookmark_matches(
-    bookmark: reader::bookmark::BookmarkPosition,
-    spine: i32,
-    page: i32,
-    count: i32,
-    range: reader::bookmark::ProgressRange,
-) -> u8 {
-    u8::from(reader::bookmark::matches(
-        bookmark, spine, page, count, range,
-    ))
-}
-/// # Safety
-/// Services obey the synchronous bookmark resource contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_bookmark(
-    services: *const reader::bookmark::Services,
-    operation: u8,
-) {
-    reader::bookmark::run(services, operation);
-}
-/// # Safety
-/// Services obey the synchronous link persistence and buffer-borrow contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_link_persistence(
-    services: *const reader::bookmark::LinkServices,
-    load: u8,
-) {
-    reader::bookmark::link_run(services, load);
-}
-
-/// # Safety
-/// Services/input obey the synchronous borrowed clipping-view contract.
-#[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn xp_ui_reader_clipping(
-    services: *const reader::clipping::Services,
-    operation: u8,
-    input: *const reader::clipping::Input,
-) -> i32 {
-    reader::clipping::run(services, operation, input)
-}
-
-/// # Safety
-/// The service callbacks and borrowed resources obey the reader child contract.
-#[no_mangle]
-pub unsafe extern "C" fn xp_ui_reader_child(
-    s: *const xp_ui::reader::child::Services,
-    operation: u8,
-    a: i32,
-    b: i32,
-    c: u8,
-) -> u8 {
-    xp_ui::reader::child::run(s, operation, a, b, c)
-}
-
-/// # Safety
-/// The borrowed services and output remain valid until this call returns.
-#[no_mangle]
-pub unsafe extern "C" fn xp_ui_reader_projection(
-    s: *const xp_ui::reader::projection::Services,
-    operation: u8,
-    a: i32,
-    b: i32,
-    c: u8,
-) -> u32 {
-    xp_ui::reader::projection::run(s, operation, a, b, c)
 }

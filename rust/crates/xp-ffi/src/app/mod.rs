@@ -88,6 +88,7 @@ struct App {
     signals: ModelCell<Signals>,
     widths: UnsafeCell<xp_ui::home::view::Widths>,
     legacy: &'static abi::Legacy,
+    epub: &'static epub::abi::XpEpubLeaves,
     resources: &'static abi::Resources,
     runtime: &'static abi::Runtime,
 }
@@ -192,6 +193,20 @@ impl App {
     }
 
     fn create(&self, launch: &abi::Launch) -> Option<Owner> {
+        if launch.kind == abi::READER {
+            let reader = unsafe { launch.value.reader };
+            let path = unsafe { reader.path.bytes() }?;
+            if home_books::book_kind(path) != Some(abi::BOOK_XTC) {
+                return epub::EpubSession::try_owned(
+                    path,
+                    reader.fast_initial != 0,
+                    self.epub,
+                    self.runtime,
+                    self.resources,
+                )
+                .map(Owner::Epub);
+            }
+        }
         if !matches!(
             launch.kind,
             abi::FILES
@@ -650,10 +665,11 @@ pub unsafe extern "C" fn xp_app_init(
     }) else {
         return abi::INVALID;
     };
-    let (Some(legacy), Some(resources), Some(runtime)) = (
+    let (Some(legacy), Some(resources), Some(runtime), Some(epub)) = (
         unsafe { platform.legacy.as_ref() },
         unsafe { platform.resources.as_ref() },
         unsafe { platform.runtime.as_ref() },
+        unsafe { platform.epub.as_ref() },
     ) else {
         return abi::INVALID;
     };
@@ -673,6 +689,7 @@ pub unsafe extern "C" fn xp_app_init(
         ),
         widths: UnsafeCell::new(xp_ui::home::view::Widths::default()),
         legacy,
+        epub,
         resources,
         runtime,
     };
@@ -807,9 +824,7 @@ pub unsafe extern "C" fn xp_app_event(event: *const abi::Event) -> abi::EventRes
                     runtime: app.runtime,
                 });
                 match target {
-                    Target::Legacy(target) => unsafe {
-                        (app.legacy.reader_shortcut)(target.as_ptr(), event.value.reader_menu) != 0
-                    },
+                    Target::Legacy(_) => false,
                     Target::Epub(epub) => unsafe { epub.as_ref() }
                         .dispatch_remote_shortcut(unsafe { event.value.reader_menu } != 0),
                     Target::Home(_) => false,
@@ -896,7 +911,6 @@ mod probe {
     pub unsafe extern "C" fn xp_app_test_install_epub(
         path: abi::Text,
         fast_initial: u8,
-        frequency: i32,
         leaves: *const epub::abi::XpEpubLeaves,
     ) -> u8 {
         let (Some(app), Some(path), Some(leaves)) =
@@ -907,7 +921,6 @@ mod probe {
         let Some(owner) = epub::EpubSession::try_owned(
             path,
             fast_initial != 0,
-            frequency,
             leaves,
             app.runtime,
             app.resources,

@@ -111,17 +111,6 @@ def transformed_fixture(template):
                                         '        loop_session::Bridge loopSession(r);\n        r.loop();')
 
 
-def historical_fixture(template):
-    source = subprocess.check_output(['git', 'show', '8d534a99:src/activities/reader/EpubReaderActivity.cpp'],
-                                     cwd=ROOT, text=True)
-    utils = subprocess.check_output(['git', 'show', '8d534a99:src/activities/reader/ReaderUtils.h'], cwd=ROOT, text=True)
-    constants = re.findall(r'constexpr unsigned long (?:GO_HOME_MS|GO_BACK_OR_HOME_MS|BOOKMARK_MESSAGE_DURATION_MS) = [^;]+;', utils)
-    assert len(constants) == 3
-    methods = 'namespace ReaderUtils {\n' + '\n'.join(constants) + '\n}\n'
-    methods += definition(source, 'void EpubReaderActivity::loop()')
-    return replace_once(template, '#include "loop_methods.inc"', methods)
-
-
 def rust_mutants(owner, maintenance):
     button_probe = '        let buttons = self.button_turn();\n'
     pending = '        if self.model(|state| state.manual_turn != 0) && !guard {\n'
@@ -151,7 +140,6 @@ def mismatch(actual, expected):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release', action='store_true')
-    parser.add_argument('--original-executable', type=Path)
     parser.add_argument('--evidence-dir', type=Path, default=os.environ.get('XP_LOOP_EVIDENCE_DIR'))
     args = parser.parse_args()
     golden_name, gzip_sha, raw_sha, raw_lines = GOLDENS[args.release]
@@ -197,10 +185,6 @@ def main():
                 (evidence / (name + '.stderr')).write_bytes(result.stderr)
                 return result
 
-            native = args.original_executable or compile_fixture('original', historical_fixture(template))
-            original = capture('original', native)
-            assert original.returncode == 0, original.stderr.decode(errors='replace')
-            assert original.stdout == raw, mismatch(original.stdout, raw)
             candidate = capture('candidate', compile_fixture('candidate', fixture))
             assert candidate.returncode == 0, candidate.stderr.decode(errors='replace')
             assert candidate.stdout == expected, mismatch(candidate.stdout, expected)
@@ -210,7 +194,7 @@ def main():
                        'candidate_trace_sha256': digest(candidate.stdout), 'projection_counts': counts,
                        'source_sha256': hashes, 'policy': 'one Rust owner per case; two real loop steps; no candidate filtering',
                        'publication': 'exact five-fact sequence at create and after each build attempt; complete=0, estimate=pageCount',
-                       'native_baseline': str(native)}
+                       'baseline': 'immutable ' + golden_name}
             (evidence / 'baseline.json').write_text(json.dumps(summary, indent=2) + '\n')
             print(json.dumps(summary), flush=True)
             copied_repo = work / 'source'; copied_rust = copied_repo / 'rust'

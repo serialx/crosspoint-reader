@@ -215,7 +215,6 @@ typedef struct {
   uint8_t (*home_gesture)(void* activity);
   uint8_t (*forced_refresh)(void* activity);
   uint8_t (*reader_turn)(void* activity, uint8_t forward, uint8_t chapter);
-  uint8_t (*reader_shortcut)(void* activity, uint8_t reader_menu);
   void (*screenshot_info)(const void* activity, XpAppScreenshotSink sink, void* context);
 } XpAppLegacy;
 
@@ -379,7 +378,7 @@ static_assert(sizeof(XpAppText) == 2 * sizeof(void*));
 static_assert(offsetof(XpAppText, len) == sizeof(void*));
 static_assert(sizeof(XpAppPoint) == 8);
 static_assert(sizeof(XpAppBook) == 8 * sizeof(void*));
-static_assert(sizeof(XpAppLegacy) == 15 * sizeof(void*));
+static_assert(sizeof(XpAppLegacy) == 14 * sizeof(void*));
 static_assert(sizeof(XpAppCompatibility) == 3 * sizeof(void*));
 static_assert(sizeof(XpAppResources) == 46 * sizeof(void*));
 static_assert(sizeof(XpAppRuntime) == 33 * sizeof(void*));

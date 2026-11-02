@@ -55,7 +55,6 @@ def fixture(native):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mode', choices=GOLDENS, required=True)
-    parser.add_argument('--legacy-executable', type=Path, help='retain the original CMake executable comparison first')
     args = parser.parse_args()
     name = 'reader_render_oracle_' + args.mode
     expected_lines, gzip_sha, raw_sha = GOLDENS[args.mode]
@@ -65,8 +64,6 @@ def main():
     assert digest(compressed) == gzip_sha and digest(expected) == raw_sha
     counts = collections.Counter(line.split(b' ', 1)[0].decode() for line in expected.splitlines())
     assert len(expected.splitlines()) == expected_lines and counts['case'] == counts['end'] == 5120
-    if args.legacy_executable:
-        subprocess.run([sys.executable, str(HERE / 'compare.py'), str(args.legacy_executable), str(golden)], check=True)
     production_file = ROOT / 'rust' / PRODUCTION
     production = production_file.read_text()
     native = (ROOT / NATIVE).read_text()

@@ -11,7 +11,7 @@ impl EpubSession {
         }
         self.toggle_auto_page_turn(result.page_turn_option);
         if !cancelled {
-            self.confirm_reader_menu(result.action);
+            self.confirm_reader_menu(result.action, super::menu::MenuOrigin::ChildResult);
         }
     }
 
@@ -60,7 +60,8 @@ impl EpubSession {
     }
 
     // The native result and its strings are borrowed only until this call returns.
-    pub(super) unsafe fn child_result(&self, result: Option<&app_abi::XpAppResultView>) {
+    #[inline(never)]
+    pub(in crate::app) unsafe fn child_result(&self, result: Option<&app_abi::XpAppResultView>) {
         let intent = self.model(|state| core::mem::take(&mut state.child));
         let cancelled = result.is_none_or(|result| result.cancelled != 0);
         match intent {
@@ -114,7 +115,7 @@ impl EpubSession {
                     .filter(|result| !cancelled && result.kind == 9)
                     .map(|result| &result.value.progress),
             ),
-            ChildIntent::Qr | ChildIntent::Reopen => self.open_reader_menu(),
+            ChildIntent::Qr => self.open_reader_menu(),
             ChildIntent::Wifi => self.loan_wifi_result(cancelled),
         }
     }

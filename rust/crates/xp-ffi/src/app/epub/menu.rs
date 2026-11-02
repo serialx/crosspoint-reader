@@ -7,6 +7,12 @@ use super::{
 use core::ptr::NonNull;
 use xp_ui::reader::{input::Query, menu_parent::Action};
 
+#[derive(Clone, Copy)]
+pub(super) enum MenuOrigin {
+    Direct,
+    ChildResult,
+}
+
 impl EpubSession {
     pub(super) fn open_reader_menu(&self) {
         #[cfg(feature = "app-test")]
@@ -67,7 +73,7 @@ impl EpubSession {
                 });
             let args = abi::XpEpubMenuArgs {
                 title,
-                display_page: position.page.wrapping_add(1),
+                display_page: position.display_page(),
                 pages: position.count,
                 percent,
                 orientation: self.settings(false).orientation,
@@ -199,9 +205,14 @@ impl EpubSession {
         });
     }
 
-    pub(super) fn confirm_reader_menu(&self, action: i32) {
+    pub(super) fn confirm_reader_menu(&self, action: i32, origin: MenuOrigin) {
         if cfg!(feature = "reader-strips") {
             let access = self.lock_resources();
+            if matches!(origin, MenuOrigin::Direct) && self.model(|state| state.scene_gate.failed) {
+                drop(access);
+                self.request_update();
+                return;
+            }
             unsafe { (self.leaves.strip_release_idle)(self.native(&access)) };
         }
         match action {
@@ -215,7 +226,14 @@ impl EpubSession {
             x if x == Action::DeleteCache as i32 => self.clear_book_cache(),
             x if x == Action::Screenshot as i32 => {
                 {
-                    let _access = self.lock_resources();
+                    let access = self.lock_resources();
+                    if matches!(origin, MenuOrigin::Direct)
+                        && self.model(|state| state.scene_gate.failed)
+                    {
+                        drop(access);
+                        self.request_update();
+                        return;
+                    }
                     self.model(|state| state.screenshot = true);
                 }
                 self.request_update();

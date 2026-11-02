@@ -216,3 +216,24 @@ pub unsafe extern "C" fn xp_epub_test_projection_turn(owner: *mut c_void, value:
 pub unsafe extern "C" fn xp_epub_test_projection_skip(owner: *mut c_void, value: i32) -> u8 {
     u8::from((&*owner.cast::<EpubSession>()).skip_pages(value))
 }
+
+#[repr(C)]
+pub struct TestChapterDisplay {
+    pub display_page: i32,
+    pub fraction: f32,
+    pub has_total: u8,
+    pub reserved: [u8; 3],
+}
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_projection_display(
+    raw: *mut c_void,
+    out: *mut TestChapterDisplay,
+) {
+    let position = (&*raw.cast::<EpubSession>()).chapter_position();
+    *out = TestChapterDisplay {
+        display_page: position.display_page(),
+        fraction: position.fraction(),
+        has_total: u8::from(position.has_total()),
+        reserved: [0; 3],
+    };
+}

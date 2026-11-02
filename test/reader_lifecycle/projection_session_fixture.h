@@ -48,3 +48,11 @@ uint8_t xp_epub_test_projection_turn(void*, uint8_t);
 uint8_t xp_epub_test_projection_skip(void*, int32_t);
 uint8_t xp_epub_test_projection_move(void*, const XpUiReaderMove*, uint8_t);
 }
+
+struct XpEpubTestChapterDisplay {
+  int32_t display_page;
+  float fraction;
+  uint8_t has_total;
+  uint8_t reserved[3];
+};
+extern "C" void xp_epub_test_projection_display(void*, XpEpubTestChapterDisplay*);

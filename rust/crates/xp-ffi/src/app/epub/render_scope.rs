@@ -32,7 +32,9 @@ impl Drop for Publication<'_> {
 
 impl EpubSession {
     // The application retains RenderLock until this method returns.
-    pub(super) unsafe fn render(&self) -> bool {
+    // Keep the EPUB frame out of the shared App render dispatch.
+    #[inline(never)]
+    pub(in crate::app) unsafe fn render(&self) -> bool {
         if !self.model(|state| state.ready) {
             return false;
         }

@@ -1,6 +1,6 @@
 """Compare real EPUB overlay input and retained results with the frozen parent trace.
 
-Only the 74 approved resource scopes are added to the expected trace. Candidate
+Only approved resource scope changes are projected into the expected trace. Candidate
 output, including lazy probes and native destructors, is compared without filtering.
 """
 import argparse
@@ -97,8 +97,16 @@ def project(raw):
                     assert (int(dismiss[3]), int(dismiss[4]), int(dismiss[5])) == (0, 0, 0)
                     replacements[dismiss_index] = [(b'lock', 0, 0, 1), (b'dismiss', 0, 0, 1)]
                     replacements[index] = [(b'discard', a, b, 1), (b'unlock', 0, 0, 1)]
+                elif names[ordinal - 1] == b'unlock':
+                    unlock_index, unlock = events[ordinal - 1]
+                    assert (int(unlock[3]), int(unlock[4]), int(unlock[5])) == (0, 0, 1)
+                    replacements[unlock_index] = []
+                    replacements[index] = [(b'discard', a, b, 1), (b'unlock', 0, 0, 1)]
+                    counts['toc_unified_valid'] += 1
                 else:
+                    assert names[ordinal - 1] == b'toc-create'
                     replacements[index] = [(b'lock', 0, 0, 1), (b'discard', a, b, 1), (b'unlock', 0, 0, 1)]
+                    counts['toc_unified_invalid'] += 1
             if name in (b'width', b'height', b'toc-create', b'toc-drop', b'font-picker-create', b'child-result'):
                 counts[name.decode()] += 1
         assert depth == 0 and not toc_live
@@ -116,9 +124,11 @@ def project(raw):
                 ordinal += 1
         counts['cases'] += 1
     expected = {'cases': 1728, 'toc_discard': 55, 'picker_discard': 19, 'width': 72, 'height': 36,
-                'toc-create': 55, 'toc-drop': 55, 'font-picker-create': 19, 'child-result': 17}
+                'toc-create': 55, 'toc-drop': 55, 'font-picker-create': 19, 'child-result': 17,
+                'toc_unified_valid': 38, 'toc_unified_invalid': 17}
     assert dict(counts) == expected, (dict(counts), expected)
-    assert len(output) == len(lines) + 148
+    assert counts['toc_unified_valid'] + counts['toc_unified_invalid'] == 55
+    assert len(output) == len(lines) + 148 - 2 * counts['toc_unified_valid']
     return b''.join(output), dict(counts)
 
 

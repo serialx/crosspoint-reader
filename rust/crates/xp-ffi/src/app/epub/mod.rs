@@ -22,6 +22,7 @@ mod overlay;
 mod overlay_actions;
 mod overlay_input;
 mod overlay_view;
+mod ownership;
 mod page;
 mod position;
 mod projection;

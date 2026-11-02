@@ -148,6 +148,11 @@ impl EpubSession {
         };
         {
             let access = self.lock_resources();
+            if self.model(|state| state.scene_gate.failed) {
+                drop(access);
+                self.request_update();
+                return;
+            }
             self.settle_overlay_refresh(&access);
         }
         match action {
@@ -204,15 +209,21 @@ impl EpubSession {
             }
             _ => {}
         }
-        self.model(|state| state.overlay = Overlay::Page);
-        if action == Action::Percent as u8 && self.model(|state| state.page_stored) {
+        {
             let access = self.lock_resources();
-            self.settle_overlay_refresh(&access);
-            unsafe { (self.leaves.render_restore_bw)(0) };
-            self.model(|state| state.page_stored = false);
-        } else {
-            let access = self.lock_resources();
-            self.discard_overlay_page(&access);
+            if self.model(|state| state.scene_gate.failed) {
+                drop(access);
+                self.request_update();
+                return;
+            }
+            self.model(|state| state.overlay = Overlay::Page);
+            if action == Action::Percent as u8 && self.model(|state| state.page_stored) {
+                self.settle_overlay_refresh(&access);
+                unsafe { (self.leaves.render_restore_bw)(0) };
+                self.model(|state| state.page_stored = false);
+            } else {
+                self.discard_overlay_page(&access);
+            }
         }
         if action == Action::ToggleBookmark as u8 {
             self.add_bookmark();
@@ -230,7 +241,7 @@ impl EpubSession {
             self.request_update();
             return;
         }
-        self.confirm_reader_menu(i32::from(action));
+        self.confirm_reader_menu(i32::from(action), super::menu::MenuOrigin::Direct);
         if action != Action::Home as u8 && action != Action::DeleteCache as u8 {
             self.request_update();
         }

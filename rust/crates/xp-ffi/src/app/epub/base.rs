@@ -52,7 +52,8 @@ impl EpubSession {
         };
     }
 
-    pub(super) fn enter(&self) {
+    #[inline(never)]
+    pub(in crate::app) fn enter(&self) {
         self.activity_log(true);
         self.log_memory(true);
         if unsafe { (self.resources.path_exists)(self.path.wire()) } == 0 {
@@ -108,7 +109,7 @@ impl EpubSession {
         }
     }
 
-    pub(super) fn flush_session(&self) {
+    pub(in crate::app) fn flush_session(&self) {
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.child_hooks {
             unsafe { (hooks.flush)(hooks.context) };
@@ -491,7 +492,7 @@ impl EpubSession {
         }
     }
 
-    pub(super) fn force_refresh(&self) -> bool {
+    pub(in crate::app) fn force_refresh(&self) -> bool {
         self.queue_forced_refresh();
         self.request_update();
         true

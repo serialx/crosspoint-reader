@@ -8,6 +8,7 @@ mod menu;
 pub(super) use menu::MenuHooks;
 mod entry_gate;
 mod idle;
+mod lifecycle;
 mod loop_owner;
 pub(super) use loop_owner::LoopHooks;
 mod input;
@@ -17,6 +18,7 @@ pub(super) use overlay_input::OverlayInputHooks;
 pub(super) mod overlay_view;
 mod popup_concurrency;
 mod render;
+mod scene;
 mod view_values;
 
 use super::app_abi;
@@ -89,8 +91,8 @@ pub(super) struct BaseHooks {
     pub format: unsafe extern "C" fn(*mut c_void) -> u8,
     pub touch: unsafe extern "C" fn(*mut c_void) -> xp_ui::reader::input::Turn,
     pub buttons: unsafe extern "C" fn(*mut c_void) -> xp_ui::reader::input::Turn,
-    pub turn: unsafe extern "C" fn(*mut c_void, u8) -> u8,
-    pub skip: unsafe extern "C" fn(*mut c_void, i32) -> u8,
+    pub turn: Option<unsafe extern "C" fn(*mut c_void, u8) -> u8>,
+    pub skip: Option<unsafe extern "C" fn(*mut c_void, i32) -> u8>,
     pub snapshot: unsafe extern "C" fn(*mut c_void) -> xp_ui::reader::Session,
     pub worthy: unsafe extern "C" fn(*mut c_void) -> u8,
     pub reset: unsafe extern "C" fn(*mut c_void),

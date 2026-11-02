@@ -129,8 +129,6 @@ pub(super) enum ChildIntent {
     Clippings,
     Qr,
     Wifi,
-    #[expect(dead_code, reason = "Used by the pending overlay input port.")]
-    Reopen,
 }
 #[derive(Clone, Copy, Default)]
 pub(super) enum PopupIntent {

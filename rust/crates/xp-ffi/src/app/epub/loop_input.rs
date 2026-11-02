@@ -107,7 +107,7 @@ impl EpubSession {
         .ok_or(())
     }
 
-    pub(super) fn dispatch_remote_shortcut(&self, reader_menu: bool) -> bool {
+    pub(in crate::app) fn dispatch_remote_shortcut(&self, reader_menu: bool) -> bool {
         let Some(shortcut) = self.remote_shortcut(reader_menu) else {
             return false;
         };

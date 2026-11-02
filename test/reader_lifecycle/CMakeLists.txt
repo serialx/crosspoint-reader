@@ -13,8 +13,9 @@ target_include_directories(ReaderLifecycleOracle PRIVATE stubs ${CMAKE_CURRENT_B
   ${REPO_ROOT}/freeink-sdk/libs/network/BleKeyboardHost/include)
 target_link_libraries(ReaderLifecycleOracle PRIVATE crosspoint_test_common)
 add_test(NAME reader_lifecycle_oracle
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
-    $<TARGET_FILE:ReaderLifecycleOracle> ${CMAKE_CURRENT_SOURCE_DIR}/lifecycle.golden.gz)
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_lifecycle_session.py
+    --original-executable $<TARGET_FILE:ReaderLifecycleOracle>)
 
 set(RENDER_METHODS ${CMAKE_CURRENT_BINARY_DIR}/render_methods.inc)
 add_custom_command(OUTPUT ${RENDER_METHODS}
@@ -39,7 +40,10 @@ endforeach()
 add_executable(ReaderLifecycleAbi abi.cpp)
 target_link_libraries(ReaderLifecycleAbi PRIVATE crosspoint_test_common)
 target_compile_options(ReaderLifecycleAbi PRIVATE -UNDEBUG)
-add_test(NAME reader_lifecycle_abi COMMAND ReaderLifecycleAbi)
+add_test(NAME reader_lifecycle_abi
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_lifecycle_boundary.py
+    --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE}
+    --original-executable $<TARGET_FILE:ReaderLifecycleAbi>)
 
 foreach(mode blocked failed)
   add_test(NAME reader_render_entry_${mode}
@@ -76,8 +80,10 @@ add_executable(ReaderInputOracle input_oracle.cpp ${INPUT_METHODS})
 target_include_directories(ReaderInputOracle PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${REPO_ROOT}/src/activities/reader)
 target_link_libraries(ReaderInputOracle PRIVATE crosspoint_test_common)
 add_test(NAME reader_input_oracle
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
-    $<TARGET_FILE:ReaderInputOracle> ${CMAKE_CURRENT_SOURCE_DIR}/input.golden.gz)
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_shared_input_nav.py
+    $<TARGET_FILE:ReaderInputOracle> $<TARGET_FILE:ReaderNavOracle> --mode input
+    --repo ${REPO_ROOT})
 
 add_test(NAME reader_base_input_wrappers
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
@@ -88,8 +94,10 @@ target_compile_definitions(ReaderNavOracle PRIVATE READER_NAV_RUST=1)
 target_link_libraries(ReaderNavOracle PRIVATE crosspoint_test_common)
 target_include_directories(ReaderNavOracle PRIVATE ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include)
 add_test(NAME reader_nav_oracle
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py
-    $<TARGET_FILE:ReaderNavOracle> ${CMAKE_CURRENT_SOURCE_DIR}/nav.golden.gz)
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_shared_input_nav.py
+    $<TARGET_FILE:ReaderInputOracle> $<TARGET_FILE:ReaderNavOracle> --mode nav
+    --repo ${REPO_ROOT})
 
 set(LOOP_METHODS ${CMAKE_CURRENT_BINARY_DIR}/loop_methods.inc)
 add_custom_command(OUTPUT ${LOOP_METHODS}
@@ -137,8 +145,8 @@ foreach(target ReaderLoopOracle ReaderLoopOracleRelease ReaderBaseOracle)
 endforeach()
 
 add_test(NAME reader_toolbar_publication
-  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
-    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_toolbar_publication.py)
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_toolbar_owner_publication.py
+    --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE})
 
 add_test(NAME reader_prepaint_input
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
@@ -177,6 +185,15 @@ add_test(NAME reader_loop_link_faults
 add_test(NAME reader_font_picker_admission
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_font_picker_admission.py
+    --repo ${REPO_ROOT})
+
+add_test(NAME reader_app_owned_epub
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_app_owned_epub.py
+    --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME reader_toc_more_admission
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_toc_more_admission.py
     --repo ${REPO_ROOT})
 
 add_test(NAME reader_idle_projection
@@ -270,8 +287,11 @@ add_test(NAME reader_projection
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_projection.py)
 
 add_test(NAME reader_failed_scene
-  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
-    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_failed_scene.py)
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_failed_scene_owner.py
+    --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME reader_input_bridge
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_input_bridge.py)
 
 add_test(NAME reader_render_completion
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
@@ -305,3 +325,15 @@ add_test(NAME reader_position_helper
 
 add_test(NAME reader_popup_resource
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_popup_resource.py)
+
+add_test(NAME reader_menu_confirm_admission
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_menu_confirm_admission.py
+    --archive ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME reader_app_epub_a1
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_app_epub_a1.py
+    --repo ${REPO_ROOT} --archive-off ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME reader_app_epub_results
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_app_results.py
+    --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE} --mutants)

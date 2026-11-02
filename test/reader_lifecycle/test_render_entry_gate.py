@@ -22,9 +22,9 @@ def main():
     lifetime = Path('crates/xp-ffi/src/app/epub/lifetime.rs')
     if args.mode == 'blocked':
         path = scope
-        before = ('pub(super) unsafe fn render(&self) -> bool {\n'
+        before = ('pub(in crate::app) unsafe fn render(&self) -> bool {\n'
                   '        if !self.model(|state| state.ready) {')
-        after = ('pub(super) unsafe fn render(&self) -> bool {\n'
+        after = ('pub(in crate::app) unsafe fn render(&self) -> bool {\n'
                  '        if false {')
         mutant = 'render-entry-gate-removed'
         expected_assertion = 'value.ready'

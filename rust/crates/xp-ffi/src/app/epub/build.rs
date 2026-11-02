@@ -124,15 +124,18 @@ impl EpubSession {
             && self.model(|state| state.current.spine != state.failed_build_spine)
     }
 
-    pub(super) fn skip_loop_delay(&self) -> bool {
+    pub(in crate::app) fn skip_loop_delay(&self) -> bool {
         self.model(|state| matches!(state.overlay, Overlay::Page) && !state.heap_paused)
             && self.build_wanted()
     }
 
     pub(super) fn background_build(&self) {
         #[cfg(feature = "app-test")]
-        if let Some(hooks) = self.loop_hooks {
-            unsafe { (hooks.background)(hooks.context) };
+        if let Some((context, callback)) = self
+            .loop_hooks
+            .and_then(|hooks| hooks.background.map(|callback| (hooks.context, callback)))
+        {
+            unsafe { callback(context) };
             return;
         }
         let Some(access) = self.try_resources() else {

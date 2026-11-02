@@ -7,6 +7,12 @@ use super::{
 use alloc::boxed::Box;
 use core::{ffi::c_void, ptr::NonNull};
 
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_has_child(raw: *const c_void) -> u8 {
+    let owner = &*raw.cast::<EpubSession>();
+    u8::from(owner.model(|state| !matches!(state.child, super::super::state::ChildIntent::None)))
+}
+
 #[derive(Clone, Copy)]
 pub(in crate::app::epub) struct ChildHooks {
     pub context: *mut c_void,

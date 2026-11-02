@@ -18,6 +18,22 @@ pub(super) struct ChapterPosition {
     pub(super) count: i32,
 }
 
+impl ChapterPosition {
+    pub(super) fn display_page(self) -> i32 {
+        self.page.wrapping_add(1)
+    }
+    pub(super) fn has_total(self) -> bool {
+        self.count > 0
+    }
+    pub(super) fn fraction(self) -> f32 {
+        if self.has_total() {
+            self.page as f32 / self.count as f32
+        } else {
+            0.0
+        }
+    }
+}
+
 // Match the ESP32-C3 ROM conversion, including signed NaNs.
 fn progress_integer(value: f32) -> i32 {
     if value.is_nan() {
@@ -77,11 +93,11 @@ impl EpubSession {
         let Some(book) = self.loop_book() else {
             return 0;
         };
-        if unsafe { (self.leaves.book_size)(book.as_ptr()) } == 0 || position.count <= 0 {
+        if unsafe { (self.leaves.book_size)(book.as_ptr()) } == 0 || !position.has_total() {
             return 0;
         }
         let spine = self.model(|state| state.current.spine);
-        let fraction = position.page as f32 / position.count as f32;
+        let fraction = position.fraction();
         let progress = unsafe { (self.leaves.book_progress)(book.as_ptr(), spine, fraction) };
         progress_integer(progress.clamp(0.0, 1.0) * 100.0 + 0.5)
     }
@@ -116,7 +132,7 @@ impl EpubSession {
         }
     }
 
-    pub(super) fn screenshot_info(&self) -> app_abi::Screenshot {
+    pub(in crate::app) fn screenshot_info(&self) -> app_abi::Screenshot {
         let mut result = app_abi::Screenshot {
             reader_type: 1,
             title: [0; 64],
@@ -304,14 +320,11 @@ impl EpubSession {
 
     fn acknowledge_page_turn(&self) {
         #[cfg(feature = "app-test")]
-        {
-            let hook = self.projection_hooks.expect("fixture BLE acknowledgment");
+        if let Some(hook) = self.projection_hooks {
             unsafe { (hook.acknowledge)(hook.context) };
+            return;
         }
-        #[cfg(not(feature = "app-test"))]
-        unsafe {
-            crate::ble_runtime::xp_ble_acknowledge()
-        };
+        unsafe { crate::ble_runtime::xp_ble_acknowledge() };
     }
 
     pub(super) fn apply_page_move(&self, movement: PageMove, record: bool) -> bool {
@@ -345,8 +358,11 @@ impl EpubSession {
 
     pub(super) fn page_turn(&self, forward: bool) -> bool {
         #[cfg(feature = "app-test")]
-        if let Some(hook) = self.base_hooks {
-            return unsafe { (hook.turn)(hook.context, u8::from(forward)) != 0 };
+        if let Some((context, callback)) = self
+            .base_hooks
+            .and_then(|hook| hook.turn.map(|callback| (hook.context, callback)))
+        {
+            return unsafe { callback(context, u8::from(forward)) != 0 };
         }
         if !self.model(|state| state.facts.section.is_some()) {
             return false;
@@ -378,8 +394,11 @@ impl EpubSession {
 
     pub(super) fn skip_pages(&self, amount: i32) -> bool {
         #[cfg(feature = "app-test")]
-        if let Some(hook) = self.base_hooks {
-            return unsafe { (hook.skip)(hook.context, amount) != 0 };
+        if let Some((context, callback)) = self
+            .base_hooks
+            .and_then(|hook| hook.skip.map(|callback| (hook.context, callback)))
+        {
+            return unsafe { callback(context, amount) != 0 };
         }
         if !self.model(|state| state.facts.section.is_some()) {
             return false;

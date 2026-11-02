@@ -257,7 +257,8 @@ pub unsafe extern "C" fn xp_epub_test_menu_open(raw: *mut c_void) {
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_menu_confirm(raw: *mut c_void, action: i32) {
-    (&*raw.cast::<EpubSession>()).confirm_reader_menu(action);
+    (&*raw.cast::<EpubSession>())
+        .confirm_reader_menu(action, super::super::menu::MenuOrigin::ChildResult);
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_menu_build_more(raw: *mut c_void) {
@@ -273,4 +274,15 @@ pub unsafe extern "C" fn xp_epub_test_menu_result(
     result: *const app_abi::XpAppResultView,
 ) {
     (&*raw.cast::<EpubSession>()).child_result(result.as_ref());
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_menu_confirm_direct(raw: *mut c_void, action: i32) {
+    (&*raw.cast::<EpubSession>())
+        .confirm_reader_menu(action, super::super::menu::MenuOrigin::Direct);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_text_settings_open(raw: *mut c_void, from_overlay: u8) {
+    (&*raw.cast::<EpubSession>()).open_text_settings(from_overlay != 0);
 }

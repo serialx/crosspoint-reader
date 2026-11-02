@@ -99,6 +99,7 @@ impl Home {
     }
 
     /// Called once on the loop task; the model gates every early render.
+    #[inline(never)]
     pub fn enter(&self) {
         unsafe { (self.runtime.diagnostic)(0, 0, 0) };
         let settings = unsafe { (self.services.settings_snapshot)() };

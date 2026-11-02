@@ -87,28 +87,32 @@ impl EpubSession {
             let capture = &mut *context.cast::<Capture<'_>>();
             let Some(row) = row.as_ref() else { return 0 };
             let owner = capture.owner;
-            if row.spine != -1 {
+            let anchor = if row.spine != -1 {
                 let Some(bytes) = row.anchor.bytes() else {
                     return 0;
                 };
                 let Ok(anchor) = Text::copy(bytes) else {
                     return 0;
                 };
+                Some(anchor)
+            } else {
+                None
+            };
+            {
                 let access = owner.lock_resources();
                 if owner.model(|state| state.scene_gate.failed) {
                     return 0;
                 }
-                owner.clear_deferred();
-                owner.model(|state| {
-                    state.current.spine = row.spine;
-                    state.next_page = 0;
-                });
-                (*owner.guarded(&access)).anchor = anchor;
-                owner.drop_section(&access);
-            }
-            owner.model(|state| state.overlay = Overlay::Page);
-            {
-                let access = owner.lock_resources();
+                if let Some(anchor) = anchor {
+                    owner.clear_deferred();
+                    owner.model(|state| {
+                        state.current.spine = row.spine;
+                        state.next_page = 0;
+                    });
+                    (*owner.guarded(&access)).anchor = anchor;
+                    owner.drop_section(&access);
+                }
+                owner.model(|state| state.overlay = Overlay::Page);
                 owner.discard_overlay_page(&access);
             }
             owner.request_update();

@@ -77,7 +77,9 @@ impl EpubSession {
         }
     }
 
-    pub(super) fn loop_reader(&self) {
+    // Other activities must not pay for the EPUB loop frame.
+    #[inline(never)]
+    pub(in crate::app) fn loop_reader(&self) {
         if self.try_idle_loop() || self.consume_rejected_input() {
             return;
         }
@@ -320,6 +322,10 @@ impl EpubSession {
             self.loop_footnotes();
             return;
         }
+        self.manual_turn_input(touch);
+    }
+
+    pub(super) fn manual_turn_input(&self, touch: xp_ui::reader::input::Turn) {
         let guard = self.loop_busy()
             || self
                 .loop_now()

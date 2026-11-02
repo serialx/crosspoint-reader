@@ -45,6 +45,15 @@ inline XpUiReaderInputServices inputServices(const MappedInputManager& input) {
               case XP_UI_BACK:
                 button = MappedInputManager::Button::Back;
                 break;
+              case XP_UI_CONFIRM:
+                button = MappedInputManager::Button::Confirm;
+                break;
+              case XP_UI_UP:
+                button = MappedInputManager::Button::Up;
+                break;
+              case XP_UI_DOWN:
+                button = MappedInputManager::Button::Down;
+                break;
               case XP_UI_LEFT:
                 button = MappedInputManager::Button::Left;
                 break;
@@ -222,7 +231,6 @@ inline void displayBaseWithRefreshCycle(const GfxRenderer& renderer, int& pagesU
   if (xp_ui_reader_refresh(&remaining, 0)) remaining = SETTINGS.getRefreshFrequency();
   pagesUntilFullRefresh = remaining;
 }
-
 
 struct BackNavCallback {
   void* ctx;

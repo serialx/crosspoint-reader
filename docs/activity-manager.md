@@ -53,11 +53,11 @@ Problems with this approach:
 `xp-ui::app::Application` owns the current activity, retained parents and pending
 transition. `ActivityManager` forwards native navigation through `xp_app.h` and
 retains the render task, RenderLock and completion notification. See
-[Application and Home ownership](contributing/rust-ui.md#application-and-home-ownership).
+[Application ownership](contributing/rust-ui.md#application-ownership).
 
 ```text
 Main task -> xp_app_loop -> Rust Application
-                            current: Home or owned legacy activity
+                            current: Home, Rust EPUB session or owned legacy activity
                             parents: retained owners
                             pending: Push / Pop / Replace / Sleep
                             render request -> shared native render task

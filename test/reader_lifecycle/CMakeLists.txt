@@ -19,6 +19,10 @@ add_test(NAME reader_lifecycle_abi
     --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE}
     --original-executable $<TARGET_FILE:ReaderLifecycleAbi>)
 
+add_test(NAME reader_result_tag_contract
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_result_tags.py
+    --repo ${REPO_ROOT} --compiler ${CMAKE_CXX_COMPILER})
+
 foreach(mode blocked failed)
   add_test(NAME reader_render_entry_${mode}
     COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"

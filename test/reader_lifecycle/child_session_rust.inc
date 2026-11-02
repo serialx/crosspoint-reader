@@ -55,16 +55,16 @@ struct ChildSessionBridge {
     view.original = &result;
     view.cancelled = result.isCancelled;
     if (const auto* clipping = std::get_if<ClippingResult>(&result.data)) {
-      view.kind = 8;
+      view.kind = XP_APP_RESULT_CLIPPING;
       view.value.clipping = {
           {childText(clipping->text), &clipping->text}, clipping->startPageOffset, clipping->endPageOffset,
           clipping->startWordIndex, clipping->endWordIndex, clipping->wordCount, clipping->startOffset,
           clipping->endOffset, static_cast<uint8_t>(clipping->action)};
     } else if (const auto* footnote = std::get_if<FootnoteResult>(&result.data)) {
-      view.kind = 11;
+      view.kind = XP_APP_RESULT_FOOTNOTE;
       view.value.text = childText(footnote->href);
     } else if (const auto* progress = std::get_if<ProgressChangeResult>(&result.data)) {
-      view.kind = 9;
+      view.kind = XP_APP_RESULT_PROGRESS;
       view.value.progress.spine = progress->marker;
     }
     xp_epub_test_child_result(rust, &view);

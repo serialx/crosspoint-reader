@@ -170,8 +170,23 @@ typedef union {
   uint32_t unsigned_value;
 } XpAppResultPayload;
 
-// kind: 0 empty, 1 Wi-Fi, 2 keyboard, 3 menu, 4 chapter, 5 percent,
-// 6 interval, 7 page, 8 clipping, 9 progress, 10 network mode, 11 footnote, 12 file path.
+// Stable tags for the borrowed native result variant.
+enum {
+  XP_APP_RESULT_NONE = 0,
+  XP_APP_RESULT_WIFI = 1,
+  XP_APP_RESULT_KEYBOARD = 2,
+  XP_APP_RESULT_MENU = 3,
+  XP_APP_RESULT_CHAPTER = 4,
+  XP_APP_RESULT_PERCENT = 5,
+  XP_APP_RESULT_INTERVAL = 6,
+  XP_APP_RESULT_PAGE = 7,
+  XP_APP_RESULT_CLIPPING = 8,
+  XP_APP_RESULT_PROGRESS = 9,
+  XP_APP_RESULT_NETWORK_MODE = 10,
+  XP_APP_RESULT_FOOTNOTE = 11,
+  XP_APP_RESULT_FILE_PATH = 12,
+  XP_APP_RESULT_COUNT = 13
+};
 typedef struct XpAppResultView {
   const void* original;
   XpAppResultPayload value;

@@ -39,7 +39,8 @@ MUTANTS = (
      'end < unsafe { (self.leaves.section_page_count)(section.as_ptr()) }',
      'end <= unsafe { (self.leaves.section_page_count)(section.as_ptr()) }'),
     ('sync-one-link', 'sync', 'state.history.depth > 0', 'state.history.depth > 1'),
-    ('selection-cancel', 'child_result', '!cancelled && result.kind == 8', 'result.kind == 8'),
+    ('selection-cancel', 'child_result', '!cancelled && result.kind == app_abi::RESULT_CLIPPING',
+     'result.kind == app_abi::RESULT_CLIPPING'),
 )
 
 

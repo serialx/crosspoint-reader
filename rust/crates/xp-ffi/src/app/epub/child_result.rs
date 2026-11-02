@@ -67,7 +67,7 @@ impl EpubSession {
         match intent {
             ChildIntent::None => {}
             ChildIntent::Menu => {
-                if let Some(result) = result.filter(|result| result.kind == 3) {
+                if let Some(result) = result.filter(|result| result.kind == app_abi::RESULT_MENU) {
                     self.menu_result(&result.value.menu, cancelled);
                 } else {
                     self.request_update();
@@ -75,11 +75,13 @@ impl EpubSession {
             }
             ChildIntent::Chapter => self.chapter_result(
                 result
-                    .filter(|result| !cancelled && result.kind == 4)
+                    .filter(|result| !cancelled && result.kind == app_abi::RESULT_CHAPTER)
                     .map(|result| &result.value.chapter),
             ),
             ChildIntent::Percent => {
-                if let Some(result) = result.filter(|result| !cancelled && result.kind == 5) {
+                if let Some(result) =
+                    result.filter(|result| !cancelled && result.kind == app_abi::RESULT_PERCENT)
+                {
                     self.jump_to_percent(result.value.signed_value);
                 } else {
                     self.open_reader_menu();
@@ -88,14 +90,14 @@ impl EpubSession {
             ChildIntent::TextSettings { from_overlay } => self.text_settings_result(from_overlay),
             ChildIntent::Footnote { reopen_menu } => {
                 let href = result
-                    .filter(|result| !cancelled && result.kind == 11)
+                    .filter(|result| !cancelled && result.kind == app_abi::RESULT_FOOTNOTE)
                     .and_then(|result| result.value.text.bytes());
                 self.footnote_result(reopen_menu, href);
             }
             ChildIntent::Selection(capture) => self.selection_result(
                 capture,
                 result
-                    .filter(|result| !cancelled && result.kind == 8)
+                    .filter(|result| !cancelled && result.kind == app_abi::RESULT_CLIPPING)
                     .map(|result| &result.value.clipping),
             ),
             ChildIntent::Dictionary => self.dictionary_result(cancelled),
@@ -104,7 +106,9 @@ impl EpubSession {
                     let access = self.lock_resources();
                     self.load_cached_bookmarks(&access);
                 }
-                if let Some(result) = result.filter(|result| !cancelled && result.kind == 9) {
+                if let Some(result) =
+                    result.filter(|result| !cancelled && result.kind == app_abi::RESULT_PROGRESS)
+                {
                     self.apply_progress(&result.value.progress);
                 } else {
                     self.open_reader_menu();
@@ -112,7 +116,7 @@ impl EpubSession {
             }
             ChildIntent::Clippings => self.clippings_result(
                 result
-                    .filter(|result| !cancelled && result.kind == 9)
+                    .filter(|result| !cancelled && result.kind == app_abi::RESULT_PROGRESS)
                     .map(|result| &result.value.progress),
             ),
             ChildIntent::Qr => self.open_reader_menu(),

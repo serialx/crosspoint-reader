@@ -229,6 +229,14 @@ pub union XpAppResultPayload {
     pub unsigned_value: u32,
 }
 
+// Tags consumed by Rust; native-only variants remain opaque to this owner.
+pub const RESULT_MENU: u8 = 3;
+pub const RESULT_CHAPTER: u8 = 4;
+pub const RESULT_PERCENT: u8 = 5;
+pub const RESULT_CLIPPING: u8 = 8;
+pub const RESULT_PROGRESS: u8 = 9;
+pub const RESULT_FOOTNOTE: u8 = 11;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct XpAppResultView {

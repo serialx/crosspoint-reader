@@ -95,8 +95,9 @@ the explicitly recorded old and new log sequences for these exact bytes.
 
 Seven additional approved exceptions truncate a rule record at lengths 3–9.
 The old reader prints zero/partially read metadata; the current minimum-length
-and complete-record checks reject earlier. The host probe compiles the actual
-initial logging branch from `EpubReaderActivity.cpp` and requires the restored
-SD-load error after each failed file load. It also checks metadata-copy failure
-separately. This exercises the failure log branch, not the activity's rendering,
-retry count, or cache deletion lifecycle. No diagnostic-only reads are added.
+and complete-record checks reject earlier. The checked-in `ReaderDiagnostic.cpp`
+runs the Rust book-render path over physical resource fakes and verifies the
+emitted `ERS` SD-load error after each failed file load. It also checks
+metadata-copy failure separately. This exercises the failure log branch, not
+full activity rendering, retry count, or cache deletion lifecycle. No
+diagnostic-only reads are added.

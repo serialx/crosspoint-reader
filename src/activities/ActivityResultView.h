@@ -5,24 +5,51 @@
 #include "ActivityResult.h"
 
 enum class ActivityResultKind : uint8_t {
-  None,
-  Wifi,
-  Keyboard,
-  Menu,
-  Chapter,
-  Percent,
-  Interval,
-  Page,
-  Clipping,
-  Progress,
-  NetworkMode,
-  Footnote,
-  FilePath,
+  None = XP_APP_RESULT_NONE,
+  Wifi = XP_APP_RESULT_WIFI,
+  Keyboard = XP_APP_RESULT_KEYBOARD,
+  Menu = XP_APP_RESULT_MENU,
+  Chapter = XP_APP_RESULT_CHAPTER,
+  Percent = XP_APP_RESULT_PERCENT,
+  Interval = XP_APP_RESULT_INTERVAL,
+  Page = XP_APP_RESULT_PAGE,
+  Clipping = XP_APP_RESULT_CLIPPING,
+  Progress = XP_APP_RESULT_PROGRESS,
+  NetworkMode = XP_APP_RESULT_NETWORK_MODE,
+  Footnote = XP_APP_RESULT_FOOTNOTE,
+  FilePath = XP_APP_RESULT_FILE_PATH,
 };
 
 // The moved result outlives child destruction and synchronous parent delivery.
 inline XpAppResultView activityResultView(const ActivityResult& result) {
-  static_assert(std::variant_size_v<ResultVariant> == 13);
+  static_assert(std::variant_size_v<ResultVariant> == XP_APP_RESULT_COUNT);
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_NONE, ResultVariant>, std::monostate>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_WIFI, ResultVariant>, WifiResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_KEYBOARD, ResultVariant>, KeyboardResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_MENU, ResultVariant>, MenuResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_CHAPTER, ResultVariant>, ChapterResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_PERCENT, ResultVariant>, PercentResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_INTERVAL, ResultVariant>, IntervalResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_PAGE, ResultVariant>, PageResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_CLIPPING, ResultVariant>, ClippingResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_PROGRESS, ResultVariant>, ProgressChangeResult>,
+                "Activity result tag order changed");
+  static_assert(
+      std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_NETWORK_MODE, ResultVariant>, NetworkModeResult>,
+      "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_FOOTNOTE, ResultVariant>, FootnoteResult>,
+                "Activity result tag order changed");
+  static_assert(std::is_same_v<std::variant_alternative_t<XP_APP_RESULT_FILE_PATH, ResultVariant>, FilePathResult>,
+                "Activity result tag order changed");
   const auto text = [](const std::string& value) -> XpAppText {
     return {reinterpret_cast<const uint8_t*>(value.data()), value.size()};
   };

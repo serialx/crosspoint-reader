@@ -75,16 +75,16 @@ struct MenuSessionBridge {
     view.original = &result;
     view.cancelled = result.isCancelled;
     if (const auto* menu = std::get_if<MenuResult>(&result.data)) {
-      view.kind = 3;
+      view.kind = XP_APP_RESULT_MENU;
       view.value.menu = {menu->action, menu->orientation, menu->pageTurnOption};
     } else if (const auto* chapter = std::get_if<ChapterResult>(&result.data)) {
-      view.kind = 4;
+      view.kind = XP_APP_RESULT_CHAPTER;
       view.value.chapter = {chapter->spineIndex, menuText(chapter->anchor)};
     } else if (const auto* percent = std::get_if<PercentResult>(&result.data)) {
-      view.kind = 5;
+      view.kind = XP_APP_RESULT_PERCENT;
       view.value.signed_value = percent->percent;
     } else if (const auto* progress = std::get_if<ProgressChangeResult>(&result.data)) {
-      view.kind = 9;
+      view.kind = XP_APP_RESULT_PROGRESS;
       view.value.progress.spine = progress->marker;
     }
     xp_epub_test_menu_result(rust, &view);

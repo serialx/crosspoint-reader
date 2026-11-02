@@ -102,24 +102,24 @@ void checkBorrowed(const XpAppResultView& view, const ActivityResult& original) 
     assert(std::memcmp(wire.data, native.data(), wire.len) == 0);
   };
   switch (view.kind) {
-    case 0: break;
-    case 1: {
+    case XP_APP_RESULT_NONE: break;
+    case XP_APP_RESULT_WIFI: {
       const auto& v = std::get<WifiResult>(original.data);
       same(view.value.wifi.ssid, v.ssid); same(view.value.wifi.ip, v.ip);
       assert(view.value.wifi.connected == v.connected); break;
     }
-    case 3: {
+    case XP_APP_RESULT_MENU: {
       const auto& v = std::get<MenuResult>(original.data);
       assert(view.value.menu.action == v.action && view.value.menu.orientation == v.orientation &&
              view.value.menu.page_turn_option == v.pageTurnOption); break;
     }
-    case 4: {
+    case XP_APP_RESULT_CHAPTER: {
       const auto& v = std::get<ChapterResult>(original.data);
       same(view.value.chapter.anchor, v.anchor); assert(view.value.chapter.spine == v.spineIndex);
       assert(view.value.chapter.anchor.data == results.movedText); break;
     }
-    case 5: assert(view.value.signed_value == std::get<PercentResult>(original.data).percent); break;
-    case 8: {
+    case XP_APP_RESULT_PERCENT: assert(view.value.signed_value == std::get<PercentResult>(original.data).percent); break;
+    case XP_APP_RESULT_CLIPPING: {
       const auto& v = std::get<ClippingResult>(original.data); const auto& c = view.value.clipping;
       same(c.text.bytes, v.text); assert(c.text.native_string == &v.text);
       assert(c.text.bytes.data == results.movedText);
@@ -129,14 +129,14 @@ void checkBorrowed(const XpAppResultView& view, const ActivityResult& original) 
              c.start_offset == v.startOffset && c.end_offset == v.endOffset);
       results.borrowedText = c.text.bytes.data; break;
     }
-    case 9: {
+    case XP_APP_RESULT_PROGRESS: {
       const auto& v = std::get<ProgressChangeResult>(original.data); const auto& p = view.value.progress;
       same(p.xpath, v.xpath);
       assert(p.spine == v.spineIndex && p.page == v.page && p.pages == v.totalPages &&
              p.percentage == v.percentage && p.has_saved_progress == v.hasSavedProgress &&
              p.has_offset == v.hasVisibleTextOffset && p.offset == v.visibleTextOffset); break;
     }
-    case 11: same(view.value.text, std::get<FootnoteResult>(original.data).href); break;
+    case XP_APP_RESULT_FOOTNOTE: same(view.value.text, std::get<FootnoteResult>(original.data).href); break;
     default: assert(false && "variant not consumed by EPUB");
   }
   ++results.borrowedChecks;

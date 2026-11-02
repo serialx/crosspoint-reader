@@ -337,3 +337,6 @@ add_test(NAME reader_app_epub_a1
 add_test(NAME reader_app_epub_results
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_app_results.py
     --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE} --mutants)
+
+add_test(NAME reader_stack_boundaries
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_stack_boundaries.py)

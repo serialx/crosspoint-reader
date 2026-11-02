@@ -1,15 +1,26 @@
 use super::{abi, state::Overlay, EpubSession, Text};
 use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
 use xp_ui::{
-    model::{BACK, CONFIRM, DOWN, LEFT, RIGHT, UP},
+    model::{BACK, CONFIRM, DOWN, LEFT, RIGHT, SWIPE_DOWN, SWIPE_UP, UP},
     reader::{
-        epub_overlay::Swipe,
         epub_overlay::{Event, HOLD_MS, HOLD_ROWS, TEXT_ROWS},
         input::{ButtonQuery, Query},
     },
 };
 
+// Indices for the physical input_pressed leaf, not shared button masks.
+enum HeldButton {
+    Left = 2,
+    Right = 3,
+    Up = 4,
+    Down = 5,
+}
+
 impl EpubSession {
+    fn held_button(&self, button: HeldButton) -> bool {
+        unsafe { (self.leaves.input_pressed)(button as u32) != 0 }
+    }
+
     pub(super) fn mapped_button(&self, button: u32, query: ButtonQuery, threshold: u32) -> bool {
         let services = unsafe { &*(self.leaves.input_services)() };
         unsafe {
@@ -329,10 +340,10 @@ impl EpubSession {
             _ => {}
         }
         let swipe = self.mapped_query(Query::Swipe);
-        if swipe == Swipe::Up as u32 || swipe == Swipe::Down as u32 {
+        if swipe == SWIPE_UP as u32 || swipe == SWIPE_DOWN as u32 {
             self.page_overlay_rows(
                 toolbar,
-                if swipe == Swipe::Up as u32 { 1 } else { -1 },
+                if swipe == SWIPE_UP as u32 { 1 } else { -1 },
                 count,
                 rows,
             );
@@ -352,10 +363,8 @@ impl EpubSession {
         if count <= 0 {
             return;
         }
-        let up = self.mapped_button(UP, ButtonQuery::Press, 0)
-            || self.mapped_button(LEFT, ButtonQuery::Press, 0);
-        let down = self.mapped_button(DOWN, ButtonQuery::Press, 0)
-            || self.mapped_button(RIGHT, ButtonQuery::Press, 0);
+        let up = self.held_button(HeldButton::Up) || self.held_button(HeldButton::Left);
+        let down = self.held_button(HeldButton::Down) || self.held_button(HeldButton::Right);
         if !self.model(|state| state.panel_hold_jumped)
             && (up || down)
             && self.mapped_query(Query::HeldMs) >= HOLD_MS

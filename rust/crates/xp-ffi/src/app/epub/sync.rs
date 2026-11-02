@@ -194,6 +194,7 @@ impl EpubSession {
         self.drop_section(&access);
         unsafe { (self.leaves.fonts_release_caches)() };
         let Some(saved) = self.sync_saved(&access, book, &position) else {
+            unsafe { (self.leaves.book_install_extractor)(book.as_ptr()) };
             self.request_update();
             return;
         };

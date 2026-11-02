@@ -207,8 +207,8 @@ void bindResultsPhysical() {
     return child("dictionary", {static_cast<ResultPage*>(page)});
   };
   leaves.child_wifi = []() -> void* { return child("wifi"); };
-  leaves.wifi_connected = []() -> uint8_t { borrowedUse("wifi-connected"); ++results.wifiChecks; return 1; };
-  leaves.trusted_sync = [](uint32_t timeout) -> uint8_t { borrowedUse("trusted-sync"); assert(timeout == 5000); ++results.syncs; return 0; };
+  leaves.wifi_connected = []() -> uint8_t { borrowedUse("wifi-connected"); ++results.wifiChecks; return results.wifiConnected; };
+  leaves.trusted_sync = [](uint32_t timeout) -> uint8_t { borrowedUse("trusted-sync"); assert(timeout == 5000); ++results.syncs; return results.syncSucceeded; };
   leaves.wifi_disconnect = [](uint8_t off) { borrowedUse("wifi-disconnect"); assert(!off); };
   resources.popup_draw = [](XpAppText message) -> XpUiRect { borrowedUse("sync-popup-draw"); assert(message.len); return {}; };
   resources.translate = [](uint16_t) -> XpAppText { physical("translate"); return literal("Fixture"); };

@@ -48,6 +48,8 @@ struct Results {
   const uint8_t* movedText = nullptr;
   unsigned born = 0, dead = 0, returns = 0, inserts = 0, exports = 0, lookups = 0;
   unsigned bookmarkWrites = 0, wifiChecks = 0, syncs = 0;
+  bool wifiMatrix = false, wifiConnected = true, syncSucceeded = false, reopenFails = false;
+  unsigned restarts = 0, reopenAttempts = 0, syncStateSaves = 0, homeEnters = 0, homeExits = 0;
   unsigned rendered = 0, sectionOpened = 0, sectionClosed = 0;
   unsigned firstDeliveryLocks = 0, borrowedChecks = 0, beforeUnlockLocks = 0;
   size_t deliveryBegin = 0;
@@ -250,12 +252,80 @@ void bindResultsLifecycle() {
   };
   runtime.notify_render = [] { physical("notify-render"); results.notificationPending = true; };
   runtime.diagnostic = [](uint8_t code, uint32_t a, uint32_t b) {
+    if (results.wifiMatrix && code <= 1 && !a && !b) {
+      physical(code ? "home-exit" : "home-enter", code ? 1 : 0);
+      if (code) ++results.homeExits; else ++results.homeEnters;
+      return;
+    }
     assert(results.allocatingStack && code == 2 && a == 1 && b == 0);
     physical("stack-reserve-failed", 1);
   };
 }
 
 // PHYSICAL_BINDINGS
+
+void bindWifiMatrix() {
+  static auto baseCreate = legacy.create;
+  legacy.create = [](const XpAppLaunch* launch) -> void* {
+    assert(launch);
+    if (launch->kind != XP_APP_READER) return baseCreate(launch);
+    borrowedUse("reopen-reader-create");
+    requireResult(text(launch->value.reader.path) == f().path && !launch->value.reader.fast_initial,
+                  "WIFI_REOPEN_DESTINATION");
+    ++results.reopenAttempts;
+    if (results.reopenFails) return nullptr;
+    auto* value = f().acquire(Kind::Legacy, 0);
+    value->activityKind = XP_APP_READER;
+    value->path = text(launch->value.reader.path);
+    return value;
+  };
+  static auto baseStateSave = leaves.state_save;
+  leaves.state_save = [] {
+    if (!results.inResult) { baseStateSave(); return; }
+    borrowedUse("sync-state-save");
+    assert(!f().renderDepth);
+    ++results.syncStateSaves;
+  };
+  leaves.restart_reader = [] { borrowedUse("restart-reader-returned"); ++results.restarts; };
+  resources.settings_snapshot = [] { physical("home-settings", 0); return XpAppHomeSettings{}; };
+  resources.theme_snapshot = [](XpAppTheme* out) { physical("home-theme", 0); *out = {}; };
+  resources.recents_visit = [](XpAppBookSink, void*) -> uint8_t { physical("home-recents", 0); return 1; };
+}
+
+void launch(const std::string& mode);
+ActivityResult payload(const std::string& mode);
+void queuePop(ActivityResult value, bool cancelled);
+void wifiMatrix(const std::string& mode) {
+  launch("wifi");
+  queuePop(payload("wifi"), mode == "wifi-cancelled");
+  assert(results.returns == 1 && results.born == 1 && results.dead == 1);
+  assert(xp_app_test_parent_count() == 0 && xp_app_test_pending_kind() == 0);
+  const bool success = mode == "wifi-success" || mode == "wifi-reopen-failure";
+  assert(results.syncs == unsigned(success) && results.syncStateSaves == unsigned(success));
+  assert(results.restarts == unsigned(success) && results.reopenAttempts == unsigned(success));
+  assert(results.wifiChecks == unsigned(mode != "wifi-cancelled"));
+  if (success) {
+    auto previous = f().find("trusted-sync", 0, results.deliveryBegin);
+    for (const char* step : {"wifi-disconnect", "wifi-delay", "set-path", "sync-state-save",
+                             "restart-reader-returned", "reopen-reader-create"}) {
+      const auto next = f().find(step, 0, previous + 1);
+      assert(previous < next); previous = next;
+    }
+    if (results.reopenFails) {
+      assert(xp_app_test_current_epub() == results.owner && !xp_app_test_current_legacy());
+      assert(!xp_epub_test_has_child(results.owner) && f().extractor && !f().clearedExtractor);
+    } else {
+      assert(!xp_app_test_current_epub() && xp_app_test_current_legacy());
+      const auto& reader = f().handle(xp_app_test_current_legacy(), Kind::Legacy);
+      assert(reader.activityKind == XP_APP_READER && reader.path == f().path);
+      assertExited();
+    }
+  } else {
+    assert(!xp_app_test_current_epub() && !xp_app_test_current_legacy() && xp_app_test_is_home());
+    assert(results.homeEnters == 1 && !results.homeExits);
+    assertExited();
+  }
+}
 
 void paintOwner() {
   assert(xp_app_test_current_epub() == results.owner);
@@ -341,10 +411,18 @@ int main(int argc, char** argv) {
   assert(argc == 3);
   const std::string mode = argv[1]; const bool cancelled = std::strtoul(argv[2], nullptr, 10) != 0;
   Fixture state; fixture = &state;
-  bind(); bindResultsLifecycle(); bindResultsPhysical(); initialize();
+  results.wifiMatrix = mode.compare(0, 5, "wifi-") == 0;
+  results.wifiConnected = mode != "wifi-disconnected";
+  results.syncSucceeded = mode == "wifi-success" || mode == "wifi-reopen-failure";
+  results.reopenFails = mode == "wifi-reopen-failure";
+  bind(); bindResultsLifecycle(); bindResultsPhysical();
+  if (results.wifiMatrix) bindWifiMatrix();
+  initialize();
   state.startAttempt(); assert(install() == 1); assertEntered();
   results.owner = xp_app_test_current_epub(); paintOwner();
-  if (mode == "stack-failure") {
+  if (results.wifiMatrix) {
+    wifiMatrix(mode);
+  } else if (mode == "stack-failure") {
     xp_epub_test_menu_open(results.owner);
     assert(xp_app_test_pending_kind() == 1 && xp_app_test_parent_count() == 0);
     results.allocatingStack = true; xp_test_fail_allocation_after(0);

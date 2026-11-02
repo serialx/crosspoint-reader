@@ -15,6 +15,7 @@ import tempfile
 MODES = ('menu', 'chapter', 'percent', 'text', 'text-overlay', 'footnote',
          'footnote-page', 'clip', 'lookup', 'bookmark', 'dictionary',
          'bookmarks', 'clippings', 'qr', 'wifi')
+WIFI_MATRIX = ('wifi-success', 'wifi-reopen-failure', 'wifi-disconnected', 'wifi-cancelled')
 
 
 def block(source, signature):
@@ -61,7 +62,7 @@ def main():
     parser.add_argument('--archive', type=Path, required=True)
     parser.add_argument('--evidence-dir', type=Path, default=os.environ.get('XP_APP_RESULTS_EVIDENCE_DIR'))
     parser.add_argument('--mutants', action='store_true')
-    parser.add_argument('--case', choices=(*MODES, 'stack-failure', 'pending-shutdown'))
+    parser.add_argument('--case', choices=(*MODES, *WIFI_MATRIX, 'stack-failure', 'pending-shutdown'))
     parser.add_argument('--cancelled', choices=(0, 1), type=int)
     args = parser.parse_args()
     root = args.repo.resolve()
@@ -74,6 +75,7 @@ def main():
     from rust_host import rust_link_flags
     cases = [(mode, flag) for mode in MODES for flag in (0, 1)]
     cases += [('stack-failure', 0), ('pending-shutdown', 0)]
+    cases += [(mode, 0) for mode in WIFI_MATRIX]
     if args.case:
         cases = [case for case in cases if case[0] == args.case]
     if args.cancelled is not None:
@@ -125,6 +127,7 @@ def main():
                 ui = Path('crates/xp-ui/src/app/mod.rs')
                 child = Path('crates/xp-ffi/src/app/epub/child_result.rs')
                 owner = Path('crates/xp-ffi/src/app/epub/ownership.rs')
+                recovery = Path('crates/xp-ffi/src/app/epub/recovery.rs')
                 def once(original, before, after):
                     assert original.count(before) == 1, before
                     return original.replace(before, after, 1)
@@ -136,6 +139,10 @@ def main():
                     ('no-parent-publication', ui, once(ui_source, '            services.publish(parent, visit);', '            let _ = visit;'), 'menu', 'APP_RESULT_NOT_PUBLISHED'),
                     ('retained-result-intent', child, once((root / 'rust' / child).read_text(), 'core::mem::take(&mut state.child)', 'state.child'), 'menu', 'APP_RESULT_INTENT_RETAINED'),
                     ('retained-stack-intent', owner, once((root / 'rust' / owner).read_text(), '        self.model(|state| state.child = super::state::ChildIntent::None);', ''), 'stack-failure', 'APP_STACK_INTENT_RETAINED'),
+                    ('wrong-reopen-destination', recovery, once((root / 'rust' / recovery).read_text(),
+                        'path: self.path.wire(),\n                fast_initial: 0,',
+                        'path: app_abi::Text::from_bytes(b"/wrong.epub"),\n                fast_initial: 0,'),
+                        'wifi-success', 'WIFI_REOPEN_DESTINATION'),
                 ]
                 for name, path, content, case, marker in mutations:
                     original = (copied / 'rust' / path).read_text()
@@ -150,10 +157,11 @@ def main():
                         run([str(executable), case, '0'], name, 42, marker)
                     finally:
                         (copied / 'rust' / path).write_text(original)
-        summary = {'case_count': len(cases), 'full_matrix_count': 32,
-                   'mutant_count': 4 if args.mutants else 0,
+        summary = {'case_count': len(cases), 'full_matrix_count': 36,
+                   'mutant_count': 5 if args.mutants else 0,
                    'policy_hooks': 0, 'results': records,
-                   'reopen': 'removed unreachable variant; no fabricated intent',
+                   'reopen': 'actual Wi-Fi child return, returning restart leaf and queued Reader replacement; null acquisition preserves owner',
+                   'wifi_limits': 'physical Wi-Fi/restart/reader factory fakes; shipping App still uses legacy Reader creation until atomic routing',
                    'scope': 'physical no-hook App destruction/publication/unlock/delivery; see MAPPING.md limits'}
         (evidence / 'result.json').write_text(json.dumps(summary, indent=2) + '\n')
         print(f'App EPUB results: {len(cases)} cases, {summary["mutant_count"]} semantic mutants passed')

@@ -142,7 +142,26 @@ def fixture_support(fixture, input_header, nav):
 
 def transformed_fixture():
     fixture = (HERE / 'overlay_oracle.cpp').read_text()
+    fixture = replace_once(fixture, 'enum class Button { Back, Left, Right, Confirm, Up, Down };',
+                           'enum class Button { Back, Left, Right, Confirm, Up, Down, Power };')
+    fixture = replace_once(fixture, '  bool isPressed(Button b) {',
+                           '  unsigned pressEdges = 0;\n'
+                           '  bool wasPressed(Button b) { return pressEdges & (1u << int(b)); }\n'
+                           '  bool wasLongPressed(Button, unsigned) { std::abort(); }\n'
+                           '  bool isPressed(Button b) {')
+    native = (ROOT / 'src/activities/reader/RustEpubResources.cpp').read_text()
+    decoder = definition(native, 'MappedInputManager::Button inputButton(')
+    fixture = replace_once(fixture, '// OVERLAY_METHODS', decoder + '\n// OVERLAY_METHODS')
     fixture = replace_once(fixture, '// OVERLAY_METHODS', (HERE / 'overlay_input_session_rust.inc').read_text())
+    bridge = (ROOT / 'src/activities/reader/ReaderUtils.h').read_text()
+    begin, end = 'case XP_UI_READER_INPUT_SWIPE:', 'case XP_UI_READER_INPUT_HELD_MS:'
+    assert bridge.count(begin) == bridge.count(end) == 1
+    swipe_query = bridge.split(begin, 1)[1].split(end, 1)[0].strip()
+    fixture = replace_once(fixture, '// NATIVE_SWIPE_QUERY', swipe_query)
+    begin, end = 'switch (static_cast<XpUiReaderButtonQuery>(query)) {', '          },'
+    button_query = begin + bridge.split(begin, 1)[1].split(end, 1)[0]
+    button_query = button_query.replace('(button)', '(nativeButton)').replace('(button, threshold)', '(nativeButton, threshold)')
+    fixture = replace_once(fixture, '// NATIVE_BUTTON_QUERY', button_query)
     fixture = replace_once(fixture, '        r.handleOverlayInput();\n        r.dump();',
                           '        OverlayInputSessionBridge overlaySession(r);\n'
                           '        r.handleOverlayInput();\n        r.dump();')
@@ -166,7 +185,39 @@ def freeze_original():
         (HERE / GOLDEN).write_bytes(gzip.compress(actual, mtime=0))
 
 
+def physical_fixture(fixture):
+    source = fixture.split('int main() {', 1)[0]
+    input_header = (ROOT / 'src/MappedInputManager.h').read_text()
+    mapped = (ROOT / 'src/MappedInputManager.cpp').read_text()
+    gfx = (ROOT / 'lib/GfxRenderer/GfxRenderer.cpp').read_text()
+    support = (HERE / 'overlay_input_physical.h').read_text()
+    for marker, declaration in (
+        ('PHYSICAL_BUTTON_ENUM', definition(input_header, 'enum class Button')),
+        ('PHYSICAL_SWIPE_ENUM', definition(input_header, 'enum class SwipeDir')),
+        ('PHYSICAL_ORIENTATION', definition((ROOT / 'lib/GfxRenderer/GfxRenderer.h').read_text(), 'enum Orientation'))):
+        support = replace_once(support, '// ' + marker, declaration + ';')
+    indices = re.findall(r'  static constexpr uint8_t BTN_\w+ = \d+;',
+                         (ROOT / 'lib/hal/HalGPIO.h').read_text())
+    assert len(indices) == 7
+    support = replace_once(support, '// PHYSICAL_BUTTON_INDICES', '\n'.join(indices))
+    signatures = ('bool MappedInputManager::mapButton(', 'bool MappedInputManager::isPressed(',
+                  'bool MappedInputManager::wasPressed(', 'bool MappedInputManager::wasReleased(',
+                  'bool MappedInputManager::isNavDirectionSwapped(',
+                  'MappedInputManager::Button MappedInputManager::mapScreenDirection(',
+                  'bool MappedInputManager::decodeSwipe(', 'MappedInputManager::SwipeDir MappedInputManager::wasSwipe(')
+    methods = '\n'.join(definition(mapped, signature) for signature in signatures)
+    methods += '\n' + definition(gfx, 'void GfxRenderer::tapToLogical(')
+    support = replace_once(support, '// PHYSICAL_METHODS', methods)
+    source = replace_once(source, definition(source, 'struct MappedInputManager {') + ';', support)
+    source = replace_once(source, 'struct {\n  int focusReadingEnabled = 0;\n} SETTINGS;', '')
+    return source + (HERE / 'overlay_input_physical_frames.cpp').read_text()
+
+
 def rust_mutants(original):
+    assert original.count('SWIPE_UP as u32') == 2 and original.count('SWIPE_DOWN as u32') == 1
+    yield 'wrong-swipe-family', original.replace(
+        'SWIPE_UP as u32', 'xp_ui::reader::epub_overlay::Swipe::Up as u32').replace(
+        'SWIPE_DOWN as u32', 'xp_ui::reader::epub_overlay::Swipe::Down as u32')
     # This scope contains exactly the synchronous TOC sink and its outer fallback.
     begin = original.index('    fn activate_contents_row(')
     end = original.index('    fn activate_overlay_row(', begin)
@@ -179,9 +230,13 @@ def rust_mutants(original):
                                                 'self.open_text_settings(false);')
     yield 'lazy-press-order-swapped', replace_regex_once(
         original,
-        r'self\.mapped_button\(UP, ButtonQuery::Press, 0\)\s*\|\|\s*'
-        r'self\.mapped_button\(LEFT, ButtonQuery::Press, 0\)',
-        'self.mapped_button(LEFT, ButtonQuery::Press, 0) || self.mapped_button(UP, ButtonQuery::Press, 0)')
+        r'self\.held_button\(HeldButton::Up\)\s*\|\|\s*self\.held_button\(HeldButton::Left\)',
+        'self.held_button(HeldButton::Left) || self.held_button(HeldButton::Up)')
+    yield 'press-edge-instead-of-held', replace_once(original,
+        'unsafe { (self.leaves.input_pressed)(button as u32) != 0 }',
+        'let mask = match button { HeldButton::Left => LEFT, HeldButton::Right => RIGHT, '
+        'HeldButton::Up => UP, HeldButton::Down => DOWN }; '
+        'self.mapped_button(mask, ButtonQuery::Press, 0)')
 
 
 def mismatch(actual, expected):
@@ -208,13 +263,21 @@ def main():
     assert digest(raw) == RAW_SHA
     expected, counts = project(raw)
     fixture = transformed_fixture()
+    frames = fixture.split('int main() {', 1)[0] + (HERE / 'overlay_input_frames.cpp').read_text()
+    physical = physical_fixture(fixture)
     production_file = ROOT / 'rust' / PRODUCTION
     production = production_file.read_text()
     paths = sorted((ROOT / 'rust/crates/xp-ffi/src/app/epub').rglob('*.rs'))
     paths.extend(HERE / name for name in ('overlay_oracle.cpp', 'overlay_input_session_rust.inc',
                                          'overlay_input_session_fixture.h', 'overlay_actions_session_fixture.h',
-                                         'test_overlay_input.py'))
-    paths.extend(ROOT / path for path in ('src/MappedInputManager.h', 'src/util/ButtonNavigator.cpp',
+                                         'test_overlay_input.py', 'overlay_input_frames.cpp',
+                                         'overlay_input_physical.h', 'overlay_input_physical_frames.cpp'))
+    paths.extend(ROOT / path for path in ('src/MappedInputManager.h', 'src/activities/reader/ReaderUtils.h',
+                                          'src/activities/reader/RustEpubResources.cpp',
+                                          'src/MappedInputManager.cpp', 'lib/hal/HalGPIO.h',
+                                          'lib/GfxRenderer/GfxRenderer.h', 'lib/GfxRenderer/GfxRenderer.cpp',
+                                          'freeink-sdk/libs/ui/FreeInkUI/include/FreeInkUICore.h',
+                                          'src/util/ButtonNavigator.cpp',
                                           'rust/crates/xp-ffi/include/xp_epub_session.h',
                                           'rust/crates/xp-ui/src/reader/input.rs',
                                           'rust/crates/xp-ui/src/reader/epub_overlay.rs',
@@ -228,13 +291,17 @@ def main():
             (evidence / 'projected.trace').write_bytes(expected)
             (evidence / 'projection.json').write_text(json.dumps(counts, indent=2) + '\n')
             (work / 'overlay.cpp').write_text(fixture)
+            (work / 'frames.cpp').write_text(frames)
+            (work / 'physical.cpp').write_text(physical)
             flags = rust_link_flags()
 
-            def run(name, archive=None):
+            def run(name, archive=None, frames=False, physical=False):
                 binary = work / name
                 link = flags if archive is None else rust_link_flags(archive=str(archive))
                 subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-O0', '-fsanitize=address,undefined',
-                                '-I', str(HERE), str(work / 'overlay.cpp'), *link, '-o', str(binary)], check=True)
+                                '-I', str(HERE), '-I', str(ROOT / 'freeink-sdk/libs/ui/FreeInkUI/include'),
+                                str(work / ('physical.cpp' if physical else 'frames.cpp' if frames else 'overlay.cpp')),
+                                *link, '-o', str(binary)], check=True)
                 result = subprocess.run([str(binary)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 (evidence / (name + '.stdout')).write_bytes(result.stdout)
                 (evidence / (name + '.stderr')).write_bytes(result.stderr)
@@ -243,11 +310,21 @@ def main():
             baseline = run('baseline')
             assert baseline.returncode == 0, baseline.stderr.decode(errors='replace')
             assert baseline.stdout == expected, mismatch(baseline.stdout, expected)
+            frame_result = run('frames', frames=True)
+            assert frame_result.returncode == 0, frame_result.stderr.decode(errors='replace')
+            assert b'PASS overlay frames cases=8' in frame_result.stdout
+            physical_result = run('physical', physical=True)
+            assert physical_result.returncode == 0, physical_result.stderr.decode(errors='replace')
+            assert b'PASS physical overlay holds=64 swipes=20 orientations=4 mappings=2' in physical_result.stdout
+            native_swipes = collections.Counter(int(value) for value in re.findall(
+                rb'^\d+ swipe (\d+) 0 lock=0$', baseline.stdout, re.MULTILINE))
+            assert dict(native_swipes) == {0: 1080, 1: 36, 2: 36, 3: 36, 4: 36}
             summary = {'test_name': 'reader_overlay_input', 'cases': 1728, 'original_gzip_sha256': GZIP_SHA,
                        'original_trace_sha256': RAW_SHA, 'original_trace_lines': 24067,
                        'projected_trace_sha256': digest(expected), 'projected_trace_lines': len(expected.splitlines()),
                        'actual_trace_sha256': digest(baseline.stdout), 'projection_counts': counts,
                        'source_sha256': hashes,
+                       'native_swipes_through_actual_bridge': dict(native_swipes),
                        'policy': 'ordinary owner input/result methods; historical named stubs; no output filtering'}
             (evidence / 'baseline.json').write_text(json.dumps(summary, indent=2) + '\n')
             print(json.dumps(summary), flush=True)
@@ -272,6 +349,13 @@ def main():
                 (evidence / (name + '.json')).write_text(json.dumps(record, indent=2) + '\n')
                 print(json.dumps(record), flush=True)
                 assert killed, ('actual Rust mutant survived', name)
+                if name == 'press-edge-instead-of-held':
+                    rejected = run('frames-press-edge', target / 'release/libxp_ffi.a', frames=True)
+                    assert rejected.returncode == 42 and rejected.stderr == b'EXPECTED_ASSERTION: OVERLAY_HELD_JUMP\n'
+                if name in ('press-edge-instead-of-held', 'wrong-swipe-family'):
+                    rejected = run('physical-' + name, target / 'release/libxp_ffi.a', physical=True)
+                    marker = 'OVERLAY_PHYSICAL_HELD' if name == 'press-edge-instead-of-held' else 'OVERLAY_PHYSICAL_SWIPE'
+                    assert rejected.returncode == 42 and rejected.stderr == ('EXPECTED_ASSERTION: ' + marker + '\n').encode()
     finally:
         assert (HERE / GOLDEN).read_bytes() == golden, 'immutable golden changed'
         for path, before in hashes.items():

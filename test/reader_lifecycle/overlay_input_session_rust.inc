@@ -97,20 +97,27 @@ static void configureOverlayInputLeaves() {
       [](void*, uint32_t button, uint8_t query, uint32_t threshold) -> uint8_t {
         auto& input = overlayInputOwner().mappedInput;
         assert(!lockDepth && threshold == 0);
-        if (query == 0) return input.isPressed(overlayInputButton(button));
-        assert(query == 1);
-        return input.wasReleased(overlayInputButton(button));
+        auto& frame = input;
+        const auto nativeButton = overlayInputButton(button);
+        // NATIVE_BUTTON_QUERY
       },
       [](void*, uint8_t query) -> uint32_t {
         auto& input = overlayInputOwner().mappedInput;
         assert(!lockDepth);
-        if (query == 1) return static_cast<uint32_t>(input.wasSwipe());
-        assert(query == 2);
+        if (query == XP_UI_READER_INPUT_SWIPE) {
+          auto& frame = input;
+          // NATIVE_SWIPE_QUERY
+        }
+        assert(query == XP_UI_READER_INPUT_HELD_MS);
         return input.getHeldTime();
       },
       &OverlayUnexpected<decltype(XpUiReaderInputServices::tap)>::call,
     };
     return &input;
+  };
+  overlayInputLeaves.input_pressed = [](uint32_t index) -> uint8_t {
+    assert(!lockDepth);
+    return overlayInputOwner().mappedInput.isPressed(inputButton(index));
   };
   overlayInputLeaves.toolbar_route = [](void* raw, XpEpubRouted* out) {
     auto& owner = overlayInputOwner();

@@ -9,7 +9,8 @@ start = source.index("void mappedSnapshot(")
 body = source[start:source.index("\nconst XpAppRuntime& appRuntime()", start)]
 manager = (ROOT / "src/activities/ActivityManager.cpp").read_text()
 facts = manager.split(".facts = ", 1)[1].split(",\n      .with_result", 1)[0]
-helpers = 'struct OwnedLegacyActivity' + manager.split('struct OwnedLegacyActivity', 1)[1].split('XpAppText text', 1)[0]
+ownership = (ROOT / 'src/activities/OwnedLegacyActivity.h').read_text()
+helpers = ownership[ownership.index('struct OwnedLegacyActivity {'):]
 settings = source.split('.loop_settings =', 1)[1].split(',\n      .display_geometry', 1)[0]
 harness = r'''
 #include <cassert>
@@ -90,6 +91,7 @@ std::unique_ptr<T> makeUniqueNoThrow(Args&&... args) {
   if (failOwner) return nullptr;
   return std::make_unique<T>(std::forward<Args>(args)...);
 }
+struct ReaderActivity;
 struct Activity {
   std::string name = "EpubReader";
   unsigned delayCalls = 0;
@@ -97,6 +99,7 @@ struct Activity {
   bool remote = true, prevent = false, exclusive = false;
   virtual ~Activity() { ++destroyed; }
   virtual bool isReaderActivity() const { ++identityCalls; return false; }
+  virtual ReaderActivity* readerControls() { return nullptr; }
   bool acceptsRemoteInput() const { return remote; }
   bool preventAutoSleep() const { return prevent; }
   bool requiresExclusiveStorageLoop() const { return exclusive; }
@@ -105,6 +108,7 @@ struct Activity {
 struct ReaderActivity : Activity {
   unsigned overlayCalls = 0;
   bool isReaderActivity() const override { ++identityCalls; return true; }
+  ReaderActivity* readerControls() final { return this; }
   bool inputOverPage() { ++overlayCalls; return true; }
 };
 ''' + helpers + '\nauto loopSettings = ' + settings + ';\n' + body + "\nauto legacyFacts = " + facts + ";\n" + r'''

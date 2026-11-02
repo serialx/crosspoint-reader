@@ -37,10 +37,9 @@ effects='\n'.join(method(p,sig) for p,sig in [
  ('src/MappedInputManager.cpp','void MappedInputManager::suppressNextRelease('),
  ('src/MappedInputManager.cpp','bool MappedInputManager::consumeSuppressedRelease(')])
 s=s.replace('// PRODUCTION_EFFECTS',effects)
-manager=(repo/'src/activities/ActivityManager.cpp').read_text()
 delivery=method('src/activities/ActivityManager.cpp', '[](void* parent, const void* result)')
-owner = 'struct OwnedLegacyActivity' + manager.split('struct OwnedLegacyActivity', 1)[1].split('std::unique_ptr<OwnedLegacyActivity> ownLegacy', 1)[0]
-unwrap = method('src/activities/ActivityManager.cpp', 'Activity* nativeActivity(')
+owner = method('src/activities/OwnedLegacyActivity.h', 'struct OwnedLegacyActivity {') + ';\n'
+unwrap = method('src/activities/OwnedLegacyActivity.h', 'inline Activity* nativeActivity(')
 s=s.replace('// RESULT_BRIDGE', owner + unwrap)
 s=s.replace('// PRODUCTION_DELIVERY', 'auto callback = ' + delivery + ';\n  OwnedLegacyActivity owner{std::unique_ptr<Activity>(currentActivity)};\n  callback(&owner, &pendingResult);\n  owner.activity.release();')
 (out/'parents.cpp').write_text(s)

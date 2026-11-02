@@ -15,7 +15,8 @@ for marker, signature in [('FACTORY', '[](const XpAppLaunch* launch)'),
                           ('WITH_RESULT', '[](void* activity, XpAppResultSink sink'),
                           ('DELIVERY', '[](void* parent, const void* result)')]:
     source = source.replace('// ' + marker, method(manager, signature))
-source = source.replace('// LEGACY_OWNER', 'struct OwnedLegacyActivity' + manager.split('struct OwnedLegacyActivity', 1)[1].split('XpAppText text', 1)[0])
+ownership = (ROOT / 'src/activities/OwnedLegacyActivity.h').read_text()
+source = source.replace('// LEGACY_OWNER', ownership[ownership.index('struct OwnedLegacyActivity {'):])
 source = source.replace('// OWNED_TEXT', method(manager, 'std::string owned('))
 source = source.replace('// FILE_CONSTRUCTOR', method((ROOT/'src/activities/home/FileBrowserActivity.cpp').read_text(), 'FileBrowserActivity::FileBrowserActivity('))
 with tempfile.TemporaryDirectory() as tmp:

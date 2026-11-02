@@ -51,6 +51,7 @@
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
 #include "SilentRestart.h"
+#include "activities/OwnedLegacyActivity.h"
 #include "activities/RenderLock.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "activities/settings/TextSettingsActivity.h"
@@ -1103,34 +1104,34 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .wifi_disconnect = [](uint8_t off) { WiFi.disconnect(off != 0); },
       .restart_reader = [] { silentRestartToReader(); },
       .child_menu = [](const XpEpubMenuArgs* args) -> void* {
-        return makeUniqueNoThrow<EpubReaderMenuActivity>(
+        return makeLegacyActivity<EpubReaderMenuActivity>(
                    *target, *mapped, owned(args->title), args->display_page, args->pages, args->percent,
                    args->orientation, args->footnotes != 0, args->bookmarks != 0, args->clippings != 0)
             .release();
       },
       .child_chapter = [](void* handle, int32_t toc) -> void* {
-        return makeUniqueNoThrow<EpubReaderChapterSelectionActivity>(*target, *mapped, book(handle).book, toc)
+        return makeLegacyActivity<EpubReaderChapterSelectionActivity>(*target, *mapped, book(handle).book, toc)
             .release();
       },
       .child_percent = [](int32_t percent) -> void* {
-        return makeUniqueNoThrow<EpubReaderPercentSelectionActivity>(*target, *mapped, percent).release();
+        return makeLegacyActivity<EpubReaderPercentSelectionActivity>(*target, *mapped, percent).release();
       },
       .child_text_settings = []() -> void* {
-        return makeUniqueNoThrow<TextSettingsActivity>(*target, *mapped, &sdFontSystem.registry(),
-                                                       TextSettingsActivity::Tab::Family)
+        return makeLegacyActivity<TextSettingsActivity>(*target, *mapped, &sdFontSystem.registry(),
+                                                        TextSettingsActivity::Tab::Family)
             .release();
       },
       .child_footnote = [](void* handle, int32_t left, int32_t top) -> void* {
         std::unique_ptr<Page> page(static_cast<Page*>(handle));
-        auto child = makeUniqueNoThrow<EpubReaderFootnoteSelectActivity>(*target, *mapped, std::move(page), left, top);
+        auto child = makeLegacyActivity<EpubReaderFootnoteSelectActivity>(*target, *mapped, std::move(page), left, top);
         // The Rust caller retains the Page on allocation failure.
         if (!child) page.release();
         return child.release();
       },
       .child_dictionary = [](void* handle, int32_t left, int32_t top, XpAppText initial) -> void* {
         std::unique_ptr<Page> page(static_cast<Page*>(handle));
-        auto child = makeUniqueNoThrow<DictionaryWordSelectActivity>(*target, *mapped, std::move(page), left, top,
-                                                                     owned(initial));
+        auto child = makeLegacyActivity<DictionaryWordSelectActivity>(*target, *mapped, std::move(page), left, top,
+                                                                      owned(initial));
         if (!child) page.release();
         return child.release();
       },
@@ -1141,9 +1142,9 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         std::vector<std::unique_ptr<Page>> pages;
         pages.reserve(pageWindow);
         for (uint8_t i = 0; i < count; ++i) pages.emplace_back(static_cast<Page*>(handles[i]));
-        auto child =
-            makeUniqueNoThrow<ClipSelectionActivity>(*target, *mapped, std::move(pages), args->left, args->top, args->x,
-                                                     args->y, static_cast<ClipSelectionActivity::Mode>(args->mode));
+        auto child = makeLegacyActivity<ClipSelectionActivity>(*target, *mapped, std::move(pages), args->left,
+                                                               args->top, args->x, args->y,
+                                                               static_cast<ClipSelectionActivity::Mode>(args->mode));
         if (child) {
           for (uint8_t i = 0; i < count; ++i) handles[i] = nullptr;
         } else {
@@ -1152,21 +1153,21 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return child.release();
       },
       .child_bookmarks = [](void* handle, XpAppText path) -> void* {
-        return makeUniqueNoThrow<EpubReaderBookmarksActivity>(*target, *mapped, book(handle).book, owned(path))
+        return makeLegacyActivity<EpubReaderBookmarksActivity>(*target, *mapped, book(handle).book, owned(path))
             .release();
       },
       .child_clippings = []() -> void* {
-        return makeUniqueNoThrow<EpubReaderClippingListActivity>(*target, *mapped).release();
+        return makeLegacyActivity<EpubReaderClippingListActivity>(*target, *mapped).release();
       },
       .child_qr = [](XpAppText payload) -> void* {
-        return makeUniqueNoThrow<QrDisplayActivity>(*target, *mapped, owned(payload)).release();
+        return makeLegacyActivity<QrDisplayActivity>(*target, *mapped, owned(payload)).release();
       },
-      .child_wifi = []() -> void* { return makeUniqueNoThrow<WifiSelectionActivity>(*target, *mapped).release(); },
+      .child_wifi = []() -> void* { return makeLegacyActivity<WifiSelectionActivity>(*target, *mapped).release(); },
       .child_sync = [](XpAppText path, const XpEpubPosition* current, const XpEpubSavedProgress* saved,
                        XpAppText chapter, uint8_t eventsOnly) -> void* {
-        return makeUniqueNoThrow<KOReaderSyncActivity>(*target, *mapped, owned(path), position(*current),
-                                                       SavedProgressPosition{owned(saved->xpath), saved->percentage},
-                                                       owned(chapter), eventsOnly != 0)
+        return makeLegacyActivity<KOReaderSyncActivity>(*target, *mapped, owned(path), position(*current),
+                                                        SavedProgressPosition{owned(saved->xpath), saved->percentage},
+                                                        owned(chapter), eventsOnly != 0)
             .release();
       },
       .toolbar_open = []() -> void* { return makeUniqueNoThrow<ReaderToolbarUi>(*target).release(); },

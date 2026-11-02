@@ -17,6 +17,7 @@
 #include "CrossPointSettings.h"
 #include "HapticFeedback.h"
 #include "OpdsServerStore.h"
+#include "OwnedLegacyActivity.h"
 #include "RustAppResources.h"
 #include "boot_sleep/BootActivity.h"
 #include "boot_sleep/SleepActivity.h"
@@ -40,24 +41,6 @@ static portMUX_TYPE activityManagerSpinlock = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE appModelSpinlock = portMUX_INITIALIZER_UNLOCKED;
 
 namespace {
-struct OwnedLegacyActivity {
-  std::unique_ptr<Activity> activity;
-  uint8_t kind = UINT8_MAX;
-  bool reader = false;
-  bool identified = false;
-
-  explicit OwnedLegacyActivity(std::unique_ptr<Activity> activity) : activity(std::move(activity)) {}
-};
-
-std::unique_ptr<OwnedLegacyActivity> ownLegacy(std::unique_ptr<Activity> activity) {
-  if (!activity) return nullptr;
-  auto owner = makeUniqueNoThrow<OwnedLegacyActivity>(std::move(activity));
-  if (!owner) LOG_ERR("ACT", "Cannot allocate legacy activity owner");
-  return owner;
-}
-
-Activity* nativeActivity(const void* object) { return static_cast<const OwnedLegacyActivity*>(object)->activity.get(); }
-
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
 std::string owned(XpAppText value) {
   return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
@@ -178,13 +161,14 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
 
           owner.identified = true;
         }
+        auto* reader = input ? activity->readerControls() : nullptr;
         return {owner.kind,
                 static_cast<uint8_t>(owner.reader),
                 static_cast<uint8_t>(activity->acceptsRemoteInput()),
                 static_cast<uint8_t>(activity->preventAutoSleep()),
                 static_cast<uint8_t>(activity->requiresExclusiveStorageLoop()),
                 static_cast<uint8_t>(delay && activity->skipLoopDelay()),
-                static_cast<uint8_t>(input && owner.reader && static_cast<ReaderActivity*>(activity)->inputOverPage())};
+                static_cast<uint8_t>(reader && reader->inputOverPage())};
       },
       .with_result =
           [](void* activity, XpAppResultSink sink, void* context) {
@@ -212,7 +196,8 @@ void ActivityManager::begin(const XpAppRuntime& leaves) {
       .forced_refresh = [](void* activity) -> uint8_t { return nativeActivity(activity)->handleForcedRefresh(); },
       .reader_turn = [](void* activity, uint8_t forward, uint8_t chapter) -> uint8_t {
         if (activityManager.mappedInput.hasRemoteClick()) return 0;
-        auto* reader = static_cast<ReaderActivity*>(nativeActivity(activity));
+        auto* reader = nativeActivity(activity)->readerControls();
+        if (!reader) return 0;
         return chapter ? reader->skipPages(forward ? 1 : -1) : reader->pageTurn(forward != 0);
       },
       .screenshot_info =

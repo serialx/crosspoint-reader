@@ -18,18 +18,25 @@ from rust_host import rust_link_flags
 
 NATIVE = ROOT / 'src/activities/reader/RustEpubResources.cpp'
 MEMORY = ROOT / 'lib/Memory/Memory.h'
+LEGACY_OWNER = ROOT / 'src/activities/OwnedLegacyActivity.h'
 ALLOCATOR = r'''
 #include <new>
 #include <cstddef>
-static bool failOuter;
-static int outerAttempts, finishCount;
+static int failOuterAfter = -1;
+static int outerAttempts, failedOuterAttempt = -1, finishCount;
+static std::size_t outerSizes[2];
 static void* expectedExtractor;
 static bool checkExtractor, imageSourceExists;
 static unsigned extractorInstalls, extractorClears, imageExtractions, imageDecodes;
 static void requireExtractor();
 void* operator new(std::size_t size, const std::nothrow_t&) noexcept {
-  ++outerAttempts;
-  return failOuter ? nullptr : ::operator new(size);
+  const int attempt = outerAttempts++;
+  if (attempt < 2) outerSizes[attempt] = size;
+  if (attempt == failOuterAfter) {
+    failedOuterAttempt = attempt;
+    return nullptr;
+  }
+  return ::operator new(size);
 }
 '''
 
@@ -71,6 +78,21 @@ def fixture(native):
                            'void requestUpdate() { requireExtractor(); event("update"); }')
     old = definition(source, 'template <class T, class... A>\nstd::unique_ptr<T> makeUniqueNoThrow(')
     source = replace_once(source, old, '#include "' + str(MEMORY) + '"')
+    owner = LEGACY_OWNER.read_text()
+    for include in ('#pragma once\n', '#include <Memory.h>\n', '#include "Activity.h"\n'):
+        owner = replace_once(owner, include, '')
+    source = replace_once(source, 'using Activity = Child;', 'using Activity = Child;\n' + owner + r'''
+    // Only the historical navigation hooks consume the wrapper in this fixture.
+    static std::unique_ptr<Child> takeNativeChild(void* raw) {
+      std::unique_ptr<OwnedLegacyActivity> owner(static_cast<OwnedLegacyActivity*>(raw));
+      assert(owner && owner->activity);
+      return std::move(owner->activity);
+    }
+''')
+    source = replace_once(source, 'owner.startActivityForResult(std::unique_ptr<Child>(static_cast<Child*>(raw)),',
+                          'owner.startActivityForResult(takeNativeChild(raw),')
+    source = replace_once(source, 'activityManager.replaceActivity(std::unique_ptr<Child>(static_cast<Child*>(child)));',
+                          'activityManager.replaceActivity(takeNativeChild(child));')
     source = replace_once(source, '[](void*) { assert(false && "historical child fixture cannot finish"); }',
                           '[](void*) { ++finishCount; }')
     cases = (HERE / 'child_native_faults.cpp').read_text()
@@ -86,7 +108,7 @@ def fixture(native):
 
 def main():
     native = NATIVE.read_text()
-    paths = [NATIVE, MEMORY, HERE / 'child_native_faults.cpp', HERE / 'child_session_rust.inc',
+    paths = [NATIVE, MEMORY, LEGACY_OWNER, HERE / 'child_native_faults.cpp', HERE / 'child_session_rust.inc',
              HERE / 'child_parent_oracle.cpp', HERE / 'child_session_fixture.h',
              HERE / 'test_child_native_faults.py', HERE / 'test_child_metadata_faults.py',
              ROOT / 'lib/Epub/Epub/blocks/ImageBlock.cpp',
@@ -109,7 +131,7 @@ def main():
 
             baseline = run('native-child', native)
             assert baseline.returncode == 0, baseline.stderr.decode(errors='replace')
-            assert baseline.stdout.endswith(b'native child allocation: 12 outer cases; three Rust sync capture failures; no lost Pages or captures\n')
+            assert baseline.stdout.endswith(b'native child allocation: 18 outer cases; three Rust sync capture failures; no lost Pages or captures\n')
             for leaf in ('child_selection', 'child_dictionary', 'child_footnote'):
                 original = native_leaf(native, leaf)
                 before = ('for (auto& page : pages) page.release();' if leaf == 'child_selection'
@@ -120,10 +142,12 @@ def main():
                 assert rejected.returncode != 0
                 assert b'AddressSanitizer' in rejected.stderr and (
                     b'heap-use-after-free' in rejected.stderr or b'double-free' in rejected.stderr), rejected.stderr.decode(errors='replace')
-                print(json.dumps(dict(test_name='reader_child_native_faults', outer_cases=12,
+                print(json.dumps(dict(test_name='reader_child_native_faults', outer_cases=18,
+                    outer_stages=['success', 'wrapper allocation failure', 'child allocation failure'],
                     rust_sync_capture_faults=3, fixture_sha256=hashes, native_source_sha256=digest(native.encode()),
-                    scope='actual extracted child leaves and Memory.h nothrow allocation; Rust ownership and sync capture paths',
+                    scope='actual extracted child leaves, OwnedLegacyActivity.h helper and Memory.h nothrow allocation; Rust ownership and sync capture paths',
                     limitations=['native child classes and Page are physical fakes; position conversion uses the historical marker',
+                                 'only historical push/replace hooks unwrap owners; real App wrapper lifetime is covered separately',
                                  'retained native vector/string internal allocation safety is explicitly deferred O4/O5 debt'],
                     baseline_stdout_sha256=digest(baseline.stdout), mutant=leaf + '-consumes-on-failure',
                     kind='production-native', mutant_source_sha256=digest(altered.encode()),

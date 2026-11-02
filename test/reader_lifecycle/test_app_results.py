@@ -43,10 +43,11 @@ def make_source(root, here):
     assert base.count(trace) == 1
     base = base.replace(trace, trace + '\n    std::fprintf(stderr, "physical %s generation=%u id=%u render=%d model=%d\\n", name.c_str(), generation, id, renderDepth, modelDepth);')
     manager = (root / 'src/activities/ActivityManager.cpp').read_text()
+    owner = (root / 'src/activities/OwnedLegacyActivity.h').read_text()
     extension = (here / 'app_results_main.inc').read_text()
     substitutions = {
-        '// OWNED_NATIVE_DECLARATION': block(manager, 'struct OwnedLegacyActivity') + ';',
-        '// NATIVE_ACTIVITY_GETTER': block(manager, 'Activity* nativeActivity(const void* object)'),
+        '// OWNED_NATIVE_DECLARATION': block(owner, 'struct OwnedLegacyActivity') + ';',
+        '// NATIVE_ACTIVITY_GETTER': block(owner, 'Activity* nativeActivity(const void* object)'),
         '// NATIVE_WITH_RESULT': block(manager, '[](void* activity, XpAppResultSink sink'),
         '// PHYSICAL_BINDINGS': (here / 'app_results_physical.inc').read_text(),
     }
@@ -86,6 +87,7 @@ def main():
                root / 'test/reader_lifecycle/physical_defaults.h',
                root / 'test/reader_lifecycle/scene_physical_bindings.inc',
                root / 'src/activities/ActivityManager.cpp',
+               root / 'src/activities/OwnedLegacyActivity.h',
                root / 'src/activities/ActivityResult.h',
                root / 'src/activities/ActivityResultView.h',
                args.archive.resolve()]

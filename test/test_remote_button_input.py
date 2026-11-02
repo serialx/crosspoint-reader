@@ -127,14 +127,21 @@ def method(text, signature):
     return text[start:end]
 remote_turn = method(manager_source, "bool ActivityManager::remoteTurn(")
 reader_turn = method(manager_source, "[](void* activity, uint8_t forward, uint8_t chapter)")
-owner_helpers = 'struct OwnedLegacyActivity' + manager_source.split('struct OwnedLegacyActivity', 1)[1].split('std::unique_ptr<OwnedLegacyActivity> ownLegacy', 1)[0]
-owner_helpers += method(manager_source, 'Activity* nativeActivity(')
+ownership = (ROOT / 'src/activities/OwnedLegacyActivity.h').read_text()
+owner_helpers = method(ownership, 'struct OwnedLegacyActivity {') + ';\n'
+owner_helpers += method(ownership, 'inline Activity* nativeActivity(')
 harness = harness.replace("int main() {", r"""
 #include <atomic>
 #include <memory>
 #include "activities/reader/RemoteTurnGate.h"
 struct RenderLock { static bool peek() { return false; } };
-struct ReaderActivity {
+struct ReaderActivity;
+struct Activity {
+  virtual ~Activity() = default;
+  virtual ReaderActivity* readerControls() { return nullptr; }
+};
+struct ReaderActivity : Activity {
+  ReaderActivity* readerControls() final { return this; }
   std::atomic<bool> pageRendered{true};
   bool acceptsRemoteInput() const { return pageRendered.load(std::memory_order_acquire); }
   bool menu = false, context = true, foregroundReader = true;
@@ -143,7 +150,6 @@ struct ReaderActivity {
   bool pageTurn(bool forward) { pages += forward ? 1 : -1; return true; }
   bool skipPages(int step) { chapters += step; return true; }
 };
-using Activity = ReaderActivity;
 LEGACY_OWNER_HELPERS
 struct ActivityManager {
   MappedInputManager& mappedInput;

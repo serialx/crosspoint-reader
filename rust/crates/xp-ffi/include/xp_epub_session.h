@@ -417,6 +417,8 @@ typedef struct XpEpubLeaves {
   uint8_t (*wifi_connected)(void);
   void (*wifi_disconnect)(uint8_t off);
   void (*restart_reader)(void);
+  // Child factories return an owned native legacy wrapper for App adoption, never a raw Activity.
+  // Non-null transfers the supplied Pages to the child; null leaves every Page with the caller.
   void* (*child_menu)(const XpEpubMenuArgs* args);
   void* (*child_chapter)(void* book, int32_t toc);
   void* (*child_percent)(int32_t percent);

@@ -86,6 +86,7 @@ class ReaderActivity : public RustActivityAdapter {
   void render(RenderLock&& lock) override;
 
   bool isReaderActivity() const final { return true; }
+  ReaderActivity* readerControls() final { return this; }
   bool acceptsRemoteInput() const final;
   bool handleForcedRefresh() final;
 };

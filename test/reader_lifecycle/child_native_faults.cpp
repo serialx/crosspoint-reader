@@ -82,9 +82,17 @@ extern "C" size_t xp_test_allocation_attempts();
 extern "C" size_t xp_test_live_allocations();
 extern "C" void xp_test_fail_allocation_after(size_t);
 
+static void armOuterFailure(int after) {
+  assert(after >= -1 && after <= 1);
+  failOuterAfter = after;
+  outerAttempts = 0;
+  failedOuterAttempt = -1;
+  outerSizes[0] = outerSizes[1] = 0;
+}
+
 static void resetFaults() {
-  failOuter = false;
-  outerAttempts = finishCount = 0;
+  armOuterFailure(-1);
+  finishCount = 0;
   xp_test_fail_allocation_after(SIZE_MAX);
   assert(livePages == 0 && xp_test_live_allocations() == 0);
   loads = 0;
@@ -97,25 +105,25 @@ static void resetFaults() {
   extractorInstalls = extractorClears = imageExtractions = imageDecodes = 0;
 }
 
-static void outerAllocation(int kind, bool fail) {
+static void outerAllocation(int kind, int failAfter) {
   resetFaults();
+  const bool fail = failAfter >= 0;
   EpubReaderActivity owner;
   {
     ChildSessionBridge session(owner);
     installNativeChildren(owner);
-    failOuter = fail;
+    armOuterFailure(failAfter);
     switch (kind) {
       case 0:
         owner.startClipSelection(-1, -1, ClipSelectionActivity::Mode::Clip);
         break;
       case 1: {
-        failOuter = false;
+        armOuterFailure(-1);
         owner.startClipSelection(-1, -1, ClipSelectionActivity::Mode::Lookup);
         assert(owner.child);
         auto callback = std::move(owner.callback);
         owner.child.reset();
-        failOuter = fail;
-        outerAttempts = 0;
+        armOuterFailure(failAfter);
         ActivityResult result;
         ClippingResult clipping;
         clipping.action = ClippingResult::Action::Lookup;
@@ -138,14 +146,23 @@ static void outerAllocation(int kind, bool fail) {
         assert(bool(owner.epub) == (kind == 4));
         break;
     }
-    assert(outerAttempts == 1 && "actual nullable outer allocation must be exercised");
+    const size_t childSizes[] = {sizeof(ClipSelectionActivity),
+                                 sizeof(DictionaryWordSelectActivity),
+                                 sizeof(EpubReaderFootnoteSelectActivity),
+                                 sizeof(EpubReaderClippingListActivity),
+                                 sizeof(KOReaderSyncActivity),
+                                 sizeof(KOReaderSyncActivity)};
+    assert(outerAttempts == (failAfter == 0 ? 1 : 2) && "wrapper precedes nullable child allocation");
+    assert(failedOuterAttempt == failAfter && "the selected allocation stage must fail");
+    assert(outerSizes[0] == sizeof(OwnedLegacyActivity));
+    assert(outerSizes[1] == (failAfter == 0 ? 0 : childSizes[kind]));
     if (fail) {
       assert(!owner.child && !activityManager.child && livePages == 0);
       assert(xp_test_live_allocations() == 1 && "failed child must release Rust captures");
     } else {
       assert(owner.child || activityManager.child);
     }
-    failOuter = false;
+    failOuterAfter = -1;
     owner.child.reset();
     owner.callback = {};
     activityManager.child.reset();
@@ -181,9 +198,10 @@ static void syncCaptureFailure(size_t after) {
 
 int main() {
   for (int kind = 0; kind < 6; ++kind) {
-    outerAllocation(kind, false);
-    outerAllocation(kind, true);
+    outerAllocation(kind, -1);
+    outerAllocation(kind, 0);
+    outerAllocation(kind, 1);
   }
   for (size_t after = 0; after < 3; ++after) syncCaptureFailure(after);
-  std::puts("native child allocation: 12 outer cases; three Rust sync capture failures; no lost Pages or captures");
+  std::puts("native child allocation: 18 outer cases; three Rust sync capture failures; no lost Pages or captures");
 }

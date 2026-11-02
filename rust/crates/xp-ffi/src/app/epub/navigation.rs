@@ -2,6 +2,17 @@ use super::{abi, app_abi, state::Position, EpubSession, ResourceAccess, Text};
 
 impl EpubSession {
     pub(super) fn navigate_href(&self, href: &[u8], save: bool) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.child_hooks {
+            unsafe {
+                (hooks.navigate)(
+                    hooks.context,
+                    app_abi::Text::from_bytes(href),
+                    u8::from(save),
+                )
+            };
+            return;
+        }
         let Some(book) = self.loop_book() else { return };
         let anchor = href
             .iter()
@@ -97,6 +108,11 @@ impl EpubSession {
 
     pub(super) fn clear_deferred(&self) {
         #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.clear)(hooks.context) };
+            return;
+        }
+        #[cfg(feature = "app-test")]
         if let Some(hook) = self.projection_hooks {
             unsafe { (hook.clear)(hook.context) };
         }
@@ -107,6 +123,11 @@ impl EpubSession {
     }
 
     pub(super) fn jump_to_percent(&self, percent: i32) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.jump)(hooks.context, percent) };
+            return;
+        }
         let Some(book) = self.loop_book() else { return };
         let book = book.as_ptr();
         let size = unsafe { (self.leaves.book_size)(book) };
@@ -152,6 +173,16 @@ impl EpubSession {
     }
 
     pub(super) fn apply_progress(&self, sync: &app_abi::XpAppProgressResult) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.progress)(hooks.context, sync) };
+            return;
+        }
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.child_hooks {
+            unsafe { (hooks.progress)(hooks.context, sync) };
+            return;
+        }
         let Some(book) = self.loop_book() else { return };
         let book = book.as_ptr();
         if sync.has_offset != 0
@@ -298,6 +329,14 @@ impl EpubSession {
         page: i32,
         count: i32,
     ) -> bool {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            return unsafe { (hooks.save)(hooks.context, spine, page, count) != 0 };
+        }
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.child_hooks {
+            return unsafe { (hooks.save_progress)(hooks.context, spine, page, count) != 0 };
+        }
         let Some(book) = self.book(access) else {
             return false;
         };
@@ -345,6 +384,11 @@ impl EpubSession {
     }
 
     pub(super) fn remember_offset(&self, access: &ResourceAccess<'_>) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.remember)(hooks.context) };
+            return;
+        }
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.settings_overrides {
             unsafe { (hook.remember)(hook.context) };

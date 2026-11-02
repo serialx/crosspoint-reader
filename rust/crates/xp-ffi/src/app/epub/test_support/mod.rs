@@ -1,7 +1,11 @@
 mod base;
 mod book_render;
 pub(super) use book_render::BookRenderHooks;
+mod child;
 mod clipping;
+pub(super) use child::ChildHooks;
+mod menu;
+pub(super) use menu::MenuHooks;
 mod entry_gate;
 mod input;
 mod overlay_actions;
@@ -18,7 +22,7 @@ pub(super) struct OverlayHooks {
     pub context: *mut c_void,
     pub home_reset: unsafe extern "C" fn(*mut c_void),
     pub current_toc: unsafe extern "C" fn(*mut c_void) -> i32,
-    pub build_more: unsafe extern "C" fn(*mut c_void),
+    pub build_more: Option<unsafe extern "C" fn(*mut c_void)>,
     pub paint: unsafe extern "C" fn(*mut c_void),
     pub push: unsafe extern "C" fn(*mut c_void),
     pub a4: unsafe extern "C" fn(*mut c_void, u8),

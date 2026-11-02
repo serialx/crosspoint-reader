@@ -6,9 +6,13 @@ mod book;
 mod book_render;
 mod bookmarks;
 mod build;
+mod child;
+mod child_result;
 mod clipping;
 mod lifetime;
 mod links;
+mod menu;
+mod menu_more;
 mod navigation;
 mod overlay;
 mod overlay_actions;
@@ -21,9 +25,11 @@ mod recovery;
 mod rejected_input;
 mod render;
 mod render_scope;
+mod selection_metadata;
 mod settings;
 mod state;
 mod storage;
+mod sync;
 #[cfg(feature = "app-test")]
 mod test_support;
 mod text;
@@ -51,6 +57,7 @@ struct Guarded {
     more_count: u8,
     // Loop-only retained popup payload; render never reads these choices.
     font_sizes: Vec<u8>,
+    selection_metadata: selection_metadata::SelectionMetadata,
 }
 
 pub(super) struct EpubSession {
@@ -90,6 +97,10 @@ pub(super) struct EpubSession {
     overlay_hooks: Option<test_support::OverlayHooks>,
     #[cfg(feature = "app-test")]
     book_render_hooks: Option<test_support::BookRenderHooks>,
+    #[cfg(feature = "app-test")]
+    child_hooks: Option<test_support::ChildHooks>,
+    #[cfg(feature = "app-test")]
+    menu_hooks: Option<test_support::MenuHooks>,
 }
 
 // This capability cannot move to another task. Native render borrows its lock;
@@ -159,6 +170,10 @@ impl EpubSession {
             core::ptr::addr_of_mut!((*ptr).overlay_hooks).write(None);
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).book_render_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).child_hooks).write(None);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).menu_hooks).write(None);
             Some(Box::from_raw(ptr))
         }
     }

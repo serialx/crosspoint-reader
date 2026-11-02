@@ -156,6 +156,15 @@ add_test(NAME reader_overlay_input
 
 add_test(NAME reader_build_popup_lifetime
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_build_popup_lifetime.py)
+add_test(NAME reader_child_metadata_faults
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_child_metadata_faults.py)
+add_test(NAME reader_child_section_interleaving
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_child_section_interleaving.py)
+add_test(NAME reader_child_native_faults
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_child_native_faults.py)
 
 add_test(NAME reader_idle_projection
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"

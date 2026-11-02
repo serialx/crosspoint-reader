@@ -36,7 +36,7 @@ impl EpubSession {
         app.navigation.queue(Transition::Pop);
     }
 
-    fn push_child(&self, child: NonNull<c_void>, intent: ChildIntent) {
+    pub(super) fn push_child(&self, child: NonNull<c_void>, intent: ChildIntent) {
         self.model(|state| state.child = intent);
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.navigation_hooks {
@@ -47,6 +47,17 @@ impl EpubSession {
         let owner = app.adopt(child.as_ptr()).expect("non-null child");
         app.input.borrow_mut().reset();
         app.navigation.queue(Transition::Push(owner));
+    }
+
+    pub(super) fn replace_child(&self, child: NonNull<c_void>) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.child_hooks {
+            unsafe { (hooks.replace)(hooks.context, child.as_ptr()) };
+            return;
+        }
+        let app = super::super::app().expect("application initialized");
+        let owner = app.adopt(child.as_ptr()).expect("non-null child");
+        app.replace(owner);
     }
 
     fn reopen_reader(&self) {

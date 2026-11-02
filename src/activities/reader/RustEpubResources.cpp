@@ -481,6 +481,8 @@ struct NativeResources {
         return renderer.getRenderMode() == GfxRenderer::BW;
       case XP_UI_READER_RENDER_FREQUENCY:
         return SETTINGS.getRefreshFrequency();
+      case XP_UI_READER_RENDER_FREE_HEAP:
+        return ESP.getFreeHeap();
       default:
         assert(frame);  // Remaining queries belong to a bound Page render.
         return frame->read(query);

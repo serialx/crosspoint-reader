@@ -175,7 +175,7 @@ impl EpubSession {
         true
     }
 
-    fn drop_book(&self, access: &ResourceAccess<'_>) {
+    pub(super) fn drop_book(&self, access: &ResourceAccess<'_>) {
         let book = unsafe { (*self.guarded(access)).book.take() };
         self.model(|state| {
             state.facts.book = false;

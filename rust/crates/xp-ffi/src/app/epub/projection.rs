@@ -47,6 +47,15 @@ impl EpubSession {
     }
 
     pub(super) fn chapter_position(&self) -> ChapterPosition {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            let mut position = [0; 2];
+            unsafe { (hooks.chapter)(hooks.context, position.as_mut_ptr()) };
+            return ChapterPosition {
+                page: position[0],
+                count: position[1],
+            };
+        }
         if let Some((position, count)) = self.section_position() {
             ChapterPosition {
                 page: position.page,
@@ -61,6 +70,10 @@ impl EpubSession {
     }
 
     pub(super) fn book_percent_for(&self, position: ChapterPosition) -> i32 {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            return unsafe { (hooks.percent)(hooks.context, position.page, position.count) };
+        }
         let Some(book) = self.loop_book() else {
             return 0;
         };
@@ -74,6 +87,10 @@ impl EpubSession {
     }
 
     pub(super) fn current_toc_index(&self, access: &ResourceAccess<'_>) -> i32 {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.overlay_hooks {
+            return unsafe { (hooks.current_toc)(hooks.context) };
+        }
         let Some(book) = self.book(access) else {
             return 0;
         };

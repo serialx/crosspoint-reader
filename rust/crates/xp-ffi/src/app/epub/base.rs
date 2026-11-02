@@ -104,6 +104,11 @@ impl EpubSession {
     }
 
     pub(super) fn flush_session(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.child_hooks {
+            unsafe { (hooks.flush)(hooks.context) };
+            return;
+        }
         let (session, worthy) = self.base_session_snapshot();
         if !worthy || unsafe { (self.leaves.has_session_subscriber)() } == 0 {
             self.reset_session();
@@ -219,7 +224,12 @@ impl EpubSession {
         ));
     }
 
-    fn go_home(&self) {
+    pub(super) fn go_home(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.home)(hooks.context) };
+            return;
+        }
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.base_hooks {
             unsafe { (hook.home)(hook.context) };

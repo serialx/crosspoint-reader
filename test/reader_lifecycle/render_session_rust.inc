@@ -402,6 +402,8 @@ static void lifetimeFacts() {
   assert(!owner.native->frame && livePages == 0);
   const auto* services = leaves.render_services(owner.native.get());
   assert(services->read(services->context, XP_UI_READER_RENDER_FREQUENCY) == 3);
+  ESP.free = 123456;
+  assert(services->read(services->context, XP_UI_READER_RENDER_FREE_HEAP) == 123456);
   XpUiReaderRenderOp store{};
   store.kind = XP_UI_READER_RENDER_STORE_BW;
   owner.renderer.storeOk = false;

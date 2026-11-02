@@ -113,7 +113,7 @@ impl EpubSession {
     }
 
     // Only the loop installs/drops this slot; component methods publish their own data.
-    fn loop_toolbar(&self) -> Option<NonNull<c_void>> {
+    pub(super) fn loop_toolbar(&self) -> Option<NonNull<c_void>> {
         unsafe { core::ptr::addr_of!((*self.guarded.get()).toolbar).read() }
     }
 
@@ -141,8 +141,10 @@ impl EpubSession {
     pub(super) fn build_more_actions(&self) -> bool {
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.overlay_hooks {
-            unsafe { (hooks.build_more)(hooks.context) };
-            return true;
+            if let Some(build) = hooks.build_more {
+                unsafe { build(hooks.context) };
+                return true;
+            }
         }
         let footnotes = {
             let access = self.lock_resources();
@@ -155,13 +157,53 @@ impl EpubSession {
         let bookmarks = bookmarks
             .is_some_and(|handle| unsafe { (self.leaves.bookmarks_count)(handle.as_ptr()) != 0 });
         let clippings = unsafe { (self.leaves.clippings_count)() != 0 };
+        let (mut actions, count) = self.more_menu_items(footnotes, bookmarks, clippings);
+        let mut retained = 0;
+        for index in 0..count {
+            let action = actions[index];
+            if action != Action::Chapter as u8 && action != Action::Text as u8 {
+                actions[retained] = action;
+                retained += 1;
+            }
+        }
+        let access = self.lock_resources();
+        if self.model(|state| state.scene_gate.failed) {
+            return false;
+        }
+        unsafe {
+            (*self.guarded(&access)).more_actions = actions;
+            (*self.guarded(&access)).more_count = retained as u8;
+        }
+        true
+    }
+
+    fn more_menu_items(
+        &self,
+        footnotes: bool,
+        bookmarks: bool,
+        clippings: bool,
+    ) -> ([u8; 19], usize) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            let mut actions = [0; 19];
+            let count = unsafe {
+                (hooks.build_items)(
+                    hooks.context,
+                    u8::from(footnotes),
+                    u8::from(bookmarks),
+                    u8::from(clippings),
+                    actions.as_mut_ptr(),
+                )
+            };
+            assert!(count <= 19);
+            return (actions, usize::from(count));
+        }
         let mut actions = [0u8; 19];
         let mut count = 0;
         let mut add = |action: Action| {
             actions[count] = action as u8;
             count += 1;
         };
-        // More omits the chapter and text actions already present in the toolbar.
         if footnotes {
             add(Action::Footnotes);
         }
@@ -199,15 +241,7 @@ impl EpubSession {
         ] {
             add(action);
         }
-        let access = self.lock_resources();
-        if self.model(|state| state.scene_gate.failed) {
-            return false;
-        }
-        unsafe {
-            (*self.guarded(&access)).more_actions = actions;
-            (*self.guarded(&access)).more_count = count as u8;
-        }
-        true
+        (actions, count)
     }
 
     pub(super) fn open_overlay(&self, target: Overlay) {

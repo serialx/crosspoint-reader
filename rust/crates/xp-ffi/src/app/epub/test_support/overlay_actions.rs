@@ -121,7 +121,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_create(
         context: seed.context,
         home_reset: seed.home_reset,
         current_toc: seed.current_toc,
-        build_more: seed.build_more,
+        build_more: Some(seed.build_more),
         paint: seed.paint,
         push: seed.push,
         a4: seed.a4,

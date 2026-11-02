@@ -153,6 +153,16 @@ impl EpubSession {
     }
 
     pub(super) fn add_bookmark(&self) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.bookmark)(hooks.context) };
+            return;
+        }
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.child_hooks {
+            unsafe { (hooks.bookmark)(hooks.context) };
+            return;
+        }
         if !self.model(|state| state.facts.section.is_some()) {
             return;
         }

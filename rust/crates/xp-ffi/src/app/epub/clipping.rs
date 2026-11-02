@@ -241,6 +241,10 @@ impl EpubSession {
         y: i32,
     ) -> i32 {
         self.guarded(access);
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.child_hooks {
+            return unsafe { (hooks.hit)(hooks.context, page.as_ptr(), x, y) };
+        }
         let page = ClipPage {
             owner: self,
             access,

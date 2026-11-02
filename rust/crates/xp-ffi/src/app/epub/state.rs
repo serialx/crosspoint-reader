@@ -45,15 +45,10 @@ pub(super) enum Notice {
     Dictionary,
     FontDamaged,
     ClipSaved,
-    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipRemoved,
-    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipLimit,
-    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipFailed,
-    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipDeleteFailed,
-    #[expect(dead_code, reason = "Used by the pending clipping result handlers.")]
     ClipExportFailed,
 }
 #[derive(Clone, Copy)]
@@ -119,36 +114,22 @@ pub(super) struct BasePublication {
 pub(super) enum ChildIntent {
     #[default]
     None,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Menu,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Chapter,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Percent,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
-    TextSettings,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
+    TextSettings {
+        from_overlay: bool,
+    },
     Footnote {
         reopen_menu: bool,
     },
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
-    Selection {
-        spine: u16,
-        page: i32,
-        count: u16,
-        signature: u32,
-        toc: i32,
-    },
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
+    Selection(super::child::SelectionCapture),
     Dictionary,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Bookmarks,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Clippings,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
     Qr,
     Wifi,
-    #[expect(dead_code, reason = "Used by the pending child and menu owner port.")]
+    #[expect(dead_code, reason = "Used by the pending overlay input port.")]
     Reopen,
 }
 #[derive(Clone, Copy, Default)]
@@ -158,9 +139,7 @@ pub(super) enum PopupIntent {
     FontSize,
     Spacing,
     Alignment,
-    #[expect(dead_code, reason = "Used by the pending overlay input port.")]
     Orientation,
-    #[expect(dead_code, reason = "Used by the pending overlay input port.")]
     AutoTurn,
     LoadFailure {
         offer_sync: bool,

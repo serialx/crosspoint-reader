@@ -77,6 +77,11 @@ impl EpubSession {
 
     pub(super) fn paint_overlay_popup(&self) {
         #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.popup)(hooks.context) };
+            return;
+        }
+        #[cfg(feature = "app-test")]
         if let Some(hook) = self.settings_overrides {
             unsafe { (hook.paint)(hook.context) };
             return;

@@ -91,7 +91,7 @@ fn nearest_size(sizes: &[u8], current: u8) -> u8 {
 }
 
 impl EpubSession {
-    fn cache_current_position(&self, access: &ResourceAccess<'_>) {
+    pub(super) fn cache_current_position(&self, access: &ResourceAccess<'_>) {
         let Some(section) = self.section(access) else {
             return;
         };
@@ -116,6 +116,11 @@ impl EpubSession {
     }
 
     pub(super) fn apply_orientation(&self, orientation: u8) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.orientation)(hooks.context, orientation) };
+            return;
+        }
         if self.settings(false).orientation == orientation
             && self.model(|state| state.orientation) == orientation
         {
@@ -135,6 +140,11 @@ impl EpubSession {
     }
 
     pub(super) fn toggle_auto_page_turn(&self, choice: u8) {
+        #[cfg(feature = "app-test")]
+        if let Some(hooks) = self.menu_hooks {
+            unsafe { (hooks.automatic)(hooks.context, choice) };
+            return;
+        }
         let rate = PAGE_TURN_RATES.get(usize::from(choice)).copied();
         if choice == 0 || rate.is_none() {
             self.model(|state| state.auto_turn = false);

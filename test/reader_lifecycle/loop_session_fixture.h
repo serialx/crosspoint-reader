@@ -70,4 +70,3 @@ void xp_epub_test_loop(void*);
 void xp_epub_test_loop_observe(void*, XpEpubTestLoopObservation*);
 void xp_epub_test_loop_destroy(void*);
 }
-extern "C" uint8_t xp_epub_test_loop_remote(void*, uint8_t);

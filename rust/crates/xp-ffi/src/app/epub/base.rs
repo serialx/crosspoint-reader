@@ -1,7 +1,9 @@
 use super::{abi, app_abi, book::with_text, EpubSession, ResourceAccess};
 use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
+#[cfg(feature = "app-test")]
+use xp_ui::reader::SKIP_HOLD_MS;
 use xp_ui::{
-    reader::{input, render::Command, values, SKIP_HOLD_MS},
+    reader::{input, render::Command, values},
     scene::Refresh,
 };
 
@@ -247,6 +249,7 @@ impl EpubSession {
         }
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn touch_turn(&self) -> input::Turn {
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.base_hooks {
@@ -302,6 +305,7 @@ impl EpubSession {
     }
 
     #[inline(never)]
+    #[cfg(feature = "app-test")]
     pub(super) fn loop_base(&self) {
         self.remember_book();
         self.clear_end_options();
@@ -342,6 +346,7 @@ impl EpubSession {
         self.request_update();
     }
 
+    #[cfg(feature = "app-test")]
     fn format_input(&self) -> bool {
         #[cfg(feature = "app-test")]
         if let Some(hook) = self.base_hooks {

@@ -906,7 +906,7 @@ mod probe {
         u8::from(drained)
     }
 
-    // Construction stays test-only until the separate atomic-routing approval.
+    // Host fixtures inject independently faulted physical resource tables.
     #[no_mangle]
     pub unsafe extern "C" fn xp_app_test_install_epub(
         path: abi::Text,
@@ -947,14 +947,6 @@ mod probe {
                 _ => core::ptr::null_mut(),
             })
         })
-    }
-
-    #[no_mangle]
-    pub unsafe extern "C" fn xp_app_test_owner_layout(out: *mut usize) {
-        out.write(core::mem::size_of::<App>());
-        out.add(1).write(core::mem::size_of::<Owner>());
-        out.add(2).write(core::mem::size_of::<Target>());
-        out.add(3).write(core::mem::size_of::<Storage>());
     }
 
     #[no_mangle]

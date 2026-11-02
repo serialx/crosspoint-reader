@@ -168,7 +168,7 @@ static XpAppRuntime runtimeDefaults() {
 
 static XpEpubLeaves leavesDefaults() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -195,10 +195,8 @@ static XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(book_title);
   UNUSED_LEAF(book_author);
   UNUSED_LEAF(book_language);
-  UNUSED_LEAF(book_thumbnail);
   UNUSED_LEAF(book_spine);
   UNUSED_LEAF(book_toc);
-  UNUSED_LEAF(book_spine_for_toc);
   UNUSED_LEAF(book_toc_for_spine);
   UNUSED_LEAF(book_cumulative_size);
   UNUSED_LEAF(book_spine_for_size);
@@ -240,8 +238,6 @@ static XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(page_info);
   UNUSED_LEAF(page_element);
   UNUSED_LEAF(page_word);
-  UNUSED_LEAF(page_footnote);
-  UNUSED_LEAF(page_link);
   UNUSED_LEAF(metadata_assign);
   UNUSED_LEAF(metadata_clear);
   UNUSED_LEAF(metadata_footnotes);
@@ -273,8 +269,6 @@ static XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(input_services);
   UNUSED_LEAF(input_facts);
   UNUSED_LEAF(input_pressed);
-  UNUSED_LEAF(input_long_press);
-  UNUSED_LEAF(input_released);
   UNUSED_LEAF(input_screen_long);
   UNUSED_LEAF(input_screen_tap);
   UNUSED_LEAF(input_raw_contact);
@@ -283,7 +277,6 @@ static XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(file_open_write);
   UNUSED_LEAF(file_read);
   UNUSED_LEAF(file_write);
-  UNUSED_LEAF(file_flush);
   UNUSED_LEAF(file_close);
   UNUSED_LEAF(path_remove);
   UNUSED_LEAF(path_rename);

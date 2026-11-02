@@ -109,6 +109,7 @@ impl EpubSession {
     pub(super) fn update_bookmark_flag(&self, access: &ResourceAccess<'_>) {
         self.bookmark_flag(Some(access));
     }
+    #[cfg(feature = "app-test")]
     pub(super) fn loop_update_bookmark_flag(&self) {
         self.bookmark_flag(None);
     }
@@ -131,6 +132,7 @@ impl EpubSession {
         self.update_bookmark_flag(access);
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn loop_load_cached_bookmarks(&self) {
         {
             let access = self.lock_resources();

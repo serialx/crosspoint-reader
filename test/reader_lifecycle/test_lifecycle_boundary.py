@@ -131,7 +131,7 @@ def main():
                                     '-fsyntax-only', '-I', include, c])
         cpp = evidence / 'current-boundary.cpp'
         cpp.write_text('#include "epub_boundary_assertions.h"\n')
-        run('current-cxx207-boundary', [os.environ.get('CXX', 'c++'), '-std=c++17', '-UNDEBUG',
+        run('current-cxx200-boundary', [os.environ.get('CXX', 'c++'), '-std=c++17', '-UNDEBUG',
                                        '-Werror', '-fsyntax-only', '-I', evidence / 'sources/draft',
                                        '-I', include, cpp])
         # The existing repository driver records its own compile/run logs in this new child directory.
@@ -147,7 +147,7 @@ def main():
         summary = {
             'declaration': 'reader_lifecycle_abi', 'phase': 'atomic-retirement',
             'original_executable': str(original), 'supported_shared_assertions_retained': True,
-            'current_header_languages': ['C11', 'C++17'], 'physical_leaf_slots': 207,
+            'current_header_languages': ['C11', 'C++17'], 'physical_leaf_slots': 200,
             'owned_cases': expected[1:], 'policy_hooks': 0,
             'retired_name_removal': True, 'retirement_absence': absence, 'new_epub_null_or_incomplete_table_calls': 0,
             'results': results,

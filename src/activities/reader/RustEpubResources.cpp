@@ -754,10 +754,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .book_language = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
         return sink(context, text(book(handle).value().getLanguage()));
       },
-      .book_thumbnail = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
-        const auto value = book(handle).value().getThumbBmpPath();
-        return sink(context, text(value));
-      },
       .book_spine = [](void* handle, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
         const auto value = book(handle).value().getSpineItem(index);
         const XpEpubSpine view{text(value.href), value.cumulativeSize};
@@ -767,9 +763,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         const auto value = book(handle).value().getTocItem(index);
         const XpEpubToc view{text(value.title), text(value.anchor), value.spineIndex, value.level};
         return sink(context, &view);
-      },
-      .book_spine_for_toc = [](void* handle, int32_t index) -> int32_t {
-        return book(handle).value().getSpineIndexForTocIndex(index);
       },
       .book_toc_for_spine = [](void* handle, int32_t index) -> int32_t {
         return book(handle).value().getTocIndexForSpineIndex(index);
@@ -917,22 +910,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                     static_cast<uint8_t>(block.wordStyle(index)),
                     block.getBlockStyle().characterSpacing};
           },
-      .page_footnote = [](void* handle, uint16_t index, XpEpubFootnoteSink sink, void* context) -> uint8_t {
-        const auto& page = *static_cast<Page*>(handle);
-        if (index >= page.footnoteCount()) return 0;
-        FootnoteEntry row;
-        page.footnote(index, row);
-        const XpEpubFootnote value{text(row.number), text(row.href)};
-        return sink(context, &value);
-      },
-      .page_link = [](void* handle, uint16_t index, XpEpubLinkSink sink, void* context) -> uint8_t {
-        const auto& page = *static_cast<Page*>(handle);
-        if (index >= page.linkCount()) return 0;
-        PageLink row;
-        page.link(index, row);
-        const XpEpubLink value{text(row.href), row.x, row.y, row.width, row.height};
-        return sink(context, &value);
-      },
       .metadata_assign = [](void* handle, void* page) -> uint8_t {
         return resources(handle).metadata.assign(*static_cast<Page*>(page));
       },
@@ -1055,10 +1032,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             out->slide_owns_light = slideSwitchOwnsLight();
           },
       .input_pressed = [](uint32_t button) -> uint8_t { return mapped->isPressed(inputButton(button)); },
-      .input_long_press = [](uint32_t button, uint32_t threshold) -> uint8_t {
-        return mapped->wasLongPressed(inputButton(button), threshold);
-      },
-      .input_released = [](uint32_t button) -> uint8_t { return mapped->wasReleased(inputButton(button)); },
       .input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
         int hitX = 0, hitY = 0;
         if (!mapped->wasScreenLongPress(hitX, hitY)) return 0;
@@ -1091,7 +1064,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .file_write = [](void* file, const uint8_t* bytes, uint32_t length) -> uint32_t {
         return static_cast<HalFile*>(file)->write(bytes, length);
       },
-      .file_flush = [](void* file) { static_cast<HalFile*>(file)->flush(); },
       .file_close = [](void* file) { delete static_cast<HalFile*>(file); },
       .path_remove = [](XpAppText path) -> uint8_t { return Storage.remove(pathText(path)); },
       .path_rename = [](XpAppText from, XpAppText to) -> uint8_t {

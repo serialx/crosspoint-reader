@@ -335,8 +335,3 @@ pub unsafe extern "C" fn xp_epub_test_loop_destroy(raw: *mut c_void) {
     guarded.failure_popup = None;
     drop(owner);
 }
-
-#[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_loop_remote(raw: *mut c_void, reader_menu: u8) -> u8 {
-    u8::from((&*raw.cast::<EpubSession>()).dispatch_remote_shortcut(reader_menu != 0))
-}

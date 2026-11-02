@@ -53,7 +53,7 @@ static_assert(offsetof(XpEpubRadio, note) == 4);
 static_assert(sizeof(XpEpubPeer) == 82 && alignof(XpEpubPeer) == 1);
 static_assert(offsetof(XpEpubPeer, name) == 0);
 static_assert(offsetof(XpEpubPeer, addr) == 64);
-static_assert(offsetof(XpEpubLeaves, radio_status) == 121 * sizeof(void (*)(void)));
+static_assert(offsetof(XpEpubLeaves, radio_status) == 114 * sizeof(void (*)(void)));
 
 static_assert(std::is_standard_layout_v<XpEpubSettings>);
 static_assert(offsetof(XpEpubSettings, orientation) == 4);
@@ -62,14 +62,14 @@ static_assert(offsetof(XpEpubSettings, font_family) == (sizeof(void*) == 8 ? 32 
 static_assert(sizeof(XpEpubSettings) == (sizeof(void*) == 8 ? 48 : 36));
 
 static_assert(std::is_same_v<decltype(XpEpubLeaves::toolbar_reset_navigation), void (*)(void*, int32_t, int32_t)>);
-static_assert(offsetof(XpEpubLeaves, toolbar_reset_navigation) == 204 * sizeof(void (*)(void)));
+static_assert(offsetof(XpEpubLeaves, toolbar_reset_navigation) == 197 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::input_snapshot), void (*)(XpUiInput*)>);
-static_assert(offsetof(XpEpubLeaves, input_snapshot) == 205 * sizeof(void (*)(void)));
+static_assert(offsetof(XpEpubLeaves, input_snapshot) == 198 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::page_render), void (*)(void*, int32_t, int32_t, int32_t)>);
-static_assert(offsetof(XpEpubLeaves, page_render) == 206 * sizeof(void (*)(void)));
-static_assert(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)(void)));
+static_assert(offsetof(XpEpubLeaves, page_render) == 199 * sizeof(void (*)(void)));
+static_assert(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::log_enabled), uint8_t (*)(uint8_t)>);
-static_assert(offsetof(XpEpubLeaves, log_enabled) == 203 * sizeof(void (*)(void)));
+static_assert(offsetof(XpEpubLeaves, log_enabled) == 196 * sizeof(void (*)(void)));
 static_assert(XP_UI_READER_RENDER_NOW == 0);
 static_assert(XP_UI_READER_RENDER_HAS_IMAGES == 1);
 static_assert(XP_UI_READER_RENDER_IMAGES_NEED_DECODE == 2);

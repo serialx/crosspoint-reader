@@ -243,7 +243,9 @@ impl EpubSession {
                 pages: (self.leaves.section_page_count)(section),
                 estimated_pages: (self.leaves.section_estimated_pages)(section),
                 building: (self.leaves.section_building)(section) != 0,
+                #[cfg(feature = "app-test")]
                 complete: (self.leaves.section_complete)(section) != 0,
+                #[cfg(feature = "app-test")]
                 partial: (self.leaves.section_partial)(section) != 0,
             }
         });

@@ -106,17 +106,15 @@ pub(super) struct SectionFacts {
     pub(super) pages: u16,
     pub(super) estimated_pages: i32,
     pub(super) building: bool,
+    #[cfg(feature = "app-test")]
     pub(super) complete: bool,
+    #[cfg(feature = "app-test")]
     pub(super) partial: bool,
 }
 #[derive(Clone, Copy, Default)]
 pub(super) struct ResourceFacts {
     pub(super) book: bool,
     pub(super) section: Option<SectionFacts>,
-    #[expect(dead_code, reason = "Read by the pending loop fact projection.")]
-    pub(super) end_menu: bool,
-    #[expect(dead_code, reason = "Read by the pending loop fact projection.")]
-    pub(super) load_popup: bool,
     pub(super) spine_count: i32,
     pub(super) frame_stale: bool,
     pub(super) radio_released: bool,
@@ -150,11 +148,6 @@ pub(super) struct State {
     pub(super) screenshot: bool,
     pub(super) sync_save_error: bool,
     pub(super) page_retries: u8,
-    #[expect(
-        dead_code,
-        reason = "Read by the pending input suppression owner port."
-    )]
-    pub(super) skip_button_frame: bool,
     pub(super) bookmark_notice: Option<TimedNotice>,
     pub(super) dictionary_notice: Option<TimedNotice>,
     pub(super) font_notice: Option<TimedNotice>,

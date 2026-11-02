@@ -154,7 +154,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 207 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)()));
   table.resources_open = &OverlayUnexpected<decltype(table.resources_open)>::call;
   table.resources_close = &OverlayUnexpected<decltype(table.resources_close)>::call;
   table.render_services = &OverlayUnexpected<decltype(table.render_services)>::call;
@@ -181,10 +181,8 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.book_title = &OverlayUnexpected<decltype(table.book_title)>::call;
   table.book_author = &OverlayUnexpected<decltype(table.book_author)>::call;
   table.book_language = &OverlayUnexpected<decltype(table.book_language)>::call;
-  table.book_thumbnail = &OverlayUnexpected<decltype(table.book_thumbnail)>::call;
   table.book_spine = &OverlayUnexpected<decltype(table.book_spine)>::call;
   table.book_toc = &OverlayUnexpected<decltype(table.book_toc)>::call;
-  table.book_spine_for_toc = &OverlayUnexpected<decltype(table.book_spine_for_toc)>::call;
   table.book_toc_for_spine = &OverlayUnexpected<decltype(table.book_toc_for_spine)>::call;
   table.book_cumulative_size = &OverlayUnexpected<decltype(table.book_cumulative_size)>::call;
   table.book_spine_for_size = &OverlayUnexpected<decltype(table.book_spine_for_size)>::call;
@@ -226,8 +224,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.page_info = &OverlayUnexpected<decltype(table.page_info)>::call;
   table.page_element = &OverlayUnexpected<decltype(table.page_element)>::call;
   table.page_word = &OverlayUnexpected<decltype(table.page_word)>::call;
-  table.page_footnote = &OverlayUnexpected<decltype(table.page_footnote)>::call;
-  table.page_link = &OverlayUnexpected<decltype(table.page_link)>::call;
   table.metadata_assign = &OverlayUnexpected<decltype(table.metadata_assign)>::call;
   table.metadata_clear = &OverlayUnexpected<decltype(table.metadata_clear)>::call;
   table.metadata_footnotes = &OverlayUnexpected<decltype(table.metadata_footnotes)>::call;
@@ -259,8 +255,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.input_services = &OverlayUnexpected<decltype(table.input_services)>::call;
   table.input_facts = &OverlayUnexpected<decltype(table.input_facts)>::call;
   table.input_pressed = &OverlayUnexpected<decltype(table.input_pressed)>::call;
-  table.input_long_press = &OverlayUnexpected<decltype(table.input_long_press)>::call;
-  table.input_released = &OverlayUnexpected<decltype(table.input_released)>::call;
   table.input_screen_long = &OverlayUnexpected<decltype(table.input_screen_long)>::call;
   table.input_screen_tap = &OverlayUnexpected<decltype(table.input_screen_tap)>::call;
   table.input_raw_contact = &OverlayUnexpected<decltype(table.input_raw_contact)>::call;
@@ -269,7 +263,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.file_open_write = &OverlayUnexpected<decltype(table.file_open_write)>::call;
   table.file_read = &OverlayUnexpected<decltype(table.file_read)>::call;
   table.file_write = &OverlayUnexpected<decltype(table.file_write)>::call;
-  table.file_flush = &OverlayUnexpected<decltype(table.file_flush)>::call;
   table.file_close = &OverlayUnexpected<decltype(table.file_close)>::call;
   table.path_remove = &OverlayUnexpected<decltype(table.path_remove)>::call;
   table.path_rename = &OverlayUnexpected<decltype(table.path_rename)>::call;

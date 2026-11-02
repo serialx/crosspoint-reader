@@ -385,7 +385,7 @@ Child: setResult(value); finish()
 
 A loop pass that returns before its drain (suppressed release, exclusive storage,
 a Home gesture, the frontlight panel) defers the queued transition to a later pass.
-The drain is the last navigation step of `App::activity_loop` (`rust/crates/xp-ffi/src/app/mod.rs:420`)
+The drain is the last navigation step of `App::activity_loop` (`rust/crates/xp-ffi/src/app/mod.rs:451`)
 and `Application::drain` applies the transition there (`rust/crates/xp-ui/src/app/mod.rs:231`).
 
 The continuation holds no navigation borrow across a native callback. Handlers
@@ -394,7 +394,7 @@ The parent receives an automatic render request if no transition was queued.
 
 ### Common Pitfalls
 
-**Calling `finish()` and continuing to access `this`**: `finish()` calls `activityManager.popActivity()`, which only queues `Transition::Pop` in the Rust application (`rust/crates/xp-ffi/src/app/mod.rs:705`); it does not destroy the activity. The activity is destroyed when the loop drains that pop, after the current `loop()` call returns (`Application::pop`, `rust/crates/xp-ui/src/app/mod.rs:176`). It's safe to access member variables after `finish()` within the same function, but don't rely on the activity surviving past the current `loop()` call.
+**Calling `finish()` and continuing to access `this`**: `finish()` calls `activityManager.popActivity()`, which only queues `Transition::Pop` in the Rust application (`rust/crates/xp-ffi/src/app/mod.rs:767`); it does not destroy the activity. The activity is destroyed when the loop drains that pop, after the current `loop()` call returns (`Application::pop`, `rust/crates/xp-ui/src/app/mod.rs:176`). It's safe to access member variables after `finish()` within the same function, but don't rely on the activity surviving past the current `loop()` call.
 
 **Modifying shared state without `RenderLock`**: If `render()` reads a variable and `loop()` writes it, the write must be under a `RenderLock`. Without it, `render()` could see a half-written value (e.g., a partially updated string or struct).
 

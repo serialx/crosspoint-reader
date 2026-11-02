@@ -614,6 +614,9 @@ static void accountingBoundaries() {
             const uint32_t now = expected.anchor_ms + elapsed * 1000u;
             xp_ui_reader_session_render(&expected, now, epoch, progress);
             xp_epub_test_accounting_render(&actual, now, epoch, progress);
+            if (elapsed == 2 && epoch > 0 && pending && !wrapped) {
+              assert(actual.duration == 2 && "session duration at two seconds");
+            }
             sameSession(actual, expected);
             assert(xp_epub_test_accounting_worthy(&actual) == xp_ui_reader_session_worthy(&expected));
           }

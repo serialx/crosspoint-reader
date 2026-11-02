@@ -28,37 +28,9 @@ pub struct PublicationObservation {
     pub remembered: u8,
 }
 
-fn accounting(wire: &Session) -> SessionAccounting {
-    SessionAccounting {
-        anchor_ms: wire.anchor_ms,
-        anchor_epoch: wire.anchor_epoch,
-        start_epoch: wire.start_epoch,
-        duration: wire.duration,
-        anchor_progress: wire.anchor_progress,
-        start_progress: wire.start_progress,
-        end_progress: wire.end_progress,
-        has_anchor: wire.has_anchor != 0,
-        pending_forward: wire.pending_forward != 0,
-    }
-}
-
-fn wire(value: SessionAccounting) -> Session {
-    Session {
-        anchor_ms: value.anchor_ms,
-        anchor_epoch: value.anchor_epoch,
-        start_epoch: value.start_epoch,
-        duration: value.duration,
-        anchor_progress: value.anchor_progress,
-        start_progress: value.start_progress,
-        end_progress: value.end_progress,
-        has_anchor: u8::from(value.has_anchor),
-        pending_forward: u8::from(value.pending_forward),
-    }
-}
-
 fn observation(base: &BasePublication) -> PublicationObservation {
     PublicationObservation {
-        session: wire(base.session),
+        session: base.session.into(),
         refresh_counter: base.refresh_counter,
         refresh_requests: base.refresh_requests,
         end_ready: u8::from(base.end_ready),
@@ -81,7 +53,7 @@ pub unsafe extern "C" fn xp_epub_test_publication_create(
     };
     let state = owner.state.get_mut();
     state.ready = seed.ready != 0;
-    state.base.session = accounting(&seed.session);
+    state.base.session = SessionAccounting::from(&seed.session);
     state.base.refresh_counter = seed.refresh_counter;
     state.base.remembered = seed.remembered != 0;
     state.current = Position { spine: 0, page: 1 };
@@ -112,7 +84,7 @@ pub unsafe extern "C" fn xp_epub_test_publication_observe(
     let owner = &*owner.cast::<EpubSession>();
     *out = owner.model(|state| observation(&state.base));
     // Exercise the production snapshot method separately from other scalar reads.
-    (*out).session = wire(owner.snapshot_session());
+    (*out).session = owner.snapshot_session().into();
 }
 
 #[no_mangle]
@@ -238,9 +210,9 @@ pub unsafe extern "C" fn xp_epub_test_accounting_note(
     forward: u8,
     succeeded: u8,
 ) {
-    let mut value = accounting(&*state);
+    let mut value = SessionAccounting::from(&*state);
     value.note(forward != 0, succeeded != 0);
-    *state = wire(value);
+    *state = value.into();
 }
 
 #[no_mangle]
@@ -250,12 +222,12 @@ pub unsafe extern "C" fn xp_epub_test_accounting_render(
     epoch: i64,
     progress: i32,
 ) {
-    let mut value = accounting(&*state);
+    let mut value = SessionAccounting::from(&*state);
     value.render(now, epoch, progress);
-    *state = wire(value);
+    *state = value.into();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_accounting_worthy(state: *const Session) -> u8 {
-    u8::from(accounting(&*state).worthy())
+    u8::from(SessionAccounting::from(&*state).worthy())
 }

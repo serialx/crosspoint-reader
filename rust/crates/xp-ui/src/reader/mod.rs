@@ -1,5 +1,7 @@
 //! Reader lifecycle policy. Storage, clocks, locking and panel I/O remain borrowed leaves.
 pub mod idle;
+mod session;
+pub use session::SessionAccounting;
 mod thresholds;
 use core::ffi::c_void;
 pub use thresholds::{
@@ -23,32 +25,49 @@ pub struct Session {
 }
 impl Session {
     pub fn note(&mut self, forward: bool, succeeded: bool) {
-        self.pending_forward = u8::from(forward && succeeded);
+        let mut accounting = SessionAccounting::from(&*self);
+        accounting.note(forward, succeeded);
+        self.pending_forward = u8::from(accounting.pending_forward);
     }
     pub fn render(&mut self, now: u32, epoch: i64, progress: i32) {
-        let progress = progress.clamp(0, 10000) as u16;
-        if self.pending_forward != 0 && self.has_anchor != 0 && self.anchor_epoch > 0 {
-            let elapsed = now.wrapping_sub(self.anchor_ms) / 1000;
-            if elapsed >= 2 {
-                if self.duration == 0 {
-                    self.start_epoch = self.anchor_epoch;
-                    self.start_progress = self.anchor_progress;
-                    self.end_progress = self.anchor_progress;
-                }
-                self.duration = self.duration.wrapping_add(elapsed.min(1800));
-                self.end_progress = self.end_progress.max(progress);
-            }
-        }
-        self.anchor_ms = now;
-        self.anchor_epoch = epoch;
-        self.anchor_progress = progress;
-        self.has_anchor = 1;
-        self.pending_forward = 0;
+        let mut accounting = SessionAccounting::from(&*self);
+        accounting.render(now, epoch, progress);
+        *self = accounting.into();
     }
     pub fn worthy(&self) -> bool {
-        self.start_epoch > 0
-            && self.duration >= 10
-            && self.start_epoch.wrapping_add(i64::from(self.duration)) > self.start_epoch
+        SessionAccounting::from(self).worthy()
+    }
+}
+
+impl From<&Session> for SessionAccounting {
+    fn from(value: &Session) -> Self {
+        Self {
+            anchor_ms: value.anchor_ms,
+            anchor_epoch: value.anchor_epoch,
+            start_epoch: value.start_epoch,
+            duration: value.duration,
+            anchor_progress: value.anchor_progress,
+            start_progress: value.start_progress,
+            end_progress: value.end_progress,
+            has_anchor: value.has_anchor != 0,
+            pending_forward: value.pending_forward != 0,
+        }
+    }
+}
+
+impl From<SessionAccounting> for Session {
+    fn from(value: SessionAccounting) -> Self {
+        Self {
+            anchor_ms: value.anchor_ms,
+            anchor_epoch: value.anchor_epoch,
+            start_epoch: value.start_epoch,
+            duration: value.duration,
+            anchor_progress: value.anchor_progress,
+            start_progress: value.start_progress,
+            end_progress: value.end_progress,
+            has_anchor: u8::from(value.has_anchor),
+            pending_forward: u8::from(value.pending_forward),
+        }
     }
 }
 
@@ -219,6 +238,27 @@ mod tests {
         state.render(999 + 1801000, 1903, 100);
         assert_eq!(state.duration, 1802);
         assert!(state.worthy());
+    }
+    #[test]
+    fn session_wire_flags_keep_nonzero_semantics() {
+        let mut state = Session {
+            anchor_ms: 1000,
+            anchor_epoch: 100,
+            anchor_progress: 500,
+            has_anchor: 7,
+            pending_forward: 255,
+            ..Session::default()
+        };
+        state.note(true, true);
+        assert_eq!(state.has_anchor, 7);
+        assert_eq!(state.pending_forward, 1);
+        state.pending_forward = 255;
+        state.render(3000, 102, 750);
+        assert_eq!(
+            (state.duration, state.start_progress, state.end_progress),
+            (2, 500, 750)
+        );
+        assert_eq!((state.has_anchor, state.pending_forward), (1, 0));
     }
     #[test]
     fn refresh_and_title_are_scalar() {

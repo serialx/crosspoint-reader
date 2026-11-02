@@ -66,8 +66,8 @@ def owner_mutation(source, before, after):
 def run_owner_publication():
     owner_source = HERE / 'base_session_publication.cpp'
     scope_path = Path('crates/xp-ffi/src/app/epub/render_scope.rs')
-    state_path = Path('crates/xp-ffi/src/app/epub/state.rs')
-    originals = {path: (ROOT / 'rust' / path).read_text() for path in [scope_path, state_path]}
+    accounting_path = Path('crates/xp-ui/src/reader/session.rs')
+    originals = {path: (ROOT / 'rust' / path).read_text() for path in [scope_path, accounting_path]}
     with tempfile.TemporaryDirectory(prefix='reader-owner-publication-') as directory:
         work = Path(directory)
         baseline_flags = rust_link_flags()
@@ -105,7 +105,7 @@ def run_owner_publication():
              'if state.base.refresh_requests == 0 {',
              'if state.base.refresh_requests & REFRESH_MANUAL == 0 {',
              'counter-only refresh must survive publication'),
-            ('elapsed-two-seconds-lost', state_path,
+            ('elapsed-two-seconds-lost', accounting_path,
              'if elapsed >= 2 {', 'if elapsed > 2 {', 'session duration'),
         ]
         for name, path, before, after, expected_assertion in mutants:

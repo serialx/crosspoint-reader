@@ -180,20 +180,7 @@ impl EpubSession {
         if let Some(hook) = self.base_hooks {
             let wire = unsafe { (hook.snapshot)(hook.context) };
             let worthy = unsafe { (hook.worthy)(hook.context) != 0 };
-            return (
-                super::state::SessionAccounting {
-                    anchor_ms: wire.anchor_ms,
-                    anchor_epoch: wire.anchor_epoch,
-                    start_epoch: wire.start_epoch,
-                    duration: wire.duration,
-                    anchor_progress: wire.anchor_progress,
-                    start_progress: wire.start_progress,
-                    end_progress: wire.end_progress,
-                    has_anchor: wire.has_anchor != 0,
-                    pending_forward: wire.pending_forward != 0,
-                },
-                worthy,
-            );
+            return (super::state::SessionAccounting::from(&wire), worthy);
         }
         let session = self.snapshot_session();
         (session, session.worthy())

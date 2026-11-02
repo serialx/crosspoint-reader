@@ -1,3 +1,5 @@
+pub(super) use xp_ui::reader::SessionAccounting;
+
 #[derive(Clone, Copy, Default)]
 pub(super) struct Position {
     pub(super) spine: i32,
@@ -55,51 +57,6 @@ pub(super) enum Notice {
 pub(super) struct TimedNotice {
     pub(super) message: Notice,
     pub(super) since: u32,
-}
-#[derive(Clone, Copy, Default)]
-pub(super) struct SessionAccounting {
-    pub(super) anchor_ms: u32,
-    pub(super) anchor_epoch: i64,
-    pub(super) start_epoch: i64,
-    pub(super) duration: u32,
-    pub(super) anchor_progress: u16,
-    pub(super) start_progress: u16,
-    pub(super) end_progress: u16,
-    pub(super) has_anchor: bool,
-    pub(super) pending_forward: bool,
-}
-
-impl SessionAccounting {
-    pub(super) fn note(&mut self, forward: bool, succeeded: bool) {
-        self.pending_forward = forward && succeeded;
-    }
-
-    pub(super) fn render(&mut self, now: u32, epoch: i64, progress: i32) {
-        let progress = progress.clamp(0, 10000) as u16;
-        if self.pending_forward && self.has_anchor && self.anchor_epoch > 0 {
-            let elapsed = now.wrapping_sub(self.anchor_ms) / 1000;
-            if elapsed >= 2 {
-                if self.duration == 0 {
-                    self.start_epoch = self.anchor_epoch;
-                    self.start_progress = self.anchor_progress;
-                    self.end_progress = self.anchor_progress;
-                }
-                self.duration = self.duration.wrapping_add(elapsed.min(1800));
-                self.end_progress = self.end_progress.max(progress);
-            }
-        }
-        self.anchor_ms = now;
-        self.anchor_epoch = epoch;
-        self.anchor_progress = progress;
-        self.has_anchor = true;
-        self.pending_forward = false;
-    }
-
-    pub(super) fn worthy(&self) -> bool {
-        self.start_epoch > 0
-            && self.duration >= 10
-            && self.start_epoch.wrapping_add(i64::from(self.duration)) > self.start_epoch
-    }
 }
 #[derive(Clone, Copy, Default)]
 pub(super) struct BasePublication {

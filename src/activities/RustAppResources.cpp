@@ -251,8 +251,10 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
       .text_wrap = [](XpAppText value, XpAppTextLayout layout, XpAppTextSink sink, void* context) -> uint8_t {
         const auto lines = target->wrappedText(layout.font, cstr(value), layout.width, layout.lines,
                                                static_cast<EpdFontFamily::Style>(layout.style));
-        for (const auto& line : lines)
+        for (const auto& line : lines) {
+          // cppcheck-suppress useStlAlgorithm // The raw loop keeps the firmware smaller than std::all_of.
           if (!sink(context, text(line))) return 0;
+        }
         return 1;
       },
       .text_truncate = [](XpAppText value, XpAppTextLayout layout, XpAppTextSink sink, void* context) -> uint8_t {
@@ -291,6 +293,7 @@ const XpAppResources& rustAppResources(GfxRenderer& renderer, MappedInputManager
               xs[i] = points[i].x;
               ys[i] = points[i].y;
             }
+            // cppcheck-suppress uninitvar // fillPolygon reads only the count initialized elements.
             target->fillPolygon(xs, ys, count, paint != 1);
           },
       .paint_scene = [](const XpUiScene* scene, const XpUiPaint* paint) -> uint8_t {

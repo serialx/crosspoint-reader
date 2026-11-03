@@ -68,4 +68,3 @@ int ButtonNavigator::previousIndex(const int currentIndex, const int totalItems)
   // Calculate the previous index with wrap-around
   return (currentIndex + totalItems - 1) % totalItems;
 }
-

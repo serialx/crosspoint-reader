@@ -45,8 +45,8 @@ XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_
 std::string owned(XpAppText value) {
   return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
 }
-bool send(XpAppEvent event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
-void navigate(XpAppLaunch launch) {
+bool send(const XpAppEvent& event) { return xp_app_event(&event) == XP_APP_ACCEPTED; }
+void navigate(const XpAppLaunch& launch) {
   XpAppEvent event{.kind = XP_APP_NAVIGATE};
   event.value.navigate = launch;
   if (!send(event)) LOG_ERR("ACT", "Cannot create activity kind=%u", launch.kind);
@@ -297,6 +297,7 @@ void ActivityManager::goToSettings(SettingsSection section) {
   launch.value.settings_section = static_cast<uint8_t>(section);
   navigate(launch);
 }
+// cppcheck-suppress passedByValue // Preserve the public by-value path signature.
 void ActivityManager::goToFileBrowser(std::string path) {
   XpAppLaunch launch{.kind = XP_APP_FILES};
   launch.value.file_path = text(path);

@@ -58,8 +58,9 @@ retains the render task, RenderLock and completion notification. See
 The EPUB session owns one Rust `ReaderBook`. Native Section/parser, reader
 children and progress/XPath code borrow its `Epub` compatibility object; their
 shared pointers must be released before the Rust book is destroyed. The facade
-close checks that no native borrower remains. Exit detaches the image extractor,
-drops Section and closes the facade before releasing the book. Native Home,
+close asserts that no native borrower remains before deleting the facade; this
+assertion is active in shipping firmware and aborts on a live loan. Exit detaches
+the image extractor, drops Section and closes the facade before releasing the book. Native Home,
 Library, Sleep and sync objects retain their ordinary Epub ownership. See
 [Reader book ownership](contributing/rust.md#reader-book-ownership).
 

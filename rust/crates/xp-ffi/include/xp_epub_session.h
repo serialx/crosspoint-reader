@@ -329,6 +329,7 @@ typedef struct XpEpubLeaves {
   // Closing requires all Section/child loans to have ended; no Rust book is freed here.
   void* (*book_facade_open)(void* book, const XpEpubBookView* view, const XpEpubBookBorrow* borrow);
   void (*book_facade_close)(void* facade);
+  // Null detaches the extractor; non-null must be this session's own live facade.
   void (*book_set_extractor)(void* facade);
   // Null without error is a plain book. Error text is borrowed only during the sink.
   void* (*protection_open)(XpAppText path, XpAppTextSink error, void* context);

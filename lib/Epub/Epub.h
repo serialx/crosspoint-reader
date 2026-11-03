@@ -82,6 +82,9 @@ class Epub {
  public:
   explicit Epub(std::string filepath, const std::string& cacheDir);
   // The Rust owner outlives this facade and every shared native borrower.
+  // Temporary query/render subset: docs/contributing/rust.md#reader-book-ownership.
+  // Load/cache mutation, getPath/getTitle/getAuthor/getProtectionError, cover/thumbnail
+  // and readItemContentsToBytes are ordinary-only; see that section for the full list.
   Epub(void* book, const XpEpubBookView& view, const XpEpubBookBorrow& callbacks);
   ~Epub() = default;
   bool load(bool buildIfMissing = true, bool skipLoadingCss = false);

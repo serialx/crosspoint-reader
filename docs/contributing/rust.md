@@ -173,8 +173,19 @@ C3 eink-qemu measurements do not establish hardware or S3 runtime behavior.
 
 ## Diagnostics
 
-Rust never logs. C++ owns every `LOG_*` call, format string, origin tag and
-log-level gate. Diagnostics must preserve behavior and add no heap allocations.
+Diagnostics must preserve behavior and add no heap allocations. C++ owns the
+`LOG_*` calls and log-level gates. The reader's `book_owner` formats its migrated
+load, cache, package, CSS, ZIP and TXT/Markdown diagnostics in Rust, preserving
+the native messages' origin tags and levels. Its non-inlined formatter uses a
+256-byte stack buffer, checks `XpEpubLeaves::log_enabled`, then synchronously
+passes borrowed origin/message spans to `XpEpubLeaves::log` in
+`xp_epub_session.h`. C++ emits them with `%.*s`, mapping severity 0/1/2 to
+debug/error/info. Inflate allocation failures still use `inflate_oom_log`, which
+calls the cold native `InflateStream::logAllocationFailure` helper to format
+the message with native heap/PSRAM measurements.
+
+This reader boundary does not change the rule for other modules: C++ owns their
+format strings and origin tags.
 When an event ends a Rust call, return a status or failure detail for C++ to log.
 For events inside a call that continues, use one nullable, synchronous diagnostic
 callback in the services/options descriptor: context, `event, a, b, c, d`, and
@@ -522,11 +533,23 @@ and rebind the extractor to the same live facade.
 The reader has no native book-open/load/getter service table. Its remaining
 `book_facade_open`, `book_facade_close` and nullable `book_set_extractor` leaves
 support those retained native borrowers. Facade calls outside its supported
-query/render methods assert in debug builds and return inert values in release;
-calling native load or metadata getters is not a fallback. Ordinary `Epub`
+query/render methods abort through `Epub::requireOwned`: assertions are active
+in the shipping firmware, with no inert release fallback. Facade close also
+asserts that no native borrower remains before deleting the facade. Calling
+native load or metadata getters is not a fallback. Ordinary `Epub`
 objects used by Home, Library, Sleep and sync still own native resources through
 the existing interfaces. Include those objects when accounting for the inline
 facade state's memory cost.
+
+The facade supports `getCachePath`, `getLanguage`, `getCssParser`,
+`readItemContentsToStream`, `extractItemToFile`, `getItemSize`, `getSpineItem`,
+`getTocItem`, `getSpineItemsCount`, `getTocItemsCount`,
+`getTocIndexForSpineIndex`, `getCumulativeSpineItemSize`, `getSpineIndexForSize`,
+`getBookSize` and `calculateProgress`. All other public methods are ordinary-book
+only, including load/cache mutation, path/title/author/protection-error getters,
+cover/thumbnail operations, `readItemContentsToBytes`, `getSpineIndexForTocIndex`,
+`getSpineIndexForTextReference` and `resolveHrefToSpineIndex`. Book-owner logs use
+the reader leaf described under [Diagnostics](#diagnostics).
 
 `ResourceAccess` precedes the cache lock, then storage. A cache row read releases
 its guard before invoking a sink; the decoded row owns its bytes for the

@@ -396,11 +396,11 @@ typedef struct XpEpubLeaves {
   uint8_t (*input_screen_tap)(int32_t* x, int32_t* y);
   uint8_t (*input_raw_contact)(void);
   uint8_t (*render_busy)(void);
-  void* (*file_open_read)(XpAppText path);
-  void* (*file_open_write)(XpAppText path);
+  void* (*file_open_read)(XpAppText path, XpAppText origin);
+  void* (*file_open_write)(XpAppText path, XpAppText origin);
   int32_t (*file_read)(void* file, uint8_t* bytes, uint32_t length);
   uint32_t (*file_write)(void* file, const uint8_t* bytes, uint32_t length);
-  void (*file_close)(void* file);
+  uint8_t (*file_close)(void* file);
   uint8_t (*path_remove)(XpAppText path);
   uint8_t (*path_rename)(XpAppText from, XpAppText to);
   uint8_t (*path_mkdir)(XpAppText path);
@@ -515,6 +515,9 @@ typedef struct XpEpubLeaves {
   // Lock order: ResourceAccess, cache, Storage.
   void (*cache_lock)(void);
   void (*cache_unlock)(void);
+  uint8_t* (*scratch_claim)(uint32_t min_len);
+  void (*scratch_release)(const uint8_t* bytes);
+  void (*inflate_oom_log)(XpAppText allocation, uint32_t bytes);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -567,7 +570,7 @@ XP_EPUB_ASSERT(sizeof(XpEpubToolbarRow) == 2 * sizeof(XpAppText) + 8, "XpEpubToo
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, label_spaces) == 2 * sizeof(XpAppText), "XpEpubToolbarRow.label_spaces");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, toggle) == 2 * sizeof(XpAppText) + 4, "XpEpubToolbarRow.toggle");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, checked) == 2 * sizeof(XpAppText) + 5, "XpEpubToolbarRow.checked");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(resources_open, 0);
@@ -780,6 +783,9 @@ XP_EPUB_LEAF_OFFSET(file_size, 206);
 XP_EPUB_LEAF_OFFSET(path_remove_tree, 207);
 XP_EPUB_LEAF_OFFSET(cache_lock, 208);
 XP_EPUB_LEAF_OFFSET(cache_unlock, 209);
+XP_EPUB_LEAF_OFFSET(scratch_claim, 210);
+XP_EPUB_LEAF_OFFSET(scratch_release, 211);
+XP_EPUB_LEAF_OFFSET(inflate_oom_log, 212);
 #undef XP_EPUB_LEAF_OFFSET
 #undef XP_EPUB_ASSERT
 

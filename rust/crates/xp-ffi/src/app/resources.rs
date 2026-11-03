@@ -115,6 +115,29 @@ pub struct Buffer {
 }
 
 impl Buffer {
+    /// Takes ownership of a buffer allocated by these services in this domain.
+    ///
+    /// # Safety
+    /// `data` must be null or a live, uniquely owned allocation of at least `len`
+    /// bytes, released by `services.buffer_release` with the same domain.
+    pub(crate) unsafe fn from_raw(
+        services: &'static abi::Resources,
+        domain: abi::MemoryDomain,
+        data: *mut u8,
+        len: usize,
+    ) -> Option<Self> {
+        Some(Self {
+            data: NonNull::new(data)?,
+            len,
+            domain,
+            services,
+        })
+    }
+
+    pub(crate) fn as_ptr(&self) -> *mut u8 {
+        self.data.as_ptr()
+    }
+
     pub fn allocate(
         services: &'static abi::Resources,
         domain: abi::MemoryDomain,

@@ -12,13 +12,14 @@ namespace {
 constexpr size_t WINDOW_SIZE = 32768;
 constexpr int32_t NEEDS_INPUT = 0;
 constexpr int32_t DONE = 1;
-void logAllocationFailure(const char* allocation, size_t bytes) {
+}  // namespace
+
+void InflateStream::logAllocationFailure(const char* allocation, size_t bytes) {
   const auto heap = HalMemory::getDefaultHeap();
   const auto psram = HalMemory::getPsramHeap();
   LOG_ERR("ZIP", "Inflate %s OOM (%zu bytes): heap %zu free/%zu max, PSRAM %zu free/%zu total", allocation, bytes,
           heap.freeBytes, heap.largestBlockBytes, psram.freeBytes, psram.totalBytes);
 }
-}  // namespace
 
 InflateStream::~InflateStream() { deinit(); }
 

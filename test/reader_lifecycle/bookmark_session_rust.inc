@@ -143,7 +143,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -354,6 +354,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(path_remove_tree);
   UNUSED_LEAF(cache_lock);
   UNUSED_LEAF(cache_unlock);
+  UNUSED_LEAF(scratch_claim);
+  UNUSED_LEAF(scratch_release);
+  UNUSED_LEAF(inflate_oom_log);
   table.book_progress = [](void* book, int32_t spine, float fraction) -> float {
     unlocked(); assert(book); return static_cast<Epub*>(book)->calculateProgress(spine, fraction);
   };
@@ -420,12 +423,14 @@ static const XpEpubLeaves leaves = [] {
   table.bookmarks_insert_front = [](void* handle, const XpEpubBookmark* entry) -> uint8_t {
     locked(); assert(entry); auto& entries = rows(handle); entries.insert(entries.begin(), nativeRow(*entry)); return 1;
   };
-  table.file_open_read = [](XpAppText path) -> void* {
+  table.file_open_read = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     unlocked(); assert(!liveFile); auto file = std::make_unique<HalFile>();
     if (!Storage.openFileForRead("ERS", nativeText(path), *file)) return nullptr;
     liveFile = file.release(); return liveFile;
   };
-  table.file_open_write = [](XpAppText path) -> void* {
+  table.file_open_write = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     unlocked(); assert(!liveFile); auto file = std::make_unique<HalFile>();
     if (!Storage.openFileForWrite("ERS", nativeText(path), *file)) return nullptr;
     liveFile = file.release(); return liveFile;
@@ -436,9 +441,9 @@ static const XpEpubLeaves leaves = [] {
   table.file_write = [](void* file, const uint8_t* bytes, uint32_t length) -> uint32_t {
     unlocked(); assert(file == liveFile && liveFile && length <= 13); return liveFile->write(bytes, length);
   };
-  table.file_close = [](void* file) {
+  table.file_close = [](void* file) -> uint8_t {
     unlocked(); assert(file == liveFile && liveFile); delete liveFile; liveFile = nullptr;
-  };
+   return 1; };
   table.path_remove = [](XpAppText path) -> uint8_t {
     unlocked(); assert(!liveFile); return Storage.remove(nativeText(path).c_str());
   };

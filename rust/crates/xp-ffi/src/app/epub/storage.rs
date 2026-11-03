@@ -50,8 +50,14 @@ impl EpubSession {
         assert!(core::ptr::eq(self, access.owner));
         let handle = unsafe {
             match mode {
-                FileMode::Read => (self.leaves.file_open_read)(path.wire()),
-                FileMode::Write => (self.leaves.file_open_write)(path.wire()),
+                FileMode::Read => (self.leaves.file_open_read)(
+                    path.wire(),
+                    app_abi::Text::from_bytes(c"ERS".to_bytes()),
+                ),
+                FileMode::Write => (self.leaves.file_open_write)(
+                    path.wire(),
+                    app_abi::Text::from_bytes(c"ERS".to_bytes()),
+                ),
             }
         };
         Some(File {

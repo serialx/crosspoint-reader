@@ -5,6 +5,25 @@ use alloc::{boxed::Box, vec::Vec};
 use core::{cell::UnsafeCell, ffi::c_void, marker::PhantomData, ptr::NonNull};
 use xp_core::book::io::Sink;
 
+mod cache;
+mod css;
+mod inflate;
+mod items;
+mod load;
+mod log;
+mod package;
+mod txt;
+mod writer;
+mod zip;
+
+#[cfg(feature = "app-test")]
+#[path = "test_support/book_open.rs"]
+mod open_tests;
+
+#[cfg(feature = "app-test")]
+#[path = "test_support/book_load.rs"]
+mod load_tests;
+
 pub(super) struct ReaderBook {
     path: Text,
     cache_path: Text,
@@ -23,8 +42,45 @@ struct Metadata {
     text_reference: Vec<u8>,
 }
 
+impl Metadata {
+    fn assign(&mut self, field: u32, bytes: &[u8]) -> Result<(), ()> {
+        use xp_core::epub::opf;
+        let output = match field {
+            opf::TITLE => &mut self.title,
+            opf::AUTHOR => &mut self.author,
+            opf::LANGUAGE => &mut self.language,
+            opf::COVER => &mut self.cover,
+            opf::TEXT => &mut self.text_reference,
+            _ => return Err(()),
+        };
+        output.clear();
+        if matches!(field, opf::TITLE | opf::AUTHOR) && xp_core::utf8::may_compose(bytes) {
+            // Match utf8ComposeNfc, including replacement bytes after XML truncation.
+            let mut length = Some(0usize);
+            xp_core::utf8::compose(
+                bytes,
+                &mut |part| length = length.and_then(|n| n.checked_add(part.len())),
+                &mut |_| true,
+            );
+            output
+                .try_reserve_exact(length.ok_or(())?)
+                .map_err(|_| ())?;
+            xp_core::utf8::compose(
+                bytes,
+                &mut |part| output.extend_from_slice(part),
+                &mut |_| true,
+            );
+        } else {
+            output.try_reserve_exact(bytes.len()).map_err(|_| ())?;
+            output.extend_from_slice(bytes);
+        }
+        Ok(())
+    }
+}
+
 struct BookCache {
     file: File,
+    loaded: bool,
     lut_offset: u32,
     spine_count: u16,
     toc_count: u16,
@@ -62,31 +118,63 @@ impl Drop for CacheGuard {
 }
 
 pub(super) struct File {
-    handle: NonNull<c_void>,
+    handle: Option<NonNull<c_void>>,
     leaves: &'static XpEpubLeaves,
 }
 
 impl File {
-    pub(super) fn open(leaves: &'static XpEpubLeaves, path: &Text) -> Option<Self> {
-        let handle = NonNull::new(unsafe { (leaves.file_open_read)(path.wire()) })?;
-        Some(Self { handle, leaves })
+    pub(super) fn open(
+        leaves: &'static XpEpubLeaves,
+        path: &Text,
+        origin: &'static core::ffi::CStr,
+    ) -> Option<Self> {
+        let handle = NonNull::new(unsafe {
+            (leaves.file_open_read)(path.wire(), app_abi::Text::from_bytes(origin.to_bytes()))
+        })?;
+        Some(Self {
+            handle: Some(handle),
+            leaves,
+        })
     }
 
     pub(super) fn size(&self) -> u32 {
-        unsafe { (self.leaves.file_size)(self.handle.as_ptr()) }
+        self.handle.map_or(0, |handle| unsafe {
+            (self.leaves.file_size)(handle.as_ptr())
+        })
     }
 
     fn seek(&self, offset: u32) -> bool {
-        unsafe { (self.leaves.file_seek)(self.handle.as_ptr(), offset) != 0 }
+        self.handle
+            .is_some_and(|handle| unsafe { (self.leaves.file_seek)(handle.as_ptr(), offset) != 0 })
     }
 
     fn read(&self, bytes: &mut [u8]) -> bool {
+        self.read_result(bytes)
+            .is_some_and(|count| count == bytes.len())
+    }
+
+    fn read_count(&self, bytes: &mut [u8]) -> usize {
+        self.read_result(bytes).unwrap_or(0)
+    }
+
+    fn read_result(&self, bytes: &mut [u8]) -> Option<usize> {
+        usize::try_from(self.read_signed(bytes)).ok()
+    }
+
+    fn read_signed(&self, bytes: &mut [u8]) -> i32 {
         let Ok(length) = u32::try_from(bytes.len()) else {
-            return false;
+            return -1;
         };
-        let count =
-            unsafe { (self.leaves.file_read)(self.handle.as_ptr(), bytes.as_mut_ptr(), length) };
-        count >= 0 && count as u32 == length
+        let Some(handle) = self.handle else {
+            return -1;
+        };
+        unsafe { (self.leaves.file_read)(handle.as_ptr(), bytes.as_mut_ptr(), length) }
+    }
+
+    fn close(&mut self) -> bool {
+        self.handle
+            .take()
+            .is_some_and(|handle| unsafe { (self.leaves.file_close)(handle.as_ptr()) != 0 })
     }
 
     pub(super) fn read_at(&self, offset: u32, bytes: &mut [u8]) -> bool {
@@ -97,7 +185,7 @@ impl File {
 
 impl Drop for File {
     fn drop(&mut self) {
-        unsafe { (self.leaves.file_close)(self.handle.as_ptr()) };
+        self.close();
     }
 }
 

@@ -97,10 +97,10 @@ enum MutationResult {
 
 #[repr(C)]
 pub struct FileOps {
-    ctx: *mut c_void,
-    read: unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> i32,
-    write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> usize,
-    seek: unsafe extern "C" fn(*mut c_void, usize) -> bool,
+    pub(crate) ctx: *mut c_void,
+    pub(crate) read: unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> i32,
+    pub(crate) write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> usize,
+    pub(crate) seek: unsafe extern "C" fn(*mut c_void, usize) -> bool,
 }
 
 #[repr(C)]
@@ -115,6 +115,34 @@ pub struct Reader {
     fill: usize,
     off: usize,
     start: usize,
+}
+
+impl Writer {
+    pub(crate) fn new(position: usize) -> Self {
+        Self {
+            fill: 0,
+            pos: position,
+            ok: true,
+        }
+    }
+
+    pub(crate) fn position(&self) -> usize {
+        self.pos
+    }
+}
+
+impl Reader {
+    pub(crate) fn new(position: usize) -> Self {
+        Self {
+            fill: 0,
+            off: 0,
+            start: position,
+        }
+    }
+
+    pub(crate) fn position(&self) -> usize {
+        self.start.wrapping_add(self.off)
+    }
 }
 
 unsafe fn flush(writer: &mut Writer, buffer: *const u8, ops: &FileOps) {

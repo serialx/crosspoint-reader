@@ -154,7 +154,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
   table.resources_open = &OverlayUnexpected<decltype(table.resources_open)>::call;
   table.resources_close = &OverlayUnexpected<decltype(table.resources_close)>::call;
   table.render_services = &OverlayUnexpected<decltype(table.render_services)>::call;
@@ -365,5 +365,8 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.path_remove_tree = &OverlayUnexpected<decltype(table.path_remove_tree)>::call;
   table.cache_lock = &OverlayUnexpected<decltype(table.cache_lock)>::call;
   table.cache_unlock = &OverlayUnexpected<decltype(table.cache_unlock)>::call;
+  table.scratch_claim = &OverlayUnexpected<decltype(table.scratch_claim)>::call;
+  table.scratch_release = &OverlayUnexpected<decltype(table.scratch_release)>::call;
+  table.inflate_oom_log = &OverlayUnexpected<decltype(table.inflate_oom_log)>::call;
   return table;
 }

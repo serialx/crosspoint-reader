@@ -161,7 +161,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -372,6 +372,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(path_remove_tree);
   UNUSED_LEAF(cache_lock);
   UNUSED_LEAF(cache_unlock);
+  UNUSED_LEAF(scratch_claim);
+  UNUSED_LEAF(scratch_release);
+  UNUSED_LEAF(inflate_oom_log);
   table.book_open = [](XpAppText path) -> void* {
     leaf();
     assert(!liveBook);
@@ -453,7 +456,8 @@ static const XpEpubLeaves leaves = [] {
     assert(root == activeFixture && activeFixture->loan);
     activeFixture->loan.reset();
   };
-  table.file_open_read = [](XpAppText path) -> void* {
+  table.file_open_read = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     leaf();
     assert(!liveFile && owned(path) == "/cache/progress.bin");
     auto file = std::make_unique<HalFile>();
@@ -466,12 +470,12 @@ static const XpEpubLeaves leaves = [] {
     assert(handle == liveFile && liveFile->open && length == 10);
     return liveFile->read(bytes, length);
   };
-  table.file_close = [](void* handle) {
+  table.file_close = [](void* handle) -> uint8_t {
     leaf();
     assert(handle == liveFile && liveFile->open);
     delete liveFile;
     liveFile = nullptr;
-  };
+   return 1; };
   table.section_close = [](void* handle) {
     leaf();
     assert(handle && handle == liveSection);

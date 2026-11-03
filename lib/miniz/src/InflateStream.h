@@ -39,6 +39,8 @@ class InflateStream {
   // stream state. Releases prior storage first; leaves no allocation on OOM.
   bool init(bool streaming);
 
+  static void logAllocationFailure(const char* allocation, size_t bytes);
+
   // Free the decompressor state and window.
   void deinit();
 

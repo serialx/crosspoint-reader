@@ -338,7 +338,8 @@ void bind() {
     auto& book = f().handle(raw, Kind::Book);
     f().physical("cache-setup", book.generation, book.id);
   };
-  leaves.file_open_read = [](XpAppText path) -> void* {
+  leaves.file_open_read = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     assert(text(path) == "/cache/progress.bin" && f().extractor && !f().renderDepth);
     return f().acquire(Kind::File, f().extractor->generation);
   };
@@ -351,7 +352,7 @@ void bind() {
     f().physical("progress-read", file.generation, file.id);
     return sizeof(saved);
   };
-  leaves.file_close = [](void* raw) { f().release(raw, Kind::File); };
+  leaves.file_close = [](void* raw) -> uint8_t { f().release(raw, Kind::File);  return 1; };
   leaves.bookmarks_clear = [](void* raw) {
     auto& h = f().handle(raw, Kind::Bookmarks);
     assert(!f().renderDepth);

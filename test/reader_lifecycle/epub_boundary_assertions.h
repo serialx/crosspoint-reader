@@ -329,6 +329,7 @@ static_assert(offsetof(XpEpubLeaves, file_write) == 107 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_write)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::file_write)>>);
 static_assert(offsetof(XpEpubLeaves, file_close) == 108 * sizeof(void (*)()));
+static_assert(std::is_same_v<decltype(XpEpubLeaves::file_close), uint8_t (*)(void*)>);
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::file_close)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::file_close)>>);
 static_assert(offsetof(XpEpubLeaves, path_remove) == 109 * sizeof(void (*)()));
@@ -634,7 +635,14 @@ static_assert(std::is_pointer_v<decltype(XpEpubLeaves::cache_lock)> &&
 static_assert(offsetof(XpEpubLeaves, cache_unlock) == 209 * sizeof(void (*)()));
 static_assert(std::is_pointer_v<decltype(XpEpubLeaves::cache_unlock)> &&
               std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::cache_unlock)>>);
-static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+static_assert(offsetof(XpEpubLeaves, scratch_claim) == 210 * sizeof(void (*)()));
+static_assert(std::is_pointer_v<decltype(XpEpubLeaves::scratch_claim)> &&
+              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::scratch_claim)>>);
+static_assert(offsetof(XpEpubLeaves, scratch_release) == 211 * sizeof(void (*)()));
+static_assert(std::is_pointer_v<decltype(XpEpubLeaves::scratch_release)> &&
+              std::is_function_v<std::remove_pointer_t<decltype(XpEpubLeaves::scratch_release)>>);
+static_assert(offsetof(XpEpubLeaves, inflate_oom_log) == 212 * sizeof(void (*)()));
+static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
 static_assert(alignof(XpEpubLeaves) == alignof(void (*)()));
 static_assert(sizeof(XpAppResultView::kind) == 1);
 static_assert(sizeof(XpAppResultView::cancelled) == 1);

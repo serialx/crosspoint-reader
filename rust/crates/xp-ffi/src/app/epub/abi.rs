@@ -598,13 +598,15 @@ pub struct XpEpubLeaves {
     pub input_screen_tap: unsafe extern "C" fn(x: *mut i32, y: *mut i32) -> u8,
     pub input_raw_contact: unsafe extern "C" fn() -> u8,
     pub render_busy: unsafe extern "C" fn() -> u8,
-    pub file_open_read: unsafe extern "C" fn(path: XpAppText) -> *mut core::ffi::c_void,
-    pub file_open_write: unsafe extern "C" fn(path: XpAppText) -> *mut core::ffi::c_void,
+    pub file_open_read:
+        unsafe extern "C" fn(path: XpAppText, origin: XpAppText) -> *mut core::ffi::c_void,
+    pub file_open_write:
+        unsafe extern "C" fn(path: XpAppText, origin: XpAppText) -> *mut core::ffi::c_void,
     pub file_read:
         unsafe extern "C" fn(file: *mut core::ffi::c_void, bytes: *mut u8, length: u32) -> i32,
     pub file_write:
         unsafe extern "C" fn(file: *mut core::ffi::c_void, bytes: *const u8, length: u32) -> u32,
-    pub file_close: unsafe extern "C" fn(file: *mut core::ffi::c_void),
+    pub file_close: unsafe extern "C" fn(file: *mut core::ffi::c_void) -> u8,
     pub path_remove: unsafe extern "C" fn(path: XpAppText) -> u8,
     pub path_rename: unsafe extern "C" fn(r#from: XpAppText, to: XpAppText) -> u8,
     pub path_mkdir: unsafe extern "C" fn(path: XpAppText) -> u8,
@@ -815,6 +817,9 @@ pub struct XpEpubLeaves {
     pub path_remove_tree: unsafe extern "C" fn(path: XpAppText) -> u8,
     pub cache_lock: unsafe extern "C" fn(),
     pub cache_unlock: unsafe extern "C" fn(),
+    pub scratch_claim: unsafe extern "C" fn(min_len: u32) -> *mut u8,
+    pub scratch_release: unsafe extern "C" fn(bytes: *const u8),
+    pub inflate_oom_log: unsafe extern "C" fn(allocation: XpAppText, bytes: u32),
 }
 
 const _: () = {
@@ -836,7 +841,7 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 210 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 213 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log)
@@ -1007,5 +1012,14 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 208 * core::mem::size_of::<usize>());
     assert!(
         core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 209 * core::mem::size_of::<usize>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 210 * core::mem::size_of::<usize>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, scratch_release) == 211 * core::mem::size_of::<usize>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 212 * core::mem::size_of::<usize>()
     );
 };

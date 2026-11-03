@@ -17,7 +17,7 @@ pub struct Services {
     pub diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32, u32, u32)>,
 }
 #[repr(u32)]
-enum Event {
+pub enum Event {
     ReadCompressed = 1,
     OutputAllocation,
     ReadData,

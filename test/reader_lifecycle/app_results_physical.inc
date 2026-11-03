@@ -147,7 +147,8 @@ void bindResultsPhysical() {
   leaves.progress_to_saved = [](void*, const XpEpubPosition*, XpEpubSavedProgressSink sink, void* context) -> uint8_t {
     physical("progress-to-saved"); const XpEpubSavedProgress saved{literal("saved-xpath"), .25f}; return sink(context, &saved);
   };
-  leaves.file_open_write = [](XpAppText path) -> void* {
+  leaves.file_open_write = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     physical("links-open", 1); assert(text(path) == "/cache/links.bin" && !f().extractor);
     assert(std::count_if(f().handles.begin(), f().handles.end(), [](const auto& entry) { return entry.second->kind == Kind::Book; }) == 1);
     return f().acquire(Kind::File, f().generation);

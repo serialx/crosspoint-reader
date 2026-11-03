@@ -23,6 +23,8 @@ pub const END_PASS: u32 = 8;
 pub const BEGIN_BUILD: u32 = 9;
 pub const END_BUILD: u32 = 10;
 pub const END_SIZES: u32 = 12;
+// Fallible Rust storage reports this bit. Legacy native storage returns zero.
+pub const SIZE_STORAGE_ERROR: u64 = 1 << 63;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -261,6 +263,24 @@ trait SortStorage<T: Copy> {
         self.set(a, self.get(b)?)?;
         self.set(b, value)
     }
+}
+
+/// Preserve the frozen target-library ordering in caller-owned contiguous storage.
+pub fn sort_legacy_slice<T: Copy>(values: &mut [T], less: fn(T, T) -> bool) -> Result<()> {
+    struct Slice<'a, T>(&'a mut [T]);
+    impl<T: Copy> SortStorage<T> for Slice<'_, T> {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+        fn get(&self, index: usize) -> Result<T> {
+            self.0.get(index).copied().ok_or(4)
+        }
+        fn set(&mut self, index: usize, value: T) -> Result<()> {
+            *self.0.get_mut(index).ok_or(4u32)? = value;
+            Ok(())
+        }
+    }
+    sort_storage(&mut Slice(values), less)
 }
 impl<T: node_element::Sealed> SortStorage<T> for Nodes<T> {
     fn len(&self) -> usize {
@@ -814,7 +834,7 @@ impl Cache {
 
 #[repr(u32)]
 #[derive(Clone, Copy)]
-enum SizeOp {
+pub enum SizeOp {
     Path = 0,
     RawSize = 1,
     OpenZip = 2,
@@ -845,10 +865,13 @@ impl Io {
     fn size_op(&self, op: SizeOp, index: u32) -> u64 {
         self.size_storage(op, index, core::ptr::null_mut())
     }
-    fn size_span(&self, op: SizeOp, index: u32) -> Span {
+    fn size_span(&self, op: SizeOp, index: u32) -> Result<Span> {
         let mut span = Span::new(&[]);
-        self.size_storage(op, index, (&mut span as *mut Span).cast());
-        span
+        let result = self.size_storage(op, index, (&mut span as *mut Span).cast());
+        if result & SIZE_STORAGE_ERROR != 0 {
+            return Err(1);
+        }
+        Ok(span)
     }
 }
 struct SizeTargets<'a> {
@@ -877,7 +900,7 @@ struct SizePlan {
 }
 impl SizePlan {
     fn begin(io: &Io, count: u16) -> Result<Self> {
-        let path = io.size_span(SizeOp::Path, 0);
+        let path = io.size_span(SizeOp::Path, 0)?;
         let path = if path.len == 0 {
             &[][..]
         } else {
@@ -903,8 +926,11 @@ impl SizePlan {
         }
         if count >= 400 && io.sizes.is_some() {
             io.size_op(SizeOp::Batch, u32::from(count));
-            io.size_op(SizeOp::AllocateTargets, 0);
-            io.size_op(SizeOp::AllocateSizes, u32::from(count));
+            if io.size_op(SizeOp::AllocateTargets, 0) & SIZE_STORAGE_ERROR != 0
+                || io.size_op(SizeOp::AllocateSizes, u32::from(count)) & SIZE_STORAGE_ERROR != 0
+            {
+                return Err(1);
+            }
             // The original unchecked preparation seek/read outcomes are retained.
             unsafe {
                 (io.seek)(io.context, SPINE, 0);
@@ -917,7 +943,7 @@ impl SizePlan {
                 unsafe {
                     (io.read)(io.context, SPINE, length.as_mut_ptr(), 4);
                 }
-                let href = io.size_span(SizeOp::Href, u32::from_le_bytes(length));
+                let href = io.size_span(SizeOp::Href, u32::from_le_bytes(length))?;
                 if href.len != 0 {
                     unsafe {
                         (io.read)(io.context, SPINE, href.data.cast_mut(), href.len);
@@ -929,7 +955,7 @@ impl SizePlan {
                     (io.read)(io.context, SPINE, cumulative.as_mut_ptr(), 4);
                     (io.read)(io.context, SPINE, toc.as_mut_ptr(), 2);
                 }
-                let name = io.size_span(SizeOp::Normalize, 0);
+                let name = io.size_span(SizeOp::Normalize, 0)?;
                 let bytes = if name.len == 0 {
                     &[][..]
                 } else {
@@ -940,7 +966,12 @@ impl SizePlan {
                     u64::from(name.len as u16),
                     u64::from(i),
                 ];
-                io.size_storage(SizeOp::Append, 0, value.as_mut_ptr().cast());
+                if io.size_storage(SizeOp::Append, 0, value.as_mut_ptr().cast())
+                    & SIZE_STORAGE_ERROR
+                    != 0
+                {
+                    return Err(1);
+                }
                 targets.count += 1;
                 io.size_op(SizeOp::EndEntry, 0);
                 if targets.count >= 2048 || i + 1 >= count {

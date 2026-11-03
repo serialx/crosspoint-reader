@@ -153,7 +153,7 @@ static XpUiReaderRenderServices renderServices{
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -364,6 +364,9 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(path_remove_tree);
   UNUSED_LEAF(cache_lock);
   UNUSED_LEAF(cache_unlock);
+  UNUSED_LEAF(scratch_claim);
+  UNUSED_LEAF(scratch_release);
+  UNUSED_LEAF(inflate_oom_log);
   table.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     leaf();
     assert(activeEpub && root == activeEpub && lockDepth == 1);

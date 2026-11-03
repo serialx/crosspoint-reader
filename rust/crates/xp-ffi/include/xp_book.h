@@ -808,12 +808,12 @@ uint8_t xp_book_page_images(const uint8_t* arena, size_t length, void* ctx, uint
 
 // sizes value is callback-local: PATH/HREF/NORMALIZE write XpPkgSpan; LOOKUP
 // reads XpPkgSpan. APPEND/SET_TARGET read three u64s (hash, length, spine index);
-// TARGET writes that triple. Other operations use null. Native owns returned
+// TARGET writes that triple. Other operations use null. Caller owns returned
 // span storage: PATH lasts through the build; HREF until resized or END_ENTRY;
 // NORMALIZE until replaced or END_ENTRY. Rust must not free or retain it longer.
 // index is the size count, href byte length, target/cached index, or diagnostic
 // argument. RAW_SIZE/CACHED return bytes, OPEN_ZIP success, FILL matched count;
-// LOOKUP returns size in bits 0..31 and failure in bits 32..63. Others return 0.
+// LOOKUP: size in bits 0..31, failure in bits 32..63. Other allocating ops: 0 or bit 63 (OOM).
 // BEGIN/END_ENTRY own entry strings; ALLOCATE/CLEAR/DROP_TARGETS own targets;
 // ALLOCATE_SIZES owns sizes until XP_PKG_END_SIZES also releases the ZIP.
 typedef enum XpBookSizeOperation {

@@ -9,14 +9,14 @@ use xp_core::css::{
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Services {
-    ctx: *mut c_void,
-    operation: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> u32>,
-    millis: Option<unsafe extern "C" fn(*mut c_void) -> u32>,
-    diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32)>,
+    pub(crate) ctx: *mut c_void,
+    pub(crate) operation: Option<unsafe extern "C" fn(*mut c_void, u32, u32) -> u32>,
+    pub(crate) millis: Option<unsafe extern "C" fn(*mut c_void) -> u32>,
+    pub(crate) diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32)>,
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
-enum Op {
+pub(crate) enum Op {
     EmptyPath = 0,
     PreparePaths = 1,
     ExistsFinal = 2,
@@ -44,7 +44,17 @@ enum Op {
 }
 #[repr(u32)]
 #[derive(Clone, Copy)]
-enum Event {
+pub(crate) enum Action {
+    Restore = 0,
+    Delete = 1,
+    Inspect = 2,
+    Save = 3,
+    Load = 4,
+    Stream = 5,
+}
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub(crate) enum Event {
     RestoreFailed,
     Restored,
     OutputOom,
@@ -67,11 +77,11 @@ enum Event {
 }
 #[repr(C)]
 pub struct Io {
-    owner: *mut *mut Css,
-    buffer: *mut u8,
-    order: *mut u16,
-    word: [u8; 4],
-    capacity: usize,
+    pub(crate) owner: *mut *mut Css,
+    pub(crate) buffer: *mut u8,
+    pub(crate) order: *mut u16,
+    pub(crate) word: [u8; 4],
+    pub(crate) capacity: usize,
 }
 const _: () = {
     let pointer = core::mem::size_of::<*mut Css>();
@@ -428,8 +438,8 @@ pub unsafe extern "C" fn xp_book_css(
         diagnostics: diagnostics.as_ref().copied().unwrap_or_default(),
     };
     match action {
-        0 => restore(&s) as u32,
-        1 => {
+        x if x == Action::Restore as u32 => restore(&s) as u32,
+        x if x == Action::Delete as u32 => {
             if s.get(ExistsFinal) != 0 {
                 s.get(RemoveFinal);
             }
@@ -437,7 +447,7 @@ pub unsafe extern "C" fn xp_book_css(
             s.get(RemoveBackup);
             0
         }
-        2 => {
+        x if x == Action::Inspect as u32 => {
             if s.get(EmptyPath) != 0 || (s.get(ExistsFinal) == 0 && s.get(Restore) == 0) {
                 return 0;
             }
@@ -447,9 +457,9 @@ pub unsafe extern "C" fn xp_book_css(
                 None => 3,
             }
         }
-        3 => save(&s, complete != 0) as u32,
-        4 => load(&s),
-        5 => stream(&s),
+        x if x == Action::Save as u32 => save(&s, complete != 0) as u32,
+        x if x == Action::Load as u32 => load(&s),
+        x if x == Action::Stream as u32 => stream(&s),
         _ => 0,
     }
 }

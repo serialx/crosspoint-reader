@@ -2,6 +2,7 @@
 
 #include <BlePageTurner.h>
 #include <BoardConfig.h>
+#include <BuildScratch.h>
 #include <ContentProtection.h>
 #include <Epub.h>
 #include <Epub/Page.h>
@@ -12,6 +13,7 @@
 #include <HalDisplay.h>
 #include <HalGPIO.h>
 #include <HalStorage.h>
+#include <InflateStream.h>
 #include <KOReaderDocumentId.h>
 #include <Logging.h>
 #include <Memory.h>
@@ -1051,14 +1053,14 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       },
       .input_raw_contact = []() -> uint8_t { return gpio.rawInputActive(); },
       .render_busy = []() -> uint8_t { return RenderLock::peek(); },
-      .file_open_read = [](XpAppText path) -> void* {
+      .file_open_read = [](XpAppText path, XpAppText origin) -> void* {
         auto file = makeUniqueNoThrow<HalFile>();
-        if (!file || !Storage.openFileForRead("ERS", pathText(path), *file)) return nullptr;
+        if (!file || !Storage.openFileForRead(pathText(origin), pathText(path), *file)) return nullptr;
         return file.release();
       },
-      .file_open_write = [](XpAppText path) -> void* {
+      .file_open_write = [](XpAppText path, XpAppText origin) -> void* {
         auto file = makeUniqueNoThrow<HalFile>();
-        if (!file || !Storage.openFileForWrite("ERS", pathText(path), *file)) return nullptr;
+        if (!file || !Storage.openFileForWrite(pathText(origin), pathText(path), *file)) return nullptr;
         return file.release();
       },
       .file_read = [](void* file, uint8_t* bytes, uint32_t length) -> int32_t {
@@ -1067,7 +1069,13 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .file_write = [](void* file, const uint8_t* bytes, uint32_t length) -> uint32_t {
         return static_cast<HalFile*>(file)->write(bytes, length);
       },
-      .file_close = [](void* file) { delete static_cast<HalFile*>(file); },
+      .file_close = [](void* raw) -> uint8_t {
+        auto* file = static_cast<HalFile*>(raw);
+        if (!file) return 0;
+        const bool ok = file->close();
+        delete file;
+        return ok;
+      },
       .path_remove = [](XpAppText path) -> uint8_t { return Storage.remove(pathText(path)); },
       .path_rename = [](XpAppText from, XpAppText to) -> uint8_t {
         return Storage.rename(pathText(from), pathText(to));
@@ -1470,6 +1478,10 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .path_remove_tree = [](XpAppText path) -> uint8_t { return Storage.removeDir(pathText(path)); },
       .cache_lock = [] { BookMetadataCache::lockReadCursor(); },
       .cache_unlock = [] { BookMetadataCache::unlockReadCursor(); },
+      .scratch_claim = [](uint32_t min_len) { return buildscratch::claim(min_len); },
+      .scratch_release = [](const uint8_t* bytes) { buildscratch::release(bytes); },
+      .inflate_oom_log = [](XpAppText allocation,
+                            uint32_t bytes) { InflateStream::logAllocationFailure(pathText(allocation), bytes); },
   };
   return leaves;
 }

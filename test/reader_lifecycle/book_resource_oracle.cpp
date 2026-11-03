@@ -53,6 +53,13 @@ struct HalFile {
     assert(depth == 0);
     if (open) ++closes;
   }
+  bool close() {
+    assert(depth == 0);
+    if (!open) return false;
+    open = false;
+    ++closes;
+    return true;
+  }
   bool seek(uint32_t offset) {
     assert(depth == 1);
     if (failSeek) return false;

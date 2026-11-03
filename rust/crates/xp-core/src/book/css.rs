@@ -9,6 +9,7 @@ pub struct Span {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct CssEntry {
     pub path_hash: u64,
     pub content_key: u64,

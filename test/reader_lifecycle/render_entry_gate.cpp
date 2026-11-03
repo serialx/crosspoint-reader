@@ -236,7 +236,7 @@ static const XpUiReaderRenderServices renderServices = {
 static const XpEpubLeaves& physicalLeaves() {
   static const XpEpubLeaves value = [] {
     XpEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
     UNUSED_LEAF(resources_open);
     UNUSED_LEAF(resources_close);
     UNUSED_LEAF(render_services);
@@ -447,6 +447,9 @@ static const XpEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(path_remove_tree);
     UNUSED_LEAF(cache_lock);
     UNUSED_LEAF(cache_unlock);
+    UNUSED_LEAF(scratch_claim);
+    UNUSED_LEAF(scratch_release);
+    UNUSED_LEAF(inflate_oom_log);
     table.book_open = [](XpAppText path) -> void* {
       physical(0);
       assert(path.data || !path.len);

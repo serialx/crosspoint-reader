@@ -610,7 +610,8 @@ void bindReader() {
     physical(0);
     assert(text(path) == f().path);
   };
-  leaves.file_open_write = [](XpAppText path) -> void* {
+  leaves.file_open_write = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     physical(1);
     assert(text(path) == "/cache/links.bin");
     return f().acquire(Kind::File, f().generation);

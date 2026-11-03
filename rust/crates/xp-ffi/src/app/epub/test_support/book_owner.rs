@@ -26,7 +26,7 @@ pub unsafe extern "C" fn xp_epub_test_book_resources(
     let Ok(path) = Text::copy(path) else { return 3 };
     match kind {
         0 => {
-            let Some(file) = File::open(leaves, &path) else {
+            let Some(file) = File::open(leaves, &path, c"ERS") else {
                 return 4;
             };
             if file.size() != 8 {

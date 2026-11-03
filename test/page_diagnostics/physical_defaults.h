@@ -23,7 +23,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
   value.resources_open = &AppFixtureUnexpected<decltype(value.resources_open), 0>::call;
   value.resources_close = &AppFixtureUnexpected<decltype(value.resources_close), 1>::call;
   value.render_services = &AppFixtureUnexpected<decltype(value.render_services), 2>::call;
@@ -234,6 +234,9 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.path_remove_tree = &AppFixtureUnexpected<decltype(value.path_remove_tree), 207>::call;
   value.cache_lock = &AppFixtureUnexpected<decltype(value.cache_lock), 208>::call;
   value.cache_unlock = &AppFixtureUnexpected<decltype(value.cache_unlock), 209>::call;
+  value.scratch_claim = &AppFixtureUnexpected<decltype(value.scratch_claim), 210>::call;
+  value.scratch_release = &AppFixtureUnexpected<decltype(value.scratch_release), 211>::call;
+  value.inflate_oom_log = &AppFixtureUnexpected<decltype(value.inflate_oom_log), 212>::call;
   return value;
 }
 

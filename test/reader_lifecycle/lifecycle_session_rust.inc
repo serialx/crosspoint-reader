@@ -168,7 +168,7 @@ static XpAppRuntime runtimeDefaults() {
 
 static XpEpubLeaves leavesDefaults() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -379,6 +379,9 @@ static XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(path_remove_tree);
   UNUSED_LEAF(cache_lock);
   UNUSED_LEAF(cache_unlock);
+  UNUSED_LEAF(scratch_claim);
+  UNUSED_LEAF(scratch_release);
+  UNUSED_LEAF(inflate_oom_log);
   return table;
 }
 
@@ -519,14 +522,16 @@ static const XpEpubLeaves leaves = [] {
     bridge().beginPublication();
     return result;
   };
-  table.file_open_read = [](XpAppText path) -> void* {
+  table.file_open_read = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     leaf(); assert(lockDepth == 0 && !liveFile);
     auto file = std::make_unique<HalFile>();
     if (!Storage.openFileForRead("ERS", text(path), *file)) return nullptr;
     liveFile = file.release();
     return liveFile;
   };
-  table.file_open_write = [](XpAppText path) -> void* {
+  table.file_open_write = [](XpAppText path, XpAppText origin) -> void* {
+    assert(origin.len == 3 && std::memcmp(origin.data, "ERS", 3) == 0);
     leaf(); assert(lockDepth == 0 && !liveFile);
     auto file = std::make_unique<HalFile>();
     if (!Storage.openFileForWrite("ERS", text(path), *file)) return nullptr;
@@ -541,11 +546,11 @@ static const XpEpubLeaves leaves = [] {
     leaf(); assert(lockDepth == 0 && file && file == liveFile && length <= 13);
     return liveFile->write(bytes, length);
   };
-  table.file_close = [](void* file) {
+  table.file_close = [](void* file) -> uint8_t {
     leaf(); assert(lockDepth == 0 && file && file == liveFile);
     delete liveFile;
     liveFile = nullptr;
-  };
+   return 1; };
   table.path_remove = [](XpAppText path) -> uint8_t {
     leaf(); assert(lockDepth == 0 && !liveFile);
     return Storage.remove(text(path).c_str());

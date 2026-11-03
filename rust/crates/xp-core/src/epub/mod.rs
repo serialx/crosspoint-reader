@@ -6,6 +6,7 @@ pub mod cache;
 pub mod diagnostic;
 pub mod facade;
 mod href;
+pub use href::{decode as decode_href, normalize as normalize_href};
 pub mod opf;
 mod simple;
 use crate::xml::{Event, Kind, Parser as Xml};

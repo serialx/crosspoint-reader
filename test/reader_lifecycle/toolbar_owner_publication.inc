@@ -43,17 +43,17 @@ static const XpAppResources ownerResources = [] {
   table.translate = [](uint16_t) -> XpAppText { ownerPhysical(); return text("Contents"); };
   return table;
 }();
-static const XpEpubLeaves ownerLeaves = [] {
-  auto table = overlayUnexpectedLeaves();
-  table.section_page_count = [](void* p) -> uint16_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
-  table.section_estimated_pages = [](void* p) -> int32_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
-  table.section_building = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
-  table.section_complete = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 1; };
-  table.section_partial = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
-  table.section_close = [](void* p) { ownerPhysical(); assert(p == &sectionMarker); ++ownerSectionCloses; };
-  table.input_facts = [](XpEpubInputFacts* out) { ownerPhysical(); *out = {}; out->touch = 1; };
-  table.book_toc_count = [](void* p) -> int32_t { ownerPhysical(); assert(p == &bookMarker); return 30; };
-  table.book_toc = [](void* p, int32_t index, XpEpubTocSink sink, void* context) -> uint8_t {
+static const LegacyEpubLeaves ownerLeaves = [] {
+  auto table = overlayLegacyLeaves();
+  table.physical.section_page_count = [](void* p) -> uint16_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
+  table.physical.section_estimated_pages = [](void* p) -> int32_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
+  table.physical.section_building = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
+  table.physical.section_complete = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 1; };
+  table.physical.section_partial = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
+  table.physical.section_close = [](void* p) { ownerPhysical(); assert(p == &sectionMarker); ++ownerSectionCloses; };
+  table.physical.input_facts = [](XpEpubInputFacts* out) { ownerPhysical(); *out = {}; out->touch = 1; };
+  table.book.book_toc_count = [](void* p) -> int32_t { ownerPhysical(); assert(p == &bookMarker); return 30; };
+  table.book.book_toc = [](void* p, int32_t index, XpEpubTocSink sink, void* context) -> uint8_t {
     ownerPhysical(); assert(p == &bookMarker && index >= 0 && index < 30);
     ++ownerRows;
     if (ownerRowFailure) return 0;
@@ -66,17 +66,21 @@ static const XpEpubLeaves ownerLeaves = [] {
     std::memset(temporary, '!', sizeof(temporary));
     return result;
   };
-  table.toolbar_paint = [](void* raw, const XpEpubToolbarModel* model, XpEpubRowSource rows,
+  table.physical.toolbar_paint = [](void* raw, const XpEpubToolbarModel* model, XpEpubRowSource rows,
                             void* context) -> uint8_t {
     ownerPhysical(); assert(raw == ownerToolbar && model && rows && context);
     assert(model->panel == 1 && model->dense == 0 && model->item_count == 30 && model->selected == 5);
     return paintToolbar(raw, model, rows, context);
   };
-  table.log = [](uint8_t severity, XpAppText tag, XpAppText message) {
+  table.physical.log = [](uint8_t severity, XpAppText tag, XpAppText message) {
     ownerPhysical(); assert(severity == 1);
     assert(tag.len == 3 && std::memcmp(tag.data, "RUI", 3) == 0);
     assert(message.len == 27 && std::memcmp(message.data, "Cannot build reader toolbar", 27) == 0);
     ++ownerLogs;
+  };
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle) ownerLeaves.book.book_install_extractor(handle);
+    else ownerLeaves.book.book_clear_extractor();
   };
   return table;
 }();
@@ -116,7 +120,7 @@ static void ownerCase(int interleave, bool paintFailure, bool rowFailure, int mi
   resetToolbar(ownerToolbar, 0, 0);
   auto seed = ownerSeed(missing);
   const unsigned closed = ownerSectionCloses;
-  void* owner = xp_epub_test_overlay_view_create(&seed, &ownerLeaves, &ownerRuntime, &ownerResources);
+  void* owner = xp_epub_test_overlay_view_create_legacy_book(&seed,&ownerLeaves.physical, &ownerRuntime, &ownerResources, &ownerLeaves.book);
   assert(owner);
   ownerInterleave = interleave; ownerRowFailure = rowFailure;
   ownerPaints = ownerRows = ownerTexts = ownerLogs = 0;

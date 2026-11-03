@@ -5,8 +5,11 @@ use alloc::{boxed::Box, vec::Vec};
 use core::{cell::UnsafeCell, ffi::c_void, marker::PhantomData, ptr::NonNull};
 use xp_core::book::io::Sink;
 
+pub(super) mod queries;
+pub(super) use load::LoadError;
 mod cache;
 mod css;
+mod facade;
 mod inflate;
 mod items;
 mod load;
@@ -25,6 +28,9 @@ mod open_tests;
 mod load_tests;
 
 pub(super) struct ReaderBook {
+    facade: Option<NonNull<c_void>>,
+    resources: &'static app_abi::Resources,
+    now: unsafe extern "C" fn() -> u32,
     path: Text,
     cache_path: Text,
     metadata: Metadata,

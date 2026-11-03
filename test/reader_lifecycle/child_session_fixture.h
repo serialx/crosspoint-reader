@@ -1,4 +1,5 @@
 #pragma once
+#include "legacy_book_fixture.h"
 #include "overlay_actions_session_fixture.h"
 
 struct XpEpubTestChildSeed {
@@ -48,8 +49,8 @@ struct XpEpubTestChildObservation {
   uint8_t has_section;
 };
 extern "C" {
-void* xp_epub_test_child_create(const XpEpubTestChildSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                const XpAppResources*);
+void* xp_epub_test_child_create_legacy_book(const XpEpubTestChildSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                            const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_child_destroy(void*);
 void xp_epub_test_child_observe(void*, XpEpubTestChildObservation*);
 void xp_epub_test_child_spine(void*, int32_t);

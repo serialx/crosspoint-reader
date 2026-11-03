@@ -3,7 +3,7 @@
 struct OverlayInputSessionBridge;
 static OverlayInputSessionBridge* activeOverlayInput;
 static unsigned overlayInputModelDepth;
-static XpEpubLeaves overlayInputLeaves;
+static LegacyEpubLeaves overlayInputLeaves;
 static XpAppRuntime overlayInputRuntime;
 static XpAppResources overlayInputResources;
 
@@ -79,7 +79,11 @@ static MappedInputManager::Button overlayInputButton(uint32_t mask) {
 }
 
 static void configureOverlayInputLeaves() {
-  overlayInputLeaves = overlayUnexpectedLeaves();
+  overlayInputLeaves = overlayLegacyLeaves();
+  overlayInputLeaves.physical.book_set_extractor = [](void* handle) {
+    if (handle) overlayInputLeaves.book.book_install_extractor(handle);
+    else overlayInputLeaves.book.book_clear_extractor();
+  };
   overlayInputRuntime = overlayUnexpectedRuntime();
   overlayInputResources = overlayUnexpectedResources();
   overlayInputRuntime.model_lock = [] { assert(activeOverlayInput && !overlayInputModelDepth); ++overlayInputModelDepth; };
@@ -90,7 +94,7 @@ static void configureOverlayInputLeaves() {
   overlayInputRuntime.render_unlock = [](void* raw) {
     overlayInputOwner(); assert(raw && lockDepth == 1); delete static_cast<RenderLock*>(raw);
   };
-  overlayInputLeaves.input_services = []() -> const XpUiReaderInputServices* {
+  overlayInputLeaves.physical.input_services = []() -> const XpUiReaderInputServices* {
     overlayInputOwner(); assert(!lockDepth);
     static const XpUiReaderInputServices input{
       nullptr,
@@ -115,51 +119,51 @@ static void configureOverlayInputLeaves() {
     };
     return &input;
   };
-  overlayInputLeaves.input_pressed = [](uint32_t index) -> uint8_t {
+  overlayInputLeaves.physical.input_pressed = [](uint32_t index) -> uint8_t {
     assert(!lockDepth);
     return overlayInputOwner().mappedInput.isPressed(inputButton(index));
   };
-  overlayInputLeaves.toolbar_route = [](void* raw, XpEpubRouted* out) {
+  overlayInputLeaves.physical.toolbar_route = [](void* raw, XpEpubRouted* out) {
     auto& owner = overlayInputOwner();
     assert(!lockDepth && raw == owner.toolbarUi.get());
     const auto routed = owner.toolbarUi->route(owner.mappedInput);
     *out = {routed.value, routed.permille, routed.x, routed.y, static_cast<uint8_t>(routed.event), uint8_t(routed.routed)};
   };
-  overlayInputLeaves.toolbar_visible_rows = [](void* raw) -> int32_t {
+  overlayInputLeaves.physical.toolbar_visible_rows = [](void* raw) -> int32_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.toolbarUi.get());
     return owner.toolbarUi->visibleRows();
   };
-  overlayInputLeaves.toolbar_scroll = [](void* raw, int32_t delta, int32_t count) -> uint8_t {
+  overlayInputLeaves.physical.toolbar_scroll = [](void* raw, int32_t delta, int32_t count) -> uint8_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.toolbarUi.get());
     return owner.toolbarUi->nav().scrollBy(delta, count);
   };
-  overlayInputLeaves.toolbar_begin = [](void* raw) {
+  overlayInputLeaves.physical.toolbar_begin = [](void* raw) {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.toolbarUi.get());
     owner.toolbarUi->begin();
   };
-  overlayInputLeaves.popup_active = [](void* raw) -> uint8_t {
+  overlayInputLeaves.physical.popup_active = [](void* raw) -> uint8_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == &owner.overlayPopup);
     return owner.overlayPopup.isActive();
   };
-  overlayInputLeaves.popup_dismiss = [](void* raw) {
+  overlayInputLeaves.physical.popup_dismiss = [](void* raw) {
     auto& owner = overlayInputOwner(); assert(lockDepth == 1 && raw == &owner.overlayPopup);
     owner.overlayPopup.dismiss();
   };
-  overlayInputLeaves.popup_input = [](void* raw, XpEpubPopupInput* out) {
+  overlayInputLeaves.physical.popup_input = [](void* raw, XpEpubPopupInput* out) {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == &owner.overlayPopup);
     bool changed = false;
     owner.overlayPopup.handleInput(owner.mappedInput, [&] { changed = true; });
     *out = {uint8_t(owner.overlayPopup.active), uint8_t(changed), 1};
   };
-  overlayInputLeaves.book_spine_count = [](void* raw) -> int32_t {
+  overlayInputLeaves.book.book_spine_count = [](void* raw) -> int32_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.epub.get());
     return owner.epub->getSpineItemsCount();
   };
-  overlayInputLeaves.book_toc_count = [](void* raw) -> int32_t {
+  overlayInputLeaves.book.book_toc_count = [](void* raw) -> int32_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.epub.get());
     return owner.epub->getTocItemsCount();
   };
-  overlayInputLeaves.book_toc = [](void* raw, int32_t index, XpEpubTocSink sink, void* context) -> uint8_t {
+  overlayInputLeaves.book.book_toc = [](void* raw, int32_t index, XpEpubTocSink sink, void* context) -> uint8_t {
     auto& owner = overlayInputOwner(); assert(!lockDepth && raw == owner.epub.get());
     const auto item = owner.epub->getTocItem(index);
     XpEpubToc view{};
@@ -167,20 +171,20 @@ static void configureOverlayInputLeaves() {
     view.anchor = {reinterpret_cast<const uint8_t*>(item.anchor.data()), item.anchor.size()};
     return sink(context, &view);
   };
-  overlayInputLeaves.section_close = [](void* raw) {
+  overlayInputLeaves.physical.section_close = [](void* raw) {
     auto& owner = overlayInputOwner(); assert(lockDepth == 1 && raw == owner.section.get());
     owner.section.reset();
   };
   // Geometry extraction is pure; the after-extraction hooks retain each lazy probe.
-  overlayInputLeaves.render_geometry = [](XpEpubGeometry* out) {
+  overlayInputLeaves.physical.render_geometry = [](XpEpubGeometry* out) {
     auto& owner = overlayInputOwner(); assert(!lockDepth);
     *out = {}; out->width = owner.renderer.width; out->height = owner.renderer.height;
   };
-  overlayInputLeaves.render_restore_bw = [](uint8_t resync) {
+  overlayInputLeaves.physical.render_restore_bw = [](uint8_t resync) {
     auto& owner = overlayInputOwner(); assert(lockDepth == 1 && !resync);
     owner.renderer.restoreBwBuffer(resync != 0);
   };
-  overlayInputLeaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  overlayInputLeaves.physical.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     overlayInputBridge(raw); assert(lockDepth == 1);
     static const XpUiReaderRenderServices render{
       nullptr, &OverlayUnexpected<decltype(XpUiReaderRenderServices::read)>::call,
@@ -191,14 +195,14 @@ static void configureOverlayInputLeaves() {
     };
     return &render;
   };
-  overlayInputLeaves.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
+  overlayInputLeaves.physical.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
     overlayInputOwner(); assert(!lockDepth && !resolve);
     *out = {}; out->focus_reading = SETTINGS.focusReadingEnabled;
   };
-  overlayInputLeaves.settings_focus_reading = [](uint8_t value) {
+  overlayInputLeaves.physical.settings_focus_reading = [](uint8_t value) {
     overlayInputOwner(); assert(!lockDepth); SETTINGS.focusReadingEnabled = value;
   };
-  overlayInputLeaves.child_text_settings = []() -> void* {
+  overlayInputLeaves.physical.child_text_settings = []() -> void* {
     auto& owner = overlayInputOwner(); assert(!lockDepth);
     return std::make_unique<TextSettingsActivity>(owner.renderer, owner.mappedInput, &sdFontSystem.registry(),
                                                   TextSettingsActivity::Tab::Family).release();
@@ -277,7 +281,7 @@ OverlayInputSessionBridge::OverlayInputSessionBridge(EpubReaderActivity& value) 
     assert(bridge.owner.renderer.getScreenHeight() == value);
   };
   seed.push_child = [](void* raw, void* child) { overlayInputBridge(raw).push(child); };
-  rust = xp_epub_test_overlay_input_create(&seed, &overlayInputLeaves, &overlayInputRuntime, &overlayInputResources);
+  rust = xp_epub_test_overlay_input_create_legacy_book(&seed, &overlayInputLeaves.physical, &overlayInputRuntime, &overlayInputResources, &overlayInputLeaves.book);
   assert(rust);
 }
 void EpubReaderActivity::handleOverlayInput() {

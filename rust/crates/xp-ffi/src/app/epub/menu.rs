@@ -66,7 +66,7 @@ impl EpubSession {
             unsafe { (self.leaves.metadata_footnotes)(self.native(&access)) != 0 }
         };
         let Some(book) = self.loop_book() else { return };
-        with_book_text(book, self.leaves.book_title, |title| {
+        with_book_text(book, super::session_book::title, |title| {
             let bookmarks = self.loop_bookmark_handle().is_some_and(|bookmarks| unsafe {
                 (self.leaves.bookmarks_count)(bookmarks.as_ptr()) != 0
             });
@@ -110,7 +110,9 @@ impl EpubSession {
         };
         if let Some(book) = self.loop_book() {
             self.launch_menu_child(
-                unsafe { (self.leaves.child_chapter)(book.as_ptr(), toc) },
+                unsafe {
+                    (self.leaves.child_chapter)(super::session_book::facade(book.as_ptr()), toc)
+                },
                 ChildIntent::Chapter,
             );
         }
@@ -173,8 +175,8 @@ impl EpubSession {
                     let count = unsafe { (self.leaves.section_page_count)(section.as_ptr()) };
                     self.drop_section(&access);
                     unsafe {
-                        (self.leaves.book_clear_cache)(book.as_ptr());
-                        (self.leaves.book_setup_cache)(book.as_ptr());
+                        (super::session_book::clear_cache)(book.as_ptr());
+                        (super::session_book::setup_cache)(book.as_ptr());
                     }
                     if !self.save_progress(
                         &access,
@@ -196,9 +198,11 @@ impl EpubSession {
 
     fn open_bookmarks(&self) {
         let Some(book) = self.loop_book() else { return };
-        with_book_text(book, self.leaves.book_path, |path| {
+        with_book_text(book, super::session_book::path, |path| {
             self.launch_menu_child(
-                unsafe { (self.leaves.child_bookmarks)(book.as_ptr(), path) },
+                unsafe {
+                    (self.leaves.child_bookmarks)(super::session_book::facade(book.as_ptr()), path)
+                },
                 ChildIntent::Bookmarks,
             );
         });

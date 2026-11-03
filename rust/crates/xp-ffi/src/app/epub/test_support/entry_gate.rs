@@ -18,18 +18,20 @@ pub struct Observation {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_entry_gate_create(
+pub unsafe extern "C" fn xp_epub_test_entry_gate_create_legacy_book(
     native: *mut c_void,
     popup: *mut c_void,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let Some(mut owner) =
         EpubSession::try_new(b"/gate.epub", false, 7, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.base.refresh_counter = 7;
     state.base.session.anchor_ms = 123;

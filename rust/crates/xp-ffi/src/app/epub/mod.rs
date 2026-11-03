@@ -36,6 +36,7 @@ mod rejected_input;
 mod render;
 mod render_scope;
 mod selection_metadata;
+mod session_book;
 mod settings;
 mod state;
 mod storage;
@@ -52,7 +53,11 @@ use guarded::GuardedCell;
 use state::{SectionFacts, State};
 
 pub(super) struct EpubSession {
-    path: Text,
+    path: UnsafeCell<Text>,
+    #[cfg(feature = "app-test")]
+    book_factory: session_book::Factory,
+    #[cfg(feature = "app-test")]
+    legacy_fixture: UnsafeCell<core::mem::MaybeUninit<session_book::Loaded>>,
     state: UnsafeCell<State>,
     guarded: GuardedCell,
     leaves: &'static abi::XpEpubLeaves,
@@ -128,7 +133,12 @@ impl EpubSession {
         // Construction runs on the loop task, before publishing this allocation.
         unsafe {
             let ptr = owner.as_ptr();
-            core::ptr::addr_of_mut!((*ptr).path).write(path);
+            core::ptr::addr_of_mut!((*ptr).path).write(UnsafeCell::new(path));
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).book_factory).write(session_book::Factory::Reader);
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).legacy_fixture)
+                .write(UnsafeCell::new(core::mem::MaybeUninit::uninit()));
             core::ptr::addr_of_mut!((*ptr).state)
                 .write(UnsafeCell::new(State::new(fast_initial, frequency)));
             core::ptr::addr_of_mut!((*ptr).guarded).write(GuardedCell::default());

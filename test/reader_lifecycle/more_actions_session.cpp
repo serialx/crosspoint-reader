@@ -79,45 +79,51 @@ static const XpAppRuntime runtime = [] {
   };
   return table;
 }();
-static const XpEpubLeaves leaves = [] {
-  auto table = overlayUnexpectedLeaves();
-  table.metadata_footnotes = [](void* value) -> uint16_t {
+static const LegacyEpubLeaves leaves = [] {
+  auto table = overlayLegacyLeaves();
+  table.physical.metadata_footnotes = [](void* value) -> uint16_t {
     leaf(1);
     assert(value == &native && acquisitions == 1);
     probes.push_back(Footnotes);
     return (flags & 1) != 0;
   };
-  table.bookmarks_count = [](void* value) -> uint32_t {
+  table.physical.bookmarks_count = [](void* value) -> uint32_t {
     leaf(0);
     assert(value == &bookmarks);
     probes.push_back(Bookmarks);
     return (flags & 2) ? 3 : 0;
   };
-  table.clippings_count = []() -> uint32_t {
+  table.physical.clippings_count = []() -> uint32_t {
     leaf(0);
     probes.push_back(Clippings);
     return (flags & 4) ? 2 : 0;
   };
-  table.input_facts = [](XpEpubInputFacts* out) {
+  table.physical.input_facts = [](XpEpubInputFacts* out) {
     leaf(0);
     assert((flags & 8) && out);
     probes.push_back(InputFacts);
     *out = {};
     out->slide_owns_light = (flags & 16) != 0;
   };
-  table.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
+  table.physical.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
     leaf(0);
     assert(out && !peer);
     probes.push_back(Radio);
     *out = {};
     out->compiled_in = (flags & 32) != 0;
   };
-  table.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
+  table.physical.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
     leaf(0);
     assert(!resolveFont && out);
     probes.push_back(Settings);
     *out = {};
     out->dictionary_available = (flags & 64) != 0;
+  };
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle)
+      leaves.book.book_install_extractor(handle);
+    else
+      leaves.book.book_clear_extractor();
   };
   return table;
 }();
@@ -138,7 +144,7 @@ static void create() {
   UNEXPECTED(discard);
   UNEXPECTED(update);
 #undef UNEXPECTED
-  owner = xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_overlay_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
 }
 struct Output {

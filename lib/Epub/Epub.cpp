@@ -16,6 +16,7 @@
 #include <freertos/semphr.h>
 #include <xp_book.h>
 
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <string_view>
@@ -31,6 +32,32 @@ namespace {
 XpBookBorrow borrow(std::string_view text) { return {reinterpret_cast<const uint8_t*>(text.data()), text.size()}; }
 std::string_view view(XpBookBorrow text) { return {reinterpret_cast<const char*>(text.data), text.len}; }
 }  // namespace
+Epub::BorrowedBook::BorrowedBook(void* context, const XpEpubBookView& view, const XpEpubBookBorrow& callbacks)
+    : context(context),
+      callbacks(callbacks),
+      language(reinterpret_cast<const char*>(view.language.data), view.language.len),
+      spineCount(view.spine_count),
+      tocCount(view.toc_count),
+      css(std::string(reinterpret_cast<const char*>(view.cache_path.data), view.cache_path.len)) {}
+
+Epub::Epub(void* book, const XpEpubBookView& view, const XpEpubBookBorrow& callbacks)
+    : borrowedBook(std::in_place, book, view, callbacks),
+      cachePath(reinterpret_cast<const char*>(view.cache_path.data), view.cache_path.len) {}
+
+bool Epub::requireOwned() const {
+  assert(!borrowedBook);
+  return !borrowedBook;
+}
+
+const std::string& Epub::getProtectionError() const {
+  if (!requireOwned()) return filepath;
+  return protectionError;
+}
+
+CssParser* Epub::getCssParser() const {
+  return borrowedBook ? const_cast<CssParser*>(&borrowedBook->css) : cssParser.get();
+}
+
 struct Epub::DocumentContext {
   Epub& epub;
   uint32_t kind;
@@ -430,6 +457,7 @@ bool Epub::openProtection() {
 }
 
 bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
+  if (!requireOwned()) return false;
   struct Context {
     Epub& epub;
     std::optional<BookMetadataCache::BookMetadata> metadata;
@@ -619,6 +647,7 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
 }
 
 bool Epub::loadMetadata(std::string& title, std::string& author) {
+  if (!requireOwned()) return false;
   struct Context {
     Epub& epub;
     std::string& title;
@@ -700,6 +729,7 @@ bool Epub::loadMetadataFromSource(std::string& title, std::string& author) {
 }
 
 bool Epub::loadSyncMetadata(SyncMetadata& metadata) {
+  if (!requireOwned()) return false;
   struct Context {
     Epub& epub;
     SyncMetadata& result;
@@ -784,38 +814,47 @@ XpBookMetadataServices Epub::cacheServices() const {
 }
 
 bool Epub::clearCache() const {
+  if (!requireOwned()) return false;
   const auto services = cacheServices();
   return xp_book_clear_cache(&services) != 0;
 }
 
 void Epub::setupCacheDir() const {
+  if (!requireOwned()) return;
   const auto services = cacheServices();
   xp_book_setup_cache(&services);
 }
 
 const std::string& Epub::getCachePath() const { return cachePath; }
 
-const std::string& Epub::getPath() const { return filepath; }
+const std::string& Epub::getPath() const {
+  if (!requireOwned()) return filepath;
+  return filepath;
+}
 
 const std::string& Epub::getTitle() const {
+  if (!requireOwned()) return filepath;
   static std::string blank;
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) return blank;
   return bookMetadataCache->coreMetadata.title;
 }
 
 const std::string& Epub::getAuthor() const {
+  if (!requireOwned()) return filepath;
   static std::string blank;
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) return blank;
   return bookMetadataCache->coreMetadata.author;
 }
 
 const std::string& Epub::getLanguage() const {
+  if (borrowedBook) return borrowedBook->language;
   static std::string blank;
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) return blank;
   return bookMetadataCache->coreMetadata.language;
 }
 
 std::string Epub::getCoverBmpPath(bool cropped, bool originalThresholds) const {
+  if (!requireOwned()) return {};
   const auto coverFileName =
       std::string("cover") + (originalThresholds ? "_original" : "_legacy_v2") + (cropped ? "_crop" : "");
   return cachePath + "/" + coverFileName + ".bmp";
@@ -1108,19 +1147,28 @@ bool Epub::generateBmp(CoverContext& context) const {
 }
 
 bool Epub::generateCoverBmp(bool cropped, bool originalThresholds) const {
+  if (!requireOwned()) return false;
   CoverContext context{*this, BookCoverMode::Cover, 0, cropped, originalThresholds};
   return generateBmp(context);
 }
 
-std::string Epub::getThumbBmpPath() const { return cachePath + "/thumb_[HEIGHT].bmp"; }
-std::string Epub::getThumbBmpPath(int height) const { return cachePath + "/thumb_" + std::to_string(height) + ".bmp"; }
+std::string Epub::getThumbBmpPath() const {
+  if (!requireOwned()) return {};
+  return cachePath + "/thumb_[HEIGHT].bmp";
+}
+std::string Epub::getThumbBmpPath(int height) const {
+  if (!requireOwned()) return {};
+  return cachePath + "/thumb_" + std::to_string(height) + ".bmp";
+}
 
 bool Epub::generateThumbBmp(int height) const {
+  if (!requireOwned()) return false;
   CoverContext context{*this, BookCoverMode::CachedThumbnail, height, false, false};
   return generateBmp(context);
 }
 
 bool Epub::generateThumbBmpFromSource(int height) {
+  if (!requireOwned()) return false;
   CoverContext context{*this, BookCoverMode::SourceThumbnail, height, false, false};
   return generateBmp(context);
 }
@@ -1225,6 +1273,7 @@ XpBookIoServices Epub::itemServices(ItemContext& context) {
 }
 
 uint8_t* Epub::readItemContentsToBytes(const std::string& itemHref, size_t* size, const bool trailingNullByte) const {
+  if (!requireOwned()) return nullptr;
   ItemContext context{*this, itemHref, {}};
   const auto services = itemServices(context);
   return xp_book_read_bytes(&services, itemHref.empty(), size, trailingNullByte);
@@ -1232,6 +1281,16 @@ uint8_t* Epub::readItemContentsToBytes(const std::string& itemHref, size_t* size
 
 bool Epub::readItemContentsToStream(const std::string& itemHref, Print& out, const size_t chunkSize,
                                     const bool allowEarlyStop) const {
+  if (borrowedBook) {
+    if (chunkSize > UINT32_MAX) return false;
+    const XpAppText href{reinterpret_cast<const uint8_t*>(itemHref.data()), itemHref.size()};
+    return borrowedBook->callbacks.stream(
+               borrowedBook->context, href, chunkSize, allowEarlyStop,
+               [](void* context, const uint8_t* data, size_t size) -> uint8_t {
+                 return static_cast<Print*>(context)->write(data, size) == size;
+               },
+               &out) != 0;
+  }
   ItemContext context{*this, itemHref, {}, &out};
   const auto services = itemServices(context);
   return xp_book_read_stream(&services, itemHref.empty(), chunkSize, allowEarlyStop) != 0;
@@ -1245,12 +1304,20 @@ bool Epub::extractItemToFile(const std::string& itemHref, const std::string& des
 }
 
 bool Epub::getItemSize(const std::string& itemHref, size_t* size) const {
+  if (borrowedBook) {
+    uint32_t value = 0;
+    const XpAppText href{reinterpret_cast<const uint8_t*>(itemHref.data()), itemHref.size()};
+    if (!borrowedBook->callbacks.item_size(borrowedBook->context, href, &value)) return false;
+    if (size) *size = value;
+    return true;
+  }
   ItemContext context{*this, itemHref, {}};
   const auto services = itemServices(context);
   return xp_book_item_size(&services, size) != 0;
 }
 
 int Epub::getSpineItemsCount() const {
+  if (borrowedBook) return borrowedBook->spineCount;
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
     return 0;
   }
@@ -1258,6 +1325,7 @@ int Epub::getSpineItemsCount() const {
 }
 
 size_t Epub::getCumulativeSpineItemSize(const int spineIndex) const {
+  if (borrowedBook) return borrowedBook->callbacks.cumulative(borrowedBook->context, spineIndex);
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
     return 0;
   }
@@ -1265,6 +1333,20 @@ size_t Epub::getCumulativeSpineItemSize(const int spineIndex) const {
 }
 
 BookMetadataCache::SpineEntry Epub::getSpineItem(const int spineIndex) const {
+  if (borrowedBook) {
+    BookMetadataCache::SpineEntry row;
+    borrowedBook->callbacks.spine(
+        borrowedBook->context, spineIndex,
+        [](void* context, const XpEpubSpine* value) -> uint8_t {
+          auto& row = *static_cast<BookMetadataCache::SpineEntry*>(context);
+          row.href.assign(reinterpret_cast<const char*>(value->href.data), value->href.len);
+          row.cumulativeSize = value->bytes;
+          row.tocIndex = value->toc_index;
+          return 1;
+        },
+        &row);
+    return row;
+  }
   const bool loaded = bookMetadataCache && bookMetadataCache->isLoaded();
   const auto plan = xp_book_lookup(loaded, spineIndex, loaded ? bookMetadataCache->getSpineCount() : 0, false);
 
@@ -1283,6 +1365,22 @@ BookMetadataCache::SpineEntry Epub::getSpineItem(const int spineIndex) const {
 }
 
 BookMetadataCache::TocEntry Epub::getTocItem(const int tocIndex) const {
+  if (borrowedBook) {
+    BookMetadataCache::TocEntry row;
+    borrowedBook->callbacks.toc(
+        borrowedBook->context, tocIndex,
+        [](void* context, const XpEpubToc* value) -> uint8_t {
+          auto& row = *static_cast<BookMetadataCache::TocEntry*>(context);
+          row.title.assign(reinterpret_cast<const char*>(value->title.data), value->title.len);
+          row.href.assign(reinterpret_cast<const char*>(value->href.data), value->href.len);
+          row.anchor.assign(reinterpret_cast<const char*>(value->anchor.data), value->anchor.len);
+          row.spineIndex = value->spine;
+          row.level = value->level;
+          return 1;
+        },
+        &row);
+    return row;
+  }
   const bool loaded = bookMetadataCache && bookMetadataCache->isLoaded();
   const auto plan = xp_book_lookup(loaded, tocIndex, loaded ? bookMetadataCache->getTocCount() : 0, true);
 
@@ -1301,6 +1399,7 @@ BookMetadataCache::TocEntry Epub::getTocItem(const int tocIndex) const {
 }
 
 int Epub::getTocItemsCount() const {
+  if (borrowedBook) return borrowedBook->tocCount;
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
     return 0;
   }
@@ -1310,6 +1409,7 @@ int Epub::getTocItemsCount() const {
 
 // work out the section index for a toc index
 int Epub::getSpineIndexForTocIndex(const int tocIndex) const {
+  if (!requireOwned()) return 0;
   const bool loaded = bookMetadataCache && bookMetadataCache->isLoaded();
   auto plan = xp_book_lookup(loaded, tocIndex, loaded ? bookMetadataCache->getTocCount() : 0, true);
 
@@ -1335,11 +1435,14 @@ int Epub::getSpineIndexForTocIndex(const int tocIndex) const {
 int Epub::getTocIndexForSpineIndex(const int spineIndex) const { return getSpineItem(spineIndex).tocIndex; }
 
 int Epub::getSpineIndexForSize(const size_t bytes) const {
+  if (borrowedBook)
+    return bytes > UINT32_MAX ? -1 : borrowedBook->callbacks.spine_for_size(borrowedBook->context, bytes);
   if (!bookMetadataCache || !bookMetadataCache->isLoaded() || static_cast<uint64_t>(bytes) > UINT32_MAX) return -1;
   return bookMetadataCache->getSpineIndexForSize(static_cast<uint32_t>(bytes));
 }
 
 size_t Epub::getBookSize() const {
+  if (borrowedBook) return getSpineItemsCount() == 0 ? 0 : getCumulativeSpineItemSize(getSpineItemsCount() - 1);
   if (!bookMetadataCache || !bookMetadataCache->isLoaded() || bookMetadataCache->getSpineCount() == 0) {
     return 0;
   }
@@ -1347,6 +1450,7 @@ size_t Epub::getBookSize() const {
 }
 
 int Epub::getSpineIndexForTextReference() const {
+  if (!requireOwned()) return 0;
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
     LOG_ERR("EBP", "getSpineIndexForTextReference called but cache not loaded");
     return 0;
@@ -1377,6 +1481,7 @@ float Epub::calculateProgress(const int currentSpineIndex, const float currentSp
 }
 
 int Epub::resolveHrefToSpineIndex(const std::string& href) const {
+  if (!requireOwned()) return -1;
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) return -1;
 
   // Split before decoding so escaped '#' characters in filenames stay part of the path.

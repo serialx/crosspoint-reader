@@ -31,7 +31,7 @@ static const XpAppRuntime runtime = [] {
   };
   return value;
 }();
-static const XpEpubLeaves leaves = overlayUnexpectedLeaves();
+static const LegacyEpubLeaves leaves = overlayLegacyLeaves();
 static const XpAppResources resources = overlayUnexpectedResources();
 static void* create() {
   XpEpubTestOverlaySeed seed{};
@@ -47,7 +47,7 @@ static void* create() {
   seed.settle = &OverlayUnexpected<decltype(seed.settle)>::call;
   seed.discard = &OverlayUnexpected<decltype(seed.discard)>::call;
   seed.update = &OverlayUnexpected<decltype(seed.update)>::call;
-  return xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+  return xp_epub_test_overlay_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
 }
 static XpEpubTestOverlayObservation observe(void* owner) {
   XpEpubTestOverlayObservation value{};

@@ -33,11 +33,12 @@ pub struct OverlayViewSeed {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_overlay_view_create(
+pub unsafe extern "C" fn xp_epub_test_overlay_view_create_legacy_book(
     seed: *const OverlayViewSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     assert!(seed.more_count <= 19);
@@ -45,6 +46,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_view_create(
     else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = true;
     state.current = Position {
@@ -65,7 +67,6 @@ pub unsafe extern "C" fn xp_epub_test_overlay_view_create(
     state.facts.book = !seed.book.is_null();
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     guarded.toolbar = NonNull::new(seed.toolbar);
     guarded.more_actions = seed.more_actions;
@@ -83,7 +84,7 @@ pub unsafe extern "C" fn xp_epub_test_overlay_view_create(
     let access = owner.borrowed_resources();
     owner.publish_section(&access);
     drop(access);
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]
@@ -93,8 +94,8 @@ pub unsafe extern "C" fn xp_epub_test_overlay_view_destroy(raw: *mut c_void) {
     owner.drop_section(&access);
     drop(access);
     // The enclosing physical fixture owns the book, toolbar and native root.
+    owner.discard_legacy_fixture();
     let guarded = owner.guarded.get_mut();
-    guarded.book = None;
     guarded.toolbar = None;
     guarded.native = None;
     drop(owner);

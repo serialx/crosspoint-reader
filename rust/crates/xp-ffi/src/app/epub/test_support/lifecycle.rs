@@ -68,11 +68,12 @@ unsafe extern "C" fn unexpected4<A, B, C, D, R>(_: *mut c_void, _: A, _: B, _: C
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_lifecycle_create(
+pub unsafe extern "C" fn xp_epub_test_lifecycle_create_legacy_book(
     seed: *const Seed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
@@ -80,6 +81,7 @@ pub unsafe extern "C" fn xp_epub_test_lifecycle_create(
         return core::ptr::null_mut();
     };
     let value = seed.state;
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = true;
     state.facts.radio_released = value.radio_released != 0;
@@ -120,7 +122,6 @@ pub unsafe extern "C" fn xp_epub_test_lifecycle_create(
     }
     let guarded = owner.guarded.get_mut();
     guarded.native = Some(NonNull::new(seed.native).expect("fixture root"));
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     let context = seed.context;
     owner.projection_hooks = Some(ProjectionHooks {
@@ -203,7 +204,7 @@ pub unsafe extern "C" fn xp_epub_test_lifecycle_create(
     let access = owner.borrowed_resources();
     owner.publish_section(&access);
     drop(access);
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]
@@ -212,7 +213,7 @@ pub unsafe extern "C" fn xp_epub_test_lifecycle_destroy(raw: *mut c_void) {
     let access = owner.borrowed_resources();
     owner.drop_section(&access);
     drop(access);
-    owner.guarded.get_mut().book = None;
+    owner.discard_legacy_fixture();
     owner.guarded.get_mut().native = None;
 }
 

@@ -1,6 +1,6 @@
 use core::ffi::c_void;
 #[repr(u32)]
-enum Operation {
+pub enum Operation {
     ClearOutput = 0,
     IsText = 1,
     TextTitle = 2,
@@ -23,7 +23,7 @@ enum Operation {
     CacheMkdir = 19,
 }
 #[repr(u32)]
-enum Diagnostic {
+pub enum Diagnostic {
     CacheOom = 0,
     SourceOpen = 1,
     SyncOpen = 2,

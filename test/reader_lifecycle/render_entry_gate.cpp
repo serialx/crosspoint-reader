@@ -16,6 +16,7 @@ struct Fixture;
 static Fixture* active;
 static thread_local unsigned modelDepth, renderDepth;
 static const XpEpubLeaves& physicalLeaves();
+static const XpEpubLegacyBookServices& legacyBook();
 static const XpAppRuntime& physicalRuntime();
 static const XpAppResources& physicalResources();
 
@@ -33,7 +34,8 @@ struct Fixture {
   explicit Fixture(bool block) : blockOpen(block) {
     assert(!active && !modelDepth && !renderDepth);
     active = this;
-    owner = xp_epub_test_entry_gate_create(this, &popup, &physicalLeaves(), &physicalRuntime(), &physicalResources());
+    owner = xp_epub_test_entry_gate_create_legacy_book(this, &popup, &physicalLeaves(), &physicalRuntime(),
+                                                       &physicalResources(), &legacyBook());
     assert(owner && !physicalCalls && !modelDepth && !renderDepth);
   }
   ~Fixture() {
@@ -236,7 +238,7 @@ static const XpUiReaderRenderServices renderServices = {
 static const XpEpubLeaves& physicalLeaves() {
   static const XpEpubLeaves value = [] {
     XpEpubLeaves table{};
-    static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
+    static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
     UNUSED_LEAF(resources_open);
     UNUSED_LEAF(resources_close);
     UNUSED_LEAF(render_services);
@@ -252,30 +254,6 @@ static const XpEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(loan_drop);
     UNUSED_LEAF(loan_count);
     UNUSED_LEAF(strip_release_idle);
-    UNUSED_LEAF(book_open);
-    UNUSED_LEAF(book_load);
-    UNUSED_LEAF(book_close);
-    UNUSED_LEAF(book_size);
-    UNUSED_LEAF(book_spine_count);
-    UNUSED_LEAF(book_toc_count);
-    UNUSED_LEAF(book_path);
-    UNUSED_LEAF(book_cache_path);
-    UNUSED_LEAF(book_title);
-    UNUSED_LEAF(book_author);
-    UNUSED_LEAF(book_language);
-    UNUSED_LEAF(book_spine);
-    UNUSED_LEAF(book_toc);
-    UNUSED_LEAF(book_toc_for_spine);
-    UNUSED_LEAF(book_cumulative_size);
-    UNUSED_LEAF(book_spine_for_size);
-    UNUSED_LEAF(book_text_reference);
-    UNUSED_LEAF(book_progress);
-    UNUSED_LEAF(book_resolve_href);
-    UNUSED_LEAF(book_setup_cache);
-    UNUSED_LEAF(book_clear_cache);
-    UNUSED_LEAF(book_install_extractor);
-    UNUSED_LEAF(book_clear_extractor);
-    UNUSED_LEAF(book_protection_error);
     UNUSED_LEAF(progress_to_reader);
     UNUSED_LEAF(progress_to_saved);
     UNUSED_LEAF(progress_save);
@@ -450,19 +428,7 @@ static const XpEpubLeaves& physicalLeaves() {
     UNUSED_LEAF(scratch_claim);
     UNUSED_LEAF(scratch_release);
     UNUSED_LEAF(inflate_oom_log);
-    table.book_open = [](XpAppText path) -> void* {
-      physical(0);
-      assert(path.data || !path.len);
-      assert(active->openCalls.fetch_add(1) == 0);
-      active->record("book-open");
-      active->opened.set_value();
-      if (active->blockOpen) {
-        assert(active->resumeFuture.wait_for(10s) == std::future_status::ready && "entry unblock timeout");
-        active->resumeFuture.get();
-      }
-      physical(0);
-      return nullptr;
-    };
+
     table.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
       physical(0);
       assert(severity == 1 && text(origin) == "ERS" && text(message) == "Failed to allocate EPUB object");
@@ -485,6 +451,9 @@ static const XpEpubLeaves& physicalLeaves() {
       assert(popup == &active->popup && active->popupActive);
       active->record("popup-process-render");
     };
+    UNUSED_LEAF(book_facade_open);
+    UNUSED_LEAF(book_facade_close);
+    UNUSED_LEAF(book_set_extractor);
     return table;
   }();
   return value;
@@ -554,4 +523,25 @@ int main(int argc, char** argv) {
   else {
     assert(false && "expected blocked or failed");
   }
+}
+
+static const XpEpubLegacyBookServices& legacyBook() {
+  static const auto value = [] {
+    auto table = unexpectedLegacyBookServices();
+    table.book_open = [](XpAppText path) -> void* {
+      physical(0);
+      assert(path.data || !path.len);
+      assert(active->openCalls.fetch_add(1) == 0);
+      active->record("book-open");
+      active->opened.set_value();
+      if (active->blockOpen) {
+        assert(active->resumeFuture.wait_for(10s) == std::future_status::ready && "entry unblock timeout");
+        active->resumeFuture.get();
+      }
+      physical(0);
+      return nullptr;
+    };
+    return table;
+  }();
+  return value;
 }

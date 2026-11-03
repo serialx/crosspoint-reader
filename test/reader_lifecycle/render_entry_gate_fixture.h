@@ -1,6 +1,8 @@
 #pragma once
 #include <xp_epub_session.h>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubEntryGateObservation {
   uint32_t anchor_ms;
   uint32_t duration;
@@ -13,8 +15,8 @@ struct XpEpubEntryGateObservation {
   uint8_t pending_forward;
 };
 extern "C" {
-void* xp_epub_test_entry_gate_create(void* native, void* popup, const XpEpubLeaves*, const XpAppRuntime*,
-                                     const XpAppResources*);
+void* xp_epub_test_entry_gate_create_legacy_book(void* native, void* popup, const XpEpubLeaves*, const XpAppRuntime*,
+                                                 const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_entry_gate_destroy(void*);
 uint8_t xp_epub_test_entry_gate_load(void*);
 uint8_t xp_epub_test_entry_gate_render(void*);

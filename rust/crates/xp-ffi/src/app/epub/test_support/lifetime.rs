@@ -45,11 +45,12 @@ pub struct LifetimeObservation {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_lifetime_create(
+pub unsafe extern "C" fn xp_epub_test_lifetime_create_legacy_book(
     seed: *const LifetimeSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(path) = seed.path.bytes() else {
@@ -59,6 +60,7 @@ pub unsafe extern "C" fn xp_epub_test_lifetime_create(
     else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.current.spine = seed.spine;
     state.next_page = seed.next_page;
@@ -72,7 +74,6 @@ pub unsafe extern "C" fn xp_epub_test_lifetime_create(
     state.move_to_read = seed.move_to_read != 0;
     let guarded = owner.guarded.get_mut();
     guarded.native = Some(NonNull::new(seed.native).expect("fixture resource root"));
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     owner.lifetime_overrides = Some(LifetimeOverrides {
         context: seed.context,
@@ -85,7 +86,7 @@ pub unsafe extern "C" fn xp_epub_test_lifetime_create(
         destination: seed.destination,
         move_book: seed.move_book,
     });
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]

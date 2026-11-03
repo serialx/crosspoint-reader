@@ -287,8 +287,8 @@ void bindWifiMatrix() {
     }
     return basePathExists(path);
   };
-  static auto baseBookOpen = leaves.book_open;
-  leaves.book_open = [](XpAppText path) -> void* {
+  static auto baseBookOpen = legacyBook.book_open;
+  legacyBook.book_open = [](XpAppText path) -> void* {
     if (f().generation == 2) requireResult(text(path) == f().path, "WIFI_REOPEN_DESTINATION");
     return baseBookOpen(path);
   };

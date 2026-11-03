@@ -118,17 +118,19 @@ unsafe extern "C" fn move_book(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_menu_create(
+pub unsafe extern "C" fn xp_epub_test_menu_create_legacy_book(
     seed: *const Seed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = true;
     state.current.spine = seed.spine;
@@ -153,7 +155,6 @@ pub unsafe extern "C" fn xp_epub_test_menu_create(
     state.facts.book = !seed.book.is_null();
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     guarded.toolbar = NonNull::new(seed.toolbar);
     guarded.overlay_popup = NonNull::new(seed.popup);
@@ -203,7 +204,7 @@ pub unsafe extern "C" fn xp_epub_test_menu_create(
         let access = owner.borrowed_resources();
         owner.publish_section(&access);
     }
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]

@@ -6,11 +6,12 @@ use alloc::boxed::Box;
 use core::{ffi::c_void, ptr::NonNull};
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_navigation_create(
+pub unsafe extern "C" fn xp_epub_test_navigation_create_legacy_book(
     seed: *const NavigationSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
@@ -21,6 +22,7 @@ pub unsafe extern "C" fn xp_epub_test_navigation_create(
         return core::ptr::null_mut();
     };
     // The fixture has not published this owner or transferred its handles yet.
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = true;
     state.current = Position {
@@ -47,7 +49,6 @@ pub unsafe extern "C" fn xp_epub_test_navigation_create(
     }
     state.facts.book = !seed.book.is_null();
     let guarded = owner.guarded.get_mut();
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     guarded.anchor = anchor;
     owner.estimate_observer = Some(EstimateObserver {
@@ -58,7 +59,7 @@ pub unsafe extern "C" fn xp_epub_test_navigation_create(
         let access = owner.borrowed_resources();
         owner.publish_section(&access);
     }
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]

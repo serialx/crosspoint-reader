@@ -1,8 +1,8 @@
 // Appended to the existing physical popup SDK fixture by the driver.
 using namespace std::chrono_literals;
 extern "C" {
-void* xp_epub_test_popup_concurrency_create(void*, void*, const XpEpubLeaves*, const XpAppRuntime*,
-                                            const XpAppResources*);
+void* xp_epub_test_popup_concurrency_create_legacy_book(void*, void*, const XpEpubLeaves*, const XpAppRuntime*,
+                                                        const XpAppResources*, const XpEpubLegacyBookServices*);
 uint8_t xp_epub_test_popup_concurrency_failure(void*);
 void xp_epub_test_popup_concurrency_text(void*, int32_t);
 void xp_epub_test_popup_concurrency_destroy(void*);
@@ -74,8 +74,8 @@ static const XpUiReaderRenderServices rendering{
       assert(op->kind == XP_UI_READER_RENDER_CLEAR || op->kind == XP_UI_READER_RENDER_DISPLAY);
       return 0;
     }};
-static const XpEpubLeaves leaves = [] {
-  XpEpubLeaves value{};
+static const XpEpubLegacyBookServices legacyBook = [] {
+  auto value = unexpectedLegacyBookServices();
   value.book_open = [](XpAppText) -> void* {
     assert(!renderDepth);
     return &book;
@@ -96,6 +96,11 @@ static const XpEpubLeaves leaves = [] {
     assert(p == &book);
     return sink(context, constant("loan date unverified"));
   };
+  return value;
+}();
+static const XpEpubLeaves leaves = [] {
+  XpEpubLeaves value{};
+
   value.settings_snapshot = [](uint8_t, XpEpubSettings* out) {
     *out = {};
     out->embedded_style = 1;
@@ -173,7 +178,8 @@ static void render(void* owner) {
   unlockRender(token);
 }
 int main() {
-  void* owner = xp_epub_test_popup_concurrency_create(&renderer, &popup, &leaves, &runtime, &resources);
+  void* owner =
+      xp_epub_test_popup_concurrency_create_legacy_book(&renderer, &popup, &leaves, &runtime, &resources, &legacyBook);
   assert(owner && !xp_epub_test_entry_gate_load(owner));
   XpEpubEntryGateObservation observation{};
   xp_epub_test_entry_gate_observe(owner, &observation);

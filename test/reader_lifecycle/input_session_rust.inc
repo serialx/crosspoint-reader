@@ -2,7 +2,7 @@
 #include "overlay_actions_session_fixture.h"
 
 extern "C" {
-void* xp_epub_test_input_create(const XpEpubLeaves*, const XpAppRuntime*, const XpAppResources*);
+void* xp_epub_test_input_create_legacy_book(const XpEpubLeaves*, const XpAppRuntime*, const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_input_destroy(void*);
 void xp_epub_test_input_buttons(void*, XpUiReaderTurnInput*);
 void xp_epub_test_input_touch(void*, XpUiReaderTurnInput*);
@@ -19,12 +19,12 @@ static unsigned char markerBook = 0;
 static bool currentRtl = false;
 
 static void createInputOwner() {
-  static auto leaves = overlayUnexpectedLeaves();
+  static auto leaves = overlayLegacyLeaves();
   static auto runtime = overlayUnexpectedRuntime();
   static auto resources = overlayUnexpectedResources();
   runtime.model_lock = [] { assert(inputModelDepth == 0); ++inputModelDepth; };
   runtime.model_unlock = [] { assert(inputModelDepth == 1); --inputModelDepth; };
-  leaves.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
+  leaves.physical.settings_snapshot = [](uint8_t resolveFont, XpEpubSettings* out) {
     assert(inputModelDepth == 0 && resolveFont == 0 && currentInput);
     *out = {};
     out->long_button = SETTINGS.longPressButtonBehavior;
@@ -36,7 +36,7 @@ static void createInputOwner() {
     out->show_menu = SETTINGS.showReaderMenu;
     out->back_to_browser = SETTINGS.backShortToFileBrowser;
   };
-  leaves.book_language = [](void* book, XpAppTextSink sink, void* context) -> uint8_t {
+  leaves.book.book_language = [](void* book, XpAppTextSink sink, void* context) -> uint8_t {
     assert(book == &markerBook && inputModelDepth == 0 && currentInput && sink);
     const char* language = currentRtl ? "ar" : "en";
     assert(language[2] == '\0');
@@ -45,13 +45,13 @@ static void createInputOwner() {
     ++languageCalls;
     return consumed;
   };
-  leaves.render_geometry = [](XpEpubGeometry* out) {
+  leaves.physical.render_geometry = [](XpEpubGeometry* out) {
     assert(inputModelDepth == 0 && currentInput);
     *out = {};
     out->width = 90;
     out->height = 120;
   };
-  leaves.input_services = []() -> const XpUiReaderInputServices* {
+  leaves.physical.input_services = []() -> const XpUiReaderInputServices* {
     assert(inputModelDepth == 0 && currentInput);
     static XpUiReaderInputServices physical;
     physical = ReaderUtils::inputServices(*currentInput);
@@ -75,7 +75,7 @@ static void createInputOwner() {
         }};
     return &checked;
   };
-  inputOwner = xp_epub_test_input_create(&leaves, &runtime, &resources);
+  inputOwner = xp_epub_test_input_create_legacy_book(&leaves.physical, &runtime, &resources, &leaves.book);
   assert(inputOwner && inputModelDepth == 0);
 }
 

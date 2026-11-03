@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #if defined(ARDUINO_ARCH_ESP32)
 #include <sdkconfig.h>
@@ -52,8 +53,8 @@ class ClippingStore {
 
   static ClippingStore& getInstance() { return instance; }
 
-  bool loadForBook(const std::string& filePath, const std::string& title, const std::string& author,
-                   const std::string& bookType);
+  bool loadForBook(std::string_view filePath, std::string_view title, std::string_view author,
+                   std::string_view bookType);
   void unload();
 
   AddResult addClipping(uint16_t spineIndex, uint16_t startPage, uint16_t endPage, uint16_t pageCount,

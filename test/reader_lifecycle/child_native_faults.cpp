@@ -58,18 +58,18 @@ static void renderRecoveredImage() {
 static void installNativeChildren(EpubReaderActivity& owner) {
   target = &owner.renderer;
   mapped = &owner.mappedInput;
-  childLeaves.child_selection = /* ACTUAL_SELECTION */;
-  childLeaves.child_dictionary = /* ACTUAL_DICTIONARY */;
-  childLeaves.child_footnote = /* ACTUAL_FOOTNOTE */;
-  childLeaves.child_clippings = /* ACTUAL_CLIPPINGS */;
-  childLeaves.child_sync = /* ACTUAL_SYNC */;
+  childLeaves.physical.child_selection = /* ACTUAL_SELECTION */;
+  childLeaves.physical.child_dictionary = /* ACTUAL_DICTIONARY */;
+  childLeaves.physical.child_footnote = /* ACTUAL_FOOTNOTE */;
+  childLeaves.physical.child_clippings = /* ACTUAL_CLIPPINGS */;
+  childLeaves.physical.child_sync = /* ACTUAL_SYNC */;
   static const auto install = +/* ACTUAL_INSTALL_EXTRACTOR */;
-  childLeaves.book_install_extractor = [](void* raw) {
+  childLeaves.book.book_install_extractor = [](void* raw) {
     assert(lockDepth == 1 && !modelDepth && raw == expectedExtractor);
     ++extractorInstalls;
     install(raw);
   };
-  childLeaves.book_clear_extractor = [] {
+  childLeaves.book.book_clear_extractor = [] {
     assert(lockDepth == 1 && !modelDepth);
     ++extractorClears;
     ImageBlock::setExtractor(nullptr, nullptr);

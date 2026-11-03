@@ -26,17 +26,19 @@ pub struct ViewObservation {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_view_create(
+pub unsafe extern "C" fn xp_epub_test_view_create_legacy_book(
     seed: *const ViewSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = true;
     state.current = Position {
@@ -48,7 +50,6 @@ pub unsafe extern "C" fn xp_epub_test_view_create(
     state.bookmarked = seed.bookmarked != 0;
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     owner.view_value_hooks = Some(ViewValueHooks {
         context: seed.context,
@@ -58,7 +59,7 @@ pub unsafe extern "C" fn xp_epub_test_view_create(
     let access = owner.borrowed_resources();
     owner.publish_section(&access);
     drop(access);
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]
@@ -68,7 +69,7 @@ pub unsafe extern "C" fn xp_epub_test_view_destroy(raw: *mut c_void) {
     owner.drop_section(&access);
     drop(access);
     // Book and native root remain borrowed from the enclosing physical fixture.
-    owner.guarded.get_mut().book = None;
+    owner.discard_legacy_fixture();
     owner.guarded.get_mut().native = None;
     drop(owner);
 }

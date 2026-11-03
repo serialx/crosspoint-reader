@@ -91,7 +91,7 @@ impl EpubSession {
             result: None,
         };
         if unsafe {
-            (self.leaves.book_cache_path)(
+            (super::session_book::cache_path)(
                 book.as_ptr(),
                 receive,
                 (&mut capture as *mut Capture<'_>).cast(),
@@ -159,7 +159,7 @@ impl EpubSession {
                 })
             });
             let book = self.book(access).expect("link book");
-            let count = unsafe { (self.leaves.book_spine_count)(book.as_ptr()) };
+            let count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };
             let depth = if (0..=13).contains(&size) {
                 links_decode(&bytes[..size as usize], count, &mut positions)
             } else {

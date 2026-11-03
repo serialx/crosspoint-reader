@@ -50,7 +50,7 @@ impl EpubSession {
         Text::receive(|sink, context| {
             let mut capture = Sink { sink, context };
             unsafe {
-                (self.leaves.book_toc)(
+                (super::session_book::toc)(
                     book.as_ptr(),
                     toc,
                     title,
@@ -87,7 +87,7 @@ impl EpubSession {
         unsafe {
             (self.leaves.loan_begin)(self.native(access));
             (self.leaves.progress_to_saved)(
-                book.as_ptr(),
+                super::session_book::facade(book.as_ptr()),
                 position,
                 capture,
                 (&mut saved as *mut Option<SavedProgress>).cast(),
@@ -128,7 +128,7 @@ impl EpubSession {
         let Some(book) = self.loop_book() else { return };
         if unsafe { (self.leaves.has_sync_credentials)() } == 0 {
             // The constructor copies the borrowed path before the sink returns.
-            super::book::with_book_text(book, self.leaves.book_path, |path| {
+            super::book::with_book_text(book, super::session_book::path, |path| {
                 let position = self.loop_current_position();
                 let saved = abi::XpEpubSavedProgress {
                     xpath: app_abi::Text::from_bytes(&b"\0"[..0]),
@@ -157,14 +157,17 @@ impl EpubSession {
             .unwrap_or_else(|| self.model(|state| state.cached.pages));
         let position = self.current_position(&access);
         let toc = unsafe {
-            (self.leaves.book_toc_for_spine)(book.as_ptr(), self.model(|state| state.current.spine))
+            (super::session_book::toc_for_spine)(
+                book.as_ptr(),
+                self.model(|state| state.current.spine),
+            )
         };
         let Some(chapter) = self.sync_chapter(book, toc) else {
             self.request_update();
             return;
         };
         let Some(path) = Text::receive(|sink, context| unsafe {
-            (self.leaves.book_path)(book.as_ptr(), sink, context)
+            (super::session_book::path)(book.as_ptr(), sink, context)
         }) else {
             self.request_update();
             return;
@@ -189,12 +192,12 @@ impl EpubSession {
         self.discard_overlay_page(&access);
         unsafe {
             (self.leaves.image_release_cache)();
-            (self.leaves.book_clear_extractor)();
+            self.set_book_extractor(&access, None);
         }
         self.drop_section(&access);
         unsafe { (self.leaves.fonts_release_caches)() };
         let Some(saved) = self.sync_saved(&access, book, &position) else {
-            unsafe { (self.leaves.book_install_extractor)(book.as_ptr()) };
+            self.set_book_extractor(&access, Some(book));
             self.request_update();
             return;
         };

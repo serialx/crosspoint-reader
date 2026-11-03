@@ -399,34 +399,34 @@ void bindReader() {
     root(raw);
     return 1;
   };
-  leaves.book_spine_count = [](void* raw) -> int32_t {
+  legacyBook.book_spine_count = [](void* raw) -> int32_t {
     book(raw);
     return 2;
   };
-  leaves.book_size = [](void* raw) -> uint32_t {
+  legacyBook.book_size = [](void* raw) -> uint32_t {
     book(raw);
     return 1000;
   };
-  leaves.book_progress = [](void* raw, int32_t spine, float) -> float {
+  legacyBook.book_progress = [](void* raw, int32_t spine, float) -> float {
     book(raw);
     assert(spine == 1);
     return .5f;
   };
-  leaves.book_spine = [](void* raw, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
+  legacyBook.book_spine = [](void* raw, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
     book(raw);
     assert(index == 1);
     const XpEpubSpine item{literal("chapter.xhtml"), 100};
     return sink(context, &item);
   };
-  leaves.book_title = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
+  legacyBook.book_title = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
     book(raw);
     return deliver(sink, context, "Fixture");
   };
-  leaves.book_language = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
+  legacyBook.book_language = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
     book(raw);
     return deliver(sink, context, "en");
   };
-  leaves.book_path = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
+  legacyBook.book_path = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
     book(raw);
     return deliver(sink, context, f().path.c_str());
   };
@@ -602,7 +602,7 @@ void bindReader() {
     else
       physical(0);
   };
-  leaves.recents_add = [](void* raw) {
+  legacyBook.recents_add = [](void* raw) {
     physical(0);
     book(raw);
   };

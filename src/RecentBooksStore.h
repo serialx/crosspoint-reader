@@ -3,6 +3,7 @@
 #include <PersistableStore.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 struct RecentBook {
@@ -32,8 +33,7 @@ class RecentBooksStore : public PersistableStore<RecentBooksStore> {
   bool fromJson(JsonVariantConst doc);
 
   // Add a book to the recent list (moves to front if already exists)
-  void addBook(const std::string& path, const std::string& title, const std::string& author,
-               const std::string& coverBmpPath);
+  void addBook(std::string_view path, std::string_view title, std::string_view author, std::string_view coverBmpPath);
 
   void updateBook(const std::string& path, const std::string& title, const std::string& author,
                   const std::string& coverBmpPath);

@@ -34,28 +34,32 @@ static XpUiReaderRenderServices renderServices = {
     return active->renderer.storeBwBuffer();
   },
 };
-static const XpEpubLeaves leaves = [] {
-  auto table = overlayUnexpectedLeaves();
-  table.toolbar_open = []() -> void* {
+static const LegacyEpubLeaves leaves = [] {
+  auto table = overlayLegacyLeaves();
+  table.physical.toolbar_open = []() -> void* {
     unlocked(); assert(!active->toolbarUi);
     active->toolbarUi = std::make_unique<ReaderToolbarUi>(active->renderer);
     return active->toolbarUi.get();
   };
-  table.toolbar_begin = [](void* toolbar) {
+  table.physical.toolbar_begin = [](void* toolbar) {
     unlocked(); assert(toolbar == active->toolbarUi.get()); active->toolbarUi->begin();
   };
-  table.toolbar_reset_navigation = [](void* toolbar, int32_t index, int32_t top) {
+  table.physical.toolbar_reset_navigation = [](void* toolbar, int32_t index, int32_t top) {
     leaf(); assert(toolbar == active->toolbarUi.get());
     active->toolbarUi->resetNavigation(index, top);
   };
-  table.input_services = []() -> const XpUiReaderInputServices* {
+  table.physical.input_services = []() -> const XpUiReaderInputServices* {
     unlocked(); inputServices.context = active; return &inputServices;
   };
-  table.render_services = [](void* root) -> const XpUiReaderRenderServices* {
+  table.physical.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     locked(); assert(root == active); renderServices.context = root; return &renderServices;
   };
-  table.render_restore_bw = [](uint8_t resync) {
+  table.physical.render_restore_bw = [](uint8_t resync) {
     locked(); assert(resync == 0); active->renderer.restoreBwBuffer(resync != 0);
+  };
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle) leaves.book.book_install_extractor(handle);
+    else leaves.book.book_clear_extractor();
   };
   return table;
 }();
@@ -85,7 +89,7 @@ void EpubReaderActivity::initialize() {
   seed.settle = [](void* value) { context(value); locked(); active->settleOverlayRefresh(); };
   seed.discard = [](void* value) { context(value); locked(); active->discardOverlayPage(); };
   seed.update = [](void* value) { context(value); unlocked(); sync(); active->requestUpdate(); };
-  owner = xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_overlay_create_legacy_book(&seed,&leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
 }
 void EpubReaderActivity::observe() {

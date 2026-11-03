@@ -42,8 +42,8 @@ impl EpubSession {
         let local = bookmark::range(position.page, count);
         unsafe {
             ProgressRange {
-                start: (self.leaves.book_progress)(book.as_ptr(), position.spine, local.start),
-                end: (self.leaves.book_progress)(book.as_ptr(), position.spine, local.end),
+                start: (super::session_book::progress)(book.as_ptr(), position.spine, local.start),
+                end: (super::session_book::progress)(book.as_ptr(), position.spine, local.end),
             }
         }
     }
@@ -118,7 +118,9 @@ impl EpubSession {
         let bookmarks = self.bookmarks(access).expect("reader bookmarks");
         unsafe { (self.leaves.bookmarks_clear)(bookmarks.as_ptr()) };
         if let Some(book) = self.book(access) {
-            unsafe { (self.leaves.bookmarks_load)(bookmarks.as_ptr(), book.as_ptr()) };
+            unsafe {
+                super::session_book::load_bookmarks(book.as_ptr(), bookmarks.as_ptr(), self.leaves)
+            };
         }
     }
 
@@ -210,7 +212,7 @@ impl EpubSession {
         };
         unsafe {
             (self.leaves.progress_to_saved)(
-                book.as_ptr(),
+                super::session_book::facade(book.as_ptr()),
                 &position,
                 saved,
                 (&mut context as *mut Context<'_>).cast(),
@@ -311,7 +313,9 @@ impl EpubSession {
                 state.bookmarked = true;
             });
         }
-        let saved = unsafe { (self.leaves.bookmarks_save)(bookmarks.as_ptr(), book.as_ptr()) };
+        let saved = unsafe {
+            super::session_book::save_bookmarks(book.as_ptr(), bookmarks.as_ptr(), self.leaves)
+        };
         if saved == 0 {
             self.loop_log_parts(1, &[b"Failed to save bookmarks"]);
         }

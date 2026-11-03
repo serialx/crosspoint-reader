@@ -38,14 +38,21 @@ pub struct Observation {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_overlay_input_create(
+pub unsafe extern "C" fn xp_epub_test_overlay_input_create_legacy_book(
     seed: *const Seed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
-    let raw = overlay_actions::xp_epub_test_overlay_create(&seed.base, leaves, runtime, resources);
+    let raw = overlay_actions::xp_epub_test_overlay_create_legacy_book(
+        &seed.base,
+        leaves,
+        runtime,
+        resources,
+        legacy_book,
+    );
     let Some(owner) = raw.cast::<EpubSession>().as_mut() else {
         return raw;
     };

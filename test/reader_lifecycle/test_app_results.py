@@ -142,7 +142,7 @@ def main():
                     ('retained-result-intent', child, once((root / 'rust' / child).read_text(), 'core::mem::take(&mut state.child)', 'state.child'), 'menu', 'APP_RESULT_INTENT_RETAINED'),
                     ('retained-stack-intent', owner, once((root / 'rust' / owner).read_text(), '        self.model(|state| state.child = super::state::ChildIntent::None);', ''), 'stack-failure', 'APP_STACK_INTENT_RETAINED'),
                     ('wrong-reopen-destination', recovery, once((root / 'rust' / recovery).read_text(),
-                        'path: self.path.wire(),\n                fast_initial: 0,',
+                        'path: self.path().wire(),\n                fast_initial: 0,',
                         'path: app_abi::Text::from_bytes(b"/wrong.epub"),\n                fast_initial: 0,'),
                         'wifi-success', 'WIFI_REOPEN_DESTINATION'),
                 ]

@@ -29,7 +29,7 @@ static FixtureStrId menuFixtureId(const std::string& text) {
 
 struct MenuSessionBridge;
 static MenuSessionBridge* activeMenu;
-static XpEpubLeaves menuLeaves;
+static LegacyEpubLeaves menuLeaves;
 static XpAppRuntime menuRuntime;
 static XpAppResources menuResources;
 
@@ -103,7 +103,11 @@ static EpubReaderActivity& menuOwner(void* raw) {
 }
 
 static void configureMenuLeaves() {
-  menuLeaves = overlayUnexpectedLeaves();
+  menuLeaves = overlayLegacyLeaves();
+  menuLeaves.physical.book_set_extractor = [](void* handle) {
+    if (handle) menuLeaves.book.book_install_extractor(handle);
+    else menuLeaves.book.book_clear_extractor();
+  };
   menuRuntime = overlayUnexpectedRuntime();
   menuResources = overlayUnexpectedResources();
   menuRuntime.model_lock = [] { assert(!menuModelDepth); ++menuModelDepth; };
@@ -135,15 +139,15 @@ static void configureMenuLeaves() {
     assert(false && "unexpected menu translation ID");
     std::abort();
   };
-  menuLeaves.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
+  menuLeaves.physical.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
     assert(!menuModelDepth && !resolve);
     *out = {};
     out->orientation = SETTINGS.orientation;
     out->screen_inverted = SETTINGS.screenInverted;
   };
-  menuLeaves.settings_inversion = [](uint8_t value) { assert(!menuModelDepth); SETTINGS.screenInverted = value; };
-  menuLeaves.settings_save = [] { assert(!menuModelDepth); SETTINGS.saveToFile(); };
-  menuLeaves.input_services = []() -> const XpUiReaderInputServices* {
+  menuLeaves.physical.settings_inversion = [](uint8_t value) { assert(!menuModelDepth); SETTINGS.screenInverted = value; };
+  menuLeaves.physical.settings_save = [] { assert(!menuModelDepth); SETTINGS.saveToFile(); };
+  menuLeaves.physical.input_services = []() -> const XpUiReaderInputServices* {
     static const XpUiReaderInputServices input{
         nullptr, &OverlayUnexpected<decltype(XpUiReaderInputServices::button)>::call,
         [](void*, uint8_t query) -> uint32_t {
@@ -152,78 +156,78 @@ static void configureMenuLeaves() {
         }, &OverlayUnexpected<decltype(XpUiReaderInputServices::tap)>::call};
     return &input;
   };
-  menuLeaves.section_page_count = [](void* raw) -> uint16_t {
+  menuLeaves.physical.section_page_count = [](void* raw) -> uint16_t {
     assert(!menuModelDepth && raw == activeMenu->owner.section.get());
     return static_cast<Section*>(raw)->pageCount;
   };
-  menuLeaves.section_estimated_pages = [](void* raw) -> int32_t {
+  menuLeaves.physical.section_estimated_pages = [](void* raw) -> int32_t {
     assert(!menuModelDepth && raw == activeMenu->owner.section.get());
     return static_cast<Section*>(raw)->pageCount;
   };
-  menuLeaves.section_building = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
-  menuLeaves.section_complete = [](void*) -> uint8_t { assert(!menuModelDepth); return 1; };
-  menuLeaves.section_partial = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
-  menuLeaves.section_close = [](void* raw) {
+  menuLeaves.physical.section_building = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
+  menuLeaves.physical.section_complete = [](void*) -> uint8_t { assert(!menuModelDepth); return 1; };
+  menuLeaves.physical.section_partial = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
+  menuLeaves.physical.section_close = [](void* raw) {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.section.get());
     activeMenu->owner.section.reset();
   };
-  menuLeaves.section_page_text = [](void* raw, int32_t page, XpAppTextSink sink, void* context) -> uint8_t {
+  menuLeaves.physical.section_page_text = [](void* raw, int32_t page, XpAppTextSink sink, void* context) -> uint8_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.section.get());
     const auto& section = *static_cast<Section*>(raw);
     assert(page == section.currentPage);
     const auto text = section.getTextFromSectionFile();
     return sink(context, menuText(text));
   };
-  menuLeaves.book_title = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
+  menuLeaves.book.book_title = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
     assert(!menuModelDepth && raw == activeMenu->owner.epub.get());
     const auto title = static_cast<Epub*>(raw)->getTitle();
     return sink(context, menuText(title));
   };
-  menuLeaves.book_path = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
+  menuLeaves.book.book_path = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
     assert(!menuModelDepth && raw == activeMenu->owner.epub.get());
     const auto path = static_cast<Epub*>(raw)->getPath();
     return sink(context, menuText(path));
   };
-  menuLeaves.book_clear_cache = [](void* raw) {
+  menuLeaves.book.book_clear_cache = [](void* raw) {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.epub.get());
     static_cast<Epub*>(raw)->clearCache();
   };
-  menuLeaves.book_setup_cache = [](void* raw) {
+  menuLeaves.book.book_setup_cache = [](void* raw) {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.epub.get());
     static_cast<Epub*>(raw)->setupCacheDir();
   };
-  menuLeaves.metadata_footnotes = [](void* raw) -> uint16_t {
+  menuLeaves.physical.metadata_footnotes = [](void* raw) -> uint16_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu);
     return activeMenu->owner.currentPageMetadata.footnotes().size();
   };
-  menuLeaves.bookmarks_count = [](void* raw) -> uint32_t {
+  menuLeaves.physical.bookmarks_count = [](void* raw) -> uint32_t {
     assert(!menuModelDepth && raw == &activeMenu->owner.cachedBookmarks);
     return activeMenu->owner.cachedBookmarks.size();
   };
-  menuLeaves.clippings_count = []() -> uint32_t { assert(!menuModelDepth); return CLIPPINGS.hasClippings(); };
-  menuLeaves.strip_release_idle = [](void* raw) -> uint8_t {
+  menuLeaves.physical.clippings_count = []() -> uint32_t { assert(!menuModelDepth); return CLIPPINGS.hasClippings(); };
+  menuLeaves.physical.strip_release_idle = [](void* raw) -> uint8_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu);
     activeMenu->owner.stripBuffers.releaseIdle();
     return 0;
   };
-  menuLeaves.toolbar_open = []() -> void* {
+  menuLeaves.physical.toolbar_open = []() -> void* {
     assert(!menuModelDepth && !lockDepth && !activeMenu->owner.toolbarUi);
     activeMenu->owner.toolbarUi = std::make_unique<ReaderToolbarUi>(activeMenu->owner.renderer);
     return activeMenu->owner.toolbarUi.get();
   };
-  menuLeaves.toolbar_begin = [](void* raw) {
+  menuLeaves.physical.toolbar_begin = [](void* raw) {
     assert(!menuModelDepth && raw == activeMenu->owner.toolbarUi.get());
     static_cast<ReaderToolbarUi*>(raw)->begin();
   };
-  menuLeaves.toolbar_close = [](void* raw) {
+  menuLeaves.physical.toolbar_close = [](void* raw) {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.toolbarUi.get());
     activeMenu->owner.toolbarUi.reset();
   };
-  menuLeaves.render_restore_bw = [](uint8_t resync) {
+  menuLeaves.physical.render_restore_bw = [](uint8_t resync) {
     assert(!menuModelDepth && lockDepth == 1);
     activeMenu->owner.renderer.restoreBwBuffer(resync != 0);
   };
-  menuLeaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  menuLeaves.physical.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     assert(!menuModelDepth && raw == activeMenu);
     static const XpUiReaderRenderServices render{
         nullptr, &OverlayUnexpected<decltype(XpUiReaderRenderServices::read)>::call,
@@ -234,39 +238,39 @@ static void configureMenuLeaves() {
         }};
     return &render;
   };
-  menuLeaves.child_menu = [](const XpEpubMenuArgs* args) -> void* {
+  menuLeaves.physical.child_menu = [](const XpEpubMenuArgs* args) -> void* {
     assert(!menuModelDepth && !lockDepth);
     return std::make_unique<EpubReaderMenuActivity>(
         activeMenu->owner.renderer, activeMenu->owner.mappedInput, menuString(args->title), args->display_page,
         args->pages, args->percent, args->orientation, args->footnotes != 0, args->bookmarks != 0,
         args->clippings != 0).release();
   };
-  menuLeaves.child_chapter = [](void* raw, int32_t toc) -> void* {
+  menuLeaves.physical.child_chapter = [](void* raw, int32_t toc) -> void* {
     assert(!menuModelDepth && !lockDepth && raw == activeMenu->owner.epub.get());
     return std::make_unique<EpubReaderChapterSelectionActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                                                activeMenu->owner.epub, toc).release();
   };
-  menuLeaves.child_text_settings = []() -> void* {
+  menuLeaves.physical.child_text_settings = []() -> void* {
     assert(!menuModelDepth && !lockDepth);
     return std::make_unique<TextSettingsActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                                  &sdFontSystem.registry(), TextSettingsActivity::Tab::Family).release();
   };
-  menuLeaves.child_percent = [](int32_t percent) -> void* {
+  menuLeaves.physical.child_percent = [](int32_t percent) -> void* {
     assert(!menuModelDepth && !lockDepth);
     return std::make_unique<EpubReaderPercentSelectionActivity>(activeMenu->owner.renderer,
                                                                activeMenu->owner.mappedInput, percent).release();
   };
-  menuLeaves.child_qr = [](XpAppText text) -> void* {
+  menuLeaves.physical.child_qr = [](XpAppText text) -> void* {
     assert(!menuModelDepth && !lockDepth);
     return std::make_unique<QrDisplayActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                               menuString(text)).release();
   };
-  menuLeaves.child_bookmarks = [](void* raw, XpAppText path) -> void* {
+  menuLeaves.physical.child_bookmarks = [](void* raw, XpAppText path) -> void* {
     assert(!menuModelDepth && !lockDepth && raw == activeMenu->owner.epub.get());
     return std::make_unique<EpubReaderBookmarksActivity>(activeMenu->owner.renderer, activeMenu->owner.mappedInput,
                                                         activeMenu->owner.epub, menuString(path)).release();
   };
-  menuLeaves.popup_show = [](void* raw, XpAppText title, XpAppText message, uint32_t count, int32_t selected,
+  menuLeaves.physical.popup_show = [](void* raw, XpAppText title, XpAppText message, uint32_t count, int32_t selected,
                             uint8_t (*label)(void*, uint32_t, XpAppTextSink, void*), void* labelContext,
                             void (*choose)(void*, int32_t), void* choiceContext) {
     assert(!menuModelDepth && lockDepth == 1 && raw == &activeMenu->owner.overlayPopup && message.len == 0);
@@ -301,7 +305,7 @@ static void configureMenuLeaves() {
       activeMenu->owner.overlayPopup.show(id, labels, selected, std::move(callback));
     }
   };
-  menuLeaves.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
+  menuLeaves.physical.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
     assert(!menuModelDepth);
 #ifdef MENU_RELEASE_LOG
     if (severity == 0) return;
@@ -386,7 +390,7 @@ MenuSessionBridge::MenuSessionBridge(EpubReaderActivity& value) : owner(value) {
   seed.push_overlay = [](void* p) { menuOwner(p).pushOverlayRefresh(); };
   seed.update = [](void* p) { menuOwner(p).requestUpdate(); };
   seed.push_child = [](void* p, void* raw) { static_cast<MenuSessionBridge*>(p)->push(raw); };
-  rust = xp_epub_test_menu_create(&seed, &menuLeaves, &menuRuntime, &menuResources);
+  rust = xp_epub_test_menu_create_legacy_book(&seed,&menuLeaves.physical, &menuRuntime, &menuResources, &menuLeaves.book);
   assert(rust);
 }
 

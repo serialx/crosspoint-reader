@@ -104,7 +104,7 @@ static void bindScenePhysical() {
   leaves.render_finish_page = [](void*) { sceneLeaf(1); assert(scene.boundPage); scene.boundPage = nullptr; ++scene.pageDrawn; };
   leaves.render_restore_bw = [](uint8_t resync) { sceneLeaf(1); assert(!resync && scene.backup); ++scene.restored; };
   leaves.render_discard_bw = [] { sceneLeaf(1); assert(scene.backup); scene.backup = false; };
-  leaves.book_spine_count = [](void*) -> int32_t {
+  legacyBook.book_spine_count = [](void*) -> int32_t {
     sceneLeaf();
     if (scene.rejectBeforeDispatch && scene.loopActive && !scene.explicitBuild) {
       sceneLeaf(0); scene.rejectBeforeDispatch = false; ++scene.dispatchInjections; sceneBuild();
@@ -112,20 +112,20 @@ static void bindScenePhysical() {
     }
     return 7;
   };
-  leaves.book_size = [](void*) -> uint32_t { sceneLeaf(); return 1000; };
-  leaves.book_progress = [](void*, int32_t, float) -> float { sceneLeaf(); return 0.1f; };
-  leaves.book_toc_count = [](void*) -> int32_t { sceneLeaf(); return 5; };
-  leaves.book_toc_for_spine = [](void*, int32_t) -> int32_t { sceneLeaf(); return 0; };
-  leaves.book_spine = [](void*, int32_t, XpEpubSpineSink sink, void* context) -> uint8_t {
+  legacyBook.book_size = [](void*) -> uint32_t { sceneLeaf(); return 1000; };
+  legacyBook.book_progress = [](void*, int32_t, float) -> float { sceneLeaf(); return 0.1f; };
+  legacyBook.book_toc_count = [](void*) -> int32_t { sceneLeaf(); return 5; };
+  legacyBook.book_toc_for_spine = [](void*, int32_t) -> int32_t { sceneLeaf(); return 0; };
+  legacyBook.book_spine = [](void*, int32_t, XpEpubSpineSink sink, void* context) -> uint8_t {
     sceneLeaf(1); const XpEpubSpine value{{reinterpret_cast<const uint8_t*>("chapter.xhtml"), 13}, 100};
     return sink(context, &value);
   };
-  leaves.book_toc = [](void*, int32_t, XpEpubTocSink sink, void* context) -> uint8_t {
+  legacyBook.book_toc = [](void*, int32_t, XpEpubTocSink sink, void* context) -> uint8_t {
     sceneLeaf(); const XpEpubToc value{{reinterpret_cast<const uint8_t*>("Chapter"), 7}, {nullptr, 0}, 1, 0};
     return sink(context, &value);
   };
-  leaves.book_language = [](void*, XpAppTextSink sink, void* context) -> uint8_t { sceneLeaf(); return deliver(sink, context, "en"); };
-  leaves.book_title = [](void*, XpAppTextSink sink, void* context) -> uint8_t { sceneLeaf(); return deliver(sink, context, "Fixture"); };
+  legacyBook.book_language = [](void*, XpAppTextSink sink, void* context) -> uint8_t { sceneLeaf(); return deliver(sink, context, "en"); };
+  legacyBook.book_title = [](void*, XpAppTextSink sink, void* context) -> uint8_t { sceneLeaf(); return deliver(sink, context, "Fixture"); };
   leaves.section_open = [](void*, int32_t spine) -> void* { sceneLeaf(1); assert(!sceneSection); return sceneSection = new SceneSection{spine}; };
   leaves.section_close = [](void* raw) { sceneLeaf(1); assert(raw == sceneSection && !scene.boundPage); delete sceneSection; sceneSection = nullptr; };
   leaves.section_page_count = [](void* raw) -> uint16_t { sceneLeaf(1); assert(raw == sceneSection); return 10; };
@@ -152,7 +152,7 @@ static void bindScenePhysical() {
   leaves.trusted_now = []() -> int64_t { sceneLeaf(); return 1000; };
   leaves.state_set_open_path = [](XpAppText path) { sceneLeaf(0); assert(text(path) == f().path); };
   leaves.state_save = [] { sceneLeaf(); };
-  leaves.recents_add = [](void* book) { sceneLeaf(0); assert(book == f().extractor); };
+  legacyBook.recents_add = [](void* book) { sceneLeaf(0); assert(book == f().extractor); };
   leaves.emit_open = [](XpAppText path) { sceneLeaf(0); assert(text(path) == f().path); };
   static auto entryLog = leaves.log;
   leaves.log = [](uint8_t severity, XpAppText origin, XpAppText message) {

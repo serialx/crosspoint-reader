@@ -28,22 +28,26 @@ static XpUiReaderRenderServices renderServices = {
     active->renderer.displayBuffer(HalDisplay::FAST_REFRESH); return 0;
   },
 };
-static const XpEpubLeaves leaves = [] {
-  auto table = overlayUnexpectedLeaves();
-  table.popup_dismiss = [](void* popup) {
+static const LegacyEpubLeaves leaves = [] {
+  auto table = overlayLegacyLeaves();
+  table.physical.popup_dismiss = [](void* popup) {
     unlocked(); sync(); assert(popup == &active->overlayPopup); active->overlayPopup.dismiss();
   };
-  table.toolbar_close = [](void* toolbar) {
+  table.physical.toolbar_close = [](void* toolbar) {
     locked(); sync(); assert(toolbar && toolbar == active->toolbarUi.get()); active->toolbarUi.reset();
   };
-  table.render_geometry = [](XpEpubGeometry* out) {
+  table.physical.render_geometry = [](XpEpubGeometry* out) {
     unlocked(); assert(out); *out = {}; out->a4 = isA4; out->xteink_panel = isXteink;
   };
-  table.render_services = [](void* root) -> const XpUiReaderRenderServices* {
+  table.physical.render_services = [](void* root) -> const XpUiReaderRenderServices* {
     locked(); assert(root == active); renderServices.context = root; return &renderServices;
   };
-  table.render_restore_bw = [](uint8_t resync) {
+  table.physical.render_restore_bw = [](uint8_t resync) {
     locked(); sync(); assert(resync == 0); active->renderer.restoreBwBuffer(resync != 0);
+  };
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle) leaves.book.book_install_extractor(handle);
+    else leaves.book.book_clear_extractor();
   };
   return table;
 }();
@@ -77,7 +81,7 @@ void EpubReaderActivity::initialize() {
   seed.settle = [](void* value) { context(value); locked(); sync(); active->settleOverlayRefresh(); };
   seed.discard = [](void* value) { context(value); locked(); sync(); active->discardOverlayPage(); };
   seed.update = [](void* value) { context(value); unlocked(); sync(); active->requestUpdate(); };
-  owner = xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_overlay_create_legacy_book(&seed,&leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
 }
 void EpubReaderActivity::observe() {

@@ -65,7 +65,7 @@ impl EpubSession {
 
     fn overlay_goto_spine(&self, target: i32) {
         let Some(book) = self.loop_book() else { return };
-        let count = unsafe { (self.leaves.book_spine_count)(book.as_ptr()) };
+        let count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };
         if count <= 0 {
             self.request_update();
             return;
@@ -135,7 +135,7 @@ impl EpubSession {
             delivered: false,
         };
         unsafe {
-            (self.leaves.book_toc)(
+            (super::session_book::toc)(
                 book.as_ptr(),
                 index,
                 item,
@@ -257,7 +257,7 @@ impl EpubSession {
                 }
                 x if x == Event::Scrub as u8 => {
                     let Some(book) = self.loop_book() else { return };
-                    let count = unsafe { (self.leaves.book_spine_count)(book.as_ptr()) };
+                    let count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };
                     let target =
                         ((routed.permille as f32 / 1000.0) * (count - 1) as f32 + 0.5) as i32;
                     self.overlay_goto_spine(target);
@@ -304,7 +304,7 @@ impl EpubSession {
         let overlay = self.model(|state| state.overlay);
         let count = match overlay {
             Overlay::Contents => self.loop_book().map_or(0, |book| unsafe {
-                (self.leaves.book_toc_count)(book.as_ptr())
+                (super::session_book::toc_count)(book.as_ptr())
             }),
             Overlay::Text => TEXT_ROWS,
             _ => i32::from(self.loop_more_count()),

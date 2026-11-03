@@ -163,7 +163,7 @@ impl EpubSession {
             };
             let mut call = TocRow { sink, context };
             return unsafe {
-                (self.leaves.book_toc)(
+                (super::session_book::toc)(
                     book.as_ptr(),
                     index,
                     fill,
@@ -270,7 +270,7 @@ impl EpubSession {
                     0.0
                 };
                 let progress =
-                    unsafe { (self.leaves.book_progress)(book.as_ptr(), spine, fraction) };
+                    unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) };
                 let mut info = [0; 40];
                 let mut used = number(&mut info, page);
                 info[used] = b'/';
@@ -304,7 +304,7 @@ impl EpubSession {
         };
         let (title, count) = match mode {
             Overlay::Contents => (ids::STR_TOOL_CONTENTS, unsafe {
-                (self.leaves.book_toc_count)(book.as_ptr())
+                (super::session_book::toc_count)(book.as_ptr())
             }),
             Overlay::Text => (ids::STR_TOOL_TEXT, 5),
             Overlay::Page | Overlay::More => {

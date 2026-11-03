@@ -5,7 +5,8 @@
 #include "projection_session_fixture.h"
 
 extern "C" {
-void* xp_epub_test_input_create(const XpEpubLeaves*, const XpAppRuntime*, const XpAppResources*);
+void* xp_epub_test_input_create_legacy_book(const XpEpubLeaves*, const XpAppRuntime*, const XpAppResources*,
+                                            const XpEpubLegacyBookServices*);
 void xp_epub_test_input_destroy(void*);
 void xp_epub_test_input_book_touch(void*, void*, XpUiReaderTurnInput*);
 }
@@ -26,22 +27,22 @@ inline bool readerValueLanguage(const char* tag) {
   assert(!language && !modelDepth);
   language = tag;
   reads = probes = 0;
-  auto leaves = leavesDefaults();
+  auto leaves = legacyLeavesDefaults();
   auto runtime = modelRuntime();
   auto resources = resourcesDefaults();
-  leaves.book_language = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
+  leaves.book.book_language = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
     physical();
     assert(raw == &book && language);
     ++reads;
     return sink(context, {reinterpret_cast<const uint8_t*>(language), std::strlen(language)});
   };
-  leaves.render_geometry = [](XpEpubGeometry* out) {
+  leaves.physical.render_geometry = [](XpEpubGeometry* out) {
     physical();
     *out = {};
     out->width = 90;
     out->height = 120;
   };
-  leaves.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
+  leaves.physical.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
     physical();
     assert(!resolve);
     *out = {};
@@ -49,7 +50,7 @@ inline bool readerValueLanguage(const char* tag) {
     out->page_gesture = 2;
     out->previous_gesture = 2;
   };
-  leaves.input_services = []() -> const XpUiReaderInputServices* {
+  leaves.physical.input_services = []() -> const XpUiReaderInputServices* {
     physical();
     static const XpUiReaderInputServices input{nullptr,
                                                &Unexpected<uint8_t (*)(void*, uint32_t, uint8_t, uint32_t)>::call,
@@ -65,7 +66,7 @@ inline bool readerValueLanguage(const char* tag) {
                                                &Unexpected<uint8_t (*)(void*, int32_t*, int32_t*)>::call};
     return &input;
   };
-  void* owner = xp_epub_test_input_create(&leaves, &runtime, &resources);
+  void* owner = xp_epub_test_input_create_legacy_book(&leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
   XpUiReaderTurnInput turn{};
   xp_epub_test_input_book_touch(owner, &book, &turn);
@@ -81,7 +82,7 @@ inline bool readerValueLanguage(const char* tag) {
 inline XpEpubTestChapterDisplay readerValueChapter(int page, int total) {
   using namespace retirement_fixture;
   assert(!modelDepth);
-  auto leaves = leavesDefaults();
+  auto leaves = legacyLeavesDefaults();
   auto runtime = modelRuntime();
   auto resources = resourcesDefaults();
   uint8_t native;
@@ -97,7 +98,7 @@ inline XpEpubTestChapterDisplay readerValueChapter(int page, int total) {
   UNUSED_VALUE_HOOK(fallback);
   UNUSED_VALUE_HOOK(estimate);
 #undef UNUSED_VALUE_HOOK
-  void* owner = xp_epub_test_projection_create(&seed, &leaves, &runtime, &resources);
+  void* owner = xp_epub_test_projection_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
   XpEpubTestChapterPosition position{};
   xp_epub_test_projection_chapter(owner, &position);

@@ -15,6 +15,8 @@ import tempfile
 
 from test_app_results import make_source, block, MODES, WIFI_MATRIX
 from test_popup_resource import native_leaf, replace_once
+from book_facade_composition import compile_command as facade_compile_command, facade_bridge_source, facade_inputs
+from book_app_composition import actual_child_source, historical_selection_source
 from child_handle_mutants import mutants, SANITIZER, PAGE_LIFETIME, INVALID_DOWNCAST
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,7 +43,7 @@ CHILDREN = {
 }
 
 
-def fixture(native, owner, manager):
+def fixture(native, owner, manager, historical=False):
     source = make_source(ROOT, HERE)
     prefix = '#include <Memory.h>\n#include "util/ScreenshotInfo.h"\n#define LOG_ERR(...) ((void)0)\n'
     prefix += '''
@@ -67,11 +69,20 @@ void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
         actual = block((ROOT / 'src/activities' / path).read_text(), signature)
         physical = replace_once(physical, '// ACTUAL_' + marker, actual)
     classes = []
+    retained_constructors = []
     for leaf, (name, directory, kind) in CHILDREN.items():
         header = (ROOT / 'src/activities' / directory / (name + '.h')).read_text()
         base = re.search(r'class ' + name + r' final : public (\w+)', header).group(1)
         extra = 'enum class Tab { Family };' if leaf == 'text_settings' else ''
-        if leaf == 'selection':
+        if leaf in ('chapter', 'bookmarks') and not historical:
+            constructor = block((ROOT / 'src/activities' / directory / (name + '.cpp')).read_text(), name + '::' + name + '(')
+            declaration = header[header.index('explicit ' + name + '('):]
+            declaration = declaration[:declaration.index(';') + 1]
+            retained = ('std::shared_ptr<Epub> epub; int currentTocIndex = 0; static constexpr int TOC_WINDOW = 24;'
+                        if leaf == 'chapter' else 'std::shared_ptr<Epub> epub; std::string epubPath;')
+            extra = retained + '\n' + declaration
+            retained_constructors.append(constructor)
+        elif leaf == 'selection':
             extra = '''enum class Mode : uint8_t { Clip, Lookup, DefinitionLookup };
   std::vector<std::unique_ptr<Page>> ownedPages;
   ClipSelectionActivity(GfxRenderer&, MappedInputManager&, std::vector<std::unique_ptr<Page>> pages,
@@ -114,7 +125,7 @@ void Activity::onExit() { physical("child-exit", 1); assert(entered); }
 void Activity::prepareForSleep() { physical("child-prepare-sleep", 0); }
 void borrowedUse(const char*);
 '''
-    additions += '\n'.join(classes) + r'''
+    additions += '\n'.join(classes + retained_constructors) + r'''
 static GfxRenderer renderer;
 static MappedInputManager input;
 static GfxRenderer* target = &renderer;
@@ -209,7 +220,7 @@ void queuePop(ActivityResult value, bool cancelled) {
     source = source.replace('int main(int argc, char** argv)', extra + '\nint main(int argc, char** argv)', 1)
     source = replace_once(source, '  Fixture state; fixture = &state;\n  results.wifiMatrix',
                           '  if (mode.starts_with("factory-fail-") || mode.starts_with("page-fail-") || mode.starts_with("capability-") || mode.starts_with("selection-") || mode.starts_with("nested-") || mode == "sync-replace" || mode == "pending-supersede") return specialComposition(mode);\n  Fixture state; fixture = &state;\n  results.wifiMatrix')
-    return source
+    return historical_selection_source(ROOT, source) if historical else actual_child_source(ROOT, source)
 
 
 def main():
@@ -226,18 +237,20 @@ def main():
                   ROOT/'src/activities/Activity.h', ROOT/'src/activities/reader/ReaderActivity.h',
                   ROOT/'src/activities/reader/XtcReaderActivity.h', ROOT/'src/activities/util/IntervalSelectionActivity.h',
                   *HERE.glob('*.py'), *HERE.glob('*.inc'), *HERE.glob('*.h'), *HERE.glob('*.cpp')}
+        inputs.update(facade_inputs(ROOT))
         inputs.update(ROOT/'src/activities'/directory/(name+'.h') for name,directory,_ in CHILDREN.values())
+        inputs.update(ROOT/'src/activities/reader'/(name+'.cpp') for name in ('EpubReaderChapterSelectionActivity','EpubReaderBookmarksActivity'))
         hashes = {str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(inputs)}
         (out/'inputs.json').write_text(json.dumps(dict(files=hashes,archive_sha256=hashlib.sha256(args.archive.read_bytes()).hexdigest()),indent=2)+'\n')
         native, owner, manager = NATIVE.read_text(), OWNER.read_text(), MANAGER.read_text()
         candidate = fixture(native, owner, manager)
         source = out / 'candidate.cpp'; source.write_text(candidate)
         binary = Path(tmp) / 'candidate'
-        command = ['c++', '-std=c++20', '-O0', '-UNDEBUG', '-fsanitize=address,undefined,vptr',
-                   '-fno-sanitize-recover=all', '-DXP_FFI_HOST_FAULT_INJECTION',
-                   '-I', str(HERE), '-I', str(ROOT / 'test/ui_runtime'), '-I', str(ROOT / 'src/activities'),
-                   '-I', str(ROOT / 'src'), '-I', str(ROOT / 'lib/Memory'), str(source),
-                   *rust_link_flags(archive=str(args.archive)), '-o', str(binary)]
+        facade = out / 'facade.cpp'; facade.write_text(facade_bridge_source(ROOT))
+        command = facade_compile_command(ROOT, out, facade, binary, archive=str(args.archive))
+        command[command.index('-fsanitize=address,undefined')] = '-fsanitize=address,undefined,vptr'
+        command[command.index('-o'):command.index('-o')] = ['-I', str(ROOT / 'src/activities'),
+                                                         '-I', str(ROOT / 'src'), str(source)]
         (out/'compile.json').write_text(json.dumps(command,indent=2)+'\n')
         subprocess.run(command,check=True)
         cases = [(mode, str(flag)) for mode in MODES for flag in (0,1)]
@@ -249,13 +262,39 @@ def main():
                    'selection-stack-failure','pending-supersede','selection-pending-shutdown')]
         if args.case: cases=[x for x in cases if x[0]==args.case]
         assert cases, args.case
+        historical_source = out / 'historical-selection.cpp'
+        historical_source.write_text(fixture(native, owner, manager, historical=True))
+        historical_binary = Path(tmp) / 'historical-selection'
+        historical_command = [str(historical_source) if x == str(source) else
+                              str(historical_binary) if x == str(binary) else x for x in command]
+        subprocess.run(historical_command, check=True)
         records=[]
         for mode, flag in cases:
-            result=subprocess.run([str(binary),mode,flag],capture_output=True)
+            selected_binary = historical_binary if mode == "selection-metadata-failure" else binary
+            result=subprocess.run([str(selected_binary),mode,flag],capture_output=True)
             label=f'{mode}-{flag}'
             (out/(label+'.stdout')).write_bytes(result.stdout);(out/(label+'.stderr')).write_bytes(result.stderr)
             assert result.returncode==0,(label,result.returncode,result.stderr.decode(errors='replace')[-5000:])
             records.append(dict(case=label,returncode=0))
+        if args.case is None or args.case == 'selection-metadata-failure':
+            probe = subprocess.run([str(binary), 'selection-allocation-count', '0'], capture_output=True)
+            (out/'allocation-count.stdout').write_bytes(probe.stdout)
+            (out/'allocation-count.stderr').write_bytes(probe.stderr)
+            assert probe.returncode == 0, probe.stderr.decode(errors='replace')[-5000:]
+            parent_outcome = re.search(rb'SELECTION_OUTCOME [^\n]+', (out/'selection-metadata-failure-0.stdout').read_bytes())[0]
+            count = int(re.search(rb'REAL_SELECTION_ALLOCATION_COUNT (\d+)', probe.stdout)[1])
+            allocation_records = []
+            for index in range(count):
+                fault = subprocess.run([str(binary), f'selection-allocation-{index}', '0'], capture_output=True)
+                (out/f'allocation-{index}.stdout').write_bytes(fault.stdout)
+                (out/f'allocation-{index}.stderr').write_bytes(fault.stderr)
+                assert fault.returncode == 0, (index, fault.stderr.decode(errors='replace')[-5000:])
+                assert re.search(rb'SELECTION_OUTCOME [^\n]+', fault.stdout)[0] == parent_outcome
+                matched = re.search(rb'REAL_SELECTION_ALLOCATION_FAILURE (\d+) (\d+)', fault.stdout)
+                assert matched and int(matched[1]) == index
+                allocation_records.append(dict(fail_after=index, attempts=int(matched[2]), returncode=0))
+            (out/'allocation-matrix.json').write_text(json.dumps(allocation_records, indent=2)+'\n')
+            print('real book selection allocation matrix:', count, 'failure points passed')
         (out/'result.json').write_text(json.dumps(records,indent=2)+'\n')
         print('production child composition:',len(records),'cases passed')
         rejected = []
@@ -297,8 +336,10 @@ def main():
         assert all(hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==digest for p,digest in hashes.items())
         (out/'scope.json').write_text(json.dumps(dict(cases=len(records),mutants_rejected=len(rejected),
             source_unchanged=True,production=['child factory bodies','wrapper and allocation helper','legacy callback bodies',
-                'Activity native push and result delivery','Rust App lifecycle and EPUB session'],
-            physical_fakes=['child UI implementations','book, storage and renderer','Sleep terminal owner'],
+                'Activity native push and result delivery','Rust App lifecycle and EPUB session',
+                'ReaderBook and native Epub facade','retained chapter/bookmark constructors and book fields'],
+            physical_fakes=['child UI implementations','storage and renderer','Sleep terminal owner'],
+            allocation_matrix='every Rust allocation on real selection capture path; exact historical one-attempt case retained separately',
             limitations=['direct child method probes supplement emulator gestures',
                 'native internal vector/string allocations remain O4/O5 debt',
                 'network physical fakes do not validate real Wi-Fi connectivity']),indent=2)+'\n')

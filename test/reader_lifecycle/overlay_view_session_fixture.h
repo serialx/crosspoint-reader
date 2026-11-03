@@ -1,6 +1,8 @@
 #pragma once
 #include <xp_epub_session.h>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubTestOverlayViewSeed {
   void* native;
   void* book;
@@ -23,8 +25,9 @@ struct XpEpubTestOverlayViewSeed {
   uint8_t (*more_value)(void*, int32_t, XpAppTextSink, void*);
 };
 extern "C" {
-void* xp_epub_test_overlay_view_create(const XpEpubTestOverlayViewSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                       const XpAppResources*);
+void* xp_epub_test_overlay_view_create_legacy_book(const XpEpubTestOverlayViewSeed*, const XpEpubLeaves*,
+                                                   const XpAppRuntime*, const XpAppResources*,
+                                                   const XpEpubLegacyBookServices*);
 void xp_epub_test_overlay_view_destroy(void*);
 void xp_epub_test_overlay_view_render(void*);
 }

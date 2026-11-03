@@ -39,17 +39,19 @@ pub struct BookmarkRange {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_bookmark_create(
+pub unsafe extern "C" fn xp_epub_test_bookmark_create_legacy_book(
     seed: *const BookmarkSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = true;
     state.current = Position {
@@ -74,7 +76,6 @@ pub unsafe extern "C" fn xp_epub_test_bookmark_create(
         };
     }
     let guarded = owner.guarded.get_mut();
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     guarded.bookmarks = Some(NonNull::new(seed.bookmarks).expect("fixture bookmarks"));
     owner.bookmark_overrides = Some(BookmarkOverrides {
@@ -90,7 +91,7 @@ pub unsafe extern "C" fn xp_epub_test_bookmark_create(
         let access = owner.borrowed_resources();
         owner.publish_section(&access);
     }
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]

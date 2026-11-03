@@ -2,6 +2,8 @@
 #include <xp_epub_session.h>
 #include <xp_ui_reader.h>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubTestProjectionSeed {
   void* native;
   void* book;
@@ -28,8 +30,9 @@ struct XpEpubTestChapterPosition {
   int32_t page, count;
 };
 extern "C" {
-void* xp_epub_test_projection_create(const XpEpubTestProjectionSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                     const XpAppResources*);
+void* xp_epub_test_projection_create_legacy_book(const XpEpubTestProjectionSeed*, const XpEpubLeaves*,
+                                                 const XpAppRuntime*, const XpAppResources*,
+                                                 const XpEpubLegacyBookServices*);
 void xp_epub_test_projection_destroy(void*);
 void xp_epub_test_projection_observe(void*, XpEpubTestProjectionObservation*);
 void xp_epub_test_projection_chapter(void*, XpEpubTestChapterPosition*);

@@ -4,7 +4,7 @@ namespace loop_session {
 struct Bridge;
 static Bridge* active;
 static unsigned modelDepth;
-static XpEpubLeaves leaves;
+static LegacyEpubLeaves leaves;
 static XpAppRuntime runtime;
 static XpAppResources resources;
 
@@ -83,7 +83,11 @@ static MappedInputManager::Button button(uint32_t mask) {
   }
 }
 static void configure() {
-  leaves = overlayUnexpectedLeaves(); runtime = overlayUnexpectedRuntime(); resources = overlayUnexpectedResources();
+  leaves = overlayLegacyLeaves();
+  leaves.physical.book_set_extractor = [](void* handle) {
+    if (handle) leaves.book.book_install_extractor(handle);
+    else leaves.book.book_clear_extractor();
+  }; runtime = overlayUnexpectedRuntime(); resources = overlayUnexpectedResources();
   runtime.model_lock = [] { assert(active && !modelDepth); ++modelDepth; };
   runtime.model_unlock = [] { assert(active && modelDepth == 1); --modelDepth; };
   runtime.render_lock = []() -> void* { unlocked(); return new RenderLock; };
@@ -98,69 +102,69 @@ static void configure() {
   };
   runtime.now_ms = []() -> uint32_t { bridge(); assert(lockDepth <= 1 && lockInstances == lockDepth); return millis(); };
   runtime.touch_feedback = [](uint8_t extended) { unlocked(); haptic_feedback::touchAction(extended != 0); };
-  leaves.render_busy = []() -> uint8_t { unlocked(); return RenderLock::peek(); };
-  leaves.popup_active = [](void* raw) -> uint8_t {
+  leaves.physical.render_busy = []() -> uint8_t { unlocked(); return RenderLock::peek(); };
+  leaves.physical.popup_active = [](void* raw) -> uint8_t {
     auto& owner = bridge().owner; unlocked(); assert(raw == &owner.loadFailurePopup);
     return owner.loadFailurePopup.isActive();
   };
-  leaves.popup_input = [](void* raw, XpEpubPopupInput* out) {
+  leaves.physical.popup_input = [](void* raw, XpEpubPopupInput* out) {
     auto& owner = bridge().owner; unlocked(); assert(raw == &owner.loadFailurePopup);
     bool changed = false;
     owner.loadFailurePopup.handleInput(owner.mappedInput, [&] { changed = true; });
     *out = {uint8_t(owner.loadFailurePopup.active), uint8_t(changed), 1};
   };
-  leaves.book_spine_count = [](void* raw) -> int32_t {
+  leaves.book.book_spine_count = [](void* raw) -> int32_t {
     auto& owner = bridge().owner; unlocked(); assert(raw == owner.epub.get());
     return owner.epub->getSpineItemsCount();
   };
-  leaves.book_path = [](void* raw, XpAppTextSink sink, void* destination) -> uint8_t {
+  leaves.book.book_path = [](void* raw, XpAppTextSink sink, void* destination) -> uint8_t {
     auto& owner = bridge().owner; unlocked(); assert(raw == owner.epub.get());
     const auto value = owner.epub->getPath(); return sink(destination, text(value));
   };
-  leaves.recents_remove = [](XpAppText path) -> uint8_t {
+  leaves.physical.recents_remove = [](XpAppText path) -> uint8_t {
     unlocked(); assert(string(path) == bridge().owner.epub->getPath());
     return RECENT_BOOKS.removeByPath(string(path));
   };
-  leaves.recents_add = [](void* raw) {
+  leaves.book.recents_add = [](void* raw) {
     auto& owner = bridge().owner; unlocked(); assert(raw == owner.epub.get());
     RECENT_BOOKS.addBook(owner.epub->getPath(), owner.epub->getTitle(), owner.epub->getAuthor(),
                          owner.epub->getThumbBmpPath());
   };
-  leaves.section_page_count = [](void* raw) -> uint16_t {
+  leaves.physical.section_page_count = [](void* raw) -> uint16_t {
     auto& value = section(raw);
     if (bridge().publication) publicationRead(1);
     return static_cast<uint16_t>(value.pageCount);
   };
-  leaves.section_estimated_pages = [](void* raw) -> int32_t {
+  leaves.physical.section_estimated_pages = [](void* raw) -> int32_t {
     auto& value = section(raw); publicationRead(2); return value.pageCount;
   };
-  leaves.section_building = [](void* raw) -> uint8_t {
+  leaves.physical.section_building = [](void* raw) -> uint8_t {
     auto& value = section(raw);
     if (bridge().publication) { publicationRead(3); return value.building; }
     return value.isBuilding();
   };
-  leaves.section_complete = [](void* raw) -> uint8_t { section(raw); publicationRead(4); return 0; };
-  leaves.section_partial = [](void* raw) -> uint8_t {
+  leaves.physical.section_complete = [](void* raw) -> uint8_t { section(raw); publicationRead(4); return 0; };
+  leaves.physical.section_partial = [](void* raw) -> uint8_t {
     auto& value = section(raw);
     if (bridge().publication) { publicationRead(5); return value.partial; }
     return value.isPartial();
   };
-  leaves.section_close = [](void* raw) {
+  leaves.physical.section_close = [](void* raw) {
     section(raw); auto& value = bridge(); assert(value.destroying && !value.page && !value.prewarm);
     assert(!value.sectionCloses++); value.owner.section.reset();
   };
-  leaves.section_load_page = [](void* raw, int32_t index) -> void* {
+  leaves.physical.section_load_page = [](void* raw, int32_t index) -> void* {
     auto& value = section(raw); auto& owner = bridge();
     assert(!owner.creating && !owner.page && !owner.prewarm && !owner.publication);
     auto page = value.loadPage(index);
     owner.page = page.get(); if (page) ++owner.pagesOpened;
     return page.release();
   };
-  leaves.page_close = [](void* raw) {
+  leaves.physical.page_close = [](void* raw) {
     auto& owner = bridge(); locked(); assert(raw && raw == owner.page && !owner.prewarm);
     delete static_cast<Page*>(raw); owner.page = nullptr; ++owner.pagesClosed;
   };
-  leaves.section_start_build = [](void* raw, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup, void* ctx) -> uint8_t {
+  leaves.physical.section_start_build = [](void* raw, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup, void* ctx) -> uint8_t {
     auto& value = section(raw); auto& owner = bridge();
     assert(!owner.creating && !owner.publication && !popup && !ctx && spec && spec->font == 1);
     assert(spec->width == owner.owner.buildViewportWidth && spec->height == owner.owner.buildViewportHeight);
@@ -168,8 +172,8 @@ static void configure() {
     owner.publication = 1; ++owner.buildAttempts;
     return result;
   };
-  leaves.strip_release_idle = [](void* raw) -> uint8_t { context(raw); locked(); return 0; };
-  leaves.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
+  leaves.physical.strip_release_idle = [](void* raw) -> uint8_t { context(raw); locked(); return 0; };
+  leaves.physical.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
     bridge(); *out = {};
     out->orientation = SETTINGS.orientation; out->long_menu = SETTINGS.longPressMenuFunction;
     out->short_power = SETTINGS.shortPwrBtn; out->long_button = SETTINGS.longPressButtonBehavior;
@@ -177,19 +181,19 @@ static void configure() {
     out->move_finished = SETTINGS.moveFinishedToReadFolder; out->touch_controls = SETTINGS.touchReaderControls;
     if (resolve) { locked(); out->font = SETTINGS.getReaderFontId(); }
   };
-  leaves.settings_render_spec = [](uint16_t width, uint16_t height, XpEpubRenderSpec* out) {
+  leaves.physical.settings_render_spec = [](uint16_t width, uint16_t height, XpEpubRenderSpec* out) {
     locked(); *out = {}; out->font = SETTINGS.readerRenderSpec(width, height); out->width = width; out->height = height;
   };
-  leaves.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
+  leaves.physical.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
     locked(); assert(!peer); *out = {}; out->note = static_cast<uint8_t>(bleturner::linkNote());
   };
-  leaves.radio_holds_heap = []() -> uint8_t { locked(); return bleturner::holdsHeap(); };
-  leaves.radio_after_paint = [] { locked(); bleturner::afterPaint(); };
-  leaves.render_geometry = [](XpEpubGeometry* out) {
+  leaves.physical.radio_holds_heap = []() -> uint8_t { locked(); return bleturner::holdsHeap(); };
+  leaves.physical.radio_after_paint = [] { locked(); bleturner::afterPaint(); };
+  leaves.physical.render_geometry = [](XpEpubGeometry* out) {
     auto& owner = bridge().owner; locked(); *out = {};
     out->has_framebuffer = owner.renderer.frame; out->has_font_cache = owner.renderer.font;
   };
-  leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
+  leaves.physical.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     context(raw); locked();
     static const XpUiReaderRenderServices services{
       nullptr,
@@ -202,27 +206,27 @@ static void configure() {
     };
     return &services;
   };
-  leaves.fonts_prewarm_begin = [](void* raw) -> uint8_t {
+  leaves.physical.fonts_prewarm_begin = [](void* raw) -> uint8_t {
     auto& value = context(raw); locked(); assert(value.page && !value.prewarm && value.owner.renderer.font);
     value.prewarm.emplace(value.owner.renderer.cache.createPrewarmScope()); value.scanFinished = false; return 1;
   };
-  leaves.fonts_prewarm_finish_scan = [](void* raw) {
+  leaves.physical.fonts_prewarm_finish_scan = [](void* raw) {
     auto& value = context(raw); locked(); assert(value.page && value.prewarm && !value.scanFinished);
     value.prewarm->endScanAndPrewarm(); value.scanFinished = true;
   };
-  leaves.fonts_prewarm_drop = [](void* raw) {
+  leaves.physical.fonts_prewarm_drop = [](void* raw) {
     auto& value = context(raw); locked(); assert(value.page && value.prewarm && value.scanFinished);
     value.prewarm.reset();
   };
-  leaves.page_render = [](void* raw, int32_t font, int32_t left, int32_t top) {
+  leaves.physical.page_render = [](void* raw, int32_t font, int32_t left, int32_t top) {
     auto& value = bridge(); locked(); assert(raw == value.page && value.prewarm && !value.scanFinished);
     assert(font == 1 && !left && !top); value.page->render(value.owner.renderer, font, left, top);
   };
-  leaves.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* destination) -> uint8_t {
+  leaves.physical.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* destination) -> uint8_t {
     auto& value = context(raw); locked(); assert(index == 0 && value.link);
     XpEpubLink row{}; row.href = text(value.link->href); return sink(destination, &row);
   };
-  leaves.input_services = []() -> const XpUiReaderInputServices* {
+  leaves.physical.input_services = []() -> const XpUiReaderInputServices* {
     unlocked();
     static const XpUiReaderInputServices input{
       nullptr,
@@ -244,14 +248,14 @@ static void configure() {
     };
     return &input;
   };
-  leaves.input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
+  leaves.physical.input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
     unlocked(); return bridge().owner.mappedInput.wasScreenLongPress(*x, *y);
   };
-  leaves.input_screen_tap = [](int32_t* x, int32_t* y) -> uint8_t {
+  leaves.physical.input_screen_tap = [](int32_t* x, int32_t* y) -> uint8_t {
     unlocked(); return bridge().owner.mappedInput.wasScreenTapped(*x, *y);
   };
-  leaves.log_enabled = [](uint8_t severity) -> uint8_t { bridge(); assert(severity <= 1); return severity || LOOP_LOG_LEVEL >= 2; };
-  leaves.log = [](uint8_t severity, XpAppText, XpAppText) {
+  leaves.physical.log_enabled = [](uint8_t severity) -> uint8_t { bridge(); assert(severity <= 1); return severity || LOOP_LOG_LEVEL >= 2; };
+  leaves.physical.log = [](uint8_t severity, XpAppText, XpAppText) {
     bridge(); assert(severity <= 1);
     if (severity) error(); else { assert(LOOP_LOG_LEVEL >= 2); debug(); }
   };
@@ -344,7 +348,7 @@ Bridge::Bridge(EpubReaderActivity& value) : owner(value), seededSection(bool(val
   };
   seed.discard = [](void* raw) { locked(); context(raw).owner.discardOverlayPage(); };
   publication = seededSection ? 1 : 0;
-  rust = xp_epub_test_loop_create(&seed, &leaves, &runtime, &resources);
+  rust = xp_epub_test_loop_create_legacy_book(&seed,&leaves.physical, &runtime, &resources, &leaves.book);
   assert(rust && !publication && publications == unsigned(seededSection)); creating = false;
 }
 }  // namespace loop_session

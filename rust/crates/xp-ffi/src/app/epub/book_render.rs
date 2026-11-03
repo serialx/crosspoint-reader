@@ -121,7 +121,7 @@ impl EpubSession {
             1
         }
         unsafe {
-            (self.leaves.book_spine)(
+            (super::session_book::spine)(
                 self.book(access).unwrap().as_ptr(),
                 self.model(|state| state.current.spine),
                 receive,
@@ -140,7 +140,10 @@ impl EpubSession {
         self.book_loading_log(access);
         let spine = self.model(|state| state.current.spine);
         let section = NonNull::new(unsafe {
-            (self.leaves.section_open)(self.book(access).unwrap().as_ptr(), spine)
+            (self.leaves.section_open)(
+                super::session_book::facade(self.book(access).unwrap().as_ptr()),
+                spine,
+            )
         });
         self.set_section(access, section);
         self.publish_section(access);
@@ -237,9 +240,9 @@ impl EpubSession {
                     }
                 } else {
                     let book = self.book(access).unwrap().as_ptr();
-                    let bytes = unsafe { (self.leaves.book_cumulative_size)(book, spine) }
+                    let bytes = unsafe { (super::session_book::cumulative_size)(book, spine) }
                         .wrapping_sub(if spine > 0 {
-                            unsafe { (self.leaves.book_cumulative_size)(book, spine - 1) }
+                            unsafe { (super::session_book::cumulative_size)(book, spine - 1) }
                         } else {
                             0
                         });
@@ -811,7 +814,7 @@ impl EpubSession {
         unsafe { (self.leaves.radio_settle_start)() };
         self.book_settle(access);
         self.model(|state| state.current.spine = state.current.spine.max(0));
-        let count = unsafe { (self.leaves.book_spine_count)(book.as_ptr()) };
+        let count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };
         self.model(|state| state.current.spine = state.current.spine.min(count));
         if self.model(|state| state.current.spine) == count {
             return;

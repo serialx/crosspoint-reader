@@ -157,7 +157,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -173,30 +173,6 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(loan_drop);
   UNUSED_LEAF(loan_count);
   UNUSED_LEAF(strip_release_idle);
-  UNUSED_LEAF(book_open);
-  UNUSED_LEAF(book_load);
-  UNUSED_LEAF(book_close);
-  UNUSED_LEAF(book_size);
-  UNUSED_LEAF(book_spine_count);
-  UNUSED_LEAF(book_toc_count);
-  UNUSED_LEAF(book_path);
-  UNUSED_LEAF(book_cache_path);
-  UNUSED_LEAF(book_title);
-  UNUSED_LEAF(book_author);
-  UNUSED_LEAF(book_language);
-  UNUSED_LEAF(book_spine);
-  UNUSED_LEAF(book_toc);
-  UNUSED_LEAF(book_toc_for_spine);
-  UNUSED_LEAF(book_cumulative_size);
-  UNUSED_LEAF(book_spine_for_size);
-  UNUSED_LEAF(book_text_reference);
-  UNUSED_LEAF(book_progress);
-  UNUSED_LEAF(book_resolve_href);
-  UNUSED_LEAF(book_setup_cache);
-  UNUSED_LEAF(book_clear_cache);
-  UNUSED_LEAF(book_install_extractor);
-  UNUSED_LEAF(book_clear_extractor);
-  UNUSED_LEAF(book_protection_error);
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
@@ -468,6 +444,9 @@ static const XpEpubLeaves leaves = [] {
     std::printf("%.*s %.*s\n", int(origin.len), reinterpret_cast<const char*>(origin.data),
                 int(message.len), reinterpret_cast<const char*>(message.data));
   };
+    UNUSED_LEAF(book_facade_open);
+    UNUSED_LEAF(book_facade_close);
+    UNUSED_LEAF(book_set_extractor);
   return table;
 }();
 

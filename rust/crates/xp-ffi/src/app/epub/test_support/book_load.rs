@@ -156,3 +156,35 @@ pub unsafe extern "C" fn xp_epub_test_load(
     }
     1
 }
+
+// Exercise the actual owner and native facade without a synthetic book factory.
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_facade(
+    resources: &'static app_abi::Resources,
+    leaves: &'static XpEpubLeaves,
+    path: app_abi::Text,
+    cache_path: app_abi::Text,
+    invoke: unsafe extern "C" fn(*mut c_void) -> u8,
+) -> u8 {
+    let (Some(path), Some(cache)) = (unsafe { path.bytes() }, unsafe { cache_path.bytes() }) else {
+        return 0;
+    };
+    let (Ok(mut path), Ok(cache)) = (Text::copy(path), Text::copy(cache)) else {
+        return 0;
+    };
+    unsafe extern "C" fn now() -> u32 {
+        0
+    }
+    let Ok(book) = ReaderBook::load(&mut path, cache, resources, leaves, now, true, false) else {
+        return 0;
+    };
+    assert!(path.is_empty());
+    let raw = ReaderBook::into_raw(book);
+    let result = if unsafe { ReaderBook::open_facade(raw) } {
+        unsafe { invoke(queries::facade(raw.as_ptr())) }
+    } else {
+        0
+    };
+    unsafe { ReaderBook::close(raw) };
+    result
+}

@@ -42,14 +42,14 @@ impl SelectionMetadata {
     }
 
     fn from_chapter(
-        owner: &EpubSession,
+        _owner: &EpubSession,
         book: NonNull<c_void>,
         chapter: app_abi::Text,
     ) -> Option<Self> {
         // Both getters return immutable book metadata. All three views stay inside
         // their synchronous sinks; no native pointer survives this call.
-        with_book_text(book, owner.leaves.book_title, |title| {
-            with_book_text(book, owner.leaves.book_author, |author| {
+        with_book_text(book, super::session_book::title, |title| {
+            with_book_text(book, super::session_book::author, |author| {
                 Self::copy(
                     unsafe { chapter.bytes() }?,
                     unsafe { title.bytes() }?,
@@ -78,7 +78,7 @@ impl SelectionMetadata {
             |sink, context| {
                 let mut capture = Sink { sink, context };
                 unsafe {
-                    (owner.leaves.book_toc)(
+                    (super::session_book::toc)(
                         book.as_ptr(),
                         toc,
                         title,

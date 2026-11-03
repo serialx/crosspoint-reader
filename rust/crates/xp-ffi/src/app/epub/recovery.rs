@@ -60,14 +60,14 @@ impl EpubSession {
     fn reopen_reader(&self) {
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.navigation_hooks {
-            unsafe { (hooks.reopen)(hooks.context, self.path.wire()) };
+            unsafe { (hooks.reopen)(hooks.context, self.path().wire()) };
             return;
         }
         let app = super::super::app().expect("application initialized");
         app.navigate(app_abi::Launch::new(
             app_abi::READER,
             app_abi::LaunchPayload::Reader(app_abi::ReaderLaunch {
-                path: self.path.wire(),
+                path: self.path().wire(),
                 fast_initial: 0,
             }),
         ));
@@ -185,7 +185,7 @@ impl EpubSession {
             return;
         }
         unsafe {
-            (self.leaves.state_set_open_path)(self.path.wire());
+            (self.leaves.state_set_open_path)(self.path().wire());
             (self.leaves.state_save)();
             (self.leaves.restart_reader)();
         }

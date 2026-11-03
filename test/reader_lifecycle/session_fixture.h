@@ -1,6 +1,7 @@
 #pragma once
-
 #include <xp_epub_session.h>
+
+#include "legacy_book_fixture.h"
 
 struct XpEpubTestNavigationSeed {
   void* book;
@@ -41,8 +42,9 @@ struct XpEpubTestBuildObservation {
 };
 
 extern "C" {
-void* xp_epub_test_navigation_create(const XpEpubTestNavigationSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                     const XpAppResources*);
+void* xp_epub_test_navigation_create_legacy_book(const XpEpubTestNavigationSeed*, const XpEpubLeaves*,
+                                                 const XpAppRuntime*, const XpAppResources*,
+                                                 const XpEpubLegacyBookServices*);
 void xp_epub_test_navigation_destroy(void*);
 void xp_epub_test_navigation_observe(void*, XpEpubTestNavigationObservation*);
 void xp_epub_test_navigation_percent(void*, int32_t);

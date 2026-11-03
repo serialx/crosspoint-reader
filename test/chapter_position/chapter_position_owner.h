@@ -21,8 +21,8 @@ struct XpEpubTestChapterDisplay {
   uint8_t reserved[3];
 };
 extern "C" {
-void* xp_epub_test_position_create(const XpEpubTestPositionSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                   const XpAppResources*);
+void* xp_epub_test_position_create_legacy_book(const XpEpubTestPositionSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                               const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_position_destroy(void*);
 void xp_epub_test_helpers_apply_text_live(void*);
 void xp_epub_test_projection_chapter(void*, XpEpubTestChapterPosition*);
@@ -62,7 +62,7 @@ struct ChapterPosition {
     Context context;
     active = &context;
     context.section = new Section{totalPages};
-    auto leaves = leavesDefaults();
+    auto leaves = legacyLeavesDefaults();
     auto runtime = modelRuntime();
     auto resources = resourcesDefaults();
     runtime.render_lock = []() -> void* {
@@ -81,53 +81,53 @@ struct ChapterPosition {
       assert(!active->renderDepth);
       ++active->updates;
     };
-    leaves.section_page_count = pages;
-    leaves.section_estimated_pages = [](void* raw) -> int32_t {
+    leaves.physical.section_page_count = pages;
+    leaves.physical.section_estimated_pages = [](void* raw) -> int32_t {
       physical();
       assert(raw == active->section);
       return active->section->count;
     };
-    leaves.section_building = [](void* raw) -> uint8_t {
+    leaves.physical.section_building = [](void* raw) -> uint8_t {
       physical();
       assert(raw == active->section);
       return 0;
     };
-    leaves.section_complete = [](void* raw) -> uint8_t {
+    leaves.physical.section_complete = [](void* raw) -> uint8_t {
       physical();
       assert(raw == active->section);
       return 1;
     };
-    leaves.section_partial = [](void* raw) -> uint8_t {
+    leaves.physical.section_partial = [](void* raw) -> uint8_t {
       physical();
       assert(raw == active->section);
       return 0;
     };
-    leaves.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* out) -> uint8_t {
+    leaves.physical.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* out) -> uint8_t {
       physical();
       assert(active->renderDepth == 1 && raw == active->section && page < pages(raw));
       *out = page;
       return 1;
     };
-    leaves.section_close = [](void* raw) {
+    leaves.physical.section_close = [](void* raw) {
       physical();
       assert(active->renderDepth == 1 && raw == active->section);
       delete active->section;
       active->section = nullptr;
       ++active->closed;
     };
-    leaves.settings_save = [] {
+    leaves.physical.settings_save = [] {
       physical();
       assert(!active->renderDepth);
       ++active->saved;
     };
-    leaves.fonts_ensure_loaded = [] {
+    leaves.physical.fonts_ensure_loaded = [] {
       physical();
       assert(active->renderDepth == 1);
       ++active->fonts;
     };
     XpEpubTestPositionSeed seed{
         &context, nullptr, context.section, pageIndex, 0, nullptr, &Unexpected<void (*)(void*, int32_t)>::call};
-    void* owner = xp_epub_test_position_create(&seed, &leaves, &runtime, &resources);
+    void* owner = xp_epub_test_position_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
     assert(owner);
     // Ordinary text reflow caches page/count before releasing the real Section handle.
     xp_epub_test_helpers_apply_text_live(owner);

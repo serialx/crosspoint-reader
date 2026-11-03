@@ -71,8 +71,11 @@ def fixture(native):
         std::fprintf(stderr, "EXPECTED_ASSERTION: SYNC_EXTRACTOR_RESTORED\\n"); std::exit(42);
       }
     }
-    struct RecoveryBook { Epub* pointer; Epub& value() { return *pointer; } };
-    static RecoveryBook book(void* raw) { return {static_cast<Epub*>(raw)}; }
+''' + definition(native, 'struct BookHandle') + ';\n' + '''
+    // The frozen fixture externally owns Epub; this temporary facade only adapts its handle.
+    static BookHandle book(void* raw) {
+      return {std::shared_ptr<Epub>(static_cast<Epub*>(raw), [](Epub*) {})};
+    }
 ''')
     source = replace_once(source, 'void requestUpdate() { event("update"); }',
                            'void requestUpdate() { requireExtractor(); event("update"); }')
@@ -99,7 +102,7 @@ def fixture(native):
     cases = replace_once(cases, '// ACTUAL_OWNED_TEXT', definition(native, 'std::string owned(XpAppText value)'))
     for leaf in ('selection', 'dictionary', 'footnote', 'clippings', 'sync'):
         cases = replace_once(cases, '/* ACTUAL_' + leaf.upper() + ' */', native_leaf(native, 'child_' + leaf))
-    cases = replace_once(cases, '/* ACTUAL_INSTALL_EXTRACTOR */', native_leaf(native, 'book_install_extractor'))
+    cases = replace_once(cases, '/* ACTUAL_INSTALL_EXTRACTOR */', native_leaf(native, 'book_set_extractor'))
     cases = replace_once(cases, '// IMAGE_IO_ENUM', definition(image, 'enum class ImageIo') + ';')
     begin, end = '    case ImageIo::HasSource:', '    case ImageIo::SourceSize:'
     cases = replace_once(cases, '// ACTUAL_EXTRACTION_IO', begin + image.split(begin, 1)[1].split(end, 1)[0])
@@ -159,7 +162,7 @@ def main():
                 (copied_repo / name).symlink_to(ROOT / name, target_is_directory=True)
             sync = copied_rust / 'crates/xp-ffi/src/app/epub/sync.rs'
             changed = replace_once(sync.read_text(),
-                '            unsafe { (self.leaves.book_install_extractor)(book.as_ptr()) };', '')
+                '            self.set_book_extractor(&access, Some(book));', '')
             sync.write_text(changed)
             target = work / 'target'
             subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),

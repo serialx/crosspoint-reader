@@ -1,19 +1,19 @@
 use super::{
     book::with_book_text,
+    book_owner::{LoadError, OpenError},
     state::LoadFailure,
     storage::{File, FileMode},
     EpubSession, ResourceAccess, Text,
 };
 use core::{ffi::c_void, ptr::NonNull};
 
-struct LoadedBook<'a> {
-    owner: &'a EpubSession,
+struct LoadedBook {
     handle: Option<NonNull<c_void>>,
 }
-impl Drop for LoadedBook<'_> {
+impl Drop for LoadedBook {
     fn drop(&mut self) {
         if let Some(book) = self.handle {
-            unsafe { (self.owner.leaves.book_close)(book.as_ptr()) };
+            unsafe { super::session_book::close(book) };
         }
     }
 }
@@ -82,15 +82,11 @@ impl EpubSession {
     }
 
     pub(super) fn load_book(&self, access: &ResourceAccess<'_>) -> bool {
-        let mut loaded = LoadedBook {
-            owner: self,
-            handle: NonNull::new(unsafe { (self.leaves.book_open)(self.path.wire()) }),
-        };
-        let Some(book) = loaded.handle else {
+        let Some(mut pending) = self.book_factory().open(self.path(), self.leaves) else {
             self.loop_log_parts(1, &[b"Failed to allocate EPUB object"]);
             return false;
         };
-        let Some(cache) = self.book_cache_path(book, b"/book.bin") else {
+        let Some(cache) = pending.cache_file() else {
             return false;
         };
         let uncached = unsafe { (self.resources.path_exists)(cache.wire()) } == 0;
@@ -102,19 +98,32 @@ impl EpubSession {
                 (self.resources.popup_draw)(label);
             }
         }
-        let succeeded = {
+        // The pending path is moved into the loaded owner, or restored on failure.
+        let mut path = unsafe { core::mem::take(&mut *self.path.get()) };
+        let result = {
             let _loan = if uncached {
                 unsafe { (self.leaves.loan_begin)(self.native(access)) };
                 Some(LoadLoan { access })
             } else {
                 None
             };
-            let skip_css = self.settings(false).embedded_style == 0;
-            (unsafe { (self.leaves.book_load)(book.as_ptr(), 1, u8::from(skip_css)) }) != 0
+            pending.load(
+                &mut path,
+                self.resources,
+                self.leaves,
+                self.runtime.now_ms,
+                self.settings(false).embedded_style == 0,
+            )
         };
-        if !succeeded {
-            with_book_text(book, self.leaves.book_protection_error, |error| {
-                let bytes = unsafe { error.bytes() }.unwrap_or_default();
+        unsafe { *self.path.get() = path };
+        let book = match result {
+            Ok(book) => book,
+            Err(error) => {
+                let error = pending.error(error);
+                let bytes = match &error {
+                    LoadError::Protection(OpenError::Message(message)) => message.bytes(),
+                    _ => b"",
+                };
                 let failure = match bytes {
                     b"" => LoadFailure::None,
                     b"access expired" => LoadFailure::Expired,
@@ -130,21 +139,23 @@ impl EpubSession {
                         bytes,
                     ],
                 );
-            });
+                return false;
+            }
+        };
+        let mut loaded = LoadedBook { handle: Some(book) };
+        if !unsafe { super::session_book::open_facade(book, self.leaves) } {
+            unsafe { *self.path.get() = super::session_book::take_path(book) };
+            self.loop_log_parts(1, &[b"Failed to allocate EPUB object"]);
             return false;
         }
         assert!(self.book(access).is_none());
         self.set_book(access, loaded.handle.take());
         self.model(|state| state.facts.book = true);
-        unsafe {
-            (self.leaves.image_clear_failures)();
-            (self.leaves.book_install_extractor)(book.as_ptr());
-            (self.leaves.book_setup_cache)(book.as_ptr());
-        }
+        unsafe { super::session_book::setup_cache(book.as_ptr()) };
         // Keep this file alive through all three restoration calls.
         let _progress_file = self.load_progress(access);
         if self.model(|state| state.current.spine == 0) {
-            let reference = unsafe { (self.leaves.book_text_reference)(book.as_ptr()) };
+            let reference = unsafe { (super::session_book::text_reference)(book.as_ptr()) };
             if reference != 0 {
                 self.model(|state| {
                     state.current.spine = reference;
@@ -161,7 +172,7 @@ impl EpubSession {
         self.load_links(access);
         self.load_cached_bookmarks(access);
         if !self.load_clippings(book) {
-            with_book_text(book, self.leaves.book_path, |path| {
+            with_book_text(book, super::session_book::path, |path| {
                 self.loop_log_at(
                     1,
                     b"CLIP",
@@ -182,12 +193,15 @@ impl EpubSession {
             state.facts.spine_count = 0;
         });
         if let Some(book) = book {
-            unsafe { (self.leaves.book_close)(book.as_ptr()) };
+            unsafe {
+                *self.path.get() = super::session_book::take_path(book);
+                super::session_book::close(book)
+            };
         }
     }
 
     pub(super) fn teardown_book(&self, access: &ResourceAccess<'_>) {
-        unsafe { (self.leaves.book_clear_extractor)() };
+        self.set_book_extractor(access, None);
         self.settle_overlay_refresh(access);
         self.discard_overlay_page(access);
         if self.model(|state| state.facts.radio_released) {
@@ -201,7 +215,7 @@ impl EpubSession {
         let paths = if self.model(|state| state.move_to_read) {
             self.book(access).and_then(|book| {
                 let source = Text::receive(|sink, context| unsafe {
-                    (self.leaves.book_path)(book.as_ptr(), sink, context)
+                    (super::session_book::path)(book.as_ptr(), sink, context)
                 })?;
                 let cache = self.book_cache_path(book, b"")?;
                 let destination = self.read_folder_destination(&source)?;

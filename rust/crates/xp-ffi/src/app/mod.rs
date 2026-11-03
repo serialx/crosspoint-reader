@@ -204,7 +204,17 @@ impl App {
                     self.runtime,
                     self.resources,
                 )
-                .map(Owner::Epub);
+                .map(|owner| {
+                    #[cfg(feature = "app-test")]
+                    let owner = {
+                        let mut owner = owner;
+                        if let Some(Target::Epub(previous)) = self.navigation.current() {
+                            owner.inherit_legacy_book_fixture(unsafe { previous.as_ref() });
+                        }
+                        owner
+                    };
+                    Owner::Epub(owner)
+                });
             }
         }
         if !matches!(

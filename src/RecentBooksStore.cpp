@@ -49,8 +49,8 @@ bool RecentBooksStore::fromJson(JsonVariantConst doc) {
   return true;
 }
 
-void RecentBooksStore::addBook(const std::string& path, const std::string& title, const std::string& author,
-                               const std::string& coverBmpPath) {
+void RecentBooksStore::addBook(std::string_view path, std::string_view title, std::string_view author,
+                               std::string_view coverBmpPath) {
   pruneMissing();
   RecentBook scratch;
   store_bridge::Rows<RecentBook, XP_STOREKIND_RECENT> rows{recentBooks, &scratch, rowField<RecentBook>};

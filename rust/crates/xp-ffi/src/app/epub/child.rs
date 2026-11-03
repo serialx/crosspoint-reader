@@ -187,8 +187,9 @@ impl EpubSession {
         };
         let mut margins = [0; 4];
         unsafe { (self.leaves.render_margins)(margins.as_mut_ptr()) };
-        let toc =
-            unsafe { (self.leaves.book_toc_for_spine)(book.as_ptr(), i32::from(capture.spine)) };
+        let toc = unsafe {
+            (super::session_book::toc_for_spine)(book.as_ptr(), i32::from(capture.spine))
+        };
         let Some(metadata) = SelectionMetadata::capture(self, book, toc) else {
             self.request_update();
             return;

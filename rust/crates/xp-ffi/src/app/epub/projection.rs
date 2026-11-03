@@ -93,12 +93,12 @@ impl EpubSession {
         let Some(book) = self.loop_book() else {
             return 0;
         };
-        if unsafe { (self.leaves.book_size)(book.as_ptr()) } == 0 || !position.has_total() {
+        if unsafe { (super::session_book::size)(book.as_ptr()) } == 0 || !position.has_total() {
             return 0;
         }
         let spine = self.model(|state| state.current.spine);
         let fraction = position.fraction();
-        let progress = unsafe { (self.leaves.book_progress)(book.as_ptr(), spine, fraction) };
+        let progress = unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) };
         progress_integer(progress.clamp(0.0, 1.0) * 100.0 + 0.5)
     }
 
@@ -124,7 +124,7 @@ impl EpubSession {
         unsafe {
             (self.leaves.section_toc_for_page)(
                 section.map_or(core::ptr::null_mut(), |section| section.as_ptr()),
-                book.as_ptr(),
+                super::session_book::facade(book.as_ptr()),
                 spine,
                 page,
             )
@@ -143,7 +143,7 @@ impl EpubSession {
         };
         let book = self.loop_book();
         if let Some(book) = book {
-            with_book_text(book, self.leaves.book_title, |text| {
+            with_book_text(book, super::session_book::title, |text| {
                 if let Some(bytes) = unsafe { text.bytes() } {
                     for (output, &byte) in result.title[..63].iter_mut().zip(bytes) {
                         if byte == 0 {
@@ -159,9 +159,11 @@ impl EpubSession {
             result.current_page = position.page.wrapping_add(1);
             result.total_pages = count;
             if let Some(book) = book {
-                if unsafe { (self.leaves.book_size)(book.as_ptr()) } > 0 && result.total_pages > 0 {
+                if unsafe { (super::session_book::size)(book.as_ptr()) } > 0
+                    && result.total_pages > 0
+                {
                     let progress = unsafe {
-                        (self.leaves.book_progress)(
+                        (super::session_book::progress)(
                             book.as_ptr(),
                             position.spine,
                             position.page as f32 / count as f32,
@@ -184,7 +186,7 @@ impl EpubSession {
             return false;
         };
         let spine = self.model(|state| state.current.spine);
-        spine >= unsafe { (self.leaves.book_spine_count)(book.as_ptr()) }
+        spine >= unsafe { (super::session_book::spine_count)(book.as_ptr()) }
     }
 
     pub(super) fn progress_basis_points(&self) -> i32 {
@@ -193,13 +195,13 @@ impl EpubSession {
         }
         if let Some(book) = self.loop_book() {
             if self.model(|state| state.facts.section.is_some())
-                && unsafe { (self.leaves.book_size)(book.as_ptr()) } != 0
+                && unsafe { (super::session_book::size)(book.as_ptr()) } != 0
             {
                 if let Some((position, count)) =
                     self.section_position().filter(|(_, count)| *count > 0)
                 {
                     let progress = unsafe {
-                        (self.leaves.book_progress)(
+                        (super::session_book::progress)(
                             book.as_ptr(),
                             position.spine,
                             position.page as f32 / count as f32,
@@ -223,8 +225,8 @@ impl EpubSession {
             return;
         }
         let Some(book) = self.loop_book() else { return };
-        if unsafe { (self.leaves.book_spine_count)(book.as_ptr()) } > 0 {
-            let count = unsafe { (self.leaves.book_spine_count)(book.as_ptr()) };
+        if unsafe { (super::session_book::spine_count)(book.as_ptr()) } > 0 {
+            let count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };
             self.model(|state| {
                 state.current.spine = count.wrapping_sub(1);
                 state.next_page = 0;
@@ -371,7 +373,7 @@ impl EpubSession {
         let Some(book) = self.loop_book() else {
             return false;
         };
-        let spine_count = unsafe { (self.leaves.book_spine_count)(book.as_ptr()) };
+        let spine_count = unsafe { (super::session_book::spine_count)(book.as_ptr()) };
         let Some((position, facts)) =
             self.model(|state| state.facts.section.map(|facts| (state.current, facts)))
         else {

@@ -14,7 +14,7 @@ impl EpubSession {
         let rtl = self
             .loop_book()
             .and_then(|book| {
-                with_book_text(book, self.leaves.book_language, |language| {
+                with_book_text(book, super::session_book::language, |language| {
                     input::language_rtl(unsafe { language.bytes() }.unwrap_or_default())
                 })
             })

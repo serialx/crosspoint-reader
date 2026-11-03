@@ -2,6 +2,8 @@
 
 #include <xp_epub_session.h>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubTestLifetimeSeed {
   void* native;
   void* book;
@@ -28,8 +30,8 @@ struct XpEpubTestLifetimeObservation {
 };
 
 extern "C" {
-void* xp_epub_test_lifetime_create(const XpEpubTestLifetimeSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                   const XpAppResources*);
+void* xp_epub_test_lifetime_create_legacy_book(const XpEpubTestLifetimeSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                               const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_lifetime_destroy(void*);
 uint8_t xp_epub_test_lifetime_load(void*);
 void xp_epub_test_lifetime_observe(void*, XpEpubTestLifetimeObservation*);

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 
+#include "legacy_book_fixture.h"
 #include "overlay_actions_session_fixture.h"
 
 // Host-only mirror of xp_ui::reader::idle::Snapshot; no policy lives here.
@@ -54,8 +55,8 @@ struct XpEpubTestIdleSeed {
   XpEpubTestIdleSnapshot sample;
 };
 extern "C" {
-void* xp_epub_test_idle_create(const XpEpubTestIdleSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                               const XpAppResources*);
+void* xp_epub_test_idle_create_legacy_book(const XpEpubTestIdleSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                           const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_idle_destroy(void*);
 uint8_t xp_epub_test_idle(void*);
 }

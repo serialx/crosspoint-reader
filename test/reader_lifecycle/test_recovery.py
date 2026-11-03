@@ -24,7 +24,7 @@ RUST_MUTANTS = (
     ('ignore-cancellation', b'if cancelled || unsafe { (self.leaves.wifi_connected)() } == 0 {',
      b'if false || unsafe { (self.leaves.wifi_connected)() } == 0 {'),
     ('sync-timeout', b'(self.leaves.trusted_sync)(5000)', b'(self.leaves.trusted_sync)(4999)'),
-    ('save-stale-path', b'(self.leaves.state_set_open_path)(self.path.wire());',
+    ('save-stale-path', b'(self.leaves.state_set_open_path)(self.path().wire());',
      b'(self.leaves.state_set_open_path)(app_abi::Text::from_bytes(b"original.epub"));'),
 )
 

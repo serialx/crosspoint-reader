@@ -1,6 +1,8 @@
 #pragma once
 #include <xp_epub_session.h>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubTestBaseHooks {
   void* context;
   void (*enter)(void*);
@@ -51,8 +53,8 @@ struct XpEpubTestBaseObservation {
   void* end;
 };
 extern "C" {
-void* xp_epub_test_base_create(const XpEpubTestBaseSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                               const XpAppResources*);
+void* xp_epub_test_base_create_legacy_book(const XpEpubTestBaseSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                           const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_base_destroy(void*);
 void xp_epub_test_base_observe(void*, XpEpubTestBaseObservation*);
 void xp_epub_test_base_enter(void*);

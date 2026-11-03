@@ -50,36 +50,36 @@ static const XpUiReaderRenderServices renderServices{nullptr, &OverlayUnexpected
                                                        locked("store");
                                                        return 1;
                                                      }};
-static const XpEpubLeaves leaves = [] {
-  auto value = overlayUnexpectedLeaves();
-  value.input_snapshot = [](XpUiInput* out) {
+static const LegacyEpubLeaves leaves = [] {
+  auto value = overlayLegacyLeaves();
+  value.physical.input_snapshot = [](XpUiInput* out) {
     unlocked("snapshot");
     *out = frame;
   };
-  value.popup_active = [](void* p) -> uint8_t {
+  value.physical.popup_active = [](void* p) -> uint8_t {
     assert(p == &popup);
     unlocked("active");
     return popupActive;
   };
-  value.popup_dismiss = [](void* p) {
+  value.physical.popup_dismiss = [](void* p) {
     assert(p == &popup);
     unlocked("dismiss");
     popupActive = false;
   };
-  value.toolbar_close = [](void* p) {
+  value.physical.toolbar_close = [](void* p) {
     assert(p == &toolbar);
     locked("close");
   };
-  value.render_geometry = [](XpEpubGeometry* out) {
+  value.physical.render_geometry = [](XpEpubGeometry* out) {
     unlocked("geometry");
     *out = {};
     out->xteink_panel = 1;
   };
-  value.render_restore_bw = [](uint8_t resync) {
+  value.physical.render_restore_bw = [](uint8_t resync) {
     assert(!resync);
     locked("restore");
   };
-  value.render_services = [](void* root) {
+  value.physical.render_services = [](void* root) {
     assert(root == &native && renderDepth == 1);
     return &renderServices;
   };
@@ -122,7 +122,8 @@ int main() {
       for (bool stored : {false, true}) {
         for (bool failed : {false, true}) {
           auto seed = seedFor(mode, active, stored, failed);
-          void* owner = xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+          void* owner =
+              xp_epub_test_overlay_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
           assert(owner);
           events.clear();
           XpUiInput input{};

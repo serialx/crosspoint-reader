@@ -28,7 +28,7 @@ impl EpubSession {
             self.model(|state| state.current.spine)
         } else {
             unsafe {
-                (self.leaves.book_resolve_href)(book.as_ptr(), app_abi::Text::from_bytes(href))
+                (super::session_book::resolve_href)(book.as_ptr(), app_abi::Text::from_bytes(href))
             }
         };
         if target < 0 {
@@ -142,7 +142,7 @@ impl EpubSession {
         }
         let Some(book) = self.loop_book() else { return };
         let book = book.as_ptr();
-        let size = unsafe { (self.leaves.book_size)(book) };
+        let size = unsafe { (super::session_book::size)(book) };
         if size == 0 {
             return;
         }
@@ -152,18 +152,18 @@ impl EpubSession {
         } else {
             (size / 100) * percent + (size % 100) * percent / 100
         };
-        let count = unsafe { (self.leaves.book_spine_count)(book) };
+        let count = unsafe { (super::session_book::spine_count)(book) };
         if count == 0 {
             return;
         }
-        let found = unsafe { (self.leaves.book_spine_for_size)(book, target) };
+        let found = unsafe { (super::session_book::spine_for_size)(book, target) };
         let spine = if found < 0 { count - 1 } else { found };
         let previous = if found > 0 {
-            unsafe { (self.leaves.book_cumulative_size)(book, found - 1) }
+            unsafe { (super::session_book::cumulative_size)(book, found - 1) }
         } else {
             0
         };
-        let end = unsafe { (self.leaves.book_cumulative_size)(book, spine) };
+        let end = unsafe { (super::session_book::cumulative_size)(book, spine) };
         let span = end.saturating_sub(previous);
         let progress = if span == 0 {
             0.0
@@ -199,7 +199,7 @@ impl EpubSession {
         let book = book.as_ptr();
         if sync.has_offset != 0
             && sync.spine >= 0
-            && sync.spine < unsafe { (self.leaves.book_spine_count)(book) }
+            && sync.spine < unsafe { (super::session_book::spine_count)(book) }
         {
             let access = self.lock_resources();
             self.clear_deferred();
@@ -253,7 +253,13 @@ impl EpubSession {
             };
             let mut position = core::mem::MaybeUninit::<abi::XpEpubPosition>::uninit();
             unsafe {
-                (self.leaves.progress_to_reader)(book, &saved, spine, count, position.as_mut_ptr());
+                (self.leaves.progress_to_reader)(
+                    super::session_book::facade(book),
+                    &saved,
+                    spine,
+                    count,
+                    position.as_mut_ptr(),
+                );
                 target_spine = (*position.as_ptr()).spine;
                 target_page = (*position.as_ptr()).page;
             }
@@ -392,7 +398,9 @@ impl EpubSession {
             mapped_page: 0,
             anchor: [0; 64],
         };
-        unsafe { (self.leaves.progress_save)(book.as_ptr(), &position) != 0 }
+        unsafe {
+            (self.leaves.progress_save)(super::session_book::facade(book.as_ptr()), &position) != 0
+        }
     }
 
     pub(super) fn remember_offset(&self, access: &ResourceAccess<'_>) {

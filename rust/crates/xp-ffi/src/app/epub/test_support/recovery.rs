@@ -86,7 +86,7 @@ pub unsafe extern "C" fn xp_epub_test_recovery_seed_path(
         return 0;
     };
     // Fixture-only reseed between operations; all retained callbacks are dormant.
-    (&mut *owner.cast::<EpubSession>()).path = path;
+    (&mut *owner.cast::<EpubSession>()).path = path.into();
     1
 }
 

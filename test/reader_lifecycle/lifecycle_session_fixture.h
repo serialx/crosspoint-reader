@@ -3,6 +3,8 @@
 #include <xp_ui_reader.h>
 
 #include <cstdint>
+
+#include "legacy_book_fixture.h"
 struct XpEpubTestLifecycleSnapshot {
   int32_t spine, page, next_page, cached_spine, cached_count;
   uint32_t cached_offset, last_turn;
@@ -30,8 +32,9 @@ struct XpEpubTestLifecycleSeed {
   uint8_t input_composition;
 };
 extern "C" {
-void* xp_epub_test_lifecycle_create(const XpEpubTestLifecycleSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                    const XpAppResources*);
+void* xp_epub_test_lifecycle_create_legacy_book(const XpEpubTestLifecycleSeed*, const XpEpubLeaves*,
+                                                const XpAppRuntime*, const XpAppResources*,
+                                                const XpEpubLegacyBookServices*);
 void xp_epub_test_lifecycle_destroy(void*);
 void xp_epub_test_lifecycle_observe(void*, XpEpubTestLifecycleSnapshot*);
 void xp_epub_test_lifecycle_clear_pending_page(void*);

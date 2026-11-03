@@ -62,11 +62,12 @@ unsafe extern "C" fn unexpected_push(_: *mut c_void, _: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_base_create(
+pub unsafe extern "C" fn xp_epub_test_base_create_legacy_book(
     seed: *const Seed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(
@@ -79,6 +80,7 @@ pub unsafe extern "C" fn xp_epub_test_base_create(
     ) else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     // Standalone composition intentionally renders after early enter failures.
     // Entry-gate integration and real accounting have their own fixtures.
@@ -90,7 +92,6 @@ pub unsafe extern "C" fn xp_epub_test_base_create(
     state.base.end_ready = seed.end_ready != 0;
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.book = NonNull::new(seed.book);
     guarded.end_options = NonNull::new(seed.end);
     owner.base_hooks = Some(BaseHooks {
         context: seed.hooks.context,
@@ -126,7 +127,7 @@ pub unsafe extern "C" fn xp_epub_test_base_create(
         push: unexpected_push,
         reopen: seed.hooks.navigate,
     });
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_base_destroy(owner: *mut c_void) {
@@ -138,7 +139,7 @@ pub unsafe extern "C" fn xp_epub_test_base_destroy(owner: *mut c_void) {
         }
     }
     owner.guarded.get_mut().native = None;
-    owner.guarded.get_mut().book = None;
+    owner.discard_legacy_fixture();
     drop(owner);
 }
 #[no_mangle]

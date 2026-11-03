@@ -142,8 +142,8 @@ def physical_fixture():
   std::printf("%u %s %d %d\\n", logIndex++, name, a, b);
 }'''
     source = replace_once(source, event, SUPPORT + counted)
-    metadata = definition(source, '  leaves.metadata_link = ')
-    source = replace_once(source, metadata, '''  leaves.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* destination) -> uint8_t {
+    metadata = definition(source, '  leaves.physical.metadata_link = ')
+    source = replace_once(source, metadata, '''  leaves.physical.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* destination) -> uint8_t {
     auto& value = context(raw); locked(); assert(index == 0 && value.link);
     faultCheck(!metadataBorrowActive && ++linkFault.metadata == 1, "metadata leaf must be called exactly once");
     faultCheck(xp_test_allocation_attempts() == 0, "unexpected Rust allocation before href metadata sink");

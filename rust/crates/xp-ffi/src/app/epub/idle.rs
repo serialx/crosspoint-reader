@@ -20,7 +20,7 @@ impl EpubSession {
         }
         let book = self.loop_book();
         let spine_count = book.map_or(0, |book| unsafe {
-            (self.leaves.book_spine_count)(book.as_ptr())
+            (super::session_book::spine_count)(book.as_ptr())
         });
         let popup = self.loop_failure_popup();
         let load_popup =

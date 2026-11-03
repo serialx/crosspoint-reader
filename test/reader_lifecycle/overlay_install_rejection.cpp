@@ -44,20 +44,20 @@ static const XpUiReaderInputServices input{nullptr, nullptr,
                                              return 0;
                                            },
                                            nullptr};
-static const XpEpubLeaves leaves = [] {
-  auto value = overlayUnexpectedLeaves();
-  value.toolbar_open = []() -> void* {
+static const LegacyEpubLeaves leaves = [] {
+  auto value = overlayLegacyLeaves();
+  value.physical.toolbar_open = []() -> void* {
     assert(!renderDepth && !modelDepth);
     ++opened;
     return new int(7);
   };
-  value.toolbar_close = [](void* p) {
+  value.physical.toolbar_close = [](void* p) {
     assert(renderDepth == 1 && !modelDepth);
     ++closed;
     delete static_cast<int*>(p);
   };
-  value.toolbar_begin = [](void*) { assert(!renderDepth && !modelDepth); };
-  value.input_services = [] { return &input; };
+  value.physical.toolbar_begin = [](void*) { assert(!renderDepth && !modelDepth); };
+  value.physical.input_services = [] { return &input; };
   return value;
 }();
 static const XpAppResources resources = overlayUnexpectedResources();
@@ -86,7 +86,7 @@ int main() {
     assert(!modelDepth && !renderDepth);
     ++updates;
   };
-  void* owner = xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+  void* owner = xp_epub_test_overlay_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
   renderMutex.lock();
   ++renderDepth;

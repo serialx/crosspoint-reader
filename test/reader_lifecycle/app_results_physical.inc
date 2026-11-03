@@ -69,24 +69,24 @@ void bindResultsPhysical() {
   leaves.render_finish_page = [](void*) { physical("finish-page", 1); assert(results.bound); results.bound = nullptr; };
   leaves.render_busy = []() -> uint8_t { physical("display-busy"); return 0; };
   leaves.strip_release_idle = [](void*) -> uint8_t { physical("strip-release", 1); return 1; };
-  leaves.book_spine_count = [](void*) -> int32_t { physical("spine-count"); return 7; };
-  leaves.book_size = [](void*) -> uint32_t { physical("book-size"); return 1000; };
-  leaves.book_progress = [](void*, int32_t, float) -> float { physical("book-progress"); return .1f; };
-  leaves.book_spine_for_size = [](void*, uint32_t size) -> int32_t { borrowedUse("spine-for-size"); assert(size == 420); return 2; };
-  leaves.book_cumulative_size = [](void*, int32_t spine) -> uint32_t { physical("cumulative-size"); assert(spine == 1 || spine == 2); return spine == 1 ? 300 : 500; };
-  leaves.book_toc_count = [](void*) -> int32_t { physical("toc-count"); return 5; };
-  leaves.book_toc_for_spine = [](void*, int32_t) -> int32_t { physical("toc-for-spine"); return 0; };
-  leaves.book_spine = [](void*, int32_t, XpEpubSpineSink sink, void* context) -> uint8_t {
+  legacyBook.book_spine_count = [](void*) -> int32_t { physical("spine-count"); return 7; };
+  legacyBook.book_size = [](void*) -> uint32_t { physical("book-size"); return 1000; };
+  legacyBook.book_progress = [](void*, int32_t, float) -> float { physical("book-progress"); return .1f; };
+  legacyBook.book_spine_for_size = [](void*, uint32_t size) -> int32_t { borrowedUse("spine-for-size"); assert(size == 420); return 2; };
+  legacyBook.book_cumulative_size = [](void*, int32_t spine) -> uint32_t { physical("cumulative-size"); assert(spine == 1 || spine == 2); return spine == 1 ? 300 : 500; };
+  legacyBook.book_toc_count = [](void*) -> int32_t { physical("toc-count"); return 5; };
+  legacyBook.book_toc_for_spine = [](void*, int32_t) -> int32_t { physical("toc-for-spine"); return 0; };
+  legacyBook.book_spine = [](void*, int32_t, XpEpubSpineSink sink, void* context) -> uint8_t {
     physical("book-spine", 1); const XpEpubSpine value{literal("chapter.xhtml"), 100}; return sink(context, &value);
   };
-  leaves.book_toc = [](void*, int32_t, XpEpubTocSink sink, void* context) -> uint8_t {
+  legacyBook.book_toc = [](void*, int32_t, XpEpubTocSink sink, void* context) -> uint8_t {
     physical("book-toc"); const XpEpubToc value{literal("Chapter"), {nullptr, 0}, 1, 0}; return sink(context, &value);
   };
-  leaves.book_language = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("language"); return deliver(sink, context, "en"); };
-  leaves.book_title = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("title"); return deliver(sink, context, "Fixture"); };
-  leaves.book_author = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("author"); return deliver(sink, context, "Author"); };
-  leaves.book_path = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("book-path"); return deliver(sink, context, f().path.c_str()); };
-  leaves.book_resolve_href = [](void*, XpAppText href) -> int32_t {
+  legacyBook.book_language = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("language"); return deliver(sink, context, "en"); };
+  legacyBook.book_title = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("title"); return deliver(sink, context, "Fixture"); };
+  legacyBook.book_author = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("author"); return deliver(sink, context, "Author"); };
+  legacyBook.book_path = [](void*, XpAppTextSink sink, void* context) -> uint8_t { physical("book-path"); return deliver(sink, context, f().path.c_str()); };
+  legacyBook.book_resolve_href = [](void*, XpAppText href) -> int32_t {
     borrowedUse("resolve-href"); assert(text(href) == "target.xhtml#anchor");
     assert(href.data == reinterpret_cast<const uint8_t*>(std::get<FootnoteResult>(results.borrowed->data).href.data()));
     return 3;
@@ -124,12 +124,12 @@ void bindResultsPhysical() {
   leaves.metadata_footnotes = [](void*) -> uint16_t { physical("footnote-count", 1); return 2; };
   leaves.bookmarks_count = [](void*) -> uint32_t { physical("bookmark-count"); return 0; };
   leaves.bookmarks_clear = [](void* raw) { auto& h = f().handle(raw, Kind::Bookmarks); f().physical("bookmarks-clear", h.generation, h.id); };
-  leaves.bookmarks_load = [](void* raw, void* book) -> uint8_t {
+  legacyBook.bookmarks_load = [](void* raw, void* book) -> uint8_t {
     auto& h = f().handle(raw, Kind::Bookmarks); f().handle(book, Kind::Book); ++f().bookmarkLoads; f().physical("bookmarks-load", h.generation, h.id); return 1;
   };
   leaves.bookmarks_retain = [](void*, uint8_t (*)(void*, const XpEpubBookmark*), void*) -> uint32_t { borrowedUse("bookmark-retain"); return 0; };
   leaves.bookmarks_insert_front = [](void*, const XpEpubBookmark* row) -> uint8_t { borrowedUse("bookmark-insert"); assert(row && row->has_offset); ++results.bookmarkWrites; return 1; };
-  leaves.bookmarks_save = [](void*, void*) -> uint8_t { borrowedUse("bookmark-save"); return 1; };
+  legacyBook.bookmarks_save = [](void*, void*) -> uint8_t { borrowedUse("bookmark-save"); return 1; };
   leaves.clippings_count = []() -> uint32_t { physical("clip-count"); return 1; };
   leaves.clippings_row = [](uint32_t index, XpEpubClip* out) { physical("clip-row", 1); assert(index == 0); *out = {}; out->spine = 6; };
   leaves.clippings_insert = [](const XpEpubClipInsert* row) -> uint8_t {
@@ -168,7 +168,7 @@ void bindResultsPhysical() {
   leaves.state_set_open_path = [](XpAppText path) { physical("set-path", 0); assert(text(path) == f().path); };
   static auto baseStateSave = leaves.state_save;
   leaves.state_save = [] { if (f().renderDepth == 1) baseStateSave(); else physical("state-save"); };
-  leaves.recents_add = [](void* book) { physical("recent-add", 0); assert(book == f().extractor); };
+  legacyBook.recents_add = [](void* book) { physical("recent-add", 0); assert(book == f().extractor); };
   leaves.emit_open = [](XpAppText path) { physical("emit-open", 0); assert(text(path) == f().path); };
   static auto entryFonts = leaves.fonts_ensure_loaded;
   leaves.fonts_ensure_loaded = [] { if (!f().renderDepth) entryFonts(); else { borrowedUse("fonts-reload"); assert(f().renderDepth == 1); } };

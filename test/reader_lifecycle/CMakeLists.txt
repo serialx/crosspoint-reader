@@ -364,3 +364,10 @@ add_test(NAME reader_book_load_routes
 add_test(NAME reader_book_load_oom
   COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_load_oom.py)
+
+add_test(NAME reader_book_facade
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_facade.py)
+add_test(NAME reader_book_section
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_section.py
+    --archive ${XP_FFI_HOST_ARCHIVE})

@@ -93,11 +93,12 @@ pub struct BookObservation {
     pub published_partial: u8,
 }
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_book_create(
+pub unsafe extern "C" fn xp_epub_test_book_create_legacy_book(
     seed: *const BookSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
@@ -107,6 +108,7 @@ pub unsafe extern "C" fn xp_epub_test_book_create(
     let anchor = Text::copy(seed.anchor.bytes().expect("fixture anchor"))
         .expect("fixture anchor allocation");
     let v = seed.values;
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     // Standalone renderBook composition; this seed does not prove entry gating.
     state.ready = true;
@@ -168,7 +170,6 @@ pub unsafe extern "C" fn xp_epub_test_book_create(
     state.facts.book = !seed.book.is_null();
     let guard = owner.guarded.get_mut();
     guard.native = NonNull::new(seed.native);
-    guard.book = NonNull::new(seed.book);
     guard.section = NonNull::new(seed.section);
     guard.overlay_popup = NonNull::new(seed.popup);
     guard.anchor = anchor;
@@ -192,7 +193,7 @@ pub unsafe extern "C" fn xp_epub_test_book_create(
     let access = owner.borrowed_resources();
     owner.publish_section(&access);
     drop(access);
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_book_render(raw: *mut c_void) {
@@ -273,7 +274,7 @@ pub unsafe extern "C" fn xp_epub_test_book_destroy(raw: *mut c_void) {
     assert!(owner.guarded.get_mut().active_frame.is_none());
     // Native root, book and popup are fixture-owned; Section is owned by Rust.
     owner.guarded.get_mut().native = None;
-    owner.guarded.get_mut().book = None;
+    owner.discard_legacy_fixture();
     owner.guarded.get_mut().overlay_popup = None;
     drop(owner);
 }

@@ -56,14 +56,20 @@ static const XpAppRuntime runtime = [] {
   };
   return table;
 }();
-static const XpEpubLeaves leaves = [] {
-  auto table = overlayUnexpectedLeaves();
-  table.render_geometry = [](XpEpubGeometry* out) {
+static const LegacyEpubLeaves leaves = [] {
+  auto table = overlayLegacyLeaves();
+  table.physical.render_geometry = [](XpEpubGeometry* out) {
     leaf();
     assert(out);
     ++geometryReads;
     *out = {};
     out->has_framebuffer = framebuffer;
+  };
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle)
+      leaves.book.book_install_extractor(handle);
+    else
+      leaves.book.book_clear_extractor();
   };
   return table;
 }();
@@ -105,7 +111,7 @@ int main() {
   UNEXPECTED(discard);
   UNEXPECTED(update);
 #undef UNEXPECTED
-  owner = xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_overlay_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner && observe().counter == 8);
   RetainingSection section;
   {

@@ -1,6 +1,8 @@
 #pragma once
 #include <xp_epub_session.h>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubTestBookmarkSeed {
   void* book;
   void* section;
@@ -22,8 +24,8 @@ struct XpEpubTestBookmarkRange {
   float start, end;
 };
 extern "C" {
-void* xp_epub_test_bookmark_create(const XpEpubTestBookmarkSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                   const XpAppResources*);
+void* xp_epub_test_bookmark_create_legacy_book(const XpEpubTestBookmarkSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                               const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_bookmark_destroy(void*);
 void xp_epub_test_bookmark_observe(void*, XpEpubTestBookmarkObservation*);
 void xp_epub_test_bookmark_flag(void*);

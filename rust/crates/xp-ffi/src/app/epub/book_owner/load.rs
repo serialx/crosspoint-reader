@@ -18,7 +18,7 @@ use xp_core::{
     epub::opf,
 };
 
-pub(super) enum LoadError {
+pub(in crate::app::epub) enum LoadError {
     Failed,
     OutOfMemory,
     Protection(OpenError),
@@ -44,7 +44,7 @@ struct Context<'a> {
 impl ReaderBook {
     // The caller constructs cache_path with the pinned native hash convention.
     // The source path moves only after successful load and checked owner allocation.
-    pub(super) fn load(
+    pub(in crate::app::epub) fn load(
         path: &mut Text,
         cache_path: Text,
         resources: &'static app_abi::Resources,
@@ -100,6 +100,9 @@ impl ReaderBook {
         }
         unsafe {
             raw.write(Self {
+                facade: None,
+                resources,
+                now,
                 path: core::mem::take(path),
                 cache_path,
                 metadata,

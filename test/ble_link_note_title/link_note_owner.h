@@ -16,8 +16,8 @@ struct XpEpubTestViewObservation {
   uint8_t note_shown, note;
 };
 extern "C" {
-void* xp_epub_test_position_create(const XpEpubTestPositionSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                   const XpAppResources*);
+void* xp_epub_test_position_create_legacy_book(const XpEpubTestPositionSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                               const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_position_destroy(void*);
 void xp_epub_test_view_status(void*);
 void xp_epub_test_view_observe(void*, XpEpubTestViewObservation*);
@@ -30,7 +30,7 @@ class LinkNoteTitle {
     using namespace retirement_fixture;
     assert(!active && !modelDepth);
     active = this;
-    leaves = leavesDefaults();
+    leaves = legacyLeavesDefaults();
     runtime = modelRuntime();
     resources = resourcesDefaults();
     runtime.render_lock = []() -> void* {
@@ -49,50 +49,50 @@ class LinkNoteTitle {
       physical();
       return 1000;
     };
-    leaves.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
+    leaves.physical.radio_status = [](XpEpubRadio* out, XpEpubPeer* peer) {
       physical();
       assert(!peer && active->renderDepth == 1);
       *out = {};
       out->note = static_cast<uint8_t>(active->current);
       ++active->radioReads;
     };
-    leaves.render_geometry = [](XpEpubGeometry* out) {
+    leaves.physical.render_geometry = [](XpEpubGeometry* out) {
       physical();
       *out = {};
       out->width = 528;
       out->height = 792;
       out->title_mode = active->titleShown ? 0 : 2;
     };
-    leaves.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
+    leaves.physical.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
       physical();
       assert(!resolve);
       *out = {};
     };
-    leaves.render_busy = []() -> uint8_t {
+    leaves.physical.render_busy = []() -> uint8_t {
       physical();
       return 0;
     };
-    leaves.book_spine_count = [](void* book) -> int32_t {
+    leaves.book.book_spine_count = [](void* book) -> int32_t {
       physical();
       assert(book == &active->book);
       return 1;
     };
-    leaves.book_progress = [](void* book, int32_t spine, float) -> float {
+    leaves.book.book_progress = [](void* book, int32_t spine, float) -> float {
       physical();
       assert(book == &active->book && spine == 0);
       return 0.0f;
     };
-    leaves.book_title = [](void* book, XpAppTextSink sink, void* context) -> uint8_t {
+    leaves.book.book_title = [](void* book, XpAppTextSink sink, void* context) -> uint8_t {
       physical();
       assert(book == &active->book);
       return sink(context, literal("Book"));
     };
-    leaves.book_language = [](void* book, XpAppTextSink sink, void* context) -> uint8_t {
+    leaves.book.book_language = [](void* book, XpAppTextSink sink, void* context) -> uint8_t {
       physical();
       assert(book == &active->book);
       return sink(context, literal("en"));
     };
-    leaves.paint_status = [](const XpEpubStatus* status) {
+    leaves.physical.paint_status = [](const XpEpubStatus* status) {
       physical();
       assert(active->renderDepth == 1 && status);
       ++active->paints;
@@ -101,15 +101,15 @@ class LinkNoteTitle {
       physical();
       return literal("Radio note");
     };
-    leaves.input_facts = [](XpEpubInputFacts* out) {
+    leaves.physical.input_facts = [](XpEpubInputFacts* out) {
       physical();
       *out = {};
     };
-    leaves.has_sync_credentials = []() -> uint8_t {
+    leaves.physical.has_sync_credentials = []() -> uint8_t {
       physical();
       return 0;
     };
-    leaves.input_services = []() -> const XpUiReaderInputServices* {
+    leaves.physical.input_services = []() -> const XpUiReaderInputServices* {
       physical();
       assert(!active->renderDepth);
       static const XpUiReaderInputServices input{nullptr,
@@ -137,7 +137,7 @@ class LinkNoteTitle {
       return &input;
     };
     const XpEpubTestPositionSeed seed{this, &book, nullptr, 0, 0, nullptr, &Unexpected<void (*)(void*, int32_t)>::call};
-    owner = xp_epub_test_position_create(&seed, &leaves, &runtime, &resources);
+    owner = xp_epub_test_position_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
     assert(owner);
   }
   ~LinkNoteTitle() {
@@ -174,7 +174,7 @@ class LinkNoteTitle {
 
  private:
   inline static LinkNoteTitle* active;
-  XpEpubLeaves leaves{};
+  LegacyEpubLeaves leaves{};
   XpAppRuntime runtime{};
   XpAppResources resources{};
   void* owner = nullptr;

@@ -135,11 +135,12 @@ unsafe extern "C" fn unexpected4<A, B, C, D, R>(_: *mut c_void, _: A, _: B, _: C
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_loop_create(
+pub unsafe extern "C" fn xp_epub_test_loop_create_legacy_book(
     seed: *const Seed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
@@ -147,6 +148,7 @@ pub unsafe extern "C" fn xp_epub_test_loop_create(
         return core::ptr::null_mut();
     };
     let s = &seed.state;
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = true;
     state.current = Position {
@@ -186,7 +188,6 @@ pub unsafe extern "C" fn xp_epub_test_loop_create(
     state.link_margins = (s.link_left, s.link_top);
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.book = NonNull::new(seed.book);
     guarded.section = NonNull::new(seed.section);
     guarded.failure_popup = NonNull::new(seed.popup);
     owner.loop_hooks = Some(seed.hooks);
@@ -294,7 +295,7 @@ pub unsafe extern "C" fn xp_epub_test_loop_create(
         let access = owner.borrowed_resources();
         owner.publish_section(&access);
     }
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_loop(raw: *mut c_void) {
@@ -329,9 +330,9 @@ pub unsafe extern "C" fn xp_epub_test_loop_destroy(raw: *mut c_void) {
         let access = owner.borrowed_resources();
         owner.drop_section(&access);
     }
+    owner.discard_legacy_fixture();
     let guarded = owner.guarded.get_mut();
     guarded.native = None;
-    guarded.book = None;
     guarded.failure_popup = None;
     drop(owner);
 }

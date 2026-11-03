@@ -54,8 +54,12 @@ impl EpubSession {
     pub(in crate::app) fn enter(&self) {
         self.activity_log(true);
         self.log_memory(true);
-        if unsafe { (self.resources.path_exists)(self.path.wire()) } == 0 {
-            self.loop_log_at(1, b"READER", &[b"File does not exist: ", self.path.bytes()]);
+        if unsafe { (self.resources.path_exists)(self.path().wire()) } == 0 {
+            self.loop_log_at(
+                1,
+                b"READER",
+                &[b"File does not exist: ", self.path().bytes()],
+            );
             self.finish();
             return;
         }
@@ -98,12 +102,12 @@ impl EpubSession {
             return;
         }
         unsafe {
-            (self.leaves.state_set_open_path)(self.path.wire());
+            (self.leaves.state_set_open_path)(self.path().wire());
             (self.leaves.state_save)();
             if let Some(book) = self.loop_book() {
-                (self.leaves.recents_add)(book.as_ptr());
+                self.add_recent(book);
             }
-            (self.leaves.emit_open)(self.path.wire());
+            (self.leaves.emit_open)(self.path().wire());
         }
     }
 
@@ -119,7 +123,7 @@ impl EpubSession {
             return;
         }
         let consumed = with_text(
-            |sink, context| unsafe { (self.leaves.document_id)(self.path.wire(), sink, context) },
+            |sink, context| unsafe { (self.leaves.document_id)(self.path().wire(), sink, context) },
             |document| {
                 let bytes = unsafe { document.bytes() }.unwrap_or_default();
                 if bytes.len() == 32
@@ -136,7 +140,7 @@ impl EpubSession {
                         start_progress: session.start_progress,
                         end_progress: session.end_progress,
                     };
-                    unsafe { (self.leaves.emit_session)(self.path.wire(), document, &event) };
+                    unsafe { (self.leaves.emit_session)(self.path().wire(), document, &event) };
                 }
                 // The native document remains borrowed until after reset.
                 self.reset_session();
@@ -154,7 +158,7 @@ impl EpubSession {
         self.flush_session();
         if unsafe { (self.leaves.has_exit_subscriber)() } != 0 {
             let percent = self.base_exit_percent();
-            unsafe { (self.leaves.emit_exit)(self.path.wire(), percent) };
+            unsafe { (self.leaves.emit_exit)(self.path().wire(), percent) };
         }
         unsafe {
             (self.leaves.render_orientation)(0);
@@ -292,7 +296,7 @@ impl EpubSession {
                 let app = super::super::app().expect("application initialized");
                 app.navigate(app_abi::Launch::new(
                     app_abi::FILES,
-                    app_abi::LaunchPayload::Files(self.path.wire()),
+                    app_abi::LaunchPayload::Files(self.path().wire()),
                 ));
                 true
             }
@@ -448,7 +452,7 @@ impl EpubSession {
             }
             self.render_operation(access, Command::Clear(255));
             if let Some(end) = self.end_options(access) {
-                unsafe { (self.leaves.end_load)(end.as_ptr(), self.path.wire()) };
+                unsafe { (self.leaves.end_load)(end.as_ptr(), self.path().wire()) };
                 self.mark_end_ready(access);
                 unsafe { (self.leaves.end_paint)(end.as_ptr()) };
             }

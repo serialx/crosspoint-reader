@@ -1,7 +1,7 @@
 use super::{abi, app_abi, EpubSession};
 use core::{ffi::c_void, ptr::NonNull};
 
-type BookText = unsafe extern "C" fn(*mut c_void, app_abi::TextSink, *mut c_void) -> u8;
+type BookText = unsafe fn(*mut c_void, app_abi::TextSink, *mut c_void) -> u8;
 
 // Native text remains borrowed only while its synchronous sink is running.
 pub(super) fn with_book_text<R>(
@@ -47,7 +47,45 @@ pub(super) fn with_text<R>(
 
 impl EpubSession {
     pub(super) fn load_clippings(&self, book: NonNull<c_void>) -> bool {
-        unsafe { (self.leaves.clippings_load)(book.as_ptr()) != 0 }
+        unsafe { super::session_book::load_clippings(book.as_ptr(), self.leaves) }
+    }
+
+    pub(super) fn book_factory(&self) -> &super::session_book::Factory {
+        #[cfg(feature = "app-test")]
+        {
+            &self.book_factory
+        }
+        #[cfg(not(feature = "app-test"))]
+        {
+            &super::session_book::Factory::Reader
+        }
+    }
+
+    pub(super) fn path(&self) -> &super::Text {
+        match self.loop_book() {
+            Some(book) => unsafe { super::session_book::path_text(book.as_ptr()) },
+            None => unsafe { &*self.path.get() },
+        }
+    }
+
+    pub(super) fn set_book_extractor(
+        &self,
+        access: &super::ResourceAccess<'_>,
+        book: Option<NonNull<c_void>>,
+    ) {
+        let facade = book.map_or(core::ptr::null_mut(), |book| {
+            assert_eq!(
+                self.book(access),
+                Some(book),
+                "extractor must borrow this session's book"
+            );
+            unsafe { super::session_book::facade(book.as_ptr()) }
+        });
+        unsafe { (self.leaves.book_set_extractor)(facade) };
+    }
+
+    pub(super) fn add_recent(&self, book: NonNull<c_void>) {
+        unsafe { super::session_book::add_recent(book.as_ptr(), self.leaves) };
     }
 
     pub(super) fn settings(&self, resolve_font: bool) -> abi::XpEpubSettings {

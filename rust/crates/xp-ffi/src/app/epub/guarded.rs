@@ -45,6 +45,20 @@ impl GuardedCell {
 }
 
 impl EpubSession {
+    #[cfg(feature = "app-test")]
+    fn fixture_book_pointer(&self, book: Option<NonNull<c_void>>) -> Option<NonNull<c_void>> {
+        // Box reclamation may retag the fixture allocation. Derive the inline
+        // pointer from this owner borrow rather than reusing its published tag.
+        let slot = self.legacy_fixture.get().cast::<c_void>();
+        book.map(|book| {
+            if book.as_ptr() == slot {
+                NonNull::new(slot).expect("inline fixture storage")
+            } else {
+                book
+            }
+        })
+    }
+
     // Keep raw storage private to this module. Every field loan ends before a
     // caller can invoke a native callback or update another resource.
     fn guarded_ptr(&self, access: &ResourceAccess<'_>) -> *mut Guarded {
@@ -61,7 +75,10 @@ impl EpubSession {
     }
 
     pub(super) fn book(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded_ptr(access)).book }
+        let book = unsafe { (*self.guarded_ptr(access)).book };
+        #[cfg(feature = "app-test")]
+        let book = self.fixture_book_pointer(book);
+        book
     }
 
     pub(super) fn set_book(&self, access: &ResourceAccess<'_>, value: Option<NonNull<c_void>>) {
@@ -69,7 +86,10 @@ impl EpubSession {
     }
 
     pub(super) fn take_book(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded_ptr(access)).book.take() }
+        let book = unsafe { (*self.guarded_ptr(access)).book.take() };
+        #[cfg(feature = "app-test")]
+        let book = self.fixture_book_pointer(book);
+        book
     }
 
     pub(super) fn section(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
@@ -238,7 +258,10 @@ impl EpubSession {
     // ResourceAccess; these field-only reads never borrow the whole storage.
 
     pub(super) fn loop_book(&self) -> Option<NonNull<c_void>> {
-        unsafe { core::ptr::addr_of!((*self.guarded.0.get()).book).read() }
+        let book = unsafe { core::ptr::addr_of!((*self.guarded.0.get()).book).read() };
+        #[cfg(feature = "app-test")]
+        let book = self.fixture_book_pointer(book);
+        book
     }
 
     pub(super) fn loop_bookmark_handle(&self) -> Option<NonNull<c_void>> {

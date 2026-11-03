@@ -46,18 +46,18 @@ static const XpAppRuntime idleRuntime = [] {
   return table;
 }();
 static const XpAppResources idleResources = overlayUnexpectedResources();
-static const XpEpubLeaves idleLeaves = [] {
-  auto table = overlayUnexpectedLeaves();
-  table.render_busy = []() -> uint8_t { idleOwner(); return RenderLock::peek(); };
-  table.book_spine_count = [](void* raw) -> int32_t {
+static const LegacyEpubLeaves idleLeaves = [] {
+  auto table = overlayLegacyLeaves();
+  table.physical.render_busy = []() -> uint8_t { idleOwner(); return RenderLock::peek(); };
+  table.book.book_spine_count = [](void* raw) -> int32_t {
     auto& owner = idleOwner(); assert(raw == owner.epub.get());
     return owner.epub->getSpineItemsCount();
   };
-  table.popup_active = [](void* raw) -> uint8_t {
+  table.physical.popup_active = [](void* raw) -> uint8_t {
     auto& owner = idleOwner(); assert(raw == &owner.loadFailurePopup);
     return owner.loadFailurePopup.isActive();
   };
-  table.input_facts = [](XpEpubInputFacts* out) {
+  table.physical.input_facts = [](XpEpubInputFacts* out) {
     auto& owner = idleOwner();
     *out = {};
     out->held_ms = owner.mappedInput.getHeldTime();
@@ -69,7 +69,7 @@ static const XpEpubLeaves idleLeaves = [] {
       if (gpio.isPressed(button)) out->raw_held |= 1u << button;
     out->board_touch = 0;
   };
-  table.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
+  table.physical.settings_snapshot = [](uint8_t resolve, XpEpubSettings* out) {
     auto& owner = idleOwner(); assert(!resolve);
     *out = {};
     out->orientation = SETTINGS.orientation;
@@ -82,10 +82,10 @@ static const XpEpubLeaves idleLeaves = [] {
     out->long_menu = owner.confirmThreshold == 400 ? CrossPointSettings::LP_MENU_BOOKMARK
                                                   : CrossPointSettings::LP_MENU_DISABLED;
   };
-  table.input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
+  table.physical.input_screen_long = [](int32_t* x, int32_t* y) -> uint8_t {
     return idleOwner().mappedInput.wasScreenLongPress(*x, *y);
   };
-  table.input_services = []() -> const XpUiReaderInputServices* {
+  table.physical.input_services = []() -> const XpUiReaderInputServices* {
     idleOwner();
     static const XpUiReaderInputServices input{
       nullptr,
@@ -104,6 +104,10 @@ static const XpEpubLeaves idleLeaves = [] {
     };
     return &input;
   };
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle) idleLeaves.book.book_install_extractor(handle);
+    else idleLeaves.book.book_clear_extractor();
+  };
   return table;
 }();
 
@@ -113,7 +117,7 @@ struct IdleSessionBridge {
     assert(!activeIdle && !idleModelDepth && !lockDepth);
     activeIdle = &owner;
     XpEpubTestIdleSeed seed{&owner, owner.epub.get(), &owner.loadFailurePopup, idleSeedSnapshot(owner)};
-    rust = xp_epub_test_idle_create(&seed, &idleLeaves, &idleRuntime, &idleResources);
+    rust = xp_epub_test_idle_create_legacy_book(&seed,&idleLeaves.physical, &idleRuntime, &idleResources, &idleLeaves.book);
     assert(rust);
   }
   ~IdleSessionBridge() {

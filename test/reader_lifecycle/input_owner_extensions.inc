@@ -44,7 +44,7 @@ static bool ownerLanguageTag(const char* language) {
 
 static XpEpubTestChapterDisplay ownerChapterDisplay(int page, int total) {
   assert(inputOwner && !currentInput && !inputModelDepth);
-  auto leaves = overlayUnexpectedLeaves();
+  auto leaves = overlayLegacyLeaves();
   auto runtime = overlayUnexpectedRuntime();
   auto resources = overlayUnexpectedResources();
   runtime.model_lock = [] { assert(!inputModelDepth); ++inputModelDepth; };
@@ -62,7 +62,7 @@ static XpEpubTestChapterDisplay ownerChapterDisplay(int page, int total) {
   UNUSED_CHAPTER_HOOK(fallback);
   UNUSED_CHAPTER_HOOK(estimate);
 #undef UNUSED_CHAPTER_HOOK
-  void* owner = xp_epub_test_projection_create(&seed, &leaves, &runtime, &resources);
+  void* owner = xp_epub_test_projection_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner && !inputModelDepth);
   XpEpubTestChapterPosition actual{};
   xp_epub_test_projection_chapter(owner, &actual);

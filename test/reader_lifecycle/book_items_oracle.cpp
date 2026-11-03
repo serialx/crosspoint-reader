@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -44,6 +45,16 @@ class Epub {
  public:
   std::string filepath;
   std::unique_ptr<freeink::content::ContentDecryptor> decryptor;
+  // This oracle constructs the ordinary native book; facade composition is separate.
+  struct BorrowedBook {
+    void* context;
+    const XpEpubBookBorrow& callbacks;
+  };
+  std::optional<BorrowedBook> borrowedBook;
+  bool requireOwned() const {
+    assert(!borrowedBook);
+    return !borrowedBook;
+  }
   struct ItemContext;
   static XpBookIoServices itemServices(ItemContext&);
   uint8_t* readItemContentsToBytes(const std::string&, size_t*, bool) const;

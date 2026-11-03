@@ -188,7 +188,7 @@ impl EpubSession {
             return Some(use_text(fallback));
         };
         let spine = self.model(|state| state.current.spine);
-        let index = unsafe { (self.leaves.book_toc_for_spine)(book.as_ptr(), spine) };
+        let index = unsafe { (super::session_book::toc_for_spine)(book.as_ptr(), spine) };
         if index == -1 {
             return Some(use_text(if empty_without_book {
                 self.value_label(ids::STR_UNNAMED)
@@ -208,7 +208,7 @@ impl EpubSession {
             |sink, context| {
                 let mut call = TitleSink { sink, context };
                 unsafe {
-                    (self.leaves.book_toc)(
+                    (super::session_book::toc)(
                         book.as_ptr(),
                         index,
                         title,
@@ -301,7 +301,7 @@ impl EpubSession {
         let book = self.book(access);
         let progress = book.map_or(0.0, |book| {
             let spine = self.model(|state| state.current.spine);
-            unsafe { (self.leaves.book_progress)(book.as_ptr(), spine, fraction) * 100.0 }
+            unsafe { (super::session_book::progress)(book.as_ptr(), spine, fraction) * 100.0 }
         });
         let mut geometry = MaybeUninit::uninit();
         unsafe { (self.leaves.render_geometry)(geometry.as_mut_ptr()) };
@@ -357,7 +357,7 @@ impl EpubSession {
                     });
                 } else if geometry.title_mode == 0 {
                     if let Some(book) = book {
-                        with_book_text(book, self.leaves.book_title, |title| {
+                        with_book_text(book, super::session_book::title, |title| {
                             self.paint_status_title(access, &status, title)
                         });
                     } else {

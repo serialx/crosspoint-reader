@@ -40,12 +40,12 @@ void bindDiagnostic() {
     assert(!f().modelDepth);
     return 0;
   };
-  leaves.book_spine_count = [](void* raw) -> int32_t {
+  legacyBook.book_spine_count = [](void* raw) -> int32_t {
     physical();
     f().handle(raw, Kind::Book);
     return 2;
   };
-  leaves.book_spine = [](void* raw, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
+  legacyBook.book_spine = [](void* raw, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
     physical();
     f().handle(raw, Kind::Book);
     assert(index == 1 && sink);

@@ -6,7 +6,7 @@ use super::super::{
     EpubSession, ResourceAccess,
 };
 use alloc::boxed::Box;
-use core::{ffi::c_void, ptr::NonNull};
+use core::ffi::c_void;
 use xp_ui::reader::Session;
 
 #[repr(C)]
@@ -40,17 +40,19 @@ fn observation(base: &BasePublication) -> PublicationObservation {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_publication_create(
+pub unsafe extern "C" fn xp_epub_test_publication_create_legacy_book(
     seed: *const PublicationSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_book: &'static super::legacy_book::LegacyBookServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 15, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
     let state = owner.state.get_mut();
     state.ready = seed.ready != 0;
     state.base.session = SessionAccounting::from(&seed.session);
@@ -63,8 +65,7 @@ pub unsafe extern "C" fn xp_epub_test_publication_create(
         estimated_pages: 100,
         ..SectionFacts::default()
     });
-    owner.guarded.get_mut().book = NonNull::new(seed.book);
-    Box::into_raw(owner).cast()
+    super::super::session_book::publish_legacy_fixture(owner, seed.book, legacy_book)
 }
 
 #[no_mangle]
@@ -72,7 +73,7 @@ pub unsafe extern "C" fn xp_epub_test_publication_destroy(owner: *mut c_void) {
     let mut owner = Box::from_raw(owner.cast::<EpubSession>());
     assert!(owner.guarded.get_mut().active_frame.is_none());
     // The book is borrowed from the host physical fixture.
-    owner.guarded.get_mut().book = None;
+    owner.discard_legacy_fixture();
     drop(owner);
 }
 

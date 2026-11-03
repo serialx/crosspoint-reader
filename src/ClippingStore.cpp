@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <functional>
+#include <limits>
 
 #include "clippings/ClippingPreview.h"
 
@@ -136,15 +137,17 @@ bool moveTreeStores(const std::string& from, const std::string& to, const MovePh
 
 ClippingStore ClippingStore::instance;
 
-bool ClippingStore::loadForBook(const std::string& filePath, const std::string& title, const std::string& author,
-                                const std::string& bookType) {
+bool ClippingStore::loadForBook(std::string_view filePath, std::string_view title, std::string_view author,
+                                std::string_view bookType) {
   dirty = false;
   loaded = false;
   for (auto& block : clippingBlocks) block.reset();
   clippingSize = clippingCapacity = 0;
   storeFilePath.clear();
   if (bookType != "epub" || filePath.empty()) {
-    LOG_ERR("CLIP", "Invalid clipping book type or path: %s", bookType.c_str());
+    LOG_ERR("CLIP", "Invalid clipping book type or path: %.*s",
+            static_cast<int>(std::min<size_t>(bookType.size(), std::numeric_limits<int>::max())),
+            bookType.empty() ? "" : bookType.data());
     return false;
   }
 
@@ -152,7 +155,7 @@ bool ClippingStore::loadForBook(const std::string& filePath, const std::string& 
   bookTitle = title;
   bookAuthor = author;
 
-  storeFilePath = storeFilePathForBook(filePath, bookType);
+  storeFilePath = storeFilePathForBook(bookFilePath, "epub");
   const std::string backup = storeFilePath + ".bak";
   if (!Storage.exists(storeFilePath.c_str()) && Storage.exists(backup.c_str()) &&
       !Storage.rename(backup.c_str(), storeFilePath.c_str())) {

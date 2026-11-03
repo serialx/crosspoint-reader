@@ -110,23 +110,23 @@ impl EpubSession {
         self.loop_partial_build();
         let at_end = self.model(|state| state.current.spine > 0)
             && self.model(|state| state.current.spine)
-                >= unsafe { (self.leaves.book_spine_count)(book.as_ptr()) };
+                >= unsafe { (super::session_book::spine_count)(book.as_ptr()) };
         self.clear_end_options();
         if self.settings(false).remove_read_recents != 0 {
             if at_end && !self.model(|state| state.recents_removed) {
-                let removed = with_book_text(book, self.leaves.book_path, |path| unsafe {
+                let removed = with_book_text(book, super::session_book::path, |path| unsafe {
                     (self.leaves.recents_remove)(path) != 0
                 })
                 .unwrap_or(false);
                 self.model(|state| state.recents_removed = removed);
             } else if !at_end && self.model(|state| state.recents_removed) {
-                unsafe { (self.leaves.recents_add)(book.as_ptr()) };
+                self.add_recent(book);
                 self.model(|state| state.recents_removed = false);
             }
         }
         let move_to_read = at_end
             && self.settings(false).move_finished != 0
-            && !with_book_text(book, self.leaves.book_path, |path| {
+            && !with_book_text(book, super::session_book::path, |path| {
                 let inside = is_in_read_folder(unsafe { path.bytes() }.unwrap_or_default());
                 #[cfg(feature = "app-test")]
                 if let Some(hooks) = self.loop_hooks {

@@ -7,6 +7,9 @@ import subprocess
 import sys
 import tempfile
 
+from book_facade_composition import compile_command, facade_bridge_source, facade_inputs
+from book_store_composition import store_adapters
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -33,10 +36,15 @@ def main():
     cases += [('invalid-span',), ('null-table',)]
     assert len(cases) == 57
     scaffold = (here / 'app_owned_epub.cpp').read_text().split('int main(int argc, char** argv) {', 1)[0]
-    source = scaffold + '\n' + (here / 'app_routing.inc').read_text()
+    routing = (here / 'app_routing.inc').read_text()
+    routing = routing.replace('  bindRouting();',
+                              '  bindRouting();\n  bindReaderBook();\n  BookStoreAdapters::bind();')
+    routing = routing.replace('assertEntered();', 'assertReaderEntered();')
+    source = scaffold + (here / 'reader_book_app_fixture.inc').read_text() + store_adapters(root) + routing
     inputs = [here / p for p in ('app_owned_epub.cpp', 'app_routing.inc', 'base_session_fixture.h',
                                  'physical_defaults.h', 'test_app_routing.py')]
     inputs += list((root / 'rust/crates/xp-ffi/src/app').rglob('*.rs'))
+    inputs += sorted(facade_inputs(root))
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
     archive_hash = hashlib.sha256(args.archive.read_bytes()).hexdigest()
     with tempfile.TemporaryDirectory(prefix='reader-app-routing-') as directory:
@@ -58,10 +66,11 @@ def main():
 
         try:
             binary = work / 'routing'
-            run(['c++', '-std=c++20', '-UNDEBUG', '-O0', '-fsanitize=address,undefined',
-                 '-fno-sanitize-recover=all', '-DXP_FFI_HOST_FAULT_INJECTION', '-I', str(here),
-                 '-I', str(root / 'test/ui_runtime'), str(work / 'routing.cpp'),
-                 *rust_link_flags(archive=str(args.archive)), '-o', str(binary)], 'compile')
+            facade = work / 'facade.cpp'
+            facade.write_text(facade_bridge_source(root))
+            command = compile_command(root, work, facade, binary, archive=str(args.archive))
+            command.insert(command.index('-o'), str(work / 'routing.cpp'))
+            run(command, 'compile')
             for index, case in enumerate(cases):
                 run([str(binary), *case], f'{index:02d}-{case[0]}')
             summary = dict(cases=cases, results=results, source_sha256=hashes, archive_sha256=archive_hash,

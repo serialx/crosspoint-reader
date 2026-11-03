@@ -1,4 +1,5 @@
 #pragma once
+#include "legacy_book_fixture.h"
 #include "overlay_actions_session_fixture.h"
 
 struct XpEpubTestLoopHooks {
@@ -64,8 +65,8 @@ struct XpEpubTestLoopObservation {
   int32_t automatic, manual_turn, manual_touch, bookmark, dictionary, font, clipping, orientation, spine;
 };
 extern "C" {
-void* xp_epub_test_loop_create(const XpEpubTestLoopSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                               const XpAppResources*);
+void* xp_epub_test_loop_create_legacy_book(const XpEpubTestLoopSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                           const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_loop(void*);
 void xp_epub_test_loop_observe(void*, XpEpubTestLoopObservation*);
 void xp_epub_test_loop_destroy(void*);

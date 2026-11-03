@@ -21,9 +21,9 @@ static const XpAppRuntime runtime = [] {
   };
   return value;
 }();
-static const XpEpubLeaves leaves = [] {
-  auto value = overlayUnexpectedLeaves();
-  value.input_snapshot = [](XpUiInput* out) {
+static const LegacyEpubLeaves leaves = [] {
+  auto value = overlayLegacyLeaves();
+  value.physical.input_snapshot = [](XpUiInput* out) {
     assert(!depth);
     ++snapshots;
     *out = frame;
@@ -47,7 +47,7 @@ static void create() {
     assert(!depth);
     ++updates;
   };
-  owner = xp_epub_test_overlay_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_overlay_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
   snapshots = updates = 0;
   frame = {};

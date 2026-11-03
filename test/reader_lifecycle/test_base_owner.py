@@ -25,8 +25,8 @@ RUST_MUTANTS = (
                                      b'if state.base.remembered {'),)),
     ('accept-invalid-document', ((b".all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))",
                                   b'.all(|_| true)'),)),
-    ('continue-after-missing-file', ((b'if unsafe { (self.resources.path_exists)(self.path.wire()) } == 0 {',
-                                     b'if unsafe { (self.resources.path_exists)(self.path.wire()) } == 2 {'),)),
+    ('continue-after-missing-file', ((b'if unsafe { (self.resources.path_exists)(self.path().wire()) } == 0 {',
+                                     b'if unsafe { (self.resources.path_exists)(self.path().wire()) } == 2 {'),)),
     ('previous-wins-simultaneous-end-turn', ((b'if next {\n            self.go_home();',
                                             b'if next && !previous {\n            self.go_home();'),)),
     ('reset-after-document-release', (

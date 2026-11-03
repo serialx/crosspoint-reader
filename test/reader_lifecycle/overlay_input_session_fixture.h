@@ -28,8 +28,9 @@ struct XpEpubTestOverlayInputObservation {
   uint8_t section;
 };
 extern "C" {
-void* xp_epub_test_overlay_input_create(const XpEpubTestOverlayInputSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                        const XpAppResources*);
+void* xp_epub_test_overlay_input_create_legacy_book(const XpEpubTestOverlayInputSeed*, const XpEpubLeaves*,
+                                                    const XpAppRuntime*, const XpAppResources*,
+                                                    const XpEpubLegacyBookServices*);
 void xp_epub_test_overlay_input(void*);
 void xp_epub_test_overlay_input_result(void*, const XpAppResultView*);
 void xp_epub_test_overlay_input_observe(void*, XpEpubTestOverlayInputObservation*);

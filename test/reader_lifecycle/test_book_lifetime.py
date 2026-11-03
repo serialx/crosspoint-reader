@@ -74,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='reader-book-lifetime-') as directory:
     target = work / 'target'
     mutants = [
         ('framebuffer-loan', 'let _loan = if uncached {', 'let _loan = if false {'),
-        ('text-reference', '(self.leaves.book_text_reference)(book.as_ptr())', '0i32'),
+        ('text-reference', '(super::session_book::text_reference)(book.as_ptr())', '0i32'),
         ('save-links', 'self.save_links(access);', '/* deliberate mutant: omit link-stack save */'),
         ('progress-file-lifetime', 'let _progress_file = self.load_progress(access);',
          'drop(self.load_progress(access));'),

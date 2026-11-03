@@ -29,6 +29,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "BookmarkEntry.h"
@@ -140,6 +141,10 @@ std::string owned(XpAppText value) {
   return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
 }
 
+std::string_view view(XpAppText value) {
+  return value.len ? std::string_view(reinterpret_cast<const char*>(value.data), value.len) : std::string_view();
+}
+
 const std::string& borrowed(XpAppNativeText value) {
   assert(value.native_string);
   const auto& result = *static_cast<const std::string*>(value.native_string);
@@ -170,10 +175,19 @@ const std::string& borrowed(XpAppNativeText value) {
 }
 
 struct BookHandle {
-  std::unique_ptr<Epub> loading;
   std::shared_ptr<Epub> book;
 
-  Epub& value() const { return loading ? *loading : *book; }
+  bool closing = false;
+  Epub& value() const {
+    assert(!closing);
+    return *book;
+  }
+  void bindExtractor() {
+    assert(!closing);
+    ImageBlock::setExtractor(book.get(), [](void* raw, const char* source, const char* destination) {
+      return static_cast<Epub*>(raw)->extractItemToFile(source, destination);
+    });
+  }
 };
 struct NativeRenderFrame {
   GfxRenderer& renderer;
@@ -727,76 +741,60 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return false;
 #endif
       },
-      .book_open = [](XpAppText path) -> void* {
+      .book_facade_open = [](void* owner, const XpEpubBookView* view, const XpEpubBookBorrow* borrow) -> void* {
         auto handle = makeUniqueNoThrow<BookHandle>();
         if (!handle) return nullptr;
-        handle->loading = makeUniqueNoThrow<Epub>(owned(path), "/.crosspoint");
-        return handle->loading ? handle.release() : nullptr;
+        auto facade = makeUniqueNoThrow<Epub>(owner, *view, *borrow);
+        if (!facade) return nullptr;
+        handle->book = std::move(facade);
+        ImageBlock::clearRenderFailures();
+        handle->bindExtractor();
+        return handle.release();
       },
-      .book_load = [](void* handle, uint8_t buildMissing, uint8_t skipCss) -> uint8_t {
-        auto& resource = book(handle);
-        if (!resource.value().load(buildMissing != 0, skipCss != 0)) return 0;
-        if (resource.loading) resource.book = std::move(resource.loading);
-        return 1;
-      },
-      .book_close = [](void* handle) { delete static_cast<BookHandle*>(handle); },
-      .book_size = [](void* handle) -> uint32_t { return book(handle).value().getBookSize(); },
-      .book_spine_count = [](void* handle) -> int32_t { return book(handle).value().getSpineItemsCount(); },
-      .book_toc_count = [](void* handle) -> int32_t { return book(handle).value().getTocItemsCount(); },
-      .book_path = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
-        return sink(context, text(book(handle).value().getPath()));
-      },
-      .book_cache_path = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
-        return sink(context, text(book(handle).value().getCachePath()));
-      },
-      .book_title = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
-        return sink(context, text(book(handle).value().getTitle()));
-      },
-      .book_author = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
-        return sink(context, text(book(handle).value().getAuthor()));
-      },
-      .book_language = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
-        return sink(context, text(book(handle).value().getLanguage()));
-      },
-      .book_spine = [](void* handle, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
-        const auto value = book(handle).value().getSpineItem(index);
-        const XpEpubSpine view{text(value.href), value.cumulativeSize};
-        return sink(context, &view);
-      },
-      .book_toc = [](void* handle, int32_t index, XpEpubTocSink sink, void* context) -> uint8_t {
-        const auto value = book(handle).value().getTocItem(index);
-        const XpEpubToc view{text(value.title), text(value.anchor), value.spineIndex, value.level};
-        return sink(context, &view);
-      },
-      .book_toc_for_spine = [](void* handle, int32_t index) -> int32_t {
-        return book(handle).value().getTocIndexForSpineIndex(index);
-      },
-      .book_cumulative_size = [](void* handle, int32_t spine) -> uint32_t {
-        return book(handle).value().getCumulativeSpineItemSize(spine);
-      },
-      .book_spine_for_size = [](void* handle, uint32_t bytes) -> int32_t {
-        return book(handle).value().getSpineIndexForSize(bytes);
-      },
-      .book_text_reference = [](void* handle) -> int32_t {
-        return book(handle).value().getSpineIndexForTextReference();
-      },
-      .book_progress = [](void* handle, int32_t spine,
-                          float fraction) { return book(handle).value().calculateProgress(spine, fraction); },
-      .book_resolve_href = [](void* handle, XpAppText href) -> int32_t {
-        return book(handle).value().resolveHrefToSpineIndex(owned(href));
-      },
-      .book_setup_cache = [](void* handle) { book(handle).value().setupCacheDir(); },
-      .book_clear_cache = [](void* handle) { book(handle).value().clearCache(); },
-      .book_install_extractor =
+      .book_facade_close =
           [](void* handle) {
-            ImageBlock::setExtractor(&book(handle).value(), [](void* raw, const char* source, const char* destination) {
-              return static_cast<Epub*>(raw)->extractItemToFile(source, destination);
-            });
+            auto& facade = book(handle);
+            assert(!facade.closing && facade.book.use_count() == 1);
+            facade.closing = true;
+            delete &facade;
           },
-      .book_clear_extractor = [] { ImageBlock::setExtractor(nullptr, nullptr); },
-      .book_protection_error = [](void* handle, XpAppTextSink sink, void* context) -> uint8_t {
-        return sink(context, text(book(handle).value().getProtectionError()));
+      .book_set_extractor =
+          [](void* handle) {
+            if (handle)
+              book(handle).bindExtractor();
+            else
+              ImageBlock::setExtractor(nullptr, nullptr);
+          },
+      .protection_open = [](XpAppText path, XpAppTextSink error, void* context) -> void* {
+        std::string message;
+        auto protection = freeink::content::openProtectedBook(owned(path), message);
+        if (!message.empty()) error(context, text(message));
+        return protection.release();
       },
+      .protection_close = [](void* protection) { delete static_cast<freeink::content::ContentDecryptor*>(protection); },
+      .protection_encrypted = [](void* protection, XpAppText path) -> uint8_t {
+        return static_cast<freeink::content::ContentDecryptor*>(protection)->isEncrypted(owned(path));
+      },
+      .protection_size = [](void* protection, XpAppText path) -> uint32_t {
+        return static_cast<freeink::content::ContentDecryptor*>(protection)->decryptedSize(owned(path));
+      },
+      .protection_stream = [](void* protection, XpAppText path, XpBookSink sink, void* context) -> uint8_t {
+        struct Output {
+          XpBookSink sink;
+          void* context;
+        } output{sink, context};
+        return static_cast<freeink::content::ContentDecryptor*>(protection)
+            ->decryptToSink(
+                owned(path),
+                [](void* raw, const uint8_t* bytes, size_t size) {
+                  const auto& out = *static_cast<Output*>(raw);
+                  return out.sink(out.context, bytes, size) != 0;
+                },
+                &output);
+      },
+      .file_seek = [](void* file, uint32_t offset) -> uint8_t { return static_cast<HalFile*>(file)->seek(offset); },
+      .file_size = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->size(); },
+      .path_remove_tree = [](XpAppText path) -> uint8_t { return Storage.removeDir(pathText(path)); },
       .progress_to_reader =
           [](void* handle, const XpEpubSavedProgress* saved, int32_t spine, int32_t count, XpEpubPosition* out) {
             const auto value = ProgressMapper::toCrossPoint(book(handle).book, {owned(saved->xpath), saved->percentage},
@@ -1284,11 +1282,11 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .bookmarks_open = []() -> void* { return makeUniqueNoThrow<Bookmarks>().release(); },
       .bookmarks_close = [](void* handle) { delete static_cast<Bookmarks*>(handle); },
       .bookmarks_clear = [](void* handle) { bookmarkRows(handle).clear(); },
-      .bookmarks_load = [](void* handle, void* bookHandle) -> uint8_t {
-        return BookmarkFile::load(book(bookHandle).value().getPath(), bookmarkRows(handle));
+      .bookmarks_load = [](void* handle, XpAppText path) -> uint8_t {
+        return BookmarkFile::load(owned(path), bookmarkRows(handle));
       },
-      .bookmarks_save = [](void* handle, void* bookHandle) -> uint8_t {
-        return BookmarkFile::save(book(bookHandle).value().getPath(), bookmarkRows(handle));
+      .bookmarks_save = [](void* handle, XpAppText path) -> uint8_t {
+        return BookmarkFile::save(owned(path), bookmarkRows(handle));
       },
       .bookmarks_count = [](void* handle) -> uint32_t { return bookmarkRows(handle).size(); },
       .bookmarks_row = [](void* handle, uint32_t index, XpEpubBookmarkSink sink, void* context) -> uint8_t {
@@ -1322,9 +1320,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         bookmarkRows(handle).insert(bookmarkRows(handle).begin(), std::move(entry));
         return 1;
       },
-      .clippings_load = [](void* handle) -> uint8_t {
-        const auto& value = book(handle).value();
-        return CLIPPINGS.loadForBook(value.getPath(), value.getTitle(), value.getAuthor(), "epub");
+      .clippings_load = [](const XpAppBook* value) -> uint8_t {
+        return CLIPPINGS.loadForBook(view(value->path), view(value->title), view(value->author), "epub");
       },
       .clippings_unload = [] { CLIPPINGS.unload(); },
       .clippings_count = []() -> uint32_t { return CLIPPINGS.clippingCount(); },
@@ -1352,9 +1349,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       },
       .recents_remove = [](XpAppText path) -> uint8_t { return RECENT_BOOKS.removeByPath(owned(path)); },
       .recents_add =
-          [](void* handle) {
-            const auto& value = book(handle).value();
-            RECENT_BOOKS.addBook(value.getPath(), value.getTitle(), value.getAuthor(), value.getThumbBmpPath());
+          [](const XpAppBook* value) {
+            RECENT_BOOKS.addBook(view(value->path), view(value->title), view(value->author), view(value->cover));
           },
       .recents_update_path =
           [](XpAppText from, XpAppText to, XpAppText oldCache, XpAppText newCache) {
@@ -1446,36 +1442,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); },
       .page_render = [](void* handle, int32_t font, int32_t left,
                         int32_t top) { static_cast<Page*>(handle)->render(*target, font, left, top); },
-      .protection_open = [](XpAppText path, XpAppTextSink error, void* context) -> void* {
-        std::string message;
-        auto protection = freeink::content::openProtectedBook(owned(path), message);
-        if (!message.empty()) error(context, text(message));
-        return protection.release();
-      },
-      .protection_close = [](void* protection) { delete static_cast<freeink::content::ContentDecryptor*>(protection); },
-      .protection_encrypted = [](void* protection, XpAppText path) -> uint8_t {
-        return static_cast<freeink::content::ContentDecryptor*>(protection)->isEncrypted(owned(path));
-      },
-      .protection_size = [](void* protection, XpAppText path) -> uint32_t {
-        return static_cast<freeink::content::ContentDecryptor*>(protection)->decryptedSize(owned(path));
-      },
-      .protection_stream = [](void* protection, XpAppText path, XpBookSink sink, void* context) -> uint8_t {
-        struct Output {
-          XpBookSink sink;
-          void* context;
-        } output{sink, context};
-        return static_cast<freeink::content::ContentDecryptor*>(protection)
-            ->decryptToSink(
-                owned(path),
-                [](void* raw, const uint8_t* bytes, size_t size) {
-                  const auto& out = *static_cast<Output*>(raw);
-                  return out.sink(out.context, bytes, size) != 0;
-                },
-                &output);
-      },
-      .file_seek = [](void* file, uint32_t offset) -> uint8_t { return static_cast<HalFile*>(file)->seek(offset); },
-      .file_size = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->size(); },
-      .path_remove_tree = [](XpAppText path) -> uint8_t { return Storage.removeDir(pathText(path)); },
       .cache_lock = [] { BookMetadataCache::lockReadCursor(); },
       .cache_unlock = [] { BookMetadataCache::unlockReadCursor(); },
       .scratch_claim = [](uint32_t min_len) { return buildscratch::claim(min_len); },

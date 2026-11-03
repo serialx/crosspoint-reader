@@ -2,6 +2,8 @@
 #include <xp_epub_session.h>
 #include <xp_ui_reader.h>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubPublicationSeed {
   void* book;
   XpUiReaderSession session;
@@ -14,8 +16,9 @@ struct XpEpubPublicationObservation {
   uint8_t refresh_requests, end_ready, rendered, remembered;
 };
 extern "C" {
-void* xp_epub_test_publication_create(const XpEpubPublicationSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                      const XpAppResources*);
+void* xp_epub_test_publication_create_legacy_book(const XpEpubPublicationSeed*, const XpEpubLeaves*,
+                                                  const XpAppRuntime*, const XpAppResources*,
+                                                  const XpEpubLegacyBookServices*);
 void xp_epub_test_publication_destroy(void*);
 void xp_epub_test_publication_observe(void*, XpEpubPublicationObservation*);
 void xp_epub_test_publication_ready(void*, uint8_t);

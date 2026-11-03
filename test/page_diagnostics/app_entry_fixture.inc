@@ -1,4 +1,5 @@
-// App ownership with physical fakes and no EPUB policy hooks.
+// Frozen App ownership oracle with explicit synthetic book inputs.
+#include "../reader_lifecycle/legacy_book_fixture.h"
 #include <array>
 #include <cassert>
 #include <cstring>
@@ -10,7 +11,7 @@
 #include "physical_defaults.h"
 
 extern "C" {
-uint8_t xp_app_test_install_epub(XpAppText, uint8_t, const XpEpubLeaves*);
+uint8_t xp_app_test_install_epub_legacy_book(XpAppText, uint8_t, const XpEpubLeaves*, const XpEpubLegacyBookServices*);
 void* xp_app_test_current_epub();
 uint8_t xp_app_test_drain();
 void xp_test_fail_allocation_after(size_t);
@@ -145,6 +146,7 @@ uint8_t deliver(XpAppTextSink sink, void* context, const char* value) {
   return result;
 }
 static XpEpubLeaves leaves;
+static XpEpubLegacyBookServices legacyBook;
 static XpAppLegacy legacy;
 static XpAppResources resources;
 static XpAppRuntime runtime;
@@ -152,6 +154,11 @@ static XpAppPlatform platform;
 
 void bind() {
   leaves = unexpectedEpubLeaves();
+  legacyBook = unexpectedLegacyBookServices();
+  leaves.book_set_extractor = [](void* book) {
+    if (book) legacyBook.book_install_extractor(book);
+    else legacyBook.book_clear_extractor();
+  };
   legacy = unexpectedAppLegacy();
   resources = unexpectedAppResources();
   runtime = unexpectedAppRuntime();
@@ -306,18 +313,18 @@ void bind() {
     assert(orientation == 0);
     f().physical("orientation");
   };
-  leaves.book_open = [](XpAppText path) -> void* {
+  legacyBook.book_open = [](XpAppText path) -> void* {
     assert(!f().renderDepth && text(path) == f().path);
     auto* book = f().acquire(Kind::Book, f().entersGeneration);
     book->path = text(path);
     return book;
   };
-  leaves.book_cache_path = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
+  legacyBook.book_cache_path = [](void* raw, XpAppTextSink sink, void* context) -> uint8_t {
     auto& book = f().handle(raw, Kind::Book);
     f().physical("cache-path", book.generation, book.id);
     return deliver(sink, context, "/cache");
   };
-  leaves.book_load = [](void* raw, uint8_t build, uint8_t skip) -> uint8_t {
+  legacyBook.book_load = [](void* raw, uint8_t build, uint8_t skip) -> uint8_t {
     auto& book = f().handle(raw, Kind::Book);
     assert(build == 1 && skip == 0 && !f().renderDepth);
     ++f().bookLoads;
@@ -328,13 +335,13 @@ void bind() {
     assert(!f().renderDepth);
     f().physical("image-clear", f().entersGeneration);
   };
-  leaves.book_install_extractor = [](void* raw) {
+  legacyBook.book_install_extractor = [](void* raw) {
     auto& book = f().handle(raw, Kind::Book);
     assert(!f().extractor && !f().renderDepth);
     f().extractor = &book;
     f().physical("extractor-install", book.generation, book.id);
   };
-  leaves.book_setup_cache = [](void* raw) {
+  legacyBook.book_setup_cache = [](void* raw) {
     auto& book = f().handle(raw, Kind::Book);
     f().physical("cache-setup", book.generation, book.id);
   };
@@ -358,7 +365,7 @@ void bind() {
     assert(!f().renderDepth);
     f().physical("bookmarks-clear", h.generation, h.id);
   };
-  leaves.bookmarks_load = [](void* raw, void* bookRaw) -> uint8_t {
+  legacyBook.bookmarks_load = [](void* raw, void* bookRaw) -> uint8_t {
     auto& h = f().handle(raw, Kind::Bookmarks);
     auto& book = f().handle(bookRaw, Kind::Book);
     assert(h.generation == book.generation && !f().renderDepth);
@@ -366,7 +373,7 @@ void bind() {
     f().physical("bookmarks-load", h.generation, h.id);
     return 1;
   };
-  leaves.clippings_load = [](void* raw) -> uint8_t {
+  legacyBook.clippings_load = [](void* raw) -> uint8_t {
     auto& book = f().handle(raw, Kind::Book);
     assert(!f().clippings && !f().renderDepth);
     f().clippings = &book;
@@ -390,7 +397,7 @@ void bind() {
     assert(f().renderDepth == 1 && f().extractor);
     f().physical("state-save", f().extractor->generation);
   };
-  leaves.book_clear_extractor = [] {
+  legacyBook.book_clear_extractor = [] {
     assert(f().renderDepth == 1 && f().extractor);
     ++f().clearedExtractor;
     f().physical("extractor-clear", f().extractor->generation);
@@ -402,7 +409,7 @@ void bind() {
     f().physical("clippings-unload", f().clippings->generation);
     f().clippings = nullptr;
   };
-  leaves.book_close = [](void* raw) {
+  legacyBook.book_close = [](void* raw) {
     assert(f().renderDepth == 1 && !f().extractor && !f().clippings);
     f().release(raw, Kind::Book);
   };
@@ -414,5 +421,5 @@ void initialize() {
   assert(xp_app_init(&platform, &compatibility) == XP_APP_OK);
   assert(compatibility.activity_facts && compatibility.home_action && compatibility.screenshot_info);
 }
-uint8_t install() { return xp_app_test_install_epub(wire(f().path), 0, &leaves); }
+uint8_t install() { return xp_app_test_install_epub_legacy_book(wire(f().path), 0, &leaves, &legacyBook); }
 }

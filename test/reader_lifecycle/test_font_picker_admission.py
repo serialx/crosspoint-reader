@@ -183,7 +183,7 @@ def fixture_source(adapter):
                           '      xp_epub_test_overlay_reject(activeOverlayInput->rust);\n'
                           '    }\n'
                           '    return token;')
-    old = ('overlayInputLeaves.popup_dismiss = [](void* raw) {\n'
+    old = ('overlayInputLeaves.physical.popup_dismiss = [](void* raw) {\n'
            '    auto& owner = overlayInputOwner(); assert(!lockDepth && raw == &owner.overlayPopup);')
     new = old.replace('!lockDepth', 'lockDepth == 1')
     # Main may have already narrowed the repository fixture after the pin.

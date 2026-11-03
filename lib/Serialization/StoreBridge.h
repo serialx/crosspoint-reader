@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace store_bridge {
-inline XpStoreBytes bytes(const std::string& value) {
+inline XpStoreBytes bytes(std::string_view value) {
   return {reinterpret_cast<const uint8_t*>(value.data()), value.size()};
 }
 

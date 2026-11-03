@@ -104,7 +104,7 @@ static void installActualStore() {
     --modelDepth;
     modelMutex.unlock();
   };
-  childLeaves.clippings_insert = [](const XpEpubClipInsert* row) -> uint8_t {
+  childLeaves.physical.clippings_insert = [](const XpEpubClipInsert* row) -> uint8_t {
     assert(!modelDepth && row);
     // Capture the supplied facts, without asserting away the target mutant.
     ++insertCalls;
@@ -114,22 +114,22 @@ static void installActualStore() {
     insertResult = actualInsert(row);
     return insertResult;
   };
-  childLeaves.clippings_count = []() -> uint32_t {
+  childLeaves.physical.clippings_count = []() -> uint32_t {
     assert(lockDepth == 1 && !modelDepth);
     ++countCalls;
     return actualCount();
   };
-  childLeaves.clippings_row = [](uint32_t index, XpEpubClip* out) {
+  childLeaves.physical.clippings_row = [](uint32_t index, XpEpubClip* out) {
     assert(lockDepth == 1 && !modelDepth && out);
     ++rowCalls;
     actualRow(index, out);
   };
-  childLeaves.page_info = [](void* raw, XpEpubPageInfo* out) {
+  childLeaves.physical.page_info = [](void* raw, XpEpubPageInfo* out) {
     assert(lockDepth == 1 && !modelDepth && raw == emptyPage);
     ++pageInfoCalls;
     *out = {};  // Physical Page has no elements; no highlight policy is substituted.
   };
-  childLeaves.log_enabled = [](uint8_t) -> uint8_t { assert(!modelDepth); return 0; };
+  childLeaves.physical.log_enabled = [](uint8_t) -> uint8_t { assert(!modelDepth); return 0; };
 }
 
 struct StoredRow {

@@ -1,4 +1,5 @@
 #pragma once
+#include "legacy_book_fixture.h"
 #include "overlay_actions_session_fixture.h"
 
 struct XpEpubTestMenuHooks {
@@ -76,8 +77,8 @@ struct XpEpubTestMenuObservation {
   uint8_t more_count;
 };
 extern "C" {
-void* xp_epub_test_menu_create(const XpEpubTestMenuSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                               const XpAppResources*);
+void* xp_epub_test_menu_create_legacy_book(const XpEpubTestMenuSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                           const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_menu_destroy(void*);
 void xp_epub_test_menu_observe(void*, XpEpubTestMenuObservation*);
 void xp_epub_test_menu_anchor(void*, XpAppTextSink, void*);

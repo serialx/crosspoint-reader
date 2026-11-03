@@ -189,229 +189,229 @@ static const XpUiReaderRenderServices renderServices = {
     }
   },
 };
-static const XpEpubLeaves leaves = [] {
-  XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
-  UNUSED_LEAF(resources_open);
-  UNUSED_LEAF(resources_close);
-  UNUSED_LEAF(render_services);
-  UNUSED_LEAF(render_bind_page);
-  UNUSED_LEAF(render_finish_page);
-  UNUSED_LEAF(render_margins);
-  UNUSED_LEAF(render_geometry);
-  UNUSED_LEAF(render_restore_bw);
-  UNUSED_LEAF(render_discard_bw);
-  UNUSED_LEAF(render_orientation);
-  UNUSED_LEAF(loan_begin);
-  UNUSED_LEAF(loan_end);
-  UNUSED_LEAF(loan_drop);
-  UNUSED_LEAF(loan_count);
-  UNUSED_LEAF(strip_release_idle);
-  UNUSED_LEAF(book_open);
-  UNUSED_LEAF(book_load);
-  UNUSED_LEAF(book_close);
-  UNUSED_LEAF(book_size);
-  UNUSED_LEAF(book_spine_count);
-  UNUSED_LEAF(book_toc_count);
-  UNUSED_LEAF(book_path);
-  UNUSED_LEAF(book_cache_path);
-  UNUSED_LEAF(book_title);
-  UNUSED_LEAF(book_author);
-  UNUSED_LEAF(book_language);
-  UNUSED_LEAF(book_spine);
-  UNUSED_LEAF(book_toc);
-  UNUSED_LEAF(book_toc_for_spine);
-  UNUSED_LEAF(book_cumulative_size);
-  UNUSED_LEAF(book_spine_for_size);
-  UNUSED_LEAF(book_text_reference);
-  UNUSED_LEAF(book_progress);
-  UNUSED_LEAF(book_resolve_href);
-  UNUSED_LEAF(book_setup_cache);
-  UNUSED_LEAF(book_clear_cache);
-  UNUSED_LEAF(book_install_extractor);
-  UNUSED_LEAF(book_clear_extractor);
-  UNUSED_LEAF(book_protection_error);
-  UNUSED_LEAF(progress_to_reader);
-  UNUSED_LEAF(progress_to_saved);
-  UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(section_open);
-  UNUSED_LEAF(section_close);
-  UNUSED_LEAF(section_page_count);
-  UNUSED_LEAF(section_estimated_pages);
-  UNUSED_LEAF(section_building);
-  UNUSED_LEAF(section_complete);
-  UNUSED_LEAF(section_partial);
-  UNUSED_LEAF(section_load_cache);
-  UNUSED_LEAF(section_create_cache);
-  UNUSED_LEAF(section_start_build);
-  UNUSED_LEAF(section_build_more);
-  UNUSED_LEAF(section_abandon_build);
-  UNUSED_LEAF(section_clear_cache);
-  UNUSED_LEAF(section_html_cached);
-  UNUSED_LEAF(section_find_anchor);
-  UNUSED_LEAF(section_cached_anchor);
-  UNUSED_LEAF(section_toc_for_page);
-  UNUSED_LEAF(section_page_for_offset);
-  UNUSED_LEAF(section_offset_for_page);
-  UNUSED_LEAF(section_paragraph_for_page);
-  UNUSED_LEAF(section_reached_offset);
-  UNUSED_LEAF(section_load_page);
-  UNUSED_LEAF(section_page_text);
-  UNUSED_LEAF(page_close);
-  UNUSED_LEAF(page_info);
-  UNUSED_LEAF(page_element);
-  UNUSED_LEAF(page_word);
-  UNUSED_LEAF(metadata_assign);
-  UNUSED_LEAF(metadata_clear);
-  UNUSED_LEAF(metadata_footnotes);
-  UNUSED_LEAF(metadata_links);
-  UNUSED_LEAF(metadata_footnote);
-  UNUSED_LEAF(metadata_link);
-  UNUSED_LEAF(paint_dither);
-  UNUSED_LEAF(paint_pixel);
-  UNUSED_LEAF(paint_status);
-  UNUSED_LEAF(image_clear_failures);
-  UNUSED_LEAF(image_release_cache);
-  UNUSED_LEAF(fonts_ensure_loaded);
-  UNUSED_LEAF(fonts_release_caches);
-  UNUSED_LEAF(fonts_prewarm_begin);
-  UNUSED_LEAF(fonts_prewarm_finish_scan);
-  UNUSED_LEAF(fonts_prewarm_drop);
-  UNUSED_LEAF(fonts_take_corrupt_notice);
-  UNUSED_LEAF(font_sizes);
-  UNUSED_LEAF(settings_snapshot);
-  UNUSED_LEAF(settings_render_spec);
-  UNUSED_LEAF(settings_orientation);
-  UNUSED_LEAF(settings_font_size);
-  UNUSED_LEAF(settings_line_spacing);
-  UNUSED_LEAF(settings_alignment);
-  UNUSED_LEAF(settings_focus_reading);
-  UNUSED_LEAF(settings_inversion);
-  UNUSED_LEAF(settings_ble_enabled);
-  UNUSED_LEAF(settings_save);
-  UNUSED_LEAF(input_services);
-  UNUSED_LEAF(input_facts);
-  UNUSED_LEAF(input_pressed);
-  UNUSED_LEAF(input_screen_long);
-  UNUSED_LEAF(input_screen_tap);
-  UNUSED_LEAF(input_raw_contact);
-  UNUSED_LEAF(render_busy);
-  UNUSED_LEAF(file_open_read);
-  UNUSED_LEAF(file_open_write);
-  UNUSED_LEAF(file_read);
-  UNUSED_LEAF(file_write);
-  UNUSED_LEAF(file_close);
-  UNUSED_LEAF(path_remove);
-  UNUSED_LEAF(path_rename);
-  UNUSED_LEAF(path_mkdir);
-  UNUSED_LEAF(native_path_hash);
-  UNUSED_LEAF(heap_snapshot);
-  UNUSED_LEAF(radio_status);
-  UNUSED_LEAF(radio_before_build);
-  UNUSED_LEAF(radio_settle_start);
-  UNUSED_LEAF(radio_holds_heap);
-  UNUSED_LEAF(radio_after_paint);
-  UNUSED_LEAF(radio_switch_off);
-  UNUSED_LEAF(radio_request_connect);
-  UNUSED_LEAF(trusted_now);
-  UNUSED_LEAF(trusted_sync);
-  UNUSED_LEAF(wifi_connected);
-  UNUSED_LEAF(wifi_disconnect);
-  UNUSED_LEAF(restart_reader);
-  UNUSED_LEAF(child_menu);
-  UNUSED_LEAF(child_chapter);
-  UNUSED_LEAF(child_percent);
-  UNUSED_LEAF(child_text_settings);
-  UNUSED_LEAF(child_footnote);
-  UNUSED_LEAF(child_dictionary);
-  UNUSED_LEAF(child_selection);
-  UNUSED_LEAF(child_bookmarks);
-  UNUSED_LEAF(child_clippings);
-  UNUSED_LEAF(child_qr);
-  UNUSED_LEAF(child_wifi);
-  UNUSED_LEAF(child_sync);
-  UNUSED_LEAF(toolbar_open);
-  UNUSED_LEAF(toolbar_close);
-  UNUSED_LEAF(toolbar_begin);
-  UNUSED_LEAF(toolbar_paint);
-  UNUSED_LEAF(toolbar_route);
-  UNUSED_LEAF(toolbar_scroll);
-  UNUSED_LEAF(toolbar_visible_rows);
-  UNUSED_LEAF(popup_open);
-  UNUSED_LEAF(popup_close);
-  UNUSED_LEAF(popup_active);
-  UNUSED_LEAF(popup_show);
-  UNUSED_LEAF(popup_dismiss);
-  UNUSED_LEAF(popup_input);
-  UNUSED_LEAF(popup_paint);
-  UNUSED_LEAF(popup_process_render);
-  UNUSED_LEAF(end_open);
-  UNUSED_LEAF(end_close);
-  UNUSED_LEAF(end_load);
-  UNUSED_LEAF(end_menu_active);
-  UNUSED_LEAF(end_input);
-  UNUSED_LEAF(end_paint);
-  UNUSED_LEAF(bookmarks_open);
-  UNUSED_LEAF(bookmarks_close);
-  UNUSED_LEAF(bookmarks_clear);
-  UNUSED_LEAF(bookmarks_load);
-  UNUSED_LEAF(bookmarks_save);
-  UNUSED_LEAF(bookmarks_count);
-  UNUSED_LEAF(bookmarks_row);
-  UNUSED_LEAF(bookmarks_retain);
-  UNUSED_LEAF(bookmarks_insert_front);
-  UNUSED_LEAF(clippings_load);
-  UNUSED_LEAF(clippings_unload);
-  UNUSED_LEAF(clippings_count);
-  UNUSED_LEAF(clippings_row);
-  UNUSED_LEAF(clippings_remove);
-  UNUSED_LEAF(clippings_insert);
-  UNUSED_LEAF(clippings_export);
-  UNUSED_LEAF(clippings_move_book);
-  UNUSED_LEAF(recents_remove);
-  UNUSED_LEAF(recents_add);
-  UNUSED_LEAF(recents_update_path);
-  UNUSED_LEAF(state_open_path);
-  UNUSED_LEAF(state_set_open_path);
-  UNUSED_LEAF(state_reset_reader_count);
-  UNUSED_LEAF(state_save);
-  UNUSED_LEAF(has_sync_credentials);
-  UNUSED_LEAF(has_exit_subscriber);
-  UNUSED_LEAF(has_session_subscriber);
-  UNUSED_LEAF(document_id);
-  UNUSED_LEAF(emit_open);
-  UNUSED_LEAF(emit_exit);
-  UNUSED_LEAF(emit_session);
-  UNUSED_LEAF(log);
-  UNUSED_LEAF(page_word_font);
-  UNUSED_LEAF(page_line_font);
-  UNUSED_LEAF(page_word_y_offset);
-  UNUSED_LEAF(page_line_ruby_shift);
-  UNUSED_LEAF(font_text_advance);
-  UNUSED_LEAF(log_enabled);
-  UNUSED_LEAF(toolbar_reset_navigation);
-  UNUSED_LEAF(input_snapshot);
-  UNUSED_LEAF(page_render);
-  UNUSED_LEAF(protection_open);
-  UNUSED_LEAF(protection_close);
-  UNUSED_LEAF(protection_encrypted);
-  UNUSED_LEAF(protection_size);
-  UNUSED_LEAF(protection_stream);
-  UNUSED_LEAF(file_seek);
-  UNUSED_LEAF(file_size);
-  UNUSED_LEAF(path_remove_tree);
-  UNUSED_LEAF(cache_lock);
-  UNUSED_LEAF(cache_unlock);
-  UNUSED_LEAF(scratch_claim);
-  UNUSED_LEAF(scratch_release);
-  UNUSED_LEAF(inflate_oom_log);
-  table.render_services = [](void* native) -> const XpUiReaderRenderServices* {
+static const LegacyEpubLeaves leaves = [] {
+  LegacyEpubLeaves table{};
+  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
+  UNUSED_LEAF(physical.resources_open);
+  UNUSED_LEAF(physical.resources_close);
+  UNUSED_LEAF(physical.render_services);
+  UNUSED_LEAF(physical.render_bind_page);
+  UNUSED_LEAF(physical.render_finish_page);
+  UNUSED_LEAF(physical.render_margins);
+  UNUSED_LEAF(physical.render_geometry);
+  UNUSED_LEAF(physical.render_restore_bw);
+  UNUSED_LEAF(physical.render_discard_bw);
+  UNUSED_LEAF(physical.render_orientation);
+  UNUSED_LEAF(physical.loan_begin);
+  UNUSED_LEAF(physical.loan_end);
+  UNUSED_LEAF(physical.loan_drop);
+  UNUSED_LEAF(physical.loan_count);
+  UNUSED_LEAF(physical.strip_release_idle);
+  UNUSED_LEAF(book.book_open);
+  UNUSED_LEAF(book.book_load);
+  UNUSED_LEAF(book.book_close);
+  UNUSED_LEAF(book.book_size);
+  UNUSED_LEAF(book.book_spine_count);
+  UNUSED_LEAF(book.book_toc_count);
+  UNUSED_LEAF(book.book_path);
+  UNUSED_LEAF(book.book_cache_path);
+  UNUSED_LEAF(book.book_title);
+  UNUSED_LEAF(book.book_author);
+  UNUSED_LEAF(book.book_language);
+  UNUSED_LEAF(book.book_spine);
+  UNUSED_LEAF(book.book_toc);
+  UNUSED_LEAF(book.book_toc_for_spine);
+  UNUSED_LEAF(book.book_cumulative_size);
+  UNUSED_LEAF(book.book_spine_for_size);
+  UNUSED_LEAF(book.book_text_reference);
+  UNUSED_LEAF(book.book_progress);
+  UNUSED_LEAF(book.book_resolve_href);
+  UNUSED_LEAF(book.book_setup_cache);
+  UNUSED_LEAF(book.book_clear_cache);
+  UNUSED_LEAF(book.book_install_extractor);
+  UNUSED_LEAF(book.book_clear_extractor);
+  UNUSED_LEAF(book.book_protection_error);
+  UNUSED_LEAF(physical.progress_to_reader);
+  UNUSED_LEAF(physical.progress_to_saved);
+  UNUSED_LEAF(physical.progress_save);
+  UNUSED_LEAF(physical.section_open);
+  UNUSED_LEAF(physical.section_close);
+  UNUSED_LEAF(physical.section_page_count);
+  UNUSED_LEAF(physical.section_estimated_pages);
+  UNUSED_LEAF(physical.section_building);
+  UNUSED_LEAF(physical.section_complete);
+  UNUSED_LEAF(physical.section_partial);
+  UNUSED_LEAF(physical.section_load_cache);
+  UNUSED_LEAF(physical.section_create_cache);
+  UNUSED_LEAF(physical.section_start_build);
+  UNUSED_LEAF(physical.section_build_more);
+  UNUSED_LEAF(physical.section_abandon_build);
+  UNUSED_LEAF(physical.section_clear_cache);
+  UNUSED_LEAF(physical.section_html_cached);
+  UNUSED_LEAF(physical.section_find_anchor);
+  UNUSED_LEAF(physical.section_cached_anchor);
+  UNUSED_LEAF(physical.section_toc_for_page);
+  UNUSED_LEAF(physical.section_page_for_offset);
+  UNUSED_LEAF(physical.section_offset_for_page);
+  UNUSED_LEAF(physical.section_paragraph_for_page);
+  UNUSED_LEAF(physical.section_reached_offset);
+  UNUSED_LEAF(physical.section_load_page);
+  UNUSED_LEAF(physical.section_page_text);
+  UNUSED_LEAF(physical.page_close);
+  UNUSED_LEAF(physical.page_info);
+  UNUSED_LEAF(physical.page_element);
+  UNUSED_LEAF(physical.page_word);
+  UNUSED_LEAF(physical.metadata_assign);
+  UNUSED_LEAF(physical.metadata_clear);
+  UNUSED_LEAF(physical.metadata_footnotes);
+  UNUSED_LEAF(physical.metadata_links);
+  UNUSED_LEAF(physical.metadata_footnote);
+  UNUSED_LEAF(physical.metadata_link);
+  UNUSED_LEAF(physical.paint_dither);
+  UNUSED_LEAF(physical.paint_pixel);
+  UNUSED_LEAF(physical.paint_status);
+  UNUSED_LEAF(physical.image_clear_failures);
+  UNUSED_LEAF(physical.image_release_cache);
+  UNUSED_LEAF(physical.fonts_ensure_loaded);
+  UNUSED_LEAF(physical.fonts_release_caches);
+  UNUSED_LEAF(physical.fonts_prewarm_begin);
+  UNUSED_LEAF(physical.fonts_prewarm_finish_scan);
+  UNUSED_LEAF(physical.fonts_prewarm_drop);
+  UNUSED_LEAF(physical.fonts_take_corrupt_notice);
+  UNUSED_LEAF(physical.font_sizes);
+  UNUSED_LEAF(physical.settings_snapshot);
+  UNUSED_LEAF(physical.settings_render_spec);
+  UNUSED_LEAF(physical.settings_orientation);
+  UNUSED_LEAF(physical.settings_font_size);
+  UNUSED_LEAF(physical.settings_line_spacing);
+  UNUSED_LEAF(physical.settings_alignment);
+  UNUSED_LEAF(physical.settings_focus_reading);
+  UNUSED_LEAF(physical.settings_inversion);
+  UNUSED_LEAF(physical.settings_ble_enabled);
+  UNUSED_LEAF(physical.settings_save);
+  UNUSED_LEAF(physical.input_services);
+  UNUSED_LEAF(physical.input_facts);
+  UNUSED_LEAF(physical.input_pressed);
+  UNUSED_LEAF(physical.input_screen_long);
+  UNUSED_LEAF(physical.input_screen_tap);
+  UNUSED_LEAF(physical.input_raw_contact);
+  UNUSED_LEAF(physical.render_busy);
+  UNUSED_LEAF(physical.file_open_read);
+  UNUSED_LEAF(physical.file_open_write);
+  UNUSED_LEAF(physical.file_read);
+  UNUSED_LEAF(physical.file_write);
+  UNUSED_LEAF(physical.file_close);
+  UNUSED_LEAF(physical.path_remove);
+  UNUSED_LEAF(physical.path_rename);
+  UNUSED_LEAF(physical.path_mkdir);
+  UNUSED_LEAF(physical.native_path_hash);
+  UNUSED_LEAF(physical.heap_snapshot);
+  UNUSED_LEAF(physical.radio_status);
+  UNUSED_LEAF(physical.radio_before_build);
+  UNUSED_LEAF(physical.radio_settle_start);
+  UNUSED_LEAF(physical.radio_holds_heap);
+  UNUSED_LEAF(physical.radio_after_paint);
+  UNUSED_LEAF(physical.radio_switch_off);
+  UNUSED_LEAF(physical.radio_request_connect);
+  UNUSED_LEAF(physical.trusted_now);
+  UNUSED_LEAF(physical.trusted_sync);
+  UNUSED_LEAF(physical.wifi_connected);
+  UNUSED_LEAF(physical.wifi_disconnect);
+  UNUSED_LEAF(physical.restart_reader);
+  UNUSED_LEAF(physical.child_menu);
+  UNUSED_LEAF(physical.child_chapter);
+  UNUSED_LEAF(physical.child_percent);
+  UNUSED_LEAF(physical.child_text_settings);
+  UNUSED_LEAF(physical.child_footnote);
+  UNUSED_LEAF(physical.child_dictionary);
+  UNUSED_LEAF(physical.child_selection);
+  UNUSED_LEAF(physical.child_bookmarks);
+  UNUSED_LEAF(physical.child_clippings);
+  UNUSED_LEAF(physical.child_qr);
+  UNUSED_LEAF(physical.child_wifi);
+  UNUSED_LEAF(physical.child_sync);
+  UNUSED_LEAF(physical.toolbar_open);
+  UNUSED_LEAF(physical.toolbar_close);
+  UNUSED_LEAF(physical.toolbar_begin);
+  UNUSED_LEAF(physical.toolbar_paint);
+  UNUSED_LEAF(physical.toolbar_route);
+  UNUSED_LEAF(physical.toolbar_scroll);
+  UNUSED_LEAF(physical.toolbar_visible_rows);
+  UNUSED_LEAF(physical.popup_open);
+  UNUSED_LEAF(physical.popup_close);
+  UNUSED_LEAF(physical.popup_active);
+  UNUSED_LEAF(physical.popup_show);
+  UNUSED_LEAF(physical.popup_dismiss);
+  UNUSED_LEAF(physical.popup_input);
+  UNUSED_LEAF(physical.popup_paint);
+  UNUSED_LEAF(physical.popup_process_render);
+  UNUSED_LEAF(physical.end_open);
+  UNUSED_LEAF(physical.end_close);
+  UNUSED_LEAF(physical.end_load);
+  UNUSED_LEAF(physical.end_menu_active);
+  UNUSED_LEAF(physical.end_input);
+  UNUSED_LEAF(physical.end_paint);
+  UNUSED_LEAF(physical.bookmarks_open);
+  UNUSED_LEAF(physical.bookmarks_close);
+  UNUSED_LEAF(physical.bookmarks_clear);
+  UNUSED_LEAF(book.bookmarks_load);
+  UNUSED_LEAF(book.bookmarks_save);
+  UNUSED_LEAF(physical.bookmarks_count);
+  UNUSED_LEAF(physical.bookmarks_row);
+  UNUSED_LEAF(physical.bookmarks_retain);
+  UNUSED_LEAF(physical.bookmarks_insert_front);
+  UNUSED_LEAF(book.clippings_load);
+  UNUSED_LEAF(physical.clippings_unload);
+  UNUSED_LEAF(physical.clippings_count);
+  UNUSED_LEAF(physical.clippings_row);
+  UNUSED_LEAF(physical.clippings_remove);
+  UNUSED_LEAF(physical.clippings_insert);
+  UNUSED_LEAF(physical.clippings_export);
+  UNUSED_LEAF(physical.clippings_move_book);
+  UNUSED_LEAF(physical.recents_remove);
+  UNUSED_LEAF(book.recents_add);
+  UNUSED_LEAF(physical.recents_update_path);
+  UNUSED_LEAF(physical.state_open_path);
+  UNUSED_LEAF(physical.state_set_open_path);
+  UNUSED_LEAF(physical.state_reset_reader_count);
+  UNUSED_LEAF(physical.state_save);
+  UNUSED_LEAF(physical.has_sync_credentials);
+  UNUSED_LEAF(physical.has_exit_subscriber);
+  UNUSED_LEAF(physical.has_session_subscriber);
+  UNUSED_LEAF(physical.document_id);
+  UNUSED_LEAF(physical.emit_open);
+  UNUSED_LEAF(physical.emit_exit);
+  UNUSED_LEAF(physical.emit_session);
+  UNUSED_LEAF(physical.log);
+  UNUSED_LEAF(physical.page_word_font);
+  UNUSED_LEAF(physical.page_line_font);
+  UNUSED_LEAF(physical.page_word_y_offset);
+  UNUSED_LEAF(physical.page_line_ruby_shift);
+  UNUSED_LEAF(physical.font_text_advance);
+  UNUSED_LEAF(physical.log_enabled);
+  UNUSED_LEAF(physical.toolbar_reset_navigation);
+  UNUSED_LEAF(physical.input_snapshot);
+  UNUSED_LEAF(physical.page_render);
+  UNUSED_LEAF(physical.protection_open);
+  UNUSED_LEAF(physical.protection_close);
+  UNUSED_LEAF(physical.protection_encrypted);
+  UNUSED_LEAF(physical.protection_size);
+  UNUSED_LEAF(physical.protection_stream);
+  UNUSED_LEAF(physical.file_seek);
+  UNUSED_LEAF(physical.file_size);
+  UNUSED_LEAF(physical.path_remove_tree);
+  UNUSED_LEAF(physical.cache_lock);
+  UNUSED_LEAF(physical.cache_unlock);
+  UNUSED_LEAF(physical.scratch_claim);
+  UNUSED_LEAF(physical.scratch_release);
+  UNUSED_LEAF(physical.inflate_oom_log);
+  table.physical.render_services = [](void* native) -> const XpUiReaderRenderServices* {
     leaf(); assert(native == active); return &renderServices;
   };
-  table.render_margins = [](int32_t* margins) {
+  table.physical.render_margins = [](int32_t* margins) {
     stable(); active->renderer.getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
   };
-  table.render_geometry = [](XpEpubGeometry* out) {
+  table.physical.render_geometry = [](XpEpubGeometry* out) {
     leaf(); assert(out); *out = {};
     const auto& theme = UITheme::getInstance();
     out->width = active->renderer.getScreenWidth(); out->height = active->renderer.getScreenHeight();
@@ -422,31 +422,31 @@ static const XpEpubLeaves leaves = [] {
     // Native getTtfFonts returns a const map reference. Copy the same cheap fact.
     out->has_ttf = active->renderer.ttf;
   };
-  table.render_discard_bw = [] { leaf(); assert(active->overlayPageStored); };
-  table.loan_begin = [](void* native) -> uint8_t {
+  table.physical.render_discard_bw = [] { leaf(); assert(active->overlayPageStored); };
+  table.physical.loan_begin = [](void* native) -> uint8_t {
     stable(); assert(native == active && !loan);
     loan = std::make_unique<GfxRenderer::FrameBufferLoan>(active->renderer); return 1;
   };
-  table.loan_end = [](void* native) { leaf(); assert(native == active && loan); loan->end(); };
-  table.loan_drop = [](void* native) { leaf(); assert(native == active && loan); loan.reset(); };
-  table.book_spine_count = [](void* book) -> int32_t {
+  table.physical.loan_end = [](void* native) { leaf(); assert(native == active && loan); loan->end(); };
+  table.physical.loan_drop = [](void* native) { leaf(); assert(native == active && loan); loan.reset(); };
+  table.book.book_spine_count = [](void* book) -> int32_t {
     stable(); assert(book && book == active->epub.get()); return active->epub->getSpineItemsCount();
   };
-  table.book_spine = [](void* book, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
+  table.book.book_spine = [](void* book, int32_t index, XpEpubSpineSink sink, void* context) -> uint8_t {
     stable(); assert(book && book == active->epub.get());
     const auto item = active->epub->getSpineItem(index);
     const XpEpubSpine view{wire(item.href.c_str()), 0};
     return sink(context, &view);
   };
-  table.book_cumulative_size = [](void* book, int32_t index) -> uint32_t {
+  table.book.book_cumulative_size = [](void* book, int32_t index) -> uint32_t {
     stable(); assert(book && book == active->epub.get()); return active->epub->getCumulativeSpineItemSize(index);
   };
-  table.section_open = [](void* book, int32_t spine) -> void* {
+  table.physical.section_open = [](void* book, int32_t spine) -> void* {
     stable(); assert(book && book == active->epub.get() && !active->nativeSection);
     active->nativeSection = new Section(active->epub, spine, active->renderer);
     publicationStart(); return active->nativeSection;
   };
-  table.section_close = [](void* section) {
+  table.physical.section_close = [](void* section) {
     stable(); assert(section && section == active->nativeSection);
     // The owner must withdraw published facts before releasing native storage.
     if (active->rustOwner) {
@@ -455,93 +455,93 @@ static const XpEpubLeaves leaves = [] {
     }
     delete active->nativeSection; active->nativeSection = nullptr;
   };
-  table.section_page_count = [](void* s) -> uint16_t { sectionRead(s, 0); return active->nativeSection->pageCount; };
-  table.section_estimated_pages = [](void* s) -> int32_t { sectionRead(s, 1); return active->nativeSection->estimatedTotalPages(); };
-  table.section_building = [](void* s) -> uint8_t { sectionRead(s, 2); return active->nativeSection->isBuilding(); };
-  table.section_complete = [](void* s) -> uint8_t { sectionRead(s, 3); return active->nativeSection->isBuildComplete(); };
-  table.section_partial = [](void* s) -> uint8_t { sectionRead(s, 4); return active->nativeSection->isPartial(); };
-  table.section_load_cache = [](void* s, const XpEpubRenderSpec* spec) -> uint8_t {
+  table.physical.section_page_count = [](void* s) -> uint16_t { sectionRead(s, 0); return active->nativeSection->pageCount; };
+  table.physical.section_estimated_pages = [](void* s) -> int32_t { sectionRead(s, 1); return active->nativeSection->estimatedTotalPages(); };
+  table.physical.section_building = [](void* s) -> uint8_t { sectionRead(s, 2); return active->nativeSection->isBuilding(); };
+  table.physical.section_complete = [](void* s) -> uint8_t { sectionRead(s, 3); return active->nativeSection->isBuildComplete(); };
+  table.physical.section_partial = [](void* s) -> uint8_t { sectionRead(s, 4); return active->nativeSection->isPartial(); };
+  table.physical.section_load_cache = [](void* s, const XpEpubRenderSpec* spec) -> uint8_t {
     stable(); assert(s == active->nativeSection && spec);
     const bool result = active->nativeSection->loadSectionFile({spec->width, spec->height});
     publicationStart(); return result;
   };
-  table.section_create_cache = [](void* s, const XpEpubRenderSpec* spec, XpEpubBuildPopup callback, void* context) -> uint8_t {
+  table.physical.section_create_cache = [](void* s, const XpEpubRenderSpec* spec, XpEpubBuildPopup callback, void* context) -> uint8_t {
     stable(); assert(s == active->nativeSection && spec && callback && context == active->rustOwner);
     const bool result = active->nativeSection->createSectionFile({spec->width, spec->height}, [=] { leaf(); callback(context); });
     publicationStart(); return result;
   };
-  table.section_start_build = [](void* s, const XpEpubRenderSpec* spec, XpEpubBuildPopup callback, void* context) -> uint8_t {
+  table.physical.section_start_build = [](void* s, const XpEpubRenderSpec* spec, XpEpubBuildPopup callback, void* context) -> uint8_t {
     stable(); assert(s == active->nativeSection && spec);
     if (callback) assert(context == active->rustOwner);
     else assert(!context);
     const bool result = nativeStartBuild(s, spec, callback, context);
     publicationStart(); return result;
   };
-  table.section_build_more = [](void* s, int32_t pages, uint8_t yielding) -> uint8_t {
+  table.physical.section_build_more = [](void* s, int32_t pages, uint8_t yielding) -> uint8_t {
     stable(); assert(s == active->nativeSection && !yielding);
     const bool result = active->nativeSection->buildSomeMore(pages);
     publicationStart(); return result;
   };
-  table.section_abandon_build = [](void* s) { stable(); assert(s == active->nativeSection); active->nativeSection->abandonBuild(); };
-  table.section_clear_cache = [](void* s) -> uint8_t { stable(); assert(s == active->nativeSection); active->nativeSection->clearCache(); return 1; };
-  table.section_html_cached = [](void* s) -> uint8_t { stable(); assert(s == active->nativeSection); return active->nativeSection->hasHtmlCache(); };
-  table.section_find_anchor = [](void* s, XpAppText value, uint16_t* page) -> uint8_t {
+  table.physical.section_abandon_build = [](void* s) { stable(); assert(s == active->nativeSection); active->nativeSection->abandonBuild(); };
+  table.physical.section_clear_cache = [](void* s) -> uint8_t { stable(); assert(s == active->nativeSection); active->nativeSection->clearCache(); return 1; };
+  table.physical.section_html_cached = [](void* s) -> uint8_t { stable(); assert(s == active->nativeSection); return active->nativeSection->hasHtmlCache(); };
+  table.physical.section_find_anchor = [](void* s, XpAppText value, uint16_t* page) -> uint8_t {
     stable(); assert(s == active->nativeSection);
     const auto found = active->nativeSection->findAnchor(nativeText(value)); if (found) *page = *found; return bool(found);
   };
-  table.section_cached_anchor = [](void* s, XpAppText value, uint16_t* page) -> uint8_t {
+  table.physical.section_cached_anchor = [](void* s, XpAppText value, uint16_t* page) -> uint8_t {
     stable(); assert(s == active->nativeSection);
     const auto found = active->nativeSection->getPageForAnchor(nativeText(value)); if (found) *page = *found; return bool(found);
   };
-  table.section_reached_offset = [](void* s, uint32_t offset) -> uint8_t {
+  table.physical.section_reached_offset = [](void* s, uint32_t offset) -> uint8_t {
     stable(); assert(s == active->nativeSection); return active->nativeSection->buildReachedVisibleTextOffset(offset);
   };
-  table.section_page_for_offset = [](void* s, uint32_t offset, uint8_t first, uint16_t* page) -> uint8_t {
+  table.physical.section_page_for_offset = [](void* s, uint32_t offset, uint8_t first, uint16_t* page) -> uint8_t {
     stable(); assert(s == active->nativeSection && !first);
     const auto found = active->nativeSection->getPageForVisibleTextOffset(offset); if (found) *page = *found; return bool(found);
   };
-  table.section_load_page = [](void* s, int32_t page) -> void* {
+  table.physical.section_load_page = [](void* s, int32_t page) -> void* {
     stable(); assert(s == active->nativeSection && !livePage); observation();
     livePage = active->nativeSection->loadPage(page).release(); contentsCalled = metadataSucceeded = false; return livePage;
   };
-  table.page_close = [](void* page) {
+  table.physical.page_close = [](void* page) {
     stable(); assert(page && page == livePage);
     if (metadataSucceeded) assert(contentsCalled);
     else assert(!active->nativeSection);
     delete livePage; livePage = nullptr;
   };
-  table.page_info = [](void* page, XpEpubPageInfo* out) {
+  table.physical.page_info = [](void* page, XpEpubPageInfo* out) {
     stable(); assert(page && page == livePage && out); *out = {}; out->visible_offset = livePage->visibleTextOffset;
   };
-  table.metadata_assign = [](void* native, void* page) -> uint8_t {
+  table.physical.metadata_assign = [](void* native, void* page) -> uint8_t {
     stable(); assert(native == active && page && page == livePage);
     metadataSucceeded = active->currentPageMetadata.assign(*livePage); return metadataSucceeded;
   };
-  table.metadata_clear = [](void* native) { stable(); assert(native == active); active->currentPageMetadata.clear(); };
-  table.fonts_release_caches = [] {
+  table.physical.metadata_clear = [](void* native) { stable(); assert(native == active); active->currentPageMetadata.clear(); };
+  table.physical.fonts_release_caches = [] {
     stable(); if (auto* cache = active->renderer.getFontCacheManager()) cache->releaseSdFontCaches();
   };
-  table.fonts_take_corrupt_notice = []() -> uint8_t { stable(); return SdCardFont::takeCorruptGlyphNotice(); };
-  table.settings_snapshot = [](uint8_t, XpEpubSettings* out) {
+  table.physical.fonts_take_corrupt_notice = []() -> uint8_t { stable(); return SdCardFont::takeCorruptGlyphNotice(); };
+  table.physical.settings_snapshot = [](uint8_t, XpEpubSettings* out) {
     leaf(); assert(out); *out = {}; out->screen_margin = SETTINGS.screenMargin;
   };
-  table.settings_render_spec = [](uint16_t width, uint16_t height, XpEpubRenderSpec* out) {
+  table.physical.settings_render_spec = [](uint16_t width, uint16_t height, XpEpubRenderSpec* out) {
     stable(); assert(out); const auto spec = SETTINGS.readerRenderSpec(width, height);
     *out = {}; out->width = spec.width; out->height = spec.height;
   };
-  table.heap_snapshot = [](XpEpubHeap* out) {
+  table.physical.heap_snapshot = [](XpEpubHeap* out) {
     stable();
 #ifdef BOOK_RELEASE_LOG
     assert(false && "release logging must not sample heap");
 #endif
     out->free_bytes = ESP.getFreeHeap(); out->largest_block = ESP.getMaxAllocHeap();
   };
-  table.radio_settle_start = [] { stable(); bleturner::settleStart(); };
-  table.popup_active = [](void* popup) -> uint8_t {
+  table.physical.radio_settle_start = [] { stable(); bleturner::settleStart(); };
+  table.physical.popup_active = [](void* popup) -> uint8_t {
     stable(); assert(popup == &active->overlayPopup); return active->overlayPopup.isActive();
   };
-  table.popup_paint = [](void* popup) { stable(); assert(popup == &active->overlayPopup); active->overlayPopup.render(active->renderer); };
-  table.log_enabled = [](uint8_t severity) -> uint8_t {
+  table.physical.popup_paint = [](void* popup) { stable(); assert(popup == &active->overlayPopup); active->overlayPopup.render(active->renderer); };
+  table.physical.log_enabled = [](uint8_t severity) -> uint8_t {
     leaf();
 #ifdef BOOK_RELEASE_LOG
     return severity != 0;
@@ -549,7 +549,7 @@ static const XpEpubLeaves leaves = [] {
     return 1;
 #endif
   };
-  table.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
+  table.physical.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
     leaf();
 #ifdef BOOK_RELEASE_LOG
     if (severity == 0) return;
@@ -557,6 +557,12 @@ static const XpEpubLeaves leaves = [] {
     const auto tag = nativeText(origin), text = nativeText(message);
     if (text.find("Rendered page in") == 0) assert(!livePage && contentsCalled);
     std::printf("%s %s\n", tag.c_str(), text.c_str());
+  };
+  UNUSED_LEAF(physical.book_facade_open);
+  UNUSED_LEAF(physical.book_facade_close);
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle) leaves.book.book_install_extractor(handle);
+    else leaves.book.book_clear_extractor();
   };
   return table;
 }();
@@ -630,7 +636,7 @@ struct Entry {
                                     }};
       publicationCount = 0;
       if (fixture.nativeSection) publicationStart();
-      fixture.rustOwner = xp_epub_test_book_create(&seed, &leaves, &runtime, &resources);
+      fixture.rustOwner = xp_epub_test_book_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
       assert(fixture.rustOwner && !publishing && publicationCount == (fixture.nativeSection ? 1u : 0u));
       observation();
     }

@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstdlib>
 
+#include "legacy_book_fixture.h"
+
 struct XpEpubTestOverlaySeed {
   void* native;
   void* book;
@@ -43,8 +45,8 @@ struct XpEpubTestOverlayObservation {
   uint8_t failed;
 };
 extern "C" {
-void* xp_epub_test_overlay_create(const XpEpubTestOverlaySeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                  const XpAppResources*);
+void* xp_epub_test_overlay_create_legacy_book(const XpEpubTestOverlaySeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                              const XpAppResources*, const XpEpubLegacyBookServices*);
 void xp_epub_test_overlay_observe(void*, XpEpubTestOverlayObservation*);
 void xp_epub_test_overlay_open(void*, uint8_t);
 void xp_epub_test_overlay_close(void*);
@@ -154,7 +156,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 213 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
   table.resources_open = &OverlayUnexpected<decltype(table.resources_open)>::call;
   table.resources_close = &OverlayUnexpected<decltype(table.resources_close)>::call;
   table.render_services = &OverlayUnexpected<decltype(table.render_services)>::call;
@@ -170,30 +172,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.loan_drop = &OverlayUnexpected<decltype(table.loan_drop)>::call;
   table.loan_count = &OverlayUnexpected<decltype(table.loan_count)>::call;
   table.strip_release_idle = &OverlayUnexpected<decltype(table.strip_release_idle)>::call;
-  table.book_open = &OverlayUnexpected<decltype(table.book_open)>::call;
-  table.book_load = &OverlayUnexpected<decltype(table.book_load)>::call;
-  table.book_close = &OverlayUnexpected<decltype(table.book_close)>::call;
-  table.book_size = &OverlayUnexpected<decltype(table.book_size)>::call;
-  table.book_spine_count = &OverlayUnexpected<decltype(table.book_spine_count)>::call;
-  table.book_toc_count = &OverlayUnexpected<decltype(table.book_toc_count)>::call;
-  table.book_path = &OverlayUnexpected<decltype(table.book_path)>::call;
-  table.book_cache_path = &OverlayUnexpected<decltype(table.book_cache_path)>::call;
-  table.book_title = &OverlayUnexpected<decltype(table.book_title)>::call;
-  table.book_author = &OverlayUnexpected<decltype(table.book_author)>::call;
-  table.book_language = &OverlayUnexpected<decltype(table.book_language)>::call;
-  table.book_spine = &OverlayUnexpected<decltype(table.book_spine)>::call;
-  table.book_toc = &OverlayUnexpected<decltype(table.book_toc)>::call;
-  table.book_toc_for_spine = &OverlayUnexpected<decltype(table.book_toc_for_spine)>::call;
-  table.book_cumulative_size = &OverlayUnexpected<decltype(table.book_cumulative_size)>::call;
-  table.book_spine_for_size = &OverlayUnexpected<decltype(table.book_spine_for_size)>::call;
-  table.book_text_reference = &OverlayUnexpected<decltype(table.book_text_reference)>::call;
-  table.book_progress = &OverlayUnexpected<decltype(table.book_progress)>::call;
-  table.book_resolve_href = &OverlayUnexpected<decltype(table.book_resolve_href)>::call;
-  table.book_setup_cache = &OverlayUnexpected<decltype(table.book_setup_cache)>::call;
-  table.book_clear_cache = &OverlayUnexpected<decltype(table.book_clear_cache)>::call;
-  table.book_install_extractor = &OverlayUnexpected<decltype(table.book_install_extractor)>::call;
-  table.book_clear_extractor = &OverlayUnexpected<decltype(table.book_clear_extractor)>::call;
-  table.book_protection_error = &OverlayUnexpected<decltype(table.book_protection_error)>::call;
   table.progress_to_reader = &OverlayUnexpected<decltype(table.progress_to_reader)>::call;
   table.progress_to_saved = &OverlayUnexpected<decltype(table.progress_to_saved)>::call;
   table.progress_save = &OverlayUnexpected<decltype(table.progress_save)>::call;
@@ -368,5 +346,42 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.scratch_claim = &OverlayUnexpected<decltype(table.scratch_claim)>::call;
   table.scratch_release = &OverlayUnexpected<decltype(table.scratch_release)>::call;
   table.inflate_oom_log = &OverlayUnexpected<decltype(table.inflate_oom_log)>::call;
+  table.book_facade_open = &OverlayUnexpected<decltype(table.book_facade_open)>::call;
+  table.book_facade_close = &OverlayUnexpected<decltype(table.book_facade_close)>::call;
+  table.book_set_extractor = &OverlayUnexpected<decltype(table.book_set_extractor)>::call;
+  return table;
+}
+
+inline LegacyEpubLeaves overlayLegacyLeaves() {
+  LegacyEpubLeaves table{};
+  table.physical = overlayUnexpectedLeaves();
+  table.book.book_author = &OverlayUnexpected<decltype(table.book.book_author)>::call;
+  table.book.book_cache_path = &OverlayUnexpected<decltype(table.book.book_cache_path)>::call;
+  table.book.book_clear_cache = &OverlayUnexpected<decltype(table.book.book_clear_cache)>::call;
+  table.book.book_clear_extractor = &OverlayUnexpected<decltype(table.book.book_clear_extractor)>::call;
+  table.book.book_close = &OverlayUnexpected<decltype(table.book.book_close)>::call;
+  table.book.book_cumulative_size = &OverlayUnexpected<decltype(table.book.book_cumulative_size)>::call;
+  table.book.book_install_extractor = &OverlayUnexpected<decltype(table.book.book_install_extractor)>::call;
+  table.book.book_language = &OverlayUnexpected<decltype(table.book.book_language)>::call;
+  table.book.book_load = &OverlayUnexpected<decltype(table.book.book_load)>::call;
+  table.book.book_open = &OverlayUnexpected<decltype(table.book.book_open)>::call;
+  table.book.book_path = &OverlayUnexpected<decltype(table.book.book_path)>::call;
+  table.book.book_progress = &OverlayUnexpected<decltype(table.book.book_progress)>::call;
+  table.book.book_protection_error = &OverlayUnexpected<decltype(table.book.book_protection_error)>::call;
+  table.book.book_resolve_href = &OverlayUnexpected<decltype(table.book.book_resolve_href)>::call;
+  table.book.book_setup_cache = &OverlayUnexpected<decltype(table.book.book_setup_cache)>::call;
+  table.book.book_size = &OverlayUnexpected<decltype(table.book.book_size)>::call;
+  table.book.book_spine = &OverlayUnexpected<decltype(table.book.book_spine)>::call;
+  table.book.book_spine_count = &OverlayUnexpected<decltype(table.book.book_spine_count)>::call;
+  table.book.book_spine_for_size = &OverlayUnexpected<decltype(table.book.book_spine_for_size)>::call;
+  table.book.book_text_reference = &OverlayUnexpected<decltype(table.book.book_text_reference)>::call;
+  table.book.book_title = &OverlayUnexpected<decltype(table.book.book_title)>::call;
+  table.book.book_toc = &OverlayUnexpected<decltype(table.book.book_toc)>::call;
+  table.book.book_toc_count = &OverlayUnexpected<decltype(table.book.book_toc_count)>::call;
+  table.book.book_toc_for_spine = &OverlayUnexpected<decltype(table.book.book_toc_for_spine)>::call;
+  table.book.bookmarks_load = &OverlayUnexpected<decltype(table.book.bookmarks_load)>::call;
+  table.book.bookmarks_save = &OverlayUnexpected<decltype(table.book.bookmarks_save)>::call;
+  table.book.clippings_load = &OverlayUnexpected<decltype(table.book.clippings_load)>::call;
+  table.book.recents_add = &OverlayUnexpected<decltype(table.book.recents_add)>::call;
   return table;
 }

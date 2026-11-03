@@ -130,34 +130,40 @@ static XpUiReaderRenderServices renderServices = {
       return 0;
     },
 };
-static const XpEpubLeaves leaves = [] {
-  auto table = overlayUnexpectedLeaves();
-  table.render_services = [](void* value) -> const XpUiReaderRenderServices* {
+static const LegacyEpubLeaves leaves = [] {
+  auto table = overlayLegacyLeaves();
+  table.physical.render_services = [](void* value) -> const XpUiReaderRenderServices* {
     context(value);
     renderServices.context = value;
     return &renderServices;
   };
-  table.end_load = [](void* value, XpAppText path) {
+  table.physical.end_load = [](void* value, XpAppText path) {
     leaf();
     assert(value == active->endOfBookOptions.get() && path.data);
     const std::string text(reinterpret_cast<const char*>(path.data), path.len);
     assert(text == "/book.epub");
     active->endOfBookOptions->loadOnce(text);
   };
-  table.end_paint = [](void* value) {
+  table.physical.end_paint = [](void* value) {
     leaf();
     assert(value == active->endOfBookOptions.get());
     active->endOfBookOptions->render(active->renderer, active->mappedInput);
   };
-  table.end_menu_active = [](void* value) -> uint8_t {
+  table.physical.end_menu_active = [](void* value) -> uint8_t {
     leaf();
     assert(value == active->endOfBookOptions.get());
     return active->endOfBookOptions->menuActive();
   };
-  table.end_close = [](void* value) {
+  table.physical.end_close = [](void* value) {
     leaf();
     assert(value == active->endOfBookOptions.get());
     active->endOfBookOptions.reset();
+  };
+  table.physical.book_set_extractor = [](void* handle) {
+    if (handle)
+      leaves.book.book_install_extractor(handle);
+    else
+      leaves.book.book_clear_extractor();
   };
   return table;
 }();
@@ -206,7 +212,7 @@ void ReaderFixture::initialize() {
     assert(!active->observe().rendered);
     ++active->markCalls;
   };
-  owner = xp_epub_test_base_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_base_create_legacy_book(&seed, &leaves.physical, &runtime, &resources, &leaves.book);
   assert(owner);
 }
 ReaderFixture::~ReaderFixture() {

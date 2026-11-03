@@ -24,6 +24,15 @@ void operator delete(void* p) noexcept {
   assert(criticalDepth == 0);
   std::free(p);
 }
+void operator delete(void* p, size_t) noexcept { ::operator delete(p); }
+void* operator new(size_t size, const std::nothrow_t&) noexcept {
+  try {
+    return ::operator new(size);
+  } catch (...) {
+    return nullptr;
+  }
+}
+void operator delete(void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
 
 // Only hardware drawing and resource metrics are stubbed; publication, routing,
 // command growth, parent policy and the failed-scene gate are production code.

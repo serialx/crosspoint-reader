@@ -23,7 +23,9 @@ void* operator new(size_t n, const std::nothrow_t&) noexcept {
 }
 void* operator new[](size_t n, const std::nothrow_t& tag) noexcept { return ::operator new(n, tag); }
 void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, size_t) noexcept { ::operator delete(p); }
 void operator delete[](void* p) noexcept { std::free(p); }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }
 int main(int argc, char** argv) {
   const bool readerMode = argc > 1 && std::strcmp(argv[1], "reader") == 0;
   const bool fileMode = readerMode || (argc > 1 && std::strcmp(argv[1], "file") == 0);

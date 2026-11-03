@@ -24,5 +24,7 @@ void operator delete(void* p) noexcept {
   if (h->size >= 8174) --allocation_probe::large;
   std::free(h);
 }
+void operator delete(void* p, size_t) noexcept { ::operator delete(p); }
 void* operator new[](size_t size) { return ::operator new(size); }
 void operator delete[](void* p) noexcept { ::operator delete(p); }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }

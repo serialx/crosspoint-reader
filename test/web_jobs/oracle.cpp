@@ -24,6 +24,7 @@ void operator delete[](void* p) noexcept {
   }
   free(p);
 }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }
 namespace ota_boot {
 bool switchTo(const esp_partition_t*) {
   oracle::record("switch");

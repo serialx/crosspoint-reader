@@ -33,8 +33,10 @@ void operator delete(void* p) noexcept {
   if (p) ++releases;
   free(p);
 }
+void operator delete(void* p, size_t) noexcept { ::operator delete(p); }
 void* operator new[](size_t size) { return ::operator new(size); }
 void operator delete[](void* p) noexcept { ::operator delete(p); }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }
 extern char panicMessage[256];
 extern HalSystem::StackFrame panicStack[32];
 extern volatile uint32_t panicCaptureMarker;

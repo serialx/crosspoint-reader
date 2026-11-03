@@ -278,14 +278,20 @@ def main():
                 if expected == INVALID_DOWNCAST:
                     detected = 'UndefinedBehaviorSanitizer' in stderr and 'ReaderActivity' in stderr and 'downcast' in stderr
                 elif expected == PAGE_LIFETIME:
-                    detected = sanitizer or ('Assertion failed: (results.pages.erase(this) == 1' in stderr)
+                    page_assertion = (
+                        'results.pages.erase(this) == 1 && results.bound != this' in stderr
+                        and ('Assertion failed:' in stderr or ('Assertion `' in stderr and "' failed." in stderr))
+                        and ('~ResultPage' in stderr))
+                    detected = sanitizer or page_assertion
                 else:
                     assert expected == SANITIZER
                     detected = sanitizer
                 assert result.returncode != 0 and detected, (name,result.returncode,stderr[-5000:])
                 rejected.append(dict(name=name,case=mutant['case'],expected_rejection=expected,
                                      returncode=result.returncode,source_sha256=hashlib.sha256(changed.encode()).hexdigest(),
-                                     stderr_sha256=hashlib.sha256(result.stderr).hexdigest()))
+                                     stderr_sha256=hashlib.sha256(result.stderr).hexdigest(),
+                                     rejection_reason=('page-lifetime-assertion' if expected == PAGE_LIFETIME
+                                                       and page_assertion else 'sanitizer')))
                 (out/'mutants.json').write_text(json.dumps(rejected,indent=2)+'\n')
                 print('rejected',name,flush=True)
         assert all(hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==digest for p,digest in hashes.items())

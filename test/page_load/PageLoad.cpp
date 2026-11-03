@@ -51,7 +51,9 @@ void operator delete(void* p) noexcept {
   allocations::removed(p);
   std::free(p);
 }
+void operator delete(void* p, size_t) noexcept { ::operator delete(p); }
 void operator delete[](void* p) noexcept { ::operator delete(p); }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }
 void operator delete(void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
 void operator delete[](void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
 

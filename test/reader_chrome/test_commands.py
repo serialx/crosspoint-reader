@@ -28,6 +28,7 @@ void* operator new[](size_t count) {
   return live;
 }
 void operator delete[](void* p) noexcept { assert(p == live); std::free(p); live = nullptr; }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }
 template<class T> std::unique_ptr<T> makeUniqueNoThrow(size_t count) {
   if (fail) return {};
   return std::unique_ptr<T>(new std::remove_extent_t<T>[count]);

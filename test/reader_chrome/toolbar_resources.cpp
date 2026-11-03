@@ -12,6 +12,7 @@ void* operator new(size_t size) {
   return result;
 }
 void operator delete(void* pointer) noexcept { std::free(pointer); }
+void operator delete(void* pointer, size_t) noexcept { ::operator delete(pointer); }
 struct EpdFontFamily {
   enum Style { Regular };
 };

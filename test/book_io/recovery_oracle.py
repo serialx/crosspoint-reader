@@ -22,6 +22,7 @@ void* operator new[](size_t size, const std::nothrow_t&) noexcept {
   return ++calls <= failures ? nullptr : std::malloc(size);
 }
 void operator delete[](void* data) noexcept { printf("release\n"); std::free(data); }
+void operator delete[](void* data, size_t) noexcept { ::operator delete[](data); }
 namespace freeink {
 struct MemoryManager {
  static MemoryManager& instance() { static MemoryManager manager; return manager; }

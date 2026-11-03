@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory(prefix='reader-book-lifetime-') as directory:
         executable = work / name
         flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive))
         subprocess.run(['c++', '-std=c++17', '-UNDEBUG', '-fsanitize=address,undefined',
-                        '-I', str(HERE), '-I', str(ROOT / 'lib/I18N'),
+                        '-I', str(HERE), '-I', str(ROOT / 'lib/I18n'),
                         *(['-DLIFETIME_RELEASE_LOG'] if release else []), str(source_path),
                         *flags, '-o', str(executable)], check=True)
         return subprocess.run([str(executable)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)

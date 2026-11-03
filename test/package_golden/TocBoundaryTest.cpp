@@ -104,7 +104,9 @@ void* operator new(size_t size) {
 }
 void* operator new[](size_t size) { return ::operator new(size); }
 void operator delete(void* ptr) noexcept { release(ptr); }
+void operator delete(void* ptr, size_t) noexcept { ::operator delete(ptr); }
 void operator delete[](void* ptr) noexcept { release(ptr); }
+void operator delete[](void* ptr, size_t) noexcept { ::operator delete[](ptr); }
 void* operator new[](size_t size, const std::nothrow_t&) noexcept {
   if (failNothrowArray) {
     ++failures;

@@ -13,7 +13,9 @@ void* operator new(size_t n) {
 }
 void* operator new[](size_t n) { return ::operator new(n); }
 void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, size_t) noexcept { ::operator delete(p); }
 void operator delete[](void* p) noexcept { std::free(p); }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }
 
 int main() {
   for (int scenario = 0; scenario < 3; ++scenario) {

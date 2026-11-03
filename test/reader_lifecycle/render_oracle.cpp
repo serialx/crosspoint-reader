@@ -90,6 +90,15 @@ void operator delete[](void* pointer) noexcept {
     }
   std::abort();
 }
+void operator delete[](void* pointer, size_t) noexcept { ::operator delete[](pointer); }
+void* operator new[](size_t size, const std::nothrow_t&) noexcept {
+  try {
+    return ::operator new[](size);
+  } catch (...) {
+    return nullptr;
+  }
+}
+void operator delete[](void* pointer, const std::nothrow_t&) noexcept { ::operator delete[](pointer); }
 template <class T>
 [[gnu::noinline]] std::unique_ptr<T> makeUniqueNoThrow(size_t size) {
   std::printf("alloc %zu %d\n", size, allocIndex);

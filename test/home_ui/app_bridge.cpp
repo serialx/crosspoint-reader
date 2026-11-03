@@ -23,8 +23,10 @@ void* operator new(size_t bytes) {
   std::abort();
 }
 void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, size_t) noexcept { ::operator delete(p); }
 void* operator new[](size_t bytes) { return ::operator new(bytes); }
 void operator delete[](void* p) noexcept { ::operator delete(p); }
+void operator delete[](void* p, size_t) noexcept { ::operator delete[](p); }
 extern "C" void xp_test_fail_allocation_after(size_t);
 extern "C" size_t xp_test_allocation_attempts();
 

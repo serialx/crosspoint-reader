@@ -38,10 +38,12 @@ void operator delete(void* pointer) noexcept {
   forget(pointer);
   std::free(pointer);
 }
+void operator delete(void* pointer, size_t) noexcept { ::operator delete(pointer); }
 void operator delete[](void* pointer) noexcept {
   forget(pointer);
   std::free(pointer);
 }
+void operator delete[](void* pointer, size_t) noexcept { ::operator delete[](pointer); }
 static bool fail() {
   const char* setting = std::getenv("ASSET_FAIL_ALLOC");
   const size_t index = attempts++;

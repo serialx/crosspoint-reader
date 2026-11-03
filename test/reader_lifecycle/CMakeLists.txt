@@ -371,3 +371,7 @@ add_test(NAME reader_book_facade
 add_test(NAME reader_book_section
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_section.py
     --archive ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME reader_book_text_consumers
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_text.py)

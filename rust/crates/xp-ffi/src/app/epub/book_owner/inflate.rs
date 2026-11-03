@@ -50,7 +50,7 @@ impl InflateStorage {
             else {
                 unsafe {
                     (leaves.inflate_oom_log)(
-                        abi::Text::from_bytes(c"state".to_bytes()),
+                        abi::Text::from_terminated(c"state".to_bytes_with_nul()),
                         state_layout.size() as u32,
                     )
                 };
@@ -81,7 +81,7 @@ impl InflateStorage {
                 let Some(window) = Buffer::allocate(resources, abi::MEMORY_DEFAULT, WINDOW) else {
                     unsafe {
                         (leaves.inflate_oom_log)(
-                            abi::Text::from_bytes(c"window".to_bytes()),
+                            abi::Text::from_terminated(c"window".to_bytes_with_nul()),
                             WINDOW as u32,
                         )
                     };

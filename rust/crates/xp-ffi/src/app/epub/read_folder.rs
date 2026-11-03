@@ -30,7 +30,7 @@ impl EpubSession {
             .rsplit(|&byte| byte == b'/')
             .next()
             .unwrap_or_default();
-        unsafe { (self.leaves.path_mkdir)(app_abi::Text::from_bytes(&b"/read\0"[..5])) };
+        unsafe { (self.leaves.path_mkdir)(app_abi::Text::from_terminated(b"/read\0")) };
         let mut destination = Text::default();
         destination.assign_parts(&[b"/read/", filename]).ok()?;
         if unsafe { (self.resources.path_exists)(destination.wire()) } == 0 {

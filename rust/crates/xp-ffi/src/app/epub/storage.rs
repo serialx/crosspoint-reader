@@ -52,11 +52,11 @@ impl EpubSession {
             match mode {
                 FileMode::Read => (self.leaves.file_open_read)(
                     path.wire(),
-                    app_abi::Text::from_bytes(c"ERS".to_bytes()),
+                    app_abi::Text::from_terminated(c"ERS".to_bytes_with_nul()),
                 ),
                 FileMode::Write => (self.leaves.file_open_write)(
                     path.wire(),
-                    app_abi::Text::from_bytes(c"ERS".to_bytes()),
+                    app_abi::Text::from_terminated(c"ERS".to_bytes_with_nul()),
                 ),
             }
         };

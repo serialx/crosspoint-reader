@@ -141,14 +141,14 @@ pub(crate) unsafe extern "C" fn toc(
         None
     };
     let row = row.unwrap_or(cache::Toc {
-        title: alloc::vec::Vec::new(),
+        title: super::Text::default(),
         href: alloc::vec::Vec::new(),
         anchor: alloc::vec::Vec::new(),
         level: 0,
         spine_index: -1,
     });
     let value = abi::XpEpubToc {
-        title: app_abi::Text::from_bytes(&row.title),
+        title: row.title.wire(),
         anchor: app_abi::Text::from_bytes(&row.anchor),
         spine: i32::from(row.spine_index),
         level: i32::from(row.level),
@@ -166,7 +166,7 @@ pub(crate) unsafe fn path_text<'a>(raw: *mut c_void) -> &'a super::Text {
 
 pub(crate) unsafe fn path(raw: *mut c_void, sink: app_abi::TextSink, context: *mut c_void) -> u8 {
     let book = unsafe { owner(raw) };
-    unsafe { sink(context, app_abi::Text::from_bytes(book.path.bytes())) }
+    unsafe { sink(context, book.path.wire()) }
 }
 pub(crate) unsafe fn cache_path(
     raw: *mut c_void,
@@ -174,7 +174,7 @@ pub(crate) unsafe fn cache_path(
     context: *mut c_void,
 ) -> u8 {
     let book = unsafe { owner(raw) };
-    unsafe { sink(context, app_abi::Text::from_bytes(book.cache_path.bytes())) }
+    unsafe { sink(context, book.cache_path.wire()) }
 }
 pub(crate) unsafe fn title(raw: *mut c_void, sink: app_abi::TextSink, context: *mut c_void) -> u8 {
     let book = unsafe { owner(raw) };

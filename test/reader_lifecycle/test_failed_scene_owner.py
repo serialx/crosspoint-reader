@@ -91,7 +91,8 @@ def fixture_source(root, definition, native_leaf):
     scaffold += '\nvoid sceneLockDepthChanged(unsigned depth) { if (fixture) fixture->renderDepth=int(depth); }\n'
     bridge = (HERE / 'scene_owner_bridge.inc').read_text()
     native = (root / 'src/activities/reader/RustEpubResources.cpp').read_text()
-    bridge = once(bridge, '// ACTUAL_PATH_TEXT', definition(native, 'const char* pathText(XpAppText value)'))
+    bridge = once(bridge, '// ACTUAL_PATH_TEXT', definition(native, 'const char* pathText(XpAppText value)') + '\n' +
+                  definition(native, 'std::string_view view(XpAppText value)'))
     memory = (root / 'lib/Memory/Memory.h').read_text()
     begin = memory.index('template <typename F>\nstruct [[nodiscard]] ScopedCleanup')
     end = memory.index('ScopedCleanup(F) -> ScopedCleanup<F>;', begin) + len('ScopedCleanup(F) -> ScopedCleanup<F>;')

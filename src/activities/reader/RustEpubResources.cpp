@@ -135,8 +135,12 @@ static_assert(ReaderStripBuffers::ROWS == 80 && ReaderStripBuffers::MAX_ELEMENTS
 
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.data()), value.size()}; }
 XpAppText text(const char* value) { return {reinterpret_cast<const uint8_t*>(value), strlen(value)}; }
-// File paths come from the Rust owner's NUL-terminated Text storage.
-const char* pathText(XpAppText value) { return value.data ? reinterpret_cast<const char*>(value.data) : ""; }
+// C-string consumers borrow terminated owner storage; spans use owned() or view().
+const char* pathText(XpAppText value) {
+  if (!value.len) return "";
+  assert(value.data && value.data[value.len] == 0);
+  return reinterpret_cast<const char*>(value.data);
+}
 std::string owned(XpAppText value) {
   return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
 }
@@ -1211,8 +1215,8 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             auto& out = *static_cast<Output*>(raw);
             assert(!out.copied);
             out.label.assign(row->label_spaces, ' ');
-            out.label.append(pathText(row->label), row->label.len);
-            out.value.assign(pathText(row->value), row->value.len);
+            out.label.append(view(row->label));
+            out.value.assign(view(row->value));
             out.flags = {row->toggle != 0, row->checked != 0};
             out.copied = true;
             return true;

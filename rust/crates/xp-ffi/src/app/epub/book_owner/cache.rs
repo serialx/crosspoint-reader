@@ -19,7 +19,7 @@ pub(super) struct Spine {
 }
 
 pub(super) struct Toc {
-    pub title: Vec<u8>,
+    pub title: Text,
     pub href: Vec<u8>,
     pub anchor: Vec<u8>,
     pub level: u8,
@@ -81,6 +81,15 @@ impl<'a> Cursor<'a> {
         bytes.resize(length, 0);
         self.read(bytes);
         Ok(())
+    }
+
+    fn text(&mut self) -> Result<Text, Error> {
+        let mut length = 0;
+        self.u32(&mut length);
+        Text::read(length as usize, |bytes| {
+            self.read(bytes);
+        })
+        .map_err(|_| Error::OutOfMemory)
     }
 
     fn spine(&mut self) -> Result<Spine, Error> {
@@ -228,13 +237,13 @@ impl BookCache {
         let mut cursor = Cursor::new(&self.file);
         cursor.row(self.lut_offset, u32::from(self.spine_count) + index as u32);
         let mut row = Toc {
-            title: Vec::new(),
+            title: Text::default(),
             href: Vec::new(),
             anchor: Vec::new(),
             level: 0,
             spine_index: -1,
         };
-        cursor.string(&mut row.title)?;
+        row.title = cursor.text()?;
         cursor.string(&mut row.href)?;
         cursor.string(&mut row.anchor)?;
         let mut level = [row.level];

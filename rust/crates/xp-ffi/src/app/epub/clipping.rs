@@ -79,7 +79,7 @@ impl ClipPage<'_, '_> {
         let skip = if text.starts_with(EM_SPACE) {
             unsafe {
                 (self.owner.leaves.font_text_advance)(
-                    app_abi::Text::from_bytes(&EM_SPACE_C[..3]),
+                    app_abi::Text::from_terminated(EM_SPACE_C),
                     font,
                     word.style & !UNDERLINE,
                     0,

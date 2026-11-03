@@ -14,6 +14,7 @@
 #include <Memory.h>
 #include <Xtc.h>
 
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -40,8 +41,14 @@ namespace {
 XpAppText text(const std::string& value) { return {reinterpret_cast<const uint8_t*>(value.c_str()), value.size()}; }
 XpAppText text(const char* value) { return {reinterpret_cast<const uint8_t*>(value), value ? strlen(value) : 0}; }
 // Resource text is owned and NUL-terminated by Rust before layout or painting.
-const char* cstr(XpAppText value) { return value.data ? reinterpret_cast<const char*>(value.data) : ""; }
-std::string owned(XpAppText value) { return value.len ? std::string(cstr(value), value.len) : std::string(); }
+const char* cstr(XpAppText value) {
+  if (!value.len) return "";
+  assert(value.data && value.data[value.len] == 0);
+  return reinterpret_cast<const char*>(value.data);
+}
+std::string owned(XpAppText value) {
+  return value.len ? std::string(reinterpret_cast<const char*>(value.data), value.len) : std::string();
+}
 Rect rect(XpUiRect r) { return Rect(r.x, r.y, r.w, r.h); }
 XpUiRect rect(Rect r) {
   return {static_cast<int16_t>(r.x), static_cast<int16_t>(r.y), static_cast<int16_t>(r.width),

@@ -31,12 +31,16 @@ impl FileSlot {
         } else {
             leaves.file_open_read
         };
-        self.file =
-            NonNull::new(unsafe { open(path.wire(), abi::Text::from_bytes(origin.to_bytes())) })
-                .map(|handle| File {
-                    handle: Some(handle),
-                    leaves,
-                });
+        self.file = NonNull::new(unsafe {
+            open(
+                path.wire(),
+                abi::Text::from_terminated(origin.to_bytes_with_nul()),
+            )
+        })
+        .map(|handle| File {
+            handle: Some(handle),
+            leaves,
+        });
         self.position = 0;
         self.file.is_some()
     }

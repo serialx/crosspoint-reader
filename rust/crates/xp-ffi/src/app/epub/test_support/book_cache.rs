@@ -115,7 +115,7 @@ pub unsafe extern "C" fn xp_epub_test_cache_query(
         }
         2 => {
             let Ok(row) = cache.toc(index) else { return 0 };
-            text(0, &row.title);
+            text(0, row.title.bytes());
             text(1, &row.href);
             text(2, &row.anchor);
             number(3, row.level.into());

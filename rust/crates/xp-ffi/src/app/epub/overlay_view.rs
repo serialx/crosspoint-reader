@@ -285,7 +285,7 @@ impl EpubSession {
                 info[used] = b'%';
                 used += 1;
                 model.chapter = chapter;
-                model.page_info = app_abi::Text::from_bytes(&info[..used]);
+                model.page_info = app_abi::Text::from_terminated(&info[..=used]);
                 model.progress_permille = (progress * 1000.0 + 0.5) as i32;
                 self.paint_overlay_model(access, mode, &model);
             });

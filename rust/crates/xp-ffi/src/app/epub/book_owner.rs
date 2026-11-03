@@ -135,7 +135,10 @@ impl File {
         origin: &'static core::ffi::CStr,
     ) -> Option<Self> {
         let handle = NonNull::new(unsafe {
-            (leaves.file_open_read)(path.wire(), app_abi::Text::from_bytes(origin.to_bytes()))
+            (leaves.file_open_read)(
+                path.wire(),
+                app_abi::Text::from_terminated(origin.to_bytes_with_nul()),
+            )
         })?;
         Some(Self {
             handle: Some(handle),

@@ -95,7 +95,9 @@ impl Texts<'_> {
                     .iter()
                     .position(|b| *b == 0)
                     .unwrap_or(11);
-                return Some(abi::Text::from_bytes(&self.prepared.progress[..length]));
+                return Some(abi::Text::from_terminated(
+                    &self.prepared.progress[..=length],
+                ));
             }
             TextResource::Menu(index) if usize::from(index) < self.prepared.count => {
                 match self.prepared.keys[usize::from(index)] {

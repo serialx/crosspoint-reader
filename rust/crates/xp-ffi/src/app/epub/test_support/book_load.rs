@@ -131,7 +131,7 @@ pub unsafe extern "C" fn xp_epub_test_load(
                 context,
                 3,
                 index,
-                app_abi::Text::from_bytes(&row.title),
+                row.title.wire(),
                 app_abi::Text::from_bytes(&row.href),
                 app_abi::Text::from_bytes(&row.anchor),
                 u32::from(row.level),

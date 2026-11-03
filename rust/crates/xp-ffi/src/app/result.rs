@@ -18,4 +18,13 @@ impl abi::Text {
             len: bytes.len(),
         }
     }
+
+    /// Borrow the terminator too, while keeping it outside the published length.
+    pub fn from_terminated(bytes: &[u8]) -> Self {
+        assert_eq!(bytes.last(), Some(&0));
+        Self {
+            data: bytes.as_ptr(),
+            len: bytes.len() - 1,
+        }
+    }
 }

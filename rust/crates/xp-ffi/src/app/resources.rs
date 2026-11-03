@@ -11,6 +11,19 @@ pub struct Text {
 }
 
 impl Text {
+    /// Fill initialized text bytes without exposing the trailing NUL to the reader.
+    pub fn read(length: usize, fill: impl FnOnce(&mut [u8])) -> Result<Self, TryReserveError> {
+        let mut text = Self::default();
+        if length == 0 {
+            fill(&mut []);
+        } else {
+            text.bytes.try_reserve_exact(length.saturating_add(1))?;
+            text.bytes.resize(length + 1, 0);
+            fill(&mut text.bytes[..length]);
+        }
+        Ok(text)
+    }
+
     pub fn copy(bytes: &[u8]) -> Result<Self, TryReserveError> {
         let mut text = Self::default();
         text.assign(bytes)?;
@@ -48,9 +61,9 @@ impl Text {
 
     pub fn wire(&self) -> abi::Text {
         if self.bytes.is_empty() {
-            abi::Text::from_bytes(&b"\0"[..0])
+            abi::Text::from_terminated(b"\0")
         } else {
-            abi::Text::from_bytes(self.bytes())
+            abi::Text::from_terminated(&self.bytes)
         }
     }
 

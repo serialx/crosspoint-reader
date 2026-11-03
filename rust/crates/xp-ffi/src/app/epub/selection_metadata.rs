@@ -95,7 +95,7 @@ impl SelectionMetadata {
         if end <= begin {
             return app_abi::Text::from_bytes(&b"\0"[..0]);
         }
-        app_abi::Text::from_bytes(&self.bytes[begin..end - 1])
+        app_abi::Text::from_terminated(&self.bytes[begin..end])
     }
 
     pub(super) fn chapter(&self) -> app_abi::Text {

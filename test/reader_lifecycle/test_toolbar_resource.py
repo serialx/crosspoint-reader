@@ -62,7 +62,8 @@ def fixture(sources, template):
         '// ACTUAL_COMMAND_METHODS': command_methods,
         '// ACTUAL_TOOLBAR_CLASS': toolbar_class,
         '// ACTUAL_TOOLBAR_METHODS': methods,
-        '// ACTUAL_PATH_TEXT': definition(sources[NATIVE], 'const char* pathText(XpAppText value)'),
+        '// ACTUAL_PATH_TEXT': definition(sources[NATIVE], 'const char* pathText(XpAppText value)') + '\n' +
+                              definition(sources[NATIVE], 'std::string_view view(XpAppText value)'),
     }
     for marker, value in replacements.items():
         template = replace_once(template, marker, value)

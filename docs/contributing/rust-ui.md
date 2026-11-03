@@ -210,9 +210,13 @@ helpers in `rust/crates/xp-ui/src/reader/` remain available to EPUB and XTC wher
 needed; the retired EPUB-exclusive service dispatch is not the session boundary.
 
 `src/activities/reader/RustEpubResources.cpp` implements the typed physical leaves
-in `rust/crates/xp-ffi/include/xp_epub_session.h`. C++ retains Book, Section and Page
-resources, files and stores, font/display services, toolbar widgets and native
-child screens. Rust chooses their operations and order. `ReaderActivity` and
+in `rust/crates/xp-ffi/include/xp_epub_session.h`. The session owns its loaded
+`ReaderBook` in Rust, including metadata, cache and load resources. Its native
+`Epub` facade lends that same book to retained Section/parser, child and sync
+consumers. C++ still owns Section and Page resources, file implementations and
+stores, font/display services, toolbar widgets and native child screens. Rust
+chooses their operations and order. See [Reader book ownership](rust.md#reader-book-ownership)
+for facade loans, cache locking and teardown. `ReaderActivity` and
 `XtcReaderActivity` remain the native XTC owner path with shared reader helpers.
 Reader launches for XTC/XTCH use that native owner; EPUB, TXT, Markdown and the
 existing non-image fallback use `EpubSession`. Empty paths open Files, and BMP,

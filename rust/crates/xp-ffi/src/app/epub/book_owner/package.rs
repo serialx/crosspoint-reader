@@ -150,6 +150,7 @@ impl<'writer, 'path> Document<'writer, 'path> {
         count
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn finish(&mut self, diagnostics: &Diagnostics) -> bool {
         self.error = Error::default();
         let io = self.writer.as_mut().map(|writer| writer.streams.io());
@@ -185,17 +186,6 @@ impl<'writer, 'path> Document<'writer, 'path> {
         match &self.pass {
             Pass::Opf(pass) => pass.css.len(),
             Pass::Simple(_) => 0,
-        }
-    }
-
-    pub(super) fn protection(&self) -> bool {
-        matches!(&self.pass, Pass::Simple(pass) if pass.protection)
-    }
-
-    pub(super) fn series_index(&self) -> Option<f32> {
-        match &self.pass {
-            Pass::Opf(pass) => pass.parser.index(),
-            Pass::Simple(_) => None,
         }
     }
 }

@@ -183,6 +183,7 @@ impl File {
             .is_some_and(|handle| unsafe { (self.leaves.file_close)(handle.as_ptr()) != 0 })
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn read_at(&self, offset: u32, bytes: &mut [u8]) -> bool {
         let _guard = CacheGuard::acquire(self.leaves);
         self.seek(offset) && self.read(bytes)

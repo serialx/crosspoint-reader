@@ -3,8 +3,6 @@ extern crate alloc;
 pub(super) mod abi;
 mod base;
 mod book;
-// The new owner stays dormant until the atomic reader switch.
-#[allow(dead_code)]
 mod book_owner;
 mod book_render;
 mod bookmarks;

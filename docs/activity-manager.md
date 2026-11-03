@@ -55,6 +55,14 @@ transition. `ActivityManager` forwards native navigation through `xp_app.h` and
 retains the render task, RenderLock and completion notification. See
 [Application ownership](contributing/rust-ui.md#application-ownership).
 
+The EPUB session owns one Rust `ReaderBook`. Native Section/parser, reader
+children and progress/XPath code borrow its `Epub` compatibility object; their
+shared pointers must be released before the Rust book is destroyed. The facade
+close checks that no native borrower remains. Exit detaches the image extractor,
+drops Section and closes the facade before releasing the book. Native Home,
+Library, Sleep and sync objects retain their ordinary Epub ownership. See
+[Reader book ownership](contributing/rust.md#reader-book-ownership).
+
 ```text
 Main task -> xp_app_loop -> Rust Application
                             current: Home, Rust EPUB session or owned legacy activity
@@ -247,6 +255,12 @@ There are two tasks relevant to the activity system:
 │   (end of loop)      │     │                          │
 └──────────────────────┘     └──────────────────────────┘
 ```
+
+Session entry and book load run through the loop task's transition drain;
+render callbacks and clipping sync have render-task call chains. Measure their
+stack minima separately: the entry/load frame is not a render-frame cost.
+Retained Section builds can progress over later loop ticks, so their facade loan
+must remain valid until the build or its cancellation finishes.
 
 Both tasks run at priority 1. Since the ESP32-C3 is single-core, they alternate execution: the main task runs `loop()`, then at the end of the loop iteration, notifies the render task if an update was requested. The render task wakes, acquires the mutex, calls `render()`, releases the mutex, and blocks again.
 

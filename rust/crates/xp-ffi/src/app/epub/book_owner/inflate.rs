@@ -31,7 +31,7 @@ pub(super) struct InflateStorage {
     state: NonNull<InflateState>,
     window: Option<NonNull<u8>>,
     lease: Option<ScratchLease>,
-    heap_state: Option<Buffer>,
+    _heap_state: Option<Buffer>,
     heap_window: Option<Buffer>,
 }
 
@@ -71,7 +71,7 @@ impl InflateStorage {
             state,
             window: None,
             lease,
-            heap_state,
+            _heap_state: heap_state,
             heap_window: None,
         };
         if streaming {

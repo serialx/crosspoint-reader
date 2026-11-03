@@ -498,6 +498,49 @@ cmake --build build/test -j 6
 ctest --test-dir build/test --output-on-failure -j 6
 ```
 
+## Reader book ownership
+
+The ordinary EPUB/TXT/Markdown reader owns one `ReaderBook` in
+`xp-ffi::app::epub::book_owner`. It owns the path, metadata bytes, cache file,
+spine/TOC and size-window state, load-time CSS, package writer, ZIP/TXT resources
+and protection loan. It calls the existing Rust parsing and cache algorithms
+through native file, scratch, clock and decryptor leaves. Paths and metadata are
+byte strings; do not require UTF-8 or cap their lengths to fit an adapter.
+
+`EpubSession` publishes a native `Epub` compatibility object only after load
+succeeds. That object forwards row, size and stream queries to the same Rust
+owner through `XpEpubBookBorrow`; it does not load another book. It keeps the
+cache path, language and native Section-time `CssParser` needed by retained
+reference-return APIs. Load-time Rust CSS is released before the facade is
+published. Native Section, chapter assembly/parser, chapter/bookmark children
+and progress/XPath mapping still hold `shared_ptr<Epub>` loans. The shared
+pointer keeps the facade alive, not its Rust owner: every loan must end before
+`book_facade_close`, and the Rust owner must outlive that close. Detach the image
+extractor and drop Section before closing the facade and owner. Sync may detach
+and rebind the extractor to the same live facade.
+
+The reader has no native book-open/load/getter service table. Its remaining
+`book_facade_open`, `book_facade_close` and nullable `book_set_extractor` leaves
+support those retained native borrowers. Facade calls outside its supported
+query/render methods assert in debug builds and return inert values in release;
+calling native load or metadata getters is not a fallback. Ordinary `Epub`
+objects used by Home, Library, Sleep and sync still own native resources through
+the existing interfaces. Include those objects when accounting for the inline
+facade state's memory cost.
+
+`ResourceAccess` precedes the cache lock, then storage. A cache row read releases
+its guard before invoking a sink; the decoded row owns its bytes for the
+synchronous callback, which may reenter another query or stream. Do not hold a
+Rust mutable borrow across a native callback. Clipping/recents adapters lend
+string views to synchronous stores, which copy into their final fields or row
+sink. No metadata view survives the call. Bookmark paths retain their native
+string adapter.
+
+Book cache v10, CSS cache v19, Section cache v68 and the target's
+`std::hash<std::string>` path convention are unchanged. The
+[reader lifecycle tests](../../test/reader_lifecycle/README.md) distinguish actual
+owner/facade compositions from historical synthetic service fixtures.
+
 ## XML events
 
 `xp-core::xml::Parser` owns incremental XML state. Feed a byte slice, drain
@@ -507,16 +550,19 @@ applies when the entire offered slice was consumed. Events borrow parser
 storage until the next operation. `xp-ffi` exposes the same driver contract
 through `xp_xml_*`; the header documents span and handle lifetimes.
 
-Container, encryption, OPF, nav and NCX use the C++ `PackageParser` Print adapter,
-which feeds `xp_pkg_pass_*` document handles. Rust `epub::facade` drives the
+Ordinary native `Epub` consumers use the C++ `PackageParser` Print adapter for
+container, encryption, OPF, nav and NCX, feeding `xp_pkg_pass_*` document handles.
+The reader's `ReaderBook` owns its package passes directly and uses the same core
+parsers and cache algorithms. Rust `epub::facade` drives the
 parsers, manifest lookup and CSS paths; `epub::cache` owns the cache build state,
 spine/TOC record serialization, book.bin v10 layout, LUTs, cumulative sizes and
 ZIP size preparation. `xp-ffi::book_cache` owns cache reads and size windows.
 `BookMetadataCache` owns the Rust cache handle; document passes borrow it and
 must be destroyed first. `PackagePlatform.cpp` implements the shared native
 facades and resource adapter, retaining HalFile ownership, buffered I/O, ZIP
-access, string/deque storage and the size-window lock. C++ retains the Epub
-resource facade; the Rust application owns reader session policy and sequencing.
+access, string/deque storage and the size-window lock for those native owners.
+The [reader book owner](#reader-book-ownership) has its own scoped native file and
+cache-lock leaves; its retained Epub facade only lends the same loaded book.
 See the [package oracle](../../test/package_golden/README.md) for parity checks
 and their limits.
 

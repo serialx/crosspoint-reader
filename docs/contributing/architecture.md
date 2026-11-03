@@ -70,7 +70,10 @@ Top-level activity groups:
 Reader launches enter the Rust application. Reflowable books use its `EpubSession`;
 XTC/XTCH retain the native `ReaderActivity`/`XtcReaderActivity` route.
 The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust policy ownership and native resource lifetimes.
-EPUB processing is implemented in `lib/Epub/`. Its XML consumers use the
+The reader owns one Rust `ReaderBook` for metadata, cache setup and resource
+lifetimes. Its retained native `Epub` facade forwards queries to that owner;
+Section, parser and Page adapters remain in `lib/Epub/`. Ordinary Home, Library,
+Sleep and sync consumers retain native Epub ownership. Both routes use the
 streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
 Rust owns the parser and XPath state and consumes XML events directly. The pinned SDK's
 OPDS, OpenSearch and XML catalog consumers retain their interfaces through the
@@ -84,11 +87,11 @@ flowchart LR
     A[Select book] --> B[Rust application]
     B --> C{Format}
     C -->|EPUB / TXT / Markdown| F[EpubSession]
-    F --> D[Native Book resource / lib/Epub]
+    F --> D[Rust ReaderBook / native physical leaves]
     C -->|XTC / XTCH| E[Native XtcReaderActivity]
     D --> G[Parse OPF/TOC and collect CSS refs]
     G --> H[Build/load book.bin and css_rules.cache]
-    H --> I[Layout pages/sections]
+    H --> I[Native Epub facade / Section layout]
     I --> J[Write section cache]
     J --> K[Render current page via GfxRenderer]
 ```
@@ -105,16 +108,16 @@ This diagram zooms into the EPUB path to show the main control and data flow fro
 ```mermaid
 flowchart TD
     A[Rust application Reader launch] --> B{File type}
-    B -->|Reflowable| C[EpubSession opens native Book resource]
+    B -->|Reflowable| C[EpubSession creates Rust ReaderBook]
     B -->|XTC / XTCH| Z[Native XtcReaderActivity]
 
-    C --> D[Epub load]
+    C --> D[ReaderBook load]
     D --> E[Locate container and OPF]
-    E --> F[Build or load BookMetadataCache]
+    E --> F[Build or load book.bin in Rust]
     F --> G[Load TOC and spine]
     G --> H[Load CSS cache or parse manifest/base-dir CSS]
 
-    H --> I[EpubSession book rendering]
+    H --> I[Publish native facade for Section / EpubSession render]
     I --> J{Section cache exists for current settings?}
     J -->|Yes| K[Read section bin from SD cache]
     J -->|No| L[Parse chapter HTML and layout text]

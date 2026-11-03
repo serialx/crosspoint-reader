@@ -27,8 +27,9 @@ production behavior. The `app-test` feature and its `xp_app_test_*` and
 hooks: real entry, cached book rendering, page movement, toolbar display and
 cancellation, forced refresh, final Update and exit. It runs both strip
 configurations with asymmetric margins, a selected body font, text AA and nonempty
-metadata/highlights. Native resource/frame and strip code execute over physical
-fakes. This does not exercise the full parser, storage medium or panel.
+metadata/highlights. It uses the named historical native-book fixture, while
+native resource/frame and strip code execute over physical fakes. This does not
+exercise ReaderBook loading, the full parser, storage medium or panel.
 
 `reader_app_epub_results` exercises native children returning to the actual App
 owner. The native producer moves the result into callback-local storage. Child
@@ -43,7 +44,49 @@ native child widgets' own tests.
 XTC/XTCH, EPUB, TXT, Markdown and fallback paths, with case variants and a long
 path. It checks native factory and resource counts, constructor refresh frequency,
 Rust/native acquisition failures preserving the active owner, invalid path spans,
-and rejection of a missing EPUB service table. These 57 cases use physical fakes.
+and rejection of a missing EPUB service table. These 57 cases use the actual
+Rust ReaderBook and native facade with valid v10 cache bytes, physical storage
+and UI fakes. Legacy native-book services trap if called.
+
+## Actual book and borrower compositions
+
+`reader_book_*` resource, cache, ZIP, package, CSS, load and TXT cases call the
+actual Rust book modules. The owner is active in firmware; component-only
+helpers remain behind `app-test`. Book lifetime/render traces compare current
+EpubSession methods with frozen bytes, without retaining a second dispatch
+engine as their reference implementation.
+
+`reader_book_facade` loads ReaderBook and uses actual Epub facade/CssParser and
+image-extractor code. It checks the six reverse callbacks, nested stream queries,
+CSS load/clear, native outer allocation failures and forbidden metadata getters.
+The two simulated loan ticks in this test are not a real Section build.
+
+`reader_book_section` supplies the actual Section, ChapterHtmlSlimParser,
+ChapterPageAssembler, Page codec, CssParser, ImageBlock, ProgressMapper and
+ChapterXPathResolver. It checks serialized background ticks, cache/page reads,
+active-build cancellation and a visible-offset/XPath round trip. Native file,
+font/render and scheduler inputs remain physical fakes; it does not qualify
+panel timing or concurrent hardware execution.
+
+`reader_child_handle_composition` retains 77 original cases: 76 use actual
+ReaderBook/native facade and one keeps the historical single-attempt selection
+metadata fault through the explicitly named legacy fixture. The real-owner
+allocation matrix separately fails cache-query and packed-metadata allocations
+without moving its fault arm. Original parent outcome checks and 22 mutants
+remain. Actual chapter/bookmark constructors and shared-pointer members exercise
+loan retention and release; native child widgets keep their separate tests.
+
+`book_store_composition.py` extracts the actual bookmark, clipping and recents
+adapters between ReaderBook/App and physical store observers. It proves adapter
+bytes and synchronous lifetimes, not actual store allocation or persistence
+peaks. The clipping and settings-store suites exercise the stores themselves;
+measure the full stores when assessing long-metadata allocation cost.
+
+Historical service fixtures live in `legacy_book_fixture.h` and Rust
+`test_support::legacy_book`, behind `app-test`. They preserve captured allocation
+attempts and supplied metadata without becoming a production fallback. Their
+symbols must be absent from shipping images. Keep both historical and actual
+owner paths: passing one does not establish the other's guarantees.
 
 The archive absence check in `reader_lifecycle_abi` honors `NM`. Set it to an
 LLVM-compatible `llvm-nm` if the system tool cannot read the Rust toolchain's

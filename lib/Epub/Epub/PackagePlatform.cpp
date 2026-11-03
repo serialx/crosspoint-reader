@@ -23,10 +23,13 @@ constexpr char tmpTocBinFile[] = "/toc.bin.tmp";
 // Buffer size for the buildBookBin streams. 3 buffers x 4KB, transient (freed on
 // return); 4KB = 8 SD sectors per transfer, enough to stop the sector-cache thrash.
 constexpr size_t BUILD_IO_BUFFER_SIZE = 4096;
-// The render task and the main loop both ask for sizes.
+// Shared by native size windows and Rust reader cursor transactions.
 std::mutex sizeWindowLock;
 
 }  // namespace
+
+void BookMetadataCache::lockReadCursor() { sizeWindowLock.lock(); }
+void BookMetadataCache::unlockReadCursor() { sizeWindowLock.unlock(); }
 
 struct BookMetadataCache::ReadContext {
   const BookMetadataCache& owner;

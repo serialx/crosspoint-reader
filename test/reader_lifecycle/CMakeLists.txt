@@ -310,3 +310,7 @@ add_test(NAME reader_stack_boundaries
 add_test(NAME reader_app_routing
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_app_routing.py
     --repo ${REPO_ROOT} --archive ${XP_FFI_HOST_ARCHIVE})
+
+add_test(NAME reader_book_resources
+  COMMAND ${CMAKE_COMMAND} -E env "XP_TEST_RUST_ARCHIVE=${XP_FFI_HOST_ARCHIVE}"
+    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_book_resource.py)

@@ -154,7 +154,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
   table.resources_open = &OverlayUnexpected<decltype(table.resources_open)>::call;
   table.resources_close = &OverlayUnexpected<decltype(table.resources_close)>::call;
   table.render_services = &OverlayUnexpected<decltype(table.render_services)>::call;
@@ -355,5 +355,15 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.toolbar_reset_navigation = &OverlayUnexpected<decltype(table.toolbar_reset_navigation)>::call;
   table.input_snapshot = &OverlayUnexpected<decltype(table.input_snapshot)>::call;
   table.page_render = &OverlayUnexpected<decltype(table.page_render)>::call;
+  table.protection_open = &OverlayUnexpected<decltype(table.protection_open)>::call;
+  table.protection_close = &OverlayUnexpected<decltype(table.protection_close)>::call;
+  table.protection_encrypted = &OverlayUnexpected<decltype(table.protection_encrypted)>::call;
+  table.protection_size = &OverlayUnexpected<decltype(table.protection_size)>::call;
+  table.protection_stream = &OverlayUnexpected<decltype(table.protection_stream)>::call;
+  table.file_seek = &OverlayUnexpected<decltype(table.file_seek)>::call;
+  table.file_size = &OverlayUnexpected<decltype(table.file_size)>::call;
+  table.path_remove_tree = &OverlayUnexpected<decltype(table.path_remove_tree)>::call;
+  table.cache_lock = &OverlayUnexpected<decltype(table.cache_lock)>::call;
+  table.cache_unlock = &OverlayUnexpected<decltype(table.cache_unlock)>::call;
   return table;
 }

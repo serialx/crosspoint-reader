@@ -67,7 +67,7 @@ static_assert(std::is_same_v<decltype(XpEpubLeaves::input_snapshot), void (*)(Xp
 static_assert(offsetof(XpEpubLeaves, input_snapshot) == 198 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::page_render), void (*)(void*, int32_t, int32_t, int32_t)>);
 static_assert(offsetof(XpEpubLeaves, page_render) == 199 * sizeof(void (*)(void)));
-static_assert(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)(void)));
+static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)(void)));
 static_assert(std::is_same_v<decltype(XpEpubLeaves::log_enabled), uint8_t (*)(uint8_t)>);
 static_assert(offsetof(XpEpubLeaves, log_enabled) == 196 * sizeof(void (*)(void)));
 static_assert(XP_UI_READER_RENDER_NOW == 0);

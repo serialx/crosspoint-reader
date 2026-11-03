@@ -108,7 +108,7 @@ inline XpAppRuntime runtimeDefaults() {
 
 inline XpEpubLeaves leavesDefaults() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -309,6 +309,16 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(toolbar_reset_navigation);
   UNUSED_LEAF(input_snapshot);
   UNUSED_LEAF(page_render);
+  UNUSED_LEAF(protection_open);
+  UNUSED_LEAF(protection_close);
+  UNUSED_LEAF(protection_encrypted);
+  UNUSED_LEAF(protection_size);
+  UNUSED_LEAF(protection_stream);
+  UNUSED_LEAF(file_seek);
+  UNUSED_LEAF(file_size);
+  UNUSED_LEAF(path_remove_tree);
+  UNUSED_LEAF(cache_lock);
+  UNUSED_LEAF(cache_unlock);
   return table;
 }
 

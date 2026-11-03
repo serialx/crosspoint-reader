@@ -2,6 +2,7 @@
 
 #include <BlePageTurner.h>
 #include <BoardConfig.h>
+#include <ContentProtection.h>
 #include <Epub.h>
 #include <Epub/Page.h>
 #include <Epub/Section.h>
@@ -1437,6 +1438,38 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); },
       .page_render = [](void* handle, int32_t font, int32_t left,
                         int32_t top) { static_cast<Page*>(handle)->render(*target, font, left, top); },
+      .protection_open = [](XpAppText path, XpAppTextSink error, void* context) -> void* {
+        std::string message;
+        auto protection = freeink::content::openProtectedBook(owned(path), message);
+        if (!message.empty()) error(context, text(message));
+        return protection.release();
+      },
+      .protection_close = [](void* protection) { delete static_cast<freeink::content::ContentDecryptor*>(protection); },
+      .protection_encrypted = [](void* protection, XpAppText path) -> uint8_t {
+        return static_cast<freeink::content::ContentDecryptor*>(protection)->isEncrypted(owned(path));
+      },
+      .protection_size = [](void* protection, XpAppText path) -> uint32_t {
+        return static_cast<freeink::content::ContentDecryptor*>(protection)->decryptedSize(owned(path));
+      },
+      .protection_stream = [](void* protection, XpAppText path, XpBookSink sink, void* context) -> uint8_t {
+        struct Output {
+          XpBookSink sink;
+          void* context;
+        } output{sink, context};
+        return static_cast<freeink::content::ContentDecryptor*>(protection)
+            ->decryptToSink(
+                owned(path),
+                [](void* raw, const uint8_t* bytes, size_t size) {
+                  const auto& out = *static_cast<Output*>(raw);
+                  return out.sink(out.context, bytes, size) != 0;
+                },
+                &output);
+      },
+      .file_seek = [](void* file, uint32_t offset) -> uint8_t { return static_cast<HalFile*>(file)->seek(offset); },
+      .file_size = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->size(); },
+      .path_remove_tree = [](XpAppText path) -> uint8_t { return Storage.removeDir(pathText(path)); },
+      .cache_lock = [] { BookMetadataCache::lockReadCursor(); },
+      .cache_unlock = [] { BookMetadataCache::unlockReadCursor(); },
   };
   return leaves;
 }

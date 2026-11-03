@@ -23,7 +23,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)()));
   value.resources_open = &AppFixtureUnexpected<decltype(value.resources_open), 0>::call;
   value.resources_close = &AppFixtureUnexpected<decltype(value.resources_close), 1>::call;
   value.render_services = &AppFixtureUnexpected<decltype(value.render_services), 2>::call;
@@ -224,6 +224,16 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.toolbar_reset_navigation = &AppFixtureUnexpected<decltype(value.toolbar_reset_navigation), 197>::call;
   value.input_snapshot = &AppFixtureUnexpected<decltype(value.input_snapshot), 198>::call;
   value.page_render = &AppFixtureUnexpected<decltype(value.page_render), 199>::call;
+  value.protection_open = &AppFixtureUnexpected<decltype(value.protection_open), 200>::call;
+  value.protection_close = &AppFixtureUnexpected<decltype(value.protection_close), 201>::call;
+  value.protection_encrypted = &AppFixtureUnexpected<decltype(value.protection_encrypted), 202>::call;
+  value.protection_size = &AppFixtureUnexpected<decltype(value.protection_size), 203>::call;
+  value.protection_stream = &AppFixtureUnexpected<decltype(value.protection_stream), 204>::call;
+  value.file_seek = &AppFixtureUnexpected<decltype(value.file_seek), 205>::call;
+  value.file_size = &AppFixtureUnexpected<decltype(value.file_size), 206>::call;
+  value.path_remove_tree = &AppFixtureUnexpected<decltype(value.path_remove_tree), 207>::call;
+  value.cache_lock = &AppFixtureUnexpected<decltype(value.cache_lock), 208>::call;
+  value.cache_unlock = &AppFixtureUnexpected<decltype(value.cache_unlock), 209>::call;
   return value;
 }
 

@@ -7,3 +7,7 @@ mod ble;
 mod ble_runtime;
 #[path = "../../../rust/crates/xp-ffi/src/book_policy.rs"]
 mod book_policy;
+#[path = "../../../rust/crates/xp-ffi/src/book_limits.rs"]
+mod book_limits;
+#[path = "../../../rust/crates/xp-ffi/src/css.rs"]
+mod css;

@@ -105,6 +105,9 @@ class BookMetadataCache {
 
   // Reading phase (read mode)
   bool load();
+  // Shared with the Rust reader cache while native book consumers remain.
+  static void lockReadCursor();
+  static void unlockReadCursor();
   SpineEntry getSpineEntry(int index);
   TocEntry getTocEntry(int index);
   // Cumulative byte size up to and including the given spine item (0 if out of range

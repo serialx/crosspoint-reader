@@ -1,5 +1,6 @@
 #pragma once
 #include "xp_app.h"
+#include "xp_book.h"
 #include "xp_ui_reader.h"
 
 #ifdef __cplusplus
@@ -502,6 +503,18 @@ typedef struct XpEpubLeaves {
   void (*toolbar_reset_navigation)(void* toolbar, int32_t selected, int32_t top);
   void (*input_snapshot)(XpUiInput* out);
   void (*page_render)(void* page, int32_t font, int32_t left, int32_t top);
+  // Null without error is a plain book. Error text is borrowed only during the sink.
+  void* (*protection_open)(XpAppText path, XpAppTextSink error, void* context);
+  void (*protection_close)(void* protection);
+  uint8_t (*protection_encrypted)(void* protection, XpAppText path);
+  uint32_t (*protection_size)(void* protection, XpAppText path);
+  uint8_t (*protection_stream)(void* protection, XpAppText path, XpBookSink sink, void* context);
+  uint8_t (*file_seek)(void* file, uint32_t offset);
+  uint32_t (*file_size)(void* file);
+  uint8_t (*path_remove_tree)(XpAppText path);
+  // Lock order: ResourceAccess, cache, Storage.
+  void (*cache_lock)(void);
+  void (*cache_unlock)(void);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -554,7 +567,7 @@ XP_EPUB_ASSERT(sizeof(XpEpubToolbarRow) == 2 * sizeof(XpAppText) + 8, "XpEpubToo
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, label_spaces) == 2 * sizeof(XpAppText), "XpEpubToolbarRow.label_spaces");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, toggle) == 2 * sizeof(XpAppText) + 4, "XpEpubToolbarRow.toggle");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, checked) == 2 * sizeof(XpAppText) + 5, "XpEpubToolbarRow.checked");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 200 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 210 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(resources_open, 0);
@@ -757,6 +770,16 @@ XP_EPUB_LEAF_OFFSET(log_enabled, 196);
 XP_EPUB_LEAF_OFFSET(toolbar_reset_navigation, 197);
 XP_EPUB_LEAF_OFFSET(input_snapshot, 198);
 XP_EPUB_LEAF_OFFSET(page_render, 199);
+XP_EPUB_LEAF_OFFSET(protection_open, 200);
+XP_EPUB_LEAF_OFFSET(protection_close, 201);
+XP_EPUB_LEAF_OFFSET(protection_encrypted, 202);
+XP_EPUB_LEAF_OFFSET(protection_size, 203);
+XP_EPUB_LEAF_OFFSET(protection_stream, 204);
+XP_EPUB_LEAF_OFFSET(file_seek, 205);
+XP_EPUB_LEAF_OFFSET(file_size, 206);
+XP_EPUB_LEAF_OFFSET(path_remove_tree, 207);
+XP_EPUB_LEAF_OFFSET(cache_lock, 208);
+XP_EPUB_LEAF_OFFSET(cache_unlock, 209);
 #undef XP_EPUB_LEAF_OFFSET
 #undef XP_EPUB_ASSERT
 

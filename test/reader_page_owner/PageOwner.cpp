@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "../reader_lifecycle/physical_defaults.h"
+#include "PageViews.h"
 
 extern "C" {
 uint8_t xp_epub_test_page_owner(const XpAppResources*, const XpEpubLeaves*, XpAppText, XpAppText, uint32_t,
@@ -129,6 +130,7 @@ static void initialize() {
 struct Expected {
   XpPageInfo info;
   const uint8_t* arena;
+  const Page* native;
   PageMetadata metadata;
   size_t records = 0;
 };
@@ -139,6 +141,8 @@ static void observe(void* raw, uint8_t kind, uint16_t index, const uint8_t* byte
     assert(std::memcmp(bytes, e.arena, length) == 0);
     assert(liveBytes == length + 2 * sizeof(void*));
     assert(sizes[0] == liveBytes);
+    Page borrowed(Page::Borrowed{}, bytes, length, e.native->visibleTextOffset);
+    comparePage(*e.native, borrowed);
     ++pages;
     return;
   }
@@ -166,7 +170,8 @@ static void check(const Bytes& bytes, uint32_t visible, bool faultCases) {
   XpPageInfo info{};
   if (native) assert(!xp_page_arena_size(bytes.data(), bytes.size(), &info));
   // Page::allocate places its arena immediately after the actual native header.
-  Expected expected{info, native ? reinterpret_cast<const uint8_t*>(native.get()) + sizeof(Page) : nullptr, {}};
+  Expected expected{
+      info, native ? reinterpret_cast<const uint8_t*>(native.get()) + sizeof(Page) : nullptr, native.get(), {}};
   if (native) assert(expected.metadata.assign(*native));
   for (bool file : {false, true}) {
     reset();

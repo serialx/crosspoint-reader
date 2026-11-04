@@ -166,7 +166,15 @@ class Page {
     };
     ElementData() : position{}, line{} {}
   };
-  ElementData* views = nullptr;
+  enum class Ownership : uint8_t { Native, Borrowed, Transferred };
+  Ownership ownership = Ownership::Native;
+  union Backing {
+    ElementData* views = nullptr;
+    struct {
+      void* owner;
+      void (*destroy)(void*);
+    } transferred;
+  } storage;
   static size_t allocationSize(size_t arenaBytes, size_t elements);
   static std::unique_ptr<Page> allocate(const XpPageInfo& info);
   bool resolveViews();
@@ -178,6 +186,12 @@ class Page {
 
  public:
   Page() = default;
+  // Borrows an already validated Rust arena; no decoded view table or byte copy.
+  struct Borrowed {};
+  Page(Borrowed, const uint8_t* arena, size_t size, uint32_t visibleOffset);
+  ~Page();
+  // Called only after the complete child construction transaction succeeds.
+  void adopt(void* owner, void (*destroy)(void*));
   Page(const Page&) = delete;
   Page& operator=(const Page&) = delete;
   Page(Page&&) = delete;

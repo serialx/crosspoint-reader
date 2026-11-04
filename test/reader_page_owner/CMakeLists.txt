@@ -12,3 +12,27 @@ add_test(NAME ReaderPageOwner COMMAND ${Python3_EXECUTABLE}
   ${REPO_ROOT}/test/page_codec_diff/run.py --dump $<TARGET_FILE:ReaderPageOwner>)
 add_test(NAME ImageScaleFormatting COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/scale_oracle.py $<TARGET_FILE:ReaderPageOwner>)
+
+# Keep the actual child declarations and owned members; replace only their
+# scheduling/UI dependencies for construction/destruction fault coverage.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/physical/activities)
+configure_file(${REPO_ROOT}/src/activities/OwnedLegacyActivity.h
+  ${CMAKE_CURRENT_BINARY_DIR}/physical/activities/OwnedLegacyActivity.h COPYONLY)
+configure_file(transfer_stubs/activities/Activity.h
+  ${CMAKE_CURRENT_BINARY_DIR}/physical/activities/Activity.h COPYONLY)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_constructors.py
+    ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp
+  DEPENDS extract_constructors.py ${REPO_ROOT}/src/activities/reader/ClipSelectionActivity.cpp
+    ${REPO_ROOT}/test/reader_lifecycle/test_popup_resource.py
+  VERBATIM)
+add_executable(ReaderPageTransfer PageTransfer.cpp ${READER_PAGE_SOURCES}
+  ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp)
+target_include_directories(ReaderPageTransfer PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
+  ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_CODEC_INCLUDES} ${REPO_ROOT}/test/ui_runtime)
+target_compile_definitions(ReaderPageTransfer PRIVATE XP_EPUB_PAGE_OWNER_TEST=1)
+target_compile_options(ReaderPageTransfer PRIVATE -UNDEBUG)
+target_link_libraries(ReaderPageTransfer PRIVATE crosspoint_test_common xp_ffi_host)
+add_test(NAME ReaderPageTransfer COMMAND ${Python3_EXECUTABLE}
+  ${REPO_ROOT}/test/page_codec_diff/run.py --dump $<TARGET_FILE:ReaderPageTransfer>)

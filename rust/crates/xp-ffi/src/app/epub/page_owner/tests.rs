@@ -3,6 +3,35 @@ use core::ffi::c_void;
 
 type Observe = unsafe extern "C" fn(*mut c_void, u8, u16, *const u8, usize);
 
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_page_transfer(
+    resources: &'static app_abi::Resources,
+    leaves: &'static XpEpubLeaves,
+    input: app_abi::Text,
+    count: u8,
+    factory: unsafe extern "C" fn(*mut transfer::OwnedPage, u8, *mut c_void) -> *mut c_void,
+    context: *mut c_void,
+) -> *mut c_void {
+    assert!((1..=3).contains(&count));
+    let mut pages = [None, None, None];
+    for (index, slot) in pages.iter_mut().enumerate().take(usize::from(count)) {
+        *slot = Page::from_bytes(
+            resources,
+            leaves,
+            unsafe { input.bytes() }.unwrap(),
+            index as u32,
+        );
+        if slot.is_none() {
+            return core::ptr::null_mut();
+        }
+    }
+    let mut pending = Pending::new(pages);
+    let (records, count) = pending.records();
+    let child = unsafe { factory(records, count, context) };
+    pending.completed(!child.is_null());
+    child
+}
+
 // Observers borrow bytes only for the call; no synthetic owner replaces Page.
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_page_owner(

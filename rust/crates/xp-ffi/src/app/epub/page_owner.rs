@@ -4,7 +4,9 @@ use xp_core::{page, section::Diagnostic};
 
 mod diagnostics;
 mod metadata;
+mod transfer;
 pub(super) use metadata::Metadata;
+pub(super) use transfer::Pending;
 #[cfg(feature = "app-test")]
 mod tests;
 

@@ -17,6 +17,36 @@ native file-operation or diagnostic ordering parity. That remains a production
 composition check when the reader switches owners. These are host contracts,
 not target heap, stack, rendering, or child timing measurements.
 
+`ReaderPageOwner` also compares borrowed native facades with native Pages:
+word text, source ranges, fonts, small caps, discretionary hyphens, focus data,
+ruby, block style, metadata, image geometry, and visible offsets. The facades
+read the same Rust-owned arena without a resolved-view allocation.
+
+`ReaderPageTransfer` exercises the real Rust `Pending` adapter and native
+footnote, dictionary, and clipping constructors/destructors. It includes the
+production child declarations and copies both clipping constructors unchanged
+at build time. Scheduling, activity-base behavior, popup UI, and font prewarm
+are named physical substitutes; virtual UI methods abort if called. The test
+does not construct a session or install a legacy Book, Section, or Page fixture.
+Unused physical leaves abort. Native Pages in this test come from the real
+codec and serve only as comparison inputs and the dictionary borrowed-page case.
+
+For each child, faults cover every facade, wrapper, and child allocation, plus
+every Rust Page allocation in one-, two-, and three-Page transfers. Failed
+factories must leave all owners unchanged; successful factories must consume
+all owners without releasing an arena during construction. Destroying the
+actual native child releases each Rust allocation once. The dictionary viewer's
+borrowed selection constructor must leave its native Pages alive. Existing
+vector and string allocations are not covered by nothrow fault injection.
+
+Physical drawing comparisons cover the existing renderer fixture's rectangle
+trace in all three Page modes. Image admission uses the real ImageBlock code
+with host storage; image paths and sources retain their NUL terminators. Font
+ascent uses deterministic fixture metrics. These checks do not establish target
+pixels, input behavior, child timing, heap fragmentation, or runtime stack use.
+The draft native adapters and transfer descriptors remain test-gated until the
+shipping Page leaves retire together.
+
 `ImageScaleFormatting` compares the actual ImageScale log with 125,326 immutable
 outputs from the pinned C3 and S3 `libc.a` implementations of
 `snprintf("%.2f", (double)f)`. Both targets produced identical output in unmodified
@@ -38,7 +68,7 @@ target spellings.
 Run the focused tests with:
 
 ```
-cmake --build build/test --target ReaderPageOwner PageLoad -j 2
+cmake --build build/test --target ReaderPageOwner ReaderPageTransfer PageLoad ChapterHtmlSlimParserTest -j 2
 ctest --test-dir build/test -j 2 --output-on-failure \
-  -R '^(ReaderPageOwner|ImageScaleFormatting|PageLoadMalformed|PageLoadOom|PageLoadPartial|PageAllocator|PageReaderMetadata)$'
+  -R '^(ReaderPageOwner|ReaderPageTransfer|ImageScaleFormatting|PageLoadMalformed|PageLoadOom|PageLoadPartial|PageAllocator|PageReaderMetadata|DictionaryHtmlPagesTest\..*)$'
 ```

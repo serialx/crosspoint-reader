@@ -6,6 +6,8 @@
 #include <Utf8.h>
 #include <xp_book.h>
 
+#include <cassert>
+
 namespace {
 void logPageDiagnostic(const XpPageDiagnostic& detail) {
   [[maybe_unused]] const unsigned a = detail.a, b = detail.b;
@@ -80,6 +82,31 @@ PageDropCap::PageDropCap(const int32_t fontId, const uint16_t scale256, const Ep
 
 #endif
 
+Page::Page(Borrowed, const uint8_t* bytes, const size_t size, const uint32_t visibleOffset)
+    : arena(const_cast<uint8_t*>(bytes)), arenaSize(size), ownership(Ownership::Borrowed) {
+  uint32_t decodedOffset = 0;
+  [[maybe_unused]] const auto status = xp_page_info(arena, arenaSize, &info, &decodedOffset);
+  assert(status == 0 && decodedOffset == visibleOffset);
+  visibleTextOffset = visibleOffset;
+}
+
+Page::~Page() {
+  switch (ownership) {
+    case Ownership::Native:
+    case Ownership::Borrowed:
+      break;
+    case Ownership::Transferred:
+      storage.transferred.destroy(storage.transferred.owner);
+      break;
+  }
+}
+
+void Page::adopt(void* owner, void (*destroy)(void*)) {
+  assert(ownership == Ownership::Borrowed && owner && destroy);
+  storage.transferred = {owner, destroy};
+  ownership = Ownership::Transferred;
+}
+
 void Page::renderArena(GfxRenderer& renderer, const int fontId, const int x, const int y,
                        const PageRenderMode mode) const {
   struct Images {
@@ -130,14 +157,14 @@ std::unique_ptr<Page> Page::allocate(const XpPageInfo& info) {
   std::unique_ptr<Page> page(::new (allocation) Page);
   page->arena = static_cast<uint8_t*>(allocation) + sizeof(Page);
   page->arenaSize = info.arena_size;
-  page->views = reinterpret_cast<ElementData*>(static_cast<uint8_t*>(allocation) + viewOffset);
+  page->storage.views = reinterpret_cast<ElementData*>(static_cast<uint8_t*>(allocation) + viewOffset);
   page->info = info;
   return page;
 }
 
 bool Page::resolveViews() {
   for (uint16_t i = 0; i < info.elements; ++i) {
-    auto& view = *new (&views[i]) ElementData{};
+    auto& view = *new (&storage.views[i]) ElementData{};
     view.position = xp_page_position(arena, arenaSize, i);
     if (!view.position.tag) return false;
     if (view.position.tag == TAG_PageLine) {
@@ -291,15 +318,20 @@ PageElementView::PageElementView(const Page& owner, const uint16_t index) : page
     return;
   }
 #endif
-  const auto& e = page->views[index].position;
+  const auto e = page->ownership == Page::Ownership::Native ? page->storage.views[index].position
+                                                            : xp_page_position(page->arena, page->arenaSize, index);
   tag = static_cast<PageElementTag>(e.tag);
   xPos = e.x;
   yPos = e.y;
 }
 
 XpPageElement PageElementView::fields() const {
-  const auto& view = page->views[index];
   XpPageElement value{};
+  if (page->ownership != Page::Ownership::Native) {
+    xp_page_element(page->arena, page->arenaSize, index, &value);
+    return value;
+  }
+  const auto& view = page->storage.views[index];
   value.tag = tag;
   auto* v = value.record.values;
   v[0] = static_cast<uint32_t>(xPos);
@@ -342,7 +374,11 @@ TextBlock PageElementView::textBlock() const {
   if (!page->arena)
     return TextBlock(TextBlock::View{}, *static_cast<const PageLine&>(*page->elements[index]).getBlock());
 #endif
-  return TextBlock(TextBlock::View{}, page->arena, page->views[index].line);
+  if (page->ownership == Page::Ownership::Native)
+    return TextBlock(TextBlock::View{}, page->arena, page->storage.views[index].line);
+  TextBlock::ViewData data{};
+  TextBlock::resolveView(page->arena, page->arenaSize, index, data);
+  return TextBlock(TextBlock::View{}, page->arena, data);
 }
 
 ImageBlock PageElementView::imageBlock() const {

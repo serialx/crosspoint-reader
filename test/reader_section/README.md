@@ -36,12 +36,12 @@ candidate consumed the same stored ZIP and Book metadata. Every resulting Page,
 render record and persisted cache file matched. The reference retains Page and
 cache hashes instead of duplicating all existing rendering goldens.
 
-The Phase 16 evidence packet `checkpoint-3/page-production-path-comparison/`
-contains the isolated parent source modifications, production-source identity
-checks, binaries, raw outputs, failed harness attempts and full comparison. The
-initial failing candidate run remains separately frozen at
-`checkpoint-3/page-golden-path-gate/`. Do not regenerate either historical goldens
-or parent reference to resolve a mismatch.
+Review material kept outside this repository records the isolated parent source
+modifications, production-source identity checks, binaries, raw outputs and full
+comparison. It proves that the actual parent and candidate produce the same Page
+and cache bytes; the failed harness attempts and initial failing candidate run
+are retained separately. Do not regenerate either historical goldens or the
+parent reference to resolve a mismatch.
 
 ## Other identity-path consumers
 

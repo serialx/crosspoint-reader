@@ -62,9 +62,11 @@ at the same path leaves this key unchanged.
 
 Cache invalidation is decided by `xp_core::section::header_matches`
 (`rust/crates/xp-core/src/section/mod.rs`): it compares the font id, bit-exact
-line compression, and header word slots `values[3..14]`. `headerFields()` in
-`lib/Epub/Epub/SectionPlatform.cpp` derives those slots from `ReaderRenderSpec`,
-and `Section::loadSectionFile()` there delegates to `xp_book_section_load`.
+line compression, and header word slots `values[3..14]`.
+`section_owner::lifecycle::header` in
+`rust/crates/xp-ffi/src/app/epub/section_owner/lifecycle.rs` derives those slots
+from the reader render spec. `ReaderSection::load` validates the cached header
+through `section_cache`.
 Format/version mismatches also invalidate saved data.
 Path changes select another cache; same-path content replacement needs the
 appropriate freshness check and an affected-cache reset during testing.
@@ -76,9 +78,7 @@ also deletes settings, credentials, and application state.
 ### Cache File Format Versioning
 
 Read `BOOK_CACHE_VERSION` from `lib/Epub/Epub/PackagePlatform.cpp`. The section
-format version is `SECTION_FILE_VERSION` / `SECTION_FILE_PARTIAL_VERSION` in
-`lib/Epub/Epub/SectionPlatform.cpp`; both take their value from
-`XP_SEC_VERSION` / `XP_SEC_PARTIAL_VERSION` in
+format version is `XP_SEC_VERSION` / `XP_SEC_PARTIAL_VERSION` in
 `rust/crates/xp-ffi/include/xp_ffi.h`, which mirror
 `xp_core::section::VERSION` / `PARTIAL_VERSION` in
 `rust/crates/xp-core/src/section/mod.rs`. Bump the Rust and header values

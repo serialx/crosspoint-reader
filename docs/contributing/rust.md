@@ -175,9 +175,11 @@ C3 eink-qemu measurements do not establish hardware or S3 runtime behavior.
 
 Diagnostics must preserve behavior and add no heap allocations. C++ owns the
 `LOG_*` calls and log-level gates. The reader's `book_owner` formats its migrated
-load, cache, package, CSS, ZIP and TXT/Markdown diagnostics in Rust, preserving
-the native messages' origin tags and levels. Its non-inlined formatter uses a
-256-byte stack buffer, checks `XpEpubLeaves::log_enabled`, then synchronously
+load, cache, package, CSS, ZIP and TXT/Markdown diagnostics in Rust.
+`section_owner` formats Section/Chapter build diagnostics through the same log
+leaf. Both preserve the native messages' origin tags and levels. Their shared
+non-inlined formatter uses a 256-byte stack buffer, checks
+`XpEpubLeaves::log_enabled`, then synchronously
 passes borrowed origin/message spans to `XpEpubLeaves::log` in
 `xp_epub_session.h`. C++ emits them with `%.*s`, mapping severity 0/1/2 to
 debug/error/info. Inflate allocation failures still use `inflate_oom_log`, which
@@ -574,7 +576,8 @@ string adapter.
 Book cache v10, CSS cache v19, Section cache v68 and the target's
 `std::hash<std::string>` path convention are unchanged. The native path-hash
 leaf uses the equivalent borrowed `std::string_view` hash, avoiding a temporary
-string allocation; target hash parity is tested on C3 and S3. The
+string allocation. Target hash parity is verified with the pinned C3 and S3
+toolchains under emulation, not on a physical device. The
 [reader lifecycle tests](../../test/reader_lifecycle/README.md) distinguish actual
 owner/facade compositions from historical synthetic service fixtures.
 

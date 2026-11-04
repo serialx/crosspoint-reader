@@ -88,6 +88,8 @@ pub unsafe extern "C" fn xp_epub_test_section_records(
 pub unsafe extern "C" fn xp_epub_test_section_storage(
     resources: &'static abi::Resources,
     leaves: &'static super::super::abi::XpEpubLeaves,
+    runtime: &'static abi::Runtime,
+    spec: &super::super::abi::XpEpubRenderSpec,
     source: abi::Text,
     cache: abi::Text,
     native: unsafe extern "C" fn(*mut core::ffi::c_void, u8, *mut [u32; 20], *mut [u32; 4]),
@@ -161,10 +163,12 @@ pub unsafe extern "C" fn xp_epub_test_section_storage(
     let book = ReaderBook::into_raw(book);
     assert!(unsafe { ReaderBook::open_facade(book) });
     let facade = unsafe { queries::facade(book.as_ptr()) };
+    let section = unsafe { ReaderSection::open(book, 0, resources, leaves) }.unwrap();
+    assert!(unsafe { ReaderSection::create(section, spec, None, runtime) });
+    assert!(unsafe { ReaderSection::complete(section) });
     let mut expected = [0; 20];
     let mut native_values = [0; 4];
     unsafe { native(facade, 0, &mut expected, &mut native_values) };
-    let section = unsafe { ReaderSection::open(book, 0, resources, leaves) }.unwrap();
     assert!(unsafe { ReaderSection::load(section, &expected) });
     let count = unsafe { ReaderSection::query(section, Query::PageCount) }.unwrap()[0];
     assert_eq!(count, native_values[0]);

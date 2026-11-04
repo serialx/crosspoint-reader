@@ -1,5 +1,5 @@
-#include <Epub.h>
-#include <Epub/Section.h>
+#include "../reader_section/ReaderSectionFixture.h"
+using Section = ReaderSectionFixture;
 #include <GfxRenderer.h>
 
 #include <cstdio>
@@ -19,9 +19,10 @@ int main(int argc, char** argv) {
       !sectioncodec::writeValue(f, XP_SEC_U32, 10))
     return 3;
   f.close();
-  auto epub = std::make_shared<Epub>();
+  auto epub = std::make_shared<ReaderSectionInput>();
   GfxRenderer renderer;
   Section section(epub, 0, renderer);
+  std::puts("ADMISSION 1");
   ReaderRenderSpec spec{};
   if (std::strcmp(argv[1], "parameters") == 0) spec.fontId += 1;
   if (std::strcmp(argv[1], "seek") == 0 || std::strcmp(argv[1], "read") == 0) {

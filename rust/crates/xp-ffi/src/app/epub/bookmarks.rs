@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{
     abi, app_abi, state::Position, text::sanitize_summary, EpubSession, ResourceAccess, Text,
 };
@@ -73,7 +74,7 @@ impl EpubSession {
         let count = match access {
             Some(access) => self
                 .section(access)
-                .map(|section| unsafe { (self.leaves.section_estimated_pages)(section.as_ptr()) }),
+                .map(|section| unsafe { ReaderSection::estimated_pages(section) }),
             None => self.estimated_pages(),
         }
         .unwrap_or(0);
@@ -147,9 +148,7 @@ impl EpubSession {
         let Some(section) = self.section(access) else {
             return Some(Text::default());
         };
-        Text::receive(|sink, context| unsafe {
-            (self.leaves.section_page_text)(section.as_ptr(), page, sink, context)
-        })
+        unsafe { ReaderSection::page_text(section, page) }
     }
 
     pub(super) fn add_bookmark(&self) {
@@ -182,7 +181,7 @@ impl EpubSession {
             let Some(section) = self.section(&access) else {
                 return;
             };
-            let count = unsafe { (self.leaves.section_estimated_pages)(section.as_ptr()) };
+            let count = unsafe { ReaderSection::estimated_pages(section) };
             (self.model(|state| state.current.page), count)
         };
         let position = self.loop_current_position();

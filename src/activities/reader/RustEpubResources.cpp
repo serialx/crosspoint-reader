@@ -1,13 +1,16 @@
 #include "RustEpubResources.h"
 
+#include <BidiUtils.h>
 #include <BlePageTurner.h>
 #include <BoardConfig.h>
 #include <BuildScratch.h>
 #include <ContentProtection.h>
 #include <Epub.h>
 #include <Epub/Page.h>
-#include <Epub/Section.h>
 #include <Epub/blocks/ImageBlock.h>
+#include <Epub/converters/ImageDecoderFactory.h>
+#include <Epub/converters/ImageToFramebufferDecoder.h>
+#include <Epub/hyphenation/Hyphenator.h>
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
 #include <HalDisplay.h>
@@ -73,7 +76,74 @@
 #include "ReaderStripPainter.h"
 #endif
 
+const XpParaAllocator* paragraphAllocator();
+
 namespace {
+static const GfxRenderer& sectionRenderer(void* raw) { return *static_cast<GfxRenderer*>(raw); }
+[[maybe_unused]] int32_t textAdvance(void* context, int32_t font, XpParaSpan text, uint8_t style, int8_t tracking) {
+  return sectionRenderer(context).getTextAdvanceX(font, text.len ? reinterpret_cast<const char*>(text.data) : "",
+                                                  static_cast<EpdFontFamily::Style>(style), tracking);
+}
+void prepareText(void* context, int32_t font, const XpParaSpan* spans, uint32_t count, uint8_t space, uint8_t hyphen,
+                 uint8_t styles, uint8_t small) {
+  std::vector<const char*> segments;
+  std::vector<size_t> lengths;
+  segments.reserve(count);
+  lengths.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) {
+    segments.push_back(reinterpret_cast<const char*>(spans[i].data));
+    lengths.push_back(spans[i].len);
+  }
+  sectionRenderer(context).ensureSdCardFontReady(font, segments.data(), lengths.data(), count, space, hyphen, styles,
+                                                 small);
+}
+[[maybe_unused]] uint8_t startsRtl(XpParaSpan text, int32_t depth) {
+  return BidiUtils::startsWithRtl(std::string_view(reinterpret_cast<const char*>(text.data), text.len), depth);
+}
+[[maybe_unused]] uint8_t visualOrder(XpParaSpan text, const uint16_t* offsets, uint32_t count, uint8_t rtl,
+                                     uint16_t* order) {
+  return BidiUtils::computeVisualWordOrder({reinterpret_cast<const char*>(text.data), text.len}, {offsets, count}, rtl,
+                                           {order, count});
+}
+XpParaMetrics sectionMetrics{nullptr,
+                             nullptr,  // Layout tracing is installed only by the host instrumenter.
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             prepareText,
+                             nullptr,
+                             nullptr,
+#else
+                             textAdvance,
+                             [](void* c, int32_t f, uint8_t s) -> int32_t {
+                               return sectionRenderer(c).getSpaceWidth(f, static_cast<EpdFontFamily::Style>(s));
+                             },
+                             [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s, int8_t t) -> int32_t {
+                               return sectionRenderer(c).getKerning(f, a, b, static_cast<EpdFontFamily::Style>(s), t);
+                             },
+                             [](void* c, int32_t f, uint32_t a, uint32_t b, uint8_t s) -> int32_t {
+                               return sectionRenderer(c).getSpaceAdvance(f, a, b, static_cast<EpdFontFamily::Style>(s));
+                             },
+                             [](void* c, int32_t f) -> int32_t { return sectionRenderer(c).getFontAscenderSize(f); },
+                             [](void* c, int32_t f) -> uint8_t { return sectionRenderer(c).isSdCardFont(f); },
+                             prepareText,
+                             startsRtl,
+                             visualOrder,
+#endif
+#ifdef XP_NATIVE_TEXT_MEASUREMENT
+                             [](void* ctx, XpNativeProvider* out) -> uint8_t {
+                               *out = sectionRenderer(ctx).textProvider();
+                               return true;
+                             },
+#else
+                             nullptr,
+#endif
+                             nullptr};
+
 // Persisted input settings consumed by the ordinary Rust reader.
 static_assert(static_cast<uint32_t>(HomeButtonAction::Footnotes) == 4);
 static_assert(static_cast<uint32_t>(HomeButtonAction::Sync) == 6);
@@ -538,7 +608,6 @@ struct NativeRenderFrame {
 struct NativeResources {
   GfxRenderer& renderer;
   XpUiReaderRenderServices renderServices;
-  std::optional<GfxRenderer::FrameBufferLoan> loan;
   std::optional<FontCacheManager::PrewarmScope> prewarm;
   PageMetadata metadata;
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
@@ -597,7 +666,6 @@ struct NativeResources {
 };
 NativeResources& resources(void* handle) { return *static_cast<NativeResources*>(handle); }
 BookHandle& book(void* handle) { return *static_cast<BookHandle*>(handle); }
-Section& section(void* handle) { return *static_cast<Section*>(handle); }
 using Bookmarks = std::vector<BookmarkEntry>;
 Bookmarks& bookmarkRows(void* handle) { return *static_cast<Bookmarks*>(handle); }
 XpEpubBookmark bookmarkView(const BookmarkEntry& row) {
@@ -624,22 +692,6 @@ void readMargins(GfxRenderer& renderer, int32_t* out) {
   int margins[4]{};
   renderer.getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
   for (size_t i = 0; i < std::size(margins); ++i) out[i] = margins[i];
-}
-
-ReaderRenderSpec renderSpec(const XpEpubRenderSpec& value) {
-  return {.fontId = value.font,
-          .lineCompression = value.compression,
-          .extraParagraphSpacing = value.paragraph_spacing != 0,
-          .paragraphIndentSpaces = value.paragraph_indent,
-          .characterSpacing = value.character_spacing,
-          .wordSpacingPercent = value.word_spacing_percent,
-          .paragraphAlignment = value.alignment,
-          .viewportWidth = value.width,
-          .viewportHeight = value.height,
-          .hyphenationEnabled = value.hyphenation != 0,
-          .embeddedStyle = value.embedded_style != 0,
-          .imageRendering = value.images,
-          .focusReadingEnabled = value.focus_reading != 0};
 }
 
 CrossPointPosition position(const XpEpubPosition& value) {
@@ -725,17 +777,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .render_restore_bw = [](uint8_t resync) { target->restoreBwBuffer(resync != 0); },
       .render_discard_bw = [] { target->discardStoredBwBuffer(); },
       .render_orientation = [](uint8_t orientation) { ReaderUtils::applyOrientation(*target, orientation); },
-      .loan_begin = [](void* handle) -> uint8_t {
-        auto& loan = resources(handle).loan;
-        assert(!loan);
-        loan.emplace(*target);
-        return 1;
-      },
-      .loan_end =
-          [](void* handle) {
-            if (auto& loan = resources(handle).loan) loan->end();
-          },
-      .loan_drop = [](void* handle) { resources(handle).loan.reset(); },
       .loan_count = [] { return target->frameBufferLoanCount(); },
       .strip_release_idle = [](void* handle) -> uint8_t {
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
@@ -815,71 +856,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return EpubReaderUtils::saveProgress(
             book(handle).value(), value->spine, value->page, value->count,
             value->has_visible_offset ? std::optional<uint32_t>(value->visible_offset) : std::nullopt);
-      },
-      .section_open = [](void* handle, int32_t spine) -> void* {
-        return makeUniqueNoThrow<Section>(book(handle).book, spine, *target).release();
-      },
-      .section_close = [](void* handle) { delete static_cast<Section*>(handle); },
-      .section_page_count = [](void* handle) { return section(handle).pageCount; },
-      .section_estimated_pages = [](void* handle) -> int32_t { return section(handle).estimatedTotalPages(); },
-      .section_building = [](void* handle) -> uint8_t { return section(handle).isBuilding(); },
-      .section_complete = [](void* handle) -> uint8_t { return section(handle).isBuildComplete(); },
-      .section_partial = [](void* handle) -> uint8_t { return section(handle).isPartial(); },
-      .section_load_cache = [](void* handle, const XpEpubRenderSpec* spec) -> uint8_t {
-        return section(handle).loadSectionFile(renderSpec(*spec));
-      },
-      .section_create_cache = [](void* handle, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup,
-                                 void* context) -> uint8_t {
-        return section(handle).createSectionFile(renderSpec(*spec), [popup, context] { popup(context); });
-      },
-      .section_start_build = [](void* handle, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup,
-                                void* context) -> uint8_t {
-        if (!popup) return section(handle).startBuild(renderSpec(*spec));
-        return section(handle).startBuild(renderSpec(*spec), [popup, context] { popup(context); });
-      },
-      .section_build_more = [](void* handle, int32_t maxPages, uint8_t yieldOnInput) -> uint8_t {
-        return section(handle).buildSomeMore(maxPages, yieldOnInput ? +[] { return gpio.rawInputActive(); } : nullptr);
-      },
-      .section_abandon_build = [](void* handle) { section(handle).abandonBuild(); },
-      .section_clear_cache = [](void* handle) -> uint8_t { return section(handle).clearCache(); },
-      .section_html_cached = [](void* handle) -> uint8_t { return section(handle).hasHtmlCache(); },
-      .section_find_anchor = [](void* handle, XpAppText anchor, uint16_t* page) -> uint8_t {
-        const auto value = section(handle).findAnchor(owned(anchor));
-        if (value) *page = *value;
-        return value.has_value();
-      },
-      .section_cached_anchor = [](void* handle, XpAppText anchor, uint16_t* page) -> uint8_t {
-        const auto value = section(handle).getPageForAnchor(owned(anchor));
-        if (value) *page = *value;
-        return value.has_value();
-      },
-      .section_toc_for_page = [](void* handle, void* bookHandle, int32_t spine, int32_t page) -> int32_t {
-        if (handle) return section(handle).getTocIndexForPage(page);
-        const Section cached(book(bookHandle).book, spine, *target);
-        return cached.getTocIndexForPage(page);
-      },
-      .section_page_for_offset = [](void* handle, uint32_t offset, uint8_t preferFirst, uint16_t* page) -> uint8_t {
-        const auto value = section(handle).getPageForVisibleTextOffset(offset, preferFirst != 0);
-        if (value) *page = *value;
-        return value.has_value();
-      },
-      .section_offset_for_page = [](void* handle, uint16_t page, uint32_t* offset) -> uint8_t {
-        const auto value = section(handle).getVisibleTextOffsetForPage(page);
-        if (value) *offset = *value;
-        return value.has_value();
-      },
-      .section_paragraph_for_page = [](void* handle, uint16_t page, uint16_t* paragraph) -> uint8_t {
-        const auto value = section(handle).getParagraphIndexForPage(page);
-        if (value) *paragraph = *value;
-        return value.has_value();
-      },
-      .section_reached_offset = [](void* handle, uint32_t offset) -> uint8_t {
-        return section(handle).buildReachedVisibleTextOffset(offset);
-      },
-      .section_load_page = [](void* handle, int32_t page) -> void* { return section(handle).loadPage(page).release(); },
-      .section_page_text = [](void* handle, int32_t page, XpAppTextSink sink, void* context) -> uint8_t {
-        const auto value = section(handle).getTextFromSectionFile(page);
-        return sink(context, text(value));
       },
       .page_close = [](void* handle) { delete static_cast<Page*>(handle); },
       .page_info =
@@ -1083,7 +1059,7 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return Storage.rename(pathText(from), pathText(to));
       },
       .path_mkdir = [](XpAppText path) -> uint8_t { return Storage.mkdir(pathText(path)); },
-      .native_path_hash = [](XpAppText path) -> uint64_t { return std::hash<std::string>{}(owned(path)); },
+      .native_path_hash = [](XpAppText path) -> uint64_t { return std::hash<std::string_view>{}(view(path)); },
       .heap_snapshot = [](XpEpubHeap* out) { *out = {ESP.getFreeHeap(), ESP.getMaxAllocHeap()}; },
       .radio_status =
           [](XpEpubRadio* out, XpEpubPeer* peer) {
@@ -1452,6 +1428,58 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
       .scratch_release = [](const uint8_t* bytes) { buildscratch::release(bytes); },
       .inflate_oom_log = [](XpAppText allocation,
                             uint32_t bytes) { InflateStream::logAllocationFailure(pathText(allocation), bytes); },
+      .build_metrics = []() -> const XpParaMetrics* { return &sectionMetrics; },
+      .build_allocator = paragraphAllocator,
+      .font_variant = [](int32_t font, float scale) -> int32_t { return target->resolveFontVariant(font, scale); },
+      .font_line_height = [](int32_t font, float compression) -> int32_t {
+        return target->getLineHeight(font, compression);
+      },
+      .font_ready = [](int32_t font, int32_t fallback) -> int32_t {
+        return font == fallback || target->ensureFontLoaded(font) ? font : fallback;
+      },
+      .font_codepoint = [](int32_t font, uint32_t codepoint, uint8_t style, int32_t* advance, int32_t* top) -> uint8_t {
+        int32_t measuredAdvance = 0;
+        int measuredTop = 0;
+        const bool found = target->getCodepointMetrics(font, codepoint, static_cast<EpdFontFamily::Style>(style),
+                                                       measuredAdvance, measuredTop);
+        *advance = measuredAdvance;
+        *top = measuredTop;
+        return found;
+      },
+      .hyphen_language = [](XpAppText language) -> int32_t {
+        Hyphenator::setPreferredLanguage(owned(language));
+        return Hyphenator::preferredLanguageId();
+      },
+      .file_position = [](void* file) -> uint32_t { return static_cast<HalFile*>(file)->position(); },
+      .file_flush = [](void* file) { static_cast<HalFile*>(file)->flush(); },
+      .image_supported = [](XpAppText path) -> uint8_t {
+        return ImageDecoderFactory::isFormatSupported(pathText(path));
+      },
+      .image_dimensions = [](XpAppText path, uint16_t* width, uint16_t* height) -> uint8_t {
+        auto* decoder = ImageDecoderFactory::getDecoder(pathText(path));
+        if (!decoder) return 0;
+        ImageDimensions dimensions{static_cast<int16_t>(*width), static_cast<int16_t>(*height)};
+        const bool found = decoder->getDimensions(pathText(path), dimensions);
+        *width = dimensions.width;
+        *height = dimensions.height;
+        return found ? 2 : 1;
+      },
+      .page_load = [](void* file, uint32_t bytes, uint32_t visible) -> void* {
+        return Page::load(*static_cast<HalFile*>(file), bytes, visible).release();
+      },
+      .framebuffer_lend = []() -> uint8_t {
+        if (!target->hasFrameBuffer()) return 0;
+        target->releaseFrameBufferForBuild();
+        return 1;
+      },
+      .framebuffer_restore =
+          [](uint8_t owned) {
+            if (owned && !target->restoreFrameBufferAfterBuild()) {
+              LOG_ERR("GFX", "Framebuffer restore failed - restarting");
+              ESP.restart();
+            }
+          },
   };
+  if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;
 }

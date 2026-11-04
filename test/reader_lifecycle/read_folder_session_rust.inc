@@ -122,7 +122,7 @@ static const XpAppRuntime runtime = [] {
 
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -133,37 +133,11 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(render_restore_bw);
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
-  UNUSED_LEAF(loan_begin);
-  UNUSED_LEAF(loan_end);
-  UNUSED_LEAF(loan_drop);
   UNUSED_LEAF(loan_count);
   UNUSED_LEAF(strip_release_idle);
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(section_open);
-  UNUSED_LEAF(section_close);
-  UNUSED_LEAF(section_page_count);
-  UNUSED_LEAF(section_estimated_pages);
-  UNUSED_LEAF(section_building);
-  UNUSED_LEAF(section_complete);
-  UNUSED_LEAF(section_partial);
-  UNUSED_LEAF(section_load_cache);
-  UNUSED_LEAF(section_create_cache);
-  UNUSED_LEAF(section_start_build);
-  UNUSED_LEAF(section_build_more);
-  UNUSED_LEAF(section_abandon_build);
-  UNUSED_LEAF(section_clear_cache);
-  UNUSED_LEAF(section_html_cached);
-  UNUSED_LEAF(section_find_anchor);
-  UNUSED_LEAF(section_cached_anchor);
-  UNUSED_LEAF(section_toc_for_page);
-  UNUSED_LEAF(section_page_for_offset);
-  UNUSED_LEAF(section_offset_for_page);
-  UNUSED_LEAF(section_paragraph_for_page);
-  UNUSED_LEAF(section_reached_offset);
-  UNUSED_LEAF(section_load_page);
-  UNUSED_LEAF(section_page_text);
   UNUSED_LEAF(page_close);
   UNUSED_LEAF(page_info);
   UNUSED_LEAF(page_element);
@@ -312,6 +286,20 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(scratch_claim);
   UNUSED_LEAF(scratch_release);
   UNUSED_LEAF(inflate_oom_log);
+  UNUSED_LEAF(build_metrics);
+  UNUSED_LEAF(build_allocator);
+  UNUSED_LEAF(font_variant);
+  UNUSED_LEAF(font_line_height);
+  UNUSED_LEAF(font_ready);
+  UNUSED_LEAF(font_codepoint);
+  UNUSED_LEAF(hyphen_language);
+  UNUSED_LEAF(file_position);
+  UNUSED_LEAF(file_flush);
+  UNUSED_LEAF(image_supported);
+  UNUSED_LEAF(image_dimensions);
+  UNUSED_LEAF(page_load);
+  UNUSED_LEAF(framebuffer_lend);
+  UNUSED_LEAF(framebuffer_restore);
   table.path_mkdir = [](XpAppText path) -> uint8_t {
     leaf();
     return Storage.mkdir(nativeText(path).c_str());

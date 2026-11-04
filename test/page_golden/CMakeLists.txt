@@ -121,3 +121,10 @@ if(STRIP_PLAN AND XP_FFI_HOST_FEATURES MATCHES "display-panel")
   add_test(NAME ReaderStripReplay COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/strip_replay.py
     $<TARGET_FILE:ReaderStripReplay>)
 endif()
+
+include(${REPO_ROOT}/test/reader_section/fixture.cmake)
+reader_section_fixture(PageGolden)
+
+add_test(NAME PageGoldenHistoricalImagePaths COMMAND ${Python3_EXECUTABLE}
+  ${REPO_ROOT}/test/reader_section/page_paths.py --binary $<TARGET_FILE:PageGolden>
+  --work-dir ${CMAKE_CURRENT_BINARY_DIR}/historical-image-paths)

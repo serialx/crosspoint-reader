@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{abi, app_abi, state::Position, EpubSession, ResourceAccess, Text};
 
 impl EpubSession {
@@ -207,16 +208,7 @@ impl EpubSession {
                 if self.model(|state| state.current.spine) != sync.spine {
                     return None;
                 }
-                let mut page = 0;
-                (unsafe {
-                    (self.leaves.section_page_for_offset)(
-                        section.as_ptr(),
-                        sync.offset,
-                        0,
-                        &mut page,
-                    )
-                } != 0)
-                    .then_some(page)
+                unsafe { ReaderSection::page_for_offset(section, sync.offset, false) }
             });
             if let Some(page) = page {
                 self.model(|state| state.current.page = i32::from(page));
@@ -305,7 +297,7 @@ impl EpubSession {
         let Some(section) = self.section(access) else {
             return false;
         };
-        if unsafe { (self.leaves.section_building)(section.as_ptr()) } != 0 {
+        if unsafe { ReaderSection::building(section) } {
             return false;
         }
         let mut changed = false;
@@ -314,15 +306,14 @@ impl EpubSession {
             let mut page = active_page;
             let mut mapped = false;
             if let Some(offset) = cached.offset {
-                let mut result = 0;
-                mapped = unsafe {
-                    (self.leaves.section_page_for_offset)(section.as_ptr(), offset, 0, &mut result)
-                } != 0;
-                if mapped {
+                if let Some(result) =
+                    unsafe { ReaderSection::page_for_offset(section, offset, false) }
+                {
+                    mapped = true;
                     page = i32::from(result);
                 }
             }
-            let count = i32::from(unsafe { (self.leaves.section_page_count)(section.as_ptr()) });
+            let count = i32::from(unsafe { ReaderSection::page_count(section) });
             if !mapped && cached.pages > 0 && count != cached.pages {
                 let progress = active_page as f32 / cached.pages as f32;
                 page = (progress * count as f32) as i32;
@@ -362,7 +353,7 @@ impl EpubSession {
         if let Some(section) = self.section(access) {
             if spine == self.model(|state| state.current.spine)
                 && page >= 0
-                && page < i32::from(unsafe { (self.leaves.section_page_count)(section.as_ptr()) })
+                && page < i32::from(unsafe { ReaderSection::page_count(section) })
             {
                 offset = self.model(|state| {
                     (page == state.current.page)
@@ -370,17 +361,7 @@ impl EpubSession {
                         .flatten()
                 });
                 if offset.is_none() {
-                    let mut value = 0;
-                    if unsafe {
-                        (self.leaves.section_offset_for_page)(
-                            section.as_ptr(),
-                            page as u16,
-                            &mut value,
-                        )
-                    } != 0
-                    {
-                        offset = Some(value);
-                    }
+                    offset = unsafe { ReaderSection::offset_for_page(section, page as u16) };
                 }
             }
         }
@@ -419,14 +400,8 @@ impl EpubSession {
             return;
         };
         let page = self.model(|state| state.current.page);
-        if page >= 0
-            && page < i32::from(unsafe { (self.leaves.section_page_count)(section.as_ptr()) })
-        {
-            let mut offset = 0;
-            if unsafe {
-                (self.leaves.section_offset_for_page)(section.as_ptr(), page as u16, &mut offset)
-            } != 0
-            {
+        if page >= 0 && page < i32::from(unsafe { ReaderSection::page_count(section) }) {
+            if let Some(offset) = unsafe { ReaderSection::offset_for_page(section, page as u16) } {
                 self.model(|state| state.cached.offset = Some(offset));
             }
         }

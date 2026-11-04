@@ -67,7 +67,8 @@ pub unsafe extern "C" fn xp_epub_test_overlay_view_create_legacy_book(
     state.facts.book = !seed.book.is_null();
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guarded.toolbar = NonNull::new(seed.toolbar);
     guarded.more_actions = seed.more_actions;
     guarded.more_count = seed.more_count;

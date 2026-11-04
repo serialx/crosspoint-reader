@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{
     abi, app_abi,
     book::{with_book_text, with_text},
@@ -237,9 +238,10 @@ impl EpubSession {
         let value = abi::XpEpubStatus {
             title,
             bookmarked: u8::from(self.model(|state| state.bookmarked)),
-            building: u8::from(self.section(access).is_some_and(|section| unsafe {
-                (self.leaves.section_building)(section.as_ptr()) != 0
-            })),
+            building: u8::from(
+                self.section(access)
+                    .is_some_and(|section| unsafe { ReaderSection::building(section) }),
+            ),
             ..*status
         };
         unsafe { (self.leaves.paint_status)(&value) };
@@ -291,7 +293,7 @@ impl EpubSession {
             1
         };
         let count = section.map_or(1, |section| unsafe {
-            (self.leaves.section_estimated_pages)(section.as_ptr())
+            ReaderSection::estimated_pages(section)
         });
         let fraction = if count > 0 {
             page as f32 / count as f32

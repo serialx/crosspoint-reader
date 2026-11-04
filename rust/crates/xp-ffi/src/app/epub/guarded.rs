@@ -1,5 +1,6 @@
 extern crate alloc;
 
+use super::session_section::{Handle, SectionSlot};
 use super::{
     app_abi, selection_metadata::SelectionMetadata, state::RenderFrame, EpubSession,
     ResourceAccess, Text,
@@ -11,7 +12,7 @@ use core::{cell::UnsafeCell, ffi::c_void, ptr::NonNull};
 pub(super) struct Guarded {
     pub(super) native: Option<NonNull<c_void>>,
     pub(super) book: Option<NonNull<c_void>>,
-    pub(super) section: Option<NonNull<c_void>>,
+    pub(super) section: Option<SectionSlot>,
     pub(super) toolbar: Option<NonNull<c_void>>,
     pub(super) overlay_popup: Option<NonNull<c_void>>,
     pub(super) failure_popup: Option<NonNull<c_void>>,
@@ -92,15 +93,22 @@ impl EpubSession {
         book
     }
 
-    pub(super) fn section(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
-        unsafe { (*self.guarded_ptr(access)).section }
+    pub(super) fn section(&self, access: &ResourceAccess<'_>) -> Option<Handle> {
+        unsafe {
+            (*self.guarded_ptr(access))
+                .section
+                .as_ref()
+                .map(SectionSlot::pointer)
+        }
     }
 
-    pub(super) fn set_section(&self, access: &ResourceAccess<'_>, value: Option<NonNull<c_void>>) {
-        unsafe { (*self.guarded_ptr(access)).section = value };
+    pub(super) fn set_section(&self, access: &ResourceAccess<'_>, value: Option<Handle>) {
+        let slot = unsafe { &mut (*self.guarded_ptr(access)).section };
+        assert!(slot.is_none());
+        *slot = value.map(|raw| unsafe { SectionSlot::new(raw) });
     }
 
-    pub(super) fn take_section(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
+    pub(super) fn take_section(&self, access: &ResourceAccess<'_>) -> Option<SectionSlot> {
         unsafe { (*self.guarded_ptr(access)).section.take() }
     }
 

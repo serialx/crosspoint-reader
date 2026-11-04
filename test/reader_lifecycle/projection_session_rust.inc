@@ -132,7 +132,7 @@ static const XpAppRuntime runtime = [] {
 }();
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
   UNUSED_LEAF(physical.resources_open);
   UNUSED_LEAF(physical.resources_close);
   UNUSED_LEAF(physical.render_services);
@@ -143,9 +143,6 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.render_restore_bw);
   UNUSED_LEAF(physical.render_discard_bw);
   UNUSED_LEAF(physical.render_orientation);
-  UNUSED_LEAF(physical.loan_begin);
-  UNUSED_LEAF(physical.loan_end);
-  UNUSED_LEAF(physical.loan_drop);
   UNUSED_LEAF(physical.loan_count);
   UNUSED_LEAF(physical.strip_release_idle);
   UNUSED_LEAF(book.book_open);
@@ -175,29 +172,29 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.progress_to_reader);
   UNUSED_LEAF(physical.progress_to_saved);
   UNUSED_LEAF(physical.progress_save);
-  UNUSED_LEAF(physical.section_open);
-  UNUSED_LEAF(physical.section_close);
-  UNUSED_LEAF(physical.section_page_count);
-  UNUSED_LEAF(physical.section_estimated_pages);
-  UNUSED_LEAF(physical.section_building);
-  UNUSED_LEAF(physical.section_complete);
-  UNUSED_LEAF(physical.section_partial);
-  UNUSED_LEAF(physical.section_load_cache);
-  UNUSED_LEAF(physical.section_create_cache);
-  UNUSED_LEAF(physical.section_start_build);
-  UNUSED_LEAF(physical.section_build_more);
-  UNUSED_LEAF(physical.section_abandon_build);
-  UNUSED_LEAF(physical.section_clear_cache);
-  UNUSED_LEAF(physical.section_html_cached);
-  UNUSED_LEAF(physical.section_find_anchor);
-  UNUSED_LEAF(physical.section_cached_anchor);
-  UNUSED_LEAF(physical.section_toc_for_page);
-  UNUSED_LEAF(physical.section_page_for_offset);
-  UNUSED_LEAF(physical.section_offset_for_page);
-  UNUSED_LEAF(physical.section_paragraph_for_page);
-  UNUSED_LEAF(physical.section_reached_offset);
-  UNUSED_LEAF(physical.section_load_page);
-  UNUSED_LEAF(physical.section_page_text);
+  UNUSED_LEAF(book.section.section_open);
+  UNUSED_LEAF(book.section.section_close);
+  UNUSED_LEAF(book.section.section_page_count);
+  UNUSED_LEAF(book.section.section_estimated_pages);
+  UNUSED_LEAF(book.section.section_building);
+  UNUSED_LEAF(book.section.section_complete);
+  UNUSED_LEAF(book.section.section_partial);
+  UNUSED_LEAF(book.section.section_load_cache);
+  UNUSED_LEAF(book.section.section_create_cache);
+  UNUSED_LEAF(book.section.section_start_build);
+  UNUSED_LEAF(book.section.section_build_more);
+  UNUSED_LEAF(book.section.section_abandon_build);
+  UNUSED_LEAF(book.section.section_clear_cache);
+  UNUSED_LEAF(book.section.section_html_cached);
+  UNUSED_LEAF(book.section.section_find_anchor);
+  UNUSED_LEAF(book.section.section_cached_anchor);
+  UNUSED_LEAF(book.section.section_toc_for_page);
+  UNUSED_LEAF(book.section.section_page_for_offset);
+  UNUSED_LEAF(book.section.section_offset_for_page);
+  UNUSED_LEAF(book.section.section_paragraph_for_page);
+  UNUSED_LEAF(book.section.section_reached_offset);
+  UNUSED_LEAF(book.section.section_load_page);
+  UNUSED_LEAF(book.section.section_page_text);
   UNUSED_LEAF(physical.page_close);
   UNUSED_LEAF(physical.page_info);
   UNUSED_LEAF(physical.page_element);
@@ -346,29 +343,43 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.scratch_claim);
   UNUSED_LEAF(physical.scratch_release);
   UNUSED_LEAF(physical.inflate_oom_log);
-  table.physical.section_page_count = [](void* section) -> uint16_t { publication(section, 0); return liveSection->pageCount; };
-  table.physical.section_estimated_pages = [](void* section) -> int32_t { publication(section, 1); return liveSection->estimated; };
-  table.physical.section_building = [](void* section) -> uint8_t { publication(section, 2); return liveSection->isBuilding(); };
-  table.physical.section_complete = [](void* section) -> uint8_t { publication(section, 3); return 0; };
-  table.physical.section_partial = [](void* section) -> uint8_t { publication(section, 4); return 0; };
-  table.physical.section_close = [](void* section) {
+  UNUSED_LEAF(physical.build_metrics);
+  UNUSED_LEAF(physical.build_allocator);
+  UNUSED_LEAF(physical.font_variant);
+  UNUSED_LEAF(physical.font_line_height);
+  UNUSED_LEAF(physical.font_ready);
+  UNUSED_LEAF(physical.font_codepoint);
+  UNUSED_LEAF(physical.hyphen_language);
+  UNUSED_LEAF(physical.file_position);
+  UNUSED_LEAF(physical.file_flush);
+  UNUSED_LEAF(physical.image_supported);
+  UNUSED_LEAF(physical.image_dimensions);
+  UNUSED_LEAF(physical.page_load);
+  UNUSED_LEAF(physical.framebuffer_lend);
+  UNUSED_LEAF(physical.framebuffer_restore);
+  table.book.section.section_page_count = [](void* section) -> uint16_t { publication(section, 0); return liveSection->pageCount; };
+  table.book.section.section_estimated_pages = [](void* section) -> int32_t { publication(section, 1); return liveSection->estimated; };
+  table.book.section.section_building = [](void* section) -> uint8_t { publication(section, 2); return liveSection->isBuilding(); };
+  table.book.section.section_complete = [](void* section) -> uint8_t { publication(section, 3); return 0; };
+  table.book.section.section_partial = [](void* section) -> uint8_t { publication(section, 4); return 0; };
+  table.book.section.section_close = [](void* section) {
     leaf(); assert(section && section == liveSection && liveSections == 1 && !publishing);
     if (destroying) unlocked(); else locked();
     delete liveSection; liveSection = nullptr; --liveSections;
   };
-  table.physical.section_paragraph_for_page = [](void* section, uint16_t page, uint16_t* result) -> uint8_t {
+  table.book.section.section_paragraph_for_page = [](void* section, uint16_t page, uint16_t* result) -> uint8_t {
     locked(); assert(result && section == liveSection && liveSection && !publishing);
     const auto value = liveSection->getParagraphIndexForPage(page);
     if (value) *result = *value;
     return value.has_value();
   };
-  table.physical.section_offset_for_page = [](void* section, uint16_t page, uint32_t* result) -> uint8_t {
+  table.book.section.section_offset_for_page = [](void* section, uint16_t page, uint32_t* result) -> uint8_t {
     locked(); assert(result && section == liveSection && liveSection && !publishing);
     const auto value = liveSection->getVisibleTextOffsetForPage(page);
     if (value) *result = *value;
     return value.has_value();
   };
-  table.physical.section_toc_for_page = [](void* section, void* book, int32_t spine, int32_t page) -> int32_t {
+  table.book.section.section_toc_for_page = [](void* section, void* book, int32_t spine, int32_t page) -> int32_t {
     locked(); checkBook(book); assert(!publishing);
     if (section) {
       assert(section == liveSection && liveSection);

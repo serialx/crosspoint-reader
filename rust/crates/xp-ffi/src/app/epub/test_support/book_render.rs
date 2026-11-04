@@ -170,7 +170,7 @@ pub unsafe extern "C" fn xp_epub_test_book_create_legacy_book(
     state.facts.book = !seed.book.is_null();
     let guard = owner.guarded.get_mut();
     guard.native = NonNull::new(seed.native);
-    guard.section = NonNull::new(seed.section);
+    guard.section = super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guard.overlay_popup = NonNull::new(seed.popup);
     guard.anchor = anchor;
     owner.book_render_hooks = Some(seed.hooks);
@@ -207,7 +207,7 @@ pub unsafe extern "C" fn xp_epub_test_book_observe(raw: *mut c_void, out: *mut B
     *out = owner.model(|s| BookObservation {
         section: owner
             .section(&access)
-            .map_or(core::ptr::null_mut(), NonNull::as_ptr),
+            .map_or(core::ptr::null_mut(), |section| section.fixture_pointer()),
         anchor: owner.anchor(&access),
         published_pages: s.facts.section.map_or(-1, |f| i32::from(f.pages)),
         published_estimate: s.facts.section.map_or(-1, |f| f.estimated_pages),

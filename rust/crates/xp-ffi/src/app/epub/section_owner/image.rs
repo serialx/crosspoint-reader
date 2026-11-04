@@ -7,13 +7,13 @@ use super::super::{
 };
 use crate::app::abi;
 use alloc::vec::Vec;
-use core::{ffi::c_void, ptr::NonNull};
+use core::{cell::Cell, ffi::c_void, ptr::NonNull};
 use xp_core::{
     chapter::assembly::{Error, ImageProbe},
     image::probe::Probe,
 };
 
-// Dormant physical binding; these functions become the approved leaves at activation.
+// Physical decoder and framebuffer services never borrow the build owner.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub(super) struct Physical {
@@ -25,21 +25,30 @@ pub(super) struct Physical {
     pub delay: unsafe extern "C" fn(u32),
 }
 
-struct Loan {
-    token: u8,
+pub(in crate::app::epub) struct FramebufferLoan {
+    token: Cell<u8>,
     restore: unsafe extern "C" fn(u8),
 }
-impl Loan {
-    fn new(physical: &Physical) -> Self {
+impl FramebufferLoan {
+    pub(in crate::app::epub) fn new(
+        lend: unsafe extern "C" fn() -> u8,
+        restore: unsafe extern "C" fn(u8),
+    ) -> Self {
         Self {
-            token: unsafe { (physical.lend)() },
-            restore: physical.restore,
+            token: Cell::new(unsafe { lend() }),
+            restore,
+        }
+    }
+    pub(in crate::app::epub) fn end(&self) {
+        let token = self.token.replace(0);
+        if token != 0 {
+            unsafe { (self.restore)(token) };
         }
     }
 }
-impl Drop for Loan {
+impl Drop for FramebufferLoan {
     fn drop(&mut self) {
-        unsafe { (self.restore)(self.token) };
+        self.end();
     }
 }
 
@@ -136,7 +145,7 @@ pub(super) unsafe fn probe(
     *counter = counter.wrapping_add(1);
     let mut size = unsafe { dimensions(book, &resolved) };
     if size.is_none() {
-        let _loan = Loan::new(physical);
+        let _loan = FramebufferLoan::new(physical.lend, physical.restore);
         size = unsafe { dimensions(book, &resolved) };
     }
     if size.is_none() {
@@ -150,7 +159,7 @@ pub(super) unsafe fn probe(
                 (unsafe { (&mut *raw.cast::<FileSlot>()).write(data, length) } == length).into()
             }
             let extracted = {
-                let _loan = Loan::new(physical);
+                let _loan = FramebufferLoan::new(physical.lend, physical.restore);
                 unsafe {
                     queries::stream(
                         book.as_ptr(),
@@ -176,7 +185,7 @@ pub(super) unsafe fn probe(
                     unsafe { (physical.delay)(50) };
                 }
                 if decoder
-                    && unsafe { (physical.dimensions)(cached.wire(), &mut width, &mut height) != 0 }
+                    && unsafe { (physical.dimensions)(cached.wire(), &mut width, &mut height) == 2 }
                 {
                     size = Some((width, height));
                     break;

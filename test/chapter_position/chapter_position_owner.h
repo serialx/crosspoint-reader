@@ -81,34 +81,34 @@ struct ChapterPosition {
       assert(!active->renderDepth);
       ++active->updates;
     };
-    leaves.physical.section_page_count = pages;
-    leaves.physical.section_estimated_pages = [](void* raw) -> int32_t {
+    leaves.book.section.section_page_count = pages;
+    leaves.book.section.section_estimated_pages = [](void* raw) -> int32_t {
       physical();
       assert(raw == active->section);
       return active->section->count;
     };
-    leaves.physical.section_building = [](void* raw) -> uint8_t {
+    leaves.book.section.section_building = [](void* raw) -> uint8_t {
       physical();
       assert(raw == active->section);
       return 0;
     };
-    leaves.physical.section_complete = [](void* raw) -> uint8_t {
+    leaves.book.section.section_complete = [](void* raw) -> uint8_t {
       physical();
       assert(raw == active->section);
       return 1;
     };
-    leaves.physical.section_partial = [](void* raw) -> uint8_t {
+    leaves.book.section.section_partial = [](void* raw) -> uint8_t {
       physical();
       assert(raw == active->section);
       return 0;
     };
-    leaves.physical.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* out) -> uint8_t {
+    leaves.book.section.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* out) -> uint8_t {
       physical();
       assert(active->renderDepth == 1 && raw == active->section && page < pages(raw));
       *out = page;
       return 1;
     };
-    leaves.physical.section_close = [](void* raw) {
+    leaves.book.section.section_close = [](void* raw) {
       physical();
       assert(active->renderDepth == 1 && raw == active->section);
       delete active->section;

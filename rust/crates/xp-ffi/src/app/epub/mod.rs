@@ -1,3 +1,4 @@
+use session_section::Section as ReaderSection;
 extern crate alloc;
 
 pub(super) mod abi;
@@ -33,10 +34,10 @@ mod recovery;
 mod rejected_input;
 mod render;
 mod render_scope;
-#[cfg(feature = "app-test")]
 mod section_owner;
 mod selection_metadata;
 mod session_book;
+mod session_section;
 mod settings;
 mod state;
 mod storage;
@@ -251,15 +252,14 @@ impl EpubSession {
     // Loop readers only receive these values, never Section's build pointers.
     fn publish_section(&self, access: &ResourceAccess<'_>) {
         let facts = self.section(access).map(|section| unsafe {
-            let section = section.as_ptr();
             SectionFacts {
-                pages: (self.leaves.section_page_count)(section),
-                estimated_pages: (self.leaves.section_estimated_pages)(section),
-                building: (self.leaves.section_building)(section) != 0,
+                pages: ReaderSection::page_count(section),
+                estimated_pages: ReaderSection::estimated_pages(section),
+                building: ReaderSection::building(section),
                 #[cfg(feature = "app-test")]
-                complete: (self.leaves.section_complete)(section) != 0,
+                complete: ReaderSection::complete(section),
                 #[cfg(feature = "app-test")]
-                partial: (self.leaves.section_partial)(section) != 0,
+                partial: ReaderSection::partial(section),
             }
         });
         self.model(|state| state.facts.section = facts);
@@ -269,7 +269,7 @@ impl EpubSession {
         let section = self.take_section(access);
         self.model(|state| state.facts.section = None);
         if let Some(section) = section {
-            unsafe { (self.leaves.section_close)(section.as_ptr()) };
+            drop(section);
         }
     }
 }

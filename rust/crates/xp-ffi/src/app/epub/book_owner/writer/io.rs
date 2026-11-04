@@ -80,11 +80,32 @@ impl FileSlot {
         count as usize
     }
 
-    #[cfg(feature = "app-test")]
     pub(in crate::app::epub) fn flush(&self, flush: unsafe extern "C" fn(*mut c_void)) {
         if let Some(handle) = self.file.as_ref().and_then(|file| file.handle) {
             unsafe { flush(handle.as_ptr()) };
         }
+    }
+
+    pub(in crate::app::epub) fn physical_position(&mut self) -> u32 {
+        if let Some(file) = &self.file {
+            if let Some(handle) = file.handle {
+                self.position = unsafe { (file.leaves.file_position)(handle.as_ptr()) };
+            }
+        }
+        self.position
+    }
+
+    // Page::load borrows the HAL file and advances its physical cursor directly.
+    pub(in crate::app::epub) fn load_page(&mut self, bytes: u32, visible: u32) -> *mut c_void {
+        let Some(file) = &self.file else {
+            return ptr::null_mut();
+        };
+        let Some(handle) = file.handle else {
+            return ptr::null_mut();
+        };
+        let page = unsafe { (file.leaves.page_load)(handle.as_ptr(), bytes, visible) };
+        self.physical_position();
+        page
     }
 
     pub(in crate::app::epub) fn seek(&mut self, position: u32) -> bool {
@@ -121,15 +142,28 @@ enum State {
 }
 
 // One existing 4 KiB build buffer. Allocation failure uses the same unbuffered path.
-pub(super) struct Buffered {
+pub(in crate::app::epub) struct Buffered {
     backing: Option<Buffer>,
     state: State,
 }
 
 impl Buffered {
-    pub(super) fn new(resources: &'static abi::Resources, file: &FileSlot, write: bool) -> Self {
+    pub(in crate::app::epub) fn new(
+        resources: &'static abi::Resources,
+        file: &FileSlot,
+        write: bool,
+    ) -> Self {
+        Self::with_capacity(resources, file, write, 4096)
+    }
+
+    pub(in crate::app::epub) fn with_capacity(
+        resources: &'static abi::Resources,
+        file: &FileSlot,
+        write: bool,
+        capacity: usize,
+    ) -> Self {
         Self {
-            backing: Buffer::allocate(resources, abi::MEMORY_DEFAULT, 4096),
+            backing: Buffer::allocate(resources, abi::MEMORY_DEFAULT, capacity),
             state: if write {
                 State::Write(settings::Writer::new(file.position as usize))
             } else {
@@ -146,14 +180,14 @@ impl Buffered {
             })
     }
 
-    pub(super) fn position(&self) -> u32 {
+    pub(in crate::app::epub) fn position(&self) -> u32 {
         (match &self.state {
             State::Read(state) => state.position(),
             State::Write(state) => state.position(),
         }) as u32
     }
 
-    pub(super) fn flush(&mut self, file: &mut FileSlot) -> bool {
+    pub(in crate::app::epub) fn flush(&mut self, file: &mut FileSlot) -> bool {
         let (buffer, _) = self.bytes();
         match &mut self.state {
             State::Write(state) => unsafe {
@@ -163,7 +197,7 @@ impl Buffered {
         }
     }
 
-    pub(super) unsafe fn read(
+    pub(in crate::app::epub) unsafe fn read(
         &mut self,
         file: &mut FileSlot,
         bytes: *mut u8,
@@ -178,7 +212,7 @@ impl Buffered {
         }
     }
 
-    pub(super) unsafe fn write(
+    pub(in crate::app::epub) unsafe fn write(
         &mut self,
         file: &mut FileSlot,
         bytes: *const u8,
@@ -203,7 +237,7 @@ impl Buffered {
         }
     }
 
-    pub(super) fn seek(&mut self, file: &mut FileSlot, position: u32) -> bool {
+    pub(in crate::app::epub) fn seek(&mut self, file: &mut FileSlot, position: u32) -> bool {
         let (_, capacity) = self.bytes();
         match &mut self.state {
             State::Read(state) => unsafe {

@@ -2,6 +2,7 @@ extern crate alloc;
 
 use super::{
     super::{abi::XpEpubLeaves, book_owner::queries, Text},
+    driver::BuildOwner,
     file::CacheFile,
 };
 use crate::{
@@ -11,12 +12,24 @@ use crate::{
 use alloc::{alloc::alloc, boxed::Box};
 use core::{alloc::Layout, ffi::c_void, ptr::NonNull};
 
-pub(super) struct ReaderSection {
-    path: Text,
-    spine: i32,
-    readable: LoadState,
-    resources: &'static abi::Resources,
-    leaves: &'static XpEpubLeaves,
+pub(in crate::app::epub) struct ReaderSection {
+    pub(super) path: Text,
+    pub(super) spine: i32,
+    pub(super) book: NonNull<c_void>,
+    pub(super) readable: LoadState,
+    pub(super) resources: &'static abi::Resources,
+    pub(super) leaves: &'static XpEpubLeaves,
+    pub(super) build: Option<BuildOwner>,
+    pub(super) complete: bool,
+    pub(super) progress: Progress,
+}
+
+#[derive(Default)]
+pub(super) struct Progress {
+    pub consumed: u32,
+    pub total: u32,
+    pub smoothed: f32,
+    pub smoothed_at: u32,
 }
 
 impl ReaderSection {
@@ -29,12 +42,31 @@ impl ReaderSection {
     }
 
     // The live ReaderBook supplies its native-hash cache root. No book borrow survives allocation.
-    pub(super) unsafe fn open(
+    pub(in crate::app::epub) unsafe fn open(
         book: NonNull<c_void>,
         spine: i32,
         resources: &'static abi::Resources,
         leaves: &'static XpEpubLeaves,
     ) -> Option<NonNull<Self>> {
+        let path = unsafe { Self::cache_path(book, spine) }?;
+        let raw = NonNull::new(unsafe { alloc(Layout::new::<Self>()) }.cast::<Self>())?;
+        unsafe {
+            raw.as_ptr().write(Self {
+                path,
+                spine,
+                book,
+                readable: LoadState::default(),
+                resources,
+                leaves,
+                build: None,
+                complete: false,
+                progress: Progress::default(),
+            })
+        };
+        Some(raw)
+    }
+
+    pub(super) unsafe fn cache_path(book: NonNull<c_void>, spine: i32) -> Option<Text> {
         let mut path = Text::default();
         let mut digits = [0; 20];
         path.assign_parts(&[
@@ -45,24 +77,15 @@ impl ReaderSection {
             b".bin",
         ])
         .ok()?;
-        let raw = NonNull::new(unsafe { alloc(Layout::new::<Self>()) }.cast::<Self>())?;
-        unsafe {
-            raw.as_ptr().write(Self {
-                path,
-                spine,
-                readable: LoadState::default(),
-                resources,
-                leaves,
-            })
-        };
-        Some(raw)
+        Some(path)
     }
 
-    pub(super) unsafe fn close(raw: NonNull<Self>) {
+    pub(in crate::app::epub) unsafe fn close(raw: NonNull<Self>) {
+        unsafe { Self::suspend(raw) };
         unsafe { drop(Box::from_raw(raw.as_ptr())) };
     }
 
-    pub(super) unsafe fn load(raw: NonNull<Self>, expected: &[u32; 20]) -> bool {
+    pub(in crate::app::epub) unsafe fn load(raw: NonNull<Self>, expected: &[u32; 20]) -> bool {
         let owner = raw.as_ptr();
         let mut state = unsafe { (*owner).readable };
         let result = {
@@ -77,7 +100,7 @@ impl ReaderSection {
         result
     }
 
-    pub(super) unsafe fn query(raw: NonNull<Self>, query: Query) -> Option<[u32; 3]> {
+    pub(in crate::app::epub) unsafe fn query(raw: NonNull<Self>, query: Query) -> Option<[u32; 3]> {
         let owner = raw.as_ptr();
         let mut io = unsafe { CacheFile::new(&(*owner).path, (*owner).resources, (*owner).leaves) };
         let mut output = [0; 3];
@@ -85,13 +108,13 @@ impl ReaderSection {
         Some(output)
     }
 
-    pub(super) unsafe fn anchor(raw: NonNull<Self>, needle: &[u8]) -> Option<u32> {
+    pub(in crate::app::epub) unsafe fn anchor(raw: NonNull<Self>, needle: &[u8]) -> Option<u32> {
         let owner = raw.as_ptr();
         let mut io = unsafe { CacheFile::new(&(*owner).path, (*owner).resources, (*owner).leaves) };
         section_cache::anchor(&mut io, needle)
     }
 
-    pub(super) unsafe fn clear(raw: NonNull<Self>) -> bool {
+    pub(in crate::app::epub) unsafe fn clear(raw: NonNull<Self>) -> bool {
         let owner = raw.as_ptr();
         let mut io = unsafe { CacheFile::new(&(*owner).path, (*owner).resources, (*owner).leaves) };
         io.prepare_temporary().is_ok() && section_cache::clear(&mut io)

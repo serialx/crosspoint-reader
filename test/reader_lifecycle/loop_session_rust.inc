@@ -130,30 +130,30 @@ static void configure() {
     RECENT_BOOKS.addBook(owner.epub->getPath(), owner.epub->getTitle(), owner.epub->getAuthor(),
                          owner.epub->getThumbBmpPath());
   };
-  leaves.physical.section_page_count = [](void* raw) -> uint16_t {
+  leaves.book.section.section_page_count = [](void* raw) -> uint16_t {
     auto& value = section(raw);
     if (bridge().publication) publicationRead(1);
     return static_cast<uint16_t>(value.pageCount);
   };
-  leaves.physical.section_estimated_pages = [](void* raw) -> int32_t {
+  leaves.book.section.section_estimated_pages = [](void* raw) -> int32_t {
     auto& value = section(raw); publicationRead(2); return value.pageCount;
   };
-  leaves.physical.section_building = [](void* raw) -> uint8_t {
+  leaves.book.section.section_building = [](void* raw) -> uint8_t {
     auto& value = section(raw);
     if (bridge().publication) { publicationRead(3); return value.building; }
     return value.isBuilding();
   };
-  leaves.physical.section_complete = [](void* raw) -> uint8_t { section(raw); publicationRead(4); return 0; };
-  leaves.physical.section_partial = [](void* raw) -> uint8_t {
+  leaves.book.section.section_complete = [](void* raw) -> uint8_t { section(raw); publicationRead(4); return 0; };
+  leaves.book.section.section_partial = [](void* raw) -> uint8_t {
     auto& value = section(raw);
     if (bridge().publication) { publicationRead(5); return value.partial; }
     return value.isPartial();
   };
-  leaves.physical.section_close = [](void* raw) {
+  leaves.book.section.section_close = [](void* raw) {
     section(raw); auto& value = bridge(); assert(value.destroying && !value.page && !value.prewarm);
     assert(!value.sectionCloses++); value.owner.section.reset();
   };
-  leaves.physical.section_load_page = [](void* raw, int32_t index) -> void* {
+  leaves.book.section.section_load_page = [](void* raw, int32_t index) -> void* {
     auto& value = section(raw); auto& owner = bridge();
     assert(!owner.creating && !owner.page && !owner.prewarm && !owner.publication);
     auto page = value.loadPage(index);
@@ -164,7 +164,7 @@ static void configure() {
     auto& owner = bridge(); locked(); assert(raw && raw == owner.page && !owner.prewarm);
     delete static_cast<Page*>(raw); owner.page = nullptr; ++owner.pagesClosed;
   };
-  leaves.physical.section_start_build = [](void* raw, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup, void* ctx) -> uint8_t {
+  leaves.book.section.section_start_build = [](void* raw, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup, void* ctx) -> uint8_t {
     auto& value = section(raw); auto& owner = bridge();
     assert(!owner.creating && !owner.publication && !popup && !ctx && spec && spec->font == 1);
     assert(spec->width == owner.owner.buildViewportWidth && spec->height == owner.owner.buildViewportHeight);

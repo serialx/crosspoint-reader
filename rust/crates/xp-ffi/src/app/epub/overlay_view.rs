@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{abi, app_abi, state::Overlay, EpubSession, ResourceAccess};
 use core::{ffi::c_void, mem::MaybeUninit};
 use xp_core::i18n::ids;
@@ -261,7 +262,7 @@ impl EpubSession {
         };
         if matches!(mode, Overlay::Toolbar) {
             let painted = self.overlay_chapter_title(access, |chapter| {
-                let count = unsafe { (self.leaves.section_estimated_pages)(section.as_ptr()) };
+                let count = unsafe { ReaderSection::estimated_pages(section) };
                 let (page, spine) =
                     self.model(|state| (state.current.page.wrapping_add(1), state.current.spine));
                 let fraction = if count > 0 {

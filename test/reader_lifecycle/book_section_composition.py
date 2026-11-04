@@ -3,7 +3,7 @@ from pathlib import Path
 import struct
 import zipfile
 from book_facade_composition import facade_source, compile_command
-from test_popup_resource import definition, replace_once
+from test_popup_resource import definition, replace_once, native_leaf
 
 
 def section_source(root):
@@ -18,6 +18,10 @@ def section_source(root):
 
 def section_command(root, work, source, binary, archive=None):
     command = compile_command(root, work, source, binary, archive=archive)
+    # SDCardManager opens writers with O_RDWR; active Page reads use that same handle.
+    storage = work / 'stubs/HalStorage.h'
+    storage.write_text(storage.read_text().replace('std::fopen(path, mode)',
+        'std::fopen(path, std::strcmp(mode, "wb") == 0 ? "w+b" : mode)'))
     includes = [
         'lib/KOReaderSync', 'lib/Epub', 'test/section_golden/stubs',
         'test/section_golden', 'lib/EpdFont', 'lib/GfxRenderer', 'lib/AsciiText',
@@ -69,3 +73,34 @@ def section_fixture(work):
         archive.writestr('a.xhtml', html)
         archive.writestr('b.xhtml', b'image!')
     return work / 'source.epub', cache
+
+
+def section_owner_source(root):
+    source = section_source(root).split('#include <mutex>')[0]
+    native = (root / 'src/activities/reader/RustEpubResources.cpp').read_text()
+    helpers = '\n'.join(definition(native, signature) for signature in (
+        'static const GfxRenderer& sectionRenderer(', '[[maybe_unused]] int32_t textAdvance(',
+        'void prepareText(', '[[maybe_unused]] uint8_t startsRtl(', '[[maybe_unused]] uint8_t visualOrder('))
+    metrics = definition(native, 'XpParaMetrics sectionMetrics{') + ';'
+    physical = r"""
+#include <BidiUtils.h>
+#include <Epub/converters/ImageDecoderFactory.h>
+#include <Epub/hyphenation/Hyphenator.h>
+const XpParaAllocator* paragraphAllocator();
+struct DriverRenderer : GfxRenderer {
+  bool hasFrameBuffer() const { return loanDepth == 0; }
+  void releaseFrameBufferForBuild() { assert(loanDepth == 0); ++loanDepth; }
+  bool restoreFrameBufferAfterBuild() { assert(loanDepth == 1); --loanDepth; return true; }
+};
+static DriverRenderer driverRenderer;
+static DriverRenderer* target = &driverRenderer;
+""" + helpers + '\n' + metrics
+    fields = ('build_metrics', 'build_allocator', 'font_variant', 'font_line_height', 'font_ready',
+              'font_codepoint', 'hyphen_language', 'file_position', 'file_flush', 'image_supported',
+              'image_dimensions', 'page_load', 'page_close', 'framebuffer_lend', 'framebuffer_restore',
+              'fonts_release_caches')
+    source = source.replace('static const XpEpubLeaves leaves', physical + '\nstatic const XpEpubLeaves leaves')
+    begin = source.index('static const XpEpubLeaves leaves')
+    end = source.index('  return value;', begin)
+    source = source[:end] + '\n'.join('value.' + field + ' = ' + ('paragraphAllocator' if field == 'build_allocator' else native_leaf(native, field)) + ';' for field in fields) + '\n' + source[end:]
+    return source

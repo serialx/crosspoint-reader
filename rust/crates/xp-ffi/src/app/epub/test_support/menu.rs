@@ -155,7 +155,8 @@ pub unsafe extern "C" fn xp_epub_test_menu_create_legacy_book(
     state.facts.book = !seed.book.is_null();
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guarded.toolbar = NonNull::new(seed.toolbar);
     guarded.overlay_popup = NonNull::new(seed.popup);
     guarded.bookmarks = NonNull::new(seed.bookmarks);
@@ -209,7 +210,11 @@ pub unsafe extern "C" fn xp_epub_test_menu_create_legacy_book(
 
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_menu_destroy(raw: *mut c_void) {
-    drop(Box::from_raw(raw.cast::<EpubSession>()));
+    let mut owner = Box::from_raw(raw.cast::<EpubSession>());
+    if let Some(section) = owner.guarded.get_mut().section.take() {
+        section.return_fixture();
+    }
+    drop(owner);
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_menu_observe(raw: *mut c_void, out: *mut Observation) {

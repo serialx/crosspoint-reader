@@ -83,16 +83,20 @@ impl EpubSession {
             });
             1
         }
+        self.check_resources(access);
+        let loan = super::section_owner::FramebufferLoan::new(
+            self.leaves.framebuffer_lend,
+            self.leaves.framebuffer_restore,
+        );
         let mut saved: Option<SavedProgress> = None;
         unsafe {
-            (self.leaves.loan_begin)(self.native(access));
             (self.leaves.progress_to_saved)(
                 super::session_book::facade(book.as_ptr()),
                 position,
                 capture,
                 (&mut saved as *mut Option<SavedProgress>).cast(),
             );
-            (self.leaves.loan_drop)(self.native(access));
+            drop(loan);
         }
         saved
     }

@@ -18,14 +18,15 @@ static const Block& block(void* handle, uint16_t element) {
 static void publication(void* handle, unsigned step) {
   assert(active && handle == active->section.get() && active->publication++ == step);
 }
+static auto legacySection = unexpectedLegacySectionServices();
 static XpEpubLeaves physicalLeaves() {
   auto table = retirement_fixture::leavesDefaults();
-  table.section_page_count = [](void* p) -> uint16_t { publication(p, 0); return active->section->pageCount; };
-  table.section_estimated_pages = [](void* p) -> int32_t { publication(p, 1); return active->section->pageCount; };
-  table.section_building = [](void* p) -> uint8_t { publication(p, 2); return 0; };
-  table.section_complete = [](void* p) -> uint8_t { publication(p, 3); return 1; };
-  table.section_partial = [](void* p) -> uint8_t { publication(p, 4); return 0; };
-  table.section_close = [](void* p) { assert(active && p == active->section.get()); active->section.reset(); };
+  legacySection.section_page_count = [](void* p) -> uint16_t { publication(p, 0); return active->section->pageCount; };
+  legacySection.section_estimated_pages = [](void* p) -> int32_t { publication(p, 1); return active->section->pageCount; };
+  legacySection.section_building = [](void* p) -> uint8_t { publication(p, 2); return 0; };
+  legacySection.section_complete = [](void* p) -> uint8_t { publication(p, 3); return 1; };
+  legacySection.section_partial = [](void* p) -> uint8_t { publication(p, 4); return 0; };
+  legacySection.section_close = [](void* p) { assert(active && p == active->section.get()); active->section.reset(); };
   table.render_margins = [](int32_t* out) {
     assert(active && out);
     active->reader.renderer.getOrientedViewableTRBL(&out[0], &out[1], &out[2], &out[3]);
@@ -123,7 +124,7 @@ struct Owner {
     seed.width = reader.buildViewportWidth; seed.height = reader.buildViewportHeight;
     seed.signature = &Unexpected<decltype(seed.signature)>::call;
     seed.nonempty = &Unexpected<decltype(seed.nonempty)>::call;
-    handle = xp_epub_test_clipping_create(&seed, &leaves, &runtime, &resources);
+    handle = xp_epub_test_clipping_create_legacy_section(&seed, &leaves, &runtime, &resources, &legacySection);
     assert(handle && context.publication == (reader.section ? 5u : 0u));
   }
   ~Owner() {

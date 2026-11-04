@@ -1,8 +1,9 @@
+use super::session_section::Section as ReaderSection;
 use super::{
     abi,
     book::with_book_text,
     state::{ChildIntent, Overlay},
-    EpubSession, Text,
+    EpubSession,
 };
 use core::ptr::NonNull;
 use xp_ui::reader::{input::Query, menu_parent::Action};
@@ -141,17 +142,11 @@ impl EpubSession {
             } else {
                 self.section(&access).and_then(|section| {
                     let page = self.model(|state| state.current.page);
-                    if page < 0
-                        || page
-                            >= i32::from(unsafe {
-                                (self.leaves.section_page_count)(section.as_ptr())
-                            })
+                    if page < 0 || page >= i32::from(unsafe { ReaderSection::page_count(section) })
                     {
                         return None;
                     }
-                    Text::receive(|sink, context| unsafe {
-                        (self.leaves.section_page_text)(section.as_ptr(), page, sink, context)
-                    })
+                    unsafe { ReaderSection::page_text(section, page) }
                 })
             }
         };
@@ -172,7 +167,7 @@ impl EpubSession {
                 if !self.model(|state| state.scene_gate.failed) {
                     let (spine, page) =
                         self.model(|state| (state.current.spine as u16, state.current.page as u16));
-                    let count = unsafe { (self.leaves.section_page_count)(section.as_ptr()) };
+                    let count = unsafe { ReaderSection::page_count(section) };
                     self.drop_section(&access);
                     unsafe {
                         (super::session_book::clear_cache)(book.as_ptr());

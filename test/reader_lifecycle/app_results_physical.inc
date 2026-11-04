@@ -91,32 +91,32 @@ void bindResultsPhysical() {
     assert(href.data == reinterpret_cast<const uint8_t*>(std::get<FootnoteResult>(results.borrowed->data).href.data()));
     return 3;
   };
-  leaves.section_open = [](void*, int32_t spine) -> void* {
+  legacyBook.section.section_open = [](void*, int32_t spine) -> void* {
     physical("section-open", 1); assert(!results.section); ++results.sectionOpened;
     return results.section = new ResultSection{spine};
   };
-  leaves.section_close = [](void* raw) {
+  legacyBook.section.section_close = [](void* raw) {
     physical("section-close", 1); assert(raw == results.section && !results.bound);
     delete results.section; results.section = nullptr; ++results.sectionClosed;
   };
-  leaves.section_page_count = [](void* raw) -> uint16_t { physical("section-pages", 1); assert(raw == results.section); return 10; };
-  leaves.section_estimated_pages = [](void* raw) -> int32_t { physical("section-estimate", 1); assert(raw == results.section); return 10; };
-  leaves.section_building = [](void* raw) -> uint8_t { physical("section-building", 1); assert(raw == results.section); return 0; };
-  leaves.section_complete = [](void* raw) -> uint8_t { physical("section-complete", 1); assert(raw == results.section); return 1; };
-  leaves.section_partial = [](void* raw) -> uint8_t { physical("section-partial", 1); assert(raw == results.section); return 0; };
-  leaves.section_load_cache = [](void* raw, const XpEpubRenderSpec*) -> uint8_t { physical("section-cache", 1); assert(raw == results.section); return 1; };
-  leaves.section_toc_for_page = [](void* raw, void*, int32_t, int32_t) -> int32_t { physical("section-toc", 1); assert(!raw || raw == results.section); return 0; };
-  leaves.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* offset) -> uint8_t { physical("section-offset", 1); assert(raw == results.section); *offset = page * 100; return 1; };
-  leaves.section_page_for_offset = [](void* raw, uint32_t, uint8_t, uint16_t* page) -> uint8_t { physical("offset-page", 1); assert(raw == results.section); *page = 3; return 1; };
-  leaves.section_find_anchor = [](void* raw, XpAppText anchor, uint16_t* page) -> uint8_t { physical("find-anchor", 1); assert(raw == results.section && anchor.len); *page = 2; return 1; };
-  leaves.section_cached_anchor = leaves.section_find_anchor;
-  leaves.section_reached_offset = [](void* raw, uint32_t) -> uint8_t { physical("reached-offset", 1); assert(raw == results.section); return 1; };
-  leaves.section_paragraph_for_page = [](void* raw, uint16_t, uint16_t* paragraph) -> uint8_t { physical("paragraph", 1); assert(raw == results.section); *paragraph = 7; return 1; };
-  leaves.section_load_page = [](void* raw, int32_t page) -> void* {
+  legacyBook.section.section_page_count = [](void* raw) -> uint16_t { physical("section-pages", 1); assert(raw == results.section); return 10; };
+  legacyBook.section.section_estimated_pages = [](void* raw) -> int32_t { physical("section-estimate", 1); assert(raw == results.section); return 10; };
+  legacyBook.section.section_building = [](void* raw) -> uint8_t { physical("section-building", 1); assert(raw == results.section); return 0; };
+  legacyBook.section.section_complete = [](void* raw) -> uint8_t { physical("section-complete", 1); assert(raw == results.section); return 1; };
+  legacyBook.section.section_partial = [](void* raw) -> uint8_t { physical("section-partial", 1); assert(raw == results.section); return 0; };
+  legacyBook.section.section_load_cache = [](void* raw, const XpEpubRenderSpec*) -> uint8_t { physical("section-cache", 1); assert(raw == results.section); return 1; };
+  legacyBook.section.section_toc_for_page = [](void* raw, void*, int32_t, int32_t) -> int32_t { physical("section-toc", 1); assert(!raw || raw == results.section); return 0; };
+  legacyBook.section.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* offset) -> uint8_t { physical("section-offset", 1); assert(raw == results.section); *offset = page * 100; return 1; };
+  legacyBook.section.section_page_for_offset = [](void* raw, uint32_t, uint8_t, uint16_t* page) -> uint8_t { physical("offset-page", 1); assert(raw == results.section); *page = 3; return 1; };
+  legacyBook.section.section_find_anchor = [](void* raw, XpAppText anchor, uint16_t* page) -> uint8_t { physical("find-anchor", 1); assert(raw == results.section && anchor.len); *page = 2; return 1; };
+  legacyBook.section.section_cached_anchor = legacyBook.section.section_find_anchor;
+  legacyBook.section.section_reached_offset = [](void* raw, uint32_t) -> uint8_t { physical("reached-offset", 1); assert(raw == results.section); return 1; };
+  legacyBook.section.section_paragraph_for_page = [](void* raw, uint16_t, uint16_t* paragraph) -> uint8_t { physical("paragraph", 1); assert(raw == results.section); *paragraph = 7; return 1; };
+  legacyBook.section.section_load_page = [](void* raw, int32_t page) -> void* {
     physical("page-open", 1); assert(raw == results.section);
     auto* value = new ResultPage{page}; assert(results.pages.insert(value).second); return value;
   };
-  leaves.section_page_text = [](void* raw, int32_t, XpAppTextSink sink, void* context) -> uint8_t { physical("page-text", 1); assert(raw == results.section); return deliver(sink, context, "page words"); };
+  legacyBook.section.section_page_text = [](void* raw, int32_t, XpAppTextSink sink, void* context) -> uint8_t { physical("page-text", 1); assert(raw == results.section); return deliver(sink, context, "page words"); };
   leaves.page_close = [](void* raw) { releasePage(static_cast<ResultPage*>(raw)); };
   leaves.page_info = [](void* raw, XpEpubPageInfo* out) { physical("page-info", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); *out = {}; };
   leaves.metadata_assign = [](void*, void* raw) -> uint8_t { physical("metadata-copy", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); return 1; };

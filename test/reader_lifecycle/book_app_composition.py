@@ -24,7 +24,7 @@ def actual_child_source(root, source):
     here = root / 'test/reader_lifecycle'
     helper = (here / 'reader_book_app_fixture.inc').read_text()
     marker = '// The driver extracts the native borrowed-result producer into this App fixture.'
-    source = replace_once(source, marker, helper + '\nclass Epub;\nstd::shared_ptr<Epub> testNativeBook(void*);\n' + marker)
+    source = replace_once(source, marker, helper + '\nnamespace { bool hasReaderSection(); void readerSectionBalanced(); }\nclass Epub;\nstd::shared_ptr<Epub> testNativeBook(void*);\n' + marker)
     source = source.replace('bindResultsPhysical(); bindProductionChildren();',
                             'bindResultsPhysical(); bindProductionChildren(); bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind();')
     source = source.replace('assertEntered();', 'assertReaderEntered();')
@@ -58,6 +58,7 @@ void checkChildBookLoan(const std::string& kind, bool held) {
     source = replace_once(source, old, new)
     addition = r'''
 void bindReaderResults() {
+  bindReaderSections();
   leaves.bookmarks_load = [](void* raw, XpAppText path)->uint8_t {
     auto& h = f().handle(raw, Kind::Bookmarks); assert(text(path) == f().path && f().extractor);
     ++f().bookmarkLoads; f().physical("bookmarks-load", h.generation, h.id); return 1;
@@ -75,11 +76,29 @@ void bindReaderResults() {
 }
 '''
     marker = 'extern "C" void xp_epub_test_child_sync(void*);'
-    source = replace_once(source, marker, addition + store_adapters(root) + marker)
-    matrix = (here / 'book_selection_allocation.inc').read_text()
     observation = block((here / 'child_session_fixture.h').read_text(), 'struct XpEpubTestChildObservation')
-    matrix = replace_once(matrix, '// ACTUAL_CHILD_OBSERVATION', observation + ';')
+    section = (here / 'reader_section_app_fixture.inc').read_text()
+    section = observation + ';\nextern "C" void xp_epub_test_child_observe(void*, XpEpubTestChildObservation*);\n' + section
+    source = replace_once(source, marker, section + addition + store_adapters(root) + marker)
+    matrix = (here / 'book_selection_allocation.inc').read_text()
+    matrix = replace_once(matrix, '// ACTUAL_CHILD_OBSERVATION', '')
     source = replace_once(source, 'void nativeFactoryFailure(', matrix + '\nvoid nativeFactoryFailure(')
     source = replace_once(source, 'else if (mode == "selection-metadata-failure") {',
                            'else if (mode.starts_with("selection-allocation-")) realSelectionAllocation(mode);\n  else if (mode == "selection-metadata-failure") {')
+    source = replace_once(source, 'assert(results.section && results.rendered > 0 && !results.bound);',
+                          'assert(hasReaderSection() && results.rendered > 0 && !results.bound);')
+    source = source.replace('!results.section', '!hasReaderSection()')
+    source = replace_once(source, 'auto* section = results.section;', 'const bool section = hasReaderSection();')
+    source = replace_once(source, 'results.section == section && results.toolbar == toolbar',
+                          'hasReaderSection() == section && results.toolbar == toolbar')
+    source = replace_once(source, '  popFinalSleep();', '  popFinalSleep(); readerSectionBalanced();')
+    source = replace_once(source, 'assert(results.sectionOpened == results.sectionClosed && state.handles.empty());',
+                          'assert(readerSectionOpens == readerSectionCloses && state.handles.empty());')
+    source = replace_once(source, 'results.returns, results.born, results.sectionOpened);',
+                          'results.returns, results.born, readerSectionOpens);')
+    source = replace_once(source, 'pages=0 sections=%u', 'pages=0 section_reads=%u')
+    source = replace_once(source,
+                          'legacyBook.section.section_page_count = [](void*) -> uint16_t { return compositionPages; };\n'
+                          '    legacyBook.section.section_estimated_pages = [](void*) -> int32_t { return compositionPages; };',
+                          'setReaderSectionPages(compositionPages);')
     return source

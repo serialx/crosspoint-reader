@@ -11,8 +11,12 @@ mod book_css;
 mod book_limits;
 #[path = "../../../rust/crates/xp-ffi/src/book_policy.rs"]
 mod book_policy;
+#[path = "../../../rust/crates/xp-ffi/src/chapter.rs"]
+mod chapter;
 #[path = "../../../rust/crates/xp-ffi/src/css.rs"]
 mod css;
+#[path = "../../../rust/crates/xp-ffi/src/section_cache.rs"]
+mod section_cache;
 #[path = "../../../rust/crates/xp-ffi/src/settings.rs"]
 mod settings;
 

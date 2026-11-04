@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{
     app_abi,
     book::with_book_text,
@@ -122,13 +123,8 @@ impl EpubSession {
             )
         });
         unsafe {
-            (self.leaves.section_toc_for_page)(
-                section.map_or(core::ptr::null_mut(), |section| section.as_ptr()),
-                super::session_book::facade(book.as_ptr()),
-                spine,
-                page,
-            )
-            .max(0)
+            ReaderSection::select_toc(section, book, spine, page, self.resources, self.leaves)
+                .max(0)
         }
     }
 

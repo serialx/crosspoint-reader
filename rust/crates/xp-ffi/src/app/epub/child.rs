@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{
     abi, app_abi,
     page::Page,
@@ -116,10 +117,7 @@ impl EpubSession {
                     return;
                 };
                 let raw = unsafe {
-                    (self.leaves.section_load_page)(
-                        section.as_ptr(),
-                        capture.page.wrapping_add(loaded as i32),
-                    )
+                    ReaderSection::load_page(section, capture.page.wrapping_add(loaded as i32))
                 };
                 self.publish_section(&access);
                 unsafe { Page::from_raw(raw, self.leaves) }
@@ -228,7 +226,10 @@ impl EpubSession {
         self.push_child(child, ChildIntent::Selection(capture));
     }
 
-    fn result_section(&self, access: &ResourceAccess<'_>) -> Option<NonNull<c_void>> {
+    fn result_section(
+        &self,
+        access: &ResourceAccess<'_>,
+    ) -> Option<super::session_section::Handle> {
         if self.model(|state| state.scene_gate.failed) {
             return None;
         }
@@ -252,7 +253,7 @@ impl EpubSession {
             let access = self.lock_resources();
             if let Some(section) = self.result_section(&access) {
                 if self.model(|state| state.current.spine == i32::from(capture.spine))
-                    && end < unsafe { (self.leaves.section_page_count)(section.as_ptr()) }
+                    && end < unsafe { ReaderSection::page_count(section) }
                 {
                     let offset = self.section_offset(&access, end);
                     self.model(|state| {
@@ -337,10 +338,7 @@ impl EpubSession {
             let access = self.lock_resources();
             let section = self.result_section(&access);
             let raw = section.map_or(core::ptr::null_mut(), |section| unsafe {
-                (self.leaves.section_load_page)(
-                    section.as_ptr(),
-                    self.model(|state| state.current.page),
-                )
+                ReaderSection::load_page(section, self.model(|state| state.current.page))
             });
             if section.is_some() {
                 self.publish_section(&access);
@@ -434,7 +432,7 @@ impl EpubSession {
                 Open::Href(href)
             } else {
                 let page = self.model(|state| state.current.page);
-                let raw = unsafe { (self.leaves.section_load_page)(section.as_ptr(), page) };
+                let raw = unsafe { ReaderSection::load_page(section, page) };
                 self.publish_section(&access);
                 let Some(page) = (unsafe { Page::from_raw(raw, self.leaves) }) else {
                     return;

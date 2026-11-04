@@ -1,20 +1,13 @@
+use super::session_section::Section as ReaderSection;
 use super::{abi, EpubSession, ResourceAccess};
 
 impl EpubSession {
     pub(super) fn section_paragraph(&self, access: &ResourceAccess<'_>, page: u16) -> Option<u16> {
-        let section = self.section(access)?;
-        let mut paragraph = 0;
-        (unsafe {
-            (self.leaves.section_paragraph_for_page)(section.as_ptr(), page, &mut paragraph)
-        } != 0)
-            .then_some(paragraph)
+        unsafe { ReaderSection::paragraph_for_page(self.section(access)?, page) }
     }
 
     pub(super) fn section_offset(&self, access: &ResourceAccess<'_>, page: u16) -> Option<u32> {
-        let section = self.section(access)?;
-        let mut offset = 0;
-        (unsafe { (self.leaves.section_offset_for_page)(section.as_ptr(), page, &mut offset) } != 0)
-            .then_some(offset)
+        unsafe { ReaderSection::offset_for_page(self.section(access)?, page) }
     }
 
     pub(super) fn position_with_queries(

@@ -55,3 +55,6 @@ target_compile_definitions(FootnoteSelect PRIVATE XP_FOOTNOTE_SELECT_TEST=1)
 
 # The physical owner fixture uses assertions for callable contract checks.
 target_compile_options(FootnoteSelect PRIVATE -UNDEBUG)
+
+include(${REPO_ROOT}/test/reader_section/fixture.cmake)
+reader_section_fixture(PageLoad)

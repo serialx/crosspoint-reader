@@ -3,7 +3,7 @@ extern crate alloc;
 use super::super::{abi, app_abi, state::Position, EpubSession, Text};
 use super::{EstimateObserver, NavigationObservation, NavigationSeed};
 use alloc::boxed::Box;
-use core::{ffi::c_void, ptr::NonNull};
+use core::ffi::c_void;
 
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_navigation_create_legacy_book(
@@ -49,7 +49,8 @@ pub unsafe extern "C" fn xp_epub_test_navigation_create_legacy_book(
     }
     state.facts.book = !seed.book.is_null();
     let guarded = owner.guarded.get_mut();
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guarded.anchor = anchor;
     owner.estimate_observer = Some(EstimateObserver {
         context: seed.estimate_context,

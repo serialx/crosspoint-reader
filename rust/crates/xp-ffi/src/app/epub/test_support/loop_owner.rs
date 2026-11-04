@@ -188,7 +188,8 @@ pub unsafe extern "C" fn xp_epub_test_loop_create_legacy_book(
     state.link_margins = (s.link_left, s.link_top);
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guarded.failure_popup = NonNull::new(seed.popup);
     owner.loop_hooks = Some(seed.hooks);
     let context = seed.hooks.context;

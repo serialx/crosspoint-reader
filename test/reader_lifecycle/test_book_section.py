@@ -7,7 +7,7 @@ import json
 import subprocess
 import tempfile
 
-from book_section_composition import section_command, section_fixture, section_source
+from book_section_composition import section_command, section_fixture, section_owner_source
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -18,7 +18,7 @@ def main():
     args = parser.parse_args()
     if args.archive is None:
         parser.error('provide the CMake host archive with app-test and chapter-test enabled')
-    source = section_source(ROOT)
+    source = section_owner_source(ROOT) + (ROOT / 'test/reader_lifecycle/book_section_oracle.cpp').read_text()
     with tempfile.TemporaryDirectory(prefix='reader-book-section-') as directory:
         work = Path(directory)
         cpp, binary = work / 'section.cpp', work / 'section'
@@ -31,8 +31,8 @@ def main():
         assert len(summary) == 1
         print(summary[0])
     print(json.dumps(dict(source_sha256=hashlib.sha256(source.encode()).hexdigest(),
-                          production=['ReaderBook', 'Epub facade', 'Section', 'ChapterHtmlSlimParser',
-                                      'ChapterPageAssembler', 'CssParser', 'ProgressMapper', 'ChapterXPathResolver'],
+                          production=['ReaderBook', 'Epub facade', 'ReaderSection', 'Chapter',
+                                      'Rust CSS', 'native Page', 'cache-only Section', 'ProgressMapper', 'ChapterXPathResolver'],
                           policy_hooks=0, limits=['host storage and font/renderer fakes',
                                                  'image decoding disabled in the Section workload',
                                                  'serialized render thread ticks; not a hardware timing measurement'])))

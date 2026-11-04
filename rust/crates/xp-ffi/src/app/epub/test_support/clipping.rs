@@ -18,11 +18,12 @@ pub struct Seed {
     pub nonempty: unsafe extern "C" fn(*mut c_void, u8),
 }
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_clipping_create(
+pub unsafe extern "C" fn xp_epub_test_clipping_create_legacy_section(
     seed: *const Seed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_section: &'static super::legacy_section::LegacySectionServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
@@ -36,7 +37,8 @@ pub unsafe extern "C" fn xp_epub_test_clipping_create(
     };
     owner.state.get_mut().viewport = (seed.width, seed.height);
     owner.guarded.get_mut().native = Some(NonNull::new(seed.native).expect("fixture root"));
-    owner.guarded.get_mut().section = NonNull::new(seed.section);
+    owner.guarded.get_mut().section =
+        super::legacy_section::SectionSlot::legacy(seed.section, legacy_section);
     if seed.historical != 0 {
         owner.clipping_hooks = Some(ClippingHooks {
             context: seed.context,

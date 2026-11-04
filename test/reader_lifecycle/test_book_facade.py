@@ -57,7 +57,7 @@ def main():
             assert b'requireOwned' in result.stderr
     print(json.dumps(dict(source_sha256=hashlib.sha256(source.encode()).hexdigest(),
                           actual=['ReaderBook load and callbacks', 'Epub facade and getters',
-                                  'CssParser load and clear', 'ImageBlock extractor binding'],
+                                  'no native Section CSS on borrowed facade', 'ImageBlock extractor binding'],
                           limits=['two simulated ticks; actual Section/parser composition remains separate',
                                   'host filesystem and protection fakes'])))
 

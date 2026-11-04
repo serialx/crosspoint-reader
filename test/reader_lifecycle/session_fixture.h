@@ -55,8 +55,8 @@ uint8_t xp_epub_test_navigation_save(void*, int32_t, int32_t, int32_t);
 void xp_epub_test_navigation_remember(void*);
 void xp_epub_test_navigation_href(void*, XpAppText, uint8_t);
 void xp_epub_test_navigation_restore(void*);
-void* xp_epub_test_build_create(const XpEpubTestBuildSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                const XpAppResources*);
+void* xp_epub_test_build_create_legacy_section(const XpEpubTestBuildSeed*, const XpEpubLeaves*, const XpAppRuntime*,
+                                               const XpAppResources*, const XpEpubLegacySectionServices*);
 void xp_epub_test_build_destroy(void*);
 void xp_epub_test_build_observe(void*, XpEpubTestBuildObservation*);
 uint8_t xp_epub_test_build_room(void*);

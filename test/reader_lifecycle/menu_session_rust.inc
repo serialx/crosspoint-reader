@@ -156,22 +156,22 @@ static void configureMenuLeaves() {
         }, &OverlayUnexpected<decltype(XpUiReaderInputServices::tap)>::call};
     return &input;
   };
-  menuLeaves.physical.section_page_count = [](void* raw) -> uint16_t {
+  menuLeaves.book.section.section_page_count = [](void* raw) -> uint16_t {
     assert(!menuModelDepth && raw == activeMenu->owner.section.get());
     return static_cast<Section*>(raw)->pageCount;
   };
-  menuLeaves.physical.section_estimated_pages = [](void* raw) -> int32_t {
+  menuLeaves.book.section.section_estimated_pages = [](void* raw) -> int32_t {
     assert(!menuModelDepth && raw == activeMenu->owner.section.get());
     return static_cast<Section*>(raw)->pageCount;
   };
-  menuLeaves.physical.section_building = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
-  menuLeaves.physical.section_complete = [](void*) -> uint8_t { assert(!menuModelDepth); return 1; };
-  menuLeaves.physical.section_partial = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
-  menuLeaves.physical.section_close = [](void* raw) {
+  menuLeaves.book.section.section_building = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
+  menuLeaves.book.section.section_complete = [](void*) -> uint8_t { assert(!menuModelDepth); return 1; };
+  menuLeaves.book.section.section_partial = [](void*) -> uint8_t { assert(!menuModelDepth); return 0; };
+  menuLeaves.book.section.section_close = [](void* raw) {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.section.get());
     activeMenu->owner.section.reset();
   };
-  menuLeaves.physical.section_page_text = [](void* raw, int32_t page, XpAppTextSink sink, void* context) -> uint8_t {
+  menuLeaves.book.section.section_page_text = [](void* raw, int32_t page, XpAppTextSink sink, void* context) -> uint8_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.section.get());
     const auto& section = *static_cast<Section*>(raw);
     assert(page == section.currentPage);

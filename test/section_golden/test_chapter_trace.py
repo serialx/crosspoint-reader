@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fail closed if chapter instrumentation loses a required operation."""
+import importlib.util
 import unittest
 from pathlib import Path
 
@@ -8,6 +9,10 @@ from run import compare
 
 ROOT = Path(__file__).resolve().parents[2] / 'lib/Epub/Epub/parsers'
 SOURCE = (ROOT / 'ChapterPlatform.cpp').read_text()
+REPO = Path(__file__).resolve().parents[2]
+SPEC = importlib.util.spec_from_file_location('reader_observer', REPO / 'test/reader_section/instrument.py')
+READER_OBSERVER = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(READER_OBSERVER)
 
 
 class ChapterTraceTest(unittest.TestCase):
@@ -43,6 +48,25 @@ class ChapterTraceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             compare({'chapter.ops': b'Text\t6162\nEndBlock\t1\n'},
                     {'chapter.ops': b'EndBlock\t1\n'})
+
+    def test_reader_observer_rejects_missing_or_duplicate_sites(self):
+        sites = {
+            'services.rs': ('    fn trace(&self, _record: &Trace) {}',
+                            '    fn trace_bytes(&self, _bytes: &[u8]) {}'),
+            'driver.rs': ('    pub(super) fn begin(&mut self, options: &Options) -> bool {',
+                          '    pub(super) fn step(&mut self) -> Step {',
+                          '    pub(super) fn finish(&mut self) -> bool {'),
+            'mod.rs': ('mod driver;',),
+        }
+        for name, anchors in sites.items():
+            relative = READER_OBSERVER.READER / name
+            source = (REPO / 'rust' / relative).read_text()
+            READER_OBSERVER.instrument(relative, source)
+            for anchor in anchors:
+                for changed in (source.replace(anchor, ''), source + '\n' + anchor):
+                    with self.subTest(file=name, anchor=anchor):
+                        with self.assertRaises(ValueError):
+                            READER_OBSERVER.instrument(relative, changed)
 
 
 if __name__ == '__main__':

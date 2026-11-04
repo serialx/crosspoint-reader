@@ -81,7 +81,8 @@ pub unsafe extern "C" fn xp_epub_test_projection_create_legacy_book(
     state.facts.book = !seed.book.is_null();
     let guarded = owner.guarded.get_mut();
     guarded.native = Some(NonNull::new(seed.native).expect("fixture root"));
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     owner.projection_hooks = Some(ProjectionHooks {
         context: seed.context,
         toolbar_menu: seed.toolbar_menu,

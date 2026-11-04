@@ -155,9 +155,10 @@ static const XpAppRuntime runtime = [] {
   return table;
 }();
 
+static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -168,37 +169,11 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(render_restore_bw);
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
-  UNUSED_LEAF(loan_begin);
-  UNUSED_LEAF(loan_end);
-  UNUSED_LEAF(loan_drop);
   UNUSED_LEAF(loan_count);
   UNUSED_LEAF(strip_release_idle);
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(section_open);
-  UNUSED_LEAF(section_close);
-  UNUSED_LEAF(section_page_count);
-  UNUSED_LEAF(section_estimated_pages);
-  UNUSED_LEAF(section_building);
-  UNUSED_LEAF(section_complete);
-  UNUSED_LEAF(section_partial);
-  UNUSED_LEAF(section_load_cache);
-  UNUSED_LEAF(section_create_cache);
-  UNUSED_LEAF(section_start_build);
-  UNUSED_LEAF(section_build_more);
-  UNUSED_LEAF(section_abandon_build);
-  UNUSED_LEAF(section_clear_cache);
-  UNUSED_LEAF(section_html_cached);
-  UNUSED_LEAF(section_find_anchor);
-  UNUSED_LEAF(section_cached_anchor);
-  UNUSED_LEAF(section_toc_for_page);
-  UNUSED_LEAF(section_page_for_offset);
-  UNUSED_LEAF(section_offset_for_page);
-  UNUSED_LEAF(section_paragraph_for_page);
-  UNUSED_LEAF(section_reached_offset);
-  UNUSED_LEAF(section_load_page);
-  UNUSED_LEAF(section_page_text);
   UNUSED_LEAF(page_close);
   UNUSED_LEAF(page_info);
   UNUSED_LEAF(page_element);
@@ -347,18 +322,32 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(scratch_claim);
   UNUSED_LEAF(scratch_release);
   UNUSED_LEAF(inflate_oom_log);
-  table.section_page_count = [](void* section) -> uint16_t {
+  UNUSED_LEAF(build_metrics);
+  UNUSED_LEAF(build_allocator);
+  UNUSED_LEAF(font_variant);
+  UNUSED_LEAF(font_line_height);
+  UNUSED_LEAF(font_ready);
+  UNUSED_LEAF(font_codepoint);
+  UNUSED_LEAF(hyphen_language);
+  UNUSED_LEAF(file_position);
+  UNUSED_LEAF(file_flush);
+  UNUSED_LEAF(image_supported);
+  UNUSED_LEAF(image_dimensions);
+  UNUSED_LEAF(page_load);
+  UNUSED_LEAF(framebuffer_lend);
+  UNUSED_LEAF(framebuffer_restore);
+  legacySection.section_page_count = [](void* section) -> uint16_t {
     locked(); assert(section == liveSection && liveSection);
     if (publishing) publication(section, 0);
     return liveSection->pageCount;
   };
-  table.section_estimated_pages = [](void* section) -> int32_t {
+  legacySection.section_estimated_pages = [](void* section) -> int32_t {
     publication(section, 1); return liveSection->pageCount;
   };
-  table.section_building = [](void* section) -> uint8_t { publication(section, 2); return 0; };
-  table.section_complete = [](void* section) -> uint8_t { publication(section, 3); return 0; };
-  table.section_partial = [](void* section) -> uint8_t { publication(section, 4); return 0; };
-  table.section_close = [](void* section) {
+  legacySection.section_building = [](void* section) -> uint8_t { publication(section, 2); return 0; };
+  legacySection.section_complete = [](void* section) -> uint8_t { publication(section, 3); return 0; };
+  legacySection.section_partial = [](void* section) -> uint8_t { publication(section, 4); return 0; };
+  legacySection.section_close = [](void* section) {
     leaf(); assert(section && section == liveSection && liveSections == 1 && !publishing);
     if (destroying) unlocked(); else locked();
     delete liveSection; liveSection = nullptr; --liveSections;
@@ -467,7 +456,7 @@ void EpubReaderActivity::initialize() {
   quietLock = true;
   auto* token = runtime.render_lock();
   publishing = true; publicationStep = 0;
-  owner = xp_epub_test_settings_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_settings_create_legacy_section(&seed, &leaves, &runtime, &resources, &legacySection);
   assert(owner && publicationStep == (liveSection ? 5u : 0u));
   publishing = false;
   runtime.render_unlock(token); quietLock = false;

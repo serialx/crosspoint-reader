@@ -1,6 +1,8 @@
 #include <Epub.h>
 #include <Epub/Page.h>
-#include <Epub/Section.h>
+
+#include "../reader_section/ReaderSectionFixture.h"
+using Section = ReaderSectionFixture;
 #include <Epub/css/CssParser.h>
 #include <GfxRenderer.h>
 #include <sys/resource.h>
@@ -18,7 +20,7 @@
 #include "LayoutTrace.h"
 
 namespace {
-bool readManifest(Epub& epub, std::vector<std::string>& cssPaths) {
+bool readManifest(ReaderSectionInput& epub, std::vector<std::string>& cssPaths) {
   std::ifstream manifest("manifest.tsv");
   if (!manifest) return false;
   std::string line;
@@ -96,7 +98,10 @@ int runDump(int argc, char** argv) {
     std::filesystem::current_path(argv[3]);
     std::filesystem::create_directories("cache/sections");
     std::filesystem::copy_file(source, "cache/sections/0.bin", std::filesystem::copy_options::overwrite_existing);
-    auto epub = std::make_shared<Epub>();
+    auto epub = std::make_shared<ReaderSectionInput>();
+    if (std::string(argv[1]) == "--lookups") {
+      epub->toc = {{0, ""}, {0, "start"}, {0, "middle"}, {0, "duplicate"}, {0, "end"}, {0, "missing"}};
+    }
     GfxRenderer renderer;
     Section section(epub, 0, renderer);
     const bool accepted = section.loadSectionFile(setting(std::stoi(argv[4])));
@@ -120,7 +125,6 @@ int runDump(int argc, char** argv) {
     }
     if (!accepted) return 0;
     if (std::string(argv[1]) == "--lookups") {
-      epub->toc = {{0, ""}, {0, "start"}, {0, "middle"}, {0, "duplicate"}, {0, "end"}, {0, "missing"}};
       const auto print = [](const char* key, uint32_t query, const auto& result) {
         std::cout << key << '\t' << query << '\t';
         if (result)
@@ -183,7 +187,7 @@ int runDump(int argc, char** argv) {
   }
   static_assert(sizeof(int) == 4 && sizeof(float) == 4 && sizeof(bool) == 1);
   std::filesystem::current_path(argv[1]);
-  auto epub = std::make_shared<Epub>();
+  auto epub = std::make_shared<ReaderSectionInput>();
   std::vector<std::string> cssPaths;
   if (!readManifest(*epub, cssPaths)) return 3;
   GfxRenderer renderer;
@@ -200,7 +204,6 @@ int runDump(int argc, char** argv) {
       complete &= result == CssParser::ParseResult::Complete;
     }
     if (!css.saveToCache(complete)) return 6;
-    epub->css = &css;
     const auto spec = setting(config);
     const auto output = "output/" + std::to_string(config);
     std::filesystem::create_directories(output);

@@ -45,12 +45,12 @@ static const XpAppResources ownerResources = [] {
 }();
 static const LegacyEpubLeaves ownerLeaves = [] {
   auto table = overlayLegacyLeaves();
-  table.physical.section_page_count = [](void* p) -> uint16_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
-  table.physical.section_estimated_pages = [](void* p) -> int32_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
-  table.physical.section_building = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
-  table.physical.section_complete = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 1; };
-  table.physical.section_partial = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
-  table.physical.section_close = [](void* p) { ownerPhysical(); assert(p == &sectionMarker); ++ownerSectionCloses; };
+  table.book.section.section_page_count = [](void* p) -> uint16_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
+  table.book.section.section_estimated_pages = [](void* p) -> int32_t { ownerPhysical(); assert(p == &sectionMarker); return 10; };
+  table.book.section.section_building = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
+  table.book.section.section_complete = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 1; };
+  table.book.section.section_partial = [](void* p) -> uint8_t { ownerPhysical(); assert(p == &sectionMarker); return 0; };
+  table.book.section.section_close = [](void* p) { ownerPhysical(); assert(p == &sectionMarker); ++ownerSectionCloses; };
   table.physical.input_facts = [](XpEpubInputFacts* out) { ownerPhysical(); *out = {}; out->touch = 1; };
   table.book.book_toc_count = [](void* p) -> int32_t { ownerPhysical(); assert(p == &bookMarker); return 30; };
   table.book.book_toc = [](void* p, int32_t index, XpEpubTocSink sink, void* context) -> uint8_t {

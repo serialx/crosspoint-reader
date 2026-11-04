@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 extern crate alloc;
 
 use super::{abi, app_abi, state::PopupIntent, EpubSession, ResourceAccess};
@@ -96,7 +97,7 @@ impl EpubSession {
             return;
         };
         self.remember_offset(access);
-        let pages = unsafe { (self.leaves.section_page_count)(section.as_ptr()) };
+        let pages = unsafe { ReaderSection::page_count(section) };
         self.model(|state| {
             state.cached.spine = state.current.spine;
             state.cached.pages = i32::from(pages);

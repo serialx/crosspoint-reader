@@ -1,6 +1,7 @@
 #pragma once
-
 #include <xp_epub_session.h>
+
+#include "legacy_book_fixture.h"
 
 struct XpEpubTestSettingsOverrides {
   void* context;
@@ -39,8 +40,9 @@ struct XpEpubTestSettingsObservation {
 };
 
 extern "C" {
-void* xp_epub_test_settings_create(const XpEpubTestSettingsSeed*, const XpEpubLeaves*, const XpAppRuntime*,
-                                   const XpAppResources*);
+void* xp_epub_test_settings_create_legacy_section(const XpEpubTestSettingsSeed*, const XpEpubLeaves*,
+                                                  const XpAppRuntime*, const XpAppResources*,
+                                                  const XpEpubLegacySectionServices*);
 void xp_epub_test_settings_destroy(void*);
 void xp_epub_test_settings_observe(void*, XpEpubTestSettingsObservation*);
 void xp_epub_test_settings_initial(void*);

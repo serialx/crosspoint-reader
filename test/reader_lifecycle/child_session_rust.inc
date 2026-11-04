@@ -95,35 +95,35 @@ static void configureChildLeaves() {
     out->screen_margin = SETTINGS.screenMargin;
     out->dictionary_available = SETTINGS.dictionaryName[0] != '\0';
   };
-  childLeaves.physical.section_page_count = [](void* raw) -> uint16_t {
+  childLeaves.book.section.section_page_count = [](void* raw) -> uint16_t {
     assert(!modelDepth && raw == activeChild->owner.section.get());
     return static_cast<Section*>(raw)->pageCount;
   };
   // Section facts publish silently; EstimateObserver records each policy read.
-  childLeaves.physical.section_estimated_pages = [](void* raw) -> int32_t {
+  childLeaves.book.section.section_estimated_pages = [](void* raw) -> int32_t {
     assert(!modelDepth && raw == activeChild->owner.section.get());
     return 9;
   };
-  childLeaves.physical.section_building = [](void*) -> uint8_t { assert(!modelDepth); return 0; };
-  childLeaves.physical.section_complete = [](void*) -> uint8_t { assert(!modelDepth); return 1; };
-  childLeaves.physical.section_partial = [](void*) -> uint8_t { assert(!modelDepth); return 0; };
-  childLeaves.physical.section_load_page = [](void* raw, int32_t page) -> void* {
+  childLeaves.book.section.section_building = [](void*) -> uint8_t { assert(!modelDepth); return 0; };
+  childLeaves.book.section.section_complete = [](void*) -> uint8_t { assert(!modelDepth); return 1; };
+  childLeaves.book.section.section_partial = [](void*) -> uint8_t { assert(!modelDepth); return 0; };
+  childLeaves.book.section.section_load_page = [](void* raw, int32_t page) -> void* {
     assert(lockDepth == 1 && !modelDepth && raw == activeChild->owner.section.get());
     return static_cast<Section*>(raw)->loadPage(page).release();
   };
-  childLeaves.physical.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* offset) -> uint8_t {
+  childLeaves.book.section.section_offset_for_page = [](void* raw, uint16_t page, uint32_t* offset) -> uint8_t {
     assert(lockDepth == 1 && !modelDepth && raw == activeChild->owner.section.get());
     const auto value = static_cast<Section*>(raw)->getVisibleTextOffsetForPage(page);
     if (value) *offset = *value;
     return value.has_value();
   };
-  childLeaves.physical.section_paragraph_for_page = [](void* raw, uint16_t page, uint16_t* paragraph) -> uint8_t {
+  childLeaves.book.section.section_paragraph_for_page = [](void* raw, uint16_t page, uint16_t* paragraph) -> uint8_t {
     assert(lockDepth == 1 && !modelDepth && raw == activeChild->owner.section.get());
     const auto value = static_cast<Section*>(raw)->getParagraphIndexForPage(page);
     if (value) *paragraph = *value;
     return value.has_value();
   };
-  childLeaves.physical.section_close = [](void* raw) {
+  childLeaves.book.section.section_close = [](void* raw) {
     assert(lockDepth == 1 && !modelDepth && raw == activeChild->owner.section.get());
     activeChild->owner.section.reset();
   };
@@ -248,16 +248,15 @@ static void configureChildLeaves() {
   childLeaves.physical.fonts_release_caches = [] {
     if (auto* cache = activeChild->owner.renderer.getFontCacheManager()) cache->releaseSdFontCaches();
   };
-  childLeaves.physical.loan_begin = [](void* raw) -> uint8_t {
-    assert(raw == activeChild && !activeChild->loan);
+  childLeaves.physical.framebuffer_lend = []() -> uint8_t {
+    assert(!activeChild->loan);
     activeChild->loan.emplace(activeChild->owner.renderer);
     return 1;
   };
-  childLeaves.physical.loan_drop = [](void* raw) {
-    assert(raw == activeChild && activeChild->loan);
+  childLeaves.physical.framebuffer_restore = [](uint8_t owned) {
+    assert(owned && activeChild->loan);
     activeChild->loan.reset();
-  };
-  childLeaves.physical.progress_to_saved = [](void* raw, const XpEpubPosition* position, XpEpubSavedProgressSink sink,
+  };  childLeaves.physical.progress_to_saved = [](void* raw, const XpEpubPosition* position, XpEpubSavedProgressSink sink,
                                     void* context) -> uint8_t {
     assert(raw == activeChild->owner.epub.get());
     const auto saved = ProgressMapper::toSavedProgress(activeChild->owner.epub, CrossPointPosition{position->spine});

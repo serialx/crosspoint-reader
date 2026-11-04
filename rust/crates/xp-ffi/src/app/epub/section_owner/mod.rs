@@ -1,4 +1,4 @@
-//! Dormant Section storage; the session continues to use native Section until activation.
+//! Reader Section owns cache storage and incremental Chapter lifetime.
 use super::Text;
 use crate::{app::abi, section_cache};
 
@@ -8,13 +8,22 @@ mod driver;
 mod file;
 mod image;
 mod input;
+mod lifecycle;
 mod owner;
+mod queries;
+mod text;
+mod toc;
+pub(super) use image::FramebufferLoan;
+pub(super) use owner::ReaderSection;
+pub(super) use services::Popup;
 mod records;
 mod services;
 use records::Records;
 
 #[cfg(feature = "app-test")]
 mod driver_tests;
+#[cfg(feature = "app-test")]
+mod fixture;
 #[cfg(feature = "app-test")]
 mod tests;
 
@@ -43,6 +52,7 @@ impl BuildRecords {
         }
     }
 
+    #[cfg(feature = "app-test")]
     fn push_page(&mut self, value: PagePosition) -> Result<(), ()> {
         self.pages.reserve_one()?;
         self.pages.push_reserved(value);
@@ -106,3 +116,22 @@ const _: () = {
     assert!(core::mem::align_of::<Anchor>() == 4);
     assert!(core::mem::size_of::<Records<PagePosition, 64>>() == 20);
 };
+
+// Guarded stores ownership; ResourceAccess alone exposes its checked pointer.
+#[cfg(not(feature = "app-test"))]
+pub(super) struct SectionSlot(core::ptr::NonNull<ReaderSection>);
+#[cfg(not(feature = "app-test"))]
+impl SectionSlot {
+    pub(super) unsafe fn new(raw: core::ptr::NonNull<ReaderSection>) -> Self {
+        Self(raw)
+    }
+    pub(super) fn pointer(&self) -> core::ptr::NonNull<ReaderSection> {
+        self.0
+    }
+}
+#[cfg(not(feature = "app-test"))]
+impl Drop for SectionSlot {
+    fn drop(&mut self) {
+        unsafe { ReaderSection::close(self.0) };
+    }
+}

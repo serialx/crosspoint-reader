@@ -57,7 +57,6 @@ impl Chapter {
         unsafe { (*handle.as_ptr()).state.finish_assembly() }
     }
 
-    #[cfg(feature = "app-test")]
     pub(crate) unsafe fn oom(handle: NonNull<Self>) -> bool {
         unsafe { (*handle.as_ptr()).state.query(Query::Oom) != 0 }
     }
@@ -72,7 +71,6 @@ impl Chapter {
         }
     }
 
-    #[cfg(feature = "app-test")]
     pub(crate) unsafe fn create_reader(
         services: NonNull<dyn chapter::ReaderServices>,
         css: *const Css,

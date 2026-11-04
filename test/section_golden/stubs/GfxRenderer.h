@@ -1,6 +1,7 @@
 #pragma once
-
 #include <Arduino.h>
+
+#include <cassert>
 #ifdef XP_FOOTNOTE_SELECT_TEST
 #include <xp_ui.h>
 
@@ -18,6 +19,16 @@
 // Font ids are integer em sizes. No host font installation influences the oracle.
 class GfxRenderer : public ChapterTestRenderer {
  public:
+  bool hasFrameBuffer() const { return loanDepth == 0; }
+  void releaseFrameBufferForBuild() {
+    assert(loanDepth == 0);
+    ++loanDepth;
+  }
+  bool restoreFrameBufferAfterBuild() {
+    assert(loanDepth == 1);
+    --loanDepth;
+    return true;
+  }
 #ifdef XP_FOOTNOTE_SELECT_TEST
   void getOrientedViewableTRBL(int* top, int* right, int* bottom, int* left) { *top = *right = *bottom = *left = 0; }
   bool failFootnoteBuild = false, paintOk = true, snapshotOk = true;

@@ -18,16 +18,6 @@ impl Drop for LoadedBook {
     }
 }
 
-struct LoadLoan<'a> {
-    access: &'a ResourceAccess<'a>,
-}
-impl Drop for LoadLoan<'_> {
-    fn drop(&mut self) {
-        let owner = self.access.owner;
-        unsafe { (owner.leaves.loan_drop)(owner.native(self.access)) };
-    }
-}
-
 impl EpubSession {
     pub(super) fn entry_load_book(&self) -> bool {
         #[cfg(feature = "app-test")]
@@ -102,8 +92,10 @@ impl EpubSession {
         let mut path = unsafe { core::mem::take(&mut *self.path.get()) };
         let result = {
             let _loan = if uncached {
-                unsafe { (self.leaves.loan_begin)(self.native(access)) };
-                Some(LoadLoan { access })
+                Some(super::section_owner::FramebufferLoan::new(
+                    self.leaves.framebuffer_lend,
+                    self.leaves.framebuffer_restore,
+                ))
             } else {
                 None
             };

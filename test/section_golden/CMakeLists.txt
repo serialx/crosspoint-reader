@@ -53,7 +53,13 @@ target_include_directories(SectionGoldenDump PRIVATE
   ${REPO_ROOT}/lib/MiniBidi
   ${REPO_ROOT}/lib/XmlParserUtils
 )
-target_link_libraries(SectionGoldenDump PRIVATE crosspoint_test_common xp_ffi_host)
+include(${REPO_ROOT}/test/reader_section/fixture.cmake)
+reader_section_trace_archive()
+get_target_property(SECTION_COMMON_INCLUDES crosspoint_test_common INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(SECTION_COMMON_OPTIONS crosspoint_test_common INTERFACE_COMPILE_OPTIONS)
+target_include_directories(SectionGoldenDump PRIVATE ${SECTION_COMMON_INCLUDES})
+target_compile_options(SectionGoldenDump PRIVATE ${SECTION_COMMON_OPTIONS})
+target_link_libraries(SectionGoldenDump PRIVATE reader_section_trace)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME SectionGoldens COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/run.py --dump $<TARGET_FILE:SectionGoldenDump>)
@@ -85,3 +91,5 @@ target_sources(SectionGoldenDump PRIVATE ${REPO_ROOT}/test/page_codec_diff/Seria
 target_compile_definitions(SectionGoldenDump PRIVATE XP_PAGE_CODEC_TEST=1)
 
 target_sources(SectionGoldenDump PRIVATE ${REPO_ROOT}/test/page_codec_diff/TextSerialization.cpp)
+
+reader_section_fixture(SectionGoldenDump --trace)

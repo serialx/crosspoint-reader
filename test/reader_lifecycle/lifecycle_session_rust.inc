@@ -168,7 +168,7 @@ static XpAppRuntime runtimeDefaults() {
 
 static LegacyEpubLeaves leavesDefaults() {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
   UNUSED_LEAF(physical.resources_open);
   UNUSED_LEAF(physical.resources_close);
   UNUSED_LEAF(physical.render_services);
@@ -179,37 +179,34 @@ static LegacyEpubLeaves leavesDefaults() {
   UNUSED_LEAF(physical.render_restore_bw);
   UNUSED_LEAF(physical.render_discard_bw);
   UNUSED_LEAF(physical.render_orientation);
-  UNUSED_LEAF(physical.loan_begin);
-  UNUSED_LEAF(physical.loan_end);
-  UNUSED_LEAF(physical.loan_drop);
   UNUSED_LEAF(physical.loan_count);
   UNUSED_LEAF(physical.strip_release_idle);
   UNUSED_LEAF(physical.progress_to_reader);
   UNUSED_LEAF(physical.progress_to_saved);
   UNUSED_LEAF(physical.progress_save);
-  UNUSED_LEAF(physical.section_open);
-  UNUSED_LEAF(physical.section_close);
-  UNUSED_LEAF(physical.section_page_count);
-  UNUSED_LEAF(physical.section_estimated_pages);
-  UNUSED_LEAF(physical.section_building);
-  UNUSED_LEAF(physical.section_complete);
-  UNUSED_LEAF(physical.section_partial);
-  UNUSED_LEAF(physical.section_load_cache);
-  UNUSED_LEAF(physical.section_create_cache);
-  UNUSED_LEAF(physical.section_start_build);
-  UNUSED_LEAF(physical.section_build_more);
-  UNUSED_LEAF(physical.section_abandon_build);
-  UNUSED_LEAF(physical.section_clear_cache);
-  UNUSED_LEAF(physical.section_html_cached);
-  UNUSED_LEAF(physical.section_find_anchor);
-  UNUSED_LEAF(physical.section_cached_anchor);
-  UNUSED_LEAF(physical.section_toc_for_page);
-  UNUSED_LEAF(physical.section_page_for_offset);
-  UNUSED_LEAF(physical.section_offset_for_page);
-  UNUSED_LEAF(physical.section_paragraph_for_page);
-  UNUSED_LEAF(physical.section_reached_offset);
-  UNUSED_LEAF(physical.section_load_page);
-  UNUSED_LEAF(physical.section_page_text);
+  UNUSED_LEAF(book.section.section_open);
+  UNUSED_LEAF(book.section.section_close);
+  UNUSED_LEAF(book.section.section_page_count);
+  UNUSED_LEAF(book.section.section_estimated_pages);
+  UNUSED_LEAF(book.section.section_building);
+  UNUSED_LEAF(book.section.section_complete);
+  UNUSED_LEAF(book.section.section_partial);
+  UNUSED_LEAF(book.section.section_load_cache);
+  UNUSED_LEAF(book.section.section_create_cache);
+  UNUSED_LEAF(book.section.section_start_build);
+  UNUSED_LEAF(book.section.section_build_more);
+  UNUSED_LEAF(book.section.section_abandon_build);
+  UNUSED_LEAF(book.section.section_clear_cache);
+  UNUSED_LEAF(book.section.section_html_cached);
+  UNUSED_LEAF(book.section.section_find_anchor);
+  UNUSED_LEAF(book.section.section_cached_anchor);
+  UNUSED_LEAF(book.section.section_toc_for_page);
+  UNUSED_LEAF(book.section.section_page_for_offset);
+  UNUSED_LEAF(book.section.section_offset_for_page);
+  UNUSED_LEAF(book.section.section_paragraph_for_page);
+  UNUSED_LEAF(book.section.section_reached_offset);
+  UNUSED_LEAF(book.section.section_load_page);
+  UNUSED_LEAF(book.section.section_page_text);
   UNUSED_LEAF(physical.page_close);
   UNUSED_LEAF(physical.page_info);
   UNUSED_LEAF(physical.page_element);
@@ -358,6 +355,20 @@ static LegacyEpubLeaves leavesDefaults() {
   UNUSED_LEAF(physical.scratch_claim);
   UNUSED_LEAF(physical.scratch_release);
   UNUSED_LEAF(physical.inflate_oom_log);
+  UNUSED_LEAF(physical.build_metrics);
+  UNUSED_LEAF(physical.build_allocator);
+  UNUSED_LEAF(physical.font_variant);
+  UNUSED_LEAF(physical.font_line_height);
+  UNUSED_LEAF(physical.font_ready);
+  UNUSED_LEAF(physical.font_codepoint);
+  UNUSED_LEAF(physical.hyphen_language);
+  UNUSED_LEAF(physical.file_position);
+  UNUSED_LEAF(physical.file_flush);
+  UNUSED_LEAF(physical.image_supported);
+  UNUSED_LEAF(physical.image_dimensions);
+  UNUSED_LEAF(physical.page_load);
+  UNUSED_LEAF(physical.framebuffer_lend);
+  UNUSED_LEAF(physical.framebuffer_restore);
     UNUSED_LEAF(physical.book_facade_open);
     UNUSED_LEAF(physical.book_facade_close);
     UNUSED_LEAF(physical.book_set_extractor);
@@ -489,37 +500,37 @@ static const LegacyEpubLeaves leaves = [] {
     const auto path = static_cast<Epub*>(book)->getCachePath();
     return sink(target, wire(path));
   };
-  table.physical.section_close = [](void* handle) {
+  table.book.section.section_close = [](void* handle) {
     (void)section(handle);
     assert(!bridge().publishing && (lockDepth == 1 || bridge().destroying));
     fixture().section.reset();
   };
-  table.physical.section_page_count = [](void* handle) -> uint16_t {
+  table.book.section.section_page_count = [](void* handle) -> uint16_t {
     const auto value = section(handle).pageCount;
     publication(0);
     return value;
   };
-  table.physical.section_estimated_pages = [](void* handle) -> int32_t {
+  table.book.section.section_estimated_pages = [](void* handle) -> int32_t {
     const auto value = section(handle).pageCount;
     publication(1);
     return value;
   };
-  table.physical.section_building = [](void* handle) -> uint8_t {
+  table.book.section.section_building = [](void* handle) -> uint8_t {
     const auto value = section(handle).isBuilding();
     if (bridge().publishing) publication(2);
     else assert(lockDepth == 1);
     return value;
   };
-  table.physical.section_complete = [](void* handle) -> uint8_t {
+  table.book.section.section_complete = [](void* handle) -> uint8_t {
     const auto value = section(handle).isBuildComplete();
     if (bridge().publishing) publication(3);
     else assert(lockDepth == 1);
     return value;
   };
-  table.physical.section_partial = [](void* handle) -> uint8_t {
+  table.book.section.section_partial = [](void* handle) -> uint8_t {
     (void)section(handle); publication(4); return 0;
   };
-  table.physical.section_build_more = [](void* handle, int32_t pages, uint8_t yield) -> uint8_t {
+  table.book.section.section_build_more = [](void* handle, int32_t pages, uint8_t yield) -> uint8_t {
     assert(lockDepth == 1 && pages == 2 && yield == 1);
     const auto result = section(handle).buildSomeMore(pages, &buttonContactClosed);
     bridge().beginPublication();

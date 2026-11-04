@@ -3,9 +3,11 @@ extern "C" void* testNativeFacadeOpen(void*, const XpEpubBookView*, const XpEpub
 extern "C" void testNativeFacadeClose(void*);
 extern "C" void testNativeExtractor(void*);
 namespace {
-struct ReaderFile { std::vector<uint8_t> bytes; size_t cursor = 0; };
+struct ReaderFile { std::vector<uint8_t> bytes; size_t cursor = 0; std::string path; };
 struct ReaderFacade { Handle* marker; void* owner; const XpEpubBookBorrow* callbacks; };
 std::map<void*, ReaderFile> readerFiles;
+std::map<std::string, std::vector<uint8_t>> readerSectionFiles;
+unsigned readerSectionOpens = 0, readerSectionCloses = 0;
 std::map<void*, ReaderFacade> readerFacades;
 std::map<void*, size_t> readerBuffers;
 bool readerCacheLocked = false;
@@ -54,7 +56,7 @@ void bindReaderBook() {
   leaves.native_path_hash = [](XpAppText path) -> uint64_t { assert(text(path) == f().path); return 42; };
   resources.path_exists = [](XpAppText path) -> uint8_t {
     const auto value = text(path);
-    return value == f().path || value == readerCache + "/book.bin" ||
+    return readerSectionFiles.count(value) || value == f().path || value == readerCache + "/book.bin" ||
            value == readerCache + "/css_rules.cache" || value == readerCache + "/html/0.html";
   };
   resources.buffer_allocate = [](uint8_t, size_t size) -> uint8_t* {
@@ -73,7 +75,11 @@ void bindReaderBook() {
       return f().acquire(Kind::File, f().extractor->generation);
     }
     std::vector<uint8_t> bytes;
-    if (value == readerCache + "/book.bin") {
+    if (readerSectionFiles.count(value)) {
+      assert(text(origin) == "SCT" && !f().modelDepth);
+      bytes = readerSectionFiles.at(value); ++readerSectionOpens;
+      std::fprintf(stderr, "section-file-open path=%s bytes=%zu\n", value.c_str(), bytes.size());
+    } else if (value == readerCache + "/book.bin") {
       bytes = readerCacheBytes(); ++f().bookLoads; f().physical("cache-read", f().entersGeneration);
     } else if (value == readerCache + "/css_rules.cache") {
       bytes = {19, 0, 0, 0};
@@ -86,7 +92,7 @@ void bindReaderBook() {
       assert(value == readerCache + "/links.bin" || value == readerCache + "/css_rules.cache.bak"); return nullptr;
     }
     auto* raw = new uint8_t;
-    readerFiles.emplace(raw, ReaderFile{std::move(bytes)}); return raw;
+    readerFiles.emplace(raw, ReaderFile{std::move(bytes), 0, value}); return raw;
   };
   leaves.file_read = [](void* raw, uint8_t* bytes, uint32_t size) -> int32_t {
     auto it = readerFiles.find(raw); if (it == readerFiles.end()) return progressRead(raw, bytes, size);
@@ -94,9 +100,17 @@ void bindReaderBook() {
     if (count) std::memcpy(bytes, file.bytes.data() + file.cursor, count); file.cursor += count; return int32_t(count);
   };
   leaves.file_seek = [](void* raw, uint32_t offset) -> uint8_t { readerFiles.at(raw).cursor = offset; return 1; };
+  leaves.file_position = [](void* raw) -> uint32_t { return uint32_t(readerFiles.at(raw).cursor); };
   leaves.file_size = [](void* raw) -> uint32_t { return uint32_t(readerFiles.at(raw).bytes.size()); };
   leaves.file_close = [](void* raw) -> uint8_t {
-    if (readerFiles.erase(raw)) { delete static_cast<uint8_t*>(raw); return 1; }
+    const auto it = readerFiles.find(raw);
+    if (it != readerFiles.end()) {
+      if (readerSectionFiles.count(it->second.path)) {
+        assert(!f().modelDepth); ++readerSectionCloses;
+        std::fprintf(stderr, "section-file-close path=%s cursor=%zu\n", it->second.path.c_str(), it->second.cursor);
+      }
+      readerFiles.erase(it); delete static_cast<uint8_t*>(raw); return 1;
+    }
     return progressClose(raw);
   };
   leaves.path_mkdir = [](XpAppText path) -> uint8_t {

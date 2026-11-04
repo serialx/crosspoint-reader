@@ -115,7 +115,8 @@ pub unsafe extern "C" fn xp_epub_test_overlay_create_legacy_book(
     state.facts.frame_stale = seed.stale != 0;
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guarded.toolbar = NonNull::new(seed.toolbar);
     guarded.overlay_popup = NonNull::new(seed.popup);
     owner.overlay_hooks = Some(OverlayHooks {
@@ -253,7 +254,9 @@ pub unsafe extern "C" fn xp_epub_test_overlay_destroy(raw: *mut c_void) {
     let guarded = owner.guarded.get_mut();
     // Historical fixtures keep ownership of all their fake native resources.
     guarded.native = None;
-    guarded.section = None;
+    if let Some(section) = guarded.section.take() {
+        section.return_fixture();
+    }
     guarded.toolbar = None;
     guarded.overlay_popup = None;
     drop(owner);

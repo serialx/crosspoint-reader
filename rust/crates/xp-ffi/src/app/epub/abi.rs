@@ -428,9 +428,6 @@ pub struct XpEpubLeaves {
     pub render_restore_bw: unsafe extern "C" fn(resync: u8),
     pub render_discard_bw: unsafe extern "C" fn(),
     pub render_orientation: unsafe extern "C" fn(orientation: u8),
-    pub loan_begin: unsafe extern "C" fn(resources: *mut core::ffi::c_void) -> u8,
-    pub loan_end: unsafe extern "C" fn(resources: *mut core::ffi::c_void),
-    pub loan_drop: unsafe extern "C" fn(resources: *mut core::ffi::c_void),
     pub loan_count: unsafe extern "C" fn() -> u32,
     pub strip_release_idle: unsafe extern "C" fn(resources: *mut core::ffi::c_void) -> u8,
     pub book_facade_open: unsafe extern "C" fn(
@@ -474,72 +471,6 @@ pub struct XpEpubLeaves {
     ) -> u8,
     pub progress_save:
         unsafe extern "C" fn(book: *mut core::ffi::c_void, position: *const XpEpubPosition) -> u8,
-    pub section_open:
-        unsafe extern "C" fn(book: *mut core::ffi::c_void, spine: i32) -> *mut core::ffi::c_void,
-    pub section_close: unsafe extern "C" fn(section: *mut core::ffi::c_void),
-    pub section_page_count: unsafe extern "C" fn(section: *mut core::ffi::c_void) -> u16,
-    pub section_estimated_pages: unsafe extern "C" fn(section: *mut core::ffi::c_void) -> i32,
-    pub section_building: unsafe extern "C" fn(section: *mut core::ffi::c_void) -> u8,
-    pub section_complete: unsafe extern "C" fn(section: *mut core::ffi::c_void) -> u8,
-    pub section_partial: unsafe extern "C" fn(section: *mut core::ffi::c_void) -> u8,
-    pub section_load_cache:
-        unsafe extern "C" fn(section: *mut core::ffi::c_void, spec: *const XpEpubRenderSpec) -> u8,
-    pub section_create_cache: unsafe extern "C" fn(
-        section: *mut core::ffi::c_void,
-        spec: *const XpEpubRenderSpec,
-        popup: XpEpubBuildPopup,
-        context: *mut core::ffi::c_void,
-    ) -> u8,
-    pub section_start_build: unsafe extern "C" fn(
-        section: *mut core::ffi::c_void,
-        spec: *const XpEpubRenderSpec,
-        popup: Option<XpEpubBuildPopup>,
-        context: *mut core::ffi::c_void,
-    ) -> u8,
-    pub section_build_more: unsafe extern "C" fn(
-        section: *mut core::ffi::c_void,
-        max_pages: i32,
-        yield_on_input: u8,
-    ) -> u8,
-    pub section_abandon_build: unsafe extern "C" fn(section: *mut core::ffi::c_void),
-    pub section_clear_cache: unsafe extern "C" fn(section: *mut core::ffi::c_void) -> u8,
-    pub section_html_cached: unsafe extern "C" fn(section: *mut core::ffi::c_void) -> u8,
-    pub section_find_anchor: unsafe extern "C" fn(
-        section: *mut core::ffi::c_void,
-        anchor: XpAppText,
-        page: *mut u16,
-    ) -> u8,
-    pub section_cached_anchor: unsafe extern "C" fn(
-        section: *mut core::ffi::c_void,
-        anchor: XpAppText,
-        page: *mut u16,
-    ) -> u8,
-    pub section_toc_for_page: unsafe extern "C" fn(
-        section_or_null: *mut core::ffi::c_void,
-        book: *mut core::ffi::c_void,
-        spine: i32,
-        page: i32,
-    ) -> i32,
-    pub section_page_for_offset: unsafe extern "C" fn(
-        section: *mut core::ffi::c_void,
-        offset: u32,
-        prefer_first: u8,
-        page: *mut u16,
-    ) -> u8,
-    pub section_offset_for_page:
-        unsafe extern "C" fn(section: *mut core::ffi::c_void, page: u16, offset: *mut u32) -> u8,
-    pub section_paragraph_for_page:
-        unsafe extern "C" fn(section: *mut core::ffi::c_void, page: u16, paragraph: *mut u16) -> u8,
-    pub section_reached_offset:
-        unsafe extern "C" fn(section: *mut core::ffi::c_void, offset: u32) -> u8,
-    pub section_load_page:
-        unsafe extern "C" fn(section: *mut core::ffi::c_void, page: i32) -> *mut core::ffi::c_void,
-    pub section_page_text: unsafe extern "C" fn(
-        section: *mut core::ffi::c_void,
-        page: i32,
-        sink: XpAppTextSink,
-        context: *mut core::ffi::c_void,
-    ) -> u8,
     pub page_close: unsafe extern "C" fn(page: *mut core::ffi::c_void),
     pub page_info: unsafe extern "C" fn(page: *mut core::ffi::c_void, out: *mut XpEpubPageInfo),
     pub page_element:
@@ -804,6 +735,20 @@ pub struct XpEpubLeaves {
     pub scratch_claim: unsafe extern "C" fn(min_len: u32) -> *mut u8,
     pub scratch_release: unsafe extern "C" fn(bytes: *const u8),
     pub inflate_oom_log: unsafe extern "C" fn(allocation: XpAppText, bytes: u32),
+    pub build_metrics: unsafe extern "C" fn() -> *const xp_core::para::paragraph::Metrics,
+    pub build_allocator: unsafe extern "C" fn() -> *const xp_core::para::Allocator,
+    pub font_variant: unsafe extern "C" fn(i32, f32) -> i32,
+    pub font_line_height: unsafe extern "C" fn(i32, f32) -> i32,
+    pub font_ready: unsafe extern "C" fn(i32, i32) -> i32,
+    pub font_codepoint: unsafe extern "C" fn(i32, u32, u8, *mut i32, *mut i32) -> u8,
+    pub hyphen_language: unsafe extern "C" fn(XpAppText) -> i32,
+    pub file_position: unsafe extern "C" fn(*mut core::ffi::c_void) -> u32,
+    pub file_flush: unsafe extern "C" fn(*mut core::ffi::c_void),
+    pub image_supported: unsafe extern "C" fn(XpAppText) -> u8,
+    pub image_dimensions: unsafe extern "C" fn(XpAppText, *mut u16, *mut u16) -> u8,
+    pub page_load: unsafe extern "C" fn(*mut core::ffi::c_void, u32, u32) -> *mut core::ffi::c_void,
+    pub framebuffer_lend: unsafe extern "C" fn() -> u8,
+    pub framebuffer_restore: unsafe extern "C" fn(u8),
 }
 
 const _: () = {
@@ -825,31 +770,31 @@ const _: () = {
     );
     assert!(
         core::mem::size_of::<XpEpubLeaves>()
-            == 192 * core::mem::size_of::<unsafe extern "C" fn()>()
-    );
-    assert!(
-        core::mem::offset_of!(XpEpubLeaves, log)
-            == 177 * core::mem::size_of::<unsafe extern "C" fn()>()
-    );
-    assert!(
-        core::mem::offset_of!(XpEpubLeaves, page_word_font)
-            == 178 * core::mem::size_of::<unsafe extern "C" fn()>()
-    );
-    assert!(
-        core::mem::offset_of!(XpEpubLeaves, page_line_font)
-            == 179 * core::mem::size_of::<unsafe extern "C" fn()>()
-    );
-    assert!(
-        core::mem::offset_of!(XpEpubLeaves, page_word_y_offset)
             == 180 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
+        core::mem::offset_of!(XpEpubLeaves, log)
+            == 151 * core::mem::size_of::<unsafe extern "C" fn()>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, page_word_font)
+            == 152 * core::mem::size_of::<unsafe extern "C" fn()>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, page_line_font)
+            == 153 * core::mem::size_of::<unsafe extern "C" fn()>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, page_word_y_offset)
+            == 154 * core::mem::size_of::<unsafe extern "C" fn()>()
+    );
+    assert!(
         core::mem::offset_of!(XpEpubLeaves, page_line_ruby_shift)
-            == 181 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 155 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, font_text_advance)
-            == 182 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 156 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 
@@ -877,7 +822,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, log_enabled)
-            == 183 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 157 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -887,7 +832,7 @@ const _: fn(&XpEpubLeaves) = |leaves| {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, toolbar_reset_navigation)
-            == 184 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 158 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -925,7 +870,7 @@ const _: () = {
     assert!(core::mem::offset_of!(XpEpubPeer, addr) == 64);
     assert!(
         core::mem::offset_of!(XpEpubLeaves, radio_status)
-            == 101 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 75 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -951,7 +896,7 @@ const _: () = {
 const _: () = {
     assert!(
         core::mem::offset_of!(XpEpubLeaves, input_snapshot)
-            == 185 * core::mem::size_of::<unsafe extern "C" fn()>()
+            == 159 * core::mem::size_of::<unsafe extern "C" fn()>()
     );
 };
 const _: fn(&XpEpubLeaves) = |leaves| {
@@ -964,44 +909,44 @@ const _: () = {
     assert!(core::mem::align_of::<XpEpubGeometry>() == 4);
     assert!(core::mem::offset_of!(XpEpubGeometry, has_font_cache) == 31);
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, page_render) == 186 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, page_render) == 160 * core::mem::size_of::<usize>()
     );
 };
 
 const _: () = {
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, protection_open) == 18 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, protection_open) == 15 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, protection_close) == 19 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, protection_close) == 16 * core::mem::size_of::<usize>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, protection_encrypted)
-            == 20 * core::mem::size_of::<usize>()
+            == 17 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, protection_size) == 21 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, protection_size) == 18 * core::mem::size_of::<usize>()
     );
     assert!(
         core::mem::offset_of!(XpEpubLeaves, protection_stream)
-            == 22 * core::mem::size_of::<usize>()
+            == 19 * core::mem::size_of::<usize>()
     );
-    assert!(core::mem::offset_of!(XpEpubLeaves, file_seek) == 23 * core::mem::size_of::<usize>());
-    assert!(core::mem::offset_of!(XpEpubLeaves, file_size) == 24 * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(XpEpubLeaves, file_seek) == 20 * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(XpEpubLeaves, file_size) == 21 * core::mem::size_of::<usize>());
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, path_remove_tree) == 25 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, path_remove_tree) == 22 * core::mem::size_of::<usize>()
     );
-    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 187 * core::mem::size_of::<usize>());
+    assert!(core::mem::offset_of!(XpEpubLeaves, cache_lock) == 161 * core::mem::size_of::<usize>());
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 188 * core::mem::size_of::<usize>()
-    );
-    assert!(
-        core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 189 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, cache_unlock) == 162 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, scratch_release) == 190 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, scratch_claim) == 163 * core::mem::size_of::<usize>()
     );
     assert!(
-        core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 191 * core::mem::size_of::<usize>()
+        core::mem::offset_of!(XpEpubLeaves, scratch_release) == 164 * core::mem::size_of::<usize>()
+    );
+    assert!(
+        core::mem::offset_of!(XpEpubLeaves, inflate_oom_log) == 165 * core::mem::size_of::<usize>()
     );
 };

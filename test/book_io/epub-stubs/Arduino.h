@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
 
 struct EspHostStub {
+  [[noreturn]] void restart() { std::abort(); }
   uint32_t freeHeap = UINT32_MAX;
   uint32_t maxAllocHeap = UINT32_MAX;
   uint32_t getFreeHeap() const { return freeHeap; }

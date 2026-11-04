@@ -53,7 +53,7 @@ void bindDiagnostic() {
     const XpEpubSpine value{{href, sizeof(href) - 1}, 1};
     return sink(context, &value);
   };
-  leaves.section_open = [](void* raw, int32_t spine) -> void* {
+  legacyBook.section.section_open = [](void* raw, int32_t spine) -> void* {
     physical();
     f().handle(raw, Kind::Book);
     assert(spine == 1 && !diagnostic.live);
@@ -61,37 +61,37 @@ void bindDiagnostic() {
     ++diagnostic.opened;
     return &diagnostic.section;
   };
-  leaves.section_close = [](void* raw) {
+  legacyBook.section.section_close = [](void* raw) {
     section(raw);
     diagnostic.live = false;
     ++diagnostic.closed;
   };
-  leaves.section_page_count = [](void* raw) -> uint16_t {
+  legacyBook.section.section_page_count = [](void* raw) -> uint16_t {
     section(raw);
     return 1;
   };
-  leaves.section_estimated_pages = [](void* raw) -> int32_t {
+  legacyBook.section.section_estimated_pages = [](void* raw) -> int32_t {
     section(raw);
     return 1;
   };
-  leaves.section_building = [](void* raw) -> uint8_t {
+  legacyBook.section.section_building = [](void* raw) -> uint8_t {
     section(raw);
     return 0;
   };
-  leaves.section_complete = [](void* raw) -> uint8_t {
+  legacyBook.section.section_complete = [](void* raw) -> uint8_t {
     section(raw);
     return 1;
   };
-  leaves.section_partial = [](void* raw) -> uint8_t {
+  legacyBook.section.section_partial = [](void* raw) -> uint8_t {
     section(raw);
     return 0;
   };
-  leaves.section_load_cache = [](void* raw, const XpEpubRenderSpec* spec) -> uint8_t {
+  legacyBook.section.section_load_cache = [](void* raw, const XpEpubRenderSpec* spec) -> uint8_t {
     section(raw);
     assert(spec && spec->width == 480 && spec->height == 800);
     return 1;
   };
-  leaves.section_load_page = [](void* raw, int32_t index) -> void* {
+  legacyBook.section.section_load_page = [](void* raw, int32_t index) -> void* {
     section(raw);
     assert(index == 0 && ++diagnostic.loads == 1);
     return diagnostic.metadataFailure ? &diagnostic.page : nullptr;
@@ -112,11 +112,11 @@ void bindDiagnostic() {
     assert(raw == &diagnostic.page);
     ++diagnostic.pageCloses;
   };
-  leaves.section_abandon_build = [](void* raw) {
+  legacyBook.section.section_abandon_build = [](void* raw) {
     section(raw);
     ++diagnostic.abandons;
   };
-  leaves.section_clear_cache = [](void* raw) -> uint8_t {
+  legacyBook.section.section_clear_cache = [](void* raw) -> uint8_t {
     section(raw);
     ++diagnostic.clears;
     return 1;

@@ -54,9 +54,7 @@ const std::string& Epub::getProtectionError() const {
   return protectionError;
 }
 
-CssParser* Epub::getCssParser() const {
-  return borrowedBook ? const_cast<CssParser*>(&borrowedBook->css) : cssParser.get();
-}
+CssParser* Epub::getCssParser() const { return borrowedBook ? nullptr : cssParser.get(); }
 
 struct Epub::DocumentContext {
   Epub& epub;

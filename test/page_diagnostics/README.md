@@ -101,3 +101,13 @@ emitted `ERS` SD-load error after each failed file load. It also checks
 metadata-copy failure separately. This exercises the failure log branch, not
 full activity rendering, retry count, or cache deletion lifecycle. No
 diagnostic-only reads are added.
+
+
+The Section probe now admits an actual Rust ReaderBook/ReaderSection. Its minimal
+cached-book input has no source package/CSS document, so both parent `7f5e1cb5`
+native `Epub::load` and the actual Rust admission emit the same three EBP
+CSS-rediscovery errors before successful admission. The former synthetic book
+skipped loading entirely. `section.py` preserves the complete raw output and
+checks these construction messages separately from every ERR/INF line after the
+explicit admission boundary. The four original Section diagnostic expectations
+and `RESULT 0` are unchanged; drift in either segment fails the test.

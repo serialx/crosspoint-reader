@@ -4,6 +4,7 @@ type XpAppText = app_abi::Text;
 type XpAppTextSink = app_abi::TextSink;
 #[repr(C)]
 pub struct LegacyBookServices {
+    pub section: super::legacy_section::LegacySectionServices,
     pub book_open: unsafe extern "C" fn(path: XpAppText) -> *mut core::ffi::c_void,
     pub book_load:
         unsafe extern "C" fn(book: *mut core::ffi::c_void, build_missing: u8, skip_css: u8) -> u8,

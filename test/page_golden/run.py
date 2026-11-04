@@ -27,6 +27,7 @@ def load_module(name, path):
 
 
 section = load_module('section_oracle', ROOT / 'test/section_golden/run.py')
+paths = load_module('reader_section_paths', ROOT / 'test/reader_section/page_paths.py')
 
 
 def sha(data):
@@ -220,6 +221,8 @@ def main():
         if len(result['chapters']) != len(spine):
             raise ValueError(f'Missing chapters in {key}')
         result['spine'] = spine
+        if not private and not args.strips and not args.decoded_images:
+            paths.check_parent_case(key, result, destination / 'cache')
         cases[key] = result
         print(f"{key}: {len(spine)} chapters, {result['counts']['pages']} pages", flush=True)
     result = {'format': 1, 'revision': REVISION, 'sdk': SDK, 'inputs': inputs, 'cases': cases}
@@ -231,6 +234,8 @@ def main():
         args.golden.write_bytes(archive)
     else:
         expected = json.loads(gzip.decompress(args.golden.read_bytes()))
+        if not private and not args.strips and not args.decoded_images:
+            expected = paths.production_expectation(expected, args.golden)
         if args.case:
             expected['cases'] = {args.case: expected['cases'][args.case]}
         try:

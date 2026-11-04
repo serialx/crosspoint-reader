@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{abi, page::Page, EpubSession, ResourceAccess};
 use core::mem::MaybeUninit;
 use xp_ui::reader::{
@@ -22,7 +23,7 @@ impl EpubSession {
         };
         if !self
             .section(&access)
-            .is_some_and(|section| unsafe { (self.leaves.section_building)(section.as_ptr()) != 0 })
+            .is_some_and(|section| unsafe { ReaderSection::building(section) })
         {
             self.model(|state| state.facts.radio_released = false);
             unsafe { (self.leaves.radio_after_paint)() };
@@ -80,7 +81,7 @@ impl EpubSession {
         let Some(section) = self.section(&access) else {
             return;
         };
-        if unsafe { (self.leaves.section_building)(section.as_ptr()) } != 0
+        if unsafe { ReaderSection::building(section) }
             || !self.loop_framebuffer()
             || self.model(|state| state.last_render_ms == 0)
             || unsafe { (self.runtime.now_ms)() }
@@ -114,15 +115,12 @@ impl EpubSession {
         }
         self.model(|state| state.idle_prewarm = super::state::Position { spine, page });
         let next = page.wrapping_add(1);
-        if next >= i32::from(unsafe { (self.leaves.section_page_count)(section.as_ptr()) }) {
+        if next >= i32::from(unsafe { ReaderSection::page_count(section) }) {
             return;
         }
-        let Some(page) = (unsafe {
-            Page::from_raw(
-                (self.leaves.section_load_page)(section.as_ptr(), next),
-                self.leaves,
-            )
-        }) else {
+        let Some(page) =
+            (unsafe { Page::from_raw(ReaderSection::load_page(section, next), self.leaves) })
+        else {
             return;
         };
         if !self.loop_font_cache() {
@@ -153,15 +151,15 @@ impl EpubSession {
         let Some(section) = self.section(&access) else {
             return;
         };
-        let section = section.as_ptr();
-        if unsafe { (self.leaves.section_building)(section) } != 0
-            || unsafe { (self.leaves.section_partial)(section) } == 0
+
+        if unsafe { ReaderSection::building(section) }
+            || unsafe { !ReaderSection::partial(section) }
             || self.model(|state| state.viewport.0 == 0 || state.partial_start_failed)
             || unsafe { (self.leaves.radio_holds_heap)() } != 0
             || self
                 .model(|state| state.current.page)
                 .wrapping_add(PARTIAL_REBUILD_START_MARGIN)
-                < i32::from(unsafe { (self.leaves.section_page_count)(section) })
+                < i32::from(unsafe { ReaderSection::page_count(section) })
         {
             return;
         }
@@ -169,16 +167,15 @@ impl EpubSession {
         let (width, height) = self.model(|state| state.viewport);
         let mut spec = MaybeUninit::<abi::XpEpubRenderSpec>::uninit();
         unsafe { (self.leaves.settings_render_spec)(width, height, spec.as_mut_ptr()) };
-        let started = unsafe {
-            (self.leaves.section_start_build)(section, spec.as_ptr(), None, core::ptr::null_mut())
-        } != 0;
+        let started =
+            unsafe { ReaderSection::start(section, &spec.assume_init(), None, self.runtime) };
         self.publish_section(&access);
         if !started {
             self.model(|state| state.partial_start_failed = true);
             self.loop_log_parts(1, &[b"Failed to start deferred partial extension build"]);
         } else if unsafe { (self.leaves.log_enabled)(0) } != 0 {
             let page = self.model(|state| state.current.page);
-            let count = unsafe { (self.leaves.section_page_count)(section) };
+            let count = unsafe { ReaderSection::page_count(section) };
             self.loop_log(
                 format_args!(
                     "Reader near partial watermark ({}/{}), resuming extension build",

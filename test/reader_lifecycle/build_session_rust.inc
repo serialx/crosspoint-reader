@@ -155,9 +155,10 @@ static const XpAppRuntime runtime = [] {
   return table;
 }();
 
+static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -168,37 +169,11 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(render_restore_bw);
   UNUSED_LEAF(render_discard_bw);
   UNUSED_LEAF(render_orientation);
-  UNUSED_LEAF(loan_begin);
-  UNUSED_LEAF(loan_end);
-  UNUSED_LEAF(loan_drop);
   UNUSED_LEAF(loan_count);
   UNUSED_LEAF(strip_release_idle);
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(section_open);
-  UNUSED_LEAF(section_close);
-  UNUSED_LEAF(section_page_count);
-  UNUSED_LEAF(section_estimated_pages);
-  UNUSED_LEAF(section_building);
-  UNUSED_LEAF(section_complete);
-  UNUSED_LEAF(section_partial);
-  UNUSED_LEAF(section_load_cache);
-  UNUSED_LEAF(section_create_cache);
-  UNUSED_LEAF(section_start_build);
-  UNUSED_LEAF(section_build_more);
-  UNUSED_LEAF(section_abandon_build);
-  UNUSED_LEAF(section_clear_cache);
-  UNUSED_LEAF(section_html_cached);
-  UNUSED_LEAF(section_find_anchor);
-  UNUSED_LEAF(section_cached_anchor);
-  UNUSED_LEAF(section_toc_for_page);
-  UNUSED_LEAF(section_page_for_offset);
-  UNUSED_LEAF(section_offset_for_page);
-  UNUSED_LEAF(section_paragraph_for_page);
-  UNUSED_LEAF(section_reached_offset);
-  UNUSED_LEAF(section_load_page);
-  UNUSED_LEAF(section_page_text);
   UNUSED_LEAF(page_close);
   UNUSED_LEAF(page_info);
   UNUSED_LEAF(page_element);
@@ -347,6 +322,20 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(scratch_claim);
   UNUSED_LEAF(scratch_release);
   UNUSED_LEAF(inflate_oom_log);
+  UNUSED_LEAF(build_metrics);
+  UNUSED_LEAF(build_allocator);
+  UNUSED_LEAF(font_variant);
+  UNUSED_LEAF(font_line_height);
+  UNUSED_LEAF(font_ready);
+  UNUSED_LEAF(font_codepoint);
+  UNUSED_LEAF(hyphen_language);
+  UNUSED_LEAF(file_position);
+  UNUSED_LEAF(file_flush);
+  UNUSED_LEAF(image_supported);
+  UNUSED_LEAF(image_dimensions);
+  UNUSED_LEAF(page_load);
+  UNUSED_LEAF(framebuffer_lend);
+  UNUSED_LEAF(framebuffer_restore);
   table.strip_release_idle = [](void* native) -> uint8_t {
     leaf();
     assert(native && native == activeFixture);
@@ -394,20 +383,20 @@ static const XpEpubLeaves leaves = [] {
     assert(activeFixture);
     return activeFixture->renderer.frameBufferLoanCount();
   };
-  table.section_close = [](void* section) {
+  legacySection.section_close = [](void* section) {
     leaf();
     assert(section && section == liveSection && !publishing);
     delete static_cast<Section*>(section);
   };
-  table.section_page_count = [](void* section) -> uint16_t {
+  legacySection.section_page_count = [](void* section) -> uint16_t {
     publicationRead(section, 0, 0);
     return 0;
   };
-  table.section_estimated_pages = [](void* section) -> int32_t {
+  legacySection.section_estimated_pages = [](void* section) -> int32_t {
     publicationRead(section, 1, 0);
     return 0;
   };
-  table.section_building = [](void* section) -> uint8_t {
+  legacySection.section_building = [](void* section) -> uint8_t {
     leaf();
     assert(section && section == liveSection);
     const auto value = static_cast<Section*>(section)->isBuilding();
@@ -415,7 +404,7 @@ static const XpEpubLeaves leaves = [] {
     else assert(lockDepth == 1);
     return value;
   };
-  table.section_complete = [](void* section) -> uint8_t {
+  legacySection.section_complete = [](void* section) -> uint8_t {
     leaf();
     assert(section && section == liveSection);
     const auto value = static_cast<Section*>(section)->isBuildComplete();
@@ -423,11 +412,11 @@ static const XpEpubLeaves leaves = [] {
     else assert(lockDepth == 1);
     return value;
   };
-  table.section_partial = [](void* section) -> uint8_t {
+  legacySection.section_partial = [](void* section) -> uint8_t {
     publicationRead(section, 4, 0);
     return 0;
   };
-  table.section_build_more = [](void* section, int32_t pages, uint8_t yieldOnInput) -> uint8_t {
+  legacySection.section_build_more = [](void* section, int32_t pages, uint8_t yieldOnInput) -> uint8_t {
     leaf();
     assert(section && section == liveSection && pages == 2 && yieldOnInput == 1);
     auto* value = static_cast<Section*>(section);
@@ -491,7 +480,7 @@ void BuildFixture::initialize() {
   seed.reposition = ::reposition;
   const unsigned before = publicationCount;
   if (section) beginPublication(section.get());
-  owner = xp_epub_test_build_create(&seed, &leaves, &runtime, &resources);
+  owner = xp_epub_test_build_create_legacy_section(&seed, &leaves, &runtime, &resources, &legacySection);
   assert(owner && !publishing && !lockDepth && !modelDepth);
   assert(publicationCount == before + (section ? 1u : 0u));
   section.release();

@@ -18,7 +18,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 192 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
   value.resources_open = &AppFixtureUnexpected<decltype(value.resources_open), 0>::call;
   value.resources_close = &AppFixtureUnexpected<decltype(value.resources_close), 1>::call;
   value.render_services = &AppFixtureUnexpected<decltype(value.render_services), 2>::call;
@@ -29,9 +29,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.render_restore_bw = &AppFixtureUnexpected<decltype(value.render_restore_bw), 7>::call;
   value.render_discard_bw = &AppFixtureUnexpected<decltype(value.render_discard_bw), 8>::call;
   value.render_orientation = &AppFixtureUnexpected<decltype(value.render_orientation), 9>::call;
-  value.loan_begin = &AppFixtureUnexpected<decltype(value.loan_begin), 10>::call;
-  value.loan_end = &AppFixtureUnexpected<decltype(value.loan_end), 11>::call;
-  value.loan_drop = &AppFixtureUnexpected<decltype(value.loan_drop), 12>::call;
   value.loan_count = &AppFixtureUnexpected<decltype(value.loan_count), 13>::call;
   value.strip_release_idle = &AppFixtureUnexpected<decltype(value.strip_release_idle), 14>::call;
   value.book_facade_open = &AppFixtureUnexpected<decltype(value.book_facade_open), 15>::call;
@@ -48,29 +45,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.progress_to_reader = &AppFixtureUnexpected<decltype(value.progress_to_reader), 26>::call;
   value.progress_to_saved = &AppFixtureUnexpected<decltype(value.progress_to_saved), 27>::call;
   value.progress_save = &AppFixtureUnexpected<decltype(value.progress_save), 28>::call;
-  value.section_open = &AppFixtureUnexpected<decltype(value.section_open), 29>::call;
-  value.section_close = &AppFixtureUnexpected<decltype(value.section_close), 30>::call;
-  value.section_page_count = &AppFixtureUnexpected<decltype(value.section_page_count), 31>::call;
-  value.section_estimated_pages = &AppFixtureUnexpected<decltype(value.section_estimated_pages), 32>::call;
-  value.section_building = &AppFixtureUnexpected<decltype(value.section_building), 33>::call;
-  value.section_complete = &AppFixtureUnexpected<decltype(value.section_complete), 34>::call;
-  value.section_partial = &AppFixtureUnexpected<decltype(value.section_partial), 35>::call;
-  value.section_load_cache = &AppFixtureUnexpected<decltype(value.section_load_cache), 36>::call;
-  value.section_create_cache = &AppFixtureUnexpected<decltype(value.section_create_cache), 37>::call;
-  value.section_start_build = &AppFixtureUnexpected<decltype(value.section_start_build), 38>::call;
-  value.section_build_more = &AppFixtureUnexpected<decltype(value.section_build_more), 39>::call;
-  value.section_abandon_build = &AppFixtureUnexpected<decltype(value.section_abandon_build), 40>::call;
-  value.section_clear_cache = &AppFixtureUnexpected<decltype(value.section_clear_cache), 41>::call;
-  value.section_html_cached = &AppFixtureUnexpected<decltype(value.section_html_cached), 42>::call;
-  value.section_find_anchor = &AppFixtureUnexpected<decltype(value.section_find_anchor), 43>::call;
-  value.section_cached_anchor = &AppFixtureUnexpected<decltype(value.section_cached_anchor), 44>::call;
-  value.section_toc_for_page = &AppFixtureUnexpected<decltype(value.section_toc_for_page), 45>::call;
-  value.section_page_for_offset = &AppFixtureUnexpected<decltype(value.section_page_for_offset), 46>::call;
-  value.section_offset_for_page = &AppFixtureUnexpected<decltype(value.section_offset_for_page), 47>::call;
-  value.section_paragraph_for_page = &AppFixtureUnexpected<decltype(value.section_paragraph_for_page), 48>::call;
-  value.section_reached_offset = &AppFixtureUnexpected<decltype(value.section_reached_offset), 49>::call;
-  value.section_load_page = &AppFixtureUnexpected<decltype(value.section_load_page), 50>::call;
-  value.section_page_text = &AppFixtureUnexpected<decltype(value.section_page_text), 51>::call;
   value.page_close = &AppFixtureUnexpected<decltype(value.page_close), 52>::call;
   value.page_info = &AppFixtureUnexpected<decltype(value.page_info), 53>::call;
   value.page_element = &AppFixtureUnexpected<decltype(value.page_element), 54>::call;
@@ -211,6 +185,20 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.scratch_claim = &AppFixtureUnexpected<decltype(value.scratch_claim), 189>::call;
   value.scratch_release = &AppFixtureUnexpected<decltype(value.scratch_release), 190>::call;
   value.inflate_oom_log = &AppFixtureUnexpected<decltype(value.inflate_oom_log), 191>::call;
+  value.build_metrics = &AppFixtureUnexpected<decltype(value.build_metrics), 166>::call;
+  value.build_allocator = &AppFixtureUnexpected<decltype(value.build_allocator), 167>::call;
+  value.font_variant = &AppFixtureUnexpected<decltype(value.font_variant), 168>::call;
+  value.font_line_height = &AppFixtureUnexpected<decltype(value.font_line_height), 169>::call;
+  value.font_ready = &AppFixtureUnexpected<decltype(value.font_ready), 170>::call;
+  value.font_codepoint = &AppFixtureUnexpected<decltype(value.font_codepoint), 171>::call;
+  value.hyphen_language = &AppFixtureUnexpected<decltype(value.hyphen_language), 172>::call;
+  value.file_position = &AppFixtureUnexpected<decltype(value.file_position), 173>::call;
+  value.file_flush = &AppFixtureUnexpected<decltype(value.file_flush), 174>::call;
+  value.image_supported = &AppFixtureUnexpected<decltype(value.image_supported), 175>::call;
+  value.image_dimensions = &AppFixtureUnexpected<decltype(value.image_dimensions), 176>::call;
+  value.page_load = &AppFixtureUnexpected<decltype(value.page_load), 177>::call;
+  value.framebuffer_lend = &AppFixtureUnexpected<decltype(value.framebuffer_lend), 178>::call;
+  value.framebuffer_restore = &AppFixtureUnexpected<decltype(value.framebuffer_restore), 179>::call;
   return value;
 }
 

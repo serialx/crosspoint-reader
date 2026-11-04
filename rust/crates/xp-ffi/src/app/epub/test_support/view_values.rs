@@ -50,7 +50,8 @@ pub unsafe extern "C" fn xp_epub_test_view_create_legacy_book(
     state.bookmarked = seed.bookmarked != 0;
     let guarded = owner.guarded.get_mut();
     guarded.native = NonNull::new(seed.native);
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     owner.view_value_hooks = Some(ViewValueHooks {
         context: seed.context,
         more_label: seed.more_label,

@@ -57,6 +57,7 @@ impl<T, const N: usize> Records<T, N> {
         Some(unsafe { &*chunk.as_ptr().add(index % N) })
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn allocated_capacity(&self) -> (usize, usize) {
         (self.chunks.len(), self.chunks.capacity())
     }

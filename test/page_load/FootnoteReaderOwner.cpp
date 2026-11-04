@@ -430,49 +430,49 @@ void bindReader() {
     book(raw);
     return deliver(sink, context, f().path.c_str());
   };
-  leaves.section_open = [](void* raw, int32_t spine) -> void* {
+  legacyBook.section.section_open = [](void* raw, int32_t spine) -> void* {
     physical(1);
     book(raw);
     assert(spine == 1 && !parent.section);
     parent.section = std::make_unique<NativeSection>(NativeSection{parent.fixture->section});
     return parent.section.get();
   };
-  leaves.section_close = [](void* raw) {
+  legacyBook.section.section_close = [](void* raw) {
     section(raw);
     assert(!parent.bound);
     parent.section.reset();
   };
-  leaves.section_page_count = [](void* raw) -> uint16_t {
+  legacyBook.section.section_page_count = [](void* raw) -> uint16_t {
     section(raw);
     return 1;
   };
-  leaves.section_estimated_pages = [](void* raw) -> int32_t {
+  legacyBook.section.section_estimated_pages = [](void* raw) -> int32_t {
     section(raw);
     return 1;
   };
-  leaves.section_building = [](void* raw) -> uint8_t {
+  legacyBook.section.section_building = [](void* raw) -> uint8_t {
     section(raw);
     return 0;
   };
-  leaves.section_complete = [](void* raw) -> uint8_t {
+  legacyBook.section.section_complete = [](void* raw) -> uint8_t {
     section(raw);
     return 1;
   };
-  leaves.section_partial = [](void* raw) -> uint8_t {
+  legacyBook.section.section_partial = [](void* raw) -> uint8_t {
     section(raw);
     return 0;
   };
-  leaves.section_load_cache = [](void* raw, const XpEpubRenderSpec*) -> uint8_t {
+  legacyBook.section.section_load_cache = [](void* raw, const XpEpubRenderSpec*) -> uint8_t {
     section(raw);
     return 1;
   };
-  leaves.section_find_anchor = [](void* raw, XpAppText anchor, uint16_t* page) -> uint8_t {
+  legacyBook.section.section_find_anchor = [](void* raw, XpAppText anchor, uint16_t* page) -> uint8_t {
     section(raw);
     assert(text(anchor) == "1" || text(anchor) == "2");
     *page = 0;
     return 1;
   };
-  leaves.section_load_page = [](void* raw, int32_t index) -> void* {
+  legacyBook.section.section_load_page = [](void* raw, int32_t index) -> void* {
     section(raw);
     assert(index == 0);
     auto page = parent.section->fixture->loadPage(index);

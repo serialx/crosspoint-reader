@@ -1,3 +1,4 @@
+use super::session_section::Section as ReaderSection;
 use super::{abi, app_abi, state::Overlay, EpubSession, ResourceAccess};
 
 const ROOM_WAIT_MS: u32 = 5000;
@@ -104,7 +105,7 @@ impl EpubSession {
 
     fn build_wanted_locked(&self, access: &ResourceAccess<'_>) -> bool {
         self.section(access).is_some_and(|section| {
-            (unsafe { (self.leaves.section_building)(section.as_ptr()) } != 0)
+            (unsafe { ReaderSection::building(section) })
                 && unsafe { (self.leaves.radio_holds_heap)() } == 0
                 && self.model(|state| state.current.spine != state.failed_build_spine)
         })
@@ -155,8 +156,7 @@ impl EpubSession {
         }
         let before = unsafe { (self.leaves.loan_count)() };
         let section = self.section(&access).expect("background section");
-        let built =
-            unsafe { (self.leaves.section_build_more)(section.as_ptr(), PAGES_PER_TICK, 1) } != 0;
+        let built = unsafe { ReaderSection::advance(section, PAGES_PER_TICK, true) };
         self.publish_section(&access);
         if unsafe { (self.leaves.loan_count)() } != before {
             self.model(|state| state.facts.frame_stale = true);
@@ -176,9 +176,7 @@ impl EpubSession {
             });
             self.drop_section(&access);
             unsafe { (self.runtime.notify_render)() };
-        } else if unsafe { (self.leaves.section_complete)(section.as_ptr()) } != 0
-            && self.apply_deferred(&access)
-        {
+        } else if unsafe { ReaderSection::complete(section) } && self.apply_deferred(&access) {
             unsafe { (self.runtime.notify_render)() };
         }
     }

@@ -22,7 +22,7 @@ constexpr int O_CREAT = 2;
 constexpr int O_TRUNC = 4;
 
 namespace BookFault {
-inline size_t failAt = 0, step = 0;
+inline size_t failAt = 0, step = 0, liveFiles = 0;
 inline bool operation(const char* kind, const std::string& path, size_t pos = 0, size_t len = 0) {
   ++step;
   printf("io %zu %s %s %zu %zu%s\n", step, kind, path.c_str(), pos, len, step == failAt ? " FAIL" : "");
@@ -43,6 +43,7 @@ class HalFile : public Print {
     if (!BookFault::operation(mode, path)) return false;
     if (HalFileTest::allowOpen && !HalFileTest::allowOpen(path, mode)) return false;
     file_ = std::fopen(path, mode);
+    if (file_) ++BookFault::liveFiles;
     return file_ != nullptr;
   }
   int available() const { return file_ ? static_cast<int>(size() - position()) : 0; }
@@ -80,6 +81,7 @@ class HalFile : public Print {
     const bool allowed = BookFault::operation("close", path_);
     const bool ok = std::fclose(file_) == 0 && allowed;
     file_ = nullptr;
+    --BookFault::liveFiles;
     if (HalFileTest::failNextClose) {
       HalFileTest::failNextClose = false;
       return false;

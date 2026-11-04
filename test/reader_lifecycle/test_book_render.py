@@ -14,10 +14,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / 'test'))
 from rust_host import rust_link_flags
 from test_reader_settings import generated_i18n_directory
-from test_popup_resource import native_leaf
 
 PRODUCTION = Path('crates/xp-ffi/src/app/epub/book_render.rs')
-NATIVE = Path('src/activities/reader/RustEpubResources.cpp')
+HISTORICAL_START = Path('test/reader_lifecycle/legacy_section_start_build.inc')
 GOLDENS = {
     False: (5546, '7d18b43456f2247fce223a4b0b3bff491d661d50c39acf650c7096079894174c',
             '32e1c7195ca0ba72c9db32a378c3a6040226f47c57509b6de527c0a532e5801b'),
@@ -73,7 +72,7 @@ def candidate():
     assert len(expected.splitlines()) == lines and counts['case'] == counts['state'] == counts['flags'] == 224
     source_path = ROOT / 'rust' / PRODUCTION
     production = source_path.read_bytes()
-    native_path = ROOT / NATIVE
+    native_path = ROOT / HISTORICAL_START
     native = native_path.read_bytes()
     fixture_template = replace_once((HERE / 'book_render_oracle.cpp').read_bytes(),
                            b'#include "book_render_session_rust.inc"',
@@ -90,7 +89,7 @@ def candidate():
             def run(label, archive=None, native_source=native):
                 cpp = work / (label + '.cpp')
                 fixture = replace_once(fixture_template, b'/* ACTUAL_SECTION_START_BUILD */',
-                                       native_leaf(native_source.decode(), 'section_start_build').encode())
+                                       native_source)
                 cpp.write_bytes(fixture)
                 binary = work / label
                 flags = baseline_flags if archive is None else rust_link_flags(archive=str(archive))
@@ -116,7 +115,7 @@ def candidate():
                 'test_name': name, 'cases': 224, 'trace_lines': lines, 'trace_bytes': len(expected),
                 'original_gzip_sha256': gzip_sha, 'original_trace_sha256': trace_sha,
                 'actual_trace_sha256': digest(baseline.stdout), 'event_counts': counts,
-                'candidate_source_sha256': digest(production), 'native_source_sha256': digest(native), 'fixture_sha256': hashes,
+                'candidate_source_sha256': digest(production), 'historical_shim_sha256': digest(native), 'fixture_sha256': hashes,
                 'policy_replacements': ['settle overlay', 'build room', 'apply deferred', 'status bar',
                     'bookmark flag', 'render contents', 'save progress', 'toolbar menu', 'render overlay', 'push refresh'],
                 'observers_after_real_mutation': ['clear deferred', 'discard overlay', 'mark rendered'],
@@ -133,8 +132,8 @@ def candidate():
                 result = run('native-null-popup', native_source=wrong_native)
                 assert result.returncode != 0 or result.stdout != expected, 'native null-popup mutant survived'
                 print(json.dumps({
-                    'test_name': name, 'mutant': 'native-null-popup', 'kind': 'production-native',
-                    'replacement_count': 1, 'source': str(NATIVE), 'original_source_sha256': digest(native),
+                    'test_name': name, 'mutant': 'native-null-popup', 'kind': 'historical-fixture',
+                    'replacement_count': 1, 'source': str(HISTORICAL_START), 'original_source_sha256': digest(native),
                     'mutant_source_sha256': digest(wrong_native), 'returncode': result.returncode,
                     'trace_sha256': digest(result.stdout), 'stderr_sha256': digest(result.stderr),
                 }), flush=True)
@@ -165,7 +164,7 @@ def candidate():
     finally:
         assert golden.read_bytes() == compressed, 'immutable original golden changed'
         assert source_path.read_bytes() == production, 'real production source changed'
-        assert native_path.read_bytes() == native, 'real native source changed'
+        assert native_path.read_bytes() == native, 'historical shim changed'
     print(f'{name}: {lines} exact lines across 224 build/load/notice cases; actual Rust mutants rejected')
 
 

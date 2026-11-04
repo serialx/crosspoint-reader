@@ -36,8 +36,8 @@ PRODUCTION = {
 }
 MUTANTS = (
     ('result-page-bound', 'child',
-     'end < unsafe { (self.leaves.section_page_count)(section.as_ptr()) }',
-     'end <= unsafe { (self.leaves.section_page_count)(section.as_ptr()) }'),
+     'end < unsafe { ReaderSection::page_count(section) }',
+     'end <= unsafe { ReaderSection::page_count(section) }'),
     ('sync-one-link', 'sync', 'state.history.depth > 0', 'state.history.depth > 1'),
     ('selection-cancel', 'child_result', '!cancelled && result.kind == app_abi::RESULT_CLIPPING',
      'result.kind == app_abi::RESULT_CLIPPING'),

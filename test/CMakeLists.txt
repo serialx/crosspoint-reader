@@ -30,7 +30,7 @@ FetchContent_MakeAvailable(googletest)
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,display-panel" CACHE STRING "Cargo features for host tests")
+set(XP_FFI_HOST_FEATURES "chapter-test,chapter-trace,package-trace,display-panel,app-test,section-test" CACHE STRING "Cargo features for host tests")
 if(NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)display-panel(,|$)")
   set(XP_FFI_HOST_FEATURES "${XP_FFI_HOST_FEATURES},display-panel" CACHE STRING "Cargo features for host tests" FORCE)
 endif()

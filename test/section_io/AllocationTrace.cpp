@@ -9,6 +9,8 @@ struct Allocation {
 };
 Allocation live[65536]{};
 size_t count = 0, nextId = 0;
+bool hashWindow = false;
+size_t hashAllocations = 0;
 FILE* trace() {
   static FILE* file = [] {
     const char* path = std::getenv("SECTION_ALLOCATION_TRACE");
@@ -17,6 +19,7 @@ FILE* trace() {
   return file;
 }
 void* allocate(size_t size) {
+  if (hashWindow) ++hashAllocations;
   void* pointer = std::malloc(size ? size : 1);
   if (FILE* file = trace(); file && pointer) {
     if (count == 65536) std::abort();
@@ -40,6 +43,12 @@ void release(void* pointer) {
   std::free(pointer);
 }
 }  // namespace
+size_t sectionHashAllocationWindow(bool enabled) {
+  hashWindow = enabled;
+  const auto result = hashAllocations;
+  if (enabled) hashAllocations = 0;
+  return result;
+}
 void* operator new(size_t size) {
   void* pointer = allocate(size);
   if (!pointer) std::abort();

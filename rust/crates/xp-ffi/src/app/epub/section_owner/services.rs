@@ -45,7 +45,7 @@ pub(super) struct Fonts {
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct Popup {
+pub(in crate::app::epub) struct Popup {
     pub call: XpEpubBuildPopup,
     pub context: *mut c_void,
 }
@@ -106,8 +106,9 @@ pub(super) struct BuildServices {
 
 impl BuildServices {
     // Every member is initialized directly in its final allocation; no callback runs here.
-    pub(super) fn allocate(init: Init) -> Option<NonNull<Self>> {
+    pub(super) fn allocate(init: &mut Option<Init>) -> Option<NonNull<Self>> {
         let raw = NonNull::new(unsafe { alloc(Layout::new::<Self>()) }.cast::<Self>())?;
+        let init = init.take().expect("pending build resources");
         let out = raw.as_ptr();
         unsafe {
             ptr::addr_of_mut!((*out).input).write(Input::new(init.resources));
@@ -187,6 +188,20 @@ impl BuildServices {
             )
         });
         result
+    }
+
+    pub(super) fn records(&self) -> &BuildRecords {
+        unsafe { &*self.records.get() }
+    }
+
+    pub(super) fn output<R>(&self, operation: impl FnOnce(&mut FileSlot) -> R) -> R {
+        operation(unsafe { &mut *self.output.get() })
+    }
+
+    // Configuration finishes before Chapter can borrow these members.
+    pub(super) fn configure(&mut self, toc: Vec<Text>, language: i32) {
+        self.toc = toc;
+        self.language = language;
     }
 }
 

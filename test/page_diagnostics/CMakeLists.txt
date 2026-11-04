@@ -10,6 +10,7 @@ add_test(NAME PageDiagnostics COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOUR
 
 get_target_property(SECTION_DIAGNOSTIC_SOURCES PageLoad SOURCES)
 list(REMOVE_ITEM SECTION_DIAGNOSTIC_SOURCES PageLoad.cpp)
+list(FILTER SECTION_DIAGNOSTIC_SOURCES EXCLUDE REGEX "(ReaderSectionFixture.cpp|PageLoadSectionPhysical.cpp)$")
 add_executable(SectionDiagnosticProbe SectionProbe.cpp ${SECTION_DIAGNOSTIC_SOURCES})
 target_include_directories(SectionDiagnosticProbe PRIVATE file_stubs stubs ${PAGE_DIAGNOSTIC_INCLUDES})
 target_link_libraries(SectionDiagnosticProbe PRIVATE crosspoint_test_common xp_ffi_host)
@@ -17,3 +18,7 @@ add_test(NAME SectionDiagnostics COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_S
 
 target_sources(PageDiagnosticProbe PRIVATE ReaderDiagnostic.cpp)
 target_include_directories(PageDiagnosticProbe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+include(${REPO_ROOT}/test/reader_section/fixture.cmake)
+reader_section_fixture(SectionDiagnosticProbe)
+target_compile_definitions(SectionDiagnosticProbe PRIVATE ENABLE_SERIAL_LOG=1 LOG_LEVEL=2)

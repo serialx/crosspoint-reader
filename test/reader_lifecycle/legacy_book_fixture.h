@@ -4,7 +4,37 @@
 #include <cstdlib>
 
 // Only historical synthetic session constructors accept these inputs.
+struct XpEpubLegacySectionServices {
+  void* (*section_open)(void* book, int32_t spine);
+  void (*section_close)(void* section);
+  uint16_t (*section_page_count)(void* section);
+  int32_t (*section_estimated_pages)(void* section);
+  uint8_t (*section_building)(void* section);
+  uint8_t (*section_complete)(void* section);
+  uint8_t (*section_partial)(void* section);
+  uint8_t (*section_load_cache)(void* section, const XpEpubRenderSpec* spec);
+  uint8_t (*section_create_cache)(void* section, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup, void* context);
+  uint8_t (*section_start_build)(void* section, const XpEpubRenderSpec* spec, XpEpubBuildPopup popup, void* context);
+  uint8_t (*section_build_more)(void* section, int32_t max_pages, uint8_t yield_on_input);
+  void (*section_abandon_build)(void* section);
+  uint8_t (*section_clear_cache)(void* section);
+  uint8_t (*section_html_cached)(void* section);
+  uint8_t (*section_find_anchor)(void* section, XpAppText anchor, uint16_t* page);
+  uint8_t (*section_cached_anchor)(void* section, XpAppText anchor, uint16_t* page);
+  // Caller chooses null for a temporary cached Section; book stays borrowed for this call.
+  int32_t (*section_toc_for_page)(void* section_or_null, void* book, int32_t spine, int32_t page);
+  uint8_t (*section_page_for_offset)(void* section, uint32_t offset, uint8_t prefer_first, uint16_t* page);
+  uint8_t (*section_offset_for_page)(void* section, uint16_t page, uint32_t* offset);
+  uint8_t (*section_paragraph_for_page)(void* section, uint16_t page, uint16_t* paragraph);
+  uint8_t (*section_reached_offset)(void* section, uint32_t offset);
+  void* (*section_load_page)(void* section, int32_t page);
+  uint8_t (*section_page_text)(void* section, int32_t page, XpAppTextSink sink, void* context);
+};
+
+inline XpEpubLegacySectionServices unexpectedLegacySectionServices();
+
 struct XpEpubLegacyBookServices {
+  XpEpubLegacySectionServices section = unexpectedLegacySectionServices();
   void* (*book_open)(XpAppText path);
   uint8_t (*book_load)(void* book, uint8_t build_missing, uint8_t skip_css);
   void (*book_close)(void* book);
@@ -45,6 +75,33 @@ template <typename R, typename... A>
 struct LegacyBookUnexpected<R (*)(A...)> {
   [[noreturn]] static R call(A...) { std::abort(); }
 };
+inline XpEpubLegacySectionServices unexpectedLegacySectionServices() {
+  XpEpubLegacySectionServices value{};
+  value.section_open = &LegacyBookUnexpected<decltype(value.section_open)>::call;
+  value.section_close = &LegacyBookUnexpected<decltype(value.section_close)>::call;
+  value.section_page_count = &LegacyBookUnexpected<decltype(value.section_page_count)>::call;
+  value.section_estimated_pages = &LegacyBookUnexpected<decltype(value.section_estimated_pages)>::call;
+  value.section_building = &LegacyBookUnexpected<decltype(value.section_building)>::call;
+  value.section_complete = &LegacyBookUnexpected<decltype(value.section_complete)>::call;
+  value.section_partial = &LegacyBookUnexpected<decltype(value.section_partial)>::call;
+  value.section_load_cache = &LegacyBookUnexpected<decltype(value.section_load_cache)>::call;
+  value.section_create_cache = &LegacyBookUnexpected<decltype(value.section_create_cache)>::call;
+  value.section_start_build = &LegacyBookUnexpected<decltype(value.section_start_build)>::call;
+  value.section_build_more = &LegacyBookUnexpected<decltype(value.section_build_more)>::call;
+  value.section_abandon_build = &LegacyBookUnexpected<decltype(value.section_abandon_build)>::call;
+  value.section_clear_cache = &LegacyBookUnexpected<decltype(value.section_clear_cache)>::call;
+  value.section_html_cached = &LegacyBookUnexpected<decltype(value.section_html_cached)>::call;
+  value.section_find_anchor = &LegacyBookUnexpected<decltype(value.section_find_anchor)>::call;
+  value.section_cached_anchor = &LegacyBookUnexpected<decltype(value.section_cached_anchor)>::call;
+  value.section_toc_for_page = &LegacyBookUnexpected<decltype(value.section_toc_for_page)>::call;
+  value.section_page_for_offset = &LegacyBookUnexpected<decltype(value.section_page_for_offset)>::call;
+  value.section_offset_for_page = &LegacyBookUnexpected<decltype(value.section_offset_for_page)>::call;
+  value.section_paragraph_for_page = &LegacyBookUnexpected<decltype(value.section_paragraph_for_page)>::call;
+  value.section_reached_offset = &LegacyBookUnexpected<decltype(value.section_reached_offset)>::call;
+  value.section_load_page = &LegacyBookUnexpected<decltype(value.section_load_page)>::call;
+  value.section_page_text = &LegacyBookUnexpected<decltype(value.section_page_text)>::call;
+  return value;
+}
 inline XpEpubLegacyBookServices unexpectedLegacyBookServices() {
   XpEpubLegacyBookServices value{};
   value.book_author = &LegacyBookUnexpected<decltype(value.book_author)>::call;

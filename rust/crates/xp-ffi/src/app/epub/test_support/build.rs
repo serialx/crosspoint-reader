@@ -6,11 +6,12 @@ use alloc::boxed::Box;
 use core::{ffi::c_void, ptr::NonNull};
 
 #[no_mangle]
-pub unsafe extern "C" fn xp_epub_test_build_create(
+pub unsafe extern "C" fn xp_epub_test_build_create_legacy_section(
     seed: *const BuildSeed,
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_section: &'static super::legacy_section::LegacySectionServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
@@ -37,7 +38,7 @@ pub unsafe extern "C" fn xp_epub_test_build_create(
     state.facts.frame_stale = seed.stale != 0;
     let guarded = owner.guarded.get_mut();
     guarded.native = Some(NonNull::new(seed.native).expect("fixture resources"));
-    guarded.section = NonNull::new(seed.section);
+    guarded.section = super::legacy_section::SectionSlot::legacy(seed.section, legacy_section);
     owner.building_observer = Some(BuildingObserver {
         context: seed.context,
         read: seed.building_read,

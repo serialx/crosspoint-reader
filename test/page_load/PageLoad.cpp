@@ -1,6 +1,7 @@
-#include <Epub.h>
 #include <Epub/Page.h>
-#include <Epub/Section.h>
+
+#include "../reader_section/ReaderSectionFixture.h"
+using Section = ReaderSectionFixture;
 #include <GfxRenderer.h>
 #include <unistd.h>
 
@@ -243,16 +244,16 @@ int main(int argc, char** argv) {
   std::filesystem::create_directories(dir / "cache/sections");
   const auto old = std::filesystem::current_path();
   std::filesystem::current_path(dir);
-  auto epub = std::make_shared<Epub>();
+  auto epub = std::make_shared<ReaderSectionInput>();
   GfxRenderer renderer;
   Section section(epub, 0, renderer);
-  section.pageCount = 1;
   const auto bytes = sample();
   const std::string mode = argv[1];
   if (mode == "oom") {
     lineBuilderTest();
     writeSection(bytes);
-    for (size_t fail = 0; fail < 1; ++fail) {
+    require(section.loadSectionFile(ReaderRenderSpec{}), "load full header");
+    for (size_t fail = 0; fail < 2; ++fail) {
       allocations::requests = 0;
       allocations::failAt = fail;
       allocations::enabled = true;
@@ -266,7 +267,8 @@ int main(int argc, char** argv) {
     allocations::enabled = true;
     auto page = section.loadPage(0);
     allocations::enabled = false;
-    require(page && allocations::requests == 1 && allocations::live == 1, "page must retain one allocation");
+    require(page && allocations::requests == 2 && allocations::live == 1,
+            "physical file must close, leaving one retained page allocation");
     static_assert(!HasOwnedPageElements<Page>, "firmware Page must not contain owned elements");
     page.reset();
     require(allocations::live == 0, "page destruction leaked storage");
@@ -289,6 +291,7 @@ int main(int argc, char** argv) {
     size_t cases = 0;
     const auto check = [&](const std::vector<uint8_t>& input) {
       writeSection(input);
+      require(section.loadSectionFile(ReaderRenderSpec{}), "load full header");
       XpPageInfo info{};
       const bool expected = xp_page_arena_size(input.data(), input.size(), &info) == 0;
       auto page = section.loadPage(0);
@@ -313,6 +316,7 @@ int main(int argc, char** argv) {
     }
     for (int delta : {-1, int(bytes.size()), int(bytes.size()) + 4}) {
       writeSection(bytes, false, delta);
+      require(section.loadSectionFile(ReaderRenderSpec{}), "load full header");
       require(!section.loadPage(0), "invalid LUT range accepted");
     }
     require(!section.loadPage(-1) && !section.loadPage(1), "page index bounds");

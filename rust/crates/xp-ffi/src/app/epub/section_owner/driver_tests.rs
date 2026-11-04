@@ -1,50 +1,32 @@
+//! Hook-free construction and transitions of the production reader Section.
 use super::super::{
-    abi::XpEpubLeaves,
-    book_owner::{queries, FileSlot, ReaderBook},
+    abi::{XpEpubLeaves, XpEpubRenderSpec},
+    book_owner::{queries, ReaderBook},
     Text,
 };
-use super::{
-    book::{self, CssStatus},
-    driver::{BuildOwner, Step},
-    image,
-    owner::ReaderSection,
-    services::{Fonts, Init, Paths},
-};
-use crate::{app::abi, chapter::Options, section_cache};
+use super::{owner::ReaderSection, services::Popup};
+use crate::{app::abi, section_cache::Query};
 use core::ffi::c_void;
-use xp_core::{
-    chapter::assembly,
-    section::{PARTIAL_VERSION, VERSION},
-};
-
-#[repr(C)]
-pub(super) struct Bindings {
-    fonts: Fonts,
-    image: image::Physical,
-    now: unsafe extern "C" fn() -> u32,
-    language: unsafe extern "C" fn(abi::Text) -> i32,
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_section_driver(
     resources: &'static abi::Resources,
     leaves: &'static XpEpubLeaves,
+    runtime: &'static abi::Runtime,
     source: abi::Text,
     cache: abi::Text,
-    bindings: *const Bindings,
     partial: u8,
-    native: unsafe extern "C" fn(*mut c_void, u8, *mut [u32; 20], *mut [u32; 4]),
+    with_popup: u8,
+    native: unsafe extern "C" fn(*mut c_void, *mut c_void, u16, u8, u32),
 ) -> u8 {
-    let bindings = unsafe { &*bindings };
     let mut path = Text::copy(unsafe { source.bytes() }.unwrap()).unwrap();
     let cache = Text::copy(unsafe { cache.bytes() }.unwrap()).unwrap();
-    let cache_copy = Text::copy(cache.bytes()).unwrap();
     let book = ReaderBook::load(
         &mut path,
         cache,
         resources,
         leaves,
-        bindings.now,
+        runtime.now_ms,
         true,
         false,
     )
@@ -53,100 +35,63 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
     let book = ReaderBook::into_raw(book);
     assert!(unsafe { ReaderBook::open_facade(book) });
     let facade = unsafe { queries::facade(book.as_ptr()) };
-    let mut expected = [0; 20];
-    let mut values = [0; 4];
-    unsafe { native(facade, 0, &mut expected, &mut values) };
     let section = unsafe { ReaderSection::open(book, 0, resources, leaves) }.unwrap();
-    assert!(unsafe { ReaderSection::load(section, &expected) });
-    let (mut paths, href) = unsafe { Paths::prepare(book, 0) }.unwrap();
-    assert_eq!(href.bytes(), b"a.xhtml");
-    paths.select_html(true).unwrap();
-    let toc = unsafe { book::toc(book, 0) }.unwrap();
-    assert_eq!(toc.len(), 1);
-    assert_eq!(toc[0].bytes(), b"anchor");
-    let language =
-        Text::receive(|sink, raw| unsafe { queries::language(book.as_ptr(), sink, raw) }).unwrap();
-    let mut output = FileSlot::new();
-    assert!(output.open(leaves, &paths.temporary_cache, true, c"SCT"));
-    let mut owner = unsafe {
-        BuildOwner::new(Init {
-            book,
-            resources,
-            leaves,
-            fonts: bindings.fonts,
-            image: bindings.image,
-            now: bindings.now,
-            popup: None,
-            paths,
-            css: None,
-            toc,
-            language: (bindings.language)(language.wire()),
-            pages: 0,
-            output,
-        })
+    let spec = XpEpubRenderSpec {
+        font: 16,
+        compression: 1.0,
+        width: 240,
+        height: 320,
+        paragraph_spacing: 0,
+        paragraph_indent: 2,
+        character_spacing: 0,
+        word_spacing_percent: 100,
+        alignment: 0,
+        hyphenation: 0,
+        embedded_style: 1,
+        images: 1,
+        focus_reading: 0,
+    };
+    let mut popups = 0u32;
+    unsafe extern "C" fn popup(raw: *mut c_void) {
+        unsafe { *raw.cast::<u32>() += 1 };
     }
-    .unwrap();
-    let mut header = expected;
-    header[14] = 0;
-    owner
-        .services()
-        .writer(|io| section_cache::header(io, &header));
-    assert!(owner.load_css(&cache_copy) == CssStatus::Complete);
-    let options = Options {
-        alignment: header[5] as u8,
-        embedded: header[9] as u8,
-        images: header[10] as u8,
-        css_enabled: u8::from(header[9] != 0),
-        assembly: assembly::Options {
-            font: header[1] as i32,
-            compression: f32::from_bits(header[2]),
-            width: header[6] as u16,
-            height: header[7] as u16,
-            extra_spacing: header[3] != 0,
-            alignment: header[5] as u8,
-            indent_spaces: header[4] as u8,
-            character_spacing: header[12] as i8,
-            word_spacing: header[13] as u8,
-            hyphenation: header[8] != 0,
-            focus: header[11] != 0,
-        },
-    };
-    assert!(owner.begin(&options));
-    let total = owner.services().input.total();
-    let mut ticks = 0;
-    let consumed = loop {
-        ticks += 1;
-        assert!(ticks < 5000);
-        match owner.step() {
-            Step::Error => panic!("reader Chapter failed"),
-            Step::Done => {
-                assert_eq!(partial, 0);
-                assert!(owner.finish());
-                break 0;
-            }
-            Step::More => {
-                if partial != 0 && owner.services().built.get() >= values[0] as u16 {
-                    break owner.services().input.consumed();
-                }
-            }
-        }
-    };
-    assert_eq!(u32::from(owner.services().built.get()), values[0]);
-    assert!(owner.services().commit(
-        if partial != 0 {
-            PARTIAL_VERSION
-        } else {
-            VERSION
-        },
-        consumed,
-        if partial != 0 { total } else { 0 }
-    ));
-    owner.abort();
-    owner.clear_css();
-    drop(owner);
-    assert!(unsafe { ReaderSection::load(section, &expected) });
-    unsafe { native(facade, 1, &mut expected, &mut values) };
+    let callback = (with_popup != 0).then_some(Popup {
+        call: popup,
+        context: (&mut popups as *mut u32).cast(),
+    });
+    assert!(unsafe { ReaderSection::start(section, &spec, callback, runtime) });
+    let total = unsafe { (*section.as_ptr()).progress.total };
+    assert_eq!(popups, u32::from(with_popup != 0 && total >= 10 * 1024));
+    assert!(!unsafe { ReaderSection::start(section, &spec, callback, runtime) });
+    assert!(unsafe { ReaderSection::advance(section, 1, false) });
+    let page = unsafe { ReaderSection::load_page(section, 0) };
+    assert!(!page.is_null());
+    unsafe { (leaves.page_close)(page) };
+    if partial != 0 {
+        assert!(unsafe { ReaderSection::building(section) });
+        unsafe { ReaderSection::suspend(section) };
+        assert!(unsafe { ReaderSection::partial(section) });
+    } else {
+        assert!(unsafe { ReaderSection::advance(section, 0, false) });
+        assert!(unsafe { ReaderSection::complete(section) });
+    }
+    assert!(!unsafe { ReaderSection::building(section) });
+    let pages = unsafe { ReaderSection::page_count(section) };
+    assert!(pages > 0);
+    assert!(unsafe { ReaderSection::load_cache(section, &spec) });
+    assert_eq!(unsafe { ReaderSection::page_count(section) }, pages);
+    assert_eq!(unsafe { ReaderSection::partial(section) }, partial != 0);
+    assert_eq!(
+        unsafe { ReaderSection::find_anchor(section, b"anchor", false) },
+        Some(0)
+    );
+    let cached = unsafe { ReaderSection::query(section, Query::PageCount) }.map(|row| row[0]);
+    assert_eq!(cached, (partial == 0).then_some(u32::from(pages)));
+    let page = unsafe { ReaderSection::load_page(section, 0) };
+    assert!(!page.is_null());
     unsafe {
+        native(facade, page, pages, partial, popups);
+        (leaves.page_close)(page);
         ReaderSection::close(section);
         ReaderBook::close(book);
     }

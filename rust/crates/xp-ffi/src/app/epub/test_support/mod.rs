@@ -238,3 +238,5 @@ pub struct NavigationObservation {
     pub has_pending_offset: u8,
     pub pending_percent: u8,
 }
+
+pub(super) mod legacy_section;

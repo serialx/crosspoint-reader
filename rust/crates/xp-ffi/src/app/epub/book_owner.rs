@@ -15,12 +15,10 @@ mod items;
 mod load;
 pub(super) mod log;
 mod package;
-#[cfg(feature = "app-test")]
 pub(super) use package::diagnostics::xml_error;
 mod txt;
 mod writer;
-#[cfg(feature = "app-test")]
-pub(super) use writer::io::FileSlot;
+pub(super) use writer::io::{Buffered, FileSlot};
 mod zip;
 
 #[cfg(feature = "app-test")]

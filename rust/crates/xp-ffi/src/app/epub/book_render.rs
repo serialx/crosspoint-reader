@@ -1,10 +1,11 @@
+use super::session_section::Section as ReaderSection;
 use super::{
     abi, app_abi,
     page::Page,
     state::{Notice, Overlay, TimedNotice},
     EpubSession, ResourceAccess,
 };
-use core::{ffi::c_void, fmt, mem::MaybeUninit, ptr::NonNull};
+use core::{ffi::c_void, fmt, mem::MaybeUninit};
 use xp_core::i18n::ids;
 use xp_ui::{
     reader::{
@@ -34,20 +35,6 @@ impl fmt::Write for RenderMessage {
     fn write_str(&mut self, value: &str) -> fmt::Result {
         self.append(value.as_bytes());
         Ok(())
-    }
-}
-
-struct BuildLoan<'a, 'b>(&'a ResourceAccess<'b>);
-impl BuildLoan<'_, '_> {
-    fn end(&self) {
-        let owner = self.0.owner;
-        unsafe { (owner.leaves.loan_end)(owner.native(self.0)) };
-    }
-}
-impl Drop for BuildLoan<'_, '_> {
-    fn drop(&mut self) {
-        let owner = self.0.owner;
-        unsafe { (owner.leaves.loan_drop)(owner.native(self.0)) };
     }
 }
 
@@ -103,9 +90,12 @@ impl EpubSession {
         };
     }
 
-    fn book_loan<'a, 'b>(&self, access: &'a ResourceAccess<'b>) -> BuildLoan<'a, 'b> {
-        unsafe { (self.leaves.loan_begin)(self.native(access)) };
-        BuildLoan(access)
+    fn book_loan(&self, access: &ResourceAccess<'_>) -> super::section_owner::FramebufferLoan {
+        self.check_resources(access);
+        super::section_owner::FramebufferLoan::new(
+            self.leaves.framebuffer_lend,
+            self.leaves.framebuffer_restore,
+        )
     }
 
     #[inline(never)]
@@ -139,12 +129,14 @@ impl EpubSession {
         // unbounded path allocation is kept through the build.
         self.book_loading_log(access);
         let spine = self.model(|state| state.current.spine);
-        let section = NonNull::new(unsafe {
-            (self.leaves.section_open)(
-                super::session_book::facade(self.book(access).unwrap().as_ptr()),
+        let section = unsafe {
+            ReaderSection::open(
+                self.book(access).unwrap(),
                 spine,
+                self.resources,
+                self.leaves,
             )
-        });
+        };
         self.set_section(access, section);
         self.publish_section(access);
         self.model(|state| state.partial_start_failed = false);
@@ -152,7 +144,7 @@ impl EpubSession {
             self.book_error(access, false);
             return false;
         };
-        let cached = unsafe { (self.leaves.section_load_cache)(section.as_ptr(), spec) != 0 };
+        let cached = unsafe { ReaderSection::load_cache(section, spec) };
         self.publish_section(access);
         if cached {
             self.model(|state| {
@@ -196,12 +188,15 @@ impl EpubSession {
                 }
                 let loan = self.book_loan(access);
                 let created = unsafe {
-                    (self.leaves.section_create_cache)(
-                        section.as_ptr(),
+                    ReaderSection::create(
+                        section,
                         spec,
-                        indexing_popup,
-                        (self as *const Self).cast_mut().cast(),
-                    ) != 0
+                        Some(indexing_popup).map(|call| super::section_owner::Popup {
+                            call,
+                            context: (self as *const Self).cast_mut().cast(),
+                        }),
+                        self.runtime,
+                    )
                 };
                 self.publish_section(access);
                 if !created {
@@ -246,8 +241,7 @@ impl EpubSession {
                         } else {
                             0
                         });
-                    let inflate =
-                        unsafe { (self.leaves.section_html_cached)(section.as_ptr()) == 0 };
+                    let inflate = unsafe { !ReaderSection::html_cached(section) };
                     let popup = if anchor {
                         self.book_anchor(access, false).is_none()
                             && bytes > BUILD_POPUP_BYTE_THRESHOLD
@@ -286,12 +280,15 @@ impl EpubSession {
                     let started = {
                         let _loan = self.book_loan(access);
                         let started = unsafe {
-                            (self.leaves.section_start_build)(
-                                section.as_ptr(),
+                            ReaderSection::start(
+                                section,
                                 spec,
-                                Some(build_popup),
-                                (self as *const Self).cast_mut().cast(),
-                            ) != 0
+                                Some(build_popup).map(|call| super::section_owner::Popup {
+                                    call,
+                                    context: (self as *const Self).cast_mut().cast(),
+                                }),
+                                self.runtime,
+                            )
                         };
                         self.publish_section(access);
                         started
@@ -307,9 +304,7 @@ impl EpubSession {
                         && if anchor {
                             self.book_anchor(access, false).is_none()
                         } else if let Some(offset) = offset {
-                            unsafe {
-                                (self.leaves.section_reached_offset)(section.as_ptr(), offset) == 0
-                            }
+                            unsafe { !ReaderSection::reached_offset(section, offset) }
                         } else {
                             self.book_page_count(access) <= target
                         }
@@ -342,11 +337,7 @@ impl EpubSession {
                 .map_or(state.next_page.max(0), i32::from)
         });
         if let Some(offset) = offset {
-            let mut page = 0;
-            if unsafe {
-                (self.leaves.section_page_for_offset)(section.as_ptr(), offset, 0, &mut page)
-            } != 0
-            {
+            if let Some(page) = unsafe { ReaderSection::page_for_offset(section, offset, false) } {
                 self.model(|state| state.current.page = i32::from(page));
                 self.book_clear_deferred();
             }
@@ -598,39 +589,24 @@ impl EpubSession {
     }
 
     fn book_page_count(&self, access: &ResourceAccess<'_>) -> i32 {
-        unsafe {
-            (self.leaves.section_page_count)(self.section(access).expect("book section").as_ptr())
-                .into()
-        }
+        unsafe { ReaderSection::page_count(self.section(access).expect("book section")).into() }
     }
 
     fn book_building(&self, access: &ResourceAccess<'_>) -> bool {
-        unsafe {
-            (self.leaves.section_building)(self.section(access).expect("book section").as_ptr())
-                != 0
-        }
+        unsafe { ReaderSection::building(self.section(access).expect("book section")) }
     }
 
     fn book_partial(&self, access: &ResourceAccess<'_>) -> bool {
-        unsafe {
-            (self.leaves.section_partial)(self.section(access).expect("book section").as_ptr()) != 0
-        }
+        unsafe { ReaderSection::partial(self.section(access).expect("book section")) }
     }
 
     fn book_complete(&self, access: &ResourceAccess<'_>) -> bool {
-        unsafe {
-            (self.leaves.section_complete)(self.section(access).expect("book section").as_ptr())
-                != 0
-        }
+        unsafe { ReaderSection::complete(self.section(access).expect("book section")) }
     }
 
     fn book_build_more(&self, access: &ResourceAccess<'_>) -> bool {
         let result = unsafe {
-            (self.leaves.section_build_more)(
-                self.section(access).expect("book section").as_ptr(),
-                8,
-                0,
-            ) != 0
+            ReaderSection::advance(self.section(access).expect("book section"), 8, false)
         };
         self.publish_section(access);
         result
@@ -638,13 +614,7 @@ impl EpubSession {
 
     fn book_anchor(&self, access: &ResourceAccess<'_>, cached: bool) -> Option<u16> {
         let anchor = self.anchor(access);
-        let leaf = if cached {
-            self.leaves.section_cached_anchor
-        } else {
-            self.leaves.section_find_anchor
-        };
-        let mut page = 0;
-        (unsafe { leaf(self.section(access)?.as_ptr(), anchor, &mut page) } != 0).then_some(page)
+        unsafe { ReaderSection::find_anchor(self.section(access)?, anchor.bytes()?, cached) }
     }
 
     fn book_has_anchor(&self, access: &ResourceAccess<'_>) -> bool {
@@ -685,12 +655,7 @@ impl EpubSession {
         {
             if !self.book_building(access) {
                 let started = unsafe {
-                    (self.leaves.section_start_build)(
-                        self.section(access).unwrap().as_ptr(),
-                        spec,
-                        None,
-                        core::ptr::null_mut(),
-                    ) != 0
+                    ReaderSection::start(self.section(access).unwrap(), spec, None, self.runtime)
                 };
                 self.publish_section(access);
                 if !started {
@@ -710,12 +675,7 @@ impl EpubSession {
     fn book_render_page(&self, access: &ResourceAccess<'_>, viewport: &Viewport) -> bool {
         let section = self.section(access).expect("book section");
         let index = self.model(|state| state.current.page);
-        let page = unsafe {
-            Page::from_raw(
-                (self.leaves.section_load_page)(section.as_ptr(), index),
-                self.leaves,
-            )
-        };
+        let page = unsafe { Page::from_raw(ReaderSection::load_page(section, index), self.leaves) };
         if page.as_ref().is_none_or(|page| unsafe { (self.leaves.metadata_assign)(self.native(access), page.handle.as_ptr()) } == 0) {
             self.book_log(1, if page.is_none() { b"Failed to load page from SD - clearing section cache" } else { b"Failed to copy page metadata - clearing section cache" });
             let give_up = self.model(|state| {
@@ -723,7 +683,7 @@ impl EpubSession {
                 state.page_retries = state.page_retries.wrapping_add(1);
                 state.page_retries > 3
             });
-            unsafe { (self.leaves.section_abandon_build)(section.as_ptr()); (self.leaves.section_clear_cache)(section.as_ptr()); }
+            unsafe { ReaderSection::abandon(section); ReaderSection::clear(section); }
             self.drop_section(access);
             if give_up {
                 self.book_log(1, b"Page load retry limit reached, aborting");
@@ -876,10 +836,10 @@ impl EpubSession {
             self.model(|state| (state.current.spine, state.current.page, state.last_saved));
         if spine != saved.0 || page != saved.1 || self.book_page_count(access) != saved.2 {
             let section = self.section(access).unwrap();
-            let estimated = unsafe { (self.leaves.section_estimated_pages)(section.as_ptr()) };
+            let estimated = unsafe { ReaderSection::estimated_pages(section) };
             if self.book_save(access, spine, page, estimated) {
                 let page = self.model(|state| state.current.page);
-                let estimated = unsafe { (self.leaves.section_estimated_pages)(section.as_ptr()) };
+                let estimated = unsafe { ReaderSection::estimated_pages(section) };
                 self.model(|state| state.last_saved = (state.current.spine, page, estimated));
             }
         }

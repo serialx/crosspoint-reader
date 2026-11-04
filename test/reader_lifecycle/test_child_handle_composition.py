@@ -1,6 +1,6 @@
 """Join shipping child factories and legacy callbacks through the real Rust App.
 
-UI, book and SDK objects are physical fakes. Ownership, factory return values,
+UI, Page and SDK objects are physical fakes; Book and Section ownership is real. Ownership, factory return values,
 legacy facts/lifecycle/results and App navigation are production implementations.
 """
 import argparse
@@ -337,10 +337,11 @@ def main():
         (out/'scope.json').write_text(json.dumps(dict(cases=len(records),mutants_rejected=len(rejected),
             source_unchanged=True,production=['child factory bodies','wrapper and allocation helper','legacy callback bodies',
                 'Activity native push and result delivery','Rust App lifecycle and EPUB session',
-                'ReaderBook and native Epub facade','retained chapter/bookmark constructors and book fields'],
-            physical_fakes=['child UI implementations','storage and renderer','Sleep terminal owner'],
+                'ReaderBook, ReaderSection and native Epub facade','retained chapter/bookmark constructors and book fields'],
+            physical_fakes=['child UI implementations','tracked physical Page and its word observations','storage and renderer','Sleep terminal owner'],
             allocation_matrix='every Rust allocation on real selection capture path; exact historical one-attempt case retained separately',
-            limitations=['direct child method probes supplement emulator gestures',
+            limitations=['physical Page stands in for native deserialization, separately covered by native compositions',
+                'direct child method probes supplement emulator gestures',
                 'native internal vector/string allocations remain O4/O5 debt',
                 'network physical fakes do not validate real Wi-Fi connectivity']),indent=2)+'\n')
 

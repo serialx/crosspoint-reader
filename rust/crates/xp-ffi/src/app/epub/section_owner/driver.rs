@@ -1,4 +1,5 @@
 //! Incremental parsing keeps Chapter destruction ahead of its service allocation.
+extern crate alloc;
 use super::super::book_owner::log;
 use super::{
     diagnostics,
@@ -23,11 +24,16 @@ pub(super) struct BuildOwner {
 impl BuildOwner {
     // Book, physical tables and popup context outlive this owner. No callback may
     // reenter its lifecycle; callbacks can access only the separate service allocation.
-    pub(super) unsafe fn new(init: Init) -> Option<Self> {
+    pub(super) unsafe fn allocate(init: &mut Option<Init>) -> Option<Self> {
         Some(Self {
             chapter: None,
             services: BuildServices::allocate(init)?,
         })
+    }
+
+    pub(super) fn configure(&mut self, toc: alloc::vec::Vec<super::super::Text>, language: i32) {
+        assert!(self.chapter.is_none());
+        unsafe { self.services.as_mut() }.configure(toc, language);
     }
 
     pub(super) fn services(&self) -> &BuildServices {

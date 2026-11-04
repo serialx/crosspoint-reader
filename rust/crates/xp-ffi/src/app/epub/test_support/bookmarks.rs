@@ -76,7 +76,8 @@ pub unsafe extern "C" fn xp_epub_test_bookmark_create_legacy_book(
         };
     }
     let guarded = owner.guarded.get_mut();
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     guarded.bookmarks = Some(NonNull::new(seed.bookmarks).expect("fixture bookmarks"));
     owner.bookmark_overrides = Some(BookmarkOverrides {
         context: seed.context,

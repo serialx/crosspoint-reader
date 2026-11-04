@@ -2,63 +2,64 @@
 #include <thread>
 #undef malloc
 #undef free
-extern "C" uint8_t xp_epub_test_facade(const XpAppResources*, const XpEpubLeaves*, XpAppText, XpAppText,
-                                       uint8_t (*)(void*));
-extern "C" size_t xp_test_live_allocations();
+extern "C" {
+void* xp_epub_test_section_fixture_open(const XpAppResources*, const XpEpubLeaves*, const XpAppRuntime*, XpAppText,
+                                        XpAppText, int32_t);
+void* xp_epub_test_section_fixture_facade(void*);
+void xp_epub_test_section_fixture_close(void*);
+uint8_t xp_epub_test_section_fixture_start(void*, const XpEpubRenderSpec*, XpEpubBuildPopup, void*);
+uint8_t xp_epub_test_section_fixture_advance(void*, int32_t, uint8_t);
+uint8_t xp_epub_test_section_fixture_load(void*, const XpEpubRenderSpec*);
+void xp_epub_test_section_fixture_facts(void*, uint32_t (*)[4]);
+void* xp_epub_test_section_fixture_page(void*, int32_t);
+size_t xp_test_live_allocations();
+}
 static std::mutex renderMutex;
-static bool buildOnRenderThread(Section& section) {
+static bool buildOnRenderThread(void* section) {
   bool result = false;
   std::thread render([&] {
     std::lock_guard<std::mutex> lock(renderMutex);
-    result = section.buildSomeMore(1);
+    result = xp_epub_test_section_fixture_advance(section, 1, 0);
   });
   render.join();
   return result;
 }
 static BookHandle* mappingBook;
 static unsigned mappingSectionOpens;
-static uint8_t exercise(void* raw) {
+static void exercise(void* section, void* raw) {
   auto& handle = book(raw);
-  GfxRenderer renderer;
-  ReaderRenderSpec spec;
-  spec.fontId = 16;
-  spec.viewportWidth = 240;
-  spec.viewportHeight = 320;
-  spec.embeddedStyle = true;
-  spec.imageRendering = 0;
-  spec.lineCompression = 1.0f;
-  spec.wordSpacingPercent = 100;
-  auto* css = handle.value().getCssParser();
-  assert(css->empty());
-  unsigned ticks = 0;
-  int completedPages = 0;
-  {
-    Section section(handle.book, 0, renderer);
-    assert(section.startBuild(spec));
-    assert(css->ruleCount() == 1);
-    while (section.isBuilding()) {
-      assert(handle.book.use_count() >= 3);
-      assert(css->ruleCount() == 1);
-      assert(buildOnRenderThread(section));
-      ++ticks;
-      assert(ticks < 5000);
-      {
-        std::lock_guard<std::mutex> lock(renderMutex);
-        assert(handle.value().getSpineItem(0).tocIndex == 0);
-        assert(handle.value().getTocItem(0).anchor == "anchor");
-      }
-    }
-    assert(ticks > 2 && section.pageCount > 2 && css->empty());
-    completedPages = section.pageCount;
-    assert(section.loadSectionFile(spec));
-    assert(section.loadPage(0));
-  }
+  const XpEpubRenderSpec spec{16, 1.0f, 240, 320, 0, 0, 0, 100, 0, 0, 1, 0, 0};
+  assert(handle.value().getCssParser() == nullptr);
   assert(handle.book.use_count() == 1);
+  unsigned ticks = 0;
+  uint32_t facts[4]{};
+  assert(xp_epub_test_section_fixture_start(section, &spec, nullptr, nullptr));
+  xp_epub_test_section_fixture_facts(section, &facts);
+  while (facts[1]) {
+    assert(handle.book.use_count() == 1);
+    assert(handle.value().getCssParser() == nullptr);
+    assert(buildOnRenderThread(section));
+    ++ticks;
+    assert(ticks < 5000);
+    {
+      std::lock_guard<std::mutex> lock(renderMutex);
+      assert(handle.value().getSpineItem(0).tocIndex == 0);
+      assert(handle.value().getTocItem(0).anchor == "anchor");
+      xp_epub_test_section_fixture_facts(section, &facts);
+    }
+  }
+  assert(ticks > 2 && facts[0] > 2 && facts[2]);
+  const auto completedPages = static_cast<uint16_t>(facts[0]);
+  assert(xp_epub_test_section_fixture_load(section, &spec));
+  {
+    std::unique_ptr<Page> page(static_cast<Page*>(xp_epub_test_section_fixture_page(section, 0)));
+    assert(page && page->elementCount() > 0);
+  }
   mappingBook = &handle;
   mappingSectionOpens = 0;
   HalFileTest::allowOpen = [](const char* path, const char*) {
     if (std::string(path).ends_with("/sections/0.bin")) {
-      assert(mappingBook->book.use_count() >= 2);
+      assert(mappingBook->book.use_count() >= 1);
       ++mappingSectionOpens;
     }
     return true;
@@ -68,33 +69,29 @@ static uint8_t exercise(void* raw) {
   position.hasVisibleTextOffset = true;
   const auto saved = ProgressMapper::toSavedProgress(handle.book, position);
   assert(!saved.xpath.empty());
-  const auto restored = ProgressMapper::toCrossPoint(handle.book, saved, renderer, 0, completedPages);
+  const auto restored = ProgressMapper::toCrossPoint(handle.book, saved, driverRenderer, 0, completedPages);
   assert(restored.spineIndex == 0 && restored.hasVisibleTextOffset && restored.visibleTextOffset == 10);
   const auto xpath = ChapterXPathResolver::findXPathForParagraph(handle.book, 0, 2);
   assert(!xpath.empty());
   assert(mappingSectionOpens > 0 && handle.book.use_count() == 1);
   HalFileTest::allowOpen = nullptr;
   mappingBook = nullptr;
-  {
-    Section section(handle.book, 0, renderer);
-    assert(section.startBuild(spec));
+  assert(xp_epub_test_section_fixture_start(section, &spec, nullptr, nullptr));
+  for (int i = 0; i < 2; ++i) {
     assert(buildOnRenderThread(section));
-    assert(section.isBuilding());
-    assert(buildOnRenderThread(section));
-    assert(section.isBuilding());
-    assert(css->ruleCount() == 1 && handle.book.use_count() >= 3);
+    xp_epub_test_section_fixture_facts(section, &facts);
+    assert(facts[1]);
+    assert(handle.book.use_count() == 1 && handle.value().getCssParser() == nullptr);
   }
-  assert(handle.book.use_count() == 1);
-  leaves.book_set_extractor(nullptr);
   std::printf(
-      "actual Section/Chapter parser: %u ticks, completed cache read, active parser abort released facade loans; "
-      "mapper temporary Section opens=%u\n",
+      "actual Section/Chapter parser: %u ticks, native Page and facade metadata reads, "
+      "mapper cache opens=%u; active parser closes before Book.\n",
       ticks, mappingSectionOpens);
-  return 1;
 }
 int main(int argc, char** argv) {
   assert(argc == 3);
   std::string path = argv[1], cache = argv[2];
+  sectionMetrics.context = &driverRenderer;
   {
     CssParser css(cache);
     HalFile f;
@@ -102,6 +99,18 @@ int main(int argc, char** argv) {
     assert(css.loadFromStream(f) == CssParser::ParseResult::Complete);
     assert(css.saveToCache(true));
   }
-  assert(xp_epub_test_facade(&resources, &leaves, text(path), text(cache), exercise));
+  static const XpAppRuntime runtime = [] {
+    auto value = unexpectedAppRuntime();
+    value.now_ms = []() -> uint32_t { return 0; };
+    value.delay_ms = [](uint32_t) {};
+    return value;
+  }();
+  auto* owner = xp_epub_test_section_fixture_open(&resources, &leaves, &runtime, text(path), text(cache), 0);
+  assert(owner);
+  auto* facade = xp_epub_test_section_fixture_facade(owner);
+  assert(facade);
+  exercise(owner, facade);
+  xp_epub_test_section_fixture_close(owner);
+  assert(driverRenderer.loanDepth == 0);
   assert(xp_test_live_allocations() == 0 && nativeBuffers.empty());
 }

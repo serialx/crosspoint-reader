@@ -147,13 +147,13 @@ static void bindA1() {
     assert(!a1Root->frame && !boundSource && livePages == 1);
     scene.boundPage = nullptr; ++a1Finishes; a1Physical("finish-end", 0, 0, 0);
   };
-  leaves.section_load_page = [](void* raw, int32_t page) -> void* {
+  legacyBook.section.section_load_page = [](void* raw, int32_t page) -> void* {
     sceneLeaf(1); assert(raw == sceneSection && !livePages);
     auto* result = new Page; result->number = page;
     a1Physical("page-open", page, 0, 0); return result;
   };
-  static auto closeSection = leaves.section_close;
-  leaves.section_close = [](void* raw) {
+  static auto closeSection = legacyBook.section.section_close;
+  legacyBook.section.section_close = [](void* raw) {
     sceneLeaf(1); assert(!livePages && !boundSource && !a1Root->frame);
     a1Physical("section-close", 0, 0, 0); f().physical("section-close", f().generation);
     closeSection(raw);

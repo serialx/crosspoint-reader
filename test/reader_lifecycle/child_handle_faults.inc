@@ -132,8 +132,8 @@ int specialComposition(const std::string& mode) {
   }
   if (mode.starts_with("page-fail-")) {
     compositionPages = uint16_t(2 + unsigned(mode[10]-'0'));
-    leaves.section_page_count = [](void*) -> uint16_t { return compositionPages; };
-    leaves.section_estimated_pages = [](void*) -> int32_t { return compositionPages; };
+    legacyBook.section.section_page_count = [](void*) -> uint16_t { return compositionPages; };
+    legacyBook.section.section_estimated_pages = [](void*) -> int32_t { return compositionPages; };
   }
   enterCompositionReader();
   if (mode.starts_with("factory-fail-")) {

@@ -51,21 +51,15 @@ static uint8_t invoke(void* raw) {
   assert(h.value().getBookSize() == 12 && h.value().getSpineIndexForSize(8) == 1);
   assert(h.value().getSpineItem(0).tocIndex == 0 && h.value().getTocItem(0).anchor == "anchor");
   assert(h.value().calculateProgress(1, .5f) == .75f);
-  auto* sectionCss = h.value().getCssParser();
-  assert(sectionCss && sectionCss->empty());
-  assert(sectionCss->loadFromCache() == CssParser::CacheLoadResult::Complete);
+  assert(h.value().getCssParser() == nullptr);
   for (int tick = 0; tick < 2; ++tick) {
-    auto sectionLoan = h.book;
+    auto consumerLoan = h.book;
     assert(h.book.use_count() == 2);
-    auto* css = sectionLoan->getCssParser();
-    assert(css && css->ruleCount() == 1);
-    assert(css->resolveStyle("p", "").hasMarginTop());
-    NestedOutput output(sectionLoan);
-    assert(sectionLoan->readItemContentsToStream("a.xhtml", output, 1024));
+    assert(consumerLoan->getCssParser() == nullptr);
+    NestedOutput output(consumerLoan);
+    assert(consumerLoan->readItemContentsToStream("a.xhtml", output, 1024));
     assert(output.bytes == "first!");
   }
-  sectionCss->clear();
-  assert(sectionCss->empty());
   assert(h.book.use_count() == 1);
   assert(ImageBlock::extractFn(ImageBlock::extractCtx, "b.xhtml", destination.c_str()));
   leaves.book_set_extractor(nullptr);

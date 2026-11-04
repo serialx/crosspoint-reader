@@ -74,7 +74,8 @@ pub unsafe extern "C" fn xp_epub_test_lifetime_create_legacy_book(
     state.move_to_read = seed.move_to_read != 0;
     let guarded = owner.guarded.get_mut();
     guarded.native = Some(NonNull::new(seed.native).expect("fixture resource root"));
-    guarded.section = NonNull::new(seed.section);
+    guarded.section =
+        super::legacy_section::SectionSlot::legacy(seed.section, &legacy_book.section);
     owner.lifetime_overrides = Some(LifetimeOverrides {
         context: seed.context,
         settle_overlay: seed.settle_overlay,

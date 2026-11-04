@@ -171,7 +171,7 @@ static void configureOverlayInputLeaves() {
     view.anchor = {reinterpret_cast<const uint8_t*>(item.anchor.data()), item.anchor.size()};
     return sink(context, &view);
   };
-  overlayInputLeaves.physical.section_close = [](void* raw) {
+  overlayInputLeaves.book.section.section_close = [](void* raw) {
     auto& owner = overlayInputOwner(); assert(lockDepth == 1 && raw == owner.section.get());
     owner.section.reset();
   };

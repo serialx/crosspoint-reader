@@ -99,12 +99,29 @@ impl<'a> CacheFile<'a> {
         Ok(())
     }
 
+    #[cfg(feature = "app-test")]
     pub(super) fn open_write(&mut self) -> bool {
         let path = match self.temporary.as_ref().expect("prepared cache writer path") {
             Temporary::Owned(path) => path,
             Temporary::Borrowed(path) => path,
         };
         self.file.open(self.leaves, path, true, c"SCT")
+    }
+
+    pub(super) fn into_file(self) -> FileSlot {
+        match self.file {
+            Cursor::Owned(file) => file,
+            Cursor::Borrowed(_) => unreachable!("owned cache reader"),
+        }
+    }
+
+    pub(super) fn load_page(&mut self, index: u32) -> *mut core::ffi::c_void {
+        let mut range = [0; 3];
+        if section_cache::query(self, section_cache::Query::PageRange(index), &mut range).is_none()
+        {
+            return core::ptr::null_mut();
+        }
+        self.file.load_page(range[1] - range[0], range[2])
     }
 }
 

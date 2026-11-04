@@ -1,6 +1,8 @@
 #include <Epub.h>
 #include <Epub/Page.h>
-#include <Epub/Section.h>
+
+#include "../reader_section/ReaderSectionFixture.h"
+using Section = ReaderSectionFixture;
 #include <Epub/css/CssParser.h>
 #include <FontCacheManager.h>
 #include <FontDecompressor.h>
@@ -71,7 +73,7 @@ static void builtinFonts(GfxRenderer& renderer) {
   renderer.insertFont(UI_10_FONT_ID, EpdFontFamily(&u10, &b10));
   renderer.insertFont(UI_12_FONT_ID, EpdFontFamily(&u12, &ub12));
 }
-bool readManifest(Epub& epub, std::vector<std::string>& cssPaths) {
+bool readManifest(ReaderSectionInput& epub, std::vector<std::string>& cssPaths) {
   std::ifstream manifest("manifest.tsv");
   if (!manifest) return false;
   std::string line;
@@ -476,8 +478,32 @@ static bool stripPixels(const Page& page, GfxRenderer& renderer, FontCacheManage
 
 #endif
 
+// Replay the four frozen identity-normalize fixture Pages through the retained native Page.
+static int historicalImagePath(GfxRenderer& renderer, FontCacheManager& cache, HalDisplay& display,
+                               const Setting& config) {
+  const auto raw = readBytes("historical-page.bin");
+  HalFile input;
+  if (!input.open("historical-page.bin", "rb")) return 20;
+  auto page = Page::load(input, raw.size(), 0);
+  if (!page) return 21;
+  std::cout << "section\t0\t1\nbegin\t0/0\nraw\t" << hex(raw) << '\n';
+  HalFile output("page.bin");
+  if (!page->serialize(output)) return 22;
+  output.close();
+  std::cout << "wire\t" << hex(readBytes("page.bin")) << '\n';
+  {
+    auto scope = cache.createPrewarmScope();
+    page->render(renderer, config.spec.fontId, config.margin, config.margin);
+    scope.endScanAndPrewarm();
+    if (!records(*page, renderer, config)) return 23;
+  }
+  if (!pixels(*page, renderer, cache, display, config, false)) return 24;
+  std::cout << "end\n";
+  return std::cout.good() ? 0 : 25;
+}
+
 int main(int argc, char** argv) {
-  if (argc != 4) {
+  if (argc != 4 && !(argc == 5 && std::string(argv[4]) == "--historical-image-path")) {
     std::cerr << "PageGolden extracted-book config sd-font\n";
     return 2;
   }
@@ -503,7 +529,8 @@ int main(int argc, char** argv) {
   renderer.setFontCacheManager(&cache);
   const auto config = setting(std::stoi(argv[2]), 100);
   renderer.setOrientation(static_cast<GfxRenderer::Orientation>(config.orientation));
-  auto epub = std::make_shared<Epub>();
+  if (argc == 5) return historicalImagePath(renderer, cache, display, config);
+  auto epub = std::make_shared<ReaderSectionInput>();
   std::vector<std::string> cssPaths;
   if (!readManifest(*epub, cssPaths)) return 5;
   std::filesystem::remove_all("cache");
@@ -518,7 +545,6 @@ int main(int argc, char** argv) {
     complete &= result == CssParser::ParseResult::Complete;
   }
   if (!css.saveToCache(complete)) return 8;
-  epub->css = &css;
 #ifdef XP_STRIP_IMAGES
   ImageBlock::setExtractor(nullptr, [](void*, const char* src, const char* dest) {
     std::error_code error;

@@ -1,6 +1,7 @@
-#include <Epub.h>
 #include <Epub/Page.h>
-#include <Epub/Section.h>
+
+#include "../reader_section/ReaderSectionFixture.h"
+using Section = ReaderSectionFixture;
 #include <GfxRenderer.h>
 #include <unistd.h>
 
@@ -9,10 +10,14 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <vector>
 
 #include "../section_io/SectionTestCodec.h"
+
+const XpEpubLeaves& sectionFixtureLeaves(GfxRenderer&);
+size_t sectionHashAllocationWindow(bool);
 
 namespace {
 void require(bool ok, const char* message) {
@@ -60,7 +65,7 @@ void inspect(Section& section) {
   }
   printf("toc %d\n", section.getTocIndexForPage(section.pageCount - 1));
 }
-void lut(const std::shared_ptr<Epub>& epub, GfxRenderer& renderer) {
+void lut(const std::shared_ptr<ReaderSectionInput>& epub, GfxRenderer& renderer) {
   for (uint16_t count : {0, 1, 400}) {
     reset();
     std::filesystem::create_directories("cache/sections");
@@ -97,7 +102,7 @@ void lut(const std::shared_ptr<Epub>& epub, GfxRenderer& renderer) {
     snapshot(section, "lut");
   }
 }
-void lifecycle(const std::shared_ptr<Epub>& epub, GfxRenderer& renderer, bool interleaved) {
+void lifecycle(const std::shared_ptr<ReaderSectionInput>& epub, GfxRenderer& renderer, bool interleaved) {
   html(900);
   std::vector<uint8_t> uninterrupted;
   {
@@ -156,7 +161,7 @@ size_t shortWrite(const char*, size_t, size_t length) {
   ++writes;
   return writes == shortAt && length ? length - 1 : length;
 }
-void shortWrites(const std::shared_ptr<Epub>& epub, GfxRenderer& renderer, size_t target) {
+void shortWrites(const std::shared_ptr<ReaderSectionInput>& epub, GfxRenderer& renderer, size_t target) {
   html(12);
   shortAt = target;
   HalFileTest::writeLimit = shortWrite;
@@ -177,6 +182,98 @@ void shortWrites(const std::shared_ptr<Epub>& epub, GfxRenderer& renderer, size_
     puts("");
   }
 }
+
+void nativeHash(const std::shared_ptr<ReaderSectionInput>& epub, GfxRenderer& renderer) {
+  const auto hash = sectionFixtureLeaves(renderer).native_path_hash;
+  const auto wire = [](const std::string& value) {
+    return XpAppText{reinterpret_cast<const uint8_t*>(value.data()), value.size()};
+  };
+  const std::vector<std::string> spans = {"",
+                                          "a",
+                                          std::string(15, 'a'),
+                                          std::string(16, 'a'),
+                                          std::string(8192, 'x'),
+                                          "한국어/日本語/é",
+                                          std::string("a\0b", 3),
+                                          "/books/example.epub",
+                                          "/books/한국어 장편.epub"};
+  for (const auto& span : spans) {
+    const auto expected = std::hash<std::string>{}(span);
+    sectionHashAllocationWindow(true);
+    const auto actual = hash(wire(span));
+    const auto allocations = sectionHashAllocationWindow(false);
+    require(actual == expected, "native string/view hash parity");
+    require(allocations == 0, "native hash allocated");
+    require("/.crosspoint/epub_" + std::to_string(actual) == "/.crosspoint/epub_" + std::to_string(expected),
+            "native cache directory changed");
+    printf("native-hash bytes=%zu hash=%llu allocations=%zu\n", span.size(), static_cast<unsigned long long>(actual),
+           allocations);
+  }
+  sectionHashAllocationWindow(true);
+  const auto empty = hash({nullptr, 0});
+  const auto emptyAllocations = sectionHashAllocationWindow(false);
+  require(emptyAllocations == 0 && empty == std::hash<std::string>{}(std::string()), "null empty hash");
+
+  // Real collisions for libc++ CityHash64 and libstdc++ Murmur64/32, verified by the installed leaf.
+  const std::pair<std::string, std::string> pairs[] = {{"anchor_collision", "e605I-LI3EE-8zPW"},
+                                                       {"anchor_collision", "Z1RhvLesZL8lOngE"},
+                                                       {"anchor_000062648", "anchor_000072512"}};
+  std::pair<std::string, std::string> collision;
+  for (const auto& pair : pairs)
+    if (hash(wire(pair.first)) == hash(wire(pair.second))) collision = pair;
+  require(!collision.first.empty() && collision.first != collision.second, "actual native collision pair");
+  reset();
+  std::filesystem::create_directories("book");
+  epub->toc = {{0, ""}, {0, collision.first}};
+  const std::string longAnchor(8192, 'z');
+  epub->toc.push_back({0, longAnchor});
+  {
+    std::ofstream file("book/chapter.xhtml");
+    file << "<html><body><p id='" << collision.first << "'>First anchor.</p><p id='" << longAnchor
+         << "'>Long anchor.</p>";
+    for (unsigned i = 0; i < 140; ++i) {
+      const auto id = "multibatch_anchor_" + std::to_string(i);
+      epub->toc.push_back({0, id});
+      file << "<p id='" << id << "'>Alpha beta gamma delta epsilon zeta eta theta.</p>";
+    }
+    file << "</body></html>";
+  }
+  epub->toc.push_back({0, collision.second});
+  const auto check = [&](Section& section, const char* phase) {
+    const auto firstPage = section.findAnchor(collision.first);
+    require(firstPage.has_value(), "matching collision anchor missing");
+    require(!section.findAnchor(collision.second), "nonmatching collision anchor unexpectedly exists");
+    for (const int page : {static_cast<int>(*firstPage), static_cast<int>(section.pageCount) - 1}) {
+      int expected = 0, latest = 0;
+      for (size_t i = 1; i < epub->toc.size(); ++i) {
+        const auto found = section.findAnchor(epub->toc[i].anchor);
+        if (found && *found <= page && *found >= latest) {
+          latest = *found;
+          expected = i;
+        }
+      }
+      const auto selected = section.getTocIndexForPage(page);
+      require(selected == expected, "actual hash TOC collision/batch selection");
+      printf("native-hash-toc %s page=%d selected=%d targets=%zu\n", phase, page, selected, epub->toc.size());
+    }
+  };
+  {
+    Section active(epub, 0, renderer);
+    require(active.startBuild(spec()) && active.buildSomeMore(10), "active TOC build");
+    require(active.isBuilding() && active.pageCount > 2, "active TOC partial state");
+    check(active, "active");
+    active.suspendBuild();
+    require(active.isPartial(), "disk partial TOC state");
+    check(active, "disk-partial");
+  }
+  {
+    Section disk(epub, 0, renderer);
+    require(disk.loadSectionFile(spec()), "disk TOC reopen");
+    check(disk, "disk-reopen");
+    require(disk.createSectionFile(spec()), "complete TOC build");
+    check(disk, "disk-complete");
+  }
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -185,7 +282,7 @@ int main(int argc, char** argv) {
   require(mkdtemp(directory), "temporary directory");
   const auto original = std::filesystem::current_path();
   std::filesystem::current_path(directory);
-  auto epub = std::make_shared<Epub>();
+  auto epub = std::make_shared<ReaderSectionInput>();
   epub->spine = {{"chapter.xhtml"}};
   epub->toc = {{0, ""}, {0, "p0"}, {0, "p10"}, {0, "eof"}};
   GfxRenderer renderer;
@@ -196,6 +293,8 @@ int main(int argc, char** argv) {
     lifecycle(epub, renderer, mode == "interleaving");
   else if (mode == "short")
     shortWrites(epub, renderer, argc == 3 ? std::strtoull(argv[2], nullptr, 10) : 0);
+  else if (mode == "native-hash")
+    nativeHash(epub, renderer);
   else
     require(false, "unknown mode");
   std::filesystem::current_path(original);

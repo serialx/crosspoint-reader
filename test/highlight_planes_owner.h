@@ -10,6 +10,7 @@ struct Context {
   uint32_t signature = 0;
 };
 inline Context* active;
+inline auto legacySection = unexpectedLegacySectionServices();
 inline XpUiReaderRenderServices renderServices{};
 inline void fill(GfxRenderer& renderer, int x, int y, int width, int height) {
   using namespace retirement_fixture;
@@ -24,32 +25,32 @@ inline void fill(GfxRenderer& renderer, int x, int y, int width, int height) {
     Context* context;
     unsigned* step;
   } publication{&context, &publicationStep};
-  leaves.section_page_count = [](void* p) -> uint16_t {
+  legacySection.section_page_count = [](void* p) -> uint16_t {
     auto& state = *static_cast<Publication*>(p);
     assert(state.context == active && (*state.step)++ == 0);
     return 1;
   };
-  leaves.section_estimated_pages = [](void* p) -> int32_t {
+  legacySection.section_estimated_pages = [](void* p) -> int32_t {
     auto& state = *static_cast<Publication*>(p);
     assert(state.context == active && (*state.step)++ == 1);
     return 1;
   };
-  leaves.section_building = [](void* p) -> uint8_t {
+  legacySection.section_building = [](void* p) -> uint8_t {
     auto& state = *static_cast<Publication*>(p);
     assert(state.context == active && (*state.step)++ == 2);
     return 0;
   };
-  leaves.section_complete = [](void* p) -> uint8_t {
+  legacySection.section_complete = [](void* p) -> uint8_t {
     auto& state = *static_cast<Publication*>(p);
     assert(state.context == active && (*state.step)++ == 3);
     return 1;
   };
-  leaves.section_partial = [](void* p) -> uint8_t {
+  legacySection.section_partial = [](void* p) -> uint8_t {
     auto& state = *static_cast<Publication*>(p);
     assert(state.context == active && (*state.step)++ == 4);
     return 0;
   };
-  leaves.section_close = [](void* p) {
+  legacySection.section_close = [](void* p) {
     auto& state = *static_cast<Publication*>(p);
     assert(state.context == active && active->section);
     active->section = false;
@@ -135,7 +136,7 @@ inline void fill(GfxRenderer& renderer, int x, int y, int width, int height) {
   seed.height = 800;
   seed.signature = &Unexpected<decltype(seed.signature)>::call;
   seed.nonempty = &Unexpected<decltype(seed.nonempty)>::call;
-  void* owner = xp_epub_test_clipping_create(&seed, &leaves, &runtime, &resources);
+  void* owner = xp_epub_test_clipping_create_legacy_section(&seed, &leaves, &runtime, &resources, &legacySection);
   assert(owner && publicationStep == 5);
   context.signature = xp_epub_test_clipping_signature(owner);
   xp_epub_test_clipping_draw(owner, &context, 0, y, x);

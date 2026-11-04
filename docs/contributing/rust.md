@@ -377,30 +377,41 @@ support are not added by this change.
 
 ## Chapter and section compatibility
 
-Section policy lives in `rust/crates/xp-ffi/src/book_section.rs`, using the
-version-68 wire codec in `rust/crates/xp-core/src/section/mod.rs`.
-`lib/Epub/Epub/SectionPlatform.cpp` owns native files, the parser, Page objects,
-strings and deque storage. Rust drives build transitions, estimates, cache
-transactions, buffered anchor decoding and page-source selection. Header fields
-are copied from `ReaderRenderSpec`; Rust validates and encodes their widths.
+The reader's `ReaderSection` in `xp-ffi::app::epub::section_owner` owns the
+Section cache path, readable partial state and optional incremental build. Its
+`BuildOwner` owns the Rust Chapter handle and a separate stable `BuildServices`
+allocation for files, input, Section-time CSS, paths, anchors and page records.
+Chapter is destroyed before those services. The reader calls typed Rust methods;
+there is no native Section build object or `section_*` service table.
 
-`Section.h` embeds `XpBookSectionControl` and `XpBookSectionProgress` in the
-existing resource layout. The call-local `XpBookSectionState` borrows these
-values and the public page count. Its progress pointer expires when the build
-is released. Rust never holds a state reference across a native callback,
-because parser callbacks can append pages. A loaded partial remains readable
-while a rebuild has fewer pages. Committed-page reads use a separate local
-file; active-build reads restore the writer cursor after loading the Page.
+`section_cache.rs` shares cache reads and transactions with the cache-only native
+adapter in `book_section.rs`. `lib/Epub/Epub/SectionPlatform.cpp` retains five
+queries for ProgressMapper: page count, anchor, paragraph, list item and visible
+text offset. It owns only its cache path and call-local file/scratch resources.
+The version-68 codec remains in `xp-core::section`. Header flags preserve native
+bool normalization; the image setting retains its original byte value.
 
-The four low-level record/offset exports used by the old native codec are
-available only with the host `section-test` feature. Their declarations and
-fixture helpers live in `test/section_io/SectionTestCodec.h` and `.cpp`.
-Keep the native deque allocation schedule and parser lifetime when changing
-this boundary. The Section I/O oracle checks file operations and diagnostics;
-the supplementary lifecycle, interleaving and short-write tests in
-[`test/section_io`](../../test/section_io/README.md) and the anchor-bound cases in
-[`test/section_golden`](../../test/section_golden/README.md) cover recovery paths
-beyond the complete-section byte oracle.
+A loaded partial remains readable while a rebuild has fewer pages. Suspension
+commits completed pages and drops the Chapter; resume rebuilds from the start.
+Committed-page reads use a separate local file; active-build reads restore the
+writer cursor after loading a Page. Page storage remains native through
+`page_load` until the separate Page-owner migration. No mutable Section/build
+borrow may cross a physical callback. Resource access and the book cache-lock
+order remain those of the session.
+
+Page records grow in fixed 64-entry chunks and anchors in 32-entry chunks.
+Existing payloads stay in place while the small pointer directory grows exactly;
+all allocations are fallible. Anchor text moves into its completed record.
+Do not replace this with a doubling Vec that overlaps large old/new LUT storage.
+The four low-level record/offset exports used by the old native codec remain
+host-only under `section-test`; `test/section_io/SectionTestCodec.{h,cpp}` uses
+them to construct and inspect cache fixtures with the shared production codec.
+The [actual-owner fixture](../../test/reader_section/README.md),
+[Section I/O oracle](../../test/section_io/README.md) and
+[anchor-bound cases](../../test/section_golden/README.md) cover builds, partial
+recovery, interleaved reads, faults and cache bytes. Historical policy fixtures
+use a named `LegacySectionServices` variant only under `app-test`; new owner
+compositions must use actual ReaderBook/ReaderSection and install no legacy table.
 
 The [section byte oracle](../../test/section_golden/README.md) captures the full
 production Section serialization before migrating word storage or layout.
@@ -521,10 +532,11 @@ byte strings; do not require UTF-8 or cap their lengths to fit an adapter.
 `EpubSession` publishes a native `Epub` compatibility object only after load
 succeeds. That object forwards row, size and stream queries to the same Rust
 owner through `XpEpubBookBorrow`; it does not load another book. It keeps the
-cache path, language and native Section-time `CssParser` needed by retained
-reference-return APIs. Load-time Rust CSS is released before the facade is
-published. Native Section, chapter assembly/parser, chapter/bookmark children
-and progress/XPath mapping still hold `shared_ptr<Epub>` loans. The shared
+cache path and language needed by retained reference-return APIs. Load-time Rust
+CSS is released before publication; the reader's build owns Section-time CSS.
+The borrowed facade's `getCssParser` returns null. Ordinary native Epub objects
+retain their own CSS parser. Chapter/bookmark children and progress/XPath mapping
+still hold `shared_ptr<Epub>` loans. The shared
 pointer keeps the facade alive, not its Rust owner: every loan must end before
 `book_facade_close`, and the Rust owner must outlive that close. Detach the image
 extractor and drop Section before closing the facade and owner. Sync may detach
@@ -560,7 +572,9 @@ sink. No metadata view survives the call. Bookmark paths retain their native
 string adapter.
 
 Book cache v10, CSS cache v19, Section cache v68 and the target's
-`std::hash<std::string>` path convention are unchanged. The
+`std::hash<std::string>` path convention are unchanged. The native path-hash
+leaf uses the equivalent borrowed `std::string_view` hash, avoiding a temporary
+string allocation; target hash parity is tested on C3 and S3. The
 [reader lifecycle tests](../../test/reader_lifecycle/README.md) distinguish actual
 owner/facade compositions from historical synthetic service fixtures.
 
@@ -589,8 +603,9 @@ cache-lock leaves; its retained Epub facade only lends the same loaded book.
 See the [package oracle](../../test/package_golden/README.md) for parity checks
 and their limits.
 
-The chapter driver in `rust/crates/xp-ffi/src/book_parser.rs` borrows the existing
-chapter handle and read buffer through `xp_book_parse`. It calls the Rust XML
+The reader's `section_owner::driver` owns the Chapter and input buffer directly.
+The retained dictionary driver in `rust/crates/xp-ffi/src/book_parser.rs` borrows
+its native facade's chapter handle and read buffer through `xp_book_parse`. It calls the Rust XML
 parser in 1,024-byte steps, owns finalization and stop checks, and writes the
 packed status/error/line result through `result`.
 `rust/crates/xp-core/src/chapter/table.rs` opens, seeks and measures through a
@@ -604,8 +619,9 @@ the checked read buffer.
 renderer and framebuffer loans, buffer allocation, native string/vector/deque
 storage, Page decoding and diagnostic formatting. The private resource base and
 reserved semantic-pointer slot preserve the 300-byte parser allocation on C3
-and S3; they do not own a second allocation. Section's build/parser lifetime is
-unchanged. Direct table measurement helpers are declared only in
+and S3; they do not own a second allocation. This native wrapper remains for
+`DictHtmlPages`; the reader uses its Rust build services instead. Direct table
+measurement helpers are declared only in
 `test/chapter_html_slim_parser/ChapterTestAbi.h` and linked with `chapter-test`;
 shipping code uses the internal table driver. The separate `xp_book_jpeg` path
 retains its existing boundary.

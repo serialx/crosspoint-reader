@@ -61,9 +61,8 @@ image-extractor code. It checks the six reverse callbacks, nested stream queries
 CSS load/clear, native outer allocation failures and forbidden metadata getters.
 The two simulated loan ticks in this test are not a real Section build.
 
-`reader_book_section` supplies the actual Section, ChapterHtmlSlimParser,
-ChapterPageAssembler, Page codec, CssParser, ImageBlock, ProgressMapper and
-ChapterXPathResolver. It checks serialized background ticks, cache/page reads,
+`reader_book_section` supplies actual Rust ReaderBook/ReaderSection/Chapter/CSS,
+the native Page codec, cache-only Section, ProgressMapper and ChapterXPathResolver. It checks serialized background ticks, cache/page reads,
 active-build cancellation and a visible-offset/XPath round trip. Native file,
 font/render and scheduler inputs remain physical fakes; it does not qualify
 panel timing or concurrent hardware execution.
@@ -83,7 +82,10 @@ peaks. The clipping and settings-store suites exercise the stores themselves;
 measure the full stores when assessing long-metadata allocation cost.
 
 Historical service fixtures live in `legacy_book_fixture.h` and Rust
-`test_support::legacy_book`, behind `app-test`. They preserve captured allocation
+`test_support::{legacy_book,legacy_section}`, behind `app-test`. The Section
+fixture is an explicit variant alongside the actual owner; shipping SectionSlot
+stores only a typed ReaderSection pointer and has no legacy dispatch. These
+fixtures preserve captured allocation
 attempts and supplied metadata without becoming a production fallback. Their
 symbols must be absent from shipping images. Keep both historical and actual
 owner paths: passing one does not establish the other's guarantees.

@@ -71,8 +71,10 @@ Reader launches enter the Rust application. Reflowable books use its `EpubSessio
 XTC/XTCH retain the native `ReaderActivity`/`XtcReaderActivity` route.
 The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust policy ownership and native resource lifetimes.
 The reader owns one Rust `ReaderBook` for metadata, cache setup and resource
-lifetimes. Its retained native `Epub` facade forwards queries to that owner;
-Section, parser and Page adapters remain in `lib/Epub/`. Ordinary Home, Library,
+lifetimes, and one Rust `ReaderSection` for cache/build/Chapter lifetime. Its
+retained native `Epub` facade forwards child and sync queries to that book.
+Native Page storage, the cache-only ProgressMapper Section and dictionary Chapter
+adapter remain in `lib/Epub/`. Ordinary Home, Library,
 Sleep and sync consumers retain native Epub ownership. Both routes use the
 streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
 Rust owns the parser and XPath state and consumes XML events directly. The pinned SDK's

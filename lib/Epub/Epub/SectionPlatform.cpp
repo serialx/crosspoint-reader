@@ -55,15 +55,15 @@ struct SectionFileContext {
     text->resize(length);
     return reinterpret_cast<uint8_t*>(text->data());
   }
-  XpBookFileServices services() { return {this, operation, read, nullptr, resize, diagnostic}; }
+  XpBookFileServices services() { return {this, operation, read, resize, diagnostic}; }
 };
-std::optional<uint32_t> sectionQuery(const std::string& path, const XpBookSectionQuery query, const uint32_t index = 0,
-                                     const bool first = false) {
+std::optional<uint32_t> sectionQuery(const std::string& path, const XpBookSectionQuery query,
+                                     const uint32_t index = 0) {
   HalFile file;
   SectionFileContext context{file, path};
   const auto services = context.services();
   uint32_t output[3];
-  if (!xp_book_section_query(&services, query, index, first, output)) return std::nullopt;
+  if (!xp_book_section_query(&services, query, index, output)) return std::nullopt;
   return output[0];
 }
 }  // namespace

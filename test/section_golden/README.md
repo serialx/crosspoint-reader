@@ -1,9 +1,11 @@
 # Complete section byte oracle
 
 This harness detects changes in chapter pagination and serialized page data.
-It runs every XHTML spine item in `test/epubs/*.epub` through the production
-`ChapterHtmlSlimParser`, `Paragraph`, `TextBlock`, `Page`, and `Section` code.
-`ImageBlock` serialization is also production code. The output contains the
+It runs every XHTML spine item in `test/epubs/*.epub` through actual Rust
+ReaderBook/ReaderSection/Chapter, paragraph layout and page-byte construction.
+`ReaderSectionFixture` supplies Book metadata and a stored ZIP from those public
+inputs; it owns no parallel parser/build state. Cache reads use the actual Rust
+owner and retained native Page loader/serializer. The output contains the
 complete Section header, pages, page offsets, anchor map, paragraph indices,
 list-item indices, and visible-text offsets. No bytes are normalized or omitted.
 
@@ -75,7 +77,7 @@ fonts and intentionally fixed; they are not device font metrics.
   Pixel decoding and framebuffer writes are outside the oracle; requests for
   the decoder or a writable framebuffer terminate the tool. Fonts, cache
   eviction, time and ESP heap availability use host stubs.
-- Each generated section is reopened by production `Section`, and every page,
+- Each generated section is reopened by the actual Rust `ReaderSection`, and every page,
   paragraph LUT entry and visible-offset LUT entry is read before comparison.
 
 These files prove repeatability for the specified host pipeline. They do not
@@ -182,9 +184,12 @@ run under all three settings. No private book content is included.
 python3 test/section_golden/run.py --dump build/test/section_golden/SectionGoldenDump --ops
 ```
 
-The build generates `ChapterTrace.cpp` using `instrument_chapter.py` and links
-it only into `SectionGoldenDump`. Firmware compiles the original source and
-contains no trace hooks. Required source anchors must occur exactly once;
+The build generates the native trace formatter and a separate observer Rust
+archive for `SectionGoldenDump`. `test/reader_section/instrument.py` attaches
+observations to the actual reader driver/backend; no policy result is replaced.
+The [fixture README](../reader_section/README.md#chapter-and-layout-observation)
+describes source hashing and archive isolation. Firmware and ordinary owner
+compositions contain no observer hooks. Required source anchors must occur exactly once;
 missing or duplicated anchors fail generation. The instrumentation test also
 checks that changed replies and missing operations fail comparison.
 
@@ -212,11 +217,11 @@ successful corpus does not exercise every failure path. Capture with `--ops
 
 ## Cache read oracle
 
-`SectionReadGoldens` loads all 312 original section files through production
-`Section::loadSectionFile` and `Section::loadPage`. Each loaded page is serialized
+`SectionReadGoldens` loads all 312 original section files through the actual Rust
+ReaderSection load/page factory and native Page loader. Each loaded page is serialized
 again and expanded into named fields by `read_oracle.py`. The canonical JSON
 includes every serialized element field, the complete fixed footnote/link arrays,
-the visible-offset LUT value, and the result of `getTextFromSectionFile` for each
+the visible-offset LUT value, and the actual owner's cache-text result for each
 page. Strings and byte arrays use hex to preserve embedded NULs and arbitrary
 UTF-8 bytes. The original archive remains the independent write-path proof.
 

@@ -4,9 +4,11 @@ Rust owns EPUB parsing and layout, page records, page-byte construction and
 load-time decoding and page rendering through `xp-core::page`. C++ owns file I/O,
 the loaded page allocation and views. Glyph bitmap views and rasterization run
 in Rust. C++ retains font registration/preparation, built-in/TTF caches,
-JPEGDEC integration and native Section and Page resources. The Rust reader owns
-its loaded book; a native `Epub` facade forwards the retained parser's queries to
-that same owner. See [Reader book ownership](rust.md#reader-book-ownership).
+JPEGDEC integration and native Page resources. The Rust reader owns its loaded
+book, Section and incremental Chapter build. A native `Epub` facade forwards
+child and sync queries to that same book; the dictionary retains its native
+Chapter adapter. See [Reader book ownership](rust.md#reader-book-ownership) and
+[Section ownership](rust.md#chapter-and-section-compatibility).
 The Rust application owns navigation, Home and the ordinary EPUB `EpubSession`; native XTC
 and reader child screens remain owned legacy activities. The session calls typed
 physical leaves for those resources without changing the chapter assembly and
@@ -25,24 +27,26 @@ chapter handle. Its production paragraph owner calls `para::paragraph::Paragraph
 and the layout engine directly. The paragraph trait also permits focused mock
 tests for carry, placement and allocation failure.
 
-The remaining C boundary is a synchronous page sink:
+The Chapter selects a typed reader backend or the retained native dictionary
+sink. Both are synchronous; the reader backend calls Rust build services directly.
+The operation contracts are:
 
 | Sink operation | Contract |
 | --- | --- |
-| Process image | Rust selects cache suffixes/counters, probe/extraction retries and failed-cache removal. `ChapterPlatform.cpp` supplies native path storage, decoder and file operations, framebuffer loans and intrinsic dimensions. Resolved paths remain in the sink context until the next probe. Rust computes CSS sizing and placement in the original order. |
+| Process image | Rust selects cache suffixes/counters, probe/extraction retries and failed-cache removal. The reader owns path/input/scratch lifetime in `section_owner`; native decoder, file and framebuffer leaves perform physical operations. `ChapterPlatform.cpp` supplies the retained dictionary backend. Resolved paths remain in the selected backend until the next probe. Rust computes CSS sizing and placement in the original order. |
 | Reclaim paragraph memory | Preserve the cache-reclamation retry on paragraph allocation failure; request 4 KiB of free memory, then retry once. |
 | Font provider and preparation | C++ resolves scale to font ID, prepares fonts and supplies native descriptors and dynamic handlers. Rust reads line metrics and computes advances, spaces, kerning, codepoint metrics and SD-font status. Host callback adapters retain the metric query slots. |
-| Complete page | Rust queries whether a byte sink is installed, then selects it or the native Page decoder. The selected sink borrows one complete encoded page, with u16 paragraph/list indices and u32 visible offset. Section performs one `HalFile::write` and records the same LUT entry. The callback reports success, stop or failure; it retains no byte pointer. |
+| Complete page | Rust queries whether a byte sink is installed, then selects it or the native Page decoder. The selected sink borrows one complete encoded page, with u16 paragraph/list indices and u32 visible offset. The reader performs one physical file write and records the same LUT entry in its Rust build records. The callback reports success, stop or failure; it retains no byte pointer. |
 | Popup | Show the existing indexing popup at the original probe/extraction point. The image single-shot latch is Rust-owned and distinct from the driver's large-file popup. |
-| Anchors | C++ retains pending/TOC IDs and completed anchor storage. Rust compares borrowed TOC entries, selects pending anchors and commits their u16 page at the original transition. Native storage operations preserve string moves and container growth. |
-| Table prescan | C++ lends a local `XpChapterReader` to the supplied Rust visitor. Rust owns open/seek/measure/plan sequencing and exclusively reborrows the active state; the native file closes when the visitor returns. |
+| Anchors | The reader owns pending/TOC IDs and completed anchors in Rust, moving text into fixed-size record chunks. The dictionary backend retains its native strings. Both preserve membership decisions and the original u16 page transition. |
+| Table prescan | The reader lends its scoped Rust input adapter; the dictionary lends a local `XpChapterReader`. Rust owns open/seek/measure/plan sequencing and exclusively reborrows the active state. The file closes when the visitor returns. |
 
 Rust consumes each packed `XpParaLine` synchronously and encodes its text, style,
 font slots and ruby through the page builder. Metrics use native font descriptors;
 synthetic host renderers retain scalar metric callbacks. The narrow `font_ready`
 callback preserves `ensureFontLoaded` and fallback before measuring inline font
-ascent; it creates no page object. Image probing retains C++ path strings until
-`image_paths` lends them to the Rust image encoder. No `ImageBlock` is constructed
+ascent; it creates no page object. Image probing retains paths in the selected
+backend until the image encoder has consumed their borrowed spans. No `ImageBlock` is constructed
 on the Section build path.
 
 Rules, drop caps, boxes and table separators remain plain records until completion.
@@ -51,15 +55,15 @@ compaction and table/carry reordering; payload destruction releases the slot. A
 separate typed buffer retains layout links until placement copies them into page
 links. Completion compacts live payloads, moves emitted records into page order in
 place, patches positions, and appends the existing footnote/link trailer. It then
-lends the prefix to C++ and removes it after return, preserving carried and buffered
+lends the prefix to the selected sink and removes it after return, preserving carried and buffered
 table payloads. There is no second page output buffer. Pending-anchor spans last
 until defer/record.
-Stored page links own their bytes. The C++ anchor store remains outside the Rust handle because `Section`
-reads it after `finishParse` and consumes `std::string` references. This preserves
-`getAnchors`, avoids a second string copy and keeps IDs at their existing length
-limit; no new 256-byte truncation is introduced. TOC membership reads native vector
-entries through borrowed spans; paragraph and assembly operations remain direct
-Rust calls. Widths
+Stored page links own their bytes. Reader anchors live in `BuildServices`, outside
+the Chapter handle, so Section can commit them after Chapter finalization. Text
+moves into the completed record; no new 256-byte truncation is introduced.
+The retained dictionary facade keeps its native anchor store and `getAnchors`
+interface. TOC membership borrows the selected backend's entries; paragraph and
+assembly operations remain direct Rust calls. Widths
 remain those listed below: u8 flags/kinds, i16 coordinates,
 i32 font metrics/IDs, f32 scales/compression, and u32 counts. A record never
 transfers a Rust allocation to C++. A callback may set the separate C++ stop latch but cannot feed,
@@ -115,19 +119,22 @@ C++ implementation captured before the port.
 Semantics owns element depth, hidden-content tracking, CSS ancestors and style
 stacks, word fragments, inline continuation, lists, ruby collection, link-label
 collection, and visible-text/XPath counters. Rust assembly owns paragraph storage,
-layout, page records, carry, box and table state. The C++ sink owns hardware
-access, fonts and their preparation, image I/O and pending/TOC/completed anchor
-strings. Section consumes encoded bytes directly. Styled dictionary definitions
-and host tests retain the owned-`Page` callback. `Page::fromBytes` validates and
+layout, page records, carry, box and table state. The reader's `BuildOwner` owns
+the Chapter and stable `BuildServices`: input/files, CSS, paths, image scratch,
+framebuffer loans, pending/TOC/completed anchors and Page/LUT records. It drops
+Chapter before services, and holds no mutable owner borrow across a physical
+callback. Native leaves retain hardware access, font preparation and image I/O.
+Section consumes encoded bytes directly. Styled dictionary definitions and
+historical host tests retain the native sink and owned-`Page` callback. `Page::fromBytes` validates and
 copies the encoded page into its single allocation. Its views outlive the parser
-and preserve the dictionary page limits. `xp_book_parse` owns incremental lifecycle
-decisions over the native facade's fallibly allocated Rust handle, 1,024-byte input
-buffer and chapter file. Entity growth reuses that buffer; Rust requests a native
-replacement only when capacity is insufficient. The handle contains semantics,
+and preserve the dictionary page limits. The reader's Rust driver owns its
+1,024-byte input buffer and chapter file; `xp_book_parse` retains incremental
+lifecycle decisions for the dictionary facade. Entity growth reuses the selected
+driver's buffer, requesting a fallible replacement only when capacity is insufficient. The handle contains semantics,
 assembly and the XML pull parser; XML events and CSS resolution stay inside Rust.
 The private resource base and reserved semantic-pointer slot preserve the existing
-300-byte parser allocation on C3 and S3. Removing them is a separate resource
-change; Section's parser/build lifetime is unchanged.
+300-byte native dictionary parser allocation on C3 and S3. The reader does not
+allocate that wrapper; its Chapter is owned directly by the Rust build.
 
 Production measurement and bidi execute in Rust. The synchronous engine borrows
 font tables through a two-family descriptor cache. Chapter metrics borrow the
@@ -158,16 +165,19 @@ encoded payload buffer. There is no queued op
 stream in firmware and no second copy of a paragraph. Replies must be consumed
 before advancing the XML reader, whose event strings are borrowed.
 
-`parseStep` reads at most 1,024 input bytes and drains that input's XML events.
+The reader driver and retained native `parseStep` each read at most 1,024 input
+bytes and drain that input's XML events.
 It may emit several pages before returning. Splitting a callback into operations
-must not introduce extra yield points. A callback may call `requestStop`; that
+must not introduce extra yield points. On the native backend a callback may call
+`requestStop`; that
 sets the C++ stop latch. The sink returns it after the callback, assembly records
 the result, and semantics applies feedback after assembly returns. XML then stops
 without retaining the borrowed event. It must not destroy state from inside the page callback.
 `finishParse` flushes the remaining block/page only when not stopped and not
 in layout OOM. `abortParse` releases XML, buffer and file without that flush.
-`Section::suspendBuild` keeps completed pages and aborts the parser; resuming
-rebuilds the parser rather than serializing its stacks.
+`ReaderSection::suspend` keeps completed pages and aborts the Chapter; resuming
+rebuilds from the start rather than serializing parser stacks. A saved partial
+remains readable while the new build has fewer completed pages.
 
 Builder allocation/capacity failure latches the existing layout OOM state and
 prevents partial page delivery. Abort and finish destroy all payloads before the
@@ -268,8 +278,9 @@ Closing a cell pops the actual semantic block stack before layout, and image
 handling separates probing/sizing from placement so pending text is flushed at
 the original point without reborrowing active assembly storage.
 
-`XpChapterSink` and its metrics/context remain alive until chapter destruction.
-The `ChapterHtmlSlimParser` facade operations only forward to `xp_book_parse`,
+The reader's stable `BuildServices` remain alive until Chapter destruction. The
+retained dictionary `XpChapterSink` and metrics/context obey the same lifetime.
+The `ChapterHtmlSlimParser` facade operations forward to `xp_book_parse`,
 which drives the `xp_chapter_begin` / `xp_chapter_feed` / `xp_chapter_finish`
 lifecycle. Table pre-scan is the only callback that receives the semantic-state
 pointer: `table_file` lends a local `XpChapterReader` whose lifetime ends at
@@ -281,7 +292,7 @@ reenter, feed or destroy the handle. Required transitions are:
 | Operation | State changed before return |
 | --- | --- |
 | `startNewTextBlock` | Clears continuation; resets inline-size state for empty reuse or a fresh paragraph; consumes marker-only state; disarms first-letter capture for a fresh paragraph; may lay out text and flush anchors |
-| `flushPendingAnchor` | Moves pending ID into the anchor deque with completed-page u16; clears pending ID; may trigger a TOC page break and cancellation |
+| `flushPendingAnchor` | Moves pending ID into the selected backend's completed-anchor storage with page u16; clears pending ID; may trigger a TOC page break and cancellation |
 | `openBoxScope` | Flushes a pending word before geometry; may start a block; adds border/gap widths to the borrowed BlockStyle's padding |
 | `closeTableCell` | Clears inside-cell u8; pops the cell's semantic block style; latches layout OOM before moving paragraph ownership |
 | `finishTableRow` | Closes the cell first; may consume buffered paragraphs, emit pages, and observe stop/OOM |
@@ -296,7 +307,7 @@ inline-size state and the captured drop cap. The pending word is flushed before
 entering an eligible box or horizontal-rule operation. No mutable paragraph
 borrow remains active while the borrowed-line callback reads `lines_after`.
 
-`requestStop` sets the C++ driver latch. The completing sink reports it after
+On the retained native backend, `requestStop` sets the C++ driver latch. The completing sink reports it after
 `completePageFn` returns; Rust then stops extraction through its local stop byte
 and latches cancellation in assembly and semantics. A stopped completion consumes
 all handed-off payloads; Rust drops retained carry/table payloads on abort. No

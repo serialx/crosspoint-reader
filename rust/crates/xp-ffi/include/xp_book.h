@@ -285,14 +285,7 @@ typedef enum XpBookFileOperation {
   XP_BOOK_FILE_SEEK = 1,
   XP_BOOK_FILE_SIZE = 2,
   XP_BOOK_FILE_POSITION = 3,
-  XP_BOOK_FILE_CLOSE = 4,
   XP_BOOK_FILE_RELEASE_TEXT = 5,
-  XP_BOOK_FILE_EXISTS_FINAL = 6,
-  XP_BOOK_FILE_REMOVE_FINAL = 7,
-  XP_BOOK_FILE_REMOVE_TEMPORARY = 8,
-  XP_BOOK_FILE_PROMOTE_TEMPORARY = 9,
-  XP_BOOK_FILE_EXISTS_TEMPORARY = 10,
-  XP_BOOK_FILE_IS_OPEN = 11,
 } XpBookFileOperation;
 
 typedef enum XpBookSectionDiagnostic {
@@ -301,47 +294,24 @@ typedef enum XpBookSectionDiagnostic {
   XP_BOOK_SECTION_INVALID_STRING = 2,
   XP_BOOK_SECTION_VISIBLE_SEEK = 3,
   XP_BOOK_SECTION_VISIBLE_READ = 4,
-  XP_BOOK_SECTION_WRITE_RECORD = 5,
-  XP_BOOK_SECTION_INVALID_LUT = 6,
-  XP_BOOK_SECTION_PROMOTE = 7,
-  XP_BOOK_SECTION_TRUNCATED_HEADER = 8,
-  XP_BOOK_SECTION_UNKNOWN_VERSION = 9,
-  XP_BOOK_SECTION_PARAMETERS = 10,
-  XP_BOOK_SECTION_MALFORMED_PARTIAL = 11,
-  XP_BOOK_SECTION_LOADED = 12,
-  XP_BOOK_SECTION_CACHE_MISSING = 13,
-  XP_BOOK_SECTION_CACHE_CLEAR_FAILED = 14,
-  XP_BOOK_SECTION_CACHE_CLEARED = 15,
-  XP_BOOK_SECTION_PAGE_FILE_CLOSED = 16,
-  XP_BOOK_SECTION_PAGE_WRITE_FAILED = 17,
-  XP_BOOK_SECTION_PAGE_PROCESSED = 18,
-  XP_BOOK_SECTION_HEADER_FILE_CLOSED = 19,
-
 } XpBookSectionDiagnostic;
 
 typedef struct XpBookFileServices {
   void* ctx;
   size_t (*operation)(void* ctx, uint32_t operation, size_t argument);
   size_t (*read)(void* ctx, uint8_t* bytes, size_t length);
-  size_t (*write)(void* ctx, const uint8_t* bytes, size_t length);
   uint8_t* (*resize_text)(void* ctx, size_t length);
   void (*diagnostic)(void* ctx, uint32_t event, uint32_t a, uint32_t b);
 } XpBookFileServices;
 
 typedef enum XpBookSectionQuery {
-  XP_BOOK_SECTION_PAGE_RANGE = 0,
   XP_BOOK_SECTION_PAGE_COUNT = 1,
-  XP_BOOK_SECTION_ANCHOR_MAP = 2,
   XP_BOOK_SECTION_PARAGRAPH_PAGE = 3,
   XP_BOOK_SECTION_LIST_PAGE = 4,
-  XP_BOOK_SECTION_PAGE_PARAGRAPH = 5,
-  XP_BOOK_SECTION_PAGE_VISIBLE = 6,
-  XP_BOOK_SECTION_VISIBLE_PAGE = 7,
 } XpBookSectionQuery;
 
-// output has three slots; PAGE_RANGE returns start/end/visible, others use slot 0.
-uint8_t xp_book_section_query(const XpBookFileServices* services, uint32_t query, uint32_t index, uint8_t prefer_first,
-                              uint32_t output[3]);
+// output has three slots; these cache queries use slot 0.
+uint8_t xp_book_section_query(const XpBookFileServices* services, uint32_t query, uint32_t index, uint32_t output[3]);
 uint8_t xp_book_section_anchor(const XpBookFileServices* services, const uint8_t* needle, size_t length,
                                uint32_t* output);
 

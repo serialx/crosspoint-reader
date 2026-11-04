@@ -8,7 +8,6 @@ pub struct FileServices {
     ctx: *mut c_void,
     operation: Option<unsafe extern "C" fn(*mut c_void, u32, usize) -> usize>,
     read: Option<unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> usize>,
-    write: Option<unsafe extern "C" fn(*mut c_void, *const u8, usize) -> usize>,
     resize_text: Option<unsafe extern "C" fn(*mut c_void, usize) -> *mut u8>,
     diagnostic: Option<unsafe extern "C" fn(*mut c_void, u32, u32, u32)>,
 }
@@ -84,31 +83,6 @@ impl cache::Reader for FileServices {
     }
 }
 
-fn query(
-    io: &FileServices,
-    operation: u32,
-    index: u32,
-    first: bool,
-    output: &mut [u32; 3],
-) -> Option<()> {
-    let operation = match operation {
-        0 => cache::Query::PageRange(index),
-        1 => cache::Query::PageCount,
-        2 => cache::Query::AnchorMap,
-        3 => cache::Query::PageForParagraph(index),
-        4 => cache::Query::PageForList(index),
-        5 => cache::Query::ParagraphForPage(index),
-        6 => cache::Query::VisibleForPage(index),
-        7 => cache::Query::PageForVisible {
-            offset: index,
-            first,
-        },
-        _ => cache::Query::Invalid,
-    };
-    let mut io = *io;
-    cache::query(&mut io, operation, output)
-}
-
 /// # Safety
 /// Services and callbacks remain valid for the call; output points to three writable u32s.
 /// Callbacks must not retain pointers or reenter this operation.
@@ -117,7 +91,6 @@ pub unsafe extern "C" fn xp_book_section_query(
     services: *const FileServices,
     operation: u32,
     index: u32,
-    first: u8,
     output: *mut [u32; 3],
 ) -> u8 {
     let (Some(services), Some(output)) = (
@@ -129,7 +102,14 @@ pub unsafe extern "C" fn xp_book_section_query(
     ) else {
         return 0;
     };
-    query(&services, operation, index, first != 0, output).is_some() as u8
+    let operation = match operation {
+        1 => cache::Query::PageCount,
+        3 => cache::Query::PageForParagraph(index),
+        4 => cache::Query::PageForList(index),
+        _ => cache::Query::Invalid,
+    };
+    let mut io = services;
+    cache::query(&mut io, operation, output).is_some() as u8
 }
 
 /// # Safety
@@ -180,7 +160,12 @@ pub unsafe extern "C" fn xp_book_section_visible(
         return 0;
     };
     let mut output = [0; 3];
-    if query(io, 7, offset, first != 0, &mut output).is_none() {
+    let mut io = *io;
+    let query = cache::Query::PageForVisible {
+        offset,
+        first: first != 0,
+    };
+    if cache::query(&mut io, query, &mut output).is_none() {
         return 0;
     }
     *page = output[0];

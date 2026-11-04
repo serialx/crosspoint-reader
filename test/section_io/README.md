@@ -99,3 +99,15 @@ These checks verify execution and cleanup under every added fault; the captured
 post-failure state is evidence for review, not a claim that the historical
 synthetic-book oracle specified those extra operations. The native allocation
 counter and resource observers are host-test code only.
+
+
+## Native hash and TOC lookup
+
+`SectionNativeHash` calls the extracted production `native_path_hash` leaf with
+empty, short, long, UTF-8 and embedded-zero spans. It requires parity with
+`std::hash<std::string>` and zero native allocations during each borrowed hash.
+An actual-owner fixture has 144 TOC rows (143 nonempty anchors), including an
+8,192-byte anchor and a real unequal-text hash collision for the installed C++
+library. It checks active-build, disk partial, reopened and complete lookups,
+including the missing colliding anchor and traversal across three 64-row batches.
+Target C3/S3 hash parity and complete reader heap/timing remain separate evidence.

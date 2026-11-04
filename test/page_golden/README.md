@@ -43,7 +43,7 @@ a temporary directory is removed at exit.
 
 ## Production boundary
 
-The executable compiles production Section, Page, TextBlock, ImageBlock,
+The executable uses actual Rust ReaderBook/ReaderSection and native Page, TextBlock, ImageBlock,
 `ChapterPlatform.cpp` (chapter facade, page assembler and native sink), Paragraph
 and CSS code, linked to the normal Rust host archive. Measurement and
 rasterization use real GfxRenderer, EpdFont, EpdFontFamily, SdCardFont,
@@ -51,8 +51,9 @@ FontDecompressor, FontCacheManager and TtfEpdFont/SDK FreeType code. No text
 measurement is stubbed.
 
 The host storage adapter reads/writes ordinary files. OPF/ZIP discovery reuses
-`section_golden.run.prepare`; the Epub stub supplies those extracted spine, TOC,
-language and CSS inputs to production Section. The package parsers themselves
+`section_golden.run.prepare`; `ReaderSectionFixture` packages those extracted
+spine, TOC, language and CSS inputs into Book metadata and a stored ZIP for the
+actual owners. The package parsers themselves
 remain covered by `package_golden`. The display adapter reuses text_golden's
 800×480 framebuffer. Host heap reports are fixed at 200 KiB free/largest block;
 these are not firmware resource measurements.
@@ -113,7 +114,7 @@ input identities, complete page sets, page bytes, semantic/query records and pix
 Each raw `records.tsv` page has these ordered records; strings are UTF-8 hex:
 
 - `raw`: bytes cut from the section's page LUT boundaries, SHA-256 in the archive.
-- `wire`: bytes reserialized after `Section::loadPage`/`Page::deserialize`, with a
+- `wire`: bytes reserialized after the Rust Section factory/native `Page::deserialize`, with a
   separate SHA-256. This distinguishes write-path changes from loaded data changes.
 - `page`: visible text offset; element/footnote/link counts; image queries and union bounds.
 - `element`: tag, x/y, and the exact serialized element payload. `element-fields`

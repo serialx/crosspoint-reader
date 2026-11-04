@@ -211,11 +211,11 @@ needed; the retired EPUB-exclusive service dispatch is not the session boundary.
 
 `src/activities/reader/RustEpubResources.cpp` implements the typed physical leaves
 in `rust/crates/xp-ffi/include/xp_epub_session.h`. The session owns its loaded
-`ReaderBook` in Rust, including metadata, cache and load resources. Its native
-`Epub` facade lends that same book to retained Section/parser, child and sync
-consumers. C++ still owns Section and Page resources, file implementations and
-stores, font/display services, toolbar widgets and native child screens. Rust
-chooses their operations and order. See [Reader book ownership](rust.md#reader-book-ownership)
+`ReaderBook` and `ReaderSection` in Rust, including metadata, cache, load and
+incremental Chapter build resources. The native `Epub` facade lends the same
+book to child and sync consumers. C++ retains Page allocations and views, physical
+file implementations and stores, font/display services, toolbar widgets and
+native child screens. Rust chooses their operations and order. See [Reader book ownership](rust.md#reader-book-ownership)
 for facade loans, cache locking and teardown. `ReaderActivity` and
 `XtcReaderActivity` remain the native XTC owner path with shared reader helpers.
 Reader launches for XTC/XTCH use that native owner; EPUB, TXT, Markdown and the
@@ -232,7 +232,7 @@ represents access under the existing nonrecursive RenderLock. A render borrows
 its caller's held lock; a loop operation acquires and releases a token at its
 resource access boundary. Helpers receive that access rather than reacquiring the
 lock. They recheck live Section/Page resources after acquisition. Published scalar
-facts can be read without touching those live native objects; live text, offsets
+facts can be read without touching those live owners; live text, offsets
 and Page operations require resource access. The EPUB page cursor is Rust state.
 
 Render entry declines work until the owner is ready. A render uses a scoped frame

@@ -1,6 +1,6 @@
 # Page load failures and ownership
 
-These tests call the production `Section::loadPage` with a real section file
+These tests call the actual Rust `ReaderSection` page factory with a real section file
 and the host HAL. The section-oracle renderer and image-decoder stubs satisfy
 unrelated build-path dependencies; they do not replace the page loader.
 
@@ -26,7 +26,7 @@ checks that failure preserves bytes and ownership, and verifies successful growt
 alignment and cleanup. The chapter failure sweep additionally exercises growth
 failures through the real builder.
 
-`PageLoadPartial` opens a partial section through `loadSectionFile`, loads its
+`PageLoadPartial` opens a partial section through the actual owner, loads its
 page, and checks the visible offset and borrowed word fields. This verifies the
 partial-cache read path; it does not simulate interrupted writes or hardware
 storage failures. Pixel, clipping, dictionary, and whole-book behavior remain

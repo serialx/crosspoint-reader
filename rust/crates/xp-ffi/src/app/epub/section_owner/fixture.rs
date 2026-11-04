@@ -154,9 +154,16 @@ pub unsafe extern "C" fn xp_epub_test_section_fixture_facts(raw: *mut c_void, ou
 pub unsafe extern "C" fn xp_epub_test_section_fixture_page(
     raw: *mut c_void,
     page: i32,
-) -> *mut c_void {
-    unsafe { ReaderSection::load_page((*raw.cast::<Fixture>()).section, page) }
+    out: *mut super::super::abi::XpEpubOwnedPage,
+) -> u8 {
+    let Some(page) = (unsafe { ReaderSection::load_page((*raw.cast::<Fixture>()).section, page) })
+    else {
+        return 0;
+    };
+    unsafe { out.write(super::super::abi::XpEpubOwnedPage::new(page)) };
+    1
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_section_fixture_query(
     raw: *mut c_void,

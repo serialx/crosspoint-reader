@@ -1,5 +1,5 @@
 use super::session_section::Section as ReaderSection;
-use super::{abi, page::Page, EpubSession, ResourceAccess};
+use super::{abi, EpubSession, ResourceAccess};
 use core::mem::MaybeUninit;
 use xp_ui::reader::{
     BACKGROUND_BUILD_MIN_MAX_ALLOC, PARTIAL_REBUILD_START_MARGIN, RENDER_MIN_FREE_HEAP,
@@ -118,9 +118,7 @@ impl EpubSession {
         if next >= i32::from(unsafe { ReaderSection::page_count(section) }) {
             return;
         }
-        let Some(page) =
-            (unsafe { Page::from_raw(ReaderSection::load_page(section, next), self.leaves) })
-        else {
+        let Some(page) = (unsafe { self.load_page(section, next) }) else {
             return;
         };
         if !self.loop_font_cache() {
@@ -132,7 +130,8 @@ impl EpubSession {
         }
         let _prewarm = Prewarm(&access);
         unsafe {
-            (self.leaves.page_render)(page.handle.as_ptr(), self.settings(true).font, 0, 0);
+            page.borrow()
+                .paint(self.leaves, self.settings(true).font, 0, 0);
             (self.leaves.fonts_prewarm_finish_scan)(self.native(&access));
         }
         if unsafe { (self.leaves.log_enabled)(0) } != 0 {

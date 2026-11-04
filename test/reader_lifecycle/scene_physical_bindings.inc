@@ -98,7 +98,7 @@ static void bindScenePhysical() {
     out->compression = 1; out->word_spacing_percent = 100;
   };
   leaves.render_services = [](void*) -> const XpUiReaderRenderServices* { sceneLeaf(1); return &sceneRenderServices; };
-  leaves.render_bind_page = [](void*, void* page, int32_t, int32_t, int32_t, int32_t, XpEpubHighlight, void*) {
+  legacyBook.section.page.render_bind_page = [](void*, void* page, int32_t, int32_t, int32_t, int32_t, XpEpubLegacyHighlight, void*) {
     sceneLeaf(1); assert(page && !scene.boundPage); scene.boundPage = page;
   };
   leaves.render_finish_page = [](void*) { sceneLeaf(1); assert(scene.boundPage); scene.boundPage = nullptr; ++scene.pageDrawn; };
@@ -137,10 +137,10 @@ static void bindScenePhysical() {
   legacyBook.section.section_toc_for_page = [](void* raw, void*, int32_t, int32_t) -> int32_t { sceneLeaf(1); assert(!raw || raw == sceneSection); return 0; };
   legacyBook.section.section_offset_for_page = [](void* raw, uint16_t, uint32_t* offset) -> uint8_t { sceneLeaf(1); assert(raw == sceneSection); *offset = 0; return 1; };
   legacyBook.section.section_load_page = [](void* raw, int32_t page) -> void* { sceneLeaf(1); assert(raw == sceneSection); return new ScenePage{page}; };
-  leaves.page_info = [](void* page, XpEpubPageInfo* out) { sceneLeaf(1); assert(page); *out = {}; };
-  leaves.page_close = [](void* page) { sceneLeaf(1); assert(page && scene.boundPage != page); delete static_cast<ScenePage*>(page); };
-  leaves.metadata_assign = [](void*, void* page) -> uint8_t { sceneLeaf(1); assert(page); return 1; };
-  leaves.metadata_clear = [](void*) { sceneLeaf(1); };
+  legacyBook.section.page.page_info = [](void* page, XpEpubPageInfo* out) { sceneLeaf(1); assert(page); *out = {}; };
+  legacyBook.section.page.page_close = [](void* page) { sceneLeaf(1); assert(page && scene.boundPage != page); delete static_cast<ScenePage*>(page); };
+  legacyBook.section.page.metadata_assign = [](void*, void* page) -> uint8_t { sceneLeaf(1); assert(page); return 1; };
+  legacyBook.section.page.metadata_clear = [](void*) { sceneLeaf(1); };
   leaves.bookmarks_count = [](void*) -> uint32_t { sceneLeaf(); return 0; };
   leaves.clippings_count = []() -> uint32_t { sceneLeaf(); return 0; };
   leaves.progress_save = [](void*, const XpEpubPosition* position) -> uint8_t { sceneLeaf(1); assert(position); return 1; };

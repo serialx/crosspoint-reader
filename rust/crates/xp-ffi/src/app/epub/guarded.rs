@@ -11,6 +11,7 @@ use core::{cell::UnsafeCell, ffi::c_void, ptr::NonNull};
 #[derive(Default)]
 pub(super) struct Guarded {
     pub(super) native: Option<NonNull<c_void>>,
+    pub(super) page_metadata: super::page_owner::Metadata,
     pub(super) book: Option<NonNull<c_void>>,
     pub(super) section: Option<SectionSlot>,
     pub(super) toolbar: Option<NonNull<c_void>>,
@@ -321,4 +322,185 @@ impl EpubSession {
     pub(super) fn take_selection_metadata(&self) -> SelectionMetadata {
         unsafe { core::mem::take(&mut (*self.guarded.0.get()).selection_metadata) }
     }
+}
+
+impl EpubSession {
+    pub(super) fn clear_page_metadata(&self, access: &ResourceAccess<'_>) {
+        #[cfg(feature = "app-test")]
+        if let Some(services) = self.legacy_pages.get() {
+            unsafe { (services.metadata_clear)(self.native(access)) };
+            return;
+        }
+        unsafe { (*self.guarded_ptr(access)).page_metadata.clear() };
+    }
+
+    pub(super) fn assign_page_metadata(
+        &self,
+        access: &ResourceAccess<'_>,
+        page: &super::page::Page,
+    ) -> bool {
+        #[cfg(feature = "app-test")]
+        if let super::page_view::View::Legacy(raw, services) = page.borrow() {
+            assert!(core::ptr::eq(
+                self.legacy_pages.get().expect("named legacy Page fixture"),
+                services
+            ));
+            return unsafe { (services.metadata_assign)(self.native(access), raw.as_ptr()) } != 0;
+        }
+        #[cfg(feature = "app-test")]
+        let page = {
+            assert!(self.legacy_pages.get().is_none());
+            page.reader()
+        };
+        unsafe {
+            (*self.guarded_ptr(access))
+                .page_metadata
+                .assign(self.resources, self.leaves, page)
+        }
+    }
+
+    pub(super) fn metadata_footnotes(&self, access: &ResourceAccess<'_>) -> u16 {
+        #[cfg(feature = "app-test")]
+        if let Some(services) = self.legacy_pages.get() {
+            return unsafe { (services.metadata_footnotes)(self.native(access)) };
+        }
+        unsafe { (*self.guarded_ptr(access)).page_metadata.footnote_count() }
+    }
+
+    pub(super) fn metadata_links(&self, access: &ResourceAccess<'_>) -> u16 {
+        #[cfg(feature = "app-test")]
+        if let Some(services) = self.legacy_pages.get() {
+            return unsafe { (services.metadata_links)(self.native(access)) };
+        }
+        unsafe { (*self.guarded_ptr(access)).page_metadata.link_count() }
+    }
+
+    // Returned text borrows metadata until its next mutation under ResourceAccess.
+    pub(super) fn metadata_link(
+        &self,
+        access: &ResourceAccess<'_>,
+        index: u16,
+    ) -> Option<super::page_records::XpEpubLink> {
+        #[cfg(feature = "app-test")]
+        if let Some(services) = self.legacy_pages.get() {
+            unsafe extern "C" fn capture(
+                raw: *mut c_void,
+                value: *const super::page_records::XpEpubLink,
+            ) -> u8 {
+                unsafe {
+                    *raw.cast::<Option<super::page_records::XpEpubLink>>() =
+                        value.as_ref().copied();
+                }
+                1
+            }
+            let mut value = None;
+            unsafe {
+                (services.metadata_link)(
+                    self.native(access),
+                    index,
+                    capture,
+                    (&mut value as *mut Option<super::page_records::XpEpubLink>).cast(),
+                )
+            };
+            return value;
+        }
+        let link = unsafe { (*self.guarded_ptr(access)).page_metadata.link(index) }?;
+        Some(super::page_records::XpEpubLink {
+            href: metadata_text(link.href),
+            x: i32::from(link.x),
+            y: i32::from(link.y),
+            width: i32::from(link.width),
+            height: i32::from(link.height),
+        })
+    }
+
+    pub(super) fn metadata_link_href(
+        &self,
+        access: &ResourceAccess<'_>,
+        index: u16,
+    ) -> Option<Text> {
+        #[cfg(feature = "app-test")]
+        if let Some(services) = self.legacy_pages.get() {
+            struct Sink {
+                sink: app_abi::TextSink,
+                context: *mut c_void,
+            }
+            unsafe extern "C" fn capture(
+                raw: *mut c_void,
+                row: *const super::page_records::XpEpubLink,
+            ) -> u8 {
+                let sink = unsafe { &*raw.cast::<Sink>() };
+                let Some(row) = (unsafe { row.as_ref() }) else {
+                    return 0;
+                };
+                unsafe { (sink.sink)(sink.context, row.href) }
+            }
+            return Text::receive(|sink, context| {
+                let mut sink = Sink { sink, context };
+                unsafe {
+                    (services.metadata_link)(
+                        self.native(access),
+                        index,
+                        capture,
+                        (&mut sink as *mut Sink).cast(),
+                    )
+                }
+            });
+        }
+        let link = unsafe { (*self.guarded_ptr(access)).page_metadata.link(index) }?;
+        Text::copy(unsafe { metadata_text(link.href).bytes() }?).ok()
+    }
+
+    pub(super) fn metadata_footnote_href(
+        &self,
+        access: &ResourceAccess<'_>,
+        index: u16,
+    ) -> Option<Text> {
+        #[cfg(feature = "app-test")]
+        if let Some(services) = self.legacy_pages.get() {
+            struct Sink {
+                sink: app_abi::TextSink,
+                context: *mut c_void,
+            }
+            unsafe extern "C" fn capture(
+                raw: *mut c_void,
+                row: *const super::page_records::XpEpubFootnote,
+            ) -> u8 {
+                let sink = unsafe { &*raw.cast::<Sink>() };
+                let Some(row) = (unsafe { row.as_ref() }) else {
+                    return 0;
+                };
+                unsafe { (sink.sink)(sink.context, row.href) }
+            }
+            return Text::receive(|sink, context| {
+                let mut sink = Sink { sink, context };
+                unsafe {
+                    (services.metadata_footnote)(
+                        self.native(access),
+                        index,
+                        capture,
+                        (&mut sink as *mut Sink).cast(),
+                    )
+                }
+            });
+        }
+        let (_, href) = unsafe { (*self.guarded_ptr(access)).page_metadata.footnote(index) }?;
+        Text::copy(unsafe { metadata_text(href).bytes() }?).ok()
+    }
+
+    pub(super) fn release_page_metadata(&self, access: &ResourceAccess<'_>) {
+        unsafe {
+            (*self.guarded_ptr(access))
+                .page_metadata
+                .clear_for_shutdown()
+        };
+    }
+}
+
+fn metadata_text(record: &[u8]) -> app_abi::Text {
+    let length = record
+        .iter()
+        .position(|byte| *byte == 0)
+        .expect("terminated Page metadata");
+    app_abi::Text::from_terminated(&record[..=length])
 }

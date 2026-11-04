@@ -374,8 +374,8 @@ void bindReader() {
     root(raw);
     return &renderServices;
   };
-  leaves.render_bind_page = [](void* raw, void* page, int32_t font, int32_t left, int32_t top, int32_t, XpEpubHighlight,
-                               void*) {
+  legacyBook.section.page.render_bind_page = [](void* raw, void* page, int32_t font, int32_t left, int32_t top, int32_t,
+                                                XpEpubLegacyHighlight, void*) {
     physical(1);
     root(raw);
     assert(parent.pages.count(static_cast<Page*>(page)) && !parent.bound);
@@ -480,13 +480,13 @@ void bindReader() {
     assert(parent.pages.insert(page.get()).second);
     return page.release();
   };
-  leaves.page_close = [](void* raw) {
+  legacyBook.section.page.page_close = [](void* raw) {
     physical(1);
     auto* page = static_cast<Page*>(raw);
     assert(parent.pages.erase(page) == 1 && parent.bound != page);
     delete page;
   };
-  leaves.page_info = [](void* raw, XpEpubPageInfo* out) {
+  legacyBook.section.page.page_info = [](void* raw, XpEpubPageInfo* out) {
     physical(1);
     auto* page = static_cast<Page*>(raw);
     assert(parent.pages.count(page));
@@ -495,23 +495,24 @@ void bindReader() {
     out->footnotes = page->footnoteCount();
     out->links = page->linkCount();
   };
-  leaves.metadata_clear = [](void* raw) {
+  legacyBook.section.page.metadata_clear = [](void* raw) {
     physical(1);
     root(raw);
     parent.fixture->currentPageMetadata.clear();
   };
-  leaves.metadata_assign = [](void* raw, void* page) -> uint8_t {
+  legacyBook.section.page.metadata_assign = [](void* raw, void* page) -> uint8_t {
     physical(1);
     root(raw);
     assert(parent.pages.count(static_cast<Page*>(page)));
     return parent.fixture->currentPageMetadata.assign(*static_cast<Page*>(page));
   };
-  leaves.metadata_footnotes = [](void* raw) -> uint16_t {
+  legacyBook.section.page.metadata_footnotes = [](void* raw) -> uint16_t {
     physical(1);
     root(raw);
     return parent.fixture->currentPageMetadata.footnotes().size();
   };
-  leaves.metadata_footnote = [](void* raw, uint16_t index, XpEpubFootnoteSink sink, void* context) -> uint8_t {
+  legacyBook.section.page.metadata_footnote = [](void* raw, uint16_t index, XpEpubFootnoteSink sink,
+                                                 void* context) -> uint8_t {
     physical(1);
     root(raw);
     const auto rows = parent.fixture->currentPageMetadata.footnotes();
@@ -519,12 +520,12 @@ void bindReader() {
     const XpEpubFootnote item{literal(rows[index].number), literal(rows[index].href)};
     return sink(context, &item);
   };
-  leaves.metadata_links = [](void* raw) -> uint16_t {
+  legacyBook.section.page.metadata_links = [](void* raw) -> uint16_t {
     physical(1);
     root(raw);
     return parent.fixture->currentPageMetadata.links().size();
   };
-  leaves.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* context) -> uint8_t {
+  legacyBook.section.page.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* context) -> uint8_t {
     physical(1);
     root(raw);
     const auto rows = parent.fixture->currentPageMetadata.links();
@@ -538,7 +539,7 @@ void bindReader() {
     const XpEpubLink item{literal(row.href), row.x, row.y, row.width, row.height};
     return sink(context, &item);
   };
-  leaves.child_footnote = [](void* raw, int32_t left, int32_t top) -> void* {
+  legacyBook.section.page.child_footnote = [](void* raw, int32_t left, int32_t top) -> void* {
     physical(0);
     auto* page = static_cast<Page*>(raw);
     assert(parent.pages.erase(page) == 1);

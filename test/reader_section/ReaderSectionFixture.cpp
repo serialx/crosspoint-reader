@@ -8,6 +8,8 @@
 #include <iterator>
 #include <limits>
 
+#include "../reader_page_owner/TransferredPage.h"
+
 extern "C" {
 void* xp_epub_test_section_fixture_open(const XpAppResources*, const XpEpubLeaves*, const XpAppRuntime*, XpAppText,
                                         XpAppText, int32_t);
@@ -22,7 +24,7 @@ uint8_t xp_epub_test_section_fixture_clear(void*);
 void xp_epub_test_section_fixture_facts(void*, uint32_t (*)[4]);
 int32_t xp_epub_test_section_fixture_estimate(void*);
 uint8_t xp_epub_test_section_fixture_html(void*);
-void* xp_epub_test_section_fixture_page(void*, int32_t);
+
 uint8_t xp_epub_test_section_fixture_query(void*, uint8_t, uint32_t, uint8_t, uint32_t*);
 uint8_t xp_epub_test_section_fixture_anchor(void*, XpAppText, uint8_t, uint16_t*);
 int32_t xp_epub_test_section_fixture_toc(void*, int32_t);
@@ -256,9 +258,7 @@ bool ReaderSectionFixture::isPartial() const {
   return v[3];
 }
 uint16_t ReaderSectionFixture::estimatedTotalPages() const { return xp_epub_test_section_fixture_estimate(owner); }
-std::unique_ptr<Page> ReaderSectionFixture::loadPage(int page) const {
-  return std::unique_ptr<Page>(static_cast<Page*>(xp_epub_test_section_fixture_page(owner, page)));
-}
+std::unique_ptr<Page> ReaderSectionFixture::loadPage(int page) const { return fixtureSectionPage(owner, page); }
 std::optional<uint32_t> ReaderSectionFixture::query(uint8_t kind, uint32_t value, bool first) const {
   uint32_t result;
   if (!xp_epub_test_section_fixture_query(owner, kind, value, first, &result)) return {};

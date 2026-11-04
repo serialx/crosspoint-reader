@@ -44,30 +44,30 @@ static XpEpubLeaves physicalLeaves() {
             spec.paragraphAlignment, spec.hyphenationEnabled, spec.embeddedStyle,
             spec.imageRendering, spec.focusReadingEnabled};
   };
-  table.page_info = [](void* p, XpEpubPageInfo* out) {
+  legacySection.page.page_info = [](void* p, XpEpubPageInfo* out) {
     assert(out); *out = {}; out->elements = page(p).elementCount();
   };
-  table.page_element = [](void* p, uint16_t index, XpEpubElement* out) {
+  legacySection.page.page_element = [](void* p, uint16_t index, XpEpubElement* out) {
     const auto& value = page(p); assert(out && index < value.elementCount());
     const auto e = value.element(index); *out = {}; out->x = e.xPos; out->y = e.yPos; out->tag = e.getTag();
     if (out->tag == TAG_PageLine) { out->valid = e.textBlock().valid(); out->words = e.textBlock().wordCount(); }
   };
-  table.page_word = [](void* p, uint16_t element, uint16_t word, XpEpubWord* out) {
+  legacySection.page.page_word = [](void* p, uint16_t element, uint16_t word, XpEpubWord* out) {
     const auto& b = block(p, element); assert(out && word < b.wordCount());
     const auto range = b.wordSourceRange(word);
     *out = {{reinterpret_cast<const uint8_t*>(b.wordText(word)), b.wordTextLen(word)}, b.wordXpos(word),
             range.start, range.end, static_cast<uint8_t>(b.wordStyle(word)), b.getBlockStyle().characterSpacing};
   };
-  table.page_word_font = [](void* p, uint16_t e, uint16_t w, int32_t base) -> int32_t {
+  legacySection.page.page_word_font = [](void* p, uint16_t e, uint16_t w, int32_t base) -> int32_t {
     return TextBlock::renderFontId(active->reader.renderer, block(p, e).wordFontId(w, base), base);
   };
-  table.page_line_font = [](void* p, uint16_t e, int32_t base) -> int32_t {
+  legacySection.page.page_line_font = [](void* p, uint16_t e, int32_t base) -> int32_t {
     return TextBlock::renderFontId(active->reader.renderer, block(p, e).blockFontId(base), base);
   };
-  table.page_word_y_offset = [](void* p, uint16_t e, uint16_t w, int32_t base) -> int32_t {
+  legacySection.page.page_word_y_offset = [](void* p, uint16_t e, uint16_t w, int32_t base) -> int32_t {
     return block(p, e).wordYOffset(active->reader.renderer, base, w);
   };
-  table.page_line_ruby_shift = [](void* p, uint16_t e, int32_t font) -> int32_t {
+  legacySection.page.page_line_ruby_shift = [](void* p, uint16_t e, int32_t font) -> int32_t {
     return block(p, e).getRubyShift(active->reader.renderer.getFontAscenderSize(font));
   };
   table.font_text_advance = [](XpAppText value, int32_t font, uint8_t style, int8_t tracking) -> int32_t {

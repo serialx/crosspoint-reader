@@ -124,7 +124,7 @@ static void installActualStore() {
     ++rowCalls;
     actualRow(index, out);
   };
-  childLeaves.physical.page_info = [](void* raw, XpEpubPageInfo* out) {
+  childLeaves.book.section.page.page_info = [](void* raw, XpEpubPageInfo* out) {
     assert(lockDepth == 1 && !modelDepth && raw == emptyPage);
     ++pageInfoCalls;
     *out = {};  // Physical Page has no elements; no highlight policy is substituted.

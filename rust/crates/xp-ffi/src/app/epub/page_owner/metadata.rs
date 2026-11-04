@@ -15,6 +15,12 @@ impl Metadata {
         self.links = None;
     }
 
+    // Match native member destruction; replacement uses clear's opposite order.
+    pub(in crate::app::epub) fn clear_for_shutdown(&mut self) {
+        self.links = None;
+        self.footnotes = None;
+    }
+
     pub(in crate::app::epub) fn assign(
         &mut self,
         resources: &'static app_abi::Resources,

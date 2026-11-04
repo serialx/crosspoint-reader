@@ -59,6 +59,7 @@ pub unsafe extern "C" fn xp_epub_test_settings_create_legacy_section(
     else {
         return core::ptr::null_mut();
     };
+    owner.legacy_pages.set(Some(&legacy_section.page));
     let state = owner.state.get_mut();
     state.ready = true;
     state.current = Position {

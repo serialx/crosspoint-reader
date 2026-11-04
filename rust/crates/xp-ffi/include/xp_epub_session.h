@@ -90,45 +90,6 @@ typedef struct {
 } XpEpubSettings;
 
 typedef struct {
-  uint32_t visible_offset;
-  uint16_t elements;
-  uint16_t footnotes;
-  uint16_t links;
-  uint8_t images;
-  uint8_t images_need_decode;
-} XpEpubPageInfo;
-
-typedef struct {
-  int32_t x;
-  int32_t y;
-  uint16_t words;
-  uint8_t tag;
-  uint8_t valid;
-} XpEpubElement;
-
-typedef struct {
-  XpAppText text;
-  int32_t x;
-  uint32_t source_start;
-  uint32_t source_end;
-  uint8_t style;
-  int8_t character_spacing;
-} XpEpubWord;
-
-typedef struct {
-  XpAppText text;
-  XpAppText href;
-} XpEpubFootnote;
-
-typedef struct {
-  XpAppText href;
-  int32_t x;
-  int32_t y;
-  int32_t width;
-  int32_t height;
-} XpEpubLink;
-
-typedef struct {
   uint32_t free_bytes;
   uint32_t largest_block;
 } XpEpubHeap;
@@ -278,15 +239,28 @@ typedef struct {
   uint16_t end_progress;
 } XpEpubSessionEvent;
 
+// Immutable decoded bytes; all spans expire when the Rust owner is released.
+typedef struct {
+  const uint8_t* arena;
+  size_t size;
+  uint32_t visible_offset;
+} XpEpubPageView;
+
+// A factory borrows this record until success. Success clears owner after adoption;
+// failure leaves it unchanged. The native facade invokes destroy exactly once.
+typedef struct {
+  XpEpubPageView view;
+  void* owner;
+  void (*destroy)(void* owner);
+} XpEpubOwnedPage;
+
 typedef uint8_t (*XpEpubSpineSink)(void* context, const XpEpubSpine* value);
 typedef uint8_t (*XpEpubTocSink)(void* context, const XpEpubToc* value);
 typedef uint8_t (*XpEpubSavedProgressSink)(void* context, const XpEpubSavedProgress* value);
-typedef uint8_t (*XpEpubFootnoteSink)(void* context, const XpEpubFootnote* value);
-typedef uint8_t (*XpEpubLinkSink)(void* context, const XpEpubLink* value);
 typedef uint8_t (*XpEpubBookmarkSink)(void* context, const XpEpubBookmark* value);
 typedef uint8_t (*XpEpubToolbarRowSink)(void* context, const XpEpubToolbarRow* value);
 typedef void (*XpEpubBuildPopup)(void* context);
-typedef void (*XpEpubHighlight)(void* context, void* page, int32_t font, int32_t left, int32_t top);
+typedef void (*XpEpubHighlight)(void* context, const XpEpubPageView* page, int32_t font, int32_t left, int32_t top);
 typedef uint8_t (*XpEpubRowSource)(void* context, int32_t index, XpEpubToolbarRowSink sink, void* sink_context);
 
 // The reader owns all data behind this view until every native loan is released.
@@ -312,8 +286,8 @@ typedef struct XpEpubLeaves {
   void* (*resources_open)(void);
   void (*resources_close)(void* resources);
   const XpUiReaderRenderServices* (*render_services)(void* resources);
-  void (*render_bind_page)(void* resources, void* page, int32_t font, int32_t left, int32_t top, int32_t bottom,
-                           XpEpubHighlight highlight, void* context);
+  void (*render_bind_page)(void* resources, const XpEpubPageView* page, int32_t font, int32_t left, int32_t top,
+                           int32_t bottom, XpEpubHighlight highlight, void* context);
   void (*render_finish_page)(void* resources);
   void (*render_margins)(int32_t* margins);
   void (*render_geometry)(XpEpubGeometry* out);
@@ -341,16 +315,6 @@ typedef struct XpEpubLeaves {
                              XpEpubPosition* out);
   uint8_t (*progress_to_saved)(void* book, const XpEpubPosition* position, XpEpubSavedProgressSink sink, void* context);
   uint8_t (*progress_save)(void* book, const XpEpubPosition* position);
-  void (*page_close)(void* page);
-  void (*page_info)(void* page, XpEpubPageInfo* out);
-  void (*page_element)(void* page, uint16_t index, XpEpubElement* out);
-  void (*page_word)(void* page, uint16_t element, uint16_t word, XpEpubWord* out);
-  uint8_t (*metadata_assign)(void* resources, void* page);
-  void (*metadata_clear)(void* resources);
-  uint16_t (*metadata_footnotes)(void* resources);
-  uint16_t (*metadata_links)(void* resources);
-  uint8_t (*metadata_footnote)(void* resources, uint16_t index, XpEpubFootnoteSink sink, void* context);
-  uint8_t (*metadata_link)(void* resources, uint16_t index, XpEpubLinkSink sink, void* context);
   void (*paint_dither)(int32_t x, int32_t y, int32_t width, int32_t height);
   void (*paint_pixel)(int32_t x, int32_t y);
   void (*paint_status)(const XpEpubStatus* status);
@@ -404,14 +368,14 @@ typedef struct XpEpubLeaves {
   void (*wifi_disconnect)(uint8_t off);
   void (*restart_reader)(void);
   // Child factories return an owned native legacy wrapper for App adoption, never a raw Activity.
-  // Non-null transfers the supplied Pages to the child; null leaves every Page with the caller.
+  // Non-null consumes each Rust Page owner; null leaves every owner with the caller.
   void* (*child_menu)(const XpEpubMenuArgs* args);
   void* (*child_chapter)(void* book, int32_t toc);
   void* (*child_percent)(int32_t percent);
   void* (*child_text_settings)(void);
-  void* (*child_footnote)(void* page, int32_t left, int32_t top);
-  void* (*child_dictionary)(void* page, int32_t left, int32_t top, XpAppText initial_text);
-  void* (*child_selection)(void** pages, uint8_t count, const XpEpubSelectionArgs* args);
+  void* (*child_footnote)(XpEpubOwnedPage* page, int32_t left, int32_t top);
+  void* (*child_dictionary)(XpEpubOwnedPage* page, int32_t left, int32_t top, XpAppText initial_text);
+  void* (*child_selection)(XpEpubOwnedPage* pages, uint8_t count, const XpEpubSelectionArgs* args);
   void* (*child_bookmarks)(void* book, XpAppText path);
   void* (*child_clippings)(void);
   void* (*child_qr)(XpAppText text);
@@ -479,15 +443,10 @@ typedef struct XpEpubLeaves {
   void (*emit_exit)(XpAppText path, int32_t percent);
   void (*emit_session)(XpAppText path, XpAppText document, const XpEpubSessionEvent* event);
   void (*log)(uint8_t severity, XpAppText origin, XpAppText message);
-  int32_t (*page_word_font)(void* page, uint16_t element, uint16_t word, int32_t reader_font);
-  int32_t (*page_line_font)(void* page, uint16_t element, int32_t reader_font);
-  int32_t (*page_word_y_offset)(void* page, uint16_t element, uint16_t word, int32_t reader_font);
-  int32_t (*page_line_ruby_shift)(void* page, uint16_t element, int32_t line_font);
   int32_t (*font_text_advance)(XpAppText text, int32_t font, uint8_t style, int8_t character_spacing);
   uint8_t (*log_enabled)(uint8_t severity);
   void (*toolbar_reset_navigation)(void* toolbar, int32_t selected, int32_t top);
   void (*input_snapshot)(XpUiInput* out);
-  void (*page_render)(void* page, int32_t font, int32_t left, int32_t top);
   // Lock order: ResourceAccess, cache, Storage.
   void (*cache_lock)(void);
   void (*cache_unlock)(void);
@@ -508,11 +467,13 @@ typedef struct XpEpubLeaves {
   uint8_t (*image_supported)(XpAppText path);
   // 0: no decoder, 1: dimensions failed, 2: success. Path borrows terminated storage.
   uint8_t (*image_dimensions)(XpAppText path, uint16_t* width, uint16_t* height);
-  // Temporary Page owner bridge: borrows file; result transfers to page_close or a child.
-  void* (*page_load)(void* file, uint32_t bytes, uint32_t visible_offset);
   // Lend returns whether this scope owns restoration; nested scopes return zero.
   uint8_t (*framebuffer_lend)(void);
   void (*framebuffer_restore)(uint8_t owned);
+  // Painting borrows immutable arena bytes only for the synchronous call.
+  void (*paint_arena)(const XpEpubPageView* page, int32_t font, int32_t left, int32_t top, uint8_t mode);
+  uint8_t (*image_needs_decode)(XpAppText path, XpAppText source, int16_t width, int16_t height);
+  int32_t (*font_ascent)(int32_t font);
 } XpEpubLeaves;
 
 #ifdef __cplusplus
@@ -521,6 +482,9 @@ typedef struct XpEpubLeaves {
 #else
 #define XP_EPUB_ASSERT(condition, message) _Static_assert(condition, message)
 #endif
+XP_EPUB_ASSERT(sizeof(XpEpubPageView) == (sizeof(void*) == 8 ? 24 : 12), "XpEpubPageView size");
+XP_EPUB_ASSERT(sizeof(XpEpubOwnedPage) == sizeof(XpEpubPageView) + 2 * sizeof(void*), "XpEpubOwnedPage size");
+XP_EPUB_ASSERT(offsetof(XpEpubOwnedPage, owner) == sizeof(XpEpubPageView), "XpEpubOwnedPage.owner");
 XP_EPUB_ASSERT(sizeof(XpEpubPosition) == 92, "XpEpubPosition size");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, visible_offset) == 12, "XpEpubPosition.visible_offset");
 XP_EPUB_ASSERT(offsetof(XpEpubPosition, anchor) == 25, "XpEpubPosition.anchor");
@@ -542,16 +506,6 @@ XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, touch) == 10, "XpEpubInputFacts.touch"
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, board_touch) == 11, "XpEpubInputFacts.board_touch");
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, home_action) == 12, "XpEpubInputFacts.home_action");
 XP_EPUB_ASSERT(offsetof(XpEpubInputFacts, slide_owns_light) == 13, "XpEpubInputFacts.slide_owns_light");
-XP_EPUB_ASSERT(sizeof(XpEpubElement) == 12, "XpEpubElement size");
-XP_EPUB_ASSERT(offsetof(XpEpubElement, words) == 8, "XpEpubElement.words");
-XP_EPUB_ASSERT(offsetof(XpEpubElement, tag) == 10, "XpEpubElement.tag");
-XP_EPUB_ASSERT(offsetof(XpEpubElement, valid) == 11, "XpEpubElement.valid");
-XP_EPUB_ASSERT(sizeof(XpEpubWord) == sizeof(XpAppText) + 16, "XpEpubWord size");
-XP_EPUB_ASSERT(offsetof(XpEpubWord, x) == sizeof(XpAppText), "XpEpubWord.x");
-XP_EPUB_ASSERT(offsetof(XpEpubWord, source_start) == sizeof(XpAppText) + 4, "XpEpubWord.source_start");
-XP_EPUB_ASSERT(offsetof(XpEpubWord, source_end) == sizeof(XpAppText) + 8, "XpEpubWord.source_end");
-XP_EPUB_ASSERT(offsetof(XpEpubWord, style) == sizeof(XpAppText) + 12, "XpEpubWord.style");
-XP_EPUB_ASSERT(offsetof(XpEpubWord, character_spacing) == sizeof(XpAppText) + 13, "XpEpubWord.character_spacing");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, orientation) == 4, "XpEpubSettings.orientation");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, dictionary_available) == 26, "XpEpubSettings.dictionary_available");
 XP_EPUB_ASSERT(offsetof(XpEpubSettings, font_family) == (sizeof(void*) == 8 ? 32 : 28), "XpEpubSettings.font_family");
@@ -565,7 +519,7 @@ XP_EPUB_ASSERT(sizeof(XpEpubToolbarRow) == 2 * sizeof(XpAppText) + 8, "XpEpubToo
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, label_spaces) == 2 * sizeof(XpAppText), "XpEpubToolbarRow.label_spaces");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, toggle) == 2 * sizeof(XpAppText) + 4, "XpEpubToolbarRow.toggle");
 XP_EPUB_ASSERT(offsetof(XpEpubToolbarRow, checked) == 2 * sizeof(XpAppText) + 5, "XpEpubToolbarRow.checked");
-XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)(void)), "XpEpubLeaves size");
+XP_EPUB_ASSERT(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)(void)), "XpEpubLeaves size");
 #define XP_EPUB_LEAF_OFFSET(field, index) \
   XP_EPUB_ASSERT(offsetof(XpEpubLeaves, field) == (index) * sizeof(void (*)(void)), "XpEpubLeaves." #field)
 XP_EPUB_LEAF_OFFSET(resources_open, 0);
@@ -594,160 +548,147 @@ XP_EPUB_LEAF_OFFSET(path_remove_tree, 22);
 XP_EPUB_LEAF_OFFSET(progress_to_reader, 23);
 XP_EPUB_LEAF_OFFSET(progress_to_saved, 24);
 XP_EPUB_LEAF_OFFSET(progress_save, 25);
-XP_EPUB_LEAF_OFFSET(page_close, 26);
-XP_EPUB_LEAF_OFFSET(page_info, 27);
-XP_EPUB_LEAF_OFFSET(page_element, 28);
-XP_EPUB_LEAF_OFFSET(page_word, 29);
-XP_EPUB_LEAF_OFFSET(metadata_assign, 30);
-XP_EPUB_LEAF_OFFSET(metadata_clear, 31);
-XP_EPUB_LEAF_OFFSET(metadata_footnotes, 32);
-XP_EPUB_LEAF_OFFSET(metadata_links, 33);
-XP_EPUB_LEAF_OFFSET(metadata_footnote, 34);
-XP_EPUB_LEAF_OFFSET(metadata_link, 35);
-XP_EPUB_LEAF_OFFSET(paint_dither, 36);
-XP_EPUB_LEAF_OFFSET(paint_pixel, 37);
-XP_EPUB_LEAF_OFFSET(paint_status, 38);
-XP_EPUB_LEAF_OFFSET(image_clear_failures, 39);
-XP_EPUB_LEAF_OFFSET(image_release_cache, 40);
-XP_EPUB_LEAF_OFFSET(fonts_ensure_loaded, 41);
-XP_EPUB_LEAF_OFFSET(fonts_release_caches, 42);
-XP_EPUB_LEAF_OFFSET(fonts_prewarm_begin, 43);
-XP_EPUB_LEAF_OFFSET(fonts_prewarm_finish_scan, 44);
-XP_EPUB_LEAF_OFFSET(fonts_prewarm_drop, 45);
-XP_EPUB_LEAF_OFFSET(fonts_take_corrupt_notice, 46);
-XP_EPUB_LEAF_OFFSET(font_sizes, 47);
-XP_EPUB_LEAF_OFFSET(settings_snapshot, 48);
-XP_EPUB_LEAF_OFFSET(settings_render_spec, 49);
-XP_EPUB_LEAF_OFFSET(settings_orientation, 50);
-XP_EPUB_LEAF_OFFSET(settings_font_size, 51);
-XP_EPUB_LEAF_OFFSET(settings_line_spacing, 52);
-XP_EPUB_LEAF_OFFSET(settings_alignment, 53);
-XP_EPUB_LEAF_OFFSET(settings_focus_reading, 54);
-XP_EPUB_LEAF_OFFSET(settings_inversion, 55);
-XP_EPUB_LEAF_OFFSET(settings_ble_enabled, 56);
-XP_EPUB_LEAF_OFFSET(settings_save, 57);
-XP_EPUB_LEAF_OFFSET(input_services, 58);
-XP_EPUB_LEAF_OFFSET(input_facts, 59);
-XP_EPUB_LEAF_OFFSET(input_pressed, 60);
-XP_EPUB_LEAF_OFFSET(input_screen_long, 61);
-XP_EPUB_LEAF_OFFSET(input_screen_tap, 62);
-XP_EPUB_LEAF_OFFSET(input_raw_contact, 63);
-XP_EPUB_LEAF_OFFSET(render_busy, 64);
-XP_EPUB_LEAF_OFFSET(file_open_read, 65);
-XP_EPUB_LEAF_OFFSET(file_open_write, 66);
-XP_EPUB_LEAF_OFFSET(file_read, 67);
-XP_EPUB_LEAF_OFFSET(file_write, 68);
-XP_EPUB_LEAF_OFFSET(file_close, 69);
-XP_EPUB_LEAF_OFFSET(path_remove, 70);
-XP_EPUB_LEAF_OFFSET(path_rename, 71);
-XP_EPUB_LEAF_OFFSET(path_mkdir, 72);
-XP_EPUB_LEAF_OFFSET(native_path_hash, 73);
-XP_EPUB_LEAF_OFFSET(heap_snapshot, 74);
-XP_EPUB_LEAF_OFFSET(radio_status, 75);
-XP_EPUB_LEAF_OFFSET(radio_before_build, 76);
-XP_EPUB_LEAF_OFFSET(radio_settle_start, 77);
-XP_EPUB_LEAF_OFFSET(radio_holds_heap, 78);
-XP_EPUB_LEAF_OFFSET(radio_after_paint, 79);
-XP_EPUB_LEAF_OFFSET(radio_switch_off, 80);
-XP_EPUB_LEAF_OFFSET(radio_request_connect, 81);
-XP_EPUB_LEAF_OFFSET(trusted_now, 82);
-XP_EPUB_LEAF_OFFSET(trusted_sync, 83);
-XP_EPUB_LEAF_OFFSET(wifi_connected, 84);
-XP_EPUB_LEAF_OFFSET(wifi_disconnect, 85);
-XP_EPUB_LEAF_OFFSET(restart_reader, 86);
-XP_EPUB_LEAF_OFFSET(child_menu, 87);
-XP_EPUB_LEAF_OFFSET(child_chapter, 88);
-XP_EPUB_LEAF_OFFSET(child_percent, 89);
-XP_EPUB_LEAF_OFFSET(child_text_settings, 90);
-XP_EPUB_LEAF_OFFSET(child_footnote, 91);
-XP_EPUB_LEAF_OFFSET(child_dictionary, 92);
-XP_EPUB_LEAF_OFFSET(child_selection, 93);
-XP_EPUB_LEAF_OFFSET(child_bookmarks, 94);
-XP_EPUB_LEAF_OFFSET(child_clippings, 95);
-XP_EPUB_LEAF_OFFSET(child_qr, 96);
-XP_EPUB_LEAF_OFFSET(child_wifi, 97);
-XP_EPUB_LEAF_OFFSET(child_sync, 98);
-XP_EPUB_LEAF_OFFSET(toolbar_open, 99);
-XP_EPUB_LEAF_OFFSET(toolbar_close, 100);
-XP_EPUB_LEAF_OFFSET(toolbar_begin, 101);
-XP_EPUB_LEAF_OFFSET(toolbar_paint, 102);
-XP_EPUB_LEAF_OFFSET(toolbar_route, 103);
-XP_EPUB_LEAF_OFFSET(toolbar_scroll, 104);
-XP_EPUB_LEAF_OFFSET(toolbar_visible_rows, 105);
-XP_EPUB_LEAF_OFFSET(popup_open, 106);
-XP_EPUB_LEAF_OFFSET(popup_close, 107);
-XP_EPUB_LEAF_OFFSET(popup_active, 108);
-XP_EPUB_LEAF_OFFSET(popup_show, 109);
-XP_EPUB_LEAF_OFFSET(popup_dismiss, 110);
-XP_EPUB_LEAF_OFFSET(popup_input, 111);
-XP_EPUB_LEAF_OFFSET(popup_paint, 112);
-XP_EPUB_LEAF_OFFSET(popup_process_render, 113);
-XP_EPUB_LEAF_OFFSET(end_open, 114);
-XP_EPUB_LEAF_OFFSET(end_close, 115);
-XP_EPUB_LEAF_OFFSET(end_load, 116);
-XP_EPUB_LEAF_OFFSET(end_menu_active, 117);
-XP_EPUB_LEAF_OFFSET(end_input, 118);
-XP_EPUB_LEAF_OFFSET(end_paint, 119);
-XP_EPUB_LEAF_OFFSET(bookmarks_open, 120);
-XP_EPUB_LEAF_OFFSET(bookmarks_close, 121);
-XP_EPUB_LEAF_OFFSET(bookmarks_clear, 122);
-XP_EPUB_LEAF_OFFSET(bookmarks_load, 123);
-XP_EPUB_LEAF_OFFSET(bookmarks_save, 124);
-XP_EPUB_LEAF_OFFSET(bookmarks_count, 125);
-XP_EPUB_LEAF_OFFSET(bookmarks_row, 126);
-XP_EPUB_LEAF_OFFSET(bookmarks_retain, 127);
-XP_EPUB_LEAF_OFFSET(bookmarks_insert_front, 128);
-XP_EPUB_LEAF_OFFSET(clippings_load, 129);
-XP_EPUB_LEAF_OFFSET(clippings_unload, 130);
-XP_EPUB_LEAF_OFFSET(clippings_count, 131);
-XP_EPUB_LEAF_OFFSET(clippings_row, 132);
-XP_EPUB_LEAF_OFFSET(clippings_remove, 133);
-XP_EPUB_LEAF_OFFSET(clippings_insert, 134);
-XP_EPUB_LEAF_OFFSET(clippings_export, 135);
-XP_EPUB_LEAF_OFFSET(clippings_move_book, 136);
-XP_EPUB_LEAF_OFFSET(recents_remove, 137);
-XP_EPUB_LEAF_OFFSET(recents_add, 138);
-XP_EPUB_LEAF_OFFSET(recents_update_path, 139);
-XP_EPUB_LEAF_OFFSET(state_open_path, 140);
-XP_EPUB_LEAF_OFFSET(state_set_open_path, 141);
-XP_EPUB_LEAF_OFFSET(state_reset_reader_count, 142);
-XP_EPUB_LEAF_OFFSET(state_save, 143);
-XP_EPUB_LEAF_OFFSET(has_sync_credentials, 144);
-XP_EPUB_LEAF_OFFSET(has_exit_subscriber, 145);
-XP_EPUB_LEAF_OFFSET(has_session_subscriber, 146);
-XP_EPUB_LEAF_OFFSET(document_id, 147);
-XP_EPUB_LEAF_OFFSET(emit_open, 148);
-XP_EPUB_LEAF_OFFSET(emit_exit, 149);
-XP_EPUB_LEAF_OFFSET(emit_session, 150);
-XP_EPUB_LEAF_OFFSET(log, 151);
-XP_EPUB_LEAF_OFFSET(page_word_font, 152);
-XP_EPUB_LEAF_OFFSET(page_line_font, 153);
-XP_EPUB_LEAF_OFFSET(page_word_y_offset, 154);
-XP_EPUB_LEAF_OFFSET(page_line_ruby_shift, 155);
-XP_EPUB_LEAF_OFFSET(font_text_advance, 156);
-XP_EPUB_LEAF_OFFSET(log_enabled, 157);
-XP_EPUB_LEAF_OFFSET(toolbar_reset_navigation, 158);
-XP_EPUB_LEAF_OFFSET(input_snapshot, 159);
-XP_EPUB_LEAF_OFFSET(page_render, 160);
-XP_EPUB_LEAF_OFFSET(cache_lock, 161);
-XP_EPUB_LEAF_OFFSET(cache_unlock, 162);
-XP_EPUB_LEAF_OFFSET(scratch_claim, 163);
-XP_EPUB_LEAF_OFFSET(scratch_release, 164);
-XP_EPUB_LEAF_OFFSET(inflate_oom_log, 165);
-XP_EPUB_LEAF_OFFSET(build_metrics, 166);
-XP_EPUB_LEAF_OFFSET(build_allocator, 167);
-XP_EPUB_LEAF_OFFSET(font_variant, 168);
-XP_EPUB_LEAF_OFFSET(font_line_height, 169);
-XP_EPUB_LEAF_OFFSET(font_ready, 170);
-XP_EPUB_LEAF_OFFSET(font_codepoint, 171);
-XP_EPUB_LEAF_OFFSET(hyphen_language, 172);
-XP_EPUB_LEAF_OFFSET(file_position, 173);
-XP_EPUB_LEAF_OFFSET(file_flush, 174);
-XP_EPUB_LEAF_OFFSET(image_supported, 175);
-XP_EPUB_LEAF_OFFSET(image_dimensions, 176);
-XP_EPUB_LEAF_OFFSET(page_load, 177);
-XP_EPUB_LEAF_OFFSET(framebuffer_lend, 178);
-XP_EPUB_LEAF_OFFSET(framebuffer_restore, 179);
+XP_EPUB_LEAF_OFFSET(paint_dither, 26);
+XP_EPUB_LEAF_OFFSET(paint_pixel, 27);
+XP_EPUB_LEAF_OFFSET(paint_status, 28);
+XP_EPUB_LEAF_OFFSET(image_clear_failures, 29);
+XP_EPUB_LEAF_OFFSET(image_release_cache, 30);
+XP_EPUB_LEAF_OFFSET(fonts_ensure_loaded, 31);
+XP_EPUB_LEAF_OFFSET(fonts_release_caches, 32);
+XP_EPUB_LEAF_OFFSET(fonts_prewarm_begin, 33);
+XP_EPUB_LEAF_OFFSET(fonts_prewarm_finish_scan, 34);
+XP_EPUB_LEAF_OFFSET(fonts_prewarm_drop, 35);
+XP_EPUB_LEAF_OFFSET(fonts_take_corrupt_notice, 36);
+XP_EPUB_LEAF_OFFSET(font_sizes, 37);
+XP_EPUB_LEAF_OFFSET(settings_snapshot, 38);
+XP_EPUB_LEAF_OFFSET(settings_render_spec, 39);
+XP_EPUB_LEAF_OFFSET(settings_orientation, 40);
+XP_EPUB_LEAF_OFFSET(settings_font_size, 41);
+XP_EPUB_LEAF_OFFSET(settings_line_spacing, 42);
+XP_EPUB_LEAF_OFFSET(settings_alignment, 43);
+XP_EPUB_LEAF_OFFSET(settings_focus_reading, 44);
+XP_EPUB_LEAF_OFFSET(settings_inversion, 45);
+XP_EPUB_LEAF_OFFSET(settings_ble_enabled, 46);
+XP_EPUB_LEAF_OFFSET(settings_save, 47);
+XP_EPUB_LEAF_OFFSET(input_services, 48);
+XP_EPUB_LEAF_OFFSET(input_facts, 49);
+XP_EPUB_LEAF_OFFSET(input_pressed, 50);
+XP_EPUB_LEAF_OFFSET(input_screen_long, 51);
+XP_EPUB_LEAF_OFFSET(input_screen_tap, 52);
+XP_EPUB_LEAF_OFFSET(input_raw_contact, 53);
+XP_EPUB_LEAF_OFFSET(render_busy, 54);
+XP_EPUB_LEAF_OFFSET(file_open_read, 55);
+XP_EPUB_LEAF_OFFSET(file_open_write, 56);
+XP_EPUB_LEAF_OFFSET(file_read, 57);
+XP_EPUB_LEAF_OFFSET(file_write, 58);
+XP_EPUB_LEAF_OFFSET(file_close, 59);
+XP_EPUB_LEAF_OFFSET(path_remove, 60);
+XP_EPUB_LEAF_OFFSET(path_rename, 61);
+XP_EPUB_LEAF_OFFSET(path_mkdir, 62);
+XP_EPUB_LEAF_OFFSET(native_path_hash, 63);
+XP_EPUB_LEAF_OFFSET(heap_snapshot, 64);
+XP_EPUB_LEAF_OFFSET(radio_status, 65);
+XP_EPUB_LEAF_OFFSET(radio_before_build, 66);
+XP_EPUB_LEAF_OFFSET(radio_settle_start, 67);
+XP_EPUB_LEAF_OFFSET(radio_holds_heap, 68);
+XP_EPUB_LEAF_OFFSET(radio_after_paint, 69);
+XP_EPUB_LEAF_OFFSET(radio_switch_off, 70);
+XP_EPUB_LEAF_OFFSET(radio_request_connect, 71);
+XP_EPUB_LEAF_OFFSET(trusted_now, 72);
+XP_EPUB_LEAF_OFFSET(trusted_sync, 73);
+XP_EPUB_LEAF_OFFSET(wifi_connected, 74);
+XP_EPUB_LEAF_OFFSET(wifi_disconnect, 75);
+XP_EPUB_LEAF_OFFSET(restart_reader, 76);
+XP_EPUB_LEAF_OFFSET(child_menu, 77);
+XP_EPUB_LEAF_OFFSET(child_chapter, 78);
+XP_EPUB_LEAF_OFFSET(child_percent, 79);
+XP_EPUB_LEAF_OFFSET(child_text_settings, 80);
+XP_EPUB_LEAF_OFFSET(child_footnote, 81);
+XP_EPUB_LEAF_OFFSET(child_dictionary, 82);
+XP_EPUB_LEAF_OFFSET(child_selection, 83);
+XP_EPUB_LEAF_OFFSET(child_bookmarks, 84);
+XP_EPUB_LEAF_OFFSET(child_clippings, 85);
+XP_EPUB_LEAF_OFFSET(child_qr, 86);
+XP_EPUB_LEAF_OFFSET(child_wifi, 87);
+XP_EPUB_LEAF_OFFSET(child_sync, 88);
+XP_EPUB_LEAF_OFFSET(toolbar_open, 89);
+XP_EPUB_LEAF_OFFSET(toolbar_close, 90);
+XP_EPUB_LEAF_OFFSET(toolbar_begin, 91);
+XP_EPUB_LEAF_OFFSET(toolbar_paint, 92);
+XP_EPUB_LEAF_OFFSET(toolbar_route, 93);
+XP_EPUB_LEAF_OFFSET(toolbar_scroll, 94);
+XP_EPUB_LEAF_OFFSET(toolbar_visible_rows, 95);
+XP_EPUB_LEAF_OFFSET(popup_open, 96);
+XP_EPUB_LEAF_OFFSET(popup_close, 97);
+XP_EPUB_LEAF_OFFSET(popup_active, 98);
+XP_EPUB_LEAF_OFFSET(popup_show, 99);
+XP_EPUB_LEAF_OFFSET(popup_dismiss, 100);
+XP_EPUB_LEAF_OFFSET(popup_input, 101);
+XP_EPUB_LEAF_OFFSET(popup_paint, 102);
+XP_EPUB_LEAF_OFFSET(popup_process_render, 103);
+XP_EPUB_LEAF_OFFSET(end_open, 104);
+XP_EPUB_LEAF_OFFSET(end_close, 105);
+XP_EPUB_LEAF_OFFSET(end_load, 106);
+XP_EPUB_LEAF_OFFSET(end_menu_active, 107);
+XP_EPUB_LEAF_OFFSET(end_input, 108);
+XP_EPUB_LEAF_OFFSET(end_paint, 109);
+XP_EPUB_LEAF_OFFSET(bookmarks_open, 110);
+XP_EPUB_LEAF_OFFSET(bookmarks_close, 111);
+XP_EPUB_LEAF_OFFSET(bookmarks_clear, 112);
+XP_EPUB_LEAF_OFFSET(bookmarks_load, 113);
+XP_EPUB_LEAF_OFFSET(bookmarks_save, 114);
+XP_EPUB_LEAF_OFFSET(bookmarks_count, 115);
+XP_EPUB_LEAF_OFFSET(bookmarks_row, 116);
+XP_EPUB_LEAF_OFFSET(bookmarks_retain, 117);
+XP_EPUB_LEAF_OFFSET(bookmarks_insert_front, 118);
+XP_EPUB_LEAF_OFFSET(clippings_load, 119);
+XP_EPUB_LEAF_OFFSET(clippings_unload, 120);
+XP_EPUB_LEAF_OFFSET(clippings_count, 121);
+XP_EPUB_LEAF_OFFSET(clippings_row, 122);
+XP_EPUB_LEAF_OFFSET(clippings_remove, 123);
+XP_EPUB_LEAF_OFFSET(clippings_insert, 124);
+XP_EPUB_LEAF_OFFSET(clippings_export, 125);
+XP_EPUB_LEAF_OFFSET(clippings_move_book, 126);
+XP_EPUB_LEAF_OFFSET(recents_remove, 127);
+XP_EPUB_LEAF_OFFSET(recents_add, 128);
+XP_EPUB_LEAF_OFFSET(recents_update_path, 129);
+XP_EPUB_LEAF_OFFSET(state_open_path, 130);
+XP_EPUB_LEAF_OFFSET(state_set_open_path, 131);
+XP_EPUB_LEAF_OFFSET(state_reset_reader_count, 132);
+XP_EPUB_LEAF_OFFSET(state_save, 133);
+XP_EPUB_LEAF_OFFSET(has_sync_credentials, 134);
+XP_EPUB_LEAF_OFFSET(has_exit_subscriber, 135);
+XP_EPUB_LEAF_OFFSET(has_session_subscriber, 136);
+XP_EPUB_LEAF_OFFSET(document_id, 137);
+XP_EPUB_LEAF_OFFSET(emit_open, 138);
+XP_EPUB_LEAF_OFFSET(emit_exit, 139);
+XP_EPUB_LEAF_OFFSET(emit_session, 140);
+XP_EPUB_LEAF_OFFSET(log, 141);
+XP_EPUB_LEAF_OFFSET(font_text_advance, 142);
+XP_EPUB_LEAF_OFFSET(log_enabled, 143);
+XP_EPUB_LEAF_OFFSET(toolbar_reset_navigation, 144);
+XP_EPUB_LEAF_OFFSET(input_snapshot, 145);
+XP_EPUB_LEAF_OFFSET(cache_lock, 146);
+XP_EPUB_LEAF_OFFSET(cache_unlock, 147);
+XP_EPUB_LEAF_OFFSET(scratch_claim, 148);
+XP_EPUB_LEAF_OFFSET(scratch_release, 149);
+XP_EPUB_LEAF_OFFSET(inflate_oom_log, 150);
+XP_EPUB_LEAF_OFFSET(build_metrics, 151);
+XP_EPUB_LEAF_OFFSET(build_allocator, 152);
+XP_EPUB_LEAF_OFFSET(font_variant, 153);
+XP_EPUB_LEAF_OFFSET(font_line_height, 154);
+XP_EPUB_LEAF_OFFSET(font_ready, 155);
+XP_EPUB_LEAF_OFFSET(font_codepoint, 156);
+XP_EPUB_LEAF_OFFSET(hyphen_language, 157);
+XP_EPUB_LEAF_OFFSET(file_position, 158);
+XP_EPUB_LEAF_OFFSET(file_flush, 159);
+XP_EPUB_LEAF_OFFSET(image_supported, 160);
+XP_EPUB_LEAF_OFFSET(image_dimensions, 161);
+XP_EPUB_LEAF_OFFSET(framebuffer_lend, 162);
+XP_EPUB_LEAF_OFFSET(framebuffer_restore, 163);
+XP_EPUB_LEAF_OFFSET(paint_arena, 164);
+XP_EPUB_LEAF_OFFSET(image_needs_decode, 165);
+XP_EPUB_LEAF_OFFSET(font_ascent, 166);
 #undef XP_EPUB_LEAF_OFFSET
 XP_EPUB_ASSERT(sizeof(XpEpubBookBorrow) == 6 * sizeof(void (*)(void)), "XpEpubBookBorrow size");
 XP_EPUB_ASSERT(offsetof(XpEpubBookBorrow, spine) == 0, "XpEpubBookBorrow.spine");
@@ -757,28 +698,12 @@ XP_EPUB_ASSERT(offsetof(XpEpubSpine, toc_index) == sizeof(XpAppText) + 4, "XpEpu
 #undef XP_EPUB_ASSERT
 
 #ifndef __cplusplus
-_Static_assert(_Generic(((XpEpubLeaves*)0)->page_element, void (*)(void*, uint16_t, XpEpubElement*): 1, default: 0),
-               "XpEpubLeaves.page_element signature");
-_Static_assert(_Generic(((XpEpubLeaves*)0)->page_word, void (*)(void*, uint16_t, uint16_t, XpEpubWord*): 1, default: 0),
-               "XpEpubLeaves.page_word signature");
 _Static_assert(_Generic(((XpEpubLeaves*)0)->end_input,
                    void (*)(void*, void (*)(void*, uint8_t, XpAppText), void*): 1,
                    default: 0),
                "XpEpubLeaves.end_input signature");
 _Static_assert(_Generic(((XpEpubLeaves*)0)->recents_add, void (*)(const XpAppBook*): 1, default: 0),
                "XpEpubLeaves.recents_add signature");
-_Static_assert(_Generic(((XpEpubLeaves*)0)->page_word_font,
-                   int32_t (*)(void*, uint16_t, uint16_t, int32_t): 1,
-                   default: 0),
-               "XpEpubLeaves.page_word_font signature");
-_Static_assert(_Generic(((XpEpubLeaves*)0)->page_line_font, int32_t (*)(void*, uint16_t, int32_t): 1, default: 0),
-               "XpEpubLeaves.page_line_font signature");
-_Static_assert(_Generic(((XpEpubLeaves*)0)->page_word_y_offset,
-                   int32_t (*)(void*, uint16_t, uint16_t, int32_t): 1,
-                   default: 0),
-               "XpEpubLeaves.page_word_y_offset signature");
-_Static_assert(_Generic(((XpEpubLeaves*)0)->page_line_ruby_shift, int32_t (*)(void*, uint16_t, int32_t): 1, default: 0),
-               "XpEpubLeaves.page_line_ruby_shift signature");
 _Static_assert(_Generic(((XpEpubLeaves*)0)->font_text_advance,
                    int32_t (*)(XpAppText, int32_t, uint8_t, int8_t): 1,
                    default: 0),
@@ -795,8 +720,6 @@ _Static_assert(_Generic(((XpEpubLeaves*)0)->toolbar_reset_navigation, void (*)(v
                "XpEpubLeaves.toolbar_reset_navigation signature");
 _Static_assert(_Generic(((XpEpubLeaves*)0)->input_snapshot, void (*)(XpUiInput*): 1, default: 0),
                "XpEpubLeaves.input_snapshot signature");
-_Static_assert(_Generic(((XpEpubLeaves*)0)->page_render, void (*)(void*, int32_t, int32_t, int32_t): 1, default: 0),
-               "XpEpubLeaves.page_render signature");
 _Static_assert(_Generic(((XpEpubGeometry*)0)->has_font_cache, uint8_t: 1, default: 0),
                "XpEpubGeometry.has_font_cache type");
 _Static_assert(_Alignof(XpEpubGeometry) == 4, "XpEpubGeometry alignment");

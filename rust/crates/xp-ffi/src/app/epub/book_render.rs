@@ -538,7 +538,7 @@ impl EpubSession {
             unsafe {
                 (hook.contents)(
                     hook.context,
-                    page.handle.as_ptr(),
+                    page.borrow().fixture_pointer(),
                     viewport.margins.as_ptr(),
                 )
             };
@@ -675,15 +675,28 @@ impl EpubSession {
     fn book_render_page(&self, access: &ResourceAccess<'_>, viewport: &Viewport) -> bool {
         let section = self.section(access).expect("book section");
         let index = self.model(|state| state.current.page);
-        let page = unsafe { Page::from_raw(ReaderSection::load_page(section, index), self.leaves) };
-        if page.as_ref().is_none_or(|page| unsafe { (self.leaves.metadata_assign)(self.native(access), page.handle.as_ptr()) } == 0) {
-            self.book_log(1, if page.is_none() { b"Failed to load page from SD - clearing section cache" } else { b"Failed to copy page metadata - clearing section cache" });
+        let page = unsafe { self.load_page(section, index) };
+        if page
+            .as_ref()
+            .is_none_or(|page| !self.assign_page_metadata(access, page))
+        {
+            self.book_log(
+                1,
+                if page.is_none() {
+                    b"Failed to load page from SD - clearing section cache"
+                } else {
+                    b"Failed to copy page metadata - clearing section cache"
+                },
+            );
             let give_up = self.model(|state| {
                 state.auto_turn = false;
                 state.page_retries = state.page_retries.wrapping_add(1);
                 state.page_retries > 3
             });
-            unsafe { ReaderSection::abandon(section); ReaderSection::clear(section); }
+            unsafe {
+                ReaderSection::abandon(section);
+                ReaderSection::clear(section);
+            }
             self.drop_section(access);
             if give_up {
                 self.book_log(1, b"Page load retry limit reached, aborting");
@@ -691,16 +704,17 @@ impl EpubSession {
                 self.book_clear(access);
                 self.book_error_text(ids::STR_PAGE_LOAD_ERROR);
                 self.book_display(access);
-            } else { self.request_update(); }
+            } else {
+                self.request_update();
+            }
             self.book_sync_error();
             return false;
         }
         let page = page.unwrap();
-        let mut info = MaybeUninit::<abi::XpEpubPageInfo>::uninit();
-        unsafe { (self.leaves.page_info)(page.handle.as_ptr(), info.as_mut_ptr()) };
+        let info = page.borrow().info(self.leaves);
         self.model(|state| {
             state.page_retries = 0;
-            state.visible_offset = Some(unsafe { (*info.as_ptr()).visible_offset });
+            state.visible_offset = Some(info.visible_offset);
             state.link_margins = (viewport.margins[3], viewport.margins[0]);
         });
         self.discard_overlay_page(access);
@@ -767,7 +781,7 @@ impl EpubSession {
     }
 
     pub(super) fn render_book(&self, access: &ResourceAccess<'_>) {
-        unsafe { (self.leaves.metadata_clear)(self.native(access)) };
+        self.clear_page_metadata(access);
         let Some(book) = self.book(access) else {
             return;
         };

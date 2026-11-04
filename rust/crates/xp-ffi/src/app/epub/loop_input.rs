@@ -1,8 +1,4 @@
-use super::{
-    abi, app_abi, book::with_book_text, projection::RemoteShortcut, state::Overlay, EpubSession,
-    Text,
-};
-use core::ffi::c_void;
+use super::{book::with_book_text, projection::RemoteShortcut, state::Overlay, EpubSession, Text};
 use xp_ui::reader::input;
 
 impl EpubSession {
@@ -83,28 +79,7 @@ impl EpubSession {
         let Some(index) = self.loop_link_index(&access, x, y, left, top) else {
             return Ok(None);
         };
-        struct Sink {
-            sink: app_abi::TextSink,
-            context: *mut c_void,
-        }
-        unsafe extern "C" fn href(context: *mut c_void, row: *const abi::XpEpubLink) -> u8 {
-            let capture = &*context.cast::<Sink>();
-            let Some(row) = row.as_ref() else { return 0 };
-            (capture.sink)(capture.context, row.href)
-        }
-        Text::receive(|sink, context| {
-            let mut capture = Sink { sink, context };
-            unsafe {
-                (self.leaves.metadata_link)(
-                    self.native(&access),
-                    index,
-                    href,
-                    (&mut capture as *mut Sink).cast(),
-                )
-            }
-        })
-        .map(Some)
-        .ok_or(())
+        self.metadata_link_href(&access, index).map(Some).ok_or(())
     }
 
     pub(in crate::app) fn dispatch_remote_shortcut(&self, reader_menu: bool) -> bool {

@@ -1,3 +1,4 @@
+from legacy_page_native import source as legacy_page_source
 """Join shipping child factories and legacy callbacks through the real Rust App.
 
 UI, Page and SDK objects are physical fakes; Book and Section ownership is real. Ownership, factory return values,
@@ -165,7 +166,8 @@ struct SavedProgressPosition { std::string xpath; float percentage; };
     physical("sleep-render", 1); assert(token && token->lock);''')
     init = 'void bindProductionChildren() {\n'
     for leaf in CHILDREN:
-        init += f'  leaves.child_{leaf} = {native_leaf(native, "child_" + leaf)};\n'
+        table = 'legacyBook.section.page' if leaf in ('footnote', 'dictionary', 'selection') else 'leaves'
+        init += f'  {table}.child_{leaf} = {native_leaf(native, "child_" + leaf)};\n'
     init += '''  leaves.has_sync_credentials = []() -> uint8_t { return 0; };
   static auto readerLog = leaves.log;
   leaves.log = [](uint8_t severity, XpAppText origin, XpAppText message) {
@@ -242,7 +244,7 @@ def main():
         inputs.update(ROOT/'src/activities/reader'/(name+'.cpp') for name in ('EpubReaderChapterSelectionActivity','EpubReaderBookmarksActivity'))
         hashes = {str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(inputs)}
         (out/'inputs.json').write_text(json.dumps(dict(files=hashes,archive_sha256=hashlib.sha256(args.archive.read_bytes()).hexdigest()),indent=2)+'\n')
-        native, owner, manager = NATIVE.read_text(), OWNER.read_text(), MANAGER.read_text()
+        native, owner, manager = legacy_page_source(NATIVE.read_text()), OWNER.read_text(), MANAGER.read_text()
         candidate = fixture(native, owner, manager)
         source = out / 'candidate.cpp'; source.write_text(candidate)
         binary = Path(tmp) / 'candidate'

@@ -1,9 +1,6 @@
 use super::{file::CacheFile, owner::ReaderSection};
 use crate::section_cache::Query;
-use core::{
-    ffi::c_void,
-    ptr::{self, NonNull},
-};
+use core::ptr::NonNull;
 
 impl ReaderSection {
     pub(in crate::app::epub) unsafe fn page_count(raw: NonNull<Self>) -> u16 {
@@ -134,9 +131,25 @@ impl ReaderSection {
         }
         unsafe { Self::anchor(raw, needle) }.map(|page| page as u16)
     }
-    pub(in crate::app::epub) unsafe fn load_page(raw: NonNull<Self>, page: i32) -> *mut c_void {
+    pub(in crate::app::epub) unsafe fn load_page(
+        raw: NonNull<Self>,
+        page: i32,
+    ) -> Option<super::super::page_owner::Page> {
+        let resources = unsafe { (*raw.as_ptr()).resources };
+        unsafe {
+            Self::with_page_file(raw, page, |file, bytes, visible| {
+                file.load_page(resources, bytes, visible)
+            })
+        }
+    }
+
+    pub(in crate::app::epub) unsafe fn with_page_file<T>(
+        raw: NonNull<Self>,
+        page: i32,
+        load: impl FnOnce(&mut super::super::book_owner::FileSlot, u32, u32) -> Option<T>,
+    ) -> Option<T> {
         let Ok(index) = usize::try_from(page) else {
-            return ptr::null_mut();
+            return None;
         };
         let owner = raw.as_ptr();
         if let Some(build) = unsafe { (*owner).build.as_ref() } {
@@ -145,7 +158,7 @@ impl ReaderSection {
             if let Some(entry) = records.pages.get(index) {
                 return services.output(|file| {
                     if !file.is_open() || entry.offset == 0 {
-                        return ptr::null_mut();
+                        return None;
                     }
                     let write = file.physical_position();
                     let end = records
@@ -153,9 +166,9 @@ impl ReaderSection {
                         .get(index + 1)
                         .map_or(write, |entry| entry.offset);
                     if end <= entry.offset || end > write || !file.seek(entry.offset) {
-                        return ptr::null_mut();
+                        return None;
                     }
-                    let page = file.load_page(end - entry.offset, entry.visible);
+                    let page = load(file, end - entry.offset, entry.visible);
                     // The original adapter returns the Page even if this restore fails.
                     file.seek(write);
                     page
@@ -171,9 +184,9 @@ impl ReaderSection {
             readable.pages
         };
         if index >= usize::from(disk) {
-            return ptr::null_mut();
+            return None;
         }
         unsafe { CacheFile::new(&(*owner).path, (*owner).resources, (*owner).leaves) }
-            .load_page(page as u32)
+            .with_page_file(page as u32, load)
     }
 }

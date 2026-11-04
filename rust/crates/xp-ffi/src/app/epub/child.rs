@@ -1,12 +1,12 @@
 use super::session_section::Section as ReaderSection;
 use super::{
     abi, app_abi,
-    page::Page,
+    page::{Factory, Page, Pending},
     selection_metadata::SelectionMetadata,
     state::{ChildIntent, Notice, TimedNotice},
     EpubSession, ResourceAccess, Text,
 };
-use core::{ffi::c_void, ptr::NonNull};
+use core::ptr::NonNull;
 
 pub(super) const SELECTION_CLIP: u8 = 0;
 const SELECTION_LOOKUP: u8 = 1;
@@ -116,11 +116,10 @@ impl EpubSession {
                     self.request_update();
                     return;
                 };
-                let raw = unsafe {
-                    ReaderSection::load_page(section, capture.page.wrapping_add(loaded as i32))
-                };
+                let raw =
+                    unsafe { self.load_page(section, capture.page.wrapping_add(loaded as i32)) };
                 self.publish_section(&access);
-                unsafe { Page::from_raw(raw, self.leaves) }
+                raw
             };
             let Some(page) = page else {
                 break;
@@ -135,7 +134,7 @@ impl EpubSession {
                     self.request_update();
                     return;
                 }
-                let index = self.clipping_at_point(&access, page.handle, x, y);
+                let index = self.clipping_at_point(&access, page.borrow(), x, y);
                 if index >= 0 {
                     let removed = unsafe { (self.leaves.clippings_remove)(index as u32) != 0 };
                     if !removed {
@@ -200,13 +199,8 @@ impl EpubSession {
             y,
             mode,
         };
-        let mut handles = pages.0.each_ref().map(|page| {
-            page.as_ref()
-                .map_or(core::ptr::null_mut(), |page| page.handle.as_ptr())
-        });
-        let child = NonNull::new(unsafe {
-            (self.leaves.child_selection)(handles.as_mut_ptr(), loaded as u8, &args)
-        });
+        let mut pending = Pending::new(core::array::from_fn(|index| pages.0[index].take()));
+        let child = pending.launch(self.leaves, Factory::Selection(&args));
         let Some(child) = child else {
             self.loop_log_at(
                 1,
@@ -216,11 +210,6 @@ impl EpubSession {
             self.request_update();
             return;
         };
-        for page in pages.0.iter_mut().take(loaded) {
-            if let Some(page) = page.take() {
-                core::mem::forget(page);
-            }
-        }
         // The loop alone owns the pending result payload, including cancellation.
         self.set_selection_metadata(metadata);
         self.push_child(child, ChildIntent::Selection(capture));
@@ -337,13 +326,13 @@ impl EpubSession {
         let page = {
             let access = self.lock_resources();
             let section = self.result_section(&access);
-            let raw = section.map_or(core::ptr::null_mut(), |section| unsafe {
-                ReaderSection::load_page(section, self.model(|state| state.current.page))
+            let raw = section.and_then(|section| unsafe {
+                self.load_page(section, self.model(|state| state.current.page))
             });
             if section.is_some() {
                 self.publish_section(&access);
             }
-            unsafe { Page::from_raw(raw, self.leaves) }
+            raw
         };
         let Some(page) = page else {
             self.loop_log_at(1, b"CLIP", &[b"Failed to load lookup page"]);
@@ -353,20 +342,20 @@ impl EpubSession {
         let mut margins = [0; 4];
         unsafe { (self.leaves.render_margins)(margins.as_mut_ptr()) };
         let margin = i32::from(self.settings(false).screen_margin);
-        let child = NonNull::new(unsafe {
-            (self.leaves.child_dictionary)(
-                page.handle.as_ptr(),
-                margins[3] + margin,
-                margins[0] + margin,
+        let mut pending = Pending::new([Some(page), None, None]);
+        let child = pending.launch(
+            self.leaves,
+            Factory::Dictionary {
+                left: margins[3] + margin,
+                top: margins[0] + margin,
                 initial,
-            )
-        });
+            },
+        );
         let Some(child) = child else {
             self.loop_log_at(1, b"CLIP", &[b"OOM: dictionary lookup activity"]);
             self.request_update();
             return;
         };
-        core::mem::forget(page);
         self.push_child(child, ChildIntent::Dictionary);
     }
 
@@ -398,43 +387,19 @@ impl EpubSession {
             let Some(section) = self.section(&access) else {
                 return;
             };
-            if unsafe { (self.leaves.metadata_footnotes)(self.native(&access)) } == 0 {
+            if self.metadata_footnotes(&access) == 0 {
                 return;
             }
-            if unsafe { (self.leaves.metadata_footnotes)(self.native(&access)) } == 1 {
-                struct Sink {
-                    sink: app_abi::TextSink,
-                    context: *mut c_void,
-                }
-                unsafe extern "C" fn href(
-                    context: *mut c_void,
-                    row: *const abi::XpEpubFootnote,
-                ) -> u8 {
-                    let capture = &*context.cast::<Sink>();
-                    let Some(row) = row.as_ref() else {
-                        return 0;
-                    };
-                    (capture.sink)(capture.context, row.href)
-                }
-                let Some(href) = Text::receive(|sink, context| {
-                    let mut capture = Sink { sink, context };
-                    unsafe {
-                        (self.leaves.metadata_footnote)(
-                            self.native(&access),
-                            0,
-                            href,
-                            (&mut capture as *mut Sink).cast(),
-                        )
-                    }
-                }) else {
+            if self.metadata_footnotes(&access) == 1 {
+                let Some(href) = self.metadata_footnote_href(&access, 0) else {
                     return;
                 };
                 Open::Href(href)
             } else {
                 let page = self.model(|state| state.current.page);
-                let raw = unsafe { ReaderSection::load_page(section, page) };
+                let raw = unsafe { self.load_page(section, page) };
                 self.publish_section(&access);
-                let Some(page) = (unsafe { Page::from_raw(raw, self.leaves) }) else {
+                let Some(page) = raw else {
                     return;
                 };
                 Open::Page(page)
@@ -446,18 +411,18 @@ impl EpubSession {
                 let mut margins = [0; 4];
                 unsafe { (self.leaves.render_margins)(margins.as_mut_ptr()) };
                 let margin = i32::from(self.settings(false).screen_margin);
-                let child = NonNull::new(unsafe {
-                    (self.leaves.child_footnote)(
-                        page.handle.as_ptr(),
-                        margins[3] + margin,
-                        margins[0] + margin,
-                    )
-                });
+                let mut pending = Pending::new([Some(page), None, None]);
+                let child = pending.launch(
+                    self.leaves,
+                    Factory::Footnote {
+                        left: margins[3] + margin,
+                        top: margins[0] + margin,
+                    },
+                );
                 let Some(child) = child else {
                     self.loop_log_at(1, b"ERA", &[b"OOM: EpubReaderFootnoteSelectActivity"]);
                     return;
                 };
-                core::mem::forget(page);
                 self.push_child(child, ChildIntent::Footnote { reopen_menu });
             }
         }

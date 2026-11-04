@@ -1,3 +1,4 @@
+from legacy_page_native import source as legacy_page_source
 """Exercise real EpubSession render composition and extracted native frame ownership."""
 import argparse
 import collections
@@ -66,7 +67,8 @@ def main():
     assert len(expected.splitlines()) == expected_lines and counts['case'] == counts['end'] == 5120
     production_file = ROOT / 'rust' / PRODUCTION
     production = production_file.read_text()
-    native = (ROOT / NATIVE).read_text()
+    native_production = (ROOT / NATIVE).read_text()
+    native = legacy_page_source(native_production)
     fixture_hashes = {str(path.relative_to(ROOT)): digest(path.read_bytes()) for path in (
         HERE / 'render_oracle.cpp', HERE / 'render_session_fixture.h', HERE / 'render_session_rust.inc',
         Path(__file__), HERE / 'test_popup_resource.py',
@@ -176,9 +178,38 @@ def main():
             for mutant, before, after, check_lifetime in RUST_MUTANTS:
                 changed = replace_once(production, before, after)
                 copied_source.write_text(changed)
-                subprocess.run(['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
-                                '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
-                                '--features', 'app-test'], cwd=copied_rust, check=True)
+                command = ['cargo', 'build', '--manifest-path', str(copied_rust / 'Cargo.toml'),
+                           '--target-dir', str(target), '-p', 'xp-ffi', '--release', '--locked',
+                           '--features', 'app-test']
+                if check_lifetime:
+                    assert mutant == 'page-before-finish'
+                    rejected = subprocess.run(command + ['--message-format=json'], cwd=copied_rust,
+                                              capture_output=True)
+                    messages = [json.loads(line) for line in rejected.stdout.splitlines()]
+                    errors = [row['message'] for row in messages if row.get('reason') == 'compiler-message'
+                              and row['message']['level'] == 'error']
+                    assert rejected.returncode != 0 and len(errors) == 1, (mutant, rejected.returncode, errors)
+                    error = errors[0]
+                    assert error['code']['code'] == 'E0505'
+                    assert error['message'] == 'cannot move out of `page` because it is borrowed'
+                    spans = error['spans']
+                    assert all(span['file_name'].endswith('/app/epub/render.rs') for span in spans)
+                    def contains(span, text):
+                        return any(text in line['text'] for line in span['text'])
+                    assert any(span['is_primary'] and contains(span, 'drop(page);') for span in spans)
+                    assert any(contains(span, 'page: page.borrow(),') and 'borrow' in (span['label'] or '')
+                               for span in spans)
+                    assert any(contains(span, 'drop(call);') and 'borrow later used here' == span['label']
+                               for span in spans)
+                    print(json.dumps({'test_name': name, 'mutant': mutant, 'kind': 'production-rust',
+                                      'replacement_count': 1, 'original_source_sha256': digest(production.encode()),
+                                      'mutant_source_sha256': digest(changed.encode()),
+                                      'returncode': rejected.returncode, 'compiler_error': 'E0505',
+                                      'diagnostics_sha256': digest(rejected.stdout),
+                                      'stderr_sha256': digest(rejected.stderr),
+                                      'lifetime': 'Page cannot be dropped while RenderCall borrows it'}), flush=True)
+                    continue
+                subprocess.run(command, cwd=copied_rust, check=True)
                 archive = target / 'release/libxp_ffi.a'
                 result = compile_run(mutant, archive=archive)
                 assert result.returncode != 0 or result.stdout != expected, (mutant, 'actual Rust mutant survived')
@@ -186,16 +217,11 @@ def main():
                             'original_source_sha256': digest(production.encode()), 'mutant_source_sha256': digest(changed.encode()),
                             'returncode': result.returncode, 'trace_sha256': digest(result.stdout),
                             'stderr_sha256': digest(result.stderr)}
-                if check_lifetime:
-                    rejected = compile_run(mutant + '-lifetime', archive=archive, lifetime=True)
-                    assert rejected.returncode != 0 and b'native frame must finish before Page closes' in rejected.stderr
-                    evidence['lifetime_returncode'] = rejected.returncode
-                    evidence['lifetime_stderr_sha256'] = digest(rejected.stderr)
                 print(json.dumps(evidence), flush=True)
     finally:
         assert golden.read_bytes() == compressed, 'immutable original golden changed'
         assert production_file.read_text() == production, 'real production Rust source changed'
-        assert (ROOT / NATIVE).read_text() == native, 'real production native source changed'
+        assert (ROOT / NATIVE).read_text() == native_production, 'real production native source changed'
     print(f'{name}: 5120 exact cases; lifetime facts; five Rust and three native mutants rejected')
 
 

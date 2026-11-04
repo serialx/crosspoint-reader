@@ -5,13 +5,13 @@
 extern "C" size_t xp_test_live_allocations();
 extern "C" uint8_t xp_epub_test_section_driver(const XpAppResources*, const XpEpubLeaves*, const XpAppRuntime*,
                                                XpAppText, XpAppText, uint8_t, uint8_t,
-                                               void (*)(void*, void*, uint16_t, uint8_t, uint32_t));
+                                               void (*)(void*, const XpEpubPageView*, uint16_t, uint8_t, uint32_t));
 static uint32_t expectedVisible;
-static void native(void* raw, void* rawPage, uint16_t pages, uint8_t partial, uint32_t popups) {
+static void native(void* raw, const XpEpubPageView* rawPage, uint16_t pages, uint8_t partial, uint32_t popups) {
   auto& handle = book(raw);
   assert(handle.value().getCssParser() == nullptr);
   assert(handle.book.use_count() == 1);
-  const auto& page = *static_cast<Page*>(rawPage);
+  const Page page(Page::Borrowed{}, rawPage->arena, rawPage->size, rawPage->visible_offset);
   assert(page.elementCount() > 0);
   Section section(handle.book, 0, driverRenderer);
   assert(section.getCachedPageCount() == (partial ? std::nullopt : std::optional<uint16_t>(pages)));

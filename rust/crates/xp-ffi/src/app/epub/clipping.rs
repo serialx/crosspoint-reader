@@ -1,5 +1,6 @@
+use super::page_view::View;
 use super::{abi, app_abi, EpubSession, ResourceAccess};
-use core::{ffi::c_void, mem::MaybeUninit, ptr::NonNull};
+use core::mem::MaybeUninit;
 use xp_ui::reader::render::Query;
 
 const PAGE_LINE: u8 = 1;
@@ -18,36 +19,21 @@ struct Rect {
 struct ClipPage<'a, 'b> {
     owner: &'a EpubSession,
     access: &'a ResourceAccess<'b>,
-    page: NonNull<c_void>,
+    page: View<'a>,
 }
 
 impl ClipPage<'_, '_> {
     fn elements(&self) -> u16 {
-        let mut info = MaybeUninit::<abi::XpEpubPageInfo>::uninit();
-        unsafe {
-            (self.owner.leaves.page_info)(self.page.as_ptr(), info.as_mut_ptr());
-            info.assume_init().elements
-        }
+        self.page.info(self.owner.leaves).elements
     }
-
     fn element(&self, index: u16) -> abi::XpEpubElement {
-        let mut element = MaybeUninit::uninit();
-        unsafe {
-            (self.owner.leaves.page_element)(self.page.as_ptr(), index, element.as_mut_ptr());
-            element.assume_init()
-        }
+        self.page.element(index)
     }
-
     fn word(&self, element: u16, index: u16) -> abi::XpEpubWord {
-        let mut word = MaybeUninit::uninit();
-        unsafe {
-            (self.owner.leaves.page_word)(self.page.as_ptr(), element, index, word.as_mut_ptr());
-            word.assume_init()
-        }
+        self.page.word(element, index)
     }
-
     fn word_font(&self, element: u16, index: u16, base: i32) -> i32 {
-        unsafe { (self.owner.leaves.page_word_font)(self.page.as_ptr(), element, index, base) }
+        self.page.word_font(self.owner.leaves, element, index, base)
     }
 
     fn width(&self, word: &abi::XpEpubWord, font: i32) -> i32 {
@@ -95,18 +81,15 @@ impl ClipPage<'_, '_> {
                 width = width.min(next.wrapping_sub(word.x).wrapping_sub(skip));
             }
         }
-        let line_font =
-            unsafe { (self.owner.leaves.page_line_font)(self.page.as_ptr(), element, base) };
+        let line_font = self.page.line_font(self.owner.leaves, element, base);
         let x = left
             .wrapping_add(line.x)
             .wrapping_add(word.x)
             .wrapping_add(skip);
-        let ruby = unsafe {
-            (self.owner.leaves.page_line_ruby_shift)(self.page.as_ptr(), element, line_font)
-        };
-        let offset = unsafe {
-            (self.owner.leaves.page_word_y_offset)(self.page.as_ptr(), element, index, base)
-        };
+        let ruby = self.page.ruby_shift(self.owner.leaves, element, line_font);
+        let offset = self
+            .page
+            .word_y_offset(self.owner.leaves, element, index, base);
         let y = top
             .wrapping_add(line.y)
             .wrapping_add(ruby)
@@ -236,14 +219,14 @@ impl EpubSession {
     pub(super) fn clipping_at_point(
         &self,
         access: &ResourceAccess<'_>,
-        page: NonNull<c_void>,
+        page: View<'_>,
         x: i32,
         y: i32,
     ) -> i32 {
         self.check_resources(access);
         #[cfg(feature = "app-test")]
         if let Some(hooks) = self.child_hooks {
-            return unsafe { (hooks.hit)(hooks.context, page.as_ptr(), x, y) };
+            return unsafe { (hooks.hit)(hooks.context, page.fixture_pointer(), x, y) };
         }
         let page = ClipPage {
             owner: self,
@@ -308,7 +291,7 @@ impl EpubSession {
     pub(super) fn draw_clipping_highlights(
         &self,
         access: &ResourceAccess<'_>,
-        page: NonNull<c_void>,
+        page: View<'_>,
         font: i32,
         top: i32,
         left: i32,

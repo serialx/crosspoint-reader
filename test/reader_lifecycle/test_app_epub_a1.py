@@ -1,3 +1,4 @@
+from legacy_page_native import source as legacy_page_source
 """App-owned EPUB rendering through actual native frame and metadata code.
 
 Checks strip-on/off compositions and a wrong-font semantic mutant.
@@ -161,7 +162,7 @@ def prepare(root, work, definition, native_leaf, failed):
     source = failed.fixture_source(root, definition, native_leaf)
     source = source[:source.index('class EpubReaderActivity {')]
     source = once(source, 'struct { uint32_t lastTouchHeldMs() const {return 0;} } gpio;\n', '')
-    native = (root / 'src/activities/reader/RustEpubResources.cpp').read_text()
+    native = legacy_page_source((root / 'src/activities/reader/RustEpubResources.cpp').read_text())
     bridge = (HERE / 'a1_bindings.inc').read_text()
     metadata = definition((root / 'lib/Epub/Epub/Page.h').read_text(), 'class PageMetadata {') + ';\n'
     page_cpp = (root / 'lib/Epub/Epub/Page.cpp').read_text()

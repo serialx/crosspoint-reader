@@ -26,8 +26,14 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp
   DEPENDS extract_constructors.py ${REPO_ROOT}/src/activities/reader/ClipSelectionActivity.cpp
     ${REPO_ROOT}/test/reader_lifecycle/test_popup_resource.py
   VERBATIM)
+execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_frame.py
+  ${CMAKE_CURRENT_BINARY_DIR} COMMAND_ERROR_IS_FATAL ANY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  extract_frame.py Frame.cpp.in frame_renderer.inc
+  ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp
+  ${REPO_ROOT}/test/section_golden/stubs/GfxRenderer.h)
 add_executable(ReaderPageTransfer PageTransfer.cpp ${READER_PAGE_SOURCES}
-  ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp)
+  ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp ${CMAKE_CURRENT_BINARY_DIR}/PageFrame.cpp)
 target_include_directories(ReaderPageTransfer PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
   ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_CODEC_INCLUDES} ${REPO_ROOT}/test/ui_runtime)

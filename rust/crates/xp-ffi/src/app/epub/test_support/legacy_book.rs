@@ -99,6 +99,7 @@ pub unsafe extern "C" fn xp_app_test_install_epub_legacy_book(
         return 0;
     };
     owner.book_factory = super::super::session_book::Factory::Legacy(services);
+    owner.legacy_pages.set(Some(&services.section.page));
     app.replace(crate::app::Owner::Epub(owner));
     1
 }
@@ -106,6 +107,7 @@ pub unsafe extern "C" fn xp_app_test_install_epub_legacy_book(
 impl super::super::EpubSession {
     pub(in crate::app) fn inherit_legacy_book_fixture(&mut self, previous: &Self) {
         // A reopen of an explicitly selected legacy fixture keeps the same input type.
+        self.legacy_pages.set(previous.legacy_pages.get());
         self.book_factory = match previous.book_factory {
             super::super::session_book::Factory::Reader => {
                 super::super::session_book::Factory::Reader

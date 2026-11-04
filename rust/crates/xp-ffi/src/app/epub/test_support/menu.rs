@@ -131,6 +131,7 @@ pub unsafe extern "C" fn xp_epub_test_menu_create_legacy_book(
         return core::ptr::null_mut();
     };
     owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
+    owner.legacy_pages.set(Some(&legacy_book.section.page));
     let state = owner.state.get_mut();
     state.ready = true;
     state.current.spine = seed.spine;

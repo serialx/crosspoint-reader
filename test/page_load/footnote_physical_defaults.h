@@ -4,6 +4,8 @@
 
 #include <cstdio>
 #include <cstdlib>
+
+#include "../reader_lifecycle/legacy_page_fixture.h"
 extern "C" {
 void* xp_app_test_current_legacy();
 uint8_t xp_app_test_is_home();
@@ -23,7 +25,7 @@ struct AppFixtureUnexpected<R (*)(A...), Slot> {
 
 inline XpEpubLeaves unexpectedEpubLeaves() {
   XpEpubLeaves value{};
-  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
   value.resources_open = &AppFixtureUnexpected<decltype(value.resources_open), 0>::call;
   value.resources_close = &AppFixtureUnexpected<decltype(value.resources_close), 1>::call;
   value.render_services = &AppFixtureUnexpected<decltype(value.render_services), 2>::call;
@@ -50,16 +52,6 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.progress_to_reader = &AppFixtureUnexpected<decltype(value.progress_to_reader), 26>::call;
   value.progress_to_saved = &AppFixtureUnexpected<decltype(value.progress_to_saved), 27>::call;
   value.progress_save = &AppFixtureUnexpected<decltype(value.progress_save), 28>::call;
-  value.page_close = &AppFixtureUnexpected<decltype(value.page_close), 52>::call;
-  value.page_info = &AppFixtureUnexpected<decltype(value.page_info), 53>::call;
-  value.page_element = &AppFixtureUnexpected<decltype(value.page_element), 54>::call;
-  value.page_word = &AppFixtureUnexpected<decltype(value.page_word), 55>::call;
-  value.metadata_assign = &AppFixtureUnexpected<decltype(value.metadata_assign), 56>::call;
-  value.metadata_clear = &AppFixtureUnexpected<decltype(value.metadata_clear), 57>::call;
-  value.metadata_footnotes = &AppFixtureUnexpected<decltype(value.metadata_footnotes), 58>::call;
-  value.metadata_links = &AppFixtureUnexpected<decltype(value.metadata_links), 59>::call;
-  value.metadata_footnote = &AppFixtureUnexpected<decltype(value.metadata_footnote), 60>::call;
-  value.metadata_link = &AppFixtureUnexpected<decltype(value.metadata_link), 61>::call;
   value.paint_dither = &AppFixtureUnexpected<decltype(value.paint_dither), 62>::call;
   value.paint_pixel = &AppFixtureUnexpected<decltype(value.paint_pixel), 63>::call;
   value.paint_status = &AppFixtureUnexpected<decltype(value.paint_status), 64>::call;
@@ -176,15 +168,10 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.emit_exit = &AppFixtureUnexpected<decltype(value.emit_exit), 175>::call;
   value.emit_session = &AppFixtureUnexpected<decltype(value.emit_session), 176>::call;
   value.log = &AppFixtureUnexpected<decltype(value.log), 177>::call;
-  value.page_word_font = &AppFixtureUnexpected<decltype(value.page_word_font), 178>::call;
-  value.page_line_font = &AppFixtureUnexpected<decltype(value.page_line_font), 179>::call;
-  value.page_word_y_offset = &AppFixtureUnexpected<decltype(value.page_word_y_offset), 180>::call;
-  value.page_line_ruby_shift = &AppFixtureUnexpected<decltype(value.page_line_ruby_shift), 181>::call;
   value.font_text_advance = &AppFixtureUnexpected<decltype(value.font_text_advance), 182>::call;
   value.log_enabled = &AppFixtureUnexpected<decltype(value.log_enabled), 183>::call;
   value.toolbar_reset_navigation = &AppFixtureUnexpected<decltype(value.toolbar_reset_navigation), 184>::call;
   value.input_snapshot = &AppFixtureUnexpected<decltype(value.input_snapshot), 185>::call;
-  value.page_render = &AppFixtureUnexpected<decltype(value.page_render), 186>::call;
   value.cache_lock = &AppFixtureUnexpected<decltype(value.cache_lock), 187>::call;
   value.cache_unlock = &AppFixtureUnexpected<decltype(value.cache_unlock), 188>::call;
   value.scratch_claim = &AppFixtureUnexpected<decltype(value.scratch_claim), 189>::call;
@@ -201,9 +188,11 @@ inline XpEpubLeaves unexpectedEpubLeaves() {
   value.file_flush = &AppFixtureUnexpected<decltype(value.file_flush), 174>::call;
   value.image_supported = &AppFixtureUnexpected<decltype(value.image_supported), 175>::call;
   value.image_dimensions = &AppFixtureUnexpected<decltype(value.image_dimensions), 176>::call;
-  value.page_load = &AppFixtureUnexpected<decltype(value.page_load), 177>::call;
   value.framebuffer_lend = &AppFixtureUnexpected<decltype(value.framebuffer_lend), 178>::call;
   value.framebuffer_restore = &AppFixtureUnexpected<decltype(value.framebuffer_restore), 179>::call;
+  value.paint_arena = &AppFixtureUnexpected<decltype(value.paint_arena), 164>::call;
+  value.image_needs_decode = &AppFixtureUnexpected<decltype(value.image_needs_decode), 165>::call;
+  value.font_ascent = &AppFixtureUnexpected<decltype(value.font_ascent), 166>::call;
   return value;
 }
 

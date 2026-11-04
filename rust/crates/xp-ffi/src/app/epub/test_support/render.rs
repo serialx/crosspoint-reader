@@ -27,12 +27,14 @@ pub unsafe extern "C" fn xp_epub_test_render_create(
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_page: &'static super::legacy_page::LegacyPageServices,
 ) -> *mut c_void {
     let seed = &*seed;
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.legacy_pages.set(Some(legacy_page));
     let state = owner.state.get_mut();
     // Standalone renderContents composition; entry/load gates are covered separately.
     state.ready = true;
@@ -57,7 +59,11 @@ pub unsafe extern "C" fn xp_epub_test_render_contents(
 ) {
     let owner = &*raw.cast::<EpubSession>();
     let margins = [*margins, *margins.add(1), *margins.add(2), *margins.add(3)];
-    let page = Page::from_raw(page, owner.leaves).expect("owned fixture Page");
+    let page = Page::from_raw(
+        page,
+        owner.legacy_pages.get().expect("legacy render fixture"),
+    )
+    .expect("owned fixture Page");
     assert!(owner.render_with(|access| {
         owner.render_contents(access, page, font, margins, strip_enabled != 0);
     }));

@@ -147,7 +147,7 @@ static XpUiReaderRenderServices renderServices{
 static auto legacySection = unexpectedLegacySectionServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -163,16 +163,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(page_close);
-  UNUSED_LEAF(page_info);
-  UNUSED_LEAF(page_element);
-  UNUSED_LEAF(page_word);
-  UNUSED_LEAF(metadata_assign);
-  UNUSED_LEAF(metadata_clear);
-  UNUSED_LEAF(metadata_footnotes);
-  UNUSED_LEAF(metadata_links);
-  UNUSED_LEAF(metadata_footnote);
-  UNUSED_LEAF(metadata_link);
+
   UNUSED_LEAF(paint_dither);
   UNUSED_LEAF(paint_pixel);
   UNUSED_LEAF(paint_status);
@@ -289,15 +280,12 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
-  UNUSED_LEAF(page_word_font);
-  UNUSED_LEAF(page_line_font);
-  UNUSED_LEAF(page_word_y_offset);
-  UNUSED_LEAF(page_line_ruby_shift);
+
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
   UNUSED_LEAF(input_snapshot);
-  UNUSED_LEAF(page_render);
+
   UNUSED_LEAF(protection_open);
   UNUSED_LEAF(protection_close);
   UNUSED_LEAF(protection_encrypted);
@@ -322,9 +310,12 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(file_flush);
   UNUSED_LEAF(image_supported);
   UNUSED_LEAF(image_dimensions);
-  UNUSED_LEAF(page_load);
+
   UNUSED_LEAF(framebuffer_lend);
   UNUSED_LEAF(framebuffer_restore);
+  UNUSED_LEAF(paint_arena);
+  UNUSED_LEAF(image_needs_decode);
+  UNUSED_LEAF(font_ascent);
   legacySection.section_page_count = [](void* section) -> uint16_t { publication(section, 0); return liveSection->pageCount; };
   legacySection.section_estimated_pages = [](void* section) -> int32_t { publication(section, 1); return liveSection->pageCount; };
   legacySection.section_building = [](void* section) -> uint8_t { publication(section, 2); return 0; };
@@ -350,10 +341,10 @@ static const XpEpubLeaves leaves = [] {
       realSpec.wordSpacingPercent, realSpec.paragraphAlignment, realSpec.hyphenationEnabled,
       realSpec.embeddedStyle, realSpec.imageRendering, realSpec.focusReadingEnabled};
   };
-  table.page_info = [](void* handle, XpEpubPageInfo* out) {
+  legacySection.page.page_info = [](void* handle, XpEpubPageInfo* out) {
     const auto& value = page(handle); assert(out); *out = {}; out->elements = value.elementCount();
   };
-  table.page_element = [](void* handle, uint16_t index, XpEpubElement* out) {
+  legacySection.page.page_element = [](void* handle, uint16_t index, XpEpubElement* out) {
     const auto& value = page(handle); assert(out && index < value.lines.size());
     const auto element = value.element(index);
     *out = {}; out->x = element.xPos; out->y = element.yPos; out->tag = element.getTag();
@@ -361,25 +352,25 @@ static const XpEpubLeaves leaves = [] {
       const auto text = element.textBlock(); out->valid = text.valid(); if (out->valid) out->words = text.wordCount();
     }
   };
-  table.page_word = [](void* handle, uint16_t element, uint16_t index, XpEpubWord* out) {
+  legacySection.page.page_word = [](void* handle, uint16_t element, uint16_t index, XpEpubWord* out) {
     const auto& value = word(handle, element, index); assert(out);
     // Reconstructed physical views borrow the Page; only standalone element
     // enumeration emits the historical element event.
     *out = {wire(value.text), value.x, value.start, value.end, static_cast<uint8_t>(value.style), 1};
   };
-  table.page_word_font = [](void* handle, uint16_t element, uint16_t index, int32_t font) -> int32_t {
+  legacySection.page.page_word_font = [](void* handle, uint16_t element, uint16_t index, int32_t font) -> int32_t {
     assert(clippingText::hasVisibleText(word(handle, element, index).text));
     const auto text = block(handle, element);
     return TextBlock::renderFontId(active->renderer, text.wordFontId(index, font), font);
   };
-  table.page_line_font = [](void* handle, uint16_t element, int32_t font) -> int32_t {
+  legacySection.page.page_line_font = [](void* handle, uint16_t element, int32_t font) -> int32_t {
     const auto text = block(handle, element);
     return TextBlock::renderFontId(active->renderer, text.blockFontId(font), font);
   };
-  table.page_word_y_offset = [](void* handle, uint16_t element, uint16_t index, int32_t font) -> int32_t {
+  legacySection.page.page_word_y_offset = [](void* handle, uint16_t element, uint16_t index, int32_t font) -> int32_t {
     const auto text = block(handle, element); return text.wordYOffset(active->renderer, font, index);
   };
-  table.page_line_ruby_shift = [](void* handle, uint16_t element, int32_t font) -> int32_t {
+  legacySection.page.page_line_ruby_shift = [](void* handle, uint16_t element, int32_t font) -> int32_t {
     const auto text = block(handle, element); return text.getRubyShift(active->renderer.getFontAscenderSize(font));
   };
   table.font_text_advance = [](XpAppText value, int32_t font, uint8_t style, int8_t spacing) -> int32_t {

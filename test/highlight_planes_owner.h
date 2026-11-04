@@ -55,38 +55,38 @@ inline void fill(GfxRenderer& renderer, int x, int y, int width, int height) {
     assert(state.context == active && active->section);
     active->section = false;
   };
-  leaves.page_info = [](void* p, XpEpubPageInfo* out) {
+  legacySection.page.page_info = [](void* p, XpEpubPageInfo* out) {
     assert(p == active && out);
     *out = {};
     out->elements = 1;
   };
-  leaves.page_element = [](void* p, uint16_t i, XpEpubElement* out) {
+  legacySection.page.page_element = [](void* p, uint16_t i, XpEpubElement* out) {
     assert(p == active && i == 0 && out);
     *out = {};
     out->tag = 1;
     out->valid = 1;
     out->words = 1;
   };
-  leaves.page_word = [](void* p, uint16_t i, uint16_t j, XpEpubWord* out) {
+  legacySection.page.page_word = [](void* p, uint16_t i, uint16_t j, XpEpubWord* out) {
     assert(p == active && i == 0 && j == 0 && out);
     static const uint8_t word[] = "x";
     *out = {};
     out->text = {word, 1};
     out->source_end = 1;
   };
-  leaves.page_word_font = [](void* p, uint16_t i, uint16_t j, int32_t font) -> int32_t {
+  legacySection.page.page_word_font = [](void* p, uint16_t i, uint16_t j, int32_t font) -> int32_t {
     assert(p == active && i == 0 && j == 0);
     return font;
   };
-  leaves.page_line_font = [](void* p, uint16_t i, int32_t font) -> int32_t {
+  legacySection.page.page_line_font = [](void* p, uint16_t i, int32_t font) -> int32_t {
     assert(p == active && i == 0);
     return font;
   };
-  leaves.page_word_y_offset = [](void* p, uint16_t i, uint16_t j, int32_t) -> int32_t {
+  legacySection.page.page_word_y_offset = [](void* p, uint16_t i, uint16_t j, int32_t) -> int32_t {
     assert(p == active && i == 0 && j == 0);
     return 0;
   };
-  leaves.page_line_ruby_shift = [](void* p, uint16_t i, int32_t) -> int32_t {
+  legacySection.page.page_line_ruby_shift = [](void* p, uint16_t i, int32_t) -> int32_t {
     assert(p == active && i == 0);
     return 0;
   };

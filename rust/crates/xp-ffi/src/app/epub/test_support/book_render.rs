@@ -109,6 +109,7 @@ pub unsafe extern "C" fn xp_epub_test_book_create_legacy_book(
         .expect("fixture anchor allocation");
     let v = seed.values;
     owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
+    owner.legacy_pages.set(Some(&legacy_book.section.page));
     let state = owner.state.get_mut();
     // Standalone renderBook composition; this seed does not prove entry gating.
     state.ready = true;

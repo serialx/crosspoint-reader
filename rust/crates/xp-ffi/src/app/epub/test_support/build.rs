@@ -19,6 +19,7 @@ pub unsafe extern "C" fn xp_epub_test_build_create_legacy_section(
         return core::ptr::null_mut();
     };
     // Fixture construction finishes before the owner becomes callable.
+    owner.legacy_pages.set(Some(&legacy_section.page));
     let state = owner.state.get_mut();
     state.ready = true;
     state.current.spine = seed.spine;

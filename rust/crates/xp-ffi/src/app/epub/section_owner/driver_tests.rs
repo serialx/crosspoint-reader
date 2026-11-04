@@ -17,7 +17,13 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
     cache: abi::Text,
     partial: u8,
     with_popup: u8,
-    native: unsafe extern "C" fn(*mut c_void, *mut c_void, u16, u8, u32),
+    native: unsafe extern "C" fn(
+        *mut c_void,
+        *const super::super::abi::XpEpubPageView,
+        u16,
+        u8,
+        u32,
+    ),
 ) -> u8 {
     let mut path = Text::copy(unsafe { source.bytes() }.unwrap()).unwrap();
     let cache = Text::copy(unsafe { cache.bytes() }.unwrap()).unwrap();
@@ -65,8 +71,8 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
     assert!(!unsafe { ReaderSection::start(section, &spec, callback, runtime) });
     assert!(unsafe { ReaderSection::advance(section, 1, false) });
     let page = unsafe { ReaderSection::load_page(section, 0) };
-    assert!(!page.is_null());
-    unsafe { (leaves.page_close)(page) };
+    assert!(page.is_some());
+    drop(page);
     if partial != 0 {
         assert!(unsafe { ReaderSection::building(section) });
         unsafe { ReaderSection::suspend(section) };
@@ -88,10 +94,10 @@ pub unsafe extern "C" fn xp_epub_test_section_driver(
     let cached = unsafe { ReaderSection::query(section, Query::PageCount) }.map(|row| row[0]);
     assert_eq!(cached, (partial == 0).then_some(u32::from(pages)));
     let page = unsafe { ReaderSection::load_page(section, 0) };
-    assert!(!page.is_null());
+    let page = page.expect("loaded Page");
     unsafe {
-        native(facade, page, pages, partial, popups);
-        (leaves.page_close)(page);
+        native(facade, &page.borrow().wire(), pages, partial, popups);
+        drop(page);
         ReaderSection::close(section);
         ReaderBook::close(book);
     }

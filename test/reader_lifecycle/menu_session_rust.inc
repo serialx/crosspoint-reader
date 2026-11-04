@@ -196,7 +196,7 @@ static void configureMenuLeaves() {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu->owner.epub.get());
     static_cast<Epub*>(raw)->setupCacheDir();
   };
-  menuLeaves.physical.metadata_footnotes = [](void* raw) -> uint16_t {
+  menuLeaves.book.section.page.metadata_footnotes = [](void* raw) -> uint16_t {
     assert(!menuModelDepth && lockDepth == 1 && raw == activeMenu);
     return activeMenu->owner.currentPageMetadata.footnotes().size();
   };

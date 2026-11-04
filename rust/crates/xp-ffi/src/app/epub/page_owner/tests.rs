@@ -95,3 +95,38 @@ pub unsafe extern "C" fn xp_epub_test_page_owner(
     assert_eq!(metadata.link_count(), 0);
     2
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_page_query(
+    view: *const super::super::abi::XpEpubPageView,
+    leaves: &'static XpEpubLeaves,
+    element: u16,
+    word: u16,
+    font: i32,
+    info: *mut super::super::page_records::XpEpubPageInfo,
+    line: *mut super::super::page_records::XpEpubElement,
+    text: *mut super::super::page_records::XpEpubWord,
+    metrics: *mut [i32; 4],
+) {
+    let view = unsafe { super::super::page_view::View::from_wire(&*view) };
+    if !info.is_null() {
+        unsafe { info.write(view.info(leaves)) };
+    }
+    if !line.is_null() {
+        unsafe { line.write(view.element(element)) };
+    }
+    if !text.is_null() {
+        unsafe { text.write(view.word(element, word)) };
+    }
+    if !metrics.is_null() {
+        let line_font = view.line_font(leaves, element, font);
+        unsafe {
+            metrics.write([
+                line_font,
+                view.word_font(leaves, element, word, font),
+                view.word_y_offset(leaves, element, word, font),
+                view.ruby_shift(leaves, element, line_font),
+            ])
+        };
+    }
+}

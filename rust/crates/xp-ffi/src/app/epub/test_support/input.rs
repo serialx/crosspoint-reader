@@ -16,6 +16,7 @@ pub unsafe extern "C" fn xp_epub_test_input_create_legacy_book(
         core::ptr::null_mut(),
         |mut owner| {
             owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
+            owner.legacy_pages.set(Some(&legacy_book.section.page));
             Box::into_raw(owner).cast()
         },
     )

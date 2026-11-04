@@ -96,18 +96,18 @@ void bindDiagnostic() {
     assert(index == 0 && ++diagnostic.loads == 1);
     return diagnostic.metadataFailure ? &diagnostic.page : nullptr;
   };
-  leaves.metadata_clear = [](void* raw) {
+  legacyBook.section.page.metadata_clear = [](void* raw) {
     physical();
     f().handle(raw, Kind::Root);
   };
-  leaves.metadata_assign = [](void* raw, void* page) -> uint8_t {
+  legacyBook.section.page.metadata_assign = [](void* raw, void* page) -> uint8_t {
     physical();
     f().handle(raw, Kind::Root);
     assert(page == &diagnostic.page && diagnostic.metadataFailure);
     ++diagnostic.copies;
     return 0;
   };
-  leaves.page_close = [](void* raw) {
+  legacyBook.section.page.page_close = [](void* raw) {
     physical();
     assert(raw == &diagnostic.page);
     ++diagnostic.pageCloses;

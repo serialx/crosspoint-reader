@@ -66,6 +66,7 @@ impl EpubSession {
         }
         if let Some(native) = self.take_native(access) {
             unsafe { (self.leaves.resources_close)(native.as_ptr()) };
+            self.release_page_metadata(access);
         }
     }
 

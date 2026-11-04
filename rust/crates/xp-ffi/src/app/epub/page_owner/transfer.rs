@@ -1,20 +1,7 @@
 use super::Page;
 use core::{ffi::c_void, mem::ManuallyDrop, ptr::NonNull};
 
-// Promoted to the public ABI only with retirement of the native Page leaves.
-#[repr(C)]
-pub(crate) struct View {
-    arena: *const u8,
-    size: usize,
-    visible_offset: u32,
-}
-
-#[repr(C)]
-pub(crate) struct OwnedPage {
-    view: View,
-    owner: *mut c_void,
-    destroy: unsafe extern "C" fn(*mut c_void),
-}
+pub(crate) use super::super::abi::{XpEpubOwnedPage as OwnedPage, XpEpubPageView as View};
 
 #[cfg(target_pointer_width = "32")]
 const _: () = {
@@ -40,7 +27,7 @@ impl OwnedPage {
         }
     }
 
-    fn new(page: Page) -> Self {
+    pub(in crate::app::epub) fn new(page: Page) -> Self {
         let page = ManuallyDrop::new(page);
         Self {
             view: View {

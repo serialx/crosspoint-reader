@@ -1,21 +1,21 @@
-use super::{page::Page, EpubSession, ResourceAccess};
-use core::{ffi::c_void, ptr::NonNull};
+use super::{abi, page::Page, page_view::View, EpubSession, ResourceAccess};
+use core::ffi::c_void;
 use xp_ui::reader::render::{self, Command, PhysicalRenderer, Query, Renderer};
 
 struct RenderCall<'a, 'b> {
     access: &'a ResourceAccess<'b>,
     native: PhysicalRenderer<'a>,
-    page: NonNull<c_void>,
+    page: View<'a>,
     font: i32,
     left: i32,
     top: i32,
 }
 impl RenderCall<'_, '_> {
-    fn highlights(&self, page: NonNull<c_void>, font: i32, left: i32, top: i32) {
+    fn highlights(&self, page: View<'_>, font: i32, left: i32, top: i32) {
         let owner = self.access.owner;
         #[cfg(feature = "app-test")]
         if let Some(hook) = owner.render_hooks {
-            unsafe { (hook.highlights)(hook.context, page.as_ptr(), font, top, left) };
+            unsafe { (hook.highlights)(hook.context, page.fixture_pointer(), font, top, left) };
             return;
         }
         owner.draw_clipping_highlights(self.access, page, font, top, left);
@@ -61,18 +61,13 @@ impl Renderer for RenderCall<'_, '_> {
 }
 unsafe extern "C" fn highlights(
     context: *mut c_void,
-    page: *mut c_void,
+    page: *const abi::XpEpubPageView,
     font: i32,
     left: i32,
     top: i32,
 ) {
     let call = &*context.cast::<RenderCall<'_, '_>>();
-    call.highlights(
-        NonNull::new(page).expect("bound render page"),
-        font,
-        left,
-        top,
-    );
+    call.highlights(View::from_wire(&*page), font, left, top);
 }
 
 impl EpubSession {
@@ -90,27 +85,62 @@ impl EpubSession {
         let call = RenderCall {
             access,
             native: unsafe { PhysicalRenderer::new(services) },
-            page: page.handle,
+            page: page.borrow(),
             font,
             left: margins[3],
             top: margins[0],
         };
         let context = (&call as *const RenderCall<'_, '_>).cast_mut().cast();
-        unsafe {
-            (self.leaves.render_bind_page)(
-                native,
-                page.handle.as_ptr(),
-                font,
-                margins[3],
-                margins[0],
-                margins[2],
-                highlights,
-                context,
-            );
+        #[cfg(feature = "app-test")]
+        let legacy = if let View::Legacy(raw, services) = page.borrow() {
+            unsafe {
+                (services.render_bind_page)(
+                    native,
+                    raw.as_ptr(),
+                    font,
+                    margins[3],
+                    margins[0],
+                    margins[2],
+                    legacy_highlights,
+                    context,
+                )
+            };
+            true
+        } else {
+            false
+        };
+        #[cfg(not(feature = "app-test"))]
+        let legacy = false;
+        if !legacy {
+            unsafe {
+                (self.leaves.render_bind_page)(
+                    native,
+                    &page.borrow().wire(),
+                    font,
+                    margins[3],
+                    margins[0],
+                    margins[2],
+                    highlights,
+                    context,
+                );
+            }
         }
         render::render(&call, strip_enabled);
         // Detach strip sources, prewarm and buffers before destroying their Page.
         drop(call);
         drop(page);
     }
+}
+
+#[cfg(feature = "app-test")]
+unsafe extern "C" fn legacy_highlights(
+    context: *mut c_void,
+    page: *mut c_void,
+    font: i32,
+    left: i32,
+    top: i32,
+) {
+    let call = unsafe { &*context.cast::<RenderCall<'_, '_>>() };
+    assert_eq!(call.page.fixture_pointer(), page);
+    call.highlights(call.page, font, left, top);
 }

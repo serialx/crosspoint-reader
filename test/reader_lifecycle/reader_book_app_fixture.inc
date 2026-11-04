@@ -52,7 +52,9 @@ void assertReaderEntered() {
   assert(readerFacades.size() == 1 && readerFiles.size() == 1 && readerBuffers.empty() && !readerCacheLocked);
 }
 void bindReaderBook() {
+  const auto pageFixture = legacyBook.section.page;
   legacyBook = unexpectedLegacyBookServices();
+  legacyBook.section.page = pageFixture;
   leaves.native_path_hash = [](XpAppText path) -> uint64_t { assert(text(path) == f().path); return 42; };
   resources.path_exists = [](XpAppText path) -> uint8_t {
     const auto value = text(path);

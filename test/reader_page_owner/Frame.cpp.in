@@ -1,0 +1,55 @@
+#include <GfxRenderer.h>
+#include <Memory.h>
+#include <Page.h>
+#include <blocks/ImageBlock.h>
+#include <xp_epub_session.h>
+#include <optional>
+#include <cassert>
+#define LOG_ERR(...) ((void)0)
+#define LOG_DBG(...) ((void)0)
+namespace {
+unsigned long millis() { return 0; }
+namespace BoardConfig {
+enum class Board { XteinkX4, Other };
+struct { Board board = Board::Other; } ACTIVE;
+bool isEegoA4() { return false; }
+}
+struct { bool deviceIsX3() const { return false; } } gpio;
+struct { bool textAntiAliasing = false; int getRefreshFrequency() const { return 3; } } SETTINGS;
+struct { size_t getFreeHeap() const { return 65536; } size_t getMaxAllocHeap() const { return 65536; } } ESP;
+struct { HalDisplay::Controller getController() const { return HalDisplay::Controller::Other; } } display;
+// ACTUAL_FRAME
+// ACTUAL_RESOURCES
+// ACTUAL_RESOURCE_ACCESS
+GfxRenderer* target;
+const auto bind = +/* ACTUAL_BIND */;
+const auto finish = +/* ACTUAL_FINISH */;
+struct Highlight {
+  const XpEpubPageView& original;
+  unsigned calls = 0;
+};
+void highlight(void* raw, const XpEpubPageView* page, int32_t font, int32_t left, int32_t top) {
+  auto& context = *static_cast<Highlight*>(raw);
+  assert(page->arena == context.original.arena && page->size == context.original.size);
+  assert(page->visible_offset == context.original.visible_offset);
+  assert(font == 24 && left == 7 && top == 11);
+  ++context.calls;
+}
+}
+void testPageFrame(const XpEpubPageView& page, GfxRenderer& renderer) {
+  target = &renderer;
+  NativeResources root(renderer);
+  Highlight context{page};
+  bind(&root, &page, 24, 7, 11, 0, highlight, &context);
+  assert(root.frame && root.frame->page.visibleTextOffset == page.visible_offset);
+  assert(root.frame->read(XP_UI_READER_RENDER_ELEMENTS) == root.frame->page.elementCount());
+  XpUiReaderRenderOp op{};
+  for (auto kind : {XP_UI_READER_RENDER_PREWARM_BEGIN, XP_UI_READER_RENDER_PAGE,
+                    XP_UI_READER_RENDER_PREWARM_END, XP_UI_READER_RENDER_HIGHLIGHTS}) {
+    op.kind = kind;
+    root.frame->execute(op);
+  }
+  assert(context.calls == 1 && renderer.frameCache.scopes == 1);
+  finish(&root);
+  assert(!root.frame && renderer.frameCache.scopes == 0);
+}

@@ -63,7 +63,7 @@ void bindResultsPhysical() {
     out->font = 1; out->compression = 1; out->word_spacing_percent = 100;
   };
   leaves.render_services = [](void*) -> const XpUiReaderRenderServices* { physical("render-services", 1); return &resultRenderServices; };
-  leaves.render_bind_page = [](void*, void* page, int32_t, int32_t, int32_t, int32_t, XpEpubHighlight, void*) {
+  legacyBook.section.page.render_bind_page = [](void*, void* page, int32_t, int32_t, int32_t, int32_t, XpEpubLegacyHighlight, void*) {
     physical("bind-page", 1); assert(results.pages.count(static_cast<ResultPage*>(page)) && !results.bound); results.bound = page;
   };
   leaves.render_finish_page = [](void*) { physical("finish-page", 1); assert(results.bound); results.bound = nullptr; };
@@ -117,11 +117,11 @@ void bindResultsPhysical() {
     auto* value = new ResultPage{page}; assert(results.pages.insert(value).second); return value;
   };
   legacyBook.section.section_page_text = [](void* raw, int32_t, XpAppTextSink sink, void* context) -> uint8_t { physical("page-text", 1); assert(raw == results.section); return deliver(sink, context, "page words"); };
-  leaves.page_close = [](void* raw) { releasePage(static_cast<ResultPage*>(raw)); };
-  leaves.page_info = [](void* raw, XpEpubPageInfo* out) { physical("page-info", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); *out = {}; };
-  leaves.metadata_assign = [](void*, void* raw) -> uint8_t { physical("metadata-copy", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); return 1; };
-  leaves.metadata_clear = [](void*) { physical("metadata-clear", 1); };
-  leaves.metadata_footnotes = [](void*) -> uint16_t { physical("footnote-count", 1); return 2; };
+  legacyBook.section.page.page_close = [](void* raw) { releasePage(static_cast<ResultPage*>(raw)); };
+  legacyBook.section.page.page_info = [](void* raw, XpEpubPageInfo* out) { physical("page-info", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); *out = {}; };
+  legacyBook.section.page.metadata_assign = [](void*, void* raw) -> uint8_t { physical("metadata-copy", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); return 1; };
+  legacyBook.section.page.metadata_clear = [](void*) { physical("metadata-clear", 1); };
+  legacyBook.section.page.metadata_footnotes = [](void*) -> uint16_t { physical("footnote-count", 1); return 2; };
   leaves.bookmarks_count = [](void*) -> uint32_t { physical("bookmark-count"); return 0; };
   leaves.bookmarks_clear = [](void* raw) { auto& h = f().handle(raw, Kind::Bookmarks); f().physical("bookmarks-clear", h.generation, h.id); };
   legacyBook.bookmarks_load = [](void* raw, void* book) -> uint8_t {
@@ -197,13 +197,13 @@ void bindResultsPhysical() {
   leaves.child_bookmarks = [](void* book, XpAppText path) -> void* { assert(book == f().extractor && text(path) == f().path); return child("bookmarks"); };
   leaves.child_clippings = []() -> void* { return child("clippings"); };
   leaves.child_qr = [](XpAppText value) -> void* { assert(text(value) == "page words"); return child("qr"); };
-  leaves.child_footnote = [](void* page, int32_t, int32_t) -> void* { return child("footnote", {static_cast<ResultPage*>(page)}); };
-  leaves.child_selection = [](void** pages, uint8_t count, const XpEpubSelectionArgs*) -> void* {
+  legacyBook.section.page.child_footnote = [](void* page, int32_t, int32_t) -> void* { return child("footnote", {static_cast<ResultPage*>(page)}); };
+  legacyBook.section.page.child_selection = [](void** pages, uint8_t count, const XpEpubSelectionArgs*) -> void* {
     assert(count > 0 && count <= 3); std::vector<ResultPage*> owned;
     for (unsigned i = 0; i < count; ++i) { auto* page = static_cast<ResultPage*>(pages[i]); assert(results.pages.count(page)); owned.push_back(page); }
     return child("selection", std::move(owned));
   };
-  leaves.child_dictionary = [](void* page, int32_t, int32_t, XpAppText initial) -> void* {
+  legacyBook.section.page.child_dictionary = [](void* page, int32_t, int32_t, XpAppText initial) -> void* {
     borrowedUse("dictionary-create"); assert(initial.data == results.borrowedText && initial.len == 4096); ++results.lookups;
     return child("dictionary", {static_cast<ResultPage*>(page)});
   };

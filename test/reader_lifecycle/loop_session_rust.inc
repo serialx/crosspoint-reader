@@ -160,7 +160,7 @@ static void configure() {
     owner.page = page.get(); if (page) ++owner.pagesOpened;
     return page.release();
   };
-  leaves.physical.page_close = [](void* raw) {
+  leaves.book.section.page.page_close = [](void* raw) {
     auto& owner = bridge(); locked(); assert(raw && raw == owner.page && !owner.prewarm);
     delete static_cast<Page*>(raw); owner.page = nullptr; ++owner.pagesClosed;
   };
@@ -218,11 +218,11 @@ static void configure() {
     auto& value = context(raw); locked(); assert(value.page && value.prewarm && value.scanFinished);
     value.prewarm.reset();
   };
-  leaves.physical.page_render = [](void* raw, int32_t font, int32_t left, int32_t top) {
+  leaves.book.section.page.page_render = [](void* raw, int32_t font, int32_t left, int32_t top) {
     auto& value = bridge(); locked(); assert(raw == value.page && value.prewarm && !value.scanFinished);
     assert(font == 1 && !left && !top); value.page->render(value.owner.renderer, font, left, top);
   };
-  leaves.physical.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* destination) -> uint8_t {
+  leaves.book.section.page.metadata_link = [](void* raw, uint16_t index, XpEpubLinkSink sink, void* destination) -> uint8_t {
     auto& value = context(raw); locked(); assert(index == 0 && value.link);
     XpEpubLink row{}; row.href = text(value.link->href); return sink(destination, &row);
   };

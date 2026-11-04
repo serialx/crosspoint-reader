@@ -25,6 +25,10 @@ pub(super) struct Page {
 }
 
 impl Page {
+    pub(super) fn borrow(&self) -> super::page_view::View<'_> {
+        super::page_view::View::Arena(self.arena())
+    }
+
     fn allocate(resources: &'static app_abi::Resources, bytes: usize) -> Option<Self> {
         let (layout, offset) = Layout::new::<Header>()
             .extend(Layout::array::<u8>(bytes).ok()?)

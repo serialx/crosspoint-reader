@@ -41,7 +41,7 @@ def digest(data):
 
 def mutant(source, mode):
     if mode == 'link-hit':
-        pattern = rb'(xp_book_link_contains\(\s*&bounds,\s*hit\.x,\s*hit\.y,\s*)6(,\s*28\s*\))'
+        pattern = rb'(link\.contains\(x\.wrapping_sub\(left\), y\.wrapping_sub\(top\),\s*)6(,\s*28\s*\))'
         assert len(re.findall(pattern, source)) == 1, 'link slop mutation must match one real call'
         changed, count = re.subn(pattern, lambda match: match[1] + b'0' + match[2], source)
         assert count == 1

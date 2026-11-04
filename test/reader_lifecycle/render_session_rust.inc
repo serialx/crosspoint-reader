@@ -117,9 +117,10 @@ static const XpAppRuntime runtime = [] {
   table.model_unlock = [] { assert(modelDepth == 1 && lockDepth == 1); --modelDepth; };
   return table;
 }();
+static auto legacyPage = unexpectedLegacyPageServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -135,16 +136,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(page_close);
-  UNUSED_LEAF(page_info);
-  UNUSED_LEAF(page_element);
-  UNUSED_LEAF(page_word);
-  UNUSED_LEAF(metadata_assign);
-  UNUSED_LEAF(metadata_clear);
-  UNUSED_LEAF(metadata_footnotes);
-  UNUSED_LEAF(metadata_links);
-  UNUSED_LEAF(metadata_footnote);
-  UNUSED_LEAF(metadata_link);
+
   UNUSED_LEAF(paint_dither);
   UNUSED_LEAF(paint_pixel);
   UNUSED_LEAF(paint_status);
@@ -261,15 +253,12 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
-  UNUSED_LEAF(page_word_font);
-  UNUSED_LEAF(page_line_font);
-  UNUSED_LEAF(page_word_y_offset);
-  UNUSED_LEAF(page_line_ruby_shift);
+
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
   UNUSED_LEAF(input_snapshot);
-  UNUSED_LEAF(page_render);
+
   UNUSED_LEAF(protection_open);
   UNUSED_LEAF(protection_close);
   UNUSED_LEAF(protection_encrypted);
@@ -294,9 +283,12 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(file_flush);
   UNUSED_LEAF(image_supported);
   UNUSED_LEAF(image_dimensions);
-  UNUSED_LEAF(page_load);
+
   UNUSED_LEAF(framebuffer_lend);
   UNUSED_LEAF(framebuffer_restore);
+  UNUSED_LEAF(paint_arena);
+  UNUSED_LEAF(image_needs_decode);
+  UNUSED_LEAF(font_ascent);
   table.render_services = [](void* context) -> const XpUiReaderRenderServices* {
     root(context);
     const auto* native = actualServices(context);
@@ -304,8 +296,8 @@ static const XpEpubLeaves leaves = [] {
     checkedServices = {context, physicalRead, physicalExecute};
     return &checkedServices;
   };
-  table.render_bind_page = [](void* context, void* page, int32_t font, int32_t left, int32_t top, int32_t bottom,
-                             XpEpubHighlight highlights, void* highlightContext) {
+  legacyPage.render_bind_page = [](void* context, void* page, int32_t font, int32_t left, int32_t top, int32_t bottom,
+                             XpEpubLegacyHighlight highlights, void* highlightContext) {
     root(context);
     assert(!bound && !finishing && livePages == 1 && page == activePage && highlights && highlightContext);
     assert(font == 12 && left == 4 && top == 1 && bottom == 3 && "native Page binding must preserve coordinates");
@@ -323,7 +315,7 @@ static const XpEpubLeaves leaves = [] {
     bound = false;
     ++finishCount;
   };
-  table.page_close = [](void* page) {
+  legacyPage.page_close = [](void* page) {
     leaf();
     assert(!bound && !finishing && finishCount == 1 && "native frame must finish before Page closes");
     assert(page == activePage && livePages == 1 && closeCount == 0 && !active->native->frame && !boundSource);
@@ -366,7 +358,7 @@ static void create(EpubReaderActivity& owner) {
       active->drawClippingHighlights(*static_cast<Page*>(page), font, top, left);
     },
   };
-  owner.rustOwner = xp_epub_test_render_create(&seed, &leaves, &runtime, &resources);
+  owner.rustOwner = xp_epub_test_render_create(&seed, &leaves, &runtime, &resources, &legacyPage);
   assert(owner.rustOwner);
 }
 static void lifetimeFacts() {

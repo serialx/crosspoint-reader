@@ -32,6 +32,7 @@ pub unsafe extern "C" fn xp_epub_test_entry_gate_create_legacy_book(
         return core::ptr::null_mut();
     };
     owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
+    owner.legacy_pages.set(Some(&legacy_book.section.page));
     let state = owner.state.get_mut();
     state.base.refresh_counter = 7;
     state.base.session.anchor_ms = 123;

@@ -12,6 +12,7 @@ type XpAppTextSink = app_abi::TextSink;
 
 #[repr(C)]
 pub struct LegacySectionServices {
+    pub page: super::legacy_page::LegacyPageServices,
     pub section_open:
         unsafe extern "C" fn(book: *mut core::ffi::c_void, spine: i32) -> *mut core::ffi::c_void,
     pub section_close: unsafe extern "C" fn(section: *mut core::ffi::c_void),
@@ -228,13 +229,19 @@ impl Section {
             }
         }
     }
-    pub(in crate::app::epub) unsafe fn load_page(handle: Handle, page: i32) -> *mut c_void {
+    pub(in crate::app::epub) unsafe fn load_page(
+        handle: Handle,
+        page: i32,
+    ) -> Option<super::legacy_page::Page> {
         unsafe {
             match handle {
-                Handle::Reader(raw) => ReaderSection::load_page(raw, page),
-                Handle::Legacy { pointer, services } => {
-                    (services.section_load_page)(pointer.as_ptr(), page)
+                Handle::Reader(raw) => {
+                    ReaderSection::load_page(raw, page).map(super::legacy_page::Page::Reader)
                 }
+                Handle::Legacy { pointer, services } => super::legacy_page::Page::from_raw(
+                    (services.section_load_page)(pointer.as_ptr(), page),
+                    &services.page,
+                ),
             }
         }
     }

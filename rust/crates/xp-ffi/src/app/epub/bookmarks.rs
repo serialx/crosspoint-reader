@@ -148,7 +148,7 @@ impl EpubSession {
         let Some(section) = self.section(access) else {
             return Some(Text::default());
         };
-        unsafe { ReaderSection::page_text(section, page) }
+        unsafe { self.page_text(section, page) }
     }
 
     pub(super) fn add_bookmark(&self) {

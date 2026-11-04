@@ -156,7 +156,7 @@ inline XpAppRuntime overlayUnexpectedRuntime() {
 
 inline XpEpubLeaves overlayUnexpectedLeaves() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
   table.resources_open = &OverlayUnexpected<decltype(table.resources_open)>::call;
   table.resources_close = &OverlayUnexpected<decltype(table.resources_close)>::call;
   table.render_services = &OverlayUnexpected<decltype(table.render_services)>::call;
@@ -172,16 +172,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.progress_to_reader = &OverlayUnexpected<decltype(table.progress_to_reader)>::call;
   table.progress_to_saved = &OverlayUnexpected<decltype(table.progress_to_saved)>::call;
   table.progress_save = &OverlayUnexpected<decltype(table.progress_save)>::call;
-  table.page_close = &OverlayUnexpected<decltype(table.page_close)>::call;
-  table.page_info = &OverlayUnexpected<decltype(table.page_info)>::call;
-  table.page_element = &OverlayUnexpected<decltype(table.page_element)>::call;
-  table.page_word = &OverlayUnexpected<decltype(table.page_word)>::call;
-  table.metadata_assign = &OverlayUnexpected<decltype(table.metadata_assign)>::call;
-  table.metadata_clear = &OverlayUnexpected<decltype(table.metadata_clear)>::call;
-  table.metadata_footnotes = &OverlayUnexpected<decltype(table.metadata_footnotes)>::call;
-  table.metadata_links = &OverlayUnexpected<decltype(table.metadata_links)>::call;
-  table.metadata_footnote = &OverlayUnexpected<decltype(table.metadata_footnote)>::call;
-  table.metadata_link = &OverlayUnexpected<decltype(table.metadata_link)>::call;
   table.paint_dither = &OverlayUnexpected<decltype(table.paint_dither)>::call;
   table.paint_pixel = &OverlayUnexpected<decltype(table.paint_pixel)>::call;
   table.paint_status = &OverlayUnexpected<decltype(table.paint_status)>::call;
@@ -298,15 +288,10 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.emit_exit = &OverlayUnexpected<decltype(table.emit_exit)>::call;
   table.emit_session = &OverlayUnexpected<decltype(table.emit_session)>::call;
   table.log = &OverlayUnexpected<decltype(table.log)>::call;
-  table.page_word_font = &OverlayUnexpected<decltype(table.page_word_font)>::call;
-  table.page_line_font = &OverlayUnexpected<decltype(table.page_line_font)>::call;
-  table.page_word_y_offset = &OverlayUnexpected<decltype(table.page_word_y_offset)>::call;
-  table.page_line_ruby_shift = &OverlayUnexpected<decltype(table.page_line_ruby_shift)>::call;
   table.font_text_advance = &OverlayUnexpected<decltype(table.font_text_advance)>::call;
   table.log_enabled = &OverlayUnexpected<decltype(table.log_enabled)>::call;
   table.toolbar_reset_navigation = &OverlayUnexpected<decltype(table.toolbar_reset_navigation)>::call;
   table.input_snapshot = &OverlayUnexpected<decltype(table.input_snapshot)>::call;
-  table.page_render = &OverlayUnexpected<decltype(table.page_render)>::call;
   table.protection_open = &OverlayUnexpected<decltype(table.protection_open)>::call;
   table.protection_close = &OverlayUnexpected<decltype(table.protection_close)>::call;
   table.protection_encrypted = &OverlayUnexpected<decltype(table.protection_encrypted)>::call;
@@ -331,7 +316,6 @@ inline XpEpubLeaves overlayUnexpectedLeaves() {
   table.file_flush = &OverlayUnexpected<decltype(table.file_flush)>::call;
   table.image_supported = &OverlayUnexpected<decltype(table.image_supported)>::call;
   table.image_dimensions = &OverlayUnexpected<decltype(table.image_dimensions)>::call;
-  table.page_load = &OverlayUnexpected<decltype(table.page_load)>::call;
   table.framebuffer_lend = &OverlayUnexpected<decltype(table.framebuffer_lend)>::call;
   table.framebuffer_restore = &OverlayUnexpected<decltype(table.framebuffer_restore)>::call;
   table.book_facade_open = &OverlayUnexpected<decltype(table.book_facade_open)>::call;

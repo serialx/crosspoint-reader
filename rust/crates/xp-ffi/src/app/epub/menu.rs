@@ -64,7 +64,7 @@ impl EpubSession {
                 self.request_update();
                 return;
             }
-            unsafe { (self.leaves.metadata_footnotes)(self.native(&access)) != 0 }
+            self.metadata_footnotes(&access) != 0
         };
         let Some(book) = self.loop_book() else { return };
         with_book_text(book, super::session_book::title, |title| {
@@ -146,7 +146,7 @@ impl EpubSession {
                     {
                         return None;
                     }
-                    unsafe { ReaderSection::page_text(section, page) }
+                    unsafe { self.page_text(section, page) }
                 })
             }
         };

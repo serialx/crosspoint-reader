@@ -131,7 +131,7 @@ static void configureChildLeaves() {
     assert(lockDepth == 1 && !modelDepth && raw == activeChild->owner.epub.get());
     activeChild->owner.epub.reset();
   };
-  childLeaves.physical.page_close = [](void* raw) { assert(!modelDepth); delete static_cast<Page*>(raw); };
+  childLeaves.book.section.page.page_close = [](void* raw) { assert(!modelDepth); delete static_cast<Page*>(raw); };
   childLeaves.physical.render_margins = [](int32_t* margins) {
     activeChild->owner.renderer.getOrientedViewableTRBL(&margins[0], &margins[1], &margins[2], &margins[3]);
   };
@@ -161,11 +161,11 @@ static void configureChildLeaves() {
     const auto text = static_cast<Epub*>(raw)->getPath();
     return sink(context, childText(text));
   };
-  childLeaves.physical.metadata_footnotes = [](void* raw) -> uint16_t {
+  childLeaves.book.section.page.metadata_footnotes = [](void* raw) -> uint16_t {
     assert(raw == activeChild && !modelDepth);
     return activeChild->owner.currentPageMetadata.footnotes().size();
   };
-  childLeaves.physical.metadata_footnote = [](void* raw, uint16_t index, XpEpubFootnoteSink sink, void* context) -> uint8_t {
+  childLeaves.book.section.page.metadata_footnote = [](void* raw, uint16_t index, XpEpubFootnoteSink sink, void* context) -> uint8_t {
     assert(raw == activeChild && !modelDepth);
     const auto& notes = activeChild->owner.currentPageMetadata.footnotes();
     assert(index < notes.size());
@@ -192,7 +192,7 @@ static void configureChildLeaves() {
     return ClippingsManager::saveClipping(childString(title), childString(author), childString(chapter), page,
                                           childNativeText(text));
   };
-  childLeaves.physical.child_selection = [](void** raw, uint8_t count, const XpEpubSelectionArgs* args) -> void* {
+  childLeaves.book.section.page.child_selection = [](void** raw, uint8_t count, const XpEpubSelectionArgs* args) -> void* {
     assert(!lockDepth && !modelDepth && count > 0 && count <= 3);
     std::vector<std::unique_ptr<Page>> pages;
     pages.reserve(3);
@@ -207,7 +207,7 @@ static void configureChildLeaves() {
     }
     return child.release();
   };
-  childLeaves.physical.child_dictionary = [](void* raw, int32_t left, int32_t top, XpAppText initial) -> void* {
+  childLeaves.book.section.page.child_dictionary = [](void* raw, int32_t left, int32_t top, XpAppText initial) -> void* {
     assert(!lockDepth && !modelDepth);
     std::unique_ptr<Page> page(static_cast<Page*>(raw));
     auto child = makeUniqueNoThrow<DictionaryWordSelectActivity>(
@@ -215,7 +215,7 @@ static void configureChildLeaves() {
     if (!child) page.release();
     return child.release();
   };
-  childLeaves.physical.child_footnote = [](void* raw, int32_t left, int32_t top) -> void* {
+  childLeaves.book.section.page.child_footnote = [](void* raw, int32_t left, int32_t top) -> void* {
     assert(!lockDepth && !modelDepth);
     std::unique_ptr<Page> page(static_cast<Page*>(raw));
     auto child = makeUniqueNoThrow<EpubReaderFootnoteSelectActivity>(

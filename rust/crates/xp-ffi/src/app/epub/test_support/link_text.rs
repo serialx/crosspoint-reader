@@ -15,11 +15,13 @@ pub unsafe extern "C" fn xp_epub_test_link_create(
     leaves: *const abi::XpEpubLeaves,
     runtime: *const app_abi::Runtime,
     resources: *const app_abi::Resources,
+    legacy_page: &'static super::legacy_page::LegacyPageServices,
 ) -> *mut c_void {
     let Some(mut owner) = EpubSession::try_new(b"", false, 3, &*leaves, &*runtime, &*resources)
     else {
         return core::ptr::null_mut();
     };
+    owner.legacy_pages.set(Some(legacy_page));
     owner.state.get_mut().ready = true;
     owner.guarded.get_mut().native =
         Some(NonNull::new((*seed).native).expect("fixture metadata root"));

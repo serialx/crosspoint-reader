@@ -57,6 +57,7 @@
 #include "ReaderToolbarUi.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
+#include "RustEpubPage.h"
 #include "SilentRestart.h"
 #include "activities/OwnedLegacyActivity.h"
 #include "activities/RenderLock.h"
@@ -267,7 +268,8 @@ struct NativeRenderFrame {
   GfxRenderer& renderer;
   XpEpubHighlight highlight;
   void* highlightContext;
-  Page& page;
+  XpEpubPageView pageView;
+  Page page;
   int font, left, top;
   bool images = false;
   struct ImageGuard {
@@ -293,7 +295,7 @@ struct NativeRenderFrame {
   std::unique_ptr<uint8_t[]> lsb, msb, scratch;
   uint8_t* borrowedScratch = nullptr;
   unsigned long times[10]{};
-  NativeRenderFrame(GfxRenderer& renderer, Page& page, int font, int left, int top, int bottom,
+  NativeRenderFrame(GfxRenderer& renderer, const XpEpubPageView& view, int font, int left, int top, int bottom,
                     XpEpubHighlight highlight, void* context
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
                     ,
@@ -303,7 +305,8 @@ struct NativeRenderFrame {
       : renderer(renderer),
         highlight(highlight),
         highlightContext(context),
-        page(page),
+        pageView(view),
+        page(Page::Borrowed{}, view.arena, view.size, view.visible_offset),
         font(font),
         left(left),
         top(top)
@@ -312,9 +315,9 @@ struct NativeRenderFrame {
         strips{renderer,
                buffers,
                {renderer, page, font, left, top, renderer.getScreenHeight() - bottom - 8, display.isInverted(), this,
-                [](void* raw, const Page& page, int font, int left, int top) {
+                [](void* raw, const Page&, int font, int left, int top) {
                   auto& frame = *static_cast<NativeRenderFrame*>(raw);
-                  frame.highlight(frame.highlightContext, const_cast<Page*>(&page), font, left, top);
+                  frame.highlight(frame.highlightContext, &frame.pageView, font, left, top);
                 }}}
 #endif
   {
@@ -452,7 +455,7 @@ struct NativeRenderFrame {
         prewarm->endScanAndPrewarm();
         break;
       case XP_UI_READER_RENDER_HIGHLIGHTS:
-        highlight(highlightContext, &page, font, left, top);
+        highlight(highlightContext, &pageView, font, left, top);
         break;
       case XP_UI_READER_RENDER_IMAGES:
         page.renderImages(renderer, font, left, top);
@@ -609,7 +612,6 @@ struct NativeResources {
   GfxRenderer& renderer;
   XpUiReaderRenderServices renderServices;
   std::optional<FontCacheManager::PrewarmScope> prewarm;
-  PageMetadata metadata;
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
   ReaderStripBuffers strips;
 #endif
@@ -735,11 +737,11 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return &resources(handle).renderServices;
       },
       .render_bind_page =
-          [](void* handle, void* page, int32_t font, int32_t left, int32_t top, int32_t bottom,
+          [](void* handle, const XpEpubPageView* page, int32_t font, int32_t left, int32_t top, int32_t bottom,
              XpEpubHighlight highlight, void* context) {
             auto& root = resources(handle);
             assert(!root.frame && page && highlight);
-            root.frame.emplace(*target, *static_cast<Page*>(page), font, left, top, bottom, highlight, context
+            root.frame.emplace(*target, *page, font, left, top, bottom, highlight, context
 #if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
                                ,
                                root.strips
@@ -856,60 +858,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         return EpubReaderUtils::saveProgress(
             book(handle).value(), value->spine, value->page, value->count,
             value->has_visible_offset ? std::optional<uint32_t>(value->visible_offset) : std::nullopt);
-      },
-      .page_close = [](void* handle) { delete static_cast<Page*>(handle); },
-      .page_info =
-          [](void* handle, XpEpubPageInfo* out) {
-            const auto& page = *static_cast<Page*>(handle);
-            *out = {page.visibleTextOffset,
-                    static_cast<uint16_t>(page.elementCount()),
-                    static_cast<uint16_t>(page.footnoteCount()),
-                    static_cast<uint16_t>(page.linkCount()),
-                    page.hasImages(),
-                    page.hasImagesNeedingDecode()};
-          },
-      .page_element =
-          [](void* handle, uint16_t index, XpEpubElement* out) {
-            const auto line = static_cast<Page*>(handle)->element(index);
-            *out = {};
-            out->x = line.xPos;
-            out->y = line.yPos;
-            out->tag = line.getTag();
-            if (line.getTag() == TAG_PageLine) {
-              const auto block = line.textBlock();
-              out->valid = block.valid();
-              if (out->valid) out->words = block.wordCount();
-            }
-          },
-      .page_word =
-          [](void* handle, uint16_t element, uint16_t index, XpEpubWord* out) {
-            const auto block = static_cast<Page*>(handle)->element(element).textBlock();
-            const auto range = block.wordSourceRange(index);
-            *out = {text(block.wordText(index)),
-                    block.wordXpos(index),
-                    range.start,
-                    range.end,
-                    static_cast<uint8_t>(block.wordStyle(index)),
-                    block.getBlockStyle().characterSpacing};
-          },
-      .metadata_assign = [](void* handle, void* page) -> uint8_t {
-        return resources(handle).metadata.assign(*static_cast<Page*>(page));
-      },
-      .metadata_clear = [](void* handle) { resources(handle).metadata.clear(); },
-      .metadata_footnotes = [](void* handle) -> uint16_t { return resources(handle).metadata.footnotes().size(); },
-      .metadata_links = [](void* handle) -> uint16_t { return resources(handle).metadata.links().size(); },
-      .metadata_footnote = [](void* handle, uint16_t index, XpEpubFootnoteSink sink, void* context) -> uint8_t {
-        const auto rows = resources(handle).metadata.footnotes();
-        if (index >= rows.size()) return 0;
-        const XpEpubFootnote view{text(rows[index].number), text(rows[index].href)};
-        return sink(context, &view);
-      },
-      .metadata_link = [](void* handle, uint16_t index, XpEpubLinkSink sink, void* context) -> uint8_t {
-        const auto rows = resources(handle).metadata.links();
-        if (index >= rows.size()) return 0;
-        const auto& row = rows[index];
-        const XpEpubLink view{text(row.href), row.x, row.y, row.width, row.height};
-        return sink(context, &view);
       },
       .paint_dither = [](int32_t x, int32_t y, int32_t width,
                          int32_t height) { target->fillRectDither(x, y, width, height, Color::LightGray); },
@@ -1108,36 +1056,14 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                                                         TextSettingsActivity::Tab::Family)
             .release();
       },
-      .child_footnote = [](void* handle, int32_t left, int32_t top) -> void* {
-        std::unique_ptr<Page> page(static_cast<Page*>(handle));
-        auto child = makeLegacyActivity<EpubReaderFootnoteSelectActivity>(*target, *mapped, std::move(page), left, top);
-        // The Rust caller retains the Page on allocation failure.
-        if (!child) page.release();
-        return child.release();
+      .child_footnote = [](XpEpubOwnedPage* page, int32_t left, int32_t top) -> void* {
+        return epubPage::footnote(*target, *mapped, *page, left, top);
       },
-      .child_dictionary = [](void* handle, int32_t left, int32_t top, XpAppText initial) -> void* {
-        std::unique_ptr<Page> page(static_cast<Page*>(handle));
-        auto child = makeLegacyActivity<DictionaryWordSelectActivity>(*target, *mapped, std::move(page), left, top,
-                                                                      owned(initial));
-        if (!child) page.release();
-        return child.release();
+      .child_dictionary = [](XpEpubOwnedPage* page, int32_t left, int32_t top, XpAppText initial) -> void* {
+        return epubPage::dictionary(*target, *mapped, *page, left, top, initial);
       },
-      .child_selection = [](void** handles, uint8_t count, const XpEpubSelectionArgs* args) -> void* {
-        constexpr size_t pageWindow = 3;
-        assert(count > 0 && count <= pageWindow);
-        // The native child still owns the existing three-slot Page vector.
-        std::vector<std::unique_ptr<Page>> pages;
-        pages.reserve(pageWindow);
-        for (uint8_t i = 0; i < count; ++i) pages.emplace_back(static_cast<Page*>(handles[i]));
-        auto child = makeLegacyActivity<ClipSelectionActivity>(*target, *mapped, std::move(pages), args->left,
-                                                               args->top, args->x, args->y,
-                                                               static_cast<ClipSelectionActivity::Mode>(args->mode));
-        if (child) {
-          for (uint8_t i = 0; i < count; ++i) handles[i] = nullptr;
-        } else {
-          for (auto& page : pages) page.release();
-        }
-        return child.release();
+      .child_selection = [](XpEpubOwnedPage* pages, uint8_t count, const XpEpubSelectionArgs* args) -> void* {
+        return epubPage::selection(*target, *mapped, pages, count, *args);
       },
       .child_bookmarks = [](void* handle, XpAppText path) -> void* {
         return makeLegacyActivity<EpubReaderBookmarksActivity>(*target, *mapped, book(handle).book, owned(path))
@@ -1379,22 +1305,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
                 break;
             }
           },
-      .page_word_font = [](void* handle, uint16_t element, uint16_t word, int32_t font) -> int32_t {
-        const auto block = static_cast<Page*>(handle)->element(element).textBlock();
-        return TextBlock::renderFontId(*target, block.wordFontId(word, font), font);
-      },
-      .page_line_font = [](void* handle, uint16_t element, int32_t font) -> int32_t {
-        const auto block = static_cast<Page*>(handle)->element(element).textBlock();
-        return TextBlock::renderFontId(*target, block.blockFontId(font), font);
-      },
-      .page_word_y_offset = [](void* handle, uint16_t element, uint16_t word, int32_t font) -> int32_t {
-        const auto block = static_cast<Page*>(handle)->element(element).textBlock();
-        return block.wordYOffset(*target, font, word);
-      },
-      .page_line_ruby_shift = [](void* handle, uint16_t element, int32_t font) -> int32_t {
-        const auto block = static_cast<Page*>(handle)->element(element).textBlock();
-        return block.getRubyShift(target->getFontAscenderSize(font));
-      },
       .font_text_advance = [](XpAppText value, int32_t font, uint8_t style, int8_t spacing) -> int32_t {
         return target->getTextAdvanceX(font, pathText(value), static_cast<EpdFontFamily::Style>(style), spacing);
       },
@@ -1420,8 +1330,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
             static_cast<ReaderToolbarUi*>(handle)->resetNavigation(selected, top);
           },
       .input_snapshot = [](XpUiInput* out) { *out = rustInputSnapshot(*mapped); },
-      .page_render = [](void* handle, int32_t font, int32_t left,
-                        int32_t top) { static_cast<Page*>(handle)->render(*target, font, left, top); },
       .cache_lock = [] { BookMetadataCache::lockReadCursor(); },
       .cache_unlock = [] { BookMetadataCache::unlockReadCursor(); },
       .scratch_claim = [](uint32_t min_len) { return buildscratch::claim(min_len); },
@@ -1464,9 +1372,6 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
         *height = dimensions.height;
         return found ? 2 : 1;
       },
-      .page_load = [](void* file, uint32_t bytes, uint32_t visible) -> void* {
-        return Page::load(*static_cast<HalFile*>(file), bytes, visible).release();
-      },
       .framebuffer_lend = []() -> uint8_t {
         if (!target->hasFrameBuffer()) return 0;
         target->releaseFrameBufferForBuild();
@@ -1479,6 +1384,10 @@ const XpEpubLeaves& rustEpubResources(GfxRenderer& renderer, MappedInputManager&
               ESP.restart();
             }
           },
+      .paint_arena = [](const XpEpubPageView* page, int32_t font, int32_t left, int32_t top,
+                        uint8_t mode) { epubPage::paint(*target, *page, font, left, top, mode); },
+      .image_needs_decode = epubPage::imageNeedsDecode,
+      .font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(*target, font); },
   };
   if (!sectionMetrics.context) sectionMetrics.context = target;
   return leaves;

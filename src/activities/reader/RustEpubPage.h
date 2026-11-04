@@ -1,8 +1,5 @@
 #pragma once
 
-// Dormant until the matching native Page leaves retire atomically.
-#ifdef XP_EPUB_PAGE_OWNER_TEST
-
 #include <GfxRenderer.h>
 #include <Memory.h>
 #include <xp_epub_session.h>
@@ -11,21 +8,6 @@
 #include "DictionaryWordSelectActivity.h"
 #include "EpubReaderFootnoteSelectActivity.h"
 #include "activities/OwnedLegacyActivity.h"
-
-struct XpEpubPageView {
-  const uint8_t* arena;
-  size_t size;
-  uint32_t visible_offset;
-};
-struct XpEpubOwnedPage {
-  XpEpubPageView view;
-  void* owner;
-  void (*destroy)(void*);
-};
-
-static_assert(sizeof(XpEpubPageView) == (sizeof(void*) == 8 ? 24 : 12));
-static_assert(sizeof(XpEpubOwnedPage) == sizeof(XpEpubPageView) + 2 * sizeof(void*));
-static_assert(offsetof(XpEpubOwnedPage, owner) == sizeof(XpEpubPageView));
 
 namespace epubPage {
 
@@ -111,5 +93,3 @@ inline uint8_t imageNeedsDecode(XpAppText path, XpAppText source, int16_t width,
 inline int32_t fontAscent(GfxRenderer& renderer, int32_t font) { return renderer.getFontAscenderSize(font); }
 
 }  // namespace epubPage
-
-#endif

@@ -23,8 +23,7 @@ if trace:
         '[](void*, XpParaSpan record) { LayoutTrace::stream.write(reinterpret_cast<const char*>(record.data), record.len); },')
 fields = ('build_metrics', 'build_allocator', 'font_variant', 'font_line_height', 'font_ready',
           'font_codepoint', 'hyphen_language', 'file_position', 'file_flush', 'image_supported',
-          'image_dimensions', 'page_load', 'page_close', 'page_info', 'page_element', 'page_word',
-          'framebuffer_lend', 'framebuffer_restore', 'fonts_release_caches', 'file_open_read',
+          'image_dimensions', 'framebuffer_lend', 'framebuffer_restore', 'fonts_release_caches', 'file_open_read',
           'file_open_write', 'file_read', 'file_write', 'file_seek', 'file_size', 'file_close',
           'path_remove', 'path_rename', 'path_mkdir', 'heap_snapshot', 'log', 'log_enabled',
           'native_path_hash')
@@ -62,13 +61,13 @@ const XpAppResources resources = [] {
  value.path_exists = [](XpAppText path) -> uint8_t { return Storage.exists(pathText(path)); };
  value.buffer_allocate = [](XpAppMemoryDomain domain, size_t bytes) -> uint8_t* {
    assert(domain == XP_APP_MEMORY_DEFAULT);
-   auto* data = static_cast<uint8_t*>(malloc(bytes));
+   auto* data = static_cast<uint8_t*>(::operator new(bytes, std::nothrow));
    if (data) ++liveBuffers;
    return data;
  };
  value.buffer_release = [](XpAppMemoryDomain domain, uint8_t* data) { assert(domain == XP_APP_MEMORY_DEFAULT);
    if (data) { assert(liveBuffers); --liveBuffers; }
-   free(data); };
+   ::operator delete(data); };
  return value;
 }();
 const XpEpubLeaves leaves = [] {

@@ -3,8 +3,11 @@
 
 #include <cstdlib>
 
+#include "legacy_page_fixture.h"
+
 // Only historical synthetic session constructors accept these inputs.
 struct XpEpubLegacySectionServices {
+  XpEpubLegacyPageServices page = unexpectedLegacyPageServices();
   void* (*section_open)(void* book, int32_t spine);
   void (*section_close)(void* section);
   uint16_t (*section_page_count)(void* section);

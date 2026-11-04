@@ -89,7 +89,7 @@ void bindReaderSections() {
     if (text(value) == "anchor") return std::hash<std::string>{}("anchor");
     return pathHash(value);
   };
-  leaves.page_load = [](void* raw, uint32_t size, uint32_t visible) -> void* {
+  legacyBook.section.page.page_load = [](void* raw, uint32_t size, uint32_t visible) -> void* {
     physical("page-open", 1);
     auto& file = readerFiles.at(raw);
     assert(readerSectionFiles.count(file.path));
@@ -110,14 +110,14 @@ void bindReaderSections() {
     auto* value = new ResultPage{int(page)};
     assert(results.pages.insert(value).second); return value;
   };
-  leaves.page_info = [](void* raw, XpEpubPageInfo* out) {
+  legacyBook.section.page.page_info = [](void* raw, XpEpubPageInfo* out) {
     physical("page-info", 1); assert(results.pages.count(static_cast<ResultPage*>(raw))); *out = {}; out->elements = 1;
   };
-  leaves.page_element = [](void* raw, uint16_t index, XpEpubElement* out) {
+  legacyBook.section.page.page_element = [](void* raw, uint16_t index, XpEpubElement* out) {
     physical("page-element", 1); assert(results.pages.count(static_cast<ResultPage*>(raw)) && index == 0);
     *out = {}; out->tag = 1; out->valid = 1; out->words = 2;
   };
-  leaves.page_word = [](void* raw, uint16_t element, uint16_t word, XpEpubWord* out) {
+  legacyBook.section.page.page_word = [](void* raw, uint16_t element, uint16_t word, XpEpubWord* out) {
     physical("page-word", 1); assert(results.pages.count(static_cast<ResultPage*>(raw)) && element == 0 && word < 2);
     *out = {}; out->text = literal(word ? "words" : "page");
   };

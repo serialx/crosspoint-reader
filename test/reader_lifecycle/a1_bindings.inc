@@ -133,8 +133,8 @@ static void bindA1() {
   leaves.render_services = [](void* raw) -> const XpUiReaderRenderServices* {
     sceneLeaf(1); assert(raw == a1Root); return a1NativeServices(raw);
   };
-  leaves.render_bind_page = [](void* raw, void* page, int32_t font, int32_t left, int32_t top,
-                              int32_t bottom, XpEpubHighlight callback, void* context) {
+  legacyBook.section.page.render_bind_page = [](void* raw, void* page, int32_t font, int32_t left, int32_t top,
+                              int32_t bottom, XpEpubLegacyHighlight callback, void* context) {
     sceneLeaf(1); assert(raw == a1Root && !a1Root->frame && page && livePages == 1);
     assert(left == 11 && top == 3 && bottom == 7 && callback && context);
     if (font != 41) a1WrongFont = true;
@@ -158,25 +158,25 @@ static void bindA1() {
     a1Physical("section-close", 0, 0, 0); f().physical("section-close", f().generation);
     closeSection(raw);
   };
-  leaves.page_close = [](void* raw) {
+  legacyBook.section.page.page_close = [](void* raw) {
     sceneLeaf(1); assert(raw && !a1Root->frame && !scene.boundPage && !boundSource);
     a1Physical("page-close", static_cast<Page*>(raw)->number, 0, 0);
     delete static_cast<Page*>(raw); assert(!livePages);
   };
-  leaves.page_info = [](void* page, XpEpubPageInfo* out) { sceneLeaf(1); a1NativeInfo(page, out); };
-  leaves.metadata_assign = [](void* raw, void* page) -> uint8_t {
+  legacyBook.section.page.page_info = [](void* page, XpEpubPageInfo* out) { sceneLeaf(1); a1NativeInfo(page, out); };
+  legacyBook.section.page.metadata_assign = [](void* raw, void* page) -> uint8_t {
     sceneLeaf(1); assert(raw == a1Root && livePages == 1);
     const auto result = a1NativeAssign(raw, page); assert(result);
     assert(a1Root->metadata.footnotes().size() == 1 && a1Root->metadata.links().size() == 1);
     ++a1Copies; a1Physical("metadata-copy", static_cast<Page*>(page)->number, 1, 1); return result;
   };
-  leaves.metadata_clear = [](void* raw) { sceneLeaf(1); a1NativeClear(raw); a1Physical("metadata-clear", 0, 0, 0); };
-  leaves.metadata_footnotes = [](void* raw) -> uint16_t { sceneLeaf(1); return a1NativeNotes(raw); };
-  leaves.metadata_links = [](void* raw) -> uint16_t { sceneLeaf(1); ++a1MetadataReads; return a1NativeLinks(raw); };
-  leaves.metadata_footnote = [](void* raw, uint16_t row, XpEpubFootnoteSink sink, void* context) -> uint8_t {
+  legacyBook.section.page.metadata_clear = [](void* raw) { sceneLeaf(1); a1NativeClear(raw); a1Physical("metadata-clear", 0, 0, 0); };
+  legacyBook.section.page.metadata_footnotes = [](void* raw) -> uint16_t { sceneLeaf(1); return a1NativeNotes(raw); };
+  legacyBook.section.page.metadata_links = [](void* raw) -> uint16_t { sceneLeaf(1); ++a1MetadataReads; return a1NativeLinks(raw); };
+  legacyBook.section.page.metadata_footnote = [](void* raw, uint16_t row, XpEpubFootnoteSink sink, void* context) -> uint8_t {
     sceneLeaf(1); return a1NativeNote(raw, row, sink, context);
   };
-  leaves.metadata_link = [](void* raw, uint16_t row, XpEpubLinkSink sink, void* context) -> uint8_t {
+  legacyBook.section.page.metadata_link = [](void* raw, uint16_t row, XpEpubLinkSink sink, void* context) -> uint8_t {
     sceneLeaf(1); ++a1MetadataReads; return a1NativeLink(raw, row, sink, context);
   };
   leaves.clippings_count = []() -> uint32_t { sceneLeaf(); return 1; };
@@ -185,25 +185,25 @@ static void bindA1() {
     out->spine = 1; out->page_count = 10; out->start_page = 2; out->end_page = 3;
     out->start_word = out->end_word = 0; out->start_offset = 100; out->end_offset = 104;
   };
-  leaves.page_element = [](void* raw, uint16_t element, XpEpubElement* out) {
+  legacyBook.section.page.page_element = [](void* raw, uint16_t element, XpEpubElement* out) {
     sceneLeaf(1); assert(raw == scene.boundPage && livePages == 1 && element == 0);
     *out = {}; out->tag = 1; out->valid = 1; out->words = 1; out->x = 13; out->y = 17;
   };
-  leaves.page_word = [](void* raw, uint16_t element, uint16_t word, XpEpubWord* out) {
+  legacyBook.section.page.page_word = [](void* raw, uint16_t element, uint16_t word, XpEpubWord* out) {
     sceneLeaf(1); assert(raw == scene.boundPage && element == 0 && word == 0);
     *out = {}; out->text = nativeText("word"); out->x = 2; out->source_start = 100; out->source_end = 104;
   };
-  leaves.page_word_font = [](void* raw, uint16_t line, uint16_t word, int32_t base) -> int32_t {
+  legacyBook.section.page.page_word_font = [](void* raw, uint16_t line, uint16_t word, int32_t base) -> int32_t {
     sceneLeaf(1); assert(raw == scene.boundPage && line == 0 && word == 0);
     if (base != 41) a1WrongFont = true; a1Physical("word-font", base, 0, 0); return base;
   };
-  leaves.page_line_font = [](void* raw, uint16_t line, int32_t base) -> int32_t {
+  legacyBook.section.page.page_line_font = [](void* raw, uint16_t line, int32_t base) -> int32_t {
     sceneLeaf(1); assert(raw == scene.boundPage && line == 0); if (base != 41) a1WrongFont = true; return base;
   };
-  leaves.page_word_y_offset = [](void* raw, uint16_t line, uint16_t word, int32_t base) -> int32_t {
+  legacyBook.section.page.page_word_y_offset = [](void* raw, uint16_t line, uint16_t word, int32_t base) -> int32_t {
     sceneLeaf(1); assert(raw == scene.boundPage && line == 0 && word == 0); if (base != 41) a1WrongFont = true; return 4;
   };
-  leaves.page_line_ruby_shift = [](void* raw, uint16_t line, int32_t base) -> int32_t {
+  legacyBook.section.page.page_line_ruby_shift = [](void* raw, uint16_t line, int32_t base) -> int32_t {
     sceneLeaf(1); assert(raw == scene.boundPage && line == 0); if (base != 41) a1WrongFont = true; return 6;
   };
   leaves.font_text_advance = [](XpAppText value, int32_t font, uint8_t style, int8_t spacing) -> int32_t {

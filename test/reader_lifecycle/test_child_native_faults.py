@@ -1,3 +1,4 @@
+from legacy_page_native import source as legacy_page_source
 """Exercise extracted native child leaves with real nullable object allocation."""
 import hashlib
 import json
@@ -110,7 +111,7 @@ def fixture(native):
 
 
 def main():
-    native = NATIVE.read_text()
+    native = legacy_page_source(NATIVE.read_text())
     paths = [NATIVE, MEMORY, LEGACY_OWNER, HERE / 'child_native_faults.cpp', HERE / 'child_session_rust.inc',
              HERE / 'child_parent_oracle.cpp', HERE / 'child_session_fixture.h',
              HERE / 'test_child_native_faults.py', HERE / 'test_child_metadata_faults.py',

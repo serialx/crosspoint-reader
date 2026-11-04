@@ -82,6 +82,7 @@ pub unsafe extern "C" fn xp_epub_test_lifecycle_create_legacy_book(
     };
     let value = seed.state;
     owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
+    owner.legacy_pages.set(Some(&legacy_book.section.page));
     let state = owner.state.get_mut();
     state.ready = true;
     state.facts.radio_released = value.radio_released != 0;

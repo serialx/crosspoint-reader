@@ -1,5 +1,4 @@
-use super::{abi, EpubSession, ResourceAccess};
-use core::ffi::c_void;
+use super::{EpubSession, ResourceAccess};
 
 impl EpubSession {
     pub(super) fn link_at_point(
@@ -10,36 +9,18 @@ impl EpubSession {
         left: i32,
         top: i32,
     ) -> Option<u16> {
-        struct Hit {
-            x: i32,
-            y: i32,
-            found: bool,
-        }
-        unsafe extern "C" fn test(context: *mut c_void, link: *const abi::XpEpubLink) -> u8 {
-            let hit = &mut *context.cast::<Hit>();
-            let link = &*link;
-            let bounds = [
-                link.x as i16,
-                link.y as i16,
-                link.width as i16,
-                link.height as i16,
-            ];
-            hit.found =
-                crate::book_policy::xp_book_link_contains(&bounds, hit.x, hit.y, 6, 28) != 0;
-            1
-        }
-        let native = self.native(access);
-        let length = unsafe { (self.leaves.metadata_links)(native) };
-        let mut hit = Hit {
-            x: x.wrapping_sub(left),
-            y: y.wrapping_sub(top),
-            found: false,
-        };
-        for index in 0..length {
-            unsafe {
-                (self.leaves.metadata_link)(native, index, test, (&mut hit as *mut Hit).cast())
+        for index in 0..self.metadata_links(access) {
+            let Some(link) = self.metadata_link(access, index) else {
+                continue;
             };
-            if hit.found {
+            let link = xp_core::page::Link {
+                href: &[],
+                x: link.x as i16,
+                y: link.y as i16,
+                width: link.width as i16,
+                height: link.height as i16,
+            };
+            if link.contains(x.wrapping_sub(left), y.wrapping_sub(top), 6, 28) {
                 return Some(index);
             }
         }

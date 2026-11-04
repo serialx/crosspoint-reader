@@ -14,6 +14,8 @@
 extern "C" void* xp_epub_test_page_transfer(const XpAppResources*, const XpEpubLeaves*, XpAppText, uint8_t,
                                             void* (*)(XpEpubOwnedPage*, uint8_t, void*), void*);
 
+void testPageFrame(const XpEpubPageView&, GfxRenderer&);
+
 // Virtual UI methods are deliberately unavailable. This composition constructs
 // and destroys the complete native children, without running their input loops.
 void EpubReaderFootnoteSelectActivity::onEnter() { assert(false); }
@@ -42,6 +44,49 @@ XpUiPaint ClipSelectionActivity::rustResources() {
   return {};
 }
 void ClipSelectionActivity::cancel() { assert(false); }
+
+extern "C" void xp_epub_test_page_query(const XpEpubPageView*, const XpEpubLeaves*, uint16_t, uint16_t, int32_t,
+                                        XpEpubPageInfo*, XpEpubElement*, XpEpubWord*, int32_t (*)[4]);
+
+static void compareRustQueries(const Page& native, const XpEpubPageView& view, const XpEpubLeaves& leaves,
+                               GfxRenderer& renderer) {
+  XpEpubPageInfo info{};
+  xp_epub_test_page_query(&view, &leaves, 0, 0, 24, &info, nullptr, nullptr, nullptr);
+  assert(info.visible_offset == native.visibleTextOffset && info.elements == native.elementCount());
+  assert(info.footnotes == native.footnoteCount() && info.links == native.linkCount());
+  assert(info.images == native.hasImages() && info.images_need_decode == native.hasImagesNeedingDecode());
+  for (uint16_t i = 0; i < native.elementCount(); ++i) {
+    XpEpubElement element{};
+    xp_epub_test_page_query(&view, &leaves, i, 0, 24, nullptr, &element, nullptr, nullptr);
+    const auto source = native.element(i);
+    assert(element.x == source.xPos && element.y == source.yPos && element.tag == source.getTag());
+    if (source.getTag() != TAG_PageLine) {
+      assert(!element.valid && !element.words);
+      continue;
+    }
+    const auto block = source.textBlock();
+    assert(element.valid == block.valid() && element.words == block.wordCount());
+    for (uint16_t word = 0; word < element.words; ++word) {
+      for (int32_t font : {0, 8, 24, 64, 999}) {
+        XpEpubWord value{};
+        int32_t metrics[4]{};
+        xp_epub_test_page_query(&view, &leaves, i, word, font, nullptr, nullptr, &value, &metrics);
+        assert(value.text.len == std::strlen(block.wordText(word)));
+        assert(value.text.data[value.text.len] == 0 &&
+               !std::memcmp(value.text.data, block.wordText(word), value.text.len));
+        assert(value.x == block.wordXpos(word) && value.style == block.wordStyle(word));
+        assert(value.character_spacing == block.getBlockStyle().characterSpacing);
+        const auto range = block.wordSourceRange(word);
+        assert(value.source_start == range.start && value.source_end == range.end);
+        const int lineFont = TextBlock::renderFontId(renderer, block.blockFontId(font), font);
+        assert(metrics[0] == lineFont);
+        assert(metrics[1] == TextBlock::renderFontId(renderer, block.wordFontId(word, font), font));
+        assert(metrics[2] == block.wordYOffset(renderer, font, word));
+        assert(metrics[3] == block.getRubyShift(renderer.getFontAscenderSize(lineFont)));
+      }
+    }
+  }
+}
 
 namespace {
 struct Allocation {
@@ -108,6 +153,9 @@ void* factory(XpEpubOwnedPage* pages, uint8_t count, void* raw) {
     assert(native);
     Page borrowed(Page::Borrowed{}, pages[i].view.arena, pages[i].view.size, i);
     comparePage(*native, borrowed);
+    compareRustQueries(*native, pages[i].view, leaves, renderer);
+    testPageFrame(pages[i].view, renderer);
+    assert(liveCount() == count && releases == 0);
     for (uint8_t mode = 0; mode < 3; ++mode) {
       renderer.boxPaints.clear();
       renderer.lastLineY = -1;
@@ -255,6 +303,11 @@ void operator delete(void* p, const std::nothrow_t&) noexcept { ::operator delet
 void operator delete[](void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
 
 int main(int argc, char** argv) {
+  leaves.font_ready = [](int32_t font, int32_t fallback) -> int32_t {
+    return TextBlock::renderFontId(renderer, font, fallback);
+  };
+  leaves.font_ascent = [](int32_t font) -> int32_t { return epubPage::fontAscent(renderer, font); };
+  leaves.image_needs_decode = epubPage::imageNeedsDecode;
   resources.buffer_allocate = allocate;
   resources.buffer_release = release;
   leaves.log_enabled = [](uint8_t) -> uint8_t { return 1; };

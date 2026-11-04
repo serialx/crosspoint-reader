@@ -110,7 +110,7 @@ inline XpAppRuntime runtimeDefaults() {
 
 inline XpEpubLeaves leavesDefaults() {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -126,16 +126,7 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(page_close);
-  UNUSED_LEAF(page_info);
-  UNUSED_LEAF(page_element);
-  UNUSED_LEAF(page_word);
-  UNUSED_LEAF(metadata_assign);
-  UNUSED_LEAF(metadata_clear);
-  UNUSED_LEAF(metadata_footnotes);
-  UNUSED_LEAF(metadata_links);
-  UNUSED_LEAF(metadata_footnote);
-  UNUSED_LEAF(metadata_link);
+
   UNUSED_LEAF(paint_dither);
   UNUSED_LEAF(paint_pixel);
   UNUSED_LEAF(paint_status);
@@ -252,15 +243,12 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
-  UNUSED_LEAF(page_word_font);
-  UNUSED_LEAF(page_line_font);
-  UNUSED_LEAF(page_word_y_offset);
-  UNUSED_LEAF(page_line_ruby_shift);
+
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
   UNUSED_LEAF(input_snapshot);
-  UNUSED_LEAF(page_render);
+
   UNUSED_LEAF(protection_open);
   UNUSED_LEAF(protection_close);
   UNUSED_LEAF(protection_encrypted);
@@ -285,9 +273,12 @@ inline XpEpubLeaves leavesDefaults() {
   UNUSED_LEAF(file_flush);
   UNUSED_LEAF(image_supported);
   UNUSED_LEAF(image_dimensions);
-  UNUSED_LEAF(page_load);
+
   UNUSED_LEAF(framebuffer_lend);
   UNUSED_LEAF(framebuffer_restore);
+  UNUSED_LEAF(paint_arena);
+  UNUSED_LEAF(image_needs_decode);
+  UNUSED_LEAF(font_ascent);
   UNUSED_LEAF(book_facade_open);
   UNUSED_LEAF(book_facade_close);
   UNUSED_LEAF(book_set_extractor);

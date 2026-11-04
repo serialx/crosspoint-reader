@@ -1,5 +1,7 @@
 #include <mutex>
 #include <thread>
+
+#include "../reader_page_owner/TransferredPage.h"
 #undef malloc
 #undef free
 extern "C" {
@@ -11,7 +13,7 @@ uint8_t xp_epub_test_section_fixture_start(void*, const XpEpubRenderSpec*, XpEpu
 uint8_t xp_epub_test_section_fixture_advance(void*, int32_t, uint8_t);
 uint8_t xp_epub_test_section_fixture_load(void*, const XpEpubRenderSpec*);
 void xp_epub_test_section_fixture_facts(void*, uint32_t (*)[4]);
-void* xp_epub_test_section_fixture_page(void*, int32_t);
+
 size_t xp_test_live_allocations();
 }
 static std::mutex renderMutex;
@@ -52,7 +54,7 @@ static void exercise(void* section, void* raw) {
   const auto completedPages = static_cast<uint16_t>(facts[0]);
   assert(xp_epub_test_section_fixture_load(section, &spec));
   {
-    std::unique_ptr<Page> page(static_cast<Page*>(xp_epub_test_section_fixture_page(section, 0)));
+    auto page = fixtureSectionPage(section, 0);
     assert(page && page->elementCount() > 0);
   }
   mappingBook = &handle;

@@ -95,17 +95,32 @@ impl FileSlot {
         self.position
     }
 
-    // Page::load borrows the HAL file and advances its physical cursor directly.
-    pub(in crate::app::epub) fn load_page(&mut self, bytes: u32, visible: u32) -> *mut c_void {
-        let Some(file) = &self.file else {
-            return ptr::null_mut();
-        };
-        let Some(handle) = file.handle else {
-            return ptr::null_mut();
-        };
-        let page = unsafe { (file.leaves.page_load)(handle.as_ptr(), bytes, visible) };
+    pub(in crate::app::epub) fn load_page(
+        &mut self,
+        resources: &'static crate::app::abi::Resources,
+        bytes: u32,
+        visible: u32,
+    ) -> Option<super::super::super::page_owner::Page> {
+        let file = self.file.as_ref()?;
+        file.handle?;
+        let leaves = file.leaves;
+        let page =
+            super::super::super::page_owner::Page::load(resources, leaves, self, bytes, visible);
         self.physical_position();
         page
+    }
+
+    #[cfg(feature = "app-test")]
+    pub(in crate::app::epub) fn load_legacy_page(
+        &mut self,
+        services: &'static super::super::super::test_support::legacy_page::LegacyPageServices,
+        bytes: u32,
+        visible: u32,
+    ) -> Option<super::super::super::page::Page> {
+        let handle = self.file.as_ref()?.handle?;
+        let page = unsafe { (services.page_load)(handle.as_ptr(), bytes, visible) };
+        self.physical_position();
+        unsafe { super::super::super::page::Page::from_raw(page, services) }
     }
 
     pub(in crate::app::epub) fn seek(&mut self, position: u32) -> bool {

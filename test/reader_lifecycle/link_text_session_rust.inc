@@ -118,9 +118,10 @@ static const XpAppRuntime runtime = [] {
   return table;
 }();
 
+static auto legacyPage = unexpectedLegacyPageServices();
 static const XpEpubLeaves leaves = [] {
   XpEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
   UNUSED_LEAF(resources_open);
   UNUSED_LEAF(resources_close);
   UNUSED_LEAF(render_services);
@@ -136,16 +137,7 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(progress_to_reader);
   UNUSED_LEAF(progress_to_saved);
   UNUSED_LEAF(progress_save);
-  UNUSED_LEAF(page_close);
-  UNUSED_LEAF(page_info);
-  UNUSED_LEAF(page_element);
-  UNUSED_LEAF(page_word);
-  UNUSED_LEAF(metadata_assign);
-  UNUSED_LEAF(metadata_clear);
-  UNUSED_LEAF(metadata_footnotes);
-  UNUSED_LEAF(metadata_links);
-  UNUSED_LEAF(metadata_footnote);
-  UNUSED_LEAF(metadata_link);
+
   UNUSED_LEAF(paint_dither);
   UNUSED_LEAF(paint_pixel);
   UNUSED_LEAF(paint_status);
@@ -262,15 +254,12 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(emit_exit);
   UNUSED_LEAF(emit_session);
   UNUSED_LEAF(log);
-  UNUSED_LEAF(page_word_font);
-  UNUSED_LEAF(page_line_font);
-  UNUSED_LEAF(page_word_y_offset);
-  UNUSED_LEAF(page_line_ruby_shift);
+
   UNUSED_LEAF(font_text_advance);
   UNUSED_LEAF(log_enabled);
   UNUSED_LEAF(toolbar_reset_navigation);
   UNUSED_LEAF(input_snapshot);
-  UNUSED_LEAF(page_render);
+
   UNUSED_LEAF(protection_open);
   UNUSED_LEAF(protection_close);
   UNUSED_LEAF(protection_encrypted);
@@ -295,10 +284,13 @@ static const XpEpubLeaves leaves = [] {
   UNUSED_LEAF(file_flush);
   UNUSED_LEAF(image_supported);
   UNUSED_LEAF(image_dimensions);
-  UNUSED_LEAF(page_load);
+
   UNUSED_LEAF(framebuffer_lend);
   UNUSED_LEAF(framebuffer_restore);
-  table.metadata_links = [](void* native) -> uint16_t {
+  UNUSED_LEAF(paint_arena);
+  UNUSED_LEAF(image_needs_decode);
+  UNUSED_LEAF(font_ascent);
+  legacyPage.metadata_links = [](void* native) -> uint16_t {
     leaf();
     assert(native);
     auto& physical = *static_cast<PhysicalPageLinks*>(native);
@@ -306,7 +298,7 @@ static const XpEpubLeaves leaves = [] {
     ++physical.countCalls;
     return static_cast<uint16_t>(physical.links.size());
   };
-  table.metadata_link = [](void* native, uint16_t index, XpEpubLinkSink sink, void* context) -> uint8_t {
+  legacyPage.metadata_link = [](void* native, uint16_t index, XpEpubLinkSink sink, void* context) -> uint8_t {
     leaf();
     assert(native && sink);
     auto& physical = *static_cast<PhysicalPageLinks*>(native);
@@ -333,7 +325,7 @@ struct Owner {
   explicit Owner(PhysicalPageLinks& physical) {
     leaf();
     const XpEpubTestLinkSeed seed{&physical};
-    value = xp_epub_test_link_create(&seed, &leaves, &runtime, &resources);
+    value = xp_epub_test_link_create(&seed, &leaves, &runtime, &resources, &legacyPage);
     assert(value);
     leaf();
   }

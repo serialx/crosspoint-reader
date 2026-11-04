@@ -23,6 +23,7 @@ pub unsafe extern "C" fn xp_epub_test_navigation_create_legacy_book(
     };
     // The fixture has not published this owner or transferred its handles yet.
     owner.book_factory = super::super::session_book::Factory::Legacy(legacy_book);
+    owner.legacy_pages.set(Some(&legacy_book.section.page));
     let state = owner.state.get_mut();
     state.ready = true;
     state.current = Position {

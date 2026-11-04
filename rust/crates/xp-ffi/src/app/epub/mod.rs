@@ -27,8 +27,9 @@ mod overlay_input;
 mod overlay_view;
 mod ownership;
 mod page;
-#[cfg(feature = "app-test")]
 mod page_owner;
+mod page_records;
+mod page_view;
 mod position;
 mod projection;
 mod read_folder;
@@ -61,6 +62,8 @@ pub(super) struct EpubSession {
     book_factory: session_book::Factory,
     #[cfg(feature = "app-test")]
     legacy_fixture: UnsafeCell<core::mem::MaybeUninit<session_book::Loaded>>,
+    #[cfg(feature = "app-test")]
+    legacy_pages: core::cell::Cell<Option<&'static test_support::legacy_page::LegacyPageServices>>,
     state: UnsafeCell<State>,
     guarded: GuardedCell,
     leaves: &'static abi::XpEpubLeaves,
@@ -142,6 +145,8 @@ impl EpubSession {
             #[cfg(feature = "app-test")]
             core::ptr::addr_of_mut!((*ptr).legacy_fixture)
                 .write(UnsafeCell::new(core::mem::MaybeUninit::uninit()));
+            #[cfg(feature = "app-test")]
+            core::ptr::addr_of_mut!((*ptr).legacy_pages).write(core::cell::Cell::new(None));
             core::ptr::addr_of_mut!((*ptr).state)
                 .write(UnsafeCell::new(State::new(fast_initial, frequency)));
             core::ptr::addr_of_mut!((*ptr).guarded).write(GuardedCell::default());

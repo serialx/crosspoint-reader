@@ -115,13 +115,14 @@ impl<'a> CacheFile<'a> {
         }
     }
 
-    pub(super) fn load_page(&mut self, index: u32) -> *mut core::ffi::c_void {
+    pub(super) fn with_page_file<T>(
+        &mut self,
+        index: u32,
+        load: impl FnOnce(&mut FileSlot, u32, u32) -> Option<T>,
+    ) -> Option<T> {
         let mut range = [0; 3];
-        if section_cache::query(self, section_cache::Query::PageRange(index), &mut range).is_none()
-        {
-            return core::ptr::null_mut();
-        }
-        self.file.load_page(range[1] - range[0], range[2])
+        section_cache::query(self, section_cache::Query::PageRange(index), &mut range)?;
+        load(&mut self.file, range[1] - range[0], range[2])
     }
 }
 

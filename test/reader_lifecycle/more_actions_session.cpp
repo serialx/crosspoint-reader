@@ -81,7 +81,7 @@ static const XpAppRuntime runtime = [] {
 }();
 static const LegacyEpubLeaves leaves = [] {
   auto table = overlayLegacyLeaves();
-  table.physical.metadata_footnotes = [](void* value) -> uint16_t {
+  table.book.section.page.metadata_footnotes = [](void* value) -> uint16_t {
     leaf(1);
     assert(value == &native && acquisitions == 1);
     probes.push_back(Footnotes);

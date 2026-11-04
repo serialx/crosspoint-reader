@@ -111,7 +111,7 @@ static const XpAppRuntime runtime = [] {
 
 static const LegacyEpubLeaves leaves = [] {
   LegacyEpubLeaves table{};
-  static_assert(sizeof(XpEpubLeaves) == 180 * sizeof(void (*)()));
+  static_assert(sizeof(XpEpubLeaves) == 167 * sizeof(void (*)()));
   UNUSED_LEAF(physical.resources_open);
   UNUSED_LEAF(physical.resources_close);
   UNUSED_LEAF(physical.render_services);
@@ -174,16 +174,16 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(book.section.section_reached_offset);
   UNUSED_LEAF(book.section.section_load_page);
   UNUSED_LEAF(book.section.section_page_text);
-  UNUSED_LEAF(physical.page_close);
-  UNUSED_LEAF(physical.page_info);
-  UNUSED_LEAF(physical.page_element);
-  UNUSED_LEAF(physical.page_word);
-  UNUSED_LEAF(physical.metadata_assign);
-  UNUSED_LEAF(physical.metadata_clear);
-  UNUSED_LEAF(physical.metadata_footnotes);
-  UNUSED_LEAF(physical.metadata_links);
-  UNUSED_LEAF(physical.metadata_footnote);
-  UNUSED_LEAF(physical.metadata_link);
+  UNUSED_LEAF(book.section.page.page_close);
+  UNUSED_LEAF(book.section.page.page_info);
+  UNUSED_LEAF(book.section.page.page_element);
+  UNUSED_LEAF(book.section.page.page_word);
+  UNUSED_LEAF(book.section.page.metadata_assign);
+  UNUSED_LEAF(book.section.page.metadata_clear);
+  UNUSED_LEAF(book.section.page.metadata_footnotes);
+  UNUSED_LEAF(book.section.page.metadata_links);
+  UNUSED_LEAF(book.section.page.metadata_footnote);
+  UNUSED_LEAF(book.section.page.metadata_link);
   UNUSED_LEAF(physical.paint_dither);
   UNUSED_LEAF(physical.paint_pixel);
   UNUSED_LEAF(physical.paint_status);
@@ -300,15 +300,15 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.emit_exit);
   UNUSED_LEAF(physical.emit_session);
   UNUSED_LEAF(physical.log);
-  UNUSED_LEAF(physical.page_word_font);
-  UNUSED_LEAF(physical.page_line_font);
-  UNUSED_LEAF(physical.page_word_y_offset);
-  UNUSED_LEAF(physical.page_line_ruby_shift);
+  UNUSED_LEAF(book.section.page.page_word_font);
+  UNUSED_LEAF(book.section.page.page_line_font);
+  UNUSED_LEAF(book.section.page.page_word_y_offset);
+  UNUSED_LEAF(book.section.page.page_line_ruby_shift);
   UNUSED_LEAF(physical.font_text_advance);
   UNUSED_LEAF(physical.log_enabled);
   UNUSED_LEAF(physical.toolbar_reset_navigation);
   UNUSED_LEAF(physical.input_snapshot);
-  UNUSED_LEAF(physical.page_render);
+  UNUSED_LEAF(book.section.page.page_render);
   UNUSED_LEAF(physical.protection_open);
   UNUSED_LEAF(physical.protection_close);
   UNUSED_LEAF(physical.protection_encrypted);
@@ -333,9 +333,12 @@ static const LegacyEpubLeaves leaves = [] {
   UNUSED_LEAF(physical.file_flush);
   UNUSED_LEAF(physical.image_supported);
   UNUSED_LEAF(physical.image_dimensions);
-  UNUSED_LEAF(physical.page_load);
+  UNUSED_LEAF(book.section.page.page_load);
   UNUSED_LEAF(physical.framebuffer_lend);
   UNUSED_LEAF(physical.framebuffer_restore);
+  UNUSED_LEAF(physical.paint_arena);
+  UNUSED_LEAF(physical.image_needs_decode);
+  UNUSED_LEAF(physical.font_ascent);
   table.book.book_size = [](void* book) -> uint32_t {
     leaf();
     return static_cast<Epub*>(book)->getBookSize();

@@ -58,9 +58,9 @@ static void renderRecoveredImage() {
 static void installNativeChildren(EpubReaderActivity& owner) {
   target = &owner.renderer;
   mapped = &owner.mappedInput;
-  childLeaves.physical.child_selection = /* ACTUAL_SELECTION */;
-  childLeaves.physical.child_dictionary = /* ACTUAL_DICTIONARY */;
-  childLeaves.physical.child_footnote = /* ACTUAL_FOOTNOTE */;
+  childLeaves.book.section.page.child_selection = /* ACTUAL_SELECTION */;
+  childLeaves.book.section.page.child_dictionary = /* ACTUAL_DICTIONARY */;
+  childLeaves.book.section.page.child_footnote = /* ACTUAL_FOOTNOTE */;
   childLeaves.physical.child_clippings = /* ACTUAL_CLIPPINGS */;
   childLeaves.physical.child_sync = /* ACTUAL_SYNC */;
   static const auto install = +/* ACTUAL_INSTALL_EXTRACTOR */;

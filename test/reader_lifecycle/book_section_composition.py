@@ -97,7 +97,7 @@ static DriverRenderer* target = &driverRenderer;
 """ + helpers + '\n' + metrics
     fields = ('build_metrics', 'build_allocator', 'font_variant', 'font_line_height', 'font_ready',
               'font_codepoint', 'hyphen_language', 'file_position', 'file_flush', 'image_supported',
-              'image_dimensions', 'page_load', 'page_close', 'framebuffer_lend', 'framebuffer_restore',
+              'image_dimensions', 'framebuffer_lend', 'framebuffer_restore',
               'fonts_release_caches')
     source = source.replace('static const XpEpubLeaves leaves', physical + '\nstatic const XpEpubLeaves leaves')
     begin = source.index('static const XpEpubLeaves leaves')

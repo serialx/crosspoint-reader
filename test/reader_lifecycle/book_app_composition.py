@@ -27,7 +27,10 @@ def actual_child_source(root, source):
     source = replace_once(source, marker, helper + '\nnamespace { bool hasReaderSection(); void readerSectionBalanced(); }\nclass Epub;\nstd::shared_ptr<Epub> testNativeBook(void*);\n' + marker)
     source = source.replace('bindResultsPhysical(); bindProductionChildren();',
                             'bindResultsPhysical(); bindProductionChildren(); bindReaderBook(); bindReaderResults(); BookStoreAdapters::bind();')
-    source = source.replace('assertEntered();', 'assertReaderEntered();')
+    source = source.replace('assertEntered();', 'xp_epub_test_install_page_fake(xp_app_test_current_epub(), &legacyBook.section.page); assertReaderEntered();')
+    source = 'struct XpEpubLegacyPageServices;\nextern "C" void xp_epub_test_install_page_fake(void*, const XpEpubLegacyPageServices*);\n' + source
+    source = replace_once(source, '  results.owner = xp_app_test_current_epub();\n  results.wifiMatrix',
+                          '  results.owner = xp_app_test_current_epub();\n  xp_epub_test_install_page_fake(results.owner, &legacyBook.section.page);\n  results.wifiMatrix')
     source = '#include <xp_ui_reader_chrome.h>\n' + source
     base = 'struct ReaderChromeListActivity : RustActivityAdapter {\n  using RustActivityAdapter::RustActivityAdapter;'
     source = replace_once(source, base, base + r'''

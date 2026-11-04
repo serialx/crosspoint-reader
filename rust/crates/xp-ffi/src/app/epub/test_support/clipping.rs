@@ -30,6 +30,7 @@ pub unsafe extern "C" fn xp_epub_test_clipping_create_legacy_section(
     else {
         return core::ptr::null_mut();
     };
+    owner.legacy_pages.set(Some(&legacy_section.page));
     owner.state.get_mut().ready = true;
     owner.state.get_mut().current = Position {
         spine: seed.spine,
@@ -71,7 +72,15 @@ pub unsafe extern "C" fn xp_epub_test_clipping_hit(
 ) -> i32 {
     let owner = &*owner.cast::<EpubSession>();
     let access = owner.borrowed_resources();
-    owner.clipping_at_point(&access, NonNull::new(page).expect("fixture page"), x, y)
+    owner.clipping_at_point(
+        &access,
+        super::super::page_view::View::Legacy(
+            NonNull::new(page).expect("fixture page"),
+            owner.legacy_pages.get().expect("legacy fixture"),
+        ),
+        x,
+        y,
+    )
 }
 #[no_mangle]
 pub unsafe extern "C" fn xp_epub_test_clipping_draw(
@@ -85,7 +94,10 @@ pub unsafe extern "C" fn xp_epub_test_clipping_draw(
     let access = owner.borrowed_resources();
     owner.draw_clipping_highlights(
         &access,
-        NonNull::new(page).expect("fixture page"),
+        super::super::page_view::View::Legacy(
+            NonNull::new(page).expect("fixture page"),
+            owner.legacy_pages.get().expect("legacy fixture"),
+        ),
         font,
         top,
         left,

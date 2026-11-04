@@ -125,7 +125,7 @@ impl EpubSession {
             if self.model(|state| state.scene_gate.failed) {
                 return false;
             }
-            unsafe { (self.leaves.metadata_footnotes)(self.native(&access)) != 0 }
+            self.metadata_footnotes(&access) != 0
         };
         let bookmarks = self.loop_bookmark_handle();
         let bookmarks = bookmarks

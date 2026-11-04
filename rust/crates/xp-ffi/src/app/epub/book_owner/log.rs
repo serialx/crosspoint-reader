@@ -1,7 +1,7 @@
 use super::{app_abi, XpEpubLeaves};
 use core::fmt::{self, Write};
 
-pub(super) fn message(
+pub(in crate::app::epub) fn message(
     leaves: &XpEpubLeaves,
     severity: u8,
     origin: &[u8],

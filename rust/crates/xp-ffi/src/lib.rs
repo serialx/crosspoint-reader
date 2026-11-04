@@ -39,6 +39,7 @@ mod book_policy;
 mod book_section;
 mod sdfont;
 mod section;
+mod section_cache;
 mod settings;
 mod system_items;
 mod text;

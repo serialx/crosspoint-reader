@@ -33,6 +33,8 @@ mod recovery;
 mod rejected_input;
 mod render;
 mod render_scope;
+#[cfg(feature = "app-test")]
+mod section_owner;
 mod selection_metadata;
 mod session_book;
 mod settings;

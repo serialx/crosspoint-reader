@@ -5,20 +5,20 @@ use crate::{
 };
 use core::{ffi::c_void, ptr, ptr::NonNull};
 
-pub(in super::super) struct FileSlot {
+pub(in crate::app::epub) struct FileSlot {
     file: Option<File>,
     position: u32,
 }
 
 impl FileSlot {
-    pub(in super::super) fn new() -> Self {
+    pub(in crate::app::epub) fn new() -> Self {
         Self {
             file: None,
             position: 0,
         }
     }
 
-    pub(in super::super) fn open(
+    pub(in crate::app::epub) fn open(
         &mut self,
         leaves: &'static XpEpubLeaves,
         path: &Text,
@@ -45,20 +45,20 @@ impl FileSlot {
         self.file.is_some()
     }
 
-    pub(in super::super) fn close(&mut self) -> bool {
+    pub(in crate::app::epub) fn close(&mut self) -> bool {
         self.file.take().is_some_and(|mut file| file.close())
     }
-    pub(in super::super) fn is_open(&self) -> bool {
+    pub(in crate::app::epub) fn is_open(&self) -> bool {
         self.file.is_some()
     }
-    pub(in super::super) fn position(&self) -> u32 {
+    pub(in crate::app::epub) fn position(&self) -> u32 {
         self.position
     }
-    pub(in super::super) fn size(&self) -> u32 {
+    pub(in crate::app::epub) fn size(&self) -> u32 {
         self.file.as_ref().map_or(0, File::size)
     }
 
-    pub(in super::super) unsafe fn read(&mut self, bytes: *mut u8, length: usize) -> i32 {
+    pub(in crate::app::epub) unsafe fn read(&mut self, bytes: *mut u8, length: usize) -> i32 {
         let Some(file) = &self.file else { return -1 };
         let Some(handle) = file.handle else { return -1 };
         let Ok(length) = u32::try_from(length) else {
@@ -69,7 +69,7 @@ impl FileSlot {
         count
     }
 
-    pub(in super::super) unsafe fn write(&mut self, bytes: *const u8, length: usize) -> usize {
+    pub(in crate::app::epub) unsafe fn write(&mut self, bytes: *const u8, length: usize) -> usize {
         let Some(file) = &self.file else { return 0 };
         let Some(handle) = file.handle else { return 0 };
         let Ok(length) = u32::try_from(length) else {
@@ -80,7 +80,7 @@ impl FileSlot {
         count as usize
     }
 
-    pub(in super::super) fn seek(&mut self, position: u32) -> bool {
+    pub(in crate::app::epub) fn seek(&mut self, position: u32) -> bool {
         if !self.file.as_ref().is_some_and(|file| file.seek(position)) {
             return false;
         }

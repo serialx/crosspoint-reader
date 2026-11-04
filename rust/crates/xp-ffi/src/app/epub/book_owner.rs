@@ -13,10 +13,12 @@ mod facade;
 mod inflate;
 mod items;
 mod load;
-mod log;
+pub(super) mod log;
 mod package;
 mod txt;
 mod writer;
+#[cfg(feature = "app-test")]
+pub(super) use writer::io::FileSlot;
 mod zip;
 
 #[cfg(feature = "app-test")]

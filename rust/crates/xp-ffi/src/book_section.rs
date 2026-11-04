@@ -1,6 +1,7 @@
 //! Synchronous section file policy over borrowed HAL services.
+use crate::section_cache::{self as cache, Diagnostic};
 use core::{ffi::c_void, slice};
-use xp_core::section::{self, Kind, Record, HEADER_SIZE, PARTIAL_VERSION, VERSION};
+use xp_core::section::{self, Kind, Record, HEADER_SIZE};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -28,30 +29,6 @@ enum FileOp {
     ExistsTemporary,
     IsOpen,
 }
-#[repr(u32)]
-#[derive(Clone, Copy)]
-enum Diagnostic {
-    ShortRecord,
-    InvalidRecord,
-    InvalidString,
-    VisibleSeek,
-    VisibleRead,
-    WriteRecord,
-    InvalidLut,
-    Promote,
-    TruncatedHeader,
-    UnknownVersion,
-    Parameters,
-    MalformedPartial,
-    Loaded,
-    CacheMissing,
-    CacheClearFailed,
-    CacheCleared,
-    PageFileClosed,
-    PageWriteFailed,
-    PageProcessed,
-    HeaderFileClosed,
-}
 impl FileServices {
     fn op(&self, op: FileOp, argument: usize) -> usize {
         self.operation
@@ -67,63 +44,72 @@ impl FileServices {
             read(self.ctx, output.as_mut_ptr(), output.len()) == output.len()
         })
     }
-    fn record(&self, kind: Kind) -> Option<Record> {
-        let mut bytes = [0; HEADER_SIZE];
-        let input = bytes.get_mut(..kind.size())?;
-        if !self.read(input) {
-            self.log(Diagnostic::ShortRecord, kind as u32, 0);
-            return None;
-        }
-        match section::decode(kind, input) {
-            Ok((record, _)) => Some(record),
-            Err(_) => {
-                self.log(Diagnostic::InvalidRecord, kind as u32, 0);
-                None
-            }
-        }
-    }
-    fn value(&self, kind: Kind) -> Option<u32> {
-        Some(self.record(kind)?.values[0])
-    }
     fn seek(&self, position: u32) -> bool {
         self.op(FileOp::Seek, position as usize) != 0
     }
     fn size(&self) -> u32 {
         self.op(FileOp::Size, 0) as u32
     }
-    fn table(&self, offset: u32, index: u32, width: u32, minimum: u32) -> Option<u32> {
-        section::table_entry(offset, index, width, self.size(), minimum)
+}
+
+impl cache::Reader for FileServices {
+    fn open_read(&mut self) -> bool {
+        self.op(FileOp::OpenRead, 0) != 0
     }
-    fn table_seek(&self, offset: u32, index: u32, width: u32, minimum: u32) -> bool {
-        self.table(offset, index, width, minimum)
-            .is_some_and(|position| self.seek(position))
+    fn read(&mut self, output: &mut [u8]) -> bool {
+        FileServices::read(self, output)
     }
-    unsafe fn string_matches(&self, needle: &[u8]) -> Option<bool> {
-        let length = self.value(Kind::U32)?;
-        if self
-            .table(self.op(FileOp::Position, 0) as u32, 0, length, 0)
-            .is_none()
-        {
-            self.log(Diagnostic::InvalidString, length, 0);
-            return None;
-        }
-        let data = self.resize_text?(self.ctx, length as usize);
+    fn seek(&mut self, position: u32) -> bool {
+        FileServices::seek(self, position)
+    }
+    fn size(&mut self) -> u32 {
+        FileServices::size(self)
+    }
+    fn position(&mut self) -> u32 {
+        self.op(FileOp::Position, 0) as u32
+    }
+    fn log(&mut self, event: Diagnostic, a: u32, b: u32) {
+        FileServices::log(self, event, a, b)
+    }
+    fn text_matches(&mut self, length: u32, needle: &[u8]) -> Option<bool> {
+        let data = unsafe { self.resize_text?(self.ctx, length as usize) };
         let text = if length == 0 {
             &mut []
         } else {
             if data.is_null() {
                 return None;
             }
-            slice::from_raw_parts_mut(data, length as usize)
+            // The native descriptor lends exclusive scratch until release or resize.
+            unsafe { slice::from_raw_parts_mut(data, length as usize) }
         };
-        if length != 0 && !self.read(text) {
+        if length != 0 && !FileServices::read(self, text) {
             return None;
         }
         Some(text == needle)
     }
+    fn release_text(&mut self) {
+        self.op(FileOp::ReleaseText, 0);
+    }
 }
 
-// Operations are appended in xp_book.h; output has three u32 slots for page ranges.
+impl cache::Storage for FileServices {
+    fn close(&mut self) {
+        self.op(FileOp::Close, 0);
+    }
+    fn exists_final(&mut self) -> bool {
+        self.op(FileOp::ExistsFinal, 0) != 0
+    }
+    fn remove_final(&mut self) -> bool {
+        self.op(FileOp::RemoveFinal, 0) != 0
+    }
+    fn exists_temporary(&mut self) -> bool {
+        self.op(FileOp::ExistsTemporary, 0) != 0
+    }
+    fn remove_temporary(&mut self) {
+        self.op(FileOp::RemoveTemporary, 0);
+    }
+}
+
 fn query(
     io: &FileServices,
     operation: u32,
@@ -131,141 +117,22 @@ fn query(
     first: bool,
     output: &mut [u32; 3],
 ) -> Option<()> {
-    if io.op(FileOp::OpenRead, 0) == 0 {
-        return None;
-    }
-    let header = io.record(Kind::Header)?;
-    let v = &header.values;
-    match operation {
-        0 => {
-            if u64::from(v[15]) > u64::from(u32::MAX).wrapping_sub(4 * (u64::from(index) + 1))
-                || !io.table_seek(v[15], index, 4, 0)
-            {
-                return None;
-            }
-            let position = io.value(Kind::U32)?;
-            let mut visible = 0;
-            if u64::from(v[19]) <= u64::from(u32::MAX).wrapping_sub(4 * (u64::from(index) + 1))
-                && io.table_seek(v[19], index, 4, HEADER_SIZE as u32)
-            {
-                if let Some(value) = io.value(Kind::U32) {
-                    visible = value;
-                }
-            }
-            let mut end = v[15];
-            if index.wrapping_add(1) < v[14] {
-                if !io.table_seek(v[15], index.wrapping_add(1), 4, 0) {
-                    return None;
-                }
-                end = io.value(Kind::U32)?;
-            }
-            if position < HEADER_SIZE as u32
-                || end <= position
-                || end > v[15]
-                || end > io.size()
-                || !io.seek(position)
-            {
-                return None;
-            }
-            *output = [position, end, visible];
-        }
-        1 => {
-            if v[0] != u32::from(VERSION) {
-                return None;
-            }
-            output[0] = v[14];
-        }
-        2 => {
-            if !io.table_seek(v[16], 0, 2, 1) {
-                return None;
-            }
-            output[0] = io.value(Kind::U16)?;
-        }
-        3 | 4 => {
-            if !io.table_seek(v[17], 0, 2, 1) {
-                return None;
-            }
-            let count = io.value(Kind::U16)?;
-            if count == 0 {
-                return None;
-            }
-            let offset = if operation == 3 {
-                v[17].wrapping_add(2)
-            } else {
-                v[18]
-            };
-            if io.table(offset, count - 1, 2, 1).is_none() || !io.seek(offset) {
-                return None;
-            }
-            for i in 0..count {
-                if io.value(Kind::U16)? >= index {
-                    output[0] = i;
-                    return Some(());
-                }
-            }
-            output[0] = count - 1;
-        }
-        5 => {
-            if !io.table_seek(v[17], 0, 2, 1) {
-                return None;
-            }
-            let count = io.value(Kind::U16)?;
-            if index >= count || !io.table_seek(v[17], index.wrapping_add(1), 2, 1) {
-                return None;
-            }
-            output[0] = io.value(Kind::U16)?;
-        }
-        6 => {
-            if index >= v[14]
-                || u64::from(v[19]) > u64::from(u32::MAX).wrapping_sub(4 * (u64::from(index) + 1))
-                || !io.table_seek(v[19], index, 4, HEADER_SIZE as u32)
-            {
-                return None;
-            }
-            output[0] = io.value(Kind::U32)?;
-        }
-        7 => {
-            if v[14] == 0 || io.table(v[19], v[14] - 1, 4, HEADER_SIZE as u32).is_none() {
-                return None;
-            }
-            if !io.seek(v[19]) {
-                io.log(Diagnostic::VisibleSeek, 0, 0);
-                return None;
-            }
-            let mut result = 0;
-            let mut last = 0;
-            let mut starts = [0; 128];
-            let mut base = 0;
-            while base < v[14] {
-                let batch = (v[14] - base).min(32);
-                let bytes = starts.get_mut(..batch as usize * 4)?;
-                if !io.read(bytes) {
-                    io.log(Diagnostic::VisibleRead, 0, 0);
-                    return None;
-                }
-                for (i, word) in bytes.as_chunks::<4>().0.iter().enumerate() {
-                    let (record, _) = section::decode(Kind::U32, word).ok()?;
-                    last = record.values[0];
-                    if last > index {
-                        output[0] = result;
-                        return Some(());
-                    }
-                    result = (base + i as u32) as u16 as u32;
-                    if first && last == index {
-                        output[0] = result;
-                        return Some(());
-                    }
-                }
-                base += batch;
-            }
-            if v[0] == u32::from(PARTIAL_VERSION) && index > last {
-                return None;
-            }
-            output[0] = result;
-        }
-        _ => return None,
-    }
-    Some(())
+    let operation = match operation {
+        0 => cache::Query::PageRange(index),
+        1 => cache::Query::PageCount,
+        2 => cache::Query::AnchorMap,
+        3 => cache::Query::PageForParagraph(index),
+        4 => cache::Query::PageForList(index),
+        5 => cache::Query::ParagraphForPage(index),
+        6 => cache::Query::VisibleForPage(index),
+        7 => cache::Query::PageForVisible {
+            offset: index,
+            first,
+        },
+        _ => cache::Query::Invalid,
+    };
+    let mut io = *io;
+    cache::query(&mut io, operation, output)
 }
 
 /// # Safety
@@ -318,24 +185,12 @@ pub unsafe extern "C" fn xp_book_section_anchor(
     } else {
         slice::from_raw_parts(needle, length)
     };
-    let mut result = [0; 3];
-    if query(&io, 2, 0, false, &mut result).is_none() {
+    let mut io = io;
+    let Some(page) = cache::anchor(&mut io, needle) else {
         return 0;
-    }
-    for _ in 0..result[0] {
-        let Some(matches) = io.string_matches(needle) else {
-            return 0;
-        };
-        let Some(page) = io.value(Kind::U16) else {
-            return 0;
-        };
-        io.op(FileOp::ReleaseText, 0);
-        if matches {
-            *output = page;
-            return 1;
-        }
-    }
-    0
+    };
+    *output = page;
+    1
 }
 
 #[repr(C)]
@@ -764,130 +619,62 @@ impl BuildRecords {
         anchor
     }
 }
+impl cache::Records for BuildRecords {
+    fn entries(&self) -> usize {
+        self.entries
+    }
+    fn anchors(&self) -> usize {
+        self.anchors
+    }
+    fn offset(&self, index: usize) -> u32 {
+        self.entry(index, 0)
+    }
+    fn paragraph(&self, index: usize) -> u32 {
+        self.entry(index, 1)
+    }
+    fn list(&self, index: usize) -> u32 {
+        self.entry(index, 2)
+    }
+    fn visible(&self, index: usize) -> u32 {
+        self.entry(index, 3)
+    }
+    fn anchor_page(&self, index: usize) -> u16 {
+        self.anchor(index).page
+    }
+    fn anchor(&self, index: usize, limit: Option<u16>) -> Result<Option<cache::Anchor<'_>>, ()> {
+        let anchor = self.anchor(index);
+        if limit.is_some_and(|limit| anchor.page >= limit) {
+            return Ok(None);
+        }
+        if anchor.length > isize::MAX as usize || (anchor.length != 0 && anchor.text.is_null()) {
+            return Err(());
+        }
+        let text = if anchor.length == 0 {
+            &[]
+        } else {
+            // The native records descriptor lends bytes for this synchronous commit.
+            unsafe { slice::from_raw_parts(anchor.text, anchor.length) }
+        };
+        Ok(Some(cache::Anchor {
+            text,
+            page: anchor.page,
+        }))
+    }
+}
+impl cache::Writer for FileServices {
+    fn write(&mut self, input: &[u8]) -> bool {
+        FileServices::write(self, input)
+    }
+    fn promote_temporary(&mut self) -> bool {
+        self.op(FileOp::PromoteTemporary, 0) != 0
+    }
+}
 impl FileServices {
     fn write(&self, input: &[u8]) -> bool {
         self.write.is_some_and(|write| unsafe {
             write(self.ctx, input.as_ptr(), input.len()) == input.len()
         })
     }
-    fn write_value(&self, kind: Kind, value: u32) -> bool {
-        let mut record = Record {
-            kind: kind as u32,
-            values: [0; 20],
-        };
-        record.values[0] = value;
-        let mut bytes = [0; HEADER_SIZE];
-        if let Ok(len) = section::encode(&record, &mut bytes) {
-            if bytes.get(..len).is_some_and(|bytes| self.write(bytes)) {
-                return true;
-            }
-        }
-        self.log(Diagnostic::WriteRecord, kind as u32, 0);
-        false
-    }
-    fn fail_commit(&self) -> bool {
-        self.op(FileOp::Close, 0);
-        self.op(FileOp::RemoveTemporary, 0);
-        false
-    }
-}
-fn commit(
-    io: &FileServices,
-    records: &BuildRecords,
-    version: u8,
-    pages: u16,
-    consumed: u32,
-    total: u32,
-) -> bool {
-    let partial = version == PARTIAL_VERSION;
-    let lut = io.op(FileOp::Position, 0) as u32;
-    for index in 0..records.entries {
-        let offset = records.entry(index, 0);
-        if offset == 0 {
-            io.log(Diagnostic::InvalidLut, 0, 0);
-            return io.fail_commit();
-        }
-        if !io.write_value(Kind::U32, offset) {
-            return io.fail_commit();
-        }
-    }
-    let anchors = io.op(FileOp::Position, 0) as u32;
-    let mut count = 0u16;
-    for index in 0..records.anchors {
-        if !partial || records.anchor(index).page < pages {
-            count = count.wrapping_add(1);
-        }
-    }
-    if !io.write_value(Kind::U16, count.into()) {
-        return io.fail_commit();
-    }
-    for index in 0..records.anchors {
-        let anchor = records.anchor(index);
-        if partial && anchor.page >= pages {
-            continue;
-        }
-        if anchor.length > isize::MAX as usize || (anchor.length != 0 && anchor.text.is_null()) {
-            return io.fail_commit();
-        }
-        let text = if anchor.length == 0 {
-            &[]
-        } else {
-            unsafe { slice::from_raw_parts(anchor.text, anchor.length) }
-        };
-        if !io.write_value(Kind::U32, anchor.length as u32)
-            || !io.write(text)
-            || !io.write_value(Kind::U16, anchor.page.into())
-        {
-            return io.fail_commit();
-        }
-    }
-    let paragraphs = io.op(FileOp::Position, 0) as u32;
-    if !io.write_value(Kind::U16, records.entries as u16 as u32) {
-        return io.fail_commit();
-    }
-    for index in 0..records.entries {
-        if !io.write_value(Kind::U16, records.entry(index, 1)) {
-            return io.fail_commit();
-        }
-    }
-    let lists = io.op(FileOp::Position, 0) as u32;
-    for index in 0..records.entries {
-        if !io.write_value(Kind::U16, records.entry(index, 2)) {
-            return io.fail_commit();
-        }
-    }
-    let visible = io.op(FileOp::Position, 0) as u32;
-    for index in 0..records.entries {
-        if !io.write_value(Kind::U32, records.entry(index, 3)) {
-            return io.fail_commit();
-        }
-    }
-    if partial && (!io.write_value(Kind::U32, consumed) || !io.write_value(Kind::U32, total)) {
-        return io.fail_commit();
-    }
-    io.op(FileOp::Seek, HEADER_SIZE - 22);
-    if !io.write_value(Kind::U16, pages.into()) {
-        return io.fail_commit();
-    }
-    for offset in [lut, anchors, paragraphs, lists, visible] {
-        if !io.write_value(Kind::U32, offset) {
-            return io.fail_commit();
-        }
-    }
-    io.op(FileOp::Seek, 0);
-    if !io.write_value(Kind::U8, version.into()) {
-        return io.fail_commit();
-    }
-    io.op(FileOp::Close, 0);
-    if io.op(FileOp::ExistsFinal, 0) != 0 {
-        io.op(FileOp::RemoveFinal, 0);
-    }
-    if io.op(FileOp::PromoteTemporary, 0) == 0 {
-        io.log(Diagnostic::Promote, 0, 0);
-        io.op(FileOp::RemoveTemporary, 0);
-        return false;
-    }
-    true
 }
 /// # Safety
 /// Both service descriptors and borrowed entry/anchor storage remain valid for
@@ -901,7 +688,7 @@ pub unsafe extern "C" fn xp_book_section_commit(
     consumed: u32,
     total: u32,
 ) -> u8 {
-    let (Some(io), Some(records)) = (
+    let (Some(mut io), Some(records)) = (
         services
             .as_ref()
             .copied()
@@ -910,7 +697,7 @@ pub unsafe extern "C" fn xp_book_section_commit(
     ) else {
         return 0;
     };
-    commit(&io, &records, version, pages, consumed, total) as u8
+    cache::commit(&mut io, &records, version, pages, consumed, total) as u8
 }
 
 #[repr(u32)]
@@ -1152,102 +939,6 @@ pub unsafe extern "C" fn xp_book_section_start(
     }) as u8
 }
 
-fn clear_cache(io: &FileServices) -> bool {
-    if io.op(FileOp::ExistsTemporary, 0) != 0 {
-        io.op(FileOp::RemoveTemporary, 0);
-    }
-    if io.op(FileOp::ExistsFinal, 0) == 0 {
-        io.log(Diagnostic::CacheMissing, 0, 0);
-        return true;
-    }
-    if io.op(FileOp::RemoveFinal, 0) == 0 {
-        io.log(Diagnostic::CacheClearFailed, 0, 0);
-        return false;
-    }
-    io.log(Diagnostic::CacheCleared, 0, 0);
-    true
-}
-#[repr(C)]
-pub struct Loaded {
-    consumed: u32,
-    total: u32,
-    pages: u16,
-    partial_pages: u16,
-    partial: u8,
-}
-fn load(io: &FileServices, expected: &[u32; 20], state: &mut Loaded) -> bool {
-    if io.op(FileOp::OpenRead, 0) == 0 {
-        return false;
-    }
-    if io.size() < HEADER_SIZE as u32 {
-        io.op(FileOp::Close, 0);
-        io.log(Diagnostic::TruncatedHeader, 0, 0);
-        clear_cache(io);
-        return false;
-    }
-    let mut bytes = [0; HEADER_SIZE];
-    let mut rejected = None;
-    let record = if io.read(&mut bytes) {
-        section::decode(Kind::Header, &bytes)
-            .map(|v| v.0)
-            .map_err(|_| {
-                rejected = Some(bytes[0]);
-            })
-            .ok()
-    } else {
-        io.log(Diagnostic::ShortRecord, Kind::Header as u32, 0);
-        None
-    };
-    let Some(header) = record else {
-        io.op(FileOp::Close, 0);
-        if let Some(version) = rejected {
-            io.log(Diagnostic::UnknownVersion, version as u32, 0);
-        }
-        clear_cache(io);
-        return false;
-    };
-    if !section::header_matches(
-        &header,
-        &Record {
-            kind: Kind::Header as u32,
-            values: *expected,
-        },
-    ) {
-        io.op(FileOp::Close, 0);
-        io.log(Diagnostic::Parameters, 0, 0);
-        clear_cache(io);
-        return false;
-    }
-    state.pages = header.values[14] as u16;
-    let partial = header.values[0] == PARTIAL_VERSION as u32;
-    if partial {
-        let valid = (|| {
-            if header.values[19] > u32::MAX - u32::from(state.pages) * 4 - 8 {
-                return None;
-            }
-            let trailer = section::partial_trailer(&header, io.size())?;
-            if !io.seek(trailer) {
-                return None;
-            }
-            state.consumed = io.value(Kind::U32)?;
-            state.total = io.value(Kind::U32)?;
-            Some(())
-        })()
-        .is_some();
-        if !valid {
-            io.op(FileOp::Close, 0);
-            io.log(Diagnostic::MalformedPartial, 0, 0);
-            clear_cache(io);
-            state.pages = 0;
-            return false;
-        }
-        state.partial = 1;
-        state.partial_pages = state.pages;
-    }
-    io.op(FileOp::Close, 0);
-    io.log(Diagnostic::Loaded, state.pages as u32, partial as u32);
-    true
-}
 /// # Safety
 /// All pointers describe initialized borrowed values valid until return; output state is exclusive.
 #[no_mangle]
@@ -1256,19 +947,20 @@ pub unsafe extern "C" fn xp_book_section_load(
     expected: *const [u32; 20],
     state: *const SectionState,
 ) -> u8 {
-    let (Some(io), Some(expected), Some(state)) = (io.as_ref(), expected.as_ref(), state.as_ref())
+    let (Some(mut io), Some(expected), Some(state)) =
+        (io.as_ref().copied(), expected.as_ref(), state.as_ref())
     else {
         return 0;
     };
     let c = &*state.control;
-    let mut loaded = Loaded {
+    let mut loaded = cache::LoadState {
         consumed: c.consumed,
         total: c.total,
         pages: *state.pages,
         partial_pages: c.partial_pages,
         partial: c.partial,
     };
-    let result = load(io, expected, &mut loaded);
+    let result = cache::load(&mut io, expected, &mut loaded);
     (*state.control).consumed = loaded.consumed;
     (*state.control).total = loaded.total;
     (*state.control).partial_pages = loaded.partial_pages;
@@ -1281,7 +973,9 @@ pub unsafe extern "C" fn xp_book_section_load(
 /// Services and their context remain valid until return.
 #[no_mangle]
 pub unsafe extern "C" fn xp_book_section_clear(io: *const FileServices) -> u8 {
-    io.as_ref().is_some_and(clear_cache) as u8
+    io.as_ref()
+        .copied()
+        .is_some_and(|mut io| cache::clear(&mut io)) as u8
 }
 /// # Safety
 /// Bytes is readable for length; built/pages are exclusive initialized outputs and cannot alias.

@@ -1,5 +1,24 @@
 use super::super::{abi::XpEpubLeaves, book_owner::log};
 use xp_core::chapter::assembly::Diagnostic;
+mod scale;
+
+#[cfg(feature = "app-test")]
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_image_scale(
+    leaves: &XpEpubLeaves,
+    a: i32,
+    b: i32,
+    bits: u32,
+) {
+    chapter(
+        leaves,
+        Diagnostic::ImageScale,
+        a as u32,
+        b as u32,
+        bits,
+        &[],
+    );
+}
 
 pub(super) fn chapter(
     leaves: &XpEpubLeaves,
@@ -47,10 +66,10 @@ pub(super) fn chapter(
         ImageScale => (
             0,
             format_args!(
-                "Display size: {}x{} (scale {:.2})",
+                "Display size: {}x{} (scale {})",
                 a as i32,
                 b as i32,
-                f32::from_bits(c)
+                scale::Scale(f32::from_bits(c))
             ),
         ),
         DroppedLink => {

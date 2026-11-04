@@ -172,6 +172,12 @@ impl WordStore {
     }
 
     pub fn view(&self, word: Word) -> Option<&[u8]> {
+        self.terminated_view(word)
+            .map(|bytes| &bytes[..bytes.len() - 1])
+    }
+
+    // Metric callbacks may read the NUL; derive their pointer from this full view.
+    pub(super) fn terminated_view(&self, word: Word) -> Option<&[u8]> {
         if word.chunk as usize >= self.count {
             return None;
         }
@@ -183,7 +189,7 @@ impl WordStore {
             }
             Some(slice::from_raw_parts(
                 chunk.data.add(word.off as usize),
-                word.len as usize,
+                word.len as usize + 1,
             ))
         }
     }

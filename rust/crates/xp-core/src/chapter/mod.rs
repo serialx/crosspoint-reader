@@ -5,7 +5,9 @@ use alloc::vec::Vec;
 use core::ffi::c_void;
 #[macro_use]
 pub mod assembly;
+mod backend;
 mod binding;
+pub use backend::ReaderServices;
 mod buffer;
 mod end;
 pub mod feedback;
@@ -38,12 +40,10 @@ pub struct Measure {
 
 pub struct State {
     paragraph: *mut crate::para::paragraph::Paragraph,
-    callbacks: *const Callbacks,
-    // Payload drops dereference page_storage: assembly must be dropped first.
+    backend: backend::Backend,
     pub assembly: assembly::Assembly<OwnedParagraph, Payload>,
-    page_storage: core::cell::UnsafeCell<assembly::runtime::Storage>,
+    page_storage: *mut assembly::runtime::Storage,
     native_engine: Option<crate::textm::native::Engine>,
-    ctx: *mut c_void,
     css: *const Store,
     alignment: u8,
     embedded: bool,
@@ -115,12 +115,14 @@ impl State {
     /// # Safety
     /// out is writable, aligned uninitialized storage for State. Callbacks/context
     /// and the optional CSS store outlive this state. Calls are serialized.
-    /// State must remain at this address until dropped: payloads borrow page_storage.
+    /// page_storage is initialized, disjoint from State, and outlives its assembly.
+    /// Payloads retain its raw pointer; never borrow its enclosing owner exclusively.
     /// Callbacks may reborrow the supplied State pointer only synchronously; they must
     /// never use an older pointer while a more recent callback owns the reborrow.
     #[allow(clippy::too_many_arguments)] // Construction mirrors the fixed C options and callbacks.
     pub unsafe fn initialize(
         out: *mut Self,
+        page_storage: *mut assembly::runtime::Storage,
         callbacks: *const Callbacks,
         ctx: *mut c_void,
         css: *const Store,
@@ -130,20 +132,74 @@ impl State {
         css_enabled: bool,
         assembly_options: assembly::Options,
     ) {
+        Self::initialize_backend(
+            out,
+            page_storage,
+            backend::Backend::Native {
+                callbacks,
+                context: ctx,
+            },
+            css,
+            alignment,
+            embedded,
+            images,
+            css_enabled,
+            assembly_options,
+        );
+    }
+
+    /// # Safety
+    /// Services and CSS outlive this address-stable State. Service storage is disjoint
+    /// from State, uses interior mutation, and follows the ReaderServices loan contract.
+    /// page_storage follows the same lifetime and disjointness contract as initialize.
+    #[allow(clippy::too_many_arguments)]
+    pub unsafe fn initialize_reader(
+        out: *mut Self,
+        page_storage: *mut assembly::runtime::Storage,
+        services: core::ptr::NonNull<dyn ReaderServices>,
+        css: *const Store,
+        alignment: u8,
+        embedded: bool,
+        images: u8,
+        css_enabled: bool,
+        assembly_options: assembly::Options,
+    ) {
+        Self::initialize_backend(
+            out,
+            page_storage,
+            backend::Backend::Reader { services },
+            css,
+            alignment,
+            embedded,
+            images,
+            css_enabled,
+            assembly_options,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    unsafe fn initialize_backend(
+        out: *mut Self,
+        page_storage: *mut assembly::runtime::Storage,
+        backend: backend::Backend,
+        css: *const Store,
+        alignment: u8,
+        embedded: bool,
+        images: u8,
+        css_enabled: bool,
+        assembly_options: assembly::Options,
+    ) {
         core::ptr::addr_of_mut!((*out).paragraph).write(core::ptr::null_mut());
-        core::ptr::addr_of_mut!((*out).callbacks).write(callbacks);
+        core::ptr::addr_of_mut!((*out).backend).write(backend);
         core::ptr::addr_of_mut!((*out).assembly).write(assembly::Assembly::new(assembly_options));
-        core::ptr::addr_of_mut!((*out).page_storage).write(core::cell::UnsafeCell::new(
-            assembly::runtime::Storage::default(),
-        ));
-        let metrics = &*(*callbacks).metrics;
+        core::ptr::addr_of_mut!((*out).page_storage).write(page_storage);
+        let (metrics, context) = backend.metrics();
         let mut provider = core::mem::MaybeUninit::uninit();
         let engine = metrics.native.and_then(|fill| {
-            (fill(ctx, provider.as_mut_ptr()) != 0)
+            (fill(context, provider.as_mut_ptr()) != 0)
                 .then(|| crate::textm::native::Engine::new(provider.assume_init()))
         });
         core::ptr::addr_of_mut!((*out).native_engine).write(engine);
-        core::ptr::addr_of_mut!((*out).ctx).write(ctx);
         core::ptr::addr_of_mut!((*out).css).write(css);
         core::ptr::addr_of_mut!((*out).alignment).write(alignment);
         core::ptr::addr_of_mut!((*out).embedded).write(embedded);

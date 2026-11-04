@@ -10,11 +10,46 @@ use crate::{
     section_cache::{self, Diagnostic},
 };
 use alloc::vec::Vec;
+use core::ops::{Deref, DerefMut};
+
+enum Cursor<'a> {
+    Owned(FileSlot),
+    Borrowed(&'a mut FileSlot),
+}
+impl Deref for Cursor<'_> {
+    type Target = FileSlot;
+    fn deref(&self) -> &FileSlot {
+        match self {
+            Self::Owned(file) => file,
+            Self::Borrowed(file) => file,
+        }
+    }
+}
+impl DerefMut for Cursor<'_> {
+    fn deref_mut(&mut self) -> &mut FileSlot {
+        match self {
+            Self::Owned(file) => file,
+            Self::Borrowed(file) => file,
+        }
+    }
+}
+enum Temporary<'a> {
+    Owned(Text),
+    Borrowed(&'a Text),
+}
+impl Temporary<'_> {
+    fn wire(&self) -> abi::Text {
+        match self {
+            Self::Owned(path) => path.wire(),
+            Self::Borrowed(path) => path.wire(),
+        }
+    }
+}
 
 pub(super) struct CacheFile<'a> {
-    file: FileSlot,
+    file: Cursor<'a>,
     path: &'a Text,
-    temporary: Option<Text>,
+    temporary: Option<Temporary<'a>>,
     text: Vec<u8>,
     resources: &'static abi::Resources,
     leaves: &'static XpEpubLeaves,
@@ -27,9 +62,26 @@ impl<'a> CacheFile<'a> {
         leaves: &'static XpEpubLeaves,
     ) -> Self {
         Self {
-            file: FileSlot::new(),
+            file: Cursor::Owned(FileSlot::new()),
             path,
             temporary: None,
+            text: Vec::new(),
+            resources,
+            leaves,
+        }
+    }
+
+    pub(super) fn writing(
+        path: &'a Text,
+        temporary: &'a Text,
+        file: &'a mut FileSlot,
+        resources: &'static abi::Resources,
+        leaves: &'static XpEpubLeaves,
+    ) -> Self {
+        Self {
+            file: Cursor::Borrowed(file),
+            path,
+            temporary: Some(Temporary::Borrowed(temporary)),
             text: Vec::new(),
             resources,
             leaves,
@@ -42,13 +94,16 @@ impl<'a> CacheFile<'a> {
             let mut path = Text::default();
             path.assign_parts(&[self.path.bytes(), b".part"])
                 .map_err(|_| ())?;
-            self.temporary = Some(path);
+            self.temporary = Some(Temporary::Owned(path));
         }
         Ok(())
     }
 
     pub(super) fn open_write(&mut self) -> bool {
-        let path = self.temporary.as_ref().expect("prepared cache writer path");
+        let path = match self.temporary.as_ref().expect("prepared cache writer path") {
+            Temporary::Owned(path) => path,
+            Temporary::Borrowed(path) => path,
+        };
         self.file.open(self.leaves, path, true, c"SCT")
     }
 }
@@ -161,6 +216,9 @@ impl section_cache::Storage for CacheFile<'_> {
     }
 }
 impl section_cache::Writer for CacheFile<'_> {
+    fn is_open(&mut self) -> bool {
+        self.file.is_open()
+    }
     fn write(&mut self, input: &[u8]) -> bool {
         unsafe { self.file.write(input.as_ptr(), input.len()) == input.len() }
     }

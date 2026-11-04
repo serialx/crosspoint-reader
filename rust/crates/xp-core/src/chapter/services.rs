@@ -47,17 +47,15 @@ pub struct Trace {
 
 impl State {
     pub fn entity_lookup(&mut self, spelling: Span) -> Span {
-        unsafe { ((*self.callbacks).entity_lookup)(self.ctx, spelling) }
+        self.backend.entity_lookup(spelling)
     }
     pub fn entity_buffer(&mut self, length: u32) -> *mut u8 {
-        unsafe {
-            let buffer = ((*self.callbacks).entity_buffer)(self.ctx, 0);
+        {
+            let buffer = self.backend.entity_buffer(0);
             if length <= buffer.len {
                 buffer.data.cast_mut()
             } else {
-                ((*self.callbacks).entity_buffer)(self.ctx, length)
-                    .data
-                    .cast_mut()
+                self.backend.entity_buffer(length).data.cast_mut()
             }
         }
     }
@@ -215,6 +213,6 @@ impl State {
     #[cfg(feature = "chapter-trace")]
     #[inline]
     pub(super) fn call_trace(&mut self, record: *const Trace) {
-        unsafe { ((*self.callbacks).trace)(self.ctx, record) }
+        self.backend.trace(unsafe { &*record })
     }
 }

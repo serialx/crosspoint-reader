@@ -80,6 +80,13 @@ impl FileSlot {
         count as usize
     }
 
+    #[cfg(feature = "app-test")]
+    pub(in crate::app::epub) fn flush(&self, flush: unsafe extern "C" fn(*mut c_void)) {
+        if let Some(handle) = self.file.as_ref().and_then(|file| file.handle) {
+            unsafe { flush(handle.as_ptr()) };
+        }
+    }
+
     pub(in crate::app::epub) fn seek(&mut self, position: u32) -> bool {
         if !self.file.as_ref().is_some_and(|file| file.seek(position)) {
             return false;

@@ -19,6 +19,13 @@ impl Bytes {
             &self.heap[..self.len]
         }
     }
+    fn terminated(&self) -> &[u8] {
+        if self.heap.is_empty() {
+            &self.inline[..=self.len]
+        } else {
+            &self.heap[..=self.len]
+        }
+    }
     pub fn set(&mut self, bytes: &[u8]) -> bool {
         if bytes.len() < self.inline.len() && self.heap.capacity() == 0 {
             self.inline[..bytes.len()].copy_from_slice(bytes);
@@ -142,6 +149,12 @@ impl Paragraph {
             .and_then(|t| self.store.view(t.word))
             .unwrap_or(&[])
     }
+    pub(super) fn word_terminated(&self, index: usize) -> &[u8] {
+        self.tokens
+            .get(index)
+            .and_then(|t| self.store.terminated_view(t.word))
+            .unwrap_or(b"\0")
+    }
     pub fn style(&self, index: usize) -> u8 {
         self.tokens
             .get(index)
@@ -195,6 +208,9 @@ impl Paragraph {
     }
     pub fn ruby_text(&self, index: usize) -> &[u8] {
         self.ruby.get(index).map_or(&[], Bytes::bytes)
+    }
+    pub(super) fn ruby_terminated(&self, index: usize) -> &[u8] {
+        self.ruby.get(index).map_or(b"\0", Bytes::terminated)
     }
     fn grow_ruby(&mut self) -> bool {
         let len = self.tokens.len();

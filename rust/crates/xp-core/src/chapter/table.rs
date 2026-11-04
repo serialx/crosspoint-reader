@@ -45,7 +45,10 @@ impl Scan {
             return;
         }
         self.word[self.word_len] = 0;
-        let word = Span::new(&self.word[..self.word_len]);
+        let word = Span {
+            data: self.word.as_ptr(),
+            len: self.word_len as u32,
+        };
         if self.sd {
             state.call_prepare_text(word, 1 << self.style);
         }

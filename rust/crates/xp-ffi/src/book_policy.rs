@@ -1,5 +1,8 @@
 //! Book-facing scalar policies; buffers and object lifetimes stay borrowed.
-use core::{ffi::c_char, slice};
+use core::{
+    ffi::{c_char, CStr},
+    slice,
+};
 
 // Entity values retained from the original CrossPoint table, based on
 // atomic14/diy-esp32-epub-reader (2c2f57fdd7e2a788d14a0bcb26b9e845a47aac42).
@@ -266,20 +269,20 @@ pub unsafe extern "C" fn xp_book_entity(input: *const u8, length: usize) -> *con
     if input.is_null() || length == 0 {
         return core::ptr::null();
     }
-    let input = slice::from_raw_parts(input, length);
-    ENTITIES
+    entity(slice::from_raw_parts(input, length)).map_or(core::ptr::null(), CStr::as_ptr)
+}
+
+pub(crate) fn entity(input: &[u8]) -> Option<&'static CStr> {
+    let index = ENTITIES
         .binary_search_by(|entry| {
             let begin = usize::from(entry[0]);
             let end = begin + usize::from(entry[1]);
             ENTITY_BYTES[begin..end].cmp(input)
         })
-        .map_or(core::ptr::null(), |i| {
-            ENTITY_BYTES
-                .as_ptr()
-                .add(usize::from(ENTITIES[i][2]))
-                .cast()
-        })
+        .ok()?;
+    CStr::from_bytes_until_nul(&ENTITY_BYTES[usize::from(ENTITIES[index][2])..]).ok()
 }
+
 /// # Safety
 /// Fields contains twelve initialized values in legacy signature order.
 #[no_mangle]

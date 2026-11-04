@@ -183,7 +183,7 @@ pub(super) fn error(leaves: &XpEpubLeaves, kind: Kind, error: &Error) {
 }
 
 // Match the retained Expat diagnostic vocabulary in lib/expat/ExpatErrors.cpp.
-fn xml_error(code: u32) -> &'static str {
+pub(in crate::app::epub) fn xml_error(code: u32) -> &'static str {
     match code {
         1 => "out of memory",
         2 => "syntax error",

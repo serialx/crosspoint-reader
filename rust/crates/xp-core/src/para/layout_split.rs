@@ -139,11 +139,11 @@ pub unsafe fn split(
     tokens.set(r.index, prefix);
     (r.inserted)(r.context, r.index + 1);
     *widths.data.add(r.index) = width as u16;
-    let remainder = store.view(remainder_word).unwrap();
+    let remainder = store.terminated_view(remainder_word).unwrap();
     let remainder_width = (r.measure)(
         r.context,
         remainder.as_ptr(),
-        remainder.len(),
+        remainder.len() - 1,
         r.style,
         tokens.get(r.index + 1).unwrap().focus,
         0,

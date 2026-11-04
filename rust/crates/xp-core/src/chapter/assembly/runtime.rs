@@ -73,8 +73,7 @@ pub struct Callbacks {
 
 #[derive(Clone, Copy)]
 pub struct PageSink {
-    pub(in crate::chapter) callbacks: *const Callbacks,
-    pub(in crate::chapter) context: *mut c_void,
+    pub(in crate::chapter) backend: crate::chapter::backend::Backend,
     pub(in crate::chapter) storage: *mut Storage,
     pub(in crate::chapter) link_index: Option<usize>,
     pub(in crate::chapter) engine: *const crate::textm::native::Engine,
@@ -83,20 +82,16 @@ impl PageSink {
     pub(in crate::chapter) fn anchor_is_toc(&self, pending: &[u8]) -> bool {
         let mut index = 0;
         loop {
-            let span = unsafe { (self.api().toc_anchor)(self.context, index) };
-            if span.data.is_null() {
+            let Some(text) = self.backend.toc_anchor(index) else {
                 return false;
-            }
-            if pending == unsafe { core::slice::from_raw_parts(span.data, span.len as usize) } {
+            };
+            if pending == text {
                 return true;
             }
             index += 1;
         }
     }
 
-    pub fn api(&self) -> &Callbacks {
-        unsafe { &*self.callbacks }
-    }
     pub(in crate::chapter) fn native_engine(&self) -> Option<&crate::textm::native::Engine> {
         // The stable chapter owner outlives every synchronous sink operation.
         unsafe { self.engine.as_ref() }
@@ -111,14 +106,17 @@ impl PageSink {
         if let Some(e) = self.native_engine() {
             crate::textm::font_ascender(&e.face(font))
         } else {
-            unsafe { ((*self.api().metrics).ascender.unwrap())(self.context, font) }
+            {
+                let (metrics, context) = self.backend.metrics();
+                unsafe { (metrics.ascender.unwrap())(context, font) }
+            }
         }
     }
     fn extra_ascent(&self, font: i32, fonts: Option<[i32; 3]>, base: i32) -> i32 {
         let Some(fonts) = fonts else {
             return 0;
         };
-        let resolve = |f| unsafe { (self.api().font_ready)(self.context, f, base) };
+        let resolve = |f| self.backend.font_ready(f, base);
         let mut ascent = self.quiet_ascender(resolve(font));
         for f in fonts {
             if f != 0 {
@@ -155,44 +153,28 @@ impl PageSink {
         }
     }
 }
-#[repr(u32)]
-enum Output {
-    HasByteSink,
-    Bytes,
-    Page,
-}
 impl Sink for PageSink {
     type Payload = Payload;
     type Image = ();
     fn diagnostic(&self, event: Diagnostic, a: u32, b: u32, c: u32, text: &[u8]) {
-        if let Some(callback) = self.api().diagnostic {
-            unsafe {
-                callback(
-                    self.context,
-                    event as u32,
-                    a,
-                    b,
-                    c,
-                    0,
-                    text.as_ptr(),
-                    text.len() as u32,
-                )
-            };
-        }
+        self.backend.diagnostic(event, a, b, c, text);
     }
+
     fn paragraph_context(&self) -> Option<ParagraphContext> {
-        let api = self.api();
+        let allocator = self.backend.allocator();
+        let (metrics, context) = self.backend.metrics();
         Some(ParagraphContext {
-            allocator: unsafe { (api.allocator)() },
-            metrics: api.metrics,
-            context: self.context,
-            language: unsafe { (api.language)() },
+            allocator,
+            metrics,
+            context,
+            language: self.backend.language(),
         })
     }
+
     fn create_line(&mut self, line: &paragraph_extract::Output) -> Result<Payload> {
-        let result = unsafe { (*self.storage).line(line, self.api().reclaim_paragraph_memory) };
+        let result = unsafe { (*self.storage).line(line, self.backend.reclaim()) };
         if result.is_err() {
-            unsafe { (&*(self.api().allocator)()).diagnose(crate::para::Diagnostic::LineArena, 0) };
+            unsafe { (&*self.backend.allocator()).diagnose(crate::para::Diagnostic::LineArena, 0) };
         }
         let index = result?;
         Ok(self.payload(index))
@@ -203,42 +185,30 @@ impl Sink for PageSink {
         struct Writer(PageSink);
         impl Write for Writer {
             fn write_str(&mut self, text: &str) -> fmt::Result {
-                unsafe {
-                    (self.0.api().trace_bytes)(self.0.context, Span::new(text.as_bytes()));
-                }
+                self.0.backend.trace_bytes(text.as_bytes());
                 Ok(())
             }
         }
         let _ = write!(Writer(*self), "{observation}");
     }
     fn reclaim_paragraph_memory(&mut self) {
-        unsafe { (self.api().reclaim_paragraph_memory)() };
+        self.backend.reclaim().call();
     }
     fn pending_anchor(&self) -> &[u8] {
-        let span = unsafe { (self.api().pending_anchor)(self.context) };
-        if span.len == 0 {
-            &[]
-        } else {
-            unsafe { core::slice::from_raw_parts(span.data, span.len as usize) }
-        }
+        self.backend.pending_anchor()
     }
     fn defer_anchor(&mut self, text: &[u8]) -> Result {
-        unsafe {
-            (self.api().defer_anchor)(self.context, Span::new(text));
-        }
-        Ok(())
+        self.backend.defer_anchor(Span::new(text))
     }
+
     fn anchor_starts_chapter(&self) -> bool {
         self.anchor_is_toc(self.pending_anchor())
     }
     fn record_anchor(&mut self, page: u16) -> Result {
-        unsafe {
-            (self.api().record_anchor)(self.context, page);
-        }
-        Ok(())
+        self.backend.record_anchor(page)
     }
     fn font_variant(&mut self, font: i32, scale: f32) -> i32 {
-        let value = unsafe { (self.api().font_variant)(self.context, font, scale) };
+        let value = self.backend.font_variant(font, scale);
         observe!(self, "resolveFontVariant", font, scale, value);
         if value == 0 {
             font
@@ -250,7 +220,7 @@ impl Sink for PageSink {
         let value = if let Some(e) = self.native_engine() {
             crate::textm::compressed_line_height(&e.face(font), compression)
         } else {
-            unsafe { (self.api().line_height)(self.context, font, compression) }
+            self.backend.line_height(font, compression)
         };
         observe!(self, "getLineHeight", font, compression, value);
         value
@@ -259,27 +229,27 @@ impl Sink for PageSink {
         let value = if let Some(e) = self.native_engine() {
             crate::textm::compressed_line_height(&e.face(font), 1.0)
         } else {
-            unsafe { (self.api().line_height)(self.context, font, 1.0) }
+            self.backend.line_height(font, 1.0)
         };
         observe!(self, "getLineHeight", font, value);
         value
     }
     fn ascender(&mut self, font: i32) -> i32 {
-        let metrics = unsafe { &*self.api().metrics };
+        let (metrics, context) = self.backend.metrics();
         let value = if let Some(e) = self.native_engine() {
             crate::textm::font_ascender(&e.face(font))
         } else {
-            unsafe { (metrics.ascender.unwrap())(self.context, font) }
+            unsafe { (metrics.ascender.unwrap())(context, font) }
         };
         observe!(self, "getFontAscenderSize", font, value);
         value
     }
     fn space_width(&mut self, font: i32) -> i32 {
-        let metrics = unsafe { &*self.api().metrics };
+        let (metrics, context) = self.backend.metrics();
         let value = if let Some(e) = self.native_engine() {
             crate::textm::space_width(&mut e.face(font), 0)
         } else {
-            unsafe { (metrics.space.unwrap())(self.context, font, 0) }
+            unsafe { (metrics.space.unwrap())(context, font, 0) }
         };
         observe!(self, "getSpaceWidth", font, 0u8, value);
         value
@@ -288,16 +258,9 @@ impl Sink for PageSink {
         if let Some(e) = self.native_engine() {
             return crate::textm::codepoint_metrics(&mut e.face(font), cp, style);
         }
-        let (mut advance, mut top) = (0, 0);
-        if unsafe {
-            (self.api().codepoint.unwrap())(self.context, font, cp, style, &mut advance, &mut top)
-        } != 0
-        {
-            Some((advance, top))
-        } else {
-            None
-        }
+        self.backend.codepoint(font, cp, style)
     }
+
     fn line_metrics(&mut self, line: &Payload, options: Options) -> LineMetrics {
         self.placed_metrics(line, options, false)
     }
@@ -321,32 +284,13 @@ impl Sink for PageSink {
         }
     }
     fn complete(&mut self, page: Page<Payload>, position: Position) -> Result {
-        let bytes = unsafe { (*self.storage).encode(&page, self.api().reclaim_paragraph_memory)? };
+        let bytes = unsafe { (*self.storage).encode(&page, self.backend.reclaim())? };
         let length = bytes.len();
-        let status = unsafe {
-            let complete = self.api().complete;
-            let output = if complete(
-                self.context,
-                Output::HasByteSink as u32,
-                Span::new(&[]),
-                position,
-            ) != 0
-            {
-                Output::Bytes
-            } else {
-                Output::Page
-            };
-            complete(self.context, output as u32, Span::new(bytes), position)
-        };
+        let result = self.backend.complete(bytes, position);
         unsafe {
             (*self.storage).retire_page(length);
         }
-
-        match status {
-            0 => Ok(()),
-            1 => Err(Error::Stopped),
-            _ => Err(Error::Allocation),
-        }
+        result
     }
     fn probe_image(
         &mut self,
@@ -354,49 +298,21 @@ impl Sink for PageSink {
         counter: &mut i32,
         popup: &mut bool,
     ) -> Result<ImageProbe<()>> {
-        let (mut width, mut height) = (0, 0);
-        Ok(
-            match unsafe {
-                (self.api().probe_image)(
-                    self.context,
-                    Span::new(src),
-                    counter,
-                    popup,
-                    &mut width,
-                    &mut height,
-                )
-            } {
-                0 => ImageProbe::Unsupported,
-                1 => ImageProbe::Failed { width, height },
-                _ => ImageProbe::Ready {
-                    resource: (),
-                    width,
-                    height,
-                },
-            },
-        )
+        self.backend.probe_image(src, counter, popup)
     }
+
     fn create_image(&mut self, _: (), width: i32, height: i32) -> Result<Payload> {
-        let mut path = Span::new(&[]);
-        let mut source = Span::new(&[]);
-        unsafe {
-            (self.api().image_paths)(self.context, &mut path, &mut source);
-            let view = |s: Span| {
-                if s.len == 0 {
-                    &[][..]
-                } else {
-                    core::slice::from_raw_parts(s.data, s.len as usize)
-                }
-            };
-            let index = (*self.storage).image(
-                view(path),
-                view(source),
+        let (path, source) = self.backend.image_paths();
+        let index = unsafe {
+            (*self.storage).image(
+                path,
+                source,
                 width as i16,
                 height as i16,
-                self.api().reclaim_paragraph_memory,
-            )?;
-            Ok(self.payload(index))
-        }
+                self.backend.reclaim(),
+            )?
+        };
+        Ok(self.payload(index))
     }
 }
 

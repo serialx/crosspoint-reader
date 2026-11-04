@@ -2,11 +2,19 @@
 use super::Text;
 use crate::{app::abi, section_cache};
 
+mod book;
+mod diagnostics;
+mod driver;
 mod file;
+mod image;
+mod input;
 mod owner;
 mod records;
+mod services;
 use records::Records;
 
+#[cfg(feature = "app-test")]
+mod driver_tests;
 #[cfg(feature = "app-test")]
 mod tests;
 

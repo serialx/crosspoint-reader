@@ -1,6 +1,7 @@
 //! Build-owned storage for encoded lines/images; handles survive compaction and page carry.
 use super::alloc::vec::Vec;
 use super::{model::*, runtime::Payload};
+use crate::chapter::backend::Reclaim;
 use crate::{
     page::builder::{self, Content, PackedLine, Rubies, Writer},
     para::{paragraph::Span, paragraph_extract::Output},
@@ -25,22 +26,24 @@ struct Slot {
 }
 
 // Growth is build-scoped and fallible; capacity is retained across page completions.
-fn grow<T>(v: &mut Vec<T>, needed: usize, reclaim: unsafe extern "C" fn()) -> Result {
+fn grow<T>(v: &mut Vec<T>, needed: usize, reclaim: Reclaim) -> Result {
     if needed > v.capacity() {
         let extra = needed - v.len();
         if v.try_reserve_exact(extra).is_err() {
-            unsafe { reclaim() };
+            reclaim.call();
             v.try_reserve_exact(extra).map_err(|_| Error::Allocation)?;
         }
     }
     Ok(())
 }
 impl Storage {
-    pub fn encode(
-        &mut self,
-        page: &Page<Payload>,
-        reclaim: unsafe extern "C" fn(),
-    ) -> Result<&[u8]> {
+    #[cfg(feature = "chapter-test")]
+    pub fn test_image(&mut self, reclaim: unsafe extern "C" fn()) -> bool {
+        self.image(b"image", b"source", 10, 20, Reclaim::Native(reclaim))
+            .is_ok()
+    }
+
+    pub(crate) fn encode(&mut self, page: &Page<Payload>, reclaim: Reclaim) -> Result<&[u8]> {
         if page.elements.len() > u16::MAX as usize {
             return Err(Error::Allocation);
         }
@@ -207,7 +210,7 @@ impl Storage {
         content: Content<'_>,
         links: &[LineLink],
         mut slot: Slot,
-        reclaim: unsafe extern "C" fn(),
+        reclaim: Reclaim,
     ) -> Result<usize> {
         let mut size = Writer { data: None, pos: 0 };
         builder::element(&mut size, 0, 0, &content).map_err(|_| Error::Allocation)?;
@@ -255,13 +258,13 @@ impl Storage {
         }
         Ok(id)
     }
-    pub fn image(
+    pub(crate) fn image(
         &mut self,
         path: &[u8],
         source: &[u8],
         width: i16,
         height: i16,
-        reclaim: unsafe extern "C" fn(),
+        reclaim: Reclaim,
     ) -> Result<usize> {
         self.append(
             Content::Image {
@@ -277,7 +280,7 @@ impl Storage {
     }
     /// # Safety
     /// The packed graph is valid, aligned and disjoint from storage. It is borrowed from paragraph extraction until this call returns.
-    pub unsafe fn line(&mut self, l: &Output, reclaim: unsafe extern "C" fn()) -> Result<usize> {
+    pub(crate) unsafe fn line(&mut self, l: &Output, reclaim: Reclaim) -> Result<usize> {
         let n = l.count as usize;
         let b = &*l.block;
         let ruby = RubySpans(view(l.ruby, n));
@@ -423,7 +426,9 @@ mod tests {
     unsafe extern "C" fn reclaim() {}
 
     fn image(s: &mut Storage, name: &[u8]) -> Payload {
-        let index = s.image(name, b"source", 10, 20, reclaim).unwrap();
+        let index = s
+            .image(name, b"source", 10, 20, Reclaim::Native(reclaim))
+            .unwrap();
         Payload { storage: s, index }
     }
     #[test]
@@ -484,7 +489,7 @@ mod tests {
             },
         )
         .unwrap();
-        let actual = s.encode(&p, reclaim).unwrap();
+        let actual = s.encode(&p, Reclaim::Native(reclaim)).unwrap();
         assert_eq!(actual, b.finish().unwrap());
         let n = actual.len();
         s.retire_page(n);
@@ -497,7 +502,7 @@ mod tests {
             y: 0,
             content: super::super::Content::Image(carried),
         });
-        let actual = s.encode(&p, reclaim).unwrap();
+        let actual = s.encode(&p, Reclaim::Native(reclaim)).unwrap();
         let info = page::inspect(actual).unwrap();
         assert_eq!(info.elements, 1);
         let n = actual.len();
@@ -520,7 +525,7 @@ mod tests {
                 y: 0,
                 content: super::super::Content::Image(line),
             });
-            let length = s.encode(&p, reclaim).unwrap().len();
+            let length = s.encode(&p, Reclaim::Native(reclaim)).unwrap().len();
             s.retire_page(length);
             drop(p);
             let current = (s.bytes.capacity(), s.slots.capacity(), s.links.capacity());

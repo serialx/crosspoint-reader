@@ -8,13 +8,15 @@ use xp_core::book::io::Sink;
 pub(super) mod queries;
 pub(super) use load::LoadError;
 mod cache;
-mod css;
+pub(super) mod css;
 mod facade;
 mod inflate;
 mod items;
 mod load;
 pub(super) mod log;
 mod package;
+#[cfg(feature = "app-test")]
+pub(super) use package::diagnostics::xml_error;
 mod txt;
 mod writer;
 #[cfg(feature = "app-test")]

@@ -16,7 +16,7 @@ pub(super) use files::{discover, parse_files};
 #[path = "../test_support/book_css_files.rs"]
 mod files_tests;
 
-pub(super) use book_css::Action;
+pub(in crate::app::epub) use book_css::Action;
 use book_css::Op;
 
 enum Path<'a> {
@@ -62,7 +62,7 @@ struct Context<'a> {
 
 // The CSS owner is detached into this transaction, then returned even on failure.
 // The policy mutates only this raw owner slot; native callbacks own physical I/O.
-pub(super) fn run(
+pub(in crate::app::epub) fn run(
     owner: &mut Option<Box<Css>>,
     cache_path: &Text,
     resources: &'static abi::Resources,

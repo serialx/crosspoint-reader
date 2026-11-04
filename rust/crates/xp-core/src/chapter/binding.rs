@@ -9,9 +9,8 @@ impl State {
     }
     fn sink(&self) -> PageSink {
         PageSink {
-            callbacks: self.callbacks,
-            context: self.ctx,
-            storage: self.page_storage.get(),
+            backend: self.backend,
+            storage: self.page_storage,
             link_index: None,
             engine: self.native_engine.as_ref().map_or(core::ptr::null(), |e| e),
         }
@@ -113,11 +112,11 @@ impl State {
         self.bind_assembly();
     }
     pub(super) fn call_body_sd(&mut self) -> u8 {
-        let metrics = unsafe { &*(*self.callbacks).metrics };
+        let (metrics, context) = self.backend.metrics();
         let value = if let Some(e) = self.sink().native_engine() {
             u8::from(e.is_sd(self.assembly.options.font))
         } else {
-            unsafe { (metrics.is_sd.unwrap())(self.ctx, self.assembly.options.font) }
+            unsafe { (metrics.is_sd.unwrap())(context, self.assembly.options.font) }
         };
         observe!(
             self.sink(),
@@ -134,14 +133,14 @@ impl State {
         value
     }
     pub(super) fn call_prepare_text(&mut self, text: Span, style: u8) {
-        let metrics = unsafe { &*(*self.callbacks).metrics };
+        let (metrics, context) = self.backend.metrics();
         let span = crate::para::paragraph::Span {
             data: text.data,
             len: text.len,
         };
         unsafe {
             (metrics.prepare)(
-                self.ctx,
+                context,
                 self.assembly.options.font,
                 &span,
                 1,
@@ -162,7 +161,7 @@ impl State {
         unsafe {
             core::ptr::copy_nonoverlapping(text.data, bytes.as_mut_ptr(), text.len as usize);
         }
-        let metrics = unsafe { &*(*self.callbacks).metrics };
+        let (metrics, context) = self.backend.metrics();
         let span = crate::para::paragraph::Span {
             data: bytes.as_ptr(),
             len: text.len,
@@ -178,7 +177,7 @@ impl State {
             )
         } else {
             unsafe {
-                (metrics.advance.unwrap())(self.ctx, self.assembly.options.font, span, style, 0)
+                (metrics.advance.unwrap())(context, self.assembly.options.font, span, style, 0)
             }
         };
         observe!(
@@ -278,7 +277,8 @@ impl State {
     }
     pub(super) fn call_measure_table(&mut self) {
         unsafe {
-            ((*self.callbacks).table_file)(self.ctx, self, super::table::use_reader);
+            let backend = self.backend;
+            backend.table_file(self, super::table::use_reader);
         }
     }
     pub(super) fn call_start_block(&mut self, style: *const Block, end: u8) {
@@ -353,14 +353,14 @@ impl State {
         self.sink().anchor_is_toc(id).into()
     }
     pub(super) fn call_anchor_count(&mut self) -> u32 {
-        unsafe { ((*self.callbacks).anchor_count)(self.ctx) }
+        self.backend.anchor_count()
     }
     pub(super) fn call_has_anchor(&mut self) -> u8 {
         (!self.sink().pending_anchor().is_empty()).into()
     }
     pub(super) fn call_defer_anchor(&mut self, id: Span) {
-        unsafe {
-            ((*self.callbacks).defer_anchor)(self.ctx, id);
+        if self.backend.defer_anchor(id).is_err() {
+            self.oom = true;
         }
     }
 }

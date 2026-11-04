@@ -2,11 +2,14 @@
 extern crate alloc;
 use crate::css::Css;
 use alloc::alloc::{alloc, dealloc};
-use core::{alloc::Layout, ffi::c_void, ptr};
+use core::{alloc::Layout, ffi::c_void, ptr, ptr::NonNull};
 use xp_core::{
     chapter::{
         self,
-        assembly::{self, runtime::Callbacks},
+        assembly::{
+            self,
+            runtime::{Callbacks, Storage},
+        },
         feedback::Query,
         State,
     },
@@ -15,15 +18,89 @@ use xp_core::{
 
 pub struct Chapter {
     state: State,
+    // Payloads retain this address across State calls; borrow fields individually.
+    storage: Storage,
     xml: Parser,
 }
 #[repr(C)]
 pub struct Options {
-    alignment: u8,
-    embedded: u8,
-    images: u8,
-    css_enabled: u8,
-    assembly: assembly::Options,
+    pub(crate) alignment: u8,
+    pub(crate) embedded: u8,
+    pub(crate) images: u8,
+    pub(crate) css_enabled: u8,
+    pub(crate) assembly: assembly::Options,
+}
+
+impl Chapter {
+    fn allocate(options: &Options) -> Result<NonNull<Self>, i32> {
+        if options.alignment > 4
+            || options.embedded > 1
+            || options.images > 2
+            || options.css_enabled > 1
+        {
+            return Err(-1);
+        }
+        let handle = unsafe { alloc(Layout::new::<Chapter>()) }.cast::<Chapter>();
+        if handle.is_null() {
+            return Err(-2);
+        }
+        unsafe { ptr::addr_of_mut!((*handle).storage).write(Storage::default()) };
+        Ok(NonNull::new(handle).unwrap())
+    }
+
+    pub(crate) unsafe fn begin(handle: NonNull<Self>) -> bool {
+        unsafe { (*handle.as_ptr()).state.begin_assembly() };
+        !unsafe { (*handle.as_ptr()).state.oom }
+    }
+
+    pub(crate) unsafe fn finish(handle: NonNull<Self>) -> bool {
+        unsafe { (*handle.as_ptr()).state.finish_assembly() }
+    }
+
+    #[cfg(feature = "app-test")]
+    pub(crate) unsafe fn oom(handle: NonNull<Self>) -> bool {
+        unsafe { (*handle.as_ptr()).state.query(Query::Oom) != 0 }
+    }
+
+    pub(crate) unsafe fn destroy(handle: NonNull<Self>) {
+        unsafe {
+            let raw = handle.as_ptr();
+            ptr::drop_in_place(ptr::addr_of_mut!((*raw).state));
+            ptr::drop_in_place(ptr::addr_of_mut!((*raw).storage));
+            ptr::drop_in_place(ptr::addr_of_mut!((*raw).xml));
+            dealloc(handle.as_ptr().cast(), Layout::new::<Self>());
+        }
+    }
+
+    #[cfg(feature = "app-test")]
+    pub(crate) unsafe fn create_reader(
+        services: NonNull<dyn chapter::ReaderServices>,
+        css: *const Css,
+        options: &Options,
+    ) -> Result<NonNull<Self>, i32> {
+        let handle = Self::allocate(options)?;
+        let raw = handle.as_ptr();
+        let store = if css.is_null() {
+            ptr::null()
+        } else {
+            unsafe { ptr::addr_of!((*css).store) }
+        };
+        unsafe {
+            State::initialize_reader(
+                ptr::addr_of_mut!((*raw).state),
+                ptr::addr_of_mut!((*raw).storage),
+                services,
+                store,
+                options.alignment,
+                options.embedded != 0,
+                options.images,
+                options.css_enabled != 0,
+                options.assembly,
+            );
+            ptr::addr_of_mut!((*raw).xml).write(Parser::new());
+        }
+        Ok(handle)
+    }
 }
 
 /// # Safety
@@ -43,17 +120,10 @@ pub unsafe extern "C" fn xp_chapter_create(
     }
     out.write(ptr::null_mut());
     let options = &*options;
-    if options.alignment > 4
-        || options.embedded > 1
-        || options.images > 2
-        || options.css_enabled > 1
-    {
-        return -1;
-    }
-    let handle = alloc(Layout::new::<Chapter>()).cast::<Chapter>();
-    if handle.is_null() {
-        return -2;
-    }
+    let handle = match Chapter::allocate(options) {
+        Ok(handle) => handle.as_ptr(),
+        Err(error) => return error,
+    };
     let store = if css.is_null() {
         ptr::null()
     } else {
@@ -61,6 +131,7 @@ pub unsafe extern "C" fn xp_chapter_create(
     };
     State::initialize(
         ptr::addr_of_mut!((*handle).state),
+        ptr::addr_of_mut!((*handle).storage),
         callbacks,
         ctx,
         store,
@@ -78,28 +149,20 @@ pub unsafe extern "C" fn xp_chapter_create(
 /// Live idle handle with a valid synchronous sink.
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_begin(handle: *mut Chapter) -> u8 {
-    if handle.is_null() {
-        return 0;
-    }
-    (*handle).state.begin_assembly();
-    u8::from(!(*handle).state.oom)
+    NonNull::new(handle).is_some_and(|handle| unsafe { Chapter::begin(handle) }) as u8
 }
 /// # Safety
 /// Live idle handle; completion may request stop but cannot destroy the handle.
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_finish(handle: *mut Chapter) -> u8 {
-    if handle.is_null() {
-        return 0;
-    }
-    u8::from((*handle).state.finish_assembly())
+    NonNull::new(handle).is_some_and(|handle| unsafe { Chapter::finish(handle) }) as u8
 }
 /// # Safety
 /// Sole live owner, with no active callback; null is allowed.
 #[no_mangle]
 pub unsafe extern "C" fn xp_chapter_destroy(handle: *mut Chapter) {
-    if !handle.is_null() {
-        ptr::drop_in_place(handle);
-        dealloc(handle.cast(), Layout::new::<Chapter>());
+    if let Some(handle) = NonNull::new(handle) {
+        unsafe { Chapter::destroy(handle) };
     }
 }
 /// # Safety
@@ -137,8 +200,9 @@ pub(crate) unsafe fn feed_diagnostic(
     if handle.is_null() || (data.is_null() && len != 0) || len > 1024 || final_input > 1 {
         return 2;
     }
-    let chapter = &mut *handle;
-    if chapter.state.stopped || chapter.state.oom {
+    let state = &mut (*handle).state;
+    let xml = &mut (*handle).xml;
+    if state.stopped || state.oom {
         return 2;
     }
     let input = if len == 0 {
@@ -146,21 +210,21 @@ pub(crate) unsafe fn feed_diagnostic(
     } else {
         core::slice::from_raw_parts(data, len as usize)
     };
-    if chapter.xml.feed(input, final_input != 0) != len as usize {
+    if xml.feed(input, final_input != 0) != len as usize {
         return 2;
     }
     loop {
-        let event = chapter.xml.next();
-        chapter.state.byte = event.byte;
+        let event = xml.next();
+        state.byte = event.byte;
         let text = event
             .fields
             .first()
             .and_then(|f| event.data.get(f.range.clone()))
             .unwrap_or(&[]);
         match event.kind {
-            Kind::Start => chapter.state.start(&event),
-            Kind::End => chapter.state.end(text),
-            Kind::Text => chapter.state.characters(text),
+            Kind::Start => state.start(&event),
+            Kind::End => state.end(text),
+            Kind::Text => state.characters(text),
             Kind::Entity => {
                 let Some(length) = text.len().checked_add(2) else {
                     return 2;
@@ -168,24 +232,20 @@ pub(crate) unsafe fn feed_diagnostic(
                 let Ok(length32) = u32::try_from(length) else {
                     return 2;
                 };
-                let storage = chapter.state.entity_buffer(length32);
+                let storage = state.entity_buffer(length32);
                 if storage.is_null() {
-                    chapter.state.oom = true;
+                    state.oom = true;
                     return 2;
                 }
                 let buffer = core::slice::from_raw_parts_mut(storage, length);
                 buffer[0] = b'&';
                 buffer[1..length - 1].copy_from_slice(text);
                 buffer[length - 1] = b';';
-                let value = chapter
-                    .state
-                    .entity_lookup(chapter::services::Span::new(buffer));
+                let value = state.entity_lookup(chapter::services::Span::new(buffer));
                 if value.data.is_null() {
-                    chapter.state.characters(buffer);
+                    state.characters(buffer);
                 } else {
-                    chapter
-                        .state
-                        .characters(core::slice::from_raw_parts(value.data, value.len as usize));
+                    state.characters(core::slice::from_raw_parts(value.data, value.len as usize));
                 }
             }
             Kind::Comment | Kind::Pi | Kind::CdataStart | Kind::CdataEnd => {}
@@ -194,15 +254,15 @@ pub(crate) unsafe fn feed_diagnostic(
             Kind::Error => {
                 return (u64::from(event.line as u32) << 32)
                     | (u64::from(event.error) << 8)
-                    | if chapter.state.ended { 1 } else { 2 };
+                    | if state.ended { 1 } else { 2 };
             }
             Kind::Stopped => return 2,
         }
-        if chapter.state.stopped {
-            chapter.xml.stop();
+        if state.stopped {
+            xml.stop();
             return 2;
         }
-        if chapter.state.oom {
+        if state.oom {
             return 2;
         }
     }
@@ -257,7 +317,7 @@ mod test_access {
     #[no_mangle]
     pub extern "C" fn xp_chapter_test_storage_retry(reclaim: unsafe extern "C" fn()) -> u8 {
         let mut storage = xp_core::chapter::assembly::runtime::Storage::default();
-        u8::from(storage.image(b"image", b"source", 10, 20, reclaim).is_ok())
+        u8::from(storage.test_image(reclaim))
     }
 
     use super::*;

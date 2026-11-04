@@ -1,7 +1,7 @@
 //! Synchronous section file policy over borrowed HAL services.
 use crate::section_cache::{self as cache, Diagnostic};
 use core::{ffi::c_void, slice};
-use xp_core::section::{self, Kind, Record, HEADER_SIZE};
+use xp_core::section::{self, Kind};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -662,6 +662,9 @@ impl cache::Records for BuildRecords {
     }
 }
 impl cache::Writer for FileServices {
+    fn is_open(&mut self) -> bool {
+        self.op(FileOp::IsOpen, 0) != 0
+    }
     fn write(&mut self, input: &[u8]) -> bool {
         FileServices::write(self, input)
     }
@@ -987,49 +990,26 @@ pub unsafe extern "C" fn xp_book_section_append(
     built: *mut u16,
     pages: *mut u16,
 ) -> u32 {
-    let (Some(io), Some(built), Some(pages)) = (io.as_ref(), built.as_mut(), pages.as_mut()) else {
+    let (Some(mut io), Some(built), Some(pages)) =
+        (io.as_ref().copied(), built.as_mut(), pages.as_mut())
+    else {
         return 0;
     };
-    if io.op(FileOp::IsOpen, 0) == 0 {
-        io.log(Diagnostic::PageFileClosed, *built as u32, 0);
-        return 0;
-    }
-    let position = io.op(FileOp::Position, 0) as u32;
-    if io
-        .write
-        .is_none_or(|write| write(io.ctx, bytes, length) != length)
-    {
-        io.log(Diagnostic::PageWriteFailed, *built as u32, 0);
-        return 0;
-    }
-    io.log(Diagnostic::PageProcessed, *built as u32, 0);
-    *built = built.wrapping_add(1);
-    *pages = (*pages).max(*built);
-    position
+    let bytes = if length == 0 {
+        &[]
+    } else {
+        unsafe { slice::from_raw_parts(bytes, length) }
+    };
+    cache::append(&mut io, bytes, built, pages)
 }
 /// # Safety
 /// Borrowed services and twenty initialized header fields remain valid until return.
 #[no_mangle]
 pub unsafe extern "C" fn xp_book_section_header(io: *const FileServices, values: *const [u32; 20]) {
-    let (Some(io), Some(values)) = (io.as_ref(), values.as_ref()) else {
+    let (Some(mut io), Some(values)) = (io.as_ref().copied(), values.as_ref()) else {
         return;
     };
-    if io.op(FileOp::IsOpen, 0) == 0 {
-        io.log(Diagnostic::HeaderFileClosed, 0, 0);
-        return;
-    }
-    let record = Record {
-        kind: Kind::Header as u32,
-        values: *values,
-    };
-    let mut bytes = [0; HEADER_SIZE];
-    if section::encode(&record, &mut bytes).is_err()
-        || io
-            .write
-            .is_none_or(|write| write(io.ctx, bytes.as_ptr(), bytes.len()) != bytes.len())
-    {
-        io.log(Diagnostic::WriteRecord, Kind::Header as u32, 0);
-    }
+    cache::header(&mut io, values);
 }
 
 #[repr(C)]

@@ -346,6 +346,7 @@ pub(crate) fn load(io: &mut impl Storage, expected: &[u32; 20], state: &mut Load
 }
 
 pub(crate) trait Writer: Storage {
+    fn is_open(&mut self) -> bool;
     fn write(&mut self, input: &[u8]) -> bool;
     fn promote_temporary(&mut self) -> bool;
     fn write_value(&mut self, kind: Kind, value: u32) -> bool {
@@ -476,4 +477,36 @@ pub(crate) fn commit(
         return false;
     }
     true
+}
+
+// The successful count and readable watermark are separate from LUT entry count.
+pub(crate) fn append(io: &mut impl Writer, bytes: &[u8], built: &mut u16, pages: &mut u16) -> u32 {
+    if !io.is_open() {
+        io.log(Diagnostic::PageFileClosed, u32::from(*built), 0);
+        return 0;
+    }
+    let position = io.position();
+    if !io.write(bytes) {
+        io.log(Diagnostic::PageWriteFailed, u32::from(*built), 0);
+        return 0;
+    }
+    io.log(Diagnostic::PageProcessed, u32::from(*built), 0);
+    *built = built.wrapping_add(1);
+    *pages = (*pages).max(*built);
+    position
+}
+
+pub(crate) fn header(io: &mut impl Writer, values: &[u32; 20]) {
+    if !io.is_open() {
+        io.log(Diagnostic::HeaderFileClosed, 0, 0);
+        return;
+    }
+    let record = Record {
+        kind: Kind::Header as u32,
+        values: *values,
+    };
+    let mut bytes = [0; HEADER_SIZE];
+    if section::encode(&record, &mut bytes).is_err() || !io.write(&bytes) {
+        io.log(Diagnostic::WriteRecord, Kind::Header as u32, 0);
+    }
 }

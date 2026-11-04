@@ -34,8 +34,10 @@ pub fn scaled(advance: i32, percent: u8) -> i32 {
 
 impl Metrics {
     /// # Safety
-    /// Nonempty text has a readable NUL at text.as_ptr().add(text.len()).
-    unsafe fn advance(&self, font: i32, text: &[u8], style: u8, spacing: i8) -> i32 {
+    /// Storage includes its trailing NUL and remains borrowed through the callback.
+    unsafe fn advance(&self, font: i32, storage: &[u8], style: u8, spacing: i8) -> i32 {
+        debug_assert_eq!(storage.last(), Some(&0));
+        let text = &storage[..storage.len() - 1];
         if let Some(engine) = self.engine.as_ref() {
             return engine.advance(
                 font,
@@ -46,7 +48,11 @@ impl Metrics {
                 crate::textm::MeasureMode::Layout,
             );
         }
-        (self.advance.unwrap())(self.context, font, Span::from_bytes(text), style, spacing)
+        let span = Span {
+            data: storage.as_ptr(),
+            len: text.len() as u32,
+        };
+        (self.advance.unwrap())(self.context, font, span, style, spacing)
     }
     pub fn ascender_value(&self, font: i32) -> i32 {
         if let Some(e) = unsafe { self.engine.as_ref() } {
@@ -115,16 +121,16 @@ impl Metrics {
         let next = crate::utf8::next(word, &mut pos).unwrap_or(0);
         let kern = self.kern(font, last(&buffer[..len]), next, bold, tracking);
         // The zero-filled buffer retains a NUL after the copied prefix.
-        (unsafe { self.advance(font, &buffer[..len], bold, tracking) } + kern) as u16
+        (unsafe { self.advance(font, &buffer[..=len], bold, tracking) } + kern) as u16
     }
     #[allow(clippy::too_many_arguments)] // Preserves the existing token/metric operation.
     /// # Safety
-    /// When terminated is true, nonempty word has a readable trailing NUL.
-    /// Suffix slices retain that terminator; other slices use the copying path.
+    /// When terminated is true, storage includes its trailing NUL.
+    /// Suffix views retain that byte; other views use the existing copying path.
     unsafe fn width(
         &self,
         font: i32,
-        word: &[u8],
+        storage: &[u8],
         style: u8,
         focus: u8,
         tracking: i8,
@@ -132,10 +138,15 @@ impl Metrics {
         hyphen: bool,
         terminated: bool,
     ) -> Option<u16> {
+        let word = if terminated {
+            storage.get(..storage.len().checked_sub(1)?)?
+        } else {
+            storage
+        };
         if focus != 0 && usize::from(focus) < word.len() {
             let suffix = self.width(
                 font,
-                &word[usize::from(focus)..],
+                &storage[usize::from(focus)..],
                 style,
                 0,
                 tracking,
@@ -153,7 +164,7 @@ impl Metrics {
             return Some(scaled(self.space(font, style), spacing) as u16);
         }
         if terminated && !hyphen && !word.windows(2).any(|s| s == b"\xc2\xad") {
-            return Some(self.advance(font, word, style, tracking) as u16);
+            return Some(self.advance(font, storage, style, tracking) as u16);
         }
         let mut sanitized = Vec::new();
         sanitized
@@ -171,9 +182,8 @@ impl Metrics {
         if hyphen {
             sanitized.push(b'-');
         }
-        let len = sanitized.len();
         sanitized.push(0);
-        Some(self.advance(font, &sanitized[..len], style, tracking) as u16)
+        Some(self.advance(font, &sanitized, style, tracking) as u16)
     }
 }
 impl Paragraph {
@@ -223,7 +233,7 @@ impl Paragraph {
             width += i32::from(unsafe {
                 m.width(
                     font,
-                    self.word(i),
+                    self.word_terminated(i),
                     self.style(i),
                     0,
                     self.block.character_spacing,
@@ -238,7 +248,7 @@ impl Paragraph {
             (unsafe {
                 m.advance(
                     font,
-                    self.ruby_text(start),
+                    self.ruby_terminated(start),
                     16,
                     self.block.character_spacing,
                 )
@@ -266,7 +276,7 @@ impl Paragraph {
             let width = unsafe {
                 m.width(
                     self.font(i, font),
-                    self.word(i),
+                    self.word_terminated(i),
                     self.style(i),
                     t.focus,
                     self.block.character_spacing,
@@ -301,8 +311,14 @@ impl Paragraph {
                     count += 1;
                 }
                 // Ruby Bytes stores a trailing NUL.
-                let ruby =
-                    unsafe { m.advance(font, self.ruby_text(i), 16, self.block.character_spacing) };
+                let ruby = unsafe {
+                    m.advance(
+                        font,
+                        self.ruby_terminated(i),
+                        16,
+                        self.block.character_spacing,
+                    )
+                };
                 groups.try_reserve(1).ok()?;
                 groups.push(Group {
                     start: i,
@@ -426,15 +442,16 @@ unsafe extern "C" fn measure_split(
     hyphen: u8,
 ) -> u16 {
     let c = &mut *raw.cast::<Splitting>();
+    let terminated = *data.add(len) == 0;
     match c.metrics.width(
         c.font,
-        core::slice::from_raw_parts(data, len),
+        core::slice::from_raw_parts(data, len + usize::from(terminated)),
         style,
         focus,
         c.tracking,
         c.spacing,
         hyphen != 0,
-        *data.add(len) == 0,
+        terminated,
     ) {
         Some(width) => width,
         None => {
@@ -530,17 +547,19 @@ pub unsafe fn breaks(
         failed: 0,
     });
     let indent = (*p).first_indent(true, m, font);
+    // Split mutates this descriptor; both callback views share the same raw origin.
+    let widths_pointer = ptr::addr_of_mut!(widths.0);
     let mut context = Breaking {
         paragraph: p,
         metrics: m,
-        widths: &mut widths.0,
+        widths: widths_pointer,
         breaks: &mut breaks.0,
         font,
         language,
     };
     let callbacks = layout::Callbacks {
         context: (&mut context as *mut Breaking).cast(),
-        widths: &widths.0,
+        widths: widths_pointer,
         has_ruby: u8::from(!(*p).ruby.is_empty()),
         allows_break: allows,
         gap,

@@ -73,10 +73,12 @@ The [reader policy boundary](rust-ui.md#reader-policy-boundary) describes Rust p
 The reader owns one Rust `ReaderBook` for metadata, cache setup and resource
 lifetimes, and one Rust `ReaderSection` for cache/build/Chapter lifetime. Its
 retained native `Epub` facade forwards child and sync queries to that book.
-Native Page storage, the cache-only ProgressMapper Section and dictionary Chapter
-adapter remain in `lib/Epub/`. Ordinary Home, Library,
-Sleep and sync consumers retain native Epub ownership. Both routes use the
-streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
+Rust's `page_owner` owns reader Pages and Page metadata. Native `Page` remains
+for dictionary/preview Pages and as borrowed/transferred facades for the three
+native children. The cache-only ProgressMapper Section and dictionary Chapter
+adapter remain in `lib/Epub/`. See [Reader Page ownership](rust.md#reader-page-ownership).
+Ordinary Home, Library, Sleep and sync consumers retain native Epub ownership.
+Both routes use the streaming Rust core. The KOReader XPath adapter uses `xp_sync_xpath_*`;
 Rust owns the parser and XPath state and consumes XML events directly. The pinned SDK's
 OPDS, OpenSearch and XML catalog consumers retain their interfaces through the
 small Expat API adapter in `lib/expat`; the firmware does not link Expat's C

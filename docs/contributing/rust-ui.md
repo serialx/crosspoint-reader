@@ -213,9 +213,13 @@ needed; the retired EPUB-exclusive service dispatch is not the session boundary.
 in `rust/crates/xp-ffi/include/xp_epub_session.h`. The session owns its loaded
 `ReaderBook` and `ReaderSection` in Rust, including metadata, cache, load and
 incremental Chapter build resources. The native `Epub` facade lends the same
-book to child and sync consumers. C++ retains Page allocations and views, physical
-file implementations and stores, font/display services, toolbar widgets and
-native child screens. Rust chooses their operations and order. See [Reader book ownership](rust.md#reader-book-ownership)
+book to child and sync consumers. Rust's `page_owner` owns reader Pages and Page
+metadata. C++ retains dictionary/preview Pages, borrowed/transferred Page facades
+for the three native children, native child screens and physical leaves,
+including file implementations and stores, font/display services and toolbar
+widgets. The render frame and optional strips stay native. Rust chooses
+their operations and order. See [Reader Page ownership](rust.md#reader-page-ownership)
+for Page lifetimes and [Reader book ownership](rust.md#reader-book-ownership)
 for facade loans, cache locking and teardown. `ReaderActivity` and
 `XtcReaderActivity` remain the native XTC owner path with shared reader helpers.
 Reader launches for XTC/XTCH use that native owner; EPUB, TXT, Markdown and the

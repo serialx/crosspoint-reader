@@ -281,6 +281,11 @@ class Page {
   bool getImageBoundingBox(int16_t& outX, int16_t& outY, int16_t& outW, int16_t& outH) const;
 };
 
+#if __SIZEOF_POINTER__ == 4
+// Keep native Page headers and transferred facades at the accounted size.
+static_assert(sizeof(Page) == 40);
+#endif
+
 // Reusable bounded wire buffer. Each finished Page owns one independent allocation.
 class LinePageBuilder {
   std::unique_ptr<uint8_t[]> bytes;

@@ -1,5 +1,6 @@
 #include <Epub/Page.h>
 
+#include "../reader_lifecycle/legacy_page_metadata.h"
 #include "../reader_section/ReaderSectionFixture.h"
 using Section = ReaderSectionFixture;
 #include <GfxRenderer.h>

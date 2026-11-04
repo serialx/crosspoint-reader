@@ -8,6 +8,7 @@
 #include <new>
 
 #include "../reader_lifecycle/physical_defaults.h"
+#include "FrameChecks.h"
 #include "PageViews.h"
 #include "activities/reader/RustEpubPage.h"
 
@@ -15,6 +16,7 @@ extern "C" void* xp_epub_test_page_transfer(const XpAppResources*, const XpEpubL
                                             void* (*)(XpEpubOwnedPage*, uint8_t, void*), void*);
 
 void testPageFrame(const XpEpubPageView&, GfxRenderer&);
+void testStripPageBorrow(const XpAppResources&, const XpEpubLeaves&, XpAppText, GfxRenderer&);
 
 // Virtual UI methods are deliberately unavailable. This composition constructs
 // and destroys the complete native children, without running their input loops.
@@ -128,6 +130,7 @@ uint8_t* allocate(XpAppMemoryDomain domain, size_t bytes) {
 }
 void release(XpAppMemoryDomain domain, uint8_t* pointer) {
   assert(domain == XP_APP_MEMORY_DEFAULT && !factoryActive);
+  assert(!frameChecks::loan && !frameChecks::window);
   for (auto& a : rustLive)
     if (a.pointer == pointer) {
       a = {};
@@ -225,6 +228,11 @@ void* factory(XpEpubOwnedPage* pages, uint8_t count, void* raw) {
   return result;
 }
 void exercise(const uint8_t* wire, size_t size, bool faults) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  reset();
+  testStripPageBorrow(resources, leaves, {wire, size}, renderer);
+  assert(liveCount() == 0 && releases > 0);
+#endif
   for (unsigned kind = 0; kind < 3; ++kind) {
     for (uint8_t count = 1; count <= (kind == 2 ? 3 : 1); ++count) {
       Request request{kind, wire, size};
@@ -275,8 +283,17 @@ void* operator new(size_t bytes) {
 }
 void* operator new[](size_t bytes) { return ::operator new(bytes); }
 void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
+  if (frameChecks::allocating && frameChecks::requests++ == frameChecks::failAt) return nullptr;
   if (factoryActive && nativeRequests++ == nativeFail) return nullptr;
   void* p = std::malloc(bytes ? bytes : 1);
+  if (p && frameChecks::allocating) {
+    for (auto& slot : frameChecks::live)
+      if (!slot) {
+        slot = p;
+        return p;
+      }
+    std::abort();
+  }
   if (p && factoryActive) {
     for (auto& a : nativeLive)
       if (!a.pointer) {
@@ -289,6 +306,12 @@ void* operator new(size_t bytes, const std::nothrow_t&) noexcept {
 }
 void* operator new[](size_t bytes, const std::nothrow_t& tag) noexcept { return ::operator new(bytes, tag); }
 void operator delete(void* pointer) noexcept {
+  for (auto& slot : frameChecks::live)
+    if (pointer && slot == pointer) {
+      assert(!frameChecks::loan);
+      slot = nullptr;
+      break;
+    }
   for (auto& a : nativeLive)
     if (pointer && a.pointer == pointer) {
       a = {};
@@ -328,5 +351,17 @@ int main(int argc, char** argv) {
   }
   assert(corpus.eof() && pages > 0);
   reset();
-  std::cout << "{\"pages\":" << pages << ",\"cases\":" << cases << ",\"transactions\":" << transactions << "}\n";
+  std::cout << "{\"pages\":" << pages << ",\"cases\":" << cases << ",\"transactions\":" << transactions;
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  assert(frameChecks::imageBorrows > 0 && frameChecks::allocationFailures[3] > 0);
+  std::cout << ",\"strip_borrows\":" << frameChecks::borrows << ",\"active_sources\":" << frameChecks::successes
+            << ",\"image_borrows\":" << frameChecks::imageBorrows
+            << ",\"source_rejections\":" << frameChecks::sourceRejections << ",\"allocation_failures\":[";
+  for (size_t i = 0; i < frameChecks::allocationFailures.size(); ++i) {
+    if (i) std::cout << ',';
+    std::cout << frameChecks::allocationFailures[i];
+  }
+  std::cout << ']';
+#endif
+  std::cout << "}\n";
 }

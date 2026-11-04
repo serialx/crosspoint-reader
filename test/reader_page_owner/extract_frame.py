@@ -26,4 +26,10 @@ renderer = replace_once(renderer, '"../../chapter_html_slim_parser/stubs/GfxRend
 renderer = replace_once(renderer, '  FontCacheManager* getFontCacheManager() const { return nullptr; }', '')
 renderer = replace_once(renderer, '  void preserveImagePolarity(int, int, int, int) {}',
                         '  void preserveImagePolarity(int, int, int, int) {}\n' + Path(__file__).with_name('frame_renderer.inc').read_text())
+renderer = replace_once(renderer, 'int getDisplayWidthBytes() const { return 60; }',
+                        'int getDisplayWidthBytes() const { return frameStride; }')
+renderer = replace_once(renderer, 'int getDisplayWidth() const { return 480; }',
+                        'uint16_t getDisplayWidth() const { return frameStride * 8; }')
+renderer = replace_once(renderer, 'RenderMode getRenderMode() const { return BW; }',
+                        'RenderMode getRenderMode() const { return frameMode; }')
 (out / 'physical/GfxRenderer.h').write_text(renderer)

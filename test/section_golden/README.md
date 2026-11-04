@@ -5,7 +5,7 @@ It runs every XHTML spine item in `test/epubs/*.epub` through actual Rust
 ReaderBook/ReaderSection/Chapter, paragraph layout and page-byte construction.
 `ReaderSectionFixture` supplies Book metadata and a stored ZIP from those public
 inputs; it owns no parallel parser/build state. Cache reads use the actual Rust
-owner and retained native Page loader/serializer. The output contains the
+Page owner and a native facade for serialization. The output contains the
 complete Section header, pages, page offsets, anchor map, paragraph indices,
 list-item indices, and visible-text offsets. No bytes are normalized or omitted.
 
@@ -218,8 +218,8 @@ successful corpus does not exercise every failure path. Capture with `--ops
 ## Cache read oracle
 
 `SectionReadGoldens` loads all 312 original section files through the actual Rust
-ReaderSection load/page factory and native Page loader. Each loaded page is serialized
-again and expanded into named fields by `read_oracle.py`. The canonical JSON
+ReaderSection and Page owner. Each loaded Page passes through a native facade
+for serialization; `read_oracle.py` expands the bytes into named fields. The JSON
 includes every serialized element field, the complete fixed footnote/link arrays,
 the visible-offset LUT value, and the actual owner's cache-text result for each
 page. Strings and byte arrays use hex to preserve embedded NULs and arbitrary

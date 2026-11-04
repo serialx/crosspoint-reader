@@ -130,3 +130,26 @@ pub unsafe extern "C" fn xp_epub_test_page_query(
         };
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_page_borrow(
+    resources: &'static app_abi::Resources,
+    leaves: &'static XpEpubLeaves,
+    input: app_abi::Text,
+    observe: unsafe extern "C" fn(*const super::super::abi::XpEpubPageView, *mut c_void),
+    context: *mut c_void,
+) {
+    let page = Page::from_bytes(resources, leaves, unsafe { input.bytes() }.unwrap(), 37)
+        .expect("valid composition Page");
+    unsafe { observe(&page.borrow().wire(), context) };
+    // The synchronous frame must detach every foreign loan before this drop.
+    drop(page);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn xp_epub_test_page_render(
+    services: *const xp_ui::reader::render::Services,
+) {
+    let renderer = unsafe { xp_ui::reader::render::PhysicalRenderer::new(&*services) };
+    xp_ui::reader::render::render(&renderer, true);
+}

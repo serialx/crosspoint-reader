@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include "../reader_lifecycle/legacy_page_metadata.h"
 #include "activities/Activity.h"
 class CheckedPageMetadata : public PageMetadata {
  public:

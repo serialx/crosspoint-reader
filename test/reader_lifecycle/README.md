@@ -62,7 +62,8 @@ CSS load/clear, native outer allocation failures and forbidden metadata getters.
 The two simulated loan ticks in this test are not a real Section build.
 
 `reader_book_section` supplies actual Rust ReaderBook/ReaderSection/Chapter/CSS,
-the native Page codec, cache-only Section, ProgressMapper and ChapterXPathResolver. It checks serialized background ticks, cache/page reads,
+the Rust Page owner with native facades, cache-only Section, ProgressMapper and
+ChapterXPathResolver. It checks serialized background ticks, cache/page reads,
 active-build cancellation and a visible-offset/XPath round trip. Native file,
 font/render and scheduler inputs remain physical fakes; it does not qualify
 panel timing or concurrent hardware execution.

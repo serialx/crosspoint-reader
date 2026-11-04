@@ -36,9 +36,11 @@ candidate consumed the same stored ZIP and Book metadata. Every resulting Page,
 render record and persisted cache file matched. The reference retains Page and
 cache hashes instead of duplicating all existing rendering goldens.
 
-Review material kept outside this repository records the isolated parent source
-modifications, production-source identity checks, binaries, raw outputs and full
-comparison. It proves that the actual parent and candidate produce the same Page
+This work's review evidence store, kept outside this repository, records the
+isolated parent source modifications, production-source identity checks, binaries, raw outputs and full
+comparison. This is a host fixture using extracted native leaves and physical
+host interfaces, not a device or emulator measurement of shipping firmware.
+Within that fixture, the actual parent and candidate produce the same Page
 and cache bytes; the failed harness attempts and initial failing candidate run
 are retained separately. Do not regenerate either historical goldens or the
 parent reference to resolve a mismatch.

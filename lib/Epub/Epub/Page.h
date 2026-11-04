@@ -298,17 +298,3 @@ class LinePageBuilder {
   bool addLine(const XpParaLine& line, int16_t x, int16_t y);
   std::unique_ptr<Page> finish();
 };
-
-// Reader-owned copies outlive the rendered Page; failed assignment leaves no stale targets.
-class PageMetadata {
-  std::unique_ptr<FootnoteEntry[]> ownedFootnotes;
-  std::unique_ptr<PageLink[]> ownedLinks;
-  uint16_t footnoteSize = 0;
-  uint16_t linkSize = 0;
-
- public:
-  std::span<const FootnoteEntry> footnotes() const { return {ownedFootnotes.get(), footnoteSize}; }
-  std::span<const PageLink> links() const { return {ownedLinks.get(), linkSize}; }
-  void clear();
-  bool assign(const Page& page);
-};

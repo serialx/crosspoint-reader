@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "../reader_lifecycle/legacy_page_metadata.h"
 #include "../reader_lifecycle/physical_defaults.h"
 #include "PageViews.h"
 

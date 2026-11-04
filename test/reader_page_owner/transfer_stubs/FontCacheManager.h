@@ -1,5 +1,7 @@
 #pragma once
 #include <cassert>
+
+#include "../FrameChecks.h"
 class FontCacheManager {
  public:
   unsigned scopes = 0;
@@ -11,6 +13,7 @@ class FontCacheManager {
     ~PrewarmScope() {
       assert(cache.scopes);
       --cache.scopes;
+      frameChecks::prewarmDropAt = ++frameChecks::sequence;
     }
     void endScanAndPrewarm() {}
   };

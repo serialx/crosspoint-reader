@@ -1,6 +1,6 @@
 # Reader Page owner checks
 
-`ReaderPageOwner` compares the dormant Rust Page owner with the real native
+`ReaderPageOwner` compares the production Rust Page owner with the real native
 `Page::fromBytes` implementation. It reads the existing Section golden corpus
 through `test/page_codec_diff/run.py`, adds truncated and mutated records, and
 checks decoded arena bytes and metadata. Native arena allocations start with
@@ -44,8 +44,27 @@ trace in all three Page modes. Image admission uses the real ImageBlock code
 with host storage; image paths and sources retain their NUL terminators. Font
 ascent uses deterministic fixture metrics. These checks do not establish target
 pixels, input behavior, child timing, heap fragmentation, or runtime stack use.
-The draft native adapters and transfer descriptors remain test-gated until the
-shipping Page leaves retire together.
+The adapters and transfer descriptors are active in firmware; the retired
+Page/metadata service table remains only in named app-test legacy oracles.
+
+`ReaderPageTransfer` also composes the current native frame with strips disabled.
+`ReaderPageFrameStrip` enables `XP_STRIP_RENDER` and the Rust `reader-strips`
+feature in a separate host build. It uses the actual NativeRenderFrame,
+NativeResources, ReaderStripBuffers and ReaderStripPainter with a real Rust Page
+borrow, and drives the production Rust render planner. Every corpus Page also
+runs each strip-allocation failure and a rejected display-source installation.
+The test asserts highlight descriptor identity, replay during display and detach,
+loan-protected buffers, framebuffer fallback, prewarm teardown, and real
+image-cache release after source/window cleanup. The allocator checks that the
+Rust Page cannot be freed while a source or image window remains installed.
+
+Display upload, font prewarm, session status/counter handling and drawing metrics
+are physical host substitutes. Plan recording is a deterministic host substitute;
+this test does not prove pixels, actual plan commands, DMA, panel timing or font
+cache behaviour. Image cache/window observers forward to the real ImageBlock
+services. The separate strip replay/pixel oracles retain their own coverage.
+The C++ PageMetadata comparison is frozen from the former native reader owner in
+`test/reader_lifecycle/legacy_page_metadata.h`; no shipping code includes it.
 
 `ImageScaleFormatting` compares the actual ImageScale log with 125,326 immutable
 outputs from the pinned C3 and S3 `libc.a` implementations of
@@ -55,7 +74,7 @@ bit patterns, signed zero, subnormals, hundredth boundaries, finite extremes,
 both signs, infinities, and quiet/signalling NaNs. macOS libc is deliberately not
 the reference: it formats negative NaN differently. The raw target records,
 probe sources, commands, ELFs, map-provider evidence, and runtime logs are in
-`p16-o3c/checkpoint-1/scale-proof` in the RIIR evidence round. `scale-target.json`
+this work’s external review evidence store. `scale-target.json`
 pins the recorded data; the test never regenerates it.
 
 Production ImageScale ratios use unsigned intrinsic dimensions and the unsigned
@@ -72,3 +91,8 @@ cmake --build build/test --target ReaderPageOwner ReaderPageTransfer PageLoad Ch
 ctest --test-dir build/test -j 2 --output-on-failure \
   -R '^(ReaderPageOwner|ReaderPageTransfer|ImageScaleFormatting|PageLoadMalformed|PageLoadOom|PageLoadPartial|PageAllocator|PageReaderMetadata|DictionaryHtmlPagesTest\..*)$'
 ```
+
+To add the optional frame composition, configure a separate host build with the
+normal `XP_FFI_HOST_FEATURES` plus `reader-strips`, build `ReaderPageFrameStrip`,
+and run `ctest -R '^ReaderPageFrameStrip$' --output-on-failure` in that build.
+Keep the default non-strip composition enabled as well.

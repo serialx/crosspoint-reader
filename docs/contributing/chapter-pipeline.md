@@ -1,14 +1,17 @@
 # Chapter pipeline boundary
 
 Rust owns EPUB parsing and layout, page records, page-byte construction and
-load-time decoding and page rendering through `xp-core::page`. C++ owns file I/O,
-the loaded page allocation and views. Glyph bitmap views and rasterization run
-in Rust. C++ retains font registration/preparation, built-in/TTF caches,
-JPEGDEC integration and native Page resources. The Rust reader owns its loaded
-book, Section and incremental Chapter build. A native `Epub` facade forwards
+load-time decoding and page rendering through `xp-core::page`. The reader owns
+its Page allocation and metadata in Rust; native render frames borrow the arena
+and native selection children adopt it through a facade. C++ retains file I/O,
+font registration/preparation, built-in/TTF caches, JPEGDEC integration and
+render-resource storage. Dictionary and settings-preview Pages remain native.
+Glyph bitmap views and rasterization run in Rust. The Rust reader also owns its
+loaded book, Section and incremental Chapter build. A native `Epub` facade forwards
 child and sync queries to that same book; the dictionary retains its native
 Chapter adapter. See [Reader book ownership](rust.md#reader-book-ownership) and
-[Section ownership](rust.md#chapter-and-section-compatibility).
+[Section ownership](rust.md#chapter-and-section-compatibility), and
+[Reader Page ownership](rust.md#reader-page-ownership).
 The Rust application owns navigation, Home and the ordinary EPUB `EpubSession`; native XTC
 and reader child screens remain owned legacy activities. The session calls typed
 physical leaves for those resources without changing the chapter assembly and

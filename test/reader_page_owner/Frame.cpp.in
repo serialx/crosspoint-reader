@@ -3,6 +3,12 @@
 #include <Page.h>
 #include <blocks/ImageBlock.h>
 #include <xp_epub_session.h>
+#include <xp_display.h>
+#include "FrameChecks.h"
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+#include "activities/reader/ReaderStripBuffers.h"
+#include "activities/reader/ReaderStripPainter.h"
+#endif
 #include <optional>
 #include <cassert>
 #define LOG_ERR(...) ((void)0)
@@ -17,10 +23,55 @@ bool isEegoA4() { return false; }
 struct { bool deviceIsX3() const { return false; } } gpio;
 struct { bool textAntiAliasing = false; int getRefreshFrequency() const { return 3; } } SETTINGS;
 struct { size_t getFreeHeap() const { return 65536; } size_t getMaxAllocHeap() const { return 65536; } } ESP;
-struct { HalDisplay::Controller getController() const { return HalDisplay::Controller::Other; } } display;
+struct {
+  XpDisplaySource* source = nullptr;
+  bool reject = false;
+  bool isInverted() const { return false; }
+  HalDisplay::Controller getController() const {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+    return HalDisplay::Controller::UC8253;
+#else
+    return HalDisplay::Controller::Other;
+#endif
+  }
+  bool setFrameSource(XpDisplaySource* value) {
+    if (value && reject) return false;
+    if (!value && source) {
+      ++frameChecks::detaches;
+      frameChecks::detachAt = ++frameChecks::sequence;
+      // The loan must still be readable at detach, before the Rust Page drops.
+      assert(source->paint(source->ctx, source->scratch, 0, 1) == 0);
+    }
+    source = value;
+    frameChecks::loan = value != nullptr;
+    return true;
+  }
+} display;
+// Transparent physical-service observers; the real image-cache methods still run.
+struct FrameImageBlock {
+  static void clearRenderFailures() { ImageBlock::clearRenderFailures(); }
+  static void releaseRenderCache() {
+    assert(!frameChecks::loan && !frameChecks::window);
+    ++frameChecks::cacheReleases;
+    frameChecks::cacheReleaseAt = ++frameChecks::sequence;
+    ImageBlock::releaseRenderCache();
+  }
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  static void setRenderReadWindow(uint8_t* data, size_t size) {
+    frameChecks::window = data;
+    if (!data) {
+      ++frameChecks::windowClears;
+      frameChecks::windowClearAt = ++frameChecks::sequence;
+    }
+    ImageBlock::setRenderReadWindow(data, size);
+  }
+#endif
+};
+#define ImageBlock FrameImageBlock
 // ACTUAL_FRAME
 // ACTUAL_RESOURCES
 // ACTUAL_RESOURCE_ACCESS
+#undef ImageBlock
 GfxRenderer* target;
 const auto bind = +/* ACTUAL_BIND */;
 const auto finish = +/* ACTUAL_FINISH */;
@@ -53,3 +104,102 @@ void testPageFrame(const XpEpubPageView& page, GfxRenderer& renderer) {
   finish(&root);
   assert(!root.frame && renderer.frameCache.scopes == 0);
 }
+
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+extern "C" void xp_epub_test_page_borrow(const XpAppResources*, const XpEpubLeaves*, XpAppText,
+                                          void (*)(const XpEpubPageView*, void*), void*);
+extern "C" void xp_epub_test_page_render(const XpUiReaderRenderServices*);
+namespace {
+struct StripRun {
+  GfxRenderer& renderer;
+  size_t fail;
+  bool reject;
+  size_t allocations = 0;
+};
+void stripBorrow(const XpEpubPageView* page, void* raw) {
+  auto& run = *static_cast<StripRun*>(raw);
+  auto& renderer = run.renderer;
+  frameChecks::reset();
+  ++frameChecks::borrows;
+  renderer.frameStride = 100;
+  renderer.displays = renderer.stripBegins = 0;
+  memset(renderer.framePixels, 0xff, sizeof(renderer.framePixels));
+  display.reject = run.reject;
+  NativeResources root(renderer);
+  Highlight context{*page};
+  const unsigned priorReleases = frameChecks::cacheReleases;
+  const unsigned priorDetaches = frameChecks::detaches;
+  target = &renderer;
+  bind(&root, page, 24, 7, 11, 0, highlight, &context);
+  assert(root.frame && root.frame->pageView.arena == page->arena);
+  renderer.onDisplay = +[] {
+    if (!display.source) return;
+    const auto& source = *display.source;
+    assert(source.width == 800 && source.capacity == 8000 && source.rows == 80);
+    assert(source.paint(source.ctx, source.scratch, 0, 80) == 0);
+    assert(source.paint(source.ctx, source.scratch, 0, 80) == 0);
+  };
+  // Session-owned status/counter operations are physical substitutes here.
+  // Every Page/strip operation uses the activated native frame unchanged.
+  XpUiReaderRenderServices services{
+      &root,
+      [](void* p, uint8_t query) -> uint32_t {
+        if (query == XP_UI_READER_RENDER_TAKE_FORCED) return 0;
+        if (query == XP_UI_READER_RENDER_COUNTER) return 3;
+        return resources(p).read(query);
+      },
+      [](void* p, const XpUiReaderRenderOp* op) -> uint32_t {
+        if (op->kind == XP_UI_READER_RENDER_STATUS || op->kind == XP_UI_READER_RENDER_SET_COUNTER) return 0;
+        return resources(p).execute(*op);
+      }};
+  frameChecks::allocating = true;
+  frameChecks::failAt = run.fail;
+  xp_epub_test_page_render(&services);
+  frameChecks::allocating = false;
+  run.allocations = frameChecks::requests;
+  if (root.frame->page.hasImages()) ++frameChecks::imageBorrows;
+  const bool eligible = root.frame->page.elementCount() <= ReaderStripBuffers::MAX_ELEMENTS;
+  const bool active = eligible && run.fail == SIZE_MAX && !run.reject;
+  assert((display.source != nullptr) == active);
+  assert(context.calls > 0 && renderer.displays > 0 && renderer.frameCache.scopes == 1);
+  if (run.fail != SIZE_MAX) ++frameChecks::allocationFailures[run.fail];
+  if (run.reject) ++frameChecks::sourceRejections;
+  if (active) {
+    ++frameChecks::successes;
+    assert(renderer.stripBegins > 0 && renderer.framePlan);
+    assert(!root.strips.releaseIdle());
+    assert(!root.strips.prepare(100, true));
+    assert(root.strips.scratch && root.strips.commands && root.strips.bounds);
+  } else {
+    assert(!root.strips.scratch && !root.strips.commands && !root.strips.bounds && !root.strips.imageWindow);
+    assert(!renderer.framePlan && !frameChecks::window);
+  }
+  finish(&root);
+  assert(!root.frame && !display.source && !frameChecks::loan && !frameChecks::window);
+  assert(!renderer.framePlan && renderer.frameCache.scopes == 0);
+  assert(frameChecks::cacheReleases == priorReleases + 1);
+  assert(frameChecks::windowClearAt < frameChecks::prewarmDropAt);
+  assert(frameChecks::prewarmDropAt < frameChecks::cacheReleaseAt);
+  assert(frameChecks::detaches == priorDetaches + (active ? 1 : 0));
+  if (active) assert(frameChecks::detachAt < frameChecks::windowClearAt);
+  root.strips.releaseIdle();
+  for (auto* p : frameChecks::live) assert(!p);
+  renderer.onDisplay = nullptr;
+  renderer.frameStride = 60;
+  display.reject = false;
+}
+}
+void testStripPageBorrow(const XpAppResources& memory, const XpEpubLeaves& leaves, XpAppText wire,
+                        GfxRenderer& renderer) {
+  StripRun run{renderer, SIZE_MAX, false};
+  xp_epub_test_page_borrow(&memory, &leaves, wire, stripBorrow, &run);
+  const size_t allocations = run.allocations;
+  for (size_t fail = 0; fail < allocations; ++fail) {
+    run.fail = fail;
+    xp_epub_test_page_borrow(&memory, &leaves, wire, stripBorrow, &run);
+  }
+  run.fail = SIZE_MAX;
+  run.reject = true;
+  xp_epub_test_page_borrow(&memory, &leaves, wire, stripBorrow, &run);
+}
+#endif

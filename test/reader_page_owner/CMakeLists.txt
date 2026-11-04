@@ -35,10 +35,24 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 add_executable(ReaderPageTransfer PageTransfer.cpp ${READER_PAGE_SOURCES}
   ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp ${CMAKE_CURRENT_BINARY_DIR}/PageFrame.cpp)
 target_include_directories(ReaderPageTransfer PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
+  ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
   ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_CODEC_INCLUDES} ${REPO_ROOT}/test/ui_runtime)
 target_compile_definitions(ReaderPageTransfer PRIVATE XP_EPUB_PAGE_OWNER_TEST=1)
 target_compile_options(ReaderPageTransfer PRIVATE -UNDEBUG)
 target_link_libraries(ReaderPageTransfer PRIVATE crosspoint_test_common xp_ffi_host)
 add_test(NAME ReaderPageTransfer COMMAND ${Python3_EXECUTABLE}
   ${REPO_ROOT}/test/page_codec_diff/run.py --dump $<TARGET_FILE:ReaderPageTransfer>)
+
+# Same activated frame and real Rust owner, with the optional native strip path.
+if(XP_FFI_HOST_FEATURES MATCHES "(^|,)reader-strips(,|$)")
+  add_executable(ReaderPageFrameStrip PageTransfer.cpp ${READER_PAGE_SOURCES}
+    ${CMAKE_CURRENT_BINARY_DIR}/ClipConstructors.cpp ${CMAKE_CURRENT_BINARY_DIR}/PageFrame.cpp)
+  target_include_directories(ReaderPageFrameStrip PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}/physical ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/transfer_stubs
+    ${CMAKE_CURRENT_SOURCE_DIR}/stubs ${PAGE_CODEC_INCLUDES} ${REPO_ROOT}/test/ui_runtime)
+  target_compile_definitions(ReaderPageFrameStrip PRIVATE XP_EPUB_PAGE_OWNER_TEST=1 XP_STRIP_RENDER=1)
+  target_compile_options(ReaderPageFrameStrip PRIVATE -UNDEBUG)
+  target_link_libraries(ReaderPageFrameStrip PRIVATE crosspoint_test_common xp_ffi_host)
+  add_test(NAME ReaderPageFrameStrip COMMAND ${Python3_EXECUTABLE}
+    ${REPO_ROOT}/test/page_codec_diff/run.py --dump $<TARGET_FILE:ReaderPageFrameStrip>)
+endif()

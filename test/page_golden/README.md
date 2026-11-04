@@ -43,7 +43,8 @@ a temporary directory is removed at exit.
 
 ## Production boundary
 
-The executable uses actual Rust ReaderBook/ReaderSection and native Page, TextBlock, ImageBlock,
+The executable uses actual Rust ReaderBook/ReaderSection/Page ownership and native
+Page facades, TextBlock, ImageBlock,
 `ChapterPlatform.cpp` (chapter facade, page assembler and native sink), Paragraph
 and CSS code, linked to the normal Rust host archive. Measurement and
 rasterization use real GfxRenderer, EpdFont, EpdFontFamily, SdCardFont,

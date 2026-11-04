@@ -65,8 +65,9 @@ Cache invalidation is decided by `xp_core::section::header_matches`
 line compression, and header word slots `values[3..14]`.
 `section_owner::lifecycle::header` in
 `rust/crates/xp-ffi/src/app/epub/section_owner/lifecycle.rs` derives those slots
-from the reader render spec. `ReaderSection::load` validates the cached header
-through `section_cache`.
+from `XpEpubRenderSpec`. `ReaderSection::load` in
+`rust/crates/xp-ffi/src/app/epub/section_owner/owner.rs` validates the cached
+header through `section_cache`.
 Format/version mismatches also invalidate saved data.
 Path changes select another cache; same-path content replacement needs the
 appropriate freshness check and an affected-cache reset during testing.

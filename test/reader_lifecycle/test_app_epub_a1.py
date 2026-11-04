@@ -164,10 +164,10 @@ def prepare(root, work, definition, native_leaf, failed):
     source = once(source, 'struct { uint32_t lastTouchHeldMs() const {return 0;} } gpio;\n', '')
     native = legacy_page_source((root / 'src/activities/reader/RustEpubResources.cpp').read_text())
     bridge = (HERE / 'a1_bindings.inc').read_text()
-    metadata = definition((root / 'lib/Epub/Epub/Page.h').read_text(), 'class PageMetadata {') + ';\n'
-    page_cpp = (root / 'lib/Epub/Epub/Page.cpp').read_text()
-    metadata += definition(page_cpp, 'void PageMetadata::clear()') + '\n'
-    metadata += definition(page_cpp, 'bool PageMetadata::assign(const Page& page)')
+    frozen = (HERE / 'legacy_page_metadata.h').read_text()
+    metadata = definition(frozen, 'class PageMetadata {') + ';\n'
+    metadata += definition(frozen, 'inline void PageMetadata::clear()') + '\n'
+    metadata += definition(frozen, 'inline bool PageMetadata::assign(const Page& page)')
     bridge = once(bridge, '// ACTUAL_PAGE_METADATA', metadata)
     for marker, signature in [('FRAME', 'struct NativeRenderFrame {'), ('RESOURCES', 'struct NativeResources {')]:
         bridge = once(bridge, '// ACTUAL_NATIVE_' + marker, definition(native, signature) + ';')

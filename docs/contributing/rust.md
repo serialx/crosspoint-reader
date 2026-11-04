@@ -176,8 +176,8 @@ C3 eink-qemu measurements do not establish hardware or S3 runtime behavior.
 Diagnostics must preserve behavior and add no heap allocations. C++ owns the
 `LOG_*` calls and log-level gates. The reader's `book_owner` formats its migrated
 load, cache, package, CSS, ZIP and TXT/Markdown diagnostics in Rust.
-`section_owner` formats Section/Chapter build diagnostics through the same log
-leaf. Both preserve the native messages' origin tags and levels. Their shared
+`section_owner` formats Section build and Section cache diagnostics through the
+same log leaf. Both preserve the native messages' origin tags and levels. Their shared
 non-inlined formatter uses a 256-byte stack buffer, checks
 `XpEpubLeaves::log_enabled`, then synchronously
 passes borrowed origin/message spans to `XpEpubLeaves::log` in
@@ -396,10 +396,10 @@ bool normalization; the image setting retains its original byte value.
 A loaded partial remains readable while a rebuild has fewer pages. Suspension
 commits completed pages and drops the Chapter; resume rebuilds from the start.
 Committed-page reads use a separate local file; active-build reads restore the
-writer cursor after loading a Page. Page storage remains native through
-`page_load` until the separate Page-owner migration. No mutable Section/build
-borrow may cross a physical callback. Resource access and the book cache-lock
-order remain those of the session.
+writer cursor after loading a Page. `page_owner` allocates and decodes the reader
+Page directly through FileSlot; the native `page_load` bridge is retired.
+No mutable Section/build borrow may cross a physical callback. Resource access
+and the book cache-lock order remain those of the session.
 
 Page records grow in fixed 64-entry chunks and anchors in 32-entry chunks.
 Existing payloads stay in place while the small pointer directory grows exactly;
@@ -863,6 +863,35 @@ the consumed glyph array and replaces the data slot inside emission, then checks
 subsequent placements and pointers. The original public/private text and drawing
 archives cover rendering; run `test/text_golden/mutation_check.py` with a dedicated
 CMake build directory to verify independent rejection of pixel and advance changes.
+
+## Reader Page ownership
+
+`xp-ffi::app::epub::page_owner` owns one fallible DEFAULT-domain allocation per
+reader Page: an eight-byte target header followed by the immutable decoded arena.
+It uses the shared `xp-core::page` probe and in-place decoder. Rust queries borrow
+arena records for each call; they do not retain resolved native views.
+
+Session metadata outlives the rendered Page, so `page_owner::Metadata` copies
+only its footnote and link records into two exact-size buffers (288 bytes per
+footnote and 264 per link, at most 13,056 bytes). Replacement clears old targets
+before allocation; failure leaves both counts zero. ResourceAccess guards these
+buffers. Shutdown destroys native render resources, then releases links before
+footnotes. The historical C++ metadata class exists only in host tests.
+
+The native render frame borrows a Page descriptor until RenderCall finishes.
+Its optional strip source detaches, and prewarm/image cleanup completes, before
+Rust drops the Page. NativeResources still owns the frame, strip buffers and
+idle-prewarm scope. Dictionary and settings-preview Pages retain native ownership.
+
+Footnote, dictionary-word and clipping selection children adopt Rust Pages
+through small native facades. Pending retains every owner until all fallible
+native construction succeeds; adoption then commits all owners without another
+allocation or callback. A borrowed facade never frees the arena; an adopted one
+calls the Rust destructor exactly once. Each transferred facade is 40 bytes on
+C3/S3. The native Page header is also 40 bytes, eight more than before this
+boundary, including dictionary/preview Pages. No second decoded arena is copied.
+See the [Page owner checks](../../test/reader_page_owner/README.md) for the real
+codec/consumer compositions and their host-only limits.
 
 ## Page rendering
 

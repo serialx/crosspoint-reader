@@ -6,6 +6,10 @@ use std::{
     pin::Pin,
 };
 
+#[cfg(feature = "reader-strips")]
+#[path = "replay_tests.rs"]
+mod replay_tests;
+
 #[derive(Default)]
 struct Trace {
     calls: usize,

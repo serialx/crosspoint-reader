@@ -20,6 +20,7 @@ pub(super) use overlay_input::OverlayInputHooks;
 pub(super) mod overlay_view;
 mod popup_concurrency;
 mod render;
+mod resource_frame;
 mod scene;
 mod view_values;
 

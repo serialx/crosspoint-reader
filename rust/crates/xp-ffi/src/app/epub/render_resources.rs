@@ -1,4 +1,13 @@
 //! Stable storage for one reader's render resources; not yet used by the session.
+#[path = "render_resources/logging.rs"]
+pub(crate) mod logging;
+#[path = "render_resources/physical.rs"]
+pub(crate) mod physical;
+#[path = "render_resources/renderer.rs"]
+pub(crate) mod renderer;
+#[cfg(feature = "reader-strips")]
+#[path = "render_resources/replay.rs"]
+pub(crate) mod replay;
 use crate::app::{abi, resources::Buffer};
 use core::{
     cell::{Cell, RefCell, UnsafeCell},
@@ -131,7 +140,7 @@ pub(crate) struct PageGeometry {
     pub(crate) context: *mut c_void,
 }
 impl PageGeometry {
-    const EMPTY: Self = Self {
+    pub(crate) const EMPTY: Self = Self {
         arena: ptr::null(),
         length: 0,
         visible_offset: 0,
@@ -353,6 +362,13 @@ pub(crate) struct FrameLease<'a> {
     physical: &'a dyn PhysicalResources,
 }
 impl FrameLease<'_> {
+    pub(crate) fn configure(&self, mut geometry: PageGeometry) {
+        #[cfg(feature = "reader-strips")]
+        assert!(!self.owner.strips.loaned());
+        geometry.arena = self.arena.as_ptr();
+        geometry.length = self.arena.len();
+        self.owner.frame.page.set(geometry);
+    }
     pub(crate) fn allocate(
         &self,
         resources: &'static abi::Resources,

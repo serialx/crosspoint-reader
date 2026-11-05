@@ -16,3 +16,105 @@ foreach(mode IN ITEMS default strips)
     --target-dir ${CMAKE_CURRENT_BINARY_DIR}/${mode}
     --locked --offline --lib ${features})
 endforeach()
+
+if(TARGET ReaderPageTransfer)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  set(PHYSICAL_DIR ${CMAKE_CURRENT_BINARY_DIR}/composition)
+  execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_physical.py
+    ${PHYSICAL_DIR} COMMAND_ERROR_IS_FATAL ANY)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    extract_physical.py PhysicalFrame.cpp.in LogParity.cpp.in PixelPhysical.cpp.in
+    ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp)
+  get_target_property(RESOURCE_SOURCES ReaderPageTransfer SOURCES)
+  get_target_property(RESOURCE_INCLUDES ReaderPageTransfer INCLUDE_DIRECTORIES)
+  list(FILTER RESOURCE_SOURCES EXCLUDE REGEX "PageFrame.cpp$")
+  set(COMPOSITION_SOURCES)
+  foreach(source IN LISTS RESOURCE_SOURCES)
+    if(IS_ABSOLUTE "${source}")
+      list(APPEND COMPOSITION_SOURCES "${source}")
+    else()
+      list(APPEND COMPOSITION_SOURCES "${REPO_ROOT}/test/reader_page_owner/${source}")
+    endif()
+  endforeach()
+  foreach(mode IN ITEMS default strips)
+    if(mode STREQUAL strips AND NOT XP_FFI_HOST_FEATURES MATCHES "(^|,)reader-strips(,|$)")
+      continue()
+    endif()
+    set(features ${XP_FFI_HOST_FEATURES})
+    set(definitions XP_EPUB_PAGE_OWNER_TEST=1)
+    if(mode STREQUAL strips)
+      list(APPEND definitions XP_STRIP_RENDER=1)
+    else()
+      string(REPLACE ",reader-strips" "" features "${features}")
+    endif()
+    set(archive ${CMAKE_CURRENT_BINARY_DIR}/full-${mode}/${XP_FFI_HOST_TRIPLE}/release/libxp_ffi.a)
+    file(GLOB_RECURSE OWNER_INPUTS CONFIGURE_DEPENDS
+      ${REPO_ROOT}/rust/crates/xp-ffi/src/*.rs)
+    add_custom_command(OUTPUT ${archive}
+      COMMAND ${RENDER_RESOURCES_CARGO} build --release --offline --locked
+        --manifest-path ${REPO_ROOT}/rust/Cargo.toml -p xp-ffi --target ${XP_FFI_HOST_TRIPLE}
+        --target-dir ${CMAKE_CURRENT_BINARY_DIR}/full-${mode} --features ${features}
+      DEPENDS ${OWNER_INPUTS}
+      VERBATIM)
+    add_custom_target(ResourceArchive_${mode} DEPENDS ${archive})
+    add_executable(ReaderResourceComposition_${mode} ${COMPOSITION_SOURCES} ${PHYSICAL_DIR}/ResourceFrame.cpp
+      ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
+    add_dependencies(ReaderResourceComposition_${mode} ResourceArchive_${mode} ReaderPageTransfer)
+    target_include_directories(ReaderResourceComposition_${mode} PRIVATE
+      ${PHYSICAL_DIR}/physical ${RESOURCE_INCLUDES} ${REPO_ROOT} ${REPO_ROOT}/lib
+      ${REPO_ROOT}/rust/crates/xp-ffi/include)
+    target_compile_definitions(ReaderResourceComposition_${mode} PRIVATE ${definitions})
+    target_compile_options(ReaderResourceComposition_${mode} PRIVATE -UNDEBUG)
+    target_link_libraries(ReaderResourceComposition_${mode} PRIVATE ${archive})
+    add_test(NAME ReaderResourceComposition_${mode} COMMAND ${Python3_EXECUTABLE}
+      ${REPO_ROOT}/test/page_codec_diff/run.py --dump $<TARGET_FILE:ReaderResourceComposition_${mode}>)
+    add_executable(ReaderResourceLogParity_${mode} ${PHYSICAL_DIR}/LogParity.cpp
+      ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
+    add_dependencies(ReaderResourceLogParity_${mode} ResourceArchive_${mode})
+    target_include_directories(ReaderResourceLogParity_${mode} PRIVATE
+      ${PHYSICAL_DIR} ${REPO_ROOT}/src ${REPO_ROOT}/rust/crates/xp-ffi/include)
+    target_compile_definitions(ReaderResourceLogParity_${mode} PRIVATE ${definitions})
+    target_compile_options(ReaderResourceLogParity_${mode} PRIVATE -UNDEBUG)
+    target_link_libraries(ReaderResourceLogParity_${mode} PRIVATE ${archive})
+    add_test(NAME ReaderResourceLogParity_${mode} COMMAND ReaderResourceLogParity_${mode})
+  endforeach()
+  function(add_resource_pixel_composition)
+    if(NOT TARGET ReaderStripReplay)
+      return()
+    endif()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    set(source ${REPO_ROOT}/test/reader_render_resources)
+    set(binary ${CMAKE_BINARY_DIR}/reader_render_resources)
+    get_target_property(sources ReaderStripReplay SOURCES)
+    list(REMOVE_ITEM sources ReaderStripReplay.cpp)
+    set(absolute_sources)
+    foreach(path IN LISTS sources)
+      if(IS_ABSOLUTE "${path}")
+        list(APPEND absolute_sources "${path}")
+      else()
+        list(APPEND absolute_sources "${REPO_ROOT}/test/page_golden/${path}")
+      endif()
+    endforeach()
+    get_target_property(includes ReaderStripReplay INCLUDE_DIRECTORIES)
+    get_target_property(definitions ReaderStripReplay COMPILE_DEFINITIONS)
+    add_executable(ReaderRustStripReplay ${absolute_sources}
+      ${binary}/composition/RustStripReplay.cpp ${binary}/composition/PixelPhysical.cpp
+      ${REPO_ROOT}/test/cmake/xp_ffi_host.cpp)
+    add_dependencies(ReaderRustStripReplay ResourceArchive_strips ReaderStripReplay)
+    target_include_directories(ReaderRustStripReplay PRIVATE ${source} ${binary}/composition
+      ${REPO_ROOT}/test/page_golden ${includes} ${REPO_ROOT}/rust/crates/xp-ffi/include)
+    target_compile_definitions(ReaderRustStripReplay PRIVATE ${definitions})
+    target_compile_options(ReaderRustStripReplay PRIVATE -UNDEBUG -ffunction-sections -fdata-sections -fno-exceptions)
+    if(APPLE)
+      target_link_options(ReaderRustStripReplay PRIVATE -Wl,-dead_strip)
+    else()
+      target_link_options(ReaderRustStripReplay PRIVATE -Wl,--gc-sections)
+    endif()
+    target_link_libraries(ReaderRustStripReplay PRIVATE ${binary}/full-strips/${XP_FFI_HOST_TRIPLE}/release/libxp_ffi.a)
+  endfunction()
+  if(STRIP_PLAN AND XP_FFI_HOST_FEATURES MATCHES "(^|,)reader-strips(,|$)")
+    add_test(NAME ReaderRustStripReplay COMMAND ${Python3_EXECUTABLE}
+      ${REPO_ROOT}/test/page_golden/strip_replay.py $<TARGET_FILE:ReaderRustStripReplay>)
+  endif()
+  cmake_language(DEFER DIRECTORY ${CMAKE_SOURCE_DIR} CALL add_resource_pixel_composition)
+endif()

@@ -15,7 +15,12 @@ mod resources;
 mod result;
 mod app {
     pub(crate) use super::{abi, resources};
+    pub(crate) mod epub {
+        pub(crate) use crate::render_resources;
+    }
 }
+#[path = "../../rust/crates/xp-ffi/src/app/epub/test_support/resource_frame.rs"]
+mod composition;
 #[path = "../../rust/crates/xp-ffi/src/app/epub/render_resources.rs"]
 mod render_resources;
 

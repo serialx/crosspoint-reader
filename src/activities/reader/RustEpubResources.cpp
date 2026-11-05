@@ -30,6 +30,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <new>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -58,6 +59,7 @@
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
 #include "RustEpubPage.h"
+#include "RustEpubRenderPhysical.h"
 #include "SilentRestart.h"
 #include "activities/OwnedLegacyActivity.h"
 #include "activities/RenderLock.h"
@@ -82,6 +84,164 @@ const XpParaAllocator* paragraphAllocator();
 namespace {
 static_assert(sizeof(FontCacheManager::PrewarmScope) == 2 * sizeof(uintptr_t));
 static_assert(alignof(FontCacheManager::PrewarmScope) == alignof(uintptr_t));
+
+[[maybe_unused]] uint32_t physicalRenderQuery(GfxRenderer& renderer, uint8_t query) {
+  switch (query) {
+    case XP_EPUB_RENDER_IS_BW:
+      return renderer.getRenderMode() == GfxRenderer::BW;
+    case XP_EPUB_RENDER_IS_X3:
+      return gpio.deviceIsX3();
+    case XP_EPUB_RENDER_IS_UC8279:
+      return display.getController() == HalDisplay::Controller::UC8279;
+    case XP_EPUB_RENDER_ABSOLUTE_SUPPORTED:
+      return renderer.grayscaleCapabilities(HalDisplay::GrayscaleMode::Absolute).supported();
+    case XP_EPUB_RENDER_OVERLAY_CAPS:
+    case XP_EPUB_RENDER_ABSOLUTE_CAPS: {
+      const auto caps =
+          renderer.grayscaleCapabilities(query == XP_EPUB_RENDER_ABSOLUTE_CAPS ? HalDisplay::GrayscaleMode::Absolute
+                                                                               : HalDisplay::GrayscaleMode::Overlay);
+      return (caps.stripUploads ? 1u : 0u) | (caps.base == HalDisplay::GrayscaleBase::Combined ? 2u : 0u) |
+             (caps.asyncBase ? 4u : 0u);
+    }
+    case XP_EPUB_RENDER_STRIP_BOARD:
+      return display.getController() == HalDisplay::Controller::UC8253 ||
+             (BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4 &&
+              display.getController() == HalDisplay::Controller::SSD1677);
+    case XP_EPUB_RENDER_WIDTH_BYTES:
+      return renderer.getDisplayWidthBytes();
+    case XP_EPUB_RENDER_HEIGHT:
+      return renderer.getDisplayHeight();
+    case XP_EPUB_RENDER_FREE_HEAP:
+      return ESP.getFreeHeap();
+    case XP_EPUB_RENDER_MAX_BLOCK:
+      return ESP.getMaxAllocHeap();
+    case XP_EPUB_RENDER_MODE:
+      switch (renderer.getRenderMode()) {
+        case GfxRenderer::BW:
+          return 0;
+        case GfxRenderer::GRAYSCALE_LSB:
+          return 1;
+        case GfxRenderer::GRAYSCALE_MSB:
+          return 2;
+      }
+      break;
+    case XP_EPUB_RENDER_INVERTED:
+      return display.isInverted();
+    case XP_EPUB_RENDER_WIDTH:
+      return renderer.getDisplayWidth();
+  }
+  return 0;
+}
+
+[[maybe_unused]] uint32_t physicalRenderOperation(GfxRenderer& renderer, const XpEpubPhysicalOp& op) {
+  const auto refresh = op.mode == XP_UI_HALF ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH;
+  switch (op.kind) {
+    case XP_EPUB_RENDER_CLEAR:
+      renderer.clearScreen(op.value);
+      break;
+    case XP_EPUB_RENDER_DISPLAY:
+      renderer.displayBuffer(refresh);
+      break;
+    case XP_EPUB_RENDER_DISPLAY_ASYNC:
+      renderer.displayBufferAsync(refresh);
+      break;
+    case XP_EPUB_RENDER_GRAY_BASE:
+      renderer.displayGrayscaleBase(refresh);
+      break;
+    case XP_EPUB_RENDER_ABSOLUTE_BASE:
+      return renderer.displayGrayscaleBase(HalDisplay::GrayscaleMode::Absolute, refresh);
+    case XP_EPUB_RENDER_PRECONDITION:
+      renderer.preconditionGrayscale();
+      break;
+    case XP_EPUB_RENDER_MODE_SET:
+      switch (op.mode) {
+        case 0:
+          renderer.setRenderMode(GfxRenderer::BW);
+          break;
+        case 1:
+          renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
+          break;
+        case 2:
+          renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
+          break;
+      }
+      break;
+    case XP_EPUB_RENDER_STRIP_BEGIN:
+      renderer.beginStripTarget(op.buffer, op.y, op.rows);
+      break;
+    case XP_EPUB_RENDER_STRIP_END:
+      renderer.endStripTarget();
+      break;
+    case XP_EPUB_RENDER_WAIT:
+      renderer.waitRefreshComplete();
+      break;
+    case XP_EPUB_RENDER_WRITE_PLANE:
+      renderer.writeGrayscalePlaneStrip(op.mode == 1, op.buffer, op.y, op.rows);
+      break;
+    case XP_EPUB_RENDER_GRAY_DISPLAY:
+      renderer.displayGrayBuffer();
+      break;
+    case XP_EPUB_RENDER_CLEANUP:
+      renderer.cleanupGrayscaleWithFrameBuffer();
+      break;
+    case XP_EPUB_RENDER_STORE_BW:
+      return renderer.storeBwBuffer();
+    case XP_EPUB_RENDER_RESTORE_BW:
+      renderer.restoreBwBuffer();
+      break;
+    case XP_EPUB_RENDER_COPY_LSB:
+      renderer.copyGrayscaleLsbBuffers();
+      break;
+    case XP_EPUB_RENDER_COPY_MSB:
+      renderer.copyGrayscaleMsbBuffers();
+      break;
+    case XP_EPUB_RENDER_COPY_STATUS:
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+      renderer.copyStatusToStrip(static_cast<int32_t>(op.value), op.mode != 0);
+#endif
+      break;
+  }
+  return 0;
+}
+
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+[[maybe_unused]] void physicalRenderPlan(GfxRenderer& renderer, XpPagePlan* plan, XpPageRowBounds* bounds,
+                                         uint16_t count, uint8_t recording) {
+  renderer.usePagePlan(plan, bounds, count, recording != 0);
+}
+#endif
+[[maybe_unused]] void physicalImageWindow(uint8_t* bytes, uint32_t length) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  ImageBlock::setRenderReadWindow(bytes, length);
+#else
+  (void)bytes;
+  (void)length;
+#endif
+}
+[[maybe_unused]] uint8_t physicalDisplaySource(XpDisplaySource* source) {
+#if defined(XP_STRIP_RENDER) && XP_STRIP_RENDER
+  return display.setFrameSource(source);
+#else
+  (void)source;
+  return 0;
+#endif
+}
+[[maybe_unused]] uint8_t* physicalFramebuffer(GfxRenderer& renderer, uint32_t* bytes) {
+  *bytes = renderer.getBufferSize();
+  return renderer.getFrameBuffer();
+}
+[[maybe_unused]] uint8_t physicalPrewarmBegin(GfxRenderer& renderer, XpEpubPrewarm* storage) {
+  auto* cache = renderer.getFontCacheManager();
+  if (!cache) return 0;
+  new (storage) FontCacheManager::PrewarmScope(*cache);
+  return 1;
+}
+[[maybe_unused]] void physicalPrewarmFinish(XpEpubPrewarm* storage) {
+  std::launder(reinterpret_cast<FontCacheManager::PrewarmScope*>(storage))->endScanAndPrewarm();
+}
+[[maybe_unused]] void physicalPrewarmDrop(XpEpubPrewarm* storage) {
+  std::launder(reinterpret_cast<FontCacheManager::PrewarmScope*>(storage))->~PrewarmScope();
+}
 
 static const GfxRenderer& sectionRenderer(void* raw) { return *static_cast<GfxRenderer*>(raw); }
 [[maybe_unused]] int32_t textAdvance(void* context, int32_t font, XpParaSpan text, uint8_t style, int8_t tracking) {

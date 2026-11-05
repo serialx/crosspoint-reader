@@ -97,3 +97,14 @@ mod chapter_view;
 
 #[cfg(test)]
 mod list_adapter_tests;
+
+#[cfg(test)]
+mod chapter_scene_tests;
+
+#[cfg(test)]
+mod toolbar_adapter_tests;
+#[path = "../../rust/crates/xp-ffi/src/app/epub/children/toolbar_view.rs"]
+mod toolbar_view;
+
+#[cfg(test)]
+mod toolbar_scene_tests;

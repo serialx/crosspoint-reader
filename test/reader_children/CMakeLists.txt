@@ -75,10 +75,28 @@ add_executable(ReaderPercentDrawing ${READER_PERCENT_DRAWING} ${READER_DRAWING_S
   ${CMAKE_BINARY_DIR}/text_golden/instrumented/RustUiRenderer.cpp
   ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/src/FreeInkUI.cpp)
 target_include_directories(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,INCLUDE_DIRECTORIES>
-  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include ${REPO_ROOT}/freeink-sdk/libs/assets/Icons/include ${REPO_ROOT}/test/text_golden)
+  ${REPO_ROOT}/freeink-sdk/libs/ui/FreeInkUI/include ${REPO_ROOT}/freeink-sdk/libs/assets/Icons/include ${REPO_ROOT}/test/text_golden
+  ${REPO_ROOT}/test/ui_runtime ${REPO_ROOT}/lib/I18n)
 target_compile_definitions(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_DEFINITIONS>)
 target_compile_options(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,COMPILE_OPTIONS> -UNDEBUG)
 target_link_options(ReaderPercentDrawing PRIVATE $<TARGET_PROPERTY:TextGolden,LINK_OPTIONS>)
 target_link_libraries(ReaderPercentDrawing PRIVATE xp_ffi_host)
 add_dependencies(ReaderPercentDrawing TextGolden)
 add_test(NAME reader_percent_native_drawing COMMAND ReaderPercentDrawing)
+
+set(READER_CHAPTER_GUARD "${CMAKE_CURRENT_BINARY_DIR}/chapter_guard.cpp")
+add_custom_command(OUTPUT ${READER_CHAPTER_GUARD}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/prepare_chapters.py ${READER_CHAPTER_GUARD} guard
+  DEPENDS prepare_chapters.py chapter_guard.cpp.in chapter_native.cpp.in ../reader_lifecycle/book_cache_fixture.h
+    ../reader_lifecycle/test_popup_resource.py
+    ${REPO_ROOT}/src/activities/reader/RustEpubResources.cpp
+    ${REPO_ROOT}/lib/Epub/Epub/PackagePlatform.cpp
+  VERBATIM)
+add_executable(ReaderChapterGuard ${READER_CHAPTER_GUARD})
+target_link_libraries(ReaderChapterGuard PRIVATE xp_ffi_host)
+target_compile_definitions(ReaderChapterGuard PRIVATE XP_FFI_HOST_FAULT_INJECTION)
+target_compile_options(ReaderChapterGuard PRIVATE -UNDEBUG)
+target_include_directories(ReaderChapterGuard PRIVATE ${REPO_ROOT}/lib/Memory
+  ${REPO_ROOT}/test/reader_lifecycle ${REPO_ROOT}/test/ui_runtime
+  ${REPO_ROOT}/test/chapter_html_slim_parser/stubs)
+add_test(NAME reader_chapter_resource_guard COMMAND ReaderChapterGuard ${CMAKE_CURRENT_BINARY_DIR}/guard-book-fixture)

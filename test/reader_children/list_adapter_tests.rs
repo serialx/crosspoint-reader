@@ -146,7 +146,7 @@ unsafe extern "C" fn unused_qr(_: Rect, _: abi::Text) {
 unsafe extern "C" fn unused_icon(_: u32, _: Rect, _: Rect) {
     panic!("unused")
 }
-fn physical() -> Physical {
+pub(crate) fn physical() -> Physical {
     Physical {
         list_theme: theme,
         utility_layout: unused_layout,

@@ -1,0 +1,122 @@
+#include <xp_ui_reader_chrome.h>
+
+extern "C" {
+struct ChildDrawing {
+  void (*theme)(XpUiReaderTheme*, uint8_t);
+  void (*header)(XpUiRect, XpAppText, uint8_t);
+  void (*clear)();
+  void (*icon)(uint32_t, XpUiRect, XpUiRect);
+  void (*prewarm)(int32_t, const void*, XpAppText (*)(const void*, uint32_t), uint32_t);
+};
+void* xp_epub_test_child_book_open(const XpAppRuntime*, const XpAppResources*, const XpEpubLeaves*, XpAppText,
+                                  XpAppText, const ChildDrawing*);
+uint16_t xp_epub_test_child_book_render(void*, int32_t);
+uint16_t xp_epub_test_child_toolbar_render(void*, int32_t);
+void xp_epub_test_child_book_close(void*);
+}
+static int modelDepth, locks, unlocks, prewarms, clears, refreshes, buffersLive, emptyRows;
+static bool paintFails, destroying, toolbarPainting;
+static std::vector<std::string> lifetime;
+static void verifyText(XpAppText value) {
+  assert(resourceGuard && modelDepth == 0 && value.data[value.len] == 0);
+  std::string label(reinterpret_cast<const char*>(value.data), value.len);
+  if (label.empty()) { ++emptyRows; return; }
+  const int index = std::stoi(label);
+  std::string expected((index % 6 > 0 ? index % 6 - 1 : 0) * 2, ' ');
+  expected += std::to_string(index) + " 한국어 chapter — ";
+  for (int i = 0; i < index % 35; ++i) expected += "title ";
+  assert(label == expected);
+}
+int main(int argc, char** argv) {
+  assert(argc == 2);
+  const std::string root = argv[1];
+  std::filesystem::create_directories(root);
+  const auto bytes = fixture();
+  std::ofstream(root + "/book.bin", std::ios::binary).write(bytes.data(), bytes.size());
+  HalFileTest::readLimit = [](const char*, size_t position, size_t count) {
+    assert(resourceGuard && modelDepth == 0);
+    if (failRow >= 0 && position >= offsets[failRow] && position < (failRow + 1 == kCount ? endOffset : offsets[failRow + 1])) {
+      ++failedReads;
+      return size_t(0);
+    }
+    return count;
+  };
+  static const auto runtime = [] {
+    auto r = appTestRuntime();
+    r.render_lock = []() -> void* { assert(!resourceGuard && modelDepth == 0); resourceGuard = true; ++locks; return &locks; };
+    r.render_unlock = [](void* p) { assert(p == &locks && resourceGuard && modelDepth == 0); resourceGuard = false; ++unlocks; if (destroying) lifetime.push_back("unlock"); };
+    r.model_lock = [] { assert(modelDepth == 0); ++modelDepth; };
+    r.model_unlock = [] { assert(modelDepth == 1); --modelDepth; };
+    return r;
+  }();
+  static const auto leaves = [] {
+    auto l = cacheLeaves();
+    l.protection_open = [](XpAppText, XpAppTextSink, void*) -> void* { assert(resourceGuard); return nullptr; };
+    static auto close = l.file_close;
+    l.file_close = [](void* file) { assert(resourceGuard); if (destroying) { assert(buffersLive == 0); lifetime.push_back("book-file-close"); } return close(file); };
+    return l;
+  }();
+  static const auto resources = [] {
+    auto r = appTestResources();
+    r.translate = [](uint16_t) -> XpAppText { return {reinterpret_cast<const uint8_t*>("translation"), 11}; };
+    r.text_width = [](XpAppText text, int32_t, uint8_t) -> int32_t { assert(resourceGuard && modelDepth == 0); return text.len * 8; };
+    r.line_height = [](int32_t) -> int32_t { assert(resourceGuard && modelDepth == 0); return 24; };
+    r.text_box_height = [](XpAppText, XpAppTextLayout) -> int32_t { assert(resourceGuard && modelDepth == 0); return 24; };
+    r.text_draw = [](const XpUiCommand* c, XpUiRect, XpAppText label) { if (c->resource < XP_UI_READER_HEADER) verifyText(label); };
+    r.footer_draw = [](const XpAppText*) { assert(resourceGuard && modelDepth == 0); };
+    r.paint_scene = [](const XpUiScene* scene, const XpUiPaint* paint) -> uint8_t {
+      assert(resourceGuard && modelDepth == 0 && scene->command_count <= 128);
+      if (paintFails) return 0;
+      for (unsigned i = 0; i < scene->command_count; ++i) {
+        const auto& command = scene->commands[i];
+        if (command.kind == XP_UI_TEXT_HANDLE || command.kind == XP_UI_PAGE || command.kind == XP_UI_BITMAP) {
+          assert(paint->resource_valid(paint->context, command.resource, command.generation));
+          paint->resource(paint->context, nullptr, &command, {0,0,480,800});
+        }
+      }
+      return 1;
+    };
+    r.refresh = [](uint8_t) { assert(resourceGuard && modelDepth == 0); ++refreshes; };
+    r.buffer_allocate = [](uint8_t, size_t bytes) -> uint8_t* { assert(resourceGuard && modelDepth == 0); ++buffersLive; return static_cast<uint8_t*>(std::malloc(bytes)); };
+    r.buffer_release = [](uint8_t, uint8_t* p) { assert(resourceGuard && modelDepth == 0); --buffersLive; if (destroying) lifetime.push_back("child-commands-free"); std::free(p); };
+    return r;
+  }();
+  const ChildDrawing drawing{
+    [](XpUiReaderTheme* t, uint8_t toolbar) { assert(resourceGuard && toolbar == toolbarPainting); *t = {}; t->screen = {0,0,480,800}; t->safe = {0,0,480,760}; t->row_min = 48; t->row_gap = 4; t->row_inset = 8; t->row_padding = 4; t->header_height = 32; t->scroll_width = 3; },
+    [](XpUiRect, XpAppText, uint8_t list) { assert(resourceGuard && modelDepth == 0 && list); },
+    [] { assert(resourceGuard && modelDepth == 0); ++clears; },
+    [](uint32_t, XpUiRect, XpUiRect) { assert(resourceGuard && modelDepth == 0 && toolbarPainting); },
+    [](int32_t, const void* p, XpAppText (*read)(const void*,uint32_t), uint32_t count) {
+      assert(resourceGuard && modelDepth == 0 && count <= 24); ++prewarms;
+      for (uint32_t i = 0; i < count; ++i) verifyText(read(p,i));
+    }};
+  void* owner = xp_epub_test_child_book_open(&runtime, &resources, &leaves, text("/real-book.epub"), text(root), &drawing);
+  assert(owner && clears == 1 && !resourceGuard && locks == unlocks);
+  failRow = 31;
+  assert(xp_epub_test_child_book_render(owner, 31) > 0 && failedReads > 0 && emptyRows > 0);
+  failRow = -1;
+  const int warmed = prewarms;
+  assert(xp_epub_test_child_book_render(owner, 31) > 0 && prewarms == warmed);
+  const int refreshed = refreshes;
+  paintFails = true;
+  assert(xp_epub_test_child_book_render(owner, 31) == 0 && refreshes == refreshed);
+  paintFails = false;
+  failRow = 987;
+  const int failures = failedReads;
+  assert(xp_epub_test_child_book_render(owner, 999) > 0 && failedReads > failures);
+  failRow = -1;
+  assert(!resourceGuard && locks == unlocks);
+  toolbarPainting = true;
+  const int beforeToolbar = refreshes;
+  assert(xp_epub_test_child_toolbar_render(owner, 987) > 0);
+  assert(refreshes == beforeToolbar);
+  paintFails = true;
+  assert(xp_epub_test_child_toolbar_render(owner, 987) == 0);
+  paintFails = false;
+  destroying = true;
+  xp_epub_test_child_book_close(owner);
+  assert((lifetime == std::vector<std::string>{"child-commands-free", "child-commands-free", "book-file-close", "unlock"}));
+  assert(filesBorn == filesDied && xp_test_live_allocations() == 0 && cacheDepth == 0 && buffersLive == 0);
+  assert(!resourceGuard && locks == unlocks);
+  std::printf("Real parent/book/Chapters: guard %d pairs, prewarm %d, refresh %d, failures %d; no retained allocation\n", locks,prewarms,refreshes,failedReads);
+}

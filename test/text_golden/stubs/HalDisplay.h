@@ -34,7 +34,8 @@ class HalDisplay {
     return pixels.data();
   }
   void returnFrameBufferStorage() {}
-  bool isInverted() const { return false; }
+  bool inverted = false;
+  bool isInverted() const { return inverted; }
   bool supportsAsyncRefresh() const { return false; }
   GrayscaleCapabilities grayscaleCapabilities(GrayscaleMode) const { return {}; }
   void displayBuffer(RefreshMode, bool = false) {

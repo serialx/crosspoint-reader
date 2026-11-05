@@ -19,6 +19,10 @@ source = replace_once(source, '// ACTUAL_LEAVES', '\n'.join(
     'value.' + name + ' = ' + native_leaf(native, name) + ';' for name in (
         'file_open_read', 'file_read', 'file_close', 'file_seek', 'file_size', 'cache_lock', 'cache_unlock')))
 window = (ROOT / 'src/activities/reader/EpubReaderChapterSelectionActivity.cpp').read_text()
-source += (HERE / 'chapter_native.cpp.in').read_text().replace('@WINDOW@', definition(window,
-    'void EpubReaderChapterSelectionActivity::refreshTocWindow('))
+if len(sys.argv) > 2 and sys.argv[2] == 'guard':
+    source += (HERE / 'chapter_native.cpp.in').read_text().split('struct Epub {', 1)[0]
+    source += (HERE / 'chapter_guard.cpp.in').read_text()
+else:
+    source += (HERE / 'chapter_native.cpp.in').read_text().replace('@WINDOW@', definition(window,
+        'void EpubReaderChapterSelectionActivity::refreshTocWindow('))
 Path(sys.argv[1]).write_text(source)

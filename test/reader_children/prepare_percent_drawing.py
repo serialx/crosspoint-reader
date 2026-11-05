@@ -26,6 +26,10 @@ definitions = [
     definition(slider, "inline void buildSliderDialogScreen("),
     definition(read("src/activities/reader/EpubReaderPercentSelectionActivity.cpp"),
                "void EpubReaderPercentSelectionActivity::buildPercentScreen("),
+    *[definition(read("src/activities/reader/EpubReaderPercentSelectionActivity.cpp"), signature) for signature in (
+        "void EpubReaderPercentSelectionActivity::setPercent(",
+        "void EpubReaderPercentSelectionActivity::onSliderEvent(",
+    )],
     "XpUiUtilityLayout sampleLayout(GfxRenderer& renderer, const MappedInputManager& mappedInput) {\n"
     + sample + "}",
 ]

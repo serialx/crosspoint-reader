@@ -98,9 +98,12 @@ impl Qr {
         &self,
         services: &'static abi::Resources,
         physical: &Physical,
-        layout: utility::Layout,
+        sample: impl FnOnce(&mut utility::Layout),
     ) -> Result<u16, Error> {
-        let result = unsafe { self.draw(services, physical, layout) };
+        let frame = unsafe { &mut *self.frame.get() };
+        frame.layout = utility::Layout::default();
+        sample(&mut frame.layout);
+        let result = unsafe { self.draw(services, physical) };
         self.model.with(|model| {
             model.failed = result.is_err();
             if model.failed {
@@ -111,15 +114,14 @@ impl Qr {
         result
     }
 
+    #[inline(never)]
     unsafe fn draw(
         &self,
         services: &'static abi::Resources,
         physical: &Physical,
-        layout: utility::Layout,
     ) -> Result<u16, Error> {
         let snapshot = self.model.with(|model| model.state);
         let frame = unsafe { &mut *self.frame.get() };
-        frame.layout = layout;
         if !frame.commands.recover(services) {
             return Err(Error::Capacity);
         }

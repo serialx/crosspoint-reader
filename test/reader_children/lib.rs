@@ -16,6 +16,8 @@ mod result;
 #[path = "../../rust/crates/xp-ffi/src/app/test_resources.rs"]
 mod test_resources;
 mod app {
+    #[cfg(test)]
+    pub(crate) use super::test_resources;
     pub(crate) use super::{abi, resources, stable_owner, sync};
 }
 #[path = "../../rust/crates/xp-ffi/src/app/epub/children/commands.rs"]

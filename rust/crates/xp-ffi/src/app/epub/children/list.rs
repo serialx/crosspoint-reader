@@ -54,12 +54,55 @@ impl Drawing<'_> {
 impl ListFrame {
     /// Exclusive render scratch; rows and callbacks remain borrowed for this paint.
     #[allow(clippy::too_many_arguments)]
+    #[inline(never)]
     pub(super) unsafe fn paint(
         &mut self,
         snapshot: reader_chrome::ListModel,
         kind: list::Screen,
         services: &'static abi::Resources,
         physical: &Physical,
+        rows: &mut dyn Rows,
+        count: u16,
+        capacity: u16,
+    ) -> Result<u16, Error> {
+        let command_count =
+            unsafe { self.build_scene(snapshot, kind, services, rows, count, capacity) }?;
+        let view = SceneView {
+            commands: self.commands.as_mut_slice().as_ptr(),
+            text: core::ptr::null(),
+            interactions: core::ptr::null(),
+            generation: 1,
+            command_count,
+            text_len: 0,
+            interaction_count: 0,
+            refresh: Refresh::None as u8,
+            reserved: 0,
+        };
+        let mut drawing = Drawing {
+            rows,
+            services,
+            physical,
+        };
+        let paint = Paint {
+            context: (&mut drawing as *mut Drawing<'_>).cast(),
+            clear: None,
+            text: None,
+            resource_valid: Some(Drawing::valid),
+            resource: Some(Drawing::paint),
+        };
+        if unsafe { (services.paint_scene)(&view, &paint) } == 0 {
+            return Err(Error::Invalid);
+        }
+        Ok(view.command_count)
+    }
+
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)]
+    unsafe fn build_scene(
+        &mut self,
+        snapshot: reader_chrome::ListModel,
+        kind: list::Screen,
+        services: &'static abi::Resources,
         rows: &mut dyn Rows,
         count: u16,
         capacity: u16,
@@ -94,33 +137,7 @@ impl ListFrame {
                     continue;
                 }
                 let scene = arena.finish(Refresh::Fast, 1)?;
-                let view = SceneView {
-                    commands: scene.commands.as_ptr(),
-                    text: core::ptr::null(),
-                    interactions: core::ptr::null(),
-                    generation: 1,
-                    command_count: scene.commands.len() as u16,
-                    text_len: 0,
-                    interaction_count: 0,
-                    refresh: Refresh::None as u8,
-                    reserved: 0,
-                };
-                let mut drawing = Drawing {
-                    rows,
-                    services,
-                    physical,
-                };
-                let paint = Paint {
-                    context: (&mut drawing as *mut Drawing<'_>).cast(),
-                    clear: None,
-                    text: None,
-                    resource_valid: Some(Drawing::valid),
-                    resource: Some(Drawing::paint),
-                };
-                if unsafe { (services.paint_scene)(&view, &paint) } == 0 {
-                    return Err(Error::Invalid);
-                }
-                return Ok(view.command_count);
+                return Ok(scene.commands.len() as u16);
             }
             return Err(Error::Invalid);
         }

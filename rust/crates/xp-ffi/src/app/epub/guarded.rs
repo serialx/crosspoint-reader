@@ -328,13 +328,12 @@ impl EpubSession {
         access: &ResourceAccess<'_>,
         value: ToolbarSlot,
     ) -> ToolbarTarget {
-        let target = value.target();
         unsafe {
             let slot = &mut (*self.guarded_ptr(access)).toolbar;
             assert!(slot.is_none());
             *slot = Some(value);
+            slot.as_ref().expect("installed toolbar").target()
         }
-        target
     }
 
     pub(super) fn loop_overlay_popup(&self) -> Option<NonNull<c_void>> {

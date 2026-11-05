@@ -165,7 +165,7 @@ pub unsafe extern "C" fn xp_epub_test_percent_render(
     unsafe extern "C" fn overflow(_: u8, _: abi::Text, _: abi::Text) {
         panic!("Percent command bound exceeded")
     }
-    unsafe { (&*raw.cast::<Percent>()).render(services, overflow, *layout) }.unwrap()
+    unsafe { (&*raw.cast::<Percent>()).render(services, overflow, |out| *out = *layout) }.unwrap()
 }
 
 #[no_mangle]

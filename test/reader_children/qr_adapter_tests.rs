@@ -152,7 +152,7 @@ fn qr_borrows_moved_payload_and_reuses_only_four_commands() {
     });
     for _ in 0..2 {
         assert_eq!(
-            unsafe { owner.render(services(), &physical(), geometry()) }.unwrap(),
+            unsafe { owner.render(services(), &physical(), |out| *out = geometry()) }.unwrap(),
             4
         );
     }
@@ -180,8 +180,8 @@ fn qr_allocation_and_paint_failure_do_not_refresh_or_copy_payload() {
             ..Default::default()
         }
     });
-    assert!(unsafe { owner.render(services(), &physical(), geometry()) }.is_err());
-    assert!(unsafe { owner.render(services(), &physical(), geometry()) }.is_err());
+    assert!(unsafe { owner.render(services(), &physical(), |out| *out = geometry()) }.is_err());
+    assert!(unsafe { owner.render(services(), &physical(), |out| *out = geometry()) }.is_err());
     RECORD.with(|r| assert!(r.borrow().calls.is_empty()));
     drop(owner);
     assert_eq!(
@@ -206,7 +206,7 @@ fn failed_qr_paint_suppresses_old_release_after_recovery() {
             ..Default::default()
         }
     });
-    assert!(unsafe { owner.render(services(), &physical(), geometry()) }.is_err());
+    assert!(unsafe { owner.render(services(), &physical(), |out| *out = geometry()) }.is_err());
     assert!(
         owner
             .input(Input {
@@ -232,7 +232,7 @@ fn failed_qr_paint_suppresses_old_release_after_recovery() {
         ..Default::default()
     });
     RECORD.with(|r| r.borrow_mut().fail = false);
-    assert!(unsafe { owner.render(services(), &physical(), geometry()) }.is_ok());
+    assert!(unsafe { owner.render(services(), &physical(), |out| *out = geometry()) }.is_ok());
     assert_eq!(
         owner
             .input(Input {

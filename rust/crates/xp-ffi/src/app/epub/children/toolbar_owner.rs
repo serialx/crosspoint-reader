@@ -2,7 +2,7 @@ extern crate alloc;
 
 use super::{owned::Toolbar, toolbar_view::Content};
 use crate::app::epub::{abi, state::Overlay, EpubSession, ResourceAccess};
-use alloc::boxed::Box;
+use crate::app::stable_owner::StableOwner;
 use core::{
     ffi::{c_void, CStr},
     mem::MaybeUninit,
@@ -15,7 +15,7 @@ use xp_ui::{
 
 pub(in crate::app::epub) enum ToolbarSlot {
     Legacy(NonNull<c_void>),
-    Owned(Box<Toolbar>),
+    Owned(StableOwner<Toolbar>),
 }
 #[derive(Clone, Copy)]
 pub(in crate::app::epub) enum ToolbarTarget {
@@ -25,7 +25,7 @@ pub(in crate::app::epub) enum ToolbarTarget {
 impl ToolbarSlot {
     pub(in crate::app::epub) fn open(parent: &EpubSession) -> Option<Self> {
         if parent.children_enabled() {
-            Toolbar::try_new(parent.runtime).map(Self::Owned)
+            Toolbar::try_new(parent.runtime).map(|owner| Self::Owned(owner.into()))
         } else {
             NonNull::new(unsafe { (parent.leaves.toolbar_open)() }).map(Self::Legacy)
         }
@@ -33,7 +33,7 @@ impl ToolbarSlot {
     pub(in crate::app::epub) fn target(&self) -> ToolbarTarget {
         match self {
             Self::Legacy(p) => ToolbarTarget::Legacy(*p),
-            Self::Owned(owner) => ToolbarTarget::Owned(NonNull::from(owner.as_ref())),
+            Self::Owned(owner) => ToolbarTarget::Owned(owner.pointer()),
         }
     }
     pub(in crate::app::epub) fn close(self, parent: &EpubSession) {
@@ -172,3 +172,6 @@ impl EpubSession {
             .is_ok()
     }
 }
+
+#[cfg(test)]
+mod tests;

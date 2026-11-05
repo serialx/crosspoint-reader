@@ -1,4 +1,7 @@
-use super::{owned::Percent, physical::Fonts};
+use super::{
+    owned::{Fixed, Percent, PercentLabels},
+    physical::Fonts,
+};
 use crate::app::abi;
 use core::{ffi::c_void, fmt::Write};
 use xp_core::{glyph::GlyphTarget, i18n::ids::*};
@@ -9,10 +12,6 @@ use xp_ui::{
     utility::{self, Texts},
 };
 
-pub(super) struct Fixed<const N: usize> {
-    bytes: [u8; N],
-    len: usize,
-}
 impl<const N: usize> Fixed<N> {
     pub(super) fn new() -> Self {
         Self {
@@ -24,6 +23,7 @@ impl<const N: usize> Fixed<N> {
         let count = bytes.len().min(N - 1 - self.len);
         self.bytes[self.len..self.len + count].copy_from_slice(&bytes[..count]);
         self.len += count;
+        self.bytes[self.len] = 0;
     }
     pub(super) fn wire(&self) -> abi::Text {
         abi::Text::from_terminated(&self.bytes[..=self.len])
@@ -36,41 +36,37 @@ impl<const N: usize> core::fmt::Write for Fixed<N> {
     }
 }
 
-// Same bounded snprintf storage as the native dialog; no per-frame allocation.
-struct Labels<'a> {
-    services: &'a abi::Resources,
-    readout: Fixed<16>,
-    front: Fixed<64>,
-    side: Fixed<64>,
-}
-impl<'a> Labels<'a> {
-    fn new(services: &'a abi::Resources, value: i32) -> Self {
-        let mut labels = Self {
-            services,
-            readout: Fixed::new(),
-            front: Fixed::new(),
-            side: Fixed::new(),
-        };
-        let _ = write!(labels.readout, "{value}%");
+// Same bounded snprintf storage as the dialog, reused in the owner allocation.
+impl PercentLabels {
+    fn update(&mut self, services: &abi::Resources, value: i32) {
+        self.readout.len = 0;
+        self.front.len = 0;
+        self.side.len = 0;
+        let _ = write!(self.readout, "{value}%");
         for (buffer, key, suffix) in [
-            (&mut labels.front, STR_STEP_HINT_FRONT, &b" 1%"[..]),
-            (&mut labels.side, STR_STEP_HINT_SIDE, &b" 10%"[..]),
+            (&mut self.front, STR_STEP_HINT_FRONT, &b" 1%"[..]),
+            (&mut self.side, STR_STEP_HINT_SIDE, &b" 10%"[..]),
         ] {
             let text = unsafe { (services.translate)(key) };
             buffer.append(unsafe { text.bytes() }.unwrap_or(&[]));
             buffer.append(suffix);
         }
-        labels
     }
+}
+struct Labels<'a> {
+    services: &'a abi::Resources,
+    storage: &'a PercentLabels,
+}
+impl Labels<'_> {
     fn text(&self, handle: u32) -> Option<abi::Text> {
         Some(match handle {
             utility::TITLE => unsafe { (self.services.translate)(STR_GO_TO_PERCENT) },
             utility::CONFIRM => unsafe { (self.services.translate)(STR_CONFIRM) },
-            utility::READOUT => self.readout.wire(),
+            utility::READOUT => self.storage.readout.wire(),
             utility::MINIMUM => abi::Text::from_terminated(b"0%\0"),
             utility::MAXIMUM => abi::Text::from_terminated(b"100%\0"),
-            utility::HINT1 => self.front.wire(),
-            utility::HINT2 => self.side.wire(),
+            utility::HINT1 => self.storage.front.wire(),
+            utility::HINT2 => self.storage.side.wire(),
             utility::MINUS => abi::Text::from_terminated(b"-\0"),
             utility::PLUS => abi::Text::from_terminated(b"+\0"),
             _ => return None,
@@ -141,9 +137,12 @@ impl Percent {
         &self,
         services: &abi::Resources,
         log: unsafe extern "C" fn(u8, abi::Text, abi::Text),
-        layout: utility::Layout,
+        sample: impl FnOnce(&mut utility::Layout),
     ) -> Result<u16, Error> {
-        let result = unsafe { self.paint(services, log, layout) };
+        let frame = unsafe { &mut *self.frame.get() };
+        frame.layout = utility::Layout::default();
+        sample(&mut frame.layout);
+        let result = unsafe { self.paint(services, log) };
         if result.is_err() {
             self.model.with(|model| model.controls = None);
         }
@@ -155,12 +154,52 @@ impl Percent {
         &self,
         services: &abi::Resources,
         log: unsafe extern "C" fn(u8, abi::Text, abi::Text),
-        layout: utility::Layout,
     ) -> Result<u16, Error> {
+        let (count, refresh) = unsafe { self.build_scene(services, log) }?;
+        let frame = unsafe { &*self.frame.get() };
+        let mut labels = Labels {
+            services,
+            storage: &frame.labels,
+        };
+        let view = SceneView {
+            commands: frame.commands.as_ptr(),
+            text: core::ptr::null(),
+            interactions: core::ptr::null(),
+            generation: 1,
+            command_count: count,
+            text_len: 0,
+            interaction_count: 0,
+            refresh: Refresh::None as u8,
+            reserved: 0,
+        };
+        let paint = Paint {
+            context: (&mut labels as *mut Labels<'_>).cast(),
+            clear: None,
+            text: None,
+            resource_valid: Some(Labels::valid),
+            resource: Some(Labels::paint),
+        };
+        if unsafe { (services.paint_scene)(&view, &paint) } == 0 {
+            return Err(Error::Invalid);
+        }
+        self.publish(frame.controls);
+        unsafe { (services.refresh)(refresh as u8) };
+        Ok(count)
+    }
+
+    #[inline(never)]
+    unsafe fn build_scene(
+        &self,
+        services: &abi::Resources,
+        log: unsafe extern "C" fn(u8, abi::Text, abi::Text),
+    ) -> Result<(u16, Refresh), Error> {
         let snapshot = self.begin_render();
         let frame = unsafe { &mut *self.frame.get() };
-        frame.layout = layout;
-        let mut labels = Labels::new(services, snapshot.value());
+        frame.labels.update(services, snapshot.value());
+        let labels = Labels {
+            services,
+            storage: &frame.labels,
+        };
         let mut state = snapshot.view_state(&frame.controls);
         // Normally contact order is unchanged. Rebuild only if the new generation
         // maps the SDK's active index to a different action/value.
@@ -176,10 +215,8 @@ impl Percent {
                 &labels,
                 Default::default(),
             )?;
-            let scene = arena.finish_reporting_overflow(refresh, 1, |count| {
-                let mut message = Fixed::<64>::new();
-                let _ = write!(message, "Percent scene dropped {count} drawing commands");
-                unsafe { log(1, abi::Text::from_terminated(b"RUI\0"), message.wire()) };
+            let scene = arena.finish_reporting_overflow(refresh, 1, |count| unsafe {
+                report_overflow(log, count)
             })?;
             let count = scene.commands.len() as u16;
             let next = snapshot.view_state(&frame.controls);
@@ -188,31 +225,15 @@ impl Percent {
                 state = next;
                 continue;
             }
-            let view = SceneView {
-                commands: frame.commands.as_ptr(),
-                text: core::ptr::null(),
-                interactions: core::ptr::null(),
-                generation: 1,
-                command_count: count,
-                text_len: 0,
-                interaction_count: 0,
-                refresh: Refresh::None as u8,
-                reserved: 0,
-            };
-            let paint = Paint {
-                context: (&mut labels as *mut Labels<'_>).cast(),
-                clear: None,
-                text: None,
-                resource_valid: Some(Labels::valid),
-                resource: Some(Labels::paint),
-            };
-            if unsafe { (services.paint_scene)(&view, &paint) } == 0 {
-                return Err(Error::Invalid);
-            }
-            self.publish(frame.controls);
-            unsafe { (services.refresh)(refresh as u8) };
-            return Ok(count);
+            return Ok((count, refresh));
         }
         Err(Error::Invalid)
     }
+}
+
+#[inline(never)]
+unsafe fn report_overflow(log: unsafe extern "C" fn(u8, abi::Text, abi::Text), count: u16) {
+    let mut message = Fixed::<64>::new();
+    let _ = write!(message, "Percent scene dropped {count} drawing commands");
+    unsafe { log(1, abi::Text::from_terminated(b"RUI\0"), message.wire()) };
 }

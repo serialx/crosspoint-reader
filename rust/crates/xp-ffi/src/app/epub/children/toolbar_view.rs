@@ -301,3 +301,7 @@ impl Toolbar {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "toolbar_view/tests.rs"]
+mod tests;

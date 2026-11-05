@@ -1,7 +1,7 @@
 use super::{
     menu::{Flags, Items},
+    owned::Fixed,
     owned::{Chapters, Menu, Percent, Qr, ReaderChild},
-    percent::Fixed,
 };
 use crate::app::{
     epub::{abi, state::ChildIntent, EpubSession},

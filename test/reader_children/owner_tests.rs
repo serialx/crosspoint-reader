@@ -185,28 +185,6 @@ fn chapter_owner_moves_result_once_before_destruction() {
 }
 
 #[test]
-fn toolbar_window_is_bounded_reuses_text_and_never_exposes_failed_fill() {
-    let owner = owned::Toolbar::try_new(runtime()).unwrap();
-    let frame = unsafe { &mut *owner.frame.get() };
-    assert!(frame.fill_window(50, 16, 1000, |index, row| {
-        row.toggle = true;
-        row.checked = index % 2 == 0;
-        row.label.assign(b"retained label").is_ok() && row.value.assign(b"retained value").is_ok()
-    }));
-    let pointer = frame.row(50).unwrap().label.bytes().as_ptr();
-    assert!(frame.fill_window(66, 16, 1000, |_, row| row.label.assign(b"short").is_ok()));
-    assert_eq!(frame.row(66).unwrap().label.bytes().as_ptr(), pointer);
-    assert!(frame.row(65).is_none() && frame.row(82).is_none());
-    assert!(!frame.fill_window(82, 17, 1000, |_, _| panic!("oversized window")));
-    assert_eq!(frame.count, 0);
-    assert!(!frame.fill_window(82, 16, 1000, |index, row| index != 89
-        && row.label.assign(b"next").is_ok()));
-    assert_eq!(frame.count, 0);
-    assert!(frame.row(82).is_none());
-    assert!(!frame.fill_window(999, 2, 1000, |_, _| panic!("past TOC")));
-}
-
-#[test]
 fn toolbar_publication_cannot_overwrite_navigation_during_render() {
     let owner = owned::Toolbar::try_new(runtime()).unwrap();
     let mut painted = owner.model.with(|m| m.navigation);

@@ -18,6 +18,7 @@ struct Record {
     footer: Vec<Vec<u8>>,
     refreshes: usize,
     commands: usize,
+    short_hints: bool,
 }
 thread_local! { static RECORD: RefCell<Record> = RefCell::new(Record::default()); }
 unsafe extern "C" fn translate(key: u16) -> abi::Text {
@@ -26,8 +27,20 @@ unsafe extern "C" fn translate(key: u16) -> abi::Text {
         STR_CONFIRM => b"Confirm\0",
         STR_BACK => b"Back\0",
         STR_SELECT => b"Select\0",
-        STR_STEP_HINT_FRONT => b"Front buttons:\0",
-        STR_STEP_HINT_SIDE => b"Side buttons:\0",
+        STR_STEP_HINT_FRONT => {
+            if RECORD.with(|r| r.borrow().short_hints) {
+                b"F\0"
+            } else {
+                b"Front buttons:\0"
+            }
+        }
+        STR_STEP_HINT_SIDE => {
+            if RECORD.with(|r| r.borrow().short_hints) {
+                b"S\0"
+            } else {
+                b"Side buttons:\0"
+            }
+        }
         _ => panic!("unexpected translation {key}"),
     })
 }
@@ -146,7 +159,9 @@ fn percent_adapter_paints_terminated_labels_and_preserves_input_during_paint() {
         }
     });
     unsafe {
-        owner.render(services(), log, layout()).unwrap();
+        owner
+            .render(services(), log, |out| *out = layout())
+            .unwrap();
     }
     RECORD.with(|r| {
         let r = r.borrow();
@@ -192,10 +207,12 @@ fn percent_adapter_rejects_failed_paint_without_publishing_or_refreshing() {
     let owner = Percent::try_new(owner_tests::runtime(), 0).unwrap();
     RECORD.with(|r| *r.borrow_mut() = Record::default());
     unsafe {
-        owner.render(services(), log, layout()).unwrap();
+        owner
+            .render(services(), log, |out| *out = layout())
+            .unwrap();
     }
     RECORD.with(|r| r.borrow_mut().fail = true);
-    assert!(unsafe { owner.render(services(), log, layout()) }.is_err());
+    assert!(unsafe { owner.render(services(), log, |out| *out = layout()) }.is_err());
     assert!(owner.model.with(|m| m.controls.is_none()));
     RECORD.with(|r| assert_eq!(r.borrow().refreshes, 1));
     assert_eq!(
@@ -258,9 +275,52 @@ fn percent_adapter_resolves_contact_index_in_the_new_generation() {
     );
     RECORD.with(|r| *r.borrow_mut() = Record::default());
     unsafe {
-        owner.render(services(), log, layout()).unwrap();
+        owner
+            .render(services(), log, |out| *out = layout())
+            .unwrap();
     }
     // In the new dialog generation index 1 is minus, even though the old
     // generation's index 1 was the slider. SDK highlights the new index.
     RECORD.with(|r| assert!(r.borrow().text_paints.contains(&(b"-".to_vec(), 1))));
+}
+
+#[test]
+fn percent_reuses_owner_labels_and_terminates_shorter_values() {
+    let owner = Percent::try_new(owner_tests::runtime(), 100).unwrap();
+    RECORD.with(|r| *r.borrow_mut() = Record::default());
+    let backing = unsafe { &(*owner.frame.get()).labels as *const _ };
+    unsafe {
+        owner
+            .render(services(), log, |out| *out = layout())
+            .unwrap();
+    }
+    RECORD.with(|r| assert!(r.borrow().labels.iter().any(|label| label == b"100%")));
+    owner.input(
+        model::Input {
+            pressed: model::RIGHT,
+            ..Default::default()
+        },
+        true,
+    );
+    RECORD.with(|r| {
+        *r.borrow_mut() = Record {
+            short_hints: true,
+            ..Default::default()
+        }
+    });
+    unsafe {
+        owner
+            .render(services(), log, |out| {
+                *out = layout();
+                out.touch = 0;
+            })
+            .unwrap();
+    }
+    assert_eq!(backing, unsafe { &(*owner.frame.get()).labels as *const _ });
+    RECORD.with(|r| {
+        let r = r.borrow();
+        assert!(r.labels.iter().any(|label| label == b"1%"));
+        assert!(r.labels.iter().any(|label| label == b"F 1%"));
+        assert!(r.labels.iter().any(|label| label == b"S 10%"));
+    });
 }

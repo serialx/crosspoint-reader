@@ -15,7 +15,6 @@ use xp_ui::{
     model::{EffectKind, Input},
     reader::percent::Outcome,
     reader_chrome::list::Screen,
-    utility,
 };
 
 impl ChildTarget {
@@ -90,6 +89,7 @@ impl ChildTarget {
     }
 
     /// App's native render token protects the child and retained parent.
+    #[inline(never)]
     pub(in crate::app) unsafe fn render(self, parent: &EpubSession, physical: &Physical) -> bool {
         let access = unsafe { parent.borrowed_resources() };
         let painted = match self {
@@ -123,23 +123,20 @@ impl ChildTarget {
                     .render(parent.resources, physical, &mut GuardedBook(&access))
             }
             .is_ok(),
-            Self::Percent(owner) => {
-                let owner = unsafe { owner.as_ref() };
-                let mut layout = utility::Layout::default();
-                unsafe {
-                    (physical.utility_layout)(&mut layout);
-                    owner.render(parent.resources, parent.leaves.log, layout)
-                }
-                .is_ok()
+            Self::Percent(owner) => unsafe {
+                owner
+                    .as_ref()
+                    .render(parent.resources, parent.leaves.log, |layout| {
+                        (physical.utility_layout)(layout);
+                    })
             }
-            Self::Qr(owner) => {
-                let mut layout = utility::Layout::default();
-                unsafe {
-                    (physical.utility_layout)(&mut layout);
-                    owner.as_ref().render(parent.resources, physical, layout)
-                }
-                .is_ok()
+            .is_ok(),
+            Self::Qr(owner) => unsafe {
+                owner.as_ref().render(parent.resources, physical, |layout| {
+                    (physical.utility_layout)(layout);
+                })
             }
+            .is_ok(),
         };
         painted
     }

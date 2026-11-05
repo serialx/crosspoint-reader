@@ -198,8 +198,18 @@ pub(super) struct PercentPublication {
     pub(super) controls: Option<percent::Controls>,
     pub(super) edge_buttons: bool,
 }
+pub(super) struct Fixed<const N: usize> {
+    pub(super) bytes: [u8; N],
+    pub(super) len: usize,
+}
+pub(super) struct PercentLabels {
+    pub(super) readout: Fixed<16>,
+    pub(super) front: Fixed<64>,
+    pub(super) side: Fixed<64>,
+}
 pub(super) struct PercentFrame {
     pub(super) commands: [Command; 18],
+    pub(super) labels: PercentLabels,
     pub(super) controls: percent::Controls,
     pub(super) layout: utility::Layout,
 }
@@ -249,6 +259,8 @@ impl Percent {
                         .add(index)
                         .write(Command::default());
                 }
+                // The backing arrays and lengths are all valid when zeroed.
+                ptr::addr_of_mut!((*frame).labels).write_bytes(0, 1);
                 ptr::addr_of_mut!((*frame).controls).write(percent::Controls::default());
                 ptr::addr_of_mut!((*frame).layout).write(utility::Layout::default());
                 ptr::addr_of_mut!((*out).result).write(UnsafeCell::new(None));
@@ -321,33 +333,6 @@ pub(super) struct ToolbarFrame {
     pub(super) page_indicator: [u8; 16],
     pub(super) next: ListState,
     pub(super) next_hits: hits::Layout,
-}
-impl ToolbarFrame {
-    pub(super) fn fill_window(
-        &mut self,
-        first: u16,
-        count: u16,
-        total: i32,
-        mut fill: impl FnMut(i32, &mut ToolbarRow) -> bool,
-    ) -> bool {
-        self.count = 0;
-        if usize::from(count) > self.rows.len() || i32::from(first) + i32::from(count) > total {
-            return false;
-        }
-        for index in 0..usize::from(count) {
-            if !fill(i32::from(first) + index as i32, &mut self.rows[index]) {
-                return false;
-            }
-        }
-        self.first = first;
-        self.count = count;
-        true
-    }
-
-    pub(super) fn row(&self, index: u16) -> Option<&ToolbarRow> {
-        let offset = index.checked_sub(self.first)?;
-        (offset < self.count).then(|| &self.rows[usize::from(offset)])
-    }
 }
 pub(crate) struct Toolbar {
     pub(super) model: ModelCell<ToolbarPublication>,

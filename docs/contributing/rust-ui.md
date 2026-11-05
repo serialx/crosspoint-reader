@@ -220,8 +220,8 @@ including file implementations and stores, font/display services and toolbar
 widgets. Rust owns the inline render frame, prewarm storage, plane/scratch buffers
 and optional strip storage, including source/plan loans and cleanup. Physical
 leaves perform native font, paint and display operations. In `XpEpubPhysicalQuery`,
-`WIDTH` is the panel width in pixels; `WIDTH_BYTES` is the padded row stride in
-bytes. See
+`WIDTH` is the panel width in pixels; `WIDTH_BYTES` is the row stride in bytes
+(equal to width / 8 on current panels). See
 [Reader Page ownership](rust.md#reader-page-ownership)
 for Page lifetimes and [Reader book ownership](rust.md#reader-book-ownership)
 for facade loans, cache locking and teardown. `ReaderActivity` and
